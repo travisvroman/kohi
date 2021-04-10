@@ -194,14 +194,13 @@ b8 platform_pump_messages(platform_state* plat_state) {
             case XCB_BUTTON_PRESS:
             case XCB_BUTTON_RELEASE: {
                 // TODO: Mouse button presses and releases
-            }
-            case XCB_MOTION_NOTIFY:
+            } break;
+            case XCB_MOTION_NOTIFY: {
                 // TODO: mouse movement
-                break;
-
+            } break;
             case XCB_CONFIGURE_NOTIFY: {
                 // TODO: Resizing
-            }
+            } break;
 
             case XCB_CLIENT_MESSAGE: {
                 cm = (xcb_client_message_event_t*)event;
