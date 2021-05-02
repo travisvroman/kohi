@@ -59,6 +59,8 @@
         "windowsx.h": "c",
         "vulkan_platform.h": "c",
         "renderer_frontend.h": "c",
-        "iosfwd": "c"
+        "iosfwd": "c",
+        "tuple": "cpp",
+        "utility": "cpp"
     }
 }
