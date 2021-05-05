@@ -6,6 +6,7 @@
 #include "platform/platform.h"
 #include "core/kmemory.h"
 #include "core/event.h"
+#include "core/input.h"
 
 typedef struct application_state {
     game* game_inst;
@@ -30,6 +31,7 @@ b8 application_create(game* game_inst) {
 
     // Initialize subsystems.
     initialize_logging();
+    input_initialize();
 
     // TODO: Remove this
     KFATAL("A test message: %f", 3.14f);
@@ -91,12 +93,19 @@ b8 application_run() {
                 app_state.is_running = FALSE;
                 break;
             }
+
+            // NOTE: Input update/state copying should always be handled
+            // after any input should be recorded; I.E. before this line.
+            // As a safety, input is the last thing to be updated before
+            // this frame ends.
+            input_update(0);
         }
     }
 
     app_state.is_running = FALSE;
 
     event_shutdown();
+    input_shutdown();
 
     platform_shutdown(&app_state.platform);
 
