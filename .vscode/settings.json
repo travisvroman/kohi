@@ -62,6 +62,7 @@
         "iosfwd": "c",
         "tuple": "cpp",
         "utility": "cpp",
-        "kmemory.h": "c"
+        "kmemory.h": "c",
+        "defines.h": "c"
     }
 }
