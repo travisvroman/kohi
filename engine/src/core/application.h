@@ -26,3 +26,5 @@ typedef struct application_config {
 KAPI b8 application_create(struct game* game_inst);
 
 KAPI b8 application_run();
+
+void application_get_framebuffer_size(u32* width, u32* height);
