@@ -177,12 +177,14 @@ void vulkan_renderer_backend_shutdown(renderer_backend* backend) {
         context.surface = 0;
     }
 
+#if _DEBUG
     KDEBUG("Destroying Vulkan debugger...");
     if (context.debug_messenger) {
         PFN_vkDestroyDebugUtilsMessengerEXT func =
             (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(context.instance, "vkDestroyDebugUtilsMessengerEXT");
         func(context.instance, context.debug_messenger, context.allocator);
     }
+#endif
 
     KDEBUG("Destroying Vulkan instance...");
     vkDestroyInstance(context.instance, context.allocator);
