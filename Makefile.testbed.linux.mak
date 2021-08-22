@@ -4,7 +4,7 @@ OBJ_DIR := obj
 
 ASSEMBLY := testbed
 EXTENSION := 
-COMPILER_FLAGS := -g -fdeclspec -fPIC
+COMPILER_FLAGS := -g -MD -fdeclspec -fPIC
 INCLUDE_FLAGS := -Iengine/src -Itestbed\src 
 LINKER_FLAGS := -L./$(BUILD_DIR)/ -lengine -Wl,-rpath,.
 DEFINES := -D_DEBUG -DKIMPORT
@@ -42,3 +42,4 @@ $(OBJ_DIR)/%.c.o: %.c # compile .c to .o object
 	@echo   $<...
 	@clang $< $(COMPILER_FLAGS) -c -o $@ $(DEFINES) $(INCLUDE_FLAGS)
 
+-include $(OBJ_FILES:.o=.d)

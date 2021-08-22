@@ -4,7 +4,7 @@ OBJ_DIR := obj
 
 ASSEMBLY := engine
 EXTENSION := .dll
-COMPILER_FLAGS := -g -fdeclspec #-fPIC
+COMPILER_FLAGS := -g -MD -fdeclspec #-fPIC
 INCLUDE_FLAGS := -Iengine\src -I$(VULKAN_SDK)\include
 LINKER_FLAGS := -g -shared -luser32 -lvulkan-1 -L$(VULKAN_SDK)\Lib -L$(OBJ_DIR)\engine
 DEFINES := -D_DEBUG -DKEXPORT -D_CRT_SECURE_NO_WARNINGS
@@ -42,3 +42,5 @@ clean: # clean build directory
 $(OBJ_DIR)/%.c.o: %.c # compile .c to .c.o object
 	@echo   $<...
 	@clang $< $(COMPILER_FLAGS) -c -o $@ $(DEFINES) $(INCLUDE_FLAGS)
+
+-include $(OBJ_FILES:.o=.d)
