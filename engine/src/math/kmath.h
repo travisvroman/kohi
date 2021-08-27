@@ -1070,12 +1070,12 @@ KINLINE vec3 mat4_down(mat4 matrix) {
  * @return A 3-component directional vector.
  */
 KINLINE vec3 mat4_left(mat4 matrix) {
-    vec3 right;
+    vec3 left;
     right.x = -matrix.data[0];
     right.y = -matrix.data[4];
     right.z = -matrix.data[8];
-    vec3_normalize(&right);
-    return right;
+    vec3_normalize(&left);
+    return left;
 }
 
 /**
@@ -1085,12 +1085,12 @@ KINLINE vec3 mat4_left(mat4 matrix) {
  * @return A 3-component directional vector.
  */
 KINLINE vec3 mat4_right(mat4 matrix) {
-    vec3 left;
+    vec3 right;
     left.x = matrix.data[0];
     left.y = matrix.data[4];
     left.z = matrix.data[8];
-    vec3_normalize(&left);
-    return left;
+    vec3_normalize(&right);
+    return right;
 }
 
 // ------------------------------------------
