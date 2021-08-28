@@ -570,7 +570,7 @@ KINLINE vec3 vec4_to_vec3(vec4 vector) {
 KINLINE vec4 vec4_from_vec3(vec3 vector, f32 w) {
 #if defined(KUSE_SIMD)
     vec4 out_vector;
-    out_vector.data = _mm_setr_ps(x, y, z, w);
+    out_vector.data = _mm_setr_ps(vector.x, vector.y, vector.z, vector.w);
     return out_vector;
 #else
     return (vec4){vector.x, vector.y, vector.z, w};

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "defines.h"
+#include <stdalign.h>
+#include <immintrin.h>
 
 typedef union vec2_u {
     // An array of x, y
@@ -37,9 +39,13 @@ typedef union vec3_u {
 } vec3;
 
 typedef union vec4_u {
+#if defined(KUSE_SIMD)
+    alignas(16) __m128 data;
+#endif
 
     // An array of x, y, z, w
-    f32 elements[4];
+    alignas(16) f32 elements[4];
+
     union {
         struct {
             union {
@@ -65,5 +71,8 @@ typedef union vec4_u {
 typedef vec4 quat;
 
 typedef union mat4_u {
-    f32 data[16];
+    alignas(16) f32 data[16];
+#if defined(KUSE_SIMD)
+    alignas(16) vec4 rows[4];
+#endif
 } mat4;
