@@ -17,6 +17,7 @@ typedef enum keys {
     DEFINE_KEY(TAB, 0x09),
     DEFINE_KEY(SHIFT, 0x10),
     DEFINE_KEY(CONTROL, 0x11),
+    DEFINE_KEY(MENU, 0x12),
 
     DEFINE_KEY(PAUSE, 0x13),
     DEFINE_KEY(CAPITAL, 0x14),
