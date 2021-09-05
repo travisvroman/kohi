@@ -64,6 +64,8 @@
         "utility": "cpp",
         "kmemory.h": "c",
         "defines.h": "c",
-        "vulkan_types.inl": "c"
+        "vulkan_types.inl": "c",
+        "clock.h": "c",
+        "kstring.h": "c"
     }
 }
