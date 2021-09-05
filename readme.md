@@ -11,7 +11,7 @@ Forums: https://forums.kohiengine.com
 Kohi will be a 3D engine from the start, with most of it built from scratch with explanations along the way. The series starts off as more of a tutorial to get up and running, with explanations becoming higher level as things progress to keep the pacing up.
 
 ## .platform support
-Windows, Linux and macOS are supported. Android and iOS runtime support may also be added down the road.
+Windows and Linux are both supported from the start, with native (non-GLFW) Mac support to be added in the future. Android and iOS runtime support may also be added down the road.
 
 ## .start
 To get started, clone the repository: `https://github.com/travisvroman/kohi`.

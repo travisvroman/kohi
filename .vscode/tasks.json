@@ -73,9 +73,6 @@
             "linux": {
                 "command": "${workspaceFolder}/clean-all.sh",
             },
-            "osx": {
-                "command": "${workspaceFolder}/clean-all-macos.sh",
-            },
             "options": {
                 "cwd": "${workspaceFolder}"
             },
