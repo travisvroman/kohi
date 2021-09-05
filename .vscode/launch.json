@@ -24,6 +24,18 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/bin/",
             "environment": [],
+        },
+        {
+            "name": "(macOS) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/testbed",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/bin/",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
         }
     ]
 }

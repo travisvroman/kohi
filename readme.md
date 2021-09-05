@@ -4,11 +4,14 @@ This engine is made as part of the Kohi Game Engine series on YouTube, where we 
 
 The name "Kohi" (コーヒー) is a simplification of the Japanese word for "coffee" , which makes sense given how much I love the stuff.
 
+Website: https://kohiengine.com
+Forums: https://forums.kohiengine.com
+
 # .plan
 Kohi will be a 3D engine from the start, with most of it built from scratch with explanations along the way. The series starts off as more of a tutorial to get up and running, with explanations becoming higher level as things progress to keep the pacing up.
 
 ## .platform support
-Windows and Linux are both supported from the start, with Mac support to be added in the future. Android and iOS runtime support may also be added down the road.
+Windows and Linux are both supported from the start, with native (non-GLFW) Mac support to be added in the future. Android and iOS runtime support may also be added down the road.
 
 ## .start
 To get started, clone the repository: `https://github.com/travisvroman/kohi`.
@@ -16,6 +19,7 @@ To get started, clone the repository: `https://github.com/travisvroman/kohi`.
 You will need to have Clang and the Vulkan SDK installed:
  - Clang: https://releases.llvm.org/download.html
  - Vulkan SDK: https://vulkan.lunarg.com/
+ - GLFW: https://www.glfw.org/ (macOS only)
 
 See the setup videos in the series for Windows or Linux for details.
 

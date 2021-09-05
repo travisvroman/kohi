@@ -63,6 +63,7 @@
         "tuple": "cpp",
         "utility": "cpp",
         "kmemory.h": "c",
-        "defines.h": "c"
+        "defines.h": "c",
+        "vulkan_types.inl": "c"
     }
 }
