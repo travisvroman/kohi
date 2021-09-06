@@ -22,11 +22,12 @@
 #include <string.h>
 #include <time.h>
 
-typedef struct internal_state {
+typedef struct platform_state {
     GLFWwindow* glfw_window;
-} internal_state;
+    f64 start_time;
+} platform_state;
 
-static f64 start_time = 0;
+static platform_state* state_ptr;
 
 static void platform_console_write_file(FILE* file, const char* message, u8 colour);
 
@@ -39,15 +40,20 @@ static void platform_framebuffer_size_callback(GLFWwindow* window, int width, in
 
 static keys translate_key(int key);
 
-b8 platform_startup(
-    platform_state* platform_state,
+b8 platform_system_startup(
+    u64* memory_requirement,
+    void* state,
     const char* application_name,
     i32 x,
     i32 y,
     i32 width,
     i32 height) {
-    platform_state->internal_state = malloc(sizeof(internal_state));
-    internal_state* state = (internal_state*)platform_state->internal_state;
+    *memory_requirement = sizeof(platform_state);
+    if (state == 0) {
+        return true;
+    }
+
+    state_ptr = state;
 
     glfwSetErrorCallback(platform_error_callback);
     if (!glfwInit()) {
@@ -59,42 +65,44 @@ b8 platform_startup(
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);  // Required for Vulkan.
 
-    state->glfw_window = glfwCreateWindow(width, height, application_name, 0, 0);
-    if (!state->glfw_window) {
+    state_ptr->glfw_window = glfwCreateWindow(width, height, application_name, 0, 0);
+    if (!state_ptr->glfw_window) {
         KFATAL("Failed to create a window");
         glfwTerminate();
         return false;
     }
 
-    glfwSetKeyCallback(state->glfw_window, platform_key_callback);
-    glfwSetMouseButtonCallback(state->glfw_window, platform_mouse_button_callback);
-    glfwSetCursorPosCallback(state->glfw_window, platform_cursor_position_callback);
-    glfwSetScrollCallback(state->glfw_window, platform_scroll_callback);
-    glfwSetFramebufferSizeCallback(state->glfw_window, platform_framebuffer_size_callback);
+    glfwSetKeyCallback(state_ptr->glfw_window, platform_key_callback);
+    glfwSetMouseButtonCallback(state_ptr->glfw_window, platform_mouse_button_callback);
+    glfwSetCursorPosCallback(state_ptr->glfw_window, platform_cursor_position_callback);
+    glfwSetScrollCallback(state_ptr->glfw_window, platform_scroll_callback);
+    glfwSetFramebufferSizeCallback(state_ptr->glfw_window, platform_framebuffer_size_callback);
 
-    glfwSetWindowPos(state->glfw_window, x, y);
-    glfwShowWindow(state->glfw_window);
-    start_time = glfwGetTime();
+    glfwSetWindowPos(state_ptr->glfw_window, x, y);
+    glfwShowWindow(state_ptr->glfw_window);
+    state_ptr->start_time = glfwGetTime();
 
     return true;
 }
 
-void platform_shutdown(platform_state* platform_state) {
-    internal_state* state = (internal_state*)platform_state->internal_state;
+void platform_system_shutdown(void* platform_state) {
+    if (state_ptr) {
+        glfwDestroyWindow(state_ptr->glfw_window);
+        state_ptr->glfw_window = 0;
 
-    glfwDestroyWindow(state->glfw_window);
-    state->glfw_window = 0;
-
-    glfwSetErrorCallback(0);
-    glfwTerminate();
+        glfwSetErrorCallback(0);
+        glfwTerminate();
+    }
+    state_ptr = 0;
 }
 
-b8 platform_pump_messages(platform_state* plat_state) {
-    internal_state* state = (internal_state*)plat_state->internal_state;
-
-    glfwPollEvents();
-    b8 should_continue = !glfwWindowShouldClose(state->glfw_window);
-    return should_continue;
+b8 platform_pump_messages() {
+    if (state_ptr) {
+        glfwPollEvents();
+        b8 should_continue = !glfwWindowShouldClose(state_ptr->glfw_window);
+        return should_continue;
+    }
+    return true;
 }
 
 void* platform_allocate(u64 size, b8 aligned) {
@@ -156,9 +164,11 @@ void platform_get_required_extension_names(const char*** names_darray) {
 }
 
 b8 platform_create_vulkan_surface(platform_state* plat_state, vulkan_context* context) {
-    internal_state* state = (internal_state*)plat_state->internal_state;
+    if (!state_ptr) {
+        return false;
+    }
 
-    VkResult result = glfwCreateWindowSurface(context->instance, state->glfw_window, 0, &context->surface);
+    VkResult result = glfwCreateWindowSurface(context->instance, state_ptr->glfw_window, 0, &context->surface);
     if (result != VK_SUCCESS) {
         KFATAL("Vulkan surface creation failed.");
         return false;
