@@ -23,14 +23,22 @@ typedef struct platform_state {
     HWND hwnd;
     VkSurfaceKHR surface;
 
-    // Clock
-    f64 clock_frequency;
-    LARGE_INTEGER start_time;
 } platform_state;
 
 static platform_state *state_ptr;
 
+// Clock
+static f64 clock_frequency;
+static LARGE_INTEGER start_time;
+
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
+
+void clock_setup() {
+    LARGE_INTEGER frequency;
+    QueryPerformanceFrequency(&frequency);
+    clock_frequency = 1.0 / (f64)frequency.QuadPart;
+    QueryPerformanceCounter(&start_time);
+}
 
 b8 platform_system_startup(
     u64 *memory_requirement,
@@ -118,10 +126,7 @@ b8 platform_system_startup(
     ShowWindow(state_ptr->hwnd, show_window_command_flags);
 
     // Clock setup
-    LARGE_INTEGER frequency;
-    QueryPerformanceFrequency(&frequency);
-    state_ptr->clock_frequency = 1.0 / (f64)frequency.QuadPart;
-    QueryPerformanceCounter(&state_ptr->start_time);
+    clock_setup();
 
     return true;
 }
@@ -187,12 +192,13 @@ void platform_console_write_error(const char *message, u8 colour) {
 }
 
 f64 platform_get_absolute_time() {
-    if (state_ptr) {
-        LARGE_INTEGER now_time;
-        QueryPerformanceCounter(&now_time);
-        return (f64)now_time.QuadPart * state_ptr->clock_frequency;
+    if (!clock_frequency) {
+        clock_setup();
     }
-    return 0;
+
+    LARGE_INTEGER now_time;
+    QueryPerformanceCounter(&now_time);
+    return (f64)now_time.QuadPart * clock_frequency;
 }
 
 void platform_sleep(u64 ms) {
