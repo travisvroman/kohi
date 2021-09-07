@@ -6,7 +6,7 @@ ASSEMBLY := engine
 EXTENSION := .so
 COMPILER_FLAGS := -g -MD -Werror=vla -fdeclspec -fPIC
 INCLUDE_FLAGS := -Iengine/src -I$(VULKAN_SDK)/include
-LINKER_FLAGS := -g -shared -lvulkan -lxcb -lX11 -lX11-xcb -lxkbcommon -L$(VULKAN_SDK)/lib -L/usr/X11R6/lib
+LINKER_FLAGS := -g -shared -lvulkan -lxcb -lxcb-keysyms -lxcb-xkb -L$(VULKAN_SDK)/lib -L/usr/X11R6/lib
 DEFINES := -D_DEBUG -DKEXPORT
 
 # Make does not offer a recursive wildcard function, so here's one:

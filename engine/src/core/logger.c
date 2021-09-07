@@ -46,7 +46,7 @@ void log_output(log_level level, const char* message, ...) {
     // Technically imposes a 32k character limit on a single log entry, but...
     // DON'T DO THAT!
     const i32 msg_length = 32000;
-    char out_message[msg_length];
+    char out_message[32000];
     memset(out_message, 0, sizeof(out_message));
 
     // Format original message.
@@ -58,7 +58,7 @@ void log_output(log_level level, const char* message, ...) {
     vsnprintf(out_message, msg_length, message, arg_ptr);
     va_end(arg_ptr);
 
-    char out_message2[msg_length];
+    char out_message2[32000];
     sprintf(out_message2, "%s%s\n", level_strings[level], out_message);
 
     // Platform-specific output.
