@@ -221,6 +221,8 @@ void vulkan_renderer_backend_shutdown(renderer_backend* backend) {
 
     // Destroy in the opposite order of creation.
 
+    vulkan_object_shader_destroy(&context, &context.object_shader);
+
     // Sync objects
     for (u8 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
         if (context.image_available_semaphores[i]) {
@@ -396,7 +398,6 @@ b8 vulkan_renderer_backend_begin_frame(renderer_backend* backend, f32 delta_time
 }
 
 b8 vulkan_renderer_backend_end_frame(renderer_backend* backend, f32 delta_time) {
-
     vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
 
     // End renderpass
@@ -461,7 +462,6 @@ b8 vulkan_renderer_backend_end_frame(renderer_backend* backend, f32 delta_time) 
         context.device.present_queue,
         context.queue_complete_semaphores[context.current_frame],
         context.image_index);
-
 
     return true;
 }
