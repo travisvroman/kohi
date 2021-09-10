@@ -53,10 +53,5 @@ b8 create_shader_module(
     shader_stages[stage_index].shader_stage_create_info.module = shader_stages[stage_index].handle;
     shader_stages[stage_index].shader_stage_create_info.pName = "main";
 
-    if (file_buffer) {
-        kfree(file_buffer, sizeof(u8) * size, MEMORY_TAG_STRING);
-        file_buffer = 0;
-    }
-
     return true;
 }
