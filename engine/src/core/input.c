@@ -50,28 +50,28 @@ void input_update(f64 delta_time) {
 }
 
 void input_process_key(keys key, b8 pressed) {
-    if (key == KEY_LALT) {
-        KINFO("Left alt pressed.");
-    } else if (key == KEY_RALT) {
-        KINFO("Right alt pressed.");
-    }
-
-    if (key == KEY_LCONTROL) {
-        KINFO("Left ctrl pressed.");
-    } else if (key == KEY_RCONTROL) {
-        KINFO("Right ctrl pressed.");
-    }
-
-    if (key == KEY_LSHIFT) {
-        KINFO("Left shift pressed.");
-    } else if (key == KEY_RSHIFT) {
-        KINFO("Right shift pressed.");
-    }
-
     // Only handle this if the state actually changed.
-    if (state_ptr->keyboard_current.keys[key] != pressed) {
+    if (state_ptr && state_ptr->keyboard_current.keys[key] != pressed) {
         // Update internal state_ptr->
         state_ptr->keyboard_current.keys[key] = pressed;
+
+        if (key == KEY_LALT) {
+            KINFO("Left alt %s.", pressed ? "pressed" : "released");
+        } else if (key == KEY_RALT) {
+            KINFO("Right alt %s.", pressed ? "pressed" : "released");
+        }
+
+        if (key == KEY_LCONTROL) {
+            KINFO("Left ctrl %s.", pressed ? "pressed" : "released");
+        } else if (key == KEY_RCONTROL) {
+            KINFO("Right ctrl %s.", pressed ? "pressed" : "released");
+        }
+
+        if (key == KEY_LSHIFT) {
+            KINFO("Left shift %s.", pressed ? "pressed" : "released");
+        } else if (key == KEY_RSHIFT) {
+            KINFO("Right shift %s.", pressed ? "pressed" : "released");
+        }
 
         // Fire off an event for immediate processing.
         event_context context;
