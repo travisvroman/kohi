@@ -228,14 +228,12 @@ b8 platform_pump_messages() {
                 case XCB_KEY_PRESS: {
                     xcb_key_press_event_t *key_event = (xcb_key_press_event_t*)event;
                     xcb_keysym_t key_sym = xcb_key_symbols_get_keysym(state_ptr->syms, key_event->detail,0);
-                    keys key = key_sym;
-                    input_process_key(key, true);
+                    input_process_key(translate_keycode(key_sym), true);
                 } break;
                 case XCB_KEY_RELEASE: {
                     xcb_key_release_event_t *key_event = (xcb_key_release_event_t *)event;
                     xcb_keysym_t key_sym = xcb_key_symbols_get_keysym(state_ptr->syms, key_event->detail,0);
-                    keys key = key_sym;
-                    input_process_key(key, false);
+                    input_process_key(translate_keycode(key_sym), false);
                 } break;
                 // we need to separate PRESS and RELEASE to handle the wheel event
                 case XCB_BUTTON_PRESS: {
@@ -281,6 +279,20 @@ b8 platform_pump_messages() {
                     if (cm->data.data32[0] == state_ptr->wm_delete_win) {
                         quit_flagged = true;
                     }
+                } break;
+                case XCB_MAP_NOTIFY: {
+                    // The window just got raised
+                    event_context context;
+                    context.data.u16[0] = 1;
+                    context.data.u16[1] = 1;
+                    event_fire(EVENT_CODE_RAISED, 0, context);
+                } break;
+                case XCB_UNMAP_NOTIFY: {
+                    // The window just got minimized
+                    event_context context;
+                    context.data.u16[0] = 0;
+                    context.data.u16[1] = 0;
+                    event_fire(EVENT_CODE_MINIZED, 0, context);
                 } break;
                 default:
                     // Something else
@@ -374,6 +386,17 @@ b8 internal_pool_for_event(xcb_generic_event_t **event) {
         *event = xcb_poll_for_event(state_ptr->connection);
     }
     return (*event != NULL);
+}
+
+keys translate_keycode(u32 x_keycode) {
+    xcb_keysym_t upper = x_keycode;
+    if ((x_keycode >> 8) == 0) {
+        if (x_keycode >= 0x0061 && x_keycode <= 0x007a) {
+            upper -= (0x0061 - 0x0041);
+        }
+    }
+
+    return upper;
 }
 
 #endif

@@ -49,6 +49,8 @@ static application_state* app_state;
 b8 application_on_event(u16 code, void* sender, void* listener_inst, event_context context);
 b8 application_on_key(u16 code, void* sender, void* listener_inst, event_context context);
 b8 application_on_resized(u16 code, void* sender, void* listener_inst, event_context context);
+b8 application_on_minimized(u16 code, void *sender, void *listener_inst, event_context context);
+b8 application_on_raised(u16 code, void *sender, void *listener_inst, event_context context);
 
 b8 application_create(game* game_inst) {
     if (game_inst->application_state) {
@@ -95,6 +97,8 @@ b8 application_create(game* game_inst) {
     event_register(EVENT_CODE_KEY_PRESSED, 0, application_on_key);
     event_register(EVENT_CODE_KEY_RELEASED, 0, application_on_key);
     event_register(EVENT_CODE_RESIZED, 0, application_on_resized);
+    event_register(EVENT_CODE_MINIZED, 0, application_on_minimized);
+    event_register(EVENT_CODE_RAISED, 0, application_on_raised);
 
     // Platform
     platform_system_startup(&app_state->platform_system_memory_requirement, 0, 0, 0, 0, 0, 0);
@@ -206,6 +210,9 @@ b8 application_run() {
     event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, application_on_event);
     event_unregister(EVENT_CODE_KEY_PRESSED, 0, application_on_key);
     event_unregister(EVENT_CODE_KEY_RELEASED, 0, application_on_key);
+    event_unregister(EVENT_CODE_RESIZED, 0, application_on_resized);
+    event_unregister(EVENT_CODE_MINIZED, 0, application_on_minimized);
+    event_unregister(EVENT_CODE_RAISED, 0, application_on_raised);
 
     input_system_shutdown(app_state->input_system_state);
 
@@ -295,4 +302,26 @@ b8 application_on_resized(u16 code, void* sender, void* listener_inst, event_con
 
     // Event purposely not handled to allow other listeners to get this.
     return false;
+}
+
+b8 application_on_minimized(u16 code, void *sender, void *listener_inst, event_context context) {
+    if (code == EVENT_CODE_MINIZED) {
+        if (!app_state->is_suspended) {
+            KDEBUG("Application was minimized and suspended.");
+            app_state->is_suspended = true;
+        }
+    }
+
+    return true;
+}
+
+b8 application_on_raised(u16 code, void *sender, void *listener_inst, event_context context) {
+    if (code == EVENT_CODE_RAISED) {
+        if (app_state->is_suspended) {
+            KDEBUG("Application was raised and unsuspended.");
+            app_state->is_suspended = false;
+        }
+    }
+
+    return true;
 }
