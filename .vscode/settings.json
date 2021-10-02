@@ -7,7 +7,7 @@
     "editor.fontFamily": "Liberation Mono",
     "editor.fontSize": 16,
     "editor.fontWeight": "1",
-    "workbench.editor.showTabs": false,
+    "workbench.editor.showTabs": true,
     "workbench.activityBar.visible": true,
     "workbench.colorCustomizations": {
         "editorCursor.foreground": "#00ff33",
