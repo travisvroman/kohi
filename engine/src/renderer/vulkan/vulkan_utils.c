@@ -100,7 +100,7 @@ b8 vulkan_result_is_success(VkResult result) {
         case VK_OPERATION_DEFERRED_KHR:
         case VK_OPERATION_NOT_DEFERRED_KHR:
         case VK_PIPELINE_COMPILE_REQUIRED_EXT:
-            return TRUE;
+            return true;
 
         // Error codes
         case VK_ERROR_OUT_OF_HOST_MEMORY:
@@ -128,6 +128,6 @@ b8 vulkan_result_is_success(VkResult result) {
         //case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS:
         case VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT:
         case VK_ERROR_UNKNOWN:
-            return FALSE;
+            return false;
     }
 }
