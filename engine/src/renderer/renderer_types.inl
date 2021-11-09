@@ -17,6 +17,19 @@ typedef struct global_uniform_object {
     mat4 m_reserved1;  // 64 bytes, reserved for future use
 } global_uniform_object;
 
+typedef struct object_uniform_object {
+    vec4 diffuse_color;  // 16 bytes
+    vec4 v_reserved0;    // 16 bytes, reserved for future use
+    vec4 v_reserved1;    // 16 bytes, reserved for future use
+    vec4 v_reserved2;    // 16 bytes, reserved for future use
+} object_uniform_object;
+
+typedef struct geometry_render_data {
+    u32 object_id;
+    mat4 model;
+    texture* textures[16];
+} geometry_render_data;
+
 typedef struct renderer_backend {
     u64 frame_number;
 
@@ -30,7 +43,7 @@ typedef struct renderer_backend {
     void (*update_global_state)(mat4 projection, mat4 view, vec3 view_position, vec4 ambient_colour, i32 mode);
     b8 (*end_frame)(struct renderer_backend* backend, f32 delta_time);
 
-    void (*update_object)(mat4 model);
+    void (*update_object)(geometry_render_data data);
 
     void (*create_texture)(
         const char* name, 
