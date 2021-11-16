@@ -1,4 +1,4 @@
-#include "vulkan_object_shader.h"
+#include "vulkan_material_shader.h"
 
 #include "core/logger.h"
 #include "core/kmemory.h"
@@ -9,19 +9,18 @@
 #include "renderer/vulkan/vulkan_pipeline.h"
 #include "renderer/vulkan/vulkan_buffer.h"
 
-#define BUILTIN_SHADER_NAME_OBJECT "Builtin.ObjectShader"
+#include "systems/texture_system.h"
 
-b8 vulkan_object_shader_create(vulkan_context* context, texture* default_diffuse, vulkan_object_shader* out_shader) {
-    // Take a copy of the default texture pointers.
-    out_shader->default_diffuse = default_diffuse;
+#define BUILTIN_SHADER_NAME_MATERIAL "Builtin.MaterialShader"
 
+b8 vulkan_material_shader_create(vulkan_context* context, vulkan_material_shader* out_shader) {
     // Shader module init per stage.
     char stage_type_strs[OBJECT_SHADER_STAGE_COUNT][5] = {"vert", "frag"};
     VkShaderStageFlagBits stage_types[OBJECT_SHADER_STAGE_COUNT] = {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT};
 
     for (u32 i = 0; i < OBJECT_SHADER_STAGE_COUNT; ++i) {
-        if (!create_shader_module(context, BUILTIN_SHADER_NAME_OBJECT, stage_type_strs[i], stage_types[i], i, out_shader->stages)) {
-            KERROR("Unable to create %s shader module for '%s'.", stage_type_strs[i], BUILTIN_SHADER_NAME_OBJECT);
+        if (!create_shader_module(context, BUILTIN_SHADER_NAME_MATERIAL, stage_type_strs[i], stage_types[i], i, out_shader->stages)) {
+            KERROR("Unable to create %s shader module for '%s'.", stage_type_strs[i], BUILTIN_SHADER_NAME_MATERIAL);
             return false;
         }
     }
@@ -192,7 +191,7 @@ b8 vulkan_object_shader_create(vulkan_context* context, texture* default_diffuse
     return true;
 }
 
-void vulkan_object_shader_destroy(vulkan_context* context, struct vulkan_object_shader* shader) {
+void vulkan_material_shader_destroy(vulkan_context* context, struct vulkan_material_shader* shader) {
     VkDevice logical_device = context->device.logical_device;
 
     vkDestroyDescriptorPool(logical_device, shader->object_descriptor_pool, context->allocator);
@@ -218,12 +217,12 @@ void vulkan_object_shader_destroy(vulkan_context* context, struct vulkan_object_
     }
 }
 
-void vulkan_object_shader_use(vulkan_context* context, struct vulkan_object_shader* shader) {
+void vulkan_material_shader_use(vulkan_context* context, struct vulkan_material_shader* shader) {
     u32 image_index = context->image_index;
     vulkan_pipeline_bind(&context->graphics_command_buffers[image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, &shader->pipeline);
 }
 
-void vulkan_object_shader_update_global_state(vulkan_context* context, struct vulkan_object_shader* shader, f32 delta_time) {
+void vulkan_material_shader_update_global_state(vulkan_context* context, struct vulkan_material_shader* shader, f32 delta_time) {
     u32 image_index = context->image_index;
     VkCommandBuffer command_buffer = context->graphics_command_buffers[image_index].handle;
     VkDescriptorSet global_descriptor = shader->global_descriptor_sets[image_index];
@@ -255,7 +254,7 @@ void vulkan_object_shader_update_global_state(vulkan_context* context, struct vu
     vkUpdateDescriptorSets(context->device.logical_device, 1, &descriptor_write, 0, 0);
 }
 
-void vulkan_object_shader_update_object(vulkan_context* context, struct vulkan_object_shader* shader, geometry_render_data data) {
+void vulkan_material_shader_update_object(vulkan_context* context, struct vulkan_material_shader* shader, geometry_render_data data) {
     u32 image_index = context->image_index;
     VkCommandBuffer command_buffer = context->graphics_command_buffers[image_index].handle;
 
@@ -313,18 +312,19 @@ void vulkan_object_shader_update_object(vulkan_context* context, struct vulkan_o
     for (u32 sampler_index = 0; sampler_index < sampler_count; ++sampler_index) {
         texture* t = data.textures[sampler_index];
         u32* descriptor_generation = &object_state->descriptor_states[descriptor_index].generations[image_index];
+        u32* descriptor_id = &object_state->descriptor_states[descriptor_index].ids[image_index];
 
         // If the texture hasn't been loaded yet, use the default.
         // TODO: Determine which use the texture has and pull appropriate default based on that.
         if (t->generation == INVALID_ID) {
-            t = shader->default_diffuse;
+            t = texture_system_get_default_texture();
 
             // Reset the descriptor generation if using the default texture.
             *descriptor_generation = INVALID_ID;
         }
 
         // Check if the descriptor needs updating first.
-        if (t && (*descriptor_generation != t->generation || *descriptor_generation == INVALID_ID)) {
+        if (t && (*descriptor_id != t->id || *descriptor_generation != t->generation || *descriptor_generation == INVALID_ID)) {
             vulkan_texture_data* internal_data = (vulkan_texture_data*)t->internal_data;
 
             // Assign view and sampler.
@@ -345,6 +345,7 @@ void vulkan_object_shader_update_object(vulkan_context* context, struct vulkan_o
             // Sync frame generation if not using a default texture.
             if (t->generation != INVALID_ID) {
                 *descriptor_generation = t->generation;
+                *descriptor_id = t->id;
             }
             descriptor_index++;
         }
@@ -358,7 +359,7 @@ void vulkan_object_shader_update_object(vulkan_context* context, struct vulkan_o
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader->pipeline.pipeline_layout, 1, 1, &object_descriptor_set, 0, 0);
 }
 
-b8 vulkan_object_shader_acquire_resources(vulkan_context* context, struct vulkan_object_shader* shader, u32* out_object_id) {
+b8 vulkan_material_shader_acquire_resources(vulkan_context* context, struct vulkan_material_shader* shader, u32* out_object_id) {
     // TODO: free list
     *out_object_id = shader->object_uniform_buffer_index;
     shader->object_uniform_buffer_index++;
@@ -368,6 +369,7 @@ b8 vulkan_object_shader_acquire_resources(vulkan_context* context, struct vulkan
     for (u32 i = 0; i < VULKAN_OBJECT_SHADER_DESCRIPTOR_COUNT; ++i) {
         for (u32 j = 0; j < 3; ++j) {
             object_state->descriptor_states[i].generations[j] = INVALID_ID;
+            object_state->descriptor_states[i].ids[j] = INVALID_ID;
         }
     }
 
@@ -390,7 +392,7 @@ b8 vulkan_object_shader_acquire_resources(vulkan_context* context, struct vulkan
     return true;
 }
 
-void vulkan_object_shader_release_resources(vulkan_context* context, struct vulkan_object_shader* shader, u32 object_id) {
+void vulkan_material_shader_release_resources(vulkan_context* context, struct vulkan_material_shader* shader, u32 object_id) {
     vulkan_object_shader_object_state* object_state = &shader->object_states[object_id];
 
     const u32 descriptor_set_count = 3;
@@ -403,6 +405,7 @@ void vulkan_object_shader_release_resources(vulkan_context* context, struct vulk
     for (u32 i = 0; i < VULKAN_OBJECT_SHADER_DESCRIPTOR_COUNT; ++i) {
         for (u32 j = 0; j < 3; ++j) {
             object_state->descriptor_states[i].generations[j] = INVALID_ID;
+            object_state->descriptor_states[i].ids[j] = INVALID_ID;
         }
     }
 

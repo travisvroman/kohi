@@ -14,7 +14,6 @@ KAPI void renderer_set_view(mat4 view);
 
 void renderer_create_texture(
     const char* name,
-    b8 auto_release,
     i32 width,
     i32 height,
     i32 channel_count,
