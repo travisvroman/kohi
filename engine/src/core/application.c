@@ -18,6 +18,7 @@
 #include "systems/texture_system.h"
 #include "systems/material_system.h"
 #include "systems/geometry_system.h"
+#include "systems/resource_system.h"
 
 // TODO: temp
 #include "math/kmath.h"
@@ -47,6 +48,9 @@ typedef struct application_state {
 
     u64 platform_system_memory_requirement;
     void* platform_system_state;
+
+    u64 resource_system_memory_requirement;
+    void* resource_system_state;
 
     u64 renderer_system_memory_requirement;
     void* renderer_system_state;
@@ -163,6 +167,17 @@ b8 application_create(game* game_inst) {
             game_inst->app_config.start_pos_y,
             game_inst->app_config.start_width,
             game_inst->app_config.start_height)) {
+        return false;
+    }
+
+    // Resource system.
+    resource_system_config resource_sys_config;
+    resource_sys_config.asset_base_path = "../assets";
+    resource_sys_config.max_loader_count = 32;
+    resource_system_initialize(&app_state->resource_system_memory_requirement, 0, resource_sys_config);
+    app_state->resource_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->resource_system_memory_requirement);
+    if(!resource_system_initialize(&app_state->resource_system_memory_requirement, app_state->resource_system_state, resource_sys_config)) {
+        KFATAL("Failed to initialize resource system. Aborting application.");
         return false;
     }
 
@@ -329,6 +344,8 @@ b8 application_run() {
     texture_system_shutdown(app_state->texture_system_state);
 
     renderer_system_shutdown(app_state->renderer_system_state);
+
+    resource_system_shutdown(app_state->resource_system_state);
 
     platform_system_shutdown(app_state->platform_system_state);
 
