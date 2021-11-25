@@ -9,6 +9,7 @@
 b8 vulkan_graphics_pipeline_create(
     vulkan_context* context,
     vulkan_renderpass* renderpass,
+    u32 stride,
     u32 attribute_count,
     VkVertexInputAttributeDescription* attributes,
     u32 descriptor_set_layout_count,
@@ -18,6 +19,7 @@ b8 vulkan_graphics_pipeline_create(
     VkViewport viewport,
     VkRect2D scissor,
     b8 is_wireframe,
+    b8 depth_test_enabled,
     vulkan_pipeline* out_pipeline) {
     // Viewport state
     VkPipelineViewportStateCreateInfo viewport_state = {VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
@@ -50,11 +52,13 @@ b8 vulkan_graphics_pipeline_create(
 
     // Depth and stencil testing.
     VkPipelineDepthStencilStateCreateInfo depth_stencil = {VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
-    depth_stencil.depthTestEnable = VK_TRUE;
-    depth_stencil.depthWriteEnable = VK_TRUE;
-    depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
-    depth_stencil.depthBoundsTestEnable = VK_FALSE;
-    depth_stencil.stencilTestEnable = VK_FALSE;
+    if (depth_test_enabled) {
+        depth_stencil.depthTestEnable = VK_TRUE;
+        depth_stencil.depthWriteEnable = VK_TRUE;
+        depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depth_stencil.depthBoundsTestEnable = VK_FALSE;
+        depth_stencil.stencilTestEnable = VK_FALSE;
+    }
 
     VkPipelineColorBlendAttachmentState color_blend_attachment_state;
     kzero_memory(&color_blend_attachment_state, sizeof(VkPipelineColorBlendAttachmentState));
@@ -89,7 +93,7 @@ b8 vulkan_graphics_pipeline_create(
     // Vertex input
     VkVertexInputBindingDescription binding_description;
     binding_description.binding = 0;  // Binding index
-    binding_description.stride = sizeof(vertex_3d);
+    binding_description.stride = stride;
     binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;  // Move to next data entry for each vertex.
 
     // Attributes
@@ -136,7 +140,7 @@ b8 vulkan_graphics_pipeline_create(
     pipeline_create_info.pViewportState = &viewport_state;
     pipeline_create_info.pRasterizationState = &rasterizer_create_info;
     pipeline_create_info.pMultisampleState = &multisampling_create_info;
-    pipeline_create_info.pDepthStencilState = &depth_stencil;
+    pipeline_create_info.pDepthStencilState = depth_test_enabled ? &depth_stencil : 0;
     pipeline_create_info.pColorBlendState = &color_blend_state_create_info;
     pipeline_create_info.pDynamicState = &dynamic_state_create_info;
     pipeline_create_info.pTessellationState = 0;
