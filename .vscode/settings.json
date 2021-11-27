@@ -30,22 +30,25 @@
         {
             "text": "TODO:",
             "color": "red",
-            "backgroundColor": "rgba(0,0,0,0)"
+            "backgroundColor": "rgba(0,0,0,0)",
+            "overviewRulerColor": "rgba(0,0,0,0)"
         },
         {
             "text": "HACK:",
             "color": "#ff6600",
-            "backgroundColor": "rgba(0,0,0,0)"
+            "backgroundColor": "rgba(0,0,0,0)",
+            "overviewRulerColor": "rgba(0,0,0,0)"
         },
         {
             "text": "NOTE:",
             "color": "green",
-            "backgroundColor": "rgba(0,0,0,0)"
+            "backgroundColor": "rgba(0,0,0,0)",
+            "overviewRulerColor": "rgba(0,0,0,0)"
         }
     ],
     "todohighlight.defaultStyle": {
         "color": "red",
-        "backgroundColor": "#ffab00",
+        //"backgroundColor": "#ffab00",
         "overviewRulerColor": "rgba(0,0,0,0)",
         "isWholeLine": false,
     },
@@ -71,6 +74,10 @@
         "stb_image.h": "c",
         "vector": "c",
         "xstring": "c",
-        "xutility": "c"
+        "xutility": "c",
+        "iterator": "c",
+        "initializer_list": "c",
+        "loader_utils.h": "c",
+        "kmath.h": "c"
     }
 }
