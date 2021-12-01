@@ -163,7 +163,7 @@ void platform_get_required_extension_names(const char*** names_darray) {
     }
 }
 
-b8 platform_create_vulkan_surface(platform_state* plat_state, vulkan_context* context) {
+b8 platform_create_vulkan_surface(vulkan_context* context) {
     if (!state_ptr) {
         return false;
     }
@@ -553,7 +553,7 @@ static keys translate_key(int key) {
             our_key = KEY_LCONTROL;
             break;
         case GLFW_KEY_LEFT_ALT:
-            our_key = KEY_LMENU;
+            // our_key = KEY_LMENU;
             break;
         case GLFW_KEY_LEFT_SUPER:
             our_key = KEY_LWIN;
@@ -565,7 +565,7 @@ static keys translate_key(int key) {
             our_key = KEY_RCONTROL;
             break;
         case GLFW_KEY_RIGHT_ALT:
-            our_key = KEY_RMENU;
+            // our_key = KEY_RMENU;
             break;
         case GLFW_KEY_RIGHT_SUPER:
             our_key = KEY_RWIN;
