@@ -447,7 +447,7 @@ void platform_get_required_extension_names(const char ***names_darray) {
     darray_push(*names_darray, &"VK_EXT_metal_surface");
 }
 
-b8 platform_create_vulkan_surface(platform_state *plat_state, vulkan_context *context) {
+b8 platform_create_vulkan_surface(vulkan_context *context) {
     if (!state_ptr) {
         return false;
     }
