@@ -19,7 +19,6 @@ To get started, clone the repository: `https://github.com/travisvroman/kohi`.
 You will need to have Clang and the Vulkan SDK installed:
  - Clang: https://releases.llvm.org/download.html
  - Vulkan SDK: https://vulkan.lunarg.com/
- - GLFW: https://www.glfw.org/ (macOS only)
 
 See the setup videos in the series for Windows or Linux for details.
 
