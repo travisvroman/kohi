@@ -7,7 +7,7 @@
     "editor.fontFamily": "Liberation Mono",
     "editor.fontSize": 16,
     "editor.fontWeight": "1",
-    "workbench.editor.showTabs": false,
+    "workbench.editor.showTabs": true,
     "workbench.activityBar.visible": true,
     "workbench.colorCustomizations": {
         "editorCursor.foreground": "#00ff33",
@@ -67,6 +67,7 @@
         "vulkan_types.inl": "c",
         "clock.h": "c",
         "kstring.h": "c",
-        "logger.h": "c"
+        "logger.h": "c",
+        "stb_image.h": "c"
     }
 }
