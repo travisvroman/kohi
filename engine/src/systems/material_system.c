@@ -220,6 +220,15 @@ void material_system_release(const char* name) {
     }
 }
 
+material* material_system_get_default() {
+    if (state_ptr) {
+        return &state_ptr->default_material;
+    }
+
+    KFATAL("material_system_get_default called before system is initialized.");
+    return 0;
+}
+
 b8 load_material(material_config config, material* m) {
     kzero_memory(m, sizeof(material));
 
