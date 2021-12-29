@@ -68,6 +68,9 @@
         "clock.h": "c",
         "kstring.h": "c",
         "logger.h": "c",
-        "stb_image.h": "c"
+        "stb_image.h": "c",
+        "vector": "c",
+        "xstring": "c",
+        "xutility": "c"
     }
 }
