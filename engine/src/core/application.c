@@ -176,7 +176,7 @@ b8 application_create(game* game_inst) {
     resource_sys_config.max_loader_count = 32;
     resource_system_initialize(&app_state->resource_system_memory_requirement, 0, resource_sys_config);
     app_state->resource_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->resource_system_memory_requirement);
-    if(!resource_system_initialize(&app_state->resource_system_memory_requirement, app_state->resource_system_state, resource_sys_config)) {
+    if (!resource_system_initialize(&app_state->resource_system_memory_requirement, app_state->resource_system_state, resource_sys_config)) {
         KFATAL("Failed to initialize resource system. Aborting application.");
         return false;
     }
@@ -219,7 +219,7 @@ b8 application_create(game* game_inst) {
         return false;
     }
 
-    // TODO: temp 
+    // TODO: temp
 
     // Load up a plane configuration, and load geometry from it.
     geometry_config g_config = geometry_system_generate_plane_config(10.0f, 5.0f, 5, 5, 5.0f, 2.0f, "test geometry", "test_material");
@@ -231,7 +231,7 @@ b8 application_create(game* game_inst) {
 
     // Load up default geometry.
     //app_state->test_geometry = geometry_system_get_default();
-    // TODO: end temp 
+    // TODO: end temp
 
     // Initialize the game.
     if (!app_state->game_inst->initialize(app_state->game_inst)) {
@@ -292,6 +292,9 @@ b8 application_run() {
 
             packet.geometry_count = 1;
             packet.geometries = &test_render;
+
+            packet.ui_geometry_count = 0;
+            packet.ui_geometries = 0;
             // TODO: end temp
 
             renderer_draw_frame(&packet);
