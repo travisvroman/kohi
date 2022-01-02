@@ -213,7 +213,7 @@ b8 application_create(game* game_inst) {
     geometry_system_config geometry_sys_config;
     geometry_sys_config.max_geometry_count = 4096;
     geometry_system_initialize(&app_state->geometry_system_memory_requirement, 0, geometry_sys_config);
-    app_state->geometry_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->material_system_memory_requirement);
+    app_state->geometry_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->geometry_system_memory_requirement);
     if (!geometry_system_initialize(&app_state->geometry_system_memory_requirement, app_state->geometry_system_state, geometry_sys_config)) {
         KFATAL("Failed to initialize geometry system. Application cannot continue.");
         return false;
