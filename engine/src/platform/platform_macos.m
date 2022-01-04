@@ -339,9 +339,6 @@ b8 platform_system_startup(
 
 void platform_system_shutdown(void* platform_state) {
     if (state_ptr) {
-        // Simply cold-cast to the known type.
-        platform_state* state = (platform_state*)plat_state_ptr->platform_state;
-
     @autoreleasepool {
 
         [state_ptr->window orderOut:nil];
@@ -366,9 +363,6 @@ void platform_system_shutdown(void* platform_state) {
 
 b8 platform_pump_messages(platform_state *plat_state) {
     if (state_ptr) {
-        // Simply cold-cast to the known type.
-        platform_state* state = (platform_state*)plat_state_ptr->platform_state;
-        
         @autoreleasepool {
 
         NSEvent* event;
@@ -451,9 +445,6 @@ b8 platform_create_vulkan_surface(vulkan_context *context) {
     if (!state_ptr) {
         return false;
     }
-
-    // Simply cold-cast to the known type.
-    platform_state *state = (platform_state *)plat_state_ptr->platform_state;
 
     VkMetalSurfaceCreateInfoEXT create_info = {VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT};
     create_info.pLayer = state_ptr->layer;
