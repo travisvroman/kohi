@@ -195,12 +195,7 @@ b8 platform_pump_messages() {
         b8 quit_flagged = false;
 
         // Poll for events until null is returned.
-        while (event != 0) {
-            event = xcb_poll_for_event(state_ptr->connection);
-            if (event == 0) {
-                break;
-            }
-
+        while (event = xcb_poll_for_event(state_ptr->connection)) {
             // Input events
             switch (event->response_type & ~0x80) {
                 case XCB_KEY_PRESS:
