@@ -295,6 +295,8 @@ b8 select_physical_device(vulkan_context* context) {
         VkPhysicalDeviceMemoryProperties memory;
         vkGetPhysicalDeviceMemoryProperties(physical_devices[i], &memory);
 
+        KINFO("Evaluating device: '%s', index %u.", properties.deviceName, i);
+
         // Check if device supports local/host visible combo
         b8 supports_device_local_host_visible = false;
         for (u32 i = 0; i < memory.memoryTypeCount; ++i) {
