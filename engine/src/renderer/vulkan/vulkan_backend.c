@@ -396,7 +396,7 @@ b8 vulkan_renderer_backend_begin_frame(renderer_backend* backend, f32 delta_time
     // Wait for the execution of the current frame to complete. The fence being free will allow this one to move on.
     VkResult result = vkWaitForFences(context.device.logical_device, 1, &context.in_flight_fences[context.current_frame], true, UINT64_MAX);
     if (!vulkan_result_is_success(result)) {
-        KERROR("In-flight fence wait failure! error: %s", vulkan_result_string(result, true));
+        KFATAL("In-flight fence wait failure! error: %s", vulkan_result_string(result, true));
         return false;
     }
 

@@ -177,6 +177,9 @@ typedef struct vulkan_material_shader_instance_ubo {
     vec4 v_reserved0;    // 16 bytes, reserved for future use
     vec4 v_reserved1;    // 16 bytes, reserved for future use
     vec4 v_reserved2;    // 16 bytes, reserved for future use
+    mat4 m_reserved0;    // 64 bytes, reserved for future use
+    mat4 m_reserved1;    // 64 bytes, reserved for future use
+    mat4 m_reserved2;    // 64 bytes, reserved for future use
 } vulkan_material_shader_instance_ubo;
 
 typedef struct vulkan_material_shader {
@@ -245,6 +248,9 @@ typedef struct vulkan_ui_shader_instance_ubo {
     vec4 v_reserved0;    // 16 bytes, reserved for future use
     vec4 v_reserved1;    // 16 bytes, reserved for future use
     vec4 v_reserved2;    // 16 bytes, reserved for future use
+    mat4 m_reserved0;    // 64 bytes, reserved for future use
+    mat4 m_reserved1;    // 64 bytes, reserved for future use
+    mat4 m_reserved2;    // 64 bytes, reserved for future use
 } vulkan_ui_shader_instance_ubo;
 
 typedef struct vulkan_ui_shader {
@@ -258,7 +264,7 @@ typedef struct vulkan_ui_shader {
     VkDescriptorSet global_descriptor_sets[3];
 
     // Global uniform object.
-    vulkan_material_shader_global_ubo global_ubo;
+    vulkan_ui_shader_global_ubo global_ubo;
 
     // Global uniform buffer.
     vulkan_buffer global_uniform_buffer;
