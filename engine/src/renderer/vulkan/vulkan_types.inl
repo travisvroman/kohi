@@ -158,10 +158,10 @@ typedef struct vulkan_geometry_data {
     u32 id;
     u32 generation;
     u32 vertex_count;
-    u32 vertex_size;
+    u32 vertex_element_size;
     u32 vertex_buffer_offset;
     u32 index_count;
-    u32 index_size;
+    u32 index_element_size;
     u32 index_buffer_offset;
 } vulkan_geometry_data;
 
