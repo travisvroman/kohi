@@ -110,10 +110,10 @@ Directories</h2></td></tr>
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="files"></a>
 Files</h2></td></tr>
 <tr class="memitem:defines_8h"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="defines_8h.html">defines.h</a> <a href="defines_8h_source.html">[code]</a></td></tr>
-<tr class="memdesc:defines_8h"><td class="mdescLeft">&#160;</td><td class="mdescRight">This file contains global type definitions which are used throughout the entire engine and applications referencing it. <br /></td></tr>
+<tr class="memdesc:defines_8h"><td class="mdescLeft">&#160;</td><td class="mdescRight">This file contains global type definitions which are used throughout the entire engine and applications referencing it. Numeric types are asserted statically to gurantee expected size. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:entry_8h"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="entry_8h.html">entry.h</a> <a href="entry_8h_source.html">[code]</a></td></tr>
-<tr class="memdesc:entry_8h"><td class="mdescLeft">&#160;</td><td class="mdescRight">This file contains the main entry point to the application. <br /></td></tr>
+<tr class="memdesc:entry_8h"><td class="mdescLeft">&#160;</td><td class="mdescRight">This file contains the main entry point to the application. It also contains a reference to an externally defined create_game method, which should create and set a custom game object to the location pointed to by out_game. This would be provided by the consuming application, which is then hooked into the engine itself during the bootstrapping phase. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:game__types_8h"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="game__types_8h.html">game_types.h</a> <a href="game__types_8h_source.html">[code]</a></td></tr>
 <tr class="memdesc:game__types_8h"><td class="mdescLeft">&#160;</td><td class="mdescRight">This file contains types to be consumed by the game library. <br /></td></tr>

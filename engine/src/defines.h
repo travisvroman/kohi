@@ -1,9 +1,14 @@
 /**
- * @file 
+ * @file defines.h
+ * @author Travis Vroman (travis@kohiengine.com)
  * @brief This file contains global type definitions which are used 
- * throughout the entire engine and applications referencing it.
- * 
+ * throughout the entire engine and applications referencing it. 
  * Numeric types are asserted statically to gurantee expected size.
+ * @version 1.0
+ * @date 2022-01-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
  */
 
 #pragma once

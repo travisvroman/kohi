@@ -89,6 +89,9 @@ $(document).ready(function(){initNavTree('linear__allocator_8h.html',''); initRe
 <div class="title">linear_allocator.h File Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
+
+<p>This file contains the linear allocator implementation.  
+<a href="#details">More...</a></p>
 <div class="textblock"><code>#include &quot;<a class="el" href="defines_8h_source.html">defines.h</a>&quot;</code><br />
 </div>
 <p><a href="linear__allocator_8h_source.html">Go to the source code of this file.</a></p>
@@ -96,25 +99,37 @@ $(document).ready(function(){initNavTree('linear__allocator_8h.html',''); initRe
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="nested-classes"></a>
 Data Structures</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlinear__allocator.html">linear_allocator</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">The data structure for a linear allocator.  <a href="structlinear__allocator.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="typedef-members"></a>
 Typedefs</h2></td></tr>
 <tr class="memitem:a7302d19cddae04a62c3ab45926f9722d"><td class="memItemLeft" align="right" valign="top">typedef struct <a class="el" href="structlinear__allocator.html">linear_allocator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="linear__allocator_8h.html#a7302d19cddae04a62c3ab45926f9722d">linear_allocator</a></td></tr>
+<tr class="memdesc:a7302d19cddae04a62c3ab45926f9722d"><td class="mdescLeft">&#160;</td><td class="mdescRight">The data structure for a linear allocator.  <a href="linear__allocator_8h.html#a7302d19cddae04a62c3ab45926f9722d">More...</a><br /></td></tr>
 <tr class="separator:a7302d19cddae04a62c3ab45926f9722d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:a493211b4086becd537f0cae44cfa24a4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="linear__allocator_8h.html#a493211b4086becd537f0cae44cfa24a4">linear_allocator_create</a> (<a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> total_size, void *memory, <a class="el" href="structlinear__allocator.html">linear_allocator</a> *out_allocator)</td></tr>
+<tr class="memdesc:a493211b4086becd537f0cae44cfa24a4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a linear allocator of the given size.  <a href="linear__allocator_8h.html#a493211b4086becd537f0cae44cfa24a4">More...</a><br /></td></tr>
 <tr class="separator:a493211b4086becd537f0cae44cfa24a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab3489c56ad74ac7f47d999069cdbf8d1"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="linear__allocator_8h.html#ab3489c56ad74ac7f47d999069cdbf8d1">linear_allocator_destroy</a> (<a class="el" href="structlinear__allocator.html">linear_allocator</a> *allocator)</td></tr>
+<tr class="memdesc:ab3489c56ad74ac7f47d999069cdbf8d1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destroys the given allocator. If the allocator owns its memory, it is freed at this time.  <a href="linear__allocator_8h.html#ab3489c56ad74ac7f47d999069cdbf8d1">More...</a><br /></td></tr>
 <tr class="separator:ab3489c56ad74ac7f47d999069cdbf8d1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae4b8893e948a8e5f94bcd79b17d82286"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="linear__allocator_8h.html#ae4b8893e948a8e5f94bcd79b17d82286">linear_allocator_allocate</a> (<a class="el" href="structlinear__allocator.html">linear_allocator</a> *allocator, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> size)</td></tr>
+<tr class="memdesc:ae4b8893e948a8e5f94bcd79b17d82286"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates the given amount from the allocator.  <a href="linear__allocator_8h.html#ae4b8893e948a8e5f94bcd79b17d82286">More...</a><br /></td></tr>
 <tr class="separator:ae4b8893e948a8e5f94bcd79b17d82286"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2e11fb25edcf6bb5f93ed77b66d99d68"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="linear__allocator_8h.html#a2e11fb25edcf6bb5f93ed77b66d99d68">linear_allocator_free_all</a> (<a class="el" href="structlinear__allocator.html">linear_allocator</a> *allocator)</td></tr>
+<tr class="memdesc:a2e11fb25edcf6bb5f93ed77b66d99d68"><td class="mdescLeft">&#160;</td><td class="mdescRight">Frees everything in the allocator, effectively moving its pointer back to the beginning. Does not free internal memory, if owned. Only resets the pointer.  <a href="linear__allocator_8h.html#a2e11fb25edcf6bb5f93ed77b66d99d68">More...</a><br /></td></tr>
 <tr class="separator:a2e11fb25edcf6bb5f93ed77b66d99d68"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Typedef Documentation</h2>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>This file contains the linear allocator implementation. </p>
+<dl class="section author"><dt>Author</dt><dd>Travis Vroman (<a href="#" onclick="location.href='mai'+'lto:'+'tra'+'vi'+'s@k'+'oh'+'ien'+'gi'+'ne.'+'co'+'m'; return false;">travi<span style="display: none;">.nosp@m.</span>s@ko<span style="display: none;">.nosp@m.</span>hieng<span style="display: none;">.nosp@m.</span>ine.<span style="display: none;">.nosp@m.</span>com</a>)</dd></dl>
+<p>A linear allocator allocates memory from its internal block of memory in a linear fashion. That is, one after another, moving a pointer along as it goes. A linear allocator can perform allocations of any size, but allocation sizes are not stored, and thus allocations made in this way are not individually freeable. Only the entire thing can be freed. This comes with the benefit of speed at a cost of flexibility. </p><dl class="section version"><dt>Version</dt><dd>1.0 </dd></dl>
+<dl class="section date"><dt>Date</dt><dd>2022-01-10</dd></dl>
+<dl class="section copyright"><dt>Copyright</dt><dd>Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022 </dd></dl>
+</div><h2 class="groupheader">Typedef Documentation</h2>
 <a id="a7302d19cddae04a62c3ab45926f9722d"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7302d19cddae04a62c3ab45926f9722d">&#9670;&nbsp;</a></span>linear_allocator</h2>
 
@@ -126,6 +141,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>The data structure for a linear allocator. </p>
 
 </div>
 </div>
@@ -155,6 +172,16 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Allocates the given amount from the allocator. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">allocator</td><td>A pointer to the allocator to allocate from. </td></tr>
+    <tr><td class="paramname">size</td><td>The size to be allocated. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A pointer to a block of memory as allocated. If this fails, 0 is returned. </dd></dl>
 
 </div>
 </div>
@@ -190,6 +217,16 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Creates a linear allocator of the given size. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">total_size</td><td>The total amount in bytes the allocator will hold. </td></tr>
+    <tr><td class="paramname">memory</td><td>Allocated block of memory matching size above, or 0. If 0, a dynamic allocation is performed and this allocator is considered to own that memory. </td></tr>
+    <tr><td class="paramname">out_allocator</td><td>A pointer to hold the new allocator. </td></tr>
+  </table>
+  </dd>
+</dl>
+
 </div>
 </div>
 <a id="ab3489c56ad74ac7f47d999069cdbf8d1"></a>
@@ -208,6 +245,14 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Destroys the given allocator. If the allocator owns its memory, it is freed at this time. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">allocator</td><td>A pointer to the allocator to be destroyed. </td></tr>
+  </table>
+  </dd>
+</dl>
+
 </div>
 </div>
 <a id="a2e11fb25edcf6bb5f93ed77b66d99d68"></a>
@@ -225,6 +270,14 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Frees everything in the allocator, effectively moving its pointer back to the beginning. Does not free internal memory, if owned. Only resets the pointer. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">allocator</td><td>A pointer to the allocator to free. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>

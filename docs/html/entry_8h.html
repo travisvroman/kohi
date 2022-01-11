@@ -88,7 +88,7 @@ $(document).ready(function(){initNavTree('entry_8h.html',''); initResizable(); }
 </div><!--header-->
 <div class="contents">
 
-<p>This file contains the main entry point to the application.  
+<p>This file contains the main entry point to the application. It also contains a reference to an externally defined create_game method, which should create and set a custom game object to the location pointed to by out_game. This would be provided by the consuming application, which is then hooked into the engine itself during the bootstrapping phase.  
 <a href="#details">More...</a></p>
 <div class="textblock"><code>#include &quot;<a class="el" href="application_8h_source.html">core/application.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="logger_8h_source.html">core/logger.h</a>&quot;</code><br />
@@ -106,8 +106,11 @@ Functions</h2></td></tr>
 <tr class="separator:a840291bc02cba5474a4cb46a9b9566fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>This file contains the main entry point to the application. </p>
-<p>It also contains a reference to an externally defined create_game method, which should create and set a custom game object to the location pointed to by out_game. This would be provided by the consuming application, which is then hooked into the engine itself during the bootstrapping phase. </p>
+<div class="textblock"><p>This file contains the main entry point to the application. It also contains a reference to an externally defined create_game method, which should create and set a custom game object to the location pointed to by out_game. This would be provided by the consuming application, which is then hooked into the engine itself during the bootstrapping phase. </p>
+<dl class="section author"><dt>Author</dt><dd>Travis Vroman (<a href="#" onclick="location.href='mai'+'lto:'+'tra'+'vi'+'s@k'+'oh'+'ien'+'gi'+'ne.'+'co'+'m'; return false;">travi<span style="display: none;">.nosp@m.</span>s@ko<span style="display: none;">.nosp@m.</span>hieng<span style="display: none;">.nosp@m.</span>ine.<span style="display: none;">.nosp@m.</span>com</a>) </dd></dl>
+<dl class="section version"><dt>Version</dt><dd>1.0 </dd></dl>
+<dl class="section date"><dt>Date</dt><dd>2022-01-10</dd></dl>
+<dl class="section copyright"><dt>Copyright</dt><dd>Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022 </dd></dl>
 </div><h2 class="groupheader">Function Documentation</h2>
 <a id="ac1205073da2ce08a82ead459fc8b39cb"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ac1205073da2ce08a82ead459fc8b39cb">&#9670;&nbsp;</a></span>create_game()</h2>

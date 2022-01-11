@@ -1,11 +1,16 @@
 /**
- * @file
+ * @file kmemory.h
+ * @author Travis Vroman (travis@kohiengine.com)
  * @brief This file contains the structures and functions of the memory system.
  * This is responsible for memory interaction with the platform layer, such as
  * allocations/frees and tagging of memory allocations.
- * 
- * Note that reliance on this will likely be by core systems only, as items using
+ * @note Note that reliance on this will likely be by core systems only, as items using
  * allocations directly will use allocators as they are added to the system.
+ * @version 1.0
+ * @date 2022-01-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
  */
 
 #pragma once

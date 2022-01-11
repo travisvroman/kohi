@@ -1,6 +1,12 @@
 /**
- * @file
+ * @file game_types.h
+ * @author Travis Vroman (travis@kohiengine.com)
  * @brief This file contains types to be consumed by the game library.
+ * @version 1.0
+ * @date 2022-01-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
  */
 
 #pragma once

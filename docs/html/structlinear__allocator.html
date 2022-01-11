@@ -88,20 +88,29 @@ $(document).ready(function(){initNavTree('structlinear__allocator.html',''); ini
 </div><!--header-->
 <div class="contents">
 
+<p>The data structure for a linear allocator.  
+ <a href="structlinear__allocator.html#details">More...</a></p>
+
 <p><code>#include &lt;<a class="el" href="linear__allocator_8h_source.html">linear_allocator.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-attribs"></a>
 Data Fields</h2></td></tr>
 <tr class="memitem:aa08327aac04bab0323c30e2013c58582"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlinear__allocator.html#aa08327aac04bab0323c30e2013c58582">total_size</a></td></tr>
+<tr class="memdesc:aa08327aac04bab0323c30e2013c58582"><td class="mdescLeft">&#160;</td><td class="mdescRight">The total size of memory in the allocator.  <a href="structlinear__allocator.html#aa08327aac04bab0323c30e2013c58582">More...</a><br /></td></tr>
 <tr class="separator:aa08327aac04bab0323c30e2013c58582"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9c46c86679c0c50f6298544553bf40b4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlinear__allocator.html#a9c46c86679c0c50f6298544553bf40b4">allocated</a></td></tr>
+<tr class="memdesc:a9c46c86679c0c50f6298544553bf40b4"><td class="mdescLeft">&#160;</td><td class="mdescRight">The amount of memory currently allocated.  <a href="structlinear__allocator.html#a9c46c86679c0c50f6298544553bf40b4">More...</a><br /></td></tr>
 <tr class="separator:a9c46c86679c0c50f6298544553bf40b4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9824c7cb7e4069084cbbd4458efd3faf"><td class="memItemLeft" align="right" valign="top">void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlinear__allocator.html#a9824c7cb7e4069084cbbd4458efd3faf">memory</a></td></tr>
+<tr class="memdesc:a9824c7cb7e4069084cbbd4458efd3faf"><td class="mdescLeft">&#160;</td><td class="mdescRight">The internal block of memory used by the allocator.  <a href="structlinear__allocator.html#a9824c7cb7e4069084cbbd4458efd3faf">More...</a><br /></td></tr>
 <tr class="separator:a9824c7cb7e4069084cbbd4458efd3faf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a285c33f87cc47e8b34ecb595c094731e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlinear__allocator.html#a285c33f87cc47e8b34ecb595c094731e">owns_memory</a></td></tr>
+<tr class="memdesc:a285c33f87cc47e8b34ecb595c094731e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Indicates if the allocator owns the memory (meaning it performed the allocation itself) or whether it was provided by an outside source.  <a href="structlinear__allocator.html#a285c33f87cc47e8b34ecb595c094731e">More...</a><br /></td></tr>
 <tr class="separator:a285c33f87cc47e8b34ecb595c094731e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Field Documentation</h2>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>The data structure for a linear allocator. </p>
+</div><h2 class="groupheader">Field Documentation</h2>
 <a id="a9c46c86679c0c50f6298544553bf40b4"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a9c46c86679c0c50f6298544553bf40b4">&#9670;&nbsp;</a></span>allocated</h2>
 
@@ -113,6 +122,8 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>The amount of memory currently allocated. </p>
 
 </div>
 </div>
@@ -128,6 +139,8 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>The internal block of memory used by the allocator. </p>
+
 </div>
 </div>
 <a id="a285c33f87cc47e8b34ecb595c094731e"></a>
@@ -142,6 +155,8 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Indicates if the allocator owns the memory (meaning it performed the allocation itself) or whether it was provided by an outside source. </p>
+
 </div>
 </div>
 <a id="aa08327aac04bab0323c30e2013c58582"></a>
@@ -155,6 +170,8 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>The total size of memory in the allocator. </p>
 
 </div>
 </div>

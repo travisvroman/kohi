@@ -90,6 +90,9 @@ $(document).ready(function(){initNavTree('filesystem_8h.html',''); initResizable
 <div class="title">filesystem.h File Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
+
+<p>This file contains structures and functions for interacting with the file system.  
+<a href="#details">More...</a></p>
 <div class="textblock"><code>#include &quot;<a class="el" href="defines_8h_source.html">defines.h</a>&quot;</code><br />
 </div>
 <p><a href="filesystem_8h_source.html">Go to the source code of this file.</a></p>
@@ -97,13 +100,16 @@ $(document).ready(function(){initNavTree('filesystem_8h.html',''); initResizable
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="nested-classes"></a>
 Data Structures</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structfile__handle.html">file_handle</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Holds a handle to a file.  <a href="structfile__handle.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="typedef-members"></a>
 Typedefs</h2></td></tr>
 <tr class="memitem:a7476969a55c37c65e7364842e81b93d7"><td class="memItemLeft" align="right" valign="top">typedef struct <a class="el" href="structfile__handle.html">file_handle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#a7476969a55c37c65e7364842e81b93d7">file_handle</a></td></tr>
+<tr class="memdesc:a7476969a55c37c65e7364842e81b93d7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Holds a handle to a file.  <a href="filesystem_8h.html#a7476969a55c37c65e7364842e81b93d7">More...</a><br /></td></tr>
 <tr class="separator:a7476969a55c37c65e7364842e81b93d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a260a6f6af9275cf2bfbc28e6a687710b"><td class="memItemLeft" align="right" valign="top">typedef enum <a class="el" href="filesystem_8h.html#a65ff8d4f12985f7d5210a0688be998dc">file_modes</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#a260a6f6af9275cf2bfbc28e6a687710b">file_modes</a></td></tr>
+<tr class="memdesc:a260a6f6af9275cf2bfbc28e6a687710b"><td class="mdescLeft">&#160;</td><td class="mdescRight">File open modes. Can be combined.  <a href="filesystem_8h.html#a260a6f6af9275cf2bfbc28e6a687710b">More...</a><br /></td></tr>
 <tr class="separator:a260a6f6af9275cf2bfbc28e6a687710b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="enum-members"></a>
@@ -111,33 +117,50 @@ Enumerations</h2></td></tr>
 <tr class="memitem:a65ff8d4f12985f7d5210a0688be998dc"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#a65ff8d4f12985f7d5210a0688be998dc">file_modes</a> { <a class="el" href="filesystem_8h.html#a65ff8d4f12985f7d5210a0688be998dca89cf567f3e692c97873d7a795c17feca">FILE_MODE_READ</a> = 0x1, 
 <a class="el" href="filesystem_8h.html#a65ff8d4f12985f7d5210a0688be998dca12eb77a5f1206154eb9f5adc219c9d5b">FILE_MODE_WRITE</a> = 0x2
  }</td></tr>
+<tr class="memdesc:a65ff8d4f12985f7d5210a0688be998dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">File open modes. Can be combined.  <a href="filesystem_8h.html#a65ff8d4f12985f7d5210a0688be998dc">More...</a><br /></td></tr>
 <tr class="separator:a65ff8d4f12985f7d5210a0688be998dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:a4997bca99ca6341f66be85cc0cdff3e6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#a4997bca99ca6341f66be85cc0cdff3e6">filesystem_exists</a> (const char *path)</td></tr>
+<tr class="memdesc:a4997bca99ca6341f66be85cc0cdff3e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks if a file with the given path exists.  <a href="filesystem_8h.html#a4997bca99ca6341f66be85cc0cdff3e6">More...</a><br /></td></tr>
 <tr class="separator:a4997bca99ca6341f66be85cc0cdff3e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8173a7166321a59549cb1933c498bc24"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#a8173a7166321a59549cb1933c498bc24">filesystem_open</a> (const char *path, <a class="el" href="filesystem_8h.html#a65ff8d4f12985f7d5210a0688be998dc">file_modes</a> mode, <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a> binary, <a class="el" href="structfile__handle.html">file_handle</a> *out_handle)</td></tr>
+<tr class="memdesc:a8173a7166321a59549cb1933c498bc24"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attempt to open file located at path.  <a href="filesystem_8h.html#a8173a7166321a59549cb1933c498bc24">More...</a><br /></td></tr>
 <tr class="separator:a8173a7166321a59549cb1933c498bc24"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a20450eac56692795d9c28dc6b34bb898"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#a20450eac56692795d9c28dc6b34bb898">filesystem_close</a> (<a class="el" href="structfile__handle.html">file_handle</a> *handle)</td></tr>
+<tr class="memdesc:a20450eac56692795d9c28dc6b34bb898"><td class="mdescLeft">&#160;</td><td class="mdescRight">Closes the provided handle to a file.  <a href="filesystem_8h.html#a20450eac56692795d9c28dc6b34bb898">More...</a><br /></td></tr>
 <tr class="separator:a20450eac56692795d9c28dc6b34bb898"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0811c893f60fe2a1387f1a496a719985"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#a0811c893f60fe2a1387f1a496a719985">filesystem_size</a> (<a class="el" href="structfile__handle.html">file_handle</a> *handle, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> *out_size)</td></tr>
 <tr class="memdesc:a0811c893f60fe2a1387f1a496a719985"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attempts to read the size of the file to which handle is attached.  <a href="filesystem_8h.html#a0811c893f60fe2a1387f1a496a719985">More...</a><br /></td></tr>
 <tr class="separator:a0811c893f60fe2a1387f1a496a719985"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a34b0ddf8fdf6f331f2986ad3bef9a0aa"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#a34b0ddf8fdf6f331f2986ad3bef9a0aa">filesystem_read_line</a> (<a class="el" href="structfile__handle.html">file_handle</a> *handle, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> max_length, char **line_buf, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> *out_line_length)</td></tr>
+<tr class="memdesc:a34b0ddf8fdf6f331f2986ad3bef9a0aa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads up to a newline or EOF.  <a href="filesystem_8h.html#a34b0ddf8fdf6f331f2986ad3bef9a0aa">More...</a><br /></td></tr>
 <tr class="separator:a34b0ddf8fdf6f331f2986ad3bef9a0aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac9fa1fb71b432ede794211d6a7df7052"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#ac9fa1fb71b432ede794211d6a7df7052">filesystem_write_line</a> (<a class="el" href="structfile__handle.html">file_handle</a> *handle, const char *text)</td></tr>
+<tr class="memdesc:ac9fa1fb71b432ede794211d6a7df7052"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes text to the provided file, appending a '<br  />
+' afterward.  <a href="filesystem_8h.html#ac9fa1fb71b432ede794211d6a7df7052">More...</a><br /></td></tr>
 <tr class="separator:ac9fa1fb71b432ede794211d6a7df7052"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aff3cb7ad041d5dec3e40e10509a8bf60"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#aff3cb7ad041d5dec3e40e10509a8bf60">filesystem_read</a> (<a class="el" href="structfile__handle.html">file_handle</a> *handle, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> data_size, void *out_data, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> *out_bytes_read)</td></tr>
+<tr class="memdesc:aff3cb7ad041d5dec3e40e10509a8bf60"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads up to data_size bytes of data into out_bytes_read. Allocates *out_data, which must be freed by the caller.  <a href="filesystem_8h.html#aff3cb7ad041d5dec3e40e10509a8bf60">More...</a><br /></td></tr>
 <tr class="separator:aff3cb7ad041d5dec3e40e10509a8bf60"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a67516997d3a6902d2cba21f78672dff2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#a67516997d3a6902d2cba21f78672dff2">filesystem_read_all_bytes</a> (<a class="el" href="structfile__handle.html">file_handle</a> *handle, <a class="el" href="defines_8h.html#aed742c436da53c1080638ce6ef7d13de">u8</a> *out_bytes, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> *out_bytes_read)</td></tr>
+<tr class="memdesc:a67516997d3a6902d2cba21f78672dff2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads all bytes of data into out_bytes.  <a href="filesystem_8h.html#a67516997d3a6902d2cba21f78672dff2">More...</a><br /></td></tr>
 <tr class="separator:a67516997d3a6902d2cba21f78672dff2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a292678844d964bfc92fd709da0e5cda4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#a292678844d964bfc92fd709da0e5cda4">filesystem_read_all_text</a> (<a class="el" href="structfile__handle.html">file_handle</a> *handle, char *out_text, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> *out_bytes_read)</td></tr>
+<tr class="memdesc:a292678844d964bfc92fd709da0e5cda4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads all characters of data into out_text.  <a href="filesystem_8h.html#a292678844d964bfc92fd709da0e5cda4">More...</a><br /></td></tr>
 <tr class="separator:a292678844d964bfc92fd709da0e5cda4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8570b525f6dc1490dd4193296a96d52d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="filesystem_8h.html#a8570b525f6dc1490dd4193296a96d52d">filesystem_write</a> (<a class="el" href="structfile__handle.html">file_handle</a> *handle, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> data_size, const void *data, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> *out_bytes_written)</td></tr>
+<tr class="memdesc:a8570b525f6dc1490dd4193296a96d52d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes provided data to the file.  <a href="filesystem_8h.html#a8570b525f6dc1490dd4193296a96d52d">More...</a><br /></td></tr>
 <tr class="separator:a8570b525f6dc1490dd4193296a96d52d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Typedef Documentation</h2>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>This file contains structures and functions for interacting with the file system. </p>
+<dl class="section author"><dt>Author</dt><dd>Travis Vroman (<a href="#" onclick="location.href='mai'+'lto:'+'tra'+'vi'+'s@k'+'oh'+'ien'+'gi'+'ne.'+'co'+'m'; return false;">travi<span style="display: none;">.nosp@m.</span>s@ko<span style="display: none;">.nosp@m.</span>hieng<span style="display: none;">.nosp@m.</span>ine.<span style="display: none;">.nosp@m.</span>com</a>) </dd></dl>
+<dl class="section version"><dt>Version</dt><dd>1.0 </dd></dl>
+<dl class="section date"><dt>Date</dt><dd>2022-01-10</dd></dl>
+<dl class="section copyright"><dt>Copyright</dt><dd>Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022 </dd></dl>
+</div><h2 class="groupheader">Typedef Documentation</h2>
 <a id="a7476969a55c37c65e7364842e81b93d7"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7476969a55c37c65e7364842e81b93d7">&#9670;&nbsp;</a></span>file_handle</h2>
 
@@ -149,6 +172,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Holds a handle to a file. </p>
 
 </div>
 </div>
@@ -164,6 +189,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>File open modes. Can be combined. </p>
+
 </div>
 </div>
 <h2 class="groupheader">Enumeration Type Documentation</h2>
@@ -178,9 +205,13 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>File open modes. Can be combined. </p>
 <table class="fieldtable">
-<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="a65ff8d4f12985f7d5210a0688be998dca89cf567f3e692c97873d7a795c17feca"></a>FILE_MODE_READ&#160;</td><td class="fielddoc"></td></tr>
-<tr><td class="fieldname"><a id="a65ff8d4f12985f7d5210a0688be998dca12eb77a5f1206154eb9f5adc219c9d5b"></a>FILE_MODE_WRITE&#160;</td><td class="fielddoc"></td></tr>
+<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="a65ff8d4f12985f7d5210a0688be998dca89cf567f3e692c97873d7a795c17feca"></a>FILE_MODE_READ&#160;</td><td class="fielddoc"><p>Read mode </p>
+</td></tr>
+<tr><td class="fieldname"><a id="a65ff8d4f12985f7d5210a0688be998dca12eb77a5f1206154eb9f5adc219c9d5b"></a>FILE_MODE_WRITE&#160;</td><td class="fielddoc"><p>Write mode </p>
+</td></tr>
 </table>
 
 </div>
@@ -201,9 +232,11 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Closes the provided handle to a file. </p><dl class="params"><dt>Parameters</dt><dd>
+
+<p>Closes the provided handle to a file. </p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html">file_handle</a> structure which holds the handle to be closed. </td></tr>
+    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html" title="Holds a handle to a file.">file_handle</a> structure which holds the handle to be closed. </td></tr>
   </table>
   </dd>
 </dl>
@@ -225,7 +258,9 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Checks if a file with the given path exists. </p><dl class="params"><dt>Parameters</dt><dd>
+
+<p>Checks if a file with the given path exists. </p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">path</td><td>The path of the file to be checked. </td></tr>
   </table>
@@ -272,12 +307,14 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Attempt to open file located at path. </p><dl class="params"><dt>Parameters</dt><dd>
+
+<p>Attempt to open file located at path. </p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">path</td><td>The path of the file to be opened. </td></tr>
-    <tr><td class="paramname">mode</td><td>Mode flags for the file when opened (read/write). See file_modes enum in <a class="el" href="filesystem_8h.html">filesystem.h</a>. </td></tr>
+    <tr><td class="paramname">mode</td><td>Mode flags for the file when opened (read/write). See file_modes enum in <a class="el" href="filesystem_8h.html" title="This file contains structures and functions for interacting with the file system.">filesystem.h</a>. </td></tr>
     <tr><td class="paramname">binary</td><td>Indicates if the file should be opened in binary mode. </td></tr>
-    <tr><td class="paramname">out_handle</td><td>A pointer to a <a class="el" href="structfile__handle.html">file_handle</a> structure which holds the handle information. </td></tr>
+    <tr><td class="paramname">out_handle</td><td>A pointer to a <a class="el" href="structfile__handle.html" title="Holds a handle to a file.">file_handle</a> structure which holds the handle information. </td></tr>
   </table>
   </dd>
 </dl>
@@ -322,9 +359,11 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Reads up to data_size bytes of data into out_bytes_read. Allocates *out_data, which must be freed by the caller. </p><dl class="params"><dt>Parameters</dt><dd>
+
+<p>Reads up to data_size bytes of data into out_bytes_read. Allocates *out_data, which must be freed by the caller. </p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html">file_handle</a> structure. </td></tr>
+    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html" title="Holds a handle to a file.">file_handle</a> structure. </td></tr>
     <tr><td class="paramname">data_size</td><td>The number of bytes to read. </td></tr>
     <tr><td class="paramname">out_data</td><td>A pointer to a block of memory to be populated by this method. </td></tr>
     <tr><td class="paramname">out_bytes_read</td><td>A pointer to a number which will be populated with the number of bytes actually read from the file. </td></tr>
@@ -366,9 +405,11 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Reads all bytes of data into out_bytes. </p><dl class="params"><dt>Parameters</dt><dd>
+
+<p>Reads all bytes of data into out_bytes. </p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html">file_handle</a> structure. </td></tr>
+    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html" title="Holds a handle to a file.">file_handle</a> structure. </td></tr>
     <tr><td class="paramname">out_bytes</td><td>A byte array which will be populated by this method. </td></tr>
     <tr><td class="paramname">out_bytes_read</td><td>A pointer to a number which will be populated with the number of bytes actually read from the file. </td></tr>
   </table>
@@ -409,9 +450,11 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Reads all characters of data into out_text. </p><dl class="params"><dt>Parameters</dt><dd>
+
+<p>Reads all characters of data into out_text. </p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html">file_handle</a> structure. </td></tr>
+    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html" title="Holds a handle to a file.">file_handle</a> structure. </td></tr>
     <tr><td class="paramname">out_text</td><td>A character array which will be populated by this method. </td></tr>
     <tr><td class="paramname">out_bytes_read</td><td>A pointer to a number which will be populated with the number of bytes actually read from the file. </td></tr>
   </table>
@@ -458,9 +501,11 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Reads up to a newline or EOF. </p><dl class="params"><dt>Parameters</dt><dd>
+
+<p>Reads up to a newline or EOF. </p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html">file_handle</a> structure. </td></tr>
+    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html" title="Holds a handle to a file.">file_handle</a> structure. </td></tr>
     <tr><td class="paramname">max_length</td><td>The maximum length to be read from the line. </td></tr>
     <tr><td class="paramname">line_buf</td><td>A pointer to a character array populated by this method. Must already be allocated. </td></tr>
     <tr><td class="paramname">out_line_length</td><td>A pointer to hold the line length read from the file. </td></tr>
@@ -546,9 +591,11 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Writes provided data to the file. </p><dl class="params"><dt>Parameters</dt><dd>
+
+<p>Writes provided data to the file. </p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html">file_handle</a> structure. </td></tr>
+    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html" title="Holds a handle to a file.">file_handle</a> structure. </td></tr>
     <tr><td class="paramname">data_size</td><td>The size of the data in bytes. </td></tr>
     <tr><td class="paramname">data</td><td>The data to be written. </td></tr>
     <tr><td class="paramname">out_bytes_written</td><td>A pointer to a number which will be populated with the number of bytes actually written to the file. </td></tr>
@@ -584,10 +631,12 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
 <p>Writes text to the provided file, appending a '<br  />
-' afterward. </p><dl class="params"><dt>Parameters</dt><dd>
+' afterward. </p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html">file_handle</a> structure. </td></tr>
+    <tr><td class="paramname">handle</td><td>A pointer to a <a class="el" href="structfile__handle.html" title="Holds a handle to a file.">file_handle</a> structure. </td></tr>
     <tr><td class="paramname">text</td><td>The text to be written. </td></tr>
   </table>
   </dd>

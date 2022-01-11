@@ -1,6 +1,12 @@
 /**
- * @file
+ * @file logger.h
+ * @author Travis Vroman (travis@kohiengine.com)
  * @brief This file contains structures and logic pertaining to the logging system.
+ * @version 1.0
+ * @date 2022-01-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
  */
 
 #pragma once

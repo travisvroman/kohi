@@ -88,6 +88,9 @@ $(document).ready(function(){initNavTree('kmath_8h.html',''); initResizable(); }
 <div class="title">kmath.h File Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
+
+<p>This file contains definitions for various important constant values as well as functions for many common math types.  
+<a href="#details">More...</a></p>
 <div class="textblock"><code>#include &quot;<a class="el" href="defines_8h_source.html">defines.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="math__types_8h_source.html">math_types.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="kmemory_8h_source.html">core/kmemory.h</a>&quot;</code><br />
@@ -97,61 +100,88 @@ $(document).ready(function(){initNavTree('kmath_8h.html',''); initResizable(); }
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="define-members"></a>
 Macros</h2></td></tr>
 <tr class="memitem:a7f5d931d5fbaeacdfc2efacf4175b298"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a7f5d931d5fbaeacdfc2efacf4175b298">K_PI</a>&#160;&#160;&#160;3.14159265358979323846f</td></tr>
+<tr class="memdesc:a7f5d931d5fbaeacdfc2efacf4175b298"><td class="mdescLeft">&#160;</td><td class="mdescRight">An approximate representation of PI.  <a href="kmath_8h.html#a7f5d931d5fbaeacdfc2efacf4175b298">More...</a><br /></td></tr>
 <tr class="separator:a7f5d931d5fbaeacdfc2efacf4175b298"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a45f622ca30303f8ed862638d57fedf0a"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a45f622ca30303f8ed862638d57fedf0a">K_PI_2</a>&#160;&#160;&#160;2.0f * <a class="el" href="kmath_8h.html#a7f5d931d5fbaeacdfc2efacf4175b298">K_PI</a></td></tr>
+<tr class="memdesc:a45f622ca30303f8ed862638d57fedf0a"><td class="mdescLeft">&#160;</td><td class="mdescRight">An approximate representation of PI multiplied by 2.  <a href="kmath_8h.html#a45f622ca30303f8ed862638d57fedf0a">More...</a><br /></td></tr>
 <tr class="separator:a45f622ca30303f8ed862638d57fedf0a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a02134672035233d95f1edd0bb0c382ae"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a02134672035233d95f1edd0bb0c382ae">K_HALF_PI</a>&#160;&#160;&#160;0.5f * <a class="el" href="kmath_8h.html#a7f5d931d5fbaeacdfc2efacf4175b298">K_PI</a></td></tr>
+<tr class="memdesc:a02134672035233d95f1edd0bb0c382ae"><td class="mdescLeft">&#160;</td><td class="mdescRight">An approximate representation of PI divided by 2.  <a href="kmath_8h.html#a02134672035233d95f1edd0bb0c382ae">More...</a><br /></td></tr>
 <tr class="separator:a02134672035233d95f1edd0bb0c382ae"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6cc93641a9093334602cb75bfce6d733"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a6cc93641a9093334602cb75bfce6d733">K_QUARTER_PI</a>&#160;&#160;&#160;0.25f * <a class="el" href="kmath_8h.html#a7f5d931d5fbaeacdfc2efacf4175b298">K_PI</a></td></tr>
+<tr class="memdesc:a6cc93641a9093334602cb75bfce6d733"><td class="mdescLeft">&#160;</td><td class="mdescRight">An approximate representation of PI divided by 4.  <a href="kmath_8h.html#a6cc93641a9093334602cb75bfce6d733">More...</a><br /></td></tr>
 <tr class="separator:a6cc93641a9093334602cb75bfce6d733"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abffc153b2065dd8da5f8dd86f05e035d"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#abffc153b2065dd8da5f8dd86f05e035d">K_ONE_OVER_PI</a>&#160;&#160;&#160;1.0f / <a class="el" href="kmath_8h.html#a7f5d931d5fbaeacdfc2efacf4175b298">K_PI</a></td></tr>
+<tr class="memdesc:abffc153b2065dd8da5f8dd86f05e035d"><td class="mdescLeft">&#160;</td><td class="mdescRight">One divided by an approximate representation of PI.  <a href="kmath_8h.html#abffc153b2065dd8da5f8dd86f05e035d">More...</a><br /></td></tr>
 <tr class="separator:abffc153b2065dd8da5f8dd86f05e035d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adebf00be36dc6bd884970fae9adb76a0"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#adebf00be36dc6bd884970fae9adb76a0">K_ONE_OVER_TWO_PI</a>&#160;&#160;&#160;1.0f / <a class="el" href="kmath_8h.html#a45f622ca30303f8ed862638d57fedf0a">K_PI_2</a></td></tr>
+<tr class="memdesc:adebf00be36dc6bd884970fae9adb76a0"><td class="mdescLeft">&#160;</td><td class="mdescRight">One divided by half of an approximate representation of PI.  <a href="kmath_8h.html#adebf00be36dc6bd884970fae9adb76a0">More...</a><br /></td></tr>
 <tr class="separator:adebf00be36dc6bd884970fae9adb76a0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9d923338da950759eb18cc4c9a39faab"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a9d923338da950759eb18cc4c9a39faab">K_SQRT_TWO</a>&#160;&#160;&#160;1.41421356237309504880f</td></tr>
+<tr class="memdesc:a9d923338da950759eb18cc4c9a39faab"><td class="mdescLeft">&#160;</td><td class="mdescRight">An approximation of the square root of 2.  <a href="kmath_8h.html#a9d923338da950759eb18cc4c9a39faab">More...</a><br /></td></tr>
 <tr class="separator:a9d923338da950759eb18cc4c9a39faab"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e6e381628a2f54a84e8f5787d7971f0"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a3e6e381628a2f54a84e8f5787d7971f0">K_SQRT_THREE</a>&#160;&#160;&#160;1.73205080756887729352f</td></tr>
+<tr class="memdesc:a3e6e381628a2f54a84e8f5787d7971f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">An approximation of the square root of 3.  <a href="kmath_8h.html#a3e6e381628a2f54a84e8f5787d7971f0">More...</a><br /></td></tr>
 <tr class="separator:a3e6e381628a2f54a84e8f5787d7971f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a56c02c4ab83ee9256a5989ae15f1eb84"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a56c02c4ab83ee9256a5989ae15f1eb84">K_SQRT_ONE_OVER_TWO</a>&#160;&#160;&#160;0.70710678118654752440f</td></tr>
+<tr class="memdesc:a56c02c4ab83ee9256a5989ae15f1eb84"><td class="mdescLeft">&#160;</td><td class="mdescRight">One divided by an approximation of the square root of 2.  <a href="kmath_8h.html#a56c02c4ab83ee9256a5989ae15f1eb84">More...</a><br /></td></tr>
 <tr class="separator:a56c02c4ab83ee9256a5989ae15f1eb84"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2a0d18552a24e21b854b9249ea8a8539"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a2a0d18552a24e21b854b9249ea8a8539">K_SQRT_ONE_OVER_THREE</a>&#160;&#160;&#160;0.57735026918962576450f</td></tr>
+<tr class="memdesc:a2a0d18552a24e21b854b9249ea8a8539"><td class="mdescLeft">&#160;</td><td class="mdescRight">One divided by an approximation of the square root of 3.  <a href="kmath_8h.html#a2a0d18552a24e21b854b9249ea8a8539">More...</a><br /></td></tr>
 <tr class="separator:a2a0d18552a24e21b854b9249ea8a8539"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af73c861aee209d7a51976054ed95c728"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#af73c861aee209d7a51976054ed95c728">K_DEG2RAD_MULTIPLIER</a>&#160;&#160;&#160;<a class="el" href="kmath_8h.html#a7f5d931d5fbaeacdfc2efacf4175b298">K_PI</a> / 180.0f</td></tr>
+<tr class="memdesc:af73c861aee209d7a51976054ed95c728"><td class="mdescLeft">&#160;</td><td class="mdescRight">A multiplier used to convert degrees to radians.  <a href="kmath_8h.html#af73c861aee209d7a51976054ed95c728">More...</a><br /></td></tr>
 <tr class="separator:af73c861aee209d7a51976054ed95c728"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6fff701491f7e004d35e934bc9989dfc"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a6fff701491f7e004d35e934bc9989dfc">K_RAD2DEG_MULTIPLIER</a>&#160;&#160;&#160;180.0f / <a class="el" href="kmath_8h.html#a7f5d931d5fbaeacdfc2efacf4175b298">K_PI</a></td></tr>
+<tr class="memdesc:a6fff701491f7e004d35e934bc9989dfc"><td class="mdescLeft">&#160;</td><td class="mdescRight">A multiplier used to convert radians to degrees.  <a href="kmath_8h.html#a6fff701491f7e004d35e934bc9989dfc">More...</a><br /></td></tr>
 <tr class="separator:a6fff701491f7e004d35e934bc9989dfc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1b538e8681dbbbc88380448a4218f487"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a1b538e8681dbbbc88380448a4218f487">K_SEC_TO_MS_MULTIPLIER</a>&#160;&#160;&#160;1000.0f</td></tr>
+<tr class="memdesc:a1b538e8681dbbbc88380448a4218f487"><td class="mdescLeft">&#160;</td><td class="mdescRight">The multiplier to convert seconds to milliseconds.  <a href="kmath_8h.html#a1b538e8681dbbbc88380448a4218f487">More...</a><br /></td></tr>
 <tr class="separator:a1b538e8681dbbbc88380448a4218f487"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a53a16ca764ffe90416d3508503cd5dcc"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a53a16ca764ffe90416d3508503cd5dcc">K_MS_TO_SEC_MULTIPLIER</a>&#160;&#160;&#160;0.001f</td></tr>
+<tr class="memdesc:a53a16ca764ffe90416d3508503cd5dcc"><td class="mdescLeft">&#160;</td><td class="mdescRight">The multiplier to convert milliseconds to seconds.  <a href="kmath_8h.html#a53a16ca764ffe90416d3508503cd5dcc">More...</a><br /></td></tr>
 <tr class="separator:a53a16ca764ffe90416d3508503cd5dcc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a49ab2dae67aa42d2c428ed546a956fad"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a49ab2dae67aa42d2c428ed546a956fad">K_INFINITY</a>&#160;&#160;&#160;1e30f</td></tr>
+<tr class="memdesc:a49ab2dae67aa42d2c428ed546a956fad"><td class="mdescLeft">&#160;</td><td class="mdescRight">A huge number that should be larger than any valid number used.  <a href="kmath_8h.html#a49ab2dae67aa42d2c428ed546a956fad">More...</a><br /></td></tr>
 <tr class="separator:a49ab2dae67aa42d2c428ed546a956fad"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aab9335b299111e8e7b143806fc9aff1b"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#aab9335b299111e8e7b143806fc9aff1b">K_FLOAT_EPSILON</a>&#160;&#160;&#160;1.192092896e-07f</td></tr>
+<tr class="memdesc:aab9335b299111e8e7b143806fc9aff1b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Smallest positive number where 1.0 + FLOAT_EPSILON != 0.  <a href="kmath_8h.html#aab9335b299111e8e7b143806fc9aff1b">More...</a><br /></td></tr>
 <tr class="separator:aab9335b299111e8e7b143806fc9aff1b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:a4a89f4dff6daae5dd77b89ba6a3ecea2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a4a89f4dff6daae5dd77b89ba6a3ecea2">ksin</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> x)</td></tr>
+<tr class="memdesc:a4a89f4dff6daae5dd77b89ba6a3ecea2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the sine of x.  <a href="kmath_8h.html#a4a89f4dff6daae5dd77b89ba6a3ecea2">More...</a><br /></td></tr>
 <tr class="separator:a4a89f4dff6daae5dd77b89ba6a3ecea2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8cf427c73ea32b031ff5a5143d12c2f6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a8cf427c73ea32b031ff5a5143d12c2f6">kcos</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> x)</td></tr>
+<tr class="memdesc:a8cf427c73ea32b031ff5a5143d12c2f6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the cosine of x.  <a href="kmath_8h.html#a8cf427c73ea32b031ff5a5143d12c2f6">More...</a><br /></td></tr>
 <tr class="separator:a8cf427c73ea32b031ff5a5143d12c2f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2e33ecd9e2f3ccc5d27beab90460aa68"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a2e33ecd9e2f3ccc5d27beab90460aa68">ktan</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> x)</td></tr>
+<tr class="memdesc:a2e33ecd9e2f3ccc5d27beab90460aa68"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the tangent of x.  <a href="kmath_8h.html#a2e33ecd9e2f3ccc5d27beab90460aa68">More...</a><br /></td></tr>
 <tr class="separator:a2e33ecd9e2f3ccc5d27beab90460aa68"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1e60b4d5894e0d3d0d5146f3fc34f74c"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a1e60b4d5894e0d3d0d5146f3fc34f74c">kacos</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> x)</td></tr>
+<tr class="memdesc:a1e60b4d5894e0d3d0d5146f3fc34f74c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the arc cosine of x.  <a href="kmath_8h.html#a1e60b4d5894e0d3d0d5146f3fc34f74c">More...</a><br /></td></tr>
 <tr class="separator:a1e60b4d5894e0d3d0d5146f3fc34f74c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a44537c51868208d3bcfec4fe46db9bf4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a44537c51868208d3bcfec4fe46db9bf4">ksqrt</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> x)</td></tr>
+<tr class="memdesc:a44537c51868208d3bcfec4fe46db9bf4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the square root of x.  <a href="kmath_8h.html#a44537c51868208d3bcfec4fe46db9bf4">More...</a><br /></td></tr>
 <tr class="separator:a44537c51868208d3bcfec4fe46db9bf4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4b012fd8b1c6c54b70711ebaa00fd313"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a4b012fd8b1c6c54b70711ebaa00fd313">kabs</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> x)</td></tr>
+<tr class="memdesc:a4b012fd8b1c6c54b70711ebaa00fd313"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the absolute value of x.  <a href="kmath_8h.html#a4b012fd8b1c6c54b70711ebaa00fd313">More...</a><br /></td></tr>
 <tr class="separator:a4b012fd8b1c6c54b70711ebaa00fd313"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a728ffffd37e34f79e8d0e5669177c9e7"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a728ffffd37e34f79e8d0e5669177c9e7">is_power_of_2</a> (<a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> value)</td></tr>
+<tr class="memdesc:a728ffffd37e34f79e8d0e5669177c9e7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Indicates if the value is a power of 2. 0 is considered <em>not</em> a power of 2.  <a href="kmath_8h.html#a728ffffd37e34f79e8d0e5669177c9e7">More...</a><br /></td></tr>
 <tr class="separator:a728ffffd37e34f79e8d0e5669177c9e7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac54ae2728db0c39d2ccdea1e7c4029e9"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a9e3ad5f8e752f01d926ce122d5a5285e">i32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#ac54ae2728db0c39d2ccdea1e7c4029e9">krandom</a> ()</td></tr>
+<tr class="memdesc:ac54ae2728db0c39d2ccdea1e7c4029e9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a random integer.  <a href="kmath_8h.html#ac54ae2728db0c39d2ccdea1e7c4029e9">More...</a><br /></td></tr>
 <tr class="separator:ac54ae2728db0c39d2ccdea1e7c4029e9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1a4d8b8004d8fc7a55f7f73af084ca71"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a9e3ad5f8e752f01d926ce122d5a5285e">i32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a1a4d8b8004d8fc7a55f7f73af084ca71">krandom_in_range</a> (<a class="el" href="defines_8h.html#a9e3ad5f8e752f01d926ce122d5a5285e">i32</a> min, <a class="el" href="defines_8h.html#a9e3ad5f8e752f01d926ce122d5a5285e">i32</a> max)</td></tr>
+<tr class="memdesc:a1a4d8b8004d8fc7a55f7f73af084ca71"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a random integer that is within the given range (inclusive).  <a href="kmath_8h.html#a1a4d8b8004d8fc7a55f7f73af084ca71">More...</a><br /></td></tr>
 <tr class="separator:a1a4d8b8004d8fc7a55f7f73af084ca71"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a33c8bf2ec771d7e80f00b743fea5eee3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a33c8bf2ec771d7e80f00b743fea5eee3">fkrandom</a> ()</td></tr>
+<tr class="memdesc:a33c8bf2ec771d7e80f00b743fea5eee3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a random floating-point number.  <a href="kmath_8h.html#a33c8bf2ec771d7e80f00b743fea5eee3">More...</a><br /></td></tr>
 <tr class="separator:a33c8bf2ec771d7e80f00b743fea5eee3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9a3fb3ff33bed50622e745a131a7b8f3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a9a3fb3ff33bed50622e745a131a7b8f3">fkrandom_in_range</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> min, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> max)</td></tr>
+<tr class="memdesc:a9a3fb3ff33bed50622e745a131a7b8f3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a random floating-point number that is within the given range (inclusive).  <a href="kmath_8h.html#a9a3fb3ff33bed50622e745a131a7b8f3">More...</a><br /></td></tr>
 <tr class="separator:a9a3fb3ff33bed50622e745a131a7b8f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6f29d371788f0220f0b6c56846007060"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#a4403515b5f13a3b84dafb1667a1f9d88">vec2</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a6f29d371788f0220f0b6c56846007060">vec2_create</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> x, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> y)</td></tr>
 <tr class="memdesc:a6f29d371788f0220f0b6c56846007060"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates and returns a new 2-element vector using the supplied values.  <a href="kmath_8h.html#a6f29d371788f0220f0b6c56846007060">More...</a><br /></td></tr>
@@ -316,6 +346,7 @@ Functions</h2></td></tr>
 <tr class="memdesc:a877b390488cdca316999ee4519348cfb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a normalized copy of the supplied vector.  <a href="kmath_8h.html#a877b390488cdca316999ee4519348cfb">More...</a><br /></td></tr>
 <tr class="separator:a877b390488cdca316999ee4519348cfb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a46b41e60e81425ee0f14e0089bc95cc5"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a46b41e60e81425ee0f14e0089bc95cc5">vec4_dot_f32</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> a0, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> a1, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> a2, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> a3, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> b0, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> b1, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> b2, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> b3)</td></tr>
+<tr class="memdesc:a46b41e60e81425ee0f14e0089bc95cc5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the dot product using the elements of vec4s provided in split-out format.  <a href="kmath_8h.html#a46b41e60e81425ee0f14e0089bc95cc5">More...</a><br /></td></tr>
 <tr class="separator:a46b41e60e81425ee0f14e0089bc95cc5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2675d196b9d5b9b2c0b72c5f0c2fdf5c"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#a858329ffda7b5fe4913cca7ff8f34f30">mat4</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a2675d196b9d5b9b2c0b72c5f0c2fdf5c">mat4_identity</a> ()</td></tr>
 <tr class="memdesc:a2675d196b9d5b9b2c0b72c5f0c2fdf5c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates and returns an identity matrix:  <a href="kmath_8h.html#a2675d196b9d5b9b2c0b72c5f0c2fdf5c">More...</a><br /></td></tr>
@@ -339,17 +370,22 @@ Functions</h2></td></tr>
 <tr class="memdesc:a02adc5ee631689aa95583db1b76a3f56"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates and returns an inverse of the provided matrix.  <a href="kmath_8h.html#a02adc5ee631689aa95583db1b76a3f56">More...</a><br /></td></tr>
 <tr class="separator:a02adc5ee631689aa95583db1b76a3f56"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a209b073522143126e4b91d7b524b54f8"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#a858329ffda7b5fe4913cca7ff8f34f30">mat4</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a209b073522143126e4b91d7b524b54f8">mat4_translation</a> (<a class="el" href="math__types_8h.html#a8105231df6f33ef7bfaf26b96b09fb81">vec3</a> position)</td></tr>
+<tr class="memdesc:a209b073522143126e4b91d7b524b54f8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates and returns a translation matrix from the given position.  <a href="kmath_8h.html#a209b073522143126e4b91d7b524b54f8">More...</a><br /></td></tr>
 <tr class="separator:a209b073522143126e4b91d7b524b54f8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4b36f4568d28ccdb865d067ff1516f34"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#a858329ffda7b5fe4913cca7ff8f34f30">mat4</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a4b36f4568d28ccdb865d067ff1516f34">mat4_scale</a> (<a class="el" href="math__types_8h.html#a8105231df6f33ef7bfaf26b96b09fb81">vec3</a> scale)</td></tr>
 <tr class="memdesc:a4b36f4568d28ccdb865d067ff1516f34"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a scale matrix using the provided scale.  <a href="kmath_8h.html#a4b36f4568d28ccdb865d067ff1516f34">More...</a><br /></td></tr>
 <tr class="separator:a4b36f4568d28ccdb865d067ff1516f34"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a848df656ed8ecaed76f7036c18455809"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#a858329ffda7b5fe4913cca7ff8f34f30">mat4</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a848df656ed8ecaed76f7036c18455809">mat4_euler_x</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> angle_radians)</td></tr>
+<tr class="memdesc:a848df656ed8ecaed76f7036c18455809"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a rotation matrix from the provided x angle.  <a href="kmath_8h.html#a848df656ed8ecaed76f7036c18455809">More...</a><br /></td></tr>
 <tr class="separator:a848df656ed8ecaed76f7036c18455809"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9e917d00193efed2fe4288325cb737e2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#a858329ffda7b5fe4913cca7ff8f34f30">mat4</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a9e917d00193efed2fe4288325cb737e2">mat4_euler_y</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> angle_radians)</td></tr>
+<tr class="memdesc:a9e917d00193efed2fe4288325cb737e2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a rotation matrix from the provided y angle.  <a href="kmath_8h.html#a9e917d00193efed2fe4288325cb737e2">More...</a><br /></td></tr>
 <tr class="separator:a9e917d00193efed2fe4288325cb737e2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aafeeb5341c5a2734d85d3f0a8c23c64d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#a858329ffda7b5fe4913cca7ff8f34f30">mat4</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#aafeeb5341c5a2734d85d3f0a8c23c64d">mat4_euler_z</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> angle_radians)</td></tr>
+<tr class="memdesc:aafeeb5341c5a2734d85d3f0a8c23c64d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a rotation matrix from the provided z angle.  <a href="kmath_8h.html#aafeeb5341c5a2734d85d3f0a8c23c64d">More...</a><br /></td></tr>
 <tr class="separator:aafeeb5341c5a2734d85d3f0a8c23c64d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac5bcb54687a6d3d95078c9f29a7e057d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#a858329ffda7b5fe4913cca7ff8f34f30">mat4</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#ac5bcb54687a6d3d95078c9f29a7e057d">mat4_euler_xyz</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> x_radians, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> y_radians, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> z_radians)</td></tr>
+<tr class="memdesc:ac5bcb54687a6d3d95078c9f29a7e057d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a rotation matrix from the provided x, y and z axis rotations.  <a href="kmath_8h.html#ac5bcb54687a6d3d95078c9f29a7e057d">More...</a><br /></td></tr>
 <tr class="separator:ac5bcb54687a6d3d95078c9f29a7e057d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abb2c360e549e1b2cffcb5f6853eddada"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#a8105231df6f33ef7bfaf26b96b09fb81">vec3</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#abb2c360e549e1b2cffcb5f6853eddada">mat4_forward</a> (<a class="el" href="math__types_8h.html#a858329ffda7b5fe4913cca7ff8f34f30">mat4</a> matrix)</td></tr>
 <tr class="memdesc:abb2c360e549e1b2cffcb5f6853eddada"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a forward vector relative to the provided matrix.  <a href="kmath_8h.html#abb2c360e549e1b2cffcb5f6853eddada">More...</a><br /></td></tr>
@@ -370,26 +406,37 @@ Functions</h2></td></tr>
 <tr class="memdesc:a447e7a652833758d115184953454a016"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a right vector relative to the provided matrix.  <a href="kmath_8h.html#a447e7a652833758d115184953454a016">More...</a><br /></td></tr>
 <tr class="separator:a447e7a652833758d115184953454a016"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6edab62f710b9718c0590664774b1845"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a6edab62f710b9718c0590664774b1845">quat_identity</a> ()</td></tr>
+<tr class="memdesc:a6edab62f710b9718c0590664774b1845"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates an identity quaternion.  <a href="kmath_8h.html#a6edab62f710b9718c0590664774b1845">More...</a><br /></td></tr>
 <tr class="separator:a6edab62f710b9718c0590664774b1845"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a988ae268cd1fcd9e3cf6f37425e396ae"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a988ae268cd1fcd9e3cf6f37425e396ae">quat_normal</a> (<a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q)</td></tr>
+<tr class="memdesc:a988ae268cd1fcd9e3cf6f37425e396ae"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the normal of the provided quaternion.  <a href="kmath_8h.html#a988ae268cd1fcd9e3cf6f37425e396ae">More...</a><br /></td></tr>
 <tr class="separator:a988ae268cd1fcd9e3cf6f37425e396ae"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a80f41015fc07b514f4fedc2d76157e11"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a80f41015fc07b514f4fedc2d76157e11">quat_normalize</a> (<a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q)</td></tr>
+<tr class="memdesc:a80f41015fc07b514f4fedc2d76157e11"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a normalized copy of the provided quaternion.  <a href="kmath_8h.html#a80f41015fc07b514f4fedc2d76157e11">More...</a><br /></td></tr>
 <tr class="separator:a80f41015fc07b514f4fedc2d76157e11"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a07c8b0a7152d96143691ca040b8c0d23"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a07c8b0a7152d96143691ca040b8c0d23">quat_conjugate</a> (<a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q)</td></tr>
+<tr class="memdesc:a07c8b0a7152d96143691ca040b8c0d23"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the conjugate of the provided quaternion. That is, The x, y and z elements are negated, but the w element is untouched.  <a href="kmath_8h.html#a07c8b0a7152d96143691ca040b8c0d23">More...</a><br /></td></tr>
 <tr class="separator:a07c8b0a7152d96143691ca040b8c0d23"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5c05ed1e69ca8563590cc8718fca5435"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a5c05ed1e69ca8563590cc8718fca5435">quat_inverse</a> (<a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q)</td></tr>
+<tr class="memdesc:a5c05ed1e69ca8563590cc8718fca5435"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns an inverse copy of the provided quaternion.  <a href="kmath_8h.html#a5c05ed1e69ca8563590cc8718fca5435">More...</a><br /></td></tr>
 <tr class="separator:a5c05ed1e69ca8563590cc8718fca5435"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aac6db5c9028952d279408093822b4cbd"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#aac6db5c9028952d279408093822b4cbd">quat_mul</a> (<a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q_0, <a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q_1)</td></tr>
+<tr class="memdesc:aac6db5c9028952d279408093822b4cbd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Multiplies the provided quaternions.  <a href="kmath_8h.html#aac6db5c9028952d279408093822b4cbd">More...</a><br /></td></tr>
 <tr class="separator:aac6db5c9028952d279408093822b4cbd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8a93afbc27ca642569857bd4a766f27b"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a8a93afbc27ca642569857bd4a766f27b">quat_dot</a> (<a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q_0, <a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q_1)</td></tr>
+<tr class="memdesc:a8a93afbc27ca642569857bd4a766f27b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the dot product of the provided quaternions.  <a href="kmath_8h.html#a8a93afbc27ca642569857bd4a766f27b">More...</a><br /></td></tr>
 <tr class="separator:a8a93afbc27ca642569857bd4a766f27b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac84936abc187f178a2228f699a5b5a9d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#a858329ffda7b5fe4913cca7ff8f34f30">mat4</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#ac84936abc187f178a2228f699a5b5a9d">quat_to_mat4</a> (<a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q)</td></tr>
+<tr class="memdesc:ac84936abc187f178a2228f699a5b5a9d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a rotation matrix from the given quaternion.  <a href="kmath_8h.html#ac84936abc187f178a2228f699a5b5a9d">More...</a><br /></td></tr>
 <tr class="separator:ac84936abc187f178a2228f699a5b5a9d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a70c81ca5e2bcb020031dc593c9969609"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#a858329ffda7b5fe4913cca7ff8f34f30">mat4</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a70c81ca5e2bcb020031dc593c9969609">quat_to_rotation_matrix</a> (<a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q, <a class="el" href="math__types_8h.html#a8105231df6f33ef7bfaf26b96b09fb81">vec3</a> center)</td></tr>
+<tr class="memdesc:a70c81ca5e2bcb020031dc593c9969609"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates a rotation matrix based on the quaternion and the passed in center point.  <a href="kmath_8h.html#a70c81ca5e2bcb020031dc593c9969609">More...</a><br /></td></tr>
 <tr class="separator:a70c81ca5e2bcb020031dc593c9969609"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adfcab382a3cbf4493982e93fda95e257"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#adfcab382a3cbf4493982e93fda95e257">quat_from_axis_angle</a> (<a class="el" href="math__types_8h.html#a8105231df6f33ef7bfaf26b96b09fb81">vec3</a> axis, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> angle, <a class="el" href="defines_8h.html#a3a58feb08f4f45ee137ec358217c3270">b8</a> normalize)</td></tr>
+<tr class="memdesc:adfcab382a3cbf4493982e93fda95e257"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a quaternion from the given axis and angle.  <a href="kmath_8h.html#adfcab382a3cbf4493982e93fda95e257">More...</a><br /></td></tr>
 <tr class="separator:adfcab382a3cbf4493982e93fda95e257"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aef737c7e466f76a8e93d4a8ee72d9b3a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#aef737c7e466f76a8e93d4a8ee72d9b3a">quat_slerp</a> (<a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q_0, <a class="el" href="math__types_8h.html#af5f140c7cfd64fec8b5126ae20ca327f">quat</a> q_1, <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> percentage)</td></tr>
+<tr class="memdesc:aef737c7e466f76a8e93d4a8ee72d9b3a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates spherical linear interpolation of a given percentage between two quaternions.  <a href="kmath_8h.html#aef737c7e466f76a8e93d4a8ee72d9b3a">More...</a><br /></td></tr>
 <tr class="separator:aef737c7e466f76a8e93d4a8ee72d9b3a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a76ea75291e734d0f411531c2edabef88"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#ab4d0d8cdc3aafc511f63fecffd1806c9">KINLINE</a> <a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="kmath_8h.html#a76ea75291e734d0f411531c2edabef88">deg_to_rad</a> (<a class="el" href="defines_8h.html#a5f6906312a689f27d70e9d086649d3fd">f32</a> degrees)</td></tr>
 <tr class="memdesc:a76ea75291e734d0f411531c2edabef88"><td class="mdescLeft">&#160;</td><td class="mdescRight">Converts provided degrees to radians.  <a href="kmath_8h.html#a76ea75291e734d0f411531c2edabef88">More...</a><br /></td></tr>
@@ -398,7 +445,13 @@ Functions</h2></td></tr>
 <tr class="memdesc:aac0234afa5e24e15a12ec8d97e2b6498"><td class="mdescLeft">&#160;</td><td class="mdescRight">Converts provided radians to degrees.  <a href="kmath_8h.html#aac0234afa5e24e15a12ec8d97e2b6498">More...</a><br /></td></tr>
 <tr class="separator:aac0234afa5e24e15a12ec8d97e2b6498"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Macro Definition Documentation</h2>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>This file contains definitions for various important constant values as well as functions for many common math types. </p>
+<dl class="section author"><dt>Author</dt><dd>Travis Vroman (<a href="#" onclick="location.href='mai'+'lto:'+'tra'+'vi'+'s@k'+'oh'+'ien'+'gi'+'ne.'+'co'+'m'; return false;">travi<span style="display: none;">.nosp@m.</span>s@ko<span style="display: none;">.nosp@m.</span>hieng<span style="display: none;">.nosp@m.</span>ine.<span style="display: none;">.nosp@m.</span>com</a>) </dd></dl>
+<dl class="section version"><dt>Version</dt><dd>1.0 </dd></dl>
+<dl class="section date"><dt>Date</dt><dd>2022-01-10</dd></dl>
+<dl class="section copyright"><dt>Copyright</dt><dd>Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022 </dd></dl>
+</div><h2 class="groupheader">Macro Definition Documentation</h2>
 <a id="af73c861aee209d7a51976054ed95c728"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#af73c861aee209d7a51976054ed95c728">&#9670;&nbsp;</a></span>K_DEG2RAD_MULTIPLIER</h2>
 
@@ -410,6 +463,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>A multiplier used to convert degrees to radians. </p>
 
 </div>
 </div>
@@ -425,6 +480,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Smallest positive number where 1.0 + FLOAT_EPSILON != 0. </p>
+
 </div>
 </div>
 <a id="a02134672035233d95f1edd0bb0c382ae"></a>
@@ -438,6 +495,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>An approximate representation of PI divided by 2. </p>
 
 </div>
 </div>
@@ -453,6 +512,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>A huge number that should be larger than any valid number used. </p>
+
 </div>
 </div>
 <a id="a53a16ca764ffe90416d3508503cd5dcc"></a>
@@ -466,6 +527,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>The multiplier to convert milliseconds to seconds. </p>
 
 </div>
 </div>
@@ -481,6 +544,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>One divided by an approximate representation of PI. </p>
+
 </div>
 </div>
 <a id="adebf00be36dc6bd884970fae9adb76a0"></a>
@@ -494,6 +559,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>One divided by half of an approximate representation of PI. </p>
 
 </div>
 </div>
@@ -509,6 +576,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>An approximate representation of PI. </p>
+
 </div>
 </div>
 <a id="a45f622ca30303f8ed862638d57fedf0a"></a>
@@ -522,6 +591,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>An approximate representation of PI multiplied by 2. </p>
 
 </div>
 </div>
@@ -537,6 +608,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>An approximate representation of PI divided by 4. </p>
+
 </div>
 </div>
 <a id="a6fff701491f7e004d35e934bc9989dfc"></a>
@@ -550,6 +623,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>A multiplier used to convert radians to degrees. </p>
 
 </div>
 </div>
@@ -565,6 +640,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>The multiplier to convert seconds to milliseconds. </p>
+
 </div>
 </div>
 <a id="a2a0d18552a24e21b854b9249ea8a8539"></a>
@@ -578,6 +655,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>One divided by an approximation of the square root of 3. </p>
 
 </div>
 </div>
@@ -593,6 +672,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>One divided by an approximation of the square root of 2. </p>
+
 </div>
 </div>
 <a id="a3e6e381628a2f54a84e8f5787d7971f0"></a>
@@ -607,6 +688,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>An approximation of the square root of 3. </p>
+
 </div>
 </div>
 <a id="a9d923338da950759eb18cc4c9a39faab"></a>
@@ -620,6 +703,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>An approximation of the square root of 2. </p>
 
 </div>
 </div>
@@ -666,6 +751,9 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Returns a random floating-point number. </p>
+<dl class="section return"><dt>Returns</dt><dd>A random floating-point number. </dd></dl>
+
 </div>
 </div>
 <a id="a9a3fb3ff33bed50622e745a131a7b8f3"></a>
@@ -694,6 +782,16 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Returns a random floating-point number that is within the given range (inclusive). </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">min</td><td>The minimum of the range. </td></tr>
+    <tr><td class="paramname">max</td><td>The maximum of the range. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A random floating-point number. </dd></dl>
+
 </div>
 </div>
 <a id="a728ffffd37e34f79e8d0e5669177c9e7"></a>
@@ -711,7 +809,9 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Indicates if the value is a power of 2. 0 is considered <em>not</em> a power of 2. </p><dl class="params"><dt>Parameters</dt><dd>
+
+<p>Indicates if the value is a power of 2. 0 is considered <em>not</em> a power of 2. </p>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">value</td><td>The value to be interpreted. </td></tr>
   </table>
@@ -737,6 +837,15 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Calculates the absolute value of x. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">x</td><td>The number to get the absolute value of. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The absolute value of x. </dd></dl>
+
 </div>
 </div>
 <a id="a1e60b4d5894e0d3d0d5146f3fc34f74c"></a>
@@ -754,6 +863,15 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Calculates the arc cosine of x. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">x</td><td>The number to calculate the arc cosine of. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The arc cosine of x. </dd></dl>
 
 </div>
 </div>
@@ -773,6 +891,15 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Calculates the cosine of x. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">x</td><td>The number to calculate the cosine of. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The cosine of x. </dd></dl>
+
 </div>
 </div>
 <a id="ac54ae2728db0c39d2ccdea1e7c4029e9"></a>
@@ -789,6 +916,9 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Returns a random integer. </p>
+<dl class="section return"><dt>Returns</dt><dd>A random integer. </dd></dl>
 
 </div>
 </div>
@@ -818,6 +948,16 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Returns a random integer that is within the given range (inclusive). </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">min</td><td>The minimum of the range. </td></tr>
+    <tr><td class="paramname">max</td><td>The maximum of the range. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A random integer. </dd></dl>
+
 </div>
 </div>
 <a id="a4a89f4dff6daae5dd77b89ba6a3ecea2"></a>
@@ -835,6 +975,15 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Calculates the sine of x. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">x</td><td>The number to calculate the sine of. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The sine of x. </dd></dl>
 
 </div>
 </div>
@@ -854,6 +1003,15 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Calculates the square root of x. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">x</td><td>The number to calculate the square root of. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The square root of x. </dd></dl>
+
 </div>
 </div>
 <a id="a2e33ecd9e2f3ccc5d27beab90460aa68"></a>
@@ -871,6 +1029,15 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Calculates the tangent of x. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">x</td><td>The number to calculate the tangent of. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The tangent of x. </dd></dl>
 
 </div>
 </div>
@@ -944,6 +1111,15 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Creates a rotation matrix from the provided x angle. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">angle_radians</td><td>The x angle in radians. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A rotation matrix. </dd></dl>
+
 </div>
 </div>
 <a id="ac5bcb54687a6d3d95078c9f29a7e057d"></a>
@@ -978,6 +1154,17 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Creates a rotation matrix from the provided x, y and z axis rotations. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">x_radians</td><td>The x rotation. </td></tr>
+    <tr><td class="paramname">y_radians</td><td>The y rotation. </td></tr>
+    <tr><td class="paramname">z_radians</td><td>The z rotation. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A rotation matrix. </dd></dl>
+
 </div>
 </div>
 <a id="a9e917d00193efed2fe4288325cb737e2"></a>
@@ -996,6 +1183,15 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Creates a rotation matrix from the provided y angle. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">angle_radians</td><td>The y angle in radians. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A rotation matrix. </dd></dl>
+
 </div>
 </div>
 <a id="aafeeb5341c5a2734d85d3f0a8c23c64d"></a>
@@ -1013,6 +1209,15 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Creates a rotation matrix from the provided z angle. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">angle_radians</td><td>The z angle in radians. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A rotation matrix. </dd></dl>
 
 </div>
 </div>
@@ -1389,6 +1594,15 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Creates and returns a translation matrix from the given position. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">position</td><td>The position to be used to create the matrix. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A newly created translation matrix. </dd></dl>
+
 </div>
 </div>
 <a id="aa6eaf974256cb040ca82bf256a1069d8"></a>
@@ -1461,6 +1675,15 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Returns the conjugate of the provided quaternion. That is, The x, y and z elements are negated, but the w element is untouched. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">q</td><td>The quaternion to obtain a conjugate of. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The conjugate quaternion. </dd></dl>
+
 </div>
 </div>
 <a id="a8a93afbc27ca642569857bd4a766f27b"></a>
@@ -1488,6 +1711,16 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Calculates the dot product of the provided quaternions. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">q_0</td><td>The first quaternion. </td></tr>
+    <tr><td class="paramname">q_1</td><td>The second quaternion. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The dot product of the provided quaternions. </dd></dl>
 
 </div>
 </div>
@@ -1523,6 +1756,17 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Creates a quaternion from the given axis and angle. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">axis</td><td>The axis of rotation. </td></tr>
+    <tr><td class="paramname">angle</td><td>The angle of rotation. </td></tr>
+    <tr><td class="paramname">normalize</td><td>Indicates if the quaternion should be normalized. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A new quaternion. </dd></dl>
+
 </div>
 </div>
 <a id="a6edab62f710b9718c0590664774b1845"></a>
@@ -1539,6 +1783,9 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Creates an identity quaternion. </p>
+<dl class="section return"><dt>Returns</dt><dd>An identity quaternion. </dd></dl>
 
 </div>
 </div>
@@ -1557,6 +1804,15 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Returns an inverse copy of the provided quaternion. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">q</td><td>The quaternion to invert. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>An inverse copy of the provided quaternion. </dd></dl>
 
 </div>
 </div>
@@ -1586,6 +1842,16 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Multiplies the provided quaternions. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">q_0</td><td>The first quaternion. </td></tr>
+    <tr><td class="paramname">q_1</td><td>The second quaternion. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The multiplied quaternion. </dd></dl>
+
 </div>
 </div>
 <a id="a988ae268cd1fcd9e3cf6f37425e396ae"></a>
@@ -1604,6 +1870,15 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Returns the normal of the provided quaternion. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">q</td><td>The quaternion. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The normal of the provided quaternion. </dd></dl>
+
 </div>
 </div>
 <a id="a80f41015fc07b514f4fedc2d76157e11"></a>
@@ -1621,6 +1896,15 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Returns a normalized copy of the provided quaternion. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">q</td><td>The quaternion to normalize. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A normalized copy of the provided quaternion. </dd></dl>
 
 </div>
 </div>
@@ -1656,6 +1940,17 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Calculates spherical linear interpolation of a given percentage between two quaternions. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">q_0</td><td>The first quaternion. </td></tr>
+    <tr><td class="paramname">q_1</td><td>The second quaternion. </td></tr>
+    <tr><td class="paramname">percentage</td><td>The percentage of interpolation, typically a value from 0.0f-1.0f. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>An interpolated quaternion. </dd></dl>
+
 </div>
 </div>
 <a id="ac84936abc187f178a2228f699a5b5a9d"></a>
@@ -1673,6 +1968,15 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Creates a rotation matrix from the given quaternion. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">q</td><td>The quaternion to be used. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A rotation matrix. </dd></dl>
 
 </div>
 </div>
@@ -1701,6 +2005,16 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Calculates a rotation matrix based on the quaternion and the passed in center point. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">q</td><td>The quaternion. </td></tr>
+    <tr><td class="paramname">center</td><td>The center point. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A rotation matrix. </dd></dl>
 
 </div>
 </div>
@@ -3132,6 +3446,22 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Calculates the dot product using the elements of vec4s provided in split-out format. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">a0</td><td>The first element of the a vector. </td></tr>
+    <tr><td class="paramname">a1</td><td>The second element of the a vector. </td></tr>
+    <tr><td class="paramname">a2</td><td>The third element of the a vector. </td></tr>
+    <tr><td class="paramname">a3</td><td>The fourth element of the a vector. </td></tr>
+    <tr><td class="paramname">b0</td><td>The first element of the b vector. </td></tr>
+    <tr><td class="paramname">b1</td><td>The second element of the b vector. </td></tr>
+    <tr><td class="paramname">b2</td><td>The third element of the b vector. </td></tr>
+    <tr><td class="paramname">b3</td><td>The fourth element of the b vector. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The dot product of vectors and b. </dd></dl>
 
 </div>
 </div>

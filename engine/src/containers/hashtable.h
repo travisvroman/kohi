@@ -1,3 +1,14 @@
+/**
+ * @file hashtable.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief This file contains the hashtable implementation.
+ * @version 1.0
+ * @date 2022-01-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
+ */
+
 #pragma once
 
 #include "defines.h"

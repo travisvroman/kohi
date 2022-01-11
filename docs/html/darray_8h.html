@@ -99,16 +99,22 @@ $(document).ready(function(){initNavTree('darray_8h.html',''); initResizable(); 
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="define-members"></a>
 Macros</h2></td></tr>
 <tr class="memitem:a9480f1a372af84bc03f4a55659188202"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a9480f1a372af84bc03f4a55659188202">DARRAY_DEFAULT_CAPACITY</a>&#160;&#160;&#160;1</td></tr>
+<tr class="memdesc:a9480f1a372af84bc03f4a55659188202"><td class="mdescLeft">&#160;</td><td class="mdescRight">The default darray capacity.  <a href="darray_8h.html#a9480f1a372af84bc03f4a55659188202">More...</a><br /></td></tr>
 <tr class="separator:a9480f1a372af84bc03f4a55659188202"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a95fc981d9c4e984fd55bb36a324617cc"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a95fc981d9c4e984fd55bb36a324617cc">DARRAY_RESIZE_FACTOR</a>&#160;&#160;&#160;2</td></tr>
+<tr class="memdesc:a95fc981d9c4e984fd55bb36a324617cc"><td class="mdescLeft">&#160;</td><td class="mdescRight">The default resize factor (doubles on resize)  <a href="darray_8h.html#a95fc981d9c4e984fd55bb36a324617cc">More...</a><br /></td></tr>
 <tr class="separator:a95fc981d9c4e984fd55bb36a324617cc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab9d093e09b642e0d480a7ae82bad3af5"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#ab9d093e09b642e0d480a7ae82bad3af5">darray_create</a>(type)&#160;&#160;&#160;<a class="el" href="darray_8h.html#ad1ebe69a60eb3509fce06f62e0687ee5">_darray_create</a>(<a class="el" href="darray_8h.html#a9480f1a372af84bc03f4a55659188202">DARRAY_DEFAULT_CAPACITY</a>, sizeof(type))</td></tr>
+<tr class="memdesc:ab9d093e09b642e0d480a7ae82bad3af5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new darray of the given type with the default capacity. Performs a dynamic memory allocation.  <a href="darray_8h.html#ab9d093e09b642e0d480a7ae82bad3af5">More...</a><br /></td></tr>
 <tr class="separator:ab9d093e09b642e0d480a7ae82bad3af5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0805205fc6e4a577824396a03d82e951"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a0805205fc6e4a577824396a03d82e951">darray_reserve</a>(type,  capacity)&#160;&#160;&#160;<a class="el" href="darray_8h.html#ad1ebe69a60eb3509fce06f62e0687ee5">_darray_create</a>(capacity, sizeof(type))</td></tr>
+<tr class="memdesc:a0805205fc6e4a577824396a03d82e951"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new darray of the given type with the provided capacity. Performs a dynamic memory allocation.  <a href="darray_8h.html#a0805205fc6e4a577824396a03d82e951">More...</a><br /></td></tr>
 <tr class="separator:a0805205fc6e4a577824396a03d82e951"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a276aa834ed16f81d63f16c13dfdbe67d"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a276aa834ed16f81d63f16c13dfdbe67d">darray_destroy</a>(array)&#160;&#160;&#160;<a class="el" href="darray_8h.html#a6b17a4fb11bc83a4441ad6061513b3b6">_darray_destroy</a>(array);</td></tr>
+<tr class="memdesc:a276aa834ed16f81d63f16c13dfdbe67d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destroys the provided array, freeing any memory allocated by it.  <a href="darray_8h.html#a276aa834ed16f81d63f16c13dfdbe67d">More...</a><br /></td></tr>
 <tr class="separator:a276aa834ed16f81d63f16c13dfdbe67d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7ad89931e6589fa09b83ea99de2b32e6"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a7ad89931e6589fa09b83ea99de2b32e6">darray_push</a>(array,  value)</td></tr>
+<tr class="memdesc:a7ad89931e6589fa09b83ea99de2b32e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pushes a new entry to the given array. Resizes if necessary.  <a href="darray_8h.html#a7ad89931e6589fa09b83ea99de2b32e6">More...</a><br /></td></tr>
 <tr class="separator:a7ad89931e6589fa09b83ea99de2b32e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2b16ee33713a454fce146cc964d118c4"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a2b16ee33713a454fce146cc964d118c4">darray_pop</a>(array,  value_ptr)&#160;&#160;&#160;<a class="el" href="darray_8h.html#abab8c9be480d4034ee3024010bf2a3e8">_darray_pop</a>(array, value_ptr)</td></tr>
 <tr class="separator:a2b16ee33713a454fce146cc964d118c4"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -139,32 +145,44 @@ Enumerations</h2></td></tr>
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:ad1ebe69a60eb3509fce06f62e0687ee5"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#ad1ebe69a60eb3509fce06f62e0687ee5">_darray_create</a> (<a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> length, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> stride)</td></tr>
-<tr class="memdesc:ad1ebe69a60eb3509fce06f62e0687ee5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new darray of the given length and stride.  <a href="darray_8h.html#ad1ebe69a60eb3509fce06f62e0687ee5">More...</a><br /></td></tr>
+<tr class="memdesc:ad1ebe69a60eb3509fce06f62e0687ee5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new darray of the given length and stride. Note that this performs a dynamic memory allocation.  <a href="darray_8h.html#ad1ebe69a60eb3509fce06f62e0687ee5">More...</a><br /></td></tr>
 <tr class="separator:ad1ebe69a60eb3509fce06f62e0687ee5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6b17a4fb11bc83a4441ad6061513b3b6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a6b17a4fb11bc83a4441ad6061513b3b6">_darray_destroy</a> (void *array)</td></tr>
+<tr class="memdesc:a6b17a4fb11bc83a4441ad6061513b3b6"><td class="mdescLeft">&#160;</td><td class="mdescRight">destroys the given array, freeing resources. Frees associated memory.  <a href="darray_8h.html#a6b17a4fb11bc83a4441ad6061513b3b6">More...</a><br /></td></tr>
 <tr class="separator:a6b17a4fb11bc83a4441ad6061513b3b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0c567bc6af05cb5a437059a54e575217"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a0c567bc6af05cb5a437059a54e575217">_darray_field_get</a> (void *array, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> field)</td></tr>
+<tr class="memdesc:a0c567bc6af05cb5a437059a54e575217"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value for the given field.  <a href="darray_8h.html#a0c567bc6af05cb5a437059a54e575217">More...</a><br /></td></tr>
 <tr class="separator:a0c567bc6af05cb5a437059a54e575217"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a922890e0149ea34cbf209d48dca46648"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a922890e0149ea34cbf209d48dca46648">_darray_field_set</a> (void *array, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> field, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> value)</td></tr>
+<tr class="memdesc:a922890e0149ea34cbf209d48dca46648"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value for the given field.  <a href="darray_8h.html#a922890e0149ea34cbf209d48dca46648">More...</a><br /></td></tr>
 <tr class="separator:a922890e0149ea34cbf209d48dca46648"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4c4b4c88899718ae95ab78e1a07f881f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a4c4b4c88899718ae95ab78e1a07f881f">_darray_resize</a> (void *array)</td></tr>
+<tr class="memdesc:a4c4b4c88899718ae95ab78e1a07f881f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resizes the given array using internal resizing amounts. Causes a new allocation.  <a href="darray_8h.html#a4c4b4c88899718ae95ab78e1a07f881f">More...</a><br /></td></tr>
 <tr class="separator:a4c4b4c88899718ae95ab78e1a07f881f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeca72090ffdf6c8bffc7983a60187b31"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#aeca72090ffdf6c8bffc7983a60187b31">_darray_push</a> (void *array, const void *value_ptr)</td></tr>
+<tr class="memdesc:aeca72090ffdf6c8bffc7983a60187b31"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pushes a new entry to the given array. Resizes if necessary.  <a href="darray_8h.html#aeca72090ffdf6c8bffc7983a60187b31">More...</a><br /></td></tr>
 <tr class="separator:aeca72090ffdf6c8bffc7983a60187b31"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abab8c9be480d4034ee3024010bf2a3e8"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#abab8c9be480d4034ee3024010bf2a3e8">_darray_pop</a> (void *array, void *dest)</td></tr>
+<tr class="memdesc:abab8c9be480d4034ee3024010bf2a3e8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pops an entry out of the array and places it into dest.  <a href="darray_8h.html#abab8c9be480d4034ee3024010bf2a3e8">More...</a><br /></td></tr>
 <tr class="separator:abab8c9be480d4034ee3024010bf2a3e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a698120051c16eb9b8c764b2d25a47019"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a698120051c16eb9b8c764b2d25a47019">_darray_pop_at</a> (void *array, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> index, void *dest)</td></tr>
+<tr class="memdesc:a698120051c16eb9b8c764b2d25a47019"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pops an entry out of the array at the given index and places it into dest. Brings in all entries after the popped index in by one.  <a href="darray_8h.html#a698120051c16eb9b8c764b2d25a47019">More...</a><br /></td></tr>
 <tr class="separator:a698120051c16eb9b8c764b2d25a47019"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a222734bf4edcf862bdfe2fd22178d9d1"><td class="memItemLeft" align="right" valign="top"><a class="el" href="defines_8h.html#a0dc00ea56793277f556f072353318f35">KAPI</a> void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="darray_8h.html#a222734bf4edcf862bdfe2fd22178d9d1">_darray_insert_at</a> (void *array, <a class="el" href="defines_8h.html#ad758b7a5c3f18ed79d2fcd23d9f16357">u64</a> index, void *value_ptr)</td></tr>
+<tr class="memdesc:a222734bf4edcf862bdfe2fd22178d9d1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Inserts a copy of the given value into the supplied array at the given index. Triggers an array resize if required.  <a href="darray_8h.html#a222734bf4edcf862bdfe2fd22178d9d1">More...</a><br /></td></tr>
 <tr class="separator:a222734bf4edcf862bdfe2fd22178d9d1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>This files contains an implementation of a dynamic array. </p>
+<dl class="section author"><dt>Author</dt><dd>Travis Vroman (<a href="#" onclick="location.href='mai'+'lto:'+'tra'+'vi'+'s@k'+'oh'+'ien'+'gi'+'ne.'+'co'+'m'; return false;">travi<span style="display: none;">.nosp@m.</span>s@ko<span style="display: none;">.nosp@m.</span>hieng<span style="display: none;">.nosp@m.</span>ine.<span style="display: none;">.nosp@m.</span>com</a>)</dd></dl>
 <p>Memory layout:</p><ul>
 <li>u64 capacity = number elements that can be held.</li>
 <li>u64 length = number of elements currently contained</li>
 <li>u64 stride = size of each element in bytes</li>
-<li>void* elements </li>
+<li>void* elements <dl class="section version"><dt>Version</dt><dd>1.0 </dd></dl>
+<dl class="section date"><dt>Date</dt><dd>2022-01-10</dd></dl>
+<dl class="section copyright"><dt>Copyright</dt><dd>Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022 </dd></dl>
+</li>
 </ul>
 </div><h2 class="groupheader">Macro Definition Documentation</h2>
 <a id="ad9786b6f89a8a05d0edae80981539d7c"></a>
@@ -219,6 +237,15 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Creates a new darray of the given type with the default capacity. Performs a dynamic memory allocation. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">type</td><td>The type to be used to create the darray. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A pointer to the array's memory block. </dd></dl>
+
 </div>
 </div>
 <a id="a9480f1a372af84bc03f4a55659188202"></a>
@@ -232,6 +259,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>The default darray capacity. </p>
 
 </div>
 </div>
@@ -250,6 +279,14 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Destroys the provided array, freeing any memory allocated by it. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">array</td><td>The array to be destroyed. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
@@ -429,6 +466,16 @@ Functions</h2></td></tr>
 <div class="line">        array = <a class="code" href="darray_8h.html#aeca72090ffdf6c8bffc7983a60187b31">_darray_push</a>(array, &amp;temp); \</div>
 <div class="line">    }</div>
 </div><!-- fragment -->
+<p>Pushes a new entry to the given array. Resizes if necessary. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">array</td><td>The array to be pushed to. </td></tr>
+    <tr><td class="paramname">value</td><td>The value to be pushed. A copy of this value is taken. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A pointer to the array block. </dd></dl>
+
 </div>
 </div>
 <a id="a0805205fc6e4a577824396a03d82e951"></a>
@@ -457,6 +504,16 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Creates a new darray of the given type with the provided capacity. Performs a dynamic memory allocation. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">type</td><td>The type to be used to create the darray. </td></tr>
+    <tr><td class="paramname">capacity</td><td>The number of elements the darray can initially hold (can be resized). </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A pointer to the array's memory block. </dd></dl>
+
 </div>
 </div>
 <a id="a95fc981d9c4e984fd55bb36a324617cc"></a>
@@ -470,6 +527,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>The default resize factor (doubles on resize) </p>
 
 </div>
 </div>
@@ -539,7 +598,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Creates a new darray of the given length and stride. </p>
+<p>Creates a new darray of the given length and stride. Note that this performs a dynamic memory allocation. </p>
 <dl class="section note"><dt>Note</dt><dd>Avoid using this directly; use the darray_create macro instead. </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -568,6 +627,15 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>destroys the given array, freeing resources. Frees associated memory. </p>
+<dl class="section note"><dt>Note</dt><dd>Avoid using this function directly. Use the darray_destroy macro instead. </dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">array</td><td>The array to be destroyed. </td></tr>
+  </table>
+  </dd>
+</dl>
+
 </div>
 </div>
 <a id="a0c567bc6af05cb5a437059a54e575217"></a>
@@ -595,6 +663,17 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Returns the value for the given field. </p>
+<dl class="section note"><dt>Note</dt><dd>This is an internal feature, use public macros instead such as darray_length. </dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">array</td><td>The array to retrieve the field for. </td></tr>
+    <tr><td class="paramname">field</td><td>The index of the field to be retrieved. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The value for the given field. </dd></dl>
 
 </div>
 </div>
@@ -630,6 +709,17 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Sets the value for the given field. </p>
+<dl class="section note"><dt>Note</dt><dd>This is an internal feature and should not be called directly. </dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">array</td><td>The array to set the field for. </td></tr>
+    <tr><td class="paramname">field</td><td>The index of the field to be set. </td></tr>
+    <tr><td class="paramname">value</td><td>The value to be set for the given field. </td></tr>
+  </table>
+  </dd>
+</dl>
+
 </div>
 </div>
 <a id="a222734bf4edcf862bdfe2fd22178d9d1"></a>
@@ -664,6 +754,18 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Inserts a copy of the given value into the supplied array at the given index. Triggers an array resize if required. </p>
+<dl class="section note"><dt>Note</dt><dd>Avoid using this directly; call the darray_insert_at macro instead. </dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">array</td><td>The array to insert into. </td></tr>
+    <tr><td class="paramname">index</td><td>The index to insert at. </td></tr>
+    <tr><td class="paramname">value_ptr</td><td>A pointer holding the value to be inserted. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The array block. </dd></dl>
+
 </div>
 </div>
 <a id="abab8c9be480d4034ee3024010bf2a3e8"></a>
@@ -691,6 +793,16 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Pops an entry out of the array and places it into dest. </p>
+<dl class="section note"><dt>Note</dt><dd>Avoid using this directly; call the darray_pop macro instead. </dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">array</td><td>The array to pop from. </td></tr>
+    <tr><td class="paramname">dest</td><td>A pointer to hold the popped value. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
@@ -726,6 +838,18 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Pops an entry out of the array at the given index and places it into dest. Brings in all entries after the popped index in by one. </p>
+<dl class="section note"><dt>Note</dt><dd>Avoid using this directly; call the darray_pop_at macro instead. </dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">array</td><td>The array to pop from. </td></tr>
+    <tr><td class="paramname">index</td><td>The index to pop from. </td></tr>
+    <tr><td class="paramname">dest</td><td>A pointer to hold the popped value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The array block. </dd></dl>
+
 </div>
 </div>
 <a id="aeca72090ffdf6c8bffc7983a60187b31"></a>
@@ -754,6 +878,17 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Pushes a new entry to the given array. Resizes if necessary. </p>
+<dl class="section note"><dt>Note</dt><dd>Avoid using this directly; call the darray_push macro instead. </dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">array</td><td>The array to be pushed to. </td></tr>
+    <tr><td class="paramname">value_ptr</td><td>A pointer to the value to be pushed. A copy of this value is taken. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A pointer to the array block. </dd></dl>
+
 </div>
 </div>
 <a id="a4c4b4c88899718ae95ab78e1a07f881f"></a>
@@ -772,12 +907,22 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Resizes the given array using internal resizing amounts. Causes a new allocation. </p>
+<dl class="section note"><dt>Note</dt><dd>This is an internal implementation detail and should not be called directly. </dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">array</td><td>The array to be resized. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A pointer to the resized array block. </dd></dl>
+
 </div>
 </div>
 </div><!-- contents -->
 </div><!-- doc-content -->
-<div class="ttc" id="adarray_8h_html_a222734bf4edcf862bdfe2fd22178d9d1"><div class="ttname"><a href="darray_8h.html#a222734bf4edcf862bdfe2fd22178d9d1">_darray_insert_at</a></div><div class="ttdeci">KAPI void * _darray_insert_at(void *array, u64 index, void *value_ptr)</div></div>
-<div class="ttc" id="adarray_8h_html_aeca72090ffdf6c8bffc7983a60187b31"><div class="ttname"><a href="darray_8h.html#aeca72090ffdf6c8bffc7983a60187b31">_darray_push</a></div><div class="ttdeci">KAPI void * _darray_push(void *array, const void *value_ptr)</div></div>
+<div class="ttc" id="adarray_8h_html_a222734bf4edcf862bdfe2fd22178d9d1"><div class="ttname"><a href="darray_8h.html#a222734bf4edcf862bdfe2fd22178d9d1">_darray_insert_at</a></div><div class="ttdeci">KAPI void * _darray_insert_at(void *array, u64 index, void *value_ptr)</div><div class="ttdoc">Inserts a copy of the given value into the supplied array at the given index. Triggers an array resiz...</div></div>
+<div class="ttc" id="adarray_8h_html_aeca72090ffdf6c8bffc7983a60187b31"><div class="ttname"><a href="darray_8h.html#aeca72090ffdf6c8bffc7983a60187b31">_darray_push</a></div><div class="ttdeci">KAPI void * _darray_push(void *array, const void *value_ptr)</div><div class="ttdoc">Pushes a new entry to the given array. Resizes if necessary.</div></div>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>

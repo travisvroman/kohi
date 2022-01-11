@@ -1,47 +1,123 @@
+/**
+ * @file kmath.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief This file contains definitions for various important constant values
+ * as well as functions for many common math types.
+ * @version 1.0
+ * @date 2022-01-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
+ */
+
 #pragma once
 
 #include "defines.h"
 #include "math_types.h"
-
 #include "core/kmemory.h"
 
+/** @brief An approximate representation of PI. */
 #define K_PI 3.14159265358979323846f
+
+/** @brief An approximate representation of PI multiplied by 2. */
 #define K_PI_2 2.0f * K_PI
+
+/** @brief An approximate representation of PI divided by 2. */
 #define K_HALF_PI 0.5f * K_PI
+
+/** @brief An approximate representation of PI divided by 4. */
 #define K_QUARTER_PI 0.25f * K_PI
+
+/** @brief One divided by an approximate representation of PI. */
 #define K_ONE_OVER_PI 1.0f / K_PI
+
+/** @brief One divided by half of an approximate representation of PI. */
 #define K_ONE_OVER_TWO_PI 1.0f / K_PI_2
+
+/** @brief An approximation of the square root of 2. */
 #define K_SQRT_TWO 1.41421356237309504880f
+
+/** @brief An approximation of the square root of 3. */
 #define K_SQRT_THREE 1.73205080756887729352f
+
+/** @brief One divided by an approximation of the square root of 2. */
 #define K_SQRT_ONE_OVER_TWO 0.70710678118654752440f
+
+/** @brief One divided by an approximation of the square root of 3. */
 #define K_SQRT_ONE_OVER_THREE 0.57735026918962576450f
+
+/** @brief A multiplier used to convert degrees to radians. */
 #define K_DEG2RAD_MULTIPLIER K_PI / 180.0f
+
+/** @brief A multiplier used to convert radians to degrees. */
 #define K_RAD2DEG_MULTIPLIER 180.0f / K_PI
 
-// The multiplier to convert seconds to milliseconds.
+/** @brief The multiplier to convert seconds to milliseconds. */
 #define K_SEC_TO_MS_MULTIPLIER 1000.0f
 
-// The multiplier to convert milliseconds to seconds.
+/** @brief The multiplier to convert milliseconds to seconds. */
 #define K_MS_TO_SEC_MULTIPLIER 0.001f
 
-// A huge number that should be larger than any valid number used.
+/** @brief A huge number that should be larger than any valid number used. */
 #define K_INFINITY 1e30f
 
-// Smallest positive number where 1.0 + FLOAT_EPSILON != 0
+/** @brief Smallest positive number where 1.0 + FLOAT_EPSILON != 0 */
 #define K_FLOAT_EPSILON 1.192092896e-07f
 
 // ------------------------------------------
 // General math functions
 // ------------------------------------------
+
+/**
+ * @brief Calculates the sine of x.
+ * 
+ * @param x The number to calculate the sine of.
+ * @return The sine of x.
+ */
 KAPI f32 ksin(f32 x);
+
+/**
+ * @brief Calculates the cosine of x.
+ * 
+ * @param x The number to calculate the cosine of.
+ * @return The cosine of x.
+ */
 KAPI f32 kcos(f32 x);
+
+/**
+ * @brief Calculates the tangent of x.
+ * 
+ * @param x The number to calculate the tangent of.
+ * @return The tangent of x.
+ */
 KAPI f32 ktan(f32 x);
+
+/**
+ * @brief Calculates the arc cosine of x.
+ * 
+ * @param x The number to calculate the arc cosine of.
+ * @return The arc cosine of x.
+ */
 KAPI f32 kacos(f32 x);
+
+/**
+ * @brief Calculates the square root of x.
+ * 
+ * @param x The number to calculate the square root of.
+ * @return The square root of x.
+ */
 KAPI f32 ksqrt(f32 x);
+
+/**
+ * @brief Calculates the absolute value of x.
+ * 
+ * @param x The number to get the absolute value of.
+ * @return The absolute value of x.
+ */
 KAPI f32 kabs(f32 x);
 
 /**
- * Indicates if the value is a power of 2. 0 is considered _not_ a power of 2.
+ * @brief Indicates if the value is a power of 2. 0 is considered _not_ a power of 2.
  * @param value The value to be interpreted.
  * @returns True if a power of 2, otherwise false.
  */
@@ -49,10 +125,36 @@ KINLINE b8 is_power_of_2(u64 value) {
     return (value != 0) && ((value & (value - 1)) == 0);
 }
 
+/**
+ * @brief Returns a random integer.
+ * 
+ * @return A random integer.
+ */
 KAPI i32 krandom();
+
+/**
+ * @brief Returns a random integer that is within the given range (inclusive).
+ * 
+ * @param min The minimum of the range.
+ * @param max The maximum of the range.
+ * @return A random integer.
+ */
 KAPI i32 krandom_in_range(i32 min, i32 max);
 
+/**
+ * @brief Returns a random floating-point number.
+ * 
+ * @return A random floating-point number.
+ */
 KAPI f32 fkrandom();
+
+/**
+ * @brief Returns a random floating-point number that is within the given range (inclusive).
+ * 
+ * @param min The minimum of the range.
+ * @param max The maximum of the range.
+ * @return A random floating-point number.
+ */
 KAPI f32 fkrandom_in_range(f32 min, f32 max);
 
 // ------------------------------------------
@@ -522,7 +624,6 @@ KINLINE f32 vec3_distance(vec3 vector_0, vec3 vector_1) {
     return vec3_length(d);
 }
 
-
 // ------------------------------------------
 // Vector 4
 // ------------------------------------------
@@ -600,7 +701,7 @@ KINLINE vec4 vec4_one() {
  */
 KINLINE vec4 vec4_add(vec4 vector_0, vec4 vector_1) {
     vec4 result;
-     for (u64 i = 0; i < 4; ++i) {
+    for (u64 i = 0; i < 4; ++i) {
         result.elements[i] = vector_0.elements[i] + vector_1.elements[i];
     }
     return result;
@@ -695,6 +796,19 @@ KINLINE vec4 vec4_normalized(vec4 vector) {
     return vector;
 }
 
+/**
+ * @brief Calculates the dot product using the elements of vec4s provided in split-out format.
+ * 
+ * @param a0 The first element of the a vector.
+ * @param a1 The second element of the a vector.
+ * @param a2 The third element of the a vector.
+ * @param a3 The fourth element of the a vector.
+ * @param b0 The first element of the b vector.
+ * @param b1 The second element of the b vector.
+ * @param b2 The third element of the b vector.
+ * @param b3 The fourth element of the b vector.
+ * @return The dot product of vectors and b.
+ */
 KINLINE f32 vec4_dot_f32(
     f32 a0, f32 a1, f32 a2, f32 a3,
     f32 b0, f32 b1, f32 b2, f32 b3) {
@@ -938,6 +1052,12 @@ KINLINE mat4 mat4_inverse(mat4 matrix) {
     return out_matrix;
 }
 
+/**
+ * @brief Creates and returns a translation matrix from the given position.
+ * 
+ * @param position The position to be used to create the matrix.
+ * @return A newly created translation matrix.
+ */
 KINLINE mat4 mat4_translation(vec3 position) {
     mat4 out_matrix = mat4_identity();
     out_matrix.data[12] = position.x;
@@ -960,6 +1080,12 @@ KINLINE mat4 mat4_scale(vec3 scale) {
     return out_matrix;
 }
 
+/**
+ * @brief Creates a rotation matrix from the provided x angle.
+ * 
+ * @param angle_radians The x angle in radians.
+ * @return A rotation matrix.
+ */
 KINLINE mat4 mat4_euler_x(f32 angle_radians) {
     mat4 out_matrix = mat4_identity();
     f32 c = kcos(angle_radians);
@@ -971,6 +1097,13 @@ KINLINE mat4 mat4_euler_x(f32 angle_radians) {
     out_matrix.data[10] = c;
     return out_matrix;
 }
+
+/**
+ * @brief Creates a rotation matrix from the provided y angle.
+ * 
+ * @param angle_radians The y angle in radians.
+ * @return A rotation matrix.
+ */
 KINLINE mat4 mat4_euler_y(f32 angle_radians) {
     mat4 out_matrix = mat4_identity();
     f32 c = kcos(angle_radians);
@@ -982,6 +1115,13 @@ KINLINE mat4 mat4_euler_y(f32 angle_radians) {
     out_matrix.data[10] = c;
     return out_matrix;
 }
+
+/**
+ * @brief Creates a rotation matrix from the provided z angle.
+ * 
+ * @param angle_radians The z angle in radians.
+ * @return A rotation matrix.
+ */
 KINLINE mat4 mat4_euler_z(f32 angle_radians) {
     mat4 out_matrix = mat4_identity();
 
@@ -994,6 +1134,15 @@ KINLINE mat4 mat4_euler_z(f32 angle_radians) {
     out_matrix.data[5] = c;
     return out_matrix;
 }
+
+/**
+ * @brief Creates a rotation matrix from the provided x, y and z axis rotations.
+ * 
+ * @param x_radians The x rotation.
+ * @param y_radians The y rotation.
+ * @param z_radians The z rotation.
+ * @return A rotation matrix.
+ */
 KINLINE mat4 mat4_euler_xyz(f32 x_radians, f32 y_radians, f32 z_radians) {
     mat4 rx = mat4_euler_x(x_radians);
     mat4 ry = mat4_euler_y(y_radians);
@@ -1097,10 +1246,21 @@ KINLINE vec3 mat4_right(mat4 matrix) {
 // Quaternion
 // ------------------------------------------
 
+/**
+ * @brief Creates an identity quaternion.
+ * 
+ * @return An identity quaternion.
+ */
 KINLINE quat quat_identity() {
     return (quat){0, 0, 0, 1.0f};
 }
 
+/**
+ * @brief Returns the normal of the provided quaternion.
+ * 
+ * @param q The quaternion.
+ * @return The normal of the provided quaternion.
+ */
 KINLINE f32 quat_normal(quat q) {
     return ksqrt(
         q.x * q.x +
@@ -1109,6 +1269,12 @@ KINLINE f32 quat_normal(quat q) {
         q.w * q.w);
 }
 
+/**
+ * @brief Returns a normalized copy of the provided quaternion.
+ * 
+ * @param q The quaternion to normalize.
+ * @return A normalized copy of the provided quaternion.
+ */
 KINLINE quat quat_normalize(quat q) {
     f32 normal = quat_normal(q);
     return (quat){
@@ -1118,6 +1284,13 @@ KINLINE quat quat_normalize(quat q) {
         q.w / normal};
 }
 
+/**
+ * @brief Returns the conjugate of the provided quaternion. That is,
+ * The x, y and z elements are negated, but the w element is untouched.
+ * 
+ * @param q The quaternion to obtain a conjugate of.
+ * @return The conjugate quaternion.
+ */
 KINLINE quat quat_conjugate(quat q) {
     return (quat){
         -q.x,
@@ -1126,10 +1299,23 @@ KINLINE quat quat_conjugate(quat q) {
         q.w};
 }
 
+/**
+ * @brief Returns an inverse copy of the provided quaternion.
+ * 
+ * @param q The quaternion to invert.
+ * @return An inverse copy of the provided quaternion.
+ */
 KINLINE quat quat_inverse(quat q) {
     return quat_normalize(quat_conjugate(q));
 }
 
+/**
+ * @brief Multiplies the provided quaternions.
+ * 
+ * @param q_0 The first quaternion.
+ * @param q_1 The second quaternion.
+ * @return The multiplied quaternion.
+ */
 KINLINE quat quat_mul(quat q_0, quat q_1) {
     quat out_quaternion;
 
@@ -1156,6 +1342,13 @@ KINLINE quat quat_mul(quat q_0, quat q_1) {
     return out_quaternion;
 }
 
+/**
+ * @brief Calculates the dot product of the provided quaternions.
+ * 
+ * @param q_0 The first quaternion.
+ * @param q_1 The second quaternion.
+ * @return The dot product of the provided quaternions.
+ */
 KINLINE f32 quat_dot(quat q_0, quat q_1) {
     return q_0.x * q_1.x +
            q_0.y * q_1.y +
@@ -1163,6 +1356,12 @@ KINLINE f32 quat_dot(quat q_0, quat q_1) {
            q_0.w * q_1.w;
 }
 
+/**
+ * @brief Creates a rotation matrix from the given quaternion.
+ * 
+ * @param q The quaternion to be used.
+ * @return A rotation matrix.
+ */
 KINLINE mat4 quat_to_mat4(quat q) {
     mat4 out_matrix = mat4_identity();
 
@@ -1185,7 +1384,13 @@ KINLINE mat4 quat_to_mat4(quat q) {
     return out_matrix;
 }
 
-// Calculates a rotation matrix based on the quaternion and the passed in center point.
+/**
+ * @brief Calculates a rotation matrix based on the quaternion and the passed in center point.
+ * 
+ * @param q The quaternion.
+ * @param center The center point.
+ * @return A rotation matrix.
+ */
 KINLINE mat4 quat_to_rotation_matrix(quat q, vec3 center) {
     mat4 out_matrix;
 
@@ -1212,6 +1417,14 @@ KINLINE mat4 quat_to_rotation_matrix(quat q, vec3 center) {
     return out_matrix;
 }
 
+/**
+ * @brief Creates a quaternion from the given axis and angle.
+ * 
+ * @param axis The axis of rotation.
+ * @param angle The angle of rotation.
+ * @param normalize Indicates if the quaternion should be normalized.
+ * @return A new quaternion. 
+ */
 KINLINE quat quat_from_axis_angle(vec3 axis, f32 angle, b8 normalize) {
     const f32 half_angle = 0.5f * angle;
     f32 s = ksin(half_angle);
@@ -1224,6 +1437,15 @@ KINLINE quat quat_from_axis_angle(vec3 axis, f32 angle, b8 normalize) {
     return q;
 }
 
+/**
+ * @brief Calculates spherical linear interpolation of a given percentage
+ * between two quaternions.
+ * 
+ * @param q_0 The first quaternion.
+ * @param q_1 The second quaternion.
+ * @param percentage The percentage of interpolation, typically a value from 0.0f-1.0f.
+ * @return An interpolated quaternion. 
+ */
 KINLINE quat quat_slerp(quat q_0, quat q_1, f32 percentage) {
     quat out_quaternion;
     // Source: https://en.wikipedia.org/wiki/Slerp

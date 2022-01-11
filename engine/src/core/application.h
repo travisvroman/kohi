@@ -1,10 +1,15 @@
 /**
- * @file
+ * @file application.h
+ * @author Travis Vroman (travis@kohiengine.com)
  * @brief This file contains structures and logic pertaining to the
- * overall engine application itself.
- * 
+ * overall engine application itself. 
  * The application is responsible for managing both the platform layers
  * as well as all systems within the engine.
+ * @version 1.0
+ * @date 2022-01-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
  */
 
 #pragma once

@@ -1,13 +1,18 @@
 /**
- * @file
- * @brief This file contains the main entry point to the application.
- * 
+ * @file entry.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief This file contains the main entry point to the application. 
  * It also contains a reference to an externally defined create_game
  * method, which should create and set a custom game object to the
  * location pointed to by out_game. This would be provided by the
  * consuming application, which is then hooked into the engine itself
  * during the bootstrapping phase.
- * */
+ * @version 1.0
+ * @date 2022-01-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
+ */
 
 #pragma once
 

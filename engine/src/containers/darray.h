@@ -1,5 +1,6 @@
-/** 
- * @file
+/**
+ * @file darray.h
+ * @author Travis Vroman (travis@kohiengine.com)
  * @brief This files contains an implementation of a dynamic array.
  * 
  * @details 
@@ -8,6 +9,11 @@
  * - u64 length = number of elements currently contained
  * - u64 stride = size of each element in bytes
  * - void* elements
+ * @version 1.0
+ * @date 2022-01-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
  */
 
 #pragma once

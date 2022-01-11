@@ -1,12 +1,17 @@
 /**
- * @file
+ * @file event.h
+ * @author Travis Vroman (travis@kohiengine.com)
  * @brief This file contains structures and functions specific to the
- * event system.
- * 
+ * event system. 
  * Events are a mechenism that allows the developer to send and recieve
  * data at critical points in the execution of the application in a non-
  * coupled way. For now, this follows a simple pub-sub model of event
  * transmission.
+ * @version 1.0
+ * @date 2022-01-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
  */
 
 #pragma once
