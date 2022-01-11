@@ -79,5 +79,25 @@
         "initializer_list": "c",
         "loader_utils.h": "c",
         "kmath.h": "c"
-    }
+    },
+    // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
+    "doxdocgen.file.copyrightTag": [
+        "@copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-{year}"
+    ],
+    "doxdocgen.file.versionTag": "@version 1.0",
+    "doxdocgen.generic.authorEmail": "travis@kohiengine.com",
+    "doxdocgen.generic.authorName": "Travis Vroman",
+    "doxdocgen.generic.authorTag": "@author {author} ({email})",
+    // The order to use for the file comment. Values can be used multiple times. Valid values are shown in default setting.
+    "doxdocgen.file.fileOrder": [
+        "file",
+        "author",
+        "brief",
+        "version",
+        "date",
+        "empty",
+        "copyright",
+        "empty",
+        "custom"
+    ],
 }
