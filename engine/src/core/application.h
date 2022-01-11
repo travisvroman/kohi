@@ -1,30 +1,54 @@
+/**
+ * @file
+ * @brief This file contains structures and logic pertaining to the
+ * overall engine application itself.
+ * 
+ * The application is responsible for managing both the platform layers
+ * as well as all systems within the engine.
+ */
+
 #pragma once
 
 #include "defines.h"
 
 struct game;
 
-// Application configuration.
+/** 
+ * @brief Represents configuration for the application.
+ */
 typedef struct application_config {
-    // Window starting position x axis, if applicable.
+    /** @brief Window starting position x axis, if applicable. */
     i16 start_pos_x;
 
-    // Window starting position y axis, if applicable.
+    /** @brief Window starting position y axis, if applicable. */
     i16 start_pos_y;
 
-    // Window starting width, if applicable.
+    /** @brief Window starting width, if applicable. */
     i16 start_width;
 
-    // Window starting height, if applicable.
+    /** @brief Window starting height, if applicable. */
     i16 start_height;
 
-    // The application name used in windowing, if applicable.
+    /** @brief The application name used in windowing, if applicable. */
     char* name;
 } application_config;
 
-
+/**
+ * @brief Creates the application, standing up the platform layer and all
+ * underlying subsystems.
+ * @param game_inst A pointer to the game instance associated with the application
+ * @returns True on success; otherwise false.
+ */
 KAPI b8 application_create(struct game* game_inst);
 
+/**
+ * @brief Starts the main application loop.
+ * @returns True on success; otherwise false.
+ */
 KAPI b8 application_run();
 
+/**
+ * @brief Obtains the framebuffer size of the application.
+ * @deprecated NOTE: This is temporary, and should be removed once kvars are in place.
+ */
 void application_get_framebuffer_size(u32* width, u32* height);

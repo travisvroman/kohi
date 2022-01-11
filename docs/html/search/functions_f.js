@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['rad_5fto_5fdeg_1214',['rad_to_deg',['../kmath_8h.html#aac0234afa5e24e15a12ec8d97e2b6498',1,'kmath.h']]],
+  ['renderer_5fbackend_5fcreate_1215',['renderer_backend_create',['../renderer__backend_8h.html#ae1de613e9df6597e7ed6539db6a4a364',1,'renderer_backend.h']]],
+  ['renderer_5fbackend_5fdestroy_1216',['renderer_backend_destroy',['../renderer__backend_8h.html#a7f2f8f1b99fcf0c37b9edbb0be96b9a5',1,'renderer_backend.h']]],
+  ['renderer_5fcreate_5fgeometry_1217',['renderer_create_geometry',['../renderer__frontend_8h.html#af97c5fd395a40f2dd026c72e14d45b62',1,'renderer_frontend.h']]],
+  ['renderer_5fcreate_5fmaterial_1218',['renderer_create_material',['../renderer__frontend_8h.html#a4683817d4b1b2113b0df7662150a0fc5',1,'renderer_frontend.h']]],
+  ['renderer_5fcreate_5ftexture_1219',['renderer_create_texture',['../renderer__frontend_8h.html#a576891b6b0f8e2de38a5c6def3823db9',1,'renderer_frontend.h']]],
+  ['renderer_5fdestroy_5fgeometry_1220',['renderer_destroy_geometry',['../renderer__frontend_8h.html#a0ce11f2f9b370fcce3c0aec4667d6a2b',1,'renderer_frontend.h']]],
+  ['renderer_5fdestroy_5fmaterial_1221',['renderer_destroy_material',['../renderer__frontend_8h.html#ad87ce9fe4eeb5fb97c77edec9ab84d7a',1,'renderer_frontend.h']]],
+  ['renderer_5fdestroy_5ftexture_1222',['renderer_destroy_texture',['../renderer__frontend_8h.html#a07cb43f363df0240af713c483b72308f',1,'renderer_frontend.h']]],
+  ['renderer_5fdraw_5fframe_1223',['renderer_draw_frame',['../renderer__frontend_8h.html#aa1a64974ce989cb8a822d5910e45eeec',1,'renderer_frontend.h']]],
+  ['renderer_5fon_5fresized_1224',['renderer_on_resized',['../renderer__frontend_8h.html#a344ab27f3e341fd7b45eb38eafea2e00',1,'renderer_frontend.h']]],
+  ['renderer_5fset_5fview_1225',['renderer_set_view',['../renderer__frontend_8h.html#a2cdc1a0a88cbb69abe8544ea792134ab',1,'renderer_frontend.h']]],
+  ['renderer_5fsystem_5finitialize_1226',['renderer_system_initialize',['../renderer__frontend_8h.html#a4a8eb9df8447b9317c06c2592aa4944d',1,'renderer_frontend.h']]],
+  ['renderer_5fsystem_5fshutdown_1227',['renderer_system_shutdown',['../renderer__frontend_8h.html#a2be6c28c095877944c89e1fa246e6a3f',1,'renderer_frontend.h']]],
+  ['report_5fassertion_5ffailure_1228',['report_assertion_failure',['../asserts_8h.html#a081a03d10de2e1eebf9bb889519687bc',1,'asserts.h']]],
+  ['resource_5fsystem_5fbase_5fpath_1229',['resource_system_base_path',['../resource__system_8h.html#a309f04193107e2ef3696b1a5520672c1',1,'resource_system.h']]],
+  ['resource_5fsystem_5finitialize_1230',['resource_system_initialize',['../resource__system_8h.html#a2c939af8fbfc3b7030cb84054ae7fdd4',1,'resource_system.h']]],
+  ['resource_5fsystem_5fload_1231',['resource_system_load',['../resource__system_8h.html#ac627d2fbb6048c3ee6e3422cc9c0a3ee',1,'resource_system.h']]],
+  ['resource_5fsystem_5fload_5fcustom_1232',['resource_system_load_custom',['../resource__system_8h.html#af26532ee603069b81577a773aa409b8d',1,'resource_system.h']]],
+  ['resource_5fsystem_5fregister_5floader_1233',['resource_system_register_loader',['../resource__system_8h.html#a676773f140eea73c494c821253d5798c',1,'resource_system.h']]],
+  ['resource_5fsystem_5fshutdown_1234',['resource_system_shutdown',['../resource__system_8h.html#aaff0d948585cf36fda9c519242c2396d',1,'resource_system.h']]],
+  ['resource_5fsystem_5funload_1235',['resource_system_unload',['../resource__system_8h.html#a4412d7a0cae5991373ec4ffd852d9ef0',1,'resource_system.h']]],
+  ['resource_5funload_1236',['resource_unload',['../loader__utils_8h.html#a11867f22fab9baa82abfc58defcbffc2',1,'loader_utils.h']]]
+];

@@ -1,14 +1,30 @@
+/**
+ * @file
+ * @brief This file contains the main entry point to the application.
+ * 
+ * It also contains a reference to an externally defined create_game
+ * method, which should create and set a custom game object to the
+ * location pointed to by out_game. This would be provided by the
+ * consuming application, which is then hooked into the engine itself
+ * during the bootstrapping phase.
+ * */
+
 #pragma once
 
 #include "core/application.h"
 #include "core/logger.h"
 #include "game_types.h"
 
-// Externally-defined function to create a game.
+/** @brief Externally-defined function to create a game, provided by the consumer
+ * of this library.
+ * @param out_game A pointer which holds the created game object as provided by the consumer.
+ * @returns True on successful creation; otherwise false.
+ */
 extern b8 create_game(game* out_game);
 
 /**
- * The main entry point of the application.
+ * @brief The main entry point of the application.
+ * @returns 0 on successful execution; nonzero on error.
  */
 int main(void) {
     // Request the game instance from the application.

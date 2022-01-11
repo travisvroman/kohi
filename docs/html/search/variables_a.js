@@ -1,0 +1,19 @@
+var searchData=
+[
+  ['m_5freserved0_1552',['m_reserved0',['../structvulkan__material__shader__global__ubo.html#abc34c8075ef9f7b6233e19c4ae0afe52',1,'vulkan_material_shader_global_ubo::m_reserved0()'],['../structvulkan__material__shader__instance__ubo.html#abc34c8075ef9f7b6233e19c4ae0afe52',1,'vulkan_material_shader_instance_ubo::m_reserved0()'],['../structvulkan__ui__shader__global__ubo.html#abc34c8075ef9f7b6233e19c4ae0afe52',1,'vulkan_ui_shader_global_ubo::m_reserved0()'],['../structvulkan__ui__shader__instance__ubo.html#abc34c8075ef9f7b6233e19c4ae0afe52',1,'vulkan_ui_shader_instance_ubo::m_reserved0()']]],
+  ['m_5freserved1_1553',['m_reserved1',['../structvulkan__material__shader__global__ubo.html#a89c1014bed2b272eb9fbc92dc1849c2b',1,'vulkan_material_shader_global_ubo::m_reserved1()'],['../structvulkan__material__shader__instance__ubo.html#a89c1014bed2b272eb9fbc92dc1849c2b',1,'vulkan_material_shader_instance_ubo::m_reserved1()'],['../structvulkan__ui__shader__global__ubo.html#a89c1014bed2b272eb9fbc92dc1849c2b',1,'vulkan_ui_shader_global_ubo::m_reserved1()'],['../structvulkan__ui__shader__instance__ubo.html#a89c1014bed2b272eb9fbc92dc1849c2b',1,'vulkan_ui_shader_instance_ubo::m_reserved1()']]],
+  ['m_5freserved2_1554',['m_reserved2',['../structvulkan__material__shader__instance__ubo.html#afc89adf6ab34fb1b79793063af7fc763',1,'vulkan_material_shader_instance_ubo::m_reserved2()'],['../structvulkan__ui__shader__instance__ubo.html#afc89adf6ab34fb1b79793063af7fc763',1,'vulkan_ui_shader_instance_ubo::m_reserved2()']]],
+  ['main_5frenderpass_1555',['main_renderpass',['../structvulkan__context.html#ac3974d605d222c7c56920f2b6e8157b8',1,'vulkan_context']]],
+  ['material_1556',['material',['../structgeometry.html#a9baaabc7c44b258091c028e547e747f8',1,'geometry']]],
+  ['material_5fname_1557',['material_name',['../structgeometry__config.html#a08e6d4b97c81998ecb62e8f8e2791a54',1,'geometry_config']]],
+  ['material_5fshader_1558',['material_shader',['../structvulkan__context.html#aeda297b6083e9bb380dede512242dd4c',1,'vulkan_context']]],
+  ['max_5fframes_5fin_5fflight_1559',['max_frames_in_flight',['../structvulkan__swapchain.html#aaff7da7885651c895c774643828e5ae5',1,'vulkan_swapchain']]],
+  ['max_5fgeometry_5fcount_1560',['max_geometry_count',['../structgeometry__system__config.html#a4024db015d807d61ab2d67092a728b70',1,'geometry_system_config']]],
+  ['max_5floader_5fcount_1561',['max_loader_count',['../structresource__system__config.html#a7ec426a1fa9d66fe742c3bfd5b3b26d5',1,'resource_system_config']]],
+  ['max_5fmaterial_5fcount_1562',['max_material_count',['../structmaterial__system__config.html#a188fa7a64a2e598f480b88c411f5a188',1,'material_system_config']]],
+  ['max_5ftexture_5fcount_1563',['max_texture_count',['../structtexture__system__config.html#a9828890b1ed99261aadbe84eae0a6119',1,'texture_system_config']]],
+  ['memory_1564',['memory',['../structhashtable.html#a9824c7cb7e4069084cbbd4458efd3faf',1,'hashtable::memory()'],['../structlinear__allocator.html#a9824c7cb7e4069084cbbd4458efd3faf',1,'linear_allocator::memory()'],['../structvulkan__buffer.html#ad7bb54f98d70888f30ce8c51cd7102c6',1,'vulkan_buffer::memory()'],['../structvulkan__device.html#a5907933d4e2afb2010b80cfd14bc063f',1,'vulkan_device::memory()'],['../structvulkan__image.html#ad7bb54f98d70888f30ce8c51cd7102c6',1,'vulkan_image::memory()']]],
+  ['memory_5findex_1565',['memory_index',['../structvulkan__buffer.html#abbc32e46a807589d9942a4959a5b14df',1,'vulkan_buffer']]],
+  ['memory_5fproperty_5fflags_1566',['memory_property_flags',['../structvulkan__buffer.html#afe3e8415ade6b52beee3c1932781068c',1,'vulkan_buffer']]],
+  ['model_1567',['model',['../structgeometry__render__data.html#a4c4a14d3ca161464ebd63e73887cd027',1,'geometry_render_data']]]
+];

@@ -1,25 +1,55 @@
+/**
+ * @file
+ * @brief This file contains a basic C string handling library.
+ */
+
 #pragma once
 
 #include "defines.h"
 #include "math/math_types.h"
 
-// Returns the length of the given string.
+/** 
+ * @brief Gets the length of the given string.
+ * @param str The string whose length to obtain.
+ * @returns The length of the string.
+ */
 KAPI u64 string_length(const char* str);
 
+/**
+ * @brief Duplicates the provided string. Note that this allocates new memory,
+ * which should be freed by the caller.
+ * @param str The string to be duplicated.
+ * @returns A pointer to a newly-created character array (string).
+ */
 KAPI char* string_duplicate(const char* str);
 
-// Case-sensitive string comparison. True if the same, otherwise false.
+/** 
+ * @brief Case-sensitive string comparison. 
+ * @param str0 The first string to be compared.
+ * @param str1 The second string to be compared.
+ * @returns True if the same, otherwise false.
+ */
 KAPI b8 strings_equal(const char* str0, const char* str1);
 
-// Case-insensitive string comparison. True if the same, otherwise false.
+/** 
+ * @brief Case-insensitive string comparison. 
+ * @param str0 The first string to be compared.
+ * @param str1 The second string to be compared.
+ * @returns True if the same, otherwise false.
+ */
 KAPI b8 strings_equali(const char* str0, const char* str1);
 
-// Performs string formatting to dest given format string and parameters.
+/** 
+ * @brief Performs string formatting to dest given format string and parameters.
+ * @param dest The destination for the formatted string.
+ * @param format The format string to use for the operation
+ * @param ... The format arguments.
+ * @returns The length of the newly-formatted string.
+ */
 KAPI i32 string_format(char* dest, const char* format, ...);
 
-//
 /**
- * Performs variadic string formatting to dest given format string and va_list.
+ * @brief Performs variadic string formatting to dest given format string and va_list.
  * @param dest The destination for the formatted string.
  * @param format The string to be formatted.
  * @param va_list The variadic argument list.
@@ -35,12 +65,40 @@ KAPI i32 string_format_v(char* dest, const char* format, void* va_list);
  */
 KAPI char* string_empty(char* str);
 
+/**
+ * @brief Copies the string in source to dest. Does not perform any allocations.
+ * @param dest The destination string.
+ * @param source The source string.
+ * @returns A pointer to the destination string.
+ */
 KAPI char* string_copy(char* dest, const char* source);
 
+/**
+ * @brief Copies the string in source to dest up to the given length. Does not perform any allocations.
+ * @param dest The destination string.
+ * @param source The source string.
+ * @param length The maximum length to be copied.
+ * @returns A pointer to the destination string.
+ */
 KAPI char* string_ncopy(char* dest, const char* source, i64 length);
 
+/**
+ * @brief Performs an in-place trim of the provided string.
+ * This removes all whitespace from both ends of the string.
+ * 
+ * Done by placing zeroes in the string at relevant points.
+ * @param str The string to be trimmed.
+ * @returns A pointer to the trimmed string.
+ */
 KAPI char* string_trim(char* str);
 
+/**
+ * @brief Gets a substring of the source string between start and length or to the end of the string.
+ * If length is negative or 0, goes to the end of the string.
+ * 
+ * Done by placing zeroes in the string at relevant points.
+ * @param str The string to be trimmed.
+ */
 KAPI void string_mid(char* dest, const char* source, i32 start, i32 length);
 
 /**
