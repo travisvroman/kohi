@@ -54,6 +54,7 @@ b8 dynamic_allocator_destroy(dynamic_allocator* allocator) {
         freelist_destroy(&state->list);
         kzero_memory(state->memory_block, state->total_size);
         state->total_size = 0;
+        allocator->memory = 0;
         return true;
     }
 
