@@ -3,7 +3,7 @@ OBJ_DIR := obj
 
 ASSEMBLY := engine
 EXTENSION := .a
-COMPILER_FLAGS := -g -MD -fdeclspec -fPIC -ObjC
+COMPILER_FLAGS := -g -MD -Wall -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC -ObjC
 INCLUDE_FLAGS := -Iengine/src
 LINKER_FLAGS := -g -shared -lvulkan -lobjc -framework AppKit -framework QuartzCore
 DEFINES := -D_DEBUG -DKEXPORT

@@ -113,7 +113,7 @@ void geometry_system_release(geometry* geometry) {
 
         // Take a copy of the id;
         u32 id = geometry->id;
-        if (ref->geometry.id == geometry->id) {
+        if (ref->geometry.id == id) {
             if (ref->reference_count > 0) {
                 ref->reference_count--;
             }

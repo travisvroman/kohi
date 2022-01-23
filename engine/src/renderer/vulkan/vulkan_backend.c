@@ -445,7 +445,7 @@ b8 vulkan_renderer_backend_begin_frame(renderer_backend* backend, f32 delta_time
 }
 
 void vulkan_renderer_update_global_world_state(mat4 projection, mat4 view, vec3 view_position, vec4 ambient_colour, i32 mode) {
-    vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
+    //vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
 
     vulkan_material_shader_use(&context, &context.material_shader);
 
@@ -458,7 +458,7 @@ void vulkan_renderer_update_global_world_state(mat4 projection, mat4 view, vec3 
 }
 
 void vulkan_renderer_update_global_ui_state(mat4 projection, mat4 view, i32 mode) {
-    vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
+    //vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
 
     vulkan_ui_shader_use(&context, &context.ui_shader);
 
