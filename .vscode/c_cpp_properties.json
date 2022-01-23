@@ -10,7 +10,8 @@
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE",
-                "KEXPORT"
+                "KEXPORT",
+                "_GNU_SOURCE"
             ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",

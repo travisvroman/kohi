@@ -112,7 +112,7 @@ material* material_system_acquire(const char* name) {
     }
 
     // Now acquire from loaded config.
-    material* m;
+    material* m = 0;
     if (material_resource.data) {
         m = material_system_acquire_from_config(*(material_config*)material_resource.data);
     }
