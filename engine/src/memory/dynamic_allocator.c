@@ -84,23 +84,25 @@ void* dynamic_allocator_allocate(dynamic_allocator* allocator, u64 size) {
     return 0;
 }
 
-void dynamic_allocator_free(dynamic_allocator* allocator, void* block, u64 size) {
+b8 dynamic_allocator_free(dynamic_allocator* allocator, void* block, u64 size) {
     if (!allocator || !block) {
         KERROR("dynamic_allocator_free requires both a valid allocator (0x%p) and a block (0x%p) to be freed.", allocator, block);
-        return;
+        return false;
     }
 
     dynamic_allocator_state* state = allocator->memory;
     if (block < state->memory_block || block > state->memory_block + state->total_size) {
         void* end_of_block = (void*)(state->memory_block + state->total_size);
         KERROR("dynamic_allocator_free trying to release block (0x%p) outside of allocator range (0x%p)-(0x%p)", block, state->memory_block, end_of_block);
-        return;
+        return false;
     }
     u64 offset = (block - state->memory_block);
     if (!freelist_free_block(&state->list, size, offset)) {
         KERROR("dynamic_allocator_free failed.");
-        return;
+        return false;
     }
+
+    return true;
 }
 
 u64 dynamic_allocator_free_space(dynamic_allocator* allocator) {

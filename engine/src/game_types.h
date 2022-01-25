@@ -52,6 +52,9 @@ typedef struct game {
      * */
     void (*on_resize)(struct game* game_inst, u32 width, u32 height);
 
+    /** @brief The required size for the game state. */
+    u64 state_memory_requirement;
+
     /** @brief Game-specific game state. Created and managed by the game. */
     void* state;
 
