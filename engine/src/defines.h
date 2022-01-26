@@ -212,4 +212,4 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 /** @brief Gets the number of bytes from amount of megabytes (MB) (1000*1000) */
 #define MEGABYTES(amount) amount * 1000 * 1000
 /** @brief Gets the number of bytes from amount of kilobytes (KB) (1000) */
-#define KIGABYTES(amount) amount * 1000
+#define KILOBYTES(amount) amount * 1000
