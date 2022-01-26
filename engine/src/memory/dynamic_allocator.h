@@ -1,4 +1,13 @@
-
+/**
+ * @file dynamic_allocator.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief Contains the implementation of the dynamic allocator.
+ * @version 1.0
+ * @date 2022-01-25
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
+ */
 
 #pragma once
 
