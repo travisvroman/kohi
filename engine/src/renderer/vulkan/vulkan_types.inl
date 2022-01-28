@@ -15,6 +15,7 @@
 #include "defines.h"
 #include "core/asserts.h"
 #include "renderer/renderer_types.inl"
+#include "containers/freelist.h"
 
 #include <vulkan/vulkan.h>
 
@@ -46,6 +47,12 @@ typedef struct vulkan_buffer {
     i32 memory_index;
     /** @brief The property flags for the memory used by the buffer. */
     u32 memory_property_flags;
+    /** @brief The amount of memory required for the freelist. */
+    u64 freelist_memory_requirement;
+    /** @brief The memory block used by the internal freelist. */
+    void* freelist_block;
+    /** @brief A freelist to track allocations. */
+    freelist buffer_freelist;
 } vulkan_buffer;
 
 /** @brief Contains swapchain support information and capabilities. */
@@ -308,13 +315,13 @@ typedef struct vulkan_geometry_data {
     /** @brief The size of each vertex. */
     u32 vertex_element_size;
     /** @brief The offset in bytes in the vertex buffer. */
-    u32 vertex_buffer_offset;
+    u64 vertex_buffer_offset;
     /** @brief The index count. */
     u32 index_count;
     /** @brief The size of each index. */
     u32 index_element_size;
     /** @brief The offset in bytes in the index buffer. */
-    u32 index_buffer_offset;
+    u64 index_buffer_offset;
 } vulkan_geometry_data;
 
 /**
@@ -592,11 +599,6 @@ typedef struct vulkan_context {
     vulkan_material_shader material_shader;
     /** @brief The UI shader. */
     vulkan_ui_shader ui_shader;
-
-    /** @brief The geometry vertex buffer offset. @todo TODO: use free lists */
-    u64 geometry_vertex_offset;
-    /** @brief The geometry index buffer offset. @todo TODO: use free lists */
-    u64 geometry_index_offset;
 
     /** @brief The A collection of loaded geometries. @todo TODO: make dynamic */
     vulkan_geometry_data geometries[VULKAN_MAX_GEOMETRY_COUNT];

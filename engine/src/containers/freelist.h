@@ -63,6 +63,22 @@ KAPI b8 freelist_allocate_block(freelist* list, u64 size, u64* out_offset);
 KAPI b8 freelist_free_block(freelist* list, u64 size, u64 offset);
 
 /**
+ * @brief Attempts to resize the provided freelist to the given size. Internal data is copied to the new
+ * block of memory. The old block must be freed after this call.
+ * NOTE: New size must be _greater_ than the existing size of the given list.
+ * NOTE: Should be called twice; once to query the memory requirement (passing new_memory=0),
+ * and a second time to actually resize the list.
+ * 
+ * @param list A pointer to the list to be resized.
+ * @param memory_requirement A pointer to hold the amount of memory required for the resize.
+ * @param new_memory The new block of state memory. Set to 0 if only querying memory_requirement.
+ * @param new_size The new size. Must be greater than the size of the provided list.
+ * @param out_old_memory A pointer to hold the old block of memory so that it may be freed after this call.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 freelist_resize(freelist* list, u64* memory_requirement, void* new_memory, u64 new_size, void** out_old_memory);
+
+/**
  * @brief Clears the free list.
  * 
  * @param list The list to be cleared.
