@@ -4,7 +4,6 @@
     "editor.minimap.enabled": false,
     "terminal.integrated.shell.windows": "c:/Program Files/PowerShell/7/pwsh.exe",
     "terminal.integrated.fontWeight": "1",
-    "editor.fontFamily": "Liberation Mono",
     "editor.fontSize": 16,
     "editor.fontWeight": "1",
     "workbench.editor.showTabs": true,
