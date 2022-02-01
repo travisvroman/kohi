@@ -438,8 +438,13 @@ b8 vulkan_renderer_backend_begin_frame(renderer_backend* backend, f32 delta_time
     vkCmdSetViewport(command_buffer->handle, 0, 1, &viewport);
     vkCmdSetScissor(command_buffer->handle, 0, 1, &scissor);
 
+    // Update the main/world renderpass dimensions.
     context.main_renderpass.render_area.z = context.framebuffer_width;
     context.main_renderpass.render_area.w = context.framebuffer_height;
+
+    // Also update the UI renderpass dimensions.
+    context.ui_renderpass.render_area.z = context.framebuffer_width;
+    context.ui_renderpass.render_area.w = context.framebuffer_height;
 
     return true;
 }
@@ -744,10 +749,17 @@ b8 recreate_swapchain(renderer_backend* backend) {
         vkDestroyFramebuffer(context.device.logical_device, context.swapchain.framebuffers[i], context.allocator);
     }
 
+    // Update the main/world renderpass dimensions.
     context.main_renderpass.render_area.x = 0;
     context.main_renderpass.render_area.y = 0;
     context.main_renderpass.render_area.z = context.framebuffer_width;
     context.main_renderpass.render_area.w = context.framebuffer_height;
+
+    // Also update the UI renderpass dimensions.
+    context.ui_renderpass.render_area.x = 0;
+    context.ui_renderpass.render_area.y = 0;
+    context.ui_renderpass.render_area.z = context.framebuffer_width;
+    context.ui_renderpass.render_area.w = context.framebuffer_height;
 
     // Regenerate swapchain and world framebuffers
     regenerate_framebuffers();
@@ -1015,13 +1027,13 @@ b8 vulkan_renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vert
         internal_data->index_element_size = sizeof(u32);
         total_size = index_count * index_size;
         upload_data_range(
-            &context, 
-            pool, 
-            0, 
-            queue, 
-            &context.object_index_buffer, 
-            internal_data->index_buffer_offset, 
-            total_size, 
+            &context,
+            pool,
+            0,
+            queue,
+            &context.object_index_buffer,
+            internal_data->index_buffer_offset,
+            total_size,
             indices);
         // TODO: should maintain a free list instead of this.
         context.geometry_index_offset += total_size;
@@ -1081,7 +1093,7 @@ void vulkan_renderer_draw_geometry(geometry_render_data data) {
     } else {
         m = material_system_get_default();
     }
-    
+
     switch (m->type) {
         case MATERIAL_TYPE_WORLD:
             vulkan_material_shader_set_model(&context, &context.material_shader, data.model);
