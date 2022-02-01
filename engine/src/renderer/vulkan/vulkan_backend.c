@@ -482,14 +482,14 @@ b8 vulkan_renderer_backend_end_frame(renderer_backend* backend, f32 delta_time) 
 
     // Make sure the previous frame is not using this image (i.e. its fence is being waited on)
     if (context.images_in_flight[context.image_index] != VK_NULL_HANDLE) {  // was frame
-        VkResult result = vkWaitForFences(context.device.logical_device, 1, context.images_in_flight[context.image_index], true, UINT64_MAX);
+        VkResult result = vkWaitForFences(context.device.logical_device, 1, &context.images_in_flight[context.image_index], true, UINT64_MAX);
         if (!vulkan_result_is_success(result)) {
             KFATAL("vkWaitForFences error: %s", vulkan_result_string(result, true));
         }
     }
 
     // Mark the image fence as in-use by this frame.
-    context.images_in_flight[context.image_index] = &context.in_flight_fences[context.current_frame];
+    context.images_in_flight[context.image_index] = context.in_flight_fences[context.current_frame];
 
     // Reset the fence for use on the next frame
     VK_CHECK(vkResetFences(context.device.logical_device, 1, &context.in_flight_fences[context.current_frame]));
