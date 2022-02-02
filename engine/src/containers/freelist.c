@@ -21,7 +21,7 @@ void return_node(freelist* list, freelist_node* node);
 
 void freelist_create(u64 total_size, u64* memory_requirement, void* memory, freelist* out_list) {
     // Enough space to hold state, plus array for all nodes.
-    u64 max_entries = (total_size / sizeof(void*));  //NOTE: This might have a remainder, but that's ok.
+    u64 max_entries = (total_size / (sizeof(void*) * sizeof(freelist_node)));  //NOTE: This might have a remainder, but that's ok.
     *memory_requirement = sizeof(internal_state) + (sizeof(freelist_node) * max_entries);
     if (!memory) {
         return;
