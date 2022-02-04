@@ -202,8 +202,8 @@ b8 vulkan_buffer_allocate(vulkan_buffer* buffer, u64 size, u64* out_offset) {
 }
 
 b8 vulkan_buffer_free(vulkan_buffer* buffer, u64 size, u64 offset) {
-    if (!buffer || !size || !offset) {
-        KERROR("vulkan_buffer_allocate requires valid buffer, a nonzero size and a nonzero offset.");
+    if (!buffer || !size) {
+        KERROR("vulkan_buffer_free requires valid buffer and a nonzero size.");
         return false;
     }
 

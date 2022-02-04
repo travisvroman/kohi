@@ -282,6 +282,8 @@ typedef struct vulkan_descriptor_state {
  * material exists.
  */
 typedef struct vulkan_material_shader_instance_state {
+    u32 id;
+    u64 offset;
     /** @brief The descriptor sets for this material instance, one per frame. */
     VkDescriptorSet descriptor_sets[3];
 
@@ -375,28 +377,24 @@ typedef struct vulkan_material_shader {
     /** @brief The shader stages. @note vertex, fragment */
     vulkan_shader_stage stages[MATERIAL_SHADER_STAGE_COUNT];
 
-    /** @brief The pool which global descriptors are allocated. */
-    VkDescriptorPool global_descriptor_pool;
+    /** @brief The pool which all descriptors are allocated. */
+    VkDescriptorPool pool;
     /** @brief The global descriptor set layout. */
     VkDescriptorSetLayout global_descriptor_set_layout;
 
     /** @brief Global descriptor sets. @note One descriptor set per frame - max 3 for triple-buffering. */
     VkDescriptorSet global_descriptor_sets[3];
 
+    u64 global_ubo_offset;
+
     /** @brief Global uniform object, to be loaded into the global uniform buffer. */
     vulkan_material_shader_global_ubo global_ubo;
 
-    /** @brief Global uniform buffer. */
-    vulkan_buffer global_uniform_buffer;
+    /** @brief Uniform buffer. */
+    vulkan_buffer uniform_buffer;
 
-    /** @brief The pool from which material-instance descriptors are allocated. */
-    VkDescriptorPool object_descriptor_pool;
     /** @brief The descriptor set layout for material instance descriptors. */
     VkDescriptorSetLayout object_descriptor_set_layout;
-    /** @brief Material instance uniform buffer. @todo TODO: This is a linear list of material instances. Switch to use free list. */
-    vulkan_buffer object_uniform_buffer;
-    /** @brief The current material instance index for linear allocations. @todo TODO: Manage a free list of some kind here instead. */
-    u32 object_uniform_buffer_index;
 
     /** @brief represents the usage of samplers. Ordered in zero-indexed sampler use order. */
     texture_use sampler_uses[VULKAN_MATERIAL_SHADER_SAMPLER_COUNT];
@@ -406,6 +404,8 @@ typedef struct vulkan_material_shader {
 
     /** @brief The pipeline associated with this shader. */
     vulkan_pipeline pipeline;
+
+    void* mapped_block;
 
 } vulkan_material_shader;
 
