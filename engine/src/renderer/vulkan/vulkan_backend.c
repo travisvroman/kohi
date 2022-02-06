@@ -22,6 +22,7 @@
 #include "platform/platform.h"
 
 // Shaders
+#include "vulkan_shader.h"
 #include "shaders/vulkan_material_shader.h"
 #include "shaders/vulkan_ui_shader.h"
 

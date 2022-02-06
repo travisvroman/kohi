@@ -49,6 +49,19 @@ typedef enum shader_attribute_type {
     UINT32_4
 } shader_attribute_type;
 
+/**
+ * @brief Defines shader scope, which indicates how
+ * often it gets updated.
+ */
+typedef enum vulkan_shader_scope {
+    /** @brief Global shader scope, generally updated once per frame. */
+    VULKAN_SHADER_SCOPE_GLOBAL = 0,
+    /** @brief Instance shader scope, generally updated "per-instance" of the shader. */
+    VULKAN_SHADER_SCOPE_INSTANCE = 1,
+    /** @brief Local shader scope, generally updated per-object */
+    VULKAN_SHADER_SCOPE_LOCAL = 2
+} vulkan_shader_scope;
+
 typedef enum vulkan_shader_state {
     VULKAN_SHADER_STATE_NOT_CREATED,
     VULKAN_SHADER_STATE_UNINITIALIZED,
@@ -84,7 +97,7 @@ typedef struct vulkan_uniform_lookup_entry {
     u32 index;
     u32 size;
     u32 set_index;
-    b8 is_global;
+    vulkan_shader_scope scope;
     VkFormat format;
 } vulkan_uniform_lookup_entry;
 
@@ -140,6 +153,9 @@ typedef struct vulkan_shader {
     u64 global_ubo_offset;
     u64 ubo_size;
     u64 ubo_stride;
+    u64 push_constant_size;
+    u64 push_constant_stride;
+
 
     // darray of texture*
     struct texture** global_textures;
@@ -160,19 +176,19 @@ b8 vulkan_shader_destroy(vulkan_shader* shader);
 
 b8 vulkan_shader_add_attribute(vulkan_shader* shader, const char* name, shader_attribute_type type);
 
-b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, b8 is_global, u32* out_location);
+b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, vulkan_shader_scope scope, u32* out_location);
 
-b8 vulkan_shader_add_uniform_i8(vulkan_shader* shader, const char* uniform_name, b8 is_global, u32* out_location);
-b8 vulkan_shader_add_uniform_i16(vulkan_shader* shader, const char* uniform_name, b8 is_global, u32* out_location);
-b8 vulkan_shader_add_uniform_i32(vulkan_shader* shader, const char* uniform_name, b8 is_global, u32* out_location);
-b8 vulkan_shader_add_uniform_u8(vulkan_shader* shader, const char* uniform_name, b8 is_global, u32* out_location);
-b8 vulkan_shader_add_uniform_u16(vulkan_shader* shader, const char* uniform_name, b8 is_global, u32* out_location);
-b8 vulkan_shader_add_uniform_u32(vulkan_shader* shader, const char* uniform_name, b8 is_global, u32* out_location);
-b8 vulkan_shader_add_uniform_f32(vulkan_shader* shader, const char* uniform_name, b8 is_global, u32* out_location);
-b8 vulkan_shader_add_uniform_vec2(vulkan_shader* shader, const char* uniform_name, b8 is_global, u32* out_location);
-b8 vulkan_shader_add_uniform_vec3(vulkan_shader* shader, const char* uniform_name, b8 is_global, u32* out_location);
-b8 vulkan_shader_add_uniform_vec4(vulkan_shader* shader, const char* uniform_name, b8 is_global, u32* out_location);
-b8 vulkan_shader_add_uniform_mat4(vulkan_shader* shader, const char* uniform_name, b8 is_global, u32* out_location);
+b8 vulkan_shader_add_uniform_i8(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_i16(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_i32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_u8(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_u16(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_u32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_f32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_vec2(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_vec3(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_vec4(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_mat4(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
 
 // End add attributes/samplers/uniforms
 
