@@ -114,7 +114,7 @@ b8 vulkan_graphics_pipeline_create(
     VkPipelineLayoutCreateInfo pipeline_layout_create_info = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 
     // Push constants
-    if (push_constant_ranges) {
+    if (push_constant_range_count > 0) {
         if (push_constant_range_count > 32) {
             KERROR("vulkan_graphics_pipeline_create: cannot have more than 32 push constant ranges. Passed count: %i", push_constant_range_count);
             return false;

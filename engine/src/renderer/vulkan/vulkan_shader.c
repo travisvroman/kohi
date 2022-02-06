@@ -51,8 +51,8 @@ b8 vulkan_shader_create(vulkan_context* context, const char* name, VkShaderStage
     out_shader->config.max_descriptor_set_count = max_descriptor_count;
     // Shader stages. Parse out the flags.
     out_shader->config.stages = darray_create(vulkan_shader_stage_config);
-    for (u32 i = VK_SHADER_STAGE_VERTEX_BIT; i < VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM; ++i) {
-        if (stages & i) {
+    for (u32 i = VK_SHADER_STAGE_VERTEX_BIT; i < VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM; i <<= 1) {  // shift left/double each time.
+        if ((stages & i) == i) {
             vulkan_shader_stage_config stage_config;
             switch (i) {
                 // Check for a supported type. Unsupported types are ignored.
@@ -86,6 +86,10 @@ b8 vulkan_shader_create(vulkan_context* context, const char* name, VkShaderStage
     u64 element_count = 1024;        // This is more uniform buffers than we will ever need, but a bigger table reduces collision chance.
     out_shader->hashtable_block = kallocate(element_size * element_count, MEMORY_TAG_UNKNOWN);
     hashtable_create(element_size, element_count, out_shader->hashtable_block, false, &out_shader->uniform_lookup);
+
+    // Invalidate all spots in the table
+    u32 invalid = INVALID_ID;
+    hashtable_fill(&out_shader->uniform_lookup, &invalid);
 
     out_shader->global_ubo_size = 0;
     out_shader->ubo_size = 0;
@@ -133,6 +137,12 @@ b8 vulkan_shader_create(vulkan_context* context, const char* name, VkShaderStage
         darray_push(instance_descriptor_set_config.bindings, instance_ubo_binding);
 
         darray_push(out_shader->config.descriptor_sets, instance_descriptor_set_config);
+    }
+
+    // Invalidate all instance states.
+    // TODO: dynamic
+    for (u32 i = 0; i < 1024; ++i) {
+        out_shader->instance_states[i].id = INVALID_ID;
     }
 
     // Ready to be initialized.
@@ -190,34 +200,34 @@ b8 vulkan_shader_add_attribute(vulkan_shader* shader, const char* name, shader_a
     static VkFormat* types = 0;
     static VkFormat t[29];
     if (!types) {
-        t[FLOAT32] = VK_FORMAT_R32_SFLOAT;
-        t[FLOAT32_2] = VK_FORMAT_R32G32_SFLOAT;
-        t[FLOAT32_3] = VK_FORMAT_R32G32B32_SFLOAT;
-        t[FLOAT32_4] = VK_FORMAT_R32G32B32A32_SFLOAT;
-        t[INT8] = VK_FORMAT_R8_SINT;
-        t[INT8_2] = VK_FORMAT_R8G8_SINT;
-        t[INT8_3] = VK_FORMAT_R8G8B8_SINT;
-        t[INT8_4] = VK_FORMAT_R8G8B8A8_SINT;
-        t[UINT8] = VK_FORMAT_R8_UINT;
-        t[UINT8_2] = VK_FORMAT_R8G8_UINT;
-        t[UINT8_3] = VK_FORMAT_R8G8B8_UINT;
-        t[UINT8_4] = VK_FORMAT_R8G8B8A8_UINT;
-        t[INT16] = VK_FORMAT_R16_SINT;
-        t[INT16_2] = VK_FORMAT_R16G16_SINT;
-        t[INT16_3] = VK_FORMAT_R16G16B16_SINT;
-        t[INT16_4] = VK_FORMAT_R16G16B16A16_SINT;
-        t[UINT16] = VK_FORMAT_R16_UINT;
-        t[UINT16_2] = VK_FORMAT_R16G16_UINT;
-        t[UINT16_3] = VK_FORMAT_R16G16B16_UINT;
-        t[UINT16_4] = VK_FORMAT_R16G16B16A16_UINT;
-        t[INT32] = VK_FORMAT_R32_SINT;
-        t[INT32_2] = VK_FORMAT_R32G32_SINT;
-        t[INT32_3] = VK_FORMAT_R32G32B32_SINT;
-        t[INT32_4] = VK_FORMAT_R32G32B32A32_SINT;
-        t[UINT32] = VK_FORMAT_R32_UINT;
-        t[UINT32_2] = VK_FORMAT_R32G32_UINT;
-        t[UINT32_3] = VK_FORMAT_R32G32B32_UINT;
-        t[UINT32_4] = VK_FORMAT_R32G32B32A32_UINT;
+        t[SHADER_ATTRIB_TYPE_FLOAT32] = VK_FORMAT_R32_SFLOAT;
+        t[SHADER_ATTRIB_TYPE_FLOAT32_2] = VK_FORMAT_R32G32_SFLOAT;
+        t[SHADER_ATTRIB_TYPE_FLOAT32_3] = VK_FORMAT_R32G32B32_SFLOAT;
+        t[SHADER_ATTRIB_TYPE_FLOAT32_4] = VK_FORMAT_R32G32B32A32_SFLOAT;
+        t[SHADER_ATTRIB_TYPE_INT8] = VK_FORMAT_R8_SINT;
+        t[SHADER_ATTRIB_TYPE_INT8_2] = VK_FORMAT_R8G8_SINT;
+        t[SHADER_ATTRIB_TYPE_INT8_3] = VK_FORMAT_R8G8B8_SINT;
+        t[SHADER_ATTRIB_TYPE_INT8_4] = VK_FORMAT_R8G8B8A8_SINT;
+        t[SHADER_ATTRIB_TYPE_UINT8] = VK_FORMAT_R8_UINT;
+        t[SHADER_ATTRIB_TYPE_UINT8_2] = VK_FORMAT_R8G8_UINT;
+        t[SHADER_ATTRIB_TYPE_UINT8_3] = VK_FORMAT_R8G8B8_UINT;
+        t[SHADER_ATTRIB_TYPE_UINT8_4] = VK_FORMAT_R8G8B8A8_UINT;
+        t[SHADER_ATTRIB_TYPE_INT16] = VK_FORMAT_R16_SINT;
+        t[SHADER_ATTRIB_TYPE_INT16_2] = VK_FORMAT_R16G16_SINT;
+        t[SHADER_ATTRIB_TYPE_INT16_3] = VK_FORMAT_R16G16B16_SINT;
+        t[SHADER_ATTRIB_TYPE_INT16_4] = VK_FORMAT_R16G16B16A16_SINT;
+        t[SHADER_ATTRIB_TYPE_UINT16] = VK_FORMAT_R16_UINT;
+        t[SHADER_ATTRIB_TYPE_UINT16_2] = VK_FORMAT_R16G16_UINT;
+        t[SHADER_ATTRIB_TYPE_UINT16_3] = VK_FORMAT_R16G16B16_UINT;
+        t[SHADER_ATTRIB_TYPE_UINT16_4] = VK_FORMAT_R16G16B16A16_UINT;
+        t[SHADER_ATTRIB_TYPE_INT32] = VK_FORMAT_R32_SINT;
+        t[SHADER_ATTRIB_TYPE_INT32_2] = VK_FORMAT_R32G32_SINT;
+        t[SHADER_ATTRIB_TYPE_INT32_3] = VK_FORMAT_R32G32B32_SINT;
+        t[SHADER_ATTRIB_TYPE_INT32_4] = VK_FORMAT_R32G32B32A32_SINT;
+        t[SHADER_ATTRIB_TYPE_UINT32] = VK_FORMAT_R32_UINT;
+        t[SHADER_ATTRIB_TYPE_UINT32_2] = VK_FORMAT_R32G32_UINT;
+        t[SHADER_ATTRIB_TYPE_UINT32_3] = VK_FORMAT_R32G32B32_UINT;
+        t[SHADER_ATTRIB_TYPE_UINT32_4] = VK_FORMAT_R32G32B32A32_UINT;
 
         types = t;
     }
@@ -370,6 +380,8 @@ b8 vulkan_shader_initialize(vulkan_shader* shader) {
 
     // Create a module for each stage
     u32 stage_count = darray_length(shader->config.stages);
+    shader->stages = darray_reserve(vulkan_shader_stage, stage_count);
+    darray_length_set(shader->stages, stage_count);
     for (u32 i = 0; i < stage_count; ++i) {
         if (!create_module(shader, shader->config.stages[i], &shader->stages[i])) {
             KERROR("Unable to create %s shader module for '%s'. Shader will be destroyed.", shader->config.stages[i].stage_str, shader->name);
@@ -393,6 +405,7 @@ b8 vulkan_shader_initialize(vulkan_shader* shader) {
     // Create descriptor set layouts. Start by reserving space.
     u32 set_count = darray_length(shader->config.descriptor_sets);
     shader->descriptor_set_layouts = darray_reserve(VkDescriptorSetLayout, set_count);
+    darray_length_set(shader->descriptor_set_layouts, set_count);
     for (u32 i = 0; i < set_count; ++i) {
         VkDescriptorSetLayoutCreateInfo layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
         layout_info.bindingCount = darray_length(shader->config.descriptor_sets[i].bindings);
@@ -424,7 +437,7 @@ b8 vulkan_shader_initialize(vulkan_shader* shader) {
     VkPipelineShaderStageCreateInfo* stage_create_infos = darray_create(VkPipelineShaderStageCreateInfo);
     stage_count = darray_length(shader->stages);
     for (u32 i = 0; i < stage_count; ++i) {
-        darray_push(stage_create_infos, shader->stages[i].create_info);
+        darray_push(stage_create_infos, shader->stages[i].shader_stage_create_info);
     }
 
     b8 pipeline_result = vulkan_graphics_pipeline_create(
@@ -616,7 +629,7 @@ b8 vulkan_shader_apply_instance(vulkan_shader* shader) {
         descriptor_count++;
 
         // Update the frame generation. In this case it is only needed once since this is a buffer.
-        *global_ubo_generation = 1;  //material->generation; TODO: some generation from... somewhere
+        *global_ubo_generation = 1;  // material->generation; TODO: some generation from... somewhere
     }
     descriptor_index++;
 
@@ -702,6 +715,7 @@ b8 vulkan_shader_acquire_instance_resources(vulkan_shader* shader, u32* out_inst
     u32 set_count = darray_length(shader->config.descriptor_sets);
     // Don't track a state for globals.
     object_state->descriptor_set_states = darray_reserve(vulkan_shader_descriptor_set_state, set_count - 1);
+    darray_length_set(object_state->descriptor_set_states, set_count - 1);
 
     // Each configured set, starting at the second (potentially, if there is one)
     for (u32 s = 1; s < set_count; ++s) {
@@ -710,6 +724,7 @@ b8 vulkan_shader_acquire_instance_resources(vulkan_shader* shader, u32* out_inst
         // Each descriptor binding in the set
         u32 binding_count = darray_length(shader->config.descriptor_sets[s].bindings);
         set_state->descriptor_states = darray_reserve(vulkan_descriptor_state, binding_count);
+        darray_length_set(set_state->descriptor_states, binding_count);
         for (u32 i = 0; i < binding_count; ++i) {
             vulkan_descriptor_state* binding_desc_state = &set_state->descriptor_states[i];
 
@@ -915,7 +930,7 @@ void destroy_config(vulkan_shader_config* config) {
         config->attributes = 0;
     }
 
-    if(config->push_constant_ranges) {
+    if (config->push_constant_ranges) {
         darray_destroy(config->push_constant_ranges);
         config->push_constant_ranges = 0;
     }
@@ -964,7 +979,7 @@ b8 uniform_name_valid(vulkan_shader* shader, const char* uniform_name) {
         return false;
     }
     u32 location;
-    if (hashtable_get(&shader->uniform_lookup, uniform_name, &location)) {
+    if (hashtable_get(&shader->uniform_lookup, uniform_name, &location) && location != INVALID_ID) {
         KERROR("A uniform by the name '%s' already exists on shader '%s'.", uniform_name, shader->name);
         return false;
     }
@@ -985,8 +1000,10 @@ b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan
     entry.scope = scope;
     b8 is_global = (scope == VULKAN_SHADER_SCOPE_GLOBAL);
     if (is_sampler) {
-        // An entry has been already added at this point, so subtract 1 from the length to get the location.
-        entry.location = darray_length(is_global ? shader->global_textures : shader->instance_states[shader->bound_instance_id].instance_textures) - 1;
+        entry.location = is_global ? darray_length(shader->global_textures) : shader->instance_texture_count;
+        if (!is_global) {
+            shader->instance_texture_count++;
+        }
     } else {
         entry.location = entry.index;
     }
@@ -1031,7 +1048,7 @@ b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan
         } else if (entry.scope == VULKAN_SHADER_SCOPE_INSTANCE) {
             shader->ubo_size += entry.size;
         } else {
-                }
+        }
     }
 
     // Location is the index into the array.

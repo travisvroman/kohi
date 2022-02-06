@@ -16,6 +16,7 @@
 #include "core/asserts.h"
 #include "renderer/renderer_types.inl"
 #include "containers/freelist.h"
+#include "containers/hashtable.h"
 
 #include <vulkan/vulkan.h>
 
@@ -27,6 +28,8 @@
     {                                \
         KASSERT(expr == VK_SUCCESS); \
     }
+
+struct vulkan_context;
 
 /**
  * @brief Represents a Vulkan-specific buffer.
@@ -520,6 +523,169 @@ typedef struct vulkan_ui_shader {
 
 } vulkan_ui_shader;
 
+
+/////////////////////// NEW SHADER
+
+
+// TODO: This should be in the generic renderer frontend, methinks.
+typedef enum shader_attribute_type {
+    SHADER_ATTRIB_TYPE_FLOAT32,
+    SHADER_ATTRIB_TYPE_FLOAT32_2,
+    SHADER_ATTRIB_TYPE_FLOAT32_3,
+    SHADER_ATTRIB_TYPE_FLOAT32_4,
+    SHADER_ATTRIB_TYPE_MATRIX_4,
+    SHADER_ATTRIB_TYPE_INT8,
+    SHADER_ATTRIB_TYPE_INT8_2,
+    SHADER_ATTRIB_TYPE_INT8_3,
+    SHADER_ATTRIB_TYPE_INT8_4,
+    SHADER_ATTRIB_TYPE_UINT8,
+    SHADER_ATTRIB_TYPE_UINT8_2,
+    SHADER_ATTRIB_TYPE_UINT8_3,
+    SHADER_ATTRIB_TYPE_UINT8_4,
+    SHADER_ATTRIB_TYPE_INT16,
+    SHADER_ATTRIB_TYPE_INT16_2,
+    SHADER_ATTRIB_TYPE_INT16_3,
+    SHADER_ATTRIB_TYPE_INT16_4,
+    SHADER_ATTRIB_TYPE_UINT16,
+    SHADER_ATTRIB_TYPE_UINT16_2,
+    SHADER_ATTRIB_TYPE_UINT16_3,
+    SHADER_ATTRIB_TYPE_UINT16_4,
+    SHADER_ATTRIB_TYPE_INT32,
+    SHADER_ATTRIB_TYPE_INT32_2,
+    SHADER_ATTRIB_TYPE_INT32_3,
+    SHADER_ATTRIB_TYPE_INT32_4,
+    SHADER_ATTRIB_TYPE_UINT32,
+    SHADER_ATTRIB_TYPE_UINT32_2,
+    SHADER_ATTRIB_TYPE_UINT32_3,
+    SHADER_ATTRIB_TYPE_UINT32_4
+} shader_attribute_type;
+
+/**
+ * @brief Defines shader scope, which indicates how
+ * often it gets updated.
+ */
+typedef enum vulkan_shader_scope {
+    /** @brief Global shader scope, generally updated once per frame. */
+    VULKAN_SHADER_SCOPE_GLOBAL = 0,
+    /** @brief Instance shader scope, generally updated "per-instance" of the shader. */
+    VULKAN_SHADER_SCOPE_INSTANCE = 1,
+    /** @brief Local shader scope, generally updated per-object */
+    VULKAN_SHADER_SCOPE_LOCAL = 2
+} vulkan_shader_scope;
+
+typedef enum vulkan_shader_state {
+    VULKAN_SHADER_STATE_NOT_CREATED,
+    VULKAN_SHADER_STATE_UNINITIALIZED,
+    VULKAN_SHADER_STATE_INITIALIZED,
+    // TODO: more states?
+} vulkan_shader_state;
+
+typedef struct vulkan_shader_stage_config {
+    VkShaderStageFlagBits stage;
+    char stage_str[8];
+} vulkan_shader_stage_config;
+
+typedef struct vulkan_descriptor_set_config {
+    // darray
+    VkDescriptorSetLayoutBinding* bindings;
+} vulkan_descriptor_set_config;
+
+/** Shader config */
+typedef struct vulkan_shader_config {
+    // darray
+    vulkan_shader_stage_config* stages;
+    VkDescriptorPoolSize pool_sizes[2];
+    u32 max_descriptor_set_count;
+    //darray
+    vulkan_descriptor_set_config* descriptor_sets;
+    // darray
+    VkVertexInputAttributeDescription* attributes;
+    // darray
+    range* push_constant_ranges;
+} vulkan_shader_config;
+
+typedef struct vulkan_uniform_lookup_entry {
+    u64 offset;
+    u64 location;
+    u32 index;
+    u32 size;
+    u32 set_index;
+    vulkan_shader_scope scope;
+    VkFormat format;
+} vulkan_uniform_lookup_entry;
+
+typedef struct vulkan_shader_descriptor_set_state {
+    /** @brief The descriptor sets for this instance, one per frame. */
+    VkDescriptorSet descriptor_sets[3];
+
+    /** @brief A descriptor state per descriptor, which in turn handles frames. darray */
+    vulkan_descriptor_state* descriptor_states;
+} vulkan_shader_descriptor_set_state;
+
+typedef struct vulkan_shader_instance_state {
+    u32 id;
+    u64 offset;
+
+    // darray A set for each descriptor state.
+    vulkan_shader_descriptor_set_state* descriptor_set_states;
+
+    // darray of texture*
+    struct texture** instance_textures;
+} vulkan_shader_instance_state;
+
+// TODO: move to vulkan_types
+typedef struct vulkan_shader {
+    u32 id;
+    struct vulkan_context* context;
+    char* name;
+    b8 use_instances;
+    b8 use_push_constants;
+    vulkan_shader_config config;
+    vulkan_shader_state state;
+    // darray
+    vulkan_shader_stage* stages;
+
+    VkDescriptorPool descriptor_pool;
+    // darray
+    VkDescriptorSetLayout* descriptor_set_layouts;
+    // One per frame
+    VkDescriptorSet global_descriptor_sets[3];
+    // darray
+    vulkan_buffer uniform_buffer;
+
+    /** @brief The pipeline associated with this shader. */
+    vulkan_pipeline pipeline;
+
+    void* hashtable_block;
+    hashtable uniform_lookup;
+    // darray
+    vulkan_uniform_lookup_entry* uniforms;
+    u64 required_ubo_alignment;
+
+    u64 global_ubo_size;
+    u64 global_ubo_stride;
+    u64 global_ubo_offset;
+    u64 ubo_size;
+    u64 ubo_stride;
+    u64 push_constant_size;
+    u64 push_constant_stride;
+    
+
+    // darray of texture*
+    struct texture** global_textures;
+    u32 instance_texture_count;
+
+    u32 bound_ubo_offset;
+    void* ubo_block;
+
+    u32 bound_instance_id;
+
+    /** @brief The instance states for all instances. @todo TODO: make dynamic */
+    vulkan_shader_instance_state instance_states[VULKAN_MAX_MATERIAL_COUNT];
+} vulkan_shader;
+
+///////////////////////// end new shader
+
 /**
  * @brief The overall Vulkan context for the backend. Holds and maintains
  * global renderer backend state, Vulkan instance, etc.
@@ -596,7 +762,15 @@ typedef struct vulkan_context {
     b8 recreating_swapchain;
 
     /** @brief The material shader. */
-    vulkan_material_shader material_shader;
+    //vulkan_material_shader material_shader;
+    // TODO: move this
+    vulkan_shader material_shader;
+    u32 material_shader_projection_location;
+    u32 material_shader_view_location;
+    u32 material_shader_diffuse_colour_location;
+    u32 material_shader_model_location;
+    u32 material_shader_diffuse_texture_location;
+
     /** @brief The UI shader. */
     vulkan_ui_shader ui_shader;
 

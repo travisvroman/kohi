@@ -23,7 +23,6 @@
 
 // Shaders
 #include "vulkan_shader.h"
-#include "shaders/vulkan_material_shader.h"
 #include "shaders/vulkan_ui_shader.h"
 
 #include "systems/material_system.h"
@@ -259,10 +258,32 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const char* app
     }
 
     // Create builtin shaders
-    if (!vulkan_material_shader_create(&context, &context.material_shader)) {
-        KERROR("Error loading built-in basic_lighting shader.");
+    // old
+    // if (!vulkan_material_shader_create(&context, &context.material_shader)) {
+    //     KERROR("Error loading built-in basic_lighting shader.");
+    //     return false;
+    // }
+    if (!vulkan_shader_create(&context, "Builtin.MaterialShader", VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 1024, true, true, &context.material_shader)) {
+        KERROR("Error creating built-in material shader.");
         return false;
     }
+    // Attributes: Position, texcoord
+    vulkan_shader_add_attribute(&context.material_shader, "in_position", SHADER_ATTRIB_TYPE_FLOAT32_3);  // VK_FORMAT_R32G32B32_SFLOAT
+    vulkan_shader_add_attribute(&context.material_shader, "in_texcoord", SHADER_ATTRIB_TYPE_FLOAT32_2);  // VK_FORMAT_R32G32_SFLOAT
+    // Uniforms
+    // Global
+    vulkan_shader_add_uniform_mat4(&context.material_shader, "projection", VULKAN_SHADER_SCOPE_GLOBAL, &context.material_shader_projection_location);
+    vulkan_shader_add_uniform_mat4(&context.material_shader, "view", VULKAN_SHADER_SCOPE_GLOBAL, &context.material_shader_view_location);
+    // Instance
+    vulkan_shader_add_uniform_vec4(&context.material_shader, "diffuse_colour", VULKAN_SHADER_SCOPE_INSTANCE, &context.material_shader_diffuse_colour_location);
+    vulkan_shader_add_sampler(&context.material_shader, "diffuse_texture", VULKAN_SHADER_SCOPE_INSTANCE, &context.material_shader_diffuse_texture_location);
+    // Local
+    vulkan_shader_add_uniform_mat4(&context.material_shader, "model", VULKAN_SHADER_SCOPE_LOCAL, &context.material_shader_model_location);
+    if (!vulkan_shader_initialize(&context.material_shader)) {
+        KERROR("Error initializing built-in material shader.");
+        return false;
+    }
+
     if (!vulkan_ui_shader_create(&context, &context.ui_shader)) {
         KERROR("Error loading built-in ui shader.");
         return false;
@@ -288,7 +309,8 @@ void vulkan_renderer_backend_shutdown(renderer_backend* backend) {
     vulkan_buffer_destroy(&context, &context.object_index_buffer);
 
     vulkan_ui_shader_destroy(&context, &context.ui_shader);
-    vulkan_material_shader_destroy(&context, &context.material_shader);
+    //vulkan_material_shader_destroy(&context, &context.material_shader);
+    vulkan_shader_destroy(&context.material_shader);
 
     // Sync objects
     for (u8 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
@@ -460,20 +482,26 @@ b8 vulkan_renderer_backend_begin_frame(renderer_backend* backend, f32 delta_time
 }
 
 void vulkan_renderer_update_global_world_state(mat4 projection, mat4 view, vec3 view_position, vec4 ambient_colour, i32 mode) {
-    //vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
+    // vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
 
-    vulkan_material_shader_use(&context, &context.material_shader);
+    // vulkan_material_shader_use(&context, &context.material_shader);
+    vulkan_shader_use(&context.material_shader);
 
-    context.material_shader.global_ubo.projection = projection;
-    context.material_shader.global_ubo.view = view;
+    // context.material_shader.global_ubo.projection = projection;
+    // context.material_shader.global_ubo.view = view;
+
+    // Global
+    vulkan_shader_bind_globals(&context.material_shader);
+    vulkan_shader_set_uniform_mat4(&context.material_shader, context.material_shader_projection_location, projection);
+    vulkan_shader_set_uniform_mat4(&context.material_shader, context.material_shader_view_location, view);
 
     // TODO: other ubo properties
 
-    vulkan_material_shader_update_global_state(&context, &context.material_shader, context.frame_delta_time);
+    // vulkan_material_shader_update_global_state(&context, &context.material_shader, context.frame_delta_time);
 }
 
 void vulkan_renderer_update_global_ui_state(mat4 projection, mat4 view, i32 mode) {
-    //vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
+    // vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
 
     vulkan_ui_shader_use(&context, &context.ui_shader);
 
@@ -577,7 +605,8 @@ b8 vulkan_renderer_begin_renderpass(struct renderer_backend* backend, u8 renderp
     // Use the appropriate shader.
     switch (renderpass_id) {
         case BUILTIN_RENDERPASS_WORLD:
-            vulkan_material_shader_use(&context, &context.material_shader);
+            vulkan_shader_use(&context.material_shader);
+            //vulkan_material_shader_use(&context, &context.material_shader);
             break;
         case BUILTIN_RENDERPASS_UI:
             vulkan_ui_shader_use(&context, &context.ui_shader);
@@ -924,10 +953,14 @@ b8 vulkan_renderer_create_material(struct material* material) {
     if (material) {
         switch (material->type) {
             case MATERIAL_TYPE_WORLD:
-                if (!vulkan_material_shader_acquire_resources(&context, &context.material_shader, material)) {
+                if (!vulkan_shader_acquire_instance_resources(&context.material_shader, &material->internal_id)) {
                     KERROR("vulkan_renderer_create_material - Failed to acquire world shader resources.");
                     return false;
                 }
+                // if (!vulkan_material_shader_acquire_resources(&context, &context.material_shader, material)) {
+                //     KERROR("vulkan_renderer_create_material - Failed to acquire world shader resources.");
+                //     return false;
+                // }
                 break;
             case MATERIAL_TYPE_UI:
                 if (!vulkan_ui_shader_acquire_resources(&context, &context.ui_shader, material)) {
@@ -953,7 +986,8 @@ void vulkan_renderer_destroy_material(struct material* material) {
         if (material->internal_id != INVALID_ID) {
             switch (material->type) {
                 case MATERIAL_TYPE_WORLD:
-                    vulkan_material_shader_release_resources(&context, &context.material_shader, material);
+                    vulkan_shader_release_instance_resources(&context.material_shader, material->internal_id);
+                    // vulkan_material_shader_release_resources(&context, &context.material_shader, material);
                     break;
                 case MATERIAL_TYPE_UI:
                     vulkan_ui_shader_release_resources(&context, &context.ui_shader, material);
@@ -1103,8 +1137,17 @@ void vulkan_renderer_draw_geometry(geometry_render_data data) {
 
     switch (m->type) {
         case MATERIAL_TYPE_WORLD:
-            vulkan_material_shader_set_model(&context, &context.material_shader, data.model);
-            vulkan_material_shader_apply_material(&context, &context.material_shader, m);
+            // Apply the material
+            vulkan_shader_bind_instance(&context.material_shader, m->internal_id);
+            // Instance
+            vulkan_shader_set_uniform_vec4(&context.material_shader, context.material_shader_diffuse_colour_location, m->diffuse_colour);
+            vulkan_shader_set_sampler(&context.material_shader, context.material_shader_diffuse_texture_location, m->diffuse_map.texture);
+            // Local
+            vulkan_shader_set_uniform_mat4(&context.material_shader, context.material_shader_model_location, data.model);
+            // Apply the above changes.
+            vulkan_shader_apply_instance(&context.material_shader);
+            // vulkan_material_shader_set_model(&context, &context.material_shader, data.model);
+            // vulkan_material_shader_apply_material(&context, &context.material_shader, m);
             break;
         case MATERIAL_TYPE_UI:
             vulkan_ui_shader_set_model(&context, &context.ui_shader, data.model);
