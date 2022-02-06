@@ -89,6 +89,8 @@ typedef struct vulkan_shader_config {
     vulkan_descriptor_set_config* descriptor_sets;
     // darray
     VkVertexInputAttributeDescription* attributes;
+    // darray
+    range* push_constant_ranges;
 } vulkan_shader_config;
 
 typedef struct vulkan_uniform_lookup_entry {
@@ -126,6 +128,7 @@ typedef struct vulkan_shader {
     vulkan_context* context;
     char* name;
     b8 use_instances;
+    b8 use_push_constants;
     vulkan_shader_config config;
     vulkan_shader_state state;
     // darray
@@ -155,10 +158,11 @@ typedef struct vulkan_shader {
     u64 ubo_stride;
     u64 push_constant_size;
     u64 push_constant_stride;
-
+    
 
     // darray of texture*
     struct texture** global_textures;
+    u32 instance_texture_count;
 
     u32 bound_ubo_offset;
     void* ubo_block;
@@ -169,7 +173,7 @@ typedef struct vulkan_shader {
     vulkan_shader_instance_state instance_states[VULKAN_MAX_MATERIAL_COUNT];
 } vulkan_shader;
 
-b8 vulkan_shader_create(vulkan_context* context, const char* name, VkShaderStageFlags stages, u32 max_descriptor_set_count, b8 use_instances, vulkan_shader* out_shader);
+b8 vulkan_shader_create(vulkan_context* context, const char* name, VkShaderStageFlags stages, u32 max_descriptor_set_count, b8 use_instances, b8 use_local, vulkan_shader* out_shader);
 b8 vulkan_shader_destroy(vulkan_shader* shader);
 
 // Add attributes/samplers/uniforms

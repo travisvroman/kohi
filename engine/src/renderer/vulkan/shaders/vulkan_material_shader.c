@@ -132,6 +132,7 @@ b8 vulkan_material_shader_create(vulkan_context* context, vulkan_material_shader
     scissor.extent.width = context->framebuffer_width;
     scissor.extent.height = context->framebuffer_height;
 
+    range r = {0, sizeof(mat4)};
     if (!vulkan_graphics_pipeline_create(
             context,
             &context->main_renderpass,
@@ -146,6 +147,8 @@ b8 vulkan_material_shader_create(vulkan_context* context, vulkan_material_shader
             scissor,
             false,
             true,
+            1,
+            &r,
             &out_shader->pipeline)) {
         KERROR("Failed to load graphics pipeline for object shader.");
         return false;
@@ -277,7 +280,7 @@ void vulkan_material_shader_set_model(vulkan_context* context, struct vulkan_mat
         u32 image_index = context->image_index;
         VkCommandBuffer command_buffer = context->graphics_command_buffers[image_index].handle;
 
-        vkCmdPushConstants(command_buffer, shader->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &model);
+        vkCmdPushConstants(command_buffer, shader->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(mat4), &model);
     }
 }
 

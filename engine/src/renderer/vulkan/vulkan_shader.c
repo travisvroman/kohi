@@ -19,9 +19,9 @@ void destroy_config(vulkan_shader_config* config);
 b8 create_module(vulkan_shader* shader, vulkan_shader_stage_config config, vulkan_shader_stage* shader_stage);
 b8 uniform_name_valid(vulkan_shader* shader, const char* uniform_name);
 b8 shader_uniform_add_state_valid(vulkan_shader* shader);
-b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, u32 set_index, u32* out_location, b8 is_sampler);
+b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan_shader_scope scope, u32* out_location, b8 is_sampler);
 
-b8 vulkan_shader_create(vulkan_context* context, const char* name, VkShaderStageFlags stages, u32 max_descriptor_count, b8 use_instances, vulkan_shader* out_shader) {
+b8 vulkan_shader_create(vulkan_context* context, const char* name, VkShaderStageFlags stages, u32 max_descriptor_count, b8 use_instances, b8 use_local, vulkan_shader* out_shader) {
     if (!context || !name || !out_shader) {
         KERROR("vulkan_shader_create must supply valid pointer to context, name and out_shader. Creation failed.");
         return false;
@@ -39,6 +39,12 @@ b8 vulkan_shader_create(vulkan_context* context, const char* name, VkShaderStage
     // Take a copy of the name.
     out_shader->name = string_duplicate(name);
     out_shader->use_instances = use_instances;
+    out_shader->use_push_constants = use_local;
+    if (use_local) {
+        out_shader->config.push_constant_ranges = darray_create(range);
+    } else {
+        out_shader->config.push_constant_ranges = 0;
+    }
     out_shader->bound_instance_id = INVALID_ID;
 
     // Build out the configuration.
@@ -232,8 +238,14 @@ b8 vulkan_shader_add_attribute(vulkan_shader* shader, const char* name, shader_a
 }
 
 b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, vulkan_shader_scope scope, u32* out_location) {
-    if (!is_global && !shader->use_instances) {
+    if (scope == VULKAN_SHADER_SCOPE_INSTANCE && !shader->use_instances) {
         KERROR("vulkan_shader_add_sampler cannot add an instance sampler for a shader that does not use instances.");
+        return false;
+    }
+
+    // Samples can't be used for push constants.
+    if (scope == VULKAN_SHADER_SCOPE_LOCAL) {
+        KERROR("vulkan_shader_add_sampler cannot add a sampler at local scope.");
         return false;
     }
 
@@ -242,7 +254,7 @@ b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, vu
         return false;
     }
 
-    vulkan_descriptor_set_config* set_config = &shader->config.descriptor_sets[is_global ? 0 : 1];
+    vulkan_descriptor_set_config* set_config = &shader->config.descriptor_sets[scope == VULKAN_SHADER_SCOPE_GLOBAL ? 0 : 1];
     u32 binding_count = darray_length(set_config->bindings);
     if (binding_count < 2) {
         // Need a image sampler binding to be added.
@@ -263,13 +275,16 @@ b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, vu
         set_config->bindings[1].descriptorCount++;  // NOTE: will always be the second binding.
     }
 
-    // Push an empty slot into the appropriate lookup array.
-    if (is_global) {
+    // If global, push into the global list.
+    if (scope == VULKAN_SHADER_SCOPE_LOCAL) {
         darray_push(shader->global_textures, 0);
+    } else {
+        // Keep count of how many need to be added during the acquire stage.
+        shader->instance_texture_count++;
     }
 
     // Treat it like a uniform.
-    if (!uniform_add(shader, sampler_name, 0, is_global ? 0 : 1, out_location, true)) {
+    if (!uniform_add(shader, sampler_name, 0, scope, out_location, true)) {
         KERROR("Unable to add sampler uniform.");
         return false;
     }
@@ -281,67 +296,67 @@ b8 vulkan_shader_add_uniform_i8(vulkan_shader* shader, const char* uniform_name,
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) {
         return false;
     }
-    return uniform_add(shader, uniform_name, sizeof(i8), is_global ? 0 : 1, out_location, false);
+    return uniform_add(shader, uniform_name, sizeof(i8), scope, out_location, false);
 }
 b8 vulkan_shader_add_uniform_i16(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) {
         return false;
     }
-    return uniform_add(shader, uniform_name, sizeof(i16), is_global ? 0 : 1, out_location, false);
+    return uniform_add(shader, uniform_name, sizeof(i16), scope, out_location, false);
 }
 b8 vulkan_shader_add_uniform_i32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) {
         return false;
     }
-    return uniform_add(shader, uniform_name, sizeof(i32), is_global ? 0 : 1, out_location, false);
+    return uniform_add(shader, uniform_name, sizeof(i32), scope, out_location, false);
 }
 b8 vulkan_shader_add_uniform_u8(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) {
         return false;
     }
-    return uniform_add(shader, uniform_name, sizeof(u8), is_global ? 0 : 1, out_location, false);
+    return uniform_add(shader, uniform_name, sizeof(u8), scope, out_location, false);
 }
 b8 vulkan_shader_add_uniform_u16(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) {
         return false;
     }
-    return uniform_add(shader, uniform_name, sizeof(u16), is_global ? 0 : 1, out_location, false);
+    return uniform_add(shader, uniform_name, sizeof(u16), scope, out_location, false);
 }
 b8 vulkan_shader_add_uniform_u32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) {
         return false;
     }
-    return uniform_add(shader, uniform_name, sizeof(u32), is_global ? 0 : 1, out_location, false);
+    return uniform_add(shader, uniform_name, sizeof(u32), scope, out_location, false);
 }
 b8 vulkan_shader_add_uniform_f32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) {
         return false;
     }
-    return uniform_add(shader, uniform_name, sizeof(f32), is_global ? 0 : 1, out_location, false);
+    return uniform_add(shader, uniform_name, sizeof(f32), scope, out_location, false);
 }
 b8 vulkan_shader_add_uniform_vec2(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) {
         return false;
     }
-    return uniform_add(shader, uniform_name, sizeof(vec2), is_global ? 0 : 1, out_location, false);
+    return uniform_add(shader, uniform_name, sizeof(vec2), scope, out_location, false);
 }
 b8 vulkan_shader_add_uniform_vec3(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) {
         return false;
     }
-    return uniform_add(shader, uniform_name, sizeof(vec3), is_global ? 0 : 1, out_location, false);
+    return uniform_add(shader, uniform_name, sizeof(vec3), scope, out_location, false);
 }
 b8 vulkan_shader_add_uniform_vec4(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) {
         return false;
     }
-    return uniform_add(shader, uniform_name, sizeof(vec4), is_global ? 0 : 1, out_location, false);
+    return uniform_add(shader, uniform_name, sizeof(vec4), scope, out_location, false);
 }
 b8 vulkan_shader_add_uniform_mat4(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) {
         return false;
     }
-    return uniform_add(shader, uniform_name, sizeof(mat4), is_global ? 0 : 1, out_location, false);
+    return uniform_add(shader, uniform_name, sizeof(mat4), scope, out_location, false);
 }
 
 b8 vulkan_shader_initialize(vulkan_shader* shader) {
@@ -426,6 +441,8 @@ b8 vulkan_shader_initialize(vulkan_shader* shader) {
         scissor,
         false,
         true,
+        darray_length(shader->config.push_constant_ranges),
+        shader->config.push_constant_ranges,
         &shader->pipeline);
 
     darray_destroy(stage_create_infos);
@@ -723,6 +740,9 @@ b8 vulkan_shader_acquire_instance_resources(vulkan_shader* shader, u32* out_inst
         }
     }
 
+    // Setup the tracking array for this instance.
+    object_state->instance_textures = darray_reserve(texture*, shader->instance_texture_count);
+
     return true;
 }
 b8 vulkan_shader_release_instance_resources(vulkan_shader* shader, u32 instance_id) {
@@ -750,6 +770,9 @@ b8 vulkan_shader_release_instance_resources(vulkan_shader* shader, u32 instance_
     darray_destroy(instance_state->descriptor_set_states);
     instance_state->descriptor_set_states = 0;
 
+    darray_destroy(instance_state->instance_textures);
+    instance_state->instance_textures = 0;
+
     u64 size = sizeof(shader->ubo_stride);
     vulkan_buffer_free(&shader->uniform_buffer, size, instance_state->offset);
     instance_state->offset = INVALID_ID;
@@ -760,7 +783,7 @@ b8 vulkan_shader_release_instance_resources(vulkan_shader* shader, u32 instance_
 
 b8 vulkan_shader_set_sampler(vulkan_shader* shader, u32 location, texture* t) {
     vulkan_uniform_lookup_entry* entry = &shader->uniforms[location];
-    if (entry->is_global) {
+    if (entry->scope == VULKAN_SHADER_SCOPE_GLOBAL) {
         shader->global_textures[entry->location] = t;
     } else {
         shader->instance_states[shader->bound_instance_id].instance_textures[entry->location] = t;
@@ -794,10 +817,14 @@ b8 set_uniform(vulkan_shader* shader, u32 location, void* value, u64 size) {
     // Map the appropriate memory location and copy the data over.
     void* block = 0;
     vulkan_uniform_lookup_entry* entry = &shader->uniforms[location];
-    if (entry->is_global) {
+    if (entry->scope == VULKAN_SHADER_SCOPE_GLOBAL) {
         block = (void*)(shader->ubo_block + shader->global_ubo_offset + entry->offset);
-    } else {
+    } else if (entry->scope == VULKAN_SHADER_SCOPE_INSTANCE) {
         block = (void*)(shader->ubo_block + shader->bound_ubo_offset + entry->offset);
+    } else {
+        // Is local, using push constants. Do this immediately.
+        VkCommandBuffer command_buffer = shader->context->graphics_command_buffers[shader->context->image_index].handle;
+        vkCmdPushConstants(command_buffer, shader->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, entry->offset, entry->size, value);
     }
     kcopy_memory(block, value, size);
     return true;
@@ -887,6 +914,11 @@ void destroy_config(vulkan_shader_config* config) {
         darray_destroy(config->attributes);
         config->attributes = 0;
     }
+
+    if(config->push_constant_ranges) {
+        darray_destroy(config->push_constant_ranges);
+        config->push_constant_ranges = 0;
+    }
 }
 
 b8 create_module(vulkan_shader* shader, vulkan_shader_stage_config config, vulkan_shader_stage* shader_stage) {
@@ -967,12 +999,24 @@ b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan
         // NOTE: might want to either delete format or actually set it properly
         entry.format = is_sampler ? 0 : VK_FORMAT_R8_SINT;
     } else {
+        if (entry.scope == VULKAN_SHADER_SCOPE_LOCAL && !shader->use_push_constants) {
+            KERROR("Cannot add a locally-scoped uniform for a shader that does not support locals.");
+            return false;
+        }
+        // Push a new aligned range (align to 4, as required by Vulkan spec)
         entry.set_index = INVALID_ID;
-        // TODO: insert into "push constant block", get offset
-        //entry.offset =
-        entry.size = size;
+        range r = get_aligned_range(shader->push_constant_size, size, 4);
+        // utilize the aligned offset/range
+        entry.offset = r.offset;
+        entry.size = r.size;
         // NOTE: might want to either delete format or actually set it properly
         entry.format = VK_FORMAT_R8_SINT;
+
+        // Track in configuration for use in initialization.
+        darray_push(shader->config.push_constant_ranges, r);
+
+        // Increase the push constant's size by the total value.
+        shader->push_constant_size += r.size;
     }
 
     if (!hashtable_set(&shader->uniform_lookup, uniform_name, &entry.index)) {
@@ -982,11 +1026,12 @@ b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan
     darray_push(shader->uniforms, entry);
 
     if (!is_sampler) {
-        if (entry.is_global) {
+        if (entry.scope == VULKAN_SHADER_SCOPE_GLOBAL) {
             shader->global_ubo_size += entry.size;
-        } else {
+        } else if (entry.scope == VULKAN_SHADER_SCOPE_INSTANCE) {
             shader->ubo_size += entry.size;
-        }
+        } else {
+                }
     }
 
     // Location is the index into the array.

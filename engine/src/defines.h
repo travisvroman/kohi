@@ -57,6 +57,14 @@ typedef int b32;
 /** @brief 8-bit boolean type */
 typedef _Bool b8;
 
+/** @brief A range, typically of memory */
+typedef struct range {
+    /** @brief The offset in bytes. */
+    u64 offset;
+    /** @brief The size in bytes. */
+    u64 size;
+} range;
+
 // Properly define static assertions.
 #if defined(__clang__) || defined(__gcc__)
 /** @brief Static assertion */
@@ -213,3 +221,11 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define MEGABYTES(amount) amount * 1000 * 1000
 /** @brief Gets the number of bytes from amount of kilobytes (KB) (1000) */
 #define KILOBYTES(amount) amount * 1000
+
+KINLINE u64 get_aligned(u64 operand, u64 granularity) {
+    return ((operand + (granularity - 1)) & ~(granularity - 1));
+}
+
+KINLINE range get_aligned_range(offset, size, granularity) {
+    return (range){get_aligned(offset, granularity), get_aligned(offset, granularity)};
+}

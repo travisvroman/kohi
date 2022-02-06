@@ -138,6 +138,7 @@ b8 vulkan_ui_shader_create(vulkan_context* context, vulkan_ui_shader* out_shader
         stage_create_infos[i] = out_shader->stages[i].shader_stage_create_info;
     }
 
+    range r = {0, sizeof(mat4)};
     if (!vulkan_graphics_pipeline_create(
             context,
             &context->ui_renderpass,
@@ -152,6 +153,8 @@ b8 vulkan_ui_shader_create(vulkan_context* context, vulkan_ui_shader* out_shader
             scissor,
             false,
             false,
+            1,
+            &r,
             &out_shader->pipeline)) {
         KERROR("Failed to load graphics pipeline for object shader.");
         return false;
@@ -265,7 +268,7 @@ void vulkan_ui_shader_set_model(vulkan_context* context, struct vulkan_ui_shader
         u32 image_index = context->image_index;
         VkCommandBuffer command_buffer = context->graphics_command_buffers[image_index].handle;
 
-        vkCmdPushConstants(command_buffer, shader->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mat4), &model);
+        vkCmdPushConstants(command_buffer, shader->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(mat4), &model);
     }
 }
 
