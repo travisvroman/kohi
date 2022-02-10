@@ -188,6 +188,24 @@ b8 vulkan_shader_destroy(vulkan_shader* shader) {
         vkDestroyDescriptorPool(logical_device, shader->descriptor_pool, vk_allocator);
     }
 
+    // Uniform buffer.
+    vulkan_buffer_unlock_memory(shader->context, &shader->uniform_buffer);
+    shader->ubo_block = 0;
+    vulkan_buffer_destroy(shader->context, &shader->uniform_buffer);
+
+    // Pipeline
+    vulkan_pipeline_destroy(shader->context, &shader->pipeline);
+
+    // Shader modules
+    if (shader->stages) {
+        u32 stage_count = darray_length(shader->stages);
+        for (u32 i = 0; i < stage_count; ++i) {
+            vkDestroyShaderModule(shader->context->device.logical_device, shader->stages[i].handle, shader->context->allocator);
+        }
+        darray_destroy(shader->stages);
+        shader->stages = 0;
+    }
+
     return true;
 }
 
