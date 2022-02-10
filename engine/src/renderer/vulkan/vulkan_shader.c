@@ -9,6 +9,7 @@
 #include "core/kstring.h"
 #include "containers/darray.h"
 #include "systems/resource_system.h"
+#include "systems/texture_system.h"
 
 /** @brief Destroys the shader and returns false. */
 #define FAIL_DESTROY(shader)       \
@@ -394,6 +395,7 @@ b8 vulkan_shader_initialize(vulkan_shader* shader) {
     pool_info.poolSizeCount = 2;
     pool_info.pPoolSizes = shader->config.pool_sizes;
     pool_info.maxSets = shader->config.max_descriptor_set_count;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
     // Create descriptor pool.
     VkResult result = vkCreateDescriptorPool(logical_device, &pool_info, vk_allocator, &shader->descriptor_pool);
@@ -610,7 +612,7 @@ b8 vulkan_shader_apply_instance(vulkan_shader* shader) {
 
     // Descriptor 0 - Uniform buffer
     // Only do this if the descriptor has not yet been updated.
-    u32* global_ubo_generation = &object_state->descriptor_set_states[1].descriptor_states[descriptor_index].generations[image_index];
+    u32* global_ubo_generation = &(object_state->descriptor_set_states[0].descriptor_states[descriptor_index].generations[image_index]);
     // TODO: determine if update is required.
     if (*global_ubo_generation == INVALID_ID /*|| *global_ubo_generation != material->generation*/) {
         VkDescriptorBufferInfo buffer_info;
@@ -618,14 +620,14 @@ b8 vulkan_shader_apply_instance(vulkan_shader* shader) {
         buffer_info.offset = object_state->offset;
         buffer_info.range = shader->ubo_stride;
 
-        VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        descriptor.dstSet = object_descriptor_set;
-        descriptor.dstBinding = descriptor_index;
-        descriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptor.descriptorCount = 1;
-        descriptor.pBufferInfo = &buffer_info;
+        VkWriteDescriptorSet ubo_descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        ubo_descriptor.dstSet = object_descriptor_set;
+        ubo_descriptor.dstBinding = descriptor_index;
+        ubo_descriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        ubo_descriptor.descriptorCount = 1;
+        ubo_descriptor.pBufferInfo = &buffer_info;
 
-        descriptor_writes[descriptor_count] = descriptor;
+        descriptor_writes[descriptor_count] = ubo_descriptor;
         descriptor_count++;
 
         // Update the frame generation. In this case it is only needed once since this is a buffer.
@@ -634,9 +636,9 @@ b8 vulkan_shader_apply_instance(vulkan_shader* shader) {
     descriptor_index++;
 
     // Samplers
-    u32 global_set_binding_count = darray_length(shader->config.descriptor_sets[1].bindings);
+    u32 set_binding_count = darray_length(shader->config.descriptor_sets[1].bindings);
     // Samplers will always be in the second set.
-    if (global_set_binding_count > 1) {
+    if (set_binding_count > 1) {
         // Iterate samplers.
         u32 total_sampler_count = shader->config.descriptor_sets[1].bindings[1].descriptorCount;
         u32 update_sampler_count = 0;
@@ -660,14 +662,14 @@ b8 vulkan_shader_apply_instance(vulkan_shader* shader) {
             update_sampler_count++;
         }
 
-        VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        descriptor.dstSet = object_descriptor_set;
-        descriptor.dstBinding = descriptor_index;
-        descriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptor.descriptorCount = update_sampler_count;
-        descriptor.pImageInfo = image_infos;
+        VkWriteDescriptorSet sampler_descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        sampler_descriptor.dstSet = object_descriptor_set;
+        sampler_descriptor.dstBinding = descriptor_index;
+        sampler_descriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        sampler_descriptor.descriptorCount = update_sampler_count;
+        sampler_descriptor.pImageInfo = image_infos;
 
-        descriptor_writes[descriptor_count] = descriptor;
+        descriptor_writes[descriptor_count] = sampler_descriptor;
         descriptor_count++;
     }
 
@@ -699,13 +701,15 @@ b8 vulkan_shader_acquire_instance_resources(vulkan_shader* shader, u32* out_inst
     vulkan_shader_instance_state* object_state = &shader->instance_states[*out_instance_id];
     u32 instance_texture_count = shader->config.descriptor_sets[1].bindings[1].descriptorCount;
     object_state->instance_textures = darray_reserve(texture*, instance_texture_count);
-    // Set all the texture pointers to null until assigned.
+    darray_length_set(object_state->instance_textures, instance_texture_count);
+    texture* default_texture = texture_system_get_default_texture();
+    // Set all the texture pointers to default until assigned.
     for (u32 i = 0; i < instance_texture_count; ++i) {
-        object_state->instance_textures[i] = 0;
+        object_state->instance_textures[i] = default_texture;
     }
 
     // Allocate some space in the UBO - by the stride, not the size.
-    u64 size = sizeof(shader->ubo_stride);
+    u64 size = shader->ubo_stride;
     if (!vulkan_buffer_allocate(&shader->uniform_buffer, size, &object_state->offset)) {
         KERROR("vulkan_material_shader_acquire_resources failed to acquire ubo space");
         return false;
@@ -717,22 +721,28 @@ b8 vulkan_shader_acquire_instance_resources(vulkan_shader* shader, u32* out_inst
     object_state->descriptor_set_states = darray_reserve(vulkan_shader_descriptor_set_state, set_count - 1);
     darray_length_set(object_state->descriptor_set_states, set_count - 1);
 
-    // Each configured set, starting at the second (potentially, if there is one)
-    for (u32 s = 1; s < set_count; ++s) {
+    // Each configured set
+    for (u32 s = 0; s < (set_count - 1); ++s) {
         vulkan_shader_descriptor_set_state* set_state = &object_state->descriptor_set_states[s];
 
         // Each descriptor binding in the set
         u32 binding_count = darray_length(shader->config.descriptor_sets[s].bindings);
-        set_state->descriptor_states = darray_reserve(vulkan_descriptor_state, binding_count);
-        darray_length_set(set_state->descriptor_states, binding_count);
+        set_state->descriptor_states = darray_create(vulkan_descriptor_state);  // darray_reserve(vulkan_descriptor_state, binding_count);
+        //darray_length_set(set_state->descriptor_states, binding_count);
         for (u32 i = 0; i < binding_count; ++i) {
-            vulkan_descriptor_state* binding_desc_state = &set_state->descriptor_states[i];
-
-            // For each binding, there are 3 states, one for each frame.
+            vulkan_descriptor_state ds = {};
             for (u32 j = 0; j < 3; ++j) {
-                binding_desc_state->generations[j] = INVALID_ID;
-                binding_desc_state->ids[j] = INVALID_ID;
+                ds.generations[j] = INVALID_ID;
+                ds.ids[j] = INVALID_ID;
             }
+            darray_push(set_state->descriptor_states, ds);
+            // vulkan_descriptor_state* binding_desc_state = &set_state->descriptor_states[i];
+
+            // // For each binding, there are 3 states, one for each frame.
+            // for (u32 j = 0; j < 3; ++j) {
+            //     binding_desc_state->generations[j] = INVALID_ID;
+            //     binding_desc_state->ids[j] = INVALID_ID;
+            // }
         }
     }
 
@@ -755,9 +765,6 @@ b8 vulkan_shader_acquire_instance_resources(vulkan_shader* shader, u32* out_inst
         }
     }
 
-    // Setup the tracking array for this instance.
-    object_state->instance_textures = darray_reserve(texture*, shader->instance_texture_count);
-
     return true;
 }
 b8 vulkan_shader_release_instance_resources(vulkan_shader* shader, u32 instance_id) {
@@ -768,15 +775,17 @@ b8 vulkan_shader_release_instance_resources(vulkan_shader* shader, u32 instance_
 
     // Free 3 descriptor sets (one per frame) for each layout _execpt_ the first, because it's global.
     u32 layout_count = darray_length(shader->descriptor_set_layouts);
-    for (u32 i = 1; i < layout_count; ++i) {
+    for (u32 i = 0; i < layout_count - 1; ++i) {
         vulkan_shader_descriptor_set_state* set_state = &instance_state->descriptor_set_states[i];
         VkResult result = vkFreeDescriptorSets(shader->context->device.logical_device, shader->descriptor_pool, 3, set_state->descriptor_sets);
         if (result != VK_SUCCESS) {
             KERROR("Error freeing object shader descriptor sets!");
         }
 
-        darray_destroy(set_state->descriptor_states);
-        set_state->descriptor_states = 0;
+        if (set_state->descriptor_states) {
+            darray_destroy(set_state->descriptor_states);
+            set_state->descriptor_states = 0;
+        }
     }
 
     darray_destroy(instance_state->instance_textures);
@@ -784,9 +793,6 @@ b8 vulkan_shader_release_instance_resources(vulkan_shader* shader, u32 instance_
 
     darray_destroy(instance_state->descriptor_set_states);
     instance_state->descriptor_set_states = 0;
-
-    darray_destroy(instance_state->instance_textures);
-    instance_state->instance_textures = 0;
 
     u64 size = sizeof(shader->ubo_stride);
     vulkan_buffer_free(&shader->uniform_buffer, size, instance_state->offset);
@@ -840,6 +846,7 @@ b8 set_uniform(vulkan_shader* shader, u32 location, void* value, u64 size) {
         // Is local, using push constants. Do this immediately.
         VkCommandBuffer command_buffer = shader->context->graphics_command_buffers[shader->context->image_index].handle;
         vkCmdPushConstants(command_buffer, shader->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, entry->offset, entry->size, value);
+        return true;
     }
     kcopy_memory(block, value, size);
     return true;
@@ -1000,10 +1007,8 @@ b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan
     entry.scope = scope;
     b8 is_global = (scope == VULKAN_SHADER_SCOPE_GLOBAL);
     if (is_sampler) {
-        entry.location = is_global ? darray_length(shader->global_textures) : shader->instance_texture_count;
-        if (!is_global) {
-            shader->instance_texture_count++;
-        }
+        // Just use the passed in location
+        entry.location = *out_location;
     } else {
         entry.location = entry.index;
     }
@@ -1047,11 +1052,9 @@ b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan
             shader->global_ubo_size += entry.size;
         } else if (entry.scope == VULKAN_SHADER_SCOPE_INSTANCE) {
             shader->ubo_size += entry.size;
-        } else {
         }
     }
 
-    // Location is the index into the array.
     *out_location = entry.index;
     return true;
 }

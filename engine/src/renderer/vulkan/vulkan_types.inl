@@ -607,6 +607,7 @@ typedef struct vulkan_shader_config {
 typedef struct vulkan_uniform_lookup_entry {
     u64 offset;
     u64 location;
+    /** @brief Index into the internal uniform array */
     u32 index;
     u32 size;
     u32 set_index;

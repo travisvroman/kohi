@@ -494,6 +494,7 @@ void vulkan_renderer_update_global_world_state(mat4 projection, mat4 view, vec3 
     vulkan_shader_bind_globals(&context.material_shader);
     vulkan_shader_set_uniform_mat4(&context.material_shader, context.material_shader_projection_location, projection);
     vulkan_shader_set_uniform_mat4(&context.material_shader, context.material_shader_view_location, view);
+    vulkan_shader_apply_globals(&context.material_shader);
 
     // TODO: other ubo properties
 
