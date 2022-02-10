@@ -259,41 +259,6 @@ typedef struct vulkan_pipeline {
     VkPipelineLayout pipeline_layout;
 } vulkan_pipeline;
 
-/** @brief The number of shader stages in the material shader. */
-#define MATERIAL_SHADER_STAGE_COUNT 2
-
-/** 
- * @brief Represents a state for a given descriptor. This is used 
- * to determine when a descriptor needs updating. There is a state
- * per frame (with a max of 3).
- */
-typedef struct vulkan_descriptor_state {
-    /** @brief The descriptor generation, per frame */
-    u32 generations[3];
-    /** @brief The identifier, per frame. Typically used for texture ids. */
-    u32 ids[3];
-} vulkan_descriptor_state;
-
-/** @brief The number of descriptors present in the material shader */
-#define VULKAN_MATERIAL_SHADER_DESCRIPTOR_COUNT 2
-/** @brief The number of texture samplers present in the material shader */
-#define VULKAN_MATERIAL_SHADER_SAMPLER_COUNT 1
-
-/**
- * @brief Represents the state of a material instance. Each
- * material in the world is a material instance, so one per
- * material exists.
- */
-typedef struct vulkan_material_shader_instance_state {
-    u32 id;
-    u64 offset;
-    /** @brief The descriptor sets for this material instance, one per frame. */
-    VkDescriptorSet descriptor_sets[3];
-
-    /** @brief A descriptor state per descriptor, which in turn handles frames. */
-    vulkan_descriptor_state descriptor_states[VULKAN_MATERIAL_SHADER_DESCRIPTOR_COUNT];
-} vulkan_material_shader_instance_state;
-
 /** 
  * @brief Max number of material instances 
  * @todo TODO: make configurable
@@ -329,96 +294,6 @@ typedef struct vulkan_geometry_data {
     u64 index_buffer_offset;
 } vulkan_geometry_data;
 
-/**
- * @brief Represents the global material shader uniform buffer data
- * that should be loaded into the global ubo buffer. 
- * @note This must be padded out to 256 bytes because of the requirement
- * from some GPUs (I'm looking at you, nVidia) that UBO buffer elements be
- * at least 256 bytes apart.
- */
-typedef struct vulkan_material_shader_global_ubo {
-    /** @brief The projection matrix. @note 64 bytes. */
-    mat4 projection;
-    /** @brief The view matrix. @note 64 bytes. */
-    mat4 view;
-    /** @brief reserved for future use. @note 64 bytes. */
-    mat4 m_reserved0;
-    /** @brief reserved for future use. @note 64 bytes. */
-    mat4 m_reserved1;
-} vulkan_material_shader_global_ubo;
-
-/**
- * @brief Represents per-material instance uniform buffer data
- * that should be loaded into the local ubo buffer.
- * @note This must be padded out to 256 bytes because of the requirement
- * from some GPUs (I'm looking at you, nVidia) that UBO buffer elements be
- * at least 256 bytes apart.
- */
-typedef struct vulkan_material_shader_instance_ubo {
-    /** @brief The diffuse colour. @note 16 bytes. */
-    vec4 diffuse_color;
-    /** @brief reserved for future use. @note 16 bytes. */
-    vec4 v_reserved0;
-    /** @brief reserved for future use. @note 16 bytes. */
-    vec4 v_reserved1;
-    /** @brief reserved for future use. @note 16 bytes. */
-    vec4 v_reserved2;
-    /** @brief reserved for future use. @note 64 bytes. */
-    mat4 m_reserved0;
-    /** @brief reserved for future use. @note 64 bytes. */
-    mat4 m_reserved1;
-    /** @brief reserved for future use. @note 64 bytes. */
-    mat4 m_reserved2;
-} vulkan_material_shader_instance_ubo;
-
-/**
- * @brief A representation of the vulkan material shader.
- * Holds internal resources such as descriptors/layouts, ubos,
- * buffers, etc.
- */
-typedef struct vulkan_material_shader {
-    /** @brief The shader stages. @note vertex, fragment */
-    vulkan_shader_stage stages[MATERIAL_SHADER_STAGE_COUNT];
-
-    /** @brief The pool which all descriptors are allocated. */
-    VkDescriptorPool pool;
-    /** @brief The global descriptor set layout. */
-    VkDescriptorSetLayout global_descriptor_set_layout;
-
-    /** @brief Global descriptor sets. @note One descriptor set per frame - max 3 for triple-buffering. */
-    VkDescriptorSet global_descriptor_sets[3];
-
-    u64 global_ubo_offset;
-
-    /** @brief Global uniform object, to be loaded into the global uniform buffer. */
-    vulkan_material_shader_global_ubo global_ubo;
-
-    /** @brief Uniform buffer. */
-    vulkan_buffer uniform_buffer;
-
-    /** @brief The descriptor set layout for material instance descriptors. */
-    VkDescriptorSetLayout object_descriptor_set_layout;
-
-    /** @brief represents the usage of samplers. Ordered in zero-indexed sampler use order. */
-    texture_use sampler_uses[VULKAN_MATERIAL_SHADER_SAMPLER_COUNT];
-
-    /** @brief The material instance states for all material instances. @todo TODO: make dynamic */
-    vulkan_material_shader_instance_state instance_states[VULKAN_MAX_MATERIAL_COUNT];
-
-    /** @brief The pipeline associated with this shader. */
-    vulkan_pipeline pipeline;
-
-    void* mapped_block;
-
-} vulkan_material_shader;
-
-/** @brief The number of shader stages in the UI shader. */
-#define UI_SHADER_STAGE_COUNT 2
-/** @brief The number of descriptors present in the UI shader */
-#define VULKAN_UI_SHADER_DESCRIPTOR_COUNT 2
-/** @brief The number of texture samplers present in the UI shader */
-#define VULKAN_UI_SHADER_SAMPLER_COUNT 1
-
 /** 
  * @brief Max number of UI control instances 
  * @todo TODO: make configurable
@@ -426,106 +301,30 @@ typedef struct vulkan_material_shader {
 #define VULKAN_MAX_UI_COUNT 1024
 
 /**
- * @brief Represents the state of a UI control instance. Each
- * UI control in the world is a UI control instance, so one per
- * UI control exists.
+ * @brief Put some hard limits in place for the count of supported textures,
+ * attributes, uniforms, etc. This is to maintain memory locality and avoid
+ * dynamic allocations.
  */
-typedef struct vulkan_ui_shader_instance_state {
-    /** @brief The descriptor sets for this UI control instance, one per frame. */
-    VkDescriptorSet descriptor_sets[3];
 
-    /** @brief A descriptor state per descriptor, which in turn handles frames. */
-    vulkan_descriptor_state descriptor_states[VULKAN_UI_SHADER_DESCRIPTOR_COUNT];
-} vulkan_ui_shader_instance_state;
-
-/**
- * @brief Represents the global UI shader uniform buffer data
- * that should be loaded into the global ubo buffer. 
- * @note This must be padded out to 256 bytes because of the requirement
- * from some GPUs (I'm looking at you, nVidia) that UBO buffer elements be
- * at least 256 bytes apart.
+/** @brief The maximum number of stages (such as vertex, fragment, compute, etc.) allowed. */
+#define VULKAN_SHADER_MAX_STAGES 8
+/** @brief The maximum number of textures allowed at the global level. */
+#define VULKAN_SHADER_MAX_GLOBAL_TEXTURES 31
+/** @brief The maximum number of textures allowed at the instance level. */
+#define VULKAN_SHADER_MAX_INSTANCE_TEXTURES 31
+/** @brief The maximum number of vertex input attributes allowed. */
+#define VULKAN_SHADER_MAX_ATTRIBUTES 16
+/** 
+ * @brief The maximum number of uniforms and samplers allowed at the
+ * global, instance and local levels combined. It's probably more than
+ * will ever be needed.
  */
-typedef struct vulkan_ui_shader_global_ubo {
-    /** @brief The projection matrix. @note 64 bytes. */
-    mat4 projection;
-    /** @brief The view matrix. @note 64 bytes. */
-    mat4 view;
-    /** @brief reserved for future use. @note 64 bytes. */
-    mat4 m_reserved0;
-    /** @brief reserved for future use. @note 64 bytes. */
-    mat4 m_reserved1;
-} vulkan_ui_shader_global_ubo;
+#define VULKAN_SHADER_MAX_UNIFORMS 128
 
-/**
- * @brief Represents per-UI instance uniform buffer data
- * that should be loaded into the local ubo buffer.
- * @note This must be padded out to 256 bytes because of the requirement
- * from some GPUs (I'm looking at you, nVidia) that UBO buffer elements be
- * at least 256 bytes apart.
- */
-typedef struct vulkan_ui_shader_instance_ubo {
-    /** @brief The diffuse colour. @note 16 bytes. */
-    vec4 diffuse_color;
-    /** @brief reserved for future use. @note 16 bytes. */
-    vec4 v_reserved0;
-    /** @brief reserved for future use. @note 16 bytes. */
-    vec4 v_reserved1;
-    /** @brief reserved for future use. @note 16 bytes. */
-    vec4 v_reserved2;
-    /** @brief reserved for future use. @note 64 bytes. */
-    mat4 m_reserved0;
-    /** @brief reserved for future use. @note 64 bytes. */
-    mat4 m_reserved1;
-    /** @brief reserved for future use. @note 64 bytes. */
-    mat4 m_reserved2;
-} vulkan_ui_shader_instance_ubo;
-
-/**
- * @brief A representation of the vulkan UI shader.
- * Holds internal resources such as descriptors/layouts, ubos,
- * buffers, etc.
- */
-typedef struct vulkan_ui_shader {
-    /** @brief The shader stages. @note vertex, fragment */
-    vulkan_shader_stage stages[UI_SHADER_STAGE_COUNT];
-
-    /** @brief The pool which global descriptors are allocated. */
-    VkDescriptorPool global_descriptor_pool;
-    /** @brief The global descriptor set layout. */
-    VkDescriptorSetLayout global_descriptor_set_layout;
-
-    /** @brief Global descriptor sets. @note One descriptor set per frame - max 3 for triple-buffering. */
-    VkDescriptorSet global_descriptor_sets[3];
-
-    /** @brief Global uniform object, to be loaded into the global uniform buffer. */
-    vulkan_ui_shader_global_ubo global_ubo;
-
-    /** @brief Global uniform buffer. */
-    vulkan_buffer global_uniform_buffer;
-
-    /** @brief The pool from which per-instance descriptors are allocated. */
-    VkDescriptorPool object_descriptor_pool;
-    /** @brief The descriptor set layout for per-instance descriptors. */
-    VkDescriptorSetLayout object_descriptor_set_layout;
-    /** @brief Material instance uniform buffer. @todo TODO: This is a linear list of material instances. Switch to use free list. */
-    vulkan_buffer object_uniform_buffer;
-    /** @brief The current material instance index for linear allocations. @todo TODO: Manage a free list of some kind here instead. */
-    u32 object_uniform_buffer_index;
-
-    /** @brief represents the usage of samplers. Ordered in zero-indexed sampler use order. */
-    texture_use sampler_uses[VULKAN_UI_SHADER_SAMPLER_COUNT];
-
-    /** @brief The material instance states for all material instances. @todo TODO: make dynamic */
-    vulkan_ui_shader_instance_state instance_states[VULKAN_MAX_UI_COUNT];
-
-    /** @brief The pipeline associated with this shader. */
-    vulkan_pipeline pipeline;
-
-} vulkan_ui_shader;
-
-
-/////////////////////// NEW SHADER
-
+/** @brief The maximum number of bindings per descriptor set. */
+#define VULKAN_SHADER_MAX_BINDINGS 32
+/** @brief The maximum number of push constant ranges for a shader. */
+#define VULKAN_SHADER_MAX_PUSH_CONST_RANGES 32
 
 // TODO: This should be in the generic renderer frontend, methinks.
 typedef enum shader_attribute_type {
@@ -573,119 +372,241 @@ typedef enum vulkan_shader_scope {
     VULKAN_SHADER_SCOPE_LOCAL = 2
 } vulkan_shader_scope;
 
+/**
+ * @brief Represents the current state of a given shader.
+ */
 typedef enum vulkan_shader_state {
+    /** @brief The shader has not yet gone through the creation process, and is unusable.*/
     VULKAN_SHADER_STATE_NOT_CREATED,
+    /** @brief The shader has gone through the creation process, but not initialization. It is unusable.*/
     VULKAN_SHADER_STATE_UNINITIALIZED,
+    /** @brief The shader is created and initialized, and is ready for use.*/
     VULKAN_SHADER_STATE_INITIALIZED,
-    // TODO: more states?
 } vulkan_shader_state;
 
+/**
+ * @brief Configuration for a shader stage, such as vertex or fragment.
+ */
 typedef struct vulkan_shader_stage_config {
+    /** @brief The shader stage bit flag. */
     VkShaderStageFlagBits stage;
+    /** @brief A short, up-to-7 character string represetation of the shader stage. */
     char stage_str[8];
 } vulkan_shader_stage_config;
 
+/**
+ * @brief The configuration for a descriptor set.
+ */
 typedef struct vulkan_descriptor_set_config {
-    // darray
-    VkDescriptorSetLayoutBinding* bindings;
+    /** @brief The number of bindings in this set. */
+    u32 binding_count;
+    /** @brief An array of binding layouts for this set. */
+    VkDescriptorSetLayoutBinding bindings[VULKAN_SHADER_MAX_BINDINGS];
 } vulkan_descriptor_set_config;
 
-/** Shader config */
+/** @brief Internal shader configuration generated by vulkan_shader_create(). */
 typedef struct vulkan_shader_config {
-    // darray
-    vulkan_shader_stage_config* stages;
+    /** @brief The number of shader stages in this shader. */
+    u32 stage_count;
+    /** @brief  The configuration for every stage of this shader. */
+    vulkan_shader_stage_config stages[VULKAN_SHADER_MAX_STAGES];
+    /** @brief An array of descriptor pool sizes. */
     VkDescriptorPoolSize pool_sizes[2];
+    /** 
+     * @brief The max number of descriptor sets that can be allocated from this shader.
+     * Should typically be a decently high number.
+     */
     u32 max_descriptor_set_count;
-    //darray
-    vulkan_descriptor_set_config* descriptor_sets;
-    // darray
-    VkVertexInputAttributeDescription* attributes;
-    // darray
-    range* push_constant_ranges;
+
+    /** 
+     * @brief The total number of descriptor sets configured for this shader.
+     * Is 1 if only using global uniforms/samplers; otherwise 2.
+     */
+    u32 descriptor_set_count;
+    /** @brief Descriptor sets, max of 2. Index 0=global, 1=instance */
+    vulkan_descriptor_set_config descriptor_sets[2];
+
+    /** @brief The number of attributes configured for this shader. */
+    u32 attribute_count;
+    /** @brief An array of attribute descriptions for this shader. */
+    VkVertexInputAttributeDescription attributes[VULKAN_SHADER_MAX_ATTRIBUTES];
+    /** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
+    u32 attribute_stride;
+
+    /** @brief The number of push constant ranges. */
+    u32 push_constant_range_count;
+    /** @brief An array of push constant ranges. */
+    range push_constant_ranges[VULKAN_SHADER_MAX_PUSH_CONST_RANGES];
 } vulkan_shader_config;
 
+/**
+ * @brief Represents a single entry in the internal uniform array.
+ * 
+ */
 typedef struct vulkan_uniform_lookup_entry {
+    /** @brief The offset in bytes from the beginning of the uniform set (global/instance/local) */
     u64 offset;
+    /** 
+     * @brief The location to be used as a lookup. Typically the same as the index except for samplers, 
+     * which is used to lookup texture index within the internal array at the given scope (global/instance).
+     */
     u64 location;
-    /** @brief Index into the internal uniform array */
+    /** @brief Index into the internal uniform array. */
     u32 index;
+    /** @brief The size of the uniform, or 0 for samplers. */
     u32 size;
+    /** @brief The index of the descriptor set the uniform belongs to (0=global, 1=instance, INVALID_ID=local). */
     u32 set_index;
+    /** @brief The scope of the uniform. */
     vulkan_shader_scope scope;
-    VkFormat format;
 } vulkan_uniform_lookup_entry;
 
+/** 
+ * @brief Represents a state for a given descriptor. This is used 
+ * to determine when a descriptor needs updating. There is a state
+ * per frame (with a max of 3).
+ */
+typedef struct vulkan_descriptor_state {
+    /** @brief The descriptor generation, per frame. */
+    u32 generations[3];
+    /** @brief The identifier, per frame. Typically used for texture ids. */
+    u32 ids[3];
+} vulkan_descriptor_state;
+
+/**
+ * @brief Represents the state for a descriptor set. This is used to track
+ * generations and updates, potentially for optimization via skipping
+ * sets which do not need updating.
+ */
 typedef struct vulkan_shader_descriptor_set_state {
     /** @brief The descriptor sets for this instance, one per frame. */
     VkDescriptorSet descriptor_sets[3];
 
-    /** @brief A descriptor state per descriptor, which in turn handles frames. darray */
-    vulkan_descriptor_state* descriptor_states;
+    /** @brief A descriptor state per descriptor, which in turn handles frames. Count is managed in shader config. */
+    vulkan_descriptor_state descriptor_states[VULKAN_SHADER_MAX_BINDINGS];
 } vulkan_shader_descriptor_set_state;
 
+/**
+ * @brief The instance-level state for a shader.
+ */
 typedef struct vulkan_shader_instance_state {
+    /** @brief The instance id. INVALID_ID if not used. */
     u32 id;
+    /** @brief The offset in bytes in the instance uniform buffer. */
     u64 offset;
 
-    // darray A set for each descriptor state.
-    vulkan_shader_descriptor_set_state* descriptor_set_states;
+    /** @brief  A state for the descriptor set. */
+    vulkan_shader_descriptor_set_state descriptor_set_state;
 
-    // darray of texture*
-    struct texture** instance_textures;
+    /** 
+     * @brief Instance texture pointers, which are used during rendering. These
+     * are set by calls to set_sampler.
+     */
+    struct texture* instance_textures[VULKAN_SHADER_MAX_INSTANCE_TEXTURES];
 } vulkan_shader_instance_state;
 
-// TODO: move to vulkan_types
+/**
+ * @brief Represents a generic Vulkan shader. This uses a set of inputs
+ * and parameters, as well as the shader programs contained in SPIR-V 
+ * files to construct a shader for use in rendering.
+ */
 typedef struct vulkan_shader {
+    /** @brief The shader identifier. */
     u32 id;
+    /** @brief A pointer to the Vulkan context. */
     struct vulkan_context* context;
+    /** @brief The name of the shader. */
     char* name;
+    /** 
+     * @brief Indicates if the shader uses instances. If not, it is assumed
+     * that only global uniforms and samplers are used.
+     */
     b8 use_instances;
+    /** @brief Indicates if local push constants are used (typically for model matrices, etc.).*/
     b8 use_push_constants;
-    vulkan_shader_config config;
-    vulkan_shader_state state;
-    // darray
-    vulkan_shader_stage* stages;
 
+    /** @brief The configuration of the shader generated by vulkan_create_shader(). */
+    vulkan_shader_config config;
+    /** @brief The internal state of the shader. */
+    vulkan_shader_state state;
+    /** @brief A pointer to the renderpass to be used with this shader. */
+    vulkan_renderpass* renderpass;
+
+    /** @brief An array of stages (such as vertex and fragment) for this shader. Count is located in config.*/
+    vulkan_shader_stage stages[VULKAN_SHADER_MAX_STAGES];
+
+    /** @brief The descriptor pool used for this shader. */
     VkDescriptorPool descriptor_pool;
-    // darray
-    VkDescriptorSetLayout* descriptor_set_layouts;
-    // One per frame
+
+    /** @brief Descriptor set layouts, max of 2. Index 0=global, 1=instance. */
+    VkDescriptorSetLayout descriptor_set_layouts[2];
+    /** @brief Global descriptor sets, one per frame. */
     VkDescriptorSet global_descriptor_sets[3];
-    // darray
+    /** @brief The uniform buffer used by this shader. */
     vulkan_buffer uniform_buffer;
 
     /** @brief The pipeline associated with this shader. */
     vulkan_pipeline pipeline;
 
+    /** @brief The block of memory used by the uniform hashtable. */
     void* hashtable_block;
+    /** @brief A hashtable to store uniform index/locations by name. */
     hashtable uniform_lookup;
-    // darray
-    vulkan_uniform_lookup_entry* uniforms;
+
+    /** @brief The number of uniforms in this shader. */
+    u32 uniform_count;
+    /** @brief An array of uniforms in this shader. */
+    vulkan_uniform_lookup_entry uniforms[VULKAN_SHADER_MAX_UNIFORMS];
+
+    /** 
+     * @brief The amount of bytes that are required for UBO alignment.
+     * 
+     * This is used along with the UBO size to determine the ultimate 
+     * stride, which is how much the UBOs are spaced out in the buffer.
+     * For example, a required alignment of 256 means that the stride
+     * must be a multiple of 256 (true for some nVidia cards).
+     */
     u64 required_ubo_alignment;
 
+    /** @brief The actual size of the global uniform buffer object. */
     u64 global_ubo_size;
+    /** @brief The stride of the global uniform buffer object. */
     u64 global_ubo_stride;
+    /** 
+     * @brief The offset in bytes for the global UBO from the beginning 
+     * of the uniform buffer. 
+     */
     u64 global_ubo_offset;
-    u64 ubo_size;
-    u64 ubo_stride;
-    u64 push_constant_size;
-    u64 push_constant_stride;
-    
 
-    // darray of texture*
-    struct texture** global_textures;
+    /** @brief The actual size of the instance uniform buffer object. */
+    u64 ubo_size;
+
+    /** @brief The stride of the instance uniform buffer object. */
+    u64 ubo_stride;
+
+    /** @brief The total size of all push constant ranges combined. */
+    u64 push_constant_size;
+    /** @brief The push constant stride, aligned to 4 bytes as required by Vulkan. */
+    u64 push_constant_stride;
+
+    /** @brief The number of global textures. */
+    u32 global_texture_count;
+    /** @brief An array of global texture pointers. */
+    struct texture* global_textures[VULKAN_SHADER_MAX_GLOBAL_TEXTURES];
+
+    /** @brief The number of instance textures. */
     u32 instance_texture_count;
 
-    u32 bound_ubo_offset;
-    void* ubo_block;
-
+    /** @brief The identifier of the currently bound instance. */
     u32 bound_instance_id;
+    /** @brief The currently bound instance's ubo offset. */
+    u32 bound_ubo_offset;
+    /** @brief The block of memory mapped to the uniform buffer. */
+    void* mapped_uniform_buffer_block;
 
     /** @brief The instance states for all instances. @todo TODO: make dynamic */
     vulkan_shader_instance_state instance_states[VULKAN_MAX_MATERIAL_COUNT];
 } vulkan_shader;
-
-///////////////////////// end new shader
 
 /**
  * @brief The overall Vulkan context for the backend. Holds and maintains
@@ -763,7 +684,6 @@ typedef struct vulkan_context {
     b8 recreating_swapchain;
 
     /** @brief The material shader. */
-    //vulkan_material_shader material_shader;
     // TODO: move this
     vulkan_shader material_shader;
     u32 material_shader_projection_location;
@@ -773,7 +693,14 @@ typedef struct vulkan_context {
     u32 material_shader_diffuse_texture_location;
 
     /** @brief The UI shader. */
-    vulkan_ui_shader ui_shader;
+    //vulkan_ui_shader ui_shader;
+    // TODO: move this
+    vulkan_shader ui_shader;
+    u32 ui_shader_projection_location;
+    u32 ui_shader_view_location;
+    u32 ui_shader_diffuse_colour_location;
+    u32 ui_shader_model_location;
+    u32 ui_shader_diffuse_texture_location;
 
     /** @brief The A collection of loaded geometries. @todo TODO: make dynamic */
     vulkan_geometry_data geometries[VULKAN_MAX_GEOMETRY_COUNT];

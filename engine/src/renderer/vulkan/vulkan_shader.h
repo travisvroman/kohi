@@ -17,7 +17,7 @@
 struct texture;
 
 
-b8 vulkan_shader_create(vulkan_context* context, const char* name, VkShaderStageFlags stages, u32 max_descriptor_set_count, b8 use_instances, b8 use_local, vulkan_shader* out_shader);
+b8 vulkan_shader_create(vulkan_context* context, const char* name, vulkan_renderpass *renderpass, VkShaderStageFlags stages, u32 max_descriptor_set_count, b8 use_instances, b8 use_local, vulkan_shader* out_shader);
 b8 vulkan_shader_destroy(vulkan_shader* shader);
 
 // Add attributes/samplers/uniforms
