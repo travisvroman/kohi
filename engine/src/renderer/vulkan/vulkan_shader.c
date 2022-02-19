@@ -322,7 +322,7 @@ b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, vu
     }
 
     // If global, push into the global list.
-    if (scope == VULKAN_SHADER_SCOPE_LOCAL) {
+    if (scope == VULKAN_SHADER_SCOPE_GLOBAL) {
         shader->global_textures[shader->global_texture_count] = texture_system_get_default_texture();
         shader->global_texture_count++;
     } else {
