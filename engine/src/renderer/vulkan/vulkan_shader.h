@@ -30,7 +30,7 @@ struct texture;
  * @param out_shader A pointer to hold the newly-created shader.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_create(vulkan_context* context, const char* name, vulkan_renderpass *renderpass, VkShaderStageFlags stages, u32 max_descriptor_set_count, b8 use_instances, b8 use_local, vulkan_shader* out_shader);
+b8 vulkan_shader_create(vulkan_context* context, const char* name, vulkan_renderpass *renderpass, VkShaderStageFlags stages, u16 max_descriptor_set_count, b8 use_instances, b8 use_local, vulkan_shader* out_shader);
 
 /**
  * @brief Destroys the provided shader.
@@ -61,7 +61,7 @@ b8 vulkan_shader_add_attribute(vulkan_shader* shader, const char* name, shader_a
  * @param out_location A pointer to hold the location of the attribute for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, shader_scope scope, u32* out_location);
 
 /**
  * @brief Adds a new signed 8-bit integer uniform to the shader.
@@ -72,7 +72,7 @@ b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, vu
  * @param out_location A pointer to hold the location of the uniform for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_uniform_i8(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_i8(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location);
 
 /**
  * @brief Adds a new signed 16-bit integer uniform to the shader.
@@ -83,7 +83,7 @@ b8 vulkan_shader_add_uniform_i8(vulkan_shader* shader, const char* uniform_name,
  * @param out_location A pointer to hold the location of the uniform for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_uniform_i16(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_i16(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location);
 
 /**
  * @brief Adds a new signed 32-bit integer uniform to the shader.
@@ -94,7 +94,7 @@ b8 vulkan_shader_add_uniform_i16(vulkan_shader* shader, const char* uniform_name
  * @param out_location A pointer to hold the location of the uniform for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_uniform_i32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_i32(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location);
 
 /**
  * @brief Adds a new unsigned 8-bit integer uniform to the shader.
@@ -105,7 +105,7 @@ b8 vulkan_shader_add_uniform_i32(vulkan_shader* shader, const char* uniform_name
  * @param out_location A pointer to hold the location of the uniform for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_uniform_u8(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_u8(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location);
 
 /**
  * @brief Adds a new unsigned 16-bit integer uniform to the shader.
@@ -116,7 +116,7 @@ b8 vulkan_shader_add_uniform_u8(vulkan_shader* shader, const char* uniform_name,
  * @param out_location A pointer to hold the location of the uniform for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_uniform_u16(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_u16(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location);
 
 /**
  * @brief Adds a new unsigned 32-bit integer uniform to the shader.
@@ -127,7 +127,7 @@ b8 vulkan_shader_add_uniform_u16(vulkan_shader* shader, const char* uniform_name
  * @param out_location A pointer to hold the location of the uniform for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_uniform_u32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_u32(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location);
 
 /**
  * @brief Adds a new 32-bit float uniform to the shader.
@@ -138,7 +138,7 @@ b8 vulkan_shader_add_uniform_u32(vulkan_shader* shader, const char* uniform_name
  * @param out_location A pointer to hold the location of the uniform for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_uniform_f32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_f32(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location);
 
 /**
  * @brief Adds a new vector2 (2x 32-bit floats) uniform to the shader.
@@ -149,7 +149,7 @@ b8 vulkan_shader_add_uniform_f32(vulkan_shader* shader, const char* uniform_name
  * @param out_location A pointer to hold the location of the uniform for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_uniform_vec2(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_vec2(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location);
 
 /**
  * @brief Adds a new vector3 (3x 32-bit floats) uniform to the shader.
@@ -160,7 +160,7 @@ b8 vulkan_shader_add_uniform_vec2(vulkan_shader* shader, const char* uniform_nam
  * @param out_location A pointer to hold the location of the uniform for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_uniform_vec3(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_vec3(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location);
 
 /**
  * @brief Adds a new vector4 (4x 32-bit floats) uniform to the shader.
@@ -171,7 +171,7 @@ b8 vulkan_shader_add_uniform_vec3(vulkan_shader* shader, const char* uniform_nam
  * @param out_location A pointer to hold the location of the uniform for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_uniform_vec4(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_vec4(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location);
 
 /**
  * @brief Adds a new mat4 (4x4 matrix/16x 32-bit floats) uniform to the shader.
@@ -182,7 +182,21 @@ b8 vulkan_shader_add_uniform_vec4(vulkan_shader* shader, const char* uniform_nam
  * @param out_location A pointer to hold the location of the uniform for future use.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_add_uniform_mat4(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location);
+b8 vulkan_shader_add_uniform_mat4(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location);
+
+/**
+ * @brief Adds a new custom-sized uniform to the shader. This is useful for structure
+ * types. NOTE: Size verification is not done for this type when setting the uniform.
+ * 
+ * @param shader A pointer to the shader to add the uniform to.
+ * @param uniform_name The name of the uniform.
+ * @param size The size of the uniform in bytes.
+ * @param scope The scope of the uniform. Can be global, instance or local.
+ * @param out_location A pointer to hold the location of the uniform for future use.
+ * @return True on success; otherwise false.
+ */
+b8 vulkan_shader_add_uniform_custom(vulkan_shader* shader, const char* uniform_name, u32 size, shader_scope scope, u32* out_location);
+
 
 // End add attributes/samplers/uniforms
 
@@ -420,3 +434,15 @@ b8 vulkan_shader_set_uniform_vec4f(vulkan_shader* shader, u32 location, f32 valu
  * @return True on success; otherwise false.
  */
 b8 vulkan_shader_set_uniform_mat4(vulkan_shader* shader, u32 location, mat4 value);
+
+/**
+ * @brief Sets the value of the custom-size uniform at the provided location.
+ * Size of data should match the size originally added. NOTE: Size verification
+ * is bypassed for this type.
+ * 
+ * @param shader A pointer to set the uniform value for.
+ * @param location The location of the uniform to be set.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+b8 vulkan_shader_set_uniform_custom(vulkan_shader* shader, u32 location, void* value);

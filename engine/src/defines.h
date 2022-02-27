@@ -118,6 +118,8 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
  * and not actually pointing to a real object. 
  */
 #define INVALID_ID 4294967295U
+#define INVALID_ID_U16 65535U
+#define INVALID_ID_U8 255U
 
 // Platform detection
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)

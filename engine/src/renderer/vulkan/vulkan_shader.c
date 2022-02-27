@@ -29,9 +29,9 @@ const u32 BINDING_INDEX_SAMPLER = 1;
 b8 create_module(vulkan_shader* shader, vulkan_shader_stage_config config, vulkan_shader_stage* shader_stage);
 b8 uniform_name_valid(vulkan_shader* shader, const char* uniform_name);
 b8 shader_uniform_add_state_valid(vulkan_shader* shader);
-b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan_shader_scope scope, u32* out_location, b8 is_sampler);
+b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, shader_scope scope, u32* out_location, b8 is_sampler);
 
-b8 vulkan_shader_create(vulkan_context* context, const char* name, vulkan_renderpass* renderpass, VkShaderStageFlags stages, u32 max_descriptor_count, b8 use_instances, b8 use_local, vulkan_shader* out_shader) {
+b8 vulkan_shader_create(vulkan_context* context, const char* name, vulkan_renderpass* renderpass, VkShaderStageFlags stages, u16 max_descriptor_count, b8 use_instances, b8 use_local, vulkan_shader* out_shader) {
     if (!context || !name || !out_shader) {
         KERROR("vulkan_shader_create must supply valid pointer to context, name and out_shader. Creation failed.");
         return false;
@@ -284,14 +284,14 @@ b8 vulkan_shader_add_attribute(vulkan_shader* shader, const char* name, shader_a
     return true;
 }
 
-b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, vulkan_shader_scope scope, u32* out_location) {
-    if (scope == VULKAN_SHADER_SCOPE_INSTANCE && !shader->use_instances) {
+b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, shader_scope scope, u32* out_location) {
+    if (scope == SHADER_SCOPE_INSTANCE && !shader->use_instances) {
         KERROR("vulkan_shader_add_sampler cannot add an instance sampler for a shader that does not use instances.");
         return false;
     }
 
     // Samples can't be used for push constants.
-    if (scope == VULKAN_SHADER_SCOPE_LOCAL) {
+    if (scope == SHADER_SCOPE_LOCAL) {
         KERROR("vulkan_shader_add_sampler cannot add a sampler at local scope.");
         return false;
     }
@@ -301,7 +301,24 @@ b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, vu
         return false;
     }
 
-    const u32 set_index = (scope == VULKAN_SHADER_SCOPE_GLOBAL ? DESC_SET_INDEX_GLOBAL : DESC_SET_INDEX_INSTANCE);
+    // If global, push into the global list.
+    if (scope == SHADER_SCOPE_GLOBAL) {
+        if (shader->global_texture_count + 1 > VULKAN_SHADER_MAX_GLOBAL_TEXTURES) {
+            KERROR("Shader global texture count %i exceeds max of %i", shader->global_texture_count, VULKAN_SHADER_MAX_GLOBAL_TEXTURES);
+            return false;
+        }
+        shader->global_textures[shader->global_texture_count] = texture_system_get_default_texture();
+        shader->global_texture_count++;
+    } else {
+        // Otherwise, it's instance-level, so keep count of how many need to be added during the resource acquisition.
+        if (shader->instance_texture_count + 1 > VULKAN_SHADER_MAX_INSTANCE_TEXTURES) {
+            KERROR("Shader instance texture count %i exceeds max of %i", shader->instance_texture_count, VULKAN_SHADER_MAX_INSTANCE_TEXTURES);
+            return false;
+        }
+        shader->instance_texture_count++;
+    }
+
+    const u32 set_index = (scope == SHADER_SCOPE_GLOBAL ? DESC_SET_INDEX_GLOBAL : DESC_SET_INDEX_INSTANCE);
     vulkan_descriptor_set_config* set_config = &shader->config.descriptor_sets[set_index];
     if (set_config->binding_count < 2) {
         // There isn't a binding yet, meaning this is the first sampler to be added.
@@ -321,15 +338,6 @@ b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, vu
         set_config->bindings[BINDING_INDEX_SAMPLER].descriptorCount++;
     }
 
-    // If global, push into the global list.
-    if (scope == VULKAN_SHADER_SCOPE_GLOBAL) {
-        shader->global_textures[shader->global_texture_count] = texture_system_get_default_texture();
-        shader->global_texture_count++;
-    } else {
-        // Otherwise, it's instance-level, so keep count of how many need to be added during the resource acquisition.
-        shader->instance_texture_count++;
-    }
-
     // Treat it like a uniform. NOTE: In the case of samplers, out_location is used to determine the
     // hashtable entry's 'location' field value directly, and is then set to the index of the uniform array.
     // This allows location lookups for samplers as if they were uniforms as well (since technically they are).
@@ -345,49 +353,54 @@ b8 vulkan_shader_add_sampler(vulkan_shader* shader, const char* sampler_name, vu
 #define VERIFY_UNIFORM(shader, uniform_name, out_location) \
     if (!out_location || !shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, uniform_name)) return false;
 
-b8 vulkan_shader_add_uniform_i8(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
+b8 vulkan_shader_add_uniform_i8(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location) {
     VERIFY_UNIFORM(shader, uniform_name, out_location);
     return uniform_add(shader, uniform_name, sizeof(i8), scope, out_location, false);
 }
-b8 vulkan_shader_add_uniform_i16(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
+b8 vulkan_shader_add_uniform_i16(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location) {
     VERIFY_UNIFORM(shader, uniform_name, out_location);
     return uniform_add(shader, uniform_name, sizeof(i16), scope, out_location, false);
 }
-b8 vulkan_shader_add_uniform_i32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
+b8 vulkan_shader_add_uniform_i32(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location) {
     VERIFY_UNIFORM(shader, uniform_name, out_location);
     return uniform_add(shader, uniform_name, sizeof(i32), scope, out_location, false);
 }
-b8 vulkan_shader_add_uniform_u8(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
+b8 vulkan_shader_add_uniform_u8(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location) {
     VERIFY_UNIFORM(shader, uniform_name, out_location);
     return uniform_add(shader, uniform_name, sizeof(u8), scope, out_location, false);
 }
-b8 vulkan_shader_add_uniform_u16(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
+b8 vulkan_shader_add_uniform_u16(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location) {
     VERIFY_UNIFORM(shader, uniform_name, out_location);
     return uniform_add(shader, uniform_name, sizeof(u16), scope, out_location, false);
 }
-b8 vulkan_shader_add_uniform_u32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
+b8 vulkan_shader_add_uniform_u32(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location) {
     VERIFY_UNIFORM(shader, uniform_name, out_location);
     return uniform_add(shader, uniform_name, sizeof(u32), scope, out_location, false);
 }
-b8 vulkan_shader_add_uniform_f32(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
+b8 vulkan_shader_add_uniform_f32(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location) {
     VERIFY_UNIFORM(shader, uniform_name, out_location);
     return uniform_add(shader, uniform_name, sizeof(f32), scope, out_location, false);
 }
-b8 vulkan_shader_add_uniform_vec2(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
+b8 vulkan_shader_add_uniform_vec2(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location) {
     VERIFY_UNIFORM(shader, uniform_name, out_location);
     return uniform_add(shader, uniform_name, sizeof(vec2), scope, out_location, false);
 }
-b8 vulkan_shader_add_uniform_vec3(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
+b8 vulkan_shader_add_uniform_vec3(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location) {
     VERIFY_UNIFORM(shader, uniform_name, out_location);
     return uniform_add(shader, uniform_name, sizeof(vec3), scope, out_location, false);
 }
-b8 vulkan_shader_add_uniform_vec4(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
+b8 vulkan_shader_add_uniform_vec4(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location) {
     VERIFY_UNIFORM(shader, uniform_name, out_location);
     return uniform_add(shader, uniform_name, sizeof(vec4), scope, out_location, false);
 }
-b8 vulkan_shader_add_uniform_mat4(vulkan_shader* shader, const char* uniform_name, vulkan_shader_scope scope, u32* out_location) {
+b8 vulkan_shader_add_uniform_mat4(vulkan_shader* shader, const char* uniform_name, shader_scope scope, u32* out_location) {
     VERIFY_UNIFORM(shader, uniform_name, out_location);
     return uniform_add(shader, uniform_name, sizeof(mat4), scope, out_location, false);
+}
+
+b8 vulkan_shader_add_uniform_custom(vulkan_shader* shader, const char* uniform_name, u32 size, shader_scope scope, u32* out_location) {
+    VERIFY_UNIFORM(shader, uniform_name, out_location);
+    return uniform_add(shader, uniform_name, size, scope, out_location, false);
 }
 
 b8 vulkan_shader_initialize(vulkan_shader* shader) {
@@ -626,9 +639,9 @@ b8 vulkan_shader_apply_instance(vulkan_shader* shader) {
 
     // Descriptor 0 - Uniform buffer
     // Only do this if the descriptor has not yet been updated.
-    u32* instance_ubo_generation = &(object_state->descriptor_set_state.descriptor_states[descriptor_index].generations[image_index]);
+    u8* instance_ubo_generation = &(object_state->descriptor_set_state.descriptor_states[descriptor_index].generations[image_index]);
     // TODO: determine if update is required.
-    if (*instance_ubo_generation == INVALID_ID /*|| *global_ubo_generation != material->generation*/) {
+    if (*instance_ubo_generation == INVALID_ID_U8 /*|| *global_ubo_generation != material->generation*/) {
         VkDescriptorBufferInfo buffer_info;
         buffer_info.buffer = shader->uniform_buffer.handle;
         buffer_info.offset = object_state->offset;
@@ -712,7 +725,7 @@ b8 vulkan_shader_acquire_instance_resources(vulkan_shader* shader, u32* out_inst
     vulkan_shader_instance_state* instance_state = &shader->instance_states[*out_instance_id];
     u32 instance_texture_count = shader->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].bindings[BINDING_INDEX_SAMPLER].descriptorCount;
     // Wipe out the memory for the entire array, even if it isn't all used.
-    kzero_memory(instance_state->instance_textures, sizeof(texture*) * VULKAN_SHADER_MAX_INSTANCE_TEXTURES);
+    instance_state->instance_textures = kallocate(sizeof(texture*) * shader->instance_texture_count, MEMORY_TAG_ARRAY);
     texture* default_texture = texture_system_get_default_texture();
     // Set all the texture pointers to default until assigned.
     for (u32 i = 0; i < instance_texture_count; ++i) {
@@ -733,7 +746,7 @@ b8 vulkan_shader_acquire_instance_resources(vulkan_shader* shader, u32* out_inst
     kzero_memory(set_state->descriptor_states, sizeof(vulkan_descriptor_state) * VULKAN_SHADER_MAX_BINDINGS);
     for (u32 i = 0; i < binding_count; ++i) {
         for (u32 j = 0; j < 3; ++j) {
-            set_state->descriptor_states[i].generations[j] = INVALID_ID;
+            set_state->descriptor_states[i].generations[j] = INVALID_ID_U8;
             set_state->descriptor_states[i].ids[j] = INVALID_ID;
         }
     }
@@ -778,7 +791,10 @@ b8 vulkan_shader_release_instance_resources(vulkan_shader* shader, u32 instance_
     // Destroy descriptor states.
     kzero_memory(instance_state->descriptor_set_state.descriptor_states, sizeof(vulkan_descriptor_state) * VULKAN_SHADER_MAX_BINDINGS);
 
-    kzero_memory(instance_state->instance_textures, sizeof(texture*) * VULKAN_SHADER_MAX_INSTANCE_TEXTURES);
+    if (instance_state->instance_textures) {
+        kfree(instance_state->instance_textures, sizeof(texture*) * shader->instance_texture_count, MEMORY_TAG_ARRAY);
+        instance_state->instance_textures = 0;
+    }
 
     vulkan_buffer_free(&shader->uniform_buffer, shader->ubo_stride, instance_state->offset);
     instance_state->offset = INVALID_ID;
@@ -789,7 +805,7 @@ b8 vulkan_shader_release_instance_resources(vulkan_shader* shader, u32 instance_
 
 b8 vulkan_shader_set_sampler(vulkan_shader* shader, u32 location, texture* t) {
     vulkan_uniform_lookup_entry* entry = &shader->uniforms[location];
-    if (entry->scope == VULKAN_SHADER_SCOPE_GLOBAL) {
+    if (entry->scope == SHADER_SCOPE_GLOBAL) {
         shader->global_textures[entry->location] = t;
     } else {
         shader->instance_states[shader->bound_instance_id].instance_textures[entry->location] = t;
@@ -808,6 +824,10 @@ u32 vulkan_shader_uniform_location(vulkan_shader* shader, const char* uniform_na
 }
 
 b8 check_uniform_size(vulkan_shader* shader, u32 location, u32 expected_size) {
+    if (expected_size == 0) {
+        // Bypass the size check.
+        return true;
+    }
     vulkan_uniform_lookup_entry* entry = &shader->uniforms[location];
     if (entry->size != expected_size) {
         KERROR("Uniform location '%d' on shader '%s' is a different size (%dB) than expected (%dB).", location, shader->name, entry->size, expected_size);
@@ -823,9 +843,9 @@ b8 set_uniform(vulkan_shader* shader, u32 location, void* value, u64 size) {
     // Map the appropriate memory location and copy the data over.
     void* block = 0;
     vulkan_uniform_lookup_entry* entry = &shader->uniforms[location];
-    if (entry->scope == VULKAN_SHADER_SCOPE_GLOBAL) {
+    if (entry->scope == SHADER_SCOPE_GLOBAL) {
         block = (void*)(shader->mapped_uniform_buffer_block + shader->global_ubo_offset + entry->offset);
-    } else if (entry->scope == VULKAN_SHADER_SCOPE_INSTANCE) {
+    } else if (entry->scope == SHADER_SCOPE_INSTANCE) {
         block = (void*)(shader->mapped_uniform_buffer_block + shader->bound_ubo_offset + entry->offset);
     } else {
         // Is local, using push constants. Do this immediately.
@@ -897,6 +917,11 @@ b8 vulkan_shader_set_uniform_mat4(vulkan_shader* shader, u32 location, mat4 valu
     return set_uniform(shader, location, &value, size);
 }
 
+b8 vulkan_shader_set_uniform_custom(vulkan_shader* shader, u32 location, void* value) {
+    // NOTE: Size check is bypassed here. Assumes the caller knows what they are doing.
+    return set_uniform(shader, location, value, 0);
+}
+
 b8 create_module(vulkan_shader* shader, vulkan_shader_stage_config config, vulkan_shader_stage* shader_stage) {
     // Build file name, which will also be used as the resource name.
     char file_name[512];
@@ -955,7 +980,7 @@ b8 shader_uniform_add_state_valid(vulkan_shader* shader) {
     return true;
 }
 
-b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan_shader_scope scope, u32* out_location, b8 is_sampler) {
+b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, shader_scope scope, u32* out_location, b8 is_sampler) {
     if (shader->uniform_count + 1 > VULKAN_SHADER_MAX_UNIFORMS) {
         KERROR("A shader can only accept a combined maximum of %d uniforms and samplers at global, instance and local scopes.");
         return false;
@@ -963,7 +988,7 @@ b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan
     vulkan_uniform_lookup_entry entry;
     entry.index = shader->uniform_count;  // Index is saved to the hashtable for lookups.
     entry.scope = scope;
-    b8 is_global = (scope == VULKAN_SHADER_SCOPE_GLOBAL);
+    b8 is_global = (scope == SHADER_SCOPE_GLOBAL);
     if (is_sampler) {
         // Just use the passed in location
         entry.location = *out_location;
@@ -971,18 +996,18 @@ b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan
         entry.location = entry.index;
     }
 
-    if (scope != VULKAN_SHADER_SCOPE_LOCAL) {
+    if (scope != SHADER_SCOPE_LOCAL) {
         entry.set_index = (u32)scope;
         entry.offset = is_sampler ? 0 : is_global ? shader->global_ubo_size
                                                   : shader->ubo_size;
         entry.size = is_sampler ? 0 : size;
     } else {
-        if (entry.scope == VULKAN_SHADER_SCOPE_LOCAL && !shader->use_push_constants) {
+        if (entry.scope == SHADER_SCOPE_LOCAL && !shader->use_push_constants) {
             KERROR("Cannot add a locally-scoped uniform for a shader that does not support locals.");
             return false;
         }
         // Push a new aligned range (align to 4, as required by Vulkan spec)
-        entry.set_index = INVALID_ID;
+        entry.set_index = INVALID_ID_U8;
         range r = get_aligned_range(shader->push_constant_size, size, 4);
         // utilize the aligned offset/range
         entry.offset = r.offset;
@@ -1004,9 +1029,9 @@ b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, vulkan
     shader->uniform_count++;
 
     if (!is_sampler) {
-        if (entry.scope == VULKAN_SHADER_SCOPE_GLOBAL) {
+        if (entry.scope == SHADER_SCOPE_GLOBAL) {
             shader->global_ubo_size += entry.size;
-        } else if (entry.scope == VULKAN_SHADER_SCOPE_INSTANCE) {
+        } else if (entry.scope == SHADER_SCOPE_INSTANCE) {
             shader->ubo_size += entry.size;
         }
     }

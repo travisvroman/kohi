@@ -256,50 +256,13 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const char* app
         context.images_in_flight[i] = 0;
     }
 
-    // Create builtin shaders
+    // TODO: Configurable max_shaders.
+    context.max_shader_count = 1024;
+    context.shaders = kallocate(sizeof(vulkan_shader) * context.max_shader_count, MEMORY_TAG_RENDERER);
 
-    // Material shader
-    if (!vulkan_shader_create(&context, "Builtin.MaterialShader", &context.main_renderpass, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 1024, true, true, &context.material_shader)) {
-        KERROR("Error creating built-in material shader.");
-        return false;
-    }
-    // Attributes: Position, texcoord
-    vulkan_shader_add_attribute(&context.material_shader, "in_position", SHADER_ATTRIB_TYPE_FLOAT32_3);  // VK_FORMAT_R32G32B32_SFLOAT
-    vulkan_shader_add_attribute(&context.material_shader, "in_texcoord", SHADER_ATTRIB_TYPE_FLOAT32_2);  // VK_FORMAT_R32G32_SFLOAT
-    // Uniforms
-    // Global
-    vulkan_shader_add_uniform_mat4(&context.material_shader, "projection", VULKAN_SHADER_SCOPE_GLOBAL, &context.material_shader_projection_location);
-    vulkan_shader_add_uniform_mat4(&context.material_shader, "view", VULKAN_SHADER_SCOPE_GLOBAL, &context.material_shader_view_location);
-    // Instance
-    vulkan_shader_add_uniform_vec4(&context.material_shader, "diffuse_colour", VULKAN_SHADER_SCOPE_INSTANCE, &context.material_shader_diffuse_colour_location);
-    vulkan_shader_add_sampler(&context.material_shader, "diffuse_texture", VULKAN_SHADER_SCOPE_INSTANCE, &context.material_shader_diffuse_texture_location);
-    // Local
-    vulkan_shader_add_uniform_mat4(&context.material_shader, "model", VULKAN_SHADER_SCOPE_LOCAL, &context.material_shader_model_location);
-    if (!vulkan_shader_initialize(&context.material_shader)) {
-        KERROR("Error initializing built-in material shader.");
-        return false;
-    }
-
-    // UI shader
-    if (!vulkan_shader_create(&context, "Builtin.UIShader", &context.ui_renderpass, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 1024, true, true, &context.ui_shader)) {
-        KERROR("Error creating built-in UI shader.");
-        return false;
-    }
-    // Attributes: Position, texcoord
-    vulkan_shader_add_attribute(&context.ui_shader, "in_position", SHADER_ATTRIB_TYPE_FLOAT32_2);  // VK_FORMAT_R32G32_SFLOAT
-    vulkan_shader_add_attribute(&context.ui_shader, "in_texcoord", SHADER_ATTRIB_TYPE_FLOAT32_2);  // VK_FORMAT_R32G32_SFLOAT
-    // Uniforms
-    // Global
-    vulkan_shader_add_uniform_mat4(&context.ui_shader, "projection", VULKAN_SHADER_SCOPE_GLOBAL, &context.ui_shader_projection_location);
-    vulkan_shader_add_uniform_mat4(&context.ui_shader, "view", VULKAN_SHADER_SCOPE_GLOBAL, &context.ui_shader_view_location);
-    // Instance
-    vulkan_shader_add_uniform_vec4(&context.ui_shader, "diffuse_colour", VULKAN_SHADER_SCOPE_INSTANCE, &context.ui_shader_diffuse_colour_location);
-    vulkan_shader_add_sampler(&context.ui_shader, "diffuse_texture", VULKAN_SHADER_SCOPE_INSTANCE, &context.ui_shader_diffuse_texture_location);
-    // Local
-    vulkan_shader_add_uniform_mat4(&context.ui_shader, "model", VULKAN_SHADER_SCOPE_LOCAL, &context.ui_shader_model_location);
-    if (!vulkan_shader_initialize(&context.ui_shader)) {
-        KERROR("Error initializing built-in UI shader.");
-        return false;
+    // Invalidate all shaders.
+    for (u32 i = 0; i < context.max_shader_count; ++i) {
+        context.shaders[i].id = INVALID_ID;
     }
 
     create_buffers(&context);
@@ -320,10 +283,6 @@ void vulkan_renderer_backend_shutdown(renderer_backend* backend) {
     // Destroy buffers
     vulkan_buffer_destroy(&context, &context.object_vertex_buffer);
     vulkan_buffer_destroy(&context, &context.object_index_buffer);
-
-    // Destroy shaders.
-    vulkan_shader_destroy(&context.ui_shader);
-    vulkan_shader_destroy(&context.material_shader);
 
     // Sync objects
     for (u8 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
@@ -494,26 +453,6 @@ b8 vulkan_renderer_backend_begin_frame(renderer_backend* backend, f32 delta_time
     return true;
 }
 
-void vulkan_renderer_update_global_world_state(mat4 projection, mat4 view, vec3 view_position, vec4 ambient_colour, i32 mode) {
-    vulkan_shader_use(&context.material_shader);
-
-    // Global
-    vulkan_shader_bind_globals(&context.material_shader);
-    vulkan_shader_set_uniform_mat4(&context.material_shader, context.material_shader_projection_location, projection);
-    vulkan_shader_set_uniform_mat4(&context.material_shader, context.material_shader_view_location, view);
-    vulkan_shader_apply_globals(&context.material_shader);
-}
-
-void vulkan_renderer_update_global_ui_state(mat4 projection, mat4 view, i32 mode) {
-    vulkan_shader_use(&context.ui_shader);
-
-    // Global
-    vulkan_shader_bind_globals(&context.ui_shader);
-    vulkan_shader_set_uniform_mat4(&context.ui_shader, context.ui_shader_projection_location, projection);
-    vulkan_shader_set_uniform_mat4(&context.ui_shader, context.ui_shader_view_location, view);
-    vulkan_shader_apply_globals(&context.ui_shader);
-}
-
 b8 vulkan_renderer_backend_end_frame(renderer_backend* backend, f32 delta_time) {
     vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
 
@@ -602,17 +541,6 @@ b8 vulkan_renderer_begin_renderpass(struct renderer_backend* backend, u8 renderp
 
     // Begin the render pass.
     vulkan_renderpass_begin(command_buffer, renderpass, framebuffer);
-
-    // Use the appropriate shader.
-    // TODO: Should be based off material...
-    switch (renderpass_id) {
-        case BUILTIN_RENDERPASS_WORLD:
-            vulkan_shader_use(&context.material_shader);
-            break;
-        case BUILTIN_RENDERPASS_UI:
-            vulkan_shader_use(&context.ui_shader);
-            break;
-    }
 
     return true;
 }
@@ -954,17 +882,19 @@ b8 vulkan_renderer_create_material(struct material* material) {
     if (material) {
         switch (material->type) {
             case MATERIAL_TYPE_WORLD:
-                if (!vulkan_shader_acquire_instance_resources(&context.material_shader, &material->internal_id)) {
-                    KERROR("vulkan_renderer_create_material - Failed to acquire world shader resources.");
-                    return false;
-                }
-                break;
+            return false;
+                // if (!vulkan_shader_acquire_instance_resources(&context.material_shader, &material->internal_id)) {
+                //     KERROR("vulkan_renderer_create_material - Failed to acquire world shader resources.");
+                //     return false;
+                // }
+                //break;
             case MATERIAL_TYPE_UI:
-                if (!vulkan_shader_acquire_instance_resources(&context.ui_shader, &material->internal_id)) {
-                    KERROR("vulkan_renderer_create_material - Failed to acquire UI shader resources.");
-                    return false;
-                }
-                break;
+                return false;
+                // if (!vulkan_shader_acquire_instance_resources(&context.ui_shader, &material->internal_id)) {
+                //     KERROR("vulkan_renderer_create_material - Failed to acquire UI shader resources.");
+                //     return false;
+                // }
+                // break;
             default:
                 KERROR("vulkan_renderer_create_material - unknown material type.");
                 return false;
@@ -983,10 +913,10 @@ void vulkan_renderer_destroy_material(struct material* material) {
         if (material->internal_id != INVALID_ID) {
             switch (material->type) {
                 case MATERIAL_TYPE_WORLD:
-                    vulkan_shader_release_instance_resources(&context.material_shader, material->internal_id);
+                    //vulkan_shader_release_instance_resources(&context.material_shader, material->internal_id);
                     break;
                 case MATERIAL_TYPE_UI:
-                    vulkan_shader_release_instance_resources(&context.ui_shader, material->internal_id);
+                    //vulkan_shader_release_instance_resources(&context.ui_shader, material->internal_id);
                     break;
                 default:
                     KERROR("vulkan_renderer_destroy_material - unknown material type");
@@ -1124,41 +1054,6 @@ void vulkan_renderer_draw_geometry(geometry_render_data data) {
     vulkan_geometry_data* buffer_data = &context.geometries[data.geometry->internal_id];
     vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
 
-    material* m = 0;
-    if (data.geometry->material) {
-        m = data.geometry->material;
-    } else {
-        m = material_system_get_default();
-    }
-
-    switch (m->type) {
-        case MATERIAL_TYPE_WORLD:
-            // Apply the material
-            vulkan_shader_bind_instance(&context.material_shader, m->internal_id);
-            // Instance
-            vulkan_shader_set_uniform_vec4(&context.material_shader, context.material_shader_diffuse_colour_location, m->diffuse_colour);
-            vulkan_shader_set_sampler(&context.material_shader, context.material_shader_diffuse_texture_location, m->diffuse_map.texture);
-            // Local
-            vulkan_shader_set_uniform_mat4(&context.material_shader, context.material_shader_model_location, data.model);
-            // Apply the above changes.
-            vulkan_shader_apply_instance(&context.material_shader);
-            break;
-        case MATERIAL_TYPE_UI:
-            // Apply the material
-            vulkan_shader_bind_instance(&context.ui_shader, m->internal_id);
-            // Instance
-            vulkan_shader_set_uniform_vec4(&context.ui_shader, context.ui_shader_diffuse_colour_location, m->diffuse_colour);
-            vulkan_shader_set_sampler(&context.ui_shader, context.ui_shader_diffuse_texture_location, m->diffuse_map.texture);
-            // Local
-            vulkan_shader_set_uniform_mat4(&context.ui_shader, context.ui_shader_model_location, data.model);
-            // Apply the above changes.
-            vulkan_shader_apply_instance(&context.ui_shader);
-            break;
-        default:
-            KERROR("vulkan_renderer_draw_geometry - unknown material type: %i", m->type);
-            return;
-    }
-
     // Bind vertex buffer at offset.
     VkDeviceSize offsets[1] = {buffer_data->vertex_buffer_offset};
     vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &context.object_vertex_buffer.handle, (VkDeviceSize*)offsets);
@@ -1173,4 +1068,227 @@ void vulkan_renderer_draw_geometry(geometry_render_data data) {
     } else {
         vkCmdDraw(command_buffer->handle, buffer_data->vertex_count, 1, 0, 0);
     }
+}
+
+b8 vulkan_renderer_shader_create(const char* name, u8 renderpass_id, u32 stages, b8 use_instances, b8 use_local, u32* out_shader_id) {
+    *out_shader_id = INVALID_ID;
+    for (u32 i = 0; i < context.max_shader_count; ++i) {
+        if (context.shaders[i].id == INVALID_ID) {
+            *out_shader_id = i;
+            break;
+        }
+    }
+
+    if (*out_shader_id == INVALID_ID) {
+        KFATAL("vulkan_renderer_shader_create failed to find free shader id slot.");
+        return false;
+    }
+
+    // TODO: dynamic renderpasses
+    vulkan_renderpass* renderpass = renderpass_id == 1 ? &context.main_renderpass : &context.ui_renderpass;
+
+    // Translate stages
+    VkShaderStageFlags vk_stages = 0;
+    if ((stages & SHADER_STAGE_VERTEX) != 0) {
+        vk_stages |= VK_SHADER_STAGE_VERTEX_BIT;
+    }
+    if ((stages & SHADER_STAGE_FRAGMENT) != 0) {
+        vk_stages |= VK_SHADER_STAGE_FRAGMENT_BIT;
+    }
+    if ((stages & SHADER_STAGE_COMPUTE) != 0) {
+        KWARN("vulkan_renderer_shader_create: SHADER_STAGE_COMPUTE is set but not yet supported.");
+        vk_stages |= VK_SHADER_STAGE_COMPUTE_BIT;
+    }
+    if ((stages & SHADER_STAGE_GEOMETRY) != 0) {
+        KWARN("vulkan_renderer_shader_create: VK_SHADER_STAGE_GEOMETRY_BIT is set but not yet supported.");
+        vk_stages |= VK_SHADER_STAGE_GEOMETRY_BIT;
+    }
+
+    // TODO: configurable max descriptor allocate count.
+    u32 max_descriptor_allocate_count = 1024;
+
+    b8 result = vulkan_shader_create(&context, name, renderpass, vk_stages, max_descriptor_allocate_count, use_instances, use_local, &context.shaders[*out_shader_id]);
+    if (result) {
+        context.shaders[*out_shader_id].id = *out_shader_id;
+    } else {
+        vulkan_shader_destroy(&context.shaders[*out_shader_id]);
+        kzero_memory(&context.shaders[*out_shader_id], sizeof(vulkan_shader));
+        context.shaders[*out_shader_id].id = INVALID_ID;
+        *out_shader_id = INVALID_ID;
+    }
+
+    return result;
+}
+void vulkan_renderer_shader_destroy(u32 shader_id) {
+    if (shader_id != INVALID_ID && context.shaders[shader_id].id != INVALID_ID) {
+        vulkan_shader_destroy(&context.shaders[shader_id]);
+        kzero_memory(&context.shaders[shader_id], sizeof(vulkan_shader));
+        context.shaders[shader_id].id = INVALID_ID;
+    }
+}
+
+#ifdef _DEBUG
+#define SHADER_VERIFY_SHADER_ID(shader_id)                                        \
+    if (shader_id == INVALID_ID || context.shaders[shader_id].id == INVALID_ID) { \
+        return false;                                                             \
+    }
+#else
+#define SHADER_VERIFY_SHADER_ID(shader_id)  // do nothing
+#endif
+
+b8 vulkan_renderer_shader_add_attribute(u32 shader_id, const char* name, shader_attribute_type type) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_attribute(&context.shaders[shader_id], name, type);
+}
+b8 vulkan_renderer_shader_add_sampler(u32 shader_id, const char* sampler_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_sampler(&context.shaders[shader_id], sampler_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_i8(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_i8(&context.shaders[shader_id], uniform_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_i16(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_i16(&context.shaders[shader_id], uniform_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_i32(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_i32(&context.shaders[shader_id], uniform_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_u8(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_u8(&context.shaders[shader_id], uniform_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_u16(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_u16(&context.shaders[shader_id], uniform_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_u32(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_u32(&context.shaders[shader_id], uniform_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_f32(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_f32(&context.shaders[shader_id], uniform_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_vec2(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_vec2(&context.shaders[shader_id], uniform_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_vec3(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_vec3(&context.shaders[shader_id], uniform_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_vec4(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_vec4(&context.shaders[shader_id], uniform_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_mat4(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_mat4(&context.shaders[shader_id], uniform_name, scope, out_location);
+}
+b8 vulkan_renderer_shader_add_uniform_custom(u32 shader_id, const char* uniform_name, u32 size, shader_scope scope, u32* out_location) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_add_uniform_custom(&context.shaders[shader_id], uniform_name, size, scope, out_location);
+}
+b8 vulkan_renderer_shader_initialize(u32 shader_id) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_initialize(&context.shaders[shader_id]);
+}
+b8 vulkan_renderer_shader_use(u32 shader_id) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_use(&context.shaders[shader_id]);
+}
+b8 vulkan_renderer_shader_bind_globals(u32 shader_id) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_bind_globals(&context.shaders[shader_id]);
+}
+b8 vulkan_renderer_shader_bind_instance(u32 shader_id, u32 instance_id) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_bind_instance(&context.shaders[shader_id], instance_id);
+}
+b8 vulkan_renderer_shader_apply_globals(u32 shader_id) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_apply_globals(&context.shaders[shader_id]);
+}
+b8 vulkan_renderer_shader_apply_instance(u32 shader_id) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_apply_instance(&context.shaders[shader_id]);
+}
+b8 vulkan_renderer_shader_acquire_instance_resources(u32 shader_id, u32* out_instance_id) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_acquire_instance_resources(&context.shaders[shader_id], out_instance_id);
+}
+b8 vulkan_renderer_shader_release_instance_resources(u32 shader_id, u32 instance_id) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_release_instance_resources(&context.shaders[shader_id], instance_id);
+}
+u32 vulkan_renderer_shader_uniform_location(u32 shader_id, const char* uniform_name) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_uniform_location(&context.shaders[shader_id], uniform_name);
+}
+b8 vulkan_renderer_shader_set_sampler(u32 shader_id, u32 location, texture* t) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_sampler(&context.shaders[shader_id], location, t);
+}
+b8 vulkan_renderer_shader_set_uniform_i8(u32 shader_id, u32 location, i8 value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_i8(&context.shaders[shader_id], location, value);
+}
+b8 vulkan_renderer_shader_set_uniform_i16(u32 shader_id, u32 location, i16 value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_i16(&context.shaders[shader_id], location, value);
+}
+b8 vulkan_renderer_shader_set_uniform_i32(u32 shader_id, u32 location, i32 value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_i32(&context.shaders[shader_id], location, value);
+}
+b8 vulkan_renderer_shader_set_uniform_u8(u32 shader_id, u32 location, u8 value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_u8(&context.shaders[shader_id], location, value);
+}
+b8 vulkan_renderer_shader_set_uniform_u16(u32 shader_id, u32 location, u16 value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_u16(&context.shaders[shader_id], location, value);
+}
+b8 vulkan_renderer_shader_set_uniform_u32(u32 shader_id, u32 location, u32 value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_u32(&context.shaders[shader_id], location, value);
+}
+b8 vulkan_renderer_shader_set_uniform_f32(u32 shader_id, u32 location, f32 value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_f32(&context.shaders[shader_id], location, value);
+}
+b8 vulkan_renderer_shader_set_uniform_vec2(u32 shader_id, u32 location, vec2 value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_vec2(&context.shaders[shader_id], location, value);
+}
+b8 vulkan_renderer_shader_set_uniform_vec2f(u32 shader_id, u32 location, f32 value_0, f32 value_1) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_vec2f(&context.shaders[shader_id], location, value_0, value_1);
+}
+b8 vulkan_renderer_shader_set_uniform_vec3(u32 shader_id, u32 location, vec3 value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_vec3(&context.shaders[shader_id], location, value);
+}
+b8 vulkan_renderer_shader_set_uniform_vec3f(u32 shader_id, u32 location, f32 value_0, f32 value_1, f32 value_2) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_vec3f(&context.shaders[shader_id], location, value_0, value_1, value_2);
+}
+b8 vulkan_renderer_shader_set_uniform_vec4(u32 shader_id, u32 location, vec4 value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_vec4(&context.shaders[shader_id], location, value);
+}
+b8 vulkan_renderer_shader_set_uniform_vec4f(u32 shader_id, u32 location, f32 value_0, f32 value_1, f32 value_2, f32 value_3) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_vec4f(&context.shaders[shader_id], location, value_0, value_1, value_2, value_3);
+}
+b8 vulkan_renderer_shader_set_uniform_mat4(u32 shader_id, u32 location, mat4 value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_mat4(&context.shaders[shader_id], location, value);
+}
+b8 vulkan_renderer_shader_set_uniform_custom(u32 shader_id, u32 location, void* value) {
+    SHADER_VERIFY_SHADER_ID(shader_id);
+    return vulkan_shader_set_uniform_custom(&context.shaders[shader_id], location, value);
 }
