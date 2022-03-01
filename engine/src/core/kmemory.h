@@ -38,6 +38,7 @@ typedef enum memory_tag {
     MEMORY_TAG_ENTITY,
     MEMORY_TAG_ENTITY_NODE,
     MEMORY_TAG_SCENE,
+    MEMORY_TAG_RESOURCE,
 
     MEMORY_TAG_MAX_TAGS
 } memory_tag;

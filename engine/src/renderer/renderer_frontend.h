@@ -110,6 +110,15 @@ b8 renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vertex_coun
 void renderer_destroy_geometry(geometry* geometry);
 
 /**
+ * @brief Obtains the identifier of the renderpass with the given name.
+ * 
+ * @param name The name of the renderpass whose identifier to obtain.
+ * @param out_renderpass_id A pointer to hold the renderpass id.
+ * @return True if found; otherwise false.
+ */
+b8 renderer_renderpass_id(const char* name, u8* out_renderpass_id);
+
+/**
  * @brief Creates a new shader using the provided parameters.
  * @param name The name of the shader.
  * @param renderpass_id The identifier of the renderpass to be associated with the shader.
@@ -273,7 +282,7 @@ b8 renderer_shader_add_uniform_mat4(u32 shader_id, const char* uniform_name, sha
  * @brief Adds a new custom-sized uniform to the shader. This is useful for structure
  * types. NOTE: Size verification is not done for this type when setting the uniform.
  *
- * @param shader The identifier of the shader to add the uniform to.
+ * @param shader_id The identifier of the shader to add the uniform to.
  * @param uniform_name The name of the uniform.
  * @param size The size of the uniform in bytes.
  * @param scope The scope of the uniform. Can be global, instance or local.
@@ -281,6 +290,20 @@ b8 renderer_shader_add_uniform_mat4(u32 shader_id, const char* uniform_name, sha
  * @return True on success; otherwise false.
  */
 b8 renderer_shader_add_uniform_custom(u32 shader_id, const char* uniform_name, u32 size, shader_scope scope, u32* out_location);
+
+/**
+ * @brief Adds a uniform of the given type to the shader. This may be used for all
+ * uniform types except CUSTOM, which will throw an error. Call renderer_shader_add_uniform_custom
+ * for custom uniforms.
+ *
+ * @param shader_id The identifier of the shader to add the uniform to.
+ * @param uniform_name he name of the uniform.
+ * @param type The type of the uniform. Do not pass CUSTOM here, use renderer_shader_add_uniform_custom for custom uniforms instead.
+ * @param scope The scope of the uniform. Can be global, instance or local.
+ * @param out_location A pointer to hold the location of the uniform for future use.
+ * @return True on success; otherwise false.
+ */
+b8 renderer_shader_add_uniform(u32 shader_id, const char* uniform_name, shader_uniform_type type, shader_scope scope, u32* out_location);
 
 // End add attributes/samplers/uniforms
 
@@ -523,7 +546,7 @@ b8 renderer_shader_set_uniform_mat4(u32 shader_id, u32 location, mat4 value);
  * @brief Sets the value of the custom-size uniform at the provided location.
  * Size of data should match the size originally added. NOTE: Size verification
  * is bypassed for this type.
- * 
+ *
  * @param shader A pointer to set the uniform value for.
  * @param location The location of the uniform to be set.
  * @param value The value to be set.

@@ -329,6 +329,21 @@ void renderer_destroy_geometry(geometry* geometry) {
     state_ptr->backend.destroy_geometry(geometry);
 }
 
+b8 renderer_renderpass_id(const char* name, u8* out_renderpass_id) {
+    // TODO: HACK: Need dynamic renderpasses instead of hardcoding them.
+    if (strings_equali("Renderpass.Builtin.World", name)) {
+        *out_renderpass_id = 1;
+        return true;
+    } else if (strings_equali("Renderpass.Builtin.UI", name)) {
+        *out_renderpass_id = 2;
+        return true;
+    }
+
+    KERROR("renderer_renderpass_id: No renderpass named '%s'.", name);
+    *out_renderpass_id = INVALID_ID_U8;
+    return false;
+}
+
 b8 renderer_shader_create(const char* name, u8 renderpass_id, u32 stages, b8 use_instances, b8 use_local, u32* out_shader_id) {
     return state_ptr->backend.shader_create(name, renderpass_id, stages, use_instances, use_local, out_shader_id);
 }
@@ -391,6 +406,48 @@ b8 renderer_shader_add_uniform_mat4(u32 shader_id, const char* uniform_name, sha
 
 b8 renderer_shader_add_uniform_custom(u32 shader_id, const char* uniform_name, u32 size, shader_scope scope, u32* out_location) {
     return state_ptr->backend.shader_add_uniform_custom(shader_id, uniform_name, size, scope, out_location);
+}
+
+b8 renderer_shader_add_uniform(u32 shader_id, const char* uniform_name, shader_uniform_type type, shader_scope scope, u32* out_location) {
+    if (type == SHADER_UNIFORM_TYPE_CUSTOM) {
+        KERROR("renderer_shader_add_uniform does not accept uniform type SHADER_UNIFORM_TYPE_CUSTOM. Call renderer_shader_add_uniform_custom for this type instead.");
+        return false;
+    }
+
+    renderer_backend* b = &state_ptr->backend;
+    switch (type) {
+        // Float types
+        case SHADER_UNIFORM_TYPE_FLOAT32:
+            return b->shader_add_uniform_f32(shader_id, uniform_name, scope, out_location);
+        case SHADER_UNIFORM_TYPE_FLOAT32_2:
+            return b->shader_add_uniform_vec2(shader_id, uniform_name, scope, out_location);
+        case SHADER_UNIFORM_TYPE_FLOAT32_3:
+            return b->shader_add_uniform_vec3(shader_id, uniform_name, scope, out_location);
+        case SHADER_UNIFORM_TYPE_FLOAT32_4:
+            return b->shader_add_uniform_vec4(shader_id, uniform_name, scope, out_location);
+
+        // Unsigned int types
+        case SHADER_UNIFORM_TYPE_UINT8:
+            return b->shader_add_uniform_u8(shader_id, uniform_name, scope, out_location);
+        case SHADER_UNIFORM_TYPE_UINT16:
+            return b->shader_add_uniform_u16(shader_id, uniform_name, scope, out_location);
+        case SHADER_UNIFORM_TYPE_UINT32:
+            return b->shader_add_uniform_u32(shader_id, uniform_name, scope, out_location);
+
+            // Signed int types
+        case SHADER_UNIFORM_TYPE_INT8:
+            return b->shader_add_uniform_i8(shader_id, uniform_name, scope, out_location);
+        case SHADER_UNIFORM_TYPE_INT16:
+            return b->shader_add_uniform_i16(shader_id, uniform_name, scope, out_location);
+        case SHADER_UNIFORM_TYPE_INT32:
+            return b->shader_add_uniform_i32(shader_id, uniform_name, scope, out_location);
+        case SHADER_UNIFORM_TYPE_MATRIX_4:
+            return b->shader_add_uniform_mat4(shader_id, uniform_name, scope, out_location);
+
+        default:
+            KERROR("renderer_shader_add_uniform Unknown shader type: %d", type);
+            return false;
+    }
 }
 
 b8 renderer_shader_initialize(u32 shader_id) {

@@ -4,9 +4,9 @@
  * @brief This file contains the types for common resources the engine uses.
  * @version 1.0
  * @date 2022-01-11
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
- * 
+ *
  */
 
 #pragma once
@@ -47,7 +47,7 @@ typedef struct resource {
 } resource;
 
 /**
- * @brief A structure to hold image resource data. 
+ * @brief A structure to hold image resource data.
  */
 typedef struct image_resource_data {
     /** @brief The number of channels. */
@@ -178,3 +178,38 @@ typedef struct geometry {
     /** @brief A pointer to the material associated with this geometry.. */
     material* material;
 } geometry;
+
+typedef struct shader_attribute_config {
+    u8 name_length;
+    char* name;
+    u8 size;
+    char type[7];
+} shader_attribute_config;
+
+typedef struct shader_uniform_config {
+    u8 name_length;
+    char* name;
+    u8 size;
+    u32 location;
+    char type[7];
+    char scope[9];
+} shader_uniform_config;
+
+typedef struct shader_config {
+    char* name;
+    u8 renderpass_id;
+    u32 stages;
+    b8 use_instances;
+    b8 use_local;
+
+    u8 attribute_count;
+    shader_attribute_config* attributes;
+
+    u8 uniform_count;
+    shader_uniform_config* uniforms;
+
+    char* renderpass_name;
+
+    u8 stage_count;
+    char** stage_names;
+} shader_config;
