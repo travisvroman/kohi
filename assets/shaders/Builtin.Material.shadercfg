@@ -1,3 +1,5 @@
+# Kohi shader config file
+version=1.0
 name=Shader.Builtin.Material
 renderpass=Renderpass.Builtin.World
 stages=vertex,fragment
@@ -5,15 +7,14 @@ stagefiles=Builtin.Materialshader.vert.spv,Builtin.Materialshader.frag.spv
 use_instance=1
 use_local=1
 
-[attributes]
-name=in_position,type=vec3
-name=in_texcoord,type=vec2
-[/attributes]
+# Attributes: type,name
+attribute=vec3,in_position
+attribute=vec2,in_texcoord
 
-[uniforms]
-name=projection,type=mat4,scope=global
-name=view,type=mat4,scope=global
-name=diffuse_colour,type=vec4,scope=instance
-name=diffuse_texture,type=sampler,scope=instance
-name=model,type=vec4,scope=local
-[/uniforms]
+# Uniforms: type,scope,name
+# NOTE: For scope: 0=global, 1=instance, 2=local
+uniform=mat4,0,projection
+uniform=mat4,0,view
+uniform=vec4,1,diffuse_colour
+uniform=samp,1,diffuse_texture
+uniform=vec4,2,model

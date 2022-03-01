@@ -39,10 +39,12 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
     resource_data->use_instances = false;
     resource_data->use_local = false;
     resource_data->renderpass_id = INVALID_ID_U8;
-    resource_data->stage_count =0 ;
+    resource_data->stage_count = 0;
     resource_data->stage_names = darray_create(char*);
+    resource_data->stage_filename_count = 0;
+    resource_data->stage_filenames = darray_create(char*);
     resource_data->renderpass_name = 0;
-    
+
     string_ncopy(resource_data->name, name, 255);
 
     // Read each line of the file.
@@ -87,20 +89,147 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
         if (strings_equali(trimmed_var_name, "version")) {
             // TODO: version
         } else if (strings_equali(trimmed_var_name, "name")) {
-            string_ncopy(resource_data->name, trimmed_value, shader_NAME_MAX_LENGTH);
-        } else if (strings_equali(trimmed_var_name, "diffuse_map_name")) {
-            string_ncopy(resource_data->diffuse_map_name, trimmed_value, TEXTURE_NAME_MAX_LENGTH);
-        } else if (strings_equali(trimmed_var_name, "diffuse_colour")) {
-            // Parse the colour
-            if (!string_to_vec4(trimmed_value, &resource_data->diffuse_colour)) {
-                KWARN("Error parsing diffuse_colour in file '%s'. Using default of white instead.", full_file_path);
-                // NOTE: already assigned above, no need to have it here.
+            string_ncopy(resource_data->name, trimmed_value, 255);
+        } else if (strings_equali(trimmed_var_name, "renderpass")) {
+            resource_data->renderpass_name = kallocate(sizeof(char) * (string_length(trimmed_value) + 1), MEMORY_TAG_STRING);
+            string_ncopy(resource_data->renderpass_name, trimmed_value, 255);
+        } else if (strings_equali(trimmed_var_name, "stages")) {
+            // Parse the stages
+            resource_data->stage_names = darray_create(char*);
+            resource_data->stage_count = string_split(trimmed_value, ',', resource_data->stage_names, true, true);
+        } else if (strings_equali(trimmed_var_name, "stagefiles")) {
+            // Parse the stage file names
+            resource_data->stage_filenames = darray_create(char*);
+            resource_data->stage_filename_count = string_split(trimmed_value, ',', resource_data->stage_filenames, true, true);
+        } else if (strings_equali(trimmed_var_name, "use_instance")) {
+            string_to_bool(trimmed_value, &resource_data->use_instances);
+        } else if (strings_equali(trimmed_var_name, "use_local")) {
+            string_to_bool(trimmed_value, &resource_data->use_local);
+        } else if (strings_equali(trimmed_var_name, "attribute")) {
+            // Parse attribute.
+            char** fields = darray_create(char*);
+            u32 field_count = string_split(trimmed_value, ',', fields, true, true);
+            if (field_count != 2) {
+                KERROR("shader_loader_load: Invalid file layout. Attribute fields must be 'type,name'. Skipping.");
+            } else {
+                shader_attribute_config attribute;
+                // Parse field type
+                if (strings_equali(fields[0], "f32")) {
+                    attribute.type = SHADER_ATTRIB_TYPE_FLOAT32;
+                    attribute.size = 4;
+                } else if (strings_equali(fields[0], "vec2")) {
+                    attribute.type = SHADER_ATTRIB_TYPE_FLOAT32_2;
+                    attribute.size = 8;
+                } else if (strings_equali(fields[0], "vec3")) {
+                    attribute.type = SHADER_ATTRIB_TYPE_FLOAT32_3;
+                    attribute.size = 12;
+                } else if (strings_equali(fields[0], "vec4")) {
+                    attribute.type = SHADER_ATTRIB_TYPE_FLOAT32_4;
+                    attribute.size = 16;
+                } else if (strings_equali(fields[0], "u8")) {
+                    attribute.type = SHADER_ATTRIB_TYPE_UINT8;
+                    attribute.size = 1;
+                } else if (strings_equali(fields[0], "u16")) {
+                    attribute.type = SHADER_ATTRIB_TYPE_UINT16;
+                    attribute.size = 2;
+                } else if (strings_equali(fields[0], "u32")) {
+                    attribute.type = SHADER_ATTRIB_TYPE_UINT32;
+                    attribute.size = 4;
+                } else if (strings_equali(fields[0], "i8")) {
+                    attribute.type = SHADER_ATTRIB_TYPE_INT8;
+                    attribute.size = 1;
+                } else if (strings_equali(fields[0], "i16")) {
+                    attribute.type = SHADER_ATTRIB_TYPE_INT16;
+                    attribute.size = 2;
+                } else if (strings_equali(fields[0], "i32")) {
+                    attribute.type = SHADER_ATTRIB_TYPE_INT32;
+                    attribute.size = 4;
+                } else {
+                    KERROR("shader_loader_load: Invalid file layout. Attribute type must be f32, vec2, vec3, vec4, i8, i16, i32, u8, u16, or u32.");
+                    KWARN("Defaulting to f32.");
+                    attribute.type = SHADER_ATTRIB_TYPE_FLOAT32;
+                    attribute.size = 4;
+                }
+
+                // Take a copy of the attribute name.
+                attribute.name_length = string_length(fields[1]);
+                attribute.name = string_duplicate(fields[1]);
+
+                // Add the attribute.
+                darray_push(resource_data->attributes, attribute);
             }
-        } else if (strings_equali(trimmed_var_name, "type")) {
-            // TODO: other shader types.
-            if (strings_equali(trimmed_value, "ui")) {
-                resource_data->type = shader_TYPE_UI;
+
+            string_cleanup_split_array(fields);
+            darray_destroy(fields);
+        } else if (strings_equali(trimmed_var_name, "uniform")) {
+            // Parse uniform.
+            char** fields = darray_create(char*);
+            u32 field_count = string_split(trimmed_value, ',', fields, true, true);
+            if (field_count != 3) {
+                KERROR("shader_loader_load: Invalid file layout. Uniform fields must be 'type,scope,name'. Skipping.");
+            } else {
+                shader_uniform_config uniform;
+                // Parse field type
+                if (strings_equali(fields[0], "f32")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_FLOAT32;
+                    uniform.size = 4;
+                } else if (strings_equali(fields[0], "vec2")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_FLOAT32_2;
+                    uniform.size = 8;
+                } else if (strings_equali(fields[0], "vec3")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_FLOAT32_3;
+                    uniform.size = 12;
+                } else if (strings_equali(fields[0], "vec4")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_FLOAT32_4;
+                    uniform.size = 16;
+                } else if (strings_equali(fields[0], "u8")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_UINT8;
+                    uniform.size = 1;
+                } else if (strings_equali(fields[0], "u16")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_UINT16;
+                    uniform.size = 2;
+                } else if (strings_equali(fields[0], "u32")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_UINT32;
+                    uniform.size = 4;
+                } else if (strings_equali(fields[0], "i8")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_INT8;
+                    uniform.size = 1;
+                } else if (strings_equali(fields[0], "i16")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_INT16;
+                    uniform.size = 2;
+                } else if (strings_equali(fields[0], "i32")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_INT32;
+                    uniform.size = 4;
+                } else {
+                    KERROR("shader_loader_load: Invalid file layout. Attribute type must be f32, vec2, vec3, vec4, i8, i16, i32, u8, u16, or u32.");
+                    KWARN("Defaulting to f32.");
+                    uniform.type = SHADER_ATTRIB_TYPE_FLOAT32;
+                    uniform.size = 4;
+                }
+
+                // Parse the scope
+                if (strings_equal(fields[1], "0")) {
+                    uniform.scope = SHADER_SCOPE_GLOBAL;
+                } else if (strings_equal(fields[1], "1")) {
+                    uniform.scope = SHADER_SCOPE_INSTANCE;
+                } else if (strings_equal(fields[1], "2")) {
+                    uniform.scope = SHADER_SCOPE_LOCAL;
+                } else {
+                    KERROR("shader_loader_load: Invalid file layout: Uniform scope must be 0 for global, 1 for instance or 2 for local.");
+                    KWARN("Defaulting to global.");
+                    uniform.scope = SHADER_SCOPE_GLOBAL;
+                }
+
+                // Take a copy of the attribute name.
+                uniform.name_length = string_length(fields[2]);
+                uniform.name = string_duplicate(fields[2]);
+
+                // Add the attribute.
+                darray_push(resource_data->uniforms, uniform);
             }
+
+            string_cleanup_split_array(fields);
+            darray_destroy(fields);
         }
 
         // TODO: more fields.
@@ -120,7 +249,19 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
 }
 
 void shader_loader_unload(struct resource_loader* self, resource* resource) {
-    if (!resource_unload(self, resource, MEMORY_TAG_shader_INSTANCE)) {
+    shader_config* data = (shader_config*)resource->data;
+
+    // TODO: finish cleanup
+
+    string_cleanup_split_array(data->stage_filenames);
+    darray_destroy(data->stage_filenames);
+
+    string_cleanup_split_array(data->stage_names);
+    darray_destroy(data->stage_names);
+
+    kfree(data->renderpass_name, sizeof(char) * (string_length(data->renderpass_name) + 1), MEMORY_TAG_STRING);
+
+    if (!resource_unload(self, resource, MEMORY_TAG_RESOURCE)) {
         KWARN("shader_loader_unload called with nullptr for self or resource.");
     }
 }

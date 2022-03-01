@@ -12,6 +12,7 @@
 #pragma once
 
 #include "math/math_types.h"
+#include "renderer/renderer_types.inl"
 
 /** @brief Pre-defined resource types. */
 typedef enum resource_type {
@@ -183,7 +184,7 @@ typedef struct shader_attribute_config {
     u8 name_length;
     char* name;
     u8 size;
-    char type[7];
+    shader_attribute_type type;
 } shader_attribute_config;
 
 typedef struct shader_uniform_config {
@@ -191,8 +192,8 @@ typedef struct shader_uniform_config {
     char* name;
     u8 size;
     u32 location;
-    char type[7];
-    char scope[9];
+    shader_uniform_type type;
+    shader_scope scope;
 } shader_uniform_config;
 
 typedef struct shader_config {
@@ -212,4 +213,6 @@ typedef struct shader_config {
 
     u8 stage_count;
     char** stage_names;
+    u8 stage_filename_count;
+    char** stage_filenames;
 } shader_config;

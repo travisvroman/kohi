@@ -1,10 +1,11 @@
 #include "core/kstring.h"
 #include "core/kmemory.h"
+#include "containers/darray.h"
 
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <ctype.h>   // isspace
+#include <ctype.h>  // isspace
 
 #ifndef _MSC_VER
 #include <strings.h>
@@ -268,5 +269,67 @@ b8 string_to_bool(char* str, b8* b) {
         return false;
     }
 
-    return strings_equal(str, "1") || strings_equali(str, "true");
+    *b = strings_equal(str, "1") || strings_equali(str, "true");
+    return *b;
+}
+
+u32 string_split(const char* str, char delimiter, char** str_darray, b8 trim_entries, b8 include_empty) {
+    if (!str || !str_darray) {
+        return 0;
+    }
+
+    u32 entry_count = 0;
+    u32 length = string_length(str);
+    char buffer[16384];  // If a single entry goes beyond this, well... just don't do that.
+    u32 current_length = 0;
+    // Iterate each character until a delimiter is reached.
+    for (u32 i = 0; i < length; ++i) {
+        char c = str[i];
+
+        // Found delimiter, finalize string.
+        if (c == delimiter) {
+            buffer[i + 1] = 0;
+            char* result = buffer;
+            u32 trimmed_length = current_length;
+            // Trim if applicable
+            if (trim_entries && current_length > 0) {
+                result = string_trim(result);
+                trimmed_length = string_length(result);
+            }
+            // Add new entry
+            if (trimmed_length > 0 || include_empty) {
+                char* entry = kallocate(sizeof(char) * (trimmed_length + 1), MEMORY_TAG_STRING);
+                if (trimmed_length = 0) {
+                    entry[0] = 0;
+                } else {
+                    string_ncopy(entry, result, trimmed_length);
+                    entry[trimmed_length] = 0;
+                }
+                darray_push(str_darray, entry);
+                entry_count++;
+            }
+
+            // Clear the buffer.
+            kzero_memory(buffer, sizeof(char) * 16384);
+            continue;
+        }
+
+        buffer[i] = c;
+    }
+
+    return entry_count;
+}
+
+void string_cleanup_split_array(char** str_darray) {
+    if (str_darray) {
+        u32 count = darray_length(str_darray);
+        // Free each string.
+        for (u32 i = 0; i < count; ++i) {
+            u32 len = string_length(str_darray[i]);
+            kfree(str_darray[i], sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+        }
+
+        // Clear the darray
+        darray_clear(str_darray);
+    }
 }
