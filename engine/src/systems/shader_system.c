@@ -5,7 +5,7 @@
 #include "core/kstring.h"
 #include "containers/hashtable.h"
 #include "renderer/renderer_frontend.h"
-#include
+
 
 typedef struct shader_system_state {
     shader_system_config config;
@@ -112,30 +112,6 @@ b8 shader_system_create(const char* name, const shader_config* config) {
         // Dangit, we got so far... welp, nuke the shader and boot.
         renderer_shader_destroy(shader_id);
         return false;
-    }
-
-    return true;
-}
-
-b8 shader_system_load_config(const char* config_file_path, shader_config* out_config) {
-    if (!config_file_path || !out_config || string_length(config_file_path) < 1) {
-        return false;
-    }
-
-    // TODO: open file, etc.
-
-    // Process configuration.
-    if (!renderer_renderpass_id(out_config->renderpass_name, &out_config->renderpass_id)) {
-        KERROR("shader_system_load_config: No renderpass found named '%s'. Cannot load config.", out_config->renderpass_name);
-        return false;
-    }
-
-    // Extract stage names
-    u32 stages = 0;
-    for (u32 i = 0; i < out_config->stage_count; ++i) {
-        if (strings_equali(out_config->stage_names[i], "frag") || strings_equali(out_config->stage_names[i], "fragment")) {
-            stages |= SHADER_STAGE_FRAGMENT;
-        }
     }
 
     return true;

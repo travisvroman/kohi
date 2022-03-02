@@ -251,15 +251,31 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
 void shader_loader_unload(struct resource_loader* self, resource* resource) {
     shader_config* data = (shader_config*)resource->data;
 
-    // TODO: finish cleanup
-
     string_cleanup_split_array(data->stage_filenames);
     darray_destroy(data->stage_filenames);
 
     string_cleanup_split_array(data->stage_names);
     darray_destroy(data->stage_names);
 
+    // Clean up attributes.
+    u32 count = darray_length(data->attributes);
+    for (u32 i = 0; i < count; ++i) {
+        u32 len = string_length(data->attributes[i].name);
+        kfree(data->attributes[i].name, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+    }
+    darray_destroy(data->attributes);
+
+    // Clean up uniforms.
+    count = darray_length(data->uniforms);
+    for (u32 i = 0; i < count; ++i) {
+        u32 len = string_length(data->uniforms[i].name);
+        kfree(data->uniforms[i].name, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+    }
+    darray_destroy(data->uniforms);
+
     kfree(data->renderpass_name, sizeof(char) * (string_length(data->renderpass_name) + 1), MEMORY_TAG_STRING);
+
+    kzero_memory(data, sizeof(shader_config));
 
     if (!resource_unload(self, resource, MEMORY_TAG_RESOURCE)) {
         KWARN("shader_loader_unload called with nullptr for self or resource.");
@@ -268,7 +284,7 @@ void shader_loader_unload(struct resource_loader* self, resource* resource) {
 
 resource_loader shader_resource_loader_create() {
     resource_loader loader;
-    loader.type = RESOURCE_TYPE_shader;
+    loader.type = RESOURCE_TYPE_SHADER;
     loader.custom_type = 0;
     loader.load = shader_loader_load;
     loader.unload = shader_loader_unload;
