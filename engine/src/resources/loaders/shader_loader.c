@@ -18,7 +18,7 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
 
     char* format_str = "%s/%s/%s%s";
     char full_file_path[512];
-    string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, ".kmt");
+    string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, ".shadercfg");
 
     file_handle f;
     if (!filesystem_open(full_file_path, FILE_MODE_READ, false, &f)) {
@@ -35,17 +35,16 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
     resource_data->uniform_count = 0;
     resource_data->uniforms = darray_create(shader_uniform_config);
     resource_data->stage_count = 0;
-    resource_data->stages = 0;
+    resource_data->stages = darray_create(shader_stage);
     resource_data->use_instances = false;
     resource_data->use_local = false;
     resource_data->renderpass_id = INVALID_ID_U8;
     resource_data->stage_count = 0;
     resource_data->stage_names = darray_create(char*);
-    resource_data->stage_filename_count = 0;
     resource_data->stage_filenames = darray_create(char*);
     resource_data->renderpass_name = 0;
 
-    string_ncopy(resource_data->name, name, 255);
+    resource_data->name = string_duplicate(name);
 
     // Read each line of the file.
     char line_buf[512] = "";
@@ -95,12 +94,39 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
             string_ncopy(resource_data->renderpass_name, trimmed_value, 255);
         } else if (strings_equali(trimmed_var_name, "stages")) {
             // Parse the stages
-            resource_data->stage_names = darray_create(char*);
-            resource_data->stage_count = string_split(trimmed_value, ',', resource_data->stage_names, true, true);
+            char** stage_names = darray_create(char*);
+            u32 count = string_split(trimmed_value, ',', &stage_names, true, true);
+            resource_data->stage_names = stage_names;
+            // Ensure stage name and stage file name count are the same, as they should align.
+            if (resource_data->stage_count == 0) {
+                resource_data->stage_count = count;
+            } else if (resource_data->stage_count != count) {
+                KERROR("shader_loader_load: Invalid file layout. Count mismatch between stage names and stage filenames.");
+            }
+            // Parse each stage and add the right type to the array.
+            for (u8 i = 0; i < resource_data->stage_count; ++i) {
+                if (strings_equali(stage_names[i], "frag") || strings_equali(stage_names[i], "fragment")) {
+                    darray_push(resource_data->stages, SHADER_STAGE_FRAGMENT);
+                } else if (strings_equali(stage_names[i], "vert") || strings_equali(stage_names[i], "vertex")) {
+                    darray_push(resource_data->stages, SHADER_STAGE_VERTEX);
+                } else if (strings_equali(stage_names[i], "geom") || strings_equali(stage_names[i], "geometry")) {
+                    darray_push(resource_data->stages, SHADER_STAGE_GEOMETRY);
+                } else if (strings_equali(stage_names[i], "comp") || strings_equali(stage_names[i], "compute")) {
+                    darray_push(resource_data->stages, SHADER_STAGE_COMPUTE);
+                } else {
+                    KERROR("shader_loader_load: Invalid file layout. Unrecognized stage '%s'", stage_names[i]);
+                }
+            }
         } else if (strings_equali(trimmed_var_name, "stagefiles")) {
             // Parse the stage file names
             resource_data->stage_filenames = darray_create(char*);
-            resource_data->stage_filename_count = string_split(trimmed_value, ',', resource_data->stage_filenames, true, true);
+            u32 count = string_split(trimmed_value, ',', &resource_data->stage_filenames, true, true);
+            // Ensure stage name and stage file name count are the same, as they should align.
+            if (resource_data->stage_count == 0) {
+                resource_data->stage_count = count;
+            } else if (resource_data->stage_count != count) {
+                KERROR("shader_loader_load: Invalid file layout. Count mismatch between stage names and stage filenames.");
+            }
         } else if (strings_equali(trimmed_var_name, "use_instance")) {
             string_to_bool(trimmed_value, &resource_data->use_instances);
         } else if (strings_equali(trimmed_var_name, "use_local")) {
@@ -108,7 +134,7 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
         } else if (strings_equali(trimmed_var_name, "attribute")) {
             // Parse attribute.
             char** fields = darray_create(char*);
-            u32 field_count = string_split(trimmed_value, ',', fields, true, true);
+            u32 field_count = string_split(trimmed_value, ',', &fields, true, true);
             if (field_count != 2) {
                 KERROR("shader_loader_load: Invalid file layout. Attribute fields must be 'type,name'. Skipping.");
             } else {
@@ -157,6 +183,7 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
 
                 // Add the attribute.
                 darray_push(resource_data->attributes, attribute);
+                resource_data->attribute_count++;
             }
 
             string_cleanup_split_array(fields);
@@ -164,7 +191,7 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
         } else if (strings_equali(trimmed_var_name, "uniform")) {
             // Parse uniform.
             char** fields = darray_create(char*);
-            u32 field_count = string_split(trimmed_value, ',', fields, true, true);
+            u32 field_count = string_split(trimmed_value, ',', &fields, true, true);
             if (field_count != 3) {
                 KERROR("shader_loader_load: Invalid file layout. Uniform fields must be 'type,scope,name'. Skipping.");
             } else {
@@ -200,10 +227,16 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
                 } else if (strings_equali(fields[0], "i32")) {
                     uniform.type = SHADER_UNIFORM_TYPE_INT32;
                     uniform.size = 4;
+                } else if (strings_equali(fields[0], "mat4")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_MATRIX_4;
+                    uniform.size = 64;
+                } else if (strings_equali(fields[0], "samp") || strings_equali(fields[0], "sampler")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_SAMPLER;
+                    uniform.size = 0;  // Samplers don't have a size.
                 } else {
-                    KERROR("shader_loader_load: Invalid file layout. Attribute type must be f32, vec2, vec3, vec4, i8, i16, i32, u8, u16, or u32.");
+                    KERROR("shader_loader_load: Invalid file layout. Uniform type must be f32, vec2, vec3, vec4, i8, i16, i32, u8, u16, u32 or mat4.");
                     KWARN("Defaulting to f32.");
-                    uniform.type = SHADER_ATTRIB_TYPE_FLOAT32;
+                    uniform.type = SHADER_UNIFORM_TYPE_FLOAT32;
                     uniform.size = 4;
                 }
 
@@ -226,6 +259,7 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
 
                 // Add the attribute.
                 darray_push(resource_data->uniforms, uniform);
+                resource_data->uniform_count++;
             }
 
             string_cleanup_split_array(fields);
@@ -243,7 +277,6 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
 
     out_resource->data = resource_data;
     out_resource->data_size = sizeof(shader_config);
-    out_resource->name = name;
 
     return true;
 }
@@ -256,6 +289,8 @@ void shader_loader_unload(struct resource_loader* self, resource* resource) {
 
     string_cleanup_split_array(data->stage_names);
     darray_destroy(data->stage_names);
+
+    darray_destroy(data->stages);
 
     // Clean up attributes.
     u32 count = darray_length(data->attributes);
@@ -274,7 +309,7 @@ void shader_loader_unload(struct resource_loader* self, resource* resource) {
     darray_destroy(data->uniforms);
 
     kfree(data->renderpass_name, sizeof(char) * (string_length(data->renderpass_name) + 1), MEMORY_TAG_STRING);
-
+    kfree(data->name, sizeof(char) * (string_length(data->name) + 1), MEMORY_TAG_STRING);
     kzero_memory(data, sizeof(shader_config));
 
     if (!resource_unload(self, resource, MEMORY_TAG_RESOURCE)) {

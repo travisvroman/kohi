@@ -882,12 +882,12 @@ b8 vulkan_renderer_create_material(struct material* material) {
     if (material) {
         switch (material->type) {
             case MATERIAL_TYPE_WORLD:
-            return false;
+                return false;
                 // if (!vulkan_shader_acquire_instance_resources(&context.material_shader, &material->internal_id)) {
                 //     KERROR("vulkan_renderer_create_material - Failed to acquire world shader resources.");
                 //     return false;
                 // }
-                //break;
+                // break;
             case MATERIAL_TYPE_UI:
                 return false;
                 // if (!vulkan_shader_acquire_instance_resources(&context.ui_shader, &material->internal_id)) {
@@ -913,10 +913,10 @@ void vulkan_renderer_destroy_material(struct material* material) {
         if (material->internal_id != INVALID_ID) {
             switch (material->type) {
                 case MATERIAL_TYPE_WORLD:
-                    //vulkan_shader_release_instance_resources(&context.material_shader, material->internal_id);
+                    // vulkan_shader_release_instance_resources(&context.material_shader, material->internal_id);
                     break;
                 case MATERIAL_TYPE_UI:
-                    //vulkan_shader_release_instance_resources(&context.ui_shader, material->internal_id);
+                    // vulkan_shader_release_instance_resources(&context.ui_shader, material->internal_id);
                     break;
                 default:
                     KERROR("vulkan_renderer_destroy_material - unknown material type");
@@ -1070,7 +1070,7 @@ void vulkan_renderer_draw_geometry(geometry_render_data data) {
     }
 }
 
-b8 vulkan_renderer_shader_create(const char* name, u8 renderpass_id, u32 stages, b8 use_instances, b8 use_local, u32* out_shader_id) {
+b8 vulkan_renderer_shader_create(const char* name, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages, b8 use_instances, b8 use_local, u32* out_shader_id) {
     *out_shader_id = INVALID_ID;
     for (u32 i = 0; i < context.max_shader_count; ++i) {
         if (context.shaders[i].id == INVALID_ID) {
@@ -1088,26 +1088,33 @@ b8 vulkan_renderer_shader_create(const char* name, u8 renderpass_id, u32 stages,
     vulkan_renderpass* renderpass = renderpass_id == 1 ? &context.main_renderpass : &context.ui_renderpass;
 
     // Translate stages
-    VkShaderStageFlags vk_stages = 0;
-    if ((stages & SHADER_STAGE_VERTEX) != 0) {
-        vk_stages |= VK_SHADER_STAGE_VERTEX_BIT;
-    }
-    if ((stages & SHADER_STAGE_FRAGMENT) != 0) {
-        vk_stages |= VK_SHADER_STAGE_FRAGMENT_BIT;
-    }
-    if ((stages & SHADER_STAGE_COMPUTE) != 0) {
-        KWARN("vulkan_renderer_shader_create: SHADER_STAGE_COMPUTE is set but not yet supported.");
-        vk_stages |= VK_SHADER_STAGE_COMPUTE_BIT;
-    }
-    if ((stages & SHADER_STAGE_GEOMETRY) != 0) {
-        KWARN("vulkan_renderer_shader_create: VK_SHADER_STAGE_GEOMETRY_BIT is set but not yet supported.");
-        vk_stages |= VK_SHADER_STAGE_GEOMETRY_BIT;
+    VkShaderStageFlags vk_stages[VULKAN_SHADER_MAX_STAGES];
+    for (u8 i = 0; i < stage_count; ++i) {
+        switch (stages[i]) {
+            case SHADER_STAGE_FRAGMENT:
+                vk_stages[i] = VK_SHADER_STAGE_FRAGMENT_BIT;
+                break;
+            case SHADER_STAGE_VERTEX:
+                vk_stages[i] = VK_SHADER_STAGE_VERTEX_BIT;
+                break;
+            case SHADER_STAGE_GEOMETRY:
+                KWARN("vulkan_renderer_shader_create: VK_SHADER_STAGE_GEOMETRY_BIT is set but not yet supported.");
+                vk_stages[i] = VK_SHADER_STAGE_GEOMETRY_BIT;
+                break;
+            case SHADER_STAGE_COMPUTE:
+                KWARN("vulkan_renderer_shader_create: SHADER_STAGE_COMPUTE is set but not yet supported.");
+                vk_stages[i] = VK_SHADER_STAGE_COMPUTE_BIT;
+                break;
+            default:
+                KERROR("Unsupported stage type: %d", stages[i]);
+                break;
+        }
     }
 
     // TODO: configurable max descriptor allocate count.
     u32 max_descriptor_allocate_count = 1024;
 
-    b8 result = vulkan_shader_create(&context, name, renderpass, vk_stages, max_descriptor_allocate_count, use_instances, use_local, &context.shaders[*out_shader_id]);
+    b8 result = vulkan_shader_create(&context, name, renderpass, stage_count, stage_filenames, vk_stages, max_descriptor_allocate_count, use_instances, use_local, &context.shaders[*out_shader_id]);
     if (result) {
         context.shaders[*out_shader_id].id = *out_shader_id;
     } else {

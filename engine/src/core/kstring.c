@@ -273,11 +273,13 @@ b8 string_to_bool(char* str, b8* b) {
     return *b;
 }
 
-u32 string_split(const char* str, char delimiter, char** str_darray, b8 trim_entries, b8 include_empty) {
+u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_entries, b8 include_empty) {
     if (!str || !str_darray) {
         return 0;
     }
 
+    char* result = 0;
+    u32 trimmed_length = 0;
     u32 entry_count = 0;
     u32 length = string_length(str);
     char buffer[16384];  // If a single entry goes beyond this, well... just don't do that.
@@ -288,9 +290,9 @@ u32 string_split(const char* str, char delimiter, char** str_darray, b8 trim_ent
 
         // Found delimiter, finalize string.
         if (c == delimiter) {
-            buffer[i + 1] = 0;
-            char* result = buffer;
-            u32 trimmed_length = current_length;
+            buffer[current_length] = 0;
+            result = buffer;
+            trimmed_length = current_length;
             // Trim if applicable
             if (trim_entries && current_length > 0) {
                 result = string_trim(result);
@@ -299,22 +301,49 @@ u32 string_split(const char* str, char delimiter, char** str_darray, b8 trim_ent
             // Add new entry
             if (trimmed_length > 0 || include_empty) {
                 char* entry = kallocate(sizeof(char) * (trimmed_length + 1), MEMORY_TAG_STRING);
-                if (trimmed_length = 0) {
+                if (trimmed_length == 0) {
                     entry[0] = 0;
                 } else {
                     string_ncopy(entry, result, trimmed_length);
                     entry[trimmed_length] = 0;
                 }
-                darray_push(str_darray, entry);
+                char** a = *str_darray;
+                darray_push(a, entry);
+                *str_darray = a;
                 entry_count++;
             }
 
             // Clear the buffer.
             kzero_memory(buffer, sizeof(char) * 16384);
+            current_length = 0;
             continue;
         }
 
-        buffer[i] = c;
+        buffer[current_length] = c;
+        current_length++;
+    }
+
+    // At the end of the string. If any chars are queued up, read them.
+    result = buffer;
+    trimmed_length = current_length;
+    // Trim if applicable
+    if (trim_entries && current_length > 0) {
+        result = string_trim(result);
+        trimmed_length = string_length(result);
+    }
+    // Add new entry
+    if (trimmed_length > 0 || include_empty) {
+        char* entry = kallocate(sizeof(char) * (trimmed_length + 1), MEMORY_TAG_STRING);
+        if (trimmed_length == 0) {
+            entry[0] = 0;
+        } else {
+            string_ncopy(entry, result, trimmed_length);
+            entry[trimmed_length] = 0;
+        }
+        char** a = *str_darray;
+        darray_push(a, entry);
+        *str_darray = a;
+        entry_count++;
     }
 
     return entry_count;

@@ -344,8 +344,9 @@ typedef enum vulkan_shader_state {
 typedef struct vulkan_shader_stage_config {
     /** @brief The shader stage bit flag. */
     VkShaderStageFlagBits stage;
-    /** @brief A short, up-to-7 character string represetation of the shader stage. */
-    char stage_str[8];
+    /** @brief The shader file name. */
+    char file_name[255];
+
 } vulkan_shader_stage_config;
 
 /**

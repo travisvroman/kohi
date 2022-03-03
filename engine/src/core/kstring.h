@@ -255,7 +255,7 @@ KAPI b8 string_to_bool(char* str, b8* b);
  * @param include_empty Indicates if empty entries should be included.
  * @return The number of entries yielded by the split operation.
  */
-KAPI u32 string_split(const char* str, char delimiter, char** str_darray, b8 trim_entries, b8 include_empty);
+KAPI u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_entries, b8 include_empty);
 
 /**
  * @brief Cleans up string allocations in str_darray, but does not

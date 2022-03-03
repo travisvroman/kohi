@@ -4,6 +4,9 @@
 #include "math/math_types.h"
 #include "resources/resource_types.h"
 
+#define BUILTIN_SHADER_NAME_MATERIAL "Builtin.Material"
+#define BUILTIN_SHADER_NAME_UI "Builtin.UI"
+
 typedef enum renderer_backend_type {
     RENDERER_BACKEND_TYPE_VULKAN,
     RENDERER_BACKEND_TYPE_OPENGL,
@@ -19,55 +22,6 @@ typedef enum builtin_renderpass {
     BUILTIN_RENDERPASS_WORLD = 0x01,
     BUILTIN_RENDERPASS_UI = 0x02
 } builtin_renderpass;
-
-typedef enum shader_stage {
-    SHADER_STAGE_VERTEX = 0x00000001,
-    SHADER_STAGE_GEOMETRY = 0x00000002,
-    SHADER_STAGE_FRAGMENT = 0x00000004,
-    SHADER_STAGE_COMPUTE = 0x0000008
-} shader_stage;
-
-typedef enum shader_attribute_type {
-    SHADER_ATTRIB_TYPE_FLOAT32 = 0U,
-    SHADER_ATTRIB_TYPE_FLOAT32_2 = 1U,
-    SHADER_ATTRIB_TYPE_FLOAT32_3 = 2U,
-    SHADER_ATTRIB_TYPE_FLOAT32_4 = 3U,
-    SHADER_ATTRIB_TYPE_MATRIX_4 = 4U,
-    SHADER_ATTRIB_TYPE_INT8 = 5U,
-    SHADER_ATTRIB_TYPE_UINT8 = 6U,
-    SHADER_ATTRIB_TYPE_INT16 = 7U,
-    SHADER_ATTRIB_TYPE_UINT16 = 8U,
-    SHADER_ATTRIB_TYPE_INT32 = 9U,
-    SHADER_ATTRIB_TYPE_UINT32 = 10U,
-} shader_attribute_type;
-
-typedef enum shader_uniform_type {
-    SHADER_UNIFORM_TYPE_FLOAT32 = 0U,
-    SHADER_UNIFORM_TYPE_FLOAT32_2 = 1U,
-    SHADER_UNIFORM_TYPE_FLOAT32_3 = 2U,
-    SHADER_UNIFORM_TYPE_FLOAT32_4 = 3U,
-    SHADER_UNIFORM_TYPE_INT8 = 4U,
-    SHADER_UNIFORM_TYPE_UINT8 = 5U,
-    SHADER_UNIFORM_TYPE_INT16 = 6U,
-    SHADER_UNIFORM_TYPE_UINT16 = 7U,
-    SHADER_UNIFORM_TYPE_INT32 = 8U,
-    SHADER_UNIFORM_TYPE_UINT32 = 9U,
-    SHADER_UNIFORM_TYPE_MATRIX_4 = 10U,
-    SHADER_UNIFORM_TYPE_CUSTOM = 255U
-} shader_uniform_type;
-
-/**
- * @brief Defines shader scope, which indicates how
- * often it gets updated.
- */
-typedef enum shader_scope {
-    /** @brief Global shader scope, generally updated once per frame. */
-    SHADER_SCOPE_GLOBAL = 0,
-    /** @brief Instance shader scope, generally updated "per-instance" of the shader. */
-    SHADER_SCOPE_INSTANCE = 1,
-    /** @brief Local shader scope, generally updated per-object */
-    SHADER_SCOPE_LOCAL = 2
-} shader_scope;
 
 /**
  * @brief A generic "interface" for the backend. The renderer backend
@@ -207,13 +161,15 @@ typedef struct renderer_backend {
      * @brief Creates a new shader using the provided parameters.
      * @param name The name of the shader.
      * @param renderpass_id The identifier of the renderpass to be associated with the shader.
-     * @param stages Bit flags representing the stages the shader will have. Pass a combination of `shader_stage`s.
+     * @param stage_count The total number of stages.
+     * @param stage_filenames An array of shader stage filenames to be loaded. Should align with stages array.
+     * @param stages A array of shader_stages indicating what render stages (vertex, fragment, etc.) used in this shader.
      * @param use_instances Indicates if instances will be used with the shader.
      * @param use_local Indicates if local uniforms will be used with the shader.
      * @param out_shader A pointer to hold the identifier of the newly-created shader.
      * @returns True on success; otherwise false.
      */
-    b8 (*shader_create)(const char* name, u8 renderpass_id, u32 stages, b8 use_instances, b8 use_local, u32* out_shader_id);
+    b8 (*shader_create)(const char* name, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages, b8 use_instances, b8 use_local, u32* out_shader_id);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
@@ -366,7 +322,7 @@ typedef struct renderer_backend {
     /**
      * @brief Adds a new custom-sized uniform to the shader. This is useful for structure
      * types. NOTE: Size verification is not done for this type when setting the uniform.
-     * 
+     *
      * @param shader A pointer to the shader to add the uniform to.
      * @param uniform_name The name of the uniform.
      * @param size The size of the uniform in bytes.
@@ -616,7 +572,7 @@ typedef struct renderer_backend {
      * @brief Sets the value of the custom-size uniform at the provided location.
      * Size of data should match the size originally added. NOTE: Size verification
      * is bypassed for this type.
-     * 
+     *
      * @param shader A pointer to set the uniform value for.
      * @param location The location of the uniform to be set.
      * @param value The value to be set.

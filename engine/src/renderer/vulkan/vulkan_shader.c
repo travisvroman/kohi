@@ -31,7 +31,18 @@ b8 uniform_name_valid(vulkan_shader* shader, const char* uniform_name);
 b8 shader_uniform_add_state_valid(vulkan_shader* shader);
 b8 uniform_add(vulkan_shader* shader, const char* uniform_name, u32 size, shader_scope scope, u32* out_location, b8 is_sampler);
 
-b8 vulkan_shader_create(vulkan_context* context, const char* name, vulkan_renderpass* renderpass, VkShaderStageFlags stages, u16 max_descriptor_count, b8 use_instances, b8 use_local, vulkan_shader* out_shader) {
+b8 vulkan_shader_create(
+    vulkan_context* context,
+    const char* name,
+    vulkan_renderpass* renderpass,
+    u8 stage_count,
+    const char** stage_filenames,
+    VkShaderStageFlags* stages,
+    u16 max_descriptor_count,
+    b8 use_instances,
+    b8 use_local,
+    vulkan_shader* out_shader) {
+    // Sanity checks
     if (!context || !name || !out_shader) {
         KERROR("vulkan_shader_create must supply valid pointer to context, name and out_shader. Creation failed.");
         return false;
@@ -62,34 +73,29 @@ b8 vulkan_shader_create(vulkan_context* context, const char* name, vulkan_render
     // Shader stages. Parse out the flags.
     kzero_memory(out_shader->config.stages, sizeof(vulkan_shader_stage_config) * VULKAN_SHADER_MAX_STAGES);
     out_shader->config.stage_count = 0;
-    for (u32 i = VK_SHADER_STAGE_VERTEX_BIT; i < VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM; i <<= 1) {  // shift left/double each time.
-        if ((stages & i) == i) {
-            vulkan_shader_stage_config stage_config;
-            switch (i) {
-                // Check for a supported type. Unsupported types are ignored.
-                // Note that this prioritizes stages based on the order of the enum,
-                // but that should be fine.
-                case VK_SHADER_STAGE_VERTEX_BIT:
-                    string_ncopy(stage_config.stage_str, "vert", 7);
-                    break;
-                case VK_SHADER_STAGE_FRAGMENT_BIT:
-                    string_ncopy(stage_config.stage_str, "frag", 7);
-                    break;
-
-                default:
-                    KERROR("vulkan_shader_create: Unsupported shader stage flagged: %d. Stage ignored.", i);
-                    // Go to the next type.
-                    continue;
-            }
-            stage_config.stage = i;
-            if (out_shader->config.stage_count + 1 > VULKAN_SHADER_MAX_STAGES) {
-                KERROR("Shaders may have a maximum of %d stages", VULKAN_SHADER_MAX_STAGES);
-                return false;
-            }
-            // Add the stage.
-            out_shader->config.stages[out_shader->config.stage_count] = stage_config;
-            out_shader->config.stage_count++;
+    // Iterate provided stages.
+    for (u32 i = 0; i < stage_count; i++) {
+        // Make sure there is room enough to add the stage.
+        if (out_shader->config.stage_count + 1 > VULKAN_SHADER_MAX_STAGES) {
+            KERROR("Shaders may have a maximum of %d stages", VULKAN_SHADER_MAX_STAGES);
+            return false;
         }
+
+        // Make sure the stage is a supported one.
+        switch (stages[i]) {
+            case VK_SHADER_STAGE_VERTEX_BIT:
+            case VK_SHADER_STAGE_FRAGMENT_BIT:
+                break;
+            default:
+                // Go to the next type.
+                KERROR("vulkan_shader_create: Unsupported shader stage flagged: %d. Stage ignored.", stages[i]);
+                continue;
+        }
+
+        // Set the stage and bump the counter.
+        out_shader->config.stages[out_shader->config.stage_count].stage = stages[i];
+        string_ncopy(out_shader->config.stages[out_shader->config.stage_count].file_name, stage_filenames[i], 255);
+        out_shader->config.stage_count++;
     }
 
     // Zero out arrays and counts.
@@ -242,29 +248,29 @@ b8 vulkan_shader_add_attribute(vulkan_shader* shader, const char* name, shader_a
         t[SHADER_ATTRIB_TYPE_FLOAT32_3] = (vulkan_format_size){VK_FORMAT_R32G32B32_SFLOAT, 12};
         t[SHADER_ATTRIB_TYPE_FLOAT32_4] = (vulkan_format_size){VK_FORMAT_R32G32B32A32_SFLOAT, 16};
         t[SHADER_ATTRIB_TYPE_INT8] = (vulkan_format_size){VK_FORMAT_R8_SINT, 1};
-        t[SHADER_ATTRIB_TYPE_INT8_2] = (vulkan_format_size){VK_FORMAT_R8G8_SINT, 2};
-        t[SHADER_ATTRIB_TYPE_INT8_3] = (vulkan_format_size){VK_FORMAT_R8G8B8_SINT, 3};
-        t[SHADER_ATTRIB_TYPE_INT8_4] = (vulkan_format_size){VK_FORMAT_R8G8B8A8_SINT, 4};
+        // t[SHADER_ATTRIB_TYPE_INT8_2] = (vulkan_format_size){VK_FORMAT_R8G8_SINT, 2};
+        // t[SHADER_ATTRIB_TYPE_INT8_3] = (vulkan_format_size){VK_FORMAT_R8G8B8_SINT, 3};
+        // t[SHADER_ATTRIB_TYPE_INT8_4] = (vulkan_format_size){VK_FORMAT_R8G8B8A8_SINT, 4};
         t[SHADER_ATTRIB_TYPE_UINT8] = (vulkan_format_size){VK_FORMAT_R8_UINT, 1};
-        t[SHADER_ATTRIB_TYPE_UINT8_2] = (vulkan_format_size){VK_FORMAT_R8G8_UINT, 2};
-        t[SHADER_ATTRIB_TYPE_UINT8_3] = (vulkan_format_size){VK_FORMAT_R8G8B8_UINT, 3};
-        t[SHADER_ATTRIB_TYPE_UINT8_4] = (vulkan_format_size){VK_FORMAT_R8G8B8A8_UINT, 4};
+        // t[SHADER_ATTRIB_TYPE_UINT8_2] = (vulkan_format_size){VK_FORMAT_R8G8_UINT, 2};
+        // t[SHADER_ATTRIB_TYPE_UINT8_3] = (vulkan_format_size){VK_FORMAT_R8G8B8_UINT, 3};
+        // t[SHADER_ATTRIB_TYPE_UINT8_4] = (vulkan_format_size){VK_FORMAT_R8G8B8A8_UINT, 4};
         t[SHADER_ATTRIB_TYPE_INT16] = (vulkan_format_size){VK_FORMAT_R16_SINT, 2};
-        t[SHADER_ATTRIB_TYPE_INT16_2] = (vulkan_format_size){VK_FORMAT_R16G16_SINT, 4};
-        t[SHADER_ATTRIB_TYPE_INT16_3] = (vulkan_format_size){VK_FORMAT_R16G16B16_SINT, 6};
-        t[SHADER_ATTRIB_TYPE_INT16_4] = (vulkan_format_size){VK_FORMAT_R16G16B16A16_SINT, 8};
+        // t[SHADER_ATTRIB_TYPE_INT16_2] = (vulkan_format_size){VK_FORMAT_R16G16_SINT, 4};
+        // t[SHADER_ATTRIB_TYPE_INT16_3] = (vulkan_format_size){VK_FORMAT_R16G16B16_SINT, 6};
+        // t[SHADER_ATTRIB_TYPE_INT16_4] = (vulkan_format_size){VK_FORMAT_R16G16B16A16_SINT, 8};
         t[SHADER_ATTRIB_TYPE_UINT16] = (vulkan_format_size){VK_FORMAT_R16_UINT, 2};
-        t[SHADER_ATTRIB_TYPE_UINT16_2] = (vulkan_format_size){VK_FORMAT_R16G16_UINT, 4};
-        t[SHADER_ATTRIB_TYPE_UINT16_3] = (vulkan_format_size){VK_FORMAT_R16G16B16_UINT, 6};
-        t[SHADER_ATTRIB_TYPE_UINT16_4] = (vulkan_format_size){VK_FORMAT_R16G16B16A16_UINT, 8};
+        // t[SHADER_ATTRIB_TYPE_UINT16_2] = (vulkan_format_size){VK_FORMAT_R16G16_UINT, 4};
+        // t[SHADER_ATTRIB_TYPE_UINT16_3] = (vulkan_format_size){VK_FORMAT_R16G16B16_UINT, 6};
+        // t[SHADER_ATTRIB_TYPE_UINT16_4] = (vulkan_format_size){VK_FORMAT_R16G16B16A16_UINT, 8};
         t[SHADER_ATTRIB_TYPE_INT32] = (vulkan_format_size){VK_FORMAT_R32_SINT, 4};
-        t[SHADER_ATTRIB_TYPE_INT32_2] = (vulkan_format_size){VK_FORMAT_R32G32_SINT, 8};
-        t[SHADER_ATTRIB_TYPE_INT32_3] = (vulkan_format_size){VK_FORMAT_R32G32B32_SINT, 12};
-        t[SHADER_ATTRIB_TYPE_INT32_4] = (vulkan_format_size){VK_FORMAT_R32G32B32A32_SINT, 16};
+        // t[SHADER_ATTRIB_TYPE_INT32_2] = (vulkan_format_size){VK_FORMAT_R32G32_SINT, 8};
+        // t[SHADER_ATTRIB_TYPE_INT32_3] = (vulkan_format_size){VK_FORMAT_R32G32B32_SINT, 12};
+        // t[SHADER_ATTRIB_TYPE_INT32_4] = (vulkan_format_size){VK_FORMAT_R32G32B32A32_SINT, 16};
         t[SHADER_ATTRIB_TYPE_UINT32] = (vulkan_format_size){VK_FORMAT_R32_UINT, 4};
-        t[SHADER_ATTRIB_TYPE_UINT32_2] = (vulkan_format_size){VK_FORMAT_R32G32_UINT, 8};
-        t[SHADER_ATTRIB_TYPE_UINT32_3] = (vulkan_format_size){VK_FORMAT_R32G32B32_UINT, 12};
-        t[SHADER_ATTRIB_TYPE_UINT32_4] = (vulkan_format_size){VK_FORMAT_R32G32B32A32_UINT, 16};
+        // t[SHADER_ATTRIB_TYPE_UINT32_2] = (vulkan_format_size){VK_FORMAT_R32G32_UINT, 8};
+        // t[SHADER_ATTRIB_TYPE_UINT32_3] = (vulkan_format_size){VK_FORMAT_R32G32B32_UINT, 12};
+        // t[SHADER_ATTRIB_TYPE_UINT32_4] = (vulkan_format_size){VK_FORMAT_R32G32B32A32_UINT, 16};
 
         types = t;
     }
@@ -416,7 +422,7 @@ b8 vulkan_shader_initialize(vulkan_shader* shader) {
     kzero_memory(shader->stages, sizeof(vulkan_shader_stage) * VULKAN_SHADER_MAX_STAGES);
     for (u32 i = 0; i < shader->config.stage_count; ++i) {
         if (!create_module(shader, shader->config.stages[i], &shader->stages[i])) {
-            KERROR("Unable to create %s shader module for '%s'. Shader will be destroyed.", shader->config.stages[i].stage_str, shader->name);
+            KERROR("Unable to create %s shader module for '%s'. Shader will be destroyed.", shader->config.stages[i].file_name, shader->name);
             FAIL_DESTROY(shader);
         }
     }
@@ -923,14 +929,11 @@ b8 vulkan_shader_set_uniform_custom(vulkan_shader* shader, u32 location, void* v
 }
 
 b8 create_module(vulkan_shader* shader, vulkan_shader_stage_config config, vulkan_shader_stage* shader_stage) {
-    // Build file name, which will also be used as the resource name.
-    char file_name[512];
-    string_format(file_name, "shaders/%s.%s.spv", shader->name, config.stage_str);
 
     // Read the resource.
     resource binary_resource;
-    if (!resource_system_load(file_name, RESOURCE_TYPE_BINARY, &binary_resource)) {
-        KERROR("Unable to read shader module: %s.", file_name);
+    if (!resource_system_load(config.file_name, RESOURCE_TYPE_BINARY, &binary_resource)) {
+        KERROR("Unable to read shader module: %s.", config.file_name);
         return false;
     }
 

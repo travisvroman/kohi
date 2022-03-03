@@ -23,14 +23,26 @@ struct texture;
  * @param context A pointer to the Vulkan context. A copy of this is stored with the shader.
  * @param name The name of the shader. Used to open compiled shader SPIR-V files.
  * @param renderpass A pointer to the renderpass this shader will use.
- * @param stages A combination of bitflags indicating what render stages (vertex, fragment, etc.) used in this shader.
+ * @param stage_count The total number of stages.
+ * @param stage_filenames An array of shader stage filenames to be loaded. Should align with stages array.
+ * @param stages A array of bitflags indicating what render stages (vertex, fragment, etc.) used in this shader.
  * @param max_descriptor_set_count The maximum number of descriptor sets that can be allocated (generally instance count * 2)
  * @param use_instances Indicates if instance uniforms are used.
  * @param use_local Indicates if local uniforms are used. For Vulkan, these are loaded into push constants.
  * @param out_shader A pointer to hold the newly-created shader.
  * @return True on success; otherwise false.
  */
-b8 vulkan_shader_create(vulkan_context* context, const char* name, vulkan_renderpass *renderpass, VkShaderStageFlags stages, u16 max_descriptor_set_count, b8 use_instances, b8 use_local, vulkan_shader* out_shader);
+b8 vulkan_shader_create(
+    vulkan_context* context, 
+    const char* name, 
+    vulkan_renderpass *renderpass, 
+    u8 stage_count, 
+    const char** stage_filenames, 
+    VkShaderStageFlags* stages,
+    u16 max_descriptor_set_count, 
+    b8 use_instances, 
+    b8 use_local, 
+    vulkan_shader* out_shader);
 
 /**
  * @brief Destroys the provided shader.

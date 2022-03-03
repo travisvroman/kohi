@@ -111,7 +111,7 @@ void renderer_destroy_geometry(geometry* geometry);
 
 /**
  * @brief Obtains the identifier of the renderpass with the given name.
- * 
+ *
  * @param name The name of the renderpass whose identifier to obtain.
  * @param out_renderpass_id A pointer to hold the renderpass id.
  * @return True if found; otherwise false.
@@ -122,13 +122,15 @@ b8 renderer_renderpass_id(const char* name, u8* out_renderpass_id);
  * @brief Creates a new shader using the provided parameters.
  * @param name The name of the shader.
  * @param renderpass_id The identifier of the renderpass to be associated with the shader.
- * @param stages Bit flags representing the stages the shader will have. Pass a combination of `shader_stage`s.
+ * @param stage_count The total number of stages.
+ * @param stage_filenames An array of shader stage filenames to be loaded. Should align with stages array.
+ * @param stages A array of shader_stages indicating what render stages (vertex, fragment, etc.) used in this shader.
  * @param use_instances Indicates if instances will be used with the shader.
  * @param use_local Indicates if local uniforms will be used with the shader.
  * @param out_shader A pointer to hold the identifier of the newly-created shader.
  * @returns True on success; otherwise false.
  */
-b8 renderer_shader_create(const char* name, u8 renderpass_id, u32 stages, b8 use_instances, b8 use_local, u32* out_shader_id);
+b8 renderer_shader_create(const char* name, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages, b8 use_instances, b8 use_local, u32* out_shader_id);
 
 /**
  * @brief Destroys the given shader and releases any resources held by it.

@@ -140,7 +140,7 @@ b8 vulkan_renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vert
  */
 void vulkan_renderer_destroy_geometry(geometry* geometry);
 
-b8 vulkan_renderer_shader_create(const char* name, u8 renderpass_id, u32 stages, b8 use_instances, b8 use_local, u32* out_shader_id);
+b8 vulkan_renderer_shader_create(const char* name, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages, b8 use_instances, b8 use_local, u32* out_shader_id);
 void vulkan_renderer_shader_destroy(u32 shader_id);
 b8 vulkan_renderer_shader_add_attribute(u32 shader_id, const char* name, shader_attribute_type type);
 b8 vulkan_renderer_shader_add_sampler(u32 shader_id, const char* sampler_name, shader_scope scope, u32* out_location);

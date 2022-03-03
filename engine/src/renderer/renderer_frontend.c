@@ -7,8 +7,10 @@
 #include "math/kmath.h"
 
 #include "resources/resource_types.h"
+#include "systems/resource_system.h"
 #include "systems/texture_system.h"
 #include "systems/material_system.h"
+#include "systems/shader_system.h"
 
 // TODO: temporary
 #include "core/kstring.h"
@@ -59,104 +61,28 @@ b8 renderer_system_initialize(u64* memory_requirement, void* state, const char* 
     renderer_backend_create(RENDERER_BACKEND_TYPE_VULKAN, &state_ptr->backend);
     state_ptr->backend.frame_number = 0;
 
+    // Initialize the backend.
     CRITICAL_INIT(state_ptr->backend.initialize(&state_ptr->backend, application_name), "Renderer backend failed to initialize. Shutting down.");
-    // if (!state_ptr->backend.initialize(&state_ptr->backend, application_name)) {
-    //     KFATAL("Renderer backend failed to initialize. Shutting down.");
-    //     return false;
-    // }
 
     // Shaders
-    // TODO: Move this shader to material system.
-    const char* mat_shader_error = "Error creating built-in material shader.";
-    CRITICAL_INIT(
-        state_ptr->backend.shader_create(
-            "Builtin.MaterialShader",
-            BUILTIN_RENDERPASS_WORLD,
-            SHADER_STAGE_VERTEX | SHADER_STAGE_FRAGMENT,
-            true,
-            true,
-            &state_ptr->material_shader_id),
-        mat_shader_error);
+    resource config_resource;
+    shader_config* config = 0;
 
-    // Attributes: Position, texcoord
-    CRITICAL_INIT(state_ptr->backend.shader_add_attribute(state_ptr->material_shader_id, "in_position", SHADER_ATTRIB_TYPE_FLOAT32_3), mat_shader_error);
-    CRITICAL_INIT(state_ptr->backend.shader_add_attribute(state_ptr->material_shader_id, "in_texcoord", SHADER_ATTRIB_TYPE_FLOAT32_2), mat_shader_error);
+    // Builtin material shader.
+    CRITICAL_INIT(
+        resource_system_load(BUILTIN_SHADER_NAME_MATERIAL, RESOURCE_TYPE_SHADER, &config_resource),
+        "Failed to load builtin material shader.");
+    config = (shader_config*)config_resource.data;
+    CRITICAL_INIT(shader_system_create(config), "Failed to load builtin material shader.");
+    resource_system_unload(&config_resource);
 
-    // Uniforms: Global
+    // Builtin UI shader.
     CRITICAL_INIT(
-        state_ptr->backend.shader_add_uniform_mat4(
-            state_ptr->material_shader_id,
-            "projection",
-            SHADER_SCOPE_GLOBAL,
-            &state_ptr->material_shader_projection_location),
-        mat_shader_error);
-    CRITICAL_INIT(
-        state_ptr->backend.shader_add_uniform_mat4(state_ptr->material_shader_id, "view", SHADER_SCOPE_GLOBAL, &state_ptr->material_shader_view_location),
-        mat_shader_error);
-
-    // Uniforms: Instance
-    CRITICAL_INIT(
-        state_ptr->backend.shader_add_uniform_vec4(
-            state_ptr->material_shader_id,
-            "diffuse_colour",
-            SHADER_SCOPE_INSTANCE,
-            &state_ptr->material_shader_diffuse_colour_location),
-        mat_shader_error);
-    CRITICAL_INIT(
-        state_ptr->backend.shader_add_sampler(
-            state_ptr->material_shader_id,
-            "diffuse_texture",
-            SHADER_SCOPE_INSTANCE,
-            &state_ptr->material_shader_diffuse_texture_location),
-        mat_shader_error);
-
-    // Uniforms: Local
-    CRITICAL_INIT(
-        state_ptr->backend.shader_add_uniform_mat4(state_ptr->material_shader_id, "model", SHADER_SCOPE_LOCAL, &state_ptr->material_shader_model_location),
-        mat_shader_error);
-
-    // Initialize
-    CRITICAL_INIT(state_ptr->backend.shader_initialize(state_ptr->material_shader_id), mat_shader_error);
-
-    // UI shader
-    const char* ui_shader_error = "Error creating built-in UI shader.";
-    // TODO: Move this shader to material system.
-    CRITICAL_INIT(
-        state_ptr->backend.shader_create(
-            "Builtin.UIShader",
-            BUILTIN_RENDERPASS_UI,
-            SHADER_STAGE_VERTEX | SHADER_STAGE_FRAGMENT,
-            true,
-            true,
-            &state_ptr->ui_shader_id),
-        ui_shader_error);
-    // Attributes: Position, texcoord
-    CRITICAL_INIT(state_ptr->backend.shader_add_attribute(state_ptr->ui_shader_id, "in_position", SHADER_ATTRIB_TYPE_FLOAT32_2), ui_shader_error);
-    CRITICAL_INIT(state_ptr->backend.shader_add_attribute(state_ptr->ui_shader_id, "in_texcoord", SHADER_ATTRIB_TYPE_FLOAT32_2), ui_shader_error);
-
-    // Uniforms: Global
-    CRITICAL_INIT(
-        state_ptr->backend.shader_add_uniform_mat4(state_ptr->ui_shader_id, "projection", SHADER_SCOPE_GLOBAL, &state_ptr->ui_shader_projection_location),
-        ui_shader_error);
-    CRITICAL_INIT(
-        state_ptr->backend.shader_add_uniform_mat4(state_ptr->ui_shader_id, "view", SHADER_SCOPE_GLOBAL, &state_ptr->ui_shader_view_location),
-        ui_shader_error);
-
-    // Uniforms: Instance
-    CRITICAL_INIT(
-        state_ptr->backend.shader_add_uniform_vec4(state_ptr->ui_shader_id, "diffuse_colour", SHADER_SCOPE_INSTANCE, &state_ptr->ui_shader_diffuse_colour_location),
-        ui_shader_error);
-    CRITICAL_INIT(
-        state_ptr->backend.shader_add_sampler(state_ptr->ui_shader_id, "diffuse_texture", SHADER_SCOPE_INSTANCE, &state_ptr->ui_shader_diffuse_texture_location),
-        ui_shader_error);
-
-    // Uniforms: Local
-    CRITICAL_INIT(
-        state_ptr->backend.shader_add_uniform_mat4(state_ptr->ui_shader_id, "model", SHADER_SCOPE_LOCAL, &state_ptr->ui_shader_model_location),
-        ui_shader_error);
-
-    // Initialize
-    CRITICAL_INIT(state_ptr->backend.shader_initialize(state_ptr->ui_shader_id), ui_shader_error);
+        resource_system_load(BUILTIN_SHADER_NAME_UI, RESOURCE_TYPE_SHADER, &config_resource),
+        "Failed to load builtin UI shader.");
+    config = (shader_config*)config_resource.data;
+    CRITICAL_INIT(shader_system_create(config), "Failed to load builtin UI shader.");
+    resource_system_unload(&config_resource);
 
     // World projection/view
     state_ptr->near_clip = 0.1f;
@@ -205,9 +131,10 @@ b8 renderer_draw_frame(render_packet* packet) {
             return false;
         }
 
-        state_ptr->backend.shader_use(state_ptr->material_shader_id);
+        shader_system_use(BUILTIN_SHADER_NAME_MATERIAL);
 
         // Apply globals
+        // TODO: Shader system bind/set uniforms
         state_ptr->backend.shader_bind_globals(state_ptr->material_shader_id);
         state_ptr->backend.shader_set_uniform_mat4(state_ptr->material_shader_id, state_ptr->material_shader_projection_location, state_ptr->projection);
         state_ptr->backend.shader_set_uniform_mat4(state_ptr->material_shader_id, state_ptr->material_shader_view_location, state_ptr->view);
@@ -248,8 +175,7 @@ b8 renderer_draw_frame(render_packet* packet) {
         }
 
         // Update UI global state
-        // state_ptr->backend.update_global_ui_state(state_ptr->ui_projection, state_ptr->ui_view, 0);
-        state_ptr->backend.shader_use(state_ptr->ui_shader_id);
+        shader_system_use(BUILTIN_SHADER_NAME_UI);
 
         // Apply globals
         state_ptr->backend.shader_bind_globals(state_ptr->ui_shader_id);
@@ -344,8 +270,8 @@ b8 renderer_renderpass_id(const char* name, u8* out_renderpass_id) {
     return false;
 }
 
-b8 renderer_shader_create(const char* name, u8 renderpass_id, u32 stages, b8 use_instances, b8 use_local, u32* out_shader_id) {
-    return state_ptr->backend.shader_create(name, renderpass_id, stages, use_instances, use_local, out_shader_id);
+b8 renderer_shader_create(const char* name, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages, b8 use_instances, b8 use_local, u32* out_shader_id) {
+    return state_ptr->backend.shader_create(name, renderpass_id, stage_count, stage_filenames, stages, use_instances, use_local, out_shader_id);
 }
 
 void renderer_shader_destroy(u32 shader_id) {

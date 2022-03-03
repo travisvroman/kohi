@@ -12,7 +12,6 @@
 #pragma once
 
 #include "math/math_types.h"
-#include "renderer/renderer_types.inl"
 
 /** @brief Pre-defined resource types. */
 typedef enum resource_type {
@@ -182,6 +181,55 @@ typedef struct geometry {
     material* material;
 } geometry;
 
+typedef enum shader_stage {
+    SHADER_STAGE_VERTEX = 0x00000001,
+    SHADER_STAGE_GEOMETRY = 0x00000002,
+    SHADER_STAGE_FRAGMENT = 0x00000004,
+    SHADER_STAGE_COMPUTE = 0x0000008
+} shader_stage;
+
+typedef enum shader_attribute_type {
+    SHADER_ATTRIB_TYPE_FLOAT32 = 0U,
+    SHADER_ATTRIB_TYPE_FLOAT32_2 = 1U,
+    SHADER_ATTRIB_TYPE_FLOAT32_3 = 2U,
+    SHADER_ATTRIB_TYPE_FLOAT32_4 = 3U,
+    SHADER_ATTRIB_TYPE_MATRIX_4 = 4U,
+    SHADER_ATTRIB_TYPE_INT8 = 5U,
+    SHADER_ATTRIB_TYPE_UINT8 = 6U,
+    SHADER_ATTRIB_TYPE_INT16 = 7U,
+    SHADER_ATTRIB_TYPE_UINT16 = 8U,
+    SHADER_ATTRIB_TYPE_INT32 = 9U,
+    SHADER_ATTRIB_TYPE_UINT32 = 10U,
+} shader_attribute_type;
+
+typedef enum shader_uniform_type {
+    SHADER_UNIFORM_TYPE_FLOAT32 = 0U,
+    SHADER_UNIFORM_TYPE_FLOAT32_2 = 1U,
+    SHADER_UNIFORM_TYPE_FLOAT32_3 = 2U,
+    SHADER_UNIFORM_TYPE_FLOAT32_4 = 3U,
+    SHADER_UNIFORM_TYPE_INT8 = 4U,
+    SHADER_UNIFORM_TYPE_UINT8 = 5U,
+    SHADER_UNIFORM_TYPE_INT16 = 6U,
+    SHADER_UNIFORM_TYPE_UINT16 = 7U,
+    SHADER_UNIFORM_TYPE_INT32 = 8U,
+    SHADER_UNIFORM_TYPE_UINT32 = 9U,
+    SHADER_UNIFORM_TYPE_MATRIX_4 = 10U,
+    SHADER_UNIFORM_TYPE_SAMPLER = 11U,
+    SHADER_UNIFORM_TYPE_CUSTOM = 255U
+} shader_uniform_type;
+
+/**
+ * @brief Defines shader scope, which indicates how
+ * often it gets updated.
+ */
+typedef enum shader_scope {
+    /** @brief Global shader scope, generally updated once per frame. */
+    SHADER_SCOPE_GLOBAL = 0,
+    /** @brief Instance shader scope, generally updated "per-instance" of the shader. */
+    SHADER_SCOPE_INSTANCE = 1,
+    /** @brief Local shader scope, generally updated per-object */
+    SHADER_SCOPE_LOCAL = 2
+} shader_scope;
 typedef struct shader_attribute_config {
     u8 name_length;
     char* name;
@@ -201,7 +249,7 @@ typedef struct shader_uniform_config {
 typedef struct shader_config {
     char* name;
     u8 renderpass_id;
-    u32 stages;
+    
     b8 use_instances;
     b8 use_local;
 
@@ -214,7 +262,7 @@ typedef struct shader_config {
     char* renderpass_name;
 
     u8 stage_count;
+    shader_stage* stages;
     char** stage_names;
-    u8 stage_filename_count;
     char** stage_filenames;
 } shader_config;
