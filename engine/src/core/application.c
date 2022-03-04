@@ -194,6 +194,8 @@ b8 application_create(game* game_inst) {
     // Shader system
     shader_system_config shader_sys_config;
     shader_sys_config.max_shader_count = 1024;
+    shader_sys_config.max_uniform_count = 128;
+    shader_sys_config.max_global_textures = 31;
     shader_system_initialize(&app_state->shader_system_memory_requirement, 0, shader_sys_config);
     app_state->shader_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->shader_system_memory_requirement);
     if(!shader_system_initialize(&app_state->shader_system_memory_requirement, app_state->shader_system_state, shader_sys_config)) {

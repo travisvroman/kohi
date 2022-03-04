@@ -270,110 +270,12 @@ b8 renderer_renderpass_id(const char* name, u8* out_renderpass_id) {
     return false;
 }
 
-b8 renderer_shader_create(const char* name, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages, b8 use_instances, b8 use_local, u32* out_shader_id) {
-    return state_ptr->backend.shader_create(name, renderpass_id, stage_count, stage_filenames, stages, use_instances, use_local, out_shader_id);
+b8 renderer_shader_create(shader* shader, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages) {
+    return state_ptr->backend.shader_create(shader, renderpass_id, stage_count, stage_filenames, stages);
 }
 
-void renderer_shader_destroy(u32 shader_id) {
-    state_ptr->backend.shader_destroy(shader_id);
-}
-
-b8 renderer_shader_add_attribute(u32 shader_id, const char* name, shader_attribute_type type) {
-    return state_ptr->backend.shader_add_attribute(shader_id, name, type);
-}
-
-b8 renderer_shader_add_sampler(u32 shader_id, const char* sampler_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_sampler(shader_id, sampler_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_i8(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_i8(shader_id, uniform_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_i16(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_i16(shader_id, uniform_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_i32(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_i32(shader_id, uniform_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_u8(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_u8(shader_id, uniform_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_u16(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_u16(shader_id, uniform_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_u32(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_u32(shader_id, uniform_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_f32(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_f32(shader_id, uniform_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_vec2(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_vec2(shader_id, uniform_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_vec3(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_vec3(shader_id, uniform_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_vec4(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_vec4(shader_id, uniform_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_mat4(u32 shader_id, const char* uniform_name, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_mat4(shader_id, uniform_name, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform_custom(u32 shader_id, const char* uniform_name, u32 size, shader_scope scope, u32* out_location) {
-    return state_ptr->backend.shader_add_uniform_custom(shader_id, uniform_name, size, scope, out_location);
-}
-
-b8 renderer_shader_add_uniform(u32 shader_id, const char* uniform_name, shader_uniform_type type, shader_scope scope, u32* out_location) {
-    if (type == SHADER_UNIFORM_TYPE_CUSTOM) {
-        KERROR("renderer_shader_add_uniform does not accept uniform type SHADER_UNIFORM_TYPE_CUSTOM. Call renderer_shader_add_uniform_custom for this type instead.");
-        return false;
-    }
-
-    renderer_backend* b = &state_ptr->backend;
-    switch (type) {
-        // Float types
-        case SHADER_UNIFORM_TYPE_FLOAT32:
-            return b->shader_add_uniform_f32(shader_id, uniform_name, scope, out_location);
-        case SHADER_UNIFORM_TYPE_FLOAT32_2:
-            return b->shader_add_uniform_vec2(shader_id, uniform_name, scope, out_location);
-        case SHADER_UNIFORM_TYPE_FLOAT32_3:
-            return b->shader_add_uniform_vec3(shader_id, uniform_name, scope, out_location);
-        case SHADER_UNIFORM_TYPE_FLOAT32_4:
-            return b->shader_add_uniform_vec4(shader_id, uniform_name, scope, out_location);
-
-        // Unsigned int types
-        case SHADER_UNIFORM_TYPE_UINT8:
-            return b->shader_add_uniform_u8(shader_id, uniform_name, scope, out_location);
-        case SHADER_UNIFORM_TYPE_UINT16:
-            return b->shader_add_uniform_u16(shader_id, uniform_name, scope, out_location);
-        case SHADER_UNIFORM_TYPE_UINT32:
-            return b->shader_add_uniform_u32(shader_id, uniform_name, scope, out_location);
-
-            // Signed int types
-        case SHADER_UNIFORM_TYPE_INT8:
-            return b->shader_add_uniform_i8(shader_id, uniform_name, scope, out_location);
-        case SHADER_UNIFORM_TYPE_INT16:
-            return b->shader_add_uniform_i16(shader_id, uniform_name, scope, out_location);
-        case SHADER_UNIFORM_TYPE_INT32:
-            return b->shader_add_uniform_i32(shader_id, uniform_name, scope, out_location);
-        case SHADER_UNIFORM_TYPE_MATRIX_4:
-            return b->shader_add_uniform_mat4(shader_id, uniform_name, scope, out_location);
-
-        default:
-            KERROR("renderer_shader_add_uniform Unknown shader type: %d", type);
-            return false;
-    }
+void renderer_shader_destroy(shader* shader) {
+    state_ptr->backend.shader_destroy(shader);
 }
 
 b8 renderer_shader_initialize(u32 shader_id) {
@@ -408,70 +310,6 @@ b8 renderer_shader_release_instance_resources(u32 shader_id, u32 instance_id) {
     return state_ptr->backend.shader_release_instance_resources(shader_id, instance_id);
 }
 
-u32 renderer_shader_uniform_location(u32 shader_id, const char* uniform_name) {
-    return state_ptr->backend.shader_uniform_location(shader_id, uniform_name);
-}
-
-b8 renderer_shader_set_sampler(u32 shader_id, u32 location, texture* t) {
-    return state_ptr->backend.shader_set_sampler(shader_id, location, t);
-}
-
-b8 renderer_shader_set_uniform_i8(u32 shader_id, u32 location, i8 value) {
-    return state_ptr->backend.shader_set_uniform_i8(shader_id, location, value);
-}
-
-b8 renderer_shader_set_uniform_i16(u32 shader_id, u32 location, i16 value) {
-    return state_ptr->backend.shader_set_uniform_i16(shader_id, location, value);
-}
-
-b8 renderer_shader_set_uniform_i32(u32 shader_id, u32 location, i32 value) {
-    return state_ptr->backend.shader_set_uniform_i32(shader_id, location, value);
-}
-
-b8 renderer_shader_set_uniform_u8(u32 shader_id, u32 location, u8 value) {
-    return state_ptr->backend.shader_set_uniform_u8(shader_id, location, value);
-}
-
-b8 renderer_shader_set_uniform_u16(u32 shader_id, u32 location, u16 value) {
-    return state_ptr->backend.shader_set_uniform_u16(shader_id, location, value);
-}
-
-b8 renderer_shader_set_uniform_u32(u32 shader_id, u32 location, u32 value) {
-    return state_ptr->backend.shader_set_uniform_u32(shader_id, location, value);
-}
-
-b8 renderer_shader_set_uniform_f32(u32 shader_id, u32 location, f32 value) {
-    return state_ptr->backend.shader_set_uniform_f32(shader_id, location, value);
-}
-
-b8 renderer_shader_set_uniform_vec2(u32 shader_id, u32 location, vec2 value) {
-    return state_ptr->backend.shader_set_uniform_vec2(shader_id, location, value);
-}
-
-b8 renderer_shader_set_uniform_vec2f(u32 shader_id, u32 location, f32 value_0, f32 value_1) {
-    return state_ptr->backend.shader_set_uniform_vec2f(shader_id, location, value_0, value_1);
-}
-
-b8 renderer_shader_set_uniform_vec3(u32 shader_id, u32 location, vec3 value) {
-    return state_ptr->backend.shader_set_uniform_vec3(shader_id, location, value);
-}
-
-b8 renderer_shader_set_uniform_vec3f(u32 shader_id, u32 location, f32 value_0, f32 value_1, f32 value_2) {
-    return state_ptr->backend.shader_set_uniform_vec3f(shader_id, location, value_0, value_1, value_2);
-}
-
-b8 renderer_shader_set_uniform_vec4(u32 shader_id, u32 location, vec4 value) {
-    return state_ptr->backend.shader_set_uniform_vec4(shader_id, location, value);
-}
-
-b8 renderer_shader_set_uniform_vec4f(u32 shader_id, u32 location, f32 value_0, f32 value_1, f32 value_2, f32 value_3) {
-    return state_ptr->backend.shader_set_uniform_vec4f(shader_id, location, value_0, value_1, value_2, value_3);
-}
-
-b8 renderer_shader_set_uniform_mat4(u32 shader_id, u32 location, mat4 value) {
-    return state_ptr->backend.shader_set_uniform_mat4(shader_id, location, value);
-}
-
-b8 renderer_shader_set_uniform_custom(u32 shader_id, u32 location, void* value) {
-    return state_ptr->backend.shader_set_uniform_custom(shader_id, location, value);
+b8 renderer_set_uniform(shader* frontend_shader, shader_uniform* uniform, void* value) {
+    return state_ptr->backend.shader_set_uniform(frontend_shader, uniform, value);
 }

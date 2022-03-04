@@ -5,9 +5,9 @@
  * for the Vulkan backend.
  * @version 1.0
  * @date 2022-01-11
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
- * 
+ *
  */
 
 #pragma once
@@ -150,7 +150,7 @@ typedef enum vulkan_render_pass_state {
 } vulkan_render_pass_state;
 
 /**
- * @brief A representation of the Vulkan renderpass. 
+ * @brief A representation of the Vulkan renderpass.
  */
 typedef struct vulkan_renderpass {
     /** @brief The internal renderpass handle. */
@@ -178,12 +178,12 @@ typedef struct vulkan_renderpass {
 } vulkan_renderpass;
 
 /**
- * @brief Representation of the Vulkan swapchain. 
+ * @brief Representation of the Vulkan swapchain.
  */
 typedef struct vulkan_swapchain {
     /** @brief The swapchain image format. */
     VkSurfaceFormatKHR image_format;
-    /** 
+    /**
      * @brief The maximum number of "images in flight" (images simultaneously being rendered to).
      * Typically one less than the total number of images available.
      */
@@ -238,7 +238,7 @@ typedef struct vulkan_command_buffer {
 } vulkan_command_buffer;
 
 /**
- * @brief Represents a single shader stage. 
+ * @brief Represents a single shader stage.
  */
 typedef struct vulkan_shader_stage {
     /** @brief The shader module creation info. */
@@ -259,14 +259,14 @@ typedef struct vulkan_pipeline {
     VkPipelineLayout pipeline_layout;
 } vulkan_pipeline;
 
-/** 
- * @brief Max number of material instances 
+/**
+ * @brief Max number of material instances
  * @todo TODO: make configurable
  */
 #define VULKAN_MAX_MATERIAL_COUNT 1024
 
-/** 
- * @brief Max number of simultaneously uploaded geometries 
+/**
+ * @brief Max number of simultaneously uploaded geometries
  * @todo TODO: make configurable
  */
 #define VULKAN_MAX_GEOMETRY_COUNT 4096
@@ -294,8 +294,8 @@ typedef struct vulkan_geometry_data {
     u64 index_buffer_offset;
 } vulkan_geometry_data;
 
-/** 
- * @brief Max number of UI control instances 
+/**
+ * @brief Max number of UI control instances
  * @todo TODO: make configurable
  */
 #define VULKAN_MAX_UI_COUNT 1024
@@ -314,7 +314,7 @@ typedef struct vulkan_geometry_data {
 #define VULKAN_SHADER_MAX_INSTANCE_TEXTURES 31
 /** @brief The maximum number of vertex input attributes allowed. */
 #define VULKAN_SHADER_MAX_ATTRIBUTES 16
-/** 
+/**
  * @brief The maximum number of uniforms and samplers allowed at the
  * global, instance and local levels combined. It's probably more than
  * will ever be needed.
@@ -325,18 +325,6 @@ typedef struct vulkan_geometry_data {
 #define VULKAN_SHADER_MAX_BINDINGS 32
 /** @brief The maximum number of push constant ranges for a shader. */
 #define VULKAN_SHADER_MAX_PUSH_CONST_RANGES 32
-
-/**
- * @brief Represents the current state of a given shader.
- */
-typedef enum vulkan_shader_state {
-    /** @brief The shader has not yet gone through the creation process, and is unusable.*/
-    VULKAN_SHADER_STATE_NOT_CREATED,
-    /** @brief The shader has gone through the creation process, but not initialization. It is unusable.*/
-    VULKAN_SHADER_STATE_UNINITIALIZED,
-    /** @brief The shader is created and initialized, and is ready for use.*/
-    VULKAN_SHADER_STATE_INITIALIZED,
-} vulkan_shader_state;
 
 /**
  * @brief Configuration for a shader stage, such as vertex or fragment.
@@ -367,13 +355,13 @@ typedef struct vulkan_shader_config {
     vulkan_shader_stage_config stages[VULKAN_SHADER_MAX_STAGES];
     /** @brief An array of descriptor pool sizes. */
     VkDescriptorPoolSize pool_sizes[2];
-    /** 
+    /**
      * @brief The max number of descriptor sets that can be allocated from this shader.
      * Should typically be a decently high number.
      */
     u16 max_descriptor_set_count;
 
-    /** 
+    /**
      * @brief The total number of descriptor sets configured for this shader.
      * Is 1 if only using global uniforms/samplers; otherwise 2.
      */
@@ -381,43 +369,13 @@ typedef struct vulkan_shader_config {
     /** @brief Descriptor sets, max of 2. Index 0=global, 1=instance */
     vulkan_descriptor_set_config descriptor_sets[2];
 
-    /** @brief The number of attributes configured for this shader. */
-    u8 attribute_count;
     /** @brief An array of attribute descriptions for this shader. */
     VkVertexInputAttributeDescription attributes[VULKAN_SHADER_MAX_ATTRIBUTES];
-    /** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
-    u16 attribute_stride;
 
-    /** @brief The number of push constant ranges. */
-    u8 push_constant_range_count;
-    /** @brief An array of push constant ranges. */
-    range push_constant_ranges[VULKAN_SHADER_MAX_PUSH_CONST_RANGES];
 } vulkan_shader_config;
 
 /**
- * @brief Represents a single entry in the internal uniform array.
- * 
- */
-typedef struct vulkan_uniform_lookup_entry {
-    /** @brief The offset in bytes from the beginning of the uniform set (global/instance/local) */
-    u64 offset;
-    /** 
-     * @brief The location to be used as a lookup. Typically the same as the index except for samplers, 
-     * which is used to lookup texture index within the internal array at the given scope (global/instance).
-     */
-    u16 location;
-    /** @brief Index into the internal uniform array. */
-    u16 index;
-    /** @brief The size of the uniform, or 0 for samplers. */
-    u16 size;
-    /** @brief The index of the descriptor set the uniform belongs to (0=global, 1=instance, INVALID_ID=local). */
-    u8 set_index;
-    /** @brief The scope of the uniform. */
-    shader_scope scope;
-} vulkan_uniform_lookup_entry;
-
-/** 
- * @brief Represents a state for a given descriptor. This is used 
+ * @brief Represents a state for a given descriptor. This is used
  * to determine when a descriptor needs updating. There is a state
  * per frame (with a max of 3).
  */
@@ -453,7 +411,7 @@ typedef struct vulkan_shader_instance_state {
     /** @brief  A state for the descriptor set. */
     vulkan_shader_descriptor_set_state descriptor_set_state;
 
-    /** 
+    /**
      * @brief Instance texture pointers, which are used during rendering. These
      * are set by calls to set_sampler.
      */
@@ -462,28 +420,16 @@ typedef struct vulkan_shader_instance_state {
 
 /**
  * @brief Represents a generic Vulkan shader. This uses a set of inputs
- * and parameters, as well as the shader programs contained in SPIR-V 
+ * and parameters, as well as the shader programs contained in SPIR-V
  * files to construct a shader for use in rendering.
  */
 typedef struct vulkan_shader {
     /** @brief The shader identifier. */
     u32 id;
-    /** @brief A pointer to the Vulkan context. */
-    struct vulkan_context* context;
-    /** @brief The name of the shader. */
-    char* name;
-    /** 
-     * @brief Indicates if the shader uses instances. If not, it is assumed
-     * that only global uniforms and samplers are used.
-     */
-    b8 use_instances;
-    /** @brief Indicates if local push constants are used (typically for model matrices, etc.).*/
-    b8 use_push_constants;
 
     /** @brief The configuration of the shader generated by vulkan_create_shader(). */
     vulkan_shader_config config;
-    /** @brief The internal state of the shader. */
-    vulkan_shader_state state;
+
     /** @brief A pointer to the renderpass to be used with this shader. */
     vulkan_renderpass* renderpass;
 
@@ -503,65 +449,12 @@ typedef struct vulkan_shader {
     /** @brief The pipeline associated with this shader. */
     vulkan_pipeline pipeline;
 
-    /** @brief The block of memory used by the uniform hashtable. */
-    void* hashtable_block;
-    /** @brief A hashtable to store uniform index/locations by name. */
-    hashtable uniform_lookup;
-
-    /** @brief The number of uniforms in this shader. */
-    u8 uniform_count;
-    /** @brief An array of uniforms in this shader. */
-    vulkan_uniform_lookup_entry uniforms[VULKAN_SHADER_MAX_UNIFORMS];
-
-    /** 
-     * @brief The amount of bytes that are required for UBO alignment.
-     * 
-     * This is used along with the UBO size to determine the ultimate 
-     * stride, which is how much the UBOs are spaced out in the buffer.
-     * For example, a required alignment of 256 means that the stride
-     * must be a multiple of 256 (true for some nVidia cards).
-     */
-    u64 required_ubo_alignment;
-
-    /** @brief The actual size of the global uniform buffer object. */
-    u64 global_ubo_size;
-    /** @brief The stride of the global uniform buffer object. */
-    u64 global_ubo_stride;
-    /** 
-     * @brief The offset in bytes for the global UBO from the beginning 
-     * of the uniform buffer. 
-     */
-    u64 global_ubo_offset;
-
-    /** @brief The actual size of the instance uniform buffer object. */
-    u64 ubo_size;
-
-    /** @brief The stride of the instance uniform buffer object. */
-    u64 ubo_stride;
-
-    /** @brief The total size of all push constant ranges combined. */
-    u64 push_constant_size;
-    /** @brief The push constant stride, aligned to 4 bytes as required by Vulkan. */
-    u64 push_constant_stride;
-
-    /** @brief The number of global textures. */
-    u8 global_texture_count;
-    /** @brief An array of global texture pointers. */
-    struct texture* global_textures[VULKAN_SHADER_MAX_GLOBAL_TEXTURES];
-
-    /** @brief The number of instance textures. */
-    u8 instance_texture_count;
-
-    /** @brief The identifier of the currently bound instance. */
-    u32 bound_instance_id;
-    /** @brief The currently bound instance's ubo offset. */
-    u32 bound_ubo_offset;
-    /** @brief The block of memory mapped to the uniform buffer. */
-    void* mapped_uniform_buffer_block;
-
     /** @brief The instance states for all instances. @todo TODO: make dynamic */
     u32 instance_count;
     vulkan_shader_instance_state instance_states[VULKAN_MAX_MATERIAL_COUNT];
+
+    /** @brief The block of memory mapped to the uniform buffer. */
+    void* mapped_uniform_buffer_block;
 } vulkan_shader;
 
 /**
@@ -639,18 +532,13 @@ typedef struct vulkan_context {
     /** @brief Indicates if the swapchain is currently being recreated. */
     b8 recreating_swapchain;
 
-    /** @brief The maximum number of shaders. */
-    u32 max_shader_count;
-    /** @brief A collection of created shaders. */
-    vulkan_shader* shaders;
-
     /** @brief The A collection of loaded geometries. @todo TODO: make dynamic */
     vulkan_geometry_data geometries[VULKAN_MAX_GEOMETRY_COUNT];
 
     /** @brief Framebuffers used for world rendering. @note One per frame. */
     VkFramebuffer world_framebuffers[3];
 
-    /** 
+    /**
      * @brief A function pointer to find a memory index of the given type and with the given properties.
      * @param type_filter The types of memory to search for.
      * @param property_flags The required properties which must be present.
@@ -661,7 +549,7 @@ typedef struct vulkan_context {
 } vulkan_context;
 
 /**
- * @brief Represents Vulkan-specific texture data. 
+ * @brief Represents Vulkan-specific texture data.
  */
 typedef struct vulkan_texture_data {
     /** @brief The internal Vulkan image. */
