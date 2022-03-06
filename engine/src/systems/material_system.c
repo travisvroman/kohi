@@ -8,6 +8,7 @@
 #include "systems/texture_system.h"
 
 #include "systems/resource_system.h"
+#include "systems/shader_system.h"
 
 typedef struct material_system_state {
     material_system_config config;
@@ -236,8 +237,7 @@ b8 load_material(material_config config, material* m) {
     // name
     string_ncopy(m->name, config.name, MATERIAL_NAME_MAX_LENGTH);
 
-    // Type
-    m->type = config.type;
+    m->shader_id = shader_system_get_id(config.shader_name);
 
     // Diffuse colour
     m->diffuse_colour = config.diffuse_colour;
@@ -259,7 +259,8 @@ b8 load_material(material_config config, material* m) {
     // TODO: other maps
 
     // Send it off to the renderer to acquire resources.
-    if (!renderer_create_material(m)) {
+    shader* s = shader_system_get(config.shader_name);
+    if (!renderer_shader_acquire_instance_resources(s, &m->internal_id)) {
         KERROR("Failed to acquire renderer resources for material '%s'.", m->name);
         return false;
     }
@@ -276,7 +277,10 @@ void destroy_material(material* m) {
     }
 
     // Release renderer resources.
-    renderer_destroy_material(m);
+    if (m->shader_id != INVALID_ID && m->internal_id != INVALID_ID) {
+        renderer_shader_release_instance_resources(shader_system_get_by_id(m->shader_id), m->internal_id);
+        m->shader_id = INVALID_ID;
+    }
 
     // Zero it out, invalidate IDs.
     kzero_memory(m, sizeof(material));
@@ -294,7 +298,8 @@ b8 create_default_material(material_system_state* state) {
     state->default_material.diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
     state->default_material.diffuse_map.texture = texture_system_get_default_texture();
 
-    if (!renderer_create_material(&state->default_material)) {
+    shader* s = shader_system_get(state->default_material.name);
+    if (!renderer_shader_acquire_instance_resources(s, &state->default_material.internal_id)) {
         KFATAL("Failed to acquire renderer resources for default material. Application cannot continue.");
         return false;
     }

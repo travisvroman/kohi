@@ -22,10 +22,10 @@
 
 #include "platform/platform.h"
 
-// Shaders
-#include "vulkan_shader.h"
-
+#include "systems/shader_system.h"
 #include "systems/material_system.h"
+#include "systems/texture_system.h"
+#include "systems/resource_system.h"
 
 // static Vulkan context
 static vulkan_context context;
@@ -871,58 +871,6 @@ void vulkan_renderer_destroy_texture(struct texture* texture) {
     kzero_memory(texture, sizeof(struct texture));
 }
 
-b8 vulkan_renderer_create_material(struct material* material) {
-    if (material) {
-        switch (material->type) {
-            case MATERIAL_TYPE_WORLD:
-                return false;
-                // if (!vulkan_shader_acquire_instance_resources(&context.material_shader, &material->internal_id)) {
-                //     KERROR("vulkan_renderer_create_material - Failed to acquire world shader resources.");
-                //     return false;
-                // }
-                // break;
-            case MATERIAL_TYPE_UI:
-                return false;
-                // if (!vulkan_shader_acquire_instance_resources(&context.ui_shader, &material->internal_id)) {
-                //     KERROR("vulkan_renderer_create_material - Failed to acquire UI shader resources.");
-                //     return false;
-                // }
-                // break;
-            default:
-                KERROR("vulkan_renderer_create_material - unknown material type.");
-                return false;
-        }
-
-        KTRACE("Renderer: Material created.");
-        return true;
-    }
-
-    KERROR("vulkan_renderer_create_material called with nullptr. Creation failed.");
-    return false;
-}
-
-void vulkan_renderer_destroy_material(struct material* material) {
-    if (material) {
-        if (material->internal_id != INVALID_ID) {
-            switch (material->type) {
-                case MATERIAL_TYPE_WORLD:
-                    // vulkan_shader_release_instance_resources(&context.material_shader, material->internal_id);
-                    break;
-                case MATERIAL_TYPE_UI:
-                    // vulkan_shader_release_instance_resources(&context.ui_shader, material->internal_id);
-                    break;
-                default:
-                    KERROR("vulkan_renderer_destroy_material - unknown material type");
-                    break;
-            }
-        } else {
-            KWARN("vulkan_renderer_destroy_material called with internal_id=INVALID_ID. Nothing was done.");
-        }
-    } else {
-        KWARN("vulkan_renderer_destroy_material called with nullptr. Nothing was done.");
-    }
-}
-
 b8 vulkan_renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
     if (!vertex_count || !vertices) {
         KERROR("vulkan_renderer_create_geometry requires vertex data, and none was supplied. vertex_count=%d, vertices=%p", vertex_count, vertices);
@@ -1108,12 +1056,6 @@ b8 vulkan_renderer_shader_create(shader* shader, u8 renderpass_id, u8 stage_coun
 
     u32 max_descriptor_allocate_count = 1024;
 
-    // CREATE
-    if (vk_stages == 0) {
-        KERROR("vulkan_shader_create stages must be nonzero.");
-        return false;
-    }
-
     // Take a copy of the pointer to the context.
     vulkan_shader* out_shader = (vulkan_shader*)shader->internal_data;
 
@@ -1134,9 +1076,13 @@ b8 vulkan_renderer_shader_create(shader* shader, u8 renderpass_id, u8 stage_coun
         }
 
         // Make sure the stage is a supported one.
+        VkShaderStageFlagBits stage_flag;
         switch (stages[i]) {
-            case VK_SHADER_STAGE_VERTEX_BIT:
-            case VK_SHADER_STAGE_FRAGMENT_BIT:
+            case SHADER_STAGE_VERTEX:
+                stage_flag = VK_SHADER_STAGE_VERTEX_BIT;
+                break;
+            case SHADER_STAGE_FRAGMENT:
+                stage_flag = VK_SHADER_STAGE_FRAGMENT_BIT;
                 break;
             default:
                 // Go to the next type.
@@ -1145,7 +1091,7 @@ b8 vulkan_renderer_shader_create(shader* shader, u8 renderpass_id, u8 stage_coun
         }
 
         // Set the stage and bump the counter.
-        out_shader->config.stages[out_shader->config.stage_count].stage = stages[i];
+        out_shader->config.stages[out_shader->config.stage_count].stage = stage_flag;
         string_ncopy(out_shader->config.stages[out_shader->config.stage_count].file_name, stage_filenames[i], 255);
         out_shader->config.stage_count++;
     }
@@ -1201,7 +1147,7 @@ void vulkan_renderer_shader_destroy(shader* s) {
         vulkan_shader* shader = s->internal_data;
         if (!shader) {
             KERROR("vulkan_renderer_shader_destroy requires a valid pointer to a shader.");
-            return false;
+            return;
         }
 
         VkDevice logical_device = context.device.logical_device;
@@ -1251,13 +1197,13 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
     for (u32 i = 0; i < s->config.stage_count; ++i) {
         if (!create_module(s, s->config.stages[i], &s->stages[i])) {
             KERROR("Unable to create %s shader module for '%s'. Shader will be destroyed.", s->config.stages[i].file_name, shader->name);
-            FAIL_DESTROY(s);
+            return false;
         }
     }
 
     // Static lookup table for our types->Vulkan ones.
     static VkFormat* types = 0;
-    static VkFormat t[10];
+    static VkFormat t[11];
     if (!types) {
         t[SHADER_ATTRIB_TYPE_FLOAT32] = VK_FORMAT_R32_SFLOAT;
         t[SHADER_ATTRIB_TYPE_FLOAT32_2] = VK_FORMAT_R32G32_SFLOAT;
@@ -1326,7 +1272,7 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
     VkResult result = vkCreateDescriptorPool(logical_device, &pool_info, vk_allocator, &s->descriptor_pool);
     if (!vulkan_result_is_success(result)) {
         KERROR("vulkan_shader_initialize failed creating descriptor pool: '%s'", vulkan_result_string(result, true));
-        FAIL_DESTROY(s);
+        return false;
     }
 
     // Create descriptor set layouts.
@@ -1338,7 +1284,7 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
         result = vkCreateDescriptorSetLayout(logical_device, &layout_info, vk_allocator, &s->descriptor_set_layouts[i]);
         if (!vulkan_result_is_success(result)) {
             KERROR("vulkan_shader_initialize failed creating descriptor pool: '%s'", vulkan_result_string(result, true));
-            FAIL_DESTROY(s);
+            return false;
         }
     }
 
@@ -1370,7 +1316,7 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
         s->renderpass,
         shader->attribute_stride,
         darray_length(shader->attributes),
-        shader->attributes,
+        s->config.attributes,// shader->attributes,
         s->config.descriptor_set_count,
         s->descriptor_set_layouts,
         s->config.stage_count,
@@ -1703,32 +1649,27 @@ b8 vulkan_renderer_shader_release_instance_resources(shader* s, u32 instance_id)
 
 b8 vulkan_renderer_set_uniform(shader* s, shader_uniform* uniform, void* value) {
     vulkan_shader* internal = s->internal_data;
-    // Map the appropriate memory location and copy the data over.
-    void* block = 0;
-    if (uniform->scope == SHADER_SCOPE_GLOBAL) {
-        block = (void*)(internal->mapped_uniform_buffer_block + s->global_ubo_offset + uniform->offset);
-    } else if (uniform->scope == SHADER_SCOPE_INSTANCE) {
-        block = (void*)(internal->mapped_uniform_buffer_block + s->bound_ubo_offset + uniform->offset);
+    if (uniform->type == SHADER_UNIFORM_TYPE_SAMPLER) {
+        if (uniform->scope == SHADER_SCOPE_GLOBAL) {
+            s->global_textures[uniform->location] = (texture*)value;
+        } else {
+            internal->instance_states[s->bound_instance_id].instance_textures[uniform->location] = (texture*)value;
+        }
     } else {
-        // Is local, using push constants. Do this immediately.
-        VkCommandBuffer command_buffer = context.graphics_command_buffers[context.image_index].handle;
-        vkCmdPushConstants(command_buffer, internal->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, uniform->offset, uniform->size, value);
-        return true;
+        // Map the appropriate memory location and copy the data over.
+        void* block = 0;
+        if (uniform->scope == SHADER_SCOPE_GLOBAL) {
+            block = (void*)(internal->mapped_uniform_buffer_block + s->global_ubo_offset + uniform->offset);
+        } else if (uniform->scope == SHADER_SCOPE_INSTANCE) {
+            block = (void*)(internal->mapped_uniform_buffer_block + s->bound_ubo_offset + uniform->offset);
+        } else {
+            // Is local, using push constants. Do this immediately.
+            VkCommandBuffer command_buffer = context.graphics_command_buffers[context.image_index].handle;
+            vkCmdPushConstants(command_buffer, internal->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, uniform->offset, uniform->size, value);
+            return true;
+        }
+        kcopy_memory(block, value, uniform->size);
     }
-    kcopy_memory(block, value, uniform->size);
-    return true;
-}
-
-b8 vulkan_renderer_shader_set_sampler(shader* s, u32 location, texture* t) {
-    vulkan_shader* internal = s->internal_data;
-    shader_uniform* entry = &s->uniforms[location];
-    vulkan_shader* internal = s->internal_data;
-    if (entry->scope == SHADER_SCOPE_GLOBAL) {
-        s->global_textures[entry->location] = t;
-    } else {
-        internal->instance_states[s->bound_instance_id].instance_textures[entry->location] = t;
-    }
-
     return true;
 }
 

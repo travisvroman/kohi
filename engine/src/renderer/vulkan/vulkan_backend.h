@@ -16,6 +16,9 @@
 #include "renderer/renderer_backend.h"
 #include "resources/resource_types.h"
 
+struct shader;
+struct shader_uniform;
+
 /**
  * @brief Initializes the Vulkan backend.
  *
@@ -104,21 +107,6 @@ void vulkan_renderer_create_texture(const u8* pixels, texture* texture);
 void vulkan_renderer_destroy_texture(texture* texture);
 
 /**
- * @brief Creates a material, acquiring required internal resources.
- *
- * @param material A pointer to the material to hold the resources.
- * @return True on success; otherwise false.
- */
-b8 vulkan_renderer_create_material(struct material* material);
-
-/**
- * @brief Destroys a texture, releasing required internal resouces.
- *
- * @param material A pointer to the material whose resources should be released.
- */
-void vulkan_renderer_destroy_material(struct material* material);
-
-/**
  * @brief Creates Vulkan-specific internal resources for the given geometry using
  * the data provided.
  *
@@ -140,16 +128,15 @@ b8 vulkan_renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vert
  */
 void vulkan_renderer_destroy_geometry(geometry* geometry);
 
-b8 vulkan_renderer_shader_create(shader* shader, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages);
-void vulkan_renderer_shader_destroy(shader* shader);
+b8 vulkan_renderer_shader_create(struct shader* shader, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages);
+void vulkan_renderer_shader_destroy(struct shader* shader);
 
-b8 vulkan_renderer_shader_initialize(shader* shader);
-b8 vulkan_renderer_shader_use(shader* shader);
-b8 vulkan_renderer_shader_bind_globals(shader* s);
-b8 vulkan_renderer_shader_bind_instance(shader* s, u32 instance_id);
-b8 vulkan_renderer_shader_apply_globals(shader* s);
-b8 vulkan_renderer_shader_apply_instance(shader* s);
-b8 vulkan_renderer_shader_acquire_instance_resources(shader* s, u32* out_instance_id);
-b8 vulkan_renderer_shader_release_instance_resources(shader* s, u32 instance_id);
-b8 vulkan_renderer_set_uniform(shader* frontend_shader, shader_uniform* uniform, void* value);
-b8 vulkan_renderer_shader_set_sampler(shader* s, u32 location, texture* t);
+b8 vulkan_renderer_shader_initialize(struct shader* shader);
+b8 vulkan_renderer_shader_use(struct shader* shader);
+b8 vulkan_renderer_shader_bind_globals(struct shader* s);
+b8 vulkan_renderer_shader_bind_instance(struct shader* s, u32 instance_id);
+b8 vulkan_renderer_shader_apply_globals(struct shader* s);
+b8 vulkan_renderer_shader_apply_instance(struct shader* s);
+b8 vulkan_renderer_shader_acquire_instance_resources(struct shader* s, u32* out_instance_id);
+b8 vulkan_renderer_shader_release_instance_resources(struct shader* s, u32 instance_id);
+b8 vulkan_renderer_set_uniform(struct shader* frontend_shader, struct shader_uniform* uniform, void* value);

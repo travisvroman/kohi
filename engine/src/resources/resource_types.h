@@ -115,12 +115,6 @@ typedef struct texture_map {
  * @brief A collection of material types.
  * @deprecated This should probably store a shader id instead, and be bound that way.
  */
-typedef enum material_type {
-    /** A material used in the world. */
-    MATERIAL_TYPE_WORLD,
-    /** A material used in the UI */
-    MATERIAL_TYPE_UI
-} material_type;
 
 /**
  * @brief Material configuration typically loaded from
@@ -130,7 +124,7 @@ typedef struct material_config {
     /** @brief The name of the material. */
     char name[MATERIAL_NAME_MAX_LENGTH];
     /** @brief The material type. */
-    material_type type;
+    char* shader_name;
     /** @brief Indicates if the material should be automatically released when no references to it remain. */
     b8 auto_release;
     /** @brief The diffuse colour of the material. */
@@ -151,14 +145,14 @@ typedef struct material {
     u32 generation;
     /** @brief The internal material id. Used by the renderer backend to map to internal resources. */
     u32 internal_id;
-    /** @brief The material type. */
-    material_type type;
     /** @brief The material name. */
     char name[MATERIAL_NAME_MAX_LENGTH];
     /** @brief The diffuse colour. */
     vec4 diffuse_colour;
     /** @brief The diffuse texture map. */
     texture_map diffuse_map;
+
+    u32 shader_id;
 } material;
 
 /** @brief The maximum length of a geometry name. */

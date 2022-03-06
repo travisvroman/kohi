@@ -26,20 +26,6 @@ typedef struct renderer_system_state {
     mat4 ui_view;
     f32 near_clip;
     f32 far_clip;
-    // Material shader
-    u32 material_shader_id;
-    u32 material_shader_projection_location;
-    u32 material_shader_view_location;
-    u32 material_shader_diffuse_colour_location;
-    u32 material_shader_diffuse_texture_location;
-    u32 material_shader_model_location;
-    // UI shader
-    u32 ui_shader_id;
-    u32 ui_shader_projection_location;
-    u32 ui_shader_view_location;
-    u32 ui_shader_diffuse_colour_location;
-    u32 ui_shader_diffuse_texture_location;
-    u32 ui_shader_model_location;
 } renderer_system_state;
 
 static renderer_system_state* state_ptr;
@@ -101,12 +87,6 @@ b8 renderer_system_initialize(u64* memory_requirement, void* state, const char* 
 
 void renderer_system_shutdown(void* state) {
     if (state_ptr) {
-        state_ptr->backend.shader_destroy(state_ptr->material_shader_id);
-        state_ptr->material_shader_id = INVALID_ID;
-
-        state_ptr->backend.shader_destroy(state_ptr->ui_shader_id);
-        state_ptr->ui_shader_id = INVALID_ID;
-
         state_ptr->backend.shutdown(&state_ptr->backend);
     }
     state_ptr = 0;
@@ -135,10 +115,13 @@ b8 renderer_draw_frame(render_packet* packet) {
 
         // Apply globals
         // TODO: Shader system bind/set uniforms
-        state_ptr->backend.shader_bind_globals(state_ptr->material_shader_id);
-        state_ptr->backend.shader_set_uniform_mat4(state_ptr->material_shader_id, state_ptr->material_shader_projection_location, state_ptr->projection);
-        state_ptr->backend.shader_set_uniform_mat4(state_ptr->material_shader_id, state_ptr->material_shader_view_location, state_ptr->view);
-        state_ptr->backend.shader_apply_globals(state_ptr->material_shader_id);
+        // state_ptr->backend.shader_bind_globals(state_ptr->material_shader_id);
+        shader_system_uniform_set("projection", &state_ptr->projection);
+        shader_system_uniform_set("view", &state_ptr->view);
+        shader_system_apply_global();
+        // state_ptr->backend.shader_set_uniform_mat4(state_ptr->material_shader_id, state_ptr->material_shader_projection_location, state_ptr->projection);
+        // state_ptr->backend.shader_set_uniform_mat4(state_ptr->material_shader_id, state_ptr->material_shader_view_location, state_ptr->view);
+        // state_ptr->backend.shader_apply_globals(state_ptr->material_shader_id);
 
         // Draw geometries.
         u32 count = packet->geometry_count;
@@ -151,13 +134,18 @@ b8 renderer_draw_frame(render_packet* packet) {
             }
 
             // Apply the material
-            state_ptr->backend.shader_bind_instance(state_ptr->material_shader_id, m->internal_id);
-            state_ptr->backend.shader_set_uniform_vec4(state_ptr->material_shader_id, state_ptr->material_shader_diffuse_colour_location, m->diffuse_colour);
-            state_ptr->backend.shader_set_sampler(state_ptr->material_shader_id, state_ptr->material_shader_diffuse_texture_location, m->diffuse_map.texture);
-            state_ptr->backend.shader_apply_instance(state_ptr->material_shader_id);
+            // state_ptr->backend.shader_bind_instance(state_ptr->material_shader_id, m->internal_id);
+            shader_system_bind_instance(m->internal_id);
+            shader_system_uniform_set("diffuse_colour", &m->diffuse_colour);
+            shader_system_uniform_set("diffuse_texture", &m->diffuse_map.texture);
+            shader_system_apply_instance();
+            // state_ptr->backend.shader_set_uniform_vec4(state_ptr->material_shader_id, state_ptr->material_shader_diffuse_colour_location, m->diffuse_colour);
+            // state_ptr->backend.shader_set_sampler(state_ptr->material_shader_id, state_ptr->material_shader_diffuse_texture_location, m->diffuse_map.texture);
+            // state_ptr->backend.shader_apply_instance(state_ptr->material_shader_id);
 
             // Apply the locals
-            state_ptr->backend.shader_set_uniform_mat4(state_ptr->material_shader_id, state_ptr->material_shader_model_location, packet->geometries[i].model);
+            shader_system_uniform_set("model", &packet->geometries[i].model);
+            // state_ptr->backend.shader_set_uniform_mat4(state_ptr->material_shader_id, state_ptr->material_shader_model_location, packet->geometries[i].model);
 
             state_ptr->backend.draw_geometry(packet->geometries[i]);
         }
@@ -178,10 +166,13 @@ b8 renderer_draw_frame(render_packet* packet) {
         shader_system_use(BUILTIN_SHADER_NAME_UI);
 
         // Apply globals
-        state_ptr->backend.shader_bind_globals(state_ptr->ui_shader_id);
-        state_ptr->backend.shader_set_uniform_mat4(state_ptr->ui_shader_id, state_ptr->ui_shader_projection_location, state_ptr->ui_projection);
-        state_ptr->backend.shader_set_uniform_mat4(state_ptr->ui_shader_id, state_ptr->ui_shader_view_location, state_ptr->ui_view);
-        state_ptr->backend.shader_apply_globals(state_ptr->ui_shader_id);
+        // state_ptr->backend.shader_bind_globals(state_ptr->ui_shader_id);
+        // state_ptr->backend.shader_set_uniform_mat4(state_ptr->ui_shader_id, state_ptr->ui_shader_projection_location, state_ptr->ui_projection);
+        // state_ptr->backend.shader_set_uniform_mat4(state_ptr->ui_shader_id, state_ptr->ui_shader_view_location, state_ptr->ui_view);
+        // state_ptr->backend.shader_apply_globals(state_ptr->ui_shader_id);
+        shader_system_uniform_set("projection", &state_ptr->projection);
+        shader_system_uniform_set("view", &state_ptr->view);
+        shader_system_apply_global();
 
         // Draw ui geometries.
         count = packet->ui_geometry_count;
@@ -193,13 +184,18 @@ b8 renderer_draw_frame(render_packet* packet) {
                 m = material_system_get_default();
             }
             // Apply the material
-            state_ptr->backend.shader_bind_instance(state_ptr->ui_shader_id, m->internal_id);
-            state_ptr->backend.shader_set_uniform_vec4(state_ptr->ui_shader_id, state_ptr->ui_shader_diffuse_colour_location, m->diffuse_colour);
-            state_ptr->backend.shader_set_sampler(state_ptr->ui_shader_id, state_ptr->ui_shader_diffuse_texture_location, m->diffuse_map.texture);
-            state_ptr->backend.shader_apply_instance(state_ptr->ui_shader_id);
+            shader_system_bind_instance(m->internal_id);
+            shader_system_uniform_set("diffuse_colour", &m->diffuse_colour);
+            shader_system_uniform_set("diffuse_texture", &m->diffuse_map.texture);
+            shader_system_apply_instance();
+            // state_ptr->backend.shader_bind_instance(state_ptr->ui_shader_id, m->internal_id);
+            // state_ptr->backend.shader_set_uniform_vec4(state_ptr->ui_shader_id, state_ptr->ui_shader_diffuse_colour_location, m->diffuse_colour);
+            // state_ptr->backend.shader_set_sampler(state_ptr->ui_shader_id, state_ptr->ui_shader_diffuse_texture_location, m->diffuse_map.texture);
+            // state_ptr->backend.shader_apply_instance(state_ptr->ui_shader_id);
 
             // Apply the locals
-            state_ptr->backend.shader_set_uniform_mat4(state_ptr->ui_shader_id, state_ptr->ui_shader_model_location, packet->ui_geometries[i].model);
+            shader_system_uniform_set("model", &packet->geometries[i].model);
+            // state_ptr->backend.shader_set_uniform_mat4(state_ptr->ui_shader_id, state_ptr->ui_shader_model_location, packet->ui_geometries[i].model);
 
             state_ptr->backend.draw_geometry(packet->ui_geometries[i]);
         }
@@ -235,18 +231,6 @@ void renderer_destroy_texture(struct texture* texture) {
     state_ptr->backend.destroy_texture(texture);
 }
 
-b8 renderer_create_material(struct material* material) {
-    // TODO: get shader by name
-    u32 shader_id = material->type == MATERIAL_TYPE_UI ? state_ptr->ui_shader_id : state_ptr->material_shader_id;
-    return state_ptr->backend.shader_acquire_instance_resources(shader_id, &material->internal_id);
-}
-
-void renderer_destroy_material(struct material* material) {
-    // TODO: get shader by name
-    u32 shader_id = material->type == MATERIAL_TYPE_UI ? state_ptr->ui_shader_id : state_ptr->material_shader_id;
-    state_ptr->backend.shader_release_instance_resources(shader_id, material->internal_id);
-}
-
 b8 renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
     return state_ptr->backend.create_geometry(geometry, vertex_size, vertex_count, vertices, index_size, index_count, indices);
 }
@@ -270,44 +254,44 @@ b8 renderer_renderpass_id(const char* name, u8* out_renderpass_id) {
     return false;
 }
 
-b8 renderer_shader_create(shader* shader, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages) {
-    return state_ptr->backend.shader_create(shader, renderpass_id, stage_count, stage_filenames, stages);
+b8 renderer_shader_create(shader* s, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages) {
+    return state_ptr->backend.shader_create(s, renderpass_id, stage_count, stage_filenames, stages);
 }
 
-void renderer_shader_destroy(shader* shader) {
-    state_ptr->backend.shader_destroy(shader);
+void renderer_shader_destroy(shader* s) {
+    state_ptr->backend.shader_destroy(s);
 }
 
-b8 renderer_shader_initialize(u32 shader_id) {
-    return state_ptr->backend.shader_initialize(shader_id);
+b8 renderer_shader_initialize(shader* s) {
+    return state_ptr->backend.shader_initialize(s);
 }
 
-b8 renderer_shader_use(u32 shader_id) {
-    return state_ptr->backend.shader_use(shader_id);
+b8 renderer_shader_use(shader* s) {
+    return state_ptr->backend.shader_use(s);
 }
 
-b8 renderer_shader_bind_globals(u32 shader_id) {
-    return state_ptr->backend.shader_bind_globals(shader_id);
+b8 renderer_shader_bind_globals(shader* s) {
+    return state_ptr->backend.shader_bind_globals(s);
 }
 
-b8 renderer_shader_bind_instance(u32 shader_id, u32 instance_id) {
-    return state_ptr->backend.shader_bind_instance(shader_id, instance_id);
+b8 renderer_shader_bind_instance(shader* s, u32 instance_id) {
+    return state_ptr->backend.shader_bind_instance(s, instance_id);
 }
 
-b8 renderer_shader_apply_globals(u32 shader_id) {
-    return state_ptr->backend.shader_apply_globals(shader_id);
+b8 renderer_shader_apply_globals(shader* s) {
+    return state_ptr->backend.shader_apply_globals(s);
 }
 
-b8 renderer_shader_apply_instance(u32 shader_id) {
-    return state_ptr->backend.shader_apply_instance(shader_id);
+b8 renderer_shader_apply_instance(shader* s) {
+    return state_ptr->backend.shader_apply_instance(s);
 }
 
-b8 renderer_shader_acquire_instance_resources(u32 shader_id, u32* out_instance_id) {
-    return state_ptr->backend.shader_acquire_instance_resources(shader_id, out_instance_id);
+b8 renderer_shader_acquire_instance_resources(shader* s, u32* out_instance_id) {
+    return state_ptr->backend.shader_acquire_instance_resources(s, out_instance_id);
 }
 
-b8 renderer_shader_release_instance_resources(u32 shader_id, u32 instance_id) {
-    return state_ptr->backend.shader_release_instance_resources(shader_id, instance_id);
+b8 renderer_shader_release_instance_resources(shader* s, u32 instance_id) {
+    return state_ptr->backend.shader_release_instance_resources(s, instance_id);
 }
 
 b8 renderer_set_uniform(shader* frontend_shader, shader_uniform* uniform, void* value) {

@@ -16,13 +16,21 @@ typedef struct shader_system_state {
     void* lookup_memory;
     u32 current_shader_id;
 
-    /** @brief The maximum number of shaders. */
-    u32 max_shader_count;
     /** @brief A collection of created shaders. */
     shader* shaders;
 } shader_system_state;
 
 static shader_system_state* state_ptr = 0;
+
+b8 add_attribute(shader* shader, const shader_attribute_config* config);
+b8 add_sampler(shader* shader, shader_uniform_config* config);
+b8 add_uniform(shader* shader, shader_uniform_config* config);
+u32 get_shader_id(const char* shader_name);
+u32 new_shader_id();
+b8 uniform_add(shader* shader, const char* uniform_name, u32 size, shader_scope scope, u32 set_location, b8 is_sampler);
+b8 uniform_name_valid(shader* shader, const char* uniform_name);
+b8 shader_uniform_add_state_valid(shader* shader);
+///////////////////////
 
 b8 shader_system_initialize(u64* memory_requirement, void* memory, shader_system_config config) {
     // Verify configuration.
@@ -65,6 +73,10 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, shader_system
     if (!hashtable_fill(&state_ptr->lookup, &invalid_fill_id)) {
         KERROR("hashtable_fill failed.");
         return false;
+    }
+
+    for (u32 i = 0; i < state_ptr->config.max_shader_count; ++i) {
+        state_ptr->shaders[i].id = INVALID_ID;
     }
 
     return true;
@@ -186,7 +198,7 @@ b8 shader_system_create(const shader_config* config) {
     // }
 
     // Initialize the shader.
-    if (!renderer_shader_initialize(shader_id)) {
+    if (!renderer_shader_initialize(&out_shader)) {
         KERROR("shader_system_create: initialization failed for shader '%s'.", config->name);
         // NOTE: initialize automatically destroys the shader if it fails.
         return false;
@@ -196,11 +208,24 @@ b8 shader_system_create(const shader_config* config) {
     // so this can be looked up by name later.
     if (!hashtable_set(&state_ptr->lookup, config->name, &shader_id)) {
         // Dangit, we got so far... welp, nuke the shader and boot.
-        renderer_shader_destroy(shader_id);
+        renderer_shader_destroy(&out_shader);
         return false;
     }
 
     return true;
+}
+
+u32 shader_system_get_id(const char* shader_name) {
+    return get_shader_id(shader_name);
+}
+
+shader* shader_system_get_by_id(u32 shader_id) {
+    return &state_ptr->shaders[shader_id];
+}
+
+shader* shader_system_get(const char* shader_name) {
+    u32 shader_id = get_shader_id(shader_name);
+    return shader_system_get_by_id(shader_id);
 }
 
 void shader_system_destroy(const char* shader_name) {
@@ -228,11 +253,73 @@ b8 shader_system_use(const char* shader_name) {
 
     // Only perform the use if the shader id is different.
     if (state_ptr->current_shader_id != next_shader_id) {
-        renderer_shader_use(next_shader_id);
+        renderer_shader_use(shader_system_get_by_id(next_shader_id));
         state_ptr->current_shader_id = next_shader_id;
+
+        renderer_shader_bind_globals(shader_system_get_by_id(next_shader_id));
     }
 
     return true;
+}
+
+u32 shader_system_uniform_location(const char* uniform_name) {
+    if (state_ptr->current_shader_id == INVALID_ID) {
+        KERROR("shader_system_uniform_location called without a shader in use.");
+        return INVALID_ID;
+    }
+    shader* shader = &state_ptr->shaders[state_ptr->current_shader_id];
+    u32 location = INVALID_ID;
+    if (!hashtable_get(&shader->uniform_lookup, uniform_name, &location) || location == INVALID_ID) {
+        KERROR("Shader '%s' does not have a registered uniform named '%s'", shader->name, uniform_name);
+        return INVALID_ID;
+    }
+    return location;
+}
+
+b8 shader_system_uniform_set(const char* uniform_name, void* value) {
+    if (state_ptr->current_shader_id == INVALID_ID) {
+        KERROR("shader_system_uniform_set called without a shader in use.");
+        return false;
+    }
+
+    u32 location = shader_system_uniform_location(uniform_name);
+    return shader_system_uniform_set_by_loc(location, value);
+}
+
+b8 shader_system_sampler_set(const char* sampler_name, texture* t) {
+    return shader_system_uniform_set(sampler_name, t);
+}
+
+b8 shader_system_uniform_set_by_loc(u32 location, void* value) {
+    shader* shader = &state_ptr->shaders[state_ptr->current_shader_id];
+    shader_uniform* uniform = &shader->uniforms[location];
+    if (shader->bound_scope != uniform->scope) {
+        if (uniform->scope == SHADER_SCOPE_GLOBAL) {
+            renderer_shader_bind_globals(shader);
+        } else if (uniform->scope == SHADER_SCOPE_INSTANCE) {
+            renderer_shader_bind_instance(shader, shader->bound_instance_id);
+        } else {
+            // NOTE: Nothing to do here for locals, just set the uniform.
+        }
+        shader->bound_scope = uniform->scope;
+    }
+    return renderer_set_uniform(shader, uniform, value);
+}
+b8 shader_system_sampler_set_by_loc(u32 location, texture* t) {
+    return shader_system_uniform_set_by_loc(location, t);
+}
+
+b8 shader_system_apply_global() {
+    return renderer_shader_apply_globals(&state_ptr->shaders[state_ptr->current_shader_id]);
+}
+b8 shader_system_apply_instance() {
+    return renderer_shader_apply_instance(&state_ptr->shaders[state_ptr->current_shader_id]);
+}
+
+b8 shader_system_bind_instance(u32 instance_id) {
+    shader* s = &state_ptr->shaders[state_ptr->current_shader_id];
+    s->bound_instance_id = instance_id;
+    return renderer_shader_bind_instance(s, instance_id);
 }
 
 b8 add_attribute(shader* shader, const shader_attribute_config* config) {
@@ -334,63 +421,6 @@ b8 add_uniform(shader* shader, shader_uniform_config* config) {
     return uniform_add(shader, config->name, config->size, config->scope, 0, false);
 }
 
-b8 shader_system_uniform_set(const char* uniform_name, void* value) {
-    if (state_ptr->current_shader_id == INVALID_ID) {
-        KERROR("shader_system_uniform_set called without a shader in use.");
-        return false;
-    }
-
-    u32 location = renderer_shader_uniform_location(state_ptr->current_shader_id, uniform_name);
-
-    return true;
-}
-
-u32 shader_system_uniform_location(shader* shader, const char* uniform_name) {
-    u32 location = INVALID_ID;
-    if (!hashtable_get(&shader->uniform_lookup, uniform_name, &location) || location == INVALID_ID) {
-        KERROR("Shader '%s' does not have a registered uniform named '%s'", shader->name, uniform_name);
-        return INVALID_ID;
-    }
-    return location;
-}
-
-b8 check_uniform_size(vulkan_shader* shader, u32 location, u32 expected_size) {
-    if (expected_size == 0) {
-        // Bypass the size check.
-        return true;
-    }
-    vulkan_uniform_lookup_entry* entry = &shader->uniforms[location];
-    if (entry->size != expected_size) {
-        KERROR("Uniform location '%d' on shader '%s' is a different size (%dB) than expected (%dB).", location, shader->name, entry->size, expected_size);
-        return false;
-    }
-    return true;
-}
-
-b8 set_uniform(shader* shader, u32 location, void* value, u64 size) {
-    if (!check_uniform_size(shader, location, size)) {
-        return false;
-    }
-
-    
-    // Map the appropriate memory location and copy the data over.
-    void* block = 0;
-    shader_uniform* entry = &shader->uniforms[location];
-    if (entry->scope == SHADER_SCOPE_GLOBAL) {
-        block = (void*)(shader->mapped_uniform_buffer_block + shader->global_ubo_offset + entry->offset);
-    } else if (entry->scope == SHADER_SCOPE_INSTANCE) {
-        block = (void*)(shader->mapped_uniform_buffer_block + shader->bound_ubo_offset + entry->offset);
-    } else {
-        // Is local, using push constants. Do this immediately.
-        VkCommandBuffer command_buffer = shader->context->graphics_command_buffers[shader->context->image_index].handle;
-        vkCmdPushConstants(command_buffer, shader->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, entry->offset, entry->size, value);
-        return true;
-    }
-    kcopy_memory(block, value, size);
-    return true;
-}
-
-
 u32 get_shader_id(const char* shader_name) {
     u32 shader_id = INVALID_ID;
     if (!hashtable_get(&state_ptr->lookup, shader_name, &shader_id)) {
@@ -401,7 +431,7 @@ u32 get_shader_id(const char* shader_name) {
 }
 
 u32 new_shader_id() {
-    for (u32 i = 0; i < state_ptr->max_shader_count; ++i) {
+    for (u32 i = 0; i < state_ptr->config.max_shader_count; ++i) {
         if (state_ptr->shaders[i].id == INVALID_ID) {
             return i;
         }

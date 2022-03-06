@@ -6,6 +6,22 @@
 
 static b8 rand_seeded = false;
 
+typedef union {
+    f32 elements[3];
+    union{
+        struct{ f32 x,y,z; };
+        struct{ f32 r,g,b; };
+        struct{ f32 s,t,p; };
+        struct{ f32 u,v,w; };
+    };
+} test3;
+
+void test() {
+    test3 t;
+    t.x = 1.0f;
+    t.g = 2.0f;
+}
+
 /**
  * Note that these are here in order to prevent having to import the
  * entire <math.h> everywhere.

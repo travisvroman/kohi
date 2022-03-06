@@ -108,6 +108,8 @@ typedef struct shader {
     /** @brief The number of instance textures. */
     u8 instance_texture_count;
 
+    shader_scope bound_scope;
+
     /** @brief The identifier of the currently bound instance. */
     u32 bound_instance_id;
     /** @brief The currently bound instance's ubo offset. */
@@ -142,4 +144,20 @@ void shader_system_shutdown(void* state);
 
 KAPI b8 shader_system_create(const shader_config* config);
 
+KAPI u32 shader_system_get_id(const char* shader_name);
+KAPI shader* shader_system_get_by_id(u32 shader_id);
+KAPI shader* shader_system_get(const char* shader_name);
+
 KAPI b8 shader_system_use(const char* shader_name);
+
+KAPI u32 shader_system_uniform_location(const char* uniform_name);
+KAPI b8 shader_system_uniform_set(const char* uniform_name, void* value);
+KAPI b8 shader_system_sampler_set(const char* sampler_name, texture* t);
+
+KAPI b8 shader_system_uniform_set_by_loc(u32 location, void* value);
+KAPI b8 shader_system_sampler_set_by_loc(u32 location, struct texture* t);
+
+KAPI b8 shader_system_apply_global();
+KAPI b8 shader_system_apply_instance();
+
+KAPI b8 shader_system_bind_instance(u32 instance_id);

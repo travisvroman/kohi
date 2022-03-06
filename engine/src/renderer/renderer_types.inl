@@ -7,6 +7,9 @@
 #define BUILTIN_SHADER_NAME_MATERIAL "Builtin.Material"
 #define BUILTIN_SHADER_NAME_UI "Builtin.UI"
 
+struct shader;
+struct shader_uniform;
+
 typedef enum renderer_backend_type {
     RENDERER_BACKEND_TYPE_VULKAN,
     RENDERER_BACKEND_TYPE_OPENGL,
@@ -121,21 +124,6 @@ typedef struct renderer_backend {
     void (*destroy_texture)(struct texture* texture);
 
     /**
-     * @brief Creates a material, acquiring required internal resources.
-     *
-     * @param material A pointer to the material to hold the resources.
-     * @return True on success; otherwise false.
-     */
-    b8 (*create_material)(struct material* material);
-
-    /**
-     * @brief Destroys a texture, releasing required internal resouces.
-     *
-     * @param material A pointer to the material whose resources should be released.
-     */
-    void (*destroy_material)(struct material* material);
-
-    /**
      * @brief Creates Vulkan-specific internal resources for the given geometry using
      * the data provided.
      *
@@ -169,24 +157,23 @@ typedef struct renderer_backend {
      * @param out_shader A pointer to hold the identifier of the newly-created shader.
      * @returns True on success; otherwise false.
      */
-    b8 (*shader_create)(shader* shader, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages);
+    b8 (*shader_create)(struct shader* shader, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
      * @param shader_id The identifier of the shader to be destroyed.
      */
-    void (*shader_destroy)(shader* shader);
+    void (*shader_destroy)(struct shader* shader);
 
-    b8 (*shader_set_uniform)(struct shader* frontend_shader, shader_uniform* uniform, void* value);
-    b8 (*shader_initialize)(shader* shader);
-    b8 (*shader_use)(shader* shader);
-    b8 (*shader_bind_globals)(shader* s);
-    b8 (*shader_bind_instance)(shader* s, u32 instance_id);
-    b8 (*shader_apply_globals)(shader* s);
-    b8 (*shader_apply_instance)(shader* s);
-    b8 (*shader_acquire_instance_resources)(shader* s, u32* out_instance_id);
-    b8 (*shader_release_instance_resources)(shader* s, u32 instance_id);
-    b8 (*shader_set_sampler)(shader* s, u32 location, texture* t);
+    b8 (*shader_set_uniform)(struct shader* frontend_shader, struct shader_uniform* uniform, void* value);
+    b8 (*shader_initialize)(struct shader* shader);
+    b8 (*shader_use)(struct shader* shader);
+    b8 (*shader_bind_globals)(struct shader* s);
+    b8 (*shader_bind_instance)(struct shader* s, u32 instance_id);
+    b8 (*shader_apply_globals)(struct shader* s);
+    b8 (*shader_apply_instance)(struct shader* s);
+    b8 (*shader_acquire_instance_resources)(struct shader* s, u32* out_instance_id);
+    b8 (*shader_release_instance_resources)(struct shader* s, u32 instance_id);
 
 } renderer_backend;
 
