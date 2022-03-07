@@ -260,6 +260,10 @@ b8 load_material(material_config config, material* m) {
 
     // Send it off to the renderer to acquire resources.
     shader* s = shader_system_get(config.shader_name);
+    if(!s) {
+        KERROR("Unable to load material because its shader was not found: '%s'. This is likely a problem with the material asset.", config.shader_name);
+        return false;
+    }
     if (!renderer_shader_acquire_instance_resources(s, &m->internal_id)) {
         KERROR("Failed to acquire renderer resources for material '%s'.", m->name);
         return false;
@@ -298,7 +302,7 @@ b8 create_default_material(material_system_state* state) {
     state->default_material.diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
     state->default_material.diffuse_map.texture = texture_system_get_default_texture();
 
-    shader* s = shader_system_get(state->default_material.name);
+    shader* s = shader_system_get(BUILTIN_SHADER_NAME_MATERIAL);
     if (!renderer_shader_acquire_instance_resources(s, &state->default_material.internal_id)) {
         KFATAL("Failed to acquire renderer resources for default material. Application cannot continue.");
         return false;

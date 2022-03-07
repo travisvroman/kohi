@@ -90,7 +90,7 @@ b8 material_loader_load(struct resource_loader* self, const char* name, resource
             }
         } else if (strings_equali(trimmed_var_name, "shader")) {
             // Take a copy of the material name.
-            string_ncopy(resource_data->shader_name, trimmed_value, 255);
+            resource_data->shader_name = string_duplicate(trimmed_value);
         }
 
         // TODO: more fields.

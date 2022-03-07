@@ -4,8 +4,8 @@
 #include "math/math_types.h"
 #include "resources/resource_types.h"
 
-#define BUILTIN_SHADER_NAME_MATERIAL "Builtin.Material"
-#define BUILTIN_SHADER_NAME_UI "Builtin.UI"
+#define BUILTIN_SHADER_NAME_MATERIAL "Shader.Builtin.Material"
+#define BUILTIN_SHADER_NAME_UI "Shader.Builtin.UI"
 
 struct shader;
 struct shader_uniform;
@@ -165,7 +165,7 @@ typedef struct renderer_backend {
      */
     void (*shader_destroy)(struct shader* shader);
 
-    b8 (*shader_set_uniform)(struct shader* frontend_shader, struct shader_uniform* uniform, void* value);
+    b8 (*shader_set_uniform)(struct shader* frontend_shader, struct shader_uniform* uniform, const void* value);
     b8 (*shader_initialize)(struct shader* shader);
     b8 (*shader_use)(struct shader* shader);
     b8 (*shader_bind_globals)(struct shader* s);

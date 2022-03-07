@@ -424,6 +424,9 @@ typedef struct vulkan_shader_instance_state {
  * files to construct a shader for use in rendering.
  */
 typedef struct vulkan_shader {
+    /** @brief The block of memory mapped to the uniform buffer. */
+    void* mapped_uniform_buffer_block;
+
     /** @brief The shader identifier. */
     u32 id;
 
@@ -453,8 +456,6 @@ typedef struct vulkan_shader {
     u32 instance_count;
     vulkan_shader_instance_state instance_states[VULKAN_MAX_MATERIAL_COUNT];
 
-    /** @brief The block of memory mapped to the uniform buffer. */
-    void* mapped_uniform_buffer_block;
 } vulkan_shader;
 
 /**

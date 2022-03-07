@@ -1316,7 +1316,7 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
         s->renderpass,
         shader->attribute_stride,
         darray_length(shader->attributes),
-        s->config.attributes,// shader->attributes,
+        s->config.attributes,  // shader->attributes,
         s->config.descriptor_set_count,
         s->descriptor_set_layouts,
         s->config.stage_count,
@@ -1370,7 +1370,20 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
     }
 
     // Map the entire buffer's memory.
-    s->mapped_uniform_buffer_block = vulkan_buffer_lock_memory(&context, &s->uniform_buffer, 0, total_buffer_size, 0);
+    s->mapped_uniform_buffer_block = vulkan_buffer_lock_memory(&context, &s->uniform_buffer, 0, VK_WHOLE_SIZE /*total_buffer_size*/, 0);
+    // mat4 m;
+    // for (u32 i = 0; i < 16; ++i) {
+    //     m.data[i] = i;
+    // }
+    // f32 f = 66.34f;
+    // kcopy_memory(s->mapped_uniform_buffer_block, &f, sizeof(f32));
+    // void* block = kallocate(512, MEMORY_TAG_UNKNOWN);
+    // kcopy_memory(block, &m, sizeof(mat4));
+    // kcopy_memory(s->mapped_uniform_buffer_block, &m, sizeof(mat4));
+    // mat4 m2 = *(mat4*)s->mapped_uniform_buffer_block;
+    // if (m2.data[0]) {
+    // }
+    // memcpy(s->mapped_uniform_buffer_block, &m, 64);
 
     // Allocate global descriptor sets, one per frame. Global is always the first set.
     VkDescriptorSetLayout global_layouts[3] = {
@@ -1647,7 +1660,7 @@ b8 vulkan_renderer_shader_release_instance_resources(shader* s, u32 instance_id)
     return true;
 }
 
-b8 vulkan_renderer_set_uniform(shader* s, shader_uniform* uniform, void* value) {
+b8 vulkan_renderer_set_uniform(shader* s, shader_uniform* uniform, const void* value) {
     vulkan_shader* internal = s->internal_data;
     if (uniform->type == SHADER_UNIFORM_TYPE_SAMPLER) {
         if (uniform->scope == SHADER_SCOPE_GLOBAL) {
@@ -1660,15 +1673,20 @@ b8 vulkan_renderer_set_uniform(shader* s, shader_uniform* uniform, void* value) 
         void* block = 0;
         if (uniform->scope == SHADER_SCOPE_GLOBAL) {
             block = (void*)(internal->mapped_uniform_buffer_block + s->global_ubo_offset + uniform->offset);
+            kcopy_memory(block, value, uniform->size);
         } else if (uniform->scope == SHADER_SCOPE_INSTANCE) {
             block = (void*)(internal->mapped_uniform_buffer_block + s->bound_ubo_offset + uniform->offset);
+            kcopy_memory(block, value, uniform->size);
         } else {
             // Is local, using push constants. Do this immediately.
             VkCommandBuffer command_buffer = context.graphics_command_buffers[context.image_index].handle;
             vkCmdPushConstants(command_buffer, internal->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, uniform->offset, uniform->size, value);
             return true;
         }
-        kcopy_memory(block, value, uniform->size);
+        // block = kcopy_memory(block, value, uniform->size);
+        // if(!block) {
+
+        // }
     }
     return true;
 }

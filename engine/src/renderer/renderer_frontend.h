@@ -195,4 +195,4 @@ b8 renderer_shader_acquire_instance_resources(struct shader* s, u32* out_instanc
  */
 b8 renderer_shader_release_instance_resources(struct shader* s, u32 instance_id);
 
-b8 renderer_set_uniform(struct shader* frontend_shader, struct shader_uniform* uniform, void* value);
+b8 renderer_set_uniform(struct shader* frontend_shader, struct shader_uniform* uniform, const void* value);

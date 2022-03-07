@@ -38,13 +38,12 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
     resource_data->stages = darray_create(shader_stage);
     resource_data->use_instances = false;
     resource_data->use_local = false;
-    resource_data->renderpass_id = INVALID_ID_U8;
     resource_data->stage_count = 0;
     resource_data->stage_names = darray_create(char*);
     resource_data->stage_filenames = darray_create(char*);
     resource_data->renderpass_name = 0;
 
-    resource_data->name = string_duplicate(name);
+    resource_data->name = 0;
 
     // Read each line of the file.
     char line_buf[512] = "";
@@ -88,10 +87,9 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
         if (strings_equali(trimmed_var_name, "version")) {
             // TODO: version
         } else if (strings_equali(trimmed_var_name, "name")) {
-            string_ncopy(resource_data->name, trimmed_value, 255);
+            resource_data->name = string_duplicate(trimmed_value);
         } else if (strings_equali(trimmed_var_name, "renderpass")) {
-            resource_data->renderpass_name = kallocate(sizeof(char) * (string_length(trimmed_value) + 1), MEMORY_TAG_STRING);
-            string_ncopy(resource_data->renderpass_name, trimmed_value, 255);
+            resource_data->renderpass_name = string_duplicate(trimmed_value);
         } else if (strings_equali(trimmed_var_name, "stages")) {
             // Parse the stages
             char** stage_names = darray_create(char*);

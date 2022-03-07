@@ -137,7 +137,7 @@ b8 renderer_draw_frame(render_packet* packet) {
             // state_ptr->backend.shader_bind_instance(state_ptr->material_shader_id, m->internal_id);
             shader_system_bind_instance(m->internal_id);
             shader_system_uniform_set("diffuse_colour", &m->diffuse_colour);
-            shader_system_uniform_set("diffuse_texture", &m->diffuse_map.texture);
+            shader_system_uniform_set("diffuse_texture", m->diffuse_map.texture);
             shader_system_apply_instance();
             // state_ptr->backend.shader_set_uniform_vec4(state_ptr->material_shader_id, state_ptr->material_shader_diffuse_colour_location, m->diffuse_colour);
             // state_ptr->backend.shader_set_sampler(state_ptr->material_shader_id, state_ptr->material_shader_diffuse_texture_location, m->diffuse_map.texture);
@@ -242,10 +242,10 @@ void renderer_destroy_geometry(geometry* geometry) {
 b8 renderer_renderpass_id(const char* name, u8* out_renderpass_id) {
     // TODO: HACK: Need dynamic renderpasses instead of hardcoding them.
     if (strings_equali("Renderpass.Builtin.World", name)) {
-        *out_renderpass_id = 1;
+        *out_renderpass_id = BUILTIN_RENDERPASS_WORLD;
         return true;
     } else if (strings_equali("Renderpass.Builtin.UI", name)) {
-        *out_renderpass_id = 2;
+        *out_renderpass_id = BUILTIN_RENDERPASS_UI;
         return true;
     }
 
@@ -294,6 +294,6 @@ b8 renderer_shader_release_instance_resources(shader* s, u32 instance_id) {
     return state_ptr->backend.shader_release_instance_resources(s, instance_id);
 }
 
-b8 renderer_set_uniform(shader* frontend_shader, shader_uniform* uniform, void* value) {
+b8 renderer_set_uniform(shader* frontend_shader, shader_uniform* uniform, const void* value) {
     return state_ptr->backend.shader_set_uniform(frontend_shader, uniform, value);
 }

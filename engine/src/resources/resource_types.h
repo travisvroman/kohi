@@ -242,7 +242,6 @@ typedef struct shader_uniform_config {
 
 typedef struct shader_config {
     char* name;
-    u8 renderpass_id;
     
     b8 use_instances;
     b8 use_local;

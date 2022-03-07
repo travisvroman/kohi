@@ -27,7 +27,7 @@ b8 add_sampler(shader* shader, shader_uniform_config* config);
 b8 add_uniform(shader* shader, shader_uniform_config* config);
 u32 get_shader_id(const char* shader_name);
 u32 new_shader_id();
-b8 uniform_add(shader* shader, const char* uniform_name, u32 size, shader_scope scope, u32 set_location, b8 is_sampler);
+b8 uniform_add(shader* shader, const char* uniform_name, u32 size, shader_uniform_type type, shader_scope scope, u32 set_location, b8 is_sampler);
 b8 uniform_name_valid(shader* shader, const char* uniform_name);
 b8 shader_uniform_add_state_valid(shader* shader);
 ///////////////////////
@@ -93,7 +93,6 @@ void shader_system_shutdown(void* state) {
 }
 
 b8 shader_system_create(const shader_config* config) {
-    u32 shader_id = 0;
     shader out_shader = {};
     out_shader.id = new_shader_id();
     if (out_shader.id == INVALID_ID) {
@@ -116,7 +115,7 @@ b8 shader_system_create(const shader_config* config) {
 
     // Create a hashtable to store uniform array indexes. This provides a direct index into the
     // 'uniforms' array stored in the shader for quick lookups by name.
-    u64 element_size = sizeof(u32);  // Indexes are stored as u32s.
+    u64 element_size = sizeof(u16);  // Indexes are stored as u16s.
     u64 element_count = 1024;        // This is more uniforms than we will ever need, but a bigger table reduces collision chance.
     out_shader.hashtable_block = kallocate(element_size * element_count, MEMORY_TAG_UNKNOWN);
     hashtable_create(element_size, element_count, out_shader.hashtable_block, false, &out_shader.uniform_lookup);
@@ -140,6 +139,20 @@ b8 shader_system_create(const shader_config* config) {
     out_shader.push_constant_stride = 128;
     out_shader.push_constant_size = 0;
 
+    u8 renderpass_id = INVALID_ID_U8;
+    if (!renderer_renderpass_id(config->renderpass_name, &renderpass_id)) {
+        KERROR("Unable to find renderpass '%s'", config->renderpass_name);
+        return false;
+    }
+
+    if (!renderer_shader_create(&out_shader, renderpass_id, config->stage_count, (const char**)config->stage_filenames, config->stages)) {
+        KERROR("Error creating shader.");
+        return false;
+    }
+
+    // Ready to be initialized.
+    out_shader.state = SHADER_STATE_UNINITIALIZED;
+
     // Process attributes
     for (u32 i = 0; i < config->attribute_count; ++i) {
         add_attribute(&out_shader, &config->attributes[i]);
@@ -154,49 +167,6 @@ b8 shader_system_create(const shader_config* config) {
         }
     }
 
-    if (!renderer_shader_create(&out_shader, config->renderpass_id, config->stage_count, (const char**)config->stage_filenames, config->stages)) {
-        KERROR("Error creating shader.");
-        return false;
-    }
-
-    // Ready to be initialized.
-    out_shader.state = SHADER_STATE_UNINITIALIZED;
-
-    // // Add attributes.
-    // for (u32 i = 0; i < config->attribute_count; ++i) {
-    //     if (!renderer_shader_add_attribute(shader_id, config->name, config->attributes[i].type)) {
-    //         KERROR("shader_system_create: Error adding attribute '%s'. Shader will be destroyed.", config->attributes[i].name);
-    //         renderer_shader_destroy(shader_id);
-    //         return false;
-    //     }
-    // }
-
-    // // Add uniforms.
-    // for (u32 i = 0; i < config->uniform_count; ++i) {
-    //     if (config->uniforms[i].type == SHADER_UNIFORM_TYPE_CUSTOM) {
-    //         // Handle custom uniforms.
-    //         if (!renderer_shader_add_uniform_custom(shader_id, config->uniforms[i].name, config->uniforms[i].size, config->uniforms[i].scope, &config->uniforms[i].location)) {
-    //             KERROR("shader_system_create: Error adding custom uniform '%s'", config->uniforms[i].name);
-    //             renderer_shader_destroy(shader_id);
-    //             return false;
-    //         }
-    //     } else if (config->uniforms[i].type == SHADER_UNIFORM_TYPE_SAMPLER) {
-    //         // Handle samplers.
-    //         if (!renderer_shader_add_sampler(shader_id, config->uniforms[i].name, config->uniforms[i].scope, &config->uniforms[i].location)) {
-    //             KERROR("shader_system_create: Error adding sampler '%s'", config->uniforms[i].name);
-    //             renderer_shader_destroy(shader_id);
-    //             return false;
-    //         }
-    //     } else {
-    //         // Handle all other types of uniforms.
-    //         if (!renderer_shader_add_uniform(shader_id, config->uniforms[i].name, config->uniforms[i].type, config->uniforms[i].scope, &config->uniforms[i].location)) {
-    //             KERROR("shader_system_create: Error adding uniform '%s'", config->uniforms[i].name);
-    //             renderer_shader_destroy(shader_id);
-    //             return false;
-    //         }
-    //     }
-    // }
-
     // Initialize the shader.
     if (!renderer_shader_initialize(&out_shader)) {
         KERROR("shader_system_create: initialization failed for shader '%s'.", config->name);
@@ -206,11 +176,14 @@ b8 shader_system_create(const shader_config* config) {
 
     // At this point, creation is successful, so store the shader id in the hashtable
     // so this can be looked up by name later.
-    if (!hashtable_set(&state_ptr->lookup, config->name, &shader_id)) {
+    if (!hashtable_set(&state_ptr->lookup, config->name, &out_shader.id)) {
         // Dangit, we got so far... welp, nuke the shader and boot.
         renderer_shader_destroy(&out_shader);
         return false;
     }
+
+    // Finally, set the correct array entry.
+    state_ptr->shaders[out_shader.id] = out_shader;
 
     return true;
 }
@@ -225,7 +198,10 @@ shader* shader_system_get_by_id(u32 shader_id) {
 
 shader* shader_system_get(const char* shader_name) {
     u32 shader_id = get_shader_id(shader_name);
-    return shader_system_get_by_id(shader_id);
+    if (shader_id != INVALID_ID) {
+        return shader_system_get_by_id(shader_id);
+    }
+    return 0;
 }
 
 void shader_system_destroy(const char* shader_name) {
@@ -262,35 +238,35 @@ b8 shader_system_use(const char* shader_name) {
     return true;
 }
 
-u32 shader_system_uniform_location(const char* uniform_name) {
+u16 shader_system_uniform_location(const char* uniform_name) {
     if (state_ptr->current_shader_id == INVALID_ID) {
         KERROR("shader_system_uniform_location called without a shader in use.");
-        return INVALID_ID;
+        return INVALID_ID_U16;
     }
     shader* shader = &state_ptr->shaders[state_ptr->current_shader_id];
-    u32 location = INVALID_ID;
-    if (!hashtable_get(&shader->uniform_lookup, uniform_name, &location) || location == INVALID_ID) {
+    u16 index = INVALID_ID_U16;
+    if (!hashtable_get(&shader->uniform_lookup, uniform_name, &index) || index == INVALID_ID_U16) {
         KERROR("Shader '%s' does not have a registered uniform named '%s'", shader->name, uniform_name);
-        return INVALID_ID;
+        return INVALID_ID_U16;
     }
-    return location;
+    return shader->uniforms[index].location;
 }
 
-b8 shader_system_uniform_set(const char* uniform_name, void* value) {
+b8 shader_system_uniform_set(const char* uniform_name, const void* value) {
     if (state_ptr->current_shader_id == INVALID_ID) {
         KERROR("shader_system_uniform_set called without a shader in use.");
         return false;
     }
 
-    u32 location = shader_system_uniform_location(uniform_name);
+    u16 location = shader_system_uniform_location(uniform_name);
     return shader_system_uniform_set_by_loc(location, value);
 }
 
-b8 shader_system_sampler_set(const char* sampler_name, texture* t) {
+b8 shader_system_sampler_set(const char* sampler_name, const texture* t) {
     return shader_system_uniform_set(sampler_name, t);
 }
 
-b8 shader_system_uniform_set_by_loc(u32 location, void* value) {
+b8 shader_system_uniform_set_by_loc(u16 location, const void* value) {
     shader* shader = &state_ptr->shaders[state_ptr->current_shader_id];
     shader_uniform* uniform = &shader->uniforms[location];
     if (shader->bound_scope != uniform->scope) {
@@ -305,7 +281,7 @@ b8 shader_system_uniform_set_by_loc(u32 location, void* value) {
     }
     return renderer_set_uniform(shader, uniform, value);
 }
-b8 shader_system_sampler_set_by_loc(u32 location, texture* t) {
+b8 shader_system_sampler_set_by_loc(u16 location, const texture* t) {
     return shader_system_uniform_set_by_loc(location, t);
 }
 
@@ -406,7 +382,7 @@ b8 add_sampler(shader* shader, shader_uniform_config* config) {
     // hashtable entry's 'location' field value directly, and is then set to the index of the uniform array.
     // This allows location lookups for samplers as if they were uniforms as well (since technically they are).
     // TODO: might need to store this elsewhere
-    if (!uniform_add(shader, config->name, 0, config->scope, location, true)) {
+    if (!uniform_add(shader, config->name, 0, config->type, config->scope, location, true)) {
         KERROR("Unable to add sampler uniform.");
         return false;
     }
@@ -418,7 +394,7 @@ b8 add_uniform(shader* shader, shader_uniform_config* config) {
     if (!shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, config->name)) {
         return false;
     }
-    return uniform_add(shader, config->name, config->size, config->scope, 0, false);
+    return uniform_add(shader, config->name, config->size, config->type, config->scope, 0, false);
 }
 
 u32 get_shader_id(const char* shader_name) {
@@ -439,7 +415,7 @@ u32 new_shader_id() {
     return INVALID_ID;
 }
 
-b8 uniform_add(shader* shader, const char* uniform_name, u32 size, shader_scope scope, u32 set_location, b8 is_sampler) {
+b8 uniform_add(shader* shader, const char* uniform_name, u32 size, shader_uniform_type type, shader_scope scope, u32 set_location, b8 is_sampler) {
     u32 uniform_count = darray_length(shader->uniforms);
     if (uniform_count + 1 > state_ptr->config.max_uniform_count) {
         KERROR("A shader can only accept a combined maximum of %d uniforms and samplers at global, instance and local scopes.", state_ptr->config.max_uniform_count);
@@ -448,6 +424,7 @@ b8 uniform_add(shader* shader, const char* uniform_name, u32 size, shader_scope 
     shader_uniform entry;
     entry.index = uniform_count;  // Index is saved to the hashtable for lookups.
     entry.scope = scope;
+    entry.type = type;
     b8 is_global = (scope == SHADER_SCOPE_GLOBAL);
     if (is_sampler) {
         // Just use the passed in location
@@ -503,8 +480,8 @@ b8 uniform_name_valid(shader* shader, const char* uniform_name) {
         KERROR("Uniform name must exist.");
         return false;
     }
-    u32 location;
-    if (hashtable_get(&shader->uniform_lookup, uniform_name, &location) && location != INVALID_ID) {
+    u16 location;
+    if (hashtable_get(&shader->uniform_lookup, uniform_name, &location) && location != INVALID_ID_U16) {
         KERROR("A uniform by the name '%s' already exists on shader '%s'.", uniform_name, shader->name);
         return false;
     }
