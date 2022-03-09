@@ -107,30 +107,28 @@ void renderer_destroy_geometry(geometry* geometry);
 b8 renderer_renderpass_id(const char* name, u8* out_renderpass_id);
 
 /**
- * @brief Creates a new shader using the provided parameters.
- * @param name The name of the shader.
+ * @brief Creates internal shader resources using the provided parameters.
+ * 
+ * @param s A pointer to the shader.
  * @param renderpass_id The identifier of the renderpass to be associated with the shader.
  * @param stage_count The total number of stages.
  * @param stage_filenames An array of shader stage filenames to be loaded. Should align with stages array.
  * @param stages A array of shader_stages indicating what render stages (vertex, fragment, etc.) used in this shader.
- * @param use_instances Indicates if instances will be used with the shader.
- * @param use_local Indicates if local uniforms will be used with the shader.
- * @param out_shader A pointer to hold the identifier of the newly-created shader.
- * @returns True on success; otherwise false.
+ * @return b8 True on success; otherwise false.
  */
-b8 renderer_shader_create(struct shader* shader, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages);
+b8 renderer_shader_create(struct shader* s, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages);
 
 /**
  * @brief Destroys the given shader and releases any resources held by it.
- * @param shader_id The identifier of the shader to be destroyed.
+ * @param s A pointer to the shader to be destroyed.
  */
-void renderer_shader_destroy(struct shader* shader);
+void renderer_shader_destroy(struct shader* s);
 
 /**
  * @brief Initializes a configured shader. Will be automatically destroyed if this step fails.
  * Must be done after vulkan_shader_create().
  *
- * @param shader_id The identifier of the shader to be initialized.
+ * @param s A pointer to the shader to be initialized.
  * @return True on success; otherwise false.
  */
 b8 renderer_shader_initialize(struct shader* s);
@@ -139,7 +137,7 @@ b8 renderer_shader_initialize(struct shader* s);
  * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
  * and for use in draw calls.
  *
- * @param shader_id The identifier of the shader to be used.
+ * @param s A pointer to the shader to be used.
  * @return True on success; otherwise false.
  */
 b8 renderer_shader_use(struct shader* s);
@@ -147,7 +145,7 @@ b8 renderer_shader_use(struct shader* s);
 /**
  * @brief Binds global resources for use and updating.
  *
- * @param shader_id The identifier of the shader whose globals are to be bound.
+ * @param s A pointer to the shader whose globals are to be bound.
  * @return True on success; otherwise false.
  */
 b8 renderer_shader_bind_globals(struct shader* s);
@@ -155,7 +153,7 @@ b8 renderer_shader_bind_globals(struct shader* s);
 /**
  * @brief Binds instance resources for use and updating.
  *
- * @param shader_id The identifier of the shader whose instance resources are to be bound.
+ * @param s A pointer to the shader whose instance resources are to be bound.
  * @param instance_id The identifier of the instance to be bound.
  * @return True on success; otherwise false.
  */
@@ -164,7 +162,7 @@ b8 renderer_shader_bind_instance(struct shader* s, u32 instance_id);
 /**
  * @brief Applies global data to the uniform buffer.
  *
- * @param shader_id The identifier of the shader to apply the global data for.
+ * @param s A pointer to the shader to apply the global data for.
  * @return True on success; otherwise false.
  */
 b8 renderer_shader_apply_globals(struct shader* s);
@@ -172,7 +170,7 @@ b8 renderer_shader_apply_globals(struct shader* s);
 /**
  * @brief Applies data for the currently bound instance.
  *
- * @param shader_id The identifier of the shader to apply the instance data for.
+ * @param s A pointer to the shader to apply the instance data for.
  * @return True on success; otherwise false.
  */
 b8 renderer_shader_apply_instance(struct shader* s);
@@ -180,7 +178,7 @@ b8 renderer_shader_apply_instance(struct shader* s);
 /**
  * @brief Acquires internal instance-level resources and provides an instance id.
  *
- * @param shader_id The identifier of the shader to acquire resources from.
+ * @param s A pointer to the shader to acquire resources from.
  * @param out_instance_id A pointer to hold the new instance identifier.
  * @return True on success; otherwise false.
  */
@@ -189,10 +187,18 @@ b8 renderer_shader_acquire_instance_resources(struct shader* s, u32* out_instanc
 /**
  * @brief Releases internal instance-level resources for the given instance id.
  *
- * @param shader_id The identifier of the shader to release resources from.
+ * @param s A pointer to the shader to release resources from.
  * @param instance_id The instance identifier whose resources are to be released.
  * @return True on success; otherwise false.
  */
 b8 renderer_shader_release_instance_resources(struct shader* s, u32 instance_id);
 
-b8 renderer_set_uniform(struct shader* frontend_shader, struct shader_uniform* uniform, const void* value);
+/**
+ * @brief Sets the uniform of the given shader to the provided value.
+ * 
+ * @param s A ponter to the shader.
+ * @param uniform A constant pointer to the uniform.
+ * @param value A pointer to the value to be set.
+ * @return b8 True on success; otherwise false.
+ */
+b8 renderer_set_uniform(struct shader* s, struct shader_uniform* uniform, const void* value);

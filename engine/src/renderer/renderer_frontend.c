@@ -278,6 +278,6 @@ b8 renderer_shader_release_instance_resources(shader* s, u32 instance_id) {
     return state_ptr->backend.shader_release_instance_resources(s, instance_id);
 }
 
-b8 renderer_set_uniform(shader* frontend_shader, shader_uniform* uniform, const void* value) {
-    return state_ptr->backend.shader_set_uniform(frontend_shader, uniform, value);
+b8 renderer_set_uniform(shader* s, shader_uniform* uniform, const void* value) {
+    return state_ptr->backend.shader_set_uniform(s, uniform, value);
 }

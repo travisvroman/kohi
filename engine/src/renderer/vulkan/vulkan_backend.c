@@ -1144,6 +1144,7 @@ b8 vulkan_renderer_shader_create(shader* shader, u8 renderpass_id, u8 stage_coun
 
     return true;
 }
+
 void vulkan_renderer_shader_destroy(shader* s) {
     if (s && s->internal_data) {
         vulkan_shader* shader = s->internal_data;
@@ -1186,6 +1187,7 @@ void vulkan_renderer_shader_destroy(shader* s) {
 
         // Free the internal data memory.
         kfree(s->internal_data, sizeof(vulkan_shader), MEMORY_TAG_RENDERER);
+        s->internal_data = 0;
     }
 }
 
@@ -1237,9 +1239,10 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
         offset += shader->attributes[i].size;
     }
 
+    // Process uniforms.
     u32 uniform_count = darray_length(shader->uniforms);
     for (u32 i = 0; i < uniform_count; ++i) {
-        // Handle samplers.
+        // For samplers, the descriptor bindings need to be updated. Other types of uniforms don't need anything to be done here.
         if (shader->uniforms[i].type == SHADER_UNIFORM_TYPE_SAMPLER) {
             const u32 set_index = (shader->uniforms[i].scope == SHADER_SCOPE_GLOBAL ? DESC_SET_INDEX_GLOBAL : DESC_SET_INDEX_INSTANCE);
             vulkan_descriptor_set_config* set_config = &s->config.descriptor_sets[set_index];
@@ -1256,12 +1259,8 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
                 // Take the current descriptor count as the location and increment the number of descriptors.
                 set_config->bindings[BINDING_INDEX_SAMPLER].descriptorCount++;
             }
-        } else {
-            // Standard uniforms. Nothing to do here?
         }
     }
-
-    //
 
     // Descriptor pool.
     VkDescriptorPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
@@ -1397,6 +1396,7 @@ b8 vulkan_renderer_shader_use(shader* shader) {
     vulkan_pipeline_bind(&context.graphics_command_buffers[context.image_index], VK_PIPELINE_BIND_POINT_GRAPHICS, &s->pipeline);
     return true;
 }
+
 b8 vulkan_renderer_shader_bind_globals(shader* s) {
     if (!s) {
         return false;
@@ -1406,6 +1406,7 @@ b8 vulkan_renderer_shader_bind_globals(shader* s) {
     s->bound_ubo_offset = s->global_ubo_offset;
     return true;
 }
+
 b8 vulkan_renderer_shader_bind_instance(shader* s, u32 instance_id) {
     if (!s) {
         KERROR("vulkan_shader_bind_instance requires a valid pointer to a shader.");
@@ -1418,6 +1419,7 @@ b8 vulkan_renderer_shader_bind_instance(shader* s, u32 instance_id) {
     s->bound_ubo_offset = object_state->offset;
     return true;
 }
+
 b8 vulkan_renderer_shader_apply_globals(shader* s) {
     u32 image_index = context.image_index;
     vulkan_shader* internal = s->internal_data;
@@ -1458,6 +1460,7 @@ b8 vulkan_renderer_shader_apply_globals(shader* s) {
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, internal->pipeline.pipeline_layout, 0, 1, &global_descriptor, 0, 0);
     return true;
 }
+
 b8 vulkan_renderer_shader_apply_instance(shader* s) {
     if (!s->use_instances) {
         KERROR("This shader does not use instances.");
@@ -1545,6 +1548,7 @@ b8 vulkan_renderer_shader_apply_instance(shader* s) {
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, internal->pipeline.pipeline_layout, 1, 1, &object_descriptor_set, 0, 0);
     return true;
 }
+
 b8 vulkan_renderer_shader_acquire_instance_resources(shader* s, u32* out_instance_id) {
     vulkan_shader* internal = s->internal_data;
     // TODO: dynamic
@@ -1611,6 +1615,7 @@ b8 vulkan_renderer_shader_acquire_instance_resources(shader* s, u32* out_instanc
 
     return true;
 }
+
 b8 vulkan_renderer_shader_release_instance_resources(shader* s, u32 instance_id) {
     vulkan_shader* internal = s->internal_data;
     vulkan_shader_instance_state* instance_state = &internal->instance_states[instance_id];

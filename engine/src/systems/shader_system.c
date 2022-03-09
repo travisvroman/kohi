@@ -9,17 +9,21 @@
 
 #include "systems/texture_system.h"
 
+// The internal shader system state.
 typedef struct shader_system_state {
+    // This system's configuration.
     shader_system_config config;
-    // Shader name->id
+    // A lookup table for shader name->id
     hashtable lookup;
+    // The memory used for the lookup table.
     void* lookup_memory;
+    // The identifier for the currently bound shader.
     u32 current_shader_id;
-
-    /** @brief A collection of created shaders. */
+    // A collection of created shaders.
     shader* shaders;
 } shader_system_state;
 
+// A pointer to hold the internal system state.
 static shader_system_state* state_ptr = 0;
 
 b8 add_attribute(shader* shader, const shader_attribute_config* config);
@@ -58,8 +62,9 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, shader_system
 
     // Setup the state pointer, memory block, shader array, then create the hashtable.
     state_ptr = memory;
-    state_ptr->lookup_memory = state_ptr + struct_requirement;
-    state_ptr->shaders = state_ptr->lookup_memory + hashtable_requirement;
+    u64 addr = (u64)memory;
+    state_ptr->lookup_memory = (void*)(addr + struct_requirement);
+    state_ptr->shaders = (void*)((u64)state_ptr->lookup_memory + hashtable_requirement);
     state_ptr->config = config;
     state_ptr->current_shader_id = INVALID_ID;
     hashtable_create(sizeof(u32), config.max_shader_count, state_ptr->lookup_memory, false, &state_ptr->lookup);
@@ -101,48 +106,50 @@ void shader_system_shutdown(void* state) {
 }
 
 b8 shader_system_create(const shader_config* config) {
-    shader out_shader = {};
-    out_shader.id = new_shader_id();
-    if (out_shader.id == INVALID_ID) {
+    u32 id = new_shader_id();
+    shader* out_shader = &state_ptr->shaders[id];
+    kzero_memory(out_shader, sizeof(shader));
+    out_shader->id = id;
+    if (out_shader->id == INVALID_ID) {
         KERROR("Unable to find free slot to create new shader. Aborting.");
         return false;
     }
-    out_shader.state = SHADER_STATE_NOT_CREATED;
-    out_shader.name = string_duplicate(config->name);
-    out_shader.use_instances = config->use_instances;
-    out_shader.use_locals = config->use_local;
-    out_shader.push_constant_range_count = 0;
-    kzero_memory(out_shader.push_constant_ranges, sizeof(range) * 32);
-    out_shader.bound_instance_id = INVALID_ID;
-    out_shader.attribute_stride = 0;
+    out_shader->state = SHADER_STATE_NOT_CREATED;
+    out_shader->name = string_duplicate(config->name);
+    out_shader->use_instances = config->use_instances;
+    out_shader->use_locals = config->use_local;
+    out_shader->push_constant_range_count = 0;
+    kzero_memory(out_shader->push_constant_ranges, sizeof(range) * 32);
+    out_shader->bound_instance_id = INVALID_ID;
+    out_shader->attribute_stride = 0;
 
     // Setup arrays
-    out_shader.global_textures = darray_create(texture*);
-    out_shader.uniforms = darray_create(shader_uniform);
-    out_shader.attributes = darray_create(shader_attribute);
+    out_shader->global_textures = darray_create(texture*);
+    out_shader->uniforms = darray_create(shader_uniform);
+    out_shader->attributes = darray_create(shader_attribute);
 
     // Create a hashtable to store uniform array indexes. This provides a direct index into the
     // 'uniforms' array stored in the shader for quick lookups by name.
     u64 element_size = sizeof(u16);  // Indexes are stored as u16s.
     u64 element_count = 1024;        // This is more uniforms than we will ever need, but a bigger table reduces collision chance.
-    out_shader.hashtable_block = kallocate(element_size * element_count, MEMORY_TAG_UNKNOWN);
-    hashtable_create(element_size, element_count, out_shader.hashtable_block, false, &out_shader.uniform_lookup);
+    out_shader->hashtable_block = kallocate(element_size * element_count, MEMORY_TAG_UNKNOWN);
+    hashtable_create(element_size, element_count, out_shader->hashtable_block, false, &out_shader->uniform_lookup);
 
     // Invalidate all spots in the hashtable.
     u32 invalid = INVALID_ID;
-    hashtable_fill(&out_shader.uniform_lookup, &invalid);
+    hashtable_fill(&out_shader->uniform_lookup, &invalid);
 
     // A running total of the actual global uniform buffer object size.
-    out_shader.global_ubo_size = 0;
+    out_shader->global_ubo_size = 0;
     // A running total of the actual instance uniform buffer object size.
-    out_shader.ubo_size = 0;
+    out_shader->ubo_size = 0;
     // NOTE: UBO alignment requirement set in renderer backend.
 
     // This is hard-coded because the Vulkan spec only guarantees that a _minimum_ 128 bytes of space are available,
     // and it's up to the driver to determine how much is available. Therefore, to avoid complexity, only the
     // lowest common denominator of 128B will be used.
-    out_shader.push_constant_stride = 128;
-    out_shader.push_constant_size = 0;
+    out_shader->push_constant_stride = 128;
+    out_shader->push_constant_size = 0;
 
     u8 renderpass_id = INVALID_ID_U8;
     if (!renderer_renderpass_id(config->renderpass_name, &renderpass_id)) {
@@ -150,30 +157,30 @@ b8 shader_system_create(const shader_config* config) {
         return false;
     }
 
-    if (!renderer_shader_create(&out_shader, renderpass_id, config->stage_count, (const char**)config->stage_filenames, config->stages)) {
+    if (!renderer_shader_create(out_shader, renderpass_id, config->stage_count, (const char**)config->stage_filenames, config->stages)) {
         KERROR("Error creating shader.");
         return false;
     }
 
     // Ready to be initialized.
-    out_shader.state = SHADER_STATE_UNINITIALIZED;
+    out_shader->state = SHADER_STATE_UNINITIALIZED;
 
     // Process attributes
     for (u32 i = 0; i < config->attribute_count; ++i) {
-        add_attribute(&out_shader, &config->attributes[i]);
+        add_attribute(out_shader, &config->attributes[i]);
     }
 
     // Process uniforms
     for (u32 i = 0; i < config->uniform_count; ++i) {
         if (config->uniforms[i].type == SHADER_UNIFORM_TYPE_SAMPLER) {
-            add_sampler(&out_shader, &config->uniforms[i]);
+            add_sampler(out_shader, &config->uniforms[i]);
         } else {
-            add_uniform(&out_shader, &config->uniforms[i]);
+            add_uniform(out_shader, &config->uniforms[i]);
         }
     }
 
     // Initialize the shader.
-    if (!renderer_shader_initialize(&out_shader)) {
+    if (!renderer_shader_initialize(out_shader)) {
         KERROR("shader_system_create: initialization failed for shader '%s'.", config->name);
         // NOTE: initialize automatically destroys the shader if it fails.
         return false;
@@ -181,14 +188,11 @@ b8 shader_system_create(const shader_config* config) {
 
     // At this point, creation is successful, so store the shader id in the hashtable
     // so this can be looked up by name later.
-    if (!hashtable_set(&state_ptr->lookup, config->name, &out_shader.id)) {
+    if (!hashtable_set(&state_ptr->lookup, config->name, &out_shader->id)) {
         // Dangit, we got so far... welp, nuke the shader and boot.
-        renderer_shader_destroy(&out_shader);
+        renderer_shader_destroy(out_shader);
         return false;
     }
-
-    // Finally, set the correct array entry.
-    state_ptr->shaders[out_shader.id] = out_shader;
 
     return true;
 }
@@ -198,6 +202,9 @@ u32 shader_system_get_id(const char* shader_name) {
 }
 
 shader* shader_system_get_by_id(u32 shader_id) {
+    if (shader_id >= state_ptr->config.max_shader_count || state_ptr->shaders[shader_id].id == INVALID_ID) {
+        return 0;
+    }
     return &state_ptr->shaders[shader_id];
 }
 
