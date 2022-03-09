@@ -411,6 +411,8 @@ b8 application_run() {
 
     texture_system_shutdown(app_state->texture_system_state);
 
+    shader_system_shutdown(app_state->shader_system_state);
+
     renderer_system_shutdown(app_state->renderer_system_state);
 
     resource_system_shutdown(app_state->resource_system_state);

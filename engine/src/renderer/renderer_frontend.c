@@ -114,14 +114,10 @@ b8 renderer_draw_frame(render_packet* packet) {
         shader_system_use(BUILTIN_SHADER_NAME_MATERIAL);
 
         // Apply globals
-        // TODO: Shader system bind/set uniforms
-        // state_ptr->backend.shader_bind_globals(state_ptr->material_shader_id);
+        // TODO: Material system bind/set uniforms
         shader_system_uniform_set("projection", &state_ptr->projection);
         shader_system_uniform_set("view", &state_ptr->view);
         shader_system_apply_global();
-        // state_ptr->backend.shader_set_uniform_mat4(state_ptr->material_shader_id, state_ptr->material_shader_projection_location, state_ptr->projection);
-        // state_ptr->backend.shader_set_uniform_mat4(state_ptr->material_shader_id, state_ptr->material_shader_view_location, state_ptr->view);
-        // state_ptr->backend.shader_apply_globals(state_ptr->material_shader_id);
 
         // Draw geometries.
         u32 count = packet->geometry_count;
@@ -134,19 +130,15 @@ b8 renderer_draw_frame(render_packet* packet) {
             }
 
             // Apply the material
-            // state_ptr->backend.shader_bind_instance(state_ptr->material_shader_id, m->internal_id);
             shader_system_bind_instance(m->internal_id);
             shader_system_uniform_set("diffuse_colour", &m->diffuse_colour);
             shader_system_uniform_set("diffuse_texture", m->diffuse_map.texture);
             shader_system_apply_instance();
-            // state_ptr->backend.shader_set_uniform_vec4(state_ptr->material_shader_id, state_ptr->material_shader_diffuse_colour_location, m->diffuse_colour);
-            // state_ptr->backend.shader_set_sampler(state_ptr->material_shader_id, state_ptr->material_shader_diffuse_texture_location, m->diffuse_map.texture);
-            // state_ptr->backend.shader_apply_instance(state_ptr->material_shader_id);
 
             // Apply the locals
             shader_system_uniform_set("model", &packet->geometries[i].model);
-            // state_ptr->backend.shader_set_uniform_mat4(state_ptr->material_shader_id, state_ptr->material_shader_model_location, packet->geometries[i].model);
 
+            // Draw it.
             state_ptr->backend.draw_geometry(packet->geometries[i]);
         }
 
@@ -166,12 +158,8 @@ b8 renderer_draw_frame(render_packet* packet) {
         shader_system_use(BUILTIN_SHADER_NAME_UI);
 
         // Apply globals
-        // state_ptr->backend.shader_bind_globals(state_ptr->ui_shader_id);
-        // state_ptr->backend.shader_set_uniform_mat4(state_ptr->ui_shader_id, state_ptr->ui_shader_projection_location, state_ptr->ui_projection);
-        // state_ptr->backend.shader_set_uniform_mat4(state_ptr->ui_shader_id, state_ptr->ui_shader_view_location, state_ptr->ui_view);
-        // state_ptr->backend.shader_apply_globals(state_ptr->ui_shader_id);
-        shader_system_uniform_set("projection", &state_ptr->projection);
-        shader_system_uniform_set("view", &state_ptr->view);
+        shader_system_uniform_set("projection", &state_ptr->ui_projection);
+        shader_system_uniform_set("view", &state_ptr->ui_view);
         shader_system_apply_global();
 
         // Draw ui geometries.
@@ -186,17 +174,13 @@ b8 renderer_draw_frame(render_packet* packet) {
             // Apply the material
             shader_system_bind_instance(m->internal_id);
             shader_system_uniform_set("diffuse_colour", &m->diffuse_colour);
-            shader_system_uniform_set("diffuse_texture", &m->diffuse_map.texture);
+            shader_system_uniform_set("diffuse_texture", m->diffuse_map.texture);
             shader_system_apply_instance();
-            // state_ptr->backend.shader_bind_instance(state_ptr->ui_shader_id, m->internal_id);
-            // state_ptr->backend.shader_set_uniform_vec4(state_ptr->ui_shader_id, state_ptr->ui_shader_diffuse_colour_location, m->diffuse_colour);
-            // state_ptr->backend.shader_set_sampler(state_ptr->ui_shader_id, state_ptr->ui_shader_diffuse_texture_location, m->diffuse_map.texture);
-            // state_ptr->backend.shader_apply_instance(state_ptr->ui_shader_id);
 
             // Apply the locals
             shader_system_uniform_set("model", &packet->geometries[i].model);
-            // state_ptr->backend.shader_set_uniform_mat4(state_ptr->ui_shader_id, state_ptr->ui_shader_model_location, packet->ui_geometries[i].model);
 
+            // Draw it.
             state_ptr->backend.draw_geometry(packet->ui_geometries[i]);
         }
 

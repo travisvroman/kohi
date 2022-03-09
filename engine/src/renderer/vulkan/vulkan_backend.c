@@ -56,7 +56,7 @@ b8 upload_data_range(vulkan_context* context, VkCommandPool pool, VkFence fence,
     // Create a host-visible staging buffer to upload to. Mark it as the source of the transfer.
     VkBufferUsageFlags flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     vulkan_buffer staging;
-    vulkan_buffer_create(context, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, flags, true, &staging);
+    vulkan_buffer_create(context, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, flags, true, false, &staging);
 
     // Load the data into the staging buffer.
     vulkan_buffer_load_data(context, &staging, 0, size, 0, data);
@@ -744,6 +744,7 @@ b8 create_buffers(vulkan_context* context) {
             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             memory_property_flags,
             true,
+            true,
             &context->object_vertex_buffer)) {
         KERROR("Error creating vertex buffer.");
         return false;
@@ -756,6 +757,7 @@ b8 create_buffers(vulkan_context* context) {
             index_buffer_size,
             VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             memory_property_flags,
+            true,
             true,
             &context->object_index_buffer)) {
         KERROR("Error creating vertex buffer.");
@@ -779,7 +781,7 @@ void vulkan_renderer_create_texture(const u8* pixels, texture* texture) {
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     VkMemoryPropertyFlags memory_prop_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     vulkan_buffer staging;
-    vulkan_buffer_create(&context, image_size, usage, memory_prop_flags, true, &staging);
+    vulkan_buffer_create(&context, image_size, usage, memory_prop_flags, true, false, &staging);
 
     vulkan_buffer_load_data(&context, &staging, 0, image_size, 0, pixels);
 
@@ -1358,6 +1360,7 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | device_local_bits,
             true,
+            true,
             &s->uniform_buffer)) {
         KERROR("Vulkan buffer creation failed for object shader.");
         return false;
@@ -1669,24 +1672,18 @@ b8 vulkan_renderer_set_uniform(shader* s, shader_uniform* uniform, const void* v
             internal->instance_states[s->bound_instance_id].instance_textures[uniform->location] = (texture*)value;
         }
     } else {
-        // Map the appropriate memory location and copy the data over.
-        void* block = 0;
-        if (uniform->scope == SHADER_SCOPE_GLOBAL) {
-            block = (void*)(internal->mapped_uniform_buffer_block + s->global_ubo_offset + uniform->offset);
-            kcopy_memory(block, value, uniform->size);
-        } else if (uniform->scope == SHADER_SCOPE_INSTANCE) {
-            block = (void*)(internal->mapped_uniform_buffer_block + s->bound_ubo_offset + uniform->offset);
-            kcopy_memory(block, value, uniform->size);
-        } else {
+        if (uniform->scope == SHADER_SCOPE_LOCAL) {
             // Is local, using push constants. Do this immediately.
             VkCommandBuffer command_buffer = context.graphics_command_buffers[context.image_index].handle;
             vkCmdPushConstants(command_buffer, internal->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, uniform->offset, uniform->size, value);
-            return true;
+        } else {
+            // Map the appropriate memory location and copy the data over.
+            u64 addr = (u64)internal->mapped_uniform_buffer_block;
+            addr += s->bound_ubo_offset + uniform->offset;
+            kcopy_memory((void*)addr, value, uniform->size);
+            if (addr) {
+            }
         }
-        // block = kcopy_memory(block, value, uniform->size);
-        // if(!block) {
-
-        // }
     }
     return true;
 }

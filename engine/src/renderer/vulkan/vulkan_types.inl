@@ -56,6 +56,7 @@ typedef struct vulkan_buffer {
     void* freelist_block;
     /** @brief A freelist to track allocations. */
     freelist buffer_freelist;
+    b8 has_freelist;
 } vulkan_buffer;
 
 /** @brief Contains swapchain support information and capabilities. */

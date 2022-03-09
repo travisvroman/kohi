@@ -21,6 +21,7 @@
  * @param usage The buffer usage flags (VkBufferUsageFlagBits)
  * @param memory_property_flags The memory property flags.
  * @param bind_on_create Indicates if this buffer should bind on creation.
+ * @param use_freelist Indicates if a freelist should be used. If not, allocate/free functions should also not be used.
  * @param out_buffer A pointer to hold the newly-created buffer.
  * @return True on success; otherwise false.
  */
@@ -30,6 +31,7 @@ b8 vulkan_buffer_create(
     VkBufferUsageFlagBits usage,
     u32 memory_property_flags,
     b8 bind_on_create,
+    b8 use_freelist,
     vulkan_buffer* out_buffer);
 
 /**

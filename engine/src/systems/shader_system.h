@@ -150,12 +150,12 @@ KAPI shader* shader_system_get(const char* shader_name);
 
 KAPI b8 shader_system_use(const char* shader_name);
 
-KAPI u16 shader_system_uniform_location(const char* uniform_name);
+KAPI u16 shader_system_uniform_index(const char* uniform_name);
 KAPI b8 shader_system_uniform_set(const char* uniform_name, const void* value);
 KAPI b8 shader_system_sampler_set(const char* sampler_name, const texture* t);
 
-KAPI b8 shader_system_uniform_set_by_loc(u16 location, const void* value);
-KAPI b8 shader_system_sampler_set_by_loc(u16 location, const struct texture* t);
+KAPI b8 shader_system_uniform_set_by_index(u16 location, const void* value);
+KAPI b8 shader_system_sampler_set_by_index(u16 location, const struct texture* t);
 
 KAPI b8 shader_system_apply_global();
 KAPI b8 shader_system_apply_instance();

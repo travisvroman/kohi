@@ -9,10 +9,12 @@
 #include "containers/freelist.h"
 
 void cleanup_freelist(vulkan_buffer* buffer) {
-    freelist_destroy(&buffer->buffer_freelist);
-    kfree(buffer->freelist_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
-    buffer->freelist_memory_requirement = 0;
-    buffer->freelist_block = 0;
+    if (buffer->has_freelist) {
+        freelist_destroy(&buffer->buffer_freelist);
+        kfree(buffer->freelist_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+        buffer->freelist_memory_requirement = 0;
+        buffer->freelist_block = 0;
+    }
 }
 
 b8 vulkan_buffer_create(
@@ -21,17 +23,21 @@ b8 vulkan_buffer_create(
     VkBufferUsageFlagBits usage,
     u32 memory_property_flags,
     b8 bind_on_create,
+    b8 use_freelist,
     vulkan_buffer* out_buffer) {
     kzero_memory(out_buffer, sizeof(vulkan_buffer));
+    out_buffer->has_freelist = use_freelist;
     out_buffer->total_size = size;
     out_buffer->usage = usage;
     out_buffer->memory_property_flags = memory_property_flags;
 
-    // Create a new freelist
-    out_buffer->freelist_memory_requirement = 0;
-    freelist_create(size, &out_buffer->freelist_memory_requirement, 0, 0);
-    out_buffer->freelist_block = kallocate(out_buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
-    freelist_create(size, &out_buffer->freelist_memory_requirement, out_buffer->freelist_block, &out_buffer->buffer_freelist);
+    if (use_freelist) {
+        // Create a new freelist, if used.
+        out_buffer->freelist_memory_requirement = 0;
+        freelist_create(size, &out_buffer->freelist_memory_requirement, 0, 0);
+        out_buffer->freelist_block = kallocate(out_buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+        freelist_create(size, &out_buffer->freelist_memory_requirement, out_buffer->freelist_block, &out_buffer->buffer_freelist);
+    }
 
     VkBufferCreateInfo buffer_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     buffer_info.size = size;
@@ -109,20 +115,24 @@ b8 vulkan_buffer_resize(
         return false;
     }
 
-    // Resize the freelist first.
-    u64 new_memory_requirement = 0;
-    freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, 0, 0, 0);
-    void* new_block = kallocate(new_memory_requirement, MEMORY_TAG_RENDERER);
-    void* old_block = 0;
-    if (!freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, new_block, new_size, &old_block)) {
-        KERROR("vulkan_buffer_resize failed to resize internal free list.");
-        kfree(new_block, new_memory_requirement, MEMORY_TAG_RENDERER);
-        return false;
+    if (buffer->has_freelist) {
+        // Resize the freelist first, if used.
+        u64 new_memory_requirement = 0;
+        freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, 0, 0, 0);
+        void* new_block = kallocate(new_memory_requirement, MEMORY_TAG_RENDERER);
+        void* old_block = 0;
+        if (!freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, new_block, new_size, &old_block)) {
+            KERROR("vulkan_buffer_resize failed to resize internal free list.");
+            kfree(new_block, new_memory_requirement, MEMORY_TAG_RENDERER);
+            return false;
+        }
+
+        // Clean up the old memory, then assign the new properties over.
+        kfree(old_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+        buffer->freelist_memory_requirement = new_memory_requirement;
+        buffer->freelist_block = new_block;
     }
-    // Clean up the old memory, then assign the new properties over.
-    kfree(old_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
-    buffer->freelist_memory_requirement = new_memory_requirement;
-    buffer->freelist_block = new_block;
+
     buffer->total_size = new_size;
 
     // Create new buffer.
@@ -198,6 +208,11 @@ b8 vulkan_buffer_allocate(vulkan_buffer* buffer, u64 size, u64* out_offset) {
         return false;
     }
 
+    if (!buffer->has_freelist) {
+        KWARN("vulkan_buffer_allocate called on a buffer not using freelists. Offset will not be valid. Call vulkan_buffer_load_data instead.");
+        *out_offset = 0;
+        return true;
+    }
     return freelist_allocate_block(&buffer->buffer_freelist, size, out_offset);
 }
 
@@ -207,6 +222,10 @@ b8 vulkan_buffer_free(vulkan_buffer* buffer, u64 size, u64 offset) {
         return false;
     }
 
+    if (!buffer->has_freelist) {
+        KWARN("vulkan_buffer_allocate called on a buffer not using freelists. Nothing was done.");
+        return true;
+    }
     return freelist_free_block(&buffer->buffer_freelist, size, offset);
 }
 
