@@ -1336,19 +1336,12 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
         return false;
     }
 
-    // Get the closest valid stride (instance)
-    shader->global_ubo_stride = 0;
-    while (shader->global_ubo_stride < shader->global_ubo_size) {
-        shader->global_ubo_stride += shader->required_ubo_alignment;
-    }
+    // Grab the UBO alignment requirement from the device.
+    shader->required_ubo_alignment = context.device.properties.limits.minUniformBufferOffsetAlignment;
 
-    // Get the closest valid stride (instance)
-    if (shader->use_instances) {
-        shader->ubo_stride = 0;
-        while (shader->ubo_stride < shader->ubo_size) {
-            shader->ubo_stride += shader->required_ubo_alignment;
-        }
-    }
+    // Make sure the UBO is aligned according to device requirements.
+    shader->global_ubo_stride = get_aligned(shader->global_ubo_size, shader->required_ubo_alignment);
+    shader->ubo_stride = get_aligned(shader->ubo_size, shader->required_ubo_alignment);
 
     // Uniform  buffer.
     u32 device_local_bits = context.device.supports_device_local_host_visible ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
@@ -1374,19 +1367,6 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
 
     // Map the entire buffer's memory.
     s->mapped_uniform_buffer_block = vulkan_buffer_lock_memory(&context, &s->uniform_buffer, 0, VK_WHOLE_SIZE /*total_buffer_size*/, 0);
-    // mat4 m;
-    // for (u32 i = 0; i < 16; ++i) {
-    //     m.data[i] = i;
-    // }
-    // f32 f = 66.34f;
-    // kcopy_memory(s->mapped_uniform_buffer_block, &f, sizeof(f32));
-    // void* block = kallocate(512, MEMORY_TAG_UNKNOWN);
-    // kcopy_memory(block, &m, sizeof(mat4));
-    // kcopy_memory(s->mapped_uniform_buffer_block, &m, sizeof(mat4));
-    // mat4 m2 = *(mat4*)s->mapped_uniform_buffer_block;
-    // if (m2.data[0]) {
-    // }
-    // memcpy(s->mapped_uniform_buffer_block, &m, 64);
 
     // Allocate global descriptor sets, one per frame. Global is always the first set.
     VkDescriptorSetLayout global_layouts[3] = {

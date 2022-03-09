@@ -136,10 +136,7 @@ b8 shader_system_create(const shader_config* config) {
     out_shader.global_ubo_size = 0;
     // A running total of the actual instance uniform buffer object size.
     out_shader.ubo_size = 0;
-    // NOTE: This is to fit the lowest common denominator in that some nVidia GPUs require
-    // a 256-byte stride (or offset) for uniform buffers.
-    // TODO: Enhance this to adjust to the actual GPU's capabilities in the future to save where we can.
-    out_shader.required_ubo_alignment = 256;
+    // NOTE: UBO alignment requirement set in renderer backend.
 
     // This is hard-coded because the Vulkan spec only guarantees that a _minimum_ 128 bytes of space are available,
     // and it's up to the driver to determine how much is available. Therefore, to avoid complexity, only the
