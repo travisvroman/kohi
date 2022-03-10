@@ -78,11 +78,7 @@
         "initializer_list": "c",
         "loader_utils.h": "c",
         "kmath.h": "c",
-        "random": "c",
-        "thread": "c",
-        "istream": "c",
-        "functional": "c",
-        "resource_types.h": "c"
+        "random": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [
