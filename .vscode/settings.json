@@ -82,19 +82,7 @@
         "thread": "c",
         "istream": "c",
         "functional": "c",
-        "resource_types.h": "c",
-        "array": "c",
-        "chrono": "c",
-        "compare": "c",
-        "ratio": "c",
-        "string_view": "c",
-        "*.tcc": "c",
-        "numeric": "c",
-        "fstream": "c",
-        "iostream": "c",
-        "ostream": "c",
-        "shared_mutex": "c",
-        "system_error": "c"
+        "resource_types.h": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [
