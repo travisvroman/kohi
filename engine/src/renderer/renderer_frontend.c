@@ -26,6 +26,8 @@ typedef struct renderer_system_state {
     mat4 ui_view;
     f32 near_clip;
     f32 far_clip;
+    u32 material_shader_id;
+    u32 ui_shader_id;
 } renderer_system_state;
 
 static renderer_system_state* state_ptr;
@@ -61,6 +63,7 @@ b8 renderer_system_initialize(u64* memory_requirement, void* state, const char* 
     config = (shader_config*)config_resource.data;
     CRITICAL_INIT(shader_system_create(config), "Failed to load builtin material shader.");
     resource_system_unload(&config_resource);
+    state_ptr->material_shader_id = shader_system_get_id(BUILTIN_SHADER_NAME_MATERIAL);
 
     // Builtin UI shader.
     CRITICAL_INIT(
@@ -69,6 +72,7 @@ b8 renderer_system_initialize(u64* memory_requirement, void* state, const char* 
     config = (shader_config*)config_resource.data;
     CRITICAL_INIT(shader_system_create(config), "Failed to load builtin UI shader.");
     resource_system_unload(&config_resource);
+    state_ptr->ui_shader_id = shader_system_get_id(BUILTIN_SHADER_NAME_UI);
 
     // World projection/view
     state_ptr->near_clip = 0.1f;
@@ -111,13 +115,16 @@ b8 renderer_draw_frame(render_packet* packet) {
             return false;
         }
 
-        shader_system_use(BUILTIN_SHADER_NAME_MATERIAL);
+        if(!shader_system_use_by_id(state_ptr->material_shader_id)) {
+            KERROR("Failed to use material shader. Render frame failed.");
+            return false;
+        }
 
         // Apply globals
-        // TODO: Material system bind/set uniforms
-        shader_system_uniform_set("projection", &state_ptr->projection);
-        shader_system_uniform_set("view", &state_ptr->view);
-        shader_system_apply_global();
+        if(!material_system_apply_global(state_ptr->material_shader_id, &state_ptr->projection, &state_ptr->view)) {
+            KERROR("Failed to use apply globals for material shader. Render frame failed.");
+            return false;
+        }
 
         // Draw geometries.
         u32 count = packet->geometry_count;
@@ -130,13 +137,13 @@ b8 renderer_draw_frame(render_packet* packet) {
             }
 
             // Apply the material
-            shader_system_bind_instance(m->internal_id);
-            shader_system_uniform_set("diffuse_colour", &m->diffuse_colour);
-            shader_system_uniform_set("diffuse_texture", m->diffuse_map.texture);
-            shader_system_apply_instance();
+            if (!material_system_apply_instance(m)) {
+                KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
+                continue;
+            }
 
             // Apply the locals
-            shader_system_uniform_set("model", &packet->geometries[i].model);
+            material_system_apply_local(m, &packet->geometries[i].model);
 
             // Draw it.
             state_ptr->backend.draw_geometry(packet->geometries[i]);
@@ -155,12 +162,16 @@ b8 renderer_draw_frame(render_packet* packet) {
         }
 
         // Update UI global state
-        shader_system_use(BUILTIN_SHADER_NAME_UI);
+        if(!shader_system_use_by_id(state_ptr->ui_shader_id)) {
+            KERROR("Failed to use UI shader. Render frame failed.");
+            return false;
+        }
 
         // Apply globals
-        shader_system_uniform_set("projection", &state_ptr->ui_projection);
-        shader_system_uniform_set("view", &state_ptr->ui_view);
-        shader_system_apply_global();
+        if(!material_system_apply_global(state_ptr->ui_shader_id, &state_ptr->ui_projection, &state_ptr->ui_view)) {
+            KERROR("Failed to use apply globals for UI shader. Render frame failed.");
+            return false;
+        }
 
         // Draw ui geometries.
         count = packet->ui_geometry_count;
@@ -172,13 +183,13 @@ b8 renderer_draw_frame(render_packet* packet) {
                 m = material_system_get_default();
             }
             // Apply the material
-            shader_system_bind_instance(m->internal_id);
-            shader_system_uniform_set("diffuse_colour", &m->diffuse_colour);
-            shader_system_uniform_set("diffuse_texture", m->diffuse_map.texture);
-            shader_system_apply_instance();
+            if (!material_system_apply_instance(m)) {
+                KWARN("Failed to apply UI material '%s'. Skipping draw.", m->name);
+                continue;
+            }
 
             // Apply the locals
-            shader_system_uniform_set("model", &packet->geometries[i].model);
+            material_system_apply_local(m, &packet->geometries[i].model);
 
             // Draw it.
             state_ptr->backend.draw_geometry(packet->ui_geometries[i]);

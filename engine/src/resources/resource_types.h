@@ -175,6 +175,7 @@ typedef struct geometry {
     material* material;
 } geometry;
 
+/** @brief Shader stages available in the system. */
 typedef enum shader_stage {
     SHADER_STAGE_VERTEX = 0x00000001,
     SHADER_STAGE_GEOMETRY = 0x00000002,
@@ -182,6 +183,7 @@ typedef enum shader_stage {
     SHADER_STAGE_COMPUTE = 0x0000008
 } shader_stage;
 
+/** @brief Available attribute types. */
 typedef enum shader_attribute_type {
     SHADER_ATTRIB_TYPE_FLOAT32 = 0U,
     SHADER_ATTRIB_TYPE_FLOAT32_2 = 1U,
@@ -196,6 +198,7 @@ typedef enum shader_attribute_type {
     SHADER_ATTRIB_TYPE_UINT32 = 10U,
 } shader_attribute_type;
 
+/** @brief Available uniform types. */
 typedef enum shader_uniform_type {
     SHADER_UNIFORM_TYPE_FLOAT32 = 0U,
     SHADER_UNIFORM_TYPE_FLOAT32_2 = 1U,
@@ -224,38 +227,68 @@ typedef enum shader_scope {
     /** @brief Local shader scope, generally updated per-object */
     SHADER_SCOPE_LOCAL = 2
 } shader_scope;
+
+/** @brief Configuration for an attribute. */
 typedef struct shader_attribute_config {
+    /** @brief The length of the name. */
     u8 name_length;
+    /** @brief The name of the attribute. */
     char* name;
+    /** @brief The size of the attribute. */
     u8 size;
+    /** @brief The type of the attribute. */
     shader_attribute_type type;
 } shader_attribute_config;
 
+/** @brief Configuration for a uniform. */
 typedef struct shader_uniform_config {
+    /** @brief The length of the name. */
     u8 name_length;
+    /** @brief The name of the uniform. */
     char* name;
+    /** @brief The size of the uniform. */
     u8 size;
+    /** @brief The location of the uniform. */
     u32 location;
+    /** @brief The type of the uniform. */
     shader_uniform_type type;
+    /** @brief The scope of the uniform. */
     shader_scope scope;
 } shader_uniform_config;
 
+/**
+ * @brief Configuration for a shader. Typically created and
+ * destroyed by the shader resource loader, and set to the
+ * properties found in a .shadercfg resource file.
+ */
 typedef struct shader_config {
+    /** @brief The name of the shader to be created. */
     char* name;
-    
+
+    /** @brief Indicates if the shader uses instance-level uniforms. */
     b8 use_instances;
+    /** @brief Indicates if the shader uses local-level uniforms. */
     b8 use_local;
 
+    /** @brief The count of attributes. */
     u8 attribute_count;
+    /** @brief The collection of attributes. Darray. */
     shader_attribute_config* attributes;
 
+    /** @brief The count of uniforms. */
     u8 uniform_count;
+    /** @brief The collection of uniforms. Darray. */
     shader_uniform_config* uniforms;
 
+    /** @brief The name of the renderpass used by this shader. */
     char* renderpass_name;
 
+    /** @brief The number of stages present in the shader. */
     u8 stage_count;
+    /** @brief The collection of stages. Darray. */
     shader_stage* stages;
+    /** @brief The collection of stage names. Must align with stages array. Darray. */
     char** stage_names;
+    /** @brief The collection of stage file names to be loaded (one per stage). Must align with stages array. Darray. */
     char** stage_filenames;
 } shader_config;

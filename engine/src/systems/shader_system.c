@@ -247,29 +247,38 @@ b8 shader_system_use(const char* shader_name) {
         return false;
     }
 
-    // Only perform the use if the shader id is different.
-    if (state_ptr->current_shader_id != next_shader_id) {
-        shader* next_shader = shader_system_get_by_id(next_shader_id);
-        state_ptr->current_shader_id = next_shader_id;
-        renderer_shader_use(next_shader);
-        renderer_shader_bind_globals(next_shader);
-    }
+    return shader_system_use_by_id(next_shader_id);
+}
 
+b8 shader_system_use_by_id(u32 shader_id) {
+    // Only perform the use if the shader id is different.
+    if (state_ptr->current_shader_id != shader_id) {
+        shader* next_shader = shader_system_get_by_id(shader_id);
+        state_ptr->current_shader_id = shader_id;
+        if (!renderer_shader_use(next_shader)) {
+            KERROR("Failed to use shader '%s'.", next_shader->name);
+            return false;
+        }
+        if (!renderer_shader_bind_globals(next_shader)) {
+            KERROR("Failed to bind globals for shader '%s'.", next_shader->name);
+            return false;
+        }
+    }
     return true;
 }
 
-u16 shader_system_uniform_index(const char* uniform_name) {
-    if (state_ptr->current_shader_id == INVALID_ID) {
-        KERROR("shader_system_uniform_location called without a shader in use.");
+u16 shader_system_uniform_index(shader* s, const char* uniform_name) {
+    if (!s || s->id == INVALID_ID) {
+        KERROR("shader_system_uniform_location called with invalid shader.");
         return INVALID_ID_U16;
     }
-    shader* shader = &state_ptr->shaders[state_ptr->current_shader_id];
+
     u16 index = INVALID_ID_U16;
-    if (!hashtable_get(&shader->uniform_lookup, uniform_name, &index) || index == INVALID_ID_U16) {
-        KERROR("Shader '%s' does not have a registered uniform named '%s'", shader->name, uniform_name);
+    if (!hashtable_get(&s->uniform_lookup, uniform_name, &index) || index == INVALID_ID_U16) {
+        KERROR("Shader '%s' does not have a registered uniform named '%s'", s->name, uniform_name);
         return INVALID_ID_U16;
     }
-    return shader->uniforms[index].index;
+    return s->uniforms[index].index;
 }
 
 b8 shader_system_uniform_set(const char* uniform_name, const void* value) {
@@ -277,8 +286,8 @@ b8 shader_system_uniform_set(const char* uniform_name, const void* value) {
         KERROR("shader_system_uniform_set called without a shader in use.");
         return false;
     }
-
-    u16 index = shader_system_uniform_index(uniform_name);
+    shader* s = &state_ptr->shaders[state_ptr->current_shader_id];
+    u16 index = shader_system_uniform_index(s, uniform_name);
     return shader_system_uniform_set_by_index(index, value);
 }
 

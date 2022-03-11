@@ -221,13 +221,21 @@ KAPI shader* shader_system_get(const char* shader_name);
 KAPI b8 shader_system_use(const char* shader_name);
 
 /**
- * @brief Returns the uniform index for a uniform with the given name, if found.
- * NOTE: Operates against the currently-used shader.
+ * @brief Uses the shader with the given identifier.
  * 
+ * @param shader_id The identifier of the shader to be used.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_use_by_id(u32 shader_id);
+
+/**
+ * @brief Returns the uniform index for a uniform with the given name, if found.
+ * 
+ * @param s A pointer to the shader to obtain the index from.
  * @param uniform_name The name of the uniform to search for.
  * @return The uniform index, if found; otherwise INVALID_ID_U16.
  */
-KAPI u16 shader_system_uniform_index(const char* uniform_name);
+KAPI u16 shader_system_uniform_index(shader* s, const char* uniform_name);
 
 /**
  * @brief Sets the value of a uniform with the given name to the supplied value.
