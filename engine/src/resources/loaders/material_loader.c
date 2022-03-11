@@ -31,7 +31,7 @@ b8 material_loader_load(struct resource_loader* self, const char* name, resource
     // TODO: Should be using an allocator here.
     material_config* resource_data = kallocate(sizeof(material_config), MEMORY_TAG_MATERIAL_INSTANCE);
     // Set some defaults.
-    resource_data->type = MATERIAL_TYPE_WORLD;
+    resource_data->shader_name = "Builtin.Material"; // Default material.
     resource_data->auto_release = true;
     resource_data->diffuse_colour = vec4_one();  // white.
     resource_data->diffuse_map_name[0] = 0;
@@ -88,11 +88,9 @@ b8 material_loader_load(struct resource_loader* self, const char* name, resource
                 KWARN("Error parsing diffuse_colour in file '%s'. Using default of white instead.", full_file_path);
                 // NOTE: already assigned above, no need to have it here.
             }
-        } else if (strings_equali(trimmed_var_name, "type")) {
-            // TODO: other material types.
-            if (strings_equali(trimmed_value, "ui")) {
-                resource_data->type = MATERIAL_TYPE_UI;
-            }
+        } else if (strings_equali(trimmed_var_name, "shader")) {
+            // Take a copy of the material name.
+            resource_data->shader_name = string_duplicate(trimmed_value);
         }
 
         // TODO: more fields.

@@ -20,6 +20,8 @@ b8 vulkan_graphics_pipeline_create(
     VkRect2D scissor,
     b8 is_wireframe,
     b8 depth_test_enabled,
+    u32 push_constant_range_count,
+    range* push_constant_ranges,
     vulkan_pipeline* out_pipeline) {
     // Viewport state
     VkPipelineViewportStateCreateInfo viewport_state = {VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
@@ -112,12 +114,26 @@ b8 vulkan_graphics_pipeline_create(
     VkPipelineLayoutCreateInfo pipeline_layout_create_info = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 
     // Push constants
-    VkPushConstantRange push_constant;
-    push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    push_constant.offset = sizeof(mat4) * 0;
-    push_constant.size = sizeof(mat4) * 2;
-    pipeline_layout_create_info.pushConstantRangeCount = 1;
-    pipeline_layout_create_info.pPushConstantRanges = &push_constant;
+    if (push_constant_range_count > 0) {
+        if (push_constant_range_count > 32) {
+            KERROR("vulkan_graphics_pipeline_create: cannot have more than 32 push constant ranges. Passed count: %i", push_constant_range_count);
+            return false;
+        }
+
+        // NOTE: 32 is the max number of ranges we can ever have, since spec only guarantees 128 bytes with 4-byte alignment.
+        VkPushConstantRange ranges[32];
+        kzero_memory(ranges, sizeof(VkPushConstantRange) * 32);
+        for (u32 i = 0; i < push_constant_range_count; ++i) {
+            ranges[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            ranges[i].offset = push_constant_ranges[i].offset;
+            ranges[i].size = push_constant_ranges[i].size;
+        }
+        pipeline_layout_create_info.pushConstantRangeCount = push_constant_range_count;
+        pipeline_layout_create_info.pPushConstantRanges = ranges;
+    } else {
+        pipeline_layout_create_info.pushConstantRangeCount = 0;
+        pipeline_layout_create_info.pPushConstantRanges = 0;
+    }
 
     // Descriptor set layouts
     pipeline_layout_create_info.setLayoutCount = descriptor_set_layout_count;
