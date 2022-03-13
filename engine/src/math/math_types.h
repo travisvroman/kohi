@@ -4,9 +4,9 @@
  * @brief Contains various math types required for the engine.
  * @version 1.0
  * @date 2022-01-10
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
- * 
+ *
  */
 
 #pragma once
@@ -14,7 +14,7 @@
 #include "defines.h"
 
 /**
- * @brief A 2-element vector. 
+ * @brief A 2-element vector.
  */
 typedef union vec2_u {
     /** @brief An array of x, y */
@@ -22,29 +22,29 @@ typedef union vec2_u {
     struct {
         union {
             /** @brief The first element. */
-            f32 x, 
-            /** @brief The first element. */
-            r, 
-            /** @brief The first element. */
-            s, 
-            /** @brief The first element. */
-            u;
+            f32 x,
+                /** @brief The first element. */
+                r,
+                /** @brief The first element. */
+                s,
+                /** @brief The first element. */
+                u;
         };
         union {
             /** @brief The second element. */
-            f32 y, 
-            /** @brief The second element. */
-            g, 
-            /** @brief The second element. */
-            t, 
-            /** @brief The second element. */
-            v;
+            f32 y,
+                /** @brief The second element. */
+                g,
+                /** @brief The second element. */
+                t,
+                /** @brief The second element. */
+                v;
         };
     };
 } vec2;
 
 /**
- * @brief A 3-element vector. 
+ * @brief A 3-element vector.
  */
 typedef union vec3_u {
     /** @brief An array of x, y, z */
@@ -84,7 +84,7 @@ typedef union vec3_u {
 } vec3;
 
 /**
- * @brief A 4-element vector. 
+ * @brief A 4-element vector.
  */
 typedef union vec4_u {
     /** @brief An array of x, y, z, w */
@@ -137,17 +137,19 @@ typedef union mat4_u {
 } mat4;
 
 /**
- * @brief Represents a single vertex in 3D space. 
+ * @brief Represents a single vertex in 3D space.
  */
 typedef struct vertex_3d {
     /** @brief The position of the vertex */
     vec3 position;
+    /** @brief The normal of the vertex. */
+    vec3 normal;
     /** @brief The texture coordinate of the vertex. */
     vec2 texcoord;
 } vertex_3d;
 
 /**
- * @brief Represents a single vertex in 2D space. 
+ * @brief Represents a single vertex in 2D space.
  */
 typedef struct vertex_2d {
     /** @brief The position of the vertex */
