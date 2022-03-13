@@ -466,10 +466,10 @@ geometry_config geometry_system_generate_cube_config(f32 width, f32 height, f32 
     verts[(3 * 4) + 1].texcoord = (vec2){max_uvx, max_uvy};
     verts[(3 * 4) + 2].texcoord = (vec2){min_uvx, max_uvy};
     verts[(3 * 4) + 3].texcoord = (vec2){max_uvx, min_uvy};
-    verts[(3 * 4) + 0].normal = (vec3){0, 1, 0};
-    verts[(3 * 4) + 1].normal = (vec3){0, 1, 0};
-    verts[(3 * 4) + 2].normal = (vec3){0, 1, 0};
-    verts[(3 * 4) + 3].normal = (vec3){0, 1, 0};
+    verts[(3 * 4) + 0].normal = (vec3){1, 0, 0};
+    verts[(3 * 4) + 1].normal = (vec3){1, 0, 0};
+    verts[(3 * 4) + 2].normal = (vec3){1, 0, 0};
+    verts[(3 * 4) + 3].normal = (vec3){1, 0, 0};
 
     // Bottom face
     verts[(4 * 4) + 0].position = (vec3){max_x, min_y, max_z};
