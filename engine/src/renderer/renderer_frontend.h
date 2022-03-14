@@ -58,8 +58,9 @@ b8 renderer_draw_frame(render_packet* packet);
  *
  * @deprecated HACK: this should not be exposed outside the engine.
  * @param view The view matrix to be set.
+ * @param view_position The view position to be set.
  */
-KAPI void renderer_set_view(mat4 view);
+KAPI void renderer_set_view(mat4 view, vec3 view_position);
 
 /**
  * @brief Creates a new texture.

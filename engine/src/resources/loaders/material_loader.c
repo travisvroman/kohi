@@ -91,6 +91,11 @@ b8 material_loader_load(struct resource_loader* self, const char* name, resource
         } else if (strings_equali(trimmed_var_name, "shader")) {
             // Take a copy of the material name.
             resource_data->shader_name = string_duplicate(trimmed_value);
+        } else if (strings_equali(trimmed_var_name, "shininess")) {
+            if(!string_to_f32(trimmed_value, &resource_data->shininess)) {
+                KWARN("Error parsing shininess in file '%s'. Using default of 32.0 instead.", full_file_path);
+                resource_data->shininess = 32.0f;
+            }
         }
 
         // TODO: more fields.
