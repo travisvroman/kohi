@@ -73,3 +73,9 @@ void texture_system_release(const char* name);
  * done for default textures.
  */
 texture* texture_system_get_default_texture();
+
+/**
+ * @brief Gets a pointer to the default specular texture. No reference counting is 
+ * done for default textures.
+ */
+texture* texture_system_get_default_specular_texture();

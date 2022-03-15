@@ -85,24 +85,39 @@ b8 event_on_debug_event(u16 code, void* sender, void* listener_inst, event_conte
         "cobblestone",
         "paving",
         "paving2"};
+    const char* spec_names[3] = {
+        "cobblestone_SPEC",
+        "paving_SPEC",
+        "paving2_SPEC"};
     static i8 choice = 2;
 
-    // Save off the old name.
+    // Save off the old names.
     const char* old_name = names[choice];
+    const char* old_spec_name = names[choice];
 
     choice++;
     choice %= 3;
 
-    // Acquire the new texture.
     if (app_state->test_geometry) {
+        // Acquire the new diffuse texture.
         app_state->test_geometry->material->diffuse_map.texture = texture_system_acquire(names[choice], true);
         if (!app_state->test_geometry->material->diffuse_map.texture) {
-            KWARN("event_on_debug_event no texture! using default");
+            KWARN("event_on_debug_event no diffuse texture! using default");
             app_state->test_geometry->material->diffuse_map.texture = texture_system_get_default_texture();
         }
 
-        // Release the old texture.
+        // Release the old diffuse texture.
         texture_system_release(old_name);
+
+        // Acquire the new spec texture.
+        app_state->test_geometry->material->specular_map.texture = texture_system_acquire(spec_names[choice], true);
+        if (!app_state->test_geometry->material->specular_map.texture) {
+            KWARN("event_on_debug_event no spec texture! using default");
+            app_state->test_geometry->material->specular_map.texture = texture_system_get_default_specular_texture();
+        }
+
+        // Release the old spec texture.
+        texture_system_release(old_spec_name);
     }
 
     return true;
@@ -293,7 +308,7 @@ b8 application_create(game* game_inst) {
     app_state->test_ui_geometry = geometry_system_acquire_from_config(ui_config, true);
 
     // Load up default geometry.
-    //app_state->test_geometry = geometry_system_get_default();
+    // app_state->test_geometry = geometry_system_get_default();
     // TODO: end temp
 
     // Initialize the game.
@@ -313,7 +328,7 @@ b8 application_run() {
     clock_start(&app_state->clock);
     clock_update(&app_state->clock);
     app_state->last_time = app_state->clock.elapsed;
-    //f64 running_time = 0;
+    // f64 running_time = 0;
     u8 frame_count = 0;
     f64 target_frame_seconds = 1.0f / 60;
 
@@ -351,9 +366,9 @@ b8 application_run() {
             // TODO: temp
             geometry_render_data test_render;
             test_render.geometry = app_state->test_geometry;
-            //test_render.model = mat4_identity();
+            // test_render.model = mat4_identity();
             static f32 angle = 0;
-            //angle = deg_to_rad(45.0f);
+            // angle = deg_to_rad(45.0f);
             angle += (.5f * delta);
             // TODO: Something with rotation matrices is messing up directional lighting,
             // in particular on the x-axis it seems. It's fine before rotation.
@@ -380,7 +395,7 @@ b8 application_run() {
             // Figure out how long the frame took and, if below
             f64 frame_end_time = platform_get_absolute_time();
             f64 frame_elapsed_time = frame_end_time - frame_start_time;
-            //running_time += frame_elapsed_time;
+            // running_time += frame_elapsed_time;
             f64 remaining_seconds = target_frame_seconds - frame_elapsed_time;
 
             if (remaining_seconds > 0) {

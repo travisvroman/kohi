@@ -203,9 +203,9 @@ texture* texture_system_get_default_texture() {
     return 0;
 }
 
-texture* texture_system_get_default_specukar_texture() {
+texture* texture_system_get_default_specular_texture() {
     if (state_ptr) {
-        return &state_ptr->default_texture;
+        return &state_ptr->default_specular_texture;
     }
 
     KERROR("texture_system_get_default_texture called before texture system initialization! Null pointer returned.");
@@ -272,6 +272,7 @@ b8 create_default_textures(texture_system_state* state) {
 void destroy_default_textures(texture_system_state* state) {
     if (state) {
         destroy_texture(&state->default_texture);
+        destroy_texture(&state->default_specular_texture);
     }
 }
 

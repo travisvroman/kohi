@@ -444,6 +444,9 @@ b8 create_default_material(material_system_state* state) {
     state->default_material.diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
     state->default_material.diffuse_map.texture = texture_system_get_default_texture();
 
+    state->default_material.specular_map.use = TEXTURE_USE_MAP_SPECULAR;
+    state->default_material.specular_map.texture = texture_system_get_default_specular_texture();
+
     shader* s = shader_system_get(BUILTIN_SHADER_NAME_MATERIAL);
     if (!renderer_shader_acquire_instance_resources(s, &state->default_material.internal_id)) {
         KFATAL("Failed to acquire renderer resources for default material. Application cannot continue.");
