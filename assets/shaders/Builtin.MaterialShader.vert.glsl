@@ -28,7 +28,7 @@ layout(location = 1) out struct dto {
 void main() {
 	out_dto.tex_coord = in_texcoord;
 	// out_dto.normal = in_normal;
-	out_dto.normal = normalize(in_normal * mat3(u_push_constants.model));
+	out_dto.normal = mat3(u_push_constants.model) * in_normal;
 	out_dto.ambient = global_ubo.ambient_colour;
     gl_Position = global_ubo.projection * global_ubo.view * u_push_constants.model * vec4(in_position, 1.0);
 }
