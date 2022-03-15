@@ -353,12 +353,17 @@ b8 application_run() {
             test_render.geometry = app_state->test_geometry;
             //test_render.model = mat4_identity();
             static f32 angle = 0;
-            angle = deg_to_rad(45.0f);
-            //angle += (.5f * delta);
+            //angle = deg_to_rad(45.0f);
+            angle += (.5f * delta);
             // TODO: Something with rotation matrices is messing up directional lighting,
             // in particular on the x-axis it seems. It's fine before rotation.
-            quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, angle, true);
-            test_render.model = quat_to_mat4(rotation);  //  quat_to_rotation_matrix(rotation, vec3_zero());
+            quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, angle, false);
+            mat4 t = mat4_translation(vec3_zero());
+            mat4 r = quat_to_mat4(rotation);  //  quat_to_rotation_matrix(rotation, vec3_zero());
+            mat4 s = mat4_scale(vec3_one());
+            t = mat4_mul(r, t);
+            t = mat4_mul(s, t);
+            test_render.model = t;
 
             packet.geometry_count = 1;
             packet.geometries = &test_render;

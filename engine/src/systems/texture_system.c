@@ -12,6 +12,7 @@
 typedef struct texture_system_state {
     texture_system_config config;
     texture default_texture;
+    texture default_specular_texture;
 
     // Array of registered textures.
     texture* registered_textures;
@@ -202,6 +203,15 @@ texture* texture_system_get_default_texture() {
     return 0;
 }
 
+texture* texture_system_get_default_specukar_texture() {
+    if (state_ptr) {
+        return &state_ptr->default_texture;
+    }
+
+    KERROR("texture_system_get_default_texture called before texture system initialization! Null pointer returned.");
+    return 0;
+}
+
 b8 create_default_textures(texture_system_state* state) {
     // NOTE: Create default texture, a 256x256 blue/white checkerboard pattern.
     // This is done in code to eliminate asset dependencies.
@@ -209,7 +219,7 @@ b8 create_default_textures(texture_system_state* state) {
     const u32 tex_dimension = 256;
     const u32 channels = 4;
     const u32 pixel_count = tex_dimension * tex_dimension;
-    u8 pixels[262144]; // pixel_count * channels
+    u8 pixels[262144];  // pixel_count * channels
     kset_memory(pixels, 255, sizeof(u8) * pixel_count * channels);
 
     // Each pixel.
@@ -240,6 +250,21 @@ b8 create_default_textures(texture_system_state* state) {
     renderer_create_texture(pixels, &state->default_texture);
     // Manually set the texture generation to invalid since this is a default texture.
     state->default_texture.generation = INVALID_ID;
+
+    // Specular texture.
+    KTRACE("Creating default specular texture...");
+    u8 spec_pixels[16 * 16 * 4];
+    // Default spec map is black (no specular)
+    kset_memory(spec_pixels, 0, sizeof(u8) * 16 * 16 * 4);
+    string_ncopy(state->default_specular_texture.name, DEFAULT_SPECULAR_TEXTURE_NAME, TEXTURE_NAME_MAX_LENGTH);
+    state->default_specular_texture.width = 16;
+    state->default_specular_texture.height = 16;
+    state->default_specular_texture.channel_count = 4;
+    state->default_specular_texture.generation = INVALID_ID;
+    state->default_specular_texture.has_transparency = false;
+    renderer_create_texture(spec_pixels, &state->default_specular_texture);
+    // Manually set the texture generation to invalid since this is a default texture.
+    state->default_specular_texture.generation = INVALID_ID;
 
     return true;
 }

@@ -25,6 +25,9 @@ typedef struct texture_system_config {
 /** @brief The default texture name. */
 #define DEFAULT_TEXTURE_NAME "default"
 
+/** @brief The default specular texture name. */
+#define DEFAULT_SPECULAR_TEXTURE_NAME "default_SPEC"
+
 /**
  * @brief Initializes the texture system.
  * Should be called twice; once to get the memory requirement (passing state=0), and a second

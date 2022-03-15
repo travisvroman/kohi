@@ -14,14 +14,13 @@ struct directional_light {
 
 // TODO: feed in from cpu
 directional_light dir_light = {
-    //vec3(-0.57735, -0.57735, -0.57735),
-    vec3(1.0, 0.0, 0.0),
+    vec3(-0.57735, -0.57735, -0.57735),
     vec4(0.8, 0.8, 0.8, 1.0)
 };
 
 // Samplers
 layout(set = 1, binding = 1) uniform sampler2D diffuse_sampler;
-//layout(set = 1, binding = 2) uniform sampler2D specular_sampler;
+layout(set = 1, binding = 2) uniform sampler2D specular_sampler;
 
 // Data Transfer Object
 layout(location = 1) in struct dto {
@@ -53,7 +52,7 @@ vec4 calculate_directional_light(directional_light light, vec3 normal, vec3 view
     
     diffuse *= diff_samp;
     ambient *= diff_samp;
-    //specular *= vec4(texture(specular_sampler, in_dto.tex_coord).rgb, diffuse.a);
+    specular *= vec4(texture(specular_sampler, in_dto.tex_coord).rgb, diffuse.a);
 
     return (ambient + diffuse + specular);
 }

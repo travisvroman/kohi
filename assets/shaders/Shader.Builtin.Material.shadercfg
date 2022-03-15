@@ -20,5 +20,6 @@ uniform=vec4,0,ambient_colour
 uniform=vec3,0,view_position
 uniform=vec4,1,diffuse_colour
 uniform=samp,1,diffuse_texture
+uniform=samp,1,specular_texture
 uniform=f32,1,shininess
 uniform=mat4,2,model

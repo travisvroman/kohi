@@ -112,7 +112,7 @@ b8 vulkan_graphics_pipeline_create(
 
     // Pipeline layout
     VkPipelineLayoutCreateInfo pipeline_layout_create_info = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-
+    
     // Push constants
     if (push_constant_range_count > 0) {
         if (push_constant_range_count > 32) {

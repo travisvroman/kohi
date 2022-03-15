@@ -33,7 +33,7 @@ void main() {
 	// Fragment position in world space.
 	out_dto.frag_position = vec3(u_push_constants.model * vec4(in_position, 1.0));
 	// Copy the normal over.
-	out_dto.normal = in_normal * mat3(u_push_constants.model);
+	out_dto.normal = mat3(u_push_constants.model) * in_normal;
 	out_dto.ambient = global_ubo.ambient_colour;
 	out_dto.view_position = global_ubo.view_position;
     gl_Position = global_ubo.projection * global_ubo.view * u_push_constants.model * vec4(in_position, 1.0);
