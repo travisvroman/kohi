@@ -13,6 +13,7 @@
 typedef struct material_shader_uniform_locations {
     u16 projection;
     u16 view;
+    u16 ambient_colour;
     u16 diffuse_colour;
     u16 diffuse_texture;
     u16 model;
@@ -205,6 +206,7 @@ material* material_system_acquire_from_config(material_config config) {
                 state_ptr->material_shader_id = s->id;
                 state_ptr->material_locations.projection = shader_system_uniform_index(s, "projection");
                 state_ptr->material_locations.view = shader_system_uniform_index(s, "view");
+                state_ptr->material_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
                 state_ptr->material_locations.diffuse_colour = shader_system_uniform_index(s, "diffuse_colour");
                 state_ptr->material_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
                 state_ptr->material_locations.model = shader_system_uniform_index(s, "model");
@@ -288,10 +290,11 @@ material* material_system_get_default() {
         return false;                                 \
     }
 
-b8 material_system_apply_global(u32 shader_id, const mat4* projection, const mat4* view) {
+b8 material_system_apply_global(u32 shader_id, const mat4* projection, const mat4* view, const vec4* ambient_colour) {
     if (shader_id == state_ptr->material_shader_id) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.projection, projection));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.view, view));
+        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.ambient_colour, ambient_colour));
     } else if (shader_id == state_ptr->ui_shader_id) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.projection, projection));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.view, view));
@@ -410,6 +413,9 @@ b8 create_default_material(material_system_state* state) {
         KFATAL("Failed to acquire renderer resources for default material. Application cannot continue.");
         return false;
     }
+
+    // Make sure to assign the shader id.
+    state->default_material.shader_id = s->id;
 
     return true;
 }

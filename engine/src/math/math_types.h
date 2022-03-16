@@ -142,6 +142,8 @@ typedef union mat4_u {
 typedef struct vertex_3d {
     /** @brief The position of the vertex */
     vec3 position;
+    /** @brief The normal of the vertex. */
+    vec3 normal;
     /** @brief The texture coordinate of the vertex. */
     vec2 texcoord;
 } vertex_3d;
