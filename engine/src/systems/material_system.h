@@ -86,9 +86,10 @@ material* material_system_get_default();
  * @param view A constant pointer to a view matrix.
  * @param ambient_colour The ambient colour of the scene.
  * @param view_position The camera position.
+ * @param render_mode The render mode.
  * @return True on success; otherwise false.
  */
-b8 material_system_apply_global(u32 shader_id, const mat4* projection, const mat4* view, const vec4* ambient_colour, const vec3* view_position);
+b8 material_system_apply_global(u32 shader_id, const mat4* projection, const mat4* view, const vec4* ambient_colour, const vec3* view_position, u32 render_mode);
 
 /**
  * @brief Applies instance-level material data for the given material.

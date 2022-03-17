@@ -81,6 +81,27 @@ typedef enum keys {
     KEY_DELETE = 0x2E,
     KEY_HELP = 0x2F,
 
+    /** @brief The 0 key */
+    KEY_0 = 0x30,
+    /** @brief The 1 key */
+    KEY_1 = 0x31,
+    /** @brief The 2 key */
+    KEY_2 = 0x32,
+    /** @brief The 3 key */
+    KEY_3 = 0x33,
+    /** @brief The 4 key */
+    KEY_4 = 0x34,
+    /** @brief The 5 key */
+    KEY_5 = 0x35,
+    /** @brief The 6 key */
+    KEY_6 = 0x36,
+    /** @brief The 7 key */
+    KEY_7 = 0x37,
+    /** @brief The 8 key */
+    KEY_8 = 0x38,
+    /** @brief The 9 key */
+    KEY_9 = 0x39,
+
     /** @brief The A key. */
     KEY_A = 0x41,
     /** @brief The B key. */

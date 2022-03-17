@@ -26,6 +26,12 @@ typedef enum builtin_renderpass {
     BUILTIN_RENDERPASS_UI = 0x02
 } builtin_renderpass;
 
+typedef enum renderer_debug_view_mode {
+    RENDERER_VIEW_MODE_DEFAULT = 0,
+    RENDERER_VIEW_MODE_LIGHTING = 1,
+    RENDERER_VIEW_MODE_NORMALS = 2
+} renderer_debug_view_mode;
+
 /**
  * @brief A generic "interface" for the backend. The renderer backend
  * is what is responsible for making calls to the graphics API such as
