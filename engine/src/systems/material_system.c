@@ -19,6 +19,7 @@ typedef struct material_shader_uniform_locations {
     u16 diffuse_colour;
     u16 diffuse_texture;
     u16 specular_texture;
+    u16 normal_texture;
     u16 model;
 } material_shader_uniform_locations;
 
@@ -87,6 +88,7 @@ b8 material_system_initialize(u64* memory_requirement, void* state, material_sys
     state_ptr->material_locations.diffuse_colour = INVALID_ID_U16;
     state_ptr->material_locations.diffuse_texture = INVALID_ID_U16;
     state_ptr->material_locations.specular_texture = INVALID_ID_U16;
+    state_ptr->material_locations.normal_texture = INVALID_ID_U16;
     state_ptr->material_locations.ambient_colour = INVALID_ID_U16;
     state_ptr->material_locations.shininess = INVALID_ID_U16;
     state_ptr->material_locations.model = INVALID_ID_U16;
@@ -223,6 +225,7 @@ material* material_system_acquire_from_config(material_config config) {
                 state_ptr->material_locations.diffuse_colour = shader_system_uniform_index(s, "diffuse_colour");
                 state_ptr->material_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
                 state_ptr->material_locations.specular_texture = shader_system_uniform_index(s, "specular_texture");
+                state_ptr->material_locations.normal_texture = shader_system_uniform_index(s, "normal_texture");
                 state_ptr->material_locations.shininess = shader_system_uniform_index(s, "shininess");
                 state_ptr->material_locations.model = shader_system_uniform_index(s, "model");
             } else if (state_ptr->ui_shader_id == INVALID_ID && strings_equal(config.shader_name, BUILTIN_SHADER_NAME_UI)) {
@@ -330,6 +333,8 @@ b8 material_system_apply_instance(material* m) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_colour, &m->diffuse_colour));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_texture, m->diffuse_map.texture));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, m->specular_map.texture));
+        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, m->specular_map.texture));
+        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, m->normal_map.texture));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.shininess, &m->shininess));
     } else if (m->shader_id == state_ptr->ui_shader_id) {
         // UI shader
@@ -386,14 +391,29 @@ b8 load_material(material_config config, material* m) {
         m->specular_map.use = TEXTURE_USE_MAP_SPECULAR;
         m->specular_map.texture = texture_system_acquire(config.specular_map_name, true);
         if (!m->specular_map.texture) {
-            KWARN("Unable to load texture '%s' for material '%s', using default.", config.specular_map_name, m->name);
-            m->specular_map.texture = texture_system_get_default_texture();
+            KWARN("Unable to load specular texture '%s' for material '%s', using default.", config.specular_map_name, m->name);
+            m->specular_map.texture = texture_system_get_default_specular_texture();
         }
     } else {
         // NOTE: Only set for clarity, as call to kzero_memory above does this already.
         m->specular_map.use = TEXTURE_USE_UNKNOWN;
         m->specular_map.texture = 0;
     }
+
+    // Normal map
+    if (string_length(config.normal_map_name) > 0) {
+        m->normal_map.use = TEXTURE_USE_MAP_NORMAL;
+        m->normal_map.texture = texture_system_acquire(config.normal_map_name, true);
+        if (!m->normal_map.texture) {
+            KWARN("Unable to load normal texture '%s' for material '%s', using default.", config.normal_map_name, m->name);
+            m->normal_map.texture = texture_system_get_default_normal_texture();
+        }
+    } else {
+        // Use default
+        m->normal_map.use = TEXTURE_USE_MAP_NORMAL;
+        m->normal_map.texture = texture_system_get_default_normal_texture();
+    }
+
 
     // TODO: other maps
 
@@ -421,6 +441,9 @@ void destroy_material(material* m) {
     if (m->specular_map.texture) {
         texture_system_release(m->specular_map.texture->name);
     }
+    if (m->normal_map.texture) {
+        texture_system_release(m->normal_map.texture->name);
+    }
 
     // Release renderer resources.
     if (m->shader_id != INVALID_ID && m->internal_id != INVALID_ID) {
@@ -446,6 +469,9 @@ b8 create_default_material(material_system_state* state) {
 
     state->default_material.specular_map.use = TEXTURE_USE_MAP_SPECULAR;
     state->default_material.specular_map.texture = texture_system_get_default_specular_texture();
+
+    state->default_material.normal_map.use = TEXTURE_USE_MAP_SPECULAR;
+    state->default_material.normal_map.texture = texture_system_get_default_normal_texture();
 
     shader* s = shader_system_get(BUILTIN_SHADER_NAME_MATERIAL);
     if (!renderer_shader_acquire_instance_resources(s, &state->default_material.internal_id)) {
