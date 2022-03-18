@@ -125,6 +125,7 @@ b8 material_system_initialize(u64* memory_requirement, void* state, material_sys
         state_ptr->registered_materials[i].id = INVALID_ID;
         state_ptr->registered_materials[i].generation = INVALID_ID;
         state_ptr->registered_materials[i].internal_id = INVALID_ID;
+        state_ptr->registered_materials[i].render_frame_number = INVALID_ID;
     }
 
     if (!create_default_material(state_ptr)) {
@@ -460,6 +461,7 @@ void destroy_material(material* m) {
     m->id = INVALID_ID;
     m->generation = INVALID_ID;
     m->internal_id = INVALID_ID;
+    m->render_frame_number = INVALID_ID;
 }
 
 b8 create_default_material(material_system_state* state) {
