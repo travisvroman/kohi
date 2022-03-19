@@ -198,7 +198,7 @@ typedef struct geometry {
 typedef struct mesh {
     u16 geometry_count;
     geometry** geometries;
-    mat4 model;
+    transform transform;
 } mesh;
 
 /** @brief Shader stages available in the system. */

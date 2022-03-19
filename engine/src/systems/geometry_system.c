@@ -107,6 +107,18 @@ geometry* geometry_system_acquire_from_config(geometry_config config, b8 auto_re
     return g;
 }
 
+void geometry_system_config_dispose(geometry_config* config) {
+    if (config) {
+        if (config->vertices) {
+            kfree(config->vertices, config->vertex_size * config->vertex_count, MEMORY_TAG_ARRAY);
+        }
+        if (config->vertices) {
+            kfree(config->indices, config->index_size * config->index_count, MEMORY_TAG_ARRAY);
+        }
+        kzero_memory(config, sizeof(geometry_config));
+    }
+}
+
 void geometry_system_release(geometry* geometry) {
     if (geometry && geometry->id != INVALID_ID) {
         geometry_reference* ref = &state_ptr->registered_geometries[geometry->id];
@@ -413,7 +425,6 @@ geometry_config geometry_system_generate_cube_config(f32 width, f32 height, f32 
     f32 min_uvy = 0.0f;
     f32 max_uvx = tile_x;
     f32 max_uvy = tile_y;
-
 
     vertex_3d verts[24];
 

@@ -161,3 +161,32 @@ typedef struct vertex_2d {
     /** @brief The texture coordinate of the vertex. */
     vec2 texcoord;
 } vertex_2d;
+
+/**
+ * @brief Represents the transform of an object in the world.
+ * Transforms can have a parent whose own transform is then
+ * taken into account. NOTE: The properties of this should not
+ * be edited directly, but done via the functions in transform.h
+ * to ensure proper matrix generation.
+ */
+typedef struct transform {
+    /** @brief The position in the world. */
+    vec3 position;
+    /** @brief The rotation in the world. */
+    quat rotation;
+    /** @brief The scale in the world. */
+    vec3 scale;
+    /**
+     * @brief Indicates if the position, rotation or scale have changed,
+     * indicating that the local matrix needs to be recalculated.
+     */
+    b8 is_dirty;
+    /**
+     * @brief The local transformation matrix, updated whenever
+     * the position, rotation or scale have changed.
+     */
+    mat4 local;
+
+    /** @brief A pointer to a parent transform if one is assigned. Can also be null. */
+    struct transform* parent;
+} transform;
