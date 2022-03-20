@@ -96,7 +96,7 @@ typedef enum texture_use {
     /** @brief The texture is used as a diffuse map. */
     TEXTURE_USE_MAP_DIFFUSE = 0x01,
     /** @brief The texture is used as a specular map. */
-    TEXTURE_USE_MAP_SPECULAR = 0x01
+    TEXTURE_USE_MAP_SPECULAR = 0x02
 } texture_use;
 
 /**
