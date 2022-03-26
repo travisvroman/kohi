@@ -82,7 +82,12 @@
         "string_view": "c",
         "limits": "c",
         "sstream": "c",
-        "filesystem.h": "c"
+        "filesystem.h": "c",
+        "atomic": "c",
+        "*.tcc": "c",
+        "iomanip": "c",
+        "istream": "c",
+        "ostream": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [
