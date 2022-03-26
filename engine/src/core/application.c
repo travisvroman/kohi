@@ -292,6 +292,43 @@ b8 application_create(game* game_inst) {
     // Clean up the allocations for the geometry config.
     geometry_system_config_dispose(&g_config);
 
+    // A test mesh!
+    mesh* car_mesh = &app_state->meshes[app_state->mesh_count];
+    resource car_mesh_resource = {};
+    if (!resource_system_load("falcon", RESOURCE_TYPE_MESH, &car_mesh_resource)) {
+        KERROR("Failed to load car test mesh!");
+    }
+    geometry_config* configs = (geometry_config*)car_mesh_resource.data;
+    car_mesh->geometry_count = car_mesh_resource.data_size;
+    car_mesh->geometries = kallocate(sizeof(mesh*) * car_mesh->geometry_count, MEMORY_TAG_ARRAY);
+    for (u32 i = 0; i < car_mesh->geometry_count; ++i) {
+        geometry_config* c = &configs[i];
+        geometry_generate_tangents(c->vertex_count, c->vertices, c->index_count, c->indices);
+        car_mesh->geometries[i] = geometry_system_acquire_from_config(*c, true);
+    }
+    car_mesh->transform = transform_from_position((vec3){15.0f, 0.0f, 1.0f});
+    resource_system_unload(&car_mesh_resource);
+    app_state->mesh_count++;
+
+    // A bigger test mesh
+    mesh* sponza_mesh = &app_state->meshes[app_state->mesh_count];
+    resource sponza_mesh_resource = {};
+    if (!resource_system_load("sponza_old", RESOURCE_TYPE_MESH, &sponza_mesh_resource)) {
+        KERROR("Failed to load sponza mesh!");
+    }
+    geometry_config* sponza_configs = (geometry_config*)sponza_mesh_resource.data;
+    sponza_mesh->geometry_count = sponza_mesh_resource.data_size;
+    sponza_mesh->geometries = kallocate(sizeof(mesh*) * sponza_mesh->geometry_count, MEMORY_TAG_ARRAY);
+    for (u32 i = 0; i < sponza_mesh->geometry_count; ++i) {
+        geometry_config* c = &sponza_configs[i];
+        geometry_generate_tangents(c->vertex_count, c->vertices, c->index_count, c->indices);
+        sponza_mesh->geometries[i] = geometry_system_acquire_from_config(*c, true);
+    }
+    quat sponza_rot = quat_identity();
+    sponza_mesh->transform = transform_from_position_rotation_scale((vec3){15.0f, 0.0f, 1.0f}, sponza_rot, (vec3){0.05f, 0.05f, 0.05f});
+    resource_system_unload(&sponza_mesh_resource);
+    app_state->mesh_count++;
+
     // Load up some test UI geometry.
     geometry_config ui_config;
     ui_config.vertex_size = sizeof(vertex_2d);

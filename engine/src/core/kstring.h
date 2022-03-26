@@ -46,6 +46,26 @@ KAPI b8 strings_equal(const char* str0, const char* str1);
 KAPI b8 strings_equali(const char* str0, const char* str1);
 
 /**
+ * @brief Case-sensitive string comparison for a number of characters.
+ *
+ * @param str0 The first string to be compared.
+ * @param str1 The second string to be compared.
+ * @param length The maximum number of characters to be compared.
+ * @return True if the same, otherwise false.
+ */
+KAPI b8 strings_nequal(const char* str0, const char* str1, u64 length);
+
+/**
+ * @brief Case-insensitive string comparison for a number of characters.
+ *
+ * @param str0 The first string to be compared.
+ * @param str1 The second string to be compared.
+ * @param length The maximum number of characters to be compared.
+ * @return True if the same, otherwise false.
+ */
+KAPI b8 strings_nequali(const char* str0, const char* str1, u64 length);
+
+/**
  * @brief Performs string formatting to dest given format string and parameters.
  * @param dest The destination for the formatted string.
  * @param format The format string to use for the operation
@@ -264,3 +284,72 @@ KAPI u32 string_split(const char* str, char delimiter, char*** str_darray, b8 tr
  * @param str_darray The darray to be cleaned up.
  */
 KAPI void string_cleanup_split_array(char** str_darray);
+
+/**
+ * Appends append to source and returns a new string.
+ * @param dest The destination string.
+ * @param source The string to be appended to.
+ * @param append The string to append to source.
+ * @returns A new string containing the concatenation of the two strings.
+ */
+KAPI void string_append_string(char* dest, const char* source, const char* append);
+
+/**
+ * @brief Appends the supplied integer to source and outputs to dest.
+ * 
+ * @param dest The destination for the string.
+ * @param source The string to be appended to.
+ * @param i The integer to be appended.
+ */
+KAPI void string_append_int(char* dest, const char* source, i64 i);
+
+/**
+ * @brief Appends the supplied float to source and outputs to dest.
+ * 
+ * @param dest The destination for the string.
+ * @param source The string to be appended to.
+ * @param f The float to be appended.
+ */
+KAPI void string_append_float(char* dest, const char* source, f32 f);
+
+/**
+ * @brief Appends the supplied boolean (as either "true" or "false") to source and outputs to dest.
+ * 
+ * @param dest The destination for the string.
+ * @param source The string to be appended to.
+ * @param b The boolean to be appended.
+ */
+KAPI void string_append_bool(char* dest, const char* source, b8 b);
+
+/**
+ * @brief Appends the supplied character to source and outputs to dest.
+ * 
+ * @param dest The destination for the string.
+ * @param source The string to be appended to.
+ * @param c The character to be appended.
+ */
+KAPI void string_append_char(char* dest, const char* source, char c);
+
+/**
+ * @brief Extracts the directory from a full file path.
+ * 
+ * @param dest The destination for the path.
+ * @param path The full path to extract from.
+ */
+KAPI void string_directory_from_path(char* dest, const char* path);
+
+/**
+ * @brief Extracts the filename (including file extension) from a full file path.
+ * 
+ * @param dest The destination for the filename.
+ * @param path The full path to extract from.
+ */
+KAPI void string_filename_from_path(char* dest, const char* path);
+
+/**
+ * @brief Extracts the filename (excluding file extension) from a full file path.
+ * 
+ * @param dest The destination for the filename.
+ * @param path The full path to extract from.
+ */
+KAPI void string_filename_no_extension_from_path(char* dest, const char* path);

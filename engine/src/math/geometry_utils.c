@@ -1,6 +1,7 @@
 #include "geometry_utils.h"
 
 #include "kmath.h"
+#include "core/logger.h"
 
 void geometry_generate_normals(u32 vertex_count, vertex_3d* vertices, u32 index_count, u32* indices) {
     for (u32 i = 0; i < index_count; i += 3) {
