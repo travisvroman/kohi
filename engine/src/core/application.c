@@ -313,7 +313,7 @@ b8 application_create(game* game_inst) {
     // A bigger test mesh
     mesh* sponza_mesh = &app_state->meshes[app_state->mesh_count];
     resource sponza_mesh_resource = {};
-    if (!resource_system_load("sponza_old", RESOURCE_TYPE_MESH, &sponza_mesh_resource)) {
+    if (!resource_system_load("sponza", RESOURCE_TYPE_MESH, &sponza_mesh_resource)) {
         KERROR("Failed to load sponza mesh!");
     }
     geometry_config* sponza_configs = (geometry_config*)sponza_mesh_resource.data;
@@ -324,8 +324,7 @@ b8 application_create(game* game_inst) {
         geometry_generate_tangents(c->vertex_count, c->vertices, c->index_count, c->indices);
         sponza_mesh->geometries[i] = geometry_system_acquire_from_config(*c, true);
     }
-    quat sponza_rot = quat_identity();
-    sponza_mesh->transform = transform_from_position_rotation_scale((vec3){15.0f, 0.0f, 1.0f}, sponza_rot, (vec3){0.05f, 0.05f, 0.05f});
+    sponza_mesh->transform = transform_from_position_rotation_scale((vec3){15.0f, 0.0f, 1.0f}, quat_identity(), (vec3){0.05f, 0.05f, 0.05f});
     resource_system_unload(&sponza_mesh_resource);
     app_state->mesh_count++;
 
