@@ -257,7 +257,6 @@ b8 application_create(game* game_inst) {
     cube_mesh->geometry_count = 1;
     cube_mesh->geometries = kallocate(sizeof(mesh*) * cube_mesh->geometry_count, MEMORY_TAG_ARRAY);
     geometry_config g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "test_cube", "test_material");
-    geometry_generate_tangents(g_config.vertex_count, g_config.vertices, g_config.index_count, g_config.indices);
     cube_mesh->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     cube_mesh->transform = transform_create();
     app_state->mesh_count++;
@@ -269,7 +268,6 @@ b8 application_create(game* game_inst) {
     cube_mesh_2->geometry_count = 1;
     cube_mesh_2->geometries = kallocate(sizeof(mesh*) * cube_mesh_2->geometry_count, MEMORY_TAG_ARRAY);
     g_config = geometry_system_generate_cube_config(5.0f, 5.0f, 5.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
-    geometry_generate_tangents(g_config.vertex_count, g_config.vertices, g_config.index_count, g_config.indices);
     cube_mesh_2->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     cube_mesh_2->transform = transform_from_position((vec3){10.0f, 0.0f, 1.0f});
     // Set the first cube as the parent to the second.
@@ -283,7 +281,6 @@ b8 application_create(game* game_inst) {
     cube_mesh_3->geometry_count = 1;
     cube_mesh_3->geometries = kallocate(sizeof(mesh*) * cube_mesh_3->geometry_count, MEMORY_TAG_ARRAY);
     g_config = geometry_system_generate_cube_config(2.0f, 2.0f, 2.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
-    geometry_generate_tangents(g_config.vertex_count, g_config.vertices, g_config.index_count, g_config.indices);
     cube_mesh_3->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     cube_mesh_3->transform = transform_from_position((vec3){5.0f, 0.0f, 1.0f});
     // Set the second cube as the parent to the third.
