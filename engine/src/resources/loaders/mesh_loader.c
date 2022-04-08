@@ -548,6 +548,7 @@ b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, geometry
 void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, mesh_face_data* faces, geometry_config* out_data) {
     out_data->indices = darray_create(u32);
     out_data->vertices = darray_create(vertex_3d);
+    b8 extent_set = false;
     kzero_memory(&out_data->min_extents, sizeof(vec3));
     kzero_memory(&out_data->max_extents, sizeof(vec3));
 
@@ -579,26 +580,28 @@ void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, mesh_fa
             vert.position = pos;
 
             // Check extents - min
-            if (pos.x < out_data->min_extents.x) {
+            if (pos.x < out_data->min_extents.x || !extent_set) {
                 out_data->min_extents.x = pos.x;
             }
-            if (pos.y < out_data->min_extents.y) {
+            if (pos.y < out_data->min_extents.y || !extent_set) {
                 out_data->min_extents.y = pos.y;
             }
-            if (pos.z < out_data->min_extents.z) {
+            if (pos.z < out_data->min_extents.z || !extent_set) {
                 out_data->min_extents.z = pos.z;
             }
 
             // Check extents - max
-            if (pos.x > out_data->max_extents.x) {
+            if (pos.x > out_data->max_extents.x || !extent_set) {
                 out_data->max_extents.x = pos.x;
             }
-            if (pos.y > out_data->max_extents.y) {
+            if (pos.y > out_data->max_extents.y || !extent_set) {
                 out_data->max_extents.y = pos.y;
             }
-            if (pos.z > out_data->max_extents.z) {
+            if (pos.z > out_data->max_extents.z || !extent_set) {
                 out_data->max_extents.z = pos.z;
             }
+
+            extent_set = true;
 
             if (skip_normals) {
                 vert.normal = vec3_zero();
@@ -617,6 +620,11 @@ void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, mesh_fa
 
             darray_push(out_data->vertices, vert);
         }
+    }
+
+    // Calculate the center based on the extents.
+    for (u8 i = 0; i < 3; ++i) {
+        out_data->center.elements[i] = (out_data->min_extents.elements[i] + out_data->max_extents.elements[i]) / 2.0f;
     }
 
     // Calculate tangents.
