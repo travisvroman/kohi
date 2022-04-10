@@ -146,6 +146,10 @@ typedef struct vertex_3d {
     vec3 normal;
     /** @brief The texture coordinate of the vertex. */
     vec2 texcoord;
+    /** @brief The colour of the vertex. */
+    vec4 colour;
+    /** @brief The tangent of the vertex. */
+    vec4 tangent;
 } vertex_3d;
 
 /**
