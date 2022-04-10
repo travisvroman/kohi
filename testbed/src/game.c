@@ -142,6 +142,25 @@ b8 game_update(game* game_inst, f32 delta_time) {
             state->camera_position.y,
             state->camera_position.z);
     }
+
+    // RENDERER DEBUG FUNCTIONS
+    if (input_is_key_up('1') && input_was_key_down('1')) {
+        event_context data = {};
+        data.data.i32[0] = RENDERER_VIEW_MODE_LIGHTING;
+        event_fire(EVENT_CODE_SET_RENDER_MODE, game_inst, data);
+    }
+
+    if (input_is_key_up('2') && input_was_key_down('2')) {
+        event_context data = {};
+        data.data.i32[0] = RENDERER_VIEW_MODE_NORMALS;
+        event_fire(EVENT_CODE_SET_RENDER_MODE, game_inst, data);
+    }
+
+    if (input_is_key_up('0') && input_was_key_down('0')) {
+        event_context data = {};
+        data.data.i32[0] = RENDERER_VIEW_MODE_DEFAULT;
+        event_fire(EVENT_CODE_SET_RENDER_MODE, game_inst, data);
+    }
     // TODO: end temp
 
     return true;
