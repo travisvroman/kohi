@@ -47,7 +47,7 @@ void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, mesh_fa
 b8 import_obj_material_library_file(const char* mtl_file_path);
 
 b8 load_ksm_file(file_handle* ksm_file, geometry_config** out_geometries_darray);
-b8 write_ksm_file(const char* path, const char* name, u32 geometry_count, geometry_config** geometries);
+b8 write_ksm_file(const char* path, const char* name, u32 geometry_count, geometry_config* geometries);
 b8 write_kmt_file(const char* directory, material_config* config);
 
 b8 mesh_loader_load(struct resource_loader* self, const char* name, resource* out_resource) {
@@ -140,12 +140,123 @@ void mesh_loader_unload(struct resource_loader* self, resource* resource) {
 }
 
 b8 load_ksm_file(file_handle* ksm_file, geometry_config** out_geometries_darray) {
-    // TODO: Read ksm file...
+    // Version
+    u64 bytes_read = 0;
+    u16 version = 0;
+    filesystem_read(ksm_file, sizeof(u16), &version, &bytes_read);
+
+    // Name length
+    u32 name_length = 0;
+    filesystem_read(ksm_file, sizeof(u32), &name_length, &bytes_read);
+    // Name + terminator
+    char name[256];
+    filesystem_read(ksm_file, sizeof(char) * name_length, name, &bytes_read);
+
+    // Geometry count
+    u32 geometry_count = 0;
+    filesystem_read(ksm_file, sizeof(u32), &geometry_count, &bytes_read);
+
+    // Each geometry
+    for (u32 i = 0; i < geometry_count; ++i) {
+        geometry_config g = {};
+
+        // Vertices (size/count/array)
+        filesystem_read(ksm_file, sizeof(u32), &g.vertex_size, &bytes_read);
+        filesystem_read(ksm_file, sizeof(u32), &g.vertex_count, &bytes_read);
+        g.vertices = kallocate(g.vertex_size * g.vertex_count, MEMORY_TAG_ARRAY);
+        filesystem_read(ksm_file, g.vertex_size * g.vertex_count, g.vertices, &bytes_read);
+
+        // Indices (size/count/array)
+        filesystem_read(ksm_file, sizeof(u32), &g.index_size, &bytes_read);
+        filesystem_read(ksm_file, sizeof(u32), &g.index_count, &bytes_read);
+        g.indices = kallocate(g.index_size * g.index_count, MEMORY_TAG_ARRAY);
+        filesystem_read(ksm_file, g.index_size * g.index_count, g.indices, &bytes_read);
+
+        // Name
+        u32 g_name_length = 0;
+        filesystem_read(ksm_file, sizeof(u32), &g_name_length, &bytes_read);
+        filesystem_read(ksm_file, sizeof(char) * g_name_length, g.name, &bytes_read);
+
+        // Material Name
+        u32 m_name_length = 0;
+        filesystem_read(ksm_file, sizeof(u32), &m_name_length, &bytes_read);
+        filesystem_read(ksm_file, sizeof(char) * m_name_length, g.material_name, &bytes_read);
+
+        // Center
+        filesystem_read(ksm_file, sizeof(vec3), &g.center, &bytes_read);
+
+        // Extents (min/max)
+        filesystem_read(ksm_file, sizeof(vec3), &g.min_extents, &bytes_read);
+        filesystem_read(ksm_file, sizeof(vec3), &g.max_extents, &bytes_read);
+
+        // Add to the output array.
+        darray_push(*out_geometries_darray, g);
+    }
+
+    filesystem_close(ksm_file);
+
     return true;
 }
 
-b8 write_ksm_file(const char* path, const char* name, u32 geometry_count, geometry_config** geometries) {
-    // TODO: Write out ksm binary file...
+b8 write_ksm_file(const char* path, const char* name, u32 geometry_count, geometry_config* geometries) {
+    if (filesystem_exists(path)) {
+        KINFO("File '%s' already exists and will be overwritten.", path);
+    }
+
+    file_handle f;
+    if (!filesystem_open(path, FILE_MODE_WRITE, true, &f)) {
+        KERROR("Unable to open file '%s' for writing. KSM write failed.", path);
+        return false;
+    }
+
+    // Version
+    u64 written = 0;
+    u16 version = 0x0001U;
+    filesystem_write(&f, sizeof(u16), &version, &written);
+
+    // Name length
+    u32 name_length = string_length(name) + 1;
+    filesystem_write(&f, sizeof(u32), &name_length, &written);
+    // Name + terminator
+    filesystem_write(&f, sizeof(char) * name_length, name, &written);
+
+    // Geometry count
+    filesystem_write(&f, sizeof(u32), &geometry_count, &written);
+
+    // Each geometry
+    for (u32 i = 0; i < geometry_count; ++i) {
+        geometry_config* g = &geometries[i];
+
+        // Vertices (size/count/array)
+        filesystem_write(&f, sizeof(u32), &g->vertex_size, &written);
+        filesystem_write(&f, sizeof(u32), &g->vertex_count, &written);
+        filesystem_write(&f, g->vertex_size * g->vertex_count, g->vertices, &written);
+
+        // Indices (size/count/array)
+        filesystem_write(&f, sizeof(u32), &g->index_size, &written);
+        filesystem_write(&f, sizeof(u32), &g->index_count, &written);
+        filesystem_write(&f, g->index_size * g->index_count, g->indices, &written);
+
+        // Name
+        u32 g_name_length = string_length(g->name) + 1;
+        filesystem_write(&f, sizeof(u32), &g_name_length, &written);
+        filesystem_write(&f, sizeof(char) * g_name_length, g->name, &written);
+
+        // Material Name
+        u32 m_name_length = string_length(g->material_name) + 1;
+        filesystem_write(&f, sizeof(u32), &m_name_length, &written);
+        filesystem_write(&f, sizeof(char) * m_name_length, g->material_name, &written);
+
+        // Center
+        filesystem_write(&f, sizeof(vec3), &g->center, &written);
+
+        // Extents (min/max)
+        filesystem_write(&f, sizeof(vec3), &g->min_extents, &written);
+        filesystem_write(&f, sizeof(vec3), &g->max_extents, &written);
+    }
+
+    filesystem_close(&f);
+
     return true;
 }
 
@@ -422,10 +533,13 @@ b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, geometry
         darray_destroy(g->indices);
         // Replace with the non-darray version.
         g->indices = indices;
+
+        // Also generate tangents here, this way tangents are also stored in the output file.
+        geometry_generate_tangents(g->vertex_count, g->vertices, g->index_count, g->indices);
     }
 
     // Output a ksm file, which will be loaded in the future.
-    return write_ksm_file(out_ksm_filename, name, count, out_geometries_darray);
+    return write_ksm_file(out_ksm_filename, name, count, *out_geometries_darray);
 }
 
 void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, mesh_face_data* faces, geometry_config* out_data) {
@@ -511,9 +625,6 @@ void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, mesh_fa
     for (u8 i = 0; i < 3; ++i) {
         out_data->center.elements[i] = (out_data->min_extents.elements[i] + out_data->max_extents.elements[i]) / 2.0f;
     }
-
-    // Calculate tangents.
-    geometry_generate_tangents(out_data->vertex_count, out_data->vertices, out_data->index_count, out_data->indices);
 }
 
 // TODO: Load the material library file, and create material definitions from it.
@@ -687,7 +798,7 @@ b8 import_obj_material_library_file(const char* mtl_file_path) {
                 }
             }
         }
-    } // each line
+    }  // each line
 
     // Write out the remaining kmt file.
     // NOTE: Hardcoding default material shader name because all objects imported this way
@@ -735,7 +846,7 @@ b8 write_kmt_file(const char* mtl_file_path, material_config* config) {
     char line_buffer[512];
     filesystem_write_line(&f, "#material file");
     filesystem_write_line(&f, "");
-    filesystem_write_line(&f, "version=0.1"); // TODO: hardcoded version.
+    filesystem_write_line(&f, "version=0.1");  // TODO: hardcoded version.
     string_format(line_buffer, "name=%s", config->name);
     filesystem_write_line(&f, line_buffer);
     string_format(line_buffer, "diffuse_colour=%.6f %.6f %.6f %.6f", config->diffuse_colour.r, config->diffuse_colour.g, config->diffuse_colour.b, config->diffuse_colour.a);
