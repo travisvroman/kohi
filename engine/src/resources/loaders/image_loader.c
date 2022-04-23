@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "platform/filesystem.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
 #include "loader_utils.h"
@@ -21,8 +22,22 @@ b8 image_loader_load(struct resource_loader* self, const char* name, resource* o
     stbi_set_flip_vertically_on_load(true);
     char full_file_path[512];
 
-    // TODO: try different extensions
-    string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, ".png");
+    // Try different extensions
+    #define IMAGE_EXTENSION_COUNT 4
+    b8 found = false;
+    char* extensions[IMAGE_EXTENSION_COUNT] = {".tga", ".png", ".jpg", ".bmp"};
+    for (u32 i = 0; i < IMAGE_EXTENSION_COUNT; ++i) {
+        string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, extensions[i]);
+        if (filesystem_exists(full_file_path)) {
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        KERROR("Image resource loader failed find file '%s' or with any supported extension.", full_file_path);
+        return false;
+    }
 
     i32 width;
     i32 height;
@@ -38,17 +53,17 @@ b8 image_loader_load(struct resource_loader* self, const char* name, resource* o
         required_channel_count);
 
     // Check for a failure reason. If there is one, abort, clear memory if allocated, return false.
-    const char* fail_reason = stbi_failure_reason();
-    if (fail_reason) {
-        KERROR("Image resource loader failed to load file '%s': %s", full_file_path, fail_reason);
-        // Clear the error so the next load doesn't fail.
-        stbi__err(0, 0);
+    // const char* fail_reason = stbi_failure_reason();
+    // if (fail_reason) {
+    //     KERROR("Image resource loader failed to load file '%s': %s", full_file_path, fail_reason);
+    //     // Clear the error so the next load doesn't fail.
+    //     stbi__err(0, 0);
 
-        if (data) {
-            stbi_image_free(data);
-        }
-        return false;
-    }
+    //     if (data) {
+    //         stbi_image_free(data);
+    //     }
+    //     return false;
+    // }
 
     if (!data) {
         KERROR("Image resource loader failed to load file '%s'.", full_file_path);

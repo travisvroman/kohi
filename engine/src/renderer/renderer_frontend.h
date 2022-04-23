@@ -172,9 +172,10 @@ b8 renderer_shader_apply_globals(struct shader* s);
  * @brief Applies data for the currently bound instance.
  *
  * @param s A pointer to the shader to apply the instance data for.
+ * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
  * @return True on success; otherwise false.
  */
-b8 renderer_shader_apply_instance(struct shader* s);
+b8 renderer_shader_apply_instance(struct shader* s, b8 needs_update);
 
 /**
  * @brief Acquires internal instance-level resources and provides an instance id.

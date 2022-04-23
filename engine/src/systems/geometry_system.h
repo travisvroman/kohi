@@ -41,6 +41,11 @@ typedef struct geometry_config {
     u32 index_count;
     /** @brief An array of indices. */
     void* indices;
+
+    vec3 center;
+    vec3 min_extents;
+    vec3 max_extents;
+    
     /** @brief The name of the geometry. */
     char name[GEOMETRY_NAME_MAX_LENGTH];
     /** @brief The name of the material used by the geometry. */

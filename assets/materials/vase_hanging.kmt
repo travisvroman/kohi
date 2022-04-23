@@ -1,0 +1,10 @@
+#material file
+
+version=0.1
+name=vase_hanging
+diffuse_colour=0.588000 0.588000 0.588000 1.000000
+shininess=10.000000
+diffuse_map_name=vase_hanging
+specular_map_name=vase_hanging_spec
+normal_map_name=vase_hanging_ddn
+shader=Shader.Builtin.Material
