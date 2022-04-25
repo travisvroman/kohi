@@ -38,4 +38,4 @@ See the setup videos in the series for Windows or Linux for details.
 
 ## .goal
 The goal here is simple, to have a game engine capable of making games. Once the project is far enough along, this will be done as a series on my YouTube channel as well.
- 
+  
