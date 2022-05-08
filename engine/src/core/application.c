@@ -257,7 +257,6 @@ b8 application_create(game* game_inst) {
     cube_mesh->geometry_count = 1;
     cube_mesh->geometries = kallocate(sizeof(mesh*) * cube_mesh->geometry_count, MEMORY_TAG_ARRAY);
     geometry_config g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "test_cube", "test_material");
-    geometry_generate_tangents(g_config.vertex_count, g_config.vertices, g_config.index_count, g_config.indices);
     cube_mesh->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     cube_mesh->transform = transform_create();
     app_state->mesh_count++;
@@ -269,7 +268,6 @@ b8 application_create(game* game_inst) {
     cube_mesh_2->geometry_count = 1;
     cube_mesh_2->geometries = kallocate(sizeof(mesh*) * cube_mesh_2->geometry_count, MEMORY_TAG_ARRAY);
     g_config = geometry_system_generate_cube_config(5.0f, 5.0f, 5.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
-    geometry_generate_tangents(g_config.vertex_count, g_config.vertices, g_config.index_count, g_config.indices);
     cube_mesh_2->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     cube_mesh_2->transform = transform_from_position((vec3){10.0f, 0.0f, 1.0f});
     // Set the first cube as the parent to the second.
@@ -283,7 +281,6 @@ b8 application_create(game* game_inst) {
     cube_mesh_3->geometry_count = 1;
     cube_mesh_3->geometries = kallocate(sizeof(mesh*) * cube_mesh_3->geometry_count, MEMORY_TAG_ARRAY);
     g_config = geometry_system_generate_cube_config(2.0f, 2.0f, 2.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
-    geometry_generate_tangents(g_config.vertex_count, g_config.vertices, g_config.index_count, g_config.indices);
     cube_mesh_3->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     cube_mesh_3->transform = transform_from_position((vec3){5.0f, 0.0f, 1.0f});
     // Set the second cube as the parent to the third.
@@ -292,41 +289,39 @@ b8 application_create(game* game_inst) {
     // Clean up the allocations for the geometry config.
     geometry_system_config_dispose(&g_config);
 
-    // A test mesh!
+    // Test mesh loaded from file.
     mesh* car_mesh = &app_state->meshes[app_state->mesh_count];
     resource car_mesh_resource = {};
     if (!resource_system_load("falcon", RESOURCE_TYPE_MESH, &car_mesh_resource)) {
         KERROR("Failed to load car test mesh!");
+    } else {
+        geometry_config* configs = (geometry_config*)car_mesh_resource.data;
+        car_mesh->geometry_count = car_mesh_resource.data_size;
+        car_mesh->geometries = kallocate(sizeof(geometry*) * car_mesh->geometry_count, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < car_mesh->geometry_count; ++i) {
+            car_mesh->geometries[i] = geometry_system_acquire_from_config(configs[i], true);
+        }
+        car_mesh->transform = transform_from_position((vec3){15.0f, 0.0f, 1.0f});
+        resource_system_unload(&car_mesh_resource);
+        app_state->mesh_count++;
     }
-    geometry_config* configs = (geometry_config*)car_mesh_resource.data;
-    car_mesh->geometry_count = car_mesh_resource.data_size;
-    car_mesh->geometries = kallocate(sizeof(mesh*) * car_mesh->geometry_count, MEMORY_TAG_ARRAY);
-    for (u32 i = 0; i < car_mesh->geometry_count; ++i) {
-        geometry_config* c = &configs[i];
-        geometry_generate_tangents(c->vertex_count, c->vertices, c->index_count, c->indices);
-        car_mesh->geometries[i] = geometry_system_acquire_from_config(*c, true);
-    }
-    car_mesh->transform = transform_from_position((vec3){15.0f, 0.0f, 1.0f});
-    resource_system_unload(&car_mesh_resource);
-    app_state->mesh_count++;
 
-    // A bigger test mesh
+    // Test mesh loaded from file.
     mesh* sponza_mesh = &app_state->meshes[app_state->mesh_count];
     resource sponza_mesh_resource = {};
     if (!resource_system_load("sponza", RESOURCE_TYPE_MESH, &sponza_mesh_resource)) {
-        KERROR("Failed to load sponza mesh!");
+        KERROR("Failed to load sponza test mesh!");
+    } else {
+        geometry_config* configs = (geometry_config*)sponza_mesh_resource.data;
+        sponza_mesh->geometry_count = sponza_mesh_resource.data_size;
+        sponza_mesh->geometries = kallocate(sizeof(geometry*) * sponza_mesh->geometry_count, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < sponza_mesh->geometry_count; ++i) {
+            sponza_mesh->geometries[i] = geometry_system_acquire_from_config(configs[i], true);
+        }
+        sponza_mesh->transform = transform_from_position_rotation_scale(vec3_zero(), quat_identity(), vec3_create(0.05f, 0.05f, 0.05f));
+        resource_system_unload(&sponza_mesh_resource);
+        app_state->mesh_count++;
     }
-    geometry_config* sponza_configs = (geometry_config*)sponza_mesh_resource.data;
-    sponza_mesh->geometry_count = sponza_mesh_resource.data_size;
-    sponza_mesh->geometries = kallocate(sizeof(mesh*) * sponza_mesh->geometry_count, MEMORY_TAG_ARRAY);
-    for (u32 i = 0; i < sponza_mesh->geometry_count; ++i) {
-        geometry_config* c = &sponza_configs[i];
-        geometry_generate_tangents(c->vertex_count, c->vertices, c->index_count, c->indices);
-        sponza_mesh->geometries[i] = geometry_system_acquire_from_config(*c, true);
-    }
-    sponza_mesh->transform = transform_from_position_rotation_scale((vec3){15.0f, 0.0f, 1.0f}, quat_identity(), (vec3){0.05f, 0.05f, 0.05f});
-    resource_system_unload(&sponza_mesh_resource);
-    app_state->mesh_count++;
 
     // Load up some test UI geometry.
     geometry_config ui_config;

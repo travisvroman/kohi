@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "platform/filesystem.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
 #include "platform/filesystem.h"
@@ -22,8 +23,8 @@ b8 image_loader_load(struct resource_loader* self, const char* name, resource* o
     stbi_set_flip_vertically_on_load(true);
     char full_file_path[512];
 
-// Try different extensions.
-#define IMAGE_EXTENSION_COUNT 4
+    // Try different extensions
+    #define IMAGE_EXTENSION_COUNT 4
     b8 found = false;
     char* extensions[IMAGE_EXTENSION_COUNT] = {".tga", ".png", ".jpg", ".bmp"};
     for (u32 i = 0; i < IMAGE_EXTENSION_COUNT; ++i) {
@@ -35,7 +36,7 @@ b8 image_loader_load(struct resource_loader* self, const char* name, resource* o
     }
 
     if (!found) {
-        KERROR("Image resource loader failed find file '%s'.", full_file_path);
+        KERROR("Image resource loader failed find file '%s' or with any supported extension.", full_file_path);
         return false;
     }
 
@@ -52,7 +53,7 @@ b8 image_loader_load(struct resource_loader* self, const char* name, resource* o
         &channel_count,
         required_channel_count);
 
-    // // Check for a failure reason. If there is one, abort, clear memory if allocated, return false.
+    // Check for a failure reason. If there is one, abort, clear memory if allocated, return false.
     // const char* fail_reason = stbi_failure_reason();
     // if (fail_reason) {
     //     KERROR("Image resource loader failed to load file '%s': %s", full_file_path, fail_reason);
