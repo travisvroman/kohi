@@ -25,12 +25,15 @@ b8 renderer_backend_create(renderer_backend_type type, renderer_backend* out_ren
         out_renderer_backend->shader_use = vulkan_renderer_shader_use;
         out_renderer_backend->shader_bind_globals = vulkan_renderer_shader_bind_globals;
         out_renderer_backend->shader_bind_instance = vulkan_renderer_shader_bind_instance;
-        
+
         out_renderer_backend->shader_apply_globals = vulkan_renderer_shader_apply_globals;
         out_renderer_backend->shader_apply_instance = vulkan_renderer_shader_apply_instance;
         out_renderer_backend->shader_acquire_instance_resources = vulkan_renderer_shader_acquire_instance_resources;
         out_renderer_backend->shader_release_instance_resources = vulkan_renderer_shader_release_instance_resources;
-        
+
+        out_renderer_backend->texture_map_acquire_resources = vulkan_renderer_texture_map_acquire_resources;
+        out_renderer_backend->texture_map_release_resources = vulkan_renderer_texture_map_release_resources;
+
         return true;
     }
 

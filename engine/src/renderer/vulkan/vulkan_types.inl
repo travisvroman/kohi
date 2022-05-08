@@ -413,10 +413,10 @@ typedef struct vulkan_shader_instance_state {
     vulkan_shader_descriptor_set_state descriptor_set_state;
 
     /**
-     * @brief Instance texture pointers, which are used during rendering. These
+     * @brief Instance texture map pointers, which are used during rendering. These
      * are set by calls to set_sampler.
      */
-    struct texture** instance_textures;
+    struct texture_map** instance_texture_maps;
 } vulkan_shader_instance_state;
 
 /**
@@ -556,6 +556,4 @@ typedef struct vulkan_context {
 typedef struct vulkan_texture_data {
     /** @brief The internal Vulkan image. */
     vulkan_image image;
-    /** @brief The internal image sampler. */
-    VkSampler sampler;
 } vulkan_texture_data;

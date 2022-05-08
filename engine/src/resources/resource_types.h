@@ -83,6 +83,8 @@ typedef struct texture {
     u8 channel_count;
     /** @brief Indicates if the texture has transparency. */
     b8 has_transparency;
+    /** @brief Indicates if the texture can be written (rendered) to. */
+    b8 is_writeable;
     /** @brief The texture generation. Incremented every time the data is reloaded. */
     u32 generation;
     /** @brief The texture name. */
@@ -103,6 +105,21 @@ typedef enum texture_use {
     TEXTURE_USE_MAP_NORMAL = 0x03
 } texture_use;
 
+/** @brief Represents supported texture filtering modes. */
+typedef enum texture_filter {
+    /** @brief Nearest-neighbor filtering. */
+    TEXTURE_FILTER_MODE_NEAREST = 0x0,
+    /** @brief Linear (i.e. bilinear) filtering.*/
+    TEXTURE_FILTER_MODE_LINEAR = 0x1
+} texture_filter;
+
+typedef enum texture_repeat {
+    TEXTURE_REPEAT_REPEAT = 0x1,
+    TEXTURE_REPEAT_MIRRORED_REPEAT = 0x2,
+    TEXTURE_REPEAT_CLAMP_TO_EDGE = 0x3,
+    TEXTURE_REPEAT_CLAMP_TO_BORDER = 0x4
+} texture_repeat;
+
 /**
  * @brief A structure which maps a texture, use and
  * other properties.
@@ -112,15 +129,22 @@ typedef struct texture_map {
     texture* texture;
     /** @brief The use of the texture */
     texture_use use;
+    /** @brief Texture filtering mode for minification. */
+    texture_filter filter_minify;
+    /** @brief Texture filtering mode for magnification. */
+    texture_filter filter_magnify;
+    /** @brief The repeat mode on the U axis (or X, or S) */
+    texture_repeat repeat_u;
+    /** @brief The repeat mode on the V axis (or Y, or T) */
+    texture_repeat repeat_v;
+    /** @brief The repeat mode on the W axis (or Z, or U) */
+    texture_repeat repeat_w;
+    /** @brief A pointer to internal, render API-specific data. Typically the internal sampler. */
+    void* internal_data;
 } texture_map;
 
 /** @brief The maximum length of a material name. */
 #define MATERIAL_NAME_MAX_LENGTH 256
-
-/**
- * @brief A collection of material types.
- * @deprecated This should probably store a shader id instead, and be bound that way.
- */
 
 /**
  * @brief Material configuration typically loaded from
