@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "math/geometry_utils.h"
 #include "systems/material_system.h"
 #include "renderer/renderer_frontend.h"
 #include "math/geometry_utils.h"

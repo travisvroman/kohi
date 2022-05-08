@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "platform/filesystem.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
 #include "platform/filesystem.h"

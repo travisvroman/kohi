@@ -673,7 +673,6 @@ b8 import_obj_material_library_file(const char* mtl_file_path) {
         }
 
         char first_char = line[0];
-
         switch (first_char) {
             case '#':
                 // Skip comments
@@ -697,7 +696,6 @@ b8 import_obj_material_library_file(const char* mtl_file_path) {
                         // NOTE: This is only used by the colour shader, and will set to max_norm by default.
                         // Transparency could be added as a material property all its own at a later time.
                         current_config.diffuse_colour.a = 1.0f;
-
                     } break;
                     case 's': {
                         // Specular colour
@@ -802,7 +800,6 @@ b8 import_obj_material_library_file(const char* mtl_file_path) {
                 }
             }
         }
-
     }  // each line
 
     // Write out the remaining kmt file.
