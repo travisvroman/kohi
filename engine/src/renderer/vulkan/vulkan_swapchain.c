@@ -5,6 +5,8 @@
 #include "vulkan_device.h"
 #include "vulkan_image.h"
 
+#include "systems/texture_system.h"
+
 void create(vulkan_context* context, u32 width, u32 height, vulkan_swapchain* swapchain);
 void destroy(vulkan_context* context, vulkan_swapchain* swapchain);
 
@@ -31,6 +33,9 @@ void vulkan_swapchain_destroy(
     vulkan_context* context,
     vulkan_swapchain* swapchain) {
     destroy(context, swapchain);
+    for (u32 i = 0; i < swapchain->image_count; ++i) {
+        kfree(swapchain->render_textures[i]->internal_data, sizeof(vulkan_image), MEMORY_TAG_TEXTURE);
+    }
 }
 
 b8 vulkan_swapchain_acquire_next_image_index(
@@ -180,18 +185,51 @@ void create(vulkan_context* context, u32 width, u32 height, vulkan_swapchain* sw
     // Images
     swapchain->image_count = 0;
     VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, 0));
-    if (!swapchain->images) {
-        swapchain->images = (VkImage*)kallocate(sizeof(VkImage) * swapchain->image_count, MEMORY_TAG_RENDERER);
+    if (!swapchain->render_textures) {
+        swapchain->render_textures = (texture**)kallocate(sizeof(texture*) * swapchain->image_count, MEMORY_TAG_RENDERER);
+        // If creating the array, then the internal texture objects aren't created yet either.
+        for (u32 i = 0; i < swapchain->image_count; ++i) {
+            void* internal_data = kallocate(sizeof(vulkan_image), MEMORY_TAG_TEXTURE);
+
+            char tex_name[38] = "__internal_vulkan_swapchain_image_0__";
+            tex_name[34] = '0' + (char)i;
+
+            swapchain->render_textures[i] = texture_system_wrap_internal(
+                tex_name,
+                swapchain_extent.width,
+                swapchain_extent.height,
+                4,
+                false,
+                true,
+                false,
+                internal_data);
+            if (!swapchain->render_textures[i]) {
+                KFATAL("Failed to generate new swapchain image texture!");
+                return;
+            }
+        }
+    } else {
+        for (u32 i = 0; i < swapchain->image_count; ++i) {
+            // Just update the dimensions.
+            texture_system_resize(swapchain->render_textures[i], swapchain_extent.width, swapchain_extent.height, false);
+        }
     }
-    if (!swapchain->views) {
-        swapchain->views = (VkImageView*)kallocate(sizeof(VkImageView) * swapchain->image_count, MEMORY_TAG_RENDERER);
+    VkImage swapchain_images[32];
+    VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, swapchain_images));
+    for (u32 i = 0; i < swapchain->image_count; ++i) {
+        // Update the internal image for each.
+        vulkan_image* image = (vulkan_image*)swapchain->render_textures[i]->internal_data;
+        image->handle = swapchain_images[i];
+        image->width = swapchain_extent.width;
+        image->height = swapchain_extent.height;
     }
-    VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, swapchain->images));
 
     // Views
     for (u32 i = 0; i < swapchain->image_count; ++i) {
+        vulkan_image* image = (vulkan_image*)swapchain->render_textures[i]->internal_data;
+
         VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-        view_info.image = swapchain->images[i];
+        view_info.image = image->handle;
         view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
         view_info.format = swapchain->image_format.format;
         view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -200,7 +238,7 @@ void create(vulkan_context* context, u32 width, u32 height, vulkan_swapchain* sw
         view_info.subresourceRange.baseArrayLayer = 0;
         view_info.subresourceRange.layerCount = 1;
 
-        VK_CHECK(vkCreateImageView(context->device.logical_device, &view_info, context->allocator, &swapchain->views[i]));
+        VK_CHECK(vkCreateImageView(context->device.logical_device, &view_info, context->allocator, &image->view));
     }
 
     // Depth resources
@@ -233,7 +271,8 @@ void destroy(vulkan_context* context, vulkan_swapchain* swapchain) {
     // Only destroy the views, not the images, since those are owned by the swapchain and are thus
     // destroyed when it is.
     for (u32 i = 0; i < swapchain->image_count; ++i) {
-        vkDestroyImageView(context->device.logical_device, swapchain->views[i], context->allocator);
+        vulkan_image* image = (vulkan_image*)swapchain->render_textures[i]->internal_data;
+        vkDestroyImageView(context->device.logical_device, image->view, context->allocator);
     }
 
     vkDestroySwapchainKHR(context->device.logical_device, swapchain->handle, context->allocator);
