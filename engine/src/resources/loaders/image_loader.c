@@ -6,6 +6,7 @@
 #include "platform/filesystem.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
+#include "platform/filesystem.h"
 #include "loader_utils.h"
 
 // TODO: resource loader.

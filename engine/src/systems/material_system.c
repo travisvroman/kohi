@@ -384,11 +384,12 @@ b8 load_material(material_config config, material* m) {
         m->diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
         m->diffuse_map.texture = texture_system_acquire(config.diffuse_map_name, true);
         if (!m->diffuse_map.texture) {
+            // Configured, but not found.
             KWARN("Unable to load texture '%s' for material '%s', using default.", config.diffuse_map_name, m->name);
             m->diffuse_map.texture = texture_system_get_default_texture();
         }
     } else {
-        // NOTE: Only set for clarity, as call to kzero_memory above does this already.
+        // This is done when a texture is not configured, as opposed to when it is configured and not found (above).
         m->diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
         m->diffuse_map.texture = texture_system_get_default_diffuse_texture();
     }

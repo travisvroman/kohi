@@ -294,7 +294,6 @@ b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, geometry
 
     // index 0 is previous, 1 is previous before that.
     char prev_first_chars[2] = {0, 0};
-
     while (true) {
         if (!filesystem_read_line(obj_file, 511, &p, &line_length)) {
             break;
@@ -364,7 +363,6 @@ b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, geometry
             case 'f': {
                 // face
                 // f 1/1/1 2/2/2 3/3/3  = pos/tex/norm pos/tex/norm pos/tex/norm
-
                 mesh_face_data face;
                 char t[2];
 
@@ -396,7 +394,6 @@ b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, geometry
                         &face.vertices[2].texcoord_index,
                         &face.vertices[2].normal_index);
                 }
-
                 u64 group_index = darray_length(groups) - 1;
                 darray_push(groups[group_index].faces, face);
             } break;
@@ -434,7 +431,6 @@ b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, geometry
                 for (u64 i = 0; i < group_count; ++i) {
                     geometry_config new_data = {};
                     string_ncopy(new_data.name, name, 255);
-
                     if (i > 0) {
                         string_append_int(new_data.name, new_data.name, i);
                     }
@@ -555,7 +551,6 @@ void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, mesh_fa
 
     b8 skip_normals = false;
     b8 skip_tex_coords = false;
-
     if (normal_count == 0) {
         KWARN("No normals are present in this model.");
         skip_normals = true;
@@ -564,7 +559,6 @@ void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, mesh_fa
         KWARN("No texture coordinates are present in this model.");
         skip_tex_coords = true;
     }
-
     for (u64 f = 0; f < face_count; ++f) {
         mesh_face_data face = faces[f];
 
@@ -639,7 +633,6 @@ void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, mesh_fa
 // Material configs should not be returned or used here.
 b8 import_obj_material_library_file(const char* mtl_file_path) {
     KDEBUG("Importing obj .mtl file '%s'...", mtl_file_path);
-
     // Grab the .mtl file, if it exists, and read the material information.
     file_handle mtl_file;
     if (!filesystem_open(mtl_file_path, FILE_MODE_READ, false, &mtl_file)) {
@@ -660,7 +653,6 @@ b8 import_obj_material_library_file(const char* mtl_file_path) {
         if (!filesystem_read_line(&mtl_file, 512, &p, &line_length)) {
             break;
         }
-
         // Trim the line first.
         line = string_trim(line_buffer);
         line_length = string_length(line);
