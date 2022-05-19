@@ -153,10 +153,16 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const char* app
 
         if (!found) {
             KFATAL("Required validation layer is missing: %s", required_validation_layer_names[i]);
+
+            darray_destroy(available_layers);
+            darray_destroy(required_validation_layer_names);
+            darray_destroy(required_extensions);
             return false;
         }
     }
     KINFO("All required validation layers are present.");
+
+    darray_destroy(available_layers);
 #endif
 
     create_info.enabledLayerCount = required_validation_layer_count;
@@ -165,8 +171,11 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const char* app
     VK_CHECK(vkCreateInstance(&create_info, context.allocator, &context.instance));
     KINFO("Vulkan Instance created.");
 
-    // Debugger
 #if defined(_DEBUG)
+    darray_destroy(required_validation_layer_names);
+    darray_destroy(required_extensions);
+
+    // Debugger
     KDEBUG("Creating Vulkan debugger...");
     u32 log_severity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
                        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
