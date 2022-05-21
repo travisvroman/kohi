@@ -264,13 +264,26 @@ void renderer_set_view(mat4 view, vec3 view_position) {
     state_ptr->view_position = view_position;
 }
 
-void renderer_create_texture(const u8* pixels, struct texture* texture) {
-    state_ptr->backend.create_texture(pixels, texture);
+void renderer_texture_create(const u8* pixels, struct texture* texture) {
+    state_ptr->backend.texture_create(pixels, texture);
 }
 
-void renderer_destroy_texture(struct texture* texture) {
-    state_ptr->backend.destroy_texture(texture);
+void renderer_texture_destroy(struct texture* texture) {
+    state_ptr->backend.texture_destroy(texture);
 }
+
+void renderer_texture_create_writeable(texture* t) {
+    state_ptr->backend.texture_create_writeable(t);
+}
+
+void renderer_texture_write_data(texture* t, u32 offset, u32 size, const u8* pixels) {
+    state_ptr->backend.texture_write_data(t, offset, size, pixels);
+}
+
+void renderer_texture_resize(texture* t, u32 new_width, u32 new_height) {
+    state_ptr->backend.texture_resize(t, new_width, new_height);
+}
+
 
 b8 renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
     return state_ptr->backend.create_geometry(geometry, vertex_size, vertex_count, vertices, index_size, index_count, indices);

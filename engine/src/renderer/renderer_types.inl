@@ -120,14 +120,45 @@ typedef struct renderer_backend {
      * @param pixels The raw image data used for the texture.
      * @param texture A pointer to the texture to hold the resources.
      */
-    void (*create_texture)(const u8* pixels, struct texture* texture);
+    void (*texture_create)(const u8* pixels, struct texture* texture);
 
     /**
      * @brief Destroys the given texture, releasing internal resources.
      *
      * @param texture A pointer to the texture to be destroyed.
      */
-    void (*destroy_texture)(struct texture* texture);
+    void (*texture_destroy)(struct texture* texture);
+
+    /**
+     * @brief Creates a new writeable texture with no data written to it.
+     *
+     * @param t A pointer to the texture to hold the resources.
+     */
+    void (*texture_create_writeable)(texture* t);
+
+    /**
+     * @brief Resizes a texture. There is no check at this level to see if the
+     * texture is writeable. Internal resources are destroyed and re-created at
+     * the new resolution. Data is lost and would need to be reloaded.
+     *
+     * @param t A pointer to the texture to be resized.
+     * @param new_width The new width in pixels.
+     * @param new_height The new height in pixels.
+     */
+    void (*texture_resize)(texture* t, u32 new_width, u32 new_height);
+
+    /**
+     * @brief Writes the given data to the provided texture.
+     * NOTE: At this level, this can either be a writeable or non-writeable texture because
+     * this also handles the initial texture load. The texture system itself should be
+     * responsible for blocking write requests to non-writeable textures.
+     *
+     * @param t A pointer to the texture to be written to.
+     * @param offset The offset in bytes from the beginning of the data to be written.
+     * @param size The number of bytes to be written.
+     * @param pixels The raw image data to be written.
+     */
+    void (*texture_write_data)(texture* t, u32 offset, u32 size, const u8* pixels);
 
     /**
      * @brief Creates Vulkan-specific internal resources for the given geometry using
