@@ -124,7 +124,7 @@ b8 shader_system_create(const shader_config* config) {
     out_shader->attribute_stride = 0;
 
     // Setup arrays
-    out_shader->global_textures = darray_create(texture*);
+    out_shader->global_texture_maps = darray_create(texture_map*);
     out_shader->uniforms = darray_create(shader_uniform);
     out_shader->attributes = darray_create(shader_attribute);
 
@@ -221,6 +221,12 @@ void shader_destroy(shader* s) {
 
     // Set it to be unusable right away.
     s->state = SHADER_STATE_NOT_CREATED;
+
+    u32 sampler_count = darray_length(s->global_texture_maps);
+    for (u32 i = 0; i < sampler_count; ++i) {
+        kfree(s->global_texture_maps[i], sizeof(texture_map), MEMORY_TAG_RENDERER);
+    }
+    darray_destroy(s->global_texture_maps);
 
     // Free the name.
     if (s->name) {
@@ -390,13 +396,30 @@ b8 add_sampler(shader* shader, shader_uniform_config* config) {
     // If global, push into the global list.
     u32 location = 0;
     if (config->scope == SHADER_SCOPE_GLOBAL) {
-        u32 global_texture_count = darray_length(shader->global_textures);
+        u32 global_texture_count = darray_length(shader->global_texture_maps);
         if (global_texture_count + 1 > state_ptr->config.max_global_textures) {
             KERROR("Shader global texture count %i exceeds max of %i", global_texture_count, state_ptr->config.max_global_textures);
             return false;
         }
         location = global_texture_count;
-        darray_push(shader->global_textures, texture_system_get_default_texture());
+
+        // NOTE: creating a default texture map to be used here. Can always be updated later.
+        texture_map default_map = {};
+        default_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
+        default_map.filter_minify = TEXTURE_FILTER_MODE_LINEAR;
+        default_map.repeat_u = default_map.repeat_v = default_map.repeat_w = TEXTURE_REPEAT_REPEAT;
+        default_map.use = TEXTURE_USE_UNKNOWN;
+        if (!renderer_texture_map_acquire_resources(&default_map)) {
+            KERROR("Failed to acquire resources for global texture map during shader creation.");
+            return false;
+        }
+
+        // Allocate a pointer assign the texture, and push into global texture maps.
+        // NOTE: This allocation is only done for global texture maps.
+        texture_map* map = kallocate(sizeof(texture_map), MEMORY_TAG_RENDERER);
+        *map = default_map;
+        map->texture = texture_system_get_default_texture();
+        darray_push(shader->global_texture_maps, map);
     } else {
         // Otherwise, it's instance-level, so keep count of how many need to be added during the resource acquisition.
         if (shader->instance_texture_count + 1 > state_ptr->config.max_instance_textures) {

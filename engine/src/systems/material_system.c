@@ -337,15 +337,14 @@ b8 material_system_apply_instance(material* m, b8 needs_update) {
         if (m->shader_id == state_ptr->material_shader_id) {
             // Material shader
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_colour, &m->diffuse_colour));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_texture, m->diffuse_map.texture));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, m->specular_map.texture));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, m->specular_map.texture));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, m->normal_map.texture));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_texture, &m->diffuse_map));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, &m->specular_map));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, &m->normal_map));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.shininess, &m->shininess));
         } else if (m->shader_id == state_ptr->ui_shader_id) {
             // UI shader
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.diffuse_colour, &m->diffuse_colour));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.diffuse_texture, m->diffuse_map.texture));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.diffuse_texture, &m->diffuse_map));
         } else {
             KERROR("material_system_apply_instance(): Unrecognized shader id '%d' on shader '%s'.", m->shader_id, m->name);
             return false;
@@ -380,6 +379,14 @@ b8 load_material(material_config config, material* m) {
     m->shininess = config.shininess;
 
     // Diffuse map
+    // TODO: Make this configurable.
+    // TODO: DRY
+    m->diffuse_map.filter_minify = m->diffuse_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
+    m->diffuse_map.repeat_u = m->diffuse_map.repeat_v = m->diffuse_map.repeat_w = TEXTURE_REPEAT_REPEAT;
+    if (!renderer_texture_map_acquire_resources(&m->diffuse_map)) {
+        KERROR("Unable to acquire resources for diffuse texture map.");
+        return false;
+    }
     if (string_length(config.diffuse_map_name) > 0) {
         m->diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
         m->diffuse_map.texture = texture_system_acquire(config.diffuse_map_name, true);
@@ -395,6 +402,13 @@ b8 load_material(material_config config, material* m) {
     }
 
     // Specular map
+    // TODO: Make this configurable.
+    m->specular_map.filter_minify = m->specular_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
+    m->specular_map.repeat_u = m->specular_map.repeat_v = m->specular_map.repeat_w = TEXTURE_REPEAT_REPEAT;
+    if (!renderer_texture_map_acquire_resources(&m->specular_map)) {
+        KERROR("Unable to acquire resources for specular texture map.");
+        return false;
+    }
     if (string_length(config.specular_map_name) > 0) {
         m->specular_map.use = TEXTURE_USE_MAP_SPECULAR;
         m->specular_map.texture = texture_system_acquire(config.specular_map_name, true);
@@ -409,6 +423,13 @@ b8 load_material(material_config config, material* m) {
     }
 
     // Normal map
+    // TODO: Make this configurable.
+    m->normal_map.filter_minify = m->normal_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
+    m->normal_map.repeat_u = m->normal_map.repeat_v = m->normal_map.repeat_w = TEXTURE_REPEAT_REPEAT;
+    if (!renderer_texture_map_acquire_resources(&m->normal_map)) {
+        KERROR("Unable to acquire resources for normal texture map.");
+        return false;
+    }
     if (string_length(config.normal_map_name) > 0) {
         m->normal_map.use = TEXTURE_USE_MAP_NORMAL;
         m->normal_map.texture = texture_system_acquire(config.normal_map_name, true);
@@ -430,7 +451,10 @@ b8 load_material(material_config config, material* m) {
         KERROR("Unable to load material because its shader was not found: '%s'. This is likely a problem with the material asset.", config.shader_name);
         return false;
     }
-    if (!renderer_shader_acquire_instance_resources(s, &m->internal_id)) {
+
+    // Gather a list of pointers to texture maps;
+    texture_map* maps[3] = {&m->diffuse_map, &m->specular_map, &m->normal_map};
+    if (!renderer_shader_acquire_instance_resources(s, maps, &m->internal_id)) {
         KERROR("Failed to acquire renderer resources for material '%s'.", m->name);
         return false;
     }
@@ -451,6 +475,11 @@ void destroy_material(material* m) {
     if (m->normal_map.texture) {
         texture_system_release(m->normal_map.texture->name);
     }
+
+    // Release texture map resources.
+    renderer_texture_map_release_resources(&m->diffuse_map);
+    renderer_texture_map_release_resources(&m->specular_map);
+    renderer_texture_map_release_resources(&m->normal_map);
 
     // Release renderer resources.
     if (m->shader_id != INVALID_ID && m->internal_id != INVALID_ID) {
@@ -481,8 +510,10 @@ b8 create_default_material(material_system_state* state) {
     state->default_material.normal_map.use = TEXTURE_USE_MAP_SPECULAR;
     state->default_material.normal_map.texture = texture_system_get_default_normal_texture();
 
+    texture_map* maps[3] = {&state->default_material.diffuse_map, &state->default_material.specular_map, &state->default_material.normal_map};
+
     shader* s = shader_system_get(BUILTIN_SHADER_NAME_MATERIAL);
-    if (!renderer_shader_acquire_instance_resources(s, &state->default_material.internal_id)) {
+    if (!renderer_shader_acquire_instance_resources(s, maps, &state->default_material.internal_id)) {
         KFATAL("Failed to acquire renderer resources for default material. Application cannot continue.");
         return false;
     }

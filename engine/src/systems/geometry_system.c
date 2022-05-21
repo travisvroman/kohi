@@ -6,6 +6,7 @@
 #include "math/geometry_utils.h"
 #include "systems/material_system.h"
 #include "renderer/renderer_frontend.h"
+#include "math/geometry_utils.h"
 
 typedef struct geometry_reference {
     u64 reference_count;
