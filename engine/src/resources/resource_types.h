@@ -222,7 +222,11 @@ typedef struct geometry {
     /** @brief The internal geometry identifier, used by the renderer backend to map to internal resources. */
     u32 internal_id;
     /** @brief The geometry generation. Incremented every time the geometry changes. */
-    u32 generation;
+    u16 generation;
+    /** @brief The center of the geometry in local coordinates. */
+    vec3 center;
+    /** @brief The extents of the geometry in local coordinates. */
+    extents_3d extents;
     /** @brief The geometry name. */
     char name[GEOMETRY_NAME_MAX_LENGTH];
     /** @brief A pointer to the material associated with this geometry.. */
