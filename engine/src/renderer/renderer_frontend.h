@@ -127,25 +127,24 @@ b8 renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vertex_coun
 void renderer_destroy_geometry(geometry* geometry);
 
 /**
- * @brief Obtains the identifier of the renderpass with the given name.
+ * @brief Obtains a pointer to the renderpass with the given name.
  *
  * @param name The name of the renderpass whose identifier to obtain.
- * @param out_renderpass_id A pointer to hold the renderpass id.
- * @return True if found; otherwise false.
+ * @return A pointer to a renderpass if found; otherwise 0.
  */
-b8 renderer_renderpass_id(const char* name, u8* out_renderpass_id);
+renderpass* renderer_renderpass_get(const char* name);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.
  * 
  * @param s A pointer to the shader.
- * @param renderpass_id The identifier of the renderpass to be associated with the shader.
+ * @param pass A pointer to the renderpass to be associated with the shader.
  * @param stage_count The total number of stages.
  * @param stage_filenames An array of shader stage filenames to be loaded. Should align with stages array.
  * @param stages A array of shader_stages indicating what render stages (vertex, fragment, etc.) used in this shader.
  * @return b8 True on success; otherwise false.
  */
-b8 renderer_shader_create(struct shader* s, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages);
+b8 renderer_shader_create(struct shader* s, renderpass* pass, u8 stage_count, const char** stage_filenames, shader_stage* stages);
 
 /**
  * @brief Destroys the given shader and releases any resources held by it.
@@ -248,3 +247,42 @@ b8 renderer_texture_map_acquire_resources(struct texture_map* map);
  * @param map A pointer to the texture map to release resources from.
  */
 void renderer_texture_map_release_resources(struct texture_map* map);
+
+/**
+ * @brief Creates a new render target using the provided data.
+ *
+ * @param attachment_count The number of attachments (texture pointers).
+ * @param attachments An array of attachments (texture pointers).
+ * @param renderpass A pointer to the renderpass the render target is associated with.
+ * @param width The width of the render target in pixels.
+ * @param height The height of the render target in pixels.
+ * @param out_target A pointer to hold the newly created render target.
+ */
+void renderer_render_target_create(u8 attachment_count, texture** attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
+
+/**
+ * @brief Destroys the provided render target.
+ *
+ * @param target A pointer to the render target to be destroyed.
+ * @param free_internal_memory Indicates if internal memory should be freed.
+ */
+void renderer_render_target_destroy(render_target* target, b8 free_internal_memory);
+
+/**
+ * @brief Creates a new renderpass.
+ *
+ * @param out_renderpass A pointer to the generic renderpass.
+ * @param depth The depth clear amount.
+ * @param stencil The stencil clear value.
+ * @param clear_flags The combined clear flags indicating what kind of clear should take place.
+ * @param has_prev_pass Indicates if there is a previous renderpass.
+ * @param has_next_pass Indicates if there is a next renderpass.
+ */
+void renderer_renderpass_create(renderpass* out_renderpass, f32 depth, u32 stencil, b8 has_prev_pass, b8 has_next_pass);
+
+/**
+ * @brief Destroys the given renderpass.
+ *
+ * @param pass A pointer to the renderpass to be destroyed.
+ */
+void renderer_renderpass_destroy(renderpass* pass);

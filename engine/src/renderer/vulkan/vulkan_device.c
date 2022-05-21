@@ -258,6 +258,11 @@ b8 vulkan_device_detect_depth_format(vulkan_device* device) {
         VK_FORMAT_D32_SFLOAT_S8_UINT,
         VK_FORMAT_D24_UNORM_S8_UINT};
 
+    u8 sizes[3] = {
+        4,
+        4,
+        3};
+
     u32 flags = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
     for (u64 i = 0; i < candidate_count; ++i) {
         VkFormatProperties properties;
@@ -265,9 +270,11 @@ b8 vulkan_device_detect_depth_format(vulkan_device* device) {
 
         if ((properties.linearTilingFeatures & flags) == flags) {
             device->depth_format = candidates[i];
+            device->depth_channel_count = sizes[i];
             return true;
         } else if ((properties.optimalTilingFeatures & flags) == flags) {
             device->depth_format = candidates[i];
+            device->depth_channel_count = sizes[i];
             return true;
         }
     }
