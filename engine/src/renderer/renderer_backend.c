@@ -9,8 +9,8 @@ b8 renderer_backend_create(renderer_backend_type type, renderer_backend* out_ren
         out_renderer_backend->shutdown = vulkan_renderer_backend_shutdown;
         out_renderer_backend->begin_frame = vulkan_renderer_backend_begin_frame;
         out_renderer_backend->end_frame = vulkan_renderer_backend_end_frame;
-        out_renderer_backend->begin_renderpass = vulkan_renderer_begin_renderpass;
-        out_renderer_backend->end_renderpass = vulkan_renderer_end_renderpass;
+        out_renderer_backend->renderpass_begin = vulkan_renderer_renderpass_begin;
+        out_renderer_backend->renderpass_end = vulkan_renderer_renderpass_end;
         out_renderer_backend->resized = vulkan_renderer_backend_on_resized;
         out_renderer_backend->draw_geometry = vulkan_renderer_draw_geometry;
         out_renderer_backend->texture_create = vulkan_renderer_texture_create;
