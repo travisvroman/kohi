@@ -77,6 +77,8 @@ typedef struct application_state {
     void* camera_system_state;
 
     // TODO: temp
+    skybox sb;
+
     mesh meshes[10];
     u32 mesh_count;
 
@@ -278,6 +280,21 @@ b8 application_create(game* game_inst) {
     }
 
     // Load render views
+    render_view_config skybox_config = {};
+    skybox_config.type = RENDERER_VIEW_KNOWN_TYPE_SKYBOX;
+    skybox_config.width = 0;
+    skybox_config.height = 0;
+    skybox_config.name = "skybox";
+    skybox_config.pass_count = 1;
+    render_view_pass_config skybox_passes[1];
+    skybox_passes[0].name = "Renderpass.Builtin.Skybox";
+    skybox_config.passes = skybox_passes;
+    skybox_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
+    if (!render_view_system_create(&skybox_config)) {
+        KFATAL("Failed to create skybox view. Aborting application.");
+        return false;
+    }
+
     render_view_config opaque_world_config = {};
     opaque_world_config.type = RENDERER_VIEW_KNOWN_TYPE_WORLD;
     opaque_world_config.width = 0;
@@ -309,6 +326,30 @@ b8 application_create(game* game_inst) {
     }
 
     // TODO: temp
+
+    // Skybox
+    texture_map* cube_map = &app_state->sb.cubemap;
+    cube_map->filter_magnify = cube_map->filter_minify = TEXTURE_FILTER_MODE_LINEAR;
+    cube_map->repeat_u = cube_map->repeat_v = cube_map->repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
+    cube_map->use = TEXTURE_USE_MAP_CUBEMAP;
+    if (!renderer_texture_map_acquire_resources(cube_map)) {
+        KFATAL("Unable to acquire resources for cube map texture.");
+        return false;
+    }
+    cube_map->texture = texture_system_acquire_cube("skybox", true);
+    geometry_config skybox_cube_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "skybox_cube", 0);
+    // Clear out the material name.
+    skybox_cube_config.material_name[0] = 0;
+    app_state->sb.g = geometry_system_acquire_from_config(skybox_cube_config, true);
+    app_state->sb.render_frame_number = INVALID_ID_U64;
+    shader* skybox_shader = shader_system_get(BUILTIN_SHADER_NAME_SKYBOX);
+    texture_map* maps[1] = {&app_state->sb.cubemap};
+    if (!renderer_shader_acquire_instance_resources(skybox_shader, maps, &app_state->sb.instance_id)) {
+        KFATAL("Unable to acquire shader resources for skybox texture.");
+        return false;
+    }
+
+    // World meshes
     app_state->mesh_count = 0;
 
     // Load up a cube configuration, and load geometry from it.
@@ -351,7 +392,7 @@ b8 application_create(game* game_inst) {
     // Test mesh loaded from file.
     mesh* car_mesh = &app_state->meshes[app_state->mesh_count];
     resource car_mesh_resource = {};
-    if (!resource_system_load("falcon", RESOURCE_TYPE_MESH, &car_mesh_resource)) {
+    if (!resource_system_load("falcon", RESOURCE_TYPE_MESH, 0, &car_mesh_resource)) {
         KERROR("Failed to load car test mesh!");
     } else {
         geometry_config* configs = (geometry_config*)car_mesh_resource.data;
@@ -368,7 +409,7 @@ b8 application_create(game* game_inst) {
     // Test mesh loaded from file.
     mesh* sponza_mesh = &app_state->meshes[app_state->mesh_count];
     resource sponza_mesh_resource = {};
-    if (!resource_system_load("sponza", RESOURCE_TYPE_MESH, &sponza_mesh_resource)) {
+    if (!resource_system_load("sponza", RESOURCE_TYPE_MESH, 0, &sponza_mesh_resource)) {
         KERROR("Failed to load sponza mesh!");
     } else {
         geometry_config* sponza_configs = (geometry_config*)sponza_mesh_resource.data;
@@ -499,17 +540,25 @@ b8 application_run() {
             packet.delta_time = delta;
 
             // TODO: Read from frame config.
-            packet.view_count = 2;
-            render_view_packet views[2];
+            packet.view_count = 3;
+            render_view_packet views[3];
             kzero_memory(views, sizeof(render_view_packet) * packet.view_count);
             packet.views = views;
+
+            // Skybox
+            skybox_packet_data skybox_data = {};
+            skybox_data.sb = &app_state->sb;
+            if (!render_view_system_build_packet(render_view_system_get("skybox"), &skybox_data, &packet.views[0])) {
+                KERROR("Failed to build packet for view 'skybox'.");
+                return false;
+            }
 
             // World 
             mesh_packet_data world_mesh_data = {};
             world_mesh_data.mesh_count = app_state->mesh_count;
             world_mesh_data.meshes = app_state->meshes;
             // TODO: performs a lookup on every frame.
-            if (!render_view_system_build_packet(render_view_system_get("world_opaque"), &world_mesh_data, &packet.views[0])) {
+            if (!render_view_system_build_packet(render_view_system_get("world_opaque"), &world_mesh_data, &packet.views[1])) {
                 KERROR("Failed to build packet for view 'world_opaque'.");
                 return false;
             }
@@ -518,7 +567,7 @@ b8 application_run() {
             mesh_packet_data ui_mesh_data = {};
             ui_mesh_data.mesh_count = app_state->ui_mesh_count;
             ui_mesh_data.meshes = app_state->ui_meshes;
-            if (!render_view_system_build_packet(render_view_system_get("ui"), &ui_mesh_data, &packet.views[1])) {
+            if (!render_view_system_build_packet(render_view_system_get("ui"), &ui_mesh_data, &packet.views[2])) {
                 KERROR("Failed to build packet for view 'ui'.");
                 return false;
             }
@@ -579,6 +628,11 @@ b8 application_run() {
     texture_system_shutdown(app_state->texture_system_state);
 
     shader_system_shutdown(app_state->shader_system_state);
+
+    // TODO: Temp
+    // TODO: implement skybox destroy.
+    renderer_texture_map_release_resources(&app_state->sb.cubemap);
+    // TODO: end temp
 
     renderer_system_shutdown(app_state->renderer_system_state);
 

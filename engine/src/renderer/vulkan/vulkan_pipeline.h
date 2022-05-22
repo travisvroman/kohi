@@ -29,6 +29,7 @@
  * @param stages An array of stages.
  * @param viewport The viewport configuration.
  * @param scissor The scissor configuration.
+ * @param cull_mode The face cull mode.
  * @param is_wireframe Indicates if this pipeline should use wireframe mode.
  * @param depth_test_enabled Indicates if depth testing is enabled for this pipeline/
  * @param out_pipeline A pointer to hold the newly-created pipeline.
@@ -46,6 +47,7 @@ b8 vulkan_graphics_pipeline_create(
     VkPipelineShaderStageCreateInfo* stages,
     VkViewport viewport,
     VkRect2D scissor,
+    face_cull_mode cull_mode,
     b8 is_wireframe,
     b8 depth_test_enabled,
     u32 push_constant_range_count,

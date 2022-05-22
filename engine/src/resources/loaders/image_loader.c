@@ -13,14 +13,16 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "vendor/stb_image.h"
 
-b8 image_loader_load(struct resource_loader* self, const char* name, resource* out_resource) {
+b8 image_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
 
+    image_resource_params* typed_params = (image_resource_params*)params;
+
     char* format_str = "%s/%s/%s%s";
     const i32 required_channel_count = 4;
-    stbi_set_flip_vertically_on_load(true);
+    stbi_set_flip_vertically_on_load(typed_params->flip_y);
     char full_file_path[512];
 
     // Try different extensions
@@ -53,19 +55,6 @@ b8 image_loader_load(struct resource_loader* self, const char* name, resource* o
         &channel_count,
         required_channel_count);
 
-    // Check for a failure reason. If there is one, abort, clear memory if allocated, return false.
-    // const char* fail_reason = stbi_failure_reason();
-    // if (fail_reason) {
-    //     KERROR("Image resource loader failed to load file '%s': %s", full_file_path, fail_reason);
-    //     // Clear the error so the next load doesn't fail.
-    //     stbi__err(0, 0);
-
-    //     if (data) {
-    //         stbi_image_free(data);
-    //     }
-    //     return false;
-    // }
-
     if (!data) {
         KERROR("Image resource loader failed to load file '%s'.", full_file_path);
         return false;
@@ -89,6 +78,7 @@ b8 image_loader_load(struct resource_loader* self, const char* name, resource* o
 }
 
 void image_loader_unload(struct resource_loader* self, resource* resource) {
+    stbi_image_free(((image_resource_data*)resource->data)->pixels);
     if (!resource_unload(self, resource, MEMORY_TAG_TEXTURE)) {
         KWARN("image_loader_unload called with nullptr for self or resource.");
     }
