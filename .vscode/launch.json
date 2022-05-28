@@ -70,6 +70,63 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb",
+        },
+
+        {
+            "name": "(Windows) Launch Kohi Tools",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/tools.exe",
+            "args": [
+                "buildshaders",
+                "${workspaceFolder}/assets/shaders/Builtin.MaterialShader.vert.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.MaterialShader.frag.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.UIShader.vert.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.UIShader.frag.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.SkyboxShader.vert.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.SkyboxShader.frag.glsl"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/bin/",
+            "environment": [],
+            "console":"integratedTerminal",
+        },
+        {
+            "name": "(Linux) Launch Kohi Tools",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/tools",
+            "args": [
+                "buildshaders",
+                "${workspaceFolder}/assets/shaders/Builtin.MaterialShader.vert.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.MaterialShader.frag.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.UIShader.vert.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.UIShader.frag.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.SkyboxShader.vert.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.SkyboxShader.frag.glsl"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/bin/",
+            "environment": [],
+        },
+        {
+            "name": "(macOS) Launch Kohi Tools",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/tools",
+            "args": [
+                "buildshaders",
+                "${workspaceFolder}/assets/shaders/Builtin.MaterialShader.vert.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.MaterialShader.frag.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.UIShader.vert.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.UIShader.frag.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.SkyboxShader.vert.glsl",
+                "${workspaceFolder}/assets/shaders/Builtin.SkyboxShader.frag.glsl"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/bin/",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
         }
     ]
 }
