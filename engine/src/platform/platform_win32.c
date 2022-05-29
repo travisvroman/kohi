@@ -6,6 +6,8 @@
 #include "core/logger.h"
 #include "core/input.h"
 #include "core/event.h"
+#include "core/kthread.h"
+#include "core/kmutex.h"
 
 #include "containers/darray.h"
 
@@ -204,6 +206,138 @@ f64 platform_get_absolute_time() {
 void platform_sleep(u64 ms) {
     Sleep(ms);
 }
+
+i32 platform_get_processor_count() {
+    SYSTEM_INFO sysinfo;
+    GetSystemInfo(&sysinfo);
+    KINFO("%i processor cores detected.", sysinfo.dwNumberOfProcessors);
+    return sysinfo.dwNumberOfProcessors;
+}
+
+// NOTE: Begin threads
+b8 kthread_create(pfn_thread_start start_function_ptr, void *params, b8 auto_detach, kthread *out_thread) {
+    if (!start_function_ptr) {
+        return false;
+    }
+
+    out_thread->internal_data = CreateThread(
+        0,
+        0,                                           // Default stack size
+        (LPTHREAD_START_ROUTINE)start_function_ptr,  // function ptr
+        params,                                      // param to pass to thread
+        0,
+        (DWORD *)&out_thread->thread_id);
+    KDEBUG("Starting process on thread id: %#x", out_thread->thread_id);
+    if (!out_thread->internal_data) {
+        return false;
+    }
+    if (auto_detach) {
+        CloseHandle(out_thread->internal_data);
+    }
+    return true;
+}
+
+void kthread_destroy(kthread *thread) {
+    if (thread && thread->internal_data) {
+        DWORD exit_code;
+        GetExitCodeThread(thread->internal_data, &exit_code);
+        // if (exit_code == STILL_ACTIVE) {
+        //     TerminateThread(thread->internal_data, 0);  // 0 = failure
+        // }
+        CloseHandle((HANDLE)thread->internal_data);
+        thread->internal_data = 0;
+        thread->thread_id = 0;
+    }
+}
+
+void kthread_detach(kthread *thread) {
+    if (thread && thread->internal_data) {
+        CloseHandle(thread->internal_data);
+        thread->internal_data = 0;
+    }
+}
+
+void kthread_cancel(kthread *thread) {
+    if (thread && thread->internal_data) {
+        TerminateThread(thread->internal_data, 0);
+        thread->internal_data = 0;
+    }
+}
+
+b8 kthread_is_active(kthread *thread) {
+    if (thread && thread->internal_data) {
+        DWORD exit_code = WaitForSingleObject(thread->internal_data, 0);
+        if (exit_code == WAIT_TIMEOUT) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void kthread_sleep(kthread *thread, u64 ms) {
+    platform_sleep(ms);
+}
+
+u64 get_thread_id() {
+    return (u64)GetCurrentThreadId();
+}
+
+// NOTE: End threads.
+
+// NOTE: Begin mutexes
+b8 kmutex_create(kmutex *out_mutex) {
+    if (!out_mutex) {
+        return false;
+    }
+
+    out_mutex->internal_data = CreateMutex(0, 0, 0);
+    if (!out_mutex->internal_data) {
+        KERROR("Unable to create mutex.");
+        return false;
+    }
+    // KTRACE("Created mutex.");
+    return true;
+}
+
+void kmutex_destroy(kmutex *mutex) {
+    if (mutex && mutex->internal_data) {
+        CloseHandle(mutex->internal_data);
+        // KTRACE("Destroyed mutex.");
+        mutex->internal_data = 0;
+    }
+}
+
+b8 kmutex_lock(kmutex *mutex) {
+    if (!mutex) {
+        return false;
+    }
+
+    DWORD result = WaitForSingleObject(mutex->internal_data, INFINITE);
+    switch (result) {
+        // The thread got ownership of the mutex
+        case WAIT_OBJECT_0:
+            // KTRACE("Mutex locked.");
+            return true;
+
+            // The thread got ownership of an abandoned mutex.
+        case WAIT_ABANDONED:
+            KERROR("Mutex lock failed.");
+            return false;
+    }
+    // KTRACE("Mutex locked.");
+    return true;
+}
+
+b8 kmutex_unlock(kmutex *mutex) {
+    if (!mutex || !mutex->internal_data) {
+        return false;
+    }
+    i32 result = ReleaseMutex(mutex->internal_data);
+    // KTRACE("Mutex unlocked.");
+    return result != 0;  // 0 is a failure
+}
+
+// NOTE: End mutexes.
 
 void platform_get_required_extension_names(const char ***names_darray) {
     darray_push(*names_darray, &"VK_KHR_win32_surface");
