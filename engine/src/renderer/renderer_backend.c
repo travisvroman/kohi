@@ -37,6 +37,16 @@ b8 renderer_backend_create(renderer_backend_type type, renderer_backend* out_ren
         out_renderer_backend->texture_map_acquire_resources = vulkan_renderer_texture_map_acquire_resources;
         out_renderer_backend->texture_map_release_resources = vulkan_renderer_texture_map_release_resources;
 
+        out_renderer_backend->render_target_create = vulkan_renderer_render_target_create;
+        out_renderer_backend->render_target_destroy = vulkan_renderer_render_target_destroy;
+
+        out_renderer_backend->renderpass_create = vulkan_renderpass_create;
+        out_renderer_backend->renderpass_destroy = vulkan_renderpass_destroy;
+        out_renderer_backend->renderpass_get = vulkan_renderer_renderpass_get;
+        out_renderer_backend->window_attachment_get = vulkan_renderer_window_attachment_get;
+        out_renderer_backend->depth_attachment_get = vulkan_renderer_depth_attachment_get;
+        out_renderer_backend->window_attachment_index_get = vulkan_renderer_window_attachment_index_get;
+
         return true;
     }
 

@@ -4,7 +4,6 @@
 #include "vulkan_platform.h"
 #include "vulkan_device.h"
 #include "vulkan_swapchain.h"
-#include "vulkan_renderpass.h"
 #include "vulkan_command_buffer.h"
 #include "vulkan_utils.h"
 #include "vulkan_buffer.h"
@@ -14,7 +13,6 @@
 #include "core/logger.h"
 #include "core/kstring.h"
 #include "core/kmemory.h"
-#include "core/application.h"
 
 #include "containers/darray.h"
 
@@ -29,8 +27,6 @@
 
 // static Vulkan context
 static vulkan_context context;
-static u32 cached_framebuffer_width = 0;
-static u32 cached_framebuffer_height = 0;
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
@@ -42,7 +38,6 @@ i32 find_memory_index(u32 type_filter, u32 property_flags);
 b8 create_buffers(vulkan_context* context);
 
 void create_command_buffers(renderer_backend* backend);
-void regenerate_framebuffers();
 b8 recreate_swapchain(renderer_backend* backend);
 b8 create_module(vulkan_shader* shader, vulkan_shader_stage_config config, vulkan_shader_stage* shader_stage);
 
@@ -76,23 +71,25 @@ void free_data_range(vulkan_buffer* buffer, u64 offset, u64 size) {
     }
 }
 
-b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const char* application_name) {
+b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const renderer_backend_config* config, u8* out_window_render_target_count) {
     // Function pointers
     context.find_memory_index = find_memory_index;
 
     // TODO: custom allocator.
     context.allocator = 0;
 
-    application_get_framebuffer_size(&cached_framebuffer_width, &cached_framebuffer_height);
-    context.framebuffer_width = (cached_framebuffer_width != 0) ? cached_framebuffer_width : 800;
-    context.framebuffer_height = (cached_framebuffer_height != 0) ? cached_framebuffer_height : 600;
-    cached_framebuffer_width = 0;
-    cached_framebuffer_height = 0;
+    context.on_rendertarget_refresh_required = config->on_rendertarget_refresh_required;
+
+    // Just set some default values for the framebuffer for now.
+    // It doesn't really matyer what these are because they will be
+    // overridden, but are needed for swapchain creation.
+    context.framebuffer_width = 800;
+    context.framebuffer_height = 600;
 
     // Setup Vulkan instance.
     VkApplicationInfo app_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
     app_info.apiVersion = VK_API_VERSION_1_2;
-    app_info.pApplicationName = application_name;
+    app_info.pApplicationName = config->application_name;
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "Kohi Engine";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -206,30 +203,56 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const char* app
         context.framebuffer_height,
         &context.swapchain);
 
-    // World render pass
-    vulkan_renderpass_create(
-        &context,
-        &context.main_renderpass,
-        (vec4){0, 0, context.framebuffer_width, context.framebuffer_height},
-        (vec4){0.0f, 0.0f, 0.2f, 1.0f},
-        1.0f,
-        0,
-        RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG | RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG | RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG,
-        false, true);
+    // Save off the number of images we have as the number of render targets needed.
+    *out_window_render_target_count = context.swapchain.image_count;
 
-    // UI renderpass
-    vulkan_renderpass_create(
-        &context,
-        &context.ui_renderpass,
-        (vec4){0, 0, context.framebuffer_width, context.framebuffer_height},
-        (vec4){0.0f, 0.0f, 0.0f, 0.0f},
-        1.0f,
-        0,
-        RENDERPASS_CLEAR_NONE_FLAG,
-        true, false);
+    // Hold registered renderpasses.
+    for (u32 i = 0; i < VULKAN_MAX_REGISTERED_RENDERPASSES; ++i) {
+        context.registered_passes[i].id = INVALID_ID_U16;
+    }
 
-    // Regenerate swapchain and world framebuffers
-    regenerate_framebuffers();
+    // The renderpass table will be a lookup of array indices. Start off every index with an invalid id.
+    context.renderpass_table_block = kallocate(sizeof(u32) * VULKAN_MAX_REGISTERED_RENDERPASSES, MEMORY_TAG_RENDERER);
+    hashtable_create(sizeof(u32), VULKAN_MAX_REGISTERED_RENDERPASSES, context.renderpass_table_block, false, &context.renderpass_table);
+    u32 value = INVALID_ID;
+    hashtable_fill(&context.renderpass_table, &value);
+
+    // Renderpasses
+    for (u32 i = 0; i < config->renderpass_count; ++i) {
+        // TODO: move to a function for reusability.
+        // Make sure there are no collisions with the name first.
+        u32 id = INVALID_ID;
+        hashtable_get(&context.renderpass_table, config->pass_configs[i].name, &id);
+        if (id != INVALID_ID) {
+            KERROR("Collision with renderpass named '%s'. Initialization failed.", config->pass_configs[i].name);
+            return false;
+        }
+        // Snip up a new id.
+        for (u32 j = 0; j < VULKAN_MAX_REGISTERED_RENDERPASSES; ++j) {
+            if (context.registered_passes[j].id == INVALID_ID_U16) {
+                // Found one.
+                context.registered_passes[j].id = j;
+                id = j;
+                break;
+            }
+        }
+
+        // Verify we got an id
+        if (id == INVALID_ID) {
+            KERROR("No space was found for a new renderpass. Increase VULKAN_MAX_REGISTERED_RENDERPASSES. Initialization failed.");
+            return false;
+        }
+
+        // Setup the renderpass.
+        context.registered_passes[id].clear_flags = config->pass_configs[i].clear_flags;
+        context.registered_passes[id].clear_colour = config->pass_configs[i].clear_colour;
+        context.registered_passes[id].render_area = config->pass_configs[i].render_area;
+
+        vulkan_renderpass_create(&context.registered_passes[id], 1.0f, 0, config->pass_configs[i].prev_name != 0, config->pass_configs[i].next_name != 0);
+
+        // Update the table with the new id.
+        hashtable_set(&context.renderpass_table, config->pass_configs[i].name, &id);
+    }
 
     // Create command buffers.
     create_command_buffers(backend);
@@ -314,15 +337,18 @@ void vulkan_renderer_backend_shutdown(renderer_backend* backend) {
     darray_destroy(context.graphics_command_buffers);
     context.graphics_command_buffers = 0;
 
-    // Destroy framebuffers
+    // Destroy render targets
     for (u32 i = 0; i < context.swapchain.image_count; ++i) {
-        vkDestroyFramebuffer(context.device.logical_device, context.world_framebuffers[i], context.allocator);
-        vkDestroyFramebuffer(context.device.logical_device, context.swapchain.framebuffers[i], context.allocator);
+        vulkan_renderer_render_target_destroy(&context.world_render_targets[i], true);
+        vulkan_renderer_render_target_destroy(&context.swapchain.render_targets[i], true);
     }
 
     // Renderpasses
-    vulkan_renderpass_destroy(&context, &context.ui_renderpass);
-    vulkan_renderpass_destroy(&context, &context.main_renderpass);
+    for (u32 i = 0; i < VULKAN_MAX_REGISTERED_RENDERPASSES; ++i) {
+        if (context.registered_passes[i].id != INVALID_ID_U16) {
+            vulkan_renderpass_destroy(&context.registered_passes[i]);
+        }
+    }
 
     // Swapchain
     vulkan_swapchain_destroy(&context, &context.swapchain);
@@ -352,8 +378,8 @@ void vulkan_renderer_backend_shutdown(renderer_backend* backend) {
 void vulkan_renderer_backend_on_resized(renderer_backend* backend, u16 width, u16 height) {
     // Update the "framebuffer size generation", a counter which indicates when the
     // framebuffer size has been updated.
-    cached_framebuffer_width = width;
-    cached_framebuffer_height = height;
+    context.framebuffer_width = width;
+    context.framebuffer_height = height;
     context.framebuffer_size_generation++;
 
     KINFO("Vulkan renderer backend->resized: w/h/gen: %i/%i/%llu", width, height, context.framebuffer_size_generation);
@@ -435,14 +461,6 @@ b8 vulkan_renderer_backend_begin_frame(renderer_backend* backend, f32 delta_time
     vkCmdSetViewport(command_buffer->handle, 0, 1, &viewport);
     vkCmdSetScissor(command_buffer->handle, 0, 1, &scissor);
 
-    // Update the main/world renderpass dimensions.
-    context.main_renderpass.render_area.z = context.framebuffer_width;
-    context.main_renderpass.render_area.w = context.framebuffer_height;
-
-    // Also update the UI renderpass dimensions.
-    context.ui_renderpass.render_area.z = context.framebuffer_width;
-    context.ui_renderpass.render_area.w = context.framebuffer_height;
-
     return true;
 }
 
@@ -512,51 +530,71 @@ b8 vulkan_renderer_backend_end_frame(renderer_backend* backend, f32 delta_time) 
     return true;
 }
 
-b8 vulkan_renderer_begin_renderpass(struct renderer_backend* backend, u8 renderpass_id) {
-    vulkan_renderpass* renderpass = 0;
-    VkFramebuffer framebuffer = 0;
+b8 vulkan_renderer_begin_renderpass(struct renderer_backend* backend, renderpass* pass, render_target* target) {
     vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
 
-    // Choose a renderpass based on ID.
-    switch (renderpass_id) {
-        case BUILTIN_RENDERPASS_WORLD:
-            renderpass = &context.main_renderpass;
-            framebuffer = context.world_framebuffers[context.image_index];
-            break;
-        case BUILTIN_RENDERPASS_UI:
-            renderpass = &context.ui_renderpass;
-            framebuffer = context.swapchain.framebuffers[context.image_index];
-            break;
-        default:
-            KERROR("vulkan_renderer_begin_renderpass called on unrecognized renderpass id: %#02x", renderpass_id);
-            return false;
+    // Begin the render pass.
+    vulkan_renderpass* internal_data = pass->internal_data;
+
+    VkRenderPassBeginInfo begin_info = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+    begin_info.renderPass = internal_data->handle;
+    begin_info.framebuffer = target->internal_framebuffer;
+    begin_info.renderArea.offset.x = pass->render_area.x;
+    begin_info.renderArea.offset.y = pass->render_area.y;
+    begin_info.renderArea.extent.width = pass->render_area.z;
+    begin_info.renderArea.extent.height = pass->render_area.w;
+
+    begin_info.clearValueCount = 0;
+    begin_info.pClearValues = 0;
+
+    VkClearValue clear_values[2];
+    kzero_memory(clear_values, sizeof(VkClearValue) * 2);
+    b8 do_clear_colour = (pass->clear_flags & RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG) != 0;
+    if (do_clear_colour) {
+        kcopy_memory(clear_values[begin_info.clearValueCount].color.float32, pass->clear_colour.elements, sizeof(f32) * 4);
+        begin_info.clearValueCount++;
     }
 
-    // Begin the render pass.
-    vulkan_renderpass_begin(command_buffer, renderpass, framebuffer);
+    b8 do_clear_depth = (pass->clear_flags & RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG) != 0;
+    if (do_clear_depth) {
+        kcopy_memory(clear_values[begin_info.clearValueCount].color.float32, pass->clear_colour.elements, sizeof(f32) * 4);
+        clear_values[begin_info.clearValueCount].depthStencil.depth = internal_data->depth;
+
+        b8 do_clear_stencil = (pass->clear_flags & RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG) != 0;
+        clear_values[begin_info.clearValueCount].depthStencil.stencil = do_clear_stencil ? internal_data->stencil : 0;
+        begin_info.clearValueCount++;
+    }
+
+    begin_info.pClearValues = begin_info.clearValueCount > 0 ? clear_values : 0;
+
+    vkCmdBeginRenderPass(command_buffer->handle, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    command_buffer->state = COMMAND_BUFFER_STATE_IN_RENDER_PASS;
 
     return true;
 }
 
-b8 vulkan_renderer_end_renderpass(struct renderer_backend* backend, u8 renderpass_id) {
-    vulkan_renderpass* renderpass = 0;
+b8 vulkan_renderer_end_renderpass(struct renderer_backend* backend, renderpass* pass) {
     vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
+    // End the renderpass.
+    vkCmdEndRenderPass(command_buffer->handle);
+    command_buffer->state = COMMAND_BUFFER_STATE_RECORDING;
+    return true;
+}
 
-    // Choose a renderpass based on ID.
-    switch (renderpass_id) {
-        case BUILTIN_RENDERPASS_WORLD:
-            renderpass = &context.main_renderpass;
-            break;
-        case BUILTIN_RENDERPASS_UI:
-            renderpass = &context.ui_renderpass;
-            break;
-        default:
-            KERROR("vulkan_renderer_end_renderpass called on unrecognized renderpass id:  %#02x", renderpass_id);
-            return false;
+renderpass* vulkan_renderer_renderpass_get(const char* name) {
+    if (!name || name[0] == 0) {
+        KERROR("vulkan_renderer_renderpass_get requires a name. Nothing will be returned.");
+        return 0;
     }
 
-    vulkan_renderpass_end(command_buffer, renderpass);
-    return true;
+    u32 id = INVALID_ID;
+    hashtable_get(&context.renderpass_table, name, &id);
+    if (id == INVALID_ID) {
+        KWARN("There is no registered renderpass named '%s'.", name);
+        return 0;
+    }
+
+    return &context.registered_passes[id];
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
@@ -623,35 +661,6 @@ void create_command_buffers(renderer_backend* backend) {
     KDEBUG("Vulkan command buffers created.");
 }
 
-void regenerate_framebuffers() {
-    u32 image_count = context.swapchain.image_count;
-    for (u32 i = 0; i < image_count; ++i) {
-        vulkan_image* image = (vulkan_image*)context.swapchain.render_textures[i]->internal_data;
-        VkImageView world_attachments[2] = {image->view, context.swapchain.depth_attachment.view};
-        VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-        framebuffer_create_info.renderPass = context.main_renderpass.handle;
-        framebuffer_create_info.attachmentCount = 2;
-        framebuffer_create_info.pAttachments = world_attachments;
-        framebuffer_create_info.width = context.framebuffer_width;
-        framebuffer_create_info.height = context.framebuffer_height;
-        framebuffer_create_info.layers = 1;
-
-        VK_CHECK(vkCreateFramebuffer(context.device.logical_device, &framebuffer_create_info, context.allocator, &context.world_framebuffers[i]));
-
-        // Swapchain framebuffers (UI pass). Outputs to swapchain images
-        VkImageView ui_attachments[1] = {image->view};
-        VkFramebufferCreateInfo sc_framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-        sc_framebuffer_create_info.renderPass = context.ui_renderpass.handle;
-        sc_framebuffer_create_info.attachmentCount = 1;
-        sc_framebuffer_create_info.pAttachments = ui_attachments;
-        sc_framebuffer_create_info.width = context.framebuffer_width;
-        sc_framebuffer_create_info.height = context.framebuffer_height;
-        sc_framebuffer_create_info.layers = 1;
-
-        VK_CHECK(vkCreateFramebuffer(context.device.logical_device, &sc_framebuffer_create_info, context.allocator, &context.swapchain.framebuffers[i]));
-    }
-}
-
 b8 recreate_swapchain(renderer_backend* backend) {
     // If already being recreated, do not try again.
     if (context.recreating_swapchain) {
@@ -685,17 +694,9 @@ b8 recreate_swapchain(renderer_backend* backend) {
 
     vulkan_swapchain_recreate(
         &context,
-        cached_framebuffer_width,
-        cached_framebuffer_height,
+        context.framebuffer_width,
+        context.framebuffer_height,
         &context.swapchain);
-
-    // Sync the framebuffer size with the cached sizes.
-    context.framebuffer_width = cached_framebuffer_width;
-    context.framebuffer_height = cached_framebuffer_height;
-    context.main_renderpass.render_area.z = context.framebuffer_width;
-    context.main_renderpass.render_area.w = context.framebuffer_height;
-    cached_framebuffer_width = 0;
-    cached_framebuffer_height = 0;
 
     // Update framebuffer size generation.
     context.framebuffer_size_last_generation = context.framebuffer_size_generation;
@@ -705,26 +706,10 @@ b8 recreate_swapchain(renderer_backend* backend) {
         vulkan_command_buffer_free(&context, context.device.graphics_command_pool, &context.graphics_command_buffers[i]);
     }
 
-    // Framebuffers.
-    for (u32 i = 0; i < context.swapchain.image_count; ++i) {
-        vkDestroyFramebuffer(context.device.logical_device, context.world_framebuffers[i], context.allocator);
-        vkDestroyFramebuffer(context.device.logical_device, context.swapchain.framebuffers[i], context.allocator);
+    // Tell the renderer that a refresh is required.
+    if (context.on_rendertarget_refresh_required) {
+        context.on_rendertarget_refresh_required();
     }
-
-    // Update the main/world renderpass dimensions.
-    context.main_renderpass.render_area.x = 0;
-    context.main_renderpass.render_area.y = 0;
-    context.main_renderpass.render_area.z = context.framebuffer_width;
-    context.main_renderpass.render_area.w = context.framebuffer_height;
-
-    // Also update the UI renderpass dimensions.
-    context.ui_renderpass.render_area.x = 0;
-    context.ui_renderpass.render_area.y = 0;
-    context.ui_renderpass.render_area.z = context.framebuffer_width;
-    context.ui_renderpass.render_area.w = context.framebuffer_height;
-
-    // Regenerate swapchain and world framebuffers
-    regenerate_framebuffers();
 
     create_command_buffers(backend);
 
@@ -1078,11 +1063,8 @@ const u32 BINDING_INDEX_UBO = 0;
 // The index of the image sampler binding.
 const u32 BINDING_INDEX_SAMPLER = 1;
 
-b8 vulkan_renderer_shader_create(shader* shader, u8 renderpass_id, u8 stage_count, const char** stage_filenames, shader_stage* stages) {
+b8 vulkan_renderer_shader_create(shader* shader, renderpass* pass, u8 stage_count, const char** stage_filenames, shader_stage* stages) {
     shader->internal_data = kallocate(sizeof(vulkan_shader), MEMORY_TAG_RENDERER);
-
-    // TODO: dynamic renderpasses
-    vulkan_renderpass* renderpass = renderpass_id == 1 ? &context.main_renderpass : &context.ui_renderpass;
 
     // Translate stages
     VkShaderStageFlags vk_stages[VULKAN_SHADER_MAX_STAGES];
@@ -1115,7 +1097,7 @@ b8 vulkan_renderer_shader_create(shader* shader, u8 renderpass_id, u8 stage_coun
     // Take a copy of the pointer to the context.
     vulkan_shader* out_shader = (vulkan_shader*)shader->internal_data;
 
-    out_shader->renderpass = renderpass;
+    out_shader->renderpass = pass->internal_data;
 
     // Build out the configuration.
     out_shader->config.max_descriptor_set_count = max_descriptor_allocate_count;
@@ -1830,4 +1812,173 @@ b8 create_module(vulkan_shader* shader, vulkan_shader_stage_config config, vulka
     shader_stage->shader_stage_create_info.pName = "main";
 
     return true;
+}
+
+void vulkan_renderpass_create(renderpass* out_renderpass, f32 depth, u32 stencil, b8 has_prev_pass, b8 has_next_pass) {
+    out_renderpass->internal_data = kallocate(sizeof(vulkan_renderpass), MEMORY_TAG_RENDERER);
+    vulkan_renderpass* internal_data = (vulkan_renderpass*)out_renderpass->internal_data;
+    internal_data->has_prev_pass = has_prev_pass;
+    internal_data->has_next_pass = has_next_pass;
+
+    internal_data->depth = depth;
+    internal_data->stencil = stencil;
+
+    // Main subpass
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+    // Attachments TODO: make this configurable.
+    u32 attachment_description_count = 0;
+    VkAttachmentDescription attachment_descriptions[2];
+
+    // Color attachment
+    b8 do_clear_colour = (out_renderpass->clear_flags & RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG) != 0;
+    VkAttachmentDescription color_attachment;
+    color_attachment.format = context.swapchain.image_format.format;  // TODO: configurable
+    color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    color_attachment.loadOp = do_clear_colour ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+    color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    // If coming from a previous pass, should already be VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL. Otherwise undefined.
+    color_attachment.initialLayout = has_prev_pass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
+
+    // If going to another pass, use VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL. Otherwise VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
+    color_attachment.finalLayout = has_next_pass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;  // Transitioned to after the render pass
+    color_attachment.flags = 0;
+
+    attachment_descriptions[attachment_description_count] = color_attachment;
+    attachment_description_count++;
+
+    VkAttachmentReference color_attachment_reference;
+    color_attachment_reference.attachment = 0;  // Attachment description array index
+    color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &color_attachment_reference;
+
+    // Depth attachment, if there is one
+    b8 do_clear_depth = (out_renderpass->clear_flags & RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG) != 0;
+    if (do_clear_depth) {
+        VkAttachmentDescription depth_attachment = {};
+        depth_attachment.format = context.device.depth_format;
+        depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        depth_attachment.loadOp = do_clear_depth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+        depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depth_attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        attachment_descriptions[attachment_description_count] = depth_attachment;
+        attachment_description_count++;
+
+        // Depth attachment reference
+        VkAttachmentReference depth_attachment_reference;
+        depth_attachment_reference.attachment = 1;
+        depth_attachment_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        // TODO: other attachment types (input, resolve, preserve)
+
+        // Depth stencil data.
+        subpass.pDepthStencilAttachment = &depth_attachment_reference;
+    } else {
+        kzero_memory(&attachment_descriptions[attachment_description_count], sizeof(VkAttachmentDescription));
+        subpass.pDepthStencilAttachment = 0;
+    }
+
+    // Input from a shader
+    subpass.inputAttachmentCount = 0;
+    subpass.pInputAttachments = 0;
+
+    // Attachments used for multisampling colour attachments
+    subpass.pResolveAttachments = 0;
+
+    // Attachments not used in this subpass, but must be preserved for the next.
+    subpass.preserveAttachmentCount = 0;
+    subpass.pPreserveAttachments = 0;
+
+    // Render pass dependencies. TODO: make this configurable.
+    VkSubpassDependency dependency;
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dependencyFlags = 0;
+
+    // Render pass create.
+    VkRenderPassCreateInfo render_pass_create_info = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    render_pass_create_info.attachmentCount = attachment_description_count;
+    render_pass_create_info.pAttachments = attachment_descriptions;
+    render_pass_create_info.subpassCount = 1;
+    render_pass_create_info.pSubpasses = &subpass;
+    render_pass_create_info.dependencyCount = 1;
+    render_pass_create_info.pDependencies = &dependency;
+    render_pass_create_info.pNext = 0;
+    render_pass_create_info.flags = 0;
+
+    VK_CHECK(vkCreateRenderPass(context.device.logical_device, &render_pass_create_info, context.allocator, &internal_data->handle));
+}
+
+void vulkan_renderpass_destroy(renderpass* pass) {
+    if (pass && pass->internal_data) {
+        vulkan_renderpass* internal_data = pass->internal_data;
+        vkDestroyRenderPass(context.device.logical_device, internal_data->handle, context.allocator);
+        internal_data->handle = 0;
+        kfree(internal_data, sizeof(vulkan_renderpass), MEMORY_TAG_RENDERER);
+        pass->internal_data = 0;
+    }
+}
+
+void vulkan_renderer_render_target_create(u8 attachment_count, texture** attachments, renderpass* pass, u32 width, u32 height, render_target* out_target) {
+    // Max number of attachments
+    VkImageView attachment_views[32];
+    for (u32 i = 0; i < attachment_count; ++i) {
+        attachment_views[i] = ((vulkan_image*)attachments[i]->internal_data)->view;
+    }
+
+    // Take a copy of the attachments and count.
+    out_target->attachment_count = attachment_count;
+    if (!out_target->attachments) {
+        out_target->attachments = kallocate(sizeof(texture*) * attachment_count, MEMORY_TAG_ARRAY);
+    }
+    kcopy_memory(out_target->attachments, attachments, sizeof(texture*) * attachment_count);
+
+    VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+    framebuffer_create_info.renderPass = ((vulkan_renderpass*)pass->internal_data)->handle;
+    framebuffer_create_info.attachmentCount = attachment_count;
+    framebuffer_create_info.pAttachments = attachment_views;
+    framebuffer_create_info.width = width;
+    framebuffer_create_info.height = height;
+    framebuffer_create_info.layers = 1;
+
+    VK_CHECK(vkCreateFramebuffer(context.device.logical_device, &framebuffer_create_info, context.allocator, (VkFramebuffer*)&out_target->internal_framebuffer));
+}
+void vulkan_renderer_render_target_destroy(render_target* target, b8 free_internal_memory) {
+    if (target && target->internal_framebuffer) {
+        vkDestroyFramebuffer(context.device.logical_device, (VkFramebuffer)target->internal_framebuffer, context.allocator);
+        target->internal_framebuffer = 0;
+        if (free_internal_memory) {
+            kfree(target->attachments, sizeof(texture*) * target->attachment_count, MEMORY_TAG_ARRAY);
+            target->attachments = 0;
+            target->attachment_count = 0;
+        }
+    }
+}
+
+texture* vulkan_renderer_window_attachment_get(u8 index) {
+    if (index >= context.swapchain.image_count) {
+        KFATAL("Attempting to get attachment index out of range: %d. Attachment count: %d", index, context.swapchain.image_count);
+        return 0;
+    }
+
+    return context.swapchain.render_textures[index];
+}
+texture* vulkan_renderer_depth_attachment_get() {
+    return context.swapchain.depth_texture;
+}
+u8 vulkan_renderer_window_attachment_index_get() {
+    return (u8)context.image_index;
 }
