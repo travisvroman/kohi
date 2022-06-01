@@ -108,11 +108,5 @@ typedef enum system_event_code {
      */
     EVENT_CODE_RESIZED = 0x08,
 
-    // Window was minimized
-    EVENT_CODE_MINIZED = 0x09,
-
-    // Window was raised from minimized
-    EVENT_CODE_RAISED = 0x0a,
-
     MAX_EVENT_CODE = 0xFF
 } system_event_code;

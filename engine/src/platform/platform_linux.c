@@ -10,8 +10,8 @@
 #include "containers/darray.h"
 
 #include <xcb/xcb.h>
-#include <xcb/xcb_keysyms.h> // sudo apt install libxcb-keysym1-dev
-#include <xcb/xkb.h>       // sudo apt install libxcb-xkb-dev
+#include <xcb/xcb_keysyms.h>
+#include <xcb/xkb.h>
 #include <sys/time.h>
 
 #if _POSIX_C_SOURCE >= 199309L
@@ -35,12 +35,13 @@ typedef struct platform_state {
     xcb_screen_t* screen;
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_win;
-    xcb_key_symbols_t *syms;
+    xcb_key_symbols_t  *syms;
     VkSurfaceKHR surface;
 } platform_state;
 
 static platform_state* state_ptr;
 
+b8 internal_poll_for_event(xcb_generic_event_t **event);
 // Key translation
 keys translate_keycode(u32 x_keycode);
 
@@ -59,29 +60,29 @@ b8 platform_system_startup(
 
     state_ptr = state;
 
-    // we get the connection through xcb
+    // We get the connection through xcb
     int screenp = 0;
-    state_ptr->connection = xcb_connect(NULL, &screenp);
+    state_ptr->connection = xcb_connect(0, &screenp);
     if (xcb_connection_has_error(state_ptr->connection)) {
         KFATAL("Failed to connect to X server via XCB.");
         return false;
     }
 
-    // unlike most reply_t this one must not be freed.
-    const xcb_query_extension_reply_t *ext_reply  = xcb_get_extension_data(state_ptr->connection, &xcb_xkb_id);
+    // Unlike most reply_t this one must not be freed.
+    const xcb_query_extension_reply_t  *ext_reply = xcb_get_extension_data(state_ptr->connection, &xcb_xkb_id);
     if (!ext_reply) {
         KFATAL("XKB extension not available on host X11 server.");
         return false;
     }
 
-    // we can now load xcb's extensions (xkb)
+    // We can now load xcb's extensions (xkb)
     xcb_generic_error_t *error;
     xcb_xkb_use_extension_cookie_t use_ext_cookie;
-    xcb_xkb_use_extension_reply_t *use_ext_reply = NULL;
+    xcb_xkb_use_extension_reply_t *use_ext_reply;
     use_ext_cookie = xcb_xkb_use_extension(state_ptr->connection, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
     use_ext_reply = xcb_xkb_use_extension_reply(state_ptr->connection, use_ext_cookie, &error);
     if (!use_ext_reply) {
-        KFATAL("Couldn't load the xcb-xkb extension");
+        KFATAL("Couldn't load the xcb-xkb extension.");
         free(use_ext_reply);
         return false;
     }
@@ -92,15 +93,19 @@ b8 platform_system_startup(
     }
     free(use_ext_reply);
 
-    // we can now deactivate repeat for this app only
+    // We can now deactivate repeat for this app only without affecting the system
     xcb_xkb_per_client_flags_cookie_t pcf_cookie;
     xcb_xkb_per_client_flags_reply_t *pcf_reply;
-
-    pcf_cookie = xcb_xkb_per_client_flags(state_ptr->connection, XCB_XKB_ID_USE_CORE_KBD, XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT, XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT, 0, 0, 0);
+    pcf_cookie = xcb_xkb_per_client_flags(
+            state_ptr->connection,
+            XCB_XKB_ID_USE_CORE_KBD,
+            XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT,
+            XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT,
+            0, 0, 0);
     pcf_reply = xcb_xkb_per_client_flags_reply(state_ptr->connection, pcf_cookie, &error);
     free(pcf_reply);
     if (error) {
-        KERROR("failed to set XCB per-client flags, not using detectable repeat. error code : %u", error->major_code);
+        KERROR("Failed to set XKB per-client flags, not using detectable repeat. error code: %u", error->major_code);
         return false;
     }
 
@@ -108,9 +113,8 @@ b8 platform_system_startup(
     state_ptr->syms = xcb_key_symbols_alloc(state_ptr->connection);
 
     // Get data from the X server
-    const xcb_setup_t* setup = xcb_get_setup(state_ptr->connection);
+    const struct xcb_setup_t* setup = xcb_get_setup(state_ptr->connection);
 
-    // Loop through screens
     state_ptr->screen = xcb_setup_roots_iterator(setup).data;
 
     // Allocate a XID for the window to be created.
@@ -131,13 +135,13 @@ b8 platform_system_startup(
     u32 value_list[] = {state_ptr->screen->black_pixel, event_values};
 
     // Create the window
-    xcb_void_cookie_t cookie = xcb_create_window(
+    xcb_create_window(
         state_ptr->connection,
         XCB_COPY_FROM_PARENT,  // depth
         state_ptr->window,
         state_ptr->screen->root,        // parent
-        x,                              //x
-        y,                              //y
+        (i16)x,                              //x
+        (i16)y,                              //y
         width,                          //width
         height,                         //height
         0,                              // No border
@@ -211,8 +215,6 @@ void platform_system_shutdown(void* plat_state) {
     }
 }
 
-b8 internal_pool_for_event(xcb_generic_event_t **event);
-
 b8 platform_pump_messages() {
     if (state_ptr) {
         xcb_generic_event_t* event;
@@ -220,34 +222,33 @@ b8 platform_pump_messages() {
 
         b8 quit_flagged = false;
 
-        // Poll for events until null is returned.
-        while (internal_pool_for_event(&event)) {
+        // Poll for events until false is returned.
+        while (internal_poll_for_event(&event)) {
             // Input events
             switch (event->response_type & ~0x80) {
-                // while we could group PRESS and RELEASE together it's clearer to separate them
                 case XCB_KEY_PRESS: {
-                    xcb_key_press_event_t *key_event = (xcb_key_press_event_t*)event;
-                    xcb_keysym_t key_sym = xcb_key_symbols_get_keysym(state_ptr->syms, key_event->detail,0);
+                    xcb_key_press_event_t *key_event = (xcb_key_press_event_t *)event;
+                    xcb_keysym_t key_sym = xcb_key_symbols_get_keysym(state_ptr->syms, key_event->detail, 0);
                     input_process_key(translate_keycode(key_sym), true);
                 } break;
                 case XCB_KEY_RELEASE: {
                     xcb_key_release_event_t *key_event = (xcb_key_release_event_t *)event;
-                    xcb_keysym_t key_sym = xcb_key_symbols_get_keysym(state_ptr->syms, key_event->detail,0);
+                    xcb_keysym_t key_sym = xcb_key_symbols_get_keysym(state_ptr->syms, key_event->detail, 0);
                     input_process_key(translate_keycode(key_sym), false);
                 } break;
-                // we need to separate PRESS and RELEASE to handle the wheel event
+                // we need to separate the PRESS and RELEASE events to handle the WHEEL event
                 case XCB_BUTTON_PRESS: {
-                    xcb_button_press_event_t *button_event = (xcb_button_press_event_t*)event;
+                    xcb_button_press_event_t *button_event = (xcb_button_press_event_t *)event;
                     // the wheel event is mapped to button 4 and 5
                     // 4 is down, while 5 is up
                     if (button_event->detail > 3) {
-                        input_process_mouse_wheel(button_event->detail == 4 ? -1 : 1 );
+                        input_process_mouse_wheel(button_event->detail == 4 ? -1 : 1);
                     } else {
                         input_process_button(button_event->detail, true);
                     }
-                } break;
+                }
                 case XCB_BUTTON_RELEASE: {
-                    xcb_button_release_event_t *button_event = (xcb_button_release_event_t*)event;
+                    xcb_button_press_event_t *button_event = (xcb_button_press_event_t *)event;
                     input_process_button(button_event->detail, false);
                 } break;
                 case XCB_MOTION_NOTIFY: {
@@ -279,20 +280,6 @@ b8 platform_pump_messages() {
                     if (cm->data.data32[0] == state_ptr->wm_delete_win) {
                         quit_flagged = true;
                     }
-                } break;
-                case XCB_MAP_NOTIFY: {
-                    // The window just got raised
-                    event_context context;
-                    context.data.u16[0] = 1;
-                    context.data.u16[1] = 1;
-                    event_fire(EVENT_CODE_RAISED, 0, context);
-                } break;
-                case XCB_UNMAP_NOTIFY: {
-                    // The window just got minimized
-                    event_context context;
-                    context.data.u16[0] = 0;
-                    context.data.u16[1] = 0;
-                    event_fire(EVENT_CODE_MINIZED, 0, context);
                 } break;
                 default:
                     // Something else
@@ -381,13 +368,15 @@ b8 platform_create_vulkan_surface(vulkan_context* context) {
     return true;
 }
 
-b8 internal_pool_for_event(xcb_generic_event_t **event) {
+b8 internal_poll_for_event(xcb_generic_event_t **event) {
     if (state_ptr) {
         *event = xcb_poll_for_event(state_ptr->connection);
     }
+
     return (*event != NULL);
 }
 
+// Key translation
 keys translate_keycode(u32 x_keycode) {
     xcb_keysym_t upper = x_keycode;
     if ((x_keycode >> 8) == 0) {
@@ -395,8 +384,250 @@ keys translate_keycode(u32 x_keycode) {
             upper -= (0x0061 - 0x0041);
         }
     }
+    switch (upper) {
+        case 0xff08:
+            return KEY_BACKSPACE;
+        case 0xff0d:
+            return KEY_ENTER;
+        case 0xff09:
+            return KEY_TAB;
+        case 0xff13:
+            return KEY_PAUSE;
+        case 0xffe5:
+            return KEY_CAPITAL;
+        case 0xff1b:
+            return KEY_ESCAPE;
+        case 0xff7e:
+            return KEY_MODECHANGE;
+        case 0x0020:
+            return KEY_SPACE;
+        case 0xff55:
+            return KEY_PRIOR;
+        case 0xff56:
+            return KEY_NEXT;
+        case 0xff57:
+            return KEY_END;
+        case 0xff50:
+            return KEY_HOME;
+        case 0xff51:
+            return KEY_LEFT;
+        case 0xff52:
+            return KEY_UP;
+        case 0xff53:
+            return KEY_RIGHT;
+        case 0xff54:
+            return KEY_DOWN;
+        case 0xff60:
+            return KEY_SELECT;
+        case 0xff61:
+            return KEY_PRINT;
+        case 0xff62:
+            return KEY_EXECUTE;
+        case 0xff63:
+            return KEY_INSERT;
+        case 0xffff:
+            return KEY_DELETE;
+        case 0xff6a:
+            return KEY_HELP;
 
-    return upper;
+        case 0xffeb:
+            return KEY_LWIN;  // TODO: not sure this is right
+        case 0xffec:
+            return KEY_RWIN;
+        case 0xff9e:
+            return KEY_NUMPAD0;
+        case 0xff9c:
+            return KEY_NUMPAD1;
+        case 0xff99:
+            return KEY_NUMPAD2;
+        case 0xff9b:
+            return KEY_NUMPAD3;
+        case 0xff96:
+            return KEY_NUMPAD4;
+        case 0xff9d:
+            return KEY_NUMPAD5;
+        case 0xff98:
+            return KEY_NUMPAD6;
+        case 0xff95:
+            return KEY_NUMPAD7;
+        case 0xff97:
+            return KEY_NUMPAD8;
+        case 0xff9a:
+            return KEY_NUMPAD9;
+        case 0xffaa:
+            return KEY_MULTIPLY;
+        case 0xffab:
+            return KEY_ADD;
+        case 0xffac:
+            return KEY_SEPARATOR;
+        case 0xffad:
+            return KEY_SUBTRACT;
+        case 0xff9f:
+            return KEY_DECIMAL;
+        case 0xffaf:
+            return KEY_DIVIDE;
+        case 0xffbe:
+            return KEY_F1;
+        case 0xffbf:
+            return KEY_F2;
+        case 0xffc0:
+            return KEY_F3;
+        case 0xffc1:
+            return KEY_F4;
+        case 0xffc2:
+            return KEY_F5;
+        case 0xffc3:
+            return KEY_F6;
+        case 0xffc4:
+            return KEY_F7;
+        case 0xffc5:
+            return KEY_F8;
+        case 0xffc6:
+            return KEY_F9;
+        case 0xffc7:
+            return KEY_F10;
+        case 0xffc8:
+            return KEY_F11;
+        case 0xffc9:
+            return KEY_F12;
+        case 0xffca:
+            return KEY_F13;
+        case 0xffcb:
+            return KEY_F14;
+        case 0xffcc:
+            return KEY_F15;
+        case 0xffcd:
+            return KEY_F16;
+        case 0xffce:
+            return KEY_F17;
+        case 0xffcf:
+            return KEY_F18;
+        case 0xffd0:
+            return KEY_F19;
+        case 0xffd1:
+            return KEY_F20;
+        case 0xffd2:
+            return KEY_F21;
+        case 0xffd3:
+            return KEY_F22;
+        case 0xffd4:
+            return KEY_F23;
+        case 0xffd5:
+            return KEY_F24;
+
+        case 0xff7f:
+            return KEY_NUMLOCK;
+        case 0xff14:
+            return KEY_SCROLL;
+
+        case 0xffbd:
+            return KEY_NUMPAD_EQUAL;
+
+        case 0xffe1:
+            return KEY_LSHIFT;
+        case 0xffe2:
+            return KEY_RSHIFT;
+        case 0xffe3:
+            return KEY_LCONTROL;
+        case 0xffe4:
+            return KEY_RCONTROL;
+        case 0xffe9:
+            return KEY_LALT;
+        case 0xfe03:
+            return KEY_RALT;
+
+        case 0x003b:
+            return KEY_SEMICOLON;
+        case 0x002b:
+            return KEY_PLUS;
+        case 0x002c:
+            return KEY_COMMA;
+        case 0x002d:
+            return KEY_MINUS;
+        case 0x002e:
+            return KEY_PERIOD;
+        case 0x002f:
+            return KEY_SLASH;
+        case 0x0060:
+            return KEY_GRAVE;
+
+        case 0x0030:
+            return KEY_0;
+        case 0x0031:
+            return KEY_1;
+        case 0x0032:
+            return KEY_2;
+        case 0x0033:
+            return KEY_3;
+        case 0x0034:
+            return KEY_4;
+        case 0x0035:
+            return KEY_5;
+        case 0x0036:
+            return KEY_6;
+        case 0x0037:
+            return KEY_7;
+        case 0x0038:
+            return KEY_8;
+        case 0x0039:
+            return KEY_9;
+
+        case 0x0041:
+            return KEY_A;
+        case 0x0042:
+            return KEY_B;
+        case 0x0043:
+            return KEY_C;
+        case 0x0044:
+            return KEY_D;
+        case 0x0045:
+            return KEY_E;
+        case 0x0046:
+            return KEY_F;
+        case 0x0047:
+            return KEY_G;
+        case 0x0048:
+            return KEY_H;
+        case 0x0049:
+            return KEY_I;
+        case 0x004a:
+            return KEY_J;
+        case 0x004b:
+            return KEY_K;
+        case 0x004c:
+            return KEY_L;
+        case 0x004d:
+            return KEY_M;
+        case 0x004e:
+            return KEY_N;
+        case 0x004f:
+            return KEY_O;
+        case 0x0050:
+            return KEY_P;
+        case 0x0051:
+            return KEY_Q;
+        case 0x0052:
+            return KEY_R;
+        case 0x0053:
+            return KEY_S;
+        case 0x0054:
+            return KEY_T;
+        case 0x0055:
+            return KEY_U;
+        case 0x0056:
+            return KEY_V;
+        case 0x0057:
+            return KEY_W;
+        case 0x0058:
+            return KEY_X;
+        case 0x0059:
+            return KEY_Y;
+        case 0x005a:
+            return KEY_Z;
+
+        default:
+            return 0;
+    }
 }
 
 #endif

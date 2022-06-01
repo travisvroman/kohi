@@ -1,248 +1,289 @@
+/**
+ * @file input.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief This file contains everything having to do with input on deskop
+ * environments from keyboards and mice. Gamepads and touch controls will
+ * likely be handled separately at a future date.
+ * @version 1.0
+ * @date 2022-01-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * 
+ */
 #pragma once
 
 #include "defines.h"
 
+/**
+ * @brief Represents available mouse buttons.
+ */
 typedef enum buttons {
+    /** @brief The left mouse button */
     BUTTON_LEFT,
+    /** @brief The right mouse button */
     BUTTON_RIGHT,
+    /** @brief The middle mouse button (typically the wheel) */
     BUTTON_MIDDLE,
     BUTTON_MAX_BUTTONS
 } buttons;
 
-#define DEFINE_KEY(name, code) KEY_##name = code
-
+/**
+ * @brief Represents available keyboard keys.
+ */
 typedef enum keys {
-#if KPLATFORM_WINDOWS
-    DEFINE_KEY(BACKSPACE, 0x08),
-    DEFINE_KEY(ENTER, 0x0D),
-    DEFINE_KEY(TAB, 0x09),
-    DEFINE_KEY(SHIFT, 0x10),
-    DEFINE_KEY(CONTROL, 0x11),
+    /** @brief The backspace key. */
+    KEY_BACKSPACE = 0x08,
+    /** @brief The enter key. */
+    KEY_ENTER = 0x0D,
+    /** @brief The tab key. */
+    KEY_TAB = 0x09,
+    /** @brief The shift key. */
+    KEY_SHIFT = 0x10,
+    /** @brief The Control/Ctrl key. */
+    KEY_CONTROL = 0x11,
 
-    DEFINE_KEY(PAUSE, 0x13),
-    DEFINE_KEY(CAPITAL, 0x14),
+    /** @brief The pause key. */
+    KEY_PAUSE = 0x13,
+    /** @brief The Caps Lock key. */
+    KEY_CAPITAL = 0x14,
 
-    DEFINE_KEY(ESCAPE, 0x1B),
+    /** @brief The Escape key. */
+    KEY_ESCAPE = 0x1B,
 
-    DEFINE_KEY(CONVERT, 0x1C),
-    DEFINE_KEY(NONCONVERT, 0x1D),
-    DEFINE_KEY(ACCEPT, 0x1E),
-    DEFINE_KEY(MODECHANGE, 0x1F),
+    KEY_CONVERT = 0x1C,
+    KEY_NONCONVERT = 0x1D,
+    KEY_ACCEPT = 0x1E,
+    KEY_MODECHANGE = 0x1F,
 
-    DEFINE_KEY(SPACE, 0x20),
-    DEFINE_KEY(PRIOR, 0x21),
-    DEFINE_KEY(NEXT, 0x22),
-    DEFINE_KEY(END, 0x23),
-    DEFINE_KEY(HOME, 0x24),
-    DEFINE_KEY(LEFT, 0x25),
-    DEFINE_KEY(UP, 0x26),
-    DEFINE_KEY(RIGHT, 0x27),
-    DEFINE_KEY(DOWN, 0x28),
-    DEFINE_KEY(SELECT, 0x29),
-    DEFINE_KEY(PRINT, 0x2A),
-    DEFINE_KEY(EXECUTE, 0x2B),
-    DEFINE_KEY(SNAPSHOT, 0x2C),
-    DEFINE_KEY(INSERT, 0x2D),
-    DEFINE_KEY(DELETE, 0x2E),
-    DEFINE_KEY(HELP, 0x2F),
+    /** @brief The spacebar key. */
+    KEY_SPACE = 0x20,
+    KEY_PRIOR = 0x21,
+    KEY_NEXT = 0x22,
+    /** @brief The end key. */
+    KEY_END = 0x23,
+    /** @brief The home key. */
+    KEY_HOME = 0x24,
+    /** @brief The left arrow key. */
+    KEY_LEFT = 0x25,
+    /** @brief The up arrow key. */
+    KEY_UP = 0x26,
+    /** @brief The right arrow key. */
+    KEY_RIGHT = 0x27,
+    /** @brief The down arrow key. */
+    KEY_DOWN = 0x28,
+    KEY_SELECT = 0x29,
+    KEY_PRINT = 0x2A,
+    KEY_EXECUTE = 0x2B,
+    KEY_SNAPSHOT = 0x2C,
+    /** @brief The insert key. */
+    KEY_INSERT = 0x2D,
+    /** @brief The delete key. */
+    KEY_DELETE = 0x2E,
+    KEY_HELP = 0x2F,
 
-    DEFINE_KEY(A, 0x41),
-    DEFINE_KEY(B, 0x42),
-    DEFINE_KEY(C, 0x43),
-    DEFINE_KEY(D, 0x44),
-    DEFINE_KEY(E, 0x45),
-    DEFINE_KEY(F, 0x46),
-    DEFINE_KEY(G, 0x47),
-    DEFINE_KEY(H, 0x48),
-    DEFINE_KEY(I, 0x49),
-    DEFINE_KEY(J, 0x4A),
-    DEFINE_KEY(K, 0x4B),
-    DEFINE_KEY(L, 0x4C),
-    DEFINE_KEY(M, 0x4D),
-    DEFINE_KEY(N, 0x4E),
-    DEFINE_KEY(O, 0x4F),
-    DEFINE_KEY(P, 0x50),
-    DEFINE_KEY(Q, 0x51),
-    DEFINE_KEY(R, 0x52),
-    DEFINE_KEY(S, 0x53),
-    DEFINE_KEY(T, 0x54),
-    DEFINE_KEY(U, 0x55),
-    DEFINE_KEY(V, 0x56),
-    DEFINE_KEY(W, 0x57),
-    DEFINE_KEY(X, 0x58),
-    DEFINE_KEY(Y, 0x59),
-    DEFINE_KEY(Z, 0x5A),
+    /** @brief The 0 key */
+    KEY_0 = 0x30,
+    /** @brief The 1 key */
+    KEY_1 = 0x31,
+    /** @brief The 2 key */
+    KEY_2 = 0x32,
+    /** @brief The 3 key */
+    KEY_3 = 0x33,
+    /** @brief The 4 key */
+    KEY_4 = 0x34,
+    /** @brief The 5 key */
+    KEY_5 = 0x35,
+    /** @brief The 6 key */
+    KEY_6 = 0x36,
+    /** @brief The 7 key */
+    KEY_7 = 0x37,
+    /** @brief The 8 key */
+    KEY_8 = 0x38,
+    /** @brief The 9 key */
+    KEY_9 = 0x39,
 
-    DEFINE_KEY(LWIN, 0x5B),
-    DEFINE_KEY(RWIN, 0x5C),
-    DEFINE_KEY(APPS, 0x5D),
+    /** @brief The A key. */
+    KEY_A = 0x41,
+    /** @brief The B key. */
+    KEY_B = 0x42,
+    /** @brief The C key. */
+    KEY_C = 0x43,
+    /** @brief The D key. */
+    KEY_D = 0x44,
+    /** @brief The E key. */
+    KEY_E = 0x45,
+    /** @brief The F key. */
+    KEY_F = 0x46,
+    /** @brief The G key. */
+    KEY_G = 0x47,
+    /** @brief The H key. */
+    KEY_H = 0x48,
+    /** @brief The I key. */
+    KEY_I = 0x49,
+    /** @brief The J key. */
+    KEY_J = 0x4A,
+    /** @brief The K key. */
+    KEY_K = 0x4B,
+    /** @brief The L key. */
+    KEY_L = 0x4C,
+    /** @brief The M key. */
+    KEY_M = 0x4D,
+    /** @brief The N key. */
+    KEY_N = 0x4E,
+    /** @brief The O key. */
+    KEY_O = 0x4F,
+    /** @brief The P key. */
+    KEY_P = 0x50,
+    /** @brief The Q key. */
+    KEY_Q = 0x51,
+    /** @brief The R key. */
+    KEY_R = 0x52,
+    /** @brief The S key. */
+    KEY_S = 0x53,
+    /** @brief The T key. */
+    KEY_T = 0x54,
+    /** @brief The U key. */
+    KEY_U = 0x55,
+    /** @brief The V key. */
+    KEY_V = 0x56,
+    /** @brief The W key. */
+    KEY_W = 0x57,
+    /** @brief The X key. */
+    KEY_X = 0x58,
+    /** @brief The Y key. */
+    KEY_Y = 0x59,
+    /** @brief The Z key. */
+    KEY_Z = 0x5A,
 
-    DEFINE_KEY(SLEEP, 0x5F),
+    /** @brief The left Windows/Super key. */
+    KEY_LWIN = 0x5B,
+    /** @brief The right Windows/Super key. */
+    KEY_RWIN = 0x5C,
+    KEY_APPS = 0x5D,
 
-    DEFINE_KEY(NUMPAD0, 0x60),
-    DEFINE_KEY(NUMPAD1, 0x61),
-    DEFINE_KEY(NUMPAD2, 0x62),
-    DEFINE_KEY(NUMPAD3, 0x63),
-    DEFINE_KEY(NUMPAD4, 0x64),
-    DEFINE_KEY(NUMPAD5, 0x65),
-    DEFINE_KEY(NUMPAD6, 0x66),
-    DEFINE_KEY(NUMPAD7, 0x67),
-    DEFINE_KEY(NUMPAD8, 0x68),
-    DEFINE_KEY(NUMPAD9, 0x69),
-    DEFINE_KEY(MULTIPLY, 0x6A),
-    DEFINE_KEY(ADD, 0x6B),
-    DEFINE_KEY(SEPARATOR, 0x6C),
-    DEFINE_KEY(SUBTRACT, 0x6D),
-    DEFINE_KEY(DECIMAL, 0x6E),
-    DEFINE_KEY(DIVIDE, 0x6F),
-    DEFINE_KEY(F1, 0x70),
-    DEFINE_KEY(F2, 0x71),
-    DEFINE_KEY(F3, 0x72),
-    DEFINE_KEY(F4, 0x73),
-    DEFINE_KEY(F5, 0x74),
-    DEFINE_KEY(F6, 0x75),
-    DEFINE_KEY(F7, 0x76),
-    DEFINE_KEY(F8, 0x77),
-    DEFINE_KEY(F9, 0x78),
-    DEFINE_KEY(F10, 0x79),
-    DEFINE_KEY(F11, 0x7A),
-    DEFINE_KEY(F12, 0x7B),
-    DEFINE_KEY(F13, 0x7C),
-    DEFINE_KEY(F14, 0x7D),
-    DEFINE_KEY(F15, 0x7E),
-    DEFINE_KEY(F16, 0x7F),
-    DEFINE_KEY(F17, 0x80),
-    DEFINE_KEY(F18, 0x81),
-    DEFINE_KEY(F19, 0x82),
-    DEFINE_KEY(F20, 0x83),
-    DEFINE_KEY(F21, 0x84),
-    DEFINE_KEY(F22, 0x85),
-    DEFINE_KEY(F23, 0x86),
-    DEFINE_KEY(F24, 0x87),
+    /** @brief The sleep key. */
+    KEY_SLEEP = 0x5F,
 
-    DEFINE_KEY(NUMLOCK, 0x90),
-    DEFINE_KEY(SCROLL, 0x91),
+    /** @brief The numberpad 0 key. */
+    KEY_NUMPAD0 = 0x60,
+    /** @brief The numberpad 1 key. */
+    KEY_NUMPAD1 = 0x61,
+    /** @brief The numberpad 2 key. */
+    KEY_NUMPAD2 = 0x62,
+    /** @brief The numberpad 3 key. */
+    KEY_NUMPAD3 = 0x63,
+    /** @brief The numberpad 4 key. */
+    KEY_NUMPAD4 = 0x64,
+    /** @brief The numberpad 5 key. */
+    KEY_NUMPAD5 = 0x65,
+    /** @brief The numberpad 6 key. */
+    KEY_NUMPAD6 = 0x66,
+    /** @brief The numberpad 7 key. */
+    KEY_NUMPAD7 = 0x67,
+    /** @brief The numberpad 8 key. */
+    KEY_NUMPAD8 = 0x68,
+    /** @brief The numberpad 9 key. */
+    KEY_NUMPAD9 = 0x69,
+    /** @brief The numberpad multiply key. */
+    KEY_MULTIPLY = 0x6A,
+    /** @brief The numberpad add key. */
+    KEY_ADD = 0x6B,
+    /** @brief The numberpad separator key. */
+    KEY_SEPARATOR = 0x6C,
+    /** @brief The numberpad subtract key. */
+    KEY_SUBTRACT = 0x6D,
+    /** @brief The numberpad decimal key. */
+    KEY_DECIMAL = 0x6E,
+    /** @brief The numberpad divide key. */
+    KEY_DIVIDE = 0x6F,
 
-    DEFINE_KEY(NUMPAD_EQUAL, 0x92),
+    /** @brief The F1 key. */
+    KEY_F1 = 0x70,
+    /** @brief The F2 key. */
+    KEY_F2 = 0x71,
+    /** @brief The F3 key. */
+    KEY_F3 = 0x72,
+    /** @brief The F4 key. */
+    KEY_F4 = 0x73,
+    /** @brief The F5 key. */
+    KEY_F5 = 0x74,
+    /** @brief The F6 key. */
+    KEY_F6 = 0x75,
+    /** @brief The F7 key. */
+    KEY_F7 = 0x76,
+    /** @brief The F8 key. */
+    KEY_F8 = 0x77,
+    /** @brief The F9 key. */
+    KEY_F9 = 0x78,
+    /** @brief The F10 key. */
+    KEY_F10 = 0x79,
+    /** @brief The F11 key. */
+    KEY_F11 = 0x7A,
+    /** @brief The F12 key. */
+    KEY_F12 = 0x7B,
+    /** @brief The F13 key. */
+    KEY_F13 = 0x7C,
+    /** @brief The F14 key. */
+    KEY_F14 = 0x7D,
+    /** @brief The F15 key. */
+    KEY_F15 = 0x7E,
+    /** @brief The F16 key. */
+    KEY_F16 = 0x7F,
+    /** @brief The F17 key. */
+    KEY_F17 = 0x80,
+    /** @brief The F18 key. */
+    KEY_F18 = 0x81,
+    /** @brief The F19 key. */
+    KEY_F19 = 0x82,
+    /** @brief The F20 key. */
+    KEY_F20 = 0x83,
+    /** @brief The F21 key. */
+    KEY_F21 = 0x84,
+    /** @brief The F22 key. */
+    KEY_F22 = 0x85,
+    /** @brief The F23 key. */
+    KEY_F23 = 0x86,
+    /** @brief The F24 key. */
+    KEY_F24 = 0x87,
 
-    DEFINE_KEY(LSHIFT, 0xA0),
-    DEFINE_KEY(RSHIFT, 0xA1),
-    DEFINE_KEY(LCONTROL, 0xA2),
-    DEFINE_KEY(RCONTROL, 0xA3),
-    DEFINE_KEY(LALT, 0xA4),
-    DEFINE_KEY(RALT, 0xA5),
+    /** @brief The number lock key. */
+    KEY_NUMLOCK = 0x90,
 
-    DEFINE_KEY(SEMICOLON, 0xBA),
-    DEFINE_KEY(PLUS, 0xBB),
-    DEFINE_KEY(COMMA, 0xBC),
-    DEFINE_KEY(MINUS, 0xBD),
-    DEFINE_KEY(PERIOD, 0xBE),
-    DEFINE_KEY(SLASH, 0xBF),
-    DEFINE_KEY(GRAVE, 0xC0),
-#elif KPLATFORM_LINUX
-    DEFINE_KEY(SPACE, 0x0020),
-    DEFINE_KEY(HASH, 0x0023),
-    DEFINE_KEY(APOS, 0x0027),
-    DEFINE_KEY(COMMA, 0x002c),
-    DEFINE_KEY(MINUS, 0x002d),
-    DEFINE_KEY(PERIOD, 0x002e),
-    DEFINE_KEY(SLASH, 0x002f),
-    DEFINE_KEY(0, 0x0030),
-    DEFINE_KEY(1, 0x0031),
-    DEFINE_KEY(2, 0x0032),
-    DEFINE_KEY(3, 0x0033),
-    DEFINE_KEY(4, 0x0034),
-    DEFINE_KEY(5, 0x0035),
-    DEFINE_KEY(6, 0x0036),
-    DEFINE_KEY(7, 0x0037),
-    DEFINE_KEY(8, 0x0038),
-    DEFINE_KEY(9, 0x0039),
-    DEFINE_KEY(SEMICOLON, 0x003b),
-    DEFINE_KEY(EQUAL, 0x003d),
-    DEFINE_KEY(A, 0x0041),
-    DEFINE_KEY(B, 0x0042),
-    DEFINE_KEY(C, 0x0043),
-    DEFINE_KEY(D, 0x0044),
-    DEFINE_KEY(E, 0x0045),
-    DEFINE_KEY(F, 0x0046),
-    DEFINE_KEY(G, 0x0047),
-    DEFINE_KEY(H, 0x0048),
-    DEFINE_KEY(I, 0x0049),
-    DEFINE_KEY(J, 0x004a),
-    DEFINE_KEY(K, 0x004b),
-    DEFINE_KEY(L, 0x004c),
-    DEFINE_KEY(M, 0x004d),
-    DEFINE_KEY(N, 0x004e),
-    DEFINE_KEY(O, 0x004f),
-    DEFINE_KEY(P, 0x0050),
-    DEFINE_KEY(Q, 0x0051),
-    DEFINE_KEY(R, 0x0052),
-    DEFINE_KEY(S, 0x0053),
-    DEFINE_KEY(T, 0x0054),
-    DEFINE_KEY(U, 0x0055),
-    DEFINE_KEY(V, 0x0056),
-    DEFINE_KEY(W, 0x0057),
-    DEFINE_KEY(X, 0x0058),
-    DEFINE_KEY(Y, 0x0059),
-    DEFINE_KEY(Z, 0x005a),
-    DEFINE_KEY(LBRACKET, 0x005b),
-    DEFINE_KEY(BSLASH, 0x005c),
-    DEFINE_KEY(RBRACKET, 0x005d),
-    DEFINE_KEY(GRAVE, 0x0060),
-    DEFINE_KEY(BACKSPACE, 0xff08),
-    DEFINE_KEY(TAB, 0xff09),
-    DEFINE_KEY(ENTER, 0xff0d),
-    DEFINE_KEY(PAUSE, 0xff13),
-    DEFINE_KEY(SCROLL, 0xff14),
-    DEFINE_KEY(ESCAPE, 0xff1b),
-    DEFINE_KEY(HOME, 0xff50),
-    DEFINE_KEY(LEFT, 0xff51),
-    DEFINE_KEY(UP, 0xff52),
-    DEFINE_KEY(RIGHT, 0xff53),
-    DEFINE_KEY(DOWN, 0xff54),
-    DEFINE_KEY(PAGEUP, 0xff55),
-    DEFINE_KEY(PAGEDOWN, 0xff56),
-    DEFINE_KEY(END, 0xff57),
-    DEFINE_KEY(PRINT, 0xff61),
-    DEFINE_KEY(INSERT, 0xff63),
-    DEFINE_KEY(NUMLOCK, 0xff7f),
-    DEFINE_KEY(KP_ENTER, 0xff8d),
-    DEFINE_KEY(KP_7, 0xff95),
-    DEFINE_KEY(KP_4, 0xff96),
-    DEFINE_KEY(KP_8, 0xff97),
-    DEFINE_KEY(KP_6, 0xff98),
-    DEFINE_KEY(KP_2, 0xff99),
-    DEFINE_KEY(KP_9, 0xff9a),
-    DEFINE_KEY(KP_3, 0xff9b),
-    DEFINE_KEY(KP_1, 0xff9c),
-    DEFINE_KEY(KP_5, 0xff9d),
-    DEFINE_KEY(KP_0, 0xff9e),
-    DEFINE_KEY(KP_DECIMAL, 0xff9f ),
-    DEFINE_KEY(KP_MULTIPLY, 0xffaa),
-    DEFINE_KEY(KP_ADD, 0xffab),
-    DEFINE_KEY(KP_SUBTRACT, 0xffad),
-    DEFINE_KEY(KP_DIVIDE, 0xffaf),
-    DEFINE_KEY(F1, 0xffbe),
-    DEFINE_KEY(F2, 0xffbf),
-    DEFINE_KEY(F3, 0xffc0),
-    DEFINE_KEY(F4, 0xffc1),
-    DEFINE_KEY(F5, 0xffc2),
-    DEFINE_KEY(F6, 0xffc3),
-    DEFINE_KEY(F7, 0xffc4),
-    DEFINE_KEY(F8, 0xffc5),
-    DEFINE_KEY(F9, 0xffc6),
-    DEFINE_KEY(F10, 0xffc7),
-    DEFINE_KEY(F11, 0xffc8),
-    DEFINE_KEY(F12, 0xffc9),
-    DEFINE_KEY(LSHIFT, 0xffe1),
-    DEFINE_KEY(RSHIFT, 0xffe2),
-    DEFINE_KEY(LCONTROL, 0xffe3),
-    DEFINE_KEY(RCONTROL, 0xffe4),
-    DEFINE_KEY(CAPSLOCK, 0xffe5),
-    DEFINE_KEY(LALT, 0xffe9),
-    DEFINE_KEY(RALT, 0xfe03),
-    DEFINE_KEY(DELETE, 0xffff),
-#endif
+    /** @brief The scroll lock key. */
+    KEY_SCROLL = 0x91,
+
+    /** @brief The numberpad equal key. */
+    KEY_NUMPAD_EQUAL = 0x92,
+
+    /** @brief The left shift key. */
+    KEY_LSHIFT = 0xA0,
+    /** @brief The right shift key. */
+    KEY_RSHIFT = 0xA1,
+    /** @brief The left control key. */
+    KEY_LCONTROL = 0xA2,
+    /** @brief The right control key. */
+    KEY_RCONTROL = 0xA3,
+    /** @brief The left alt key. */
+    KEY_LALT = 0xA4,
+    /** @brief The right alt key. */
+    KEY_RALT = 0xA5,
+
+    /** @brief The semicolon key. */
+    KEY_SEMICOLON = 0xBA,
+    /** @brief The plus key. */
+    KEY_PLUS = 0xBB,
+    /** @brief The comma key. */
+    KEY_COMMA = 0xBC,
+    /** @brief The minus key. */
+    KEY_MINUS = 0xBD,
+    /** @brief The period key. */
+    KEY_PERIOD = 0xBE,
+    /** @brief The slash key. */
+    KEY_SLASH = 0xBF,
+
+    /** @brief The grave key. */
+    KEY_GRAVE = 0xC0,
+
     KEYS_MAX_KEYS
 } keys;
 
@@ -254,25 +295,115 @@ typedef enum keys {
  * @param state Either 0 or the allocated block of state memory.
  */
 void input_system_initialize(u64* memory_requirement, void* state);
+
+/**
+ * @brief Shuts the input system down.
+ * @param state A pointer to the system state.
+ */
 void input_system_shutdown(void* state);
+
+/**
+ * @brief Updates the input system every frame.
+ * @param delta_time The delta time in seconds since the last frame.
+ */
 void input_update(f64 delta_time);
 
 // keyboard input
+
+/**
+ * @brief Indicates if the given key is currently pressed down.
+ * @param key They key to be checked.
+ * @returns True if currently pressed; otherwise false.
+ */
 KAPI b8 input_is_key_down(keys key);
+
+/**
+ * @brief Indicates if the given key is NOT currently pressed down.
+ * @param key They key to be checked.
+ * @returns True if currently released; otherwise false.
+ */
 KAPI b8 input_is_key_up(keys key);
+
+/**
+ * @brief Indicates if the given key was previously pressed down on the last frame.
+ * @param key They key to be checked.
+ * @returns True if was previously pressed; otherwise false.
+ */
 KAPI b8 input_was_key_down(keys key);
+
+/**
+ * @brief Indicates if the given key was previously pressed down in the last frame.
+ * @param key They key to be checked.
+ * @returns True if previously released; otherwise false.
+ */
 KAPI b8 input_was_key_up(keys key);
 
+/**
+ * @brief Sets the state for the given key.
+ * @param key The key to be processed.
+ * @param pressed Indicates whether the key is currently pressed.
+ */
 void input_process_key(keys key, b8 pressed);
 
 // mouse input
+
+/**
+ * @brief Indicates if the given mouse button is currently pressed.
+ * @param button The button to check.
+ * @returns True if currently pressed; otherwise false.
+ */
 KAPI b8 input_is_button_down(buttons button);
+
+/**
+ * @brief Indicates if the given mouse button is currently released.
+ * @param button The button to check.
+ * @returns True if currently released; otherwise false.
+ */
 KAPI b8 input_is_button_up(buttons button);
+
+/**
+ * @brief Indicates if the given mouse button was previously pressed in the last frame.
+ * @param button The button to check.
+ * @returns True if previously pressed; otherwise false.
+ */
 KAPI b8 input_was_button_down(buttons button);
+
+/**
+ * @brief Indicates if the given mouse button was previously released in the last frame.
+ * @param button The button to check.
+ * @returns True if previously released; otherwise false.
+ */
 KAPI b8 input_was_button_up(buttons button);
+
+/** 
+ * @brief Obtains the current mouse position.
+ * @param x A pointer to hold the current mouse position on the x-axis.
+ * @param y A pointer to hold the current mouse position on the y-axis.
+ */
 KAPI void input_get_mouse_position(i32* x, i32* y);
+
+/** 
+ * @brief Obtains the previous mouse position.
+ * @param x A pointer to hold the previous mouse position on the x-axis.
+ * @param y A pointer to hold the previous mouse position on the y-axis.
+ */
 KAPI void input_get_previous_mouse_position(i32* x, i32* y);
 
+/**
+ * @brief Sets the press state of the given mouse button.
+ * @param button The mouse button whose state to set.
+ * @param pressed Indicates if the mouse button is currently pressed.
+ */
 void input_process_button(buttons button, b8 pressed);
+
+/**
+ * @brief Sets the current position of the mouse to the given x and y positions.
+ * Also updates the previous position beforehand.
+ */
 void input_process_mouse_move(i16 x, i16 y);
+
+/**
+ * @brief Processes mouse wheel scrolling.
+ * @param z_delta The amount of scrolling which occurred on the z axis (mouse wheel)
+ */
 void input_process_mouse_wheel(i8 z_delta);
