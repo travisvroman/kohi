@@ -93,6 +93,9 @@
             "linux": {
                 "command": "${workspaceFolder}/clean-all.sh",
             },
+            "osx": {
+                "command": "${workspaceFolder}/clean-all-macos.sh",
+            },
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -105,6 +108,9 @@
                 "command": "${workspaceFolder}/post-build.bat",
             },
             "linux": {
+                "command": "${workspaceFolder}/post-build.sh",
+            },
+            "osx": {
                 "command": "${workspaceFolder}/post-build.sh",
             },
             "options": {

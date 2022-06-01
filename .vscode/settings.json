@@ -4,10 +4,9 @@
     "editor.minimap.enabled": false,
     "terminal.integrated.shell.windows": "c:/Program Files/PowerShell/7/pwsh.exe",
     "terminal.integrated.fontWeight": "1",
-    "editor.fontFamily": "Liberation Mono",
     "editor.fontSize": 16,
     "editor.fontWeight": "1",
-    "workbench.editor.showTabs": false,
+    "workbench.editor.showTabs": true,
     "workbench.activityBar.visible": true,
     "workbench.colorCustomizations": {
         "editorCursor.foreground": "#00ff33",
@@ -30,22 +29,25 @@
         {
             "text": "TODO:",
             "color": "red",
-            "backgroundColor": "rgba(0,0,0,0)"
+            "backgroundColor": "rgba(0,0,0,0)",
+            "overviewRulerColor": "rgba(0,0,0,0)"
         },
         {
             "text": "HACK:",
             "color": "#ff6600",
-            "backgroundColor": "rgba(0,0,0,0)"
+            "backgroundColor": "rgba(0,0,0,0)",
+            "overviewRulerColor": "rgba(0,0,0,0)"
         },
         {
             "text": "NOTE:",
             "color": "green",
-            "backgroundColor": "rgba(0,0,0,0)"
+            "backgroundColor": "rgba(0,0,0,0)",
+            "overviewRulerColor": "rgba(0,0,0,0)"
         }
     ],
     "todohighlight.defaultStyle": {
         "color": "red",
-        "backgroundColor": "#ffab00",
+        //"backgroundColor": "#ffab00",
         "overviewRulerColor": "rgba(0,0,0,0)",
         "isWholeLine": false,
     },
@@ -67,6 +69,44 @@
         "vulkan_types.inl": "c",
         "clock.h": "c",
         "kstring.h": "c",
-        "logger.h": "c"
-    }
+        "logger.h": "c",
+        "stb_image.h": "c",
+        "vector": "c",
+        "xstring": "c",
+        "xutility": "c",
+        "iterator": "c",
+        "initializer_list": "c",
+        "loader_utils.h": "c",
+        "kmath.h": "c",
+        "random": "c",
+        "string_view": "c",
+        "limits": "c",
+        "sstream": "c",
+        "filesystem.h": "c",
+        "atomic": "c",
+        "*.tcc": "c",
+        "iomanip": "c",
+        "istream": "c",
+        "ostream": "c"
+    },
+    // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
+    "doxdocgen.file.copyrightTag": [
+        "@copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-{year}"
+    ],
+    "doxdocgen.file.versionTag": "@version 1.0",
+    "doxdocgen.generic.authorEmail": "travis@kohiengine.com",
+    "doxdocgen.generic.authorName": "Travis Vroman",
+    "doxdocgen.generic.authorTag": "@author {author} ({email})",
+    // The order to use for the file comment. Values can be used multiple times. Valid values are shown in default setting.
+    "doxdocgen.file.fileOrder": [
+        "file",
+        "author",
+        "brief",
+        "version",
+        "date",
+        "empty",
+        "copyright",
+        "empty",
+        "custom"
+    ],
 }

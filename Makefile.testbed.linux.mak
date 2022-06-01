@@ -35,8 +35,8 @@ compile: #compile .c files
 
 .PHONY: clean
 clean: # clean build directory
-	rm -rf $(BUILD_DIR)\$(ASSEMBLY)
-	rm -rf $(OBJ_DIR)\$(ASSEMBLY)
+	rm -rf $(BUILD_DIR)/$(ASSEMBLY)
+	rm -rf $(OBJ_DIR)/$(ASSEMBLY)
 
 $(OBJ_DIR)/%.c.o: %.c # compile .c to .o object
 	@echo   $<...

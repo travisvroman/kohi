@@ -10,8 +10,15 @@
 #include "containers/darray.h"
 
 #include <xcb/xcb.h>
+<<<<<<< HEAD
 #include <xcb/xcb_keysyms.h>
 #include <xcb/xkb.h>
+=======
+#include <X11/keysym.h>
+#include <X11/XKBlib.h>  // sudo apt-get install libx11-dev
+#include <X11/Xlib.h>
+#include <X11/Xlib-xcb.h>  // sudo apt-get install libxkbcommon-x11-dev libx11-xcb-dev
+>>>>>>> upstream/main
 #include <sys/time.h>
 
 #if _POSIX_C_SOURCE >= 199309L
@@ -222,6 +229,7 @@ b8 platform_pump_messages() {
 
         b8 quit_flagged = false;
 
+<<<<<<< HEAD
         // Poll for events until false is returned.
         while (internal_poll_for_event(&event)) {
             // Input events
@@ -230,6 +238,28 @@ b8 platform_pump_messages() {
                     xcb_key_press_event_t *key_event = (xcb_key_press_event_t *)event;
                     xcb_keysym_t key_sym = xcb_key_symbols_get_keysym(state_ptr->syms, key_event->detail, 0);
                     input_process_key(translate_keycode(key_sym), true);
+=======
+        // Poll for events until null is returned.
+        while ((event = xcb_poll_for_event(state_ptr->connection))) {
+            // Input events
+            switch (event->response_type & ~0x80) {
+                case XCB_KEY_PRESS:
+                case XCB_KEY_RELEASE: {
+                    // Key press event - xcb_key_press_event_t and xcb_key_release_event_t are the same
+                    xcb_key_press_event_t* kb_event = (xcb_key_press_event_t*)event;
+                    b8 pressed = event->response_type == XCB_KEY_PRESS;
+                    xcb_keycode_t code = kb_event->detail;
+                    KeySym key_sym = XkbKeycodeToKeysym(
+                        state_ptr->display,
+                        (KeyCode)code,  //event.xkey.keycode,
+                        0,
+                        0 /*code & ShiftMask ? 1 : 0*/);
+
+                    keys key = translate_keycode(key_sym);
+
+                    // Pass to the input subsystem for processing.
+                    input_process_key(key, pressed);
+>>>>>>> upstream/main
                 } break;
                 case XCB_KEY_RELEASE: {
                     xcb_key_release_event_t *key_event = (xcb_key_release_event_t *)event;
@@ -551,6 +581,7 @@ keys translate_keycode(u32 x_keycode) {
         case 0x0060:
             return KEY_GRAVE;
 
+<<<<<<< HEAD
         case 0x0030:
             return KEY_0;
         case 0x0031:
@@ -573,6 +604,31 @@ keys translate_keycode(u32 x_keycode) {
             return KEY_9;
 
         case 0x0041:
+=======
+        case XK_0:
+            return KEY_0;
+        case XK_1:
+            return KEY_1;
+        case XK_2:
+            return KEY_2;
+        case XK_3:
+            return KEY_3;
+        case XK_4:
+            return KEY_4;
+        case XK_5:
+            return KEY_5;
+        case XK_6:
+            return KEY_6;
+        case XK_7:
+            return KEY_7;
+        case XK_8:
+            return KEY_8;
+        case XK_9:
+            return KEY_9;
+
+        case XK_a:
+        case XK_A:
+>>>>>>> upstream/main
             return KEY_A;
         case 0x0042:
             return KEY_B;
