@@ -504,13 +504,9 @@ b8 application_run() {
     event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, application_on_event);
     event_unregister(EVENT_CODE_KEY_PRESSED, 0, application_on_key);
     event_unregister(EVENT_CODE_KEY_RELEASED, 0, application_on_key);
-<<<<<<< HEAD
-    event_unregister(EVENT_CODE_RESIZED, 0, application_on_resized);
-=======
     // TODO: temp
     event_unregister(EVENT_CODE_DEBUG0, 0, event_on_debug_event);
     // TODO: end temp
->>>>>>> upstream/main
 
     input_system_shutdown(app_state->input_system_state);
 

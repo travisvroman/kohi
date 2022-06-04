@@ -10,15 +10,8 @@
 #include "containers/darray.h"
 
 #include <xcb/xcb.h>
-<<<<<<< HEAD
 #include <xcb/xcb_keysyms.h>
 #include <xcb/xkb.h>
-=======
-#include <X11/keysym.h>
-#include <X11/XKBlib.h>  // sudo apt-get install libx11-dev
-#include <X11/Xlib.h>
-#include <X11/Xlib-xcb.h>  // sudo apt-get install libxkbcommon-x11-dev libx11-xcb-dev
->>>>>>> upstream/main
 #include <sys/time.h>
 
 #if _POSIX_C_SOURCE >= 199309L
@@ -35,6 +28,134 @@
 #define VK_USE_PLATFORM_XCB_KHR
 #include <vulkan/vulkan.h>
 #include "renderer/vulkan/vulkan_types.inl"
+
+#define MAX_KEY_LOOKUP 232
+
+static const u32 key_lookup_table[MAX_KEY_LOOKUP] = {
+        0xff08, KEY_BACKSPACE,
+        0xff0d, KEY_ENTER,
+        0xff09, KEY_TAB,
+        0xff13, KEY_PAUSE,
+        0xffe5, KEY_CAPITAL,
+        0xff1b, KEY_ESCAPE,
+        0xff7e, KEY_MODECHANGE,
+        0x0020, KEY_SPACE,
+        0xff55, KEY_PRIOR,
+        0xff56, KEY_NEXT,
+        0xff57, KEY_END,
+        0xff50, KEY_HOME,
+        0xff51, KEY_LEFT,
+        0xff52, KEY_UP,
+        0xff53, KEY_RIGHT,
+        0xff54, KEY_DOWN,
+        0xff60, KEY_SELECT,
+        0xff61, KEY_PRINT,
+        0xff62, KEY_EXECUTE,
+        0xff63, KEY_INSERT,
+        0xffff, KEY_DELETE,
+        0xff6a, KEY_HELP,
+
+        0xffeb, KEY_LWIN,  // TODO: not sure this is right
+        0xffec, KEY_RWIN,
+        0xff9e, KEY_NUMPAD0,
+        0xff9c, KEY_NUMPAD1,
+        0xff99, KEY_NUMPAD2,
+        0xff9b, KEY_NUMPAD3,
+        0xff96, KEY_NUMPAD4,
+        0xff9d, KEY_NUMPAD5,
+        0xff98, KEY_NUMPAD6,
+        0xff95, KEY_NUMPAD7,
+        0xff97, KEY_NUMPAD8,
+        0xff9a, KEY_NUMPAD9,
+        0xffaa, KEY_MULTIPLY,
+        0xffab, KEY_ADD,
+        0xffac, KEY_SEPARATOR,
+        0xffad, KEY_SUBTRACT,
+        0xff9f, KEY_DECIMAL,
+        0xffaf, KEY_DIVIDE,
+        0xffbe, KEY_F1,
+        0xffbf, KEY_F2,
+        0xffc0, KEY_F3,
+        0xffc1, KEY_F4,
+        0xffc2, KEY_F5,
+        0xffc3, KEY_F6,
+        0xffc4, KEY_F7,
+        0xffc5, KEY_F8,
+        0xffc6, KEY_F9,
+        0xffc7, KEY_F10,
+        0xffc8, KEY_F11,
+        0xffc9, KEY_F12,
+        0xffca, KEY_F13,
+        0xffcb, KEY_F14,
+        0xffcc, KEY_F15,
+        0xffcd, KEY_F16,
+        0xffce, KEY_F17,
+        0xffcf, KEY_F18,
+        0xffd0, KEY_F19,
+        0xffd1, KEY_F20,
+        0xffd2, KEY_F21,
+        0xffd3, KEY_F22,
+        0xffd4, KEY_F23,
+        0xffd5, KEY_F24,
+
+        0xff7f, KEY_NUMLOCK,
+        0xff14, KEY_SCROLL,
+
+        0xffbd, KEY_NUMPAD_EQUAL,
+
+        0xffe1, KEY_LSHIFT,
+        0xffe2, KEY_RSHIFT,
+        0xffe3, KEY_LCONTROL,
+        0xffe4, KEY_RCONTROL,
+        0xffe9, KEY_LALT,
+        0xfe03, KEY_RALT,
+
+        0x003b, KEY_SEMICOLON,
+        0x002b, KEY_PLUS,
+        0x002c, KEY_COMMA,
+        0x002d, KEY_MINUS,
+        0x002e, KEY_PERIOD,
+        0x002f, KEY_SLASH,
+        0x0060, KEY_GRAVE,
+
+        0x0030, KEY_0,
+        0x0031, KEY_1,
+        0x0032, KEY_2,
+        0x0033, KEY_3,
+        0x0034, KEY_4,
+        0x0035, KEY_5,
+        0x0036, KEY_6,
+        0x0037, KEY_7,
+        0x0038, KEY_8,
+        0x0039, KEY_9,
+
+        0x0041, KEY_A,
+        0x0042, KEY_B,
+        0x0043, KEY_C,
+        0x0044, KEY_D,
+        0x0045, KEY_E,
+        0x0046, KEY_F,
+        0x0047, KEY_G,
+        0x0048, KEY_H,
+        0x0049, KEY_I,
+        0x004a, KEY_J,
+        0x004b, KEY_K,
+        0x004c, KEY_L,
+        0x004d, KEY_M,
+        0x004e, KEY_N,
+        0x004f, KEY_O,
+        0x0050, KEY_P,
+        0x0051, KEY_Q,
+        0x0052, KEY_R,
+        0x0053, KEY_S,
+        0x0054, KEY_T,
+        0x0055, KEY_U,
+        0x0056, KEY_V,
+        0x0057, KEY_W,
+        0x0058, KEY_X,
+        0x0059, KEY_Y,
+        0x005a, KEY_Z
+};
 
 typedef struct platform_state {
     xcb_connection_t* connection;
@@ -170,36 +291,38 @@ b8 platform_system_startup(
 
     // Tell the server to notify when the window manager
     // attempts to destroy the window.
-    xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(
+    xcb_intern_atom_cookie_t wm_cookie = xcb_intern_atom(
         state_ptr->connection,
         0,
         strlen("WM_DELETE_WINDOW"),
         "WM_DELETE_WINDOW");
-    xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(
+    xcb_intern_atom_reply_t* wm_reply = xcb_intern_atom_reply(
+        state_ptr->connection,
+        wm_cookie,
+        NULL);
+    state_ptr->wm_delete_win = wm_reply->atom;
+    free(wm_reply);
+    wm_cookie = xcb_intern_atom(
         state_ptr->connection,
         0,
         strlen("WM_PROTOCOLS"),
         "WM_PROTOCOLS");
-    xcb_intern_atom_reply_t* wm_delete_reply = xcb_intern_atom_reply(
+    wm_reply = xcb_intern_atom_reply(
         state_ptr->connection,
-        wm_delete_cookie,
+        wm_cookie,
         NULL);
-    xcb_intern_atom_reply_t* wm_protocols_reply = xcb_intern_atom_reply(
-        state_ptr->connection,
-        wm_protocols_cookie,
-        NULL);
-    state_ptr->wm_delete_win = wm_delete_reply->atom;
-    state_ptr->wm_protocols = wm_protocols_reply->atom;
+    state_ptr->wm_protocols = wm_reply->atom;
+    free(wm_reply);
 
     xcb_change_property(
         state_ptr->connection,
         XCB_PROP_MODE_REPLACE,
         state_ptr->window,
-        wm_protocols_reply->atom,
+        state_ptr->wm_protocols,
         4,
         32,
         1,
-        &wm_delete_reply->atom);
+        &state_ptr->wm_delete_win);
 
     // Map the window to the screen
     xcb_map_window(state_ptr->connection, state_ptr->window);
@@ -229,7 +352,6 @@ b8 platform_pump_messages() {
 
         b8 quit_flagged = false;
 
-<<<<<<< HEAD
         // Poll for events until false is returned.
         while (internal_poll_for_event(&event)) {
             // Input events
@@ -238,28 +360,6 @@ b8 platform_pump_messages() {
                     xcb_key_press_event_t *key_event = (xcb_key_press_event_t *)event;
                     xcb_keysym_t key_sym = xcb_key_symbols_get_keysym(state_ptr->syms, key_event->detail, 0);
                     input_process_key(translate_keycode(key_sym), true);
-=======
-        // Poll for events until null is returned.
-        while ((event = xcb_poll_for_event(state_ptr->connection))) {
-            // Input events
-            switch (event->response_type & ~0x80) {
-                case XCB_KEY_PRESS:
-                case XCB_KEY_RELEASE: {
-                    // Key press event - xcb_key_press_event_t and xcb_key_release_event_t are the same
-                    xcb_key_press_event_t* kb_event = (xcb_key_press_event_t*)event;
-                    b8 pressed = event->response_type == XCB_KEY_PRESS;
-                    xcb_keycode_t code = kb_event->detail;
-                    KeySym key_sym = XkbKeycodeToKeysym(
-                        state_ptr->display,
-                        (KeyCode)code,  //event.xkey.keycode,
-                        0,
-                        0 /*code & ShiftMask ? 1 : 0*/);
-
-                    keys key = translate_keycode(key_sym);
-
-                    // Pass to the input subsystem for processing.
-                    input_process_key(key, pressed);
->>>>>>> upstream/main
                 } break;
                 case XCB_KEY_RELEASE: {
                     xcb_key_release_event_t *key_event = (xcb_key_release_event_t *)event;
@@ -414,276 +514,13 @@ keys translate_keycode(u32 x_keycode) {
             upper -= (0x0061 - 0x0041);
         }
     }
-    switch (upper) {
-        case 0xff08:
-            return KEY_BACKSPACE;
-        case 0xff0d:
-            return KEY_ENTER;
-        case 0xff09:
-            return KEY_TAB;
-        case 0xff13:
-            return KEY_PAUSE;
-        case 0xffe5:
-            return KEY_CAPITAL;
-        case 0xff1b:
-            return KEY_ESCAPE;
-        case 0xff7e:
-            return KEY_MODECHANGE;
-        case 0x0020:
-            return KEY_SPACE;
-        case 0xff55:
-            return KEY_PRIOR;
-        case 0xff56:
-            return KEY_NEXT;
-        case 0xff57:
-            return KEY_END;
-        case 0xff50:
-            return KEY_HOME;
-        case 0xff51:
-            return KEY_LEFT;
-        case 0xff52:
-            return KEY_UP;
-        case 0xff53:
-            return KEY_RIGHT;
-        case 0xff54:
-            return KEY_DOWN;
-        case 0xff60:
-            return KEY_SELECT;
-        case 0xff61:
-            return KEY_PRINT;
-        case 0xff62:
-            return KEY_EXECUTE;
-        case 0xff63:
-            return KEY_INSERT;
-        case 0xffff:
-            return KEY_DELETE;
-        case 0xff6a:
-            return KEY_HELP;
-
-        case 0xffeb:
-            return KEY_LWIN;  // TODO: not sure this is right
-        case 0xffec:
-            return KEY_RWIN;
-        case 0xff9e:
-            return KEY_NUMPAD0;
-        case 0xff9c:
-            return KEY_NUMPAD1;
-        case 0xff99:
-            return KEY_NUMPAD2;
-        case 0xff9b:
-            return KEY_NUMPAD3;
-        case 0xff96:
-            return KEY_NUMPAD4;
-        case 0xff9d:
-            return KEY_NUMPAD5;
-        case 0xff98:
-            return KEY_NUMPAD6;
-        case 0xff95:
-            return KEY_NUMPAD7;
-        case 0xff97:
-            return KEY_NUMPAD8;
-        case 0xff9a:
-            return KEY_NUMPAD9;
-        case 0xffaa:
-            return KEY_MULTIPLY;
-        case 0xffab:
-            return KEY_ADD;
-        case 0xffac:
-            return KEY_SEPARATOR;
-        case 0xffad:
-            return KEY_SUBTRACT;
-        case 0xff9f:
-            return KEY_DECIMAL;
-        case 0xffaf:
-            return KEY_DIVIDE;
-        case 0xffbe:
-            return KEY_F1;
-        case 0xffbf:
-            return KEY_F2;
-        case 0xffc0:
-            return KEY_F3;
-        case 0xffc1:
-            return KEY_F4;
-        case 0xffc2:
-            return KEY_F5;
-        case 0xffc3:
-            return KEY_F6;
-        case 0xffc4:
-            return KEY_F7;
-        case 0xffc5:
-            return KEY_F8;
-        case 0xffc6:
-            return KEY_F9;
-        case 0xffc7:
-            return KEY_F10;
-        case 0xffc8:
-            return KEY_F11;
-        case 0xffc9:
-            return KEY_F12;
-        case 0xffca:
-            return KEY_F13;
-        case 0xffcb:
-            return KEY_F14;
-        case 0xffcc:
-            return KEY_F15;
-        case 0xffcd:
-            return KEY_F16;
-        case 0xffce:
-            return KEY_F17;
-        case 0xffcf:
-            return KEY_F18;
-        case 0xffd0:
-            return KEY_F19;
-        case 0xffd1:
-            return KEY_F20;
-        case 0xffd2:
-            return KEY_F21;
-        case 0xffd3:
-            return KEY_F22;
-        case 0xffd4:
-            return KEY_F23;
-        case 0xffd5:
-            return KEY_F24;
-
-        case 0xff7f:
-            return KEY_NUMLOCK;
-        case 0xff14:
-            return KEY_SCROLL;
-
-        case 0xffbd:
-            return KEY_NUMPAD_EQUAL;
-
-        case 0xffe1:
-            return KEY_LSHIFT;
-        case 0xffe2:
-            return KEY_RSHIFT;
-        case 0xffe3:
-            return KEY_LCONTROL;
-        case 0xffe4:
-            return KEY_RCONTROL;
-        case 0xffe9:
-            return KEY_LALT;
-        case 0xfe03:
-            return KEY_RALT;
-
-        case 0x003b:
-            return KEY_SEMICOLON;
-        case 0x002b:
-            return KEY_PLUS;
-        case 0x002c:
-            return KEY_COMMA;
-        case 0x002d:
-            return KEY_MINUS;
-        case 0x002e:
-            return KEY_PERIOD;
-        case 0x002f:
-            return KEY_SLASH;
-        case 0x0060:
-            return KEY_GRAVE;
-
-<<<<<<< HEAD
-        case 0x0030:
-            return KEY_0;
-        case 0x0031:
-            return KEY_1;
-        case 0x0032:
-            return KEY_2;
-        case 0x0033:
-            return KEY_3;
-        case 0x0034:
-            return KEY_4;
-        case 0x0035:
-            return KEY_5;
-        case 0x0036:
-            return KEY_6;
-        case 0x0037:
-            return KEY_7;
-        case 0x0038:
-            return KEY_8;
-        case 0x0039:
-            return KEY_9;
-
-        case 0x0041:
-=======
-        case XK_0:
-            return KEY_0;
-        case XK_1:
-            return KEY_1;
-        case XK_2:
-            return KEY_2;
-        case XK_3:
-            return KEY_3;
-        case XK_4:
-            return KEY_4;
-        case XK_5:
-            return KEY_5;
-        case XK_6:
-            return KEY_6;
-        case XK_7:
-            return KEY_7;
-        case XK_8:
-            return KEY_8;
-        case XK_9:
-            return KEY_9;
-
-        case XK_a:
-        case XK_A:
->>>>>>> upstream/main
-            return KEY_A;
-        case 0x0042:
-            return KEY_B;
-        case 0x0043:
-            return KEY_C;
-        case 0x0044:
-            return KEY_D;
-        case 0x0045:
-            return KEY_E;
-        case 0x0046:
-            return KEY_F;
-        case 0x0047:
-            return KEY_G;
-        case 0x0048:
-            return KEY_H;
-        case 0x0049:
-            return KEY_I;
-        case 0x004a:
-            return KEY_J;
-        case 0x004b:
-            return KEY_K;
-        case 0x004c:
-            return KEY_L;
-        case 0x004d:
-            return KEY_M;
-        case 0x004e:
-            return KEY_N;
-        case 0x004f:
-            return KEY_O;
-        case 0x0050:
-            return KEY_P;
-        case 0x0051:
-            return KEY_Q;
-        case 0x0052:
-            return KEY_R;
-        case 0x0053:
-            return KEY_S;
-        case 0x0054:
-            return KEY_T;
-        case 0x0055:
-            return KEY_U;
-        case 0x0056:
-            return KEY_V;
-        case 0x0057:
-            return KEY_W;
-        case 0x0058:
-            return KEY_X;
-        case 0x0059:
-            return KEY_Y;
-        case 0x005a:
-            return KEY_Z;
-
-        default:
-            return 0;
+    for (u32 i = 0; i < MAX_KEY_LOOKUP; ++i) {
+        if (key_lookup_table[i] == upper) {
+            return key_lookup_table[i + 1];
+        }
     }
+
+    return KEYS_MAX_KEYS;
 }
 
 #endif
