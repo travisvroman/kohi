@@ -11,6 +11,7 @@
 #include "systems/texture_system.h"
 #include "systems/material_system.h"
 #include "systems/shader_system.h"
+#include "systems/camera_system.h"
 
 // TODO: temporary
 #include "core/kstring.h"
@@ -20,10 +21,9 @@
 
 typedef struct renderer_system_state {
     renderer_backend backend;
+    camera* active_world_camera;
     mat4 projection;
-    mat4 view;
     vec4 ambient_colour;
-    vec3 view_position;
     mat4 ui_projection;
     mat4 ui_view;
     f32 near_clip;
@@ -183,9 +183,6 @@ b8 renderer_system_initialize(u64* memory_requirement, void* state, const char* 
     state_ptr->near_clip = 0.1f;
     state_ptr->far_clip = 1000.0f;
     state_ptr->projection = mat4_perspective(deg_to_rad(45.0f), 1280 / 720.0f, state_ptr->near_clip, state_ptr->far_clip);
-    // TODO: configurable camera starting position.
-    state_ptr->view = mat4_translation((vec3){0, 0, -30.0f});
-    state_ptr->view = mat4_inverse(state_ptr->view);
     // TODO: Obtain from scene
     state_ptr->ambient_colour = (vec4){0.25f, 0.25f, 0.25f, 1.0f};
 
@@ -255,6 +252,13 @@ b8 renderer_draw_frame(render_packet* packet) {
     state_ptr->ui_renderpass->render_area.z = state_ptr->framebuffer_width;
     state_ptr->ui_renderpass->render_area.w = state_ptr->framebuffer_height;
 
+    if (!state_ptr->active_world_camera) {
+        // Just grab the default camera.
+        state_ptr->active_world_camera = camera_system_get_default();
+    }
+
+    mat4 view = camera_view_get(state_ptr->active_world_camera);
+
     // If the begin frame returned successfully, mid-frame operations may continue.
     if (state_ptr->backend.begin_frame(&state_ptr->backend, packet->delta_time)) {
         u8 attachment_index = state_ptr->backend.window_attachment_index_get();
@@ -271,7 +275,7 @@ b8 renderer_draw_frame(render_packet* packet) {
         }
 
         // Apply globals
-        if (!material_system_apply_global(state_ptr->material_shader_id, &state_ptr->projection, &state_ptr->view, &state_ptr->ambient_colour, &state_ptr->view_position, state_ptr->render_mode)) {
+        if (!material_system_apply_global(state_ptr->material_shader_id, &state_ptr->projection, &view, &state_ptr->ambient_colour, &state_ptr->active_world_camera->position, state_ptr->render_mode)) {
             KERROR("Failed to use apply globals for material shader. Render frame failed.");
             return false;
         }
@@ -370,11 +374,6 @@ b8 renderer_draw_frame(render_packet* packet) {
     }
 
     return true;
-}
-
-void renderer_set_view(mat4 view, vec3 view_position) {
-    state_ptr->view = view;
-    state_ptr->view_position = view_position;
 }
 
 void renderer_texture_create(const u8* pixels, struct texture* texture) {
@@ -506,6 +505,5 @@ void regenerate_render_targets() {
             state_ptr->framebuffer_width,
             state_ptr->framebuffer_height,
             &state_ptr->ui_renderpass->targets[i]);
-
     }
 }
