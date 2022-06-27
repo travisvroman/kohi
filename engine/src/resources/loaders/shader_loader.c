@@ -11,7 +11,7 @@
 
 #include "platform/filesystem.h"
 
-b8 shader_loader_load(struct resource_loader* self, const char* name, resource* out_resource) {
+b8 shader_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -36,8 +36,7 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
     resource_data->uniforms = darray_create(shader_uniform_config);
     resource_data->stage_count = 0;
     resource_data->stages = darray_create(shader_stage);
-    resource_data->use_instances = false;
-    resource_data->use_local = false;
+    resource_data->cull_mode = FACE_CULL_MODE_BACK;
     resource_data->stage_count = 0;
     resource_data->stage_names = darray_create(char*);
     resource_data->stage_filenames = darray_create(char*);
@@ -125,10 +124,15 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, resource* 
             } else if (resource_data->stage_count != count) {
                 KERROR("shader_loader_load: Invalid file layout. Count mismatch between stage names and stage filenames.");
             }
-        } else if (strings_equali(trimmed_var_name, "use_instance")) {
-            string_to_bool(trimmed_value, &resource_data->use_instances);
-        } else if (strings_equali(trimmed_var_name, "use_local")) {
-            string_to_bool(trimmed_value, &resource_data->use_local);
+        } else if (strings_equali(trimmed_var_name, "cull_mode")) {
+            if (strings_equali(trimmed_value, "front")) {
+                resource_data->cull_mode = FACE_CULL_MODE_FRONT;
+            } else if (strings_equali(trimmed_value, "front_and_back")) {
+                resource_data->cull_mode = FACE_CULL_MODE_FRONT_AND_BACK;
+            } else if (strings_equali(trimmed_value, "none")) {
+                resource_data->cull_mode = FACE_CULL_MODE_NONE;
+            }
+            // Any other value will use the default of BACK.
         } else if (strings_equali(trimmed_var_name, "attribute")) {
             // Parse attribute.
             char** fields = darray_create(char*);

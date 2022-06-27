@@ -37,7 +37,7 @@ void vulkan_renderer_texture_write_data(texture* t, u32 offset, u32 size, const 
 b8 vulkan_renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
 void vulkan_renderer_destroy_geometry(geometry* geometry);
 
-b8 vulkan_renderer_shader_create(struct shader* shader, renderpass* pass, u8 stage_count, const char** stage_filenames, shader_stage* stages);
+b8 vulkan_renderer_shader_create(struct shader* shader, const shader_config* config, renderpass* pass, u8 stage_count, const char** stage_filenames, shader_stage* stages);
 void vulkan_renderer_shader_destroy(struct shader* shader);
 
 b8 vulkan_renderer_shader_initialize(struct shader* shader);

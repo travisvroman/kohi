@@ -10,7 +10,7 @@
 #include "platform/filesystem.h"
 #include "loader_utils.h"
 
-b8 binary_loader_load(struct resource_loader* self, const char* name, resource* out_resource) {
+b8 binary_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }

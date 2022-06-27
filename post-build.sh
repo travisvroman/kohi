@@ -34,4 +34,20 @@ then
 echo "Error:"$ERRORLEVEL && exit
 fi
 
+echo "assets/shaders/Builtin.SkyboxShader.vert.glsl -> assets/shaders/Builtin.SkyboxShader.vert.spv"
+$VULKAN_SDK/bin/glslc -fshader-stage=vert assets/shaders/Builtin.SkyboxShader.vert.glsl -o assets/shaders/Builtin.SkyboxShader.vert.spv
+ERRORLEVEL=$?
+if [ $ERRORLEVEL -ne 0 ]
+then
+echo "Error:"$ERRORLEVEL && exit
+fi
+
+echo "assets/shaders/Builtin.SkyboxShader.frag.glsl -> assets/shaders/Builtin.SkyboxShader.frag.spv"
+$VULKAN_SDK/bin/glslc -fshader-stage=frag assets/shaders/Builtin.SkyboxShader.frag.glsl -o assets/shaders/Builtin.SkyboxShader.frag.spv
+ERRORLEVEL=$?
+if [ $ERRORLEVEL -ne 0 ]
+then
+echo "Error:"$ERRORLEVEL && exit
+fi
+
 echo "Done."

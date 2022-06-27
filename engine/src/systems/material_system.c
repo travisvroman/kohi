@@ -157,7 +157,7 @@ void material_system_shutdown(void* state) {
 material* material_system_acquire(const char* name) {
     // Load material configuration from resource;
     resource material_resource;
-    if (!resource_system_load(name, RESOURCE_TYPE_MATERIAL, &material_resource)) {
+    if (!resource_system_load(name, RESOURCE_TYPE_MATERIAL, 0, &material_resource)) {
         KERROR("Failed to load material resource, returning nullptr.");
         return 0;
     }
