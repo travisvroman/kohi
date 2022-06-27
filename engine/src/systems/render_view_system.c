@@ -3,6 +3,7 @@
 #include "containers/hashtable.h"
 #include "core/logger.h"
 #include "core/kmemory.h"
+#include "core/kstring.h"
 #include "renderer/renderer_frontend.h"
 
 // TODO: temporary - make factory and register instead.
@@ -68,6 +69,11 @@ b8 render_view_system_create(const render_view_config* config) {
         return false;
     }
 
+    if(!config->name || string_length(config->name) < 1) {
+        KERROR("render_view_system_create: name is required");
+        return false;
+    }
+
     if (config->pass_count < 1) {
         KERROR("render_view_system_create - Config must have at least one renderpass.");
         return false;
@@ -98,6 +104,8 @@ b8 render_view_system_create(const render_view_config* config) {
     render_view* view = &state_ptr->registered_views[id];
     view->id = id;
     view->type = config->type;
+    // TODO: Leaking the name, create a destroy method and kill this.
+    view->name = string_duplicate(config->name);
     view->custom_shader_name = config->custom_shader_name;
     view->renderpass_count = config->pass_count;
     view->passes = kallocate(sizeof(renderpass*) * view->renderpass_count, MEMORY_TAG_ARRAY);
