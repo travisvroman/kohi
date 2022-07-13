@@ -10,7 +10,7 @@
 b8 filesystem_exists(const char* path) {
 #ifdef _MSC_VER
     struct _stat buffer;
-    return _stat(path, &buffer);
+    return !_stat(path, &buffer);
 #else
     struct stat buffer;
     return stat(path, &buffer) == 0;
