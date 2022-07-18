@@ -197,6 +197,8 @@ b8 render_view_world_on_build_packet(const struct render_view* self, void* data,
         out_packet->geometry_count++;
     }
 
+    darray_destroy(geometry_distances);
+
     return true;
 }
 
@@ -253,6 +255,8 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             // Draw it.
             renderer_draw_geometry(&packet->geometries[i]);
         }
+
+        darray_destroy(packet->geometries);
 
         if (!renderer_renderpass_end(pass)) {
             KERROR("render_view_world_on_render pass index %u failed to end.", p);

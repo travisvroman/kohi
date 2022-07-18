@@ -149,6 +149,8 @@ b8 render_view_ui_on_render(const struct render_view* self, const struct render_
             renderer_draw_geometry(&packet->geometries[i]);
         }
 
+        darray_destroy(packet->geometries);
+
         if (!renderer_renderpass_end(pass)) {
             KERROR("render_view_ui_on_render pass index %u failed to end.", p);
             return false;
