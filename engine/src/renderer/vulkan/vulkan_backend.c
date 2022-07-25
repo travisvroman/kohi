@@ -171,9 +171,10 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const char* app
     VK_CHECK(vkCreateInstance(&create_info, context.allocator, &context.instance));
     KINFO("Vulkan Instance created.");
 
+    darray_destroy(required_extensions);
+
 #if defined(_DEBUG)
     darray_destroy(required_validation_layer_names);
-    darray_destroy(required_extensions);
 
     // Debugger
     KDEBUG("Creating Vulkan debugger...");
