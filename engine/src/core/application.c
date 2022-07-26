@@ -226,16 +226,6 @@ b8 application_create(game* game_inst) {
         return false;
     }
 
-    // Renderer system
-    renderer_system_initialize(&app_state->renderer_system_memory_requirement, 0, 0);
-    app_state->renderer_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_system_memory_requirement);
-    if (!renderer_system_initialize(&app_state->renderer_system_memory_requirement, app_state->renderer_system_state, game_inst->app_config.name)) {
-        KFATAL("Failed to initialize renderer. Aborting application.");
-        return false;
-    }
-
-    b8 renderer_multithreaded = renderer_is_multithreaded();
-
     // This is really a core count. Subtract 1 to account for the main thread already being in use.
     i32 thread_count = platform_get_processor_count() - 1;
     if (thread_count < 1) {
@@ -251,6 +241,16 @@ b8 application_create(game* game_inst) {
         KTRACE("Available threads on the system is %i, but will be capped at %i.", thread_count, max_thread_count);
         thread_count = max_thread_count;
     }
+
+    // Renderer system
+    renderer_system_initialize(&app_state->renderer_system_memory_requirement, 0, 0);
+    app_state->renderer_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_system_memory_requirement);
+    if (!renderer_system_initialize(&app_state->renderer_system_memory_requirement, app_state->renderer_system_state, game_inst->app_config.name)) {
+        KFATAL("Failed to initialize renderer. Aborting application.");
+        return false;
+    }
+
+    b8 renderer_multithreaded = renderer_is_multithreaded();
 
     // Initialize the job system.
     // Requires knowledge of renderer multithread support, so should be initialized here.
@@ -630,7 +630,6 @@ b8 application_run() {
 
             // TODO: temp
             // Cleanup the packet.
-
             // TODO: end temp
 
             // Figure out how long the frame took and, if below
