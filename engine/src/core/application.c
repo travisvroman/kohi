@@ -494,6 +494,7 @@ b8 application_create(game* game_inst) {
     }
 
     // Call resize once to ensure the proper size has been set.
+    renderer_on_resized(app_state->width, app_state->height);
     app_state->game_inst->on_resize(app_state->game_inst, app_state->width, app_state->height);
 
     return true;
