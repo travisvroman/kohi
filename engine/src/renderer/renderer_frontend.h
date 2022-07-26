@@ -79,7 +79,7 @@ void renderer_texture_create_writeable(texture* t);
  * @brief Resizes a texture. There is no check at this level to see if the
  * texture is writeable. Internal resources are destroyed and re-created at
  * the new resolution. Data is lost and would need to be reloaded.
- * 
+ *
  * @param t A pointer to the texture to be resized.
  * @param new_width The new width in pixels.
  * @param new_height The new height in pixels.
@@ -151,7 +151,7 @@ renderpass* renderer_renderpass_get(const char* name);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.
- * 
+ *
  * @param s A pointer to the shader.
  * @param config A constant pointer to the shader config.
  * @param pass A pointer to the renderpass to be associated with the shader.
@@ -241,7 +241,7 @@ b8 renderer_shader_release_instance_resources(struct shader* s, u32 instance_id)
 
 /**
  * @brief Sets the uniform of the given shader to the provided value.
- * 
+ *
  * @param s A ponter to the shader.
  * @param uniform A constant pointer to the uniform.
  * @param value A pointer to the value to be set.
@@ -302,3 +302,8 @@ void renderer_renderpass_create(renderpass* out_renderpass, f32 depth, u32 stenc
  * @param pass A pointer to the renderpass to be destroyed.
  */
 void renderer_renderpass_destroy(renderpass* pass);
+
+/**
+ * @brief Indicates if the renderer is capable of multi-threading.
+ */
+b8 renderer_is_multithreaded();

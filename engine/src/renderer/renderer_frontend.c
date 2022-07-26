@@ -361,6 +361,10 @@ void renderer_renderpass_destroy(renderpass* pass) {
     state_ptr->backend.renderpass_destroy(pass);
 }
 
+b8 renderer_is_multithreaded() {
+    return state_ptr->backend.is_multithreaded();
+}
+
 void regenerate_render_targets() {
     // Create render targets for each. TODO: Should be configurable.
     for (u8 i = 0; i < state_ptr->window_render_target_count; ++i) {

@@ -46,6 +46,7 @@ b8 renderer_backend_create(renderer_backend_type type, renderer_backend* out_ren
         out_renderer_backend->window_attachment_get = vulkan_renderer_window_attachment_get;
         out_renderer_backend->depth_attachment_get = vulkan_renderer_depth_attachment_get;
         out_renderer_backend->window_attachment_index_get = vulkan_renderer_window_attachment_index_get;
+        out_renderer_backend->is_multithreaded = vulkan_renderer_is_multithreaded;
 
         return true;
     }
