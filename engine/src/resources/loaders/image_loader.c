@@ -27,8 +27,8 @@ b8 image_loader_load(struct resource_loader* self, const char* name, void* param
     stbi_set_flip_vertically_on_load_thread(typed_params->flip_y);
     char full_file_path[512];
 
-    // Try different extensions
-    #define IMAGE_EXTENSION_COUNT 4
+// Try different extensions
+#define IMAGE_EXTENSION_COUNT 4
     b8 found = false;
     char* extensions[IMAGE_EXTENSION_COUNT] = {".tga", ".png", ".jpg", ".bmp"};
     for (u32 i = 0; i < IMAGE_EXTENSION_COUNT; ++i) {
@@ -88,10 +88,12 @@ b8 image_loader_load(struct resource_loader* self, const char* name, void* param
     }
 
     u8* data = stbi_load_from_memory(raw_data, file_size, &width, &height, &channel_count, required_channel_count);
-     if (!data) {
+    if (!data) {
         KERROR("Image resource loader failed to load file '%s'.", full_file_path);
         return false;
     }
+
+    kfree(raw_data, file_size, MEMORY_TAG_TEXTURE);
 
     image_resource_data* resource_data = kallocate(sizeof(image_resource_data), MEMORY_TAG_TEXTURE);
     resource_data->pixels = data;
