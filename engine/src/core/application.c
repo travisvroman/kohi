@@ -653,7 +653,6 @@ b8 application_run() {
 
             // TODO: temp
             // Cleanup the packet.
-
             // TODO: end temp
 
             // Figure out how long the frame took and, if below

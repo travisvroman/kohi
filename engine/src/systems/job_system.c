@@ -122,7 +122,7 @@ u32 job_thread_run(void* params) {
                 kfree(info.param_data, info.param_data_size, MEMORY_TAG_JOB);
             }
             if (info.result_data) {
-                kfree(info.result_data, info.param_data_size, MEMORY_TAG_JOB);
+                kfree(info.result_data, info.result_data_size, MEMORY_TAG_JOB);
             }
 
             // Lock and reset the thread's info object
