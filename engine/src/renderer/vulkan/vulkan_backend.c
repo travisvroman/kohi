@@ -1592,6 +1592,26 @@ b8 vulkan_renderer_shader_apply_instance(shader* s, b8 needs_update) {
                 // TODO: only update in the list if actually needing an update.
                 texture_map* map = internal->instance_states[s->bound_instance_id].instance_texture_maps[i];
                 texture* t = map->texture;
+
+                // Ensure the texture is valid.
+                if (t->generation == INVALID_ID) {
+                    switch (map->use) {
+                        case TEXTURE_USE_MAP_DIFFUSE:
+                            t = texture_system_get_default_diffuse_texture();
+                            break;
+                        case TEXTURE_USE_MAP_SPECULAR:
+                            t = texture_system_get_default_specular_texture();
+                            break;
+                        case TEXTURE_USE_MAP_NORMAL:
+                            t = texture_system_get_default_normal_texture();
+                            break;
+                        default:
+                            KWARN("Undefined texture use %d", map->use);
+                            t = texture_system_get_default_texture();
+                            break;
+                    }
+                }
+
                 vulkan_image* image = (vulkan_image*)t->internal_data;
                 image_infos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 image_infos[i].imageView = image->view;

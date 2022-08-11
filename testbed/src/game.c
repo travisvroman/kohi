@@ -108,6 +108,14 @@ b8 game_update(game* game_inst, f32 delta_time) {
         data.data.i32[0] = RENDERER_VIEW_MODE_DEFAULT;
         event_fire(EVENT_CODE_SET_RENDER_MODE, game_inst, data);
     }
+
+    // TODO: temp
+    // Bind a key to load up some data.
+    if (input_is_key_up('L') && input_was_key_down('L')) {
+        event_context context = {};
+        event_fire(EVENT_CODE_DEBUG1, game_inst, context);
+    }
+
     // TODO: end temp
 
     return true;
