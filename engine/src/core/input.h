@@ -14,6 +14,10 @@
 
 #include "defines.h"
 
+#define KEY_ACTION_PRESSING 0x01
+#define KEY_ACTION_RISING 0x02
+#define KEY_ACTION_FALLING 0x04
+
 /**
  * @brief Represents available mouse buttons.
  */
@@ -309,6 +313,8 @@ void input_system_shutdown(void* state);
 void input_update(f64 delta_time);
 
 // keyboard input
+
+KAPI u8 input_get_keyaction(keys key);
 
 /**
  * @brief Indicates if the given key is currently pressed down.

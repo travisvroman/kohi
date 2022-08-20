@@ -4,7 +4,7 @@
 #include "core/logger.h"
 
 typedef struct keyboard_state {
-    b8 keys[256];
+    u8 keys[256];
 } keyboard_state;
 
 typedef struct mouse_state {
@@ -16,6 +16,7 @@ typedef struct mouse_state {
 typedef struct input_state {
     keyboard_state keyboard_current;
     keyboard_state keyboard_previous;
+    keyboard_state keyboard_action;
     mouse_state mouse_current;
     mouse_state mouse_previous;
 } input_state;
@@ -47,11 +48,29 @@ void input_update(f64 delta_time) {
     // Copy current states to previous states.
     kcopy_memory(&state_ptr->keyboard_previous, &state_ptr->keyboard_current, sizeof(keyboard_state));
     kcopy_memory(&state_ptr->mouse_previous, &state_ptr->mouse_current, sizeof(mouse_state));
+    for(int i = 0; i < 256; ++i)
+    {
+           state_ptr->keyboard_action.keys[i] &= KEY_ACTION_PRESSING;
+    }
 }
 
 void input_process_key(keys key, b8 pressed) {
+    if (!state_ptr) {
+        return;
+    }
+
+    {
+        u8 k = state_ptr->keyboard_action.keys[key];
+        k |= (!(k & KEY_ACTION_PRESSING) &&  pressed) ? KEY_ACTION_RISING : 0x00;
+        k |= ((k & KEY_ACTION_PRESSING) && !pressed) ? KEY_ACTION_FALLING : 0x00;
+        k &= ~KEY_ACTION_PRESSING;
+        k |= pressed ? KEY_ACTION_PRESSING : 0x00;
+        state_ptr->keyboard_action.keys[key] = k;
+        KINFO("key %s %s %s", k&KEY_ACTION_PRESSING?"PRESSING":"", k&KEY_ACTION_RISING?"RISING":"", k&KEY_ACTION_FALLING?"FALLING":"");
+    }
+
     // Only handle this if the state actually changed.
-    if (state_ptr && state_ptr->keyboard_current.keys[key] != pressed) {
+    if (state_ptr->keyboard_current.keys[key] != pressed) {
         // Update internal state_ptr->
         state_ptr->keyboard_current.keys[key] = pressed;
 
@@ -117,6 +136,13 @@ void input_process_mouse_wheel(i8 z_delta) {
     event_context context;
     context.data.u8[0] = z_delta;
     event_fire(EVENT_CODE_MOUSE_WHEEL, 0, context);
+}
+
+u8 input_get_keyaction(keys key) {
+    if (!state_ptr) {
+        return false;
+    }
+    return state_ptr->keyboard_action.keys[key];
 }
 
 b8 input_is_key_down(keys key) {

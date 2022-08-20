@@ -57,7 +57,7 @@ b8 game_update(game* game_inst, f32 delta_time) {
 
     static const f32 temp_move_speed = 50.0f;
 
-    if (input_is_key_down('W')) {
+    if (input_get_keyaction('W') & KEY_ACTION_PRESSING) {
         camera_move_forward(state->world_camera, temp_move_speed * delta_time);
     }
 
@@ -82,7 +82,7 @@ b8 game_update(game* game_inst, f32 delta_time) {
     }
 
     // TODO: temp
-    if (input_is_key_up('P') && input_was_key_down('P')) {
+    if (input_get_keyaction('P') & KEY_ACTION_FALLING) {
         KDEBUG(
             "Pos:[%.2f, %.2f, %.2f",
             state->world_camera->position.x,
