@@ -61,12 +61,12 @@ void input_process_key(keys key, b8 pressed) {
 
     {
         u8 k = state_ptr->keyboard_action.keys[key];
-        k |= (!(k & KEY_ACTION_PRESSING) &&  pressed) ? KEY_ACTION_RISING : 0x00;
-        k |= ((k & KEY_ACTION_PRESSING) && !pressed) ? KEY_ACTION_FALLING : 0x00;
+        k |= (!(k & KEY_ACTION_PRESSING) &&  pressed) ? KEY_ACTION_PRESSED : 0x00;
+        k |= ((k & KEY_ACTION_PRESSING) && !pressed) ? KEY_ACTION_RELEASED : 0x00;
         k &= ~KEY_ACTION_PRESSING;
         k |= pressed ? KEY_ACTION_PRESSING : 0x00;
         state_ptr->keyboard_action.keys[key] = k;
-        KINFO("key %s %s %s", k&KEY_ACTION_PRESSING?"PRESSING":"", k&KEY_ACTION_RISING?"RISING":"", k&KEY_ACTION_FALLING?"FALLING":"");
+        KINFO("key %s %s %s", k&KEY_ACTION_PRESSING?"PRESSING":"", k&KEY_ACTION_PRESSED?"PRESSED":"", k&KEY_ACTION_RELEASED?"RELEASED":"");
     }
 
     // Only handle this if the state actually changed.

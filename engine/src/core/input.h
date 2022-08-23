@@ -14,9 +14,15 @@
 
 #include "defines.h"
 
+/** @brief This bit flag is set when button is down */
 #define KEY_ACTION_PRESSING 0x01
-#define KEY_ACTION_RISING 0x02
-#define KEY_ACTION_FALLING 0x04
+/** @brief This bit flag is set when button goes from up to down */
+#define KEY_ACTION_PRESSED 0x02
+/** @brief This bit flag is set when button goes from down to up */
+#define KEY_ACTION_RELEASED 0x04
+/** @brief This bit flag is set when button moves up or down */
+#define KEY_ACTION_EITHER (KEY_ACTION_PRESSED|KEY_ACTION_RELEASED)
+
 
 /**
  * @brief Represents available mouse buttons.

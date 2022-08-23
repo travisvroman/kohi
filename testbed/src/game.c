@@ -82,7 +82,7 @@ b8 game_update(game* game_inst, f32 delta_time) {
     }
 
     // TODO: temp
-    if (input_get_keyaction('P') & KEY_ACTION_FALLING) {
+    if (input_get_keyaction('P') & KEY_ACTION_RELEASED) {
         KDEBUG(
             "Pos:[%.2f, %.2f, %.2f",
             state->world_camera->position.x,
