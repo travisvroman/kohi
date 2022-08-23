@@ -19,6 +19,7 @@ typedef struct input_state {
     keyboard_state keyboard_action;
     mouse_state mouse_current;
     mouse_state mouse_previous;
+    mouse_state mouse_action;
 } input_state;
 
 // Internal input state pointer
@@ -51,6 +52,10 @@ void input_update(f64 delta_time) {
     for(int i = 0; i < 256; ++i)
     {
            state_ptr->keyboard_action.keys[i] &= KEY_ACTION_PRESSING;
+    }
+    for(int i = 0; i < BUTTON_MAX_BUTTONS; ++i)
+    {
+           state_ptr->mouse_action.buttons[i] &= KEY_ACTION_PRESSING;
     }
 }
 
@@ -100,6 +105,18 @@ void input_process_key(keys key, b8 pressed) {
 }
 
 void input_process_button(buttons button, b8 pressed) {
+    if (!state_ptr) {
+        return;
+    }
+    {
+        u8 k = state_ptr->mouse_action.buttons[button];
+        k |= (!(k & KEY_ACTION_PRESSING) &&  pressed) ? KEY_ACTION_PRESSED : 0x00;
+        k |= ((k & KEY_ACTION_PRESSING) && !pressed) ? KEY_ACTION_RELEASED : 0x00;
+        k &= ~KEY_ACTION_PRESSING;
+        k |= pressed ? KEY_ACTION_PRESSING : 0x00;
+        state_ptr->mouse_action.buttons[button] = k;
+        KINFO("button %s %s %s", k&KEY_ACTION_PRESSING?"PRESSING":"", k&KEY_ACTION_PRESSED?"PRESSED":"", k&KEY_ACTION_RELEASED?"RELEASED":"");
+    }
     // If the state changed, fire an event.
     if (state_ptr->mouse_current.buttons[button] != pressed) {
         state_ptr->mouse_current.buttons[button] = pressed;
