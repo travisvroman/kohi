@@ -10,7 +10,7 @@ typedef struct keyboard_state {
 typedef struct mouse_state {
     i16 x;
     i16 y;
-    u8 buttons[BUTTON_MAX_BUTTONS];
+    b8 buttons[BUTTON_MAX_BUTTONS];
 } mouse_state;
 
 typedef struct input_state {
@@ -151,7 +151,7 @@ void input_process_mouse_wheel(i8 z_delta) {
 
     // Fire the event.
     event_context context;
-    context.data.u8[0] = z_delta;
+    context.data.i8[0] = z_delta;
     event_fire(EVENT_CODE_MOUSE_WHEEL, 0, context);
 }
 
