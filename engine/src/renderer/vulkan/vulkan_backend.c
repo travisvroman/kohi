@@ -519,7 +519,6 @@ b8 vulkan_renderer_backend_end_frame(renderer_backend* backend, f32 delta_time) 
     vulkan_swapchain_present(
         &context,
         &context.swapchain,
-        context.device.graphics_queue,
         context.device.present_queue,
         context.queue_complete_semaphores[context.current_frame],
         context.image_index);
