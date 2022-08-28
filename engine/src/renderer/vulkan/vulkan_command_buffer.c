@@ -8,7 +8,7 @@ void vulkan_command_buffer_allocate(
     b8 is_primary,
     vulkan_command_buffer* out_command_buffer) {
 
-    kzero_memory(out_command_buffer, sizeof(out_command_buffer));
+    kzero_memory(out_command_buffer, sizeof(vulkan_command_buffer));
 
     VkCommandBufferAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
     allocate_info.commandPool = pool;
