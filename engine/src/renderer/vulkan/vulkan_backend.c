@@ -153,6 +153,10 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const renderer_
             return false;
         }
     }
+
+    // Clean up.
+    darray_destroy(available_layers);
+
     KINFO("All required validation layers are present.");
 #endif
 
@@ -161,6 +165,9 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const renderer_
 
     VK_CHECK(vkCreateInstance(&create_info, context.allocator, &context.instance));
     KINFO("Vulkan Instance created.");
+
+    // Clean up
+    darray_destroy(required_validation_layer_names);
 
     // TODO: implement multi-threading.
     context.multithreading_enabled = false;
