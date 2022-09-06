@@ -20,6 +20,7 @@ void vulkan_image_create(
     // Copy params
     out_image->width = width;
     out_image->height = height;
+    out_image->memory_flags = memory_flags;
 
     // Creation info.
     VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
@@ -49,22 +50,25 @@ void vulkan_image_create(
     VK_CHECK(vkCreateImage(context->device.logical_device, &image_create_info, context->allocator, &out_image->handle));
 
     // Query memory requirements.
-    VkMemoryRequirements memory_requirements;
-    vkGetImageMemoryRequirements(context->device.logical_device, out_image->handle, &memory_requirements);
+    vkGetImageMemoryRequirements(context->device.logical_device, out_image->handle, &out_image->memory_requirements);
 
-    i32 memory_type = context->find_memory_index(memory_requirements.memoryTypeBits, memory_flags);
+    i32 memory_type = context->find_memory_index(out_image->memory_requirements.memoryTypeBits, memory_flags);
     if (memory_type == -1) {
         KERROR("Required memory type not found. Image not valid.");
     }
 
     // Allocate memory
     VkMemoryAllocateInfo memory_allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    memory_allocate_info.allocationSize = memory_requirements.size;
+    memory_allocate_info.allocationSize = out_image->memory_requirements.size;
     memory_allocate_info.memoryTypeIndex = memory_type;
     VK_CHECK(vkAllocateMemory(context->device.logical_device, &memory_allocate_info, context->allocator, &out_image->memory));
 
     // Bind the memory
     VK_CHECK(vkBindImageMemory(context->device.logical_device, out_image->handle, out_image->memory, 0));  // TODO: configurable memory offset.
+
+    // Report the memory as in-use.
+    b8 is_device_memory = (out_image->memory_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    kallocate_report(out_image->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
 
     // Create view
     if (create_view) {
@@ -203,4 +207,9 @@ void vulkan_image_destroy(vulkan_context* context, vulkan_image* image) {
         vkDestroyImage(context->device.logical_device, image->handle, context->allocator);
         image->handle = 0;
     }
+
+    // Report the memory as no longer in-use.
+    b8 is_device_memory = (image->memory_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    kfree_report(image->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
+    kzero_memory(&image->memory_requirements, sizeof(VkMemoryRequirements));
 }
