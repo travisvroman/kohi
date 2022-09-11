@@ -607,7 +607,7 @@ b8 application_run() {
 
             // World
             mesh_packet_data world_mesh_data = {};
-            
+
             u32 mesh_count = 0;
             mesh* meshes[10];
             // TODO: flexible size array
@@ -628,7 +628,7 @@ b8 application_run() {
 
             // ui
             mesh_packet_data ui_mesh_data = {};
-            
+
             u32 ui_mesh_count = 0;
             mesh* ui_meshes[10];
 
@@ -653,6 +653,9 @@ b8 application_run() {
 
             // TODO: temp
             // Cleanup the packet.
+            for (u32 i = 0; i < packet.view_count; ++i) {
+                packet.views[i].view->on_destroy_packet(packet.views[i].view, &packet.views[i]);
+            }
             // TODO: end temp
 
             // Figure out how long the frame took and, if below
