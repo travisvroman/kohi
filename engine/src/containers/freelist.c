@@ -1,5 +1,6 @@
 #include "freelist.h"
 
+#include "core/asserts.h"
 #include "core/kmemory.h"
 #include "core/logger.h"
 
@@ -21,7 +22,7 @@ void return_node(freelist* list, freelist_node* node);
 
 void freelist_create(u64 total_size, u64* memory_requirement, void* memory, freelist* out_list) {
     // Enough space to hold state, plus array for all nodes.
-    u64 max_entries = (total_size / (sizeof(void*) * sizeof(freelist_node)));  // NOTE: This might have a remainder, but that's ok.
+    u64 max_entries = (total_size / (sizeof(void*) * sizeof(freelist_node))) / 2;  // NOTE: This might have a remainder, but that's ok.
 
     // Catch an edge case of having a really small amount of memory to manage, and only having a
     // super small number of entries. Always make sure we have at least a decent amount, like 20 or so.
