@@ -270,6 +270,9 @@ char* get_memory_usage_str() {
 
         i32 length = snprintf(buffer + offset, 8000, "Total memory usage: %.2f%s of %.2f%s (%.2f%%)\n", used_amount, used_unit, total_amount, total_unit, percent_used);
         offset += length;
+        // TODO: temp //nocheckin
+        length = snprintf(buffer + offset, 8000, "free space: %llu \n", free_space);
+        offset += length;
     }
 
     char* out_string = string_duplicate(buffer);
