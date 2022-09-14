@@ -96,3 +96,11 @@ KAPI b8 dynamic_allocator_get_size_alignment(void* block, u64* out_size, u16* ou
  * @return The amount of free space in bytes.
  */
 KAPI u64 dynamic_allocator_free_space(dynamic_allocator* allocator);
+
+/**
+ * @brief Obtains the amount of total space originally available in the provided allocator.
+ *
+ * @param allocator A pointer to the allocator to be examined.
+ * @return The total amount of space originally available in bytes.
+ */
+KAPI u64 dynamic_allocator_total_space(dynamic_allocator* allocator);

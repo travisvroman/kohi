@@ -1,5 +1,6 @@
 #include "dynamic_allocator.h"
 
+#include "core/asserts.h"
 #include "core/kmemory.h"
 #include "core/logger.h"
 #include "containers/freelist.h"
@@ -12,10 +13,12 @@ typedef struct dynamic_allocator_state {
 } dynamic_allocator_state;
 
 typedef struct alloc_header {
-    u64 size;
+    void* start;
     u16 alignment;
-    u16 alignment_offset;
 } alloc_header;
+
+// The storage size in bytes of a node's user memory block size
+#define KSIZE_STORAGE sizeof(u32)
 
 b8 dynamic_allocator_create(u64 total_size, u64* memory_requirement, void* memory, dynamic_allocator* out_allocator) {
     if (total_size < 1) {
@@ -75,29 +78,44 @@ void* dynamic_allocator_allocate(dynamic_allocator* allocator, u64 size) {
 void* dynamic_allocator_allocate_aligned(dynamic_allocator* allocator, u64 size, u16 alignment) {
     if (allocator && size && alignment) {
         dynamic_allocator_state* state = allocator->memory;
-        u64 offset = 0;
-        // Account for space for the header.
-        u64 actual_size = size + sizeof(alloc_header);
-        u16 alignment_offset = 0;
 
-        // Attempt to allocate from the freelist.
-        void* block = 0;
-        if (freelist_allocate_block_aligned(&state->list, actual_size, alignment, &offset, &alignment_offset)) {
-            // Set the header info.
-            alloc_header* header = (alloc_header*)(((u8*)state->memory_block) + offset);
+        // The size required is based on the requested size, plus the alignment, header and a u32 to hold
+        // the size for quick/easy lookups.
+        u64 required_size = alignment + sizeof(alloc_header) + KSIZE_STORAGE + size;
+        // NOTE: This cast will really only be an issue on allocations over ~4GiB, so... don't do that.
+        KASSERT_MSG(required_size < 4294967295U, "dynamic_allocator_allocate_aligned called with required size > 4 GiB. Don't do that.");
+
+        u64 base_offset = 0;
+        if (freelist_allocate_block(&state->list, required_size, &base_offset)) {
+            /*
+            Memory layout:
+            x bytes/void padding
+            4 bytes/u32 user block size
+            x bytes/void user memory block
+            alloc_header
+
+            */
+            // Get the base pointer, or the unaligned memory block.
+            void* ptr = (void*)((u64)state->memory_block + base_offset);
+            // Start the alignment after enough space to hold a u32. This allows for the u32 to be stored
+            // immediately before the user block, while maintaining alignment on said user block.
+            u64 aligned_block_offset = get_aligned((u64)ptr + base_offset + KSIZE_STORAGE, alignment);
+            // Store the size just before the user data block
+            u32* block_size = (u32*)(aligned_block_offset - KSIZE_STORAGE);
+            *block_size = (u32)size;
+            // Store the header immediately after the user block.
+            alloc_header* header = (alloc_header*)(aligned_block_offset + size);
+            header->start = ptr;
             header->alignment = alignment;
-            header->alignment_offset = alignment_offset;
-            header->size = size;  // Store the actual size here.
-            // Block is state->memoryblock, then offset, then after the header.
-            block = (void*)(((u8*)state->memory_block) + offset + sizeof(alloc_header));
+
+            return (void*)aligned_block_offset;
         } else {
             KERROR("dynamic_allocator_allocate_aligned no blocks of memory large enough to allocate from.");
             u64 available = freelist_free_space(&state->list);
             KERROR("Requested size: %llu, total space available: %llu", size, available);
             // TODO: Report fragmentation?
-            block = 0;
+            return 0;
         }
-        return block;
     }
 
     KERROR("dynamic_allocator_allocate_aligned requires a valid allocator, size and alignment.");
@@ -120,11 +138,12 @@ b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block) {
         KERROR("dynamic_allocator_free_aligned trying to release block (0x%p) outside of allocator range (0x%p)-(0x%p)", block, state->memory_block, end_of_block);
         return false;
     }
-    u64 offset = (block - state->memory_block);
-    // Get the header.
-    alloc_header* header = (alloc_header*)(((u8*)block) - sizeof(alloc_header));
-    u64 actual_size = header->size + sizeof(alloc_header);
-    if (!freelist_free_block_aligned(&state->list, actual_size, offset - sizeof(alloc_header), header->alignment_offset)) {
+
+    u32* block_size = (u32*)((u64)block - KSIZE_STORAGE);
+    alloc_header* header = (alloc_header*)((u64)block + *block_size);
+    u64 required_size = header->alignment + sizeof(alloc_header) + KSIZE_STORAGE + *block_size;
+    u64 offset = (u64)header->start - (u64)state->memory_block;
+    if (!freelist_free_block(&state->list, required_size, offset)) {
         KERROR("dynamic_allocator_free_aligned failed.");
         return false;
     }
@@ -134,8 +153,8 @@ b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block) {
 
 b8 dynamic_allocator_get_size_alignment(void* block, u64* out_size, u16* out_alignment) {
     // Get the header.
-    alloc_header* header = (alloc_header*)(block - sizeof(alloc_header));
-    *out_size = header->size;
+    *out_size = *(u32*)((u64)block - KSIZE_STORAGE);
+    alloc_header* header = (alloc_header*)((u64)block + *out_size);
     *out_alignment = header->alignment;
     return true;
 }
@@ -143,4 +162,9 @@ b8 dynamic_allocator_get_size_alignment(void* block, u64* out_size, u16* out_ali
 u64 dynamic_allocator_free_space(dynamic_allocator* allocator) {
     dynamic_allocator_state* state = allocator->memory;
     return freelist_free_space(&state->list);
+}
+
+u64 dynamic_allocator_total_space(dynamic_allocator* allocator) {
+    dynamic_allocator_state* state = allocator->memory;
+    return state->total_size;
 }
