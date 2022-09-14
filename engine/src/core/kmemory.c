@@ -34,7 +34,12 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "ENTITY     ",
     "ENTITY_NODE",
     "SCENE      ",
-    "RESOURCE   "};
+    "RESOURCE   ",
+    "VULKAN     ",
+    "VULKAN_EXT ",
+    "DIRECT3D   ",
+    "OPENGL     ",
+    "GPU_LOCAL  "};
 
 typedef struct memory_system_state {
     memory_system_configuration config;
@@ -107,8 +112,12 @@ void memory_system_shutdown() {
 }
 
 void* kallocate(u64 size, memory_tag tag) {
+    return kallocate_aligned(size, 1, tag);
+}
+
+void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
     if (tag == MEMORY_TAG_UNKNOWN) {
-        KWARN("kallocate called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
+        KWARN("kallocate_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
 
     // Either allocate from the system's allocator or the OS. The latter shouldn't ever
@@ -125,11 +134,11 @@ void* kallocate(u64 size, memory_tag tag) {
         state_ptr->stats.tagged_allocations[tag] += size;
         state_ptr->alloc_count++;
 
-        block = dynamic_allocator_allocate(&state_ptr->allocator, size);
+        block = dynamic_allocator_allocate_aligned(&state_ptr->allocator, size, alignment);
         kmutex_unlock(&state_ptr->allocation_mutex);
     } else {
         // If the system is not up yet, warn about it but give memory for now.
-        KWARN("kallocate called before the memory system is initialized.");
+        KWARN("kallocate_aligned called before the memory system is initialized.");
         // TODO: Memory alignment
         block = platform_allocate(size, false);
     }
@@ -139,13 +148,29 @@ void* kallocate(u64 size, memory_tag tag) {
         return block;
     }
 
-    KFATAL("kallocate failed to allocate successfully.");
+    KFATAL("kallocate_aligned failed to allocate successfully.");
     return 0;
 }
 
+void kallocate_report(u64 size, memory_tag tag) {
+    // Make sure multithreaded requests don't trample each other.
+    if (!kmutex_lock(&state_ptr->allocation_mutex)) {
+        KFATAL("Error obtaining mutex lock during allocation reporting.");
+        return;
+    }
+    state_ptr->stats.total_allocated += size;
+    state_ptr->stats.tagged_allocations[tag] += size;
+    state_ptr->alloc_count++;
+    kmutex_unlock(&state_ptr->allocation_mutex);
+}
+
 void kfree(void* block, u64 size, memory_tag tag) {
+    kfree_aligned(block, size, 1, tag);
+}
+
+void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
     if (tag == MEMORY_TAG_UNKNOWN) {
-        KWARN("kfree called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
+        KWARN("kfree_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
     if (state_ptr) {
         // Make sure multithreaded requests don't trample each other.
@@ -156,7 +181,8 @@ void kfree(void* block, u64 size, memory_tag tag) {
 
         state_ptr->stats.total_allocated -= size;
         state_ptr->stats.tagged_allocations[tag] -= size;
-        b8 result = dynamic_allocator_free(&state_ptr->allocator, block, size);
+        state_ptr->alloc_count--;
+        b8 result = dynamic_allocator_free_aligned(&state_ptr->allocator, block);
 
         kmutex_unlock(&state_ptr->allocation_mutex);
 
@@ -172,6 +198,22 @@ void kfree(void* block, u64 size, memory_tag tag) {
         // TODO: Memory alignment
         platform_free(block, false);
     }
+}
+
+void kfree_report(u64 size, memory_tag tag) {
+    // Make sure multithreaded requests don't trample each other.
+    if (!kmutex_lock(&state_ptr->allocation_mutex)) {
+        KFATAL("Error obtaining mutex lock during allocation reporting.");
+        return;
+    }
+    state_ptr->stats.total_allocated -= size;
+    state_ptr->stats.tagged_allocations[tag] -= size;
+    state_ptr->alloc_count--;
+    kmutex_unlock(&state_ptr->allocation_mutex);
+}
+
+b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment) {
+    return dynamic_allocator_get_size_alignment(block, out_size, out_alignment);
 }
 
 void* kzero_memory(void* block, u64 size) {

@@ -564,6 +564,13 @@ typedef struct render_view {
     b8 (*on_build_packet)(const struct render_view* self, void* data, struct render_view_packet* out_packet);
 
     /**
+     * @brief Destroys the provided render view packet.
+     * @param self A pointer to the view to use.
+     * @param packet A pointer to the packet to be destroyed.
+     */
+    void (*on_destroy_packet)(const struct render_view* self, struct render_view_packet* packet);
+
+    /**
      * @brief Uses the given view and packet to render the contents therein.
      *
      * @param self A pointer to the view to use.
