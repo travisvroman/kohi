@@ -307,3 +307,144 @@ void renderer_renderpass_destroy(renderpass* pass);
  * @brief Indicates if the renderer is capable of multi-threading.
  */
 b8 renderer_is_multithreaded();
+
+/**
+ * @brief Creates a new renderbuffer to hold data for a given purpose/use. Backed by a
+ * renderer-backend-specific buffer resource.
+ *
+ * @param type The type of buffer, indicating it's use (i.e. vertex/index data, uniforms, etc.)
+ * @param total_size The total size in bytes of the buffer.
+ * @param use_freelist Indicates if the buffer should use a freelist to track allocations.
+ * @param out_buffer A pointer to hold the newly created buffer.
+ * @return True on success; otherwise false.
+ */
+b8 renderer_renderbuffer_create(renderbuffer_type type, u64 total_size, b8 use_freelist, renderbuffer* out_buffer);
+
+/**
+ * @brief Destroys the given renderbuffer.
+ *
+ * @param buffer A pointer to the buffer to be destroyed.
+ */
+void renderer_renderbuffer_destroy(renderbuffer* buffer);
+
+/**
+ * @brief Binds the given buffer at the provided offset.
+ *
+ * @param buffer A pointer to the buffer to bind.
+ * @param offset The offset in bytes from the beginning of the buffer.
+ * @returns True on success; otherwise false.
+ */
+b8 renderer_renderbuffer_bind(renderbuffer* buffer, u64 offset);
+
+/**
+ * @brief Unbinds the given buffer.
+ *
+ * @param buffer A pointer to the buffer to be unbound.
+ * @returns True on success; otherwise false.
+ */
+b8 renderer_renderbuffer_unbind(renderbuffer* buffer);
+
+/**
+ * @brief Maps memory from the given buffer in the provided range to a block of memory and returns it.
+ * This memory should be considered invalid once unmapped.
+ * @param buffer A pointer to the buffer to map.
+ * @param offset The number of bytes from the beginning of the buffer to map.
+ * @param size The amount of memory in the buffer to map.
+ * @returns A mapped block of memory. Freed and invalid once unmapped.
+ */
+void* renderer_renderbuffer_map_memory(renderbuffer* buffer, u64 offset, u64 size);
+
+/**
+ * @brief Unmaps memory from the given buffer in the provided range to a block of memory.
+ * This memory should be considered invalid once unmapped.
+ * @param buffer A pointer to the buffer to unmap.
+ * @param offset The number of bytes from the beginning of the buffer to unmap.
+ * @param size The amount of memory in the buffer to unmap.
+ */
+void renderer_renderbuffer_unmap_memory(renderbuffer* buffer, u64 offset, u64 size);
+
+/**
+ * @brief Flushes buffer memory at the given range. Should be done after a write.
+ * @param buffer A pointer to the buffer to unmap.
+ * @param offset The number of bytes from the beginning of the buffer to flush.
+ * @param size The amount of memory in the buffer to flush.
+ * @returns True on success; otherwise false.
+ */
+b8 renderer_renderbuffer_flush(renderbuffer* buffer, u64 offset, u64 size);
+
+/**
+ * @brief Reads memory from the provided buffer at the given range to the output variable.
+ * @param buffer A pointer to the buffer to read from.
+ * @param offset The number of bytes from the beginning of the buffer to read.
+ * @param size The amount of memory in the buffer to read.
+ * @param out_memory A pointer to a block of memory to read to. Must be of appropriate size.
+ * @returns True on success; otherwise false.
+ */
+b8 renderer_renderbuffer_read(renderbuffer* buffer, u64 offset, u64 size, void** out_memory);
+
+/**
+ * @brief Resizes the given buffer to new_total_size. new_total_size must be
+ * greater than the current buffer size. Data from the old internal buffer is copied
+ * over.
+ *
+ * @param buffer A pointer to the buffer to be resized.
+ * @param new_total_size The new size in bytes. Must be larger than the current size.
+ * @returns True on success; otherwise false.
+ */
+b8 renderer_renderbuffer_resize(renderbuffer* buffer, u64 new_total_size);
+
+/**
+ * @brief Attempts to allocate memory from the given buffer. Should only be used on
+ * buffers that were created with use_freelist = true.
+ *
+ * @param buffer A pointer to the buffer to be allocated from.
+ * @param size The size in bytes to allocate.
+ * @param out_offset A pointer to hold the offset in bytes of the allocation from the beginning of the buffer.
+ * @return True on success; otherwise false.
+ */
+b8 renderer_renderbuffer_allocate(renderbuffer* buffer, u64 size, u64* out_offset);
+
+/**
+ * @brief Frees memory from the given buffer.
+ *
+ * @param buffer A pointer to the buffer to be freed from.
+ * @param size The size in bytes to free.
+ * @param offset The offset in bytes from the beginning of the buffer to free.
+ * @return True on success; otherwise false.
+ */
+b8 renderer_renderbuffer_free(renderbuffer* buffer, u64 size, u64 offset);
+
+/**
+ * @brief Loads provided data into the specified rage of the given buffer.
+ *
+ * @param buffer A pointer to the buffer to load data into.
+ * @param offset The offset in bytes from the beginning of the buffer.
+ * @param size The size of the data in bytes to be loaded.
+ * @param data The data to be loaded.
+ * @returns True on success; otherwise false.
+ */
+b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data);
+
+/**
+ * @brief Copies data in the specified rage fron the source to the destination buffer.
+ *
+ * @param source A pointer to the source buffer to copy data from.
+ * @param source_offset The offset in bytes from the beginning of the source buffer.
+ * @param dest A pointer to the destination buffer to copy data to.
+ * @param dest_offset The offset in bytes from the beginning of the destination buffer.
+ * @param size The size of the data in bytes to be copied.
+ * @returns True on success; otherwise false.
+ */
+b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size);
+
+/**
+ * @brief Attempts to draw the contents of the provided buffer at the given offset
+ * and element count. Only meant to be used with vertex and index buffers.
+ * 
+ * @param buffer A pointer to the buffer to be drawn.
+ * @param offset The offset in bytes from the beginning of the buffer.
+ * @param element_count The number of elements to be drawn.
+ * @param bind_only Only bind the buffer, but don't draw.
+ * @return True on success; otherwise false.
+ */
+b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);

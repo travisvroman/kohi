@@ -48,6 +48,19 @@ b8 renderer_backend_create(renderer_backend_type type, renderer_backend* out_ren
         out_renderer_backend->window_attachment_index_get = vulkan_renderer_window_attachment_index_get;
         out_renderer_backend->is_multithreaded = vulkan_renderer_is_multithreaded;
 
+        out_renderer_backend->renderbuffer_create_internal = vulkan_buffer_create_internal;
+        out_renderer_backend->renderbuffer_destroy_internal = vulkan_buffer_destroy_internal;
+        out_renderer_backend->renderbuffer_bind = vulkan_buffer_bind;
+        out_renderer_backend->renderbuffer_unbind = vulkan_buffer_unbind;
+        out_renderer_backend->renderbuffer_map_memory = vulkan_buffer_map_memory;
+        out_renderer_backend->renderbuffer_unmap_memory = vulkan_buffer_unmap_memory;
+        out_renderer_backend->renderbuffer_flush = vulkan_buffer_flush;
+        out_renderer_backend->renderbuffer_read = vulkan_buffer_read;
+        out_renderer_backend->renderbuffer_resize = vulkan_buffer_resize;
+        out_renderer_backend->renderbuffer_load_range = vulkan_buffer_load_range;
+        out_renderer_backend->renderbuffer_copy_range = vulkan_buffer_copy_range;
+        out_renderer_backend->renderbuffer_draw = vulkan_buffer_draw;
+
         return true;
     }
 

@@ -4,6 +4,7 @@
 
 #include "core/logger.h"
 #include "core/kmemory.h"
+#include "containers/freelist.h"
 #include "math/kmath.h"
 #include "platform/platform.h"
 
@@ -409,4 +410,147 @@ void regenerate_render_targets() {
             state_ptr->framebuffer_height,
             &state_ptr->ui_renderpass->targets[i]);
     }
+}
+
+b8 renderer_renderbuffer_create(renderbuffer_type type, u64 total_size, b8 use_freelist, renderbuffer* out_buffer) {
+    if (!out_buffer) {
+        KERROR("renderer_renderbuffer_create requires a valid pointer to hold the created buffer.");
+        return false;
+    }
+
+    kzero_memory(out_buffer, sizeof(renderbuffer));
+
+    out_buffer->type = type;
+    out_buffer->total_size = total_size;
+
+    // Create the freelist, if needed.
+    if (use_freelist) {
+        freelist_create(total_size, &out_buffer->freelist_memory_requirement, 0, 0);
+        out_buffer->freelist_block = kallocate(out_buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+        freelist_create(total_size, &out_buffer->freelist_memory_requirement, out_buffer->freelist_block, &out_buffer->buffer_freelist);
+    }
+
+    // Create the internal buffer from the backend.
+    if (!state_ptr->backend.renderbuffer_create_internal(out_buffer)) {
+        KFATAL("Unable to create backing buffer for renderbuffer. Application cannot continue.");
+        return false;
+    }
+
+    return true;
+}
+
+void renderer_renderbuffer_destroy(renderbuffer* buffer) {
+    if (buffer) {
+        if (buffer->freelist_memory_requirement > 0) {
+            freelist_destroy(&buffer->buffer_freelist);
+            kfree(buffer->freelist_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+            buffer->freelist_memory_requirement = 0;
+        }
+
+        // Free up the backend resources.
+        state_ptr->backend.renderbuffer_destroy_internal(buffer);
+        buffer->internal_data = 0;
+    }
+}
+
+b8 renderer_renderbuffer_bind(renderbuffer* buffer, u64 offset) {
+    if (!buffer) {
+        KERROR("renderer_renderbuffer_bind requires a valid pointer to a buffer.");
+        return false;
+    }
+
+    return state_ptr->backend.renderbuffer_bind(buffer, offset);
+}
+
+b8 renderer_renderbuffer_unbind(renderbuffer* buffer) {
+    return state_ptr->backend.renderbuffer_unbind(buffer);
+}
+
+void* renderer_renderbuffer_map_memory(renderbuffer* buffer, u64 offset, u64 size) {
+    return state_ptr->backend.renderbuffer_map_memory(buffer, offset, size);
+}
+
+void renderer_renderbuffer_unmap_memory(renderbuffer* buffer, u64 offset, u64 size) {
+    state_ptr->backend.renderbuffer_unmap_memory(buffer, offset, size);
+}
+
+b8 renderer_renderbuffer_flush(renderbuffer* buffer, u64 offset, u64 size) {
+    return state_ptr->backend.renderbuffer_flush(buffer, offset, size);
+}
+
+b8 renderer_renderbuffer_read(renderbuffer* buffer, u64 offset, u64 size, void** out_memory) {
+    return state_ptr->backend.renderbuffer_read(buffer, offset, size, out_memory);
+}
+
+b8 renderer_renderbuffer_resize(renderbuffer* buffer, u64 new_total_size) {
+    // Sanity check.
+    if (new_total_size <= buffer->total_size) {
+        KERROR("renderer_renderbuffer_resize requires that new size be larger than the old. Not doing this could lead to data loss.");
+        return false;
+    }
+
+    if (buffer->freelist_memory_requirement > 0) {
+        // Resize the freelist first, if used.
+        u64 new_memory_requirement = 0;
+        freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, 0, 0, 0);
+        void* new_block = kallocate(new_memory_requirement, MEMORY_TAG_RENDERER);
+        void* old_block = 0;
+        if (!freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, new_block, new_total_size, &old_block)) {
+            KERROR("renderer_renderbuffer_resize failed to resize internal free list.");
+            kfree(new_block, new_memory_requirement, MEMORY_TAG_RENDERER);
+            return false;
+        }
+
+        // Clean up the old memory, then assign the new properties over.
+        kfree(old_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+        buffer->freelist_memory_requirement = new_memory_requirement;
+        buffer->freelist_block = new_block;
+    }
+
+    b8 result = state_ptr->backend.renderbuffer_resize(buffer, new_total_size);
+    if (result) {
+        buffer->total_size = new_total_size;
+    } else {
+        KERROR("Failed to resize internal renderbuffer resources.");
+    }
+    return result;
+}
+
+b8 renderer_renderbuffer_allocate(renderbuffer* buffer, u64 size, u64* out_offset) {
+    if (!buffer || !size || !out_offset) {
+        KERROR("vulkan_buffer_allocate requires valid buffer, a nonzero size and valid pointer to hold offset.");
+        return false;
+    }
+
+    if (buffer->freelist_memory_requirement == 0) {
+        KWARN("vulkan_buffer_allocate called on a buffer not using freelists. Offset will not be valid. Call renderer_renderbuffer_load_range instead.");
+        *out_offset = 0;
+        return true;
+    }
+    return freelist_allocate_block(&buffer->buffer_freelist, size, out_offset);
+}
+
+b8 renderer_renderbuffer_free(renderbuffer* buffer, u64 size, u64 offset) {
+    if (!buffer || !size) {
+        KERROR("vulkan_buffer_free requires valid buffer and a nonzero size.");
+        return false;
+    }
+
+    if (buffer->freelist_memory_requirement == 0) {
+        KWARN("vulkan_buffer_allocate called on a buffer not using freelists. Nothing was done.");
+        return true;
+    }
+    return freelist_free_block(&buffer->buffer_freelist, size, offset);
+}
+
+b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data) {
+    return state_ptr->backend.renderbuffer_load_range(buffer, offset, size, data);
+}
+
+b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size) {
+    return state_ptr->backend.renderbuffer_copy_range(source, source_offset, dest, dest_offset, size);
+}
+
+b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only) {
+    return state_ptr->backend.renderbuffer_draw(buffer, offset, element_count, bind_only);
 }
