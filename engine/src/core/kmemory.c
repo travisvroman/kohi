@@ -228,34 +228,50 @@ void* kset_memory(void* dest, i32 value, u64 size) {
     return platform_set_memory(dest, value, size);
 }
 
-char* get_memory_usage_str() {
-    const u64 gib = 1024 * 1024 * 1024;
-    const u64 mib = 1024 * 1024;
-    const u64 kib = 1024;
+const char* get_unit_for_size(u64 size_bytes, f32* out_amount) {
+    if (size_bytes >= GIBIBYTES(1)) {
+        *out_amount = (f64)size_bytes / GIBIBYTES(1);
+        return "GiB";
+    } else if (size_bytes >= MEBIBYTES(1)) {
+        *out_amount = (f64)size_bytes / MEBIBYTES(1);
+        return "MiB";
+    } else if (size_bytes >= KIBIBYTES(1)) {
+        *out_amount = (f64)size_bytes / KIBIBYTES(1);
+        return "KiB";
+    } else {
+        *out_amount = (f32)size_bytes;
+        return "B";
+    }
+}
 
+char* get_memory_usage_str() {
     char buffer[8000] = "System memory use (tagged):\n";
     u64 offset = strlen(buffer);
     for (u32 i = 0; i < MEMORY_TAG_MAX_TAGS; ++i) {
-        char unit[4] = "XiB";
-        float amount = 1.0f;
-        if (state_ptr->stats.tagged_allocations[i] >= gib) {
-            unit[0] = 'G';
-            amount = state_ptr->stats.tagged_allocations[i] / (float)gib;
-        } else if (state_ptr->stats.tagged_allocations[i] >= mib) {
-            unit[0] = 'M';
-            amount = state_ptr->stats.tagged_allocations[i] / (float)mib;
-        } else if (state_ptr->stats.tagged_allocations[i] >= kib) {
-            unit[0] = 'K';
-            amount = state_ptr->stats.tagged_allocations[i] / (float)kib;
-        } else {
-            unit[0] = 'B';
-            unit[1] = 0;
-            amount = (float)state_ptr->stats.tagged_allocations[i];
-        }
+        f32 amount = 1.0f;
+        const char* unit = get_unit_for_size(state_ptr->stats.tagged_allocations[i], &amount);
 
         i32 length = snprintf(buffer + offset, 8000, "  %s: %.2f%s\n", memory_tag_strings[i], amount, unit);
         offset += length;
     }
+    {
+        // Compute total usage.
+        u64 total_space = dynamic_allocator_total_space(&state_ptr->allocator);
+        u64 free_space = dynamic_allocator_free_space(&state_ptr->allocator);
+        u64 used_space = total_space - free_space;
+
+        f32 used_amount = 1.0f;
+        const char* used_unit = get_unit_for_size(used_space, &used_amount);
+
+        f32 total_amount = 1.0f;
+        const char* total_unit = get_unit_for_size(total_space, &total_amount);
+
+        f64 percent_used = (f64)(used_space) / total_space;
+
+        i32 length = snprintf(buffer + offset, 8000, "Total memory usage: %.2f%s of %.2f%s (%.2f%%)\n", used_amount, used_unit, total_amount, total_unit, percent_used);
+        offset += length;
+    }
+
     char* out_string = string_duplicate(buffer);
     return out_string;
 }
