@@ -759,6 +759,14 @@ typedef struct mesh_packet_data {
     mesh** meshes;
 } mesh_packet_data;
 
+struct ui_text;
+typedef struct ui_packet_data {
+    mesh_packet_data mesh_data;
+    // TODO: temp
+    u32 text_count;
+    struct ui_text** texts;
+} ui_packet_data;
+
 typedef struct skybox_packet_data {
     skybox* sb;
 } skybox_packet_data;
