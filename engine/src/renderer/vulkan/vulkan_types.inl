@@ -46,6 +46,8 @@ typedef struct vulkan_buffer {
     b8 is_locked;
     /** @brief The memory used by the buffer. */
     VkDeviceMemory memory;
+    /** @brief The memory requirements for this buffer. */
+    VkMemoryRequirements memory_requirements;
     /** @brief The index of the memory used by the buffer. */
     i32 memory_index;
     /** @brief The property flags for the memory used by the buffer. */
@@ -130,6 +132,10 @@ typedef struct vulkan_image {
     VkDeviceMemory memory;
     /** @brief The view for the image, which is used to access the image. */
     VkImageView view;
+    /** @brief The GPU memory requirements for this image. */
+    VkMemoryRequirements memory_requirements;
+    /** @brief Memory property flags */
+    VkMemoryPropertyFlags memory_flags;
     /** @brief The image width. */
     u32 width;
     /** @brief The image height. */
@@ -196,8 +202,8 @@ typedef struct vulkan_swapchain {
     /** @brief The depth texture. */
     texture* depth_texture;
 
-    /** 
-     * @brief Render targets used for on-screen rendering, one per frame. 
+    /**
+     * @brief Render targets used for on-screen rendering, one per frame.
      * The images contained in these are created and owned by the swapchain.
      * */
     render_target render_targets[3];

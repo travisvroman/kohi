@@ -34,7 +34,12 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "ENTITY     ",
     "ENTITY_NODE",
     "SCENE      ",
-    "RESOURCE   "};
+    "RESOURCE   ",
+    "VULKAN     ",
+    "VULKAN_EXT ",
+    "DIRECT3D   ",
+    "OPENGL     ",
+    "GPU_LOCAL  "};
 
 typedef struct memory_system_state {
     memory_system_configuration config;
@@ -107,8 +112,12 @@ void memory_system_shutdown() {
 }
 
 void* kallocate(u64 size, memory_tag tag) {
+    return kallocate_aligned(size, 1, tag);
+}
+
+void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
     if (tag == MEMORY_TAG_UNKNOWN) {
-        KWARN("kallocate called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
+        KWARN("kallocate_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
 
     // Either allocate from the system's allocator or the OS. The latter shouldn't ever
@@ -125,11 +134,11 @@ void* kallocate(u64 size, memory_tag tag) {
         state_ptr->stats.tagged_allocations[tag] += size;
         state_ptr->alloc_count++;
 
-        block = dynamic_allocator_allocate(&state_ptr->allocator, size);
+        block = dynamic_allocator_allocate_aligned(&state_ptr->allocator, size, alignment);
         kmutex_unlock(&state_ptr->allocation_mutex);
     } else {
         // If the system is not up yet, warn about it but give memory for now.
-        KWARN("kallocate called before the memory system is initialized.");
+        KWARN("kallocate_aligned called before the memory system is initialized.");
         // TODO: Memory alignment
         block = platform_allocate(size, false);
     }
@@ -139,13 +148,29 @@ void* kallocate(u64 size, memory_tag tag) {
         return block;
     }
 
-    KFATAL("kallocate failed to allocate successfully.");
+    KFATAL("kallocate_aligned failed to allocate successfully.");
     return 0;
 }
 
+void kallocate_report(u64 size, memory_tag tag) {
+    // Make sure multithreaded requests don't trample each other.
+    if (!kmutex_lock(&state_ptr->allocation_mutex)) {
+        KFATAL("Error obtaining mutex lock during allocation reporting.");
+        return;
+    }
+    state_ptr->stats.total_allocated += size;
+    state_ptr->stats.tagged_allocations[tag] += size;
+    state_ptr->alloc_count++;
+    kmutex_unlock(&state_ptr->allocation_mutex);
+}
+
 void kfree(void* block, u64 size, memory_tag tag) {
+    kfree_aligned(block, size, 1, tag);
+}
+
+void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
     if (tag == MEMORY_TAG_UNKNOWN) {
-        KWARN("kfree called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
+        KWARN("kfree_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
     if (state_ptr) {
         // Make sure multithreaded requests don't trample each other.
@@ -156,7 +181,8 @@ void kfree(void* block, u64 size, memory_tag tag) {
 
         state_ptr->stats.total_allocated -= size;
         state_ptr->stats.tagged_allocations[tag] -= size;
-        b8 result = dynamic_allocator_free(&state_ptr->allocator, block, size);
+        state_ptr->alloc_count--;
+        b8 result = dynamic_allocator_free_aligned(&state_ptr->allocator, block);
 
         kmutex_unlock(&state_ptr->allocation_mutex);
 
@@ -174,6 +200,22 @@ void kfree(void* block, u64 size, memory_tag tag) {
     }
 }
 
+void kfree_report(u64 size, memory_tag tag) {
+    // Make sure multithreaded requests don't trample each other.
+    if (!kmutex_lock(&state_ptr->allocation_mutex)) {
+        KFATAL("Error obtaining mutex lock during allocation reporting.");
+        return;
+    }
+    state_ptr->stats.total_allocated -= size;
+    state_ptr->stats.tagged_allocations[tag] -= size;
+    state_ptr->alloc_count--;
+    kmutex_unlock(&state_ptr->allocation_mutex);
+}
+
+b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment) {
+    return dynamic_allocator_get_size_alignment(block, out_size, out_alignment);
+}
+
 void* kzero_memory(void* block, u64 size) {
     return platform_zero_memory(block, size);
 }
@@ -186,34 +228,50 @@ void* kset_memory(void* dest, i32 value, u64 size) {
     return platform_set_memory(dest, value, size);
 }
 
-char* get_memory_usage_str() {
-    const u64 gib = 1024 * 1024 * 1024;
-    const u64 mib = 1024 * 1024;
-    const u64 kib = 1024;
+const char* get_unit_for_size(u64 size_bytes, f32* out_amount) {
+    if (size_bytes >= GIBIBYTES(1)) {
+        *out_amount = (f64)size_bytes / GIBIBYTES(1);
+        return "GiB";
+    } else if (size_bytes >= MEBIBYTES(1)) {
+        *out_amount = (f64)size_bytes / MEBIBYTES(1);
+        return "MiB";
+    } else if (size_bytes >= KIBIBYTES(1)) {
+        *out_amount = (f64)size_bytes / KIBIBYTES(1);
+        return "KiB";
+    } else {
+        *out_amount = (f32)size_bytes;
+        return "B";
+    }
+}
 
+char* get_memory_usage_str() {
     char buffer[8000] = "System memory use (tagged):\n";
     u64 offset = strlen(buffer);
     for (u32 i = 0; i < MEMORY_TAG_MAX_TAGS; ++i) {
-        char unit[4] = "XiB";
-        float amount = 1.0f;
-        if (state_ptr->stats.tagged_allocations[i] >= gib) {
-            unit[0] = 'G';
-            amount = state_ptr->stats.tagged_allocations[i] / (float)gib;
-        } else if (state_ptr->stats.tagged_allocations[i] >= mib) {
-            unit[0] = 'M';
-            amount = state_ptr->stats.tagged_allocations[i] / (float)mib;
-        } else if (state_ptr->stats.tagged_allocations[i] >= kib) {
-            unit[0] = 'K';
-            amount = state_ptr->stats.tagged_allocations[i] / (float)kib;
-        } else {
-            unit[0] = 'B';
-            unit[1] = 0;
-            amount = (float)state_ptr->stats.tagged_allocations[i];
-        }
+        f32 amount = 1.0f;
+        const char* unit = get_unit_for_size(state_ptr->stats.tagged_allocations[i], &amount);
 
         i32 length = snprintf(buffer + offset, 8000, "  %s: %.2f%s\n", memory_tag_strings[i], amount, unit);
         offset += length;
     }
+    {
+        // Compute total usage.
+        u64 total_space = dynamic_allocator_total_space(&state_ptr->allocator);
+        u64 free_space = dynamic_allocator_free_space(&state_ptr->allocator);
+        u64 used_space = total_space - free_space;
+
+        f32 used_amount = 1.0f;
+        const char* used_unit = get_unit_for_size(used_space, &used_amount);
+
+        f32 total_amount = 1.0f;
+        const char* total_unit = get_unit_for_size(total_space, &total_amount);
+
+        f64 percent_used = (f64)(used_space) / total_space;
+
+        i32 length = snprintf(buffer + offset, 8000, "Total memory usage: %.2f%s of %.2f%s (%.2f%%)\n", used_amount, used_unit, total_amount, total_unit, percent_used);
+        offset += length;
+    }
+
     char* out_string = string_duplicate(buffer);
     return out_string;
 }
