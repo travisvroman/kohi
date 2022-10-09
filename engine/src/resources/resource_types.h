@@ -27,9 +27,28 @@ typedef enum resource_type {
     RESOURCE_TYPE_SHADER,
     /** @brief Mesh resource type (collection of geometry configs). */
     RESOURCE_TYPE_MESH,
+    /** @brief Bitmap font resource type. */
+    RESOURCE_TYPE_BITMAP_FONT,
     /** @brief Custom resource type. Used by loaders outside the core engine. */
     RESOURCE_TYPE_CUSTOM
 } resource_type;
+
+/** @brief A magic number indicating the file as a kohi binary file. */
+#define RESOURCE_MAGIC 0xcafebabe
+
+/**
+ * @brief The header data for binary resource types.
+ */
+typedef struct resource_header {
+    /** @brief A magic number indicating the file as a kohi binary file. */
+    u32 magic_number;
+    /** @brief The resource type. Maps to the enum resource_type. */
+    u8 resource_type;
+    /** @brief The format version this resource uses. */
+    u8 version;
+    /** @brief Reserved for future header data.. */
+    u16 reserved;
+} resource_header;
 
 /**
  * @brief A generic structure for a resource. All resource loaders
@@ -182,6 +201,58 @@ typedef struct texture_map {
     /** @brief A pointer to internal, render API-specific data. Typically the internal sampler. */
     void* internal_data;
 } texture_map;
+
+typedef struct font_glyph {
+    i32 codepoint;
+    u16 x;
+    u16 y;
+    u16 width;
+    u16 height;
+    i16 x_offset;
+    i16 y_offset;
+    i16 x_advance;
+    u8 page_id;
+} font_glyph;
+
+typedef struct font_kerning {
+    i32 codepoint_0;
+    i32 codepoint_1;
+    i16 amount;
+} font_kerning;
+
+typedef enum font_type {
+    FONT_TYPE_BITMAP,
+    FONT_TYPE_SYSTEM
+} font_type;
+
+typedef struct font_data {
+    font_type type;
+    char face[256];
+    u32 size;
+    i32 line_height;
+    i32 baseline;
+    i32 atlas_size_x;
+    i32 atlas_size_y;
+    texture_map atlas;
+    u32 glyph_count;
+    font_glyph* glyphs;
+    u32 kerning_count;
+    font_kerning* kernings;
+    f32 tab_x_advance;
+    u32 internal_data_size;
+    void* internal_data;
+} font_data;
+
+typedef struct bitmap_font_page {
+    i8 id;
+    char file[256];
+} bitmap_font_page;
+
+typedef struct bitmap_font_resource_data {
+    font_data data;
+    u32 page_count;
+    bitmap_font_page* pages;
+} bitmap_font_resource_data;
 
 /** @brief The maximum length of a material name. */
 #define MATERIAL_NAME_MAX_LENGTH 256
