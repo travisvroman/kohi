@@ -64,3 +64,16 @@ texture* vulkan_renderer_depth_attachment_get();
 u8 vulkan_renderer_window_attachment_index_get();
 
 b8 vulkan_renderer_is_multithreaded();
+
+b8 vulkan_buffer_create_internal(renderbuffer* buffer);
+void vulkan_buffer_destroy_internal(renderbuffer* buffer);
+b8 vulkan_buffer_resize(renderbuffer* buffer, u64 new_size);
+b8 vulkan_buffer_bind(renderbuffer* buffer, u64 offset);
+b8 vulkan_buffer_unbind(renderbuffer* buffer);
+void* vulkan_buffer_map_memory(renderbuffer* buffer, u64 offset, u64 size);
+void vulkan_buffer_unmap_memory(renderbuffer* buffer, u64 offset, u64 size);
+b8 vulkan_buffer_flush(renderbuffer* buffer, u64 offset, u64 size);
+b8 vulkan_buffer_read(renderbuffer* buffer, u64 offset, u64 size, void** out_memory);
+b8 vulkan_buffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data);
+b8 vulkan_buffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size);
+b8 vulkan_buffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
