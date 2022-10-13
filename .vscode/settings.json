@@ -22,7 +22,7 @@
     "C_Cpp.clang_format_sortIncludes": false,
     "C_Cpp.vcFormat.indent.namespaceContents": true,
     "editor.cursorStyle": "block",
-    "window.zoomLevel": 1,
+    "window.zoomLevel": 0,
     "editor.tabCompletion": "on",
     "todohighlight.isEnable": true,
     "todohighlight.keywords": [
