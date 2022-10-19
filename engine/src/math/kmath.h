@@ -696,14 +696,14 @@ KINLINE vec4 vec4_from_vec3(vec3 vector, f32 w) {
 }
 
 /**
- * @brief Creates and returns a 3-component vector with all components set to 0.0f.
+ * @brief Creates and returns a 4-component vector with all components set to 0.0f.
  */
 KINLINE vec4 vec4_zero() {
     return (vec4){0.0f, 0.0f, 0.0f, 0.0f};
 }
 
 /**
- * @brief Creates and returns a 3-component vector with all components set to 1.0f.
+ * @brief Creates and returns a 4-component vector with all components set to 1.0f.
  */
 KINLINE vec4 vec4_one() {
     return (vec4){1.0f, 1.0f, 1.0f, 1.0f};

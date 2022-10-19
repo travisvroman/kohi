@@ -3,6 +3,7 @@
 #include "defines.h"
 #include "math/math_types.h"
 #include "resources/resource_types.h"
+#include "containers/freelist.h"
 
 #define BUILTIN_SHADER_NAME_SKYBOX "Shader.Builtin.Skybox"
 #define BUILTIN_SHADER_NAME_MATERIAL "Shader.Builtin.Material"
@@ -93,6 +94,38 @@ typedef struct renderpass {
     /** @brief Internal renderpass data */
     void* internal_data;
 } renderpass;
+
+typedef enum renderbuffer_type {
+    /** @brief Buffer is use is unknown. Default, but usually invalid. */
+    RENDERBUFFER_TYPE_UNKNOWN,
+    /** @brief Buffer is used for vertex data. */
+    RENDERBUFFER_TYPE_VERTEX,
+    /** @brief Buffer is used for index data. */
+    RENDERBUFFER_TYPE_INDEX,
+    /** @brief Buffer is used for uniform data. */
+    RENDERBUFFER_TYPE_UNIFORM,
+    /** @brief Buffer is used for staging purposes (i.e. from host-visible to device-local memory) */
+    RENDERBUFFER_TYPE_STAGING,
+    /** @brief Buffer is used for reading purposes (i.e copy to from device local, then read) */
+    RENDERBUFFER_TYPE_READ,
+    /** @brief Buffer is used for data storage. */
+    RENDERBUFFER_TYPE_STORAGE
+} renderbuffer_type;
+
+typedef struct renderbuffer {
+    /** @brief The type of buffer, which typically determines its use. */
+    renderbuffer_type type;
+    /** @brief The total size of the buffer in bytes. */
+    u64 total_size;
+    /** @brief The amount of memory required to store the freelist. 0 if not used. */
+    u64 freelist_memory_requirement;
+    /** @brief The buffer freelist, if used. */
+    freelist buffer_freelist;
+    /** @brief The freelist memory block, if needed. */
+    void* freelist_block;
+    /** @brief Contains internal data for the renderer-API-specific buffer. */
+    void* internal_data;
+} renderbuffer;
 
 /** @brief The generic configuration for a renderer backend. */
 typedef struct renderer_backend_config {
@@ -441,6 +474,120 @@ typedef struct renderer_backend {
      */
     b8 (*is_multithreaded)();
 
+    /**
+     * @brief Creates and assigns the renderer-backend-specific buffer.
+     *
+     * @param buffer A pointer to create the internal buffer for.
+     * @returns True on success; otherwise false.
+     */
+    b8 (*renderbuffer_create_internal)(renderbuffer* buffer);
+
+    /**
+     * @brief Destroys the given buffer.
+     *
+     * @param buffer A pointer to the buffer to be destroyed.
+     */
+    void (*renderbuffer_destroy_internal)(renderbuffer* buffer);
+
+    /**
+     * @brief Binds the given buffer at the provided offset.
+     *
+     * @param buffer A pointer to the buffer to bind.
+     * @param offset The offset in bytes from the beginning of the buffer.
+     * @returns True on success; otherwise false.
+     */
+    b8 (*renderbuffer_bind)(renderbuffer* buffer, u64 offset);
+    /**
+     * @brief Unbinds the given buffer.
+     *
+     * @param buffer A pointer to the buffer to be unbound.
+     * @returns True on success; otherwise false.
+     */
+    b8 (*renderbuffer_unbind)(renderbuffer* buffer);
+
+    /**
+     * @brief Maps memory from the given buffer in the provided range to a block of memory and returns it.
+     * This memory should be considered invalid once unmapped.
+     * @param buffer A pointer to the buffer to map.
+     * @param offset The number of bytes from the beginning of the buffer to map.
+     * @param size The amount of memory in the buffer to map.
+     * @returns A mapped block of memory. Freed and invalid once unmapped.
+     */
+    void* (*renderbuffer_map_memory)(renderbuffer* buffer, u64 offset, u64 size);
+    /**
+     * @brief Unmaps memory from the given buffer in the provided range to a block of memory.
+     * This memory should be considered invalid once unmapped.
+     * @param buffer A pointer to the buffer to unmap.
+     * @param offset The number of bytes from the beginning of the buffer to unmap.
+     * @param size The amount of memory in the buffer to unmap.
+     */
+    void (*renderbuffer_unmap_memory)(renderbuffer* buffer, u64 offset, u64 size);
+
+    /**
+     * @brief Flushes buffer memory at the given range. Should be done after a write.
+     * @param buffer A pointer to the buffer to unmap.
+     * @param offset The number of bytes from the beginning of the buffer to flush.
+     * @param size The amount of memory in the buffer to flush.
+     * @returns True on success; otherwise false.
+     */
+    b8 (*renderbuffer_flush)(renderbuffer* buffer, u64 offset, u64 size);
+
+    /**
+     * @brief Reads memory from the provided buffer at the given range to the output variable.
+     * @param buffer A pointer to the buffer to read from.
+     * @param offset The number of bytes from the beginning of the buffer to read.
+     * @param size The amount of memory in the buffer to read.
+     * @param out_memory A pointer to a block of memory to read to. Must be of appropriate size.
+     * @returns True on success; otherwise false.
+     */
+    b8 (*renderbuffer_read)(renderbuffer* buffer, u64 offset, u64 size, void** out_memory);
+
+    /**
+     * @brief Resizes the given buffer to new_total_size. new_total_size must be
+     * greater than the current buffer size. Data from the old internal buffer is copied
+     * over.
+     *
+     * @param buffer A pointer to the buffer to be resized.
+     * @param new_total_size The new size in bytes. Must be larger than the current size.
+     * @returns True on success; otherwise false.
+     */
+    b8 (*renderbuffer_resize)(renderbuffer* buffer, u64 new_total_size);
+
+    /**
+     * @brief Loads provided data into the specified rage of the given buffer.
+     *
+     * @param buffer A pointer to the buffer to load data into.
+     * @param offset The offset in bytes from the beginning of the buffer.
+     * @param size The size of the data in bytes to be loaded.
+     * @param data The data to be loaded.
+     * @returns True on success; otherwise false.
+     */
+    b8 (*renderbuffer_load_range)(renderbuffer* buffer, u64 offset, u64 size, const void* data);
+
+    /**
+     * @brief Copies data in the specified rage fron the source to the destination buffer.
+     *
+     * @param source A pointer to the source buffer to copy data from.
+     * @param source_offset The offset in bytes from the beginning of the source buffer.
+     * @param dest A pointer to the destination buffer to copy data to.
+     * @param dest_offset The offset in bytes from the beginning of the destination buffer.
+     * @param size The size of the data in bytes to be copied.
+     * @returns True on success; otherwise false.
+     */
+    b8 (*renderbuffer_copy_range)(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size);
+
+    /**
+     * @brief Attempts to draw the contents of the provided buffer at the given offset
+     * and element count. Only meant for use with vertex and index buffers.
+     *
+     * @param buffer A pointer to the buffer to be drawn.
+     * @param offset The offset in bytes from the beginning of the buffer.
+     * @param element_count The number of elements to be drawn.
+     * @param bind_only Only binds the buffer, but does not call draw.
+     * @return True on success; otherwise false.
+     */
+    b8 (*renderbuffer_draw)(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
+
 } renderer_backend;
 
 /** @brief Known render view types, which have logic associated with them. */
@@ -611,6 +758,14 @@ typedef struct mesh_packet_data {
     u32 mesh_count;
     mesh** meshes;
 } mesh_packet_data;
+
+struct ui_text;
+typedef struct ui_packet_data {
+    mesh_packet_data mesh_data;
+    // TODO: temp
+    u32 text_count;
+    struct ui_text** texts;
+} ui_packet_data;
 
 typedef struct skybox_packet_data {
     skybox* sb;
