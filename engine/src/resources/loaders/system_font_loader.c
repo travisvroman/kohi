@@ -223,27 +223,27 @@ b8 read_ksf_file(file_handle* file, system_font_resource_data* data) {
 
     // Size of font binary.
     read_size = sizeof(u64);
-    CLOSE_IF_FAILED(filesystem_write(file, read_size, &data->binary_size, &bytes_read), file);
+    CLOSE_IF_FAILED(filesystem_read(file, read_size, &data->binary_size, &bytes_read), file);
 
     // The font binary itself
     read_size = data->binary_size;
-    CLOSE_IF_FAILED(filesystem_write(file, read_size, &data->font_binary, &bytes_read), file);
+    CLOSE_IF_FAILED(filesystem_read(file, read_size, &data->font_binary, &bytes_read), file);
 
     // The number of fonts
     u32 font_count = darray_length(data->fonts);
     read_size = sizeof(u32);
-    CLOSE_IF_FAILED(filesystem_write(file, read_size, &font_count, &bytes_read), file);
+    CLOSE_IF_FAILED(filesystem_read(file, read_size, &font_count, &bytes_read), file);
 
     // Iterate faces metadata and output that as well.
     for (u32 i = 0; i < font_count; ++i) {
         // Length of face name string.
         u32 face_length = string_length(data->fonts[i].name);
         read_size = sizeof(u32);
-        CLOSE_IF_FAILED(filesystem_write(file, read_size, &face_length, &bytes_read), file);
+        CLOSE_IF_FAILED(filesystem_read(file, read_size, &face_length, &bytes_read), file);
 
         // Face string.
         read_size = sizeof(char) * face_length + 1;
-        CLOSE_IF_FAILED(filesystem_write(file, read_size, data->fonts[i].name, &bytes_read), file);
+        CLOSE_IF_FAILED(filesystem_read(file, read_size, data->fonts[i].name, &bytes_read), file);
     }
 
     return true;
