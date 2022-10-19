@@ -29,6 +29,8 @@ typedef enum resource_type {
     RESOURCE_TYPE_MESH,
     /** @brief Bitmap font resource type. */
     RESOURCE_TYPE_BITMAP_FONT,
+    /** @brief System font resource type. */
+    RESOURCE_TYPE_SYSTEM_FONT,
     /** @brief Custom resource type. Used by loaders outside the core engine. */
     RESOURCE_TYPE_CUSTOM
 } resource_type;
@@ -253,6 +255,17 @@ typedef struct bitmap_font_resource_data {
     u32 page_count;
     bitmap_font_page* pages;
 } bitmap_font_resource_data;
+
+typedef struct system_font_face {
+    char name[256];
+} system_font_face;
+
+typedef struct system_font_resource_data {
+    // darray
+    system_font_face* fonts;
+    u64 binary_size;
+    void* font_binary;
+} system_font_resource_data;
 
 /** @brief The maximum length of a material name. */
 #define MATERIAL_NAME_MAX_LENGTH 256
