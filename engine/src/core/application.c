@@ -10,6 +10,8 @@
 #include "core/input.h"
 #include "core/clock.h"
 #include "core/kstring.h"
+#include "core/identifier.h"
+#include "core/uuid.h"
 
 #include "memory/linear_allocator.h"
 
@@ -99,6 +101,9 @@ typedef struct application_state {
     mesh ui_meshes[10];
     ui_text test_text;
     ui_text test_sys_text;
+
+    // The unique identifier of the currently hovered-over object.
+    u32 hovered_object_id;
     // TODO: end temp
 
 } application_state;
@@ -174,6 +179,10 @@ b8 application_create(game* game_inst) {
         return false;
     }
 
+    // Seed the uuid generator.
+    // TODO: A better seed here.
+    uuid_seed(101);
+
     // Allocate the game state.
     game_inst->state = kallocate(game_inst->state_memory_requirement, MEMORY_TAG_GAME);
 
@@ -217,6 +226,7 @@ b8 application_create(game* game_inst) {
     event_register(EVENT_CODE_KEY_PRESSED, 0, application_on_key);
     event_register(EVENT_CODE_KEY_RELEASED, 0, application_on_key);
     event_register(EVENT_CODE_RESIZED, 0, application_on_resized);
+    event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, 0, application_on_event);
     // TODO: temp
     event_register(EVENT_CODE_DEBUG0, 0, event_on_debug_event);
     event_register(EVENT_CODE_DEBUG1, 0, event_on_debug_event);
@@ -323,26 +333,6 @@ b8 application_create(game* game_inst) {
         return false;
     }
 
-    // Material system.
-    material_system_config material_sys_config;
-    material_sys_config.max_material_count = 4096;
-    material_system_initialize(&app_state->material_system_memory_requirement, 0, material_sys_config);
-    app_state->material_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->material_system_memory_requirement);
-    if (!material_system_initialize(&app_state->material_system_memory_requirement, app_state->material_system_state, material_sys_config)) {
-        KFATAL("Failed to initialize material system. Application cannot continue.");
-        return false;
-    }
-
-    // Geometry system.
-    geometry_system_config geometry_sys_config;
-    geometry_sys_config.max_geometry_count = 4096;
-    geometry_system_initialize(&app_state->geometry_system_memory_requirement, 0, geometry_sys_config);
-    app_state->geometry_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->geometry_system_memory_requirement);
-    if (!geometry_system_initialize(&app_state->geometry_system_memory_requirement, app_state->geometry_system_state, geometry_sys_config)) {
-        KFATAL("Failed to initialize geometry system. Application cannot continue.");
-        return false;
-    }
-
     // Font system.
     font_system_config font_sys_config;
     font_sys_config.auto_release = false;
@@ -392,48 +382,141 @@ b8 application_create(game* game_inst) {
     }
 
     // Load render views
+
+    // Skybox view
     render_view_config skybox_config = {};
     skybox_config.type = RENDERER_VIEW_KNOWN_TYPE_SKYBOX;
     skybox_config.width = 0;
     skybox_config.height = 0;
     skybox_config.name = "skybox";
-    skybox_config.pass_count = 1;
-    render_view_pass_config skybox_passes[1];
-    skybox_passes[0].name = "Renderpass.Builtin.Skybox";
-    skybox_config.passes = skybox_passes;
     skybox_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
+
+    // Renderpass config.
+    skybox_config.pass_count = 1;
+    renderpass_config skybox_passes[1];
+    skybox_passes[0].name = "Renderpass.Builtin.Skybox";
+    skybox_passes[0].render_area = (vec4){0, 0, 1280, 720};  // Default render area resolution.
+    skybox_passes[0].clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
+    skybox_passes[0].clear_flags = RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG;
+    skybox_passes[0].depth = 1.0f;
+    skybox_passes[0].stencil = 0;
+
+    render_target_attachment_config skybox_target_attachment = {};
+    // Color attachment.
+    skybox_target_attachment.type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+    skybox_target_attachment.source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+    skybox_target_attachment.load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+    skybox_target_attachment.store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+    skybox_target_attachment.present_after = false;
+
+    skybox_passes[0].target.attachment_count = 1;
+    skybox_passes[0].target.attachments = &skybox_target_attachment;
+    skybox_passes[0].render_target_count = renderer_window_attachment_count_get();
+
+    skybox_config.passes = skybox_passes;
+
     if (!render_view_system_create(&skybox_config)) {
         KFATAL("Failed to create skybox view. Aborting application.");
         return false;
     }
 
-    render_view_config opaque_world_config = {};
-    opaque_world_config.type = RENDERER_VIEW_KNOWN_TYPE_WORLD;
-    opaque_world_config.width = 0;
-    opaque_world_config.height = 0;
-    opaque_world_config.name = "world_opaque";
-    opaque_world_config.pass_count = 1;
-    render_view_pass_config passes[1];
-    passes[0].name = "Renderpass.Builtin.World";
-    opaque_world_config.passes = passes;
-    opaque_world_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
-    if (!render_view_system_create(&opaque_world_config)) {
-        KFATAL("Failed to create view. Aborting application.");
+    // World view.
+    render_view_config world_view_config = {};
+    world_view_config.type = RENDERER_VIEW_KNOWN_TYPE_WORLD;
+    world_view_config.width = 0;
+    world_view_config.height = 0;
+    world_view_config.name = "world";
+    world_view_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
+
+    // Renderpass config.
+    world_view_config.pass_count = 1;
+    renderpass_config world_passes[1] = {0};
+    world_passes[0].name = "Renderpass.Builtin.World";
+    world_passes[0].render_area = (vec4){0, 0, 1280, 720};  // Default render area resolution.
+    world_passes[0].clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
+    world_passes[0].clear_flags = RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG | RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG;
+    world_passes[0].depth = 1.0f;
+    world_passes[0].stencil = 0;
+
+    render_target_attachment_config world_target_attachments[2] = {0};
+    // Colour attachment
+    world_target_attachments[0].type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+    world_target_attachments[0].source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+    world_target_attachments[0].load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD;
+    world_target_attachments[0].store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+    world_target_attachments[0].present_after = false;
+    // Depth attachment
+    world_target_attachments[1].type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
+    world_target_attachments[1].source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+    world_target_attachments[1].load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+    world_target_attachments[1].store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+    world_target_attachments[1].present_after = false;
+
+    world_passes[0].target.attachment_count = 2;
+    world_passes[0].target.attachments = world_target_attachments;
+    world_passes[0].render_target_count = renderer_window_attachment_count_get();
+
+    world_view_config.passes = world_passes;
+
+    if (!render_view_system_create(&world_view_config)) {
+        KFATAL("Failed to create world view. Aborting application.");
         return false;
     }
 
+    // UI view
     render_view_config ui_view_config = {};
     ui_view_config.type = RENDERER_VIEW_KNOWN_TYPE_UI;
     ui_view_config.width = 0;
     ui_view_config.height = 0;
     ui_view_config.name = "ui";
-    ui_view_config.pass_count = 1;
-    render_view_pass_config ui_passes[1];
-    ui_passes[0].name = "Renderpass.Builtin.UI";
-    ui_view_config.passes = ui_passes;
     ui_view_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
+
+    // Renderpass config
+    ui_view_config.pass_count = 1;
+    renderpass_config ui_passes[1];
+    ui_passes[0].name = "Renderpass.Builtin.UI";
+    ui_passes[0].render_area = (vec4){0, 0, 1280, 720};
+    ui_passes[0].clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
+    ui_passes[0].clear_flags = RENDERPASS_CLEAR_NONE_FLAG;
+    ui_passes[0].depth = 1.0f;
+    ui_passes[0].stencil = 0;
+
+    render_target_attachment_config ui_target_attachment = {};
+    // Colour attachment.
+    ui_target_attachment.type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+    ui_target_attachment.source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+    ui_target_attachment.load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD;
+    ui_target_attachment.store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+    ui_target_attachment.present_after = true;
+
+    ui_passes[0].target.attachment_count = 1;
+    ui_passes[0].target.attachments = &ui_target_attachment;
+    ui_passes[0].render_target_count = renderer_window_attachment_count_get();
+
+    ui_view_config.passes = ui_passes;
+
     if (!render_view_system_create(&ui_view_config)) {
-        KFATAL("Failed to create view. Aborting application.");
+        KFATAL("Failed to create ui view. Aborting application.");
+        return false;
+    }
+
+    // Material system.
+    material_system_config material_sys_config;
+    material_sys_config.max_material_count = 4096;
+    material_system_initialize(&app_state->material_system_memory_requirement, 0, material_sys_config);
+    app_state->material_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->material_system_memory_requirement);
+    if (!material_system_initialize(&app_state->material_system_memory_requirement, app_state->material_system_state, material_sys_config)) {
+        KFATAL("Failed to initialize material system. Application cannot continue.");
+        return false;
+    }
+
+    // Geometry system.
+    geometry_system_config geometry_sys_config;
+    geometry_sys_config.max_geometry_count = 4096;
+    geometry_system_initialize(&app_state->geometry_system_memory_requirement, 0, geometry_sys_config);
+    app_state->geometry_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->geometry_system_memory_requirement);
+    if (!geometry_system_initialize(&app_state->geometry_system_memory_requirement, app_state->geometry_system_state, geometry_sys_config)) {
+        KFATAL("Failed to initialize geometry system. Application cannot continue.");
         return false;
     }
 
@@ -444,13 +527,14 @@ b8 application_create(game* game_inst) {
         KERROR("Failed to load basic ui bitmap text.");
         return false;
     }
-    ui_text_set_position(&app_state->test_text, vec3_create(50, 100, 0));
+    // Move debug text to new bottom of screen.
+    ui_text_set_position(&app_state->test_text, vec3_create(20, app_state->height - 75, 0));
 
     if(!ui_text_create(UI_TEXT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Some system text 123, \n\tyo!\n\n\tこんにちは 한", &app_state->test_sys_text)) {
         KERROR("Failed to load basic ui system text.");
         return false;
     }
-    ui_text_set_position(&app_state->test_sys_text, vec3_create(50, 200, 0));
+    ui_text_set_position(&app_state->test_sys_text, vec3_create(50, 250, 0));
 
     // Skybox
     texture_map* cube_map = &app_state->sb.cubemap;
@@ -467,7 +551,7 @@ b8 application_create(game* game_inst) {
     skybox_cube_config.material_name[0] = 0;
     app_state->sb.g = geometry_system_acquire_from_config(skybox_cube_config, true);
     app_state->sb.render_frame_number = INVALID_ID_U64;
-    shader* skybox_shader = shader_system_get(BUILTIN_SHADER_NAME_SKYBOX);
+    shader* skybox_shader = shader_system_get("Shader.Builtin.Skybox");
     texture_map* maps[1] = {&app_state->sb.cubemap};
     if (!renderer_shader_acquire_instance_resources(skybox_shader, maps, &app_state->sb.instance_id)) {
         KFATAL("Unable to acquire shader resources for skybox texture.");
@@ -492,6 +576,7 @@ b8 application_create(game* game_inst) {
     cube_mesh->transform = transform_create();
     mesh_count++;
     cube_mesh->generation = 0;
+    cube_mesh->unique_id = identifier_aquire_new_id(cube_mesh);
     // Clean up the allocations for the geometry config.
     geometry_system_config_dispose(&g_config);
 
@@ -506,6 +591,7 @@ b8 application_create(game* game_inst) {
     transform_set_parent(&cube_mesh_2->transform, &cube_mesh->transform);
     mesh_count++;
     cube_mesh_2->generation = 0;
+    cube_mesh_2->unique_id = identifier_aquire_new_id(cube_mesh_2);
     // Clean up the allocations for the geometry config.
     geometry_system_config_dispose(&g_config);
 
@@ -520,14 +606,17 @@ b8 application_create(game* game_inst) {
     transform_set_parent(&cube_mesh_3->transform, &cube_mesh_2->transform);
     mesh_count++;
     cube_mesh_3->generation = 0;
+    cube_mesh_3->unique_id = identifier_aquire_new_id(cube_mesh_3);
     // Clean up the allocations for the geometry config.
     geometry_system_config_dispose(&g_config);
 
     app_state->car_mesh = &app_state->meshes[mesh_count];
+    app_state->car_mesh->unique_id = identifier_aquire_new_id(app_state->car_mesh);
     app_state->car_mesh->transform = transform_from_position((vec3){15.0f, 0.0f, 1.0f});
     mesh_count++;
 
     app_state->sponza_mesh = &app_state->meshes[mesh_count];
+    app_state->sponza_mesh->unique_id = identifier_aquire_new_id(app_state->sponza_mesh);
     app_state->sponza_mesh->transform = transform_from_position_rotation_scale((vec3){15.0f, 0.0f, 1.0f}, quat_identity(), (vec3){0.05f, 0.05f, 0.05f});
     mesh_count++;
 
@@ -569,6 +658,7 @@ b8 application_create(game* game_inst) {
     ui_config.indices = uiindices;
 
     // Get UI geometry from config.
+    app_state->ui_meshes[0].unique_id = identifier_aquire_new_id(&app_state->ui_meshes[0]);
     app_state->ui_meshes[0].geometry_count = 1;
     app_state->ui_meshes[0].geometries = kallocate(sizeof(geometry*), MEMORY_TAG_ARRAY);
     app_state->ui_meshes[0].geometries[0] = geometry_system_acquire_from_config(ui_config, true);
@@ -592,6 +682,7 @@ b8 application_create(game* game_inst) {
     return true;
 }
 
+#define AVG_COUNT 30
 b8 application_run() {
     app_state->is_running = true;
     clock_start(&app_state->clock);
@@ -600,6 +691,13 @@ b8 application_run() {
     // f64 running_time = 0;
     u8 frame_count = 0;
     f64 target_frame_seconds = 1.0f / 60;
+    f64 frame_elapsed_time = 0;
+    u8 frame_avg_counter = 0;
+    f64 ms_times[AVG_COUNT] = {0};
+    f64 ms_avg = 0;
+    i32 frames = 0;
+    f64 accumulated_frame_ms = 0;
+    f64 fps = 0;
 
     KINFO(get_memory_usage_str());
 
@@ -675,7 +773,7 @@ b8 application_run() {
             world_mesh_data.meshes = meshes;
 
             // TODO: performs a lookup on every frame.
-            if (!render_view_system_build_packet(render_view_system_get("world_opaque"), &world_mesh_data, &packet.views[1])) {
+            if (!render_view_system_build_packet(render_view_system_get("world"), &world_mesh_data, &packet.views[1])) {
                 KERROR("Failed to build packet for view 'world_opaque'.");
                 return false;
             }
@@ -687,12 +785,55 @@ b8 application_run() {
             vec3 pos = camera_position_get(world_camera);
             vec3 rot = camera_rotation_euler_get(world_camera);
 
+            // Also tack on current mouse state.
+            b8 left_down = input_is_button_down(BUTTON_LEFT);
+            b8 right_down = input_is_button_down(BUTTON_RIGHT);
+            i32 mouse_x, mouse_y;
+            input_get_mouse_position(&mouse_x, &mouse_y);
+
+            // Convert to NDC
+            f32 mouse_x_ndc = range_convert_f32((f32)mouse_x, 0.0f, (f32)app_state->width, -1.0f, 1.0f);
+            f32 mouse_y_ndc = range_convert_f32((f32)mouse_y, 0.0f, (f32)app_state->height, -1.0f, 1.0f);
+
+            // Calculate frame ms average
+            f64 frame_ms = (frame_elapsed_time * 1000.0);
+            ms_times[frame_avg_counter] = frame_ms;
+            if (frame_avg_counter == AVG_COUNT - 1) {
+                for (u8 i = 0; i < AVG_COUNT; ++i) {
+                    ms_avg += ms_times[i];
+                }
+
+                ms_avg /= AVG_COUNT;
+            }
+            frame_avg_counter++;
+            frame_avg_counter %= AVG_COUNT;
+
+            // Calculate frames per second.
+            accumulated_frame_ms += frame_ms;
+            if (accumulated_frame_ms > 1000) {
+                fps = frames;
+                accumulated_frame_ms -= 1000;
+                frames = 0;
+            }
+
             char text_buffer[256];
             string_format(
                 text_buffer,
-                "Camera Pos: [%.3f, %.3f, %.3f]\nCamera Rot: [%.3f, %.3f, %.3f]",
+                "\
+FPS: %5.1f(%4.1fms)        Pos=[%7.3f %7.3f %7.3f] Rot=[%7.3f, %7.3f, %7.3f]\n\
+Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
+Hovered: %s%u",
+                fps,
+                ms_avg,
                 pos.x, pos.y, pos.z,
-                rad_to_deg(rot.x), rad_to_deg(rot.y), rad_to_deg(rot.z));
+                rad_to_deg(rot.x), rad_to_deg(rot.y), rad_to_deg(rot.z),
+                mouse_x, mouse_y,
+                left_down ? "Y" : "N",
+                right_down ? "Y" : "N",
+                mouse_x_ndc,
+                mouse_y_ndc,
+                app_state->hovered_object_id == INVALID_ID ? "none" : "",
+                app_state->hovered_object_id == INVALID_ID ? 0 : app_state->hovered_object_id);
             ui_text_set_text(&app_state->test_text, text_buffer);
 
             ui_packet_data ui_packet = {};
@@ -733,7 +874,7 @@ b8 application_run() {
 
             // Figure out how long the frame took and, if below
             f64 frame_end_time = platform_get_absolute_time();
-            f64 frame_elapsed_time = frame_end_time - frame_start_time;
+            frame_elapsed_time = frame_end_time - frame_start_time;
             // running_time += frame_elapsed_time;
             f64 remaining_seconds = target_frame_seconds - frame_elapsed_time;
 
@@ -748,6 +889,9 @@ b8 application_run() {
 
                 frame_count++;
             }
+
+            // Count all frames.
+            frames++;
 
             // NOTE: Input update/state copying should always be handled
             // after any input should be recorded; I.E. before this line.
@@ -817,6 +961,10 @@ b8 application_on_event(u16 code, void* sender, void* listener_inst, event_conte
             app_state->is_running = false;
             return true;
         }
+        case EVENT_CODE_OBJECT_HOVER_ID_CHANGED: {
+            app_state->hovered_object_id = context.data.u32[0];
+            return true;
+        }
     }
 
     return false;
@@ -876,6 +1024,11 @@ b8 application_on_resized(u16 code, void* sender, void* listener_inst, event_con
                 app_state->game_inst->on_resize(app_state->game_inst, width, height);
                 renderer_on_resized(width, height);
             }
+  
+            // TODO: temp
+            // Move debug text to new bottom of screen.
+            ui_text_set_position(&app_state->test_text, vec3_create(20, app_state->height - 75, 0));
+            // TODO: end temp
         }
     }
 

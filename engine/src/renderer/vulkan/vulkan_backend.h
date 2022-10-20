@@ -61,7 +61,7 @@ void vulkan_renderer_texture_map_release_resources(texture_map* map);
 b8 vulkan_renderpass_create(const renderpass_config* config, renderpass* out_renderpass);
 void vulkan_renderpass_destroy(renderpass* pass);
 
-void vulkan_renderer_render_target_create(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
+b8 vulkan_renderer_render_target_create(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
 void vulkan_renderer_render_target_destroy(render_target* target, b8 free_internal_memory);
 
 texture* vulkan_renderer_window_attachment_get(u8 index);

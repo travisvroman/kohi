@@ -2392,6 +2392,7 @@ b8 vulkan_renderer_render_target_create(u8 attachment_count, render_target_attac
     framebuffer_create_info.layers = 1;
 
     VK_CHECK(vkCreateFramebuffer(context.device.logical_device, &framebuffer_create_info, context.allocator, (VkFramebuffer*)&out_target->internal_framebuffer));
+    return true;
 }
 
 void vulkan_renderer_render_target_destroy(render_target* target, b8 free_internal_memory) {

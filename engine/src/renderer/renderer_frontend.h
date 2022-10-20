@@ -54,6 +54,32 @@ void renderer_on_resized(u16 width, u16 height);
 b8 renderer_draw_frame(render_packet* packet);
 
 /**
+ * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
+ *
+ * @param rect The viewport rectangle to be set.
+ */
+void renderer_viewport_set(vec4 rect);
+
+/**
+ * @brief Resets the viewport to the default, which matches the application window.
+ * Must be done within a renderpass.
+ */
+void renderer_viewport_reset();
+
+/**
+ * @brief Sets the renderer scissor to the given rectangle. Must be done within a renderpass.
+ *
+ * @param rect The scissor rectangle to be set.
+ */
+void renderer_scissor_set(vec4 rect);
+
+/**
+ * @brief Resets the scissor to the default, which matches the application window.
+ * Must be done within a renderpass.
+ */
+void renderer_scissor_reset();
+
+/**
  * @brief Creates a new texture.
  *
  * @param pixels The raw image data to be uploaded to the GPU.
@@ -95,6 +121,26 @@ void renderer_texture_resize(texture* t, u32 new_width, u32 new_height);
  * @param pixels The raw image data to be written.
  */
 void renderer_texture_write_data(texture* t, u32 offset, u32 size, const u8* pixels);
+
+/**
+ * @brief Reads the given data from the provided texture.
+ *
+ * @param t A pointer to the texture to be read from.
+ * @param offset The offset in bytes from the beginning of the data to be read.
+ * @param size The number of bytes to be read.
+ * @param out_memory A pointer to a block of memory to write the read data to.
+ */
+void renderer_texture_read_data(texture* t, u32 offset, u32 size, void** out_memory);
+
+/**
+ * @brief Reads a pixel from the provided texture at the given x/y coordinate.
+ * 
+ * @param t A pointer to the texture to be read from.
+ * @param x The pixel x-coordinate.
+ * @param y The pixel y-coordinate.
+ * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
+ */
+void renderer_texture_read_pixel(texture* t, u32 x, u32 y, u8** out_rgba);
 
 /**
  * @brief Acquiores GPU resources and uploads geometry data.
@@ -140,14 +186,6 @@ b8 renderer_renderpass_begin(renderpass* pass, render_target* target);
  * @return True on success; otherwise false.
  */
 b8 renderer_renderpass_end(renderpass* pass);
-
-/**
- * @brief Obtains a pointer to the renderpass with the given name.
- *
- * @param name The name of the renderpass whose identifier to obtain.
- * @return A pointer to a renderpass if found; otherwise 0.
- */
-renderpass* renderer_renderpass_get(const char* name);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.
@@ -267,14 +305,14 @@ void renderer_texture_map_release_resources(struct texture_map* map);
 /**
  * @brief Creates a new render target using the provided data.
  *
- * @param attachment_count The number of attachments (texture pointers).
- * @param attachments An array of attachments (texture pointers).
+ * @param attachment_count The number of attachments.
+ * @param attachments An array of attachments.
  * @param renderpass A pointer to the renderpass the render target is associated with.
  * @param width The width of the render target in pixels.
  * @param height The height of the render target in pixels.
  * @param out_target A pointer to hold the newly created render target.
  */
-void renderer_render_target_create(u8 attachment_count, texture** attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
+void renderer_render_target_create(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
 
 /**
  * @brief Destroys the provided render target.
@@ -285,16 +323,38 @@ void renderer_render_target_create(u8 attachment_count, texture** attachments, r
 void renderer_render_target_destroy(render_target* target, b8 free_internal_memory);
 
 /**
+ * @brief Attempts to get the window render target at the given index.
+ *
+ * @param index The index of the attachment to get. Must be within the range of window render target count.
+ * @return A pointer to a texture attachment if successful; otherwise 0.
+ */
+texture* renderer_window_attachment_get(u8 index);
+
+/**
+ * @brief Returns a pointer to the main depth texture target.
+ * 
+ * @param index The index of the attachment to get. Must be within the range of window render target count.
+ * @return A pointer to a texture attachment if successful; otherwise 0.
+ */
+texture* renderer_depth_attachment_get(u8 index);
+
+/**
+ * @brief Returns the current window attachment index.
+ */
+u8 renderer_window_attachment_index_get();
+
+/**
+ * @brief Returns the number of attachments required for window-based render targets.
+ */
+u8 renderer_window_attachment_count_get();
+
+/**
  * @brief Creates a new renderpass.
  *
+ * @param config A constant pointer to the configuration to be used when creating the renderpass.
  * @param out_renderpass A pointer to the generic renderpass.
- * @param depth The depth clear amount.
- * @param stencil The stencil clear value.
- * @param clear_flags The combined clear flags indicating what kind of clear should take place.
- * @param has_prev_pass Indicates if there is a previous renderpass.
- * @param has_next_pass Indicates if there is a next renderpass.
  */
-void renderer_renderpass_create(renderpass* out_renderpass, f32 depth, u32 stencil, b8 has_prev_pass, b8 has_next_pass);
+b8 renderer_renderpass_create(const renderpass_config* config, renderpass* out_renderpass);
 
 /**
  * @brief Destroys the given renderpass.
