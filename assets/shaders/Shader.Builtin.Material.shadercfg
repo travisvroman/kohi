@@ -4,8 +4,8 @@ name=Shader.Builtin.Material
 renderpass=Renderpass.Builtin.World
 stages=vertex,fragment
 stagefiles=shaders/Builtin.MaterialShader.vert.spv,shaders/Builtin.MaterialShader.frag.spv
-use_instance=1
-use_local=1
+depth_test=1
+depth_write=1
 
 # Attributes: type,name
 attribute=vec3,in_position

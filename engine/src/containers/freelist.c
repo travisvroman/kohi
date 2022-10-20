@@ -132,8 +132,8 @@ b8 freelist_free_block(freelist* list, u64 size, u64 offset) {
         return true;
     } else {
         while (node) {
-            if (node->offset == offset) {
-                // Can just be appended to this node.
+            if (node->offset + node->size == offset) {
+                // Can be appended to the right of this node.
                 node->size += size;
 
                 // Check if this then connects the range between this and the next
@@ -145,6 +145,11 @@ b8 freelist_free_block(freelist* list, u64 size, u64 offset) {
                     return_node(list, next);
                 }
                 return true;
+            } else if (node->offset == offset) {
+                // If there is an exact match, this means the exact block of memory
+                // that is already free is being freed again.
+                KFATAL("Attempting to free already-freed block of memory at offset %llu", node->offset);
+                return false;
             } else if (node->offset > offset) {
                 // Iterated beyond the space to be freed. Need a new node.
                 freelist_node* new_node = get_node(list);
@@ -176,6 +181,18 @@ b8 freelist_free_block(freelist* list, u64 size, u64 offset) {
                     previous->next = rubbish->next;
                     return_node(list, rubbish);
                 }
+
+                return true;
+            }
+
+            // If on the last node and the last node's offset + size < the free offset,
+            // a new node is required.
+            if (!node->next && node->offset + node->size < offset) {
+                freelist_node* new_node = get_node(list);
+                new_node->offset = offset;
+                new_node->size = size;
+                new_node->next = 0;
+                node->next = new_node;
 
                 return true;
             }

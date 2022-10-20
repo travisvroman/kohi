@@ -162,11 +162,6 @@ typedef struct vulkan_renderpass {
     /** @brief The stencil clear value. */
     u32 stencil;
 
-    /** @brief Indicates if there is a previous renderpass. */
-    b8 has_prev_pass;
-    /** @brief Indicates if there is a next renderpass. */
-    b8 has_next_pass;
-
     /** @brief Indicates renderpass state. */
     vulkan_render_pass_state state;
 } vulkan_renderpass;
@@ -187,11 +182,11 @@ typedef struct vulkan_swapchain {
     VkSwapchainKHR handle;
     /** @brief The number of swapchain images. */
     u32 image_count;
-    /** @brief An array of pointers to render targets, which contain swapchain images. */
-    texture** render_textures;
+    /** @brief An array of render targets, which contain swapchain images. */
+    texture* render_textures;
 
-    /** @brief The depth texture. */
-    texture* depth_texture;
+    /** @brief An array of depth textures, one per frame. */
+    texture* depth_textures;
 
     /**
      * @brief Render targets used for on-screen rendering, one per frame.
@@ -243,6 +238,42 @@ typedef struct vulkan_shader_stage {
     /** @brief The pipeline shader stage creation info. */
     VkPipelineShaderStageCreateInfo shader_stage_create_info;
 } vulkan_shader_stage;
+
+/**
+ * @brief A configuration structure for Vulkan pipelines.
+ */
+typedef struct vulkan_pipeline_config {
+    /** @brief A pointer to the renderpass to associate with the pipeline. */
+    vulkan_renderpass* renderpass;
+    /** @brief The stride of the vertex data to be used (ex: sizeof(vertex_3d)) */
+    u32 stride;
+    /** @brief The number of attributes. */
+    u32 attribute_count;
+    /** @brief An array of attributes. */
+    VkVertexInputAttributeDescription* attributes;
+    /** @brief The number of descriptor set layouts. */
+    u32 descriptor_set_layout_count;
+    /** @brief An array of descriptor set layouts. */
+    VkDescriptorSetLayout* descriptor_set_layouts;
+    /** @brief The number of stages (vertex, fragment, etc). */
+    u32 stage_count;
+    /** @brief An VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BITarray of stages. */
+    VkPipelineShaderStageCreateInfo* stages;
+    /** @brief The initial viewport configuration. */
+    VkViewport viewport;
+    /** @brief The initial scissor configuration. */
+    VkRect2D scissor;
+    /** @brief The face cull mode. */
+    face_cull_mode cull_mode;
+    /** @brief Indicates if this pipeline should use wireframe mode. */
+    b8 is_wireframe;
+    /** @brief The shader flags used for creating the pipeline. */
+    u32 shader_flags;
+    /** @brief The number of push constant data ranges. */
+    u32 push_constant_range_count;
+    /** @brief An array of push constant data ranges. */
+    range* push_constant_ranges;
+} vulkan_pipeline_config;
 
 /**
  * @brief Holds a Vulkan pipeline and its layout.
@@ -469,8 +500,6 @@ typedef struct vulkan_shader {
 
 } vulkan_shader;
 
-#define VULKAN_MAX_REGISTERED_RENDERPASSES 31
-
 /**
  * @brief The overall Vulkan context for the backend. Holds and maintains
  * global renderer backend state, Vulkan instance, etc.
@@ -491,6 +520,12 @@ typedef struct vulkan_context {
     /** @brief The generation of the framebuffer when it was last created. Set to framebuffer_size_generation when updated. */
     u64 framebuffer_size_last_generation;
 
+    /** @brief The viewport rectangle. */
+    vec4 viewport_rect;
+
+    /** @brief The scissor rectangle. */
+    vec4 scissor_rect;
+
     /** @brief The handle to the internal Vulkan instance. */
     VkInstance instance;
     /** @brief The internal Vulkan allocator. */
@@ -508,12 +543,6 @@ typedef struct vulkan_context {
 
     /** @brief The swapchain. */
     vulkan_swapchain swapchain;
-
-    void* renderpass_table_block;
-    hashtable renderpass_table;
-
-    /** @brief Registered renderpasses. */
-    renderpass registered_passes[VULKAN_MAX_REGISTERED_RENDERPASSES];
 
     /** @brief The object vertex buffer, used to hold geometry vertices. */
     renderbuffer object_vertex_buffer;
@@ -562,11 +591,4 @@ typedef struct vulkan_context {
      * @returns The index of the found memory type. Returns -1 if not found.
      */
     i32 (*find_memory_index)(u32 type_filter, u32 property_flags);
-
-    /**
-     * @brief A pointer to a function to be called when the backend requires
-     * rendertargets to be refreshed/regenerated.
-     */
-    void (*on_rendertarget_refresh_required)();
-
 } vulkan_context;

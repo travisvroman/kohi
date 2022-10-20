@@ -104,3 +104,6 @@ KAPI u64 dynamic_allocator_free_space(dynamic_allocator* allocator);
  * @return The total amount of space originally available in bytes.
  */
 KAPI u64 dynamic_allocator_total_space(dynamic_allocator* allocator);
+
+/** Obtains the size of the internal allocation header. This is really only used for unit testing purposes. */
+KAPI u64 dynamic_allocator_header_size();

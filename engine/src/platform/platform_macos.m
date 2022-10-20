@@ -119,8 +119,14 @@ void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags);
 
 - (void)mouseMoved:(NSEvent *)event {
     const NSPoint pos = [event locationInWindow];
+
+    // Need to invert Y on macOS, since origin is bottom-left.
+    // Also need to scale the mouse position by the device pixel ratio so screen lookups are correct.
+    NSSize window_size = state_ptr->layer.drawableSize;
+    i16 x = pos.x * state_ptr->layer.contentsScale;
+    i16 y = window_size.height - (pos.y * state_ptr->layer.contentsScale);
     
-    input_process_mouse_move((i16)pos.x, (i16)pos.y);
+    input_process_mouse_move(x, y);
 }
 
 - (void)rightMouseDown:(NSEvent *)event {
