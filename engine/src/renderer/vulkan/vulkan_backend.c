@@ -6,7 +6,6 @@
 #include "vulkan_swapchain.h"
 #include "vulkan_command_buffer.h"
 #include "vulkan_utils.h"
-#include "vulkan_buffer.h"
 #include "vulkan_image.h"
 #include "vulkan_pipeline.h"
 
@@ -18,12 +17,24 @@
 
 #include "math/math_types.h"
 
+#include "renderer/renderer_frontend.h"
+
 #include "platform/platform.h"
 
 #include "systems/shader_system.h"
 #include "systems/material_system.h"
 #include "systems/texture_system.h"
 #include "systems/resource_system.h"
+
+// NOTE: If wanting to trace allocations, uncomment this.
+// #ifndef KVULKAN_ALLOCATOR_TRACE
+// #define KVULKAN_ALLOCATOR_TRACE 1
+// #endif
+
+// NOTE: To disable the custom allocator, comment this out or set to 0.
+#ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
+#define KVULKAN_USE_CUSTOM_ALLOCATOR 1
+#endif
 
 // static Vulkan context
 static vulkan_context context;
@@ -35,48 +46,199 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     void* user_data);
 
 i32 find_memory_index(u32 type_filter, u32 property_flags);
-b8 create_buffers(vulkan_context* context);
 
 void create_command_buffers(renderer_backend* backend);
 b8 recreate_swapchain(renderer_backend* backend);
 b8 create_module(vulkan_shader* shader, vulkan_shader_stage_config config, vulkan_shader_stage* shader_stage);
+b8 vulkan_buffer_copy_range_internal(VkBuffer source, u64 source_offset, VkBuffer dest, u64 dest_offset, u64 size);
 
-b8 upload_data_range(vulkan_context* context, VkCommandPool pool, VkFence fence, VkQueue queue, vulkan_buffer* buffer, u64* out_offset, u64 size, const void* data) {
-    // Allocate space in the buffer.
-    if (!vulkan_buffer_allocate(buffer, size, out_offset)) {
-        KERROR("upload_data_range failed to allocate from the given buffer!");
-        return false;
+#if KVULKAN_USE_CUSTOM_ALLOCATOR == 1
+/**
+ * @brief Implementation of PFN_vkAllocationFunction.
+ * @link https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkAllocationFunction.html
+ *
+ * @param user_data User data specified in the allocator by the application.
+ * @param size The size in bytes of the requested allocation.
+ * @param alignment The requested alignment of the allocation in bytes. Must be a power of two.
+ * @param allocationScope The allocation scope and lifetime.
+ * @return A memory block if successful; otherwise 0.
+ */
+void* vulkan_alloc_allocation(void* user_data, size_t size, size_t alignment, VkSystemAllocationScope allocation_scope) {
+    // Null MUST be returned if this fails.
+    if (size == 0) {
+        return 0;
     }
 
-    // Create a host-visible staging buffer to upload to. Mark it as the source of the transfer.
-    VkBufferUsageFlags flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    vulkan_buffer staging;
-    vulkan_buffer_create(context, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, flags, true, false, &staging);
-
-    // Load the data into the staging buffer.
-    vulkan_buffer_load_data(context, &staging, 0, size, 0, data);
-
-    // Perform the copy from staging to the device local buffer.
-    vulkan_buffer_copy_to(context, pool, fence, queue, staging.handle, 0, buffer->handle, *out_offset, size);
-
-    // Clean up the staging buffer.
-    vulkan_buffer_destroy(context, &staging);
-
-    return true;
+    void* result = kallocate_aligned(size, (u16)alignment, MEMORY_TAG_VULKAN);
+#ifdef KVULKAN_ALLOCATOR_TRACE
+    KTRACE("Allocated block %p. Size=%llu, Alignment=%llu", result, size, alignment);
+#endif
+    return result;
 }
 
-void free_data_range(vulkan_buffer* buffer, u64 offset, u64 size) {
-    if (buffer) {
-        vulkan_buffer_free(buffer, size, offset);
+/**
+ * @brief Implementation of PFN_vkFreeFunction.
+ * @link https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkFreeFunction.html
+ *
+ * @param user_data User data specified in the allocator by the application.
+ * @param memory The allocation to be freed.
+ */
+void vulkan_alloc_free(void* user_data, void* memory) {
+    if (!memory) {
+#ifdef KVULKAN_ALLOCATOR_TRACE
+        KTRACE("Block is null, nothing to free: %p", memory);
+#endif
+        return;
+    }
+
+#ifdef KVULKAN_ALLOCATOR_TRACE
+    KTRACE("Attempting to free block %p...", memory);
+#endif
+    u64 size;
+    u16 alignment;
+    b8 result = kmemory_get_size_alignment(memory, &size, &alignment);
+    if (result) {
+#ifdef KVULKAN_ALLOCATOR_TRACE
+        KTRACE("Block %p found with size/alignment: %llu/%u. Freeing aligned block...", memory, size, alignment);
+#endif
+        kfree_aligned(memory, size, alignment, MEMORY_TAG_VULKAN);
+    } else {
+        KERROR("vulkan_alloc_free failed to get alignment lookup for block %p.", memory);
     }
 }
+
+/**
+ * @brief Implementation of PFN_vkReallocationFunction.
+ * @link https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkReallocationFunction.html
+ *
+ * @param user_data User data specified in the allocator by the application.
+ * @param original Either NULL or a pointer previously returned by vulkan_alloc_allocation.
+ * @param size The size in bytes of the requested allocation.
+ * @param alignment The requested alignment of the allocation in bytes. Must be a power of two.
+ * @param allocation_scope The scope and lifetime of the allocation.
+ * @return A memory block if successful; otherwise 0.
+ */
+void* vulkan_alloc_reallocation(void* user_data, void* original, size_t size, size_t alignment, VkSystemAllocationScope allocation_scope) {
+    if (!original) {
+        return vulkan_alloc_allocation(user_data, size, alignment, allocation_scope);
+    }
+
+    if (size == 0) {
+        return 0;
+    }
+
+    // NOTE: if pOriginal is not null, the same alignment must be used for the new allocation as original.
+    u64 alloc_size;
+    u16 alloc_alignment;
+    b8 is_aligned = kmemory_get_size_alignment(original, &alloc_size, &alloc_alignment);
+    if (!is_aligned) {
+        KERROR("vulkan_alloc_reallocation of unaligned block %p", original);
+        return 0;
+    }
+
+    if (alloc_alignment != alignment) {
+        KERROR("Attempted realloc using a different alignment of %llu than the original of %hu.", alignment, alloc_alignment);
+        return 0;
+    }
+
+#ifdef KVULKAN_ALLOCATOR_TRACE
+    KTRACE("Attempting to realloc block %p...", original);
+#endif
+
+    void* result = vulkan_alloc_allocation(user_data, size, alloc_alignment, allocation_scope);
+    if (result) {
+#ifdef KVULKAN_ALLOCATOR_TRACE
+        KTRACE("Block %p reallocated to %p, copying data...", original, result);
+#endif
+
+        // Copy over the original memory.
+        kcopy_memory(result, original, size);
+#ifdef KVULKAN_ALLOCATOR_TRACE
+        KTRACE("Freeing original aligned block %p...", original);
+#endif
+        // Free the original memory only if the new allocation was successful.
+        kfree_aligned(original, alloc_size, alloc_alignment, MEMORY_TAG_VULKAN);
+    } else {
+#ifdef KVULKAN_ALLOCATOR_TRACE
+        KERROR("Failed to realloc %p.", original);
+#endif
+    }
+
+    return result;
+}
+
+/**
+ * @brief Implementation of PFN_vkInternalAllocationNotification.
+ * Purely informational, nothing can really be done with this except to track it.
+ * @link https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkInternalAllocationNotification.html
+ *
+ * @param pUserData User data specified in the allocator by the application.
+ * @param size The size of the allocation in bytes.
+ * @param allocationType The type of internal allocation.
+ * @param allocationScope The scope and lifetime of the allocation.
+ */
+void vulkan_alloc_internal_alloc(void* pUserData, size_t size, VkInternalAllocationType allocationType, VkSystemAllocationScope allocationScope) {
+#ifdef KVULKAN_ALLOCATOR_TRACE
+    KTRACE("External allocation of size: %llu", size);
+#endif
+    kallocate_report((u64)size, MEMORY_TAG_VULKAN_EXT);
+}
+
+/**
+ * @brief Implementation of PFN_vkInternalFreeNotification.
+ * Purely informational, nothing can really be done with this except to track it.
+ * @link https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkInternalFreeNotification.html
+ *
+ * @param pUserData User data specified in the allocator by the application.
+ * @param size The size of the allocation to be freed in bytes.
+ * @param allocationType The type of internal allocation.
+ * @param allocationScope The scope and lifetime of the allocation.
+ */
+void vulkan_alloc_internal_free(void* pUserData, size_t size, VkInternalAllocationType allocationType, VkSystemAllocationScope allocationScope) {
+#ifdef KVULKAN_ALLOCATOR_TRACE
+    KTRACE("External free of size: %llu", size);
+#endif
+    kfree_report((u64)size, MEMORY_TAG_VULKAN_EXT);
+}
+
+/**
+ * @brief Create a vulkan allocator object, filling out the function pointers
+ * in the provided struct.
+ *
+ * @param callbacks A pointer to the allocation callbacks structure to be filled out.
+ * @return b8 True on success; otherwise false.
+ */
+b8 create_vulkan_allocator(VkAllocationCallbacks* callbacks) {
+    if (callbacks) {
+        callbacks->pfnAllocation = vulkan_alloc_allocation;
+        callbacks->pfnReallocation = vulkan_alloc_reallocation;
+        callbacks->pfnFree = vulkan_alloc_free;
+        callbacks->pfnInternalAllocation = vulkan_alloc_internal_alloc;
+        callbacks->pfnInternalFree = vulkan_alloc_internal_free;
+        callbacks->pUserData = &context;
+        return true;
+    }
+
+    return false;
+}
+#endif  // KVULKAN_USE_CUSTOM_ALLOCATOR == 1
 
 b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const renderer_backend_config* config, u8* out_window_render_target_count) {
     // Function pointers
     context.find_memory_index = find_memory_index;
 
-    // TODO: custom allocator.
+    // NOTE: Custom allocator.
+#if KVULKAN_USE_CUSTOM_ALLOCATOR == 1
+    context.allocator = kallocate(sizeof(VkAllocationCallbacks), MEMORY_TAG_RENDERER);
+    if (!create_vulkan_allocator(context.allocator)) {
+        // If this fails, gracefully fall back to the default allocator.
+        KFATAL("Failed to create custom Vulkan allocator. Continuing using the driver's default allocator.");
+        kfree(context.allocator, sizeof(VkAllocationCallbacks), MEMORY_TAG_RENDERER);
+        context.allocator = 0;
+    }
+#else
     context.allocator = 0;
+#endif
 
     context.on_rendertarget_refresh_required = config->on_rendertarget_refresh_required;
 
@@ -105,14 +267,36 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const renderer_
     darray_push(required_extensions, &VK_EXT_DEBUG_UTILS_EXTENSION_NAME);  // debug utilities
 
     KDEBUG("Required extensions:");
-    u32 length = darray_length(required_extensions);
-    for (u32 i = 0; i < length; ++i) {
+    u32 required_extension_count = darray_length(required_extensions);
+    for (u32 i = 0; i < required_extension_count; ++i) {
         KDEBUG(required_extensions[i]);
     }
 #endif
 
     create_info.enabledExtensionCount = darray_length(required_extensions);
     create_info.ppEnabledExtensionNames = required_extensions;
+
+    u32 available_extension_count = 0;
+    vkEnumerateInstanceExtensionProperties(0, &available_extension_count, 0);
+    VkExtensionProperties* available_extensions = darray_reserve(VkExtensionProperties, available_extension_count);
+    vkEnumerateInstanceExtensionProperties(0, &available_extension_count, available_extensions);
+
+    // Verify required extensions are available.
+    for (u32 i = 0; i < required_extension_count; ++i) {
+        b8 found = false;
+        for (u32 j = 0; j < available_extension_count; ++j) {
+            if (strings_equal(required_extensions[i], available_extensions[j].extensionName)) {
+                found = true;
+                KINFO("Required exension found: %s...", required_extensions[i]);
+                break;
+            }
+        }
+
+        if (!found) {
+            KFATAL("Required extension is missing: %s", required_extensions[i]);
+            return false;
+        }
+    }
 
     // Validation layers.
     const char** required_validation_layer_names = 0;
@@ -138,12 +322,11 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const renderer_
 
     // Verify all required layers are available.
     for (u32 i = 0; i < required_validation_layer_count; ++i) {
-        KINFO("Searching for layer: %s...", required_validation_layer_names[i]);
         b8 found = false;
         for (u32 j = 0; j < available_layer_count; ++j) {
             if (strings_equal(required_validation_layer_names[i], available_layers[j].layerName)) {
                 found = true;
-                KINFO("Found.");
+                KINFO("Found validation layer: %s...", required_validation_layer_names[i]);
                 break;
             }
         }
@@ -155,6 +338,7 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const renderer_
     }
 
     // Clean up.
+    darray_destroy(available_extensions);
     darray_destroy(available_layers);
 
     KINFO("All required validation layers are present.");
@@ -163,7 +347,13 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const renderer_
     create_info.enabledLayerCount = required_validation_layer_count;
     create_info.ppEnabledLayerNames = required_validation_layer_names;
 
-    VK_CHECK(vkCreateInstance(&create_info, context.allocator, &context.instance));
+    VkResult instance_result = vkCreateInstance(&create_info, context.allocator, &context.instance);
+    if (!vulkan_result_is_success(instance_result)) {
+        const char* result_string = vulkan_result_string(instance_result, true);
+        KFATAL("Vulkan instance creation failed with result: '%s'", result_string);
+        return false;
+    }
+
     KINFO("Vulkan Instance created.");
 
     // Clean up
@@ -291,7 +481,23 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const renderer_
         context.images_in_flight[i] = 0;
     }
 
-    create_buffers(&context);
+    // Create buffers
+
+    // Geometry vertex buffer
+    const u64 vertex_buffer_size = sizeof(vertex_3d) * 1024 * 1024;
+    if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_VERTEX, vertex_buffer_size, true, &context.object_vertex_buffer)) {
+        KERROR("Error creating vertex buffer.");
+        return false;
+    }
+    renderer_renderbuffer_bind(&context.object_vertex_buffer, 0);
+
+    // Geometry index buffer
+    const u64 index_buffer_size = sizeof(u32) * 1024 * 1024;
+    if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_INDEX, index_buffer_size, true, &context.object_index_buffer)) {
+        KERROR("Error creating index buffer.");
+        return false;
+    }
+    renderer_renderbuffer_bind(&context.object_index_buffer, 0);
 
     // Mark all geometries as invalid
     for (u32 i = 0; i < VULKAN_MAX_GEOMETRY_COUNT; ++i) {
@@ -307,8 +513,8 @@ void vulkan_renderer_backend_shutdown(renderer_backend* backend) {
 
     // Destroy in the opposite order of creation.
     // Destroy buffers
-    vulkan_buffer_destroy(&context, &context.object_vertex_buffer);
-    vulkan_buffer_destroy(&context, &context.object_index_buffer);
+    renderer_renderbuffer_destroy(&context.object_vertex_buffer);
+    renderer_renderbuffer_destroy(&context.object_index_buffer);
 
     // Sync objects
     for (u8 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
@@ -377,6 +583,12 @@ void vulkan_renderer_backend_shutdown(renderer_backend* backend) {
 
     KDEBUG("Destroying Vulkan instance...");
     vkDestroyInstance(context.instance, context.allocator);
+
+    // Destroy the allocator callbacks if set.
+    if (context.allocator) {
+        kfree(context.allocator, sizeof(VkAllocationCallbacks), MEMORY_TAG_RENDERER);
+        context.allocator = 0;
+    }
 }
 
 void vulkan_renderer_backend_on_resized(renderer_backend* backend, u16 width, u16 height) {
@@ -725,46 +937,12 @@ b8 recreate_swapchain(renderer_backend* backend) {
     return true;
 }
 
-b8 create_buffers(vulkan_context* context) {
-    VkMemoryPropertyFlagBits memory_property_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-    // Geometry vertex buffer
-    const u64 vertex_buffer_size = sizeof(vertex_3d) * 1024 * 1024;
-    if (!vulkan_buffer_create(
-            context,
-            vertex_buffer_size,
-            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            memory_property_flags,
-            true,
-            true,
-            &context->object_vertex_buffer)) {
-        KERROR("Error creating vertex buffer.");
-        return false;
-    }
-
-    // Geometry index buffer
-    const u64 index_buffer_size = sizeof(u32) * 1024 * 1024;
-    if (!vulkan_buffer_create(
-            context,
-            index_buffer_size,
-            VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            memory_property_flags,
-            true,
-            true,
-            &context->object_index_buffer)) {
-        KERROR("Error creating vertex buffer.");
-        return false;
-    }
-
-    return true;
-}
-
 void vulkan_renderer_texture_create(const u8* pixels, texture* t) {
     // Internal data creation.
     // TODO: Use an allocator for this.
     t->internal_data = (vulkan_image*)kallocate(sizeof(vulkan_image), MEMORY_TAG_TEXTURE);
     vulkan_image* image = (vulkan_image*)t->internal_data;
-    u32 size = t->width * t->height * t->channel_count;
+    u32 size = t->width * t->height * t->channel_count * (t->type == TEXTURE_TYPE_CUBE ? 6 : 1);
 
     // NOTE: Assumes 8 bits per channel.
     VkFormat image_format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -873,17 +1051,18 @@ void vulkan_renderer_texture_resize(texture* t, u32 new_width, u32 new_height) {
 
 void vulkan_renderer_texture_write_data(texture* t, u32 offset, u32 size, const u8* pixels) {
     vulkan_image* image = (vulkan_image*)t->internal_data;
-    VkDeviceSize image_size = t->width * t->height * t->channel_count * (t->type == TEXTURE_TYPE_CUBE ? 6 : 1);
 
     VkFormat image_format = channel_count_to_format(t->channel_count, VK_FORMAT_R8G8B8A8_UNORM);
 
     // Create a staging buffer and load data into it.
-    VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    VkMemoryPropertyFlags memory_prop_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    vulkan_buffer staging;
-    vulkan_buffer_create(&context, image_size, usage, memory_prop_flags, true, false, &staging);
+    renderbuffer staging;
+    if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_STAGING, size, false, &staging)) {
+        KERROR("Failed to create staging buffer for texture write.");
+        return;
+    }
+    renderer_renderbuffer_bind(&staging, 0);
 
-    vulkan_buffer_load_data(&context, &staging, 0, image_size, 0, pixels);
+    vulkan_buffer_load_range(&staging, 0, size, pixels);
 
     vulkan_command_buffer temp_buffer;
     VkCommandPool pool = context.device.graphics_command_pool;
@@ -901,7 +1080,7 @@ void vulkan_renderer_texture_write_data(texture* t, u32 offset, u32 size, const 
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     // Copy the data from the buffer.
-    vulkan_image_copy_from_buffer(&context, t->type, image, staging.handle, &temp_buffer);
+    vulkan_image_copy_from_buffer(&context, t->type, image, ((vulkan_buffer*)staging.internal_data)->handle, &temp_buffer);
 
     // Transition from optimal for data reciept to shader-read-only optimal layout.
     vulkan_image_transition_layout(
@@ -915,7 +1094,8 @@ void vulkan_renderer_texture_write_data(texture* t, u32 offset, u32 size, const 
 
     vulkan_command_buffer_end_single_use(&context, pool, &temp_buffer, queue);
 
-    vulkan_buffer_destroy(&context, &staging);
+    renderer_renderbuffer_unbind(&staging);
+    renderer_renderbuffer_destroy(&staging);
 
     t->generation++;
 }
@@ -957,22 +1137,18 @@ b8 vulkan_renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vert
         return false;
     }
 
-    VkCommandPool pool = context.device.graphics_command_pool;
-    VkQueue queue = context.device.graphics_queue;
-
     // Vertex data.
     internal_data->vertex_count = vertex_count;
     internal_data->vertex_element_size = sizeof(vertex_3d);
     u32 total_size = vertex_count * vertex_size;
-    if (!upload_data_range(
-            &context,
-            pool,
-            0,
-            queue,
-            &context.object_vertex_buffer,
-            &internal_data->vertex_buffer_offset,
-            total_size,
-            vertices)) {
+    // Allocate space in the buffer.
+    if (!renderer_renderbuffer_allocate(&context.object_vertex_buffer, total_size, &internal_data->vertex_buffer_offset)) {
+        KERROR("vulkan_renderer_create_geometry failed to allocate from the vertex buffer!");
+        return false;
+    }
+
+    // Load the data.
+    if (!renderer_renderbuffer_load_range(&context.object_vertex_buffer, internal_data->vertex_buffer_offset, total_size, vertices)) {
         KERROR("vulkan_renderer_create_geometry failed to upload to the vertex buffer!");
         return false;
     }
@@ -982,15 +1158,12 @@ b8 vulkan_renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vert
         internal_data->index_count = index_count;
         internal_data->index_element_size = sizeof(u32);
         total_size = index_count * index_size;
-        if (!upload_data_range(
-                &context,
-                pool,
-                0,
-                queue,
-                &context.object_index_buffer,
-                &internal_data->index_buffer_offset,
-                total_size,
-                indices)) {
+        if (!renderer_renderbuffer_allocate(&context.object_index_buffer, total_size, &internal_data->index_buffer_offset)) {
+            KERROR("vulkan_renderer_create_geometry failed to allocate from the index buffer!");
+            return false;
+        }
+
+        if (!renderer_renderbuffer_load_range(&context.object_index_buffer, internal_data->index_buffer_offset, total_size, indices)) {
             KERROR("vulkan_renderer_create_geometry failed to upload to the index buffer!");
             return false;
         }
@@ -1004,11 +1177,17 @@ b8 vulkan_renderer_create_geometry(geometry* geometry, u32 vertex_size, u32 vert
 
     if (is_reupload) {
         // Free vertex data
-        free_data_range(&context.object_vertex_buffer, old_range.vertex_buffer_offset, old_range.vertex_element_size * old_range.vertex_count);
+        if (!renderer_renderbuffer_free(&context.object_vertex_buffer, old_range.vertex_element_size * old_range.vertex_count, old_range.vertex_buffer_offset)) {
+            KERROR("vulkan_renderer_create_geometry free operation failed during reupload of vertex data.");
+            return false;
+        }
 
         // Free index data, if applicable
         if (old_range.index_element_size > 0) {
-            free_data_range(&context.object_index_buffer, old_range.index_buffer_offset, old_range.index_element_size * old_range.index_count);
+            if (!renderer_renderbuffer_free(&context.object_index_buffer, old_range.index_element_size * old_range.index_count, old_range.index_buffer_offset)) {
+                KERROR("vulkan_renderer_create_geometry free operation failed during reupload of index data.");
+                return false;
+            }
         }
     }
 
@@ -1021,11 +1200,15 @@ void vulkan_renderer_destroy_geometry(geometry* geometry) {
         vulkan_geometry_data* internal_data = &context.geometries[geometry->internal_id];
 
         // Free vertex data
-        free_data_range(&context.object_vertex_buffer, internal_data->vertex_buffer_offset, internal_data->vertex_element_size * internal_data->vertex_count);
+        if (!renderer_renderbuffer_free(&context.object_vertex_buffer, internal_data->vertex_element_size * internal_data->vertex_count, internal_data->vertex_buffer_offset)) {
+            KERROR("vulkan_renderer_destroy_geometry failed to free vertex buffer range.");
+        }
 
         // Free index data, if applicable
         if (internal_data->index_element_size > 0) {
-            free_data_range(&context.object_index_buffer, internal_data->index_buffer_offset, internal_data->index_element_size * internal_data->index_count);
+            if (!renderer_renderbuffer_free(&context.object_index_buffer, internal_data->index_element_size * internal_data->index_count, internal_data->index_buffer_offset)) {
+                KERROR("vulkan_renderer_destroy_geometry failed to free index buffer range.");
+            }
         }
 
         // Clean up data.
@@ -1042,21 +1225,17 @@ void vulkan_renderer_draw_geometry(geometry_render_data* data) {
     }
 
     vulkan_geometry_data* buffer_data = &context.geometries[data->geometry->internal_id];
-    vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
+    b8 includes_index_data = buffer_data->index_count > 0;
+    if (!vulkan_buffer_draw(&context.object_vertex_buffer, buffer_data->vertex_buffer_offset, buffer_data->vertex_count, includes_index_data)) {
+        KERROR("vulkan_renderer_draw_geometry failed to draw vertex buffer;");
+        return;
+    }
 
-    // Bind vertex buffer at offset.
-    VkDeviceSize offsets[1] = {buffer_data->vertex_buffer_offset};
-    vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &context.object_vertex_buffer.handle, (VkDeviceSize*)offsets);
-
-    // Draw indexed or non-indexed.
-    if (buffer_data->index_count > 0) {
-        // Bind index buffer at offset.
-        vkCmdBindIndexBuffer(command_buffer->handle, context.object_index_buffer.handle, buffer_data->index_buffer_offset, VK_INDEX_TYPE_UINT32);
-
-        // Issue the draw.
-        vkCmdDrawIndexed(command_buffer->handle, buffer_data->index_count, 1, 0, 0, 0);
-    } else {
-        vkCmdDraw(command_buffer->handle, buffer_data->vertex_count, 1, 0, 0);
+    if (includes_index_data) {
+        if (!vulkan_buffer_draw(&context.object_index_buffer, buffer_data->index_buffer_offset, buffer_data->index_count, !includes_index_data)) {
+            KERROR("vulkan_renderer_draw_geometry failed to draw index buffer;");
+            return;
+        }
     }
 }
 
@@ -1273,9 +1452,9 @@ void vulkan_renderer_shader_destroy(shader* s) {
         }
 
         // Uniform buffer.
-        vulkan_buffer_unlock_memory(&context, &shader->uniform_buffer);
+        vulkan_buffer_unmap_memory(&shader->uniform_buffer, 0, VK_WHOLE_SIZE);
         shader->mapped_uniform_buffer_block = 0;
-        vulkan_buffer_destroy(&context, &shader->uniform_buffer);
+        renderer_renderbuffer_destroy(&shader->uniform_buffer);
 
         // Pipeline
         vulkan_pipeline_destroy(&context, &shader->pipeline);
@@ -1424,29 +1603,22 @@ b8 vulkan_renderer_shader_initialize(shader* shader) {
     shader->ubo_stride = get_aligned(shader->ubo_size, shader->required_ubo_alignment);
 
     // Uniform  buffer.
-    u32 device_local_bits = context.device.supports_device_local_host_visible ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
     // TODO: max count should be configurable, or perhaps long term support of buffer resizing.
     u64 total_buffer_size = shader->global_ubo_stride + (shader->ubo_stride * VULKAN_MAX_MATERIAL_COUNT);  // global + (locals)
-    if (!vulkan_buffer_create(
-            &context,
-            total_buffer_size,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | device_local_bits,
-            true,
-            true,
-            &s->uniform_buffer)) {
+    if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_UNIFORM, total_buffer_size, true, &s->uniform_buffer)) {
         KERROR("Vulkan buffer creation failed for object shader.");
         return false;
     }
+    renderer_renderbuffer_bind(&s->uniform_buffer, 0);
 
     // Allocate space for the global UBO, whcih should occupy the _stride_ space, _not_ the actual size used.
-    if (!vulkan_buffer_allocate(&s->uniform_buffer, shader->global_ubo_stride, &shader->global_ubo_offset)) {
+    if (!renderer_renderbuffer_allocate(&s->uniform_buffer, shader->global_ubo_stride, &shader->global_ubo_offset)) {
         KERROR("Failed to allocate space for the uniform buffer!");
         return false;
     }
 
     // Map the entire buffer's memory.
-    s->mapped_uniform_buffer_block = vulkan_buffer_lock_memory(&context, &s->uniform_buffer, 0, VK_WHOLE_SIZE /*total_buffer_size*/, 0);
+    s->mapped_uniform_buffer_block = vulkan_buffer_map_memory(&s->uniform_buffer, 0, VK_WHOLE_SIZE);
 
     // Allocate global descriptor sets, one per frame. Global is always the first set.
     VkDescriptorSetLayout global_layouts[3] = {
@@ -1509,7 +1681,7 @@ b8 vulkan_renderer_shader_apply_globals(shader* s) {
 
     // Apply UBO first
     VkDescriptorBufferInfo bufferInfo;
-    bufferInfo.buffer = internal->uniform_buffer.handle;
+    bufferInfo.buffer = ((vulkan_buffer*)internal->uniform_buffer.internal_data)->handle;
     bufferInfo.offset = s->global_ubo_offset;
     bufferInfo.range = s->global_ubo_stride;
 
@@ -1569,7 +1741,7 @@ b8 vulkan_renderer_shader_apply_instance(shader* s, b8 needs_update) {
             u8* instance_ubo_generation = &(object_state->descriptor_set_state.descriptor_states[descriptor_index].generations[image_index]);
             // TODO: determine if update is required.
             if (*instance_ubo_generation == INVALID_ID_U8 /*|| *global_ubo_generation != material->generation*/) {
-                buffer_info.buffer = internal->uniform_buffer.handle;
+                buffer_info.buffer = ((vulkan_buffer*)internal->uniform_buffer.internal_data)->handle;
                 buffer_info.offset = object_state->offset;
                 buffer_info.range = s->ubo_stride;
 
@@ -1717,6 +1889,8 @@ b8 vulkan_renderer_texture_map_acquire_resources(texture_map* map) {
 
 void vulkan_renderer_texture_map_release_resources(texture_map* map) {
     if (map) {
+        // Make sure there's no way this is in use.
+        vkDeviceWaitIdle(context.device.logical_device);
         vkDestroySampler(context.device.logical_device, map->internal_data, context.allocator);
         map->internal_data = 0;
     }
@@ -1755,7 +1929,7 @@ b8 vulkan_renderer_shader_acquire_instance_resources(shader* s, texture_map** ma
     // Allocate some space in the UBO - by the stride, not the size.
     u64 size = s->ubo_stride;
     if (size > 0) {
-        if (!vulkan_buffer_allocate(&internal->uniform_buffer, size, &instance_state->offset)) {
+        if (!renderer_renderbuffer_allocate(&internal->uniform_buffer, size, &instance_state->offset)) {
             KERROR("vulkan_material_shader_acquire_resources failed to acquire ubo space");
             return false;
         }
@@ -1820,7 +1994,9 @@ b8 vulkan_renderer_shader_release_instance_resources(shader* s, u32 instance_id)
         instance_state->instance_texture_maps = 0;
     }
 
-    vulkan_buffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset);
+    if (!renderer_renderbuffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset)) {
+        KERROR("vulkan_renderer_shader_release_instance_resources failed to free range from renderbuffer.");
+    }
     instance_state->offset = INVALID_ID;
     instance_state->id = INVALID_ID;
 
@@ -2060,4 +2236,396 @@ u8 vulkan_renderer_window_attachment_index_get() {
 
 b8 vulkan_renderer_is_multithreaded() {
     return context.multithreading_enabled;
+}
+
+// NOTE: Begin vulkan buffer.
+
+// Indicates if the provided buffer has device-local memory.
+b8 vulkan_buffer_is_device_local(vulkan_buffer* buffer) {
+    return (buffer->memory_property_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+}
+
+// Indicates if the provided buffer has host-visible memory.
+b8 vulkan_buffer_is_host_visible(vulkan_buffer* buffer) {
+    return (buffer->memory_property_flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+}
+
+// Indicates if the provided buffer has host-coherent memory.
+b8 vulkan_buffer_is_host_coherent(vulkan_buffer* buffer) {
+    return (buffer->memory_property_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+}
+
+b8 vulkan_buffer_create_internal(renderbuffer* buffer) {
+    if (!buffer) {
+        KERROR("vulkan_buffer_create_internal requires a valid pointer to a buffer.");
+        return false;
+    }
+
+    vulkan_buffer internal_buffer;
+
+    switch (buffer->type) {
+        case RENDERBUFFER_TYPE_VERTEX:
+            internal_buffer.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            internal_buffer.memory_property_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            break;
+        case RENDERBUFFER_TYPE_INDEX:
+            internal_buffer.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            internal_buffer.memory_property_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            break;
+        case RENDERBUFFER_TYPE_UNIFORM: {
+            u32 device_local_bits = context.device.supports_device_local_host_visible ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
+            internal_buffer.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            internal_buffer.memory_property_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | device_local_bits;
+        } break;
+        case RENDERBUFFER_TYPE_STAGING:
+            internal_buffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            internal_buffer.memory_property_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            break;
+        case RENDERBUFFER_TYPE_READ:
+            internal_buffer.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+            internal_buffer.memory_property_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            break;
+        case RENDERBUFFER_TYPE_STORAGE:
+            KERROR("Storage buffer not yet supported.");
+            return false;
+        default:
+            KERROR("Unsupported buffer type: %i", buffer->type);
+            return false;
+    }
+
+    VkBufferCreateInfo buffer_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    buffer_info.size = buffer->total_size;
+    buffer_info.usage = internal_buffer.usage;
+    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;  // NOTE: Only used in one queue.
+
+    VK_CHECK(vkCreateBuffer(context.device.logical_device, &buffer_info, context.allocator, &internal_buffer.handle));
+
+    // Gather memory requirements.
+    vkGetBufferMemoryRequirements(context.device.logical_device, internal_buffer.handle, &internal_buffer.memory_requirements);
+    internal_buffer.memory_index = context.find_memory_index(internal_buffer.memory_requirements.memoryTypeBits, internal_buffer.memory_property_flags);
+    if (internal_buffer.memory_index == -1) {
+        KERROR("Unable to create vulkan buffer because the required memory type index was not found.");
+        return false;
+    }
+
+    // Allocate memory info
+    VkMemoryAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    allocate_info.allocationSize = internal_buffer.memory_requirements.size;
+    allocate_info.memoryTypeIndex = (u32)internal_buffer.memory_index;
+
+    // Allocate the memory.
+    VkResult result = vkAllocateMemory(context.device.logical_device, &allocate_info, context.allocator, &internal_buffer.memory);
+
+    // Determine if memory is on a device heap.
+    b8 is_device_memory = (internal_buffer.memory_property_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    // Report memory as in-use.
+    kallocate_report(internal_buffer.memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
+
+    if (result != VK_SUCCESS) {
+        KERROR("Unable to create vulkan buffer because the required memory allocation failed. Error: %i", result);
+        return false;
+    }
+
+    // Allocate the internal state block of memory at the end once we are sure everything was created successfully.
+    buffer->internal_data = kallocate(sizeof(vulkan_buffer), MEMORY_TAG_VULKAN);
+    *((vulkan_buffer*)buffer->internal_data) = internal_buffer;
+
+    return true;
+}
+
+void vulkan_buffer_destroy_internal(renderbuffer* buffer) {
+    if (buffer) {
+        vulkan_buffer* internal_buffer = (vulkan_buffer*)buffer->internal_data;
+        if (internal_buffer) {
+            if (internal_buffer->memory) {
+                vkFreeMemory(context.device.logical_device, internal_buffer->memory, context.allocator);
+                internal_buffer->memory = 0;
+            }
+            if (internal_buffer->handle) {
+                vkDestroyBuffer(context.device.logical_device, internal_buffer->handle, context.allocator);
+                internal_buffer->handle = 0;
+            }
+
+            // Report the free memory.
+            b8 is_device_memory = (internal_buffer->memory_property_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            kfree_report(internal_buffer->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
+            kzero_memory(&internal_buffer->memory_requirements, sizeof(VkMemoryRequirements));
+
+            internal_buffer->usage = 0;
+            internal_buffer->is_locked = false;
+
+            // Free up the internal buffer.
+            kfree(buffer->internal_data, sizeof(vulkan_buffer), MEMORY_TAG_VULKAN);
+            buffer->internal_data = 0;
+        }
+    }
+}
+
+b8 vulkan_buffer_resize(renderbuffer* buffer, u64 new_size) {
+    if (!buffer || !buffer->internal_data) {
+        return false;
+    }
+
+    vulkan_buffer* internal_buffer = (vulkan_buffer*)buffer->internal_data;
+
+    // Create new buffer.
+    VkBufferCreateInfo buffer_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    buffer_info.size = new_size;
+    buffer_info.usage = internal_buffer->usage;
+    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;  // NOTE: Only used in one queue.
+
+    VkBuffer new_buffer;
+    VK_CHECK(vkCreateBuffer(context.device.logical_device, &buffer_info, context.allocator, &new_buffer));
+
+    // Gather memory requirements.
+    VkMemoryRequirements requirements;
+    vkGetBufferMemoryRequirements(context.device.logical_device, new_buffer, &requirements);
+
+    // Allocate memory info
+    VkMemoryAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    allocate_info.allocationSize = requirements.size;
+    allocate_info.memoryTypeIndex = (u32)internal_buffer->memory_index;
+
+    // Allocate the memory.
+    VkDeviceMemory new_memory;
+    VkResult result = vkAllocateMemory(context.device.logical_device, &allocate_info, context.allocator, &new_memory);
+    if (result != VK_SUCCESS) {
+        KERROR("Unable to resize vulkan buffer because the required memory allocation failed. Error: %i", result);
+        return false;
+    }
+
+    // Bind the new buffer's memory
+    VK_CHECK(vkBindBufferMemory(context.device.logical_device, new_buffer, new_memory, 0));
+
+    // Copy over the data.
+    vulkan_buffer_copy_range_internal(internal_buffer->handle, 0, new_buffer, 0, buffer->total_size);
+
+    // Make sure anything potentially using these is finished.
+    // NOTE: We could use vkQueueWaitIdle here if we knew what queue this buffer would be used with...
+    vkDeviceWaitIdle(context.device.logical_device);
+
+    // Destroy the old
+    if (internal_buffer->memory) {
+        vkFreeMemory(context.device.logical_device, internal_buffer->memory, context.allocator);
+        internal_buffer->memory = 0;
+    }
+    if (internal_buffer->handle) {
+        vkDestroyBuffer(context.device.logical_device, internal_buffer->handle, context.allocator);
+        internal_buffer->handle = 0;
+    }
+
+    // Report free of the old, allocate of the new.
+    b8 is_device_memory = (internal_buffer->memory_property_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    kfree_report(internal_buffer->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
+    internal_buffer->memory_requirements = requirements;
+    kallocate_report(internal_buffer->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
+
+    // Set new properties
+    internal_buffer->memory = new_memory;
+    internal_buffer->handle = new_buffer;
+
+    return true;
+}
+
+b8 vulkan_buffer_bind(renderbuffer* buffer, u64 offset) {
+    if (!buffer || !buffer->internal_data) {
+        KERROR("vulkan_buffer_bind requires valid pointer to a buffer.");
+        return false;
+    }
+    vulkan_buffer* internal_buffer = (vulkan_buffer*)buffer->internal_data;
+    VK_CHECK(vkBindBufferMemory(context.device.logical_device, internal_buffer->handle, internal_buffer->memory, offset));
+    return true;
+}
+
+b8 vulkan_buffer_unbind(renderbuffer* buffer) {
+    if (!buffer || !buffer->internal_data) {
+        KERROR("vulkan_buffer_unbind requires valid pointer to a buffer.");
+        return false;
+    }
+
+    // NOTE: Does nothing, for now.
+    return true;
+}
+
+
+void* vulkan_buffer_map_memory(renderbuffer* buffer, u64 offset, u64 size) {
+    if (!buffer || !buffer->internal_data) {
+        KERROR("vulkan_buffer_map_memory requires a valid pointer to a buffer.");
+        return 0;
+    }
+    vulkan_buffer* internal_buffer = (vulkan_buffer*)buffer->internal_data;
+    void* data;
+    VK_CHECK(vkMapMemory(context.device.logical_device, internal_buffer->memory, offset, size, 0, &data));
+    return data;
+}
+
+void vulkan_buffer_unmap_memory(renderbuffer* buffer, u64 offset, u64 size) {
+    if (!buffer || !buffer->internal_data) {
+        KERROR("vulkan_buffer_unmap_memory requires a valid pointer to a buffer.");
+        return;
+    }
+    vulkan_buffer* internal_buffer = (vulkan_buffer*)buffer->internal_data;
+    vkUnmapMemory(context.device.logical_device, internal_buffer->memory);
+}
+
+b8 vulkan_buffer_flush(renderbuffer* buffer, u64 offset, u64 size) {
+    if (!buffer || !buffer->internal_data) {
+        KERROR("vulkan_buffer_flush requires a valid pointer to a buffer.");
+        return false;
+    }
+    // NOTE: If not host-coherent, flush the mapped memory range.
+    vulkan_buffer* internal_buffer = (vulkan_buffer*)buffer->internal_data;
+    if (!vulkan_buffer_is_host_coherent(internal_buffer)) {
+        VkMappedMemoryRange range = {VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE};
+        range.memory = internal_buffer->memory;
+        range.offset = offset;
+        range.size = size;
+        VK_CHECK(vkFlushMappedMemoryRanges(context.device.logical_device, 1, &range));
+    }
+
+    return true;
+}
+
+b8 vulkan_buffer_read(renderbuffer* buffer, u64 offset, u64 size, void** out_memory) {
+    if (!buffer || !buffer->internal_data || !out_memory) {
+        KERROR("vulkan_buffer_read requires a valid pointer to a buffer and out_memory, and the size must be nonzero.");
+        return false;
+    }
+
+    vulkan_buffer* internal_buffer = (vulkan_buffer*)buffer->internal_data;
+    if (vulkan_buffer_is_device_local(internal_buffer) && !vulkan_buffer_is_host_visible(internal_buffer)) {
+        // NOTE: If a read buffer is needed (i.e.) the target buffer's memory is not host visible but is device-local,
+        // create the read buffer, copy data to it, then read from that buffer.
+
+        // Create a host-visible staging buffer to copy to. Mark it as the destination of the transfer.
+        renderbuffer read;
+        if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_READ, size, false, &read)) {
+            KERROR("vulkan_buffer_read() - Failed to create read buffer.");
+            return false;
+        }
+        renderer_renderbuffer_bind(&read, 0);
+        vulkan_buffer* read_internal = (vulkan_buffer*)read.internal_data;
+
+        // Perform the copy from device local to the read buffer.
+        vulkan_buffer_copy_range(buffer, offset, &read, 0, size);
+
+        // Map/copy/unmap
+        void* mapped_data;
+        VK_CHECK(vkMapMemory(context.device.logical_device, read_internal->memory, 0, size, 0, &mapped_data));
+        kcopy_memory(*out_memory, mapped_data, size);
+        vkUnmapMemory(context.device.logical_device, read_internal->memory);
+
+        // Clean up the read buffer.
+        renderer_renderbuffer_unbind(&read);
+        renderer_renderbuffer_destroy(&read);
+    } else {
+        // If no staging buffer is needed, map/copy/unmap.
+        void* data_ptr;
+        VK_CHECK(vkMapMemory(context.device.logical_device, internal_buffer->memory, offset, size, 0, &data_ptr));
+        kcopy_memory(*out_memory, data_ptr, size);
+        vkUnmapMemory(context.device.logical_device, internal_buffer->memory);
+    }
+
+    return true;
+}
+
+b8 vulkan_buffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data) {
+    if (!buffer || !buffer->internal_data || !size || !data) {
+        KERROR("vulkan_buffer_load_range requires a valid pointer to a buffer, a nonzero size and a valid pointer to data.");
+        return false;
+    }
+
+    vulkan_buffer* internal_buffer = (vulkan_buffer*)buffer->internal_data;
+    if (vulkan_buffer_is_device_local(internal_buffer) && !vulkan_buffer_is_host_visible(internal_buffer)) {
+        // NOTE: If a staging buffer is needed (i.e.) the target buffer's memory is not host visible but is device-local,
+        // create a staging buffer to load the data into first. Then copy from it to the target buffer.
+
+        // Create a host-visible staging buffer to upload to. Mark it as the source of the transfer.
+        renderbuffer staging;
+        if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_STAGING, size, false, &staging)) {
+            KERROR("vulkan_buffer_load_range() - Failed to create staging buffer.");
+            return false;
+        }
+        renderer_renderbuffer_bind(&staging, 0);
+
+        // Load the data into the staging buffer.
+        vulkan_buffer_load_range(&staging, 0, size, data);
+
+        // Perform the copy from staging to the device local buffer.
+        vulkan_buffer_copy_range(&staging, 0, buffer, offset, size);
+
+        // Clean up the staging buffer.
+        renderer_renderbuffer_unbind(&staging);
+        renderer_renderbuffer_destroy(&staging);
+    } else {
+        // If no staging buffer is needed, map/copy/unmap.
+        void* data_ptr;
+        VK_CHECK(vkMapMemory(context.device.logical_device, internal_buffer->memory, offset, size, 0, &data_ptr));
+        kcopy_memory(data_ptr, data, size);
+        vkUnmapMemory(context.device.logical_device, internal_buffer->memory);
+    }
+
+    return true;
+}
+
+b8 vulkan_buffer_copy_range_internal(VkBuffer source, u64 source_offset, VkBuffer dest, u64 dest_offset, u64 size) {
+    // TODO: Assuming queue and pool usage here. Might want dedicated queue.
+    VkQueue queue = context.device.graphics_queue;
+    vkQueueWaitIdle(queue);
+    // Create a one-time-use command buffer.
+    vulkan_command_buffer temp_command_buffer;
+    vulkan_command_buffer_allocate_and_begin_single_use(&context, context.device.graphics_command_pool, &temp_command_buffer);
+
+    // Prepare the copy command and add it to the command buffer.
+    VkBufferCopy copy_region;
+    copy_region.srcOffset = source_offset;
+    copy_region.dstOffset = dest_offset;
+    copy_region.size = size;
+    vkCmdCopyBuffer(temp_command_buffer.handle, source, dest, 1, &copy_region);
+
+    // Submit the buffer for execution and wait for it to complete.
+    vulkan_command_buffer_end_single_use(&context, context.device.graphics_command_pool, &temp_command_buffer, queue);
+
+    return true;
+}
+
+b8 vulkan_buffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size) {
+    if (!source || !source->internal_data || !dest || !dest->internal_data || !size) {
+        KERROR("vulkan_buffer_copy_range requires a valid pointers to source and destination buffers as well as a nonzero size.");
+        return false;
+    }
+
+    return vulkan_buffer_copy_range_internal(
+        ((vulkan_buffer*)source->internal_data)->handle,
+        source_offset,
+        ((vulkan_buffer*)dest->internal_data)->handle,
+        dest_offset,
+        size);
+    return true;
+}
+
+b8 vulkan_buffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only) {
+    vulkan_command_buffer* command_buffer = &context.graphics_command_buffers[context.image_index];
+
+    if (buffer->type == RENDERBUFFER_TYPE_VERTEX) {
+        // Bind vertex buffer at offset.
+        VkDeviceSize offsets[1] = {offset};
+        vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &((vulkan_buffer*)buffer->internal_data)->handle, offsets);
+        if (!bind_only) {
+            vkCmdDraw(command_buffer->handle, element_count, 1, 0, 0);
+        }
+        return true;
+    } else if (buffer->type == RENDERBUFFER_TYPE_INDEX) {
+        // Bind index buffer at offset.
+        vkCmdBindIndexBuffer(command_buffer->handle, ((vulkan_buffer*)buffer->internal_data)->handle, offset, VK_INDEX_TYPE_UINT32);
+        if (!bind_only) {
+            vkCmdDrawIndexed(command_buffer->handle, element_count, 1, 0, 0, 0);
+        }
+        return true;
+    } else {
+        KERROR("Cannot draw buffer of type: %i", buffer->type);
+        return false;
+    }
 }

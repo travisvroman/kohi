@@ -95,6 +95,11 @@ b8 render_view_skybox_on_build_packet(const struct render_view* self, void* data
     return true;
 }
 
+void render_view_skybox_on_destroy_packet(const struct render_view* self, struct render_view_packet* packet) {
+    // Not much to do here, just zero out.
+    kzero_memory(packet, sizeof(render_view_packet));
+}
+
 b8 render_view_skybox_on_render(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index) {
     render_view_skybox_internal_data* data = self->internal_data;
     u32 shader_id = data->shader_id;

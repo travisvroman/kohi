@@ -248,6 +248,14 @@ b8 texture_system_resize(texture* t, u32 width, u32 height, b8 regenerate_intern
     return false;
 }
 
+b8 texture_system_write_data(texture* t, u32 offset, u32 size, void* data) {
+    if (t) {
+        renderer_texture_write_data(t, offset, size, data);
+        return true;
+    }
+    return false;
+}
+
 #define RETURN_TEXT_PTR_OR_NULL(texture, func_name)                                              \
     if (state_ptr) {                                                                             \
         return &texture;                                                                         \

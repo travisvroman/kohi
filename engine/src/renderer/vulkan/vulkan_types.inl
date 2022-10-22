@@ -36,8 +36,6 @@ struct vulkan_context;
  * Used to load data onto the GPU.
  */
 typedef struct vulkan_buffer {
-    /** @brief The total size of the buffer. */
-    u64 total_size;
     /** @brief The handle to the internal buffer. */
     VkBuffer handle;
     /** @brief The usage flags. */
@@ -46,17 +44,12 @@ typedef struct vulkan_buffer {
     b8 is_locked;
     /** @brief The memory used by the buffer. */
     VkDeviceMemory memory;
+    /** @brief The memory requirements for this buffer. */
+    VkMemoryRequirements memory_requirements;
     /** @brief The index of the memory used by the buffer. */
     i32 memory_index;
     /** @brief The property flags for the memory used by the buffer. */
     u32 memory_property_flags;
-    /** @brief The amount of memory required for the freelist. */
-    u64 freelist_memory_requirement;
-    /** @brief The memory block used by the internal freelist. */
-    void* freelist_block;
-    /** @brief A freelist to track allocations. */
-    freelist buffer_freelist;
-    b8 has_freelist;
 } vulkan_buffer;
 
 /** @brief Contains swapchain support information and capabilities. */
@@ -130,6 +123,10 @@ typedef struct vulkan_image {
     VkDeviceMemory memory;
     /** @brief The view for the image, which is used to access the image. */
     VkImageView view;
+    /** @brief The GPU memory requirements for this image. */
+    VkMemoryRequirements memory_requirements;
+    /** @brief Memory property flags */
+    VkMemoryPropertyFlags memory_flags;
     /** @brief The image width. */
     u32 width;
     /** @brief The image height. */
@@ -196,8 +193,8 @@ typedef struct vulkan_swapchain {
     /** @brief The depth texture. */
     texture* depth_texture;
 
-    /** 
-     * @brief Render targets used for on-screen rendering, one per frame. 
+    /**
+     * @brief Render targets used for on-screen rendering, one per frame.
      * The images contained in these are created and owned by the swapchain.
      * */
     render_target render_targets[3];
@@ -450,7 +447,7 @@ typedef struct vulkan_shader {
     /** @brief Global descriptor sets, one per frame. */
     VkDescriptorSet global_descriptor_sets[3];
     /** @brief The uniform buffer used by this shader. */
-    vulkan_buffer uniform_buffer;
+    renderbuffer uniform_buffer;
 
     /** @brief The pipeline associated with this shader. */
     vulkan_pipeline pipeline;
@@ -519,9 +516,9 @@ typedef struct vulkan_context {
     renderpass registered_passes[VULKAN_MAX_REGISTERED_RENDERPASSES];
 
     /** @brief The object vertex buffer, used to hold geometry vertices. */
-    vulkan_buffer object_vertex_buffer;
+    renderbuffer object_vertex_buffer;
     /** @brief The object index buffer, used to hold geometry indices. */
-    vulkan_buffer object_index_buffer;
+    renderbuffer object_index_buffer;
 
     /** @brief The graphics command buffers, one per frame. @note: darray */
     vulkan_command_buffer* graphics_command_buffers;

@@ -197,7 +197,15 @@ b8 render_view_world_on_build_packet(const struct render_view* self, void* data,
         out_packet->geometry_count++;
     }
 
+    // Clean up.
+    darray_destroy(geometry_distances);
+
     return true;
+}
+
+void render_view_world_on_destroy_packet(const struct render_view* self, struct render_view_packet* packet) {
+    darray_destroy(packet->geometries);
+    kzero_memory(packet, sizeof(render_view_packet));
 }
 
 b8 render_view_world_on_render(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index) {
