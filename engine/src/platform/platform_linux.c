@@ -606,9 +606,9 @@ keys translate_keycode(u32 x_keycode) {
         case XK_space:
             return KEY_SPACE;
         case XK_Prior:
-            return KEY_PRIOR;
+            return KEY_PAGEUP;
         case XK_Next:
-            return KEY_NEXT;
+            return KEY_PAGEDOWN;
         case XK_End:
             return KEY_END;
         case XK_Home:
@@ -636,9 +636,9 @@ keys translate_keycode(u32 x_keycode) {
             return KEY_HELP;
 
         case XK_Meta_L:
-            return KEY_LWIN;  // TODO: not sure this is right
+            return KEY_LSUPER;  // TODO: not sure this is right
         case XK_Meta_R:
-            return KEY_RWIN;
+            return KEY_RSUPER;
             // case XK_apps: return KEY_APPS; // not supported
 
             // case XK_sleep: return KEY_SLEEP; //not supported
@@ -748,7 +748,7 @@ keys translate_keycode(u32 x_keycode) {
         case XK_semicolon:
             return KEY_SEMICOLON;
         case XK_plus:
-            return KEY_PLUS;
+            return KEY_EQUAL;
         case XK_comma:
             return KEY_COMMA;
         case XK_minus:

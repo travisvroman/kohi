@@ -6,9 +6,9 @@
  * likely be handled separately at a future date.
  * @version 1.0
  * @date 2022-01-10
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
- * 
+ *
  */
 #pragma once
 
@@ -57,8 +57,10 @@ typedef enum keys {
 
     /** @brief The spacebar key. */
     KEY_SPACE = 0x20,
-    KEY_PRIOR = 0x21,
-    KEY_NEXT = 0x22,
+    /** @brief The page up key. */
+    KEY_PAGEUP = 0x21,
+    /** @brief The page down key. */
+    KEY_PAGEDOWN = 0x22,
     /** @brief The end key. */
     KEY_END = 0x23,
     /** @brief The home key. */
@@ -74,7 +76,8 @@ typedef enum keys {
     KEY_SELECT = 0x29,
     KEY_PRINT = 0x2A,
     KEY_EXECUTE = 0x2B,
-    KEY_SNAPSHOT = 0x2C,
+    /** @brief The Print Screen key. */
+    KEY_PRINTSCREEN = 0x2C,
     /** @brief The insert key. */
     KEY_INSERT = 0x2D,
     /** @brief The delete key. */
@@ -156,9 +159,10 @@ typedef enum keys {
     KEY_Z = 0x5A,
 
     /** @brief The left Windows/Super key. */
-    KEY_LWIN = 0x5B,
+    KEY_LSUPER = 0x5B,
     /** @brief The right Windows/Super key. */
-    KEY_RWIN = 0x5C,
+    KEY_RSUPER = 0x5C,
+    /** @brief The applicatons key. */
     KEY_APPS = 0x5D,
 
     /** @brief The sleep key. */
@@ -269,9 +273,14 @@ typedef enum keys {
     KEY_RALT = 0xA5,
 
     /** @brief The semicolon key. */
-    KEY_SEMICOLON = 0xBA,
-    /** @brief The plus key. */
-    KEY_PLUS = 0xBB,
+    KEY_SEMICOLON = 0x3B,
+
+    /** @brief The apostrophe/single-quote key */
+    KEY_APOSTROPHE = 0xDE,
+    /** @brief An alias for KEY_APOSTROPHE, apostrophe/single-quote key */
+    KEY_QUOTE = KEY_APOSTROPHE,
+    /** @brief The equal/plus key. */
+    KEY_EQUAL = 0xBB,
     /** @brief The comma key. */
     KEY_COMMA = 0xBC,
     /** @brief The minus key. */
@@ -284,13 +293,22 @@ typedef enum keys {
     /** @brief The grave key. */
     KEY_GRAVE = 0xC0,
 
+    /** @brief The left (square) bracket key e.g. [{ */
+    KEY_LBRACKET = 0xDB,
+    /** @brief The pipe/backslash key */
+    KEY_PIPE = 0xDC,
+    /** @brief An alias for the pipe/backslash key */
+    KEY_BACKSLASH = KEY_PIPE,
+    /** @brief The right (square) bracket key e.g. ]} */
+    KEY_RBRACKET = 0xDD,
+
     KEYS_MAX_KEYS
 } keys;
 
 /**
  * @brief Initializes the input system. Call twice; once to obtain memory requirement (passing
  * state = 0), then a second time passing allocated memory to state.
- * 
+ *
  * @param memory_requirement The required size of the state memory.
  * @param state Either 0 or the allocated block of state memory.
  */
@@ -375,14 +393,14 @@ KAPI b8 input_was_button_down(buttons button);
  */
 KAPI b8 input_was_button_up(buttons button);
 
-/** 
+/**
  * @brief Obtains the current mouse position.
  * @param x A pointer to hold the current mouse position on the x-axis.
  * @param y A pointer to hold the current mouse position on the y-axis.
  */
 KAPI void input_get_mouse_position(i32* x, i32* y);
 
-/** 
+/**
  * @brief Obtains the previous mouse position.
  * @param x A pointer to hold the previous mouse position on the x-axis.
  * @param y A pointer to hold the previous mouse position on the y-axis.
@@ -407,3 +425,11 @@ void input_process_mouse_move(i16 x, i16 y);
  * @param z_delta The amount of scrolling which occurred on the z axis (mouse wheel)
  */
 void input_process_mouse_wheel(i8 z_delta);
+
+/**
+ * @brief Returns a string representation of the provided key. Ex. "tab" for the tab key.
+ *
+ * @param key
+ * @return const char*
+ */
+KAPI const char* input_keycode_str(keys key);
