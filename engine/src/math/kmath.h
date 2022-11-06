@@ -1563,3 +1563,71 @@ KINLINE f32 deg_to_rad(f32 degrees) {
 KINLINE f32 rad_to_deg(f32 radians) {
     return radians * K_RAD2DEG_MULTIPLIER;
 }
+
+/**
+ * @brief Converts value from the "old" range to the "new" range.
+ *
+ * @param value The value to be converted.
+ * @param from_min The minimum value from the old range.
+ * @param from_max The maximum value from the old range.
+ * @param to_min The minimum value from the new range.
+ * @param to_max The maximum value from the new range.
+ * @return The converted value.
+ */
+KINLINE f32 range_convert_f32(f32 value, f32 old_min, f32 old_max, f32 new_min, f32 new_max) {
+    return (((value - old_min) * (new_max - new_min)) / (old_max - old_min)) + new_min;
+}
+
+/**
+ * @brief Converts rgb int values [0-255] to a single 32-bit integer.
+ * 
+ * @param r The red value [0-255].
+ * @param g The green value [0-255].
+ * @param b The blue value [0-255].
+ * @param out_u32 A pointer to hold the resulting integer.
+ */
+KINLINE void rgbu_to_u32(u32 r, u32 g, u32 b, u32* out_u32) {
+    *out_u32 = (((r & 0x0FF) << 16) | ((g & 0x0FF) << 8) | (b & 0x0FF));
+}
+
+/**
+ * @brief Converts the given 32-bit integer to rgb values [0-255].
+ * 
+ * @param rgbu The integer holding a rgb value.
+ * @param out_r A pointer to hold the red value.
+ * @param out_g A pointer to hold the green value.
+ * @param out_b A pointer to hold the blue value.
+ */
+KINLINE void u32_to_rgb(u32 rgbu, u32* out_r, u32* out_g, u32* out_b) {
+    *out_r = (rgbu >> 16) & 0x0FF;
+    *out_g = (rgbu >> 8) & 0x0FF;
+    *out_b = (rgbu)&0x0FF;
+}
+
+/**
+ * @brief Converts rgb integer values [0-255] to a vec3 of floating-point values [0.0-1.0]
+ * 
+ * @param r The red value [0-255].
+ * @param g The green value [0-255].
+ * @param b The blue value [0-255].
+ * @param out_v A pointer to hold the vector of floating-point values.
+ */
+KINLINE void rgb_u32_to_vec3(u32 r, u32 g, u32 b, vec3* out_v) {
+    out_v->r = r / 255.0f;
+    out_v->g = g / 255.0f;
+    out_v->b = b / 255.0f;
+}
+
+/**
+ * @brief Converts a vec3 of rgbvalues [0.0-1.0] to integer rgb values [0-255].
+ * 
+ * @param v The vector of rgb values [0.0-1.0] to be converted.
+ * @param out_r A pointer to hold the red value.
+ * @param out_g A pointer to hold the green value.
+ * @param out_b A pointer to hold the blue value.
+ */
+KINLINE void vec3_to_rgb_u32(vec3 v, u32* out_r, u32* out_g, u32* out_b) {
+    *out_r = v.r * 255;
+    *out_g = v.g * 255;
+    *out_b = v.b * 255;
+}

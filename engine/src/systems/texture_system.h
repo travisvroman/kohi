@@ -124,9 +124,9 @@ void texture_system_release(const char* name);
  * @param is_writeable Indicates if the texture is writeable.
  * @param internal_data A pointer to the internal data to be set on the texture.
  * @param register_texture Indicates if the texture should be registered with the system.
- * @return A pointer to the wrapped texture.
+ * @param out_texture An optional pointer to hold the wrapped texture. If null, a new pointer is allocated and returned instead.
  */
-texture* texture_system_wrap_internal(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, b8 is_writeable, b8 register_texture, void* internal_data);
+void texture_system_wrap_internal(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, b8 is_writeable, b8 register_texture, void* internal_data, texture* out_texture);
 
 /**
  * @brief Sets the internal data of a texture. Useful for replacing internal data from within the

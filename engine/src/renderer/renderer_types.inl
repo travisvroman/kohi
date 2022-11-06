@@ -496,7 +496,7 @@ typedef struct renderer_backend {
      * @param height The height of the render target in pixels.
      * @param out_target A pointer to hold the newly created render target.
      */
-    void (*render_target_create)(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
+    b8 (*render_target_create)(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
 
     /**
      * @brief Destroys the provided render target.

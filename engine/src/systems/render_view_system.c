@@ -109,12 +109,12 @@ b8 render_view_system_create(const render_view_config* config) {
     view->name = string_duplicate(config->name);
     view->custom_shader_name = config->custom_shader_name;
     view->renderpass_count = config->pass_count;
-    view->passes = kallocate(sizeof(renderpass*) * view->renderpass_count, MEMORY_TAG_ARRAY);
+    view->passes = kallocate(sizeof(renderpass) * view->renderpass_count, MEMORY_TAG_ARRAY);
 
+    // Create the renderpasses according to configuration.
     for (u32 i = 0; i < view->renderpass_count; ++i) {
-        view->passes[i] = renderer_renderpass_get(config->passes[i].name);
-        if (!view->passes[i]) {
-            KFATAL("render_view_system_create - renderpass not found: '%s'.", config->passes[i].name);
+        if (!renderer_renderpass_create(&config->passes[i], &view->passes[i])) {
+            KERROR("render_view_system_create - Failed to create renderpass '%s'", config->passes[i].name);
             return false;
         }
     }
@@ -128,6 +128,7 @@ b8 render_view_system_create(const render_view_config* config) {
         view->on_create = render_view_world_on_create;
         view->on_destroy = render_view_world_on_destroy;
         view->on_resize = render_view_world_on_resize;
+        view->regenerate_attachment_target = 0;
     } else if (config->type == RENDERER_VIEW_KNOWN_TYPE_UI) {
         view->on_build_packet = render_view_ui_on_build_packet;      // For building the packet
         view->on_destroy_packet = render_view_ui_on_destroy_packet;  // For destroying the packet.
@@ -135,6 +136,7 @@ b8 render_view_system_create(const render_view_config* config) {
         view->on_create = render_view_ui_on_create;
         view->on_destroy = render_view_ui_on_destroy;
         view->on_resize = render_view_ui_on_resize;
+        view->regenerate_attachment_target = 0;
     } else if (config->type == RENDERER_VIEW_KNOWN_TYPE_SKYBOX) {
         view->on_build_packet = render_view_skybox_on_build_packet;      // For building the packet
         view->on_destroy_packet = render_view_skybox_on_destroy_packet;  // For destroying the packet.
@@ -142,6 +144,7 @@ b8 render_view_system_create(const render_view_config* config) {
         view->on_create = render_view_skybox_on_create;
         view->on_destroy = render_view_skybox_on_destroy;
         view->on_resize = render_view_skybox_on_resize;
+        view->regenerate_attachment_target = 0;
     }
 
     // Call the on create
@@ -151,6 +154,8 @@ b8 render_view_system_create(const render_view_config* config) {
         kzero_memory(&state_ptr->registered_views[id], sizeof(render_view));
         return false;
     }
+
+    render_view_system_regenerate_render_targets(view);
 
     // Update the hashtable entry.
     hashtable_set(&state_ptr->lookup, config->name, &id);
@@ -194,4 +199,52 @@ b8 render_view_system_on_render(const render_view* view, const render_view_packe
 
     KERROR("render_view_system_on_render requires a valid pointer to a data.");
     return false;
+}
+
+void render_view_system_regenerate_render_targets(render_view* view) {
+    // Create render targets for each. TODO: Should be configurable.
+
+    for (u64 r = 0; r < view->renderpass_count; ++r) {
+        renderpass* pass = &view->passes[r];
+
+        for (u8 i = 0; i < pass->render_target_count; ++i) {
+            render_target* target = &pass->targets[i];
+            // Destroy the old first if it exists.
+            // TODO: check if a resize is actually needed for this target.
+            renderer_render_target_destroy(target, false);
+
+            for (u32 a = 0; a < target->attachment_count; ++a) {
+                render_target_attachment* attachment = &target->attachments[a];
+                if (attachment->source == RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT) {
+                    if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_COLOUR) {
+                        attachment->texture = renderer_window_attachment_get(i);
+                    } else if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
+                        attachment->texture = renderer_depth_attachment_get(i);
+                    } else {
+                        KFATAL("Unsupported attachment type: 0x%x", attachment->type);
+                        continue;
+                    }
+                } else if (attachment->source == RENDER_TARGET_ATTACHMENT_SOURCE_VIEW) {
+                    if (!view->regenerate_attachment_target) {
+                        KFATAL("RENDER_TARGET_ATTACHMENT_SOURCE_VIEW configured for an attachment whose view does not support this operation.");
+                        continue;
+                    } else {
+                        if (!view->regenerate_attachment_target(view, r, attachment)) {
+                            KERROR("View failed to regenerate attachment target for attachment type: 0x%x", attachment->type);
+                        }
+                    }
+                }
+            }
+
+            // Create the render target.
+            renderer_render_target_create(
+                target->attachment_count,
+                target->attachments,
+                pass,
+                // NOTE: just going off the first attachment size here, but should be enough for most cases.
+                target->attachments[0].texture->width,
+                target->attachments[0].texture->height,
+                &pass->targets[i]);
+        }
+    }
 }
