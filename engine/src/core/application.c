@@ -536,6 +536,12 @@ b8 application_create(game* game_inst) {
     }
     ui_text_set_position(&app_state->test_sys_text, vec3_create(50, 250, 0));
 
+    if(!ui_text_create(UI_TEXT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Some system text 123, \n\tyo!\n\n\tこんにちは 한", &app_state->test_sys_text)) {
+        KERROR("Failed to load basic ui system text.");
+        return false;
+    }
+    ui_text_set_position(&app_state->test_sys_text, vec3_create(50, 200, 0));
+
     // Skybox
     texture_map* cube_map = &app_state->sb.cubemap;
     cube_map->filter_magnify = cube_map->filter_minify = TEXTURE_FILTER_MODE_LINEAR;
