@@ -5,10 +5,6 @@
 #include "resources/resource_types.h"
 #include "containers/freelist.h"
 
-#define BUILTIN_SHADER_NAME_SKYBOX "Shader.Builtin.Skybox"
-#define BUILTIN_SHADER_NAME_MATERIAL "Shader.Builtin.Material"
-#define BUILTIN_SHADER_NAME_UI "Shader.Builtin.UI"
-
 struct shader;
 struct shader_uniform;
 
@@ -21,6 +17,7 @@ typedef enum renderer_backend_type {
 typedef struct geometry_render_data {
     mat4 model;
     geometry* geometry;
+    u32 unique_id;
 } geometry_render_data;
 
 typedef enum renderer_debug_view_mode {
@@ -29,14 +26,55 @@ typedef enum renderer_debug_view_mode {
     RENDERER_VIEW_MODE_NORMALS = 2
 } renderer_debug_view_mode;
 
+typedef enum render_target_attachment_type {
+    RENDER_TARGET_ATTACHMENT_TYPE_COLOUR = 0x1,
+    RENDER_TARGET_ATTACHMENT_TYPE_DEPTH = 0x2,
+    RENDER_TARGET_ATTACHMENT_TYPE_STENCIL = 0x4
+} render_target_attachment_type;
+
+typedef enum render_target_attachment_source {
+    RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT = 0x1,
+    RENDER_TARGET_ATTACHMENT_SOURCE_VIEW = 0x2
+} render_target_attachment_source;
+
+typedef enum render_target_attachment_load_operation {
+    RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE = 0x0,
+    RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD = 0x1
+} render_target_attachment_load_operation;
+
+typedef enum render_target_attachment_store_operation {
+    RENDER_TARGET_ATTACHMENT_STORE_OPERATION_DONT_CARE = 0x0,
+    RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE = 0x1
+} render_target_attachment_store_operation;
+
+typedef struct render_target_attachment_config {
+    render_target_attachment_type type;
+    render_target_attachment_source source;
+    render_target_attachment_load_operation load_operation;
+    render_target_attachment_store_operation store_operation;
+    b8 present_after;
+} render_target_attachment_config;
+
+typedef struct render_target_config {
+    u8 attachment_count;
+    render_target_attachment_config* attachments;
+} render_target_config;
+
+typedef struct render_target_attachment {
+    render_target_attachment_type type;
+    render_target_attachment_source source;
+    render_target_attachment_load_operation load_operation;
+    render_target_attachment_store_operation store_operation;
+    b8 present_after;
+    struct texture* texture;
+} render_target_attachment;
+
 /** @brief Represents a render target, which is used for rendering to a texture or set of textures. */
 typedef struct render_target {
-    /** @brief Indicates if this render target should be updated on window resize. */
-    b8 sync_to_window_size;
     /** @brief The number of attachments */
     u8 attachment_count;
-    /** @brief An array of attachments (pointers to textures). */
-    struct texture** attachments;
+    /** @brief An array of attachments. */
+    struct render_target_attachment* attachments;
     /** @brief The renderer API internal framebuffer object. */
     void* internal_framebuffer;
 } render_target;
@@ -46,7 +84,7 @@ typedef struct render_target {
  * Can be combined together for multiple clearing functions.
  */
 typedef enum renderpass_clear_flag {
-    /** @brief No clearing shoudl be done. */
+    /** @brief No clearing should be done. */
     RENDERPASS_CLEAR_NONE_FLAG = 0x0,
     /** @brief Clear the colour buffer. */
     RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG = 0x1,
@@ -59,10 +97,9 @@ typedef enum renderpass_clear_flag {
 typedef struct renderpass_config {
     /** @brief The name of this renderpass. */
     const char* name;
-    /** @brief The name of the previous renderpass. */
-    const char* prev_name;
-    /** @brief The name of the next renderpass. */
-    const char* next_name;
+    f32 depth;
+    u32 stencil;
+
     /** @brief The current render area of the renderpass. */
     vec4 render_area;
     /** @brief The clear colour used for this renderpass. */
@@ -70,6 +107,11 @@ typedef struct renderpass_config {
 
     /** @brief The clear flags for this renderpass. */
     u8 clear_flags;
+
+    /** @brief The number of render targets created according to the render target config. */
+    u8 render_target_count;
+    /** @brief The render target configuration. */
+    render_target_config target;
 } renderpass_config;
 
 /**
@@ -131,12 +173,6 @@ typedef struct renderbuffer {
 typedef struct renderer_backend_config {
     /** @brief The name of the application */
     const char* application_name;
-    /** @brief The number of pointers to renderpasses. */
-    u16 renderpass_count;
-    /** @brief An array configurations for renderpasses. Will be initialized on the backend automatically. */
-    renderpass_config* pass_configs;
-    /** @brief A callback that will be made when the backend requires a refresh/regeneration of the render targets. */
-    void (*on_rendertarget_refresh_required)();
 } renderer_backend_config;
 
 /**
@@ -198,6 +234,32 @@ typedef struct renderer_backend {
     b8 (*end_frame)(struct renderer_backend* backend, f32 delta_time);
 
     /**
+     * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
+     *
+     * @param rect The viewport rectangle to be set.
+     */
+    void (*viewport_set)(vec4 rect);
+
+    /**
+     * @brief Resets the viewport to the default, which matches the application window.
+     * Must be done within a renderpass.
+     */
+    void (*viewport_reset)();
+
+    /**
+     * @brief Sets the renderer scissor to the given rectangle. Must be done within a renderpass.
+     *
+     * @param rect The scissor rectangle to be set.
+     */
+    void (*scissor_set)(vec4 rect);
+
+    /**
+     * @brief Resets the scissor to the default, which matches the application window.
+     * Must be done within a renderpass.
+     */
+    void (*scissor_reset)();
+
+    /**
      * @brief Begins a renderpass with the given id.
      *
      * @param pass A pointer to the renderpass to begin.
@@ -213,14 +275,6 @@ typedef struct renderer_backend {
      * @return True on success; otherwise false.
      */
     b8 (*renderpass_end)(renderpass* pass);
-
-    /**
-     * @brief Obtains a pointer to a renderpass using the provided name.
-     *
-     * @param name The renderpass name.
-     * @return A pointer to a renderpass, if found; otherwise 0.
-     */
-    renderpass* (*renderpass_get)(const char* name);
 
     /**
      * @brief Draws the given geometry. Should only be called inside a renderpass, within a frame.
@@ -274,6 +328,26 @@ typedef struct renderer_backend {
      * @param pixels The raw image data to be written.
      */
     void (*texture_write_data)(texture* t, u32 offset, u32 size, const u8* pixels);
+
+    /**
+     * @brief Reads the given data from the provided texture.
+     *
+     * @param t A pointer to the texture to be read from.
+     * @param offset The offset in bytes from the beginning of the data to be read.
+     * @param size The number of bytes to be read.
+     * @param out_memory A pointer to a block of memory to write the read data to.
+     */
+    void (*texture_read_data)(texture* t, u32 offset, u32 size, void** out_memory);
+
+    /**
+     * @brief Reads a pixel from the provided texture at the given x/y coordinate.
+     *
+     * @param t A pointer to the texture to be read from.
+     * @param x The pixel x-coordinate.
+     * @param y The pixel y-coordinate.
+     * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
+     */
+    void (*texture_read_pixel)(texture* t, u32 x, u32 y, u8** out_rgba);
 
     /**
      * @brief Creates Vulkan-specific internal resources for the given geometry using
@@ -415,14 +489,14 @@ typedef struct renderer_backend {
     /**
      * @brief Creates a new render target using the provided data.
      *
-     * @param attachment_count The number of attachments (texture pointers).
-     * @param attachments An array of attachments (texture pointers).
+     * @param attachment_count The number of attachments.
+     * @param attachments An array of attachments.
      * @param renderpass A pointer to the renderpass the render target is associated with.
      * @param width The width of the render target in pixels.
      * @param height The height of the render target in pixels.
      * @param out_target A pointer to hold the newly created render target.
      */
-    void (*render_target_create)(u8 attachment_count, texture** attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
+    void (*render_target_create)(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
 
     /**
      * @brief Destroys the provided render target.
@@ -435,14 +509,10 @@ typedef struct renderer_backend {
     /**
      * @brief Creates a new renderpass.
      *
+     * @param config A constant pointer to the configuration to be used when creating the renderpass.
      * @param out_renderpass A pointer to the generic renderpass.
-     * @param depth The depth clear amount.
-     * @param stencil The stencil clear value.
-     * @param clear_flags The combined clear flags indicating what kind of clear should take place.
-     * @param has_prev_pass Indicates if there is a previous renderpass.
-     * @param has_next_pass Indicates if there is a next renderpass.
      */
-    void (*renderpass_create)(renderpass* out_renderpass, f32 depth, u32 stencil, b8 has_prev_pass, b8 has_next_pass);
+    b8 (*renderpass_create)(const renderpass_config* config, renderpass* out_renderpass);
 
     /**
      * @brief Destroys the given renderpass.
@@ -461,13 +531,20 @@ typedef struct renderer_backend {
 
     /**
      * @brief Returns a pointer to the main depth texture target.
+     * @param index The index of the attachment to get. Must be within the range of window render target count.
+     * @return A pointer to a texture attachment if successful; otherwise 0.
      */
-    texture* (*depth_attachment_get)();
+    texture* (*depth_attachment_get)(u8 index);
 
     /**
      * @brief Returns the current window attachment index.
      */
     u8 (*window_attachment_index_get)();
+
+    /**
+     * @brief Returns the number of attachments required for window-based render targets.
+     */
+    u8 (*window_attachment_count_get)();
 
     /**
      * @brief Indicates if the renderer is capable of multi-threading.
@@ -613,11 +690,6 @@ typedef enum render_view_projection_matrix_source {
     RENDER_VIEW_PROJECTION_MATRIX_SOURCE_DEFAULT_ORTHOGRAPHIC = 0x02,
 } render_view_projection_matrix_source;
 
-/** @brief configuration for a renderpass to be associated with a view */
-typedef struct render_view_pass_config {
-    const char* name;
-} render_view_pass_config;
-
 /**
  * @brief The configuration of a render view.
  * Used as a serialization target.
@@ -645,7 +717,7 @@ typedef struct render_view_config {
     /** @brief The number of renderpasses used in this view. */
     u8 pass_count;
     /** @brief The configuration of renderpasses used in this view. */
-    render_view_pass_config* passes;
+    renderpass_config* passes;
 } render_view_config;
 
 struct render_view_packet;
@@ -668,8 +740,8 @@ typedef struct render_view {
 
     /** @brief The number of renderpasses used by this view. */
     u8 renderpass_count;
-    /** @brief An array of pointers to renderpasses used by this view. */
-    renderpass** passes;
+    /** @brief An array of renderpasses used by this view. */
+    renderpass* passes;
 
     /** @brief The name of the custom shader used by this view, if there is one. */
     const char* custom_shader_name;
@@ -727,6 +799,16 @@ typedef struct render_view {
      * @return True on success; otherwise false.
      */
     b8 (*on_render)(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index);
+
+    /**
+     * @brief Regenerates the resources for the given attachment at the provided pass index.
+     * 
+     * @param self A pointer to the view to use.
+     * @param pass_index The index of the renderpass to generate for.
+     * @param attachment A pointer to the attachment whose resources are to be regenerated.
+     * @return True on success; otherwise false.
+     */
+    b8 (*regenerate_attachment_target)(struct render_view* self, u32 pass_index, struct render_target_attachment* attachment);
 } render_view;
 
 /**

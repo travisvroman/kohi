@@ -285,10 +285,137 @@ u8 freelist_should_allocate_to_full_and_fail_to_allocate_more() {
     return true;
 }
 
+typedef struct alloc_data {
+    u64 size;
+    u64 offset;
+} alloc_data;
+
+u8 util_freelist_allocate(freelist* list, alloc_data* data, u64* currently_allocated, u64 total_list_size) {
+    // Allocate some space.
+    data->offset = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    b8 result = freelist_allocate_block(list, data->size, &data->offset);
+    // Verify that result is true
+    expect_to_be_true(result);
+    expect_should_not_be(data->offset, INVALID_ID);
+
+    // Track it.
+    *currently_allocated += data->size;
+
+    // Verify free space.
+    u64 free_space = freelist_free_space(list);
+    expect_should_be(free_space, total_list_size - *currently_allocated);
+
+    return true;
+}
+
+u8 util_freelist_free(freelist* list, alloc_data* data, u64* currently_allocated, u64 total_list_size) {
+    // Free the block and verify space.
+    b8 result = freelist_free_block(list, data->size, data->offset);
+    expect_to_be_true(result);
+
+    // Track it.
+    *currently_allocated -= data->size;
+
+    // Verify free space.
+    u64 free_space = freelist_free_space(list);
+    expect_should_be(free_space, total_list_size - *currently_allocated);
+
+    // Reset the data.
+    data->offset = INVALID_ID;
+
+    return true;
+}
+
+u8 freelist_multiple_alloc_and_free_random() {
+    freelist list;
+
+    // Pick random sizes.
+    const u32 alloc_data_count = 65556;
+    alloc_data alloc_datas[65556] = {0};
+    for (u32 i = 0; i < alloc_data_count; ++i) {
+        alloc_datas[i].size = (u64)krandom_in_range(1, 65536);
+        // INVALID_ID means the data isn't allocated.
+        alloc_datas[i].offset = INVALID_ID;
+    }
+
+    // Total size needed for the list.
+    u64 total_size = 0;
+    for (u32 i = 0; i < alloc_data_count; ++i) {
+        total_size += alloc_datas[i].size;
+    }
+
+    // Get the memory requirement
+    u64 memory_requirement = 0;
+    freelist_create(total_size, &memory_requirement, 0, 0);
+
+    // Allocate and create the freelist.
+    void* block = kallocate(memory_requirement, MEMORY_TAG_APPLICATION);
+    freelist_create(total_size, &memory_requirement, block, &list);
+
+    // Verify free space.
+    u64 free_space = freelist_free_space(&list);
+    expect_should_be(total_size, free_space);
+
+    // Perform a bunch of random ops against the list, verifying each one along the way.
+    u64 currently_allocated = 0;
+    u32 op_count = 0;
+    const u32 max_op_count = 100000;
+    u32 alloc_count = 0;
+    while (op_count < max_op_count) {
+        // If there are no allocations, or we "roll" high, allocate. Otherwise deallocate.
+        if (alloc_count == 0 || krandom_in_range(0, 99) > 50) {
+            while (true) {
+                u32 index = (u32)krandom_in_range(0, alloc_data_count - 1);
+                // Look for an un-allocated block.
+                if (alloc_datas[index].offset == INVALID_ID) {
+                    if (!util_freelist_allocate(&list, &alloc_datas[index], &currently_allocated, total_size)) {
+                        KERROR("util_allocate failed on index: %u.", index);
+                        return false;
+                    }
+                    alloc_count++;
+                    break;
+                }
+            }
+            op_count++;
+        } else {
+            while (true) {
+                u32 index = (u32)krandom_in_range(0, alloc_data_count - 1);
+                // Look for an allocated block.
+                if (alloc_datas[index].offset != INVALID_ID) {
+                    if (!util_freelist_free(&list, &alloc_datas[index], &currently_allocated, total_size)) {
+                        KERROR("util_free failed on index: %u.", index);
+                        return false;
+                    }
+                    alloc_count--;
+                    break;
+                }
+            }
+            op_count++;
+        }
+    }
+
+    KTRACE("Max op count of %u reached. Freeing remaining allocations.", max_op_count);
+    for (u32 i = 0; i < alloc_data_count; ++i) {
+        if (alloc_datas[i].offset != INVALID_ID) {
+            if (!util_freelist_free(&list, &alloc_datas[i], &currently_allocated, total_size)) {
+                KERROR("util_free failed on index: %u.");
+                return false;
+            }
+        }
+    }
+
+    // Destroy and verify that the memory was unassigned.
+    freelist_destroy(&list);
+    expect_should_be(0, list.memory);
+    kfree(block, memory_requirement, MEMORY_TAG_APPLICATION);
+    return true;
+}
+
 void freelist_register_tests() {
     test_manager_register_test(freelist_should_create_and_destroy, "Freelist should create and destroy");
     test_manager_register_test(freelist_should_allocate_one_and_free_one, "Freelist allocate and free one entry.");
     test_manager_register_test(freelist_should_allocate_one_and_free_multi, "Freelist allocate and free multiple entries.");
     test_manager_register_test(freelist_should_allocate_one_and_free_multi_varying_sizes, "Freelist allocate and free multiple entries of varying sizes.");
     test_manager_register_test(freelist_should_allocate_to_full_and_fail_to_allocate_more, "Freelist allocate to full and fail when trying to allocate more.");
+    test_manager_register_test(freelist_multiple_alloc_and_free_random, "Freelist should randomly allocate and free.");
 }

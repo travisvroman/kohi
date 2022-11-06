@@ -4,8 +4,8 @@ name=Shader.Builtin.UI
 renderpass=Renderpass.Builtin.UI
 stages=vertex,fragment
 stagefiles=shaders/Builtin.UIShader.vert.spv,shaders/Builtin.UIShader.frag.spv
-use_instance=1
-use_local=1
+depth_test=0
+depth_write=0
 
 # Attributes: type,name
 attribute=vec2,in_position

@@ -175,6 +175,18 @@ typedef enum system_event_code {
     /** @brief Special-purpose debugging event. Context will vary over time. */
     EVENT_CODE_DEBUG4 = 0x14,
 
+    /** @brief The hovered-over object id, if there is one.
+     * Context usage:
+     * i32 id = context.data.u32[0]; - will be INVALID ID if nothing is hovered over.
+     */
+    EVENT_CODE_OBJECT_HOVER_ID_CHANGED = 0x15,
+
+    /** 
+     * @brief An event fired by the renderer backend to indicate when any render targets
+     * associated with the default window resources need to be refreshed (i.e. a window resize)
+     */
+    EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED = 0x16,
+
     /** @brief The maximum event code that can be used internally. */
     MAX_EVENT_CODE = 0xFF
 } system_event_code;
