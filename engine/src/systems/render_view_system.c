@@ -10,6 +10,7 @@
 #include "renderer/views/render_view_world.h"
 #include "renderer/views/render_view_ui.h"
 #include "renderer/views/render_view_skybox.h"
+#include "renderer/views/render_view_pick.h"
 
 typedef struct render_view_system_state {
     hashtable lookup;
@@ -61,6 +62,23 @@ b8 render_view_system_initialize(u64* memory_requirement, void* state, render_vi
 }
 
 void render_view_system_shutdown(void* state) {
+    // Destroy all views in the system.
+    for (u32 i = 0; i < state_ptr->max_view_count; ++i) {
+        render_view* view = &state_ptr->registered_views[i];
+        if(view->id != INVALID_ID_U16) {
+
+            // Call its destroy routine first.
+            view->on_destroy(view);
+
+            // Destroy its renderpasses.
+            for (u32 p = 0; p < view->renderpass_count; ++p) {
+                renderer_renderpass_destroy(&view->passes[p]);
+            }
+
+            view->id = INVALID_ID_U16;
+        }
+    }
+
     state_ptr = 0;
 }
 
@@ -145,6 +163,14 @@ b8 render_view_system_create(const render_view_config* config) {
         view->on_destroy = render_view_skybox_on_destroy;
         view->on_resize = render_view_skybox_on_resize;
         view->regenerate_attachment_target = 0;
+    } else if (config->type == RENDERER_VIEW_KNOWN_TYPE_PICK) {
+        view->on_build_packet = render_view_pick_on_build_packet;      // For building the packet
+        view->on_destroy_packet = render_view_pick_on_destroy_packet;  // For destroying the packet.
+        view->on_render = render_view_pick_on_render;                  // For rendering the packet
+        view->on_create = render_view_pick_on_create;
+        view->on_destroy = render_view_pick_on_destroy;
+        view->on_resize = render_view_pick_on_resize;
+        view->regenerate_attachment_target = render_view_pick_regenerate_attachment_target;
     }
 
     // Call the on create

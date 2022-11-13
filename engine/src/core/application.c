@@ -500,6 +500,68 @@ b8 application_create(game* game_inst) {
         return false;
     }
 
+    // Pick pass.
+    render_view_config pick_view_config = {};
+    pick_view_config.type = RENDERER_VIEW_KNOWN_TYPE_PICK;
+    pick_view_config.width = 0;
+    pick_view_config.height = 0;
+    pick_view_config.name = "pick";
+    pick_view_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
+
+    pick_view_config.pass_count = 2;
+    renderpass_config pick_passes[2] = {0};
+
+    // World pass
+    pick_passes[0].name = "Renderpass.Builtin.WorldPick";
+    pick_passes[0].render_area = (vec4){0, 0, 1280, 720};
+    pick_passes[0].clear_colour = (vec4){1.0f, 1.0f, 1.0f, 1.0f};  // HACK: clearing to white for better visibility// TODO: Clear to black, as 0 is invalid id.
+    pick_passes[0].clear_flags = RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG | RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG;
+    pick_passes[0].depth = 1.0f;
+    pick_passes[0].stencil = 0;
+
+    render_target_attachment_config world_pick_target_attachments[2];
+    world_pick_target_attachments[0].type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+    world_pick_target_attachments[0].source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;  // Obtain the attachment from the view.
+    world_pick_target_attachments[0].load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+    world_pick_target_attachments[0].store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+    world_pick_target_attachments[0].present_after = false;
+
+    world_pick_target_attachments[1].type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
+    world_pick_target_attachments[1].source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;  // Obtain the attachment from the view.
+    world_pick_target_attachments[1].load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+    world_pick_target_attachments[1].store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+    world_pick_target_attachments[1].present_after = false;
+
+    pick_passes[0].target.attachment_count = 2;
+    pick_passes[0].target.attachments = world_pick_target_attachments;
+    pick_passes[0].render_target_count = 1;
+
+    pick_passes[1].name = "Renderpass.Builtin.UIPick";
+    pick_passes[1].render_area = (vec4){0, 0, 1280, 720};
+    pick_passes[1].clear_colour = (vec4){1.0f, 1.0f, 1.0f, 1.0f};
+    pick_passes[1].clear_flags = RENDERPASS_CLEAR_NONE_FLAG;
+    pick_passes[1].depth = 1.0f;
+    pick_passes[1].stencil = 0;
+
+    render_target_attachment_config ui_pick_target_attachments[1];
+    ui_pick_target_attachments[0].type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+    // Obtain the attachment from the view.
+    ui_pick_target_attachments[0].source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;
+    ui_pick_target_attachments[0].load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD;
+    // Need to store it so it can be sampled afterward.
+    ui_pick_target_attachments[0].store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+    ui_pick_target_attachments[0].present_after = false;
+
+    pick_passes[1].target.attachment_count = 1;
+    pick_passes[1].target.attachments = ui_pick_target_attachments;
+    pick_passes[1].render_target_count = 1;
+
+    pick_view_config.passes = pick_passes;
+    if (!render_view_system_create(&pick_view_config)) {
+        KFATAL("Failed to create pick view. Aborting application.");
+        return false;
+    }
+
     // Material system.
     material_system_config material_sys_config;
     material_sys_config.max_material_count = 4096;
@@ -671,6 +733,10 @@ b8 application_create(game* game_inst) {
     app_state->ui_meshes[0].transform = transform_create();
     app_state->ui_meshes[0].generation = 0;
 
+    // Move and rotate it some.
+    quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
+    transform_translate_rotate(&app_state->ui_meshes[0].transform, (vec3){5, 5, 0}, rotation);
+
     // Load up default geometry.
     // app_state->test_geometry = geometry_system_get_default();
     // TODO: end temp
@@ -750,8 +816,8 @@ b8 application_run() {
             packet.delta_time = delta;
 
             // TODO: Read from frame config.
-            packet.view_count = 3;
-            render_view_packet views[3];
+            packet.view_count = 4;
+            render_view_packet views[4];
             kzero_memory(views, sizeof(render_view_packet) * packet.view_count);
             packet.views = views;
 
@@ -867,6 +933,18 @@ Hovered: %s%u",
                 return false;
             }
 
+            // Pick uses both world and ui packet data.
+            pick_packet_data pick_packet = {};
+            pick_packet.ui_mesh_data = ui_packet.mesh_data;
+            pick_packet.world_mesh_data = world_mesh_data;
+            pick_packet.texts = ui_packet.texts;
+            pick_packet.text_count = ui_packet.text_count;
+
+            if (!render_view_system_build_packet(render_view_system_get("pick"), &pick_packet, &packet.views[3])) {
+                KERROR("Failed to build packet for view 'ui'.");
+                return false;
+            }
+
             // TODO: end temp
 
             renderer_draw_frame(&packet);
@@ -931,6 +1009,8 @@ Hovered: %s%u",
     input_system_shutdown(app_state->input_system_state);
 
     font_system_shutdown(app_state->font_system_state);
+
+    render_view_system_shutdown(app_state->renderer_view_system_state);
 
     geometry_system_shutdown(app_state->geometry_system_state);
 
