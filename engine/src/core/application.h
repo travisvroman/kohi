@@ -15,6 +15,8 @@
 #pragma once
 
 #include "defines.h"
+#include "systems/font_system.h"
+#include "renderer/renderer_types.inl"
 
 struct game;
 
@@ -36,6 +38,12 @@ typedef struct application_config {
 
     /** @brief The application name used in windowing, if applicable. */
     char* name;
+
+    /** @brief Configuration for the font system. */
+    font_system_config font_config;
+
+    /** @brief A darray of render view configurations. */
+    render_view_config* render_views;
 } application_config;
 
 /**
