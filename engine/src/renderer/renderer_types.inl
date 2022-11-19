@@ -723,6 +723,7 @@ typedef struct render_view_config {
 } render_view_config;
 
 struct render_view_packet;
+struct linear_allocator;
 
 /**
  * @brief A render view instance, responsible for the generation
@@ -778,14 +779,14 @@ typedef struct render_view {
      * @brief Builds a render view packet using the provided view and meshes.
      *
      * @param self A pointer to the view to use.
+     * @param frame_allocator A frame allocator used this frame when building the packet.
      * @param data Freeform data used to build the packet.
      * @param out_packet A pointer to hold the generated packet.
      * @return True on success; otherwise false.
      */
-    b8 (*on_build_packet)(const struct render_view* self, void* data, struct render_view_packet* out_packet);
+    b8 (*on_build_packet)(const struct render_view* self, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet);
 
     /**
-     * @brief Destroys the provided render view packet.
      * @param self A pointer to the view to use.
      * @param packet A pointer to the packet to be destroyed.
      */
@@ -861,8 +862,10 @@ typedef struct pick_packet_data {
     struct ui_text** texts;
 } pick_packet_data;
 
+struct skybox;
+
 typedef struct skybox_packet_data {
-    skybox* sb;
+    struct skybox* sb;
 } skybox_packet_data;
 
 /**

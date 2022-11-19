@@ -65,8 +65,7 @@ void render_view_system_shutdown(void* state) {
     // Destroy all views in the system.
     for (u32 i = 0; i < state_ptr->max_view_count; ++i) {
         render_view* view = &state_ptr->registered_views[i];
-        if(view->id != INVALID_ID_U16) {
-
+        if (view->id != INVALID_ID_U16) {
             // Call its destroy routine first.
             view->on_destroy(view);
 
@@ -209,9 +208,9 @@ render_view* render_view_system_get(const char* name) {
     return 0;
 }
 
-b8 render_view_system_build_packet(const render_view* view, void* data, struct render_view_packet* out_packet) {
+b8 render_view_system_build_packet(const render_view* view, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet) {
     if (view && out_packet) {
-        return view->on_build_packet(view, data, out_packet);
+        return view->on_build_packet(view, frame_allocator, data, out_packet);
     }
 
     KERROR("render_view_system_build_packet requires valid pointers to a view and a packet.");
