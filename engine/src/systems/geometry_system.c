@@ -437,8 +437,8 @@ geometry_config geometry_system_generate_cube_config(f32 width, f32 height, f32 
     config.min_extents.y = min_y;
     config.min_extents.z = min_z;
     config.max_extents.x = max_x;
-    config.min_extents.y = max_y;
-    config.min_extents.z = max_z;
+    config.max_extents.y = max_y;
+    config.max_extents.z = max_z;
     // Always 0 since min/max of each axis are -/+ half of the size.
     config.center.x = 0;
     config.center.y = 0;

@@ -853,8 +853,8 @@ typedef struct ui_packet_data {
 } ui_packet_data;
 
 typedef struct pick_packet_data {
-    mesh_packet_data world_mesh_data;
-    u32 world_geometry_count;
+    // Copy of frame data darray ptr
+    geometry_render_data* world_mesh_data;
     mesh_packet_data ui_mesh_data;
     u32 ui_geometry_count;
     // TODO: temp
