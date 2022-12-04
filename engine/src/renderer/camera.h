@@ -134,6 +134,14 @@ KAPI vec3 camera_left(camera* c);
 KAPI vec3 camera_right(camera* c);
 
 /**
+ * @brief Returns a copy of the camera's up vector.
+ *
+ * @param c A pointer to a camera.
+ * @return A copy of the camera's up vector.
+ */
+KAPI vec3 camera_up(camera* c);
+
+/**
  * @brief Moves the camera forward by the given amount.
  *
  * @param c A pointer to a camera.

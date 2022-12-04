@@ -260,26 +260,19 @@ b8 render_view_pick_on_build_packet(const struct render_view* self, struct linea
     internal_data->world_shader_info.view = camera_view_get(world_camera);
 
     // Set the pick packet data to extended data.
-    packet_data->world_geometry_count = 0;
     packet_data->ui_geometry_count = 0;
     out_packet->extended_data = linear_allocator_allocate(frame_allocator, sizeof(pick_packet_data));
 
+    u32 world_geometry_count = darray_length(packet_data->world_mesh_data);
+
     i32 highest_instance_id = 0;
-    // Iterate all meshes in world data.
-    for (u32 i = 0; i < packet_data->world_mesh_data.mesh_count; ++i) {
-        mesh* m = packet_data->world_mesh_data.meshes[i];
-        for (u32 j = 0; j < m->geometry_count; ++j) {
-            geometry_render_data render_data;
-            render_data.geometry = m->geometries[j];
-            render_data.model = transform_get_world(&m->transform);
-            render_data.unique_id = m->unique_id;
-            darray_push(out_packet->geometries, render_data);
-            out_packet->geometry_count++;
-            packet_data->world_geometry_count++;
-        }
+    // Iterate all geometries in world data.
+    for (u32 i = 0; i < world_geometry_count; ++i) {
+       darray_push(out_packet->geometries, packet_data->world_mesh_data[i]);
+
         // Count all geometries as a single id.
-        if (m->unique_id > highest_instance_id) {
-            highest_instance_id = m->unique_id;
+        if (packet_data->world_mesh_data[i].unique_id > highest_instance_id) {
+            highest_instance_id = packet_data->world_mesh_data[i].unique_id;
         }
     }
 
@@ -368,7 +361,8 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
         shader_system_apply_global();
 
         // Draw geometries. Start from 0 since world geometries are added first, and stop at the world geometry count.
-        for (u32 i = 0; i < packet_data->world_geometry_count; ++i) {
+        u32 world_geometry_count = darray_length(packet_data->world_mesh_data);
+        for (u32 i = 0; i < world_geometry_count; ++i) {
             geometry_render_data* geo = &packet->geometries[i];
             current_instance_id = geo->unique_id;
 
@@ -426,7 +420,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
         shader_system_apply_global();
 
         // Draw geometries. Start off where world geometries left off.
-        for (u32 i = packet_data->world_geometry_count; i < packet->geometry_count; ++i) {
+        for (u32 i = world_geometry_count; i < packet->geometry_count; ++i) {
             geometry_render_data* geo = &packet->geometries[i];
             current_instance_id = geo->unique_id;
 

@@ -46,7 +46,7 @@ void render_view_system_shutdown(void* state);
  * @param config A constant pointer to the view configuration.
  * @return True on success; otherwise false.
  */
-b8 render_view_system_create(const render_view_config* config);
+KAPI b8 render_view_system_create(const render_view_config* config);
 
 /**
  * @brief Called when the owner of this view (i.e. the window) is resized.
@@ -54,7 +54,7 @@ b8 render_view_system_create(const render_view_config* config);
  * @param width The new width in pixels.
  * @param width The new height in pixels.
  */
-void render_view_system_on_window_resize(u32 width, u32 height);
+KAPI void render_view_system_on_window_resize(u32 width, u32 height);
 
 /**
  * @brief Obtains a pointer to a view with the given name.
@@ -62,7 +62,7 @@ void render_view_system_on_window_resize(u32 width, u32 height);
  * @param name The name of the view.
  * @return A pointer to a view if found; otherwise 0.
  */
-render_view* render_view_system_get(const char* name);
+KAPI render_view* render_view_system_get(const char* name);
 
 /**
  * @brief Builds a render view packet using the provided view and meshes.
@@ -73,7 +73,7 @@ render_view* render_view_system_get(const char* name);
  * @param out_packet A pointer to hold the generated packet.
  * @return True on success; otherwise false.
  */
-b8 render_view_system_build_packet(const render_view* view, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet);
+KAPI b8 render_view_system_build_packet(const render_view* view, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet);
 
 /**
  * @brief Uses the given view and packet to render the contents therein.
@@ -84,6 +84,6 @@ b8 render_view_system_build_packet(const render_view* view, struct linear_alloca
  * @param render_target_index The current render target index for renderers that use multiple render targets at once (i.e. Vulkan).
  * @return True on success; otherwise false.
  */
-b8 render_view_system_on_render(const render_view* view, const render_view_packet* packet, u64 frame_number, u64 render_target_index);
+KAPI b8 render_view_system_on_render(const render_view* view, const render_view_packet* packet, u64 frame_number, u64 render_target_index);
 
-void render_view_system_regenerate_render_targets(render_view* view);
+KAPI void render_view_system_regenerate_render_targets(render_view* view);
