@@ -173,6 +173,9 @@ void *platform_set_memory(void *dest, i32 value, u64 size) {
 
 void platform_console_write(const char *message, u8 colour) {
     HANDLE console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(console_handle, &csbi);
+
     // FATAL,ERROR,WARN,INFO,DEBUG,TRACE
     static u8 levels[6] = {64, 4, 6, 2, 1, 8};
     SetConsoleTextAttribute(console_handle, levels[colour]);
@@ -180,10 +183,15 @@ void platform_console_write(const char *message, u8 colour) {
     u64 length = strlen(message);
     LPDWORD number_written = 0;
     WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), message, (DWORD)length, number_written, 0);
+
+    SetConsoleTextAttribute(console_handle, csbi.wAttributes);
 }
 
 void platform_console_write_error(const char *message, u8 colour) {
     HANDLE console_handle = GetStdHandle(STD_ERROR_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(console_handle, &csbi);
+
     // FATAL,ERROR,WARN,INFO,DEBUG,TRACE
     static u8 levels[6] = {64, 4, 6, 2, 1, 8};
     SetConsoleTextAttribute(console_handle, levels[colour]);
@@ -191,6 +199,8 @@ void platform_console_write_error(const char *message, u8 colour) {
     u64 length = strlen(message);
     LPDWORD number_written = 0;
     WriteConsoleA(GetStdHandle(STD_ERROR_HANDLE), message, (DWORD)length, number_written, 0);
+
+    SetConsoleTextAttribute(console_handle, csbi.wAttributes);
 }
 
 f64 platform_get_absolute_time() {
