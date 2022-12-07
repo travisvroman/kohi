@@ -22,12 +22,18 @@
     "C_Cpp.clang_format_sortIncludes": false,
     "C_Cpp.vcFormat.indent.namespaceContents": true,
     "editor.cursorStyle": "block",
-    "window.zoomLevel": 4,
+    "window.zoomLevel": 1,
     "editor.tabCompletion": "on",
     "todohighlight.isEnable": true,
     "todohighlight.keywords": [
         {
             "text": "TODO:",
+            "color": "red",
+            "backgroundColor": "rgba(0,0,0,0)",
+            "overviewRulerColor": "rgba(0,0,0,0)"
+        },
+        {
+            "text": "TODO(travis):",
             "color": "red",
             "backgroundColor": "rgba(0,0,0,0)",
             "overviewRulerColor": "rgba(0,0,0,0)"
@@ -92,7 +98,10 @@
         "render_view_skybox.h": "c",
         "darray.h": "c",
         "stb_truetype.h": "c",
-        "vulkan_pipeline.h": "c"
+        "vulkan_pipeline.h": "c",
+        "__locale": "c",
+        "__string": "c",
+        "string": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [

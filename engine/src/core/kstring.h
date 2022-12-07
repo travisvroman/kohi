@@ -23,7 +23,7 @@ KAPI u64 string_length(const char* str);
 
 /**
  * @brief Gets the length of a string in UTF-8 (potentially multibyte) characters.
- * 
+ *
  * @param str The string to examine.
  * @return The UTF-8 length of the string.
  */
@@ -32,7 +32,7 @@ KAPI u32 string_utf8_length(const char* str);
 /**
  * @brief Obtains bytes needed from the byte array to form a UTF-8 codepoint,
  * also providing how many bytes the current character is.
- * 
+ *
  * @param bytes The byte array to choose from.
  * @param offset The offset in bytes to start from.
  * @param out_codepoint A pointer to hold the UTF-8 codepoint.
@@ -51,7 +51,7 @@ KAPI char* string_duplicate(const char* str);
 
 /**
  * @brief Frees the memory of the given string.
- * 
+ *
  * @param str The string to be freed.
  */
 KAPI void string_free(char* str);
@@ -380,3 +380,32 @@ KAPI void string_filename_from_path(char* dest, const char* path);
  * @param path The full path to extract from.
  */
 KAPI void string_filename_no_extension_from_path(char* dest, const char* path);
+
+// ----------------------
+// KString implementation
+// ----------------------
+
+/**
+ * @brief A kstring is a managed string for higher-level logic to use. It is
+ * safer and, in some cases quicker than a typical cstring because it maintains
+ * length/allocation information and doesn't have to use strlen on most of its
+ * internal operations.
+ */
+typedef struct kstring {
+    /** @brief The current length of the string in bytes. */
+    u32 length;
+    /** @brief The amount of currently allocated memory. Always accounts for a null terminator. */
+    u32 allocated;
+    /** @brief The raw string data. */
+    char* data;
+} kstring;
+
+KAPI void kstring_create(kstring* out_string);
+KAPI void kstring_from_cstring(const char* source, kstring* out_string);
+KAPI void kstring_destroy(kstring* string);
+
+KAPI u32 kstring_length(const kstring* string);
+KAPI u32 kstring_utf8_length(const kstring* string);
+
+KAPI void kstring_append_str(kstring* string, const char* s);
+KAPI void kstring_append_kstring(kstring* string, const kstring* other);
