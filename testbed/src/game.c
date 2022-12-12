@@ -7,6 +7,7 @@
 #include <core/input.h>
 #include <core/event.h>
 #include <core/metrics.h>
+#include <core/clock.h>
 
 #include <containers/darray.h>
 
@@ -314,6 +315,9 @@ b8 game_initialize(game* game_inst) {
 
     kzero_memory(&game_inst->frame_data, sizeof(game_frame_data));
 
+    kzero_memory(&state->update_clock, sizeof(clock));
+    kzero_memory(&state->render_clock, sizeof(clock));
+
     return true;
 }
 
@@ -350,6 +354,10 @@ b8 game_update(game* game_inst, f32 delta_time) {
     // Clear frame data
     kzero_memory(&game_inst->frame_data, sizeof(game_frame_data));
 
+    game_state* state = (game_state*)game_inst->state;
+
+    clock_start(&state->update_clock);
+
     static u64 alloc_count = 0;
     u64 prev_alloc_count = alloc_count;
     alloc_count = get_memory_alloc_count();
@@ -367,8 +375,6 @@ b8 game_update(game* game_inst, f32 delta_time) {
         event_fire(EVENT_CODE_DEBUG0, game_inst, context);
     }
     // TODO: end temp
-
-    game_state* state = (game_state*)game_inst->state;
 
     // HACK: temp hack to move camera around.
     if (input_is_key_down('A') || input_is_key_down(KEY_LEFT)) {
@@ -551,18 +557,19 @@ b8 game_update(game* game_inst, f32 delta_time) {
         }
     }
 
-
     char text_buffer[256];
     string_format(
         text_buffer,
         "\
 FPS: %5.1f(%4.1fms)        Pos=[%7.3f %7.3f %7.3f] Rot=[%7.3f, %7.3f, %7.3f]\n\
-Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
+Upd: %6.3fus, Rend: %6.3fus Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
 Drawn: %-5u Hovered: %s%u",
         fps,
         frame_time,
         pos.x, pos.y, pos.z,
         rad_to_deg(rot.x), rad_to_deg(rot.y), rad_to_deg(rot.z),
+        state->last_update_elapsed * K_SEC_TO_US_MULTIPLIER,
+        state->render_clock.elapsed * K_SEC_TO_US_MULTIPLIER,
         mouse_x, mouse_y,
         left_down ? "Y" : "N",
         right_down ? "Y" : "N",
@@ -573,11 +580,16 @@ Drawn: %-5u Hovered: %s%u",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
     ui_text_set_text(&state->test_text, text_buffer);
 
+    clock_update(&state->update_clock);
+    state->last_update_elapsed = state->update_clock.elapsed;
+    
     return true;
 }
 
 b8 game_render(game* game_inst, struct render_packet* packet, f32 delta_time) {
     game_state* state = (game_state*)game_inst->state;
+
+    clock_start(&state->render_clock);
 
     // TODO: temp
 
@@ -638,6 +650,8 @@ b8 game_render(game* game_inst, struct render_packet* packet, f32 delta_time) {
         return false;
     }
     // TODO: end temp
+
+    clock_update(&state->render_clock);
 
     return true;
 }

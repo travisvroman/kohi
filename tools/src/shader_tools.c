@@ -4,6 +4,7 @@
 #include <platform/filesystem.h>
 #include <containers/darray.h>
 #include <core/kstring.h>
+#include <core/logger.h>
 
 i32 process_source_file(const char* source_file) {
     char end_path[10];
@@ -79,9 +80,9 @@ i32 process_source_file(const char* source_file) {
         if(line[0] == '#') {
             // possible #include
             if(strings_nequal(line, "#include", 8)) {
-                char filename[256]; // Assume max length of 256.
-                string_mid(filename, line, 9, 0); // Get everything after "#include ".
-                char* trimmed_filename = string_trim(filename);
+                // char filename[256]; // Assume max length of 256.
+                // string_mid(filename, line, 9, 0); // Get everything after "#include ".
+                // char* trimmed_filename = string_trim(filename);
                 // TODO: Attempt to open the file, parse for includes, etc.
                 // TODO: Combine final recursive result with calling file.
                 // TODO: Might need to pass str buffer recursively. Allocate a big buffer
@@ -89,4 +90,5 @@ i32 process_source_file(const char* source_file) {
             }
         }
     }
+    return 0; // TODO: is this right?
 }

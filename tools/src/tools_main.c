@@ -46,27 +46,27 @@ i32 process_shaders(i32 argc, char** argv) {
         }
         const char* bin_folder = "/bin/";
 #else
-        // Not needed on macos since it lives in /usr/local
-        const char* sdk_path = "";
-        const char* bin_folder = "";
+        // // Not needed on macos since it lives in /usr/local
+        // const char* sdk_path = "";
+        // const char* bin_folder = "";
 #endif
 
-        const char* source_file = argv[i];
+        // const char* source_file = argv[i];
 
-        if (process_source_file(source_file) != 0) {
-            KERROR("Failed processing shader file, aborting process.");
-            return -6;
-        }
+        // if (process_source_file(source_file) != 0) {
+        //     KERROR("Failed processing shader file, aborting process.");
+        //     return -6;
+        // }
 
-        // Construct the command and execute it.
-        char command[4096];
-        string_format(command, "%s%sglslc --target-env=vulkan1.1 -fshader-stage=%s %s -o %s", sdk_path, bin_folder, stage, source_file, out_filename);
-        // Vulkan shader compilation
-        i32 retcode = system(command);
-        if (retcode != 0) {
-            KERROR("Error compiling shader. See logs. Aborting process.");
-            return -5;
-        }
+        // // Construct the command and execute it.
+        // char command[4096];
+        // string_format(command, "%s%sglslc --target-env=vulkan1.1 -fshader-stage=%s %s -o %s", sdk_path, bin_folder, stage, source_file, out_filename);
+        // // Vulkan shader compilation
+        // i32 retcode = system(command);
+        // if (retcode != 0) {
+        //     KERROR("Error compiling shader. See logs. Aborting process.");
+        //     return -5;
+        // }
     }
 
     KINFO("Successfully processed all shaders.");

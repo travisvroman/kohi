@@ -27,5 +27,6 @@ Maybe it's time for a proper string structure?
  * @param lines_darray A pointer to an array of cstrings.
  * @return i32 
  */
-i32 process_source_file(const char* source_file, char*** lines_darray);
+i32 process_source_file(const char* source_file);
+// i32 process_source_file(const char* source_file, char*** lines_darray);
 
