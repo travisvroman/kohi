@@ -110,6 +110,10 @@ void create(vulkan_context* context, u32 width, u32 height, vulkan_swapchain* sw
         swapchain->image_format = context->device.swapchain_support.formats[0];
     }
 
+    // FIFO and MAILBOX support vsync, IMMEDIATE does not.
+    // TODO: vsync seems to hold up the game update of some reason.
+    // It theoretically should be post-update and pre-render where that happens.
+    // TODO: pass in vsync_required to help make this decision.
     VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
     for (u32 i = 0; i < context->device.swapchain_support.present_mode_count; ++i) {
         VkPresentModeKHR mode = context->device.swapchain_support.present_modes[i];

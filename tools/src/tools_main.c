@@ -44,7 +44,7 @@ i32 process_shaders(i32 argc, char** argv) {
             KERROR("Environment variable VULKAN_SDK not found. Check your Vulkan installation.");
             return -4;
         }
-        const char* bin_folder = "/bin/";
+        // const char* bin_folder = "/bin/";
 #else
         // // Not needed on macos since it lives in /usr/local
         // const char* sdk_path = "";
