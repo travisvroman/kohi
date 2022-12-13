@@ -7,16 +7,17 @@
 
 #include "systems/texture_system.h"
 
-void create(vulkan_context* context, u32 width, u32 height, vulkan_swapchain* swapchain);
+void create(vulkan_context* context, u32 width, u32 height, b8 vsync, vulkan_swapchain* swapchain);
 void destroy(vulkan_context* context, vulkan_swapchain* swapchain);
 
 void vulkan_swapchain_create(
     vulkan_context* context,
     u32 width,
     u32 height,
+    b8 vsync,
     vulkan_swapchain* out_swapchain) {
     // Simply create a new one.
-    create(context, width, height, out_swapchain);
+    create(context, width, height, vsync, out_swapchain);
 }
 
 void vulkan_swapchain_recreate(
@@ -26,7 +27,7 @@ void vulkan_swapchain_recreate(
     vulkan_swapchain* swapchain) {
     // Destroy the old and create a new one.
     destroy(context, swapchain);
-    create(context, width, height, swapchain);
+    create(context, width, height, swapchain->vsync_enabled, swapchain);
 }
 
 void vulkan_swapchain_destroy(
@@ -90,7 +91,7 @@ void vulkan_swapchain_present(
     context->current_frame = (context->current_frame + 1) % swapchain->max_frames_in_flight;
 }
 
-void create(vulkan_context* context, u32 width, u32 height, vulkan_swapchain* swapchain) {
+void create(vulkan_context* context, u32 width, u32 height, b8 vsync, vulkan_swapchain* swapchain) {
     VkExtent2D swapchain_extent = {width, height};
 
     // Choose a swap surface format.
@@ -111,16 +112,21 @@ void create(vulkan_context* context, u32 width, u32 height, vulkan_swapchain* sw
     }
 
     // FIFO and MAILBOX support vsync, IMMEDIATE does not.
-    // TODO: vsync seems to hold up the game update of some reason.
+    // TODO: vsync seems to hold up the game update for some reason.
     // It theoretically should be post-update and pre-render where that happens.
-    // TODO: pass in vsync_required to help make this decision.
-    VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
-    for (u32 i = 0; i < context->device.swapchain_support.present_mode_count; ++i) {
-        VkPresentModeKHR mode = context->device.swapchain_support.present_modes[i];
-        if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-            present_mode = mode;
-            break;
+    swapchain->vsync_enabled = vsync;
+    VkPresentModeKHR present_mode;
+    if (vsync) {
+        present_mode = VK_PRESENT_MODE_FIFO_KHR;
+        for (u32 i = 0; i < context->device.swapchain_support.present_mode_count; ++i) {
+            VkPresentModeKHR mode = context->device.swapchain_support.present_modes[i];
+            if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+                present_mode = mode;
+                break;
+            }
         }
+    } else {
+        present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
     }
 
     // Requery swapchain support.

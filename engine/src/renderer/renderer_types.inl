@@ -173,6 +173,8 @@ typedef struct renderbuffer {
 typedef struct renderer_backend_config {
     /** @brief The name of the application */
     const char* application_name;
+    /** @brief Indicates if vsync will be enabled by default. */
+    b8 vsync;
 } renderer_backend_config;
 
 /**
@@ -550,6 +552,17 @@ typedef struct renderer_backend {
      * @brief Indicates if the renderer is capable of multi-threading.
      */
     b8 (*is_multithreaded)();
+
+    /**
+     * @brief Indicates if vsync is currently enabled.
+     */
+    b8 (*vsync_enabled)();
+
+    /**
+     * @brief Sets whether or not vsync is enabled.
+     * 
+     */
+    void (*set_vsync_enabled)(b8 enabled);
 
     /**
      * @brief Creates and assigns the renderer-backend-specific buffer.

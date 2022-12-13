@@ -53,6 +53,8 @@ b8 renderer_backend_create(renderer_backend_type type, renderer_backend* out_ren
         out_renderer_backend->window_attachment_index_get = vulkan_renderer_window_attachment_index_get;
         out_renderer_backend->window_attachment_count_get = vulkan_renderer_window_attachment_count_get;
         out_renderer_backend->is_multithreaded = vulkan_renderer_is_multithreaded;
+        out_renderer_backend->vsync_enabled = vulkan_renderer_vsync_enabled;
+        out_renderer_backend->set_vsync_enabled = vulkan_renderer_set_vsync_enabled;
 
         out_renderer_backend->renderbuffer_create_internal = vulkan_buffer_create_internal;
         out_renderer_backend->renderbuffer_destroy_internal = vulkan_buffer_destroy_internal;

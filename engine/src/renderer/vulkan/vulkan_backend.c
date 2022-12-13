@@ -227,6 +227,7 @@ b8 create_vulkan_allocator(VkAllocationCallbacks* callbacks) {
 b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const renderer_backend_config* config, u8* out_window_render_target_count) {
     // Function pointers
     context.find_memory_index = find_memory_index;
+    context.flag_vsync_changed = false;
 
     // NOTE: Custom allocator.
 #if KVULKAN_USE_CUSTOM_ALLOCATOR == 1
@@ -405,6 +406,7 @@ b8 vulkan_renderer_backend_initialize(renderer_backend* backend, const renderer_
         &context,
         context.framebuffer_width,
         context.framebuffer_height,
+        config->vsync,
         &context.swapchain);
 
     // Save off the number of images we have as the number of render targets needed.
@@ -566,11 +568,16 @@ b8 vulkan_renderer_backend_begin_frame(renderer_backend* backend, f32 delta_time
     }
 
     // Check if the framebuffer has been resized. If so, a new swapchain must be created.
-    if (context.framebuffer_size_generation != context.framebuffer_size_last_generation) {
+    // Also include a vsync changed check.
+    if (context.framebuffer_size_generation != context.framebuffer_size_last_generation || context.flag_vsync_changed) {
         VkResult result = vkDeviceWaitIdle(device->logical_device);
         if (!vulkan_result_is_success(result)) {
             KERROR("vulkan_renderer_backend_begin_frame vkDeviceWaitIdle (2) failed: '%s'", vulkan_result_string(result, true));
             return false;
+        }
+
+        if(context.flag_vsync_changed) {
+            context.flag_vsync_changed = false;
         }
 
         // If the swapchain recreation failed (because, for example, the window was minimized),
@@ -2433,6 +2440,15 @@ u8 vulkan_renderer_window_attachment_count_get() {
 
 b8 vulkan_renderer_is_multithreaded() {
     return context.multithreading_enabled;
+}
+
+
+b8 vulkan_renderer_vsync_enabled() {
+    return context.swapchain.vsync_enabled;
+}
+void vulkan_renderer_set_vsync_enabled(b8 enabled) {
+    context.swapchain.vsync_enabled = enabled;
+    context.flag_vsync_changed = true;
 }
 
 // NOTE: Begin vulkan buffer.

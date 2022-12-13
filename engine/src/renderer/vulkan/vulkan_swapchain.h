@@ -20,12 +20,14 @@
  * @param context A pointer to the Vulkan context.
  * @param width The initial width of the surface area.
  * @param height The initial height of the surface area.
+ * @param vsync Indicates if the swapchain should use vsync.
  * @param out_swapchain A pointer to the newly-created swapchain.
  */
 void vulkan_swapchain_create(
     vulkan_context* context,
     u32 width,
     u32 height,
+    b8 vsync,
     vulkan_swapchain* out_swapchain);
 
 /**

@@ -59,6 +59,7 @@ b8 renderer_system_initialize(u64* memory_requirement, void* state, const char* 
 
     renderer_backend_config renderer_config = {};
     renderer_config.application_name = application_name;
+    renderer_config.vsync = true;
 
     // Initialize the backend.
     if (!state_ptr->backend.initialize(&state_ptr->backend, &renderer_config, &state_ptr->window_render_target_count)) {
@@ -335,6 +336,14 @@ void renderer_renderpass_destroy(renderpass* pass) {
 
 b8 renderer_is_multithreaded() {
     return state_ptr->backend.is_multithreaded();
+}
+
+b8 renderer_vsync_enabled() {
+    return state_ptr->backend.vsync_enabled();
+}
+
+void renderer_set_vsync_enabled(b8 enabled) {
+    state_ptr->backend.set_vsync_enabled(enabled);
 }
 
 b8 renderer_renderbuffer_create(renderbuffer_type type, u64 total_size, b8 use_freelist, renderbuffer* out_buffer) {

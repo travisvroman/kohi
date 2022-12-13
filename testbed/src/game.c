@@ -454,6 +454,13 @@ b8 game_update(game* game_inst, f32 delta_time) {
         event_fire(EVENT_CODE_DEBUG1, game_inst, context);
     }
 
+    // vsync toggle
+    if (input_is_key_up('V') && input_was_key_down('V')) {
+        static b8 vsync_enabled = true;
+        vsync_enabled = !vsync_enabled;
+        renderer_set_vsync_enabled(vsync_enabled);
+    }
+
     // TODO: end temp
 
     // Perform a small rotation on the first mesh.
@@ -557,13 +564,14 @@ b8 game_update(game* game_inst, f32 delta_time) {
         }
     }
 
+    char* vsync_text = renderer_vsync_enabled() ? "YES" : " NO";
     char text_buffer[256];
     string_format(
         text_buffer,
         "\
 FPS: %5.1f(%4.1fms)        Pos=[%7.3f %7.3f %7.3f] Rot=[%7.3f, %7.3f, %7.3f]\n\
 Upd: %6.3fus, Rend: %6.3fus Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
-Drawn: %-5u Hovered: %s%u",
+VSync: %s Drawn: %-5u Hovered: %s%u",
         fps,
         frame_time,
         pos.x, pos.y, pos.z,
@@ -575,6 +583,7 @@ Drawn: %-5u Hovered: %s%u",
         right_down ? "Y" : "N",
         mouse_x_ndc,
         mouse_y_ndc,
+        vsync_text,
         draw_count,
         state->hovered_object_id == INVALID_ID ? "none" : "",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
