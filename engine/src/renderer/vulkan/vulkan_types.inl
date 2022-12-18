@@ -178,8 +178,8 @@ typedef struct vulkan_swapchain {
      */
     u8 max_frames_in_flight;
 
-    /** Indicates if the swapchain should use a vsync presentation method. */
-    b8 vsync_enabled;
+    /** @brief Indicates various flags used for swapchain instantiation. */
+    renderer_config_flags flags;
 
     /** @brief The swapchain internal handle. */
     VkSwapchainKHR handle;
@@ -578,7 +578,7 @@ typedef struct vulkan_context {
     /** @brief Indicates if the swapchain is currently being recreated. */
     b8 recreating_swapchain;
     
-    b8 flag_vsync_changed;
+    b8 render_flag_changed;
 
     /** @brief The A collection of loaded geometries. @todo TODO: make dynamic */
     vulkan_geometry_data geometries[VULKAN_MAX_GEOMETRY_COUNT];

@@ -456,9 +456,9 @@ b8 game_update(game* game_inst, f32 delta_time) {
 
     // vsync toggle
     if (input_is_key_up('V') && input_was_key_down('V')) {
-        static b8 vsync_enabled = true;
+        b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
         vsync_enabled = !vsync_enabled;
-        renderer_set_vsync_enabled(vsync_enabled);
+        renderer_flag_set_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
     }
 
     // TODO: end temp
@@ -564,7 +564,7 @@ b8 game_update(game* game_inst, f32 delta_time) {
         }
     }
 
-    char* vsync_text = renderer_vsync_enabled() ? "YES" : " NO";
+    char* vsync_text = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
     char text_buffer[256];
     string_format(
         text_buffer,

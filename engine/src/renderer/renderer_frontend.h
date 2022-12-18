@@ -369,14 +369,21 @@ void renderer_renderpass_destroy(renderpass* pass);
 b8 renderer_is_multithreaded();
 
 /**
- * @brief Indicates if vsync is currently enabled.
+ * @brief Indicates if the provided renderer flag is enabled. If multiple
+ * flags are passed, all must be set for this to return true.
+ *
+ * @param flag The flag to be checked.
+ * @return True if the flag(s) set; otherwise false.
  */
-KAPI b8 renderer_vsync_enabled();
-
+KAPI b8 renderer_flag_enabled(renderer_config_flags flag);
 /**
- * @brief Sets whether or not vsync is enabled.
+ * @brief Sets whether the included flag(s) are enabled or not. If multiple flags
+ * are passed, multiple are set at once.
+ *
+ * @param flag The flag to be checked.
+ * @param enabled Indicates whether or not to enable the flag(s).
  */
-KAPI void renderer_set_vsync_enabled(b8 enabled);
+KAPI void renderer_flag_set_enabled(renderer_config_flags flag, b8 enabled);
 
 /**
  * @brief Creates a new renderbuffer to hold data for a given purpose/use. Backed by a

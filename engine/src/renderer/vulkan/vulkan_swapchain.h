@@ -27,7 +27,7 @@ void vulkan_swapchain_create(
     vulkan_context* context,
     u32 width,
     u32 height,
-    b8 vsync,
+    renderer_config_flags flags,
     vulkan_swapchain* out_swapchain);
 
 /**
