@@ -77,6 +77,9 @@ b8 debug_console_load() {
         KFATAL("Unable to create text control for debug console.");
         return false;
     }
+
+    ui_text_set_position(&state_ptr->text_control, (vec3){3.0f, 30.0f, 0.0f});
+
     return true;
 }
 
