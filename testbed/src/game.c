@@ -24,6 +24,7 @@
 #include <systems/geometry_system.h>
 #include <systems/material_system.h>
 #include <systems/render_view_system.h>
+#include "debug_console.h"
 // TODO: end temp
 
 b8 configure_render_views(application_config* config);
@@ -104,7 +105,7 @@ b8 game_on_key(u16 code, void* sender, void* listener_inst, event_context contex
             // Example on checking for a key
             KDEBUG("Explicit - A key pressed!");
         } else {
-            KDEBUG("'%s' key pressed in window.", input_keycode_str(key_code));
+            // KTRACE("'%s' key pressed in window.", input_keycode_str(key_code));
         }
     } else if (code == EVENT_CODE_KEY_RELEASED) {
         u16 key_code = context.data.u16[0];
@@ -112,7 +113,7 @@ b8 game_on_key(u16 code, void* sender, void* listener_inst, event_context contex
             // Example on checking for a key
             KDEBUG("Explicit - B key released!");
         } else {
-            KDEBUG("'%s' key released in window.", input_keycode_str(key_code));
+            // KTRACE("'%s' key released in window.", input_keycode_str(key_code));
         }
     }
     return false;
@@ -120,6 +121,8 @@ b8 game_on_key(u16 code, void* sender, void* listener_inst, event_context contex
 
 b8 game_boot(struct game* game_inst) {
     KINFO("Booting testbed...");
+
+    debug_console_create();
 
     // Setup the frame allocator.
     linear_allocator_create(MEBIBYTES(64), 0, &game_inst->frame_allocator);
@@ -162,6 +165,8 @@ b8 game_boot(struct game* game_inst) {
 b8 game_initialize(game* game_inst) {
     KDEBUG("game_initialize() called!");
 
+    debug_console_load();
+
     game_state* state = (game_state*)game_inst->state;
 
     // TODO: temp load/prepare stuff
@@ -180,7 +185,7 @@ b8 game_initialize(game* game_inst) {
         KERROR("Failed to load basic ui system text.");
         return false;
     }
-    ui_text_set_position(&state->test_sys_text, vec3_create(50, 250, 0));
+    ui_text_set_position(&state->test_sys_text, vec3_create(500, 550, 0));
 
     // Skybox
     if (!skybox_create("skybox_cube", &state->sb)) {
@@ -385,12 +390,44 @@ b8 game_update(game* game_inst, f32 delta_time) {
         camera_yaw(state->world_camera, -1.0f * delta_time);
     }
 
+    b8 console_visible = debug_console_visible();
     if (input_is_key_down(KEY_UP)) {
-        camera_pitch(state->world_camera, 1.0f * delta_time);
+        if (console_visible) {
+            if (input_was_key_down(KEY_UP)) {
+                static f32 accumulated_time = 0.0f;
+                accumulated_time += delta_time;
+                if (accumulated_time >= 0.1f) {
+                    debug_console_move_up();
+                    accumulated_time = 0.0f;
+                }
+            } else {
+                debug_console_move_up();
+            }
+        } else {
+            camera_pitch(state->world_camera, 1.0f * delta_time);
+        }
     }
 
     if (input_is_key_down(KEY_DOWN)) {
-        camera_pitch(state->world_camera, -1.0f * delta_time);
+        if (console_visible) {
+            if (input_was_key_down(KEY_DOWN)) {
+                static f32 accumulated_time = 0.0f;
+                accumulated_time += delta_time;
+                if (accumulated_time >= 0.1f) {
+                    debug_console_move_down();
+                    accumulated_time = 0.0f;
+                }
+            } else {
+                debug_console_move_down();
+            }
+        } else {
+            camera_pitch(state->world_camera, -1.0f * delta_time);
+        }
+    }
+
+    if (input_is_key_down(KEY_GRAVE) && !input_was_key_down(KEY_GRAVE)) {
+        // Toggle
+        debug_console_visible_set(!console_visible);
     }
 
     static const f32 temp_move_speed = 50.0f;
@@ -565,7 +602,7 @@ b8 game_update(game* game_inst, f32 delta_time) {
     }
 
     char* vsync_text = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
-    char text_buffer[256];
+    char text_buffer[2048];
     string_format(
         text_buffer,
         "\
@@ -589,9 +626,11 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
     ui_text_set_text(&state->test_text, text_buffer);
 
+    debug_console_update();
+
     clock_update(&state->update_clock);
     state->last_update_elapsed = state->update_clock.elapsed;
-    
+
     return true;
 }
 
@@ -638,9 +677,18 @@ b8 game_render(game* game_inst, struct render_packet* packet, f32 delta_time) {
     ui_packet.mesh_data.mesh_count = ui_mesh_count;
     ui_packet.mesh_data.meshes = ui_meshes;
     ui_packet.text_count = 2;
+    ui_text* debug_console_text = debug_console_get_ui_text();
+    b8 render_debug_conole = debug_console_text && debug_console_visible();
+    if (render_debug_conole) {
+        ui_packet.text_count += 1;
+    }
     ui_text** texts = linear_allocator_allocate(&game_inst->frame_allocator, sizeof(ui_text*) * ui_packet.text_count);
     texts[0] = &state->test_text;
     texts[1] = &state->test_sys_text;
+    if (render_debug_conole) {
+        texts[2] = debug_console_text;
+    }
+
     ui_packet.texts = texts;
     if (!render_view_system_build_packet(render_view_system_get("ui"), &game_inst->frame_allocator, &ui_packet, &packet->views[2])) {
         KERROR("Failed to build packet for view 'ui'.");

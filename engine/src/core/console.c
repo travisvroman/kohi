@@ -25,6 +25,7 @@ void console_initialize(u64* memory_requirement, void* memory) {
 
     kzero_memory(memory, *memory_requirement);
     state_ptr = memory;
+    state_ptr->consumers = (console_consumer*)((u64)memory + sizeof(console_state));
 }
 
 void console_shutdown(void* state) {
