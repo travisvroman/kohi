@@ -756,16 +756,17 @@ b8 game_render(game* game_inst, struct render_packet* packet, f32 delta_time) {
     ui_packet.mesh_data.mesh_count = ui_mesh_count;
     ui_packet.mesh_data.meshes = ui_meshes;
     ui_packet.text_count = 2;
-    ui_text* debug_console_text = debug_console_get_ui_text();
+    ui_text* debug_console_text = debug_console_get_text();
     b8 render_debug_conole = debug_console_text && debug_console_visible();
     if (render_debug_conole) {
-        ui_packet.text_count += 1;
+        ui_packet.text_count += 2;
     }
     ui_text** texts = linear_allocator_allocate(&game_inst->frame_allocator, sizeof(ui_text*) * ui_packet.text_count);
     texts[0] = &state->test_text;
     texts[1] = &state->test_sys_text;
     if (render_debug_conole) {
         texts[2] = debug_console_text;
+        texts[3] = debug_console_get_entry_text();
     }
 
     ui_packet.texts = texts;

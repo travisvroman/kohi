@@ -5,6 +5,8 @@
 #include <core/kstring.h>
 #include <containers/darray.h>
 #include <resources/ui_text.h>
+#include <core/event.h>
+#include <core/input.h>
 
 // TODO(travis): statically-defined state for now.
 typedef struct debug_console_state {
@@ -19,6 +21,7 @@ typedef struct debug_console_state {
     b8 visible;
 
     ui_text text_control;
+    ui_text entry_control;
 
 } debug_console_state;
 
@@ -45,6 +48,48 @@ b8 debug_console_consumer_write(void* inst, log_level level, const char* message
         state_ptr->dirty = true;
     }
     return true;
+}
+
+static b8 debug_console_on_key(u16 code, void* sender, void* listener_inst, event_context context) {
+    if(!state_ptr->visible) {
+        return false;
+    }
+    if (code == EVENT_CODE_KEY_PRESSED) {
+        u16 key_code = context.data.u16[0];
+        if ((key_code >= KEY_A && key_code <= KEY_Z) || (key_code >= 32 && key_code <= 64)) {
+            char code = key_code;
+            if (!input_is_key_down(KEY_LSHIFT) && !input_is_key_down(KEY_RSHIFT) && !input_is_key_down(KEY_SHIFT)) {
+                code = key_code + 32;
+            }
+            u32 len = string_length(state_ptr->entry_control.text);
+            char* new_text = kallocate(len + 2, MEMORY_TAG_STRING);
+            string_format(new_text, "%s%c", state_ptr->entry_control.text, code);
+            ui_text_set_text(&state_ptr->entry_control, new_text);
+            kfree(new_text, len + 1, MEMORY_TAG_STRING);
+        } else if (key_code == KEY_ENTER) {
+            u32 len = string_length(state_ptr->entry_control.text);
+            if(len > 0) {
+                // Execute the command and clear the text.
+                if(!console_execute_command(state_ptr->entry_control.text)) {
+                    // TODO: handle error?
+                }
+                // Clear the text.
+                ui_text_set_text(&state_ptr->entry_control, "");
+            }
+        } else if (key_code == KEY_BACKSPACE) {
+            u32 len = string_length(state_ptr->entry_control.text);
+            if(len > 0) {
+                char* str = string_duplicate(state_ptr->entry_control.text);
+                str[len - 1] = 0;
+                ui_text_set_text(&state_ptr->entry_control, str);
+                kfree(str, len + 1, MEMORY_TAG_STRING);
+            }
+        }
+
+        // TODO: keep command history, up/down to navigate it.
+    }
+
+    return false;
 }
 
 void debug_console_create() {
@@ -79,6 +124,17 @@ b8 debug_console_load() {
     }
 
     ui_text_set_position(&state_ptr->text_control, (vec3){3.0f, 30.0f, 0.0f});
+
+    // Create another ui text control for rendering typed text.
+    if (!ui_text_create(UI_TEXT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "", &state_ptr->entry_control)) {
+        KFATAL("Unable to create entry text control for debug console.");
+        return false;
+    }
+
+    ui_text_set_position(&state_ptr->entry_control, (vec3){3.0f, 30.0f + (31.0f * state_ptr->line_display_count), 0.0f});
+
+    event_register(EVENT_CODE_KEY_PRESSED, 0, debug_console_on_key);
+    event_register(EVENT_CODE_KEY_RELEASED, 0, debug_console_on_key);
 
     return true;
 }
@@ -119,9 +175,16 @@ void debug_console_update() {
     }
 }
 
-ui_text* debug_console_get_ui_text() {
+ui_text* debug_console_get_text() {
     if (state_ptr) {
         return &state_ptr->text_control;
+    }
+    return 0;
+}
+
+ui_text* debug_console_get_entry_text() {
+    if (state_ptr) {
+        return &state_ptr->entry_control;
     }
     return 0;
 }

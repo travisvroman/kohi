@@ -11,3 +11,7 @@ void console_shutdown(void* state);
 KAPI void console_register_consumer(void* inst, PFN_console_consumer_write callback);
 
 void console_write_line(log_level level, const char* message);
+
+KAPI b8 console_register_command(const char* command, u8 arg_count);
+
+KAPI b8 console_execute_command(const char* command);
