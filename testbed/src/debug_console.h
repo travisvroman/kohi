@@ -1,3 +1,5 @@
+#pragma once
+
 #include "defines.h"
 
 struct ui_text;
