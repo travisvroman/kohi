@@ -2,6 +2,8 @@
 #include "core/event.h"
 #include "core/kmemory.h"
 #include "core/logger.h"
+#include "core/keymap.h"
+#include "containers/stack.h"
 
 typedef struct keyboard_state {
     b8 keys[256];
@@ -18,10 +20,15 @@ typedef struct input_state {
     keyboard_state keyboard_previous;
     mouse_state mouse_current;
     mouse_state mouse_previous;
+
+    stack keymap_stack;
+    // keymap active_keymap;
 } input_state;
 
 // Internal input state pointer
 static input_state* state_ptr;
+
+b8 check_modifiers(keymap_modifier modifiers);
 
 void input_system_initialize(u64* memory_requirement, void* state) {
     *memory_requirement = sizeof(input_state);
@@ -30,6 +37,10 @@ void input_system_initialize(u64* memory_requirement, void* state) {
     }
     kzero_memory(state, sizeof(input_state));
     state_ptr = state;
+
+    // Create the keymap stack and an active keymap to apply to.
+    stack_create(&state_ptr->keymap_stack, sizeof(keymap));
+    // state_ptr->active_keymap = keymap_create();
 
     KINFO("Input subsystem initialized.");
 }
@@ -44,12 +55,65 @@ void input_update(f64 delta_time) {
         return;
     }
 
+    // Handle hold bindings.
+    for (u32 k = 0; k < KEYS_MAX_KEYS; ++k) {
+        keys key = (keys)k;
+        if (input_is_key_down(key) && input_was_key_down(key)) {
+            u32 map_count = state_ptr->keymap_stack.element_count;
+            keymap* maps = (keymap*)state_ptr->keymap_stack.memory;
+            for (i32 m = map_count - 1; m >= 0; --m) {
+                keymap* map = &maps[m];
+                keymap_binding* binding = &map->entries[key].bindings[0];
+                b8 unset = false;
+                while (binding) {
+                    // If an unset is detected, stop processing.
+                    if (binding->type == KEYMAP_BIND_TYPE_UNSET) {
+                        unset = true;
+                        break;
+                    } else if (binding->type == KEYMAP_BIND_TYPE_HOLD) {
+                        if (binding->callback && check_modifiers(binding->modifiers)) {
+                            binding->callback(key, binding->type, binding->modifiers, binding->user_data);
+                        }
+                    }
+
+                    binding = binding->next;
+                }
+                // If an unset is detected or the map is marked to override all, stop processing.
+                if (unset || map->overrides_all) {
+                    break;
+                }
+            }
+        }
+    }
+
     // Copy current states to previous states.
     kcopy_memory(&state_ptr->keyboard_previous, &state_ptr->keyboard_current, sizeof(keyboard_state));
     kcopy_memory(&state_ptr->mouse_previous, &state_ptr->mouse_current, sizeof(mouse_state));
 }
 
+b8 check_modifiers(keymap_modifier modifiers) {
+    if (modifiers & KEYMAP_MODIFIER_SHIFT_BIT) {
+        if (!input_is_key_down(KEY_SHIFT) && !input_is_key_down(KEY_LSHIFT) && !input_is_key_down(KEY_RSHIFT)) {
+            return false;
+        }
+    }
+    if (modifiers & KEYMAP_MODIFIER_CONTROL_BIT) {
+        if (!input_is_key_down(KEY_CONTROL) && !input_is_key_down(KEY_LCONTROL) && !input_is_key_down(KEY_RCONTROL)) {
+            return false;
+        }
+    }
+    if (modifiers & KEYMAP_MODIFIER_ALT_BIT) {
+        if (!input_is_key_down(KEY_LALT) && !input_is_key_down(KEY_RALT)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void input_process_key(keys key, b8 pressed) {
+    // keymap_entry* map_entry = &state_ptr->active_keymap.entries[key];
+
     // Only handle this if the state actually changed.
     if (state_ptr && state_ptr->keyboard_current.keys[key] != pressed) {
         // Update internal state_ptr->
@@ -71,6 +135,37 @@ void input_process_key(keys key, b8 pressed) {
             KINFO("Left shift %s.", pressed ? "pressed" : "released");
         } else if (key == KEY_RSHIFT) {
             KINFO("Right shift %s.", pressed ? "pressed" : "released");
+        }
+
+        // Check for key bindings
+        // Iterate keymaps top-down on the stack.
+        u32 map_count = state_ptr->keymap_stack.element_count;
+        keymap* maps = (keymap*)state_ptr->keymap_stack.memory;
+        for (i32 m = map_count - 1; m >= 0; --m) {
+            keymap* map = &maps[m];
+            keymap_binding* binding = &map->entries[key].bindings[0];
+            b8 unset = false;
+            while (binding) {
+                // If an unset is detected, stop processing.
+                if (binding->type == KEYMAP_BIND_TYPE_UNSET) {
+                    unset = true;
+                    break;
+                } else if (pressed && binding->type == KEYMAP_BIND_TYPE_PRESS) {
+                    if (binding->callback && check_modifiers(binding->modifiers)) {
+                        binding->callback(key, binding->type, binding->modifiers, binding->user_data);
+                    }
+                } else if (!pressed && binding->type == KEYMAP_BIND_TYPE_RELEASE) {
+                    if (binding->callback && check_modifiers(binding->modifiers)) {
+                        binding->callback(key, binding->type, binding->modifiers, binding->user_data);
+                    }
+                }
+
+                binding = binding->next;
+            }
+            // If an unset is detected or the map is marked to override all, stop processing.
+            if (unset || map->overrides_all) {
+                break;
+            }
         }
 
         // Fire off an event for immediate processing.
@@ -472,5 +567,79 @@ const char* input_keycode_str(keys key) {
 
         default:
             return "undefined";
+    }
+}
+
+// static void input_apply_keymap_stack() {
+//     // Wipe the active keymap by defaulting everything.
+//     for (u32 i = 0; i < KEYS_MAX_KEYS; ++i) {
+//         keymap_entry* entry = &state_ptr->active_keymap.entries[i];
+//         entry->bindings = 0;
+//     }
+//     // Apply the stack from the bottom up. Yeeessss, this would get expensive
+//     // if a large stack of keymaps is put into place, but... don't do that?
+//     // Why would anyone want to anyway?
+//     for (u32 s = 0; s < state_ptr->keymap_stack.element_count; ++s) {
+//         keymap* map = (keymap*)((u64)state_ptr->keymap_stack.memory + (state_ptr->keymap_stack.element_size * s));
+//         for (u32 i = 0; i < KEYS_MAX_KEYS; ++i) {
+//             keymap_entry* map_entry = &map->entries[i];
+//             keymap_entry* active_entry = &state_ptr->active_keymap.entries[i];
+
+//             keymap_binding* incoming_map_binding = map_entry->bindings;
+//             if (!incoming_map_binding) {
+//                 continue;
+//             }
+//             switch (incoming_map_binding->type) {
+//                 case KEYMAP_BIND_TYPE_UNSET:
+//                     // Specifically chosen to override existing setting to do nothing.
+//                     // Internally, set this to undefined so it can be overridden later.
+//                     // The unused type should never be used directly on the active map.
+//                     active_entry->bindings = 0;
+//                     break;
+//                 case KEYMAP_BIND_TYPE_HOLD:
+//                 case KEYMAP_BIND_TYPE_RELEASE:
+//                     // Add to the active entry's bindings list.
+//                     if (!map_entry->bindings) {
+//                         map_entry->bindings = incoming_map_binding;
+//                     } else {
+//                         // Non-empty list, find the last node.
+//                         keymap_binding* binding = active_entry->bindings;
+//                         while (binding->next) {
+//                             binding = binding->next;
+//                         }
+
+//                         // Use the linked list as-is by adding them to the linked list.
+//                         binding->next = incoming_map_binding;
+//                     }
+//                     break;
+//                 case KEYMAP_BIND_TYPE_UNDEFINED:
+//                 default:
+//                     // Both of these cases ignore this binding/do nothing.
+//                     break;
+//             }
+//         }
+//     }
+// }
+
+void input_keymap_push(const keymap* map) {
+    if (state_ptr && map) {
+        // Add the keymap to the stack, then apply it.
+        if (!stack_push(&state_ptr->keymap_stack, (void*)map)) {
+            KERROR("Failed to push keymap!");
+            return;
+        }
+        // input_apply_keymap_stack();
+    }
+}
+
+void input_keymap_pop() {
+    if (state_ptr) {
+        // Pop the keymap from the stack, then re-apply the stack.
+        keymap popped;
+        if (!stack_pop(&state_ptr->keymap_stack, &popped)) {
+            KERROR("Failed to pop keymap!");
+            return;
+        }
+        // input_apply_keymap_stack();
     }
 }

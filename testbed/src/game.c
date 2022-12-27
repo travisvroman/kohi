@@ -91,31 +91,208 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
     return false;
 }
 
-b8 game_on_key(u16 code, void* sender, void* listener_inst, event_context context) {
-    if (code == EVENT_CODE_KEY_PRESSED) {
-        u16 key_code = context.data.u16[0];
-        if (key_code == KEY_ESCAPE) {
-            // NOTE: Technically firing an event to itself, but there may be other listeners.
-            event_context data = {};
-            event_fire(EVENT_CODE_APPLICATION_QUIT, 0, data);
+void game_on_escape_callback(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    KDEBUG("game_on_escape_callback");
+    // NOTE: Technically firing an event to itself, but there may be other listeners.
+    event_context data = {};
+    event_fire(EVENT_CODE_APPLICATION_QUIT, 0, data);
+}
 
-            // Block anything else from processing this.
-            return true;
-        } else if (key_code == KEY_A) {
-            // Example on checking for a key
-            KDEBUG("Explicit - A key pressed!");
-        } else {
-            // KTRACE("'%s' key pressed in window.", input_keycode_str(key_code));
-        }
-    } else if (code == EVENT_CODE_KEY_RELEASED) {
-        u16 key_code = context.data.u16[0];
-        if (key_code == KEY_B) {
-            // Example on checking for a key
-            KDEBUG("Explicit - B key released!");
-        } else {
-            // KTRACE("'%s' key released in window.", input_keycode_str(key_code));
-        }
+void game_on_yaw(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    game* game_inst = (game*)user_data;
+    game_state* state = (game_state*)game_inst->state;
+
+    f32 f = 0.0f;
+    if (key == KEY_LEFT || key == KEY_A) {
+        f = 1.0f;
+    } else if (key == KEY_RIGHT || key == KEY_D) {
+        f = -1.0f;
     }
+    camera_yaw(state->world_camera, f * state->delta_time);
+}
+
+void game_on_pitch(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    game* game_inst = (game*)user_data;
+    game_state* state = (game_state*)game_inst->state;
+
+    f32 f = 0.0f;
+    if (key == KEY_UP) {
+        f = 1.0f;
+    } else if (key == KEY_DOWN) {
+        f = -1.0f;
+    }
+    camera_pitch(state->world_camera, f * state->delta_time);
+}
+
+void game_on_move_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    game* game_inst = (game*)user_data;
+    game_state* state = (game_state*)game_inst->state;
+    static const f32 temp_move_speed = 50.0f;
+    camera_move_forward(state->world_camera, temp_move_speed * state->delta_time);
+}
+
+void game_on_move_backward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    game* game_inst = (game*)user_data;
+    game_state* state = (game_state*)game_inst->state;
+    static const f32 temp_move_speed = 50.0f;
+    camera_move_backward(state->world_camera, temp_move_speed * state->delta_time);
+}
+
+void game_on_move_left(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    game* game_inst = (game*)user_data;
+    game_state* state = (game_state*)game_inst->state;
+    static const f32 temp_move_speed = 50.0f;
+    camera_move_left(state->world_camera, temp_move_speed * state->delta_time);
+}
+
+void game_on_move_right(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    game* game_inst = (game*)user_data;
+    game_state* state = (game_state*)game_inst->state;
+    static const f32 temp_move_speed = 50.0f;
+    camera_move_right(state->world_camera, temp_move_speed * state->delta_time);
+}
+
+void game_on_move_up(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    game* game_inst = (game*)user_data;
+    game_state* state = (game_state*)game_inst->state;
+    static const f32 temp_move_speed = 50.0f;
+    camera_move_up(state->world_camera, temp_move_speed * state->delta_time);
+}
+
+void game_on_move_down(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    game* game_inst = (game*)user_data;
+    game_state* state = (game_state*)game_inst->state;
+    static const f32 temp_move_speed = 50.0f;
+    camera_move_down(state->world_camera, temp_move_speed * state->delta_time);
+}
+
+void game_on_console_change_visibility(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    game* game_inst = (game*)user_data;
+    game_state* state = (game_state*)game_inst->state;
+
+    b8 console_visible = debug_console_visible();
+    console_visible = !console_visible;
+
+    debug_console_visible_set(console_visible);
+    if (console_visible) {
+        input_keymap_push(&state->console_keymap);
+    } else {
+        input_keymap_pop();
+    }
+}
+
+void game_on_set_render_mode_default(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_context data = {};
+    data.data.i32[0] = RENDERER_VIEW_MODE_DEFAULT;
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (game*)user_data, data);
+}
+
+void game_on_set_render_mode_lighting(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_context data = {};
+    data.data.i32[0] = RENDERER_VIEW_MODE_LIGHTING;
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (game*)user_data, data);
+}
+
+void game_on_set_render_mode_normals(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_context data = {};
+    data.data.i32[0] = RENDERER_VIEW_MODE_NORMALS;
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (game*)user_data, data);
+}
+
+void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_fire(EVENT_CODE_DEBUG1, (game*)user_data, (event_context){});
+}
+
+void game_on_console_scroll(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    if (key == KEY_UP) {
+        debug_console_move_up();
+    } else if (key == KEY_DOWN) {
+        debug_console_move_down();
+    }
+}
+
+void game_on_console_scroll_hold(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    game* game_inst = (game*)user_data;
+    game_state* state = (game_state*)game_inst->state;
+
+    static f32 accumulated_time = 0.0f;
+    accumulated_time += state->delta_time;
+    if (accumulated_time >= 0.1f) {
+        if (key == KEY_UP) {
+            debug_console_move_up();
+        } else if (key == KEY_DOWN) {
+            debug_console_move_down();
+        }
+        accumulated_time = 0.0f;
+    }
+}
+
+void game_setup_keymaps(game* game_inst) {
+    // Global keymap
+    keymap global_keymap = keymap_create();
+    keymap_binding_add(&global_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_escape_callback);
+
+    input_keymap_push(&global_keymap);
+
+    // Testbed keymap
+    keymap testbed_keymap = keymap_create();
+    keymap_binding_add(&testbed_keymap, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_yaw);
+    keymap_binding_add(&testbed_keymap, KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_yaw);
+
+    keymap_binding_add(&testbed_keymap, KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_yaw);
+    keymap_binding_add(&testbed_keymap, KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_yaw);
+
+    keymap_binding_add(&testbed_keymap, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_pitch);
+    keymap_binding_add(&testbed_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_pitch);
+
+    keymap_binding_add(&testbed_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_change_visibility);
+
+    keymap_binding_add(&testbed_keymap, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_move_forward);
+    keymap_binding_add(&testbed_keymap, KEY_S, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_move_backward);
+    keymap_binding_add(&testbed_keymap, KEY_Q, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_move_left);
+    keymap_binding_add(&testbed_keymap, KEY_E, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_move_right);
+    keymap_binding_add(&testbed_keymap, KEY_SPACE, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_move_up);
+    keymap_binding_add(&testbed_keymap, KEY_X, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_move_down);
+
+    keymap_binding_add(&testbed_keymap, KEY_0, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_set_render_mode_default);
+    keymap_binding_add(&testbed_keymap, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_set_render_mode_lighting);
+    keymap_binding_add(&testbed_keymap, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_set_render_mode_normals);
+
+    keymap_binding_add(&testbed_keymap, KEY_L, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_load_scene);
+
+    input_keymap_push(&testbed_keymap);
+
+    // A console-specific keymap. Is not pushed by default.
+    game_state* state = ((game_state*)game_inst->state);
+    state->console_keymap = keymap_create();
+    state->console_keymap.overrides_all = true;
+    keymap_binding_add(&state->console_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_change_visibility);
+    keymap_binding_add(&state->console_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_change_visibility);
+
+    keymap_binding_add(&state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_scroll);
+    keymap_binding_add(&state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_scroll);
+    keymap_binding_add(&state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_scroll_hold);
+    keymap_binding_add(&state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_scroll_hold);
+}
+
+b8 game_on_key(u16 code, void* sender, void* listener_inst, event_context context) {
+    // if (code == EVENT_CODE_KEY_PRESSED) {
+    //     u16 key_code = context.data.u16[0];
+    //     if (key_code == KEY_A) {
+    //         // Example on checking for a key
+    //         KDEBUG("Explicit - A key pressed!");
+    //     } else {
+    //         // KTRACE("'%s' key pressed in window.", input_keycode_str(key_code));
+    //     }
+    // } else if (code == EVENT_CODE_KEY_RELEASED) {
+    //     u16 key_code = context.data.u16[0];
+    //     if (key_code == KEY_B) {
+    //         // Example on checking for a key
+    //         KDEBUG("Explicit - B key released!");
+    //     } else {
+    //         // KTRACE("'%s' key released in window.", input_keycode_str(key_code));
+    //     }
+    // }
     return false;
 }
 
@@ -158,6 +335,9 @@ b8 game_boot(struct game* game_inst) {
         KERROR("Failed to configure renderer views. Aborting application.");
         return false;
     }
+
+    // Keymaps
+    game_setup_keymaps(game_inst);
 
     return true;
 }
@@ -362,6 +542,7 @@ b8 game_update(game* game_inst, f32 delta_time) {
     game_state* state = (game_state*)game_inst->state;
 
     clock_start(&state->update_clock);
+    state->delta_time = delta_time;
 
     static u64 alloc_count = 0;
     u64 prev_alloc_count = alloc_count;
@@ -379,82 +560,6 @@ b8 game_update(game* game_inst, f32 delta_time) {
         event_context context = {};
         event_fire(EVENT_CODE_DEBUG0, game_inst, context);
     }
-    // TODO: end temp
-
-    // HACK: temp hack to move camera around.
-    if (input_is_key_down('A') || input_is_key_down(KEY_LEFT)) {
-        camera_yaw(state->world_camera, 1.0f * delta_time);
-    }
-
-    if (input_is_key_down('D') || input_is_key_down(KEY_RIGHT)) {
-        camera_yaw(state->world_camera, -1.0f * delta_time);
-    }
-
-    b8 console_visible = debug_console_visible();
-    if (input_is_key_down(KEY_UP)) {
-        if (console_visible) {
-            if (input_was_key_down(KEY_UP)) {
-                static f32 accumulated_time = 0.0f;
-                accumulated_time += delta_time;
-                if (accumulated_time >= 0.1f) {
-                    debug_console_move_up();
-                    accumulated_time = 0.0f;
-                }
-            } else {
-                debug_console_move_up();
-            }
-        } else {
-            camera_pitch(state->world_camera, 1.0f * delta_time);
-        }
-    }
-
-    if (input_is_key_down(KEY_DOWN)) {
-        if (console_visible) {
-            if (input_was_key_down(KEY_DOWN)) {
-                static f32 accumulated_time = 0.0f;
-                accumulated_time += delta_time;
-                if (accumulated_time >= 0.1f) {
-                    debug_console_move_down();
-                    accumulated_time = 0.0f;
-                }
-            } else {
-                debug_console_move_down();
-            }
-        } else {
-            camera_pitch(state->world_camera, -1.0f * delta_time);
-        }
-    }
-
-    if (input_is_key_down(KEY_GRAVE) && !input_was_key_down(KEY_GRAVE)) {
-        // Toggle
-        debug_console_visible_set(!console_visible);
-    }
-
-    static const f32 temp_move_speed = 50.0f;
-
-    if (input_is_key_down('W')) {
-        camera_move_forward(state->world_camera, temp_move_speed * delta_time);
-    }
-
-    if (input_is_key_down('S')) {
-        camera_move_backward(state->world_camera, temp_move_speed * delta_time);
-    }
-
-    if (input_is_key_down('Q')) {
-        camera_move_left(state->world_camera, temp_move_speed * delta_time);
-    }
-
-    if (input_is_key_down('E')) {
-        camera_move_right(state->world_camera, temp_move_speed * delta_time);
-    }
-
-    if (input_is_key_down(KEY_SPACE)) {
-        camera_move_up(state->world_camera, temp_move_speed * delta_time);
-    }
-
-    if (input_is_key_down('X')) {
-        camera_move_down(state->world_camera, temp_move_speed * delta_time);
-    }
 
     // TODO: temp
     if (input_is_key_up('P') && input_was_key_down('P')) {
@@ -463,32 +568,6 @@ b8 game_update(game* game_inst, f32 delta_time) {
             state->world_camera->position.x,
             state->world_camera->position.y,
             state->world_camera->position.z);
-    }
-
-    // RENDERER DEBUG FUNCTIONS
-    if (input_is_key_up('1') && input_was_key_down('1')) {
-        event_context data = {};
-        data.data.i32[0] = RENDERER_VIEW_MODE_LIGHTING;
-        event_fire(EVENT_CODE_SET_RENDER_MODE, game_inst, data);
-    }
-
-    if (input_is_key_up('2') && input_was_key_down('2')) {
-        event_context data = {};
-        data.data.i32[0] = RENDERER_VIEW_MODE_NORMALS;
-        event_fire(EVENT_CODE_SET_RENDER_MODE, game_inst, data);
-    }
-
-    if (input_is_key_up('0') && input_was_key_down('0')) {
-        event_context data = {};
-        data.data.i32[0] = RENDERER_VIEW_MODE_DEFAULT;
-        event_fire(EVENT_CODE_SET_RENDER_MODE, game_inst, data);
-    }
-
-    // TODO: temp
-    // Bind a key to load up some data.
-    if (input_is_key_up('L') && input_was_key_down('L')) {
-        event_context context = {};
-        event_fire(EVENT_CODE_DEBUG1, game_inst, context);
     }
 
     // vsync toggle

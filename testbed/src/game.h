@@ -9,6 +9,7 @@
 #include <resources/skybox.h>
 #include <resources/ui_text.h>
 #include <core/clock.h>
+#include <core/keymap.h>
 
 typedef struct game_state {
     f32 delta_time;
@@ -36,6 +37,8 @@ typedef struct game_state {
 
     // The unique identifier of the currently hovered-over object.
     u32 hovered_object_id;
+
+    keymap console_keymap;
     // TODO: end temp
 } game_state;
 
