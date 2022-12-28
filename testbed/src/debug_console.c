@@ -51,26 +51,18 @@ b8 debug_console_consumer_write(void* inst, log_level level, const char* message
 }
 
 static b8 debug_console_on_key(u16 code, void* sender, void* listener_inst, event_context context) {
-    if(!state_ptr->visible) {
+    if (!state_ptr->visible) {
         return false;
     }
     if (code == EVENT_CODE_KEY_PRESSED) {
         u16 key_code = context.data.u16[0];
-        if ((key_code >= KEY_A && key_code <= KEY_Z) || (key_code >= 32 && key_code <= 64)) {
-            char code = key_code;
-            if (!input_is_key_down(KEY_LSHIFT) && !input_is_key_down(KEY_RSHIFT) && !input_is_key_down(KEY_SHIFT)) {
-                code = key_code + 32;
-            }
+        b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT);
+
+        if (key_code == KEY_ENTER) {
             u32 len = string_length(state_ptr->entry_control.text);
-            char* new_text = kallocate(len + 2, MEMORY_TAG_STRING);
-            string_format(new_text, "%s%c", state_ptr->entry_control.text, code);
-            ui_text_set_text(&state_ptr->entry_control, new_text);
-            kfree(new_text, len + 1, MEMORY_TAG_STRING);
-        } else if (key_code == KEY_ENTER) {
-            u32 len = string_length(state_ptr->entry_control.text);
-            if(len > 0) {
+            if (len > 0) {
                 // Execute the command and clear the text.
-                if(!console_execute_command(state_ptr->entry_control.text)) {
+                if (!console_execute_command(state_ptr->entry_control.text)) {
                     // TODO: handle error?
                 }
                 // Clear the text.
@@ -78,11 +70,55 @@ static b8 debug_console_on_key(u16 code, void* sender, void* listener_inst, even
             }
         } else if (key_code == KEY_BACKSPACE) {
             u32 len = string_length(state_ptr->entry_control.text);
-            if(len > 0) {
+            if (len > 0) {
                 char* str = string_duplicate(state_ptr->entry_control.text);
                 str[len - 1] = 0;
                 ui_text_set_text(&state_ptr->entry_control, str);
                 kfree(str, len + 1, MEMORY_TAG_STRING);
+            }
+        } else {
+            // Use A-Z and 0-9 as-is.
+            char char_code = key_code;
+            if ((key_code >= KEY_A && key_code <= KEY_Z)) {
+                if (!shift_held) {
+                    char_code = key_code + 32;
+                }
+            } else if ((key_code >= KEY_0 && key_code <= KEY_9)) {
+                if (shift_held) {
+                    // NOTE: this handles US standard keyboard layouts.
+                    // Will need to handle other layouts as well.
+                    switch(key_code) {
+                        case KEY_0: char_code = ')'; break;
+                        case KEY_1: char_code = '('; break;
+                        case KEY_2: char_code = '*'; break;
+                        case KEY_3: char_code = '&'; break;
+                        case KEY_4: char_code = '^'; break;
+                        case KEY_5: char_code = '%'; break;
+                        case KEY_6: char_code = '$'; break;
+                        case KEY_7: char_code = '#'; break;
+                        case KEY_8: char_code = '@'; break;
+                        case KEY_9: char_code = '!'; break;
+                    }
+                    char_code = key_code + 32;
+                }
+            } else {
+                switch (key_code) {
+                    case KEY_SPACE:
+                        char_code = key_code;
+                        break;
+                    default:
+                        // Not valid for entry, use 0
+                        char_code = 0;
+                        break;
+                }
+            }
+
+            if (char_code != 0) {
+                u32 len = string_length(state_ptr->entry_control.text);
+                char* new_text = kallocate(len + 2, MEMORY_TAG_STRING);
+                string_format(new_text, "%s%c", state_ptr->entry_control.text, char_code);
+                ui_text_set_text(&state_ptr->entry_control, new_text);
+                kfree(new_text, len + 1, MEMORY_TAG_STRING);
             }
         }
 

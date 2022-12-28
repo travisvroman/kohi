@@ -97,6 +97,7 @@ b8 console_execute_command(const char* command) {
         return false;
     }
     char** parts = darray_create(char*);
+    // TODO: If strings are ever used as arguments, this will split improperly.
     u32 part_count = string_split(command, ' ', &parts, true, false);
     if (part_count < 1) {
         string_cleanup_split_array(parts);
@@ -104,23 +105,27 @@ b8 console_execute_command(const char* command) {
         return false;
     }
 
-    // TODO: temp
+    // Write the line back out to the console for reference.
     char temp[512] = {0};
-    string_format(temp, "-->%s", parts[0]);
+    string_format(temp, "-->%s", command);
     console_write_line(LOG_LEVEL_INFO, temp);
 
     // Yep, strings are slow. But it's a console. It doesn't need to be lightning fast...
     b8 has_error = false;
+    b8 command_found = false;
     u32 command_count = darray_length(state_ptr->registered_commands);
+    // Look through registered commands for a match.
     for (u32 i = 0; i < command_count; ++i) {
         console_command* cmd = &state_ptr->registered_commands[i];
-        if (strings_equali(cmd->name, command)) {
+        if (strings_equali(cmd->name, parts[0])) {
+            command_found = true;
             u8 arg_count = part_count - 1;
+            // Provided argument count must match expected number of arguments for the command.
             if (state_ptr->registered_commands[i].arg_count != arg_count) {
                 KERROR("The console command '%s' requires %u arguments but %u were provided.", cmd->name, cmd->arg_count, arg_count);
                 has_error = true;
             } else {
-                // Execute it
+                // Execute it, passing along arguments if needed.
                 console_command_context context = {};
                 context.argument_count = cmd->arg_count;
                 if (context.argument_count > 0) {
@@ -138,6 +143,11 @@ b8 console_execute_command(const char* command) {
             }
             break;
         }
+    }
+
+    if (!command_found) {
+        KERROR("The command '%s' does not exist.", parts[0]);
+        has_error = true;
     }
 
     string_cleanup_split_array(parts);
