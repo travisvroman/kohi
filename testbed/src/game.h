@@ -39,6 +39,9 @@ typedef struct game_state {
     u32 hovered_object_id;
 
     keymap console_keymap;
+
+    u64 alloc_count;
+    u64 prev_alloc_count;
     // TODO: end temp
 } game_state;
 

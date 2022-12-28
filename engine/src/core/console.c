@@ -10,9 +10,18 @@ typedef struct console_consumer {
     void* instance;
 } console_consumer;
 
+typedef struct console_command {
+    const char* name;
+    u8 arg_count;
+    PFN_console_command func;
+} console_command;
+
 typedef struct console_state {
     u8 consumer_count;
     console_consumer* consumers;
+
+    // darray of registered commands.
+    console_command* registered_commands;
 } console_state;
 
 const u32 MAX_CONSUMER_COUNT = 10;
@@ -29,6 +38,8 @@ void console_initialize(u64* memory_requirement, void* memory) {
     kzero_memory(memory, *memory_requirement);
     state_ptr = memory;
     state_ptr->consumers = (console_consumer*)((u64)memory + sizeof(console_state));
+
+    state_ptr->registered_commands = darray_create(console_command);
 }
 
 void console_shutdown(void* state) {
@@ -60,8 +71,25 @@ void console_write_line(log_level level, const char* message) {
     }
 }
 
-b8 console_register_command(const char* command, u8 arg_count) {
-    return false;
+b8 console_register_command(const char* command, u8 arg_count, PFN_console_command func) {
+    KASSERT_MSG(state_ptr && command, "console_register_command requires state and valid command");
+
+    // Make sure it doesn't already exist.
+    u32 command_count = darray_length(state_ptr->registered_commands);
+    for (u32 i = 0; i < command_count; ++i) {
+        if (strings_equali(state_ptr->registered_commands[i].name, command)) {
+            KERROR("Command already registered: %s", command);
+            return false;
+        }
+    }
+
+    console_command new_command = {};
+    new_command.arg_count = arg_count;
+    new_command.func = func;
+    new_command.name = string_duplicate(command);
+    darray_push(state_ptr->registered_commands, new_command);
+
+    return true;
 }
 
 b8 console_execute_command(const char* command) {
@@ -81,8 +109,39 @@ b8 console_execute_command(const char* command) {
     string_format(temp, "-->%s", parts[0]);
     console_write_line(LOG_LEVEL_INFO, temp);
 
+    // Yep, strings are slow. But it's a console. It doesn't need to be lightning fast...
+    b8 has_error = false;
+    u32 command_count = darray_length(state_ptr->registered_commands);
+    for (u32 i = 0; i < command_count; ++i) {
+        console_command* cmd = &state_ptr->registered_commands[i];
+        if (strings_equali(cmd->name, command)) {
+            u8 arg_count = part_count - 1;
+            if (state_ptr->registered_commands[i].arg_count != arg_count) {
+                KERROR("The console command '%s' requires %u arguments but %u were provided.", cmd->name, cmd->arg_count, arg_count);
+                has_error = true;
+            } else {
+                // Execute it
+                console_command_context context = {};
+                context.argument_count = cmd->arg_count;
+                if (context.argument_count > 0) {
+                    context.arguments = kallocate(sizeof(console_command_argument) * cmd->arg_count, MEMORY_TAG_ARRAY);
+                    for (u8 j = 0; j < cmd->arg_count; ++j) {
+                        context.arguments[j].value = parts[j + 1];
+                    }
+                }
+
+                cmd->func(context);
+
+                if (context.arguments) {
+                    kfree(context.arguments, sizeof(console_command_argument) * cmd->arg_count, MEMORY_TAG_ARRAY);
+                }
+            }
+            break;
+        }
+    }
+
     string_cleanup_split_array(parts);
     darray_destroy(parts);
 
-    return true;
+    return !has_error;
 }
