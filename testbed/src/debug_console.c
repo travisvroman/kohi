@@ -80,6 +80,7 @@ static b8 debug_console_on_key(u16 code, void* sender, void* listener_inst, even
             // Use A-Z and 0-9 as-is.
             char char_code = key_code;
             if ((key_code >= KEY_A && key_code <= KEY_Z)) {
+                // TODO: check caps lock.
                 if (!shift_held) {
                     char_code = key_code + 32;
                 }
@@ -89,17 +90,16 @@ static b8 debug_console_on_key(u16 code, void* sender, void* listener_inst, even
                     // Will need to handle other layouts as well.
                     switch(key_code) {
                         case KEY_0: char_code = ')'; break;
-                        case KEY_1: char_code = '('; break;
-                        case KEY_2: char_code = '*'; break;
-                        case KEY_3: char_code = '&'; break;
-                        case KEY_4: char_code = '^'; break;
+                        case KEY_1: char_code = '!'; break;
+                        case KEY_2: char_code = '@'; break;
+                        case KEY_3: char_code = '#'; break;
+                        case KEY_4: char_code = '$'; break;
                         case KEY_5: char_code = '%'; break;
-                        case KEY_6: char_code = '$'; break;
-                        case KEY_7: char_code = '#'; break;
-                        case KEY_8: char_code = '@'; break;
-                        case KEY_9: char_code = '!'; break;
+                        case KEY_6: char_code = '^'; break;
+                        case KEY_7: char_code = '&'; break;
+                        case KEY_8: char_code = '*'; break;
+                        case KEY_9: char_code = '('; break;
                     }
-                    char_code = key_code + 32;
                 }
             } else {
                 switch (key_code) {
@@ -136,9 +136,9 @@ void debug_console_create() {
         state_ptr->lines = darray_create(char*);
         state_ptr->visible = false;
 
-        // TODO: update the text based on number of lines to display and
-        // the number of lines offset from the bottom. A UI Text object can
-        // be used for display for now. Can worry about colour in a separate pass.
+        // NOTE: update the text based on number of lines to display and
+        // the number of lines offset from the bottom. A UI Text object is 
+        // used for display for now. Can worry about colour in a separate pass.
         // Not going to consider word wrap.
         // NOTE: also should consider clipping rectangles and newlines.
 

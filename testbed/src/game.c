@@ -302,8 +302,9 @@ b8 game_initialize(game* game_inst) {
     state->ui_meshes[0].generation = 0;
 
     // Move and rotate it some.
-    quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
-    transform_translate_rotate(&state->ui_meshes[0].transform, (vec3){5, 5, 0}, rotation);
+    // quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
+    // transform_translate_rotate(&state->ui_meshes[0].transform, (vec3){5, 5, 0}, rotation);
+    transform_translate(&state->ui_meshes[0].transform, (vec3){650, 5, 0});
 
     // TODO: end temp load/prepare stuff
 
@@ -476,7 +477,7 @@ b8 game_update(game* game_inst, f32 delta_time) {
         text_buffer,
         "\
 FPS: %5.1f(%4.1fms)        Pos=[%7.3f %7.3f %7.3f] Rot=[%7.3f, %7.3f, %7.3f]\n\
-Upd: %6.3fus, Rend: %6.3fus Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
+Upd: %8.3fus, Rend: %8.3fus Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
 VSync: %s Drawn: %-5u Hovered: %s%u",
         fps,
         frame_time,
