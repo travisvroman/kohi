@@ -570,57 +570,6 @@ const char* input_keycode_str(keys key) {
     }
 }
 
-// static void input_apply_keymap_stack() {
-//     // Wipe the active keymap by defaulting everything.
-//     for (u32 i = 0; i < KEYS_MAX_KEYS; ++i) {
-//         keymap_entry* entry = &state_ptr->active_keymap.entries[i];
-//         entry->bindings = 0;
-//     }
-//     // Apply the stack from the bottom up. Yeeessss, this would get expensive
-//     // if a large stack of keymaps is put into place, but... don't do that?
-//     // Why would anyone want to anyway?
-//     for (u32 s = 0; s < state_ptr->keymap_stack.element_count; ++s) {
-//         keymap* map = (keymap*)((u64)state_ptr->keymap_stack.memory + (state_ptr->keymap_stack.element_size * s));
-//         for (u32 i = 0; i < KEYS_MAX_KEYS; ++i) {
-//             keymap_entry* map_entry = &map->entries[i];
-//             keymap_entry* active_entry = &state_ptr->active_keymap.entries[i];
-
-//             keymap_binding* incoming_map_binding = map_entry->bindings;
-//             if (!incoming_map_binding) {
-//                 continue;
-//             }
-//             switch (incoming_map_binding->type) {
-//                 case KEYMAP_BIND_TYPE_UNSET:
-//                     // Specifically chosen to override existing setting to do nothing.
-//                     // Internally, set this to undefined so it can be overridden later.
-//                     // The unused type should never be used directly on the active map.
-//                     active_entry->bindings = 0;
-//                     break;
-//                 case KEYMAP_BIND_TYPE_HOLD:
-//                 case KEYMAP_BIND_TYPE_RELEASE:
-//                     // Add to the active entry's bindings list.
-//                     if (!map_entry->bindings) {
-//                         map_entry->bindings = incoming_map_binding;
-//                     } else {
-//                         // Non-empty list, find the last node.
-//                         keymap_binding* binding = active_entry->bindings;
-//                         while (binding->next) {
-//                             binding = binding->next;
-//                         }
-
-//                         // Use the linked list as-is by adding them to the linked list.
-//                         binding->next = incoming_map_binding;
-//                     }
-//                     break;
-//                 case KEYMAP_BIND_TYPE_UNDEFINED:
-//                 default:
-//                     // Both of these cases ignore this binding/do nothing.
-//                     break;
-//             }
-//         }
-//     }
-// }
-
 void input_keymap_push(const keymap* map) {
     if (state_ptr && map) {
         // Add the keymap to the stack, then apply it.
@@ -628,7 +577,6 @@ void input_keymap_push(const keymap* map) {
             KERROR("Failed to push keymap!");
             return;
         }
-        // input_apply_keymap_stack();
     }
 }
 
@@ -640,6 +588,5 @@ void input_keymap_pop() {
             KERROR("Failed to pop keymap!");
             return;
         }
-        // input_apply_keymap_stack();
     }
 }
