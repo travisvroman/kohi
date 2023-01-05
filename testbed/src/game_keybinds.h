@@ -1,3 +1,3 @@
 #include "game.h"
 
-void game_setup_keymaps(game* game_inst);
+void game_setup_keymaps(application* game_inst);

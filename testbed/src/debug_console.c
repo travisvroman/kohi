@@ -88,17 +88,37 @@ static b8 debug_console_on_key(u16 code, void* sender, void* listener_inst, even
                 if (shift_held) {
                     // NOTE: this handles US standard keyboard layouts.
                     // Will need to handle other layouts as well.
-                    switch(key_code) {
-                        case KEY_0: char_code = ')'; break;
-                        case KEY_1: char_code = '!'; break;
-                        case KEY_2: char_code = '@'; break;
-                        case KEY_3: char_code = '#'; break;
-                        case KEY_4: char_code = '$'; break;
-                        case KEY_5: char_code = '%'; break;
-                        case KEY_6: char_code = '^'; break;
-                        case KEY_7: char_code = '&'; break;
-                        case KEY_8: char_code = '*'; break;
-                        case KEY_9: char_code = '('; break;
+                    switch (key_code) {
+                        case KEY_0:
+                            char_code = ')';
+                            break;
+                        case KEY_1:
+                            char_code = '!';
+                            break;
+                        case KEY_2:
+                            char_code = '@';
+                            break;
+                        case KEY_3:
+                            char_code = '#';
+                            break;
+                        case KEY_4:
+                            char_code = '$';
+                            break;
+                        case KEY_5:
+                            char_code = '%';
+                            break;
+                        case KEY_6:
+                            char_code = '^';
+                            break;
+                        case KEY_7:
+                            char_code = '&';
+                            break;
+                        case KEY_8:
+                            char_code = '*';
+                            break;
+                        case KEY_9:
+                            char_code = '(';
+                            break;
                     }
                 }
             } else {
@@ -137,7 +157,7 @@ void debug_console_create() {
         state_ptr->visible = false;
 
         // NOTE: update the text based on number of lines to display and
-        // the number of lines offset from the bottom. A UI Text object is 
+        // the number of lines offset from the bottom. A UI Text object is
         // used for display for now. Can worry about colour in a separate pass.
         // Not going to consider word wrap.
         // NOTE: also should consider clipping rectangles and newlines.
@@ -173,6 +193,13 @@ b8 debug_console_load() {
     event_register(EVENT_CODE_KEY_RELEASED, 0, debug_console_on_key);
 
     return true;
+}
+
+void debug_console_unload() {
+    if (state_ptr) {
+        ui_text_destroy(&state_ptr->text_control);
+        ui_text_destroy(&state_ptr->entry_control);
+    }
 }
 
 void debug_console_update() {
