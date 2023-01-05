@@ -453,6 +453,8 @@ b8 engine_run() {
 
     console_shutdown(engine_state->console_state);
 
+    console_shutdown(engine_state->console_state);
+
     memory_system_shutdown();
 
     return true;

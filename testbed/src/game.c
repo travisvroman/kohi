@@ -325,6 +325,9 @@ b8 game_initialize(application* game_inst) {
     kzero_memory(&state->update_clock, sizeof(clock));
     kzero_memory(&state->render_clock, sizeof(clock));
 
+    kzero_memory(&state->update_clock, sizeof(clock));
+    kzero_memory(&state->render_clock, sizeof(clock));
+
     return true;
 }
 
