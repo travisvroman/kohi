@@ -102,7 +102,8 @@
         "__locale": "c",
         "__string": "c",
         "string": "c",
-        "chrono": "c"
+        "chrono": "c",
+        "algorithm": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [
