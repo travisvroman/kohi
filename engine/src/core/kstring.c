@@ -519,3 +519,94 @@ void string_filename_no_extension_from_path(char* dest, const char* path) {
 
     string_mid(dest, path, start, end - start);
 }
+
+// ----------------------
+// kstring implementation
+// ----------------------
+
+/**
+ * @brief
+ *
+ * @param string
+ * @param length The string length not including the null terminator.
+ */
+void kstring_ensure_allocated(kstring* string, u32 length) {
+    if (string) {
+        if (string->allocated < length + 1) {
+            char* new_data = kallocate(sizeof(char) * length + 1, MEMORY_TAG_STRING);
+            if (string->data) {
+                // Copy over data if there is data to copy.
+                if (string->length > 0) {
+                    string_ncopy(new_data, string->data, string->length);
+                }
+                // Clean up old data
+                kfree(string->data, sizeof(char) * string->length + 1, MEMORY_TAG_STRING);
+            }
+
+            string->data = new_data;
+            string->length = length;
+            string->allocated = length + 1;
+        }
+    }
+}
+
+void kstring_create(kstring* out_string) {
+    if (!out_string) {
+        KERROR("kstring_create requires a valid pointer to a string.");
+        return;
+    }
+
+    kzero_memory(out_string, sizeof(kstring));
+
+    kstring_ensure_allocated(out_string, 0);
+    out_string->data[0] = 0;  // Null terminator.
+}
+
+void kstring_from_cstring(const char* source, kstring* out_string) {
+    if (!out_string) {
+        KERROR("kstring_from_cstring requires a valid pointer to a string.");
+        return;
+    }
+
+    u32 source_length = string_length(source);
+    kzero_memory(out_string, sizeof(kstring));
+
+    kstring_ensure_allocated(out_string, source_length);
+
+    string_ncopy(out_string->data, source, source_length);
+    out_string->data[source_length] = 0;
+}
+
+void kstring_destroy(kstring* string) {
+    if (string) {
+        kfree(string->data, sizeof(char) * string->allocated, MEMORY_TAG_STRING);
+        kzero_memory(string, sizeof(kstring));
+    }
+}
+
+u32 kstring_length(const kstring* string) {
+    return string ? string->length : 0;
+}
+
+u32 kstring_utf8_length(const kstring* string) {
+    return string ? string_utf8_length(string->data) : 0;
+}
+
+void kstring_append_str(kstring* string, const char* s) {
+    if (string && s) {
+        u32 length = string_length(s);
+        kstring_ensure_allocated(string, string->length + length);
+        string_ncopy(string->data + string->length, s, length);
+        string->data[string->length + length] = 0;
+        string->length = string->length + length;
+    }
+}
+
+void kstring_append_kstring(kstring* string, const kstring* other) {
+    if (string && other) {
+        kstring_ensure_allocated(string, string->length + other->length);
+        string_ncopy(string->data + string->length, other->data, other->length);
+        string->data[string->length + other->length] = 0;
+        string->length = string->length + other->length;
+    }
+}

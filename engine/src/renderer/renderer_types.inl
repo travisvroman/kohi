@@ -169,10 +169,21 @@ typedef struct renderbuffer {
     void* internal_data;
 } renderbuffer;
 
+typedef enum renderer_config_flag_bits {
+    /** @brief Indicates that vsync should be enabled. */
+    RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT = 0x1,
+    /** @brief Configures the renderer backend in a way that conserves power where possible. */
+    RENDERER_CONFIG_FLAG_POWER_SAVING_BIT = 0x2,
+} renderer_config_flag_bits;
+
+typedef u32 renderer_config_flags;
+
 /** @brief The generic configuration for a renderer backend. */
 typedef struct renderer_backend_config {
     /** @brief The name of the application */
     const char* application_name;
+    /** @brief Various configuration flags for renderer backend setup. */
+    renderer_config_flags flags;
 } renderer_backend_config;
 
 /**
@@ -552,6 +563,23 @@ typedef struct renderer_backend {
     b8 (*is_multithreaded)();
 
     /**
+     * @brief Indicates if the provided renderer flag is enabled. If multiple
+     * flags are passed, all must be set for this to return true.
+     *
+     * @param flag The flag to be checked.
+     * @return True if the flag(s) set; otherwise false.
+     */
+    b8 (*flag_enabled)(renderer_config_flags flag);
+    /**
+     * @brief Sets whether the included flag(s) are enabled or not. If multiple flags
+     * are passed, multiple are set at once.
+     *
+     * @param flag The flag to be checked.
+     * @param enabled Indicates whether or not to enable the flag(s).
+     */
+    void (*flag_set_enabled)(renderer_config_flags flag, b8 enabled);
+
+    /**
      * @brief Creates and assigns the renderer-backend-specific buffer.
      *
      * @param buffer A pointer to create the internal buffer for.
@@ -805,7 +833,7 @@ typedef struct render_view {
 
     /**
      * @brief Regenerates the resources for the given attachment at the provided pass index.
-     * 
+     *
      * @param self A pointer to the view to use.
      * @param pass_index The index of the renderpass to generate for.
      * @param attachment A pointer to the attachment whose resources are to be regenerated.

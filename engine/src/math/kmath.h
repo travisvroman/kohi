@@ -52,6 +52,9 @@
 /** @brief A multiplier used to convert radians to degrees. */
 #define K_RAD2DEG_MULTIPLIER 180.0f / K_PI
 
+/** @brief The multiplier to convert seconds to microseconds. */
+#define K_SEC_TO_US_MULTIPLIER (1000.0f * 1000.0f)
+
 /** @brief The multiplier to convert seconds to milliseconds. */
 #define K_SEC_TO_MS_MULTIPLIER 1000.0f
 

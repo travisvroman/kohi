@@ -134,7 +134,7 @@ void renderer_texture_read_data(texture* t, u32 offset, u32 size, void** out_mem
 
 /**
  * @brief Reads a pixel from the provided texture at the given x/y coordinate.
- * 
+ *
  * @param t A pointer to the texture to be read from.
  * @param x The pixel x-coordinate.
  * @param y The pixel y-coordinate.
@@ -332,7 +332,7 @@ texture* renderer_window_attachment_get(u8 index);
 
 /**
  * @brief Returns a pointer to the main depth texture target.
- * 
+ *
  * @param index The index of the attachment to get. Must be within the range of window render target count.
  * @return A pointer to a texture attachment if successful; otherwise 0.
  */
@@ -367,6 +367,23 @@ void renderer_renderpass_destroy(renderpass* pass);
  * @brief Indicates if the renderer is capable of multi-threading.
  */
 b8 renderer_is_multithreaded();
+
+/**
+ * @brief Indicates if the provided renderer flag is enabled. If multiple
+ * flags are passed, all must be set for this to return true.
+ *
+ * @param flag The flag to be checked.
+ * @return True if the flag(s) set; otherwise false.
+ */
+KAPI b8 renderer_flag_enabled(renderer_config_flags flag);
+/**
+ * @brief Sets whether the included flag(s) are enabled or not. If multiple flags
+ * are passed, multiple are set at once.
+ *
+ * @param flag The flag to be checked.
+ * @param enabled Indicates whether or not to enable the flag(s).
+ */
+KAPI void renderer_flag_set_enabled(renderer_config_flags flag, b8 enabled);
 
 /**
  * @brief Creates a new renderbuffer to hold data for a given purpose/use. Backed by a
@@ -500,7 +517,7 @@ b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, ren
 /**
  * @brief Attempts to draw the contents of the provided buffer at the given offset
  * and element count. Only meant to be used with vertex and index buffers.
- * 
+ *
  * @param buffer A pointer to the buffer to be drawn.
  * @param offset The offset in bytes from the beginning of the buffer.
  * @param element_count The number of elements to be drawn.

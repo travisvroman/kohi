@@ -71,6 +71,9 @@ u8 vulkan_renderer_window_attachment_count_get();
 
 b8 vulkan_renderer_is_multithreaded();
 
+b8 vulkan_renderer_flag_enabled(renderer_config_flags flag);
+void vulkan_renderer_flag_set_enabled(renderer_config_flags flag, b8 enabled);
+
 b8 vulkan_buffer_create_internal(renderbuffer* buffer);
 void vulkan_buffer_destroy_internal(renderbuffer* buffer);
 b8 vulkan_buffer_resize(renderbuffer* buffer, u64 new_size);

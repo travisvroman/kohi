@@ -7,6 +7,8 @@
 #include <core/input.h>
 #include <core/event.h>
 #include <core/metrics.h>
+#include <core/clock.h>
+#include <core/console.h>
 
 #include <containers/darray.h>
 
@@ -23,6 +25,9 @@
 #include <systems/geometry_system.h>
 #include <systems/material_system.h>
 #include <systems/render_view_system.h>
+#include "debug_console.h"
+#include "game_commands.h"
+#include "game_keybinds.h"
 // TODO: end temp
 
 b8 configure_render_views(application_config* config);
@@ -90,35 +95,30 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
 }
 
 b8 game_on_key(u16 code, void* sender, void* listener_inst, event_context context) {
-    if (code == EVENT_CODE_KEY_PRESSED) {
-        u16 key_code = context.data.u16[0];
-        if (key_code == KEY_ESCAPE) {
-            // NOTE: Technically firing an event to itself, but there may be other listeners.
-            event_context data = {};
-            event_fire(EVENT_CODE_APPLICATION_QUIT, 0, data);
-
-            // Block anything else from processing this.
-            return true;
-        } else if (key_code == KEY_A) {
-            // Example on checking for a key
-            KDEBUG("Explicit - A key pressed!");
-        } else {
-            KDEBUG("'%s' key pressed in window.", input_keycode_str(key_code));
-        }
-    } else if (code == EVENT_CODE_KEY_RELEASED) {
-        u16 key_code = context.data.u16[0];
-        if (key_code == KEY_B) {
-            // Example on checking for a key
-            KDEBUG("Explicit - B key released!");
-        } else {
-            KDEBUG("'%s' key released in window.", input_keycode_str(key_code));
-        }
-    }
+    // if (code == EVENT_CODE_KEY_PRESSED) {
+    //     u16 key_code = context.data.u16[0];
+    //     if (key_code == KEY_A) {
+    //         // Example on checking for a key
+    //         KDEBUG("Explicit - A key pressed!");
+    //     } else {
+    //         // KTRACE("'%s' key pressed in window.", input_keycode_str(key_code));
+    //     }
+    // } else if (code == EVENT_CODE_KEY_RELEASED) {
+    //     u16 key_code = context.data.u16[0];
+    //     if (key_code == KEY_B) {
+    //         // Example on checking for a key
+    //         KDEBUG("Explicit - B key released!");
+    //     } else {
+    //         // KTRACE("'%s' key released in window.", input_keycode_str(key_code));
+    //     }
+    // }
     return false;
 }
 
 b8 game_boot(struct game* game_inst) {
     KINFO("Booting testbed...");
+
+    debug_console_create();
 
     // Setup the frame allocator.
     linear_allocator_create(MEBIBYTES(64), 0, &game_inst->frame_allocator);
@@ -155,11 +155,18 @@ b8 game_boot(struct game* game_inst) {
         return false;
     }
 
+    // Keymaps
+    game_setup_keymaps(game_inst);
+    // Console commands
+    game_setup_commands(game_inst);
+
     return true;
 }
 
 b8 game_initialize(game* game_inst) {
     KDEBUG("game_initialize() called!");
+
+    debug_console_load();
 
     game_state* state = (game_state*)game_inst->state;
 
@@ -179,7 +186,7 @@ b8 game_initialize(game* game_inst) {
         KERROR("Failed to load basic ui system text.");
         return false;
     }
-    ui_text_set_position(&state->test_sys_text, vec3_create(50, 250, 0));
+    ui_text_set_position(&state->test_sys_text, vec3_create(500, 550, 0));
 
     // Skybox
     if (!skybox_create("skybox_cube", &state->sb)) {
@@ -295,8 +302,9 @@ b8 game_initialize(game* game_inst) {
     state->ui_meshes[0].generation = 0;
 
     // Move and rotate it some.
-    quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
-    transform_translate_rotate(&state->ui_meshes[0].transform, (vec3){5, 5, 0}, rotation);
+    // quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
+    // transform_translate_rotate(&state->ui_meshes[0].transform, (vec3){5, 5, 0}, rotation);
+    transform_translate(&state->ui_meshes[0].transform, (vec3){650, 5, 0});
 
     // TODO: end temp load/prepare stuff
 
@@ -313,6 +321,9 @@ b8 game_initialize(game* game_inst) {
     event_register(EVENT_CODE_KEY_RELEASED, game_inst, game_on_key);
 
     kzero_memory(&game_inst->frame_data, sizeof(game_frame_data));
+
+    kzero_memory(&state->update_clock, sizeof(clock));
+    kzero_memory(&state->render_clock, sizeof(clock));
 
     return true;
 }
@@ -350,105 +361,14 @@ b8 game_update(game* game_inst, f32 delta_time) {
     // Clear frame data
     kzero_memory(&game_inst->frame_data, sizeof(game_frame_data));
 
-    static u64 alloc_count = 0;
-    u64 prev_alloc_count = alloc_count;
-    alloc_count = get_memory_alloc_count();
-    if (input_is_key_up('M') && input_was_key_down('M')) {
-        char* usage = get_memory_usage_str();
-        KINFO(usage);
-        string_free(usage);
-        KDEBUG("Allocations: %llu (%llu this frame)", alloc_count, alloc_count - prev_alloc_count);
-    }
-
-    // TODO: temp
-    if (input_is_key_up('T') && input_was_key_down('T')) {
-        KDEBUG("Swapping texture!");
-        event_context context = {};
-        event_fire(EVENT_CODE_DEBUG0, game_inst, context);
-    }
-    // TODO: end temp
-
     game_state* state = (game_state*)game_inst->state;
 
-    // HACK: temp hack to move camera around.
-    if (input_is_key_down('A') || input_is_key_down(KEY_LEFT)) {
-        camera_yaw(state->world_camera, 1.0f * delta_time);
-    }
+    clock_start(&state->update_clock);
+    state->delta_time = delta_time;
 
-    if (input_is_key_down('D') || input_is_key_down(KEY_RIGHT)) {
-        camera_yaw(state->world_camera, -1.0f * delta_time);
-    }
-
-    if (input_is_key_down(KEY_UP)) {
-        camera_pitch(state->world_camera, 1.0f * delta_time);
-    }
-
-    if (input_is_key_down(KEY_DOWN)) {
-        camera_pitch(state->world_camera, -1.0f * delta_time);
-    }
-
-    static const f32 temp_move_speed = 50.0f;
-
-    if (input_is_key_down('W')) {
-        camera_move_forward(state->world_camera, temp_move_speed * delta_time);
-    }
-
-    if (input_is_key_down('S')) {
-        camera_move_backward(state->world_camera, temp_move_speed * delta_time);
-    }
-
-    if (input_is_key_down('Q')) {
-        camera_move_left(state->world_camera, temp_move_speed * delta_time);
-    }
-
-    if (input_is_key_down('E')) {
-        camera_move_right(state->world_camera, temp_move_speed * delta_time);
-    }
-
-    if (input_is_key_down(KEY_SPACE)) {
-        camera_move_up(state->world_camera, temp_move_speed * delta_time);
-    }
-
-    if (input_is_key_down('X')) {
-        camera_move_down(state->world_camera, temp_move_speed * delta_time);
-    }
-
-    // TODO: temp
-    if (input_is_key_up('P') && input_was_key_down('P')) {
-        KDEBUG(
-            "Pos:[%.2f, %.2f, %.2f",
-            state->world_camera->position.x,
-            state->world_camera->position.y,
-            state->world_camera->position.z);
-    }
-
-    // RENDERER DEBUG FUNCTIONS
-    if (input_is_key_up('1') && input_was_key_down('1')) {
-        event_context data = {};
-        data.data.i32[0] = RENDERER_VIEW_MODE_LIGHTING;
-        event_fire(EVENT_CODE_SET_RENDER_MODE, game_inst, data);
-    }
-
-    if (input_is_key_up('2') && input_was_key_down('2')) {
-        event_context data = {};
-        data.data.i32[0] = RENDERER_VIEW_MODE_NORMALS;
-        event_fire(EVENT_CODE_SET_RENDER_MODE, game_inst, data);
-    }
-
-    if (input_is_key_up('0') && input_was_key_down('0')) {
-        event_context data = {};
-        data.data.i32[0] = RENDERER_VIEW_MODE_DEFAULT;
-        event_fire(EVENT_CODE_SET_RENDER_MODE, game_inst, data);
-    }
-
-    // TODO: temp
-    // Bind a key to load up some data.
-    if (input_is_key_up('L') && input_was_key_down('L')) {
-        event_context context = {};
-        event_fire(EVENT_CODE_DEBUG1, game_inst, context);
-    }
-
-    // TODO: end temp
+    // Track allocation differences.
+    state->prev_alloc_count = state->alloc_count;
+    state->alloc_count = get_memory_alloc_count();
 
     // Perform a small rotation on the first mesh.
     quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, 0.5f * delta_time, false);
@@ -551,33 +471,43 @@ b8 game_update(game* game_inst, f32 delta_time) {
         }
     }
 
-
-    char text_buffer[256];
+    char* vsync_text = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
+    char text_buffer[2048];
     string_format(
         text_buffer,
         "\
 FPS: %5.1f(%4.1fms)        Pos=[%7.3f %7.3f %7.3f] Rot=[%7.3f, %7.3f, %7.3f]\n\
-Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
-Drawn: %-5u Hovered: %s%u",
+Upd: %8.3fus, Rend: %8.3fus Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
+VSync: %s Drawn: %-5u Hovered: %s%u",
         fps,
         frame_time,
         pos.x, pos.y, pos.z,
         rad_to_deg(rot.x), rad_to_deg(rot.y), rad_to_deg(rot.z),
+        state->last_update_elapsed * K_SEC_TO_US_MULTIPLIER,
+        state->render_clock.elapsed * K_SEC_TO_US_MULTIPLIER,
         mouse_x, mouse_y,
         left_down ? "Y" : "N",
         right_down ? "Y" : "N",
         mouse_x_ndc,
         mouse_y_ndc,
+        vsync_text,
         draw_count,
         state->hovered_object_id == INVALID_ID ? "none" : "",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
     ui_text_set_text(&state->test_text, text_buffer);
+
+    debug_console_update();
+
+    clock_update(&state->update_clock);
+    state->last_update_elapsed = state->update_clock.elapsed;
 
     return true;
 }
 
 b8 game_render(game* game_inst, struct render_packet* packet, f32 delta_time) {
     game_state* state = (game_state*)game_inst->state;
+
+    clock_start(&state->render_clock);
 
     // TODO: temp
 
@@ -617,9 +547,19 @@ b8 game_render(game* game_inst, struct render_packet* packet, f32 delta_time) {
     ui_packet.mesh_data.mesh_count = ui_mesh_count;
     ui_packet.mesh_data.meshes = ui_meshes;
     ui_packet.text_count = 2;
+    ui_text* debug_console_text = debug_console_get_text();
+    b8 render_debug_conole = debug_console_text && debug_console_visible();
+    if (render_debug_conole) {
+        ui_packet.text_count += 2;
+    }
     ui_text** texts = linear_allocator_allocate(&game_inst->frame_allocator, sizeof(ui_text*) * ui_packet.text_count);
     texts[0] = &state->test_text;
     texts[1] = &state->test_sys_text;
+    if (render_debug_conole) {
+        texts[2] = debug_console_text;
+        texts[3] = debug_console_get_entry_text();
+    }
+
     ui_packet.texts = texts;
     if (!render_view_system_build_packet(render_view_system_get("ui"), &game_inst->frame_allocator, &ui_packet, &packet->views[2])) {
         KERROR("Failed to build packet for view 'ui'.");
@@ -638,6 +578,8 @@ b8 game_render(game* game_inst, struct render_packet* packet, f32 delta_time) {
         return false;
     }
     // TODO: end temp
+
+    clock_update(&state->render_clock);
 
     return true;
 }
