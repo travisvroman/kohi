@@ -7,6 +7,7 @@ struct ui_text;
 void debug_console_create();
 
 b8 debug_console_load();
+void debug_console_unload();
 void debug_console_update();
 
 struct ui_text* debug_console_get_text();

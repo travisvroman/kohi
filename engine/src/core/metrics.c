@@ -16,7 +16,7 @@ static metrics_state* state_ptr = 0;
 
 void metrics_initialize() {
     if (!state_ptr) {
-        state_ptr = kallocate(sizeof(metrics_state), MEMORY_TAG_APPLICATION);
+        state_ptr = kallocate(sizeof(metrics_state), MEMORY_TAG_ENGINE);
     }
 }
 
