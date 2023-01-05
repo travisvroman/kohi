@@ -215,7 +215,7 @@ void string_mid(char* dest, const char* source, i32 start, i32 length) {
     }
 }
 
-i32 string_index_of(char* str, char c) {
+i32 string_index_of(const char* str, char c) {
     if (!str) {
         return -1;
     }
@@ -231,7 +231,7 @@ i32 string_index_of(char* str, char c) {
     return -1;
 }
 
-b8 string_to_vec4(char* str, vec4* out_vector) {
+b8 string_to_vec4(const char* str, vec4* out_vector) {
     if (!str) {
         return false;
     }
@@ -241,7 +241,7 @@ b8 string_to_vec4(char* str, vec4* out_vector) {
     return result != -1;
 }
 
-b8 string_to_vec3(char* str, vec3* out_vector) {
+b8 string_to_vec3(const char* str, vec3* out_vector) {
     if (!str) {
         return false;
     }
@@ -251,7 +251,7 @@ b8 string_to_vec3(char* str, vec3* out_vector) {
     return result != -1;
 }
 
-b8 string_to_vec2(char* str, vec2* out_vector) {
+b8 string_to_vec2(const char* str, vec2* out_vector) {
     if (!str) {
         return false;
     }
@@ -261,7 +261,7 @@ b8 string_to_vec2(char* str, vec2* out_vector) {
     return result != -1;
 }
 
-b8 string_to_f32(char* str, f32* f) {
+b8 string_to_f32(const char* str, f32* f) {
     if (!str) {
         return false;
     }
@@ -271,7 +271,7 @@ b8 string_to_f32(char* str, f32* f) {
     return result != -1;
 }
 
-b8 string_to_f64(char* str, f64* f) {
+b8 string_to_f64(const char* str, f64* f) {
     if (!str) {
         return false;
     }
@@ -281,7 +281,7 @@ b8 string_to_f64(char* str, f64* f) {
     return result != -1;
 }
 
-b8 string_to_i8(char* str, i8* i) {
+b8 string_to_i8(const char* str, i8* i) {
     if (!str) {
         return false;
     }
@@ -291,7 +291,7 @@ b8 string_to_i8(char* str, i8* i) {
     return result != -1;
 }
 
-b8 string_to_i16(char* str, i16* i) {
+b8 string_to_i16(const char* str, i16* i) {
     if (!str) {
         return false;
     }
@@ -301,7 +301,7 @@ b8 string_to_i16(char* str, i16* i) {
     return result != -1;
 }
 
-b8 string_to_i32(char* str, i32* i) {
+b8 string_to_i32(const char* str, i32* i) {
     if (!str) {
         return false;
     }
@@ -311,7 +311,7 @@ b8 string_to_i32(char* str, i32* i) {
     return result != -1;
 }
 
-b8 string_to_i64(char* str, i64* i) {
+b8 string_to_i64(const char* str, i64* i) {
     if (!str) {
         return false;
     }
@@ -321,7 +321,7 @@ b8 string_to_i64(char* str, i64* i) {
     return result != -1;
 }
 
-b8 string_to_u8(char* str, u8* u) {
+b8 string_to_u8(const char* str, u8* u) {
     if (!str) {
         return false;
     }
@@ -331,7 +331,7 @@ b8 string_to_u8(char* str, u8* u) {
     return result != -1;
 }
 
-b8 string_to_u16(char* str, u16* u) {
+b8 string_to_u16(const char* str, u16* u) {
     if (!str) {
         return false;
     }
@@ -341,7 +341,7 @@ b8 string_to_u16(char* str, u16* u) {
     return result != -1;
 }
 
-b8 string_to_u32(char* str, u32* u) {
+b8 string_to_u32(const char* str, u32* u) {
     if (!str) {
         return false;
     }
@@ -351,7 +351,7 @@ b8 string_to_u32(char* str, u32* u) {
     return result != -1;
 }
 
-b8 string_to_u64(char* str, u64* u) {
+b8 string_to_u64(const char* str, u64* u) {
     if (!str) {
         return false;
     }
@@ -361,7 +361,7 @@ b8 string_to_u64(char* str, u64* u) {
     return result != -1;
 }
 
-b8 string_to_bool(char* str, b8* b) {
+b8 string_to_bool(const char* str, b8* b) {
     if (!str) {
         return false;
     }

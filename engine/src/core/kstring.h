@@ -161,7 +161,7 @@ KAPI void string_mid(char* dest, const char* source, i32 start, i32 length);
  * @param c The character to search for.
  * @return The index of the first occurance of c; otherwise -1 if not found.
  */
-KAPI i32 string_index_of(char* str, char c);
+KAPI i32 string_index_of(const char* str, char c);
 
 /**
  * @brief Attempts to parse a vector from the provided string.
@@ -170,7 +170,7 @@ KAPI i32 string_index_of(char* str, char c);
  * @param out_vector A pointer to the vector to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_vec4(char* str, vec4* out_vector);
+KAPI b8 string_to_vec4(const char* str, vec4* out_vector);
 
 /**
  * @brief Attempts to parse a vector from the provided string.
@@ -179,7 +179,7 @@ KAPI b8 string_to_vec4(char* str, vec4* out_vector);
  * @param out_vector A pointer to the vector to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_vec3(char* str, vec3* out_vector);
+KAPI b8 string_to_vec3(const char* str, vec3* out_vector);
 
 /**
  * @brief Attempts to parse a vector from the provided string.
@@ -188,7 +188,7 @@ KAPI b8 string_to_vec3(char* str, vec3* out_vector);
  * @param out_vector A pointer to the vector to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_vec2(char* str, vec2* out_vector);
+KAPI b8 string_to_vec2(const char* str, vec2* out_vector);
 
 /**
  * @brief Attempts to parse a 32-bit floating-point number from the provided string.
@@ -197,7 +197,7 @@ KAPI b8 string_to_vec2(char* str, vec2* out_vector);
  * @param f A pointer to the float to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_f32(char* str, f32* f);
+KAPI b8 string_to_f32(const char* str, f32* f);
 
 /**
  * @brief Attempts to parse a 64-bit floating-point number from the provided string.
@@ -206,7 +206,7 @@ KAPI b8 string_to_f32(char* str, f32* f);
  * @param f A pointer to the float to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_f64(char* str, f64* f);
+KAPI b8 string_to_f64(const char* str, f64* f);
 
 /**
  * @brief Attempts to parse an 8-bit signed integer from the provided string.
@@ -215,7 +215,7 @@ KAPI b8 string_to_f64(char* str, f64* f);
  * @param i A pointer to the int to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_i8(char* str, i8* i);
+KAPI b8 string_to_i8(const char* str, i8* i);
 
 /**
  * @brief Attempts to parse a 16-bit signed integer from the provided string.
@@ -224,7 +224,7 @@ KAPI b8 string_to_i8(char* str, i8* i);
  * @param i A pointer to the int to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_i16(char* str, i16* i);
+KAPI b8 string_to_i16(const char* str, i16* i);
 
 /**
  * @brief Attempts to parse a 32-bit signed integer from the provided string.
@@ -233,7 +233,7 @@ KAPI b8 string_to_i16(char* str, i16* i);
  * @param i A pointer to the int to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_i32(char* str, i32* i);
+KAPI b8 string_to_i32(const char* str, i32* i);
 
 /**
  * @brief Attempts to parse a 64-bit signed integer from the provided string.
@@ -242,7 +242,7 @@ KAPI b8 string_to_i32(char* str, i32* i);
  * @param i A pointer to the int to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_i64(char* str, i64* i);
+KAPI b8 string_to_i64(const char* str, i64* i);
 
 /**
  * @brief Attempts to parse an 8-bit unsigned integer from the provided string.
@@ -251,7 +251,7 @@ KAPI b8 string_to_i64(char* str, i64* i);
  * @param u A pointer to the int to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_u8(char* str, u8* u);
+KAPI b8 string_to_u8(const char* str, u8* u);
 
 /**
  * @brief Attempts to parse a 16-bit unsigned integer from the provided string.
@@ -260,7 +260,7 @@ KAPI b8 string_to_u8(char* str, u8* u);
  * @param u A pointer to the int to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_u16(char* str, u16* u);
+KAPI b8 string_to_u16(const char* str, u16* u);
 
 /**
  * @brief Attempts to parse a 32-bit unsigned integer from the provided string.
@@ -269,7 +269,7 @@ KAPI b8 string_to_u16(char* str, u16* u);
  * @param u A pointer to the int to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_u32(char* str, u32* u);
+KAPI b8 string_to_u32(const char* str, u32* u);
 
 /**
  * @brief Attempts to parse a 64-bit unsigned integer from the provided string.
@@ -278,7 +278,7 @@ KAPI b8 string_to_u32(char* str, u32* u);
  * @param u A pointer to the int to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_u64(char* str, u64* u);
+KAPI b8 string_to_u64(const char* str, u64* u);
 
 /**
  * @brief Attempts to parse a boolean from the provided string.
@@ -288,7 +288,7 @@ KAPI b8 string_to_u64(char* str, u64* u);
  * @param b A pointer to the boolean to write to.
  * @return True if parsed successfully; otherwise false.
  */
-KAPI b8 string_to_bool(char* str, b8* b);
+KAPI b8 string_to_bool(const char* str, b8* b);
 
 /**
  * @brief Splits the given string by the delimiter provided and stores in the
