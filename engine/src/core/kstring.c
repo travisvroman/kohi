@@ -379,7 +379,7 @@ u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_en
     u32 trimmed_length = 0;
     u32 entry_count = 0;
     u32 length = string_length(str);
-    char buffer[16384];  // If a single entry goes beyond this, well... just don't do that.
+    char buffer[16384] = {0};  // If a single entry goes beyond this, well... just don't do that.
     u32 current_length = 0;
     // Iterate each character until a delimiter is reached.
     for (u32 i = 0; i < length; ++i) {
