@@ -50,6 +50,14 @@ b8 kvar_create_int(const char* name, i32 value) {
 
     for (u32 i = 0; i < KVAR_INT_MAX_COUNT; ++i) {
         kvar_int_entry* entry = &state_ptr->ints[i];
+        if (entry->name && strings_equali(entry->name, name)) {
+            KERROR("A int kvar named '%s' already exists.", name);
+            return false;
+        }
+    }
+
+    for (u32 i = 0; i < KVAR_INT_MAX_COUNT; ++i) {
+        kvar_int_entry* entry = &state_ptr->ints[i];
         if (!entry->name) {
             entry->name = string_duplicate(name);
             entry->value = value;

@@ -8,6 +8,10 @@
 #include <core/event.h>
 #include <core/input.h>
 
+typedef struct command_history_entry {
+    const char* command;
+} command_history_entry;
+
 // TODO(travis): statically-defined state for now.
 typedef struct debug_console_state {
     // Number of lines displayed at once.
@@ -16,6 +20,9 @@ typedef struct debug_console_state {
     i32 line_offset;
     // darray
     char** lines;
+    // darray
+    command_history_entry* history;
+    i32 history_offset;
 
     b8 dirty;
     b8 visible;
@@ -61,6 +68,11 @@ static b8 debug_console_on_key(u16 code, void* sender, void* listener_inst, even
         if (key_code == KEY_ENTER) {
             u32 len = string_length(state_ptr->entry_control.text);
             if (len > 0) {
+                // Keep the command in the history list.
+                command_history_entry entry;
+                entry.command = string_duplicate(state_ptr->entry_control.text);
+                darray_push(state_ptr->history, entry);
+
                 // Execute the command and clear the text.
                 if (!console_execute_command(state_ptr->entry_control.text)) {
                     // TODO: handle error?
@@ -161,6 +173,8 @@ void debug_console_create() {
         state_ptr->line_offset = 0;
         state_ptr->lines = darray_create(char*);
         state_ptr->visible = false;
+        state_ptr->history = darray_create(command_history_entry);
+        state_ptr->history_offset = 0;
 
         // NOTE: update the text based on number of lines to display and
         // the number of lines offset from the bottom. A UI Text object is
@@ -319,5 +333,25 @@ void debug_console_move_to_bottom() {
     if (state_ptr) {
         state_ptr->dirty = true;
         state_ptr->line_offset = 0;
+    }
+}
+
+void debug_console_history_back() {
+    if (state_ptr) {
+        u32 length = darray_length(state_ptr->history);
+        if (length > 0) {
+            state_ptr->history_offset = KMIN(state_ptr->history_offset++, length - 1);
+            ui_text_set_text(&state_ptr->entry_control, state_ptr->history[length - state_ptr->history_offset - 1].command);
+        }
+    }
+}
+
+void debug_console_history_forward() {
+    if (state_ptr) {
+        u32 length = darray_length(state_ptr->history);
+        if (length > 0) {
+            state_ptr->history_offset = KMAX(state_ptr->history_offset--, 0);
+            ui_text_set_text(&state_ptr->entry_control, state_ptr->history[length - state_ptr->history_offset - 1].command);
+        }
     }
 }
