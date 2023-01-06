@@ -12,6 +12,7 @@
 #include "core/kstring.h"
 #include "core/uuid.h"
 #include "core/metrics.h"
+
 #include "containers/darray.h"
 
 #include "memory/linear_allocator.h"
@@ -20,6 +21,7 @@
 
 // systems
 #include "core/console.h"
+#include "core/kvar.h"
 #include "systems/texture_system.h"
 #include "systems/material_system.h"
 #include "systems/geometry_system.h"
@@ -42,6 +44,9 @@ typedef struct engine_state_t {
 
     u64 console_memory_requirement;
     void* console_state;
+
+    u64 kvar_memory_requirement;
+    void* kvar_state;
 
     u64 event_system_memory_requirement;
     void* event_system_state;
@@ -133,6 +138,11 @@ b8 engine_create(application* game_inst) {
     console_initialize(&engine_state->console_memory_requirement, 0);
     engine_state->console_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->console_memory_requirement);
     console_initialize(&engine_state->console_memory_requirement, engine_state->console_state);
+
+    // KVars
+    kvar_initialize(&engine_state->kvar_memory_requirement, 0);
+    engine_state->kvar_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->kvar_memory_requirement);
+    kvar_initialize(&engine_state->kvar_memory_requirement, engine_state->kvar_state);
 
     // Events
     event_system_initialize(&engine_state->event_system_memory_requirement, 0);
