@@ -22,7 +22,7 @@ static kvar_system_state* state_ptr;
 
 void kvar_register_console_commands();
 
-b8 kvar_initialize(u64* memory_requirement, void* memory) {
+b8 kvar_initialize(u64* memory_requirement, void* memory, void* config) {
     *memory_requirement = sizeof(kvar_system_state);
 
     if (!memory) {

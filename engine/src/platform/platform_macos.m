@@ -296,14 +296,8 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
 
 @end // WindowDelegate
 
-b8 platform_system_startup(
-    u64* memory_requirement,
-    void* state,
-    const char *application_name,
-    i32 x,
-    i32 y,
-    i32 width,
-    i32 height) {
+b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
+    platform_system_config* typed_config = (platform_system_config*)config;
     *memory_requirement = sizeof(platform_state);
     if (state == 0) {
         return true;
@@ -332,7 +326,7 @@ b8 platform_system_startup(
 
     // Window creation
     state_ptr->window = [[NSWindow alloc]
-        initWithContentRect:NSMakeRect(x, y, width, height)
+        initWithContentRect:NSMakeRect(typed_config->x, typed_config->y, typed_config->width, typed_config->height)
         styleMask:NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskResizable
         backing:NSBackingStoreBuffered
         defer:NO];
@@ -356,7 +350,7 @@ b8 platform_system_startup(
     [state_ptr->window setLevel:NSNormalWindowLevel];
     [state_ptr->window setContentView:state_ptr->view];
     [state_ptr->window makeFirstResponder:state_ptr->view];
-    [state_ptr->window setTitle:@(application_name)];
+    [state_ptr->window setTitle:@(typed_config->application_name)];
     [state_ptr->window setDelegate:state_ptr->wnd_delegate];
     [state_ptr->window setAcceptsMouseMovedEvents:YES];
     [state_ptr->window setRestorable:NO];

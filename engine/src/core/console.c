@@ -28,11 +28,11 @@ const u32 MAX_CONSUMER_COUNT = 10;
 
 static console_state* state_ptr;
 
-void console_initialize(u64* memory_requirement, void* memory) {
+b8 console_initialize(u64* memory_requirement, void* memory, void* config) {
     *memory_requirement = sizeof(console_state) + (sizeof(console_consumer) * MAX_CONSUMER_COUNT);
 
     if (!memory) {
-        return;
+        return true;
     }
 
     kzero_memory(memory, *memory_requirement);
@@ -40,6 +40,8 @@ void console_initialize(u64* memory_requirement, void* memory) {
     state_ptr->consumers = (console_consumer*)((u64)memory + sizeof(console_state));
 
     state_ptr->registered_commands = darray_create(console_command);
+
+    return true;
 }
 
 void console_shutdown(void* state) {

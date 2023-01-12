@@ -20,8 +20,8 @@
 #include "renderer/renderer_frontend.h"
 
 // systems
-#include "core/console.h"
-#include "core/kvar.h"
+#include "core/systems_manager.h"
+
 #include "systems/texture_system.h"
 #include "systems/material_system.h"
 #include "systems/geometry_system.h"
@@ -40,25 +40,14 @@ typedef struct engine_state_t {
     i16 height;
     clock clock;
     f64 last_time;
+
+    systems_manager_state sys_manager_state;
+
+    // TODO: delete me
     linear_allocator systems_allocator;
-
-    u64 console_memory_requirement;
-    void* console_state;
-
-    u64 kvar_memory_requirement;
-    void* kvar_state;
-
-    u64 event_system_memory_requirement;
-    void* event_system_state;
 
     u64 job_system_memory_requirement;
     void* job_system_state;
-
-    u64 logging_system_memory_requirement;
-    void* logging_system_state;
-
-    u64 input_system_memory_requirement;
-    void* input_system_state;
 
     u64 platform_system_memory_requirement;
     void* platform_system_state;
@@ -132,53 +121,30 @@ b8 engine_create(application* game_inst) {
     u64 systems_allocator_total_size = 64 * 1024 * 1024;  // 64 mb
     linear_allocator_create(systems_allocator_total_size, 0, &engine_state->systems_allocator);
 
-    // Initialize other subsystems.
-
-    // Console
-    console_initialize(&engine_state->console_memory_requirement, 0);
-    engine_state->console_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->console_memory_requirement);
-    console_initialize(&engine_state->console_memory_requirement, engine_state->console_state);
-
-    // KVars
-    kvar_initialize(&engine_state->kvar_memory_requirement, 0);
-    engine_state->kvar_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->kvar_memory_requirement);
-    kvar_initialize(&engine_state->kvar_memory_requirement, engine_state->kvar_state);
-
-    // Events
-    event_system_initialize(&engine_state->event_system_memory_requirement, 0);
-    engine_state->event_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->event_system_memory_requirement);
-    event_system_initialize(&engine_state->event_system_memory_requirement, engine_state->event_system_state);
-
-    // Logging
-    initialize_logging(&engine_state->logging_system_memory_requirement, 0);
-    engine_state->logging_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->logging_system_memory_requirement);
-    if (!initialize_logging(&engine_state->logging_system_memory_requirement, engine_state->logging_system_state)) {
-        KERROR("Failed to initialize logging system; shutting down.");
+    if (!systems_manager_initialize(&engine_state->sys_manager_state, &game_inst->app_config)) {
+        KFATAL("Systems manager failed to initialize. Aborting process.");
         return false;
     }
-
-    // Input
-    input_system_initialize(&engine_state->input_system_memory_requirement, 0);
-    engine_state->input_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->input_system_memory_requirement);
-    input_system_initialize(&engine_state->input_system_memory_requirement, engine_state->input_system_state);
 
     // Register for engine-level events.
     event_register(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
     event_register(EVENT_CODE_RESIZED, 0, engine_on_resized);
 
-    // Platform
-    platform_system_startup(&engine_state->platform_system_memory_requirement, 0, 0, 0, 0, 0, 0);
-    engine_state->platform_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->platform_system_memory_requirement);
-    if (!platform_system_startup(
-            &engine_state->platform_system_memory_requirement,
-            engine_state->platform_system_state,
-            game_inst->app_config.name,
-            game_inst->app_config.start_pos_x,
-            game_inst->app_config.start_pos_y,
-            game_inst->app_config.start_width,
-            game_inst->app_config.start_height)) {
-        return false;
-    }
+    // // Initialize other subsystems.
+    // platform_system_config plat_config = {0};
+    // plat_config.application_name = game_inst->app_config.name;
+    // plat_config.x = game_inst->app_config.start_pos_x;
+    // plat_config.y = game_inst->app_config.start_pos_y;
+    // plat_config.width = game_inst->app_config.start_width;
+    // plat_config.height = game_inst->app_config.start_height;
+    //  platform_system_startup(&engine_state->platform_system_memory_requirement, 0, &plat_config);
+    // engine_state->platform_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->platform_system_memory_requirement);
+    // if (!platform_system_startup(
+    //         &engine_state->platform_system_memory_requirement,
+    //         engine_state->platform_system_state,
+    //         &plat_config)) {
+    //     return false;
+    // }
 
     // Resource system.
     resource_system_config resource_sys_config;
@@ -437,8 +403,6 @@ b8 engine_run() {
     // Shutdown event system.
     event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
 
-    input_system_shutdown(engine_state->input_system_state);
-
     font_system_shutdown(engine_state->font_system_state);
 
     render_view_system_shutdown(engine_state->renderer_view_system_state);
@@ -457,13 +421,8 @@ b8 engine_run() {
 
     job_system_shutdown(engine_state->job_system_state);
 
-    platform_system_shutdown(engine_state->platform_system_state);
-
-    event_system_shutdown(engine_state->event_system_state);
-
-    console_shutdown(engine_state->console_state);
-
-    console_shutdown(engine_state->console_state);
+    // Shut down all systems.
+    systems_manager_shutdown(&engine_state->sys_manager_state);
 
     memory_system_shutdown();
 

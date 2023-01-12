@@ -15,6 +15,19 @@
 
 #include "defines.h"
 
+typedef struct platform_system_config {
+    /** @brief application_name The name of the application. */
+    const char* application_name;
+    /** @brief x The initial x position of the main window. */
+    i32 x;
+    /** @brief y The initial y position of the main window.*/
+    i32 y;
+    /** @brief width The initial width of the main window. */
+    i32 width;
+    /** @brief height The initial height of the main window. */
+    i32 height;
+} platform_system_config;
+
 /**
  * @brief Performs startup routines within the platform layer. Should be called twice,
  * once to obtain the memory requirement (with state=0), then a second time passing
@@ -22,21 +35,10 @@
  *
  * @param memory_requirement A pointer to hold the memory requirement in bytes.
  * @param state A pointer to a block of memory to hold state. If obtaining memory requirement only, pass 0.
- * @param application_name The name of the application.
- * @param x The initial x position of the main window.
- * @param y The initial y position of the main window.
- * @param width The initial width of the main window.
- * @param height The initial height of the main window.
+ * @param config A pointer to a configuration platform_system_config structure required by this system.
  * @return True on success; otherwise false.
  */
-b8 platform_system_startup(
-    u64* memory_requirement,
-    void* state,
-    const char* application_name,
-    i32 x,
-    i32 y,
-    i32 width,
-    i32 height);
+b8 platform_system_startup(u64* memory_requirement, void* state, void* config);
 
 /**
  * @brief Shuts down the platform layer.

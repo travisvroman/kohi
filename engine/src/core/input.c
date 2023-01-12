@@ -30,10 +30,10 @@ static input_state* state_ptr;
 
 b8 check_modifiers(keymap_modifier modifiers);
 
-void input_system_initialize(u64* memory_requirement, void* state) {
+b8 input_system_initialize(u64* memory_requirement, void* state, void* config) {
     *memory_requirement = sizeof(input_state);
     if (state == 0) {
-        return;
+        return true;
     }
     kzero_memory(state, sizeof(input_state));
     state_ptr = state;
@@ -43,6 +43,8 @@ void input_system_initialize(u64* memory_requirement, void* state) {
     // state_ptr->active_keymap = keymap_create();
 
     KINFO("Input subsystem initialized.");
+
+    return true;
 }
 
 void input_system_shutdown(void* state) {
