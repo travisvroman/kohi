@@ -37,10 +37,11 @@ b8 shader_uniform_add_state_valid(shader* shader);
 void shader_destroy(shader* s);
 ///////////////////////
 
-b8 shader_system_initialize(u64* memory_requirement, void* memory, shader_system_config config) {
+b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config) {\
+    shader_system_config* typed_config = (shader_system_config*)config;
     // Verify configuration.
-    if (config.max_shader_count < 512) {
-        if (config.max_shader_count == 0) {
+    if (typed_config->max_shader_count < 512) {
+        if (typed_config->max_shader_count == 0) {
             KERROR("shader_system_initialize - config.max_shader_count must be greater than 0");
             return false;
         } else {
@@ -52,8 +53,8 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, shader_system
     // Figure out how large of a hashtable is needed.
     // Block of memory will contain state structure then the block for the hashtable.
     u64 struct_requirement = sizeof(shader_system_state);
-    u64 hashtable_requirement = sizeof(u32) * config.max_shader_count;
-    u64 shader_array_requirement = sizeof(shader) * config.max_shader_count;
+    u64 hashtable_requirement = sizeof(u32) * typed_config->max_shader_count;
+    u64 shader_array_requirement = sizeof(shader) * typed_config->max_shader_count;
     *memory_requirement = struct_requirement + hashtable_requirement + shader_array_requirement;
 
     if (!memory) {
@@ -65,12 +66,12 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, shader_system
     u64 addr = (u64)memory;
     state_ptr->lookup_memory = (void*)(addr + struct_requirement);
     state_ptr->shaders = (void*)((u64)state_ptr->lookup_memory + hashtable_requirement);
-    state_ptr->config = config;
+    state_ptr->config = *typed_config;
     state_ptr->current_shader_id = INVALID_ID;
-    hashtable_create(sizeof(u32), config.max_shader_count, state_ptr->lookup_memory, false, &state_ptr->lookup);
+    hashtable_create(sizeof(u32), typed_config->max_shader_count, state_ptr->lookup_memory, false, &state_ptr->lookup);
 
     // Invalidate all shader ids.
-    for (u32 i = 0; i < config.max_shader_count; ++i) {
+    for (u32 i = 0; i < typed_config->max_shader_count; ++i) {
         state_ptr->shaders[i].id = INVALID_ID;
         state_ptr->shaders[i].render_frame_number = INVALID_ID_U64;
     }

@@ -10,8 +10,8 @@ typedef void (*pfn_job_on_complete)(void*);
 
 /** @brief Describes a type of job */
 typedef enum job_type {
-    /** 
-     * @brief A general job that does not have any specific thread requirements. 
+    /**
+     * @brief A general job that does not have any specific thread requirements.
      * This means it matters little which job thread this job runs on.
      */
     JOB_TYPE_GENERAL = 0x02,
@@ -23,7 +23,7 @@ typedef enum job_type {
     JOB_TYPE_RESOURCE_LOAD = 0x04,
 
     /**
-     * @brief Jobs using GPU resources should be bound to a thread using this job type. Multithreaded 
+     * @brief Jobs using GPU resources should be bound to a thread using this job type. Multithreaded
      * renderers will use a specific job thread, and this type of job will run on that thread.
      * For single-threaded renderers, this will be on the main thread.
      */
@@ -76,17 +76,25 @@ typedef struct job_info {
     u32 result_data_size;
 } job_info;
 
+typedef struct job_system_config {
+    /**
+     * @param max_job_thread_count The maximum number of job threads to be spun up.
+     * Should be no more than the number of cores on the CPU, minus one to account for the main thread.
+     */
+    u8 max_job_thread_count;
+    /** @param type_masks A collection of type masks for each job thread. Must match max_job_thread_count. */
+    u32* type_masks;
+} job_system_config;
+
 /**
- * @brief Initializes the job system. Call once to retrieve job_system_memory_requirement, passing 0 to state. Then 
+ * @brief Initializes the job system. Call once to retrieve job_system_memory_requirement, passing 0 to state. Then
  * call a second time with allocated state memory block.
  * @param job_system_memory_requirement A pointer to hold the memory required for the job system state in bytes.
  * @param state A block of memory to hold the state of the job system.
- * @param max_job_thread_count The maximum number of job threads to be spun up. 
- * Should be no more than the number of cores on the CPU, minus one to account for the main thread.
- * @param type_masks A collection of type masks for each job thread. Must match max_job_thread_count.
+ * @param config A pointer to the configuration (job_system_config) of this system.
  * @returns True if the job system started up successfully; otherwise false.
  */
-b8 job_system_initialize(u64* job_system_memory_requirement, void* state, u8 max_job_thread_count, u32 type_masks[]);
+b8 job_system_initialize(u64* job_system_memory_requirement, void* state, void* config);
 
 /**
  * @brief Shuts the job system down.
@@ -96,7 +104,7 @@ void job_system_shutdown(void* state);
 /**
  * @brief Updates the job system. Should happen once an update cycle.
  */
-void job_system_update();
+b8 job_system_update(void* state, f32 delta_time);
 
 /**
  * @brief Submits the provided job to be queued for execution.

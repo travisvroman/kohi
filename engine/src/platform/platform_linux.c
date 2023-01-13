@@ -52,14 +52,8 @@ static platform_state* state_ptr;
 // Key translation
 keys translate_keycode(u32 x_keycode);
 
-b8 platform_system_startup(
-    u64* memory_requirement,
-    void* state,
-    const char* application_name,
-    i32 x,
-    i32 y,
-    i32 width,
-    i32 height) {
+b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
+    platform_system_config* typed_config = (platform_system_config*)config;
     *memory_requirement = sizeof(platform_state);
     if (state == 0) {
         return true;
@@ -117,10 +111,10 @@ b8 platform_system_startup(
         XCB_COPY_FROM_PARENT,  // depth
         state_ptr->window,
         state_ptr->screen->root,        // parent
-        x,                              // x
-        y,                              // y
-        width,                          // width
-        height,                         // height
+        typed_config->x,                              // x
+        typed_config->y,                              // y
+        typed_config->width,                          // width
+        typed_config->height,                         // height
         0,                              // No border
         XCB_WINDOW_CLASS_INPUT_OUTPUT,  // class
         state_ptr->screen->root_visual,
@@ -135,8 +129,8 @@ b8 platform_system_startup(
         XCB_ATOM_WM_NAME,
         XCB_ATOM_STRING,
         8,  // data should be viewed 8 bits at a time
-        strlen(application_name),
-        application_name);
+        strlen(typed_config->application_name),
+        typed_config->application_name);
 
     // Tell the server to notify when the window manager
     // attempts to destroy the window.
@@ -446,7 +440,6 @@ u64 get_thread_id() {
     return (u64)pthread_self();
 }
 // NOTE: End threads.
-
 
 // NOTE: Begin mutexes
 b8 kmutex_create(kmutex* out_mutex) {
