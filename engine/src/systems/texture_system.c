@@ -48,16 +48,17 @@ b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME
 void destroy_texture(texture* t);
 b8 process_texture_reference(const char* name, texture_type type, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id);
 
-b8 texture_system_initialize(u64* memory_requirement, void* state, texture_system_config config) {
-    if (config.max_texture_count == 0) {
+b8 texture_system_initialize(u64* memory_requirement, void* state, void* config) {
+    texture_system_config* typed_config = (texture_system_config*)config;
+    if (typed_config->max_texture_count == 0) {
         KFATAL("texture_system_initialize - config.max_texture_count must be > 0.");
         return false;
     }
 
     // Block of memory will contain state structure, then block for array, then block for hashtable.
     u64 struct_requirement = sizeof(texture_system_state);
-    u64 array_requirement = sizeof(texture) * config.max_texture_count;
-    u64 hashtable_requirement = sizeof(texture_reference) * config.max_texture_count;
+    u64 array_requirement = sizeof(texture) * typed_config->max_texture_count;
+    u64 hashtable_requirement = sizeof(texture_reference) * typed_config->max_texture_count;
     *memory_requirement = struct_requirement + array_requirement + hashtable_requirement;
 
     if (!state) {
@@ -65,7 +66,7 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, texture_syste
     }
 
     state_ptr = state;
-    state_ptr->config = config;
+    state_ptr->config = *typed_config;
 
     // The array block is after the state. Already allocated, so just set the pointer.
     void* array_block = state + struct_requirement;
@@ -75,7 +76,7 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, texture_syste
     void* hashtable_block = array_block + array_requirement;
 
     // Create a hashtable for texture lookups.
-    hashtable_create(sizeof(texture_reference), config.max_texture_count, hashtable_block, false, &state_ptr->registered_texture_table);
+    hashtable_create(sizeof(texture_reference), typed_config->max_texture_count, hashtable_block, false, &state_ptr->registered_texture_table);
 
     // Fill the hashtable with invalid references to use as a default.
     texture_reference invalid_ref;

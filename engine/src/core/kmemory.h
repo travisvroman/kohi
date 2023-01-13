@@ -62,12 +62,12 @@ typedef struct memory_system_configuration {
  * @brief Initializes the memory system.
  * @param config The configuration for this system.
  */
-KAPI b8 memory_system_initialize(memory_system_configuration config);
+b8 memory_system_initialize(memory_system_configuration config);
 
 /**
  * @brief Shuts down the memory system.
  */
-KAPI void memory_system_shutdown();
+void memory_system_shutdown(void* state);
 
 /**
  * @brief Performs a memory allocation from the host of the given size. The allocation

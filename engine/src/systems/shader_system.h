@@ -174,10 +174,10 @@ typedef struct shader {
  * 
  * @param memory_requirement A pointer to hold the memory requirement of this system in bytes.
  * @param memory A memory block to be used to hold the state of this system. Pass 0 on the first call to get memory requirement.
- * @param config The configuration to be used when initializing the system.
+ * @param config The configuration (shader_system_config) to be used when initializing the system.
  * @return b8 True on success; otherwise false.
  */
-b8 shader_system_initialize(u64* memory_requirement, void* memory, shader_system_config config);
+b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config);
 
 /**
  * @brief Shuts down the shader system.

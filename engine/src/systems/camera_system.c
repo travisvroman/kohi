@@ -23,16 +23,17 @@ typedef struct camera_system_state {
 
 static camera_system_state* state_ptr;
 
-b8 camera_system_initialize(u64* memory_requirement, void* state, camera_system_config config) {
-    if (config.max_camera_count == 0) {
+b8 camera_system_initialize(u64* memory_requirement, void* state, void* config) {
+    camera_system_config* typed_config = (camera_system_config*)config;
+    if (typed_config->max_camera_count == 0) {
         KFATAL("camera_system_initialize - config.max_camera_count must be > 0.");
         return false;
     }
 
     // Block of memory will contain state structure, then block for array, then block for hashtable.
     u64 struct_requirement = sizeof(camera_system_state);
-    u64 array_requirement = sizeof(camera_lookup) * config.max_camera_count;
-    u64 hashtable_requirement = sizeof(camera_lookup) * config.max_camera_count;
+    u64 array_requirement = sizeof(camera_lookup) * typed_config->max_camera_count;
+    u64 hashtable_requirement = sizeof(camera_lookup) * typed_config->max_camera_count;
     *memory_requirement = struct_requirement + array_requirement + hashtable_requirement;
 
     if (!state) {
@@ -40,7 +41,7 @@ b8 camera_system_initialize(u64* memory_requirement, void* state, camera_system_
     }
 
     state_ptr = (camera_system_state*)state;
-    state_ptr->config = config;
+    state_ptr->config = *typed_config;
 
     // The array block is after the state. Already allocated, so just set the pointer.
     void* array_block = state + struct_requirement;
@@ -50,7 +51,7 @@ b8 camera_system_initialize(u64* memory_requirement, void* state, camera_system_
     void* hashtable_block = array_block + array_requirement;
 
     // Create a hashtable for camera lookups.
-    hashtable_create(sizeof(u16), config.max_camera_count, hashtable_block, false, &state_ptr->lookup);
+    hashtable_create(sizeof(u16), typed_config->max_camera_count, hashtable_block, false, &state_ptr->lookup);
 
     // Fill the hashtable with invalid references to use as a default.
     u16 invalid_id = INVALID_ID_U16;

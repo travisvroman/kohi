@@ -22,26 +22,27 @@ static resource_system_state* state_ptr = 0;
 
 b8 load(const char* name, resource_loader* loader, void* params, resource* out_resource);
 
-b8 resource_system_initialize(u64* memory_requirement, void* state, resource_system_config config) {
-    if (config.max_loader_count == 0) {
+b8 resource_system_initialize(u64* memory_requirement, void* state, void* config) {
+    resource_system_config* typed_config = (resource_system_config*)config;
+    if (typed_config->max_loader_count == 0) {
         KFATAL("resource_system_initialize failed because config.max_loader_count==0.");
         return false;
     }
 
-    *memory_requirement = sizeof(resource_system_state) + (sizeof(resource_loader) * config.max_loader_count);
+    *memory_requirement = sizeof(resource_system_state) + (sizeof(resource_loader) * typed_config->max_loader_count);
 
     if (!state) {
         return true;
     }
 
     state_ptr = state;
-    state_ptr->config = config;
+    state_ptr->config = *typed_config;
 
     void* array_block = state + sizeof(resource_system_state);
     state_ptr->registered_loaders = array_block;
 
     // Invalidate all loaders
-    u32 count = config.max_loader_count;
+    u32 count = typed_config->max_loader_count;
     for (u32 i = 0; i < count; ++i) {
         state_ptr->registered_loaders[i].id = INVALID_ID;
     }
@@ -56,7 +57,7 @@ b8 resource_system_initialize(u64* memory_requirement, void* state, resource_sys
     resource_system_register_loader(bitmap_font_resource_loader_create());
     resource_system_register_loader(system_font_resource_loader_create());
 
-    KINFO("Resource system initialized with base path '%s'.", config.asset_base_path);
+    KINFO("Resource system initialized with base path '%s'.", typed_config->asset_base_path);
 
     return true;
 }

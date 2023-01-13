@@ -149,7 +149,8 @@ u32 job_thread_run(void* params) {
     return 1;
 }
 
-b8 job_system_initialize(u64* job_system_memory_requirement, void* state, u8 job_thread_count, u32 type_masks[]) {
+b8 job_system_initialize(u64* job_system_memory_requirement, void* state, void* config) {
+    job_system_config* typed_config = (job_system_config*)config;
     *job_system_memory_requirement = sizeof(job_system_state);
     if (state == 0) {
         return true;
@@ -163,7 +164,7 @@ b8 job_system_initialize(u64* job_system_memory_requirement, void* state, u8 job
     ring_queue_create(sizeof(job_info), 1024, 0, &state_ptr->low_priority_queue);
     ring_queue_create(sizeof(job_info), 1024, 0, &state_ptr->normal_priority_queue);
     ring_queue_create(sizeof(job_info), 1024, 0, &state_ptr->high_priority_queue);
-    state_ptr->thread_count = job_thread_count;
+    state_ptr->thread_count = typed_config->max_job_thread_count;
 
     // Invalidate all result slots
     for (u16 i = 0; i < MAX_JOB_RESULTS; ++i) {
@@ -176,7 +177,7 @@ b8 job_system_initialize(u64* job_system_memory_requirement, void* state, u8 job
 
     for (u8 i = 0; i < state_ptr->thread_count; ++i) {
         state_ptr->job_threads[i].index = i;
-        state_ptr->job_threads[i].type_mask = type_masks[i];
+        state_ptr->job_threads[i].type_mask = typed_config->type_masks[i];
         if (!kthread_create(job_thread_run, &state_ptr->job_threads[i].index, false, &state_ptr->job_threads[i].thread)) {
             KFATAL("OS Error in creating job thread. Application cannot continue.");
             return false;
@@ -281,9 +282,9 @@ void process_queue(ring_queue* queue, kmutex* queue_mutex) {
     }
 }
 
-void job_system_update() {
+b8 job_system_update(void* state, f32 delta_time) {
     if (!state_ptr || !state_ptr->running) {
-        return;
+        return false;
     }
 
     process_queue(&state_ptr->high_priority_queue, &state_ptr->high_pri_queue_mutex);
@@ -320,6 +321,8 @@ void job_system_update() {
             }
         }
     }
+
+    return true;
 }
 
 void job_system_submit(job_info info) {

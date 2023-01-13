@@ -64,16 +64,17 @@ b8 create_default_material(material_system_state* state);
 b8 load_material(material_config config, material* m);
 void destroy_material(material* m);
 
-b8 material_system_initialize(u64* memory_requirement, void* state, material_system_config config) {
-    if (config.max_material_count == 0) {
+b8 material_system_initialize(u64* memory_requirement, void* state, void* config) {
+    material_system_config* typed_config = (material_system_config*)config;
+    if (typed_config->max_material_count == 0) {
         KFATAL("material_system_initialize - config.max_material_count must be > 0.");
         return false;
     }
 
     // Block of memory will contain state structure, then block for array, then block for hashtable.
     u64 struct_requirement = sizeof(material_system_state);
-    u64 array_requirement = sizeof(material) * config.max_material_count;
-    u64 hashtable_requirement = sizeof(material_reference) * config.max_material_count;
+    u64 array_requirement = sizeof(material) * typed_config->max_material_count;
+    u64 hashtable_requirement = sizeof(material_reference) * typed_config->max_material_count;
     *memory_requirement = struct_requirement + array_requirement + hashtable_requirement;
 
     if (!state) {
@@ -81,7 +82,7 @@ b8 material_system_initialize(u64* memory_requirement, void* state, material_sys
     }
 
     state_ptr = state;
-    state_ptr->config = config;
+    state_ptr->config = *typed_config;
 
     state_ptr->material_shader_id = INVALID_ID;
     state_ptr->material_locations.view = INVALID_ID_U16;
@@ -110,7 +111,7 @@ b8 material_system_initialize(u64* memory_requirement, void* state, material_sys
     void* hashtable_block = array_block + array_requirement;
 
     // Create a hashtable for material lookups.
-    hashtable_create(sizeof(material_reference), config.max_material_count, hashtable_block, false, &state_ptr->registered_material_table);
+    hashtable_create(sizeof(material_reference), typed_config->max_material_count, hashtable_block, false, &state_ptr->registered_material_table);
 
     // Fill the hashtable with invalid references to use as a default.
     material_reference invalid_ref;

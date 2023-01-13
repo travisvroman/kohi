@@ -60,3 +60,5 @@ KAPI b8 engine_create(struct application* game_inst);
  * @returns True on success; otherwise false.
  */
 KAPI b8 engine_run();
+
+void engine_on_event_system_initialized();

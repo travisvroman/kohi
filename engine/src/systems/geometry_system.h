@@ -62,10 +62,10 @@ typedef struct geometry_config {
  *
  * @param memory_requirement A pointer to hold the memory requirement as it is calculated.
  * @param state A block of memory to hold the state or, if gathering the memory requirement, 0.
- * @param config The configuration for this system.
+ * @param config The configuration (geometry_system_config) for this system.
  * @return True on success; otherwise false.
  */
-b8 geometry_system_initialize(u64* memory_requirement, void* state, geometry_system_config config);
+b8 geometry_system_initialize(u64* memory_requirement, void* state, void* config);
 
 /**
  * @brief Shuts down the geometry system.

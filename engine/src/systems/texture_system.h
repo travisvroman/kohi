@@ -41,10 +41,10 @@ typedef struct texture_system_config {
  *
  * @param memory_requirement A pointer to hold the memory requirement as it is calculated.
  * @param state A block of memory to hold the state or, if gathering the memory requirement, 0.
- * @param config The configuration for this system.
+ * @param config The configuration (texture_system_config) for this system.
  * @return True on success; otherwise false.
  */
-b8 texture_system_initialize(u64* memory_requirement, void* state, texture_system_config config);
+b8 texture_system_initialize(u64* memory_requirement, void* state, void* config);
 
 /**
  * @brief Shuts down the texture system.

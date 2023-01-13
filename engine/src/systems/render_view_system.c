@@ -21,16 +21,17 @@ typedef struct render_view_system_state {
 
 static render_view_system_state* state_ptr = 0;
 
-b8 render_view_system_initialize(u64* memory_requirement, void* state, render_view_system_config config) {
-    if (config.max_view_count == 0) {
+b8 render_view_system_initialize(u64* memory_requirement, void* state, void* config) {
+    render_view_system_config* typed_config = (render_view_system_config*)config;
+    if (typed_config->max_view_count == 0) {
         KFATAL("render_view_system_initialize - config.max_view_count must be > 0.");
         return false;
     }
 
     // Block of memory will contain state structure, then block for hashtable, then block for array.
     u64 struct_requirement = sizeof(render_view_system_state);
-    u64 hashtable_requirement = sizeof(u16) * config.max_view_count;
-    u64 array_requirement = sizeof(render_view) * config.max_view_count;
+    u64 hashtable_requirement = sizeof(u16) * typed_config->max_view_count;
+    u64 array_requirement = sizeof(render_view) * typed_config->max_view_count;
     *memory_requirement = struct_requirement + hashtable_requirement + array_requirement;
 
     if (!state) {
@@ -38,7 +39,7 @@ b8 render_view_system_initialize(u64* memory_requirement, void* state, render_vi
     }
 
     state_ptr = state;
-    state_ptr->max_view_count = config.max_view_count;
+    state_ptr->max_view_count = typed_config->max_view_count;
 
     // The hashtable block is after the state. Already allocated, so just set the pointer.
     u64 addr = (u64)state_ptr;

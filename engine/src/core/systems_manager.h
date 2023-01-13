@@ -32,6 +32,7 @@ typedef enum k_system_type {
     K_SYSTEM_TYPE_TEXTURE,
     K_SYSTEM_TYPE_FONT,
     K_SYSTEM_TYPE_CAMERA,
+    K_SYSTEM_TYPE_RENDERER,
     K_SYSTEM_TYPE_RENDER_VIEW,
     K_SYSTEM_TYPE_MATERIAL,
     K_SYSTEM_TYPE_GEOMETRY,
@@ -53,6 +54,7 @@ typedef struct systems_manager_state {
 struct application_config;
 
 b8 systems_manager_initialize(systems_manager_state* state, struct application_config* app_config);
+b8 systems_manager_post_boot_initialize(systems_manager_state* state, struct application_config* app_config);
 void systems_manager_shutdown(systems_manager_state* state);
 
 b8 systems_manager_update(systems_manager_state* state, u32 delta_time);
