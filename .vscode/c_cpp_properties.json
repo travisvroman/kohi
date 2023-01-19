@@ -4,6 +4,7 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/engine/src/**",
+                "${workspaceFolder}/vulkan_renderer/src/**",
                 "${VULKAN_SDK}/include"
             ],
             "defines": [
@@ -22,6 +23,7 @@
             "name": "Mac",
             "includePath": [
                 "${workspaceFolder}/engine/src/**",
+                "${workspaceFolder}/vulkan_renderer/src/**",
                 "${VULKAN_SDK}/include"
             ],
             "defines": [
@@ -39,6 +41,7 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/engine/src/**",
+                "${workspaceFolder}/vulkan_renderer/src/**",
                 "${VULKAN_SDK}/include"
             ],
             "defines": [
