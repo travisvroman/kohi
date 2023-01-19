@@ -4,6 +4,8 @@
 #include <core/logger.h>
 #include <core/kmemory.h>
 #include <core/kstring.h>
+#include <core/kvar.h>
+#include <core/console.h>
 #include <renderer/renderer_frontend.h>
 #include "debug_console.h"
 
@@ -158,10 +160,19 @@ void game_on_debug_cam_position(keys key, keymap_entry_bind_type type, keymap_mo
         state->world_camera->position.z);
 }
 
-void game_on_debug_vsync_toggle(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+static void toggle_vsync() {
     b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
     vsync_enabled = !vsync_enabled;
     renderer_flag_set_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
+}
+
+void game_on_debug_vsync_toggle(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    char cmd[30];
+    string_ncopy(cmd, "kvar_set_int vsync 0", 29);
+    b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
+    u32 length = string_length(cmd);
+    cmd[length - 1] = vsync_enabled ? '1' : '0';
+    console_execute_command(cmd);
 }
 
 void game_print_memory_metrics(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
@@ -174,7 +185,16 @@ void game_print_memory_metrics(keys key, keymap_entry_bind_type type, keymap_mod
     KDEBUG("Allocations: %llu (%llu this frame)", state->alloc_count, state->alloc_count - state->prev_alloc_count);
 }
 
+static b8 game_on_kvar_changed(u16 code, void* sender, void* listener_inst, event_context data) {
+    if (code == EVENT_CODE_KVAR_CHANGED && strings_equali(data.data.c, "vsync")) {
+        toggle_vsync();
+    }
+    return false;
+}
+
 void game_setup_keymaps(application* game_inst) {
+    event_register(EVENT_CODE_KVAR_CHANGED, 0, game_on_kvar_changed);
+
     // Global keymap
     keymap global_keymap = keymap_create();
     keymap_binding_add(&global_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_escape_callback);

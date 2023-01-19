@@ -3,6 +3,7 @@
 #include "core/kmemory.h"
 #include "core/logger.h"
 #include "core/kstring.h"
+#include "core/event.h"
 
 #include "core/console.h"
 
@@ -95,6 +96,10 @@ b8 kvar_set_int(const char* name, i32 value) {
         kvar_int_entry* entry = &state_ptr->ints[i];
         if (entry->name && strings_equali(name, entry->name)) {
             entry->value = value;
+            // TODO: also pass type?
+            event_context context = {0};
+            string_ncopy(context.data.c, name, 16);
+            event_fire(EVENT_CODE_KVAR_CHANGED, 0, context);
             return true;
         }
     }

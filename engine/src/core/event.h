@@ -187,6 +187,11 @@ typedef enum system_event_code {
      */
     EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED = 0x16,
 
+    /**
+     * @brief An event fired by the kvar system when a kvar has been updated.
+     */
+    EVENT_CODE_KVAR_CHANGED = 0x17,
+
     /** @brief The maximum event code that can be used internally. */
     MAX_EVENT_CODE = 0xFF
 } system_event_code;
