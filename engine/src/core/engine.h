@@ -45,6 +45,8 @@ typedef struct application_config {
 
     /** @brief A darray of render view configurations. */
     render_view_config* render_views;
+
+    renderer_plugin renderer_plugin;
 } application_config;
 
 /**

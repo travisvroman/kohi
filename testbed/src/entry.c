@@ -4,17 +4,10 @@
 
 #include <core/kmemory.h>
 
-// TODO: remove temp
-#include <vulkan_main.h>
+#include "vulkan_renderer_plugin_main.h"
 
 // Define the function to create a game
 b8 create_application(application* out_game) {
-
-    u32 testnum = test_get_int();
-    if(testnum) {
-        
-    }
-
     // Application configuration.
     out_game->app_config.start_pos_x = 100;
     out_game->app_config.start_pos_y = 100;
@@ -33,6 +26,10 @@ b8 create_application(application* out_game) {
     out_game->state = 0;
 
     out_game->engine_state = 0;
+
+    if (!vulkan_renderer_plugin_create(&out_game->render_plugin)) {
+        return false;
+    }
 
     return true;
 }

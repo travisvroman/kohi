@@ -29,8 +29,7 @@ make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=versiongen
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Engine
-REM TODO: Remove vulkan from additional linker/include flags.
-make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=engine VER_MAJOR=0 VER_MINOR=1 DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="-I%VULKAN_SDK%\include" ADDL_LINK_FLAGS="-lvulkan-1 -L%VULKAN_SDK%\Lib"
+make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=engine VER_MAJOR=0 VER_MINOR=1 DO_VERSION=%DO_VERSION%
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Vulkan Renderer lib
