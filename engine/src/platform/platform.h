@@ -141,3 +141,13 @@ void platform_sleep(u64 ms);
  * @return The number of logical processor cores.
  */
 i32 platform_get_processor_count();
+
+/**
+ * @brief Obtains the required memory amount for platform-specific handle data,
+ * and optionally obtains a copy of that data. Call twice, once with memory=0
+ * to obtain size, then a second time where memory = allocated block.
+ *
+ * @param out_size A pointer to hold the memory requirement.
+ * @param memory Allocated block of memory.
+ */
+KAPI void platform_get_handle_info(u64* out_size, void* memory);

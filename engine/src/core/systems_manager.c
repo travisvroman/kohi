@@ -162,6 +162,7 @@ b8 register_known_systems_pre_boot(systems_manager_state* state, application_con
     // Renderer system
     renderer_system_config renderer_sys_config = {0};
     renderer_sys_config.application_name = app_config->name;
+    renderer_sys_config.plugin = app_config->renderer_plugin;
     if (!systems_manager_register(state, K_SYSTEM_TYPE_RENDERER, renderer_system_initialize, renderer_system_shutdown, 0, &renderer_sys_config)) {
         KERROR("Failed to register renderer system.");
         return false;

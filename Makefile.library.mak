@@ -1,7 +1,8 @@
 BUILD_DIR := bin
 OBJ_DIR := obj
 
-ASSEMBLY := engine
+# Needs to be set by the caller.
+# ASSEMBLY := engine
 
 DEFINES := -DKEXPORT
 
@@ -11,8 +12,8 @@ ifeq ($(OS),Windows_NT)
 	BUILD_PLATFORM := windows
 	EXTENSION := .dll
 	COMPILER_FLAGS := -Wall -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec
-	INCLUDE_FLAGS := -Iengine\src -I$(VULKAN_SDK)\include
-	LINKER_FLAGS := -shared -luser32 -lvulkan-1 -L$(VULKAN_SDK)\Lib -L$(OBJ_DIR)\engine
+	INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
+	LINKER_FLAGS := -shared -luser32 -L$(OBJ_DIR)\$(ASSEMBLY) -L.\$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 	DEFINES += -D_CRT_SECURE_NO_WARNINGS
 
 # Make does not offer a recursive wildcard function, and Windows needs one, so here it is:
@@ -41,8 +42,8 @@ else
 		BUILD_PLATFORM := linux
 		EXTENSION := .so
 		COMPILER_FLAGS := -Wall -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC
-		INCLUDE_FLAGS := -Iengine/src -I$(VULKAN_SDK)/include
-		LINKER_FLAGS := -shared -lvulkan -lxcb -lX11 -lX11-xcb -lxkbcommon -L$(VULKAN_SDK)/lib -L/usr/X11R6/lib
+		INCLUDE_FLAGS := -I$(ASSEMBLY)/src -I$(VULKAN_SDK)/include $(ADDL_INC_FLAGS)
+		LINKER_FLAGS := -shared -lvulkan -lxcb -lX11 -lX11-xcb -lxkbcommon -L$(VULKAN_SDK)/lib -L/usr/X11R6/lib -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
 		# directories with .h files
@@ -54,8 +55,8 @@ else
 		BUILD_PLATFORM := macos
 		EXTENSION := .dylib
 		COMPILER_FLAGS := -Wall -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC -ObjC
-		INCLUDE_FLAGS := -Iengine/src
-		LINKER_FLAGS := -shared -dynamiclib -install_name @rpath/libengine.dylib -lvulkan -lobjc -framework AppKit -framework QuartzCore
+		INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
+		LINKER_FLAGS := -shared -dynamiclib -install_name @rpath/lib$(ASSEMBLY).dylib -lvulkan -lobjc -framework AppKit -framework QuartzCore -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 		# .c and .m files
 		SRC_FILES := $(shell find $(ASSEMBLY) -type f \( -name "*.c" -o -name "*.m" \))
 		# directories with .h files
@@ -107,18 +108,19 @@ else
 	@mkdir -p $(addprefix $(OBJ_DIR)/,$(DIRECTORIES))
 endif
 
-# Generate version file
-ifeq ($(BUILD_PLATFORM),windows)
-	@if exist $(VERFILE) del $(VERFILE)
-# Write out the version file.
-	@echo $(VER_COMMENT)\n > $(VERFILE)
-	@echo #define KVERSION "$(KVERSION)" >> $(VERFILE)
-else
-	@rm -rf $(VERFILE)
-# Write out the version file.
-	@echo $(VER_COMMENT)\n > $(VERFILE)
-	@echo "#define KVERSION \"$(KVERSION)\"" >> $(VERFILE)
-endif
+# TODO: re-enable this conditionally
+# # Generate version file
+# ifeq ($(BUILD_PLATFORM),windows)
+# 	@if exist $(VERFILE) del $(VERFILE)
+# # Write out the version file.
+# 	@echo $(VER_COMMENT)\n > $(VERFILE)
+# 	@echo #define KVERSION "$(KVERSION)" >> $(VERFILE)
+# else
+# 	@rm -rf $(VERFILE)
+# # Write out the version file.
+# 	@echo $(VER_COMMENT)\n > $(VERFILE)
+# 	@echo "#define KVERSION \"$(KVERSION)\"" >> $(VERFILE)
+# endif
 
 .PHONY: link
 link: scaffold $(OBJ_FILES) # link

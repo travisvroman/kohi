@@ -5,24 +5,14 @@ OBJ_DIR := obj
 
 DEFINES := -DKIMPORT
 
-ENGINE_LINK := -lengine
-# HACK: Do not link with engine for version gen.
-ifeq ($(ASSEMBLY),versiongen)
-	ENGINE_LINK =
-endif
-
 # Detect OS and architecture.
 ifeq ($(OS),Windows_NT)
     # WIN32
 	BUILD_PLATFORM := windows
 	EXTENSION := .exe
 	COMPILER_FLAGS := -Wall -Werror -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec
-	INCLUDE_FLAGS := -Iengine\src -I$(ASSEMBLY)\src 
-# 	Because Windows requires the .lib extension...
-	ifneq ($(ENGINE_LINK),)
-		ENGINE_LINK :=$(ENGINE_LINK).lib
-	endif
-	LINKER_FLAGS := $(ENGINE_LINK) -L$(OBJ_DIR)\engine -L$(BUILD_DIR)
+	INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
+	LINKER_FLAGS := -L$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 	DEFINES += -D_CRT_SECURE_NO_WARNINGS
 
 # Make does not offer a recursive wildcard function, and Windows needs one, so here it is:
@@ -51,8 +41,8 @@ else
 		BUILD_PLATFORM := linux
 		EXTENSION := 
 		COMPILER_FLAGS := -Wall -Werror -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC
-		INCLUDE_FLAGS := -Iengine/src -I$(ASSEMBLY)\src 
-		LINKER_FLAGS := -L./$(BUILD_DIR) $(ENGINE_LINK) -Wl,-rpath,.
+		INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
+		LINKER_FLAGS := -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Wl,-rpath,.
 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
 		# directories with .h files
@@ -64,8 +54,8 @@ else
 		BUILD_PLATFORM := macos
 		EXTENSION := 
 		COMPILER_FLAGS := -Wall -Werror -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC
-		INCLUDE_FLAGS := -Iengine/src -I$(ASSEMBLY)\src 
-		LINKER_FLAGS := -L./$(BUILD_DIR) $(ENGINE_LINK) -Wl,-rpath,.
+		INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
+		LINKER_FLAGS := -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Wl,-rpath,.
 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
 		# directories with .h files
@@ -105,6 +95,7 @@ else
 	@mkdir -p $(BUILD_DIR)
 	@mkdir -p $(addprefix $(OBJ_DIR)/,$(DIRECTORIES))
 endif
+
 
 .PHONY: link
 link: scaffold $(OBJ_FILES) # link

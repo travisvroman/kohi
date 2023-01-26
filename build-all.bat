@@ -29,19 +29,23 @@ make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=versiongen
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Engine
-make -f "Makefile.engine.mak" %ACTION% TARGET=%TARGET% VER_MAJOR=0 VER_MINOR=1 DO_VERSION=%DO_VERSION%
+make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=engine VER_MAJOR=0 VER_MINOR=1 DO_VERSION=%DO_VERSION%
+IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
+
+REM Vulkan Renderer lib
+make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=vulkan_renderer VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-Iengine\src -I%VULKAN_SDK%\include" ADDL_LINK_FLAGS="-lengine -lvulkan-1 -L%VULKAN_SDK%\Lib"
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Testbed
-make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed
+make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed ADDL_INC_FLAGS="-Iengine\src -Ivulkan_renderer\src" ADDL_LINK_FLAGS="-lengine -lvulkan_renderer"
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Tests
-make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=tests
+make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=tests ADDL_INC_FLAGS=-Iengine\src ADDL_LINK_FLAGS=-lengine
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Tools
-make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=tools
+make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=tools ADDL_INC_FLAGS=-Iengine\src ADDL_LINK_FLAGS=-lengine
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 ECHO All assemblies %ACTION_STR_PAST% successfully on %PLATFORM% (%TARGET%).
