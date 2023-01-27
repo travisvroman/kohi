@@ -55,8 +55,8 @@ else
 		BUILD_PLATFORM := macos
 		EXTENSION := .dylib
 		COMPILER_FLAGS := -Wall -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC -ObjC
-		INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
-		LINKER_FLAGS := -shared -dynamiclib -install_name @rpath/lib$(ASSEMBLY).dylib -lvulkan -lobjc -framework AppKit -framework QuartzCore -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS)
+		INCLUDE_FLAGS := -I$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
+		LINKER_FLAGS := -shared -dynamiclib -install_name @rpath/lib$(ASSEMBLY).dylib -lobjc -framework AppKit -framework QuartzCore -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 		# .c and .m files
 		SRC_FILES := $(shell find $(ASSEMBLY) -type f \( -name "*.c" -o -name "*.m" \))
 		# directories with .h files

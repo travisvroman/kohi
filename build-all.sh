@@ -33,7 +33,7 @@ echo "Error:"$ERRORLEVEL && exit
 fi
 
 # Engine
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=engine VER_MAJOR=0 VER_MINOR=1 DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="-I$VULKAN_SDK/include" ADDL_LINK_FLAGS="-lvulkan-1 -L$VULKAN_SDK/Lib"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=engine VER_MAJOR=0 VER_MINOR=1 DO_VERSION=$DO_VERSION
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -41,7 +41,11 @@ echo "Error:"$ERRORLEVEL && exit
 fi
 
 # Vulkan Renderer Lib
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=vulkan_renderer VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-Iengine/src -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="-lengine -lvulkan-1 -L$VULKAN_SDK/Lib"
+if [ $PLATFORM = 'macos' ]
+then
+   VULKAN_SDK=/usr/local/
+fi
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=vulkan_renderer VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-Iengine/src -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="-lengine -lvulkan -L$VULKAN_SDK/lib"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -49,7 +53,7 @@ echo "Error:"$ERRORLEVEL && exit
 fi
 
 # Testbed
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed ADDL_INC_FLAGS="-Iengine\src -Ivulkan_renderer\src" ADDL_LINK_FLAGS="-lengine -lvulkan_renderer"
+make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed ADDL_INC_FLAGS="-Iengine/src -Ivulkan_renderer/src" ADDL_LINK_FLAGS="-lengine -lvulkan_renderer"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -57,7 +61,7 @@ echo "Error:"$ERRORLEVEL && exit
 fi
 
 # Tests
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tests ADDL_INC_FLAGS=-Iengine/src ADDL_LINK_FLAGS=-lengine
+make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tests ADDL_INC_FLAGS="-Iengine/src" ADDL_LINK_FLAGS="-lengine"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
