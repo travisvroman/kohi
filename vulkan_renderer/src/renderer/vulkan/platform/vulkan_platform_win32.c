@@ -1,3 +1,7 @@
+
+// Windows platform layer.
+#if KPLATFORM_WINDOWS
+
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <vulkan/vulkan.h>
@@ -44,3 +48,5 @@ b8 platform_create_vulkan_surface(vulkan_context *context) {
 
     return true;
 }
+
+#endif
