@@ -65,24 +65,22 @@ b8 systems_manager_register(
     PFN_system_shutdown shutdown,
     PFN_system_update update,
     void* config) {
-    k_system sys = {0};
-    sys.initialize = initialize;
-    sys.shutdown = shutdown;
-    sys.update = update;
+
+    k_system* sys = &state->systems[type];
 
     // Call initialize, alloc memory, call initialize again w/ allocated block.
-    if (sys.initialize) {
-        if (!sys.initialize(&sys.state_size, 0, config)) {
+    if (initialize) {
+        sys->initialize = initialize;
+        if (!sys->initialize(&sys->state_size, 0, config)) {
             KERROR("Failed to register system - initialize call failed.");
             return false;
         }
 
-        sys.state = linear_allocator_allocate(&state->systems_allocator, sys.state_size);
-        state->systems[type] = sys;
+        sys->state = linear_allocator_allocate(&state->systems_allocator, sys->state_size);
 
-        if (!sys.initialize(&sys.state_size, sys.state, config)) {
+        if (!sys->initialize(&sys->state_size, sys->state, config)) {
             KERROR("Failed to register system - initialize call failed.");
-            kzero_memory(&state->systems[type], sizeof(k_system));
+            kzero_memory(sys, sizeof(k_system));
             return false;
         }
     } else {
@@ -91,6 +89,9 @@ b8 systems_manager_register(
             return false;
         }
     }
+
+    sys->shutdown = shutdown;
+    sys->update = update;
 
     return true;
 }
