@@ -8,6 +8,7 @@
 #include "core/input.h"
 #include "core/kthread.h"
 #include "core/kmutex.h"
+#include "core/kmemory.h"
 
 #include "containers/darray.h"
 
@@ -32,19 +33,17 @@
 #include <stdio.h>
 #include <string.h>
 
-// For surface creation
-#define VK_USE_PLATFORM_XCB_KHR
-#include <vulkan/vulkan.h>
-#include "renderer/vulkan/vulkan_types.inl"
+typedef struct linux_handle_info {
+    xcb_connection_t* connection;
+    xcb_window_t window;
+} linux_handle_info;
 
 typedef struct platform_state {
     Display* display;
-    xcb_connection_t* connection;
-    xcb_window_t window;
+    linux_handle_info handle;
     xcb_screen_t* screen;
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_win;
-    VkSurfaceKHR surface;
 } platform_state;
 
 static platform_state* state_ptr;
@@ -68,15 +67,15 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
     XAutoRepeatOff(state_ptr->display);
 
     // Retrieve the connection from the display.
-    state_ptr->connection = XGetXCBConnection(state_ptr->display);
+    state_ptr->handle.connection = XGetXCBConnection(state_ptr->display);
 
-    if (xcb_connection_has_error(state_ptr->connection)) {
+    if (xcb_connection_has_error(state_ptr->handle.connection)) {
         KFATAL("Failed to connect to X server via XCB.");
         return false;
     }
 
     // Get data from the X server
-    const struct xcb_setup_t* setup = xcb_get_setup(state_ptr->connection);
+    const struct xcb_setup_t* setup = xcb_get_setup(state_ptr->handle.connection);
 
     // Loop through screens using iterator
     xcb_screen_iterator_t it = xcb_setup_roots_iterator(setup);
@@ -89,7 +88,7 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
     state_ptr->screen = it.data;
 
     // Allocate a XID for the window to be created.
-    state_ptr->window = xcb_generate_id(state_ptr->connection);
+    state_ptr->handle.window = xcb_generate_id(state_ptr->handle.connection);
 
     // Register event types.
     // XCB_CW_BACK_PIXEL = filling then window bg with a single colour
@@ -107,9 +106,9 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
 
     // Create the window
     xcb_create_window(
-        state_ptr->connection,
+        state_ptr->handle.connection,
         XCB_COPY_FROM_PARENT,  // depth
-        state_ptr->window,
+        state_ptr->handle.window,
         state_ptr->screen->root,        // parent
         typed_config->x,                              // x
         typed_config->y,                              // y
@@ -123,9 +122,9 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
 
     // Change the title
     xcb_change_property(
-        state_ptr->connection,
+        state_ptr->handle.connection,
         XCB_PROP_MODE_REPLACE,
-        state_ptr->window,
+        state_ptr->handle.window,
         XCB_ATOM_WM_NAME,
         XCB_ATOM_STRING,
         8,  // data should be viewed 8 bits at a time
@@ -135,30 +134,30 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
     // Tell the server to notify when the window manager
     // attempts to destroy the window.
     xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(
-        state_ptr->connection,
+        state_ptr->handle.connection,
         0,
         strlen("WM_DELETE_WINDOW"),
         "WM_DELETE_WINDOW");
     xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(
-        state_ptr->connection,
+        state_ptr->handle.connection,
         0,
         strlen("WM_PROTOCOLS"),
         "WM_PROTOCOLS");
     xcb_intern_atom_reply_t* wm_delete_reply = xcb_intern_atom_reply(
-        state_ptr->connection,
+        state_ptr->handle.connection,
         wm_delete_cookie,
         NULL);
     xcb_intern_atom_reply_t* wm_protocols_reply = xcb_intern_atom_reply(
-        state_ptr->connection,
+        state_ptr->handle.connection,
         wm_protocols_cookie,
         NULL);
     state_ptr->wm_delete_win = wm_delete_reply->atom;
     state_ptr->wm_protocols = wm_protocols_reply->atom;
 
     xcb_change_property(
-        state_ptr->connection,
+        state_ptr->handle.connection,
         XCB_PROP_MODE_REPLACE,
-        state_ptr->window,
+        state_ptr->handle.window,
         wm_protocols_reply->atom,
         4,
         32,
@@ -166,10 +165,10 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
         &wm_delete_reply->atom);
 
     // Map the window to the screen
-    xcb_map_window(state_ptr->connection, state_ptr->window);
+    xcb_map_window(state_ptr->handle.connection, state_ptr->handle.window);
 
     // Flush the stream
-    i32 stream_result = xcb_flush(state_ptr->connection);
+    i32 stream_result = xcb_flush(state_ptr->handle.connection);
     if (stream_result <= 0) {
         KFATAL("An error occurred when flusing the stream: %d", stream_result);
         return false;
@@ -183,7 +182,7 @@ void platform_system_shutdown(void* plat_state) {
         // Turn key repeats back on since this is global for the OS... just... wow.
         XAutoRepeatOn(state_ptr->display);
 
-        xcb_destroy_window(state_ptr->connection, state_ptr->window);
+        xcb_destroy_window(state_ptr->handle.connection, state_ptr->handle.window);
     }
 }
 
@@ -195,7 +194,7 @@ b8 platform_pump_messages() {
         b8 quit_flagged = false;
 
         // Poll for events until null is returned.
-        while ((event = xcb_poll_for_event(state_ptr->connection))) {
+        while ((event = xcb_poll_for_event(state_ptr->handle.connection))) {
             // Input events
             switch (event->response_type & ~0x80) {
                 case XCB_KEY_PRESS:
@@ -332,6 +331,16 @@ i32 platform_get_processor_count() {
     i32 processors_available = get_nprocs();
     KINFO("%i processor cores detected, %i cores available.", processor_count, processors_available);
     return processors_available;
+}
+
+void platform_get_handle_info(u64 *out_size, void *memory) {
+
+    *out_size = sizeof(linux_handle_info);
+    if (!memory) {
+        return;
+    }
+
+    kcopy_memory(memory, &state_ptr->handle, *out_size);
 }
 
 // NOTE: Begin threads.
@@ -539,34 +548,6 @@ b8 kmutex_unlock(kmutex* mutex) {
     return false;
 }
 // NOTE: End mutexes
-
-void platform_get_required_extension_names(const char*** names_darray) {
-    darray_push(*names_darray, &"VK_KHR_xcb_surface");  // VK_KHR_xlib_surface?
-}
-
-// Surface creation for Vulkan
-b8 platform_create_vulkan_surface(vulkan_context* context) {
-    if (!state_ptr) {
-        return false;
-    }
-
-    VkXcbSurfaceCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR};
-    create_info.connection = state_ptr->connection;
-    create_info.window = state_ptr->window;
-
-    VkResult result = vkCreateXcbSurfaceKHR(
-        context->instance,
-        &create_info,
-        context->allocator,
-        &state_ptr->surface);
-    if (result != VK_SUCCESS) {
-        KFATAL("Vulkan surface creation failed.");
-        return false;
-    }
-
-    context->surface = state_ptr->surface;
-    return true;
-}
 
 // Key translation
 keys translate_keycode(u32 x_keycode) {
