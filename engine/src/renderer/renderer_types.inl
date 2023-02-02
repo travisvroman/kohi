@@ -191,30 +191,39 @@ typedef struct renderer_plugin {
     u64 frame_number;
 
     /**
+     * @brief The size of the plugin-specific renderer context.
+     */
+    u64 internal_context_size;
+    /**
+     * @brief The plugin-specific renderer context.
+     */
+    void* internal_context;
+
+    /**
      * @brief Initializes the backend.
      *
-     * @param backend A pointer to the generic backend interface.
+     * @param plugin A pointer to the renderer plugin interface.
      * @param config A pointer to configuration to be used when initializing the backend.
      * @param out_window_render_target_count A pointer to hold how many render targets are needed for renderpasses targeting the window.
      * @return True if initialized successfully; otherwise false.
      */
-    b8 (*initialize)(struct renderer_plugin* backend, const renderer_backend_config* config, u8* out_window_render_target_count);
+    b8 (*initialize)(struct renderer_plugin* plugin, const renderer_backend_config* config, u8* out_window_render_target_count);
 
     /**
      * @brief Shuts the renderer backend down.
      *
-     * @param backend A pointer to the generic backend interface.
+     * @param plugin A pointer to the renderer plugin interface.
      */
-    void (*shutdown)(struct renderer_plugin* backend);
+    void (*shutdown)(struct renderer_plugin* plugin);
 
     /**
      * @brief Handles window resizes.
      *
-     * @param backend A pointer to the generic backend interface.
+     * @param plugin A pointer to the renderer plugin interface.
      * @param width The new window width.
      * @param height The new window height.
      */
-    void (*resized)(struct renderer_plugin* backend, u16 width, u16 height);
+    void (*resized)(struct renderer_plugin* plugin, u16 width, u16 height);
 
     /**
      * @brief Performs setup routines required at the start of a frame.
@@ -222,104 +231,117 @@ typedef struct renderer_plugin {
      * the backend is simply not in a state capable of drawing a frame at the moment, and
      * that it should be attempted again on the next loop. End frame does not need to (and
      * should not) be called if this is the case.
-     * @param backend A pointer to the generic backend interface.
+     * @param plugin A pointer to the renderer plugin interface.
      * @param delta_time The time in seconds since the last frame.
      * @return True if successful; otherwise false.
      */
-    b8 (*begin_frame)(struct renderer_plugin* backend, f32 delta_time);
+    b8 (*begin_frame)(struct renderer_plugin* plugin, f32 delta_time);
 
     /**
      * @brief Performs routines required to draw a frame, such as presentation. Should only be called
      * after a successful return of begin_frame.
      *
-     * @param backend A pointer to the generic backend interface.
+     * @param plugin A pointer to the renderer plugin interface.
      * @param delta_time The time in seconds since the last frame.
      * @return True on success; otherwise false.
      */
-    b8 (*end_frame)(struct renderer_plugin* backend, f32 delta_time);
+    b8 (*end_frame)(struct renderer_plugin* plugin, f32 delta_time);
 
     /**
      * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param rect The viewport rectangle to be set.
      */
-    void (*viewport_set)(vec4 rect);
+    void (*viewport_set)(struct renderer_plugin* plugin, vec4 rect);
 
     /**
      * @brief Resets the viewport to the default, which matches the application window.
      * Must be done within a renderpass.
+     * @param plugin A pointer to the renderer plugin interface.
+     * 
      */
-    void (*viewport_reset)();
+    void (*viewport_reset)(struct renderer_plugin* plugin);
 
     /**
      * @brief Sets the renderer scissor to the given rectangle. Must be done within a renderpass.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param rect The scissor rectangle to be set.
      */
-    void (*scissor_set)(vec4 rect);
+    void (*scissor_set)(struct renderer_plugin* plugin, vec4 rect);
 
     /**
      * @brief Resets the scissor to the default, which matches the application window.
      * Must be done within a renderpass.
+     * 
+     * @param plugin A pointer to the renderer plugin interface.
      */
-    void (*scissor_reset)();
+    void (*scissor_reset)(struct renderer_plugin* plugin);
 
     /**
      * @brief Begins a renderpass with the given id.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param pass A pointer to the renderpass to begin.
      * @param target A pointer to the render target to be used.
      * @return True on success; otherwise false.
      */
-    b8 (*renderpass_begin)(renderpass* pass, render_target* target);
+    b8 (*renderpass_begin)(struct renderer_plugin* plugin, renderpass* pass, render_target* target);
 
     /**
      * @brief Ends a renderpass with the given id.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param pass A pointer to the renderpass to end.
      * @return True on success; otherwise false.
      */
-    b8 (*renderpass_end)(renderpass* pass);
+    b8 (*renderpass_end)(struct renderer_plugin* plugin, renderpass* pass);
 
     /**
      * @brief Draws the given geometry. Should only be called inside a renderpass, within a frame.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param data A pointer to the render data of the geometry to be drawn.
      */
-    void (*draw_geometry)(geometry_render_data* data);
+    void (*draw_geometry)(struct renderer_plugin* plugin, geometry_render_data* data);
 
     /**
      * @brief Creates a Vulkan-specific texture, acquiring internal resources as needed.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param pixels The raw image data used for the texture.
      * @param texture A pointer to the texture to hold the resources.
      */
-    void (*texture_create)(const u8* pixels, struct texture* texture);
+    void (*texture_create)(struct renderer_plugin* plugin, const u8* pixels, struct texture* texture);
 
     /**
      * @brief Destroys the given texture, releasing internal resources.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param texture A pointer to the texture to be destroyed.
      */
-    void (*texture_destroy)(struct texture* texture);
+    void (*texture_destroy)(struct renderer_plugin* plugin, struct texture* texture);
 
     /**
      * @brief Creates a new writeable texture with no data written to it.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param t A pointer to the texture to hold the resources.
      */
-    void (*texture_create_writeable)(texture* t);
+    void (*texture_create_writeable)(struct renderer_plugin* plugin, texture* t);
 
     /**
      * @brief Resizes a texture. There is no check at this level to see if the
      * texture is writeable. Internal resources are destroyed and re-created at
      * the new resolution. Data is lost and would need to be reloaded.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param t A pointer to the texture to be resized.
      * @param new_width The new width in pixels.
      * @param new_height The new height in pixels.
      */
-    void (*texture_resize)(texture* t, u32 new_width, u32 new_height);
+    void (*texture_resize)(struct renderer_plugin* plugin, texture* t, u32 new_width, u32 new_height);
 
     /**
      * @brief Writes the given data to the provided texture.
@@ -327,37 +349,41 @@ typedef struct renderer_plugin {
      * this also handles the initial texture load. The texture system itself should be
      * responsible for blocking write requests to non-writeable textures.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param t A pointer to the texture to be written to.
      * @param offset The offset in bytes from the beginning of the data to be written.
      * @param size The number of bytes to be written.
      * @param pixels The raw image data to be written.
      */
-    void (*texture_write_data)(texture* t, u32 offset, u32 size, const u8* pixels);
+    void (*texture_write_data)(struct renderer_plugin* plugin, texture* t, u32 offset, u32 size, const u8* pixels);
 
     /**
      * @brief Reads the given data from the provided texture.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param t A pointer to the texture to be read from.
      * @param offset The offset in bytes from the beginning of the data to be read.
      * @param size The number of bytes to be read.
      * @param out_memory A pointer to a block of memory to write the read data to.
      */
-    void (*texture_read_data)(texture* t, u32 offset, u32 size, void** out_memory);
+    void (*texture_read_data)(struct renderer_plugin* plugin, texture* t, u32 offset, u32 size, void** out_memory);
 
     /**
      * @brief Reads a pixel from the provided texture at the given x/y coordinate.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param t A pointer to the texture to be read from.
      * @param x The pixel x-coordinate.
      * @param y The pixel y-coordinate.
      * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
      */
-    void (*texture_read_pixel)(texture* t, u32 x, u32 y, u8** out_rgba);
+    void (*texture_read_pixel)(struct renderer_plugin* plugin, texture* t, u32 x, u32 y, u8** out_rgba);
 
     /**
      * @brief Creates Vulkan-specific internal resources for the given geometry using
      * the data provided.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param geometry A pointer to the geometry to be created.
      * @param vertex_size The size of a single vertex.
      * @param vertex_count The total number of vertices.
@@ -367,18 +393,20 @@ typedef struct renderer_plugin {
      * @param indices An array of indices.
      * @return True on success; otherwise false.
      */
-    b8 (*create_geometry)(geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
+    b8 (*create_geometry)(struct renderer_plugin* plugin, geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
 
     /**
      * @brief Destroys the given geometry, releasing internal resources.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param geometry A pointer to the geometry to be destroyed.
      */
-    void (*destroy_geometry)(geometry* geometry);
+    void (*destroy_geometry)(struct renderer_plugin* plugin, geometry* geometry);
 
     /**
      * @brief Creates internal shader resources using the provided parameters.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader.
      * @param config A constant pointer to the shader config.
      * @param pass A pointer to the renderpass to be associated with the shader.
@@ -387,113 +415,127 @@ typedef struct renderer_plugin {
      * @param stages A array of shader_stages indicating what render stages (vertex, fragment, etc.) used in this shader.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct shader* shader, const shader_config* config, renderpass* pass, u8 stage_count, const char** stage_filenames, shader_stage* stages);
+    b8 (*shader_create)(struct renderer_plugin* plugin, struct shader* shader, const shader_config* config, renderpass* pass, u8 stage_count, const char** stage_filenames, shader_stage* stages);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
+     * 
+     * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader to be destroyed.
      */
-    void (*shader_destroy)(struct shader* shader);
+    void (*shader_destroy)(struct renderer_plugin* plugin, struct shader* shader);
 
     /**
      * @brief Initializes a configured shader. Will be automatically destroyed if this step fails.
      * Must be done after vulkan_shader_create().
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader to be initialized.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_initialize)(struct shader* shader);
+    b8 (*shader_initialize)(struct renderer_plugin* plugin, struct shader* shader);
 
     /**
      * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
      * and for use in draw calls.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader to be used.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_use)(struct shader* shader);
+    b8 (*shader_use)(struct renderer_plugin* plugin, struct shader* shader);
 
     /**
      * @brief Binds global resources for use and updating.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader whose globals are to be bound.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_bind_globals)(struct shader* s);
+    b8 (*shader_bind_globals)(struct renderer_plugin* plugin, struct shader* s);
 
     /**
      * @brief Binds instance resources for use and updating.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader whose instance resources are to be bound.
      * @param instance_id The identifier of the instance to be bound.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_bind_instance)(struct shader* s, u32 instance_id);
+    b8 (*shader_bind_instance)(struct renderer_plugin* plugin, struct shader* s, u32 instance_id);
 
     /**
      * @brief Applies global data to the uniform buffer.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader to apply the global data for.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_globals)(struct shader* s);
+    b8 (*shader_apply_globals)(struct renderer_plugin* plugin, struct shader* s);
 
     /**
      * @brief Applies data for the currently bound instance.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader to apply the instance data for.
      * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_instance)(struct shader* s, b8 needs_update);
+    b8 (*shader_apply_instance)(struct renderer_plugin* plugin, struct shader* s, b8 needs_update);
 
     /**
      * @brief Acquires internal instance-level resources and provides an instance id.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader to acquire resources from.
      * @param maps An array of pointers to texture maps. Must be one map per instance texture.
      * @param out_instance_id A pointer to hold the new instance identifier.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_acquire_instance_resources)(struct shader* s, texture_map** maps, u32* out_instance_id);
+    b8 (*shader_acquire_instance_resources)(struct renderer_plugin* plugin, struct shader* s, texture_map** maps, u32* out_instance_id);
 
     /**
      * @brief Releases internal instance-level resources for the given instance id.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader to release resources from.
      * @param instance_id The instance identifier whose resources are to be released.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_release_instance_resources)(struct shader* s, u32 instance_id);
+    b8 (*shader_release_instance_resources)(struct renderer_plugin* plugin, struct shader* s, u32 instance_id);
 
     /**
      * @brief Sets the uniform of the given shader to the provided value.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param s A ponter to the shader.
      * @param uniform A constant pointer to the uniform.
      * @param value A pointer to the value to be set.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_set_uniform)(struct shader* frontend_shader, struct shader_uniform* uniform, const void* value);
+    b8 (*shader_set_uniform)(struct renderer_plugin* plugin, struct shader* frontend_shader, struct shader_uniform* uniform, const void* value);
 
     /**
      * @brief Acquires internal resources for the given texture map.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param map A pointer to the texture map to obtain resources for.
      * @return True on success; otherwise false.
      */
-    b8 (*texture_map_acquire_resources)(struct texture_map* map);
+    b8 (*texture_map_acquire_resources)(struct renderer_plugin* plugin, struct texture_map* map);
 
     /**
      * @brief Releases internal resources for the given texture map.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param map A pointer to the texture map to release resources from.
      */
-    void (*texture_map_release_resources)(struct texture_map* map);
+    void (*texture_map_release_resources)(struct renderer_plugin* plugin, struct texture_map* map);
 
     /**
      * @brief Creates a new render target using the provided data.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param attachment_count The number of attachments.
      * @param attachments An array of attachments.
      * @param renderpass A pointer to the renderpass the render target is associated with.
@@ -501,171 +543,200 @@ typedef struct renderer_plugin {
      * @param height The height of the render target in pixels.
      * @param out_target A pointer to hold the newly created render target.
      */
-    b8 (*render_target_create)(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
+    b8 (*render_target_create)(struct renderer_plugin* plugin, u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
 
     /**
      * @brief Destroys the provided render target.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param target A pointer to the render target to be destroyed.
      * @param free_internal_memory Indicates if internal memory should be freed.
      */
-    void (*render_target_destroy)(render_target* target, b8 free_internal_memory);
+    void (*render_target_destroy)(struct renderer_plugin* plugin, render_target* target, b8 free_internal_memory);
 
     /**
      * @brief Creates a new renderpass.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param config A constant pointer to the configuration to be used when creating the renderpass.
      * @param out_renderpass A pointer to the generic renderpass.
      */
-    b8 (*renderpass_create)(const renderpass_config* config, renderpass* out_renderpass);
+    b8 (*renderpass_create)(struct renderer_plugin* plugin, const renderpass_config* config, renderpass* out_renderpass);
 
     /**
      * @brief Destroys the given renderpass.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param pass A pointer to the renderpass to be destroyed.
      */
-    void (*renderpass_destroy)(renderpass* pass);
+    void (*renderpass_destroy)(struct renderer_plugin* plugin, renderpass* pass);
 
     /**
      * @brief Attempts to get the window render target at the given index.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param index The index of the attachment to get. Must be within the range of window render target count.
      * @return A pointer to a texture attachment if successful; otherwise 0.
      */
-    texture* (*window_attachment_get)(u8 index);
+    texture* (*window_attachment_get)(struct renderer_plugin* plugin, u8 index);
 
     /**
      * @brief Returns a pointer to the main depth texture target.
+     * 
+     * @param plugin A pointer to the renderer plugin interface.
      * @param index The index of the attachment to get. Must be within the range of window render target count.
      * @return A pointer to a texture attachment if successful; otherwise 0.
      */
-    texture* (*depth_attachment_get)(u8 index);
+    texture* (*depth_attachment_get)(struct renderer_plugin* plugin, u8 index);
 
     /**
      * @brief Returns the current window attachment index.
+     * 
+     * @param plugin A pointer to the renderer plugin interface.
      */
-    u8 (*window_attachment_index_get)();
+    u8 (*window_attachment_index_get)(struct renderer_plugin* plugin);
 
     /**
      * @brief Returns the number of attachments required for window-based render targets.
+     * 
+     * @param plugin A pointer to the renderer plugin interface.
      */
-    u8 (*window_attachment_count_get)();
+    u8 (*window_attachment_count_get)(struct renderer_plugin* plugin);
 
     /**
      * @brief Indicates if the renderer is capable of multi-threading.
+     * 
+     * @param plugin A pointer to the renderer plugin interface.
      */
-    b8 (*is_multithreaded)();
+    b8 (*is_multithreaded)(struct renderer_plugin* plugin);
 
     /**
      * @brief Indicates if the provided renderer flag is enabled. If multiple
      * flags are passed, all must be set for this to return true.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param flag The flag to be checked.
      * @return True if the flag(s) set; otherwise false.
      */
-    b8 (*flag_enabled)(renderer_config_flags flag);
+    b8 (*flag_enabled)(struct renderer_plugin* plugin, renderer_config_flags flag);
     /**
      * @brief Sets whether the included flag(s) are enabled or not. If multiple flags
      * are passed, multiple are set at once.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param flag The flag to be checked.
      * @param enabled Indicates whether or not to enable the flag(s).
      */
-    void (*flag_set_enabled)(renderer_config_flags flag, b8 enabled);
+    void (*flag_set_enabled)(struct renderer_plugin* plugin, renderer_config_flags flag, b8 enabled);
 
     /**
      * @brief Creates and assigns the renderer-backend-specific buffer.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to create the internal buffer for.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_create_internal)(renderbuffer* buffer);
+    b8 (*renderbuffer_create_internal)(struct renderer_plugin* plugin, renderbuffer* buffer);
 
     /**
      * @brief Destroys the given buffer.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to be destroyed.
      */
-    void (*renderbuffer_destroy_internal)(renderbuffer* buffer);
+    void (*renderbuffer_destroy_internal)(struct renderer_plugin* plugin, renderbuffer* buffer);
 
     /**
      * @brief Binds the given buffer at the provided offset.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to bind.
      * @param offset The offset in bytes from the beginning of the buffer.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_bind)(renderbuffer* buffer, u64 offset);
+    b8 (*renderbuffer_bind)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 offset);
     /**
      * @brief Unbinds the given buffer.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to be unbound.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_unbind)(renderbuffer* buffer);
+    b8 (*renderbuffer_unbind)(struct renderer_plugin* plugin, renderbuffer* buffer);
 
     /**
      * @brief Maps memory from the given buffer in the provided range to a block of memory and returns it.
      * This memory should be considered invalid once unmapped.
+     * 
+     * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to map.
      * @param offset The number of bytes from the beginning of the buffer to map.
      * @param size The amount of memory in the buffer to map.
      * @returns A mapped block of memory. Freed and invalid once unmapped.
      */
-    void* (*renderbuffer_map_memory)(renderbuffer* buffer, u64 offset, u64 size);
+    void* (*renderbuffer_map_memory)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 offset, u64 size);
     /**
      * @brief Unmaps memory from the given buffer in the provided range to a block of memory.
      * This memory should be considered invalid once unmapped.
+     * 
+     * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to unmap.
      * @param offset The number of bytes from the beginning of the buffer to unmap.
      * @param size The amount of memory in the buffer to unmap.
      */
-    void (*renderbuffer_unmap_memory)(renderbuffer* buffer, u64 offset, u64 size);
+    void (*renderbuffer_unmap_memory)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 offset, u64 size);
 
     /**
      * @brief Flushes buffer memory at the given range. Should be done after a write.
+     * 
+     * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to unmap.
      * @param offset The number of bytes from the beginning of the buffer to flush.
      * @param size The amount of memory in the buffer to flush.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_flush)(renderbuffer* buffer, u64 offset, u64 size);
+    b8 (*renderbuffer_flush)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 offset, u64 size);
 
     /**
      * @brief Reads memory from the provided buffer at the given range to the output variable.
+     * 
+     * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to read from.
      * @param offset The number of bytes from the beginning of the buffer to read.
      * @param size The amount of memory in the buffer to read.
      * @param out_memory A pointer to a block of memory to read to. Must be of appropriate size.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_read)(renderbuffer* buffer, u64 offset, u64 size, void** out_memory);
+    b8 (*renderbuffer_read)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 offset, u64 size, void** out_memory);
 
     /**
      * @brief Resizes the given buffer to new_total_size. new_total_size must be
      * greater than the current buffer size. Data from the old internal buffer is copied
      * over.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to be resized.
      * @param new_total_size The new size in bytes. Must be larger than the current size.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_resize)(renderbuffer* buffer, u64 new_total_size);
+    b8 (*renderbuffer_resize)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 new_total_size);
 
     /**
      * @brief Loads provided data into the specified rage of the given buffer.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to load data into.
      * @param offset The offset in bytes from the beginning of the buffer.
      * @param size The size of the data in bytes to be loaded.
      * @param data The data to be loaded.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_load_range)(renderbuffer* buffer, u64 offset, u64 size, const void* data);
+    b8 (*renderbuffer_load_range)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 offset, u64 size, const void* data);
 
     /**
      * @brief Copies data in the specified rage fron the source to the destination buffer.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param source A pointer to the source buffer to copy data from.
      * @param source_offset The offset in bytes from the beginning of the source buffer.
      * @param dest A pointer to the destination buffer to copy data to.
@@ -673,19 +744,20 @@ typedef struct renderer_plugin {
      * @param size The size of the data in bytes to be copied.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_copy_range)(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size);
+    b8 (*renderbuffer_copy_range)(struct renderer_plugin* plugin, renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size);
 
     /**
      * @brief Attempts to draw the contents of the provided buffer at the given offset
      * and element count. Only meant for use with vertex and index buffers.
      *
+     * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to be drawn.
      * @param offset The offset in bytes from the beginning of the buffer.
      * @param element_count The number of elements to be drawn.
      * @param bind_only Only binds the buffer, but does not call draw.
      * @return True on success; otherwise false.
      */
-    b8 (*renderbuffer_draw)(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
+    b8 (*renderbuffer_draw)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
 
 } renderer_plugin;
 

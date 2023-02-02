@@ -591,9 +591,10 @@ typedef struct vulkan_context {
 
     /**
      * @brief A function pointer to find a memory index of the given type and with the given properties.
+     * @param context A pointer to the renderer context.
      * @param type_filter The types of memory to search for.
      * @param property_flags The required properties which must be present.
      * @returns The index of the found memory type. Returns -1 if not found.
      */
-    i32 (*find_memory_index)(u32 type_filter, u32 property_flags);
+    i32 (*find_memory_index)(struct vulkan_context* context, u32 type_filter, u32 property_flags);
 } vulkan_context;
