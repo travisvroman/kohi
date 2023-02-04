@@ -9,6 +9,8 @@
 #include "core/kthread.h"
 #include "core/kmutex.h"
 #include "core/kmemory.h"
+#include "core/kstring.h"
+#include "containers/darray.h"
 
 #include "containers/darray.h"
 
@@ -31,7 +33,6 @@ static platform_state *state_ptr;
 // Clock
 static f64 clock_frequency;
 static LARGE_INTEGER start_time;
-
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
 
@@ -217,7 +218,6 @@ void platform_get_handle_info(u64 *out_size, void *memory) {
     kcopy_memory(memory, &state_ptr->handle, *out_size);
 }
 
-
 // NOTE: Begin threads
 b8 kthread_create(pfn_thread_start start_function_ptr, void *params, b8 auto_detach, kthread *out_thread) {
     if (!start_function_ptr) {
@@ -342,6 +342,101 @@ b8 kmutex_unlock(kmutex *mutex) {
 }
 
 // NOTE: End mutexes.
+
+b8 platform_dynamic_library_load(const char *name, dynamic_library *out_library) {
+    if (!out_library) {
+        return false;
+    }
+    kzero_memory(out_library, sizeof(dynamic_library));
+    if (!name) {
+        return false;
+    }
+
+    char filename[MAX_PATH];
+    kzero_memory(filename, sizeof(char) * MAX_PATH);
+    string_format(filename, "%s.dll", name);
+
+    HMODULE library = LoadLibraryA(filename);
+    if (!library) {
+        return false;
+    }
+
+    out_library->name = string_duplicate(name);
+    out_library->filename = string_duplicate(filename);
+
+    out_library->internal_data_size = sizeof(HMODULE);
+    out_library->internal_data = library;
+
+    out_library->functions = darray_create(dynamic_library_function);
+
+    return true;
+}
+
+b8 platform_dynamic_library_unload(dynamic_library *library) {
+    if (!library) {
+        return false;
+    }
+
+    HMODULE internal_module = (HMODULE)library->internal_data;
+    if (!internal_module) {
+        return false;
+    }
+
+    BOOL result = FreeLibrary(internal_module);
+    if (result == 0) {
+        return false;
+    }
+
+    if (library->name) {
+        u64 length = string_length(library->name);
+        kfree((void *)library->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+    }
+
+    if (library->filename) {
+        u64 length = string_length(library->filename);
+        kfree((void *)library->filename, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+    }
+
+    if (library->functions) {
+        u32 count = darray_length(library->functions);
+        for (u32 i = 0; i < count; ++i) {
+            dynamic_library_function *f = &library->functions[i];
+            if (f->name) {
+                u64 length = string_length(f->name);
+                kfree((void *)f->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+            }
+        }
+
+        darray_destroy(library->functions);
+        library->functions = 0;
+    }
+
+    kzero_memory(library, sizeof(dynamic_library));
+
+    return true;
+}
+
+b8 platform_dynamic_library_load_function(const char *name, dynamic_library *library) {
+    if (!name || !library) {
+        return false;
+    }
+
+    if (!library->internal_data) {
+        return false;
+    }
+
+    FARPROC f_addr = GetProcAddress((HMODULE)library->internal_data, name);
+    if (!f_addr) {
+        return false;
+    }
+
+    dynamic_library_function f = {0};
+    f.pfn = f_addr;
+    f.name = string_duplicate(name);
+    darray_push(library->functions, f);
+
+    return true;
+}
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param) {
     switch (msg) {

@@ -37,7 +37,7 @@ make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=vulkan_renderer
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Testbed
-make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed ADDL_INC_FLAGS="-Iengine\src -Ivulkan_renderer\src" ADDL_LINK_FLAGS="-lengine -lvulkan_renderer"
+make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed ADDL_INC_FLAGS="-Iengine\src" ADDL_LINK_FLAGS="-lengine"
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Tests
