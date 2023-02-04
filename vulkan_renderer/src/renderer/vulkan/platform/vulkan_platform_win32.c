@@ -1,4 +1,4 @@
-
+#include <platform/platform.h>
 // Windows platform layer.
 #if KPLATFORM_WINDOWS
 

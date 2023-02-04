@@ -6,9 +6,9 @@
  * managed thereafter.
  * @version 1.0
  * @date 2023-01-17
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2023
- * 
+ *
  */
 #pragma once
 
@@ -23,7 +23,7 @@ typedef void (*PFN_system_shutdown)(void* state);
 typedef b8 (*PFN_system_update)(void* state, f32 delta_time);
 
 /**
- * @brief Represents a registered system. Function pointers 
+ * @brief Represents a registered system. Function pointers
  * for init, shutdown and (optionally) update are held here,
  * as well as state for the system.
  */
@@ -93,7 +93,7 @@ struct application_config;
 /**
  * @brief Initializes the system manager for all systems which must be setup
  * before the application boot sequence (i.e. events, renderer, etc.).
- * 
+ *
  * @param state A pointer to the system manager state to be initialized.
  * @param app_config A pointer to the application configuration.
  * @return b8 True if successful; otherwise false.
@@ -102,7 +102,7 @@ b8 systems_manager_initialize(systems_manager_state* state, struct application_c
 /**
  * @brief Initializes the system manager for all systems which must be setup
  * after the application boot sequence (i.e. that require the application to configure them, such as fonts, etc.).
- * 
+ *
  * @param state A pointer to the system manager state to be initialized.
  * @param app_config A pointer to the application configuration.
  * @return b8 True if successful; otherwise false.
@@ -111,7 +111,7 @@ b8 systems_manager_post_boot_initialize(systems_manager_state* state, struct app
 
 /**
  * @brief Shuts the systems manager down.
- * 
+ *
  * @param state A pointer to the system manager state to be shut down.
  */
 void systems_manager_shutdown(systems_manager_state* state);
@@ -119,7 +119,7 @@ void systems_manager_shutdown(systems_manager_state* state);
 /**
  * @brief Calls update routines on all systems that opt in to the update.
  * Performed during the main engine loop.
- * 
+ *
  * @param state A pointer to the systems manager state.
  * @param delta_time The delta time in seconds since the last frame.
  * @return b8 True on success; otherwise false.
@@ -128,7 +128,7 @@ b8 systems_manager_update(systems_manager_state* state, u32 delta_time);
 
 /**
  * @brief Registers a system to be managed.
- * 
+ *
  * @param state A pointer to the system manager state.
  * @param type The system type. For known types, a k_system_type. Otherwise a user type.
  * @param initialize A function pointer for the initialize routine. Required.
@@ -144,3 +144,5 @@ KAPI b8 systems_manager_register(
     PFN_system_shutdown shutdown,
     PFN_system_update update,
     void* config);
+
+KAPI void* systems_manager_get_state(u16 type);

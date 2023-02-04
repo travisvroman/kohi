@@ -13,6 +13,7 @@
 #include "systems/camera_system.h"
 #include "systems/render_view_system.h"
 #include "renderer/renderer_frontend.h"
+#include "memory/linear_allocator.h"
 
 typedef struct render_view_skybox_internal_data {
     shader* s;
@@ -78,7 +79,7 @@ b8 render_view_skybox_on_create(struct render_view* self) {
         data->projection_matrix = mat4_perspective(data->fov, 1280 / 720.0f, data->near_clip, data->far_clip);
         data->world_camera = camera_system_get_default();
 
-        if(!event_register(EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED, self, render_view_on_event)) {
+        if (!event_register(EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED, self, render_view_on_event)) {
             KERROR("Unable to listen for refresh required event, creation failed.");
             return false;
         }
@@ -134,7 +135,10 @@ b8 render_view_skybox_on_build_packet(const struct render_view* self, struct lin
     out_packet->view_position = camera_position_get(internal_data->world_camera);
 
     // Just set the extended data to the skybox data
-    out_packet->extended_data = skybox_data;
+    // out_packet->extended_data = skybox_data;
+    out_packet->extended_data = linear_allocator_allocate(frame_allocator, sizeof(skybox_packet_data));
+    kcopy_memory(out_packet->extended_data, skybox_data, sizeof(skybox_packet_data));
+
     return true;
 }
 
