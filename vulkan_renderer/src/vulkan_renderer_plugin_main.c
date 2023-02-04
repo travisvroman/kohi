@@ -3,7 +3,7 @@
 #include "renderer/vulkan/vulkan_backend.h"
 #include <core/kmemory.h>
 
-b8 vulkan_renderer_plugin_create(renderer_plugin* out_plugin) {
+b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->initialize = vulkan_renderer_backend_initialize;
     out_plugin->shutdown = vulkan_renderer_backend_shutdown;
     out_plugin->begin_frame = vulkan_renderer_backend_begin_frame;
@@ -71,6 +71,6 @@ b8 vulkan_renderer_plugin_create(renderer_plugin* out_plugin) {
     return true;
 }
 
-void vulkan_renderer_plugin_destroy(renderer_plugin* plugin) {
+void plugin_destroy(renderer_plugin* plugin) {
     kzero_memory(plugin, sizeof(renderer_plugin));
 }

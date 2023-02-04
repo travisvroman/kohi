@@ -1,5 +1,10 @@
 #include "game_keybinds.h"
+#include "game_state.h"
 
+#include <defines.h>
+#include <core/input.h>
+#include <core/keymap.h>
+#include <application_types.h>
 #include <core/event.h>
 #include <core/logger.h>
 #include <core/kmemory.h>
