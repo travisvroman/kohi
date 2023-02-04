@@ -97,4 +97,6 @@ typedef struct application {
     // TODO: Move this to somewhere better...
     dynamic_library renderer_library;
     renderer_plugin render_plugin;
+
+    dynamic_library game_library;
 } application;
