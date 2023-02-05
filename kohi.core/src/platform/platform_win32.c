@@ -10,10 +10,12 @@
 #    include "threads/kmutex.h"
 #    include "threads/ksemaphore.h"
 #    include "threads/kthread.h"
+#    include "time/kclock.h"
 #    include <input_types.h>
 
 #    define WIN32_LEAN_AND_MEAN
 #    include <stdlib.h>
+#    include <timeapi.h>
 #    include <windows.h>
 #    include <windowsx.h> // param input extraction
 
@@ -56,6 +58,7 @@ static platform_state* state_ptr;
 
 // Clock
 static f64 clock_frequency;
+static UINT min_period;
 static LARGE_INTEGER start_time;
 
 static void platform_update_watches(void);
@@ -69,6 +72,10 @@ void clock_setup(void) {
     QueryPerformanceFrequency(&frequency);
     clock_frequency = 1.0 / (f64)frequency.QuadPart;
     QueryPerformanceCounter(&start_time);
+
+    TIMECAPS tc;
+    timeGetDevCaps(&tc, sizeof(tc));
+    min_period = tc.wPeriodMin;
 }
 
 b8 platform_system_startup(u64* memory_requirement, platform_state* state, platform_system_config* config) {
@@ -389,7 +396,22 @@ f64 platform_get_absolute_time(void) {
 }
 
 void platform_sleep(u64 ms) {
-    Sleep(ms);
+    kclock clock;
+    kclock_start(&clock);
+    timeBeginPeriod(min_period);
+    Sleep(ms - min_period);
+    timeEndPeriod(min_period);
+
+    kclock_update(&clock);
+    f64 observed = clock.elapsed * 1000.0;
+    f64 ms_remaining = (f64) ms - observed;
+
+    // spin lock
+    kclock_start(&clock);
+    while(clock.elapsed * 1000.0 < ms_remaining) {
+        _mm_pause();
+        kclock_update(&clock);
+    }
 }
 
 i32 platform_get_processor_count(void) {
