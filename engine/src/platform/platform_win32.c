@@ -18,6 +18,7 @@
 #include <windows.h>
 #include <windowsx.h>  // param input extraction
 #include <stdlib.h>
+#include <timeapi.h>
 
 typedef struct win32_handle_info {
     HINSTANCE h_instance;
@@ -32,6 +33,7 @@ static platform_state *state_ptr;
 
 // Clock
 static f64 clock_frequency;
+static UINT min_period;
 static LARGE_INTEGER start_time;
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
@@ -41,6 +43,10 @@ void clock_setup() {
     QueryPerformanceFrequency(&frequency);
     clock_frequency = 1.0 / (f64)frequency.QuadPart;
     QueryPerformanceCounter(&start_time);
+
+    TIMECAPS tc;
+    timeGetDevCaps(&tc, sizeof(tc));
+    min_period = tc.wPeriodMin;
 }
 
 b8 platform_system_startup(u64 *memory_requirement, void *state, void *config) {
@@ -199,7 +205,9 @@ f64 platform_get_absolute_time() {
 }
 
 void platform_sleep(u64 ms) {
+    timeBeginPeriod(min_period);
     Sleep(ms);
+    timeEndPeriod(min_period);
 }
 
 i32 platform_get_processor_count() {
