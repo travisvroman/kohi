@@ -24,8 +24,16 @@ typedef struct win32_handle_info {
     HWND hwnd;
 } win32_handle_info;
 
+typedef struct win32_file_watch {
+    u32 id;
+    const char *file_path;
+    FILETIME last_write_time;
+} win32_file_watch;
+
 typedef struct platform_state {
     win32_handle_info handle;
+    // darray
+    win32_file_watch *watches;
 } platform_state;
 
 static platform_state *state_ptr;
@@ -34,6 +42,7 @@ static platform_state *state_ptr;
 static f64 clock_frequency;
 static LARGE_INTEGER start_time;
 
+void platform_update_watches();
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
 
 void clock_setup() {
@@ -143,6 +152,7 @@ b8 platform_pump_messages() {
             DispatchMessageA(&message);
         }
     }
+    platform_update_watches();
     return true;
 }
 
@@ -436,6 +446,127 @@ b8 platform_dynamic_library_load_function(const char *name, dynamic_library *lib
     darray_push(library->functions, f);
 
     return true;
+}
+
+const char* platform_dynamic_library_extension() {
+    return ".dll";
+}
+
+b8 platform_copy_file(const char *source, const char *dest, b8 overwrite_if_exists) {
+    BOOL result = CopyFileA(source, dest, !overwrite_if_exists);
+    return result != 0;
+}
+
+static b8 register_watch(const char *file_path, u32 *out_watch_id) {
+    if (!state_ptr || !file_path || !out_watch_id) {
+        if (out_watch_id) {
+            *out_watch_id = INVALID_ID;
+        }
+        return false;
+    }
+    *out_watch_id = INVALID_ID;
+
+    if (!state_ptr->watches) {
+        state_ptr->watches = darray_create(win32_file_watch);
+    }
+
+    WIN32_FIND_DATAA data;
+    HANDLE file_handle = FindFirstFileA(file_path, &data);
+    if (file_handle == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    BOOL result = FindClose(file_handle);
+    if (result == 0) {
+        return false;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    for (u32 i = 0; i < count; ++i) {
+        win32_file_watch *w = &state_ptr->watches[i];
+        if (w->id == INVALID_ID) {
+            // Found a free slot to use.
+            w->id = i;
+            w->file_path = string_duplicate(file_path);
+            w->last_write_time = data.ftLastWriteTime;
+            *out_watch_id = i;
+            return true;
+        }
+    }
+
+    // If no empty slot is available, create and push a new entry.
+    win32_file_watch w = {0};
+    w.id = count;
+    w.file_path = string_duplicate(file_path);
+    w.last_write_time = data.ftLastWriteTime;
+    *out_watch_id = count;
+    darray_push(state_ptr->watches, w);
+
+    return true;
+}
+
+static b8 unregister_watch(u32 watch_id) {
+    if (!state_ptr || !state_ptr->watches) {
+        return false;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    if (count == 0 || watch_id > (count - 1)) {
+        return false;
+    }
+
+    win32_file_watch *w = &state_ptr->watches[watch_id];
+    w->id = INVALID_ID;
+    u32 len = string_length(w->file_path);
+    kfree((void *)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+    w->file_path = 0;
+    kzero_memory(&w->last_write_time, sizeof(FILETIME));
+
+    return true;
+}
+
+b8 platform_watch_file(const char *file_path, u32 *out_watch_id) {
+    return register_watch(file_path, out_watch_id);
+}
+
+b8 platform_unwatch_file(u32 watch_id) {
+    return unregister_watch(watch_id);
+}
+
+void platform_update_watches() {
+    if (!state_ptr || !state_ptr->watches) {
+        return;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    for (u32 i = 0; i < count; ++i) {
+        win32_file_watch *f = &state_ptr->watches[i];
+        if (f->id != INVALID_ID) {
+            WIN32_FIND_DATAA data;
+            HANDLE file_handle = FindFirstFileA(f->file_path, &data);
+            if (file_handle == INVALID_HANDLE_VALUE) {
+                // This means the file has been deleted, remove from watch.
+                event_context context = {0};
+                context.data.u32[0] = f->id;
+                event_fire(EVENT_CODE_WATCHED_FILE_DELETED, 0, context);
+                KINFO("File watch id %d has been removed.", f->id);
+                unregister_watch(f->id);
+                continue;
+            }
+            BOOL result = FindClose(file_handle);
+            if (result == 0) {
+                continue;
+            }
+
+            // Check the file time to see if it has been changed and update/notify if so.
+            if (CompareFileTime(&data.ftLastWriteTime, &f->last_write_time) != 0) {
+                f->last_write_time = data.ftLastWriteTime;
+                // Notify listeners.
+                event_context context = {0};
+                context.data.u32[0] = f->id;
+                event_fire(EVENT_CODE_WATCHED_FILE_WRITTEN, 0, context);
+            }
+        }
+    }
 }
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param) {

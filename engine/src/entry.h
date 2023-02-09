@@ -27,6 +27,8 @@
  */
 extern b8 create_application(application* out_app);
 
+extern b8 initialize_application(application* app);
+
 /**
  * @brief The main entry point of the application.
  * @returns 0 on successful execution; nonzero on error.
@@ -47,8 +49,13 @@ int main(void) {
 
     // Initialization.
     if (!engine_create(&app_inst)) {
-        KFATAL("Application failed to create!.");
+        KFATAL("Engine failed to create!.");
         return 1;
+    }
+
+    if (!initialize_application(&app_inst)) {
+        KFATAL("Could not initialize application!");
+        return -1;
     }
 
     // Begin the engine loop.

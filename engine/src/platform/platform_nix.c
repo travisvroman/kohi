@@ -4,9 +4,9 @@
  * @brief Code shared by unix-like platforms (i.e. Linux and macOS).
  * @version 1.0
  * @date 2023-02-04
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2023
- * 
+ *
  */
 
 #include "platform.h"
@@ -38,7 +38,7 @@ b8 platform_dynamic_library_load(const char *name, dynamic_library *out_library)
     extension = "dylib";
 #endif
 
-        string_format(filename, "lib%s.%s", name, extension);
+    string_format(filename, "lib%s.%s", name, extension);
 
     void *library = dlopen(filename, RTLD_NOW);
     if (!library) {
@@ -119,6 +119,14 @@ b8 platform_dynamic_library_load_function(const char *name, dynamic_library *lib
     darray_push(library->functions, f);
 
     return true;
+}
+
+const char *platform_dynamic_library_extension() {
+#if defined(KPLATFORM_LINUX)
+    return ".so";
+#elif defined(KPLATFORM_APPLE)
+    return ".dylib";
+#endif
 }
 
 #endif

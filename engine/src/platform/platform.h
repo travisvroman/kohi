@@ -38,6 +38,7 @@ typedef struct dynamic_library {
     const char* filename;
     u64 internal_data_size;
     void* internal_data;
+    u32 watch_id;
 
     // darray
     dynamic_library_function* functions;
@@ -192,3 +193,35 @@ KAPI b8 platform_dynamic_library_unload(dynamic_library* library);
  * @return True on success; otherwise false.
  */
 KAPI b8 platform_dynamic_library_load_function(const char* name, dynamic_library* library);
+
+/**
+ * @brief Returns the file extension for the current platform.
+ */
+KAPI const char* platform_dynamic_library_extension();
+
+/**
+ * @brief Copies file at source to destination, optionally overwriting.
+ * 
+ * @param source The source file path.
+ * @param dest The destination file path.
+ * @param overwrite_if_exists Indicates if the file should be overwritten if it exists.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 platform_copy_file(const char *source, const char *dest, b8 overwrite_if_exists);
+
+/**
+ * @brief Watch a file at the given path.
+ *
+ * @param file_path The file path. Required.
+ * @param out_watch_id A pointer to hold the watch identifier.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 platform_watch_file(const char* file_path, u32* out_watch_id);
+
+/**
+ * @brief Stops watching the file with the given watch identifier.
+ *
+ * @param watch_id The watch identifier
+ * @return True on success; otherwise false.
+ */
+KAPI b8 platform_unwatch_file(u32 watch_id);
