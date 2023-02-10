@@ -392,11 +392,6 @@ b8 platform_dynamic_library_unload(dynamic_library *library) {
         return false;
     }
 
-    BOOL result = FreeLibrary(internal_module);
-    if (result == 0) {
-        return false;
-    }
-
     if (library->name) {
         u64 length = string_length(library->name);
         kfree((void *)library->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
@@ -419,6 +414,11 @@ b8 platform_dynamic_library_unload(dynamic_library *library) {
 
         darray_destroy(library->functions);
         library->functions = 0;
+    }
+
+    BOOL result = FreeLibrary(internal_module);
+    if (result == 0) {
+        return false;
     }
 
     kzero_memory(library, sizeof(dynamic_library));
@@ -448,13 +448,23 @@ b8 platform_dynamic_library_load_function(const char *name, dynamic_library *lib
     return true;
 }
 
-const char* platform_dynamic_library_extension() {
+const char *platform_dynamic_library_extension() {
     return ".dll";
 }
 
-b8 platform_copy_file(const char *source, const char *dest, b8 overwrite_if_exists) {
+platform_error_code platform_copy_file(const char *source, const char *dest, b8 overwrite_if_exists) {
     BOOL result = CopyFileA(source, dest, !overwrite_if_exists);
-    return result != 0;
+    if (!result) {
+        DWORD err = GetLastError();
+        if (err == ERROR_FILE_NOT_FOUND) {
+            return PLATFORM_ERROR_FILE_NOT_FOUND;
+        } else if (err == ERROR_SHARING_VIOLATION) {
+            return PLATFORM_ERROR_FILE_LOCKED;
+        } else {
+            return PLATFORM_ERROR_UNKNOWN;
+        }
+    }
+    return PLATFORM_ERROR_SUCCESS;
 }
 
 static b8 register_watch(const char *file_path, u32 *out_watch_id) {

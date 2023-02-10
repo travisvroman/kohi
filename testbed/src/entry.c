@@ -34,6 +34,14 @@ b8 load_game_lib(application* app) {
         return false;
     }
 
+    if (!platform_dynamic_library_load_function("application_lib_on_load", &app->game_library)) {
+        return false;
+    }
+
+    if (!platform_dynamic_library_load_function("application_lib_on_unload", &app->game_library)) {
+        return false;
+    }
+
     // assign function pointers
     app->boot = app->game_library.functions[0].pfn;
     app->initialize = app->game_library.functions[1].pfn;
@@ -41,6 +49,11 @@ b8 load_game_lib(application* app) {
     app->render = app->game_library.functions[3].pfn;
     app->on_resize = app->game_library.functions[4].pfn;
     app->shutdown = app->game_library.functions[5].pfn;
+    app->lib_on_load = app->game_library.functions[6].pfn;
+    app->lib_on_unload = app->game_library.functions[7].pfn;
+
+    // Invoke the onload.
+    app->lib_on_load(app);
 
     return true;
 }
@@ -52,11 +65,23 @@ b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_conte
             KINFO("Hot-Reloading game dll.");
         }
 
+        // Tell the app it is about to be unloaded.
+        app->lib_on_unload(app);
+
+        // Actually unload the app's lib.
         if (!platform_dynamic_library_unload(&app->game_library)) {
             KERROR("Failed to unload game library");
             return false;
         }
-        if (!platform_copy_file("testbed_lib.dll", "testbed_lib_loaded.dll", true)) {
+
+        platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
+        while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+            err_code = platform_copy_file("testbed_lib.dll", "testbed_lib_loaded.dll", true);
+            if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+                platform_sleep(100);
+            }
+        }
+        if (err_code != PLATFORM_ERROR_SUCCESS) {
             KERROR("File copy failed!");
             return false;
         }
@@ -83,52 +108,24 @@ b8 create_application(application* out_application) {
     //     return false;
     // }
 
-    if (!platform_copy_file("testbed_lib.dll", "testbed_lib_loaded.dll", true)) {
+    platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
+    while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+        err_code = platform_copy_file("testbed_lib.dll", "testbed_lib_loaded.dll", true);
+        if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+            platform_sleep(100);
+        }
+    }
+    if (err_code != PLATFORM_ERROR_SUCCESS) {
         KERROR("File copy failed!");
         return false;
     }
+
     if (!load_game_lib(out_application)) {
         KERROR("Initial game lib load failed!");
     }
 
-    PFN_application_state_size get_state_size = 0;
-    if (!platform_dynamic_library_load_function("application_state_size", &out_application->game_library)) {
-        return false;
-    }
-    get_state_size = out_application->game_library.functions[6].pfn;
-
-    // if (!platform_dynamic_library_load_function("application_boot", &out_application->game_library)) {
-    //     return false;
-    // }
-    // if (!platform_dynamic_library_load_function("application_initialize", &out_application->game_library)) {
-    //     return false;
-    // }
-    // if (!platform_dynamic_library_load_function("application_update", &out_application->game_library)) {
-    //     return false;
-    // }
-    // if (!platform_dynamic_library_load_function("application_render", &out_application->game_library)) {
-    //     return false;
-    // }
-    // if (!platform_dynamic_library_load_function("application_on_resize", &out_application->game_library)) {
-    //     return false;
-    // }
-    // if (!platform_dynamic_library_load_function("application_shutdown", &out_application->game_library)) {
-    //     return false;
-    // }
-
-    // // assign function pointers
-    // out_application->boot = out_application->game_library.functions[1].pfn;
-    // out_application->initialize = out_application->game_library.functions[2].pfn;
-    // out_application->update = out_application->game_library.functions[3].pfn;
-    // out_application->render = out_application->game_library.functions[4].pfn;
-    // out_application->on_resize = out_application->game_library.functions[5].pfn;
-    // out_application->shutdown = out_application->game_library.functions[6].pfn;
-
-    // Create the game state.
-    out_application->state_memory_requirement = get_state_size();
-    out_application->state = 0;
-
     out_application->engine_state = 0;
+    out_application->state = 0;
 
     if (!platform_dynamic_library_load("vulkan_renderer", &out_application->renderer_library)) {
         return false;

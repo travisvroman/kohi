@@ -32,6 +32,8 @@
 // TODO: end temp
 
 b8 configure_render_views(application_config* config);
+void application_register_events(struct application* game_inst);
+void application_unregister_events(struct application* game_inst);
 
 b8 game_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
     application* game_inst = (application*)listener_inst;
@@ -123,7 +125,10 @@ u64 application_state_size() {
 b8 application_boot(struct application* game_inst) {
     KINFO("Booting testbed...");
 
-    debug_console_create();
+    // Allocate the game state.
+    game_inst->state = kallocate(sizeof(game_state), MEMORY_TAG_GAME);
+
+    debug_console_create(&((game_state*)game_inst->state)->debug_console);
 
     // Setup the frame allocator.
     linear_allocator_create(MEBIBYTES(64), 0, &game_inst->frame_allocator);
@@ -171,7 +176,7 @@ b8 application_boot(struct application* game_inst) {
 b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
 
-    debug_console_load();
+    debug_console_load(&((game_state*)game_inst->state)->debug_console);
 
     game_state* state = (game_state*)game_inst->state;
 
@@ -315,15 +320,6 @@ b8 application_initialize(struct application* game_inst) {
 
     state->world_camera = camera_system_get_default();
     camera_position_set(state->world_camera, (vec3){10.5f, 5.0f, 9.5f});
-
-    // TODO: temp
-    event_register(EVENT_CODE_DEBUG0, game_inst, game_on_debug_event);
-    event_register(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
-    event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
-    // TODO: end temp
-
-    event_register(EVENT_CODE_KEY_PRESSED, game_inst, game_on_key);
-    event_register(EVENT_CODE_KEY_RELEASED, game_inst, game_on_key);
 
     kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
 
@@ -485,7 +481,7 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
     ui_text_set_text(&state->test_text, text_buffer);
 
-    debug_console_update();
+    debug_console_update(&((game_state*)game_inst->state)->debug_console);
 
     clock_update(&state->update_clock);
     state->last_update_elapsed = state->update_clock.elapsed;
@@ -536,8 +532,8 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     ui_packet.mesh_data.mesh_count = ui_mesh_count;
     ui_packet.mesh_data.meshes = ui_meshes;
     ui_packet.text_count = 2;
-    ui_text* debug_console_text = debug_console_get_text();
-    b8 render_debug_conole = debug_console_text && debug_console_visible();
+    ui_text* debug_console_text = debug_console_get_text(&state->debug_console);
+    b8 render_debug_conole = debug_console_text && debug_console_visible(&state->debug_console);
     if (render_debug_conole) {
         ui_packet.text_count += 2;
     }
@@ -546,7 +542,7 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     texts[1] = &state->test_sys_text;
     if (render_debug_conole) {
         texts[2] = debug_console_text;
-        texts[3] = debug_console_get_entry_text();
+        texts[3] = debug_console_get_entry_text(&state->debug_console);
     }
 
     ui_packet.texts = texts;
@@ -574,6 +570,10 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
 }
 
 void application_on_resize(struct application* game_inst, u32 width, u32 height) {
+    if (!game_inst->state) {
+        return;
+    }
+
     game_state* state = (game_state*)game_inst->state;
 
     state->width = width;
@@ -595,8 +595,31 @@ void application_shutdown(struct application* game_inst) {
     ui_text_destroy(&state->test_text);
     ui_text_destroy(&state->test_sys_text);
 
-    debug_console_unload();
+    debug_console_unload(&state->debug_console);
+}
 
+void application_lib_on_unload(struct application* game_inst) {
+    application_unregister_events(game_inst);
+    debug_console_on_lib_unload(&((game_state*)game_inst->state)->debug_console);
+}
+
+void application_lib_on_load(struct application* game_inst) {
+    application_register_events(game_inst);
+    debug_console_on_lib_unload(&((game_state*)game_inst->state)->debug_console);
+}
+
+void application_register_events(struct application* game_inst) {
+    // TODO: temp
+    event_register(EVENT_CODE_DEBUG0, game_inst, game_on_debug_event);
+    event_register(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
+    event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
+    // TODO: end temp
+
+    event_register(EVENT_CODE_KEY_PRESSED, game_inst, game_on_key);
+    event_register(EVENT_CODE_KEY_RELEASED, game_inst, game_on_key);
+}
+
+void application_unregister_events(struct application* game_inst) {
     event_unregister(EVENT_CODE_DEBUG0, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);

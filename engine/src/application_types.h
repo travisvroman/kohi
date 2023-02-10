@@ -76,8 +76,9 @@ typedef struct application {
      */
     void (*shutdown)(struct application* app_inst);
 
-    /** @brief The required size for the application state. */
-    u64 state_memory_requirement;
+    void (*lib_on_unload)(struct application* game_inst);
+
+    void (*lib_on_load)(struct application* game_inst);
 
     /** @brief application-specific state. Created and managed by the application. */
     void* state;

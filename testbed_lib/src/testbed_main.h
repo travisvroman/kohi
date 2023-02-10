@@ -17,3 +17,7 @@ KAPI b8 application_render(struct application* game_inst, struct render_packet* 
 KAPI void application_on_resize(struct application* game_inst, u32 width, u32 height);
 
 KAPI void application_shutdown(struct application* game_inst);
+
+KAPI void application_lib_on_unload(struct application* game_inst);
+
+KAPI void application_lib_on_load(struct application* game_inst);

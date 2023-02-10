@@ -59,9 +59,6 @@ b8 engine_create(application* game_inst) {
     // Metrics
     metrics_initialize();
 
-    // Allocate the game state.
-    game_inst->state = kallocate(game_inst->state_memory_requirement, MEMORY_TAG_GAME);
-
     // Stand up the engine state.
     game_inst->engine_state = kallocate(sizeof(engine_state_t), MEMORY_TAG_ENGINE);
     engine_state = game_inst->engine_state;

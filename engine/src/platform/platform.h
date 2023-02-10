@@ -44,6 +44,13 @@ typedef struct dynamic_library {
     dynamic_library_function* functions;
 } dynamic_library;
 
+typedef enum platform_error_code {
+    PLATFORM_ERROR_SUCCESS = 0,
+    PLATFORM_ERROR_UNKNOWN = 1,
+    PLATFORM_ERROR_FILE_NOT_FOUND = 2,
+    PLATFORM_ERROR_FILE_LOCKED = 3
+} platform_error_code;
+
 /**
  * @brief Performs startup routines within the platform layer. Should be called twice,
  * once to obtain the memory requirement (with state=0), then a second time passing
@@ -149,7 +156,7 @@ f64 platform_get_absolute_time();
  *
  * @param ms The number of milliseconds to sleep for.
  */
-void platform_sleep(u64 ms);
+KAPI void platform_sleep(u64 ms);
 
 /**
  * @brief Obtains the number of logical processor cores.
@@ -205,9 +212,9 @@ KAPI const char* platform_dynamic_library_extension();
  * @param source The source file path.
  * @param dest The destination file path.
  * @param overwrite_if_exists Indicates if the file should be overwritten if it exists.
- * @return True on success; otherwise false.
+ * @return An error code indicating success or failure.
  */
-KAPI b8 platform_copy_file(const char *source, const char *dest, b8 overwrite_if_exists);
+KAPI platform_error_code platform_copy_file(const char *source, const char *dest, b8 overwrite_if_exists);
 
 /**
  * @brief Watch a file at the given path.
