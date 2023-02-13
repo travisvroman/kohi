@@ -35,7 +35,7 @@ extern b8 initialize_application(application* app);
  */
 int main(void) {
     // Request the application instance from the application.
-    application app_inst;
+    application app_inst = {0};
     if (!create_application(&app_inst)) {
         KFATAL("Could not create application!");
         return -1;
@@ -59,7 +59,7 @@ int main(void) {
     }
 
     // Begin the engine loop.
-    if (!engine_run()) {
+    if (!engine_run(&app_inst)) {
         KINFO("Application did not shutdown gracefully.");
         return 2;
     }

@@ -11,3 +11,8 @@ void game_setup_commands(application* game_inst) {
     console_register_command("exit", 0, game_command_exit);
     console_register_command("quit", 0, game_command_exit);
 }
+
+void game_remove_commands(struct application* game_inst) {
+    console_unregister_command("exit");
+    console_unregister_command("quit");
+}

@@ -133,8 +133,7 @@ void game_on_console_scroll(keys key, keymap_entry_bind_type type, keymap_modifi
 }
 
 void game_on_console_scroll_hold(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-    application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    game_state* state = (game_state*)user_data;
 
     static f32 accumulated_time = 0.0f;
     accumulated_time += state->delta_time;
@@ -173,12 +172,6 @@ void game_on_debug_cam_position(keys key, keymap_entry_bind_type type, keymap_mo
         state->world_camera->position.z);
 }
 
-static void toggle_vsync() {
-    b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
-    vsync_enabled = !vsync_enabled;
-    renderer_flag_set_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
-}
-
 void game_on_debug_vsync_toggle(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     char cmd[30];
     string_ncopy(cmd, "kvar_set_int vsync 0", 29);
@@ -198,16 +191,7 @@ void game_print_memory_metrics(keys key, keymap_entry_bind_type type, keymap_mod
     KDEBUG("Allocations: %llu (%llu this frame)", state->alloc_count, state->alloc_count - state->prev_alloc_count);
 }
 
-static b8 game_on_kvar_changed(u16 code, void* sender, void* listener_inst, event_context data) {
-    if (code == EVENT_CODE_KVAR_CHANGED && strings_equali(data.data.c, "vsync")) {
-        toggle_vsync();
-    }
-    return false;
-}
-
 void game_setup_keymaps(application* game_inst) {
-    event_register(EVENT_CODE_KVAR_CHANGED, 0, game_on_kvar_changed);
-
     // Global keymap
     keymap global_keymap = keymap_create();
     keymap_binding_add(&global_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_escape_callback);
@@ -261,5 +245,21 @@ void game_setup_keymaps(application* game_inst) {
 
     keymap_binding_add(&state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_history_back);
     keymap_binding_add(&state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_history_forward);
+
+    // If this was done with the console open, push its keymap.
+    b8 console_visible = debug_console_visible(&state->debug_console);
+    if (console_visible) {
+        input_keymap_push(&state->console_keymap);
+    }
 }
 
+void game_remove_keymaps(struct application* game_inst) {
+    // Pop all keymaps
+    while (input_keymap_pop()) {
+    }
+
+    game_state* state = ((game_state*)game_inst->state);
+
+    // Remove all bindings for the console keymap, since that's the only one we hold onto.
+    keymap_clear(&state->console_keymap);
+}

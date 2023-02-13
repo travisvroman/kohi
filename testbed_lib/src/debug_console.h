@@ -10,6 +10,7 @@ typedef struct command_history_entry {
 
 // TODO(travis): statically-defined state for now.
 typedef struct debug_console_state {
+    u8 console_consumer_id;
     // Number of lines displayed at once.
     i32 line_display_count;
     // Number of lines offset from bottom of list.
@@ -34,7 +35,7 @@ b8 debug_console_load(debug_console_state* state);
 void debug_console_unload(debug_console_state* state);
 void debug_console_update(debug_console_state* state);
 
-void debug_console_on_lib_load(debug_console_state* state);
+void debug_console_on_lib_load(debug_console_state* state, b8 update_consumer);
 void debug_console_on_lib_unload(debug_console_state* state);
 
 struct ui_text* debug_console_get_text(debug_console_state* state);

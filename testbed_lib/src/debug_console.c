@@ -8,7 +8,6 @@
 #include <core/event.h>
 #include <core/input.h>
 
-
 b8 debug_console_consumer_write(void* inst, log_level level, const char* message) {
     debug_console_state* state = (debug_console_state*)inst;
     if (state) {
@@ -159,7 +158,11 @@ void debug_console_create(debug_console_state* out_console_state) {
         // NOTE: also should consider clipping rectangles and newlines.
 
         // Register as a console consumer.
-        // console_register_consumer(out_console_state, debug_console_consumer_write);
+        console_register_consumer(out_console_state, debug_console_consumer_write, &out_console_state->console_consumer_id);
+
+        // Register for key events.
+        event_register(EVENT_CODE_KEY_PRESSED, out_console_state, debug_console_on_key);
+        event_register(EVENT_CODE_KEY_RELEASED, out_console_state, debug_console_on_key);
     }
 }
 
@@ -231,14 +234,18 @@ void debug_console_update(debug_console_state* state) {
     }
 }
 
-void debug_console_on_lib_load(debug_console_state* state) {
-    event_register(EVENT_CODE_KEY_PRESSED, state, debug_console_on_key);
-    event_register(EVENT_CODE_KEY_RELEASED, state, debug_console_on_key);
+void debug_console_on_lib_load(debug_console_state* state, b8 update_consumer) {
+    if (update_consumer) {
+        event_register(EVENT_CODE_KEY_PRESSED, state, debug_console_on_key);
+        event_register(EVENT_CODE_KEY_RELEASED, state, debug_console_on_key);
+        console_update_consumer(state->console_consumer_id, state, debug_console_consumer_write);
+    }
 }
 
 void debug_console_on_lib_unload(debug_console_state* state) {
     event_unregister(EVENT_CODE_KEY_PRESSED, state, debug_console_on_key);
     event_unregister(EVENT_CODE_KEY_RELEASED, state, debug_console_on_key);
+    console_update_consumer(state->console_consumer_id, 0, 0);
 }
 
 ui_text* debug_console_get_text(debug_console_state* state) {

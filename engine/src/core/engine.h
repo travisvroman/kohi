@@ -59,9 +59,10 @@ KAPI b8 engine_create(struct application* game_inst);
 
 /**
  * @brief Starts the main engine loop.
+ * @param game_inst A pointer to the application instance associated with the engine
  * @returns True on success; otherwise false.
  */
-KAPI b8 engine_run();
+KAPI b8 engine_run(struct application* game_inst);
 
 /**
  * @brief A callback made when the event system is initialized,

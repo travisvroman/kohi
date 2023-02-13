@@ -176,6 +176,8 @@ b8 application_boot(struct application* game_inst) {
 b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
 
+    application_register_events(game_inst);
+
     debug_console_load(&((game_state*)game_inst->state)->debug_console);
 
     game_state* state = (game_state*)game_inst->state;
@@ -601,22 +603,45 @@ void application_shutdown(struct application* game_inst) {
 void application_lib_on_unload(struct application* game_inst) {
     application_unregister_events(game_inst);
     debug_console_on_lib_unload(&((game_state*)game_inst->state)->debug_console);
+    game_remove_commands(game_inst);
+    game_remove_keymaps(game_inst);
 }
 
 void application_lib_on_load(struct application* game_inst) {
     application_register_events(game_inst);
-    debug_console_on_lib_unload(&((game_state*)game_inst->state)->debug_console);
+    debug_console_on_lib_load(&((game_state*)game_inst->state)->debug_console, game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE);
+    if (game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE) {
+        game_setup_commands(game_inst);
+        game_setup_keymaps(game_inst);
+    }
+}
+
+static void toggle_vsync() {
+    b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
+    vsync_enabled = !vsync_enabled;
+    renderer_flag_set_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
+}
+
+static b8 game_on_kvar_changed(u16 code, void* sender, void* listener_inst, event_context data) {
+    if (code == EVENT_CODE_KVAR_CHANGED && strings_equali(data.data.c, "vsync")) {
+        toggle_vsync();
+    }
+    return false;
 }
 
 void application_register_events(struct application* game_inst) {
-    // TODO: temp
-    event_register(EVENT_CODE_DEBUG0, game_inst, game_on_debug_event);
-    event_register(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
-    event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
-    // TODO: end temp
+    if (game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE) {
+        // TODO: temp
+        event_register(EVENT_CODE_DEBUG0, game_inst, game_on_debug_event);
+        event_register(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
+        event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
+        // TODO: end temp
 
-    event_register(EVENT_CODE_KEY_PRESSED, game_inst, game_on_key);
-    event_register(EVENT_CODE_KEY_RELEASED, game_inst, game_on_key);
+        event_register(EVENT_CODE_KEY_PRESSED, game_inst, game_on_key);
+        event_register(EVENT_CODE_KEY_RELEASED, game_inst, game_on_key);
+
+        event_register(EVENT_CODE_KVAR_CHANGED, 0, game_on_kvar_changed);
+    }
 }
 
 void application_unregister_events(struct application* game_inst) {
@@ -627,6 +652,8 @@ void application_unregister_events(struct application* game_inst) {
 
     event_unregister(EVENT_CODE_KEY_PRESSED, game_inst, game_on_key);
     event_unregister(EVENT_CODE_KEY_RELEASED, game_inst, game_on_key);
+
+    event_unregister(EVENT_CODE_KVAR_CHANGED, 0, game_on_kvar_changed);
 }
 
 b8 configure_render_views(application_config* config) {
