@@ -452,6 +452,10 @@ const char *platform_dynamic_library_extension() {
     return ".dll";
 }
 
+const char* platform_dynamic_library_prefix() {
+    return "";
+}
+
 platform_error_code platform_copy_file(const char *source, const char *dest, b8 overwrite_if_exists) {
     BOOL result = CopyFileA(source, dest, !overwrite_if_exists);
     if (!result) {

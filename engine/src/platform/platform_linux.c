@@ -549,6 +549,10 @@ b8 kmutex_unlock(kmutex* mutex) {
 }
 // NOTE: End mutexes
 
+const char *platform_dynamic_library_extension() {
+    return ".so";
+}
+
 // Key translation
 keys translate_keycode(u32 x_keycode) {
     switch (x_keycode) {

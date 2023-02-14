@@ -8,11 +8,16 @@
 #include "core/kthread.h"
 #include "core/kmutex.h"
 #include "core/kmemory.h"
+#include "core/kstring.h"
 
 #include "containers/darray.h"
 
 #include <mach/mach_time.h>
 #include <crt_externs.h>
+
+#include <copyfile.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
@@ -29,6 +34,12 @@
 typedef struct macos_handle_info {
     CAMetalLayer* layer;
 } macos_handle_info;
+
+typedef struct macos_file_watch {
+    u32 id;
+    const char *file_path;
+    long last_write_time;
+} macos_file_watch;
  
 typedef struct platform_state {
     ApplicationDelegate* app_delegate;
@@ -38,6 +49,8 @@ typedef struct platform_state {
     macos_handle_info handle;
     b8 quit_flagged;
     u8  modifier_key_states;
+    // darray
+    macos_file_watch *watches;
 } platform_state;
 
 enum macos_modifier_keys {
@@ -57,6 +70,7 @@ static platform_state* state_ptr;
 keys translate_keycode(u32 ns_keycode);
 // Modifier key handling
 void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags);
+void platform_update_watches();
 
 @interface WindowDelegate : NSObject <NSWindowDelegate> {
     platform_state* state;
@@ -442,6 +456,8 @@ b8 platform_pump_messages(platform_state *plat_state) {
 
         } // autoreleasepool
 
+        platform_update_watches();
+
         return !state_ptr->quit_flagged;
     }
     return true;
@@ -724,7 +740,143 @@ b8 kmutex_unlock(kmutex* mutex) {
 }
 // NOTE: End mutexes
 
+const char *platform_dynamic_library_extension() {
+    return ".dylib";
+}
 
+platform_error_code platform_copy_file(const char *source, const char *dest, b8 overwrite_if_exists) {
+    u32 flags = COPYFILE_ALL;
+    if(!overwrite_if_exists) {
+        flags |= overwrite_if_exists;
+    }
+    int result = copyfile(source, dest, 0, flags);
+    if(result != 0) {
+        if(result == ENOENT) {
+            return PLATFORM_ERROR_FILE_NOT_FOUND;
+        } else if (result == EEXIST) {
+            // file exists and overwrite is off
+            return PLATFORM_ERROR_FILE_EXISTS;
+        } else {
+            return PLATFORM_ERROR_UNKNOWN;
+        }
+    }
+    return PLATFORM_ERROR_SUCCESS;
+}
+
+static b8 register_watch(const char *file_path, u32 *out_watch_id) {
+    if (!state_ptr || !file_path || !out_watch_id) {
+        if (out_watch_id) {
+            *out_watch_id = INVALID_ID;
+        }
+        return false;
+    }
+    *out_watch_id = INVALID_ID;
+
+    if (!state_ptr->watches) {
+        state_ptr->watches = darray_create(macos_file_watch);
+    }
+
+    struct stat info;
+    int result = stat(file_path, &info);
+    if(result != 0) {
+        if(errno == ENOENT) {
+            // File doesn't exist. TODO: report?
+        }
+        return false;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    for (u32 i = 0; i < count; ++i) {
+        macos_file_watch *w = &state_ptr->watches[i];
+        if (w->id == INVALID_ID) {
+            // Found a free slot to use.
+            w->id = i;
+            w->file_path = string_duplicate(file_path);
+            w->last_write_time = info.st_mtime;
+            *out_watch_id = i;
+            return true;
+        }
+    }
+
+    // If no empty slot is available, create and push a new entry.
+    macos_file_watch w = {0};
+    w.id = count;
+    w.file_path = string_duplicate(file_path);
+    w.last_write_time = info.st_mtime;
+    *out_watch_id = count;
+    darray_push(state_ptr->watches, w);
+
+    return true;
+}
+
+static b8 unregister_watch(u32 watch_id) {
+    if (!state_ptr || !state_ptr->watches) {
+        return false;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    if (count == 0 || watch_id > (count - 1)) {
+        return false;
+    }
+
+    macos_file_watch *w = &state_ptr->watches[watch_id];
+    w->id = INVALID_ID;
+    u32 len = string_length(w->file_path);
+    kfree((void *)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+    w->file_path = 0;
+    kzero_memory(&w->last_write_time, sizeof(long));
+
+    return true;
+}
+
+b8 platform_watch_file(const char *file_path, u32 *out_watch_id) {
+    return register_watch(file_path, out_watch_id);
+}
+
+b8 platform_unwatch_file(u32 watch_id) {
+    return unregister_watch(watch_id);
+}
+
+void platform_update_watches() {
+    if (!state_ptr || !state_ptr->watches) {
+        return;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    for (u32 i = 0; i < count; ++i) {
+        macos_file_watch *f = &state_ptr->watches[i];
+        if (f->id != INVALID_ID) {
+
+            struct stat info;
+            int result = stat(f->file_path, &info);
+            if(result != 0) {
+                if(errno == ENOENT) {
+                    // File doesn't exist. Which means it was deleted. Remove the watch.
+                    event_context context = {0};
+                    context.data.u32[0] = f->id;
+                    event_fire(EVENT_CODE_WATCHED_FILE_DELETED, 0, context);
+                    KINFO("File watch id %d has been removed.", f->id);
+                    unregister_watch(f->id);
+                    continue;
+                } else {
+                    KWARN("Some other error occurred on file watch id %d", f->id);
+                }
+                // NOTE: some other error has occurred. TODO: Handle?
+                continue;
+            }
+
+            // Check the file time to see if it has been changed and update/notify if so.
+            if (info.st_mtime - f->last_write_time != 0) {
+                KTRACE("File update found.");
+                f->last_write_time = info.st_mtime;
+                // Notify listeners.
+                event_context context = {0};
+                context.data.u32[0] = f->id;
+                event_fire(EVENT_CODE_WATCHED_FILE_WRITTEN, 0, context);
+            }
+        }
+    }
+}
 
 
 

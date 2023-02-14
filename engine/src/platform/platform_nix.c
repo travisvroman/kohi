@@ -31,16 +31,12 @@ b8 platform_dynamic_library_load(const char *name, dynamic_library *out_library)
     char filename[260];  // NOTE: same as Windows, for now.
     kzero_memory(filename, sizeof(char) * 260);
 
-    char *extension;
-#if defined(KPLATFORM_LINUX)
-    extension = "so";
-#elif defined(KPLATFORM_APPLE)
-    extension = "dylib";
-#endif
+    const char *extension = platform_dynamic_library_extension();
+    const char *prefix = platform_dynamic_library_prefix();
 
-    string_format(filename, "lib%s.%s", name, extension);
+    string_format(filename, "%s%s%s", prefix, name, extension);
 
-    void *library = dlopen(filename, RTLD_NOW);
+    void *library = dlopen(filename, RTLD_NOW);  // "libtestbed_lib_loaded.dylib"
     if (!library) {
         return false;
     }
@@ -121,12 +117,8 @@ b8 platform_dynamic_library_load_function(const char *name, dynamic_library *lib
     return true;
 }
 
-const char *platform_dynamic_library_extension() {
-#if defined(KPLATFORM_LINUX)
-    return ".so";
-#elif defined(KPLATFORM_APPLE)
-    return ".dylib";
-#endif
+const char *platform_dynamic_library_prefix() {
+    return "lib";
 }
 
 #endif
