@@ -62,7 +62,7 @@ b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_conte
     if (code == EVENT_CODE_WATCHED_FILE_WRITTEN) {
         application* app = (application*)listener_inst;
         if (context.data.u32[0] == app->game_library.watch_id) {
-            KINFO("Hot-Reloading game dll.");
+            KINFO("Hot-Reloading game library.");
         }
 
         // Tell the app it is about to be unloaded.
@@ -74,9 +74,19 @@ b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_conte
             return false;
         }
 
+        // Wait a bit before trying to copy the file.
+        platform_sleep(100);
+
+        const char* prefix = platform_dynamic_library_prefix();
+        const char* extension = platform_dynamic_library_extension();
+        char source_file[260];
+        char target_file[260];
+        string_format(source_file, "%stestbed_lib%s", prefix, extension);
+        string_format(target_file, "%stestbed_lib_loaded%s", prefix, extension);
+
         platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
         while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
-            err_code = platform_copy_file("testbed_lib.dll", "testbed_lib_loaded.dll", true);
+            err_code = platform_copy_file(source_file, target_file, true);
             if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
                 platform_sleep(100);
             }
@@ -104,13 +114,20 @@ b8 create_application(application* out_application) {
     out_application->app_config.name = "Kohi Engine Testbed";
 
     // Dynamically load game library
-    // if (!platform_dynamic_library_load("testbed_lib_loaded", &out_application->game_library)) {
+    // if (!platform_dynamic_library_load("libtestbed_lib_loaded", &out_application->game_library)) {
     //     return false;
     // }
 
     platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
     while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
-        err_code = platform_copy_file("testbed_lib.dll", "testbed_lib_loaded.dll", true);
+        const char* prefix = platform_dynamic_library_prefix();
+        const char* extension = platform_dynamic_library_extension();
+        char source_file[260];
+        char target_file[260];
+        string_format(source_file, "%stestbed_lib%s", prefix, extension);
+        string_format(target_file, "%stestbed_lib_loaded%s", prefix, extension);
+
+        err_code = platform_copy_file(source_file, target_file, true);
         if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
             platform_sleep(100);
         }
@@ -149,12 +166,14 @@ b8 initialize_application(application* app) {
         return false;
     }
 
+    const char* prefix = platform_dynamic_library_prefix();
     const char* extension = platform_dynamic_library_extension();
     char path[260];
     kzero_memory(path, sizeof(char) * 260);
-    string_format(path, "%s%s", "testbed_lib", extension);
+    string_format(path, "%s%s%s", prefix, "testbed_lib", extension);
 
     if (!platform_watch_file(path, &app->game_library.watch_id)) {
+        KERROR("Failed to watch the testbed library!");
         return false;
     }
 

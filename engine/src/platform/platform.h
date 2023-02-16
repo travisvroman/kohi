@@ -48,7 +48,8 @@ typedef enum platform_error_code {
     PLATFORM_ERROR_SUCCESS = 0,
     PLATFORM_ERROR_UNKNOWN = 1,
     PLATFORM_ERROR_FILE_NOT_FOUND = 2,
-    PLATFORM_ERROR_FILE_LOCKED = 3
+    PLATFORM_ERROR_FILE_LOCKED = 3,
+    PLATFORM_ERROR_FILE_EXISTS = 4
 } platform_error_code;
 
 /**
@@ -205,6 +206,11 @@ KAPI b8 platform_dynamic_library_load_function(const char* name, dynamic_library
  * @brief Returns the file extension for the current platform.
  */
 KAPI const char* platform_dynamic_library_extension();
+
+/**
+ * @brief Returns a file prefix for libraries for the current platform.
+ */
+KAPI const char* platform_dynamic_library_prefix();
 
 /**
  * @brief Copies file at source to destination, optionally overwriting.
