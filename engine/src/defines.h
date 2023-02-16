@@ -229,7 +229,7 @@ KINLINE u64 get_aligned(u64 operand, u64 granularity) {
     return ((operand + (granularity - 1)) & ~(granularity - 1));
 }
 
-KINLINE range get_aligned_range(offset, size, granularity) {
+KINLINE range get_aligned_range(u64 offset, u64 size, u64 granularity) {
     return (range){get_aligned(offset, granularity), get_aligned(size, granularity)};
 }
 
