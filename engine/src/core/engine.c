@@ -46,7 +46,7 @@ b8 engine_create(application* game_inst) {
 
     // Memory system must be the first thing to be stood up.
     memory_system_configuration memory_system_config = {};
-    memory_system_config.total_alloc_size = GIBIBYTES(1);
+    memory_system_config.total_alloc_size = GIBIBYTES(2);
     if (!memory_system_initialize(memory_system_config)) {
         KERROR("Failed to initialize memory system; shutting down.");
         return false;
