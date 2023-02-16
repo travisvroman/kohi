@@ -22,6 +22,8 @@ if "%ACTION%" == "build" (
     )
 )
 
+del bin\*.pdb
+
 ECHO "%ACTION_STR% everything on %PLATFORM% (%TARGET%)..."
 
 REM Version Generator
