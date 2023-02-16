@@ -10,6 +10,7 @@
 #include "core/kmutex.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "core/clock.h"
 #include "containers/darray.h"
 
 #include "containers/darray.h"
@@ -205,9 +206,22 @@ f64 platform_get_absolute_time() {
 }
 
 void platform_sleep(u64 ms) {
+    clock clock;
+    clock_start(&clock);
     timeBeginPeriod(min_period);
     Sleep(ms);
     timeEndPeriod(min_period);
+
+    clock_update(&clock);
+    f64 observed = clock.elapsed * 1000.0;
+    f64 ms_remaining = ms - observed;
+
+    // spin lock
+    clock_start(&clock);
+    while(clock.elapsed * 1000.0 < ms_remaining) {
+        _mm_pause();
+        clock_update(&clock);
+    }
 }
 
 i32 platform_get_processor_count() {
