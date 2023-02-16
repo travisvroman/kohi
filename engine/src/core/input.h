@@ -304,7 +304,7 @@ typedef enum keys {
     /** @brief The right (square) bracket key e.g. ]} */
     KEY_RBRACKET = 0xDD,
 
-    KEYS_MAX_KEYS
+    KEYS_MAX_KEYS = 0xFF
 } keys;
 
 /**

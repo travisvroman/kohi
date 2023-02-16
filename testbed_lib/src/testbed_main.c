@@ -358,7 +358,7 @@ b8 application_update(struct application* game_inst, f32 delta_time) {
     state->alloc_count = get_memory_alloc_count();
 
     // Perform a small rotation on the first mesh.
-    quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, 0.5f * delta_time, false);
+    quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, -0.5f * delta_time, false);
     transform_rotate(&state->meshes[0].transform, rotation);
 
     // Perform a similar rotation on the second mesh, if it exists.

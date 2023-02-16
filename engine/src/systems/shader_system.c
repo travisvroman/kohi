@@ -132,7 +132,7 @@ b8 shader_system_create(renderpass* pass, const shader_config* config) {
     // 'uniforms' array stored in the shader for quick lookups by name.
     u64 element_size = sizeof(u16);  // Indexes are stored as u16s.
     u64 element_count = 1024;        // This is more uniforms than we will ever need, but a bigger table reduces collision chance.
-    out_shader->hashtable_block = kallocate(element_size * element_count, MEMORY_TAG_UNKNOWN);
+    out_shader->hashtable_block = kallocate(element_size * element_count, MEMORY_TAG_HASHTABLE);
     hashtable_create(element_size, element_count, out_shader->hashtable_block, false, &out_shader->uniform_lookup);
 
     // Invalidate all spots in the hashtable.

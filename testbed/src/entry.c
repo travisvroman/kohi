@@ -113,11 +113,6 @@ b8 create_application(application* out_application) {
     out_application->app_config.start_height = 720;
     out_application->app_config.name = "Kohi Engine Testbed";
 
-    // Dynamically load game library
-    // if (!platform_dynamic_library_load("libtestbed_lib_loaded", &out_application->game_library)) {
-    //     return false;
-    // }
-
     platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
     while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
         const char* prefix = platform_dynamic_library_prefix();
