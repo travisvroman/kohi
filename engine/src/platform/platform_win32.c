@@ -157,11 +157,13 @@ b8 platform_pump_messages() {
 }
 
 void *platform_allocate(u64 size, b8 aligned) {
-    return malloc(size);
+    // return malloc(size);
+    return (void *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
 }
 
 void platform_free(void *block, b8 aligned) {
-    free(block);
+    // free(block);
+    HeapFree(GetProcessHeap(), 0, block);
 }
 
 void *platform_zero_memory(void *block, u64 size) {
@@ -452,7 +454,7 @@ const char *platform_dynamic_library_extension() {
     return ".dll";
 }
 
-const char* platform_dynamic_library_prefix() {
+const char *platform_dynamic_library_prefix() {
     return "";
 }
 
