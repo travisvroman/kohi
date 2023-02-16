@@ -9,6 +9,8 @@
 #include "core/kthread.h"
 #include "core/kmutex.h"
 #include "core/kmemory.h"
+#include "core/asserts.h"
+#include "core/kstring.h"
 
 #include "containers/darray.h"
 
@@ -21,13 +23,17 @@
 
 #if _POSIX_C_SOURCE >= 199309L
 #include <time.h>  // nanosleep
-#else
-#include <unistd.h>  // usleep
 #endif
 
 #include <pthread.h>
 #include <errno.h>        // For error reporting
 #include <sys/sysinfo.h>  // Processor info
+#include <sys/stat.h>
+#include <sys/sendfile.h>
+
+#include <fcntl.h>
+#include <limits.h>
+#include <unistd.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -38,16 +44,25 @@ typedef struct linux_handle_info {
     xcb_window_t window;
 } linux_handle_info;
 
+typedef struct linux_file_watch {
+    u32 id;
+    const char *file_path;
+    long last_write_time;
+} linux_file_watch;
+
 typedef struct platform_state {
     Display* display;
     linux_handle_info handle;
     xcb_screen_t* screen;
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_win;
+    // darray
+    linux_file_watch* watches;
 } platform_state;
 
 static platform_state* state_ptr;
 
+void platform_update_watches();
 // Key translation
 keys translate_keycode(u32 x_keycode);
 
@@ -110,10 +125,10 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
         XCB_COPY_FROM_PARENT,  // depth
         state_ptr->handle.window,
         state_ptr->screen->root,        // parent
-        typed_config->x,                              // x
-        typed_config->y,                              // y
-        typed_config->width,                          // width
-        typed_config->height,                         // height
+        typed_config->x,                // x
+        typed_config->y,                // y
+        typed_config->width,            // width
+        typed_config->height,           // height
         0,                              // No border
         XCB_WINDOW_CLASS_INPUT_OUTPUT,  // class
         state_ptr->screen->root_visual,
@@ -273,6 +288,10 @@ b8 platform_pump_messages() {
 
             free(event);
         }
+
+        // Update watches.
+        platform_update_watches();
+
         return !quit_flagged;
     }
     return true;
@@ -333,8 +352,7 @@ i32 platform_get_processor_count() {
     return processors_available;
 }
 
-void platform_get_handle_info(u64 *out_size, void *memory) {
-
+void platform_get_handle_info(u64* out_size, void* memory) {
     *out_size = sizeof(linux_handle_info);
     if (!memory) {
         return;
@@ -549,8 +567,228 @@ b8 kmutex_unlock(kmutex* mutex) {
 }
 // NOTE: End mutexes
 
-const char *platform_dynamic_library_extension() {
+const char* platform_dynamic_library_extension() {
     return ".so";
+}
+
+const char *platform_dynamic_library_prefix() {
+    return "./lib";
+}
+
+platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists) {
+    platform_error_code ret_code = PLATFORM_ERROR_SUCCESS;
+    i32 source_fd = -1;
+    i32 dest_fd = -1;
+
+    // Obtain a file descriptor for the source file.
+    source_fd = open(source, O_RDONLY);
+    if (source_fd == -1) {
+        if (errno == ENOENT) {
+            KERROR("Source file does not exist: %s", source);
+        }
+        return PLATFORM_ERROR_FILE_NOT_FOUND;
+    }
+
+    // Stat the file to obtain it's attributes (e.g. size).
+    struct stat source_stat;
+    i32 result = fstat(source_fd, &source_stat);
+    if (result != 0) {
+        if (errno == ENOENT) {
+            KERROR("Source file does not exist: %s", source);
+        }
+        ret_code = PLATFORM_ERROR_FILE_NOT_FOUND;
+        goto close_handles;
+    }
+
+    u64 size = (u64)source_stat.st_size;
+
+    // Obtain a file descriptor for the source file.
+    dest_fd = open(dest, O_WRONLY | O_CREAT);
+    if (dest_fd == -1) {
+        if (errno == ENOENT) {
+            KERROR("Destination file could not be created: %s", dest);
+        }
+
+        ret_code = PLATFORM_ERROR_FILE_LOCKED;
+        goto close_handles;
+    }
+
+    // Copy the data. Iterate to handle large files, since Linux has a limit
+    // on the amount that can be copied at once.
+    while (size > 0) {
+        ssize_t sent = sendfile(dest_fd, source_fd, NULL, (size >= SSIZE_MAX ? SSIZE_MAX : (size_t)size));
+        if (sent < 0) {
+            if (errno != EINVAL && errno != ENOSYS) {
+                ret_code = PLATFORM_ERROR_UNKNOWN;
+                goto close_handles;
+            } else {
+                break;
+            }
+        } else {
+            KASSERT((size_t)sent <= size);
+            size -= (size_t)sent;
+        }
+    }
+
+    // Copy file times. Stat the source file again to make sure it's up to date.
+    result = fstat(source_fd, &source_stat);
+    if (result != 0) {
+        ret_code = PLATFORM_ERROR_FILE_NOT_FOUND;
+        goto close_handles;
+    } else {
+        struct timeval dest_times[2];
+        // Update last access time.
+        dest_times[0].tv_sec = source_stat.st_atime;
+        dest_times[0].tv_usec = source_stat.st_atim.tv_nsec / 1000;
+        // Update last modify time.
+        dest_times[1].tv_sec = source_stat.st_mtime;
+        dest_times[1].tv_usec = source_stat.st_mtim.tv_nsec / 1000;
+        result = futimes(dest_fd, dest_times);
+        // If an error is returned, treat as the destination file being locked.
+        if (result != 0) {
+            ret_code = PLATFORM_ERROR_FILE_LOCKED;
+            goto close_handles;
+        }
+    }
+
+    // Copy permissions.
+    result = fchmod(dest_fd, source_stat.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+    // If an error is returned, treat as the destination file being locked.
+    if (result != 0) {
+        ret_code = PLATFORM_ERROR_FILE_LOCKED;
+        goto close_handles;
+    }
+
+close_handles:
+    if (source_fd != -1) {
+        result = close(source_fd);
+        if (result != 0) {
+            KERROR("Error closing source file: %s", source);
+        }
+    }
+    if (dest_fd != -1) {
+        result = close(dest_fd);
+        if (result != 0) {
+            KERROR("Error closing destination file: %s", source);
+        }
+    }
+
+    return ret_code;
+}
+
+static b8 register_watch(const char *file_path, u32 *out_watch_id) {
+    if (!state_ptr || !file_path || !out_watch_id) {
+        if (out_watch_id) {
+            *out_watch_id = INVALID_ID;
+        }
+        return false;
+    }
+    *out_watch_id = INVALID_ID;
+
+    if (!state_ptr->watches) {
+        state_ptr->watches = darray_create(linux_file_watch);
+    }
+
+    struct stat info;
+    int result = stat(file_path, &info);
+    if(result != 0) {
+        if(errno == ENOENT) {
+            // File doesn't exist. TODO: report?
+        }
+        return false;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    for (u32 i = 0; i < count; ++i) {
+        linux_file_watch *w = &state_ptr->watches[i];
+        if (w->id == INVALID_ID) {
+            // Found a free slot to use.
+            w->id = i;
+            w->file_path = string_duplicate(file_path);
+            w->last_write_time = info.st_mtime;
+            *out_watch_id = i;
+            return true;
+        }
+    }
+
+    // If no empty slot is available, create and push a new entry.
+    linux_file_watch w = {0};
+    w.id = count;
+    w.file_path = string_duplicate(file_path);
+    w.last_write_time = info.st_mtime;
+    *out_watch_id = count;
+    darray_push(state_ptr->watches, w);
+
+    return true;
+}
+
+static b8 unregister_watch(u32 watch_id) {
+    if (!state_ptr || !state_ptr->watches) {
+        return false;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    if (count == 0 || watch_id > (count - 1)) {
+        return false;
+    }
+
+    linux_file_watch *w = &state_ptr->watches[watch_id];
+    w->id = INVALID_ID;
+    u32 len = string_length(w->file_path);
+    kfree((void *)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+    w->file_path = 0;
+    kzero_memory(&w->last_write_time, sizeof(long));
+
+    return true;
+}
+
+b8 platform_watch_file(const char *file_path, u32 *out_watch_id) {
+    return register_watch(file_path, out_watch_id);
+}
+
+b8 platform_unwatch_file(u32 watch_id) {
+    return unregister_watch(watch_id);
+}
+
+void platform_update_watches() {
+    if (!state_ptr || !state_ptr->watches) {
+        return;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    for (u32 i = 0; i < count; ++i) {
+        linux_file_watch *f = &state_ptr->watches[i];
+        if (f->id != INVALID_ID) {
+
+            struct stat info;
+            int result = stat(f->file_path, &info);
+            if(result != 0) {
+                if(errno == ENOENT) {
+                    // File doesn't exist. Which means it was deleted. Remove the watch.
+                    event_context context = {0};
+                    context.data.u32[0] = f->id;
+                    event_fire(EVENT_CODE_WATCHED_FILE_DELETED, 0, context);
+                    KINFO("File watch id %d has been removed.", f->id);
+                    unregister_watch(f->id);
+                    continue;
+                } else {
+                    KWARN("Some other error occurred on file watch id %d", f->id);
+                }
+                // NOTE: some other error has occurred. TODO: Handle?
+                continue;
+            }
+
+            // Check the file time to see if it has been changed and update/notify if so.
+            if (info.st_mtime - f->last_write_time != 0) {
+                KTRACE("File update found.");
+                f->last_write_time = info.st_mtime;
+                // Notify listeners.
+                event_context context = {0};
+                context.data.u32[0] = f->id;
+                event_fire(EVENT_CODE_WATCHED_FILE_WRITTEN, 0, context);
+            }
+        }
+    }
 }
 
 // Key translation

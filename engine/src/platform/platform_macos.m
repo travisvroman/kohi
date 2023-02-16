@@ -744,6 +744,10 @@ const char *platform_dynamic_library_extension() {
     return ".dylib";
 }
 
+const char *platform_dynamic_library_prefix() {
+    return "lib";
+}
+
 platform_error_code platform_copy_file(const char *source, const char *dest, b8 overwrite_if_exists) {
     u32 flags = COPYFILE_ALL;
     if(!overwrite_if_exists) {

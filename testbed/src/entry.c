@@ -74,6 +74,9 @@ b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_conte
             return false;
         }
 
+        // Wait a bit before trying to copy the file.
+        platform_sleep(100);
+
         const char* prefix = platform_dynamic_library_prefix();
         const char* extension = platform_dynamic_library_extension();
         char source_file[260];

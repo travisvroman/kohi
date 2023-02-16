@@ -47,7 +47,7 @@ i32 find_memory_index(vulkan_context* context, u32 type_filter, u32 property_fla
 
 void create_command_buffers(vulkan_context* context);
 b8 recreate_swapchain(vulkan_context* context);
-b8 create_module(vulkan_context* context, vulkan_shader* shader, vulkan_shader_stage_config config, vulkan_shader_stage* shader_stage);
+b8 create_shader_module(vulkan_context* context, vulkan_shader* shader, vulkan_shader_stage_config config, vulkan_shader_stage* shader_stage);
 b8 vulkan_buffer_copy_range_internal(vulkan_context* context, VkBuffer source, u64 source_offset, VkBuffer dest, u64 dest_offset, u64 size);
 
 #if KVULKAN_USE_CUSTOM_ALLOCATOR == 1
@@ -1603,7 +1603,7 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin* plugin, shader* s) {
     // Create a module for each stage.
     kzero_memory(internal_shader->stages, sizeof(vulkan_shader_stage) * VULKAN_SHADER_MAX_STAGES);
     for (u32 i = 0; i < internal_shader->config.stage_count; ++i) {
-        if (!create_module(context, internal_shader, internal_shader->config.stages[i], &internal_shader->stages[i])) {
+        if (!create_shader_module(context, internal_shader, internal_shader->config.stages[i], &internal_shader->stages[i])) {
             KERROR("Unable to create %s shader module for '%s'. Shader will be destroyed.", internal_shader->config.stages[i].file_name, s->name);
             return false;
         }
@@ -2162,7 +2162,7 @@ b8 vulkan_renderer_set_uniform(renderer_plugin* plugin, shader* s, shader_unifor
     return true;
 }
 
-b8 create_module(vulkan_context* context, vulkan_shader* shader, vulkan_shader_stage_config config, vulkan_shader_stage* shader_stage) {
+b8 create_shader_module(vulkan_context* context, vulkan_shader* shader, vulkan_shader_stage_config config, vulkan_shader_stage* shader_stage) {
     // Read the resource.
     resource binary_resource;
     if (!resource_system_load(config.file_name, RESOURCE_TYPE_BINARY, 0, &binary_resource)) {

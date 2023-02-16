@@ -15,6 +15,7 @@
 
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "core/logger.h"
 #include "containers/darray.h"
 
 #include <dlfcn.h>
@@ -38,6 +39,7 @@ b8 platform_dynamic_library_load(const char *name, dynamic_library *out_library)
 
     void *library = dlopen(filename, RTLD_NOW);  // "libtestbed_lib_loaded.dylib"
     if (!library) {
+        KERROR("Error opening library: %s", dlerror());
         return false;
     }
 
@@ -65,6 +67,7 @@ b8 platform_dynamic_library_unload(dynamic_library *library) {
     if (result != 0) {  // Opposite of Windows, 0 means success.
         return false;
     }
+    library->internal_data = 0;
 
     if (library->name) {
         u64 length = string_length(library->name);
@@ -115,10 +118,6 @@ b8 platform_dynamic_library_load_function(const char *name, dynamic_library *lib
     darray_push(library->functions, f);
 
     return true;
-}
-
-const char *platform_dynamic_library_prefix() {
-    return "lib";
 }
 
 #endif
