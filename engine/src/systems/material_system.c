@@ -22,6 +22,9 @@ typedef struct material_shader_uniform_locations {
     u16 normal_texture;
     u16 model;
     u16 render_mode;
+    u16 dir_light;
+    u16 p_light_0;
+    u16 p_light_1;
 } material_shader_uniform_locations;
 
 typedef struct ui_shader_uniform_locations {
@@ -57,6 +60,25 @@ typedef struct material_reference {
     u32 handle;
     b8 auto_release;
 } material_reference;
+
+// TODO: HACK: Temporary lighting structures
+typedef struct directional_light {
+    vec3 direction;
+    vec4 colour;
+} directional_light;
+
+typedef struct point_light {
+    vec3 position;
+    vec4 colour;
+    // Usually 1, make sure denominator never gets smaller than 1
+    float constant_f;
+    // Reduces light intensity linearly
+    float linear;
+    // Makes the light fall off slower at longer distances.
+    float quadratic;
+} point_light;
+
+// TODO: HACK: end
 
 static material_system_state* state_ptr = 0;
 
@@ -233,6 +255,9 @@ material* material_system_acquire_from_config(material_config config) {
                 state_ptr->material_locations.shininess = shader_system_uniform_index(s, "shininess");
                 state_ptr->material_locations.model = shader_system_uniform_index(s, "model");
                 state_ptr->material_locations.render_mode = shader_system_uniform_index(s, "mode");
+                state_ptr->material_locations.dir_light = shader_system_uniform_index(s, "dir_light");
+                state_ptr->material_locations.p_light_0 = shader_system_uniform_index(s, "p_light_0");
+                state_ptr->material_locations.p_light_1 = shader_system_uniform_index(s, "p_light_1");
             } else if (state_ptr->ui_shader_id == INVALID_ID && strings_equal(config.shader_name, "Shader.Builtin.UI")) {
                 state_ptr->ui_shader_id = s->id;
                 state_ptr->ui_locations.projection = shader_system_uniform_index(s, "projection");
@@ -352,6 +377,33 @@ b8 material_system_apply_instance(material* m, b8 needs_update) {
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, &m->specular_map));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, &m->normal_map));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.shininess, &m->shininess));
+
+            // TODO: HACK: moving lighting code to CPU
+            static directional_light dir_light = {
+                (vec3){-0.57735f, -0.57735f, -0.57735f},
+                // vec4(0.6, 0.6, 0.6, 1.0)
+                (vec4){0.4f, 0.4f, 0.2f, 1.0f}};
+
+            static point_light p_light_0 = {
+                (vec3){-5.5f, 0.0f, -5.5f},
+                (vec4){0.0f, 1.0f, 0.0f, 1.0f},
+                1.0f,   // constant_f
+                0.35f,  // Linear
+                0.44f   // Quadratic
+            };
+
+            static point_light p_light_1 = {
+                (vec3){5.5f, 0.0f, -5.5f},
+                (vec4){1.0f, 0.0f, 0.0f, 1.0f},
+                1.0f,   // constant_f
+                0.35f,  // Linear
+                0.44f   // Quadratic
+            };
+
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.dir_light, &dir_light));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.p_light_0, &p_light_0));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.p_light_1, &p_light_1));
+
         } else if (m->shader_id == state_ptr->ui_shader_id) {
             // UI shader
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.diffuse_colour, &m->diffuse_colour));

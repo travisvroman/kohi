@@ -92,6 +92,14 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
             }
         }
         return true;
+    } else if (code == EVENT_CODE_DEBUG2) {
+        if (state->models_loaded) {
+            KDEBUG("Unloading models...");
+            mesh_unload(state->car_mesh);
+            mesh_unload(state->sponza_mesh);
+            state->models_loaded = true;
+        }
+        return true;
     }
 
     return false;
@@ -634,6 +642,7 @@ void application_register_events(struct application* game_inst) {
         // TODO: temp
         event_register(EVENT_CODE_DEBUG0, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
+        event_register(EVENT_CODE_DEBUG2, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
         // TODO: end temp
 
@@ -647,6 +656,7 @@ void application_register_events(struct application* game_inst) {
 void application_unregister_events(struct application* game_inst) {
     event_unregister(EVENT_CODE_DEBUG0, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
+    event_unregister(EVENT_CODE_DEBUG2, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
     // TODO: end temp
 

@@ -136,7 +136,7 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, void* para
         } else if (strings_equali(trimmed_var_name, "depth_test")) {
             string_to_bool(trimmed_value, &resource_data->depth_test);
         } else if (strings_equali(trimmed_var_name, "depth_write")) {
-            string_to_bool(trimmed_value, &resource_data->depth_write); 
+            string_to_bool(trimmed_value, &resource_data->depth_write);
         } else if (strings_equali(trimmed_var_name, "attribute")) {
             // Parse attribute.
             char** fields = darray_create(char*);
@@ -239,6 +239,25 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, void* para
                 } else if (strings_equali(fields[0], "samp") || strings_equali(fields[0], "sampler")) {
                     uniform.type = SHADER_UNIFORM_TYPE_SAMPLER;
                     uniform.size = 0;  // Samplers don't have a size.
+                } else if (strings_nequali(fields[0], "struct", 6)) {
+                    u32 len = string_length(fields[0]);
+                    if (len <= 6) {
+                        KERROR("shader_loader_load: Invalid struct uniform, size is missing. Shader load aborted.");
+                        return false;
+                    }
+                    // u32 diff = len - 6;
+                    char struct_size_str[32] = {0};
+                    string_mid(struct_size_str, fields[0], 6, -1);
+                    u32 struct_size = 0;
+                    if (!string_to_u32(struct_size_str, &struct_size)) {
+                        KERROR("Unable to parse struct uniform size. Shader load aborted.");
+                        return false;
+                    }
+                    uniform.type = SHADER_UNIFORM_TYPE_CUSTOM;
+                    uniform.size = struct_size;
+                    // uniform=struct28,1,dir_light
+                    // uniform=struct40,1,p_light_0
+                    // uniform=struct40,1,p_light_1
                 } else {
                     KERROR("shader_loader_load: Invalid file layout. Uniform type must be f32, vec2, vec3, vec4, i8, i16, i32, u8, u16, u32 or mat4.");
                     KWARN("Defaulting to f32.");
