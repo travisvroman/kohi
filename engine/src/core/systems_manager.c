@@ -20,6 +20,7 @@
 #include "systems/render_view_system.h"
 #include "systems/material_system.h"
 #include "systems/geometry_system.h"
+#include "systems/light_system.h"
 
 static b8 register_known_systems_pre_boot(systems_manager_state* state, application_config* app_config);
 static b8 register_known_systems_post_boot(systems_manager_state* state, application_config* app_config);
@@ -65,7 +66,6 @@ b8 systems_manager_register(
     PFN_system_shutdown shutdown,
     PFN_system_update update,
     void* config) {
-
     k_system* sys = &state->systems[type];
 
     // Call initialize, alloc memory, call initialize again w/ allocated block.
@@ -308,6 +308,12 @@ b8 register_known_systems_post_boot(systems_manager_state* state, application_co
     geometry_sys_config.max_geometry_count = 4096;
     if (!systems_manager_register(state, K_SYSTEM_TYPE_GEOMETRY, geometry_system_initialize, geometry_system_shutdown, 0, &geometry_sys_config)) {
         KERROR("Failed to register geometry system.");
+        return false;
+    }
+
+    // Light system.
+    if (!systems_manager_register(state, K_SYSTEM_TYPE_LIGHT, light_system_initialize, light_system_shutdown, 0, 0)) {
+        KERROR("Failed to register light system.");
         return false;
     }
 

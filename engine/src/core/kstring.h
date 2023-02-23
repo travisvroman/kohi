@@ -147,7 +147,7 @@ KAPI char* string_trim(char* str);
 
 /**
  * @brief Gets a substring of the source string between start and length or to the end of the string.
- * If length is negative or 0, goes to the end of the string.
+ * If length is negative, goes to the end of the string.
  *
  * Done by placing zeroes in the string at relevant points.
  * @param str The string to be trimmed.
