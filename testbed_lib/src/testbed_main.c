@@ -26,6 +26,7 @@
 #include <systems/geometry_system.h>
 #include <systems/material_system.h>
 #include <systems/render_view_system.h>
+#include <systems/light_system.h>
 #include "debug_console.h"
 #include "game_commands.h"
 #include "game_keybinds.h"
@@ -276,6 +277,40 @@ b8 application_initialize(struct application* game_inst) {
     state->sponza_mesh->transform = transform_from_position_rotation_scale((vec3){15.0f, 0.0f, 1.0f}, quat_identity(), (vec3){0.05f, 0.05f, 0.05f});
     mesh_count++;
 
+    // TODO: HACK: moving lighting code to CPU
+    state->dir_light = (directional_light){
+        (vec4){0.4f, 0.4f, 0.2f, 1.0f},
+        (vec4){-0.57735f, -0.57735f, -0.57735f, 0.0f}};
+
+    light_system_add_directional(&state->dir_light);
+
+    state->p_lights[0].colour = (vec4){1.0f, 0.0f, 0.0f, 1.0f};
+    state->p_lights[0].position = (vec4){-5.5f, 0.0f, -5.5f, 0.0f};
+    state->p_lights[0].constant_f = 1.0f;
+    state->p_lights[0].linear = 0.35f;
+    state->p_lights[0].quadratic = 0.44f;
+    state->p_lights[0].padding = 0;
+
+    light_system_add_point(&state->p_lights[0]);
+
+    state->p_lights[1].colour = (vec4){0.0f, 1.0f, 0.0f, 1.0f};
+    state->p_lights[1].position = (vec4){5.5f, 0.0f, -5.5f, 0.0f};
+    state->p_lights[1].constant_f = 1.0f;
+    state->p_lights[1].linear = 0.35f;
+    state->p_lights[1].quadratic = 0.44f;
+    state->p_lights[1].padding = 0;
+
+    light_system_add_point(&state->p_lights[1]);
+
+    state->p_lights[2].colour = (vec4){0.0f, 0.0f, 1.0f, 1.0f};
+    state->p_lights[2].position = (vec4){5.5f, 0.0f, 5.5f, 0.0f};
+    state->p_lights[2].constant_f = 1.0f;
+    state->p_lights[2].linear = 0.35f;
+    state->p_lights[2].quadratic = 0.44f;
+    state->p_lights[2].padding = 0;
+
+    light_system_add_point(&state->p_lights[2]);
+
     // Load up some test UI geometry.
     geometry_config ui_config;
     ui_config.vertex_size = sizeof(vertex_2d);
@@ -465,6 +500,10 @@ b8 application_update(struct application* game_inst, f32 delta_time) {
             }
         }
     }
+
+
+    state->p_lights[1].colour = (vec4){0.0f, 1.0f, 1.0f, 1.0f};
+    state->p_lights[1].position.x -= 0.005f;
 
     char* vsync_text = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
     char text_buffer[2048];

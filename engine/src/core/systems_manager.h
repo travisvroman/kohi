@@ -66,6 +66,7 @@ typedef enum k_system_type {
     K_SYSTEM_TYPE_RENDER_VIEW,
     K_SYSTEM_TYPE_MATERIAL,
     K_SYSTEM_TYPE_GEOMETRY,
+    K_SYSTEM_TYPE_LIGHT,
 
     // NOTE: Anything beyond this is in user space.
     K_SYSTEM_TYPE_KNOWN_MAX = 255,
