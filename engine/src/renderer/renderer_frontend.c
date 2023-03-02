@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "core/kmemory.h"
 #include "core/kvar.h"
+#include "core/frame_data.h"
 #include "containers/freelist.h"
 #include "math/kmath.h"
 #include "platform/platform.h"
@@ -90,7 +91,7 @@ void renderer_on_resized(u16 width, u16 height) {
     }
 }
 
-b8 renderer_draw_frame(render_packet* packet) {
+b8 renderer_draw_frame(render_packet* packet, const struct frame_data* p_frame_data) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     state_ptr->plugin.frame_number++;
 
@@ -120,7 +121,7 @@ b8 renderer_draw_frame(render_packet* packet) {
     }
 
     // If the begin frame returned successfully, mid-frame operations may continue.
-    if (state_ptr->plugin.begin_frame(&state_ptr->plugin, packet->delta_time)) {
+    if (state_ptr->plugin.begin_frame(&state_ptr->plugin, p_frame_data)) {
         u8 attachment_index = state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
 
         // Render each view.
@@ -132,7 +133,7 @@ b8 renderer_draw_frame(render_packet* packet) {
         }
 
         // End the frame. If this fails, it is likely unrecoverable.
-        b8 result = state_ptr->plugin.end_frame(&state_ptr->plugin, packet->delta_time);
+        b8 result = state_ptr->plugin.end_frame(&state_ptr->plugin, p_frame_data);
 
         if (!result) {
             KERROR("renderer_end_frame failed. Application shutting down...");

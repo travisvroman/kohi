@@ -19,6 +19,7 @@
 #include "renderer/renderer_types.inl"
 
 struct application;
+struct frame_data;
 
 /** 
  * @brief Represents configuration for the application. The application config
@@ -47,6 +48,12 @@ typedef struct application_config {
     render_view_config* render_views;
 
     renderer_plugin renderer_plugin;
+
+    /** @brief The size of the frame allocator. */
+    u64 frame_allocator_size;
+
+    /** @brief The size of the application-specific frame data. Set to 0 if not used. */
+    u64 app_frame_data_size;
 } application_config;
 
 /**
@@ -70,3 +77,5 @@ KAPI b8 engine_run(struct application* game_inst);
  * required for initialization.
  */
 void engine_on_event_system_initialized();
+
+KAPI const struct frame_data* engine_frame_data_get(struct application* game_inst);

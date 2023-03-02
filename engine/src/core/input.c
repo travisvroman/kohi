@@ -3,6 +3,7 @@
 #include "core/kmemory.h"
 #include "core/logger.h"
 #include "core/keymap.h"
+#include "core/frame_data.h"
 #include "containers/stack.h"
 
 typedef struct keyboard_state {
@@ -52,7 +53,7 @@ void input_system_shutdown(void* state) {
     state_ptr = 0;
 }
 
-void input_update(f64 delta_time) {
+void input_update(const struct frame_data* p_frame_data) {
     if (!state_ptr) {
         return;
     }

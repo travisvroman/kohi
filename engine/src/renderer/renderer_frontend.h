@@ -17,6 +17,7 @@
 
 struct shader;
 struct shader_uniform;
+struct frame_data;
 
 typedef struct renderer_system_config {
     char* application_name;
@@ -54,9 +55,10 @@ KAPI void renderer_on_resized(u16 width, u16 height);
  * @brief Draws the next frame using the data provided in the render packet.
  *
  * @param packet A pointer to the render packet, which contains data on what should be rendered.
+ * @param p_frame_data A constant pointer to the current frame's data.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_draw_frame(render_packet* packet);
+KAPI b8 renderer_draw_frame(render_packet* packet, const struct frame_data* p_frame_data);
 
 /**
  * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.

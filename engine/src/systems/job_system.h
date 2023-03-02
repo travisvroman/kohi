@@ -8,6 +8,8 @@ typedef b8 (*pfn_job_start)(void*, void*);
 /** @brief A function pointer definition for completion of a job. */
 typedef void (*pfn_job_on_complete)(void*);
 
+struct frame_data;
+
 /** @brief Describes a type of job */
 typedef enum job_type {
     /**
@@ -104,7 +106,7 @@ void job_system_shutdown(void* state);
 /**
  * @brief Updates the job system. Should happen once an update cycle.
  */
-b8 job_system_update(void* state, f32 delta_time);
+b8 job_system_update(void* state, const struct frame_data* p_frame_data);
 
 /**
  * @brief Submits the provided job to be queued for execution.

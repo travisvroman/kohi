@@ -10,8 +10,10 @@
 #include <core/metrics.h>
 #include <core/clock.h>
 #include <core/console.h>
+#include <core/frame_data.h>
 
 #include <containers/darray.h>
+#include <memory/linear_allocator.h>
 
 #include <math/kmath.h>
 #include <renderer/renderer_types.inl>
@@ -38,7 +40,7 @@ void application_unregister_events(struct application* game_inst);
 
 b8 game_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
     application* game_inst = (application*)listener_inst;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     switch (code) {
         case EVENT_CODE_OBJECT_HOVER_ID_CHANGED: {
@@ -52,7 +54,7 @@ b8 game_on_event(u16 code, void* sender, void* listener_inst, event_context cont
 
 b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_context data) {
     application* game_inst = (application*)listener_inst;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     if (code == EVENT_CODE_DEBUG0) {
         const char* names[3] = {
@@ -128,21 +130,21 @@ b8 game_on_key(u16 code, void* sender, void* listener_inst, event_context contex
 }
 
 u64 application_state_size() {
-    return sizeof(game_state);
+    return sizeof(testbed_game_state);
 }
 
 b8 application_boot(struct application* game_inst) {
     KINFO("Booting testbed...");
 
     // Allocate the game state.
-    game_inst->state = kallocate(sizeof(game_state), MEMORY_TAG_GAME);
+    game_inst->state = kallocate(sizeof(testbed_game_state), MEMORY_TAG_GAME);
 
-    debug_console_create(&((game_state*)game_inst->state)->debug_console);
-
-    // Setup the frame allocator.
-    linear_allocator_create(MEBIBYTES(64), 0, &game_inst->frame_allocator);
+    debug_console_create(&((testbed_game_state*)game_inst->state)->debug_console);
 
     application_config* config = &game_inst->app_config;
+
+    config->frame_allocator_size = MEBIBYTES(64);
+    config->app_frame_data_size = sizeof(testbed_application_frame_data);
 
     // Configure fonts.
     config->font_config.auto_release = false;
@@ -187,9 +189,9 @@ b8 application_initialize(struct application* game_inst) {
 
     application_register_events(game_inst);
 
-    debug_console_load(&((game_state*)game_inst->state)->debug_console);
+    debug_console_load(&((testbed_game_state*)game_inst->state)->debug_console);
 
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     // TODO: temp load/prepare stuff
 
@@ -366,7 +368,7 @@ b8 application_initialize(struct application* game_inst) {
     state->world_camera = camera_system_get_default();
     camera_position_set(state->world_camera, (vec3){10.5f, 5.0f, 9.5f});
 
-    kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
+    // kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
 
     kzero_memory(&state->update_clock, sizeof(clock));
     kzero_memory(&state->render_clock, sizeof(clock));
@@ -377,31 +379,32 @@ b8 application_initialize(struct application* game_inst) {
     return true;
 }
 
-b8 application_update(struct application* game_inst, f32 delta_time) {
+b8 application_update(struct application* game_inst, const struct frame_data* p_frame_data) {
     // Ensure this is cleaned up to avoid leaking memory.
     // TODO: Need a version of this that uses the frame allocator.
-    if (game_inst->frame_data.world_geometries) {
-        darray_destroy(game_inst->frame_data.world_geometries);
-        game_inst->frame_data.world_geometries = 0;
+    testbed_application_frame_data* app_frame_data = (testbed_application_frame_data*)p_frame_data->application_frame_data;
+    if (!app_frame_data) {
+        return true;
+    }
+    
+    if (app_frame_data->world_geometries) {
+        darray_destroy(app_frame_data->world_geometries);
+        app_frame_data->world_geometries = 0;
     }
 
-    // Reset the frame allocator
-    linear_allocator_free_all(&game_inst->frame_allocator);
-
     // Clear frame data
-    kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
+    // kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
 
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     clock_start(&state->update_clock);
-    state->delta_time = delta_time;
 
     // Track allocation differences.
     state->prev_alloc_count = state->alloc_count;
     state->alloc_count = get_memory_alloc_count();
 
     // Perform a small rotation on the first mesh.
-    quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, -0.5f * delta_time, false);
+    quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, -0.5f * p_frame_data->delta_time, false);
     transform_rotate(&state->meshes[0].transform, rotation);
 
     // Perform a similar rotation on the second mesh, if it exists.
@@ -436,7 +439,7 @@ b8 application_update(struct application* game_inst, f32 delta_time) {
     state->camera_frustum = frustom_create(&state->world_camera->position, &forward, &right, &up, (f32)state->width / state->height, deg_to_rad(45.0f), 0.1f, 1000.0f);
 
     // NOTE: starting at a reasonable default to avoid too many reallocs.
-    game_inst->frame_data.world_geometries = darray_reserve(geometry_render_data, 512);
+    app_frame_data->world_geometries = darray_reserve(geometry_render_data, 512);
     u32 draw_count = 0;
     for (u32 i = 0; i < 10; ++i) {
         mesh* m = &state->meshes[i];
@@ -492,7 +495,7 @@ b8 application_update(struct application* game_inst, f32 delta_time) {
                         data.model = model;
                         data.geometry = g;
                         data.unique_id = m->unique_id;
-                        darray_push(game_inst->frame_data.world_geometries, data);
+                        darray_push(app_frame_data->world_geometries, data);
 
                         draw_count++;
                     }
@@ -500,7 +503,6 @@ b8 application_update(struct application* game_inst, f32 delta_time) {
             }
         }
     }
-
 
     state->p_lights[1].colour = (vec4){0.0f, 1.0f, 1.0f, 1.0f};
     state->p_lights[1].position.x -= 0.005f;
@@ -530,7 +532,7 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
     ui_text_set_text(&state->test_text, text_buffer);
 
-    debug_console_update(&((game_state*)game_inst->state)->debug_console);
+    debug_console_update(&((testbed_game_state*)game_inst->state)->debug_console);
 
     clock_update(&state->update_clock);
     state->last_update_elapsed = state->update_clock.elapsed;
@@ -538,8 +540,9 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
     return true;
 }
 
-b8 application_render(struct application* game_inst, struct render_packet* packet, f32 delta_time) {
-    game_state* state = (game_state*)game_inst->state;
+b8 application_render(struct application* game_inst, struct render_packet* packet, const struct frame_data* p_frame_data) {
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    testbed_application_frame_data* app_frame_data = (testbed_application_frame_data*)p_frame_data->application_frame_data;
 
     clock_start(&state->render_clock);
 
@@ -547,19 +550,19 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
 
     // TODO: Read from frame config.
     packet->view_count = 4;
-    packet->views = linear_allocator_allocate(&game_inst->frame_allocator, sizeof(render_view_packet) * packet->view_count);
+    packet->views = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(render_view_packet) * packet->view_count);
 
     // Skybox
     skybox_packet_data skybox_data = {};
     skybox_data.sb = &state->sb;
-    if (!render_view_system_build_packet(render_view_system_get("skybox"), &game_inst->frame_allocator, &skybox_data, &packet->views[0])) {
+    if (!render_view_system_build_packet(render_view_system_get("skybox"), p_frame_data->frame_allocator, &skybox_data, &packet->views[0])) {
         KERROR("Failed to build packet for view 'skybox'.");
         return false;
     }
 
     // World
     // TODO: performs a lookup on every frame.
-    if (!render_view_system_build_packet(render_view_system_get("world"), &game_inst->frame_allocator, game_inst->frame_data.world_geometries, &packet->views[1])) {
+    if (!render_view_system_build_packet(render_view_system_get("world"), p_frame_data->frame_allocator, app_frame_data->world_geometries, &packet->views[1])) {
         KERROR("Failed to build packet for view 'world_opaque'.");
         return false;
     }
@@ -569,7 +572,7 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
 
     u32 ui_mesh_count = 0;
     u32 max_ui_meshes = 10;
-    mesh** ui_meshes = linear_allocator_allocate(&game_inst->frame_allocator, sizeof(mesh*) * max_ui_meshes);
+    mesh** ui_meshes = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(mesh*) * max_ui_meshes);
 
     for (u32 i = 0; i < max_ui_meshes; ++i) {
         if (state->ui_meshes[i].generation != INVALID_ID_U8) {
@@ -586,7 +589,7 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     if (render_debug_conole) {
         ui_packet.text_count += 2;
     }
-    ui_text** texts = linear_allocator_allocate(&game_inst->frame_allocator, sizeof(ui_text*) * ui_packet.text_count);
+    ui_text** texts = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(ui_text*) * ui_packet.text_count);
     texts[0] = &state->test_text;
     texts[1] = &state->test_sys_text;
     if (render_debug_conole) {
@@ -595,7 +598,7 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     }
 
     ui_packet.texts = texts;
-    if (!render_view_system_build_packet(render_view_system_get("ui"), &game_inst->frame_allocator, &ui_packet, &packet->views[2])) {
+    if (!render_view_system_build_packet(render_view_system_get("ui"), p_frame_data->frame_allocator, &ui_packet, &packet->views[2])) {
         KERROR("Failed to build packet for view 'ui'.");
         return false;
     }
@@ -603,11 +606,11 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     // Pick uses both world and ui packet data.
     pick_packet_data pick_packet = {};
     pick_packet.ui_mesh_data = ui_packet.mesh_data;
-    pick_packet.world_mesh_data = game_inst->frame_data.world_geometries;
+    pick_packet.world_mesh_data = app_frame_data->world_geometries;
     pick_packet.texts = ui_packet.texts;
     pick_packet.text_count = ui_packet.text_count;
 
-    if (!render_view_system_build_packet(render_view_system_get("pick"), &game_inst->frame_allocator, &pick_packet, &packet->views[3])) {
+    if (!render_view_system_build_packet(render_view_system_get("pick"), p_frame_data->frame_allocator, &pick_packet, &packet->views[3])) {
         KERROR("Failed to build packet for view 'ui'.");
         return false;
     }
@@ -623,7 +626,7 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
         return;
     }
 
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     state->width = width;
     state->height = height;
@@ -635,7 +638,7 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
 }
 
 void application_shutdown(struct application* game_inst) {
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     // TODO: Temp
     skybox_destroy(&state->sb);
@@ -649,14 +652,14 @@ void application_shutdown(struct application* game_inst) {
 
 void application_lib_on_unload(struct application* game_inst) {
     application_unregister_events(game_inst);
-    debug_console_on_lib_unload(&((game_state*)game_inst->state)->debug_console);
+    debug_console_on_lib_unload(&((testbed_game_state*)game_inst->state)->debug_console);
     game_remove_commands(game_inst);
     game_remove_keymaps(game_inst);
 }
 
 void application_lib_on_load(struct application* game_inst) {
     application_register_events(game_inst);
-    debug_console_on_lib_load(&((game_state*)game_inst->state)->debug_console, game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE);
+    debug_console_on_lib_load(&((testbed_game_state*)game_inst->state)->debug_console, game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE);
     if (game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE) {
         game_setup_commands(game_inst);
         game_setup_keymaps(game_inst);

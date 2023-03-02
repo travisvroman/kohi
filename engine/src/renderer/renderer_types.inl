@@ -7,6 +7,7 @@
 
 struct shader;
 struct shader_uniform;
+struct frame_data;
 
 typedef struct geometry_render_data {
     mat4 model;
@@ -232,20 +233,20 @@ typedef struct renderer_plugin {
      * that it should be attempted again on the next loop. End frame does not need to (and
      * should not) be called if this is the case.
      * @param plugin A pointer to the renderer plugin interface.
-     * @param delta_time The time in seconds since the last frame.
+     * @param p_frame_data A constant pointer to the current frame's data.
      * @return True if successful; otherwise false.
      */
-    b8 (*begin_frame)(struct renderer_plugin* plugin, f32 delta_time);
+    b8 (*begin_frame)(struct renderer_plugin* plugin, const struct frame_data* p_frame_data);
 
     /**
      * @brief Performs routines required to draw a frame, such as presentation. Should only be called
      * after a successful return of begin_frame.
      *
      * @param plugin A pointer to the renderer plugin interface.
-     * @param delta_time The time in seconds since the last frame.
+     * @param p_frame_data A constant pointer to the current frame's data.
      * @return True on success; otherwise false.
      */
-    b8 (*end_frame)(struct renderer_plugin* plugin, f32 delta_time);
+    b8 (*end_frame)(struct renderer_plugin* plugin, const struct frame_data* p_frame_data);
 
     /**
      * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
@@ -968,8 +969,6 @@ typedef struct skybox_packet_data {
  * such as delta time and a collection of views to be rendered.
  */
 typedef struct render_packet {
-    f32 delta_time;
-
     /** The number of views to be rendered. */
     u16 view_count;
     /** An array of views to be rendered. */

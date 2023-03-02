@@ -11,6 +11,8 @@
 #include <core/kstring.h>
 #include <core/kvar.h>
 #include <core/console.h>
+#include <core/engine.h>
+#include <core/frame_data.h>
 #include <renderer/renderer_frontend.h>
 #include "debug_console.h"
 
@@ -21,7 +23,7 @@ void game_on_escape_callback(keys key, keymap_entry_bind_type type, keymap_modif
 
 void game_on_yaw(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     f32 f = 0.0f;
     if (key == KEY_LEFT || key == KEY_A) {
@@ -29,12 +31,14 @@ void game_on_yaw(keys key, keymap_entry_bind_type type, keymap_modifier modifier
     } else if (key == KEY_RIGHT || key == KEY_D) {
         f = -1.0f;
     }
-    camera_yaw(state->world_camera, f * state->delta_time);
+
+    const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
+    camera_yaw(state->world_camera, f * p_frame_data->delta_time);
 }
 
 void game_on_pitch(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     f32 f = 0.0f;
     if (key == KEY_UP) {
@@ -42,54 +46,68 @@ void game_on_pitch(keys key, keymap_entry_bind_type type, keymap_modifier modifi
     } else if (key == KEY_DOWN) {
         f = -1.0f;
     }
-    camera_pitch(state->world_camera, f * state->delta_time);
+
+    const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
+    camera_pitch(state->world_camera, f * p_frame_data->delta_time);
 }
 
 void game_on_move_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
     static const f32 temp_move_speed = 50.0f;
-    camera_move_forward(state->world_camera, temp_move_speed * state->delta_time);
+
+    const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
+    camera_move_forward(state->world_camera, temp_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_move_backward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
     static const f32 temp_move_speed = 50.0f;
-    camera_move_backward(state->world_camera, temp_move_speed * state->delta_time);
+
+    const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
+    camera_move_backward(state->world_camera, temp_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_move_left(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
     static const f32 temp_move_speed = 50.0f;
-    camera_move_left(state->world_camera, temp_move_speed * state->delta_time);
+
+    const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
+    camera_move_left(state->world_camera, temp_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_move_right(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
     static const f32 temp_move_speed = 50.0f;
-    camera_move_right(state->world_camera, temp_move_speed * state->delta_time);
+
+    const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
+    camera_move_right(state->world_camera, temp_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_move_up(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
     static const f32 temp_move_speed = 50.0f;
-    camera_move_up(state->world_camera, temp_move_speed * state->delta_time);
+
+    const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
+    camera_move_up(state->world_camera, temp_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_move_down(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
     static const f32 temp_move_speed = 50.0f;
-    camera_move_down(state->world_camera, temp_move_speed * state->delta_time);
+
+    const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
+    camera_move_down(state->world_camera, temp_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_console_change_visibility(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     b8 console_visible = debug_console_visible(&state->debug_console);
     console_visible = !console_visible;
@@ -129,34 +147,43 @@ void game_on_unload_scene(keys key, keymap_entry_bind_type type, keymap_modifier
 }
 
 void game_on_console_scroll(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* app = (application*)user_data;
+    testbed_game_state* state = (testbed_game_state*)app->state;
+    debug_console_state* console_state = &state->debug_console;
     if (key == KEY_PAGEUP) {
-        debug_console_move_up(user_data);
+        debug_console_move_up(console_state);
     } else if (key == KEY_PAGEDOWN) {
-        debug_console_move_down(user_data);
+        debug_console_move_down(console_state);
     }
 }
 
 void game_on_console_scroll_hold(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-    game_state* state = (game_state*)user_data;
+    application* app = (application*)user_data;
+    testbed_game_state* state = (testbed_game_state*)app->state;
+    debug_console_state* console_state = &state->debug_console;
 
+    const struct frame_data* p_frame_data = engine_frame_data_get(app);
     static f32 accumulated_time = 0.0f;
-    accumulated_time += state->delta_time;
+    accumulated_time += p_frame_data->delta_time;
+
     if (accumulated_time >= 0.1f) {
         if (key == KEY_PAGEUP) {
-            debug_console_move_up(user_data);
+            debug_console_move_up(console_state);
         } else if (key == KEY_PAGEDOWN) {
-            debug_console_move_down(user_data);
+            debug_console_move_down(console_state);
         }
         accumulated_time = 0.0f;
     }
 }
 
 void game_on_console_history_back(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-    debug_console_history_back(user_data);
+    debug_console_state* state = (debug_console_state*)user_data;
+    debug_console_history_back(state);
 }
 
 void game_on_console_history_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
-    debug_console_history_forward(user_data);
+    debug_console_state* state = (debug_console_state*)user_data;
+    debug_console_history_forward(state);
 }
 
 void game_on_debug_texture_swap(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
@@ -167,7 +194,7 @@ void game_on_debug_texture_swap(keys key, keymap_entry_bind_type type, keymap_mo
 
 void game_on_debug_cam_position(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     KDEBUG(
         "Pos:[%.2f, %.2f, %.2f",
@@ -187,7 +214,7 @@ void game_on_debug_vsync_toggle(keys key, keymap_entry_bind_type type, keymap_mo
 
 void game_print_memory_metrics(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
-    game_state* state = (game_state*)game_inst->state;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     char* usage = get_memory_usage_str();
     KINFO(usage);
@@ -237,19 +264,19 @@ void game_setup_keymaps(application* game_inst) {
     input_keymap_push(&testbed_keymap);
 
     // A console-specific keymap. Is not pushed by default.
-    game_state* state = ((game_state*)game_inst->state);
+    testbed_game_state* state = ((testbed_game_state*)game_inst->state);
     state->console_keymap = keymap_create();
     state->console_keymap.overrides_all = true;
     keymap_binding_add(&state->console_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_change_visibility);
     keymap_binding_add(&state->console_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_change_visibility);
 
-    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_scroll);
-    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_scroll);
-    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_scroll_hold);
-    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_scroll_hold);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_scroll);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_scroll);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_scroll_hold);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_scroll_hold);
 
-    keymap_binding_add(&state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_history_back);
-    keymap_binding_add(&state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_history_forward);
+    keymap_binding_add(&state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_history_back);
+    keymap_binding_add(&state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_console_history_forward);
 
     // If this was done with the console open, push its keymap.
     b8 console_visible = debug_console_visible(&state->debug_console);
@@ -263,7 +290,7 @@ void game_remove_keymaps(struct application* game_inst) {
     while (input_keymap_pop()) {
     }
 
-    game_state* state = ((game_state*)game_inst->state);
+    testbed_game_state* state = ((testbed_game_state*)game_inst->state);
 
     // Remove all bindings for the console keymap, since that's the only one we hold onto.
     keymap_clear(&state->console_keymap);

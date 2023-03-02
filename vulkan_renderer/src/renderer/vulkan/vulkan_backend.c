@@ -567,10 +567,9 @@ void vulkan_renderer_backend_on_resized(renderer_plugin* plugin, u16 width, u16 
     KINFO("Vulkan renderer plugin->resized: w/h/gen: %i/%i/%llu", width, height, context->framebuffer_size_generation);
 }
 
-b8 vulkan_renderer_backend_begin_frame(renderer_plugin* plugin, f32 delta_time) {
+b8 vulkan_renderer_backend_begin_frame(renderer_plugin* plugin, const struct frame_data* p_frame_data) {
     // Cold-cast the context
     vulkan_context* context = (vulkan_context*)plugin->internal_context;
-    context->frame_delta_time = delta_time;
     vulkan_device* device = &context->device;
 
     // Check if recreating swap chain and boot out.
@@ -642,7 +641,7 @@ b8 vulkan_renderer_backend_begin_frame(renderer_plugin* plugin, f32 delta_time) 
     return true;
 }
 
-b8 vulkan_renderer_backend_end_frame(renderer_plugin* plugin, f32 delta_time) {
+b8 vulkan_renderer_backend_end_frame(renderer_plugin* plugin, const struct frame_data* p_frame_data) {
     // Cold-cast the context
     vulkan_context* context = (vulkan_context*)plugin->internal_context;
     vulkan_command_buffer* command_buffer = &context->graphics_command_buffers[context->image_index];
