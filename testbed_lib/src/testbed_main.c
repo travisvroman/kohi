@@ -211,6 +211,7 @@ b8 application_initialize(struct application* game_inst) {
     }
     ui_text_set_position(&state->test_sys_text, vec3_create(500, 550, 0));
 
+    // FIXME: Handle the new create/init/load/unload/destroy paradigm we have setup.
     // Skybox
     if (!skybox_create("skybox_cube", &state->sb)) {
         KERROR("Failed to create skybox, aborting game.");
@@ -231,8 +232,9 @@ b8 application_initialize(struct application* game_inst) {
     cube_mesh->geometry_count = 1;
     cube_mesh->geometries = kallocate(sizeof(mesh*) * cube_mesh->geometry_count, MEMORY_TAG_ARRAY);
     geometry_config g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "test_cube", "test_material");
-    cube_mesh->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     cube_mesh->transform = transform_create();
+    
+    cube_mesh->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     mesh_count++;
     cube_mesh->generation = 0;
     cube_mesh->unique_id = identifier_aquire_new_id(cube_mesh);
