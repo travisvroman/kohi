@@ -270,7 +270,7 @@ void system_font_loader_unload(struct resource_loader* self, resource* resource)
     }
 }
 
-resource_loader system_font_resource_loader_create() {
+resource_loader system_font_resource_loader_create(void) {
     resource_loader loader;
     loader.type = RESOURCE_TYPE_SYSTEM_FONT;
     loader.custom_type = 0;

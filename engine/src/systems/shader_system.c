@@ -30,7 +30,7 @@ b8 add_attribute(shader* shader, const shader_attribute_config* config);
 b8 add_sampler(shader* shader, shader_uniform_config* config);
 b8 add_uniform(shader* shader, shader_uniform_config* config);
 u32 get_shader_id(const char* shader_name);
-u32 new_shader_id();
+u32 new_shader_id(void);
 b8 uniform_add(shader* shader, const char* uniform_name, u32 size, shader_uniform_type type, shader_scope scope, u32 set_location, b8 is_sampler);
 b8 uniform_name_valid(shader* shader, const char* uniform_name);
 b8 shader_uniform_add_state_valid(shader* shader);
@@ -323,7 +323,7 @@ b8 shader_system_sampler_set_by_index(u16 index, const texture* t) {
     return shader_system_uniform_set_by_index(index, t);
 }
 
-b8 shader_system_apply_global() {
+b8 shader_system_apply_global(void) {
     return renderer_shader_apply_globals(&state_ptr->shaders[state_ptr->current_shader_id]);
 }
 b8 shader_system_apply_instance(b8 needs_update) {
@@ -456,7 +456,7 @@ u32 get_shader_id(const char* shader_name) {
     return shader_id;
 }
 
-u32 new_shader_id() {
+u32 new_shader_id(void) {
     for (u32 i = 0; i < state_ptr->config.max_shader_count; ++i) {
         if (state_ptr->shaders[i].id == INVALID_ID) {
             return i;

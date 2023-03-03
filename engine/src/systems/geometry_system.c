@@ -148,7 +148,7 @@ void geometry_system_release(geometry* geometry) {
     KWARN("geometry_system_release cannot release invalid geometry id. Nothing was done.");
 }
 
-geometry* geometry_system_get_default() {
+geometry* geometry_system_get_default(void) {
     if (state_ptr) {
         return &state_ptr->default_geometry;
     }
@@ -157,7 +157,7 @@ geometry* geometry_system_get_default() {
     return 0;
 }
 
-geometry* geometry_system_get_default_2d() {
+geometry* geometry_system_get_default_2d(void) {
     if (state_ptr) {
         return &state_ptr->default_2d_geometry;
     }

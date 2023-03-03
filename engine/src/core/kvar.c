@@ -21,7 +21,7 @@ typedef struct kvar_system_state {
 
 static kvar_system_state* state_ptr;
 
-void kvar_register_console_commands();
+void kvar_register_console_commands(void);
 
 b8 kvar_initialize(u64* memory_requirement, void* memory, void* config) {
     *memory_requirement = sizeof(kvar_system_state);
@@ -183,7 +183,7 @@ void kvar_console_command_print_all(console_command_context context) {
     // TODO: Other variable types.
 }
 
-void kvar_register_console_commands() {
+void kvar_register_console_commands(void) {
     console_register_command("kvar_create_int", 2, kvar_console_command_create_int);
     console_register_command("kvar_print_int", 1, kvar_console_command_print_int);
     console_register_command("kvar_set_int", 2, kvar_console_command_set_int);

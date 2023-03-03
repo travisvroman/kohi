@@ -126,7 +126,7 @@ void material_loader_unload(struct resource_loader* self, resource* resource) {
     }
 }
 
-resource_loader material_resource_loader_create() {
+resource_loader material_resource_loader_create(void) {
     resource_loader loader;
     loader.type = RESOURCE_TYPE_MATERIAL;
     loader.custom_type = 0;

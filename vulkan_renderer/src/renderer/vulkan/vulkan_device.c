@@ -16,10 +16,10 @@ typedef struct vulkan_physical_device_requirements {
 } vulkan_physical_device_requirements;
 
 typedef struct vulkan_physical_device_queue_family_info {
-    u32 graphics_family_index;
-    u32 present_family_index;
-    u32 compute_family_index;
-    u32 transfer_family_index;
+    i32 graphics_family_index;
+    i32 present_family_index;
+    i32 compute_family_index;
+    i32 transfer_family_index;
 } vulkan_physical_device_queue_family_info;
 
 b8 select_physical_device(vulkan_context* context);

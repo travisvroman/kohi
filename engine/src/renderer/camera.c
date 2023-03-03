@@ -2,7 +2,7 @@
 
 #include "math/kmath.h"
 
-camera camera_create() {
+camera camera_create(void) {
     camera c;
     camera_reset(&c);
     return c;

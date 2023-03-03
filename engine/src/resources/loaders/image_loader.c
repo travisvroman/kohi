@@ -114,7 +114,7 @@ void image_loader_unload(struct resource_loader* self, resource* resource) {
     }
 }
 
-resource_loader image_resource_loader_create() {
+resource_loader image_resource_loader_create(void) {
     resource_loader loader;
     loader.type = RESOURCE_TYPE_IMAGE;
     loader.custom_type = 0;

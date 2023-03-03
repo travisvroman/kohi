@@ -341,7 +341,7 @@ void shader_loader_unload(struct resource_loader* self, resource* resource) {
     }
 }
 
-resource_loader shader_resource_loader_create() {
+resource_loader shader_resource_loader_create(void) {
     resource_loader loader;
     loader.type = RESOURCE_TYPE_SHADER;
     loader.custom_type = 0;

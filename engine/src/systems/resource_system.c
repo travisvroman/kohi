@@ -142,7 +142,7 @@ void resource_system_unload(resource* resource) {
     }
 }
 
-const char* resource_system_base_path() {
+const char* resource_system_base_path(void) {
     if (state_ptr) {
         return state_ptr->config.asset_base_path;
     }

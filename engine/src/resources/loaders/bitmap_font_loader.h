@@ -17,4 +17,4 @@
  * 
  * @return The newly created resource loader.
  */
-resource_loader bitmap_font_resource_loader_create();
+resource_loader bitmap_font_resource_loader_create(void);

@@ -52,4 +52,7 @@ b8 kthread_is_active(kthread* thread);
  */
 void kthread_sleep(kthread* thread, u64 ms);
 
-u64 get_thread_id();
+/**
+ * @brief Obtains the identifier for the current thread.
+ */
+u64 platform_current_thread_id(void);

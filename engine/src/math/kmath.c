@@ -34,7 +34,7 @@ f32 kabs(f32 x) {
     return fabsf(x);
 }
 
-i32 krandom() {
+i32 krandom(void) {
     if (!rand_seeded) {
         srand((u32)platform_get_absolute_time());
         rand_seeded = true;
@@ -50,7 +50,7 @@ i32 krandom_in_range(i32 min, i32 max) {
     return (rand() % (max - min + 1)) + min;
 }
 
-f32 fkrandom() {
+f32 fkrandom(void) {
     return (float)krandom() / (f32)RAND_MAX;
 }
 

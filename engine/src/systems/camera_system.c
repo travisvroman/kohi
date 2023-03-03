@@ -149,7 +149,7 @@ void camera_system_release(const char* name) {
     }
 }
 
-camera* camera_system_get_default() {
+camera* camera_system_get_default(void) {
     if (state_ptr) {
         return &state_ptr->default_camera;
     }

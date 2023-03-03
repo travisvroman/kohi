@@ -873,7 +873,7 @@ b8 write_kmt_file(const char* mtl_file_path, material_config* config) {
     return true;
 }
 
-resource_loader mesh_resource_loader_create() {
+resource_loader mesh_resource_loader_create(void) {
     resource_loader loader;
     loader.type = RESOURCE_TYPE_MESH;
     loader.custom_type = 0;

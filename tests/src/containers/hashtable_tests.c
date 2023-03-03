@@ -5,7 +5,7 @@
 #include <defines.h>
 #include <containers/hashtable.h>
 
-u8 hashtable_should_create_and_destroy() {
+u8 hashtable_should_create_and_destroy(void) {
     hashtable table;
     u64 element_size = sizeof(u64);
     u64 element_count = 3;
@@ -26,7 +26,7 @@ u8 hashtable_should_create_and_destroy() {
     return true;
 }
 
-u8 hashtable_should_set_and_get_successfully() {
+u8 hashtable_should_set_and_get_successfully(void) {
     hashtable table;
     u64 element_size = sizeof(u64);
     u64 element_count = 3;
@@ -59,7 +59,7 @@ typedef struct ht_test_struct {
     u64 u_value;
 } ht_test_struct;
 
-u8 hashtable_should_set_and_get_ptr_successfully() {
+u8 hashtable_should_set_and_get_ptr_successfully(void) {
     hashtable table;
     u64 element_size = sizeof(ht_test_struct*);
     u64 element_count = 3;
@@ -93,7 +93,7 @@ u8 hashtable_should_set_and_get_ptr_successfully() {
     return true;
 }
 
-u8 hashtable_should_set_and_get_nonexistant() {
+u8 hashtable_should_set_and_get_nonexistant(void) {
     hashtable table;
     u64 element_size = sizeof(u64);
     u64 element_count = 3;
@@ -120,7 +120,7 @@ u8 hashtable_should_set_and_get_nonexistant() {
     return true;
 }
 
-u8 hashtable_should_set_and_get_ptr_nonexistant() {
+u8 hashtable_should_set_and_get_ptr_nonexistant(void) {
     hashtable table;
     u64 element_size = sizeof(ht_test_struct*);
     u64 element_count = 3;
@@ -154,7 +154,7 @@ u8 hashtable_should_set_and_get_ptr_nonexistant() {
     return true;
 }
 
-u8 hashtable_should_set_and_unset_ptr() {
+u8 hashtable_should_set_and_unset_ptr(void) {
     hashtable table;
     u64 element_size = sizeof(ht_test_struct*);
     u64 element_count = 3;
@@ -200,7 +200,7 @@ u8 hashtable_should_set_and_unset_ptr() {
     return true;
 }
 
-u8 hashtable_try_call_non_ptr_on_ptr_table() {
+u8 hashtable_try_call_non_ptr_on_ptr_table(void) {
     hashtable table;
     u64 element_size = sizeof(ht_test_struct*);
     u64 element_count = 3;
@@ -236,7 +236,7 @@ u8 hashtable_try_call_non_ptr_on_ptr_table() {
     return true;
 }
 
-u8 hashtable_try_call_ptr_on_non_ptr_table() {
+u8 hashtable_try_call_ptr_on_non_ptr_table(void) {
     hashtable table;
     u64 element_size = sizeof(ht_test_struct);
     u64 element_count = 3;
@@ -273,7 +273,7 @@ u8 hashtable_try_call_ptr_on_non_ptr_table() {
     return true;
 }
 
-u8 hashtable_should_set_get_and_update_ptr_successfully() {
+u8 hashtable_should_set_get_and_update_ptr_successfully(void) {
     hashtable table;
     u64 element_size = sizeof(ht_test_struct*);
     u64 element_count = 3;
@@ -318,7 +318,7 @@ u8 hashtable_should_set_get_and_update_ptr_successfully() {
     return true;
 }
 
-void hashtable_register_tests() {
+void hashtable_register_tests(void) {
     test_manager_register_test(hashtable_should_create_and_destroy, "Hashtable should create and destroy");
     test_manager_register_test(hashtable_should_set_and_get_successfully, "Hashtable should set and get");
     test_manager_register_test(hashtable_should_set_and_get_ptr_successfully, "Hashtable should set and get pointer");

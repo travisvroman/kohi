@@ -15,7 +15,7 @@ void uuid_seed(u64 seed){
 #endif
 }
 
-uuid uuid_generate() {
+uuid uuid_generate(void) {
     uuid buf = {0};
 #ifdef UUID_QUICK_AND_DIRTY
     // NOTE: this implementation does not guarantee any form of uniqueness as it just

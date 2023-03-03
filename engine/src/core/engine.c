@@ -227,7 +227,7 @@ b8 engine_run(application* game_inst) {
     return true;
 }
 
-void engine_on_event_system_initialized() {
+void engine_on_event_system_initialized(void) {
     // Register for engine-level events.
     event_register(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
     event_register(EVENT_CODE_RESIZED, 0, engine_on_resized);

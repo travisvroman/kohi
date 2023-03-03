@@ -248,7 +248,7 @@ const char* get_unit_for_size(u64 size_bytes, f32* out_amount) {
     }
 }
 
-char* get_memory_usage_str() {
+char* get_memory_usage_str(void) {
     char buffer[8000] = "System memory use (tagged):\n";
     u64 offset = strlen(buffer);
     for (u32 i = 0; i < MEMORY_TAG_MAX_TAGS; ++i) {
@@ -280,7 +280,7 @@ char* get_memory_usage_str() {
     return out_string;
 }
 
-u64 get_memory_alloc_count() {
+u64 get_memory_alloc_count(void) {
     if (state_ptr) {
         return state_ptr->alloc_count;
     }

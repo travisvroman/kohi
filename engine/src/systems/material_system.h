@@ -76,7 +76,7 @@ KAPI void material_system_release(const char* name);
 /**
  * @brief Gets a pointer to the default material. Does not reference count.
  */
-KAPI material* material_system_get_default();
+KAPI material* material_system_get_default(void);
 
 /**
  * @brief Applies global-level data for the material shader id.

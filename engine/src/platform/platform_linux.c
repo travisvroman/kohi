@@ -62,7 +62,7 @@ typedef struct platform_state {
 
 static platform_state* state_ptr;
 
-void platform_update_watches();
+void platform_update_watches(void);
 // Key translation
 keys translate_keycode(u32 x_keycode);
 
@@ -201,7 +201,7 @@ void platform_system_shutdown(void* plat_state) {
     }
 }
 
-b8 platform_pump_messages() {
+b8 platform_pump_messages(void) {
     if (state_ptr) {
         xcb_generic_event_t* event;
         xcb_client_message_event_t* cm;
@@ -324,7 +324,7 @@ void platform_console_write_error(const char* message, u8 colour) {
     printf("\033[%sm%s\033[0m", colour_strings[colour], message);
 }
 
-f64 platform_get_absolute_time() {
+f64 platform_get_absolute_time(void) {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     return now.tv_sec + now.tv_nsec * 0.000000001;
@@ -344,7 +344,7 @@ void platform_sleep(u64 ms) {
 #endif
 }
 
-i32 platform_get_processor_count() {
+i32 platform_get_processor_count(void) {
     // Load processor info.
     i32 processor_count = get_nprocs_conf();
     i32 processors_available = get_nprocs();
@@ -463,7 +463,7 @@ void kthread_sleep(kthread* thread, u64 ms) {
     platform_sleep(ms);
 }
 
-u64 get_thread_id() {
+u64 platform_current_thread_id(void) {
     return (u64)pthread_self();
 }
 // NOTE: End threads.
@@ -567,11 +567,11 @@ b8 kmutex_unlock(kmutex* mutex) {
 }
 // NOTE: End mutexes
 
-const char* platform_dynamic_library_extension() {
+const char* platform_dynamic_library_extension(void) {
     return ".so";
 }
 
-const char *platform_dynamic_library_prefix() {
+const char *platform_dynamic_library_prefix(void) {
     return "./lib";
 }
 
@@ -750,7 +750,7 @@ b8 platform_unwatch_file(u32 watch_id) {
     return unregister_watch(watch_id);
 }
 
-void platform_update_watches() {
+void platform_update_watches(void) {
     if (!state_ptr || !state_ptr->watches) {
         return;
     }

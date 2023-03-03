@@ -18,4 +18,4 @@
  * 
  * @return The newly created resource loader.
  */
-resource_loader binary_resource_loader_create();
+resource_loader binary_resource_loader_create(void);

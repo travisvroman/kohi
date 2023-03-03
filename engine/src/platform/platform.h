@@ -77,7 +77,7 @@ void platform_system_shutdown(void* plat_state);
  *
  * @return True on success; otherwise false.
  */
-b8 platform_pump_messages();
+b8 platform_pump_messages(void);
 
 /**
  * @brief Performs platform-specific memory allocation of the given size.
@@ -148,7 +148,7 @@ void platform_console_write_error(const char* message, u8 colour);
  *
  * @return The absolute time since the application started.
  */
-f64 platform_get_absolute_time();
+f64 platform_get_absolute_time(void);
 
 /**
  * @brief Sleep on the thread for the provided milliseconds. This blocks the main thread.
@@ -164,7 +164,7 @@ KAPI void platform_sleep(u64 ms);
  *
  * @return The number of logical processor cores.
  */
-i32 platform_get_processor_count();
+i32 platform_get_processor_count(void);
 
 /**
  * @brief Obtains the required memory amount for platform-specific handle data,
@@ -205,12 +205,12 @@ KAPI b8 platform_dynamic_library_load_function(const char* name, dynamic_library
 /**
  * @brief Returns the file extension for the current platform.
  */
-KAPI const char* platform_dynamic_library_extension();
+KAPI const char* platform_dynamic_library_extension(void);
 
 /**
  * @brief Returns a file prefix for libraries for the current platform.
  */
-KAPI const char* platform_dynamic_library_prefix();
+KAPI const char* platform_dynamic_library_prefix(void);
 
 /**
  * @brief Copies file at source to destination, optionally overwriting.

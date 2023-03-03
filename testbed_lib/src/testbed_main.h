@@ -5,7 +5,7 @@ struct application;
 struct render_packet;
 struct frame_data;
 
-KAPI u64 application_state_size();
+KAPI u64 application_state_size(void);
 
 KAPI b8 application_boot(struct application* game_inst);
 

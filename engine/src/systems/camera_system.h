@@ -69,4 +69,4 @@ KAPI void camera_system_release(const char* name);
  * 
  * @return A pointer to the default camera.
  */
-KAPI camera* camera_system_get_default();
+KAPI camera* camera_system_get_default(void);

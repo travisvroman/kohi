@@ -1,3 +1,3 @@
 #pragma once
 
-void freelist_register_tests();
+void freelist_register_tests(void);

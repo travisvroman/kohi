@@ -5,7 +5,7 @@
 /**
  * @brief Initializes the metrics system.
  */
-KAPI void metrics_initialize();
+KAPI void metrics_initialize(void);
 
 /**
  * @brief Updates metrics; should be called once per frame.
@@ -17,12 +17,12 @@ KAPI void metrics_update(f64 frame_elapsed_time);
 /**
  * @brief Returns the running average frames per second (fps).
  */
-KAPI f64 metrics_fps();
+KAPI f64 metrics_fps(void);
 
 /**
  * @brief Returns the running average frametime in milliseconds.
  */
-KAPI f64 metrics_frame_time();
+KAPI f64 metrics_frame_time(void);
 
 /**
  * @brief Gets both the running average frames per second (fps) and frametime in milliseconds.

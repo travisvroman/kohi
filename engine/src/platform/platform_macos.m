@@ -70,7 +70,7 @@ static platform_state* state_ptr;
 keys translate_keycode(u32 ns_keycode);
 // Modifier key handling
 void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags);
-void platform_update_watches();
+void platform_update_watches(void);
 
 @interface WindowDelegate : NSObject <NSWindowDelegate> {
     platform_state* state;
@@ -435,7 +435,7 @@ void platform_system_shutdown(void* platform_state) {
     state_ptr = 0;
 }
 
-b8 platform_pump_messages(platform_state *plat_state) {
+b8 platform_pump_messages(void) {
     if (state_ptr) {
         @autoreleasepool {
 
@@ -495,7 +495,7 @@ void platform_console_write_error(const char *message, u8 colour) {
     printf("\033[%sm%s\033[0m", colour_strings[colour], message);
 }
 
-f64 platform_get_absolute_time() {
+f64 platform_get_absolute_time(void) {
     mach_timebase_info_data_t clock_timebase;
     mach_timebase_info(&clock_timebase);
 
@@ -519,7 +519,7 @@ void platform_sleep(u64 ms) {
 #endif
 }
 
-i32 platform_get_processor_count() {
+i32 platform_get_processor_count(void) {
     return [[NSProcessInfo processInfo] processorCount];
 }
 
@@ -635,7 +635,7 @@ void kthread_sleep(kthread* thread, u64 ms) {
     platform_sleep(ms);
 }
 
-u64 get_thread_id() {
+u64 platform_current_thread_id(void) {
     return (u64)pthread_self();
 }
 // NOTE: End threads.
@@ -740,11 +740,11 @@ b8 kmutex_unlock(kmutex* mutex) {
 }
 // NOTE: End mutexes
 
-const char *platform_dynamic_library_extension() {
+const char *platform_dynamic_library_extension(void) {
     return ".dylib";
 }
 
-const char *platform_dynamic_library_prefix() {
+const char *platform_dynamic_library_prefix(void) {
     return "lib";
 }
 
@@ -841,7 +841,7 @@ b8 platform_unwatch_file(u32 watch_id) {
     return unregister_watch(watch_id);
 }
 
-void platform_update_watches() {
+void platform_update_watches(void) {
     if (!state_ptr || !state_ptr->watches) {
         return;
     }
@@ -881,8 +881,6 @@ void platform_update_watches() {
         }
     }
 }
-
-
 
 keys translate_keycode(u32 ns_keycode) {
     // https://boredzo.org/blog/wp-content/uploads/2007/05/IMTx-virtual-keycodes.pdf
@@ -1254,4 +1252,4 @@ void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags) {
     }
 }
 
-#endif // SLN_PLATFORM_MACOS
+#endif

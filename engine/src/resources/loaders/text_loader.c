@@ -59,7 +59,7 @@ void text_loader_unload(struct resource_loader* self, resource* resource) {
     }
 }
 
-resource_loader text_resource_loader_create() {
+resource_loader text_resource_loader_create(void) {
     resource_loader loader;
     loader.type = RESOURCE_TYPE_TEXT;
     loader.custom_type = 0;

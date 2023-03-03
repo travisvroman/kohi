@@ -17,7 +17,7 @@ typedef struct internal_state {
 } internal_state;
 
 freelist_node* get_node(freelist* list);
-void return_node(freelist* list, freelist_node* node);
+void return_node(freelist_node* node);
 
 void freelist_create(u64 total_size, u64* memory_requirement, void* memory, freelist* out_list) {
     // Enough space to hold state, plus array for all nodes.
@@ -94,7 +94,7 @@ b8 freelist_allocate_block(freelist* list, u64 size, u64* out_offset) {
                 node_to_return = state->head;
                 state->head = node->next;
             }
-            return_node(list, node_to_return);
+            return_node(node_to_return);
             return true;
         } else if (node->size > size) {
             // Node is larger. Deduct the memory from it and move the offset
@@ -142,7 +142,7 @@ b8 freelist_free_block(freelist* list, u64 size, u64 offset) {
                     node->size += node->next->size;
                     freelist_node* next = node->next;
                     node->next = node->next->next;
-                    return_node(list, next);
+                    return_node(next);
                 }
                 return true;
             } else if (node->offset == offset) {
@@ -171,7 +171,7 @@ b8 freelist_free_block(freelist* list, u64 size, u64 offset) {
                     new_node->size += new_node->next->size;
                     freelist_node* rubbish = new_node->next;
                     new_node->next = rubbish->next;
-                    return_node(list, rubbish);
+                    return_node(rubbish);
                 }
 
                 // Double-check previous node to see if the new_node can be joined to it.
@@ -179,7 +179,7 @@ b8 freelist_free_block(freelist* list, u64 size, u64 offset) {
                     previous->size += new_node->size;
                     freelist_node* rubbish = new_node;
                     previous->next = rubbish->next;
-                    return_node(list, rubbish);
+                    return_node(rubbish);
                 }
 
                 return true;
@@ -347,7 +347,7 @@ freelist_node* get_node(freelist* list) {
     return 0;
 }
 
-void return_node(freelist* list, freelist_node* node) {
+void return_node(freelist_node* node) {
     node->offset = INVALID_ID;
     node->size = INVALID_ID;
     node->next = 0;

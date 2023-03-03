@@ -108,4 +108,4 @@ KAPI b8 resource_system_load_custom(const char* name, const char* custom_type, v
 KAPI void resource_system_unload(resource* resource);
 
 /** @brief Returns the base path of the resource system. */
-KAPI const char* resource_system_base_path();
+KAPI const char* resource_system_base_path(void);

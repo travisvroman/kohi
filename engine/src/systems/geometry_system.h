@@ -110,14 +110,14 @@ KAPI void geometry_system_release(geometry* geometry);
  *
  * @return A pointer to the default geometry.
  */
-KAPI geometry* geometry_system_get_default();
+KAPI geometry* geometry_system_get_default(void);
 
 /**
  * @brief Obtains a pointer to the default geometry.
  *
  * @return A pointer to the default geometry.
  */
-KAPI geometry* geometry_system_get_default_2d();
+KAPI geometry* geometry_system_get_default_2d(void);
 
 /**
  * @brief Generates configuration for plane geometries given the provided parameters.

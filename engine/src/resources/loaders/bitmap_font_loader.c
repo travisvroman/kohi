@@ -498,7 +498,7 @@ static b8 write_kbf_file(const char* path, bitmap_font_resource_data* data) {
     return true;
 }
 
-resource_loader bitmap_font_resource_loader_create() {
+resource_loader bitmap_font_resource_loader_create(void) {
     resource_loader loader;
     loader.type = RESOURCE_TYPE_BITMAP_FONT;
     loader.custom_type = 0;

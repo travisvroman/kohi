@@ -149,7 +149,7 @@ void renderer_viewport_set(vec4 rect) {
     state_ptr->plugin.viewport_set(&state_ptr->plugin, rect);
 }
 
-void renderer_viewport_reset() {
+void renderer_viewport_reset(void) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     state_ptr->plugin.viewport_reset(&state_ptr->plugin);
 }
@@ -159,7 +159,7 @@ void renderer_scissor_set(vec4 rect) {
     state_ptr->plugin.scissor_set(&state_ptr->plugin, rect);
 }
 
-void renderer_scissor_reset() {
+void renderer_scissor_reset(void) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     state_ptr->plugin.scissor_reset(&state_ptr->plugin);
 }
@@ -313,12 +313,12 @@ texture* renderer_depth_attachment_get(u8 index) {
     return state_ptr->plugin.depth_attachment_get(&state_ptr->plugin, index);
 }
 
-u8 renderer_window_attachment_index_get() {
+u8 renderer_window_attachment_index_get(void) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
 }
 
-u8 renderer_window_attachment_count_get() {
+u8 renderer_window_attachment_count_get(void) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->plugin.window_attachment_count_get(&state_ptr->plugin);
 }
@@ -373,7 +373,7 @@ void renderer_renderpass_destroy(renderpass* pass) {
     state_ptr->plugin.renderpass_destroy(&state_ptr->plugin, pass);
 }
 
-b8 renderer_is_multithreaded() {
+b8 renderer_is_multithreaded(void) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->plugin.is_multithreaded(&state_ptr->plugin);
 }

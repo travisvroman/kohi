@@ -129,7 +129,7 @@ b8 game_on_key(u16 code, void* sender, void* listener_inst, event_context contex
     return false;
 }
 
-u64 application_state_size() {
+u64 application_state_size(void) {
     return sizeof(testbed_game_state);
 }
 
@@ -666,7 +666,7 @@ void application_lib_on_load(struct application* game_inst) {
     }
 }
 
-static void toggle_vsync() {
+static void toggle_vsync(void) {
     b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
     vsync_enabled = !vsync_enabled;
     renderer_flag_set_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);

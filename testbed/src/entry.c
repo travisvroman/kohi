@@ -7,7 +7,7 @@
 #include <platform/platform.h>
 
 typedef b8 (*PFN_plugin_create)(renderer_plugin* out_plugin);
-typedef u64 (*PFN_application_state_size)();
+typedef u64 (*PFN_application_state_size)(void);
 
 b8 load_game_lib(application* app) {
     // Dynamically load game library

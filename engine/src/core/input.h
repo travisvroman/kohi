@@ -440,6 +440,17 @@ void input_process_mouse_wheel(i8 z_delta);
  */
 KAPI const char* input_keycode_str(keys key);
 
+/**
+ * @brief Pushes a new keymap onto the keymap stack, making it the active keymap.
+ * A copy of the keymap is taken when pushing onto the stack.
+ * 
+ * @param map A constant pointer to the keymap to be pushed.
+ */
 KAPI void input_keymap_push(const struct keymap* map);
 
-KAPI b8 input_keymap_pop();
+/**
+ * @brief Attempts to pop the top-most keymap from the stack, if there is one.
+ * 
+ * @return True if a keymap was popped; otherwise false.
+ */
+KAPI b8 input_keymap_pop(void);

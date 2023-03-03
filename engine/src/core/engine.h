@@ -76,6 +76,12 @@ KAPI b8 engine_run(struct application* game_inst);
  * which internally allows the engine to begin listening for events
  * required for initialization.
  */
-void engine_on_event_system_initialized();
+void engine_on_event_system_initialized(void);
 
+/**
+ * @brief Obtains a constant pointer to the current frame data.
+ * 
+ * @param game_inst A pointer to the application instance.
+ * @return A constant pointer to the current frame data.
+ */
 KAPI const struct frame_data* engine_frame_data_get(struct application* game_inst);

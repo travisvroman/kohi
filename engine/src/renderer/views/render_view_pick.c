@@ -101,7 +101,7 @@ void acquire_shader_instances(const struct render_view* self) {
 void release_shader_instances(const struct render_view* self) {
     render_view_pick_internal_data* data = self->internal_data;
 
-    for (u32 i = 0; i < data->instance_count; ++i) {
+    for (i32 i = 0; i < data->instance_count; ++i) {
         // UI shader
         if (!renderer_shader_release_instance_resources(data->ui_shader_info.s, i)) {
             KWARN("Failed to release shader resources.");
@@ -265,7 +265,7 @@ b8 render_view_pick_on_build_packet(const struct render_view* self, struct linea
 
     u32 world_geometry_count = darray_length(packet_data->world_mesh_data);
 
-    i32 highest_instance_id = 0;
+    u32 highest_instance_id = 0;
     // Iterate all geometries in world data.
     for (u32 i = 0; i < world_geometry_count; ++i) {
        darray_push(out_packet->geometries, packet_data->world_mesh_data[i]);
@@ -301,7 +301,7 @@ b8 render_view_pick_on_build_packet(const struct render_view* self, struct linea
         }
     }
 
-    u32 required_instance_count = highest_instance_id + 1;
+    i32 required_instance_count = highest_instance_id + 1;
 
     // TODO: this needs to take into account the highest id, not the count, because they can and do skip ids.
     // Verify instance resources exist.

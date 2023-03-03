@@ -1,7 +1,7 @@
 #include "keymap.h"
 #include "core/kmemory.h"
 
-keymap keymap_create() {
+keymap keymap_create(void) {
     keymap map;
     kzero_memory(&map, sizeof(keymap));
 

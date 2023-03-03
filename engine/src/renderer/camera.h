@@ -50,7 +50,7 @@ typedef struct camera {
  *
  * @return A copy of a newly-created camera.
  */
-KAPI camera camera_create();
+KAPI camera camera_create(void);
 
 /**
  * @brief Defaults the provided camera to default zero

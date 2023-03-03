@@ -113,7 +113,7 @@ typedef struct keymap {
 /**
  * @brief Creates and returns a new keymap.
  */
-KAPI keymap keymap_create();
+KAPI keymap keymap_create(void);
 
 /**
  * @brief Adds a binding to the keymap provided.
