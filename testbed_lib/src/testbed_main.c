@@ -29,6 +29,7 @@
 #include <systems/material_system.h>
 #include <systems/render_view_system.h>
 #include <systems/light_system.h>
+#include <resources/simple_scene.h>
 #include "debug_console.h"
 #include "game_commands.h"
 #include "game_keybinds.h"
@@ -87,12 +88,33 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
         if (!state->models_loaded) {
             KDEBUG("Loading models...");
             state->models_loaded = true;
-            if (!mesh_load_from_resource("falcon", state->car_mesh)) {
-                KERROR("Failed to load falcon mesh!");
+            // Falcon
+            mesh_config falcon_config = {0};
+            falcon_config.resource_name = "falcon";
+            if (!mesh_create(falcon_config, state->car_mesh)) {
+                KERROR("Failed to create falcon mesh.");
+            } else {
+                if (!simple_scene_add_mesh(&state->main_scene, state->car_mesh)) {
+                    KERROR("Failed to load falcon mesh.");
+                }
             }
-            if (!mesh_load_from_resource("sponza", state->sponza_mesh)) {
-                KERROR("Failed to load falcon mesh!");
+            // if (!mesh_load_from_resource("falcon", state->car_mesh)) {
+            //     KERROR("Failed to load falcon mesh!");
+            // }
+
+            // Sponza
+            mesh_config sponza_config = {0};
+            sponza_config.resource_name = "sponza";
+            if (!mesh_create(sponza_config, state->sponza_mesh)) {
+                KERROR("Failed to create sponza mesh.");
+            } else {
+                if (!simple_scene_add_mesh(&state->main_scene, state->sponza_mesh)) {
+                    KERROR("Failed to load sponza mesh.");
+                }
             }
+            // if (!mesh_load_from_resource("sponza", state->sponza_mesh)) {
+            //     KERROR("Failed to load falcon mesh!");
+            // }
         }
         return true;
     } else if (code == EVENT_CODE_DEBUG2) {
@@ -194,6 +216,78 @@ b8 application_initialize(struct application* game_inst) {
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     // TODO: temp load/prepare stuff
+    if (!simple_scene_create(0, &state->main_scene)) {
+        KERROR("Failed to create main scene");
+        return false;
+    }
+
+    // Add objects to scene
+    skybox_config sb_config = {0};
+    sb_config.cubemap_name = "skybox";
+    if (!skybox_create(sb_config, &state->sb)) {
+        KERROR("Failed to create skybox, aborting game.");
+        return false;
+    }
+
+    if (!simple_scene_add_skybox(&state->main_scene, &state->sb)) {
+        KERROR("Failed to add skybox to main scene, aborting game.");
+        return false;
+    }
+
+    // Load up a cube configuration, and load geometry from it.
+    mesh_config cube_0_config = {0};
+    cube_0_config.geometry_count = 1;
+    cube_0_config.g_configs = kallocate(sizeof(geometry_config), MEMORY_TAG_ARRAY);
+    cube_0_config.g_configs[0] = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "test_cube", "test_material");
+
+    if (!mesh_create(cube_0_config, &state->meshes[0])) {
+        KERROR("Failed to create mesh for cube 0");
+        return false;
+    }
+    state->meshes[0].transform = transform_create();
+    simple_scene_add_mesh(&state->main_scene, &state->meshes[0]);
+
+    // Second cube
+    mesh_config cube_1_config = {0};
+    cube_1_config.geometry_count = 1;
+    cube_1_config.g_configs = kallocate(sizeof(geometry_config), MEMORY_TAG_ARRAY);
+    cube_1_config.g_configs[0] = geometry_system_generate_cube_config(5.0f, 5.0f, 5.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
+
+    if (!mesh_create(cube_1_config, &state->meshes[1])) {
+        KERROR("Failed to create mesh for cube 0");
+        return false;
+    }
+    state->meshes[1].transform = transform_from_position((vec3){10.0f, 0.0f, 1.0f});
+    transform_set_parent(&state->meshes[1].transform, &state->meshes[0].transform);
+
+    simple_scene_add_mesh(&state->main_scene, &state->meshes[1]);
+
+    // Third cube!
+    mesh_config cube_2_config = {0};
+    cube_2_config.geometry_count = 1;
+    cube_2_config.g_configs = kallocate(sizeof(geometry_config), MEMORY_TAG_ARRAY);
+    cube_2_config.g_configs[0] = geometry_system_generate_cube_config(2.0f, 2.0f, 2.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
+
+    if (!mesh_create(cube_2_config, &state->meshes[2])) {
+        KERROR("Failed to create mesh for cube 0");
+        return false;
+    }
+    state->meshes[2].transform = transform_from_position((vec3){5.0f, 0.0f, 1.0f});
+    transform_set_parent(&state->meshes[2].transform, &state->meshes[1].transform);
+
+    simple_scene_add_mesh(&state->main_scene, &state->meshes[2]);
+
+    // Initialize
+    if (!simple_scene_initialize(&state->main_scene)) {
+        KERROR("Failed initialize main scene, aborting game.");
+        return false;
+    }
+
+    // FIXME: Move this to load keybinding
+    if (!simple_scene_load(&state->main_scene)) {
+        KERROR("Failed load main scene, aborting game.");
+        return false;
+    }
 
     state->models_loaded = false;
 
@@ -211,12 +305,23 @@ b8 application_initialize(struct application* game_inst) {
     }
     ui_text_set_position(&state->test_sys_text, vec3_create(500, 550, 0));
 
-    // FIXME: Handle the new create/init/load/unload/destroy paradigm we have setup.
-    // Skybox
-    if (!skybox_create("skybox_cube", &state->sb)) {
-        KERROR("Failed to create skybox, aborting game.");
-        return false;
-    }
+    // // Skybox
+    // skybox_config sb_config = {0};
+    // sb_config.cubemap_name = "skybox";
+    // if (!skybox_create(sb_config, &state->sb)) {
+    //     KERROR("Failed to create skybox, aborting game.");
+    //     return false;
+    // }
+
+    // if (!skybox_initialize(&state->sb)) {
+    //     KERROR("Failed to initialize skybox, aborting game.");
+    //     return false;
+    // }
+
+    // if (!skybox_load(&state->sb)) {
+    //     KERROR("Failed to load skybox, aborting game.");
+    //     return false;
+    // }
 
     // World meshes
     // Invalidate all meshes.
@@ -225,61 +330,61 @@ b8 application_initialize(struct application* game_inst) {
         state->ui_meshes[i].generation = INVALID_ID_U8;
     }
 
-    u8 mesh_count = 0;
+    // u8 mesh_count = 0;
 
-    // Load up a cube configuration, and load geometry from it.
-    mesh* cube_mesh = &state->meshes[mesh_count];
-    cube_mesh->geometry_count = 1;
-    cube_mesh->geometries = kallocate(sizeof(mesh*) * cube_mesh->geometry_count, MEMORY_TAG_ARRAY);
-    geometry_config g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "test_cube", "test_material");
-    cube_mesh->transform = transform_create();
-    
-    cube_mesh->geometries[0] = geometry_system_acquire_from_config(g_config, true);
-    mesh_count++;
-    cube_mesh->generation = 0;
-    cube_mesh->unique_id = identifier_aquire_new_id(cube_mesh);
-    // Clean up the allocations for the geometry config.
-    geometry_system_config_dispose(&g_config);
+    // // Load up a cube configuration, and load geometry from it.
+    // mesh* cube_mesh = &state->meshes[mesh_count];
+    // cube_mesh->geometry_count = 1;
+    // cube_mesh->geometries = kallocate(sizeof(mesh*) * cube_mesh->geometry_count, MEMORY_TAG_ARRAY);
+    // geometry_config g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "test_cube", "test_material");
+    // cube_mesh->transform = transform_create();
+
+    // cube_mesh->geometries[0] = geometry_system_acquire_from_config(g_config, true);
+    // mesh_count++;
+    // cube_mesh->generation = 0;
+    // cube_mesh->unique_id = identifier_aquire_new_id(cube_mesh);
+    // // Clean up the allocations for the geometry config.
+    // geometry_system_config_dispose(&g_config);
 
     // A second cube
-    mesh* cube_mesh_2 = &state->meshes[mesh_count];
-    cube_mesh_2->geometry_count = 1;
-    cube_mesh_2->geometries = kallocate(sizeof(mesh*) * cube_mesh_2->geometry_count, MEMORY_TAG_ARRAY);
-    g_config = geometry_system_generate_cube_config(5.0f, 5.0f, 5.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
-    cube_mesh_2->geometries[0] = geometry_system_acquire_from_config(g_config, true);
-    cube_mesh_2->transform = transform_from_position((vec3){10.0f, 0.0f, 1.0f});
-    // Set the first cube as the parent to the second.
-    transform_set_parent(&cube_mesh_2->transform, &cube_mesh->transform);
-    mesh_count++;
-    cube_mesh_2->generation = 0;
-    cube_mesh_2->unique_id = identifier_aquire_new_id(cube_mesh_2);
-    // Clean up the allocations for the geometry config.
-    geometry_system_config_dispose(&g_config);
+    // mesh* cube_mesh_2 = &state->meshes[mesh_count];
+    // cube_mesh_2->geometry_count = 1;
+    // cube_mesh_2->geometries = kallocate(sizeof(mesh*) * cube_mesh_2->geometry_count, MEMORY_TAG_ARRAY);
+    // g_config = geometry_system_generate_cube_config(5.0f, 5.0f, 5.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
+    // cube_mesh_2->geometries[0] = geometry_system_acquire_from_config(g_config, true);
+    // cube_mesh_2->transform = transform_from_position((vec3){10.0f, 0.0f, 1.0f});
+    // // Set the first cube as the parent to the second.
+    // transform_set_parent(&cube_mesh_2->transform, &cube_mesh->transform);
+    // mesh_count++;
+    // cube_mesh_2->generation = 0;
+    // cube_mesh_2->unique_id = identifier_aquire_new_id(cube_mesh_2);
+    // // Clean up the allocations for the geometry config.
+    // geometry_system_config_dispose(&g_config);
 
     // A third cube!
-    mesh* cube_mesh_3 = &state->meshes[mesh_count];
-    cube_mesh_3->geometry_count = 1;
-    cube_mesh_3->geometries = kallocate(sizeof(mesh*) * cube_mesh_3->geometry_count, MEMORY_TAG_ARRAY);
-    g_config = geometry_system_generate_cube_config(2.0f, 2.0f, 2.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
-    cube_mesh_3->geometries[0] = geometry_system_acquire_from_config(g_config, true);
-    cube_mesh_3->transform = transform_from_position((vec3){5.0f, 0.0f, 1.0f});
-    // Set the second cube as the parent to the third.
-    transform_set_parent(&cube_mesh_3->transform, &cube_mesh_2->transform);
-    mesh_count++;
-    cube_mesh_3->generation = 0;
-    cube_mesh_3->unique_id = identifier_aquire_new_id(cube_mesh_3);
-    // Clean up the allocations for the geometry config.
-    geometry_system_config_dispose(&g_config);
+    // mesh* cube_mesh_3 = &state->meshes[mesh_count];
+    // cube_mesh_3->geometry_count = 1;
+    // cube_mesh_3->geometries = kallocate(sizeof(mesh*) * cube_mesh_3->geometry_count, MEMORY_TAG_ARRAY);
+    // g_config = geometry_system_generate_cube_config(2.0f, 2.0f, 2.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
+    // cube_mesh_3->geometries[0] = geometry_system_acquire_from_config(g_config, true);
+    // cube_mesh_3->transform = transform_from_position((vec3){5.0f, 0.0f, 1.0f});
+    // // Set the second cube as the parent to the third.
+    // transform_set_parent(&cube_mesh_3->transform, &cube_mesh_2->transform);
+    // mesh_count++;
+    // cube_mesh_3->generation = 0;
+    // cube_mesh_3->unique_id = identifier_aquire_new_id(cube_mesh_3);
+    // // Clean up the allocations for the geometry config.
+    // geometry_system_config_dispose(&g_config);
 
-    state->car_mesh = &state->meshes[mesh_count];
+    state->car_mesh = &state->meshes[3];
     state->car_mesh->unique_id = identifier_aquire_new_id(state->car_mesh);
     state->car_mesh->transform = transform_from_position((vec3){15.0f, 0.0f, 1.0f});
-    mesh_count++;
+    // mesh_count++;
 
-    state->sponza_mesh = &state->meshes[mesh_count];
+    state->sponza_mesh = &state->meshes[4];
     state->sponza_mesh->unique_id = identifier_aquire_new_id(state->sponza_mesh);
     state->sponza_mesh->transform = transform_from_position_rotation_scale((vec3){15.0f, 0.0f, 1.0f}, quat_identity(), (vec3){0.05f, 0.05f, 0.05f});
-    mesh_count++;
+    // mesh_count++;
 
     // TODO: HACK: moving lighting code to CPU
     state->dir_light = (directional_light){
@@ -388,7 +493,7 @@ b8 application_update(struct application* game_inst, const struct frame_data* p_
     if (!app_frame_data) {
         return true;
     }
-    
+
     if (app_frame_data->world_geometries) {
         darray_destroy(app_frame_data->world_geometries);
         app_frame_data->world_geometries = 0;
@@ -554,11 +659,21 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     packet->view_count = 4;
     packet->views = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(render_view_packet) * packet->view_count);
 
-    // Skybox
-    skybox_packet_data skybox_data = {};
-    skybox_data.sb = &state->sb;
-    if (!render_view_system_build_packet(render_view_system_get("skybox"), p_frame_data->frame_allocator, &skybox_data, &packet->views[0])) {
-        KERROR("Failed to build packet for view 'skybox'.");
+    // FIXME: Read this from config
+    packet->views[0].view = render_view_system_get("skybox");
+    packet->views[1].view = render_view_system_get("world");
+    packet->views[2].view = render_view_system_get("ui");
+    packet->views[3].view = render_view_system_get("pick");
+
+    // // Skybox
+    // skybox_packet_data skybox_data = {};
+    // skybox_data.sb = &state->sb;
+    // if (!render_view_system_build_packet(render_view_system_get("skybox"), p_frame_data->frame_allocator, &skybox_data, &packet->views[0])) {
+    //     KERROR("Failed to build packet for view 'skybox'.");
+    //     return false;
+    // }
+    if (!simple_scene_populate_render_packet(&state->main_scene, p_frame_data, packet)) {
+        KERROR("Failed populare render packet for main scene.");
         return false;
     }
 

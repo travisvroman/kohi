@@ -28,6 +28,8 @@ b8 skybox_initialize(skybox* sb) {
     cube_map->repeat_u = cube_map->repeat_v = cube_map->repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
     cube_map->use = TEXTURE_USE_MAP_CUBEMAP;
 
+    sb->instance_id = INVALID_ID;
+
     sb->config.g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, sb->config.cubemap_name, 0);
     // Clear out the material name.
     sb->config.g_config.material_name[0] = 0;
@@ -88,7 +90,7 @@ b8 skybox_unload(skybox* sb) {
 void skybox_destroy(skybox* sb) {
     if (!sb) {
         KERROR("skybox_destroy requires a valid pointer to sb!");
-        return false;
+        return;
     }
 
     // If loaded, unload first, then destroy.

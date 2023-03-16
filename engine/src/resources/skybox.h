@@ -3,6 +3,7 @@
 #include "math/math_types.h"
 #include "resources/resource_types.h"
 #include "renderer/renderer_types.inl"
+#include "systems/geometry_system.h"
 
 typedef struct skybox_config {
     /** @brief The name of the cubemap to be used for the skybox. */

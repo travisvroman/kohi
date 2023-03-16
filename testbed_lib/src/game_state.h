@@ -11,6 +11,7 @@
 #include <core/clock.h>
 #include <core/keymap.h>
 #include <systems/light_system.h>
+#include <resources/simple_scene.h>
 
 #include "debug_console.h"
 
@@ -26,6 +27,7 @@ typedef struct testbed_game_state {
     f64 last_update_elapsed;
 
     // TODO: temp
+    simple_scene main_scene;
     skybox sb;
 
     mesh meshes[10];
