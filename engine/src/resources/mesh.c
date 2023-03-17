@@ -90,6 +90,7 @@ b8 mesh_create(mesh_config config, mesh* out_mesh) {
     kzero_memory(out_mesh, sizeof(mesh));
 
     out_mesh->config = config;
+    out_mesh->generation = INVALID_ID_U8;
 
     return true;
 }
@@ -118,6 +119,8 @@ b8 mesh_load(mesh* m) {
         return false;
     }
 
+    m->unique_id = identifier_aquire_new_id(m);
+
     if (m->config.resource_name) {
         return mesh_load_from_resource(m->config.resource_name, m);
     } else {
@@ -128,7 +131,7 @@ b8 mesh_load(mesh* m) {
         for (u32 i = 0; i < m->config.geometry_count; ++i) {
             m->geometries[i] = geometry_system_acquire_from_config(m->config.g_configs[i], true);
             m->generation = 0;
-            m->unique_id = identifier_aquire_new_id(m);
+
             // Clean up the allocations for the geometry config.
             // TODO: Do this during unload/destroy
             geometry_system_config_dispose(&m->config.g_configs[i]);

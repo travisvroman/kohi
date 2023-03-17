@@ -28,11 +28,10 @@ typedef struct testbed_game_state {
 
     // TODO: temp
     simple_scene main_scene;
+    b8 main_scene_unload_triggered;
     skybox sb;
 
     mesh meshes[10];
-    mesh* car_mesh;
-    mesh* sponza_mesh;
     b8 models_loaded;
 
     directional_light dir_light;
@@ -55,5 +54,5 @@ typedef struct testbed_game_state {
 } testbed_game_state;
 
 typedef struct testbed_application_frame_data {
-    geometry_render_data* world_geometries;
+    i32 dummy;
 } testbed_application_frame_data;

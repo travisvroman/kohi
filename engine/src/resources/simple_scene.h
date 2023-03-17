@@ -10,6 +10,7 @@ struct point_light;
 struct mesh;
 struct skybox;
 struct geometry_config;
+struct camera;
 
 typedef enum simple_scene_state {
     /** @brief created, but nothing more. */
@@ -115,11 +116,13 @@ KAPI b8 simple_scene_update(simple_scene* scene, const struct frame_data* p_fram
  * @brief Populate the given render packet with data from the provided scene.
  *
  * @param scene A pointer to the scene to be updated.
+ * @param current_camera The current camera to use while rendering the scene.
+ * @param aspect The aspect ratio.
  * @param p_frame_data A constant pointer to the current frame's data.
  * @param packet A pointer to the packet to populate.
  * @return True on success; otherwise false.
  */
-KAPI b8 simple_scene_populate_render_packet(simple_scene* scene, const struct frame_data* p_frame_data, struct render_packet* packet);
+KAPI b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* current_camera, f32 aspect, struct frame_data* p_frame_data, struct render_packet* packet);
 
 
 

@@ -360,35 +360,6 @@ b8 material_system_apply_instance(material* m, b8 needs_update) {
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, &m->normal_map));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.shininess, &m->shininess));
 
-            // // TODO: HACK: moving lighting code to CPU
-            // static directional_light dir_light = {
-            //     (vec4){0.4f, 0.4f, 0.2f, 1.0f},
-            //     (vec4){-0.57735f, -0.57735f, -0.57735f, 0.0f}};
-
-            // static i32 p_light_count = 3;
-            // static point_light p_lights[10] = {0};
-
-            // p_lights[0].colour = (vec4){1.0f, 0.0f, 0.0f, 1.0f};
-            // p_lights[0].position = (vec4){-5.5f, 0.0f, -5.5f, 0.0f};
-            // p_lights[0].constant_f = 1.0f;
-            // p_lights[0].linear = 0.35f;
-            // p_lights[0].quadratic = 0.44f;
-            // p_lights[0].padding = 0;
-
-            // p_lights[1].colour = (vec4){0.0f, 1.0f, 0.0f, 1.0f};
-            // p_lights[1].position = (vec4){5.5f, 0.0f, -5.5f, 0.0f};
-            // p_lights[1].constant_f = 1.0f;
-            // p_lights[1].linear = 0.35f;
-            // p_lights[1].quadratic = 0.44f;
-            // p_lights[1].padding = 0;
-
-            // p_lights[2].colour = (vec4){0.0f, 0.0f, 1.0f, 1.0f};
-            // p_lights[2].position = (vec4){5.5f, 0.0f, 5.5f, 0.0f};
-            // p_lights[2].constant_f = 1.0f;
-            // p_lights[2].linear = 0.35f;
-            // p_lights[2].quadratic = 0.44f;
-            // p_lights[2].padding = 0;
-
             directional_light* dir_light = light_system_directional_light_get();
             i32 p_light_count = light_system_point_light_count();
             // TODO: frame allocator?
