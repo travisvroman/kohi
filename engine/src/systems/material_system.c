@@ -138,6 +138,33 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
         return false;
     }
 
+    // Get the uniform indices.
+    // Save off the locations for known types for quick lookups.
+    shader* s = shader_system_get("Shader.Builtin.Material");
+    state_ptr->material_shader_id = s->id;
+    state_ptr->material_locations.projection = shader_system_uniform_index(s, "projection");
+    state_ptr->material_locations.view = shader_system_uniform_index(s, "view");
+    state_ptr->material_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
+    state_ptr->material_locations.view_position = shader_system_uniform_index(s, "view_position");
+    state_ptr->material_locations.diffuse_colour = shader_system_uniform_index(s, "diffuse_colour");
+    state_ptr->material_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
+    state_ptr->material_locations.specular_texture = shader_system_uniform_index(s, "specular_texture");
+    state_ptr->material_locations.normal_texture = shader_system_uniform_index(s, "normal_texture");
+    state_ptr->material_locations.shininess = shader_system_uniform_index(s, "shininess");
+    state_ptr->material_locations.model = shader_system_uniform_index(s, "model");
+    state_ptr->material_locations.render_mode = shader_system_uniform_index(s, "mode");
+    state_ptr->material_locations.dir_light = shader_system_uniform_index(s, "dir_light");
+    state_ptr->material_locations.p_lights = shader_system_uniform_index(s, "p_lights");
+    state_ptr->material_locations.num_p_lights = shader_system_uniform_index(s, "num_p_lights");
+
+    s = shader_system_get("Shader.Builtin.UI");
+    state_ptr->ui_shader_id = s->id;
+    state_ptr->ui_locations.projection = shader_system_uniform_index(s, "projection");
+    state_ptr->ui_locations.view = shader_system_uniform_index(s, "view");
+    state_ptr->ui_locations.diffuse_colour = shader_system_uniform_index(s, "diffuse_colour");
+    state_ptr->ui_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
+    state_ptr->ui_locations.model = shader_system_uniform_index(s, "model");
+
     return true;
 }
 
@@ -219,34 +246,6 @@ material* material_system_acquire_from_config(material_config config) {
             if (!load_material(config, m)) {
                 KERROR("Failed to load material '%s'.", config.name);
                 return 0;
-            }
-
-            // Get the uniform indices.
-            shader* s = shader_system_get_by_id(m->shader_id);
-            // Save off the locations for known types for quick lookups.
-            if (state_ptr->material_shader_id == INVALID_ID && strings_equal(config.shader_name, "Shader.Builtin.Material")) {
-                state_ptr->material_shader_id = s->id;
-                state_ptr->material_locations.projection = shader_system_uniform_index(s, "projection");
-                state_ptr->material_locations.view = shader_system_uniform_index(s, "view");
-                state_ptr->material_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
-                state_ptr->material_locations.view_position = shader_system_uniform_index(s, "view_position");
-                state_ptr->material_locations.diffuse_colour = shader_system_uniform_index(s, "diffuse_colour");
-                state_ptr->material_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
-                state_ptr->material_locations.specular_texture = shader_system_uniform_index(s, "specular_texture");
-                state_ptr->material_locations.normal_texture = shader_system_uniform_index(s, "normal_texture");
-                state_ptr->material_locations.shininess = shader_system_uniform_index(s, "shininess");
-                state_ptr->material_locations.model = shader_system_uniform_index(s, "model");
-                state_ptr->material_locations.render_mode = shader_system_uniform_index(s, "mode");
-                state_ptr->material_locations.dir_light = shader_system_uniform_index(s, "dir_light");
-                state_ptr->material_locations.p_lights = shader_system_uniform_index(s, "p_lights");
-                state_ptr->material_locations.num_p_lights = shader_system_uniform_index(s, "num_p_lights");
-            } else if (state_ptr->ui_shader_id == INVALID_ID && strings_equal(config.shader_name, "Shader.Builtin.UI")) {
-                state_ptr->ui_shader_id = s->id;
-                state_ptr->ui_locations.projection = shader_system_uniform_index(s, "projection");
-                state_ptr->ui_locations.view = shader_system_uniform_index(s, "view");
-                state_ptr->ui_locations.diffuse_colour = shader_system_uniform_index(s, "diffuse_colour");
-                state_ptr->ui_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
-                state_ptr->ui_locations.model = shader_system_uniform_index(s, "model");
             }
 
             if (m->generation == INVALID_ID) {

@@ -71,14 +71,6 @@ typedef struct simple_scene {
 KAPI b8 simple_scene_create(void* config, simple_scene* out_scene);
 
 /**
- * @brief Destroys the given scene. Performs an unload first if the scene is loaded.
- *
- * @param scene A pointer to the scene to be unloaded. Required.
- * @return True on success; otherwise false.
- */
-KAPI b8 simple_scene_destroy(simple_scene* scene);
-
-/**
  * @brief Performs initialization routines on the scene, including processing
  * configuration (if provided) and scaffolding heirarchy.
  *
@@ -97,6 +89,7 @@ KAPI b8 simple_scene_load(simple_scene* scene);
 
 /**
  * @brief Performs unloading routines and resource de-allocation on the given scene.
+ * A scene is also destroyed when unloading.
  *
  * @param scene A pointer to the scene to be unloaded.
  * @return True on success; otherwise false.

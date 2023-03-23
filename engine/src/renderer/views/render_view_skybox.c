@@ -160,7 +160,7 @@ b8 render_view_skybox_on_render(const struct render_view* self, const struct ren
             return false;
         }
 
-        if (packet->extended_data) {
+        if (skybox_data && skybox_data->sb) {
             if (!shader_system_use_by_id(shader_id)) {
                 KERROR("Failed to use skybox shader. Render frame failed.");
                 return false;

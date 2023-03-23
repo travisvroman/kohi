@@ -14,6 +14,8 @@
 #include "math/kmath.h"
 #include "systems/light_system.h"
 
+static void simple_scene_actual_unload(simple_scene* scene);
+
 static u32 global_scene_id = 0;
 
 b8 simple_scene_create(void* config, simple_scene* out_scene) {
@@ -37,36 +39,6 @@ b8 simple_scene_create(void* config, simple_scene* out_scene) {
     out_scene->sb = 0;
 
     // TODO: process scene config.
-
-    return true;
-}
-
-b8 simple_scene_destroy(simple_scene* scene) {
-    if (!scene) {
-        KERROR("simple_scene_destroy requires a valid pointer to a scene.");
-        return false;
-    }
-
-    if (scene->state == SIMPLE_SCENE_STATE_LOADED) {
-        b8 result = simple_scene_unload(scene);
-        if (!result) {
-            KERROR("simple_scene_destroy, failed to unload scene before destruction.");
-            return false;
-        }
-    }
-
-    scene->dir_light = 0;
-    scene->sb = 0;
-
-    if (scene->point_lights) {
-        darray_destroy(scene->point_lights);
-    }
-
-    if (scene->meshes) {
-        darray_destroy(scene->meshes);
-    }
-
-    kzero_memory(scene, sizeof(simple_scene));
 
     return true;
 }
@@ -140,43 +112,18 @@ b8 simple_scene_unload(simple_scene* scene) {
 
     // Update the state to show the scene is currently unloading.
     scene->state = SIMPLE_SCENE_STATE_UNLOADING;
-
-    if (scene->sb) {
-        if (!skybox_unload(scene->sb)) {
-            KERROR("Failed to unload skybox");
-        }
-    }
-
-    u32 mesh_count = darray_length(scene->meshes);
-    for (u32 i = 0; i < mesh_count; ++i) {
-        if (scene->meshes[i]->generation != INVALID_ID_U8) {
-            if (!mesh_unload(scene->meshes[i])) {
-                KERROR("Failed to unload mesh.");
-            }
-        }
-    }
-
-    if (scene->dir_light) {
-        // TODO: If there are resource to unload, that should be done before this next line. Ex: box representing pos/colour
-        if (!simple_scene_remove_directional_light(scene, scene->dir_light)) {
-            KERROR("Failed to unload/remove directional light.");
-        }
-    }
-
-    u32 p_light_count = darray_length(scene->point_lights);
-    for (u32 i = 0; i < p_light_count; ++i) {
-        // TODO: If there are resource to unload, that should be done before this next line. Ex: box representing pos/colour
-        if (!simple_scene_remove_point_light(scene, scene->point_lights[i])) {
-            KERROR("Failed to unload/remove point light.");
-        }
-    }
-
-    // Update the state to show the scene is initialized.
-    scene->state = SIMPLE_SCENE_STATE_UNLOADED;
     return true;
 }
 
 b8 simple_scene_update(simple_scene* scene, const struct frame_data* p_frame_data) {
+    if (!scene) {
+        return false;
+    }
+
+    if (scene->state == SIMPLE_SCENE_STATE_UNLOADING) {
+        simple_scene_actual_unload(scene);
+    }
+
     return true;
 }
 
@@ -434,4 +381,53 @@ b8 simple_scene_remove_mesh(simple_scene* scene, struct mesh* m) {
 
 b8 simple_scene_remove_skybox(simple_scene* scene, struct skybox* sb) {
     return true;
+}
+
+static void simple_scene_actual_unload(simple_scene* scene) {
+    if (scene->sb) {
+        if (!skybox_unload(scene->sb)) {
+            KERROR("Failed to unload skybox");
+        }
+    }
+
+    u32 mesh_count = darray_length(scene->meshes);
+    for (u32 i = 0; i < mesh_count; ++i) {
+        if (scene->meshes[i]->generation != INVALID_ID_U8) {
+            if (!mesh_unload(scene->meshes[i])) {
+                KERROR("Failed to unload mesh.");
+            }
+        }
+    }
+
+    if (scene->dir_light) {
+        // TODO: If there are resource to unload, that should be done before this next line. Ex: box representing pos/colour
+        if (!simple_scene_remove_directional_light(scene, scene->dir_light)) {
+            KERROR("Failed to unload/remove directional light.");
+        }
+    }
+
+    u32 p_light_count = darray_length(scene->point_lights);
+    for (u32 i = 0; i < p_light_count; ++i) {
+        // TODO: If there are resource to unload, that should be done before this next line. Ex: box representing pos/colour
+        if (!simple_scene_remove_point_light(scene, scene->point_lights[i])) {
+            KERROR("Failed to unload/remove point light.");
+        }
+    }
+
+    // Update the state to show the scene is initialized.
+    scene->state = SIMPLE_SCENE_STATE_UNLOADED;
+
+    // Also destroy the scene.
+    scene->dir_light = 0;
+    scene->sb = 0;
+
+    if (scene->point_lights) {
+        darray_destroy(scene->point_lights);
+    }
+
+    if (scene->meshes) {
+        darray_destroy(scene->meshes);
+    }
+
+    kzero_memory(scene, sizeof(simple_scene));
 }

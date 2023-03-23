@@ -32,7 +32,6 @@ typedef struct testbed_game_state {
     skybox sb;
 
     mesh meshes[10];
-    b8 models_loaded;
 
     directional_light dir_light;
     point_light p_lights[3];

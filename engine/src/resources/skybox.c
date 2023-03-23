@@ -2,6 +2,7 @@
 
 #include "core/logger.h"
 #include "core/kmemory.h"
+#include "core/kstring.h"
 #include "renderer/renderer_frontend.h"
 #include "systems/geometry_system.h"
 #include "systems/shader_system.h"
@@ -76,6 +77,16 @@ b8 skybox_unload(skybox* sb) {
     sb->render_frame_number = INVALID_ID_U64;
 
     geometry_system_config_dispose(&sb->config.g_config);
+    if (sb->config.cubemap_name) {
+        if (sb->cubemap.texture) {
+            texture_system_release(sb->config.cubemap_name);
+            sb->cubemap.texture = 0;
+        }
+
+        // u32 length = string_length(sb->config.cubemap_name);
+        // kfree((void*)sb->config.cubemap_name, (length + 1) * sizeof(char), MEMORY_TAG_STRING);
+        sb->config.cubemap_name = 0;
+    }
 
     geometry_system_release(sb->g);
 
