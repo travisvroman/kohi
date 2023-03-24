@@ -282,6 +282,12 @@ void material_system_release(const char* name) {
             KWARN("Tried to release non-existent material: '%s'", name);
             return;
         }
+
+        // Take a copy of the name since it would be wiped out if destroyed,
+        // (as passed in name is generally a pointer to the actual material's name).
+        char name_copy[MATERIAL_NAME_MAX_LENGTH];
+        string_ncopy(name_copy, name, MATERIAL_NAME_MAX_LENGTH);
+
         ref.reference_count--;
         if (ref.reference_count == 0 && ref.auto_release) {
             material* m = &state_ptr->registered_materials[ref.handle];
@@ -292,13 +298,13 @@ void material_system_release(const char* name) {
             // Reset the reference.
             ref.handle = INVALID_ID;
             ref.auto_release = false;
-            // KTRACE("Released material '%s'., Material unloaded because reference count=0 and auto_release=true.", name);
+            // KTRACE("Released material '%s'., Material unloaded because reference count=0 and auto_release=true.", name_copy);
         } else {
-            // KTRACE("Released material '%s', now has a reference count of '%i' (auto_release=%s).", name, ref.reference_count, ref.auto_release ? "true" : "false");
+            // KTRACE("Released material '%s', now has a reference count of '%i' (auto_release=%s).", name_copy, ref.reference_count, ref.auto_release ? "true" : "false");
         }
 
         // Update the entry.
-        hashtable_set(&state_ptr->registered_material_table, name, &ref);
+        hashtable_set(&state_ptr->registered_material_table, name_copy, &ref);
     } else {
         KERROR("material_system_release failed to release material '%s'.", name);
     }
@@ -392,6 +398,19 @@ b8 material_system_apply_local(material* m, const mat4* model) {
 
     KERROR("Unrecognized shader id '%d'", m->shader_id);
     return false;
+}
+
+void material_system_dump(void) {
+    material_reference* refs = (material_reference*)state_ptr->registered_material_table.memory;
+    for (u32 i = 0; i < state_ptr->registered_material_table.element_count; ++i) {
+        material_reference* r = &refs[i];
+        if (r->reference_count > 0 || r->handle != INVALID_ID) {
+            KDEBUG("Found material ref (handle/refCount): (%u/%u)", r->handle, r->reference_count);
+            if (r->handle != INVALID_ID) {
+                KTRACE("Material name: %s", state_ptr->registered_materials[r->handle].name);
+            }
+        }
+    }
 }
 
 b8 load_material(material_config config, material* m) {

@@ -409,7 +409,8 @@ static void simple_scene_actual_unload(simple_scene* scene) {
     u32 p_light_count = darray_length(scene->point_lights);
     for (u32 i = 0; i < p_light_count; ++i) {
         // TODO: If there are resource to unload, that should be done before this next line. Ex: box representing pos/colour
-        if (!simple_scene_remove_point_light(scene, scene->point_lights[i])) {
+        // Always kill the first one on the list each time since entries are popped from the array.
+        if (!simple_scene_remove_point_light(scene, scene->point_lights[0])) {
             KERROR("Failed to unload/remove point light.");
         }
     }
