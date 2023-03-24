@@ -2071,7 +2071,6 @@ b8 vulkan_renderer_shader_acquire_instance_resources(renderer_plugin* plugin, sh
     u32 binding_count = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].binding_count;
     kzero_memory(set_state->descriptor_states, sizeof(vulkan_descriptor_state) * VULKAN_SHADER_MAX_BINDINGS);
     for (u32 i = 0; i < binding_count; ++i) {
-
         for (u32 j = 0; j < 3; ++j) {
             set_state->descriptor_states[i].generations[j] = INVALID_ID_U8;
             set_state->descriptor_states[i].ids[j] = INVALID_ID;
@@ -2126,8 +2125,10 @@ b8 vulkan_renderer_shader_release_instance_resources(renderer_plugin* plugin, sh
         instance_state->instance_texture_maps = 0;
     }
 
-    if (!renderer_renderbuffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset)) {
-        KERROR("vulkan_renderer_shader_release_instance_resources failed to free range from renderbuffer.");
+    if (s->ubo_stride != 0) {
+        if (!renderer_renderbuffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset)) {
+            KERROR("vulkan_renderer_shader_release_instance_resources failed to free range from renderbuffer.");
+        }
     }
     instance_state->offset = INVALID_ID;
     instance_state->id = INVALID_ID;
