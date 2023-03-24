@@ -741,7 +741,7 @@ static b8 load_main_scene(struct application* game_inst) {
         return false;
     }
 
-    if (!simple_scene_add_skybox(&state->main_scene, &state->sb)) {
+    if (!simple_scene_add_skybox(&state->main_scene, "skybox", &state->sb)) {
         KERROR("Failed to add skybox to main scene, aborting game.");
         return false;
     }
@@ -757,7 +757,7 @@ static b8 load_main_scene(struct application* game_inst) {
         return false;
     }
     state->meshes[0].transform = transform_create();
-    simple_scene_add_mesh(&state->main_scene, &state->meshes[0]);
+    simple_scene_add_mesh(&state->main_scene, "test_cube_0", &state->meshes[0]);
 
     // Second cube
     mesh_config cube_1_config = {0};
@@ -772,7 +772,7 @@ static b8 load_main_scene(struct application* game_inst) {
     state->meshes[1].transform = transform_from_position((vec3){10.0f, 0.0f, 1.0f});
     transform_set_parent(&state->meshes[1].transform, &state->meshes[0].transform);
 
-    simple_scene_add_mesh(&state->main_scene, &state->meshes[1]);
+    simple_scene_add_mesh(&state->main_scene, "test_cube_1", &state->meshes[1]);
 
     // Third cube!
     mesh_config cube_2_config = {0};
@@ -787,7 +787,7 @@ static b8 load_main_scene(struct application* game_inst) {
     state->meshes[2].transform = transform_from_position((vec3){5.0f, 0.0f, 1.0f});
     transform_set_parent(&state->meshes[2].transform, &state->meshes[1].transform);
 
-    simple_scene_add_mesh(&state->main_scene, &state->meshes[2]);
+    simple_scene_add_mesh(&state->main_scene, "test_cube_2", &state->meshes[2]);
 
     // Falcon
     mesh_config falcon_config = {0};
@@ -795,7 +795,7 @@ static b8 load_main_scene(struct application* game_inst) {
     if (!mesh_create(falcon_config, &state->meshes[3])) {
         KERROR("Failed to create falcon mesh.");
     } else {
-        if (!simple_scene_add_mesh(&state->main_scene, &state->meshes[3])) {
+        if (!simple_scene_add_mesh(&state->main_scene, "falcon", &state->meshes[3])) {
             KERROR("Failed to load falcon mesh.");
         }
 
@@ -808,7 +808,7 @@ static b8 load_main_scene(struct application* game_inst) {
     if (!mesh_create(sponza_config, &state->meshes[4])) {
         KERROR("Failed to create sponza mesh.");
     } else {
-        if (!simple_scene_add_mesh(&state->main_scene, &state->meshes[4])) {
+        if (!simple_scene_add_mesh(&state->main_scene, "sponza", &state->meshes[4])) {
             KERROR("Failed to load sponza mesh.");
         }
         state->meshes[4].transform = transform_from_position_rotation_scale((vec3){15.0f, 0.0f, 1.0f}, quat_identity(), (vec3){0.05f, 0.05f, 0.05f});
@@ -819,7 +819,7 @@ static b8 load_main_scene(struct application* game_inst) {
         (vec4){0.4f, 0.4f, 0.2f, 1.0f},
         (vec4){-0.57735f, -0.57735f, -0.57735f, 0.0f}};
 
-    if (!simple_scene_add_directional_light(&state->main_scene, &state->dir_light)) {
+    if (!simple_scene_add_directional_light(&state->main_scene, "sun", &state->dir_light)) {
         KERROR("Failed to add directional light to main scene.");
     }
 
@@ -829,7 +829,7 @@ static b8 load_main_scene(struct application* game_inst) {
     state->p_lights[0].linear = 0.35f;
     state->p_lights[0].quadratic = 0.44f;
     state->p_lights[0].padding = 0;
-    if (!simple_scene_add_point_light(&state->main_scene, &state->p_lights[0])) {
+    if (!simple_scene_add_point_light(&state->main_scene, "point_light_0", &state->p_lights[0])) {
         KERROR("Failed to add point light to main scene.");
     }
 
@@ -839,7 +839,7 @@ static b8 load_main_scene(struct application* game_inst) {
     state->p_lights[1].linear = 0.35f;
     state->p_lights[1].quadratic = 0.44f;
     state->p_lights[1].padding = 0;
-    if (!simple_scene_add_point_light(&state->main_scene, &state->p_lights[1])) {
+    if (!simple_scene_add_point_light(&state->main_scene, "point_light_1", &state->p_lights[1])) {
         KERROR("Failed to add point light to main scene.");
     }
 
@@ -849,7 +849,7 @@ static b8 load_main_scene(struct application* game_inst) {
     state->p_lights[2].linear = 0.35f;
     state->p_lights[2].quadratic = 0.44f;
     state->p_lights[2].padding = 0;
-    if (!simple_scene_add_point_light(&state->main_scene, &state->p_lights[2])) {
+    if (!simple_scene_add_point_light(&state->main_scene, "point_light_2", &state->p_lights[2])) {
         KERROR("Failed to add point light to main scene.");
     }
 

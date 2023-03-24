@@ -36,6 +36,14 @@ typedef struct pending_mesh {
     struct geometry_config** g_configs;
 } pending_mesh;
 
+typedef struct mesh_lookup {
+    const char* name;
+} mesh_lookup;
+
+typedef struct point_light_lookup {
+    const char* name;
+} point_light_lookup;
+
 typedef struct simple_scene {
     u32 id;
     simple_scene_state state;
@@ -48,9 +56,13 @@ typedef struct simple_scene {
 
     // darray of pointers to point lights.
     struct point_light** point_lights;
+    // darray of point light lookups.
+    struct point_light_lookup* point_light_lookups;
 
     // darray of pointers to meshes.
     struct mesh** meshes;
+    // darray of mesh lookups.
+    struct mesh_lookup* mesh_lookups;
 
     // darray of meshes to be loaded.
     pending_mesh* pending_meshes;
@@ -117,16 +129,13 @@ KAPI b8 simple_scene_update(simple_scene* scene, const struct frame_data* p_fram
  */
 KAPI b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* current_camera, f32 aspect, struct frame_data* p_frame_data, struct render_packet* packet);
 
+KAPI b8 simple_scene_add_directional_light(simple_scene* scene, const char* name, struct directional_light* light);
 
+KAPI b8 simple_scene_add_point_light(simple_scene* scene, const char* name, struct point_light* light);
 
-KAPI b8 simple_scene_add_directional_light(simple_scene* scene, struct directional_light* light);
+KAPI b8 simple_scene_add_mesh(simple_scene* scene, const char* name, struct mesh* m);
 
-KAPI b8 simple_scene_add_point_light(simple_scene* scene, struct point_light* light);
-
-KAPI b8 simple_scene_add_mesh(simple_scene* scene, struct mesh* m);
-
-KAPI b8 simple_scene_add_skybox(simple_scene* scene, struct skybox* sb);
-
+KAPI b8 simple_scene_add_skybox(simple_scene* scene, const char* name, struct skybox* sb);
 
 KAPI b8 simple_scene_remove_directional_light(simple_scene* scene, struct directional_light* light);
 
@@ -135,3 +144,11 @@ KAPI b8 simple_scene_remove_point_light(simple_scene* scene, struct point_light*
 KAPI b8 simple_scene_remove_mesh(simple_scene* scene, struct mesh* m);
 
 KAPI b8 simple_scene_remove_skybox(simple_scene* scene, struct skybox* sb);
+
+KAPI struct directional_light* simple_scene_directional_light_get(simple_scene* scene, const char* name);
+
+KAPI struct point_light* simple_scene_point_light_get(simple_scene* scene, const char* name);
+
+KAPI struct mesh* simple_scene_mesh_get(simple_scene* scene, const char* name);
+
+KAPI struct skybox* simple_scene_skybox_get(simple_scene* scene, const char* name);

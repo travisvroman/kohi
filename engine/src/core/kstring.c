@@ -122,7 +122,7 @@ b8 strings_equali(const char* str0, const char* str1) {
 }
 
 b8 strings_nequal(const char* str0, const char* str1, u64 length) {
-    return strncmp(str0, str1, length);
+    return strncmp(str0, str1, length) == 0;
 }
 
 b8 strings_nequali(const char* str0, const char* str1, u64 length) {

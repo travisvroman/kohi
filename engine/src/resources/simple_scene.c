@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "core/kmemory.h"
 #include "core/frame_data.h"
+#include "core/kstring.h"
 #include "containers/darray.h"
 #include "math/transform.h"
 #include "resources/resource_types.h"
@@ -35,6 +36,8 @@ b8 simple_scene_create(void* config, simple_scene* out_scene) {
     // Internal "lists" of renderable objects.
     out_scene->dir_light = 0;
     out_scene->point_lights = darray_create(point_light*);
+    out_scene->point_light_lookups = darray_create(point_light_lookup);
+    out_scene->mesh_lookups = darray_create(mesh_lookup);
     out_scene->meshes = darray_create(mesh*);
     out_scene->sb = 0;
 
@@ -244,7 +247,7 @@ b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* curre
     return true;
 }
 
-b8 simple_scene_add_directional_light(simple_scene* scene, struct directional_light* light) {
+b8 simple_scene_add_directional_light(simple_scene* scene, const char* name, struct directional_light* light) {
     if (!scene) {
         return false;
     }
@@ -266,7 +269,7 @@ b8 simple_scene_add_directional_light(simple_scene* scene, struct directional_li
     return true;
 }
 
-b8 simple_scene_add_point_light(simple_scene* scene, struct point_light* light) {
+b8 simple_scene_add_point_light(simple_scene* scene, const char* name, struct point_light* light) {
     if (!scene || !light) {
         return false;
     }
@@ -276,12 +279,15 @@ b8 simple_scene_add_point_light(simple_scene* scene, struct point_light* light) 
         return false;
     }
 
+    point_light_lookup lookup = {0};
+    lookup.name = string_duplicate(name);
     darray_push(scene->point_lights, light);
+    darray_push(scene->point_light_lookups, lookup);
 
     return true;
 }
 
-b8 simple_scene_add_mesh(simple_scene* scene, struct mesh* m) {
+b8 simple_scene_add_mesh(simple_scene* scene, const char* name, struct mesh* m) {
     if (!scene || !m) {
         return false;
     }
@@ -300,12 +306,15 @@ b8 simple_scene_add_mesh(simple_scene* scene, struct mesh* m) {
         }
     }
 
+    mesh_lookup lookup = {0};
+    lookup.name = string_duplicate(name);
     darray_push(scene->meshes, m);
+    darray_push(scene->mesh_lookups, lookup);
 
     return true;
 }
 
-b8 simple_scene_add_skybox(simple_scene* scene, struct skybox* sb) {
+b8 simple_scene_add_skybox(simple_scene* scene, const char* name, struct skybox* sb) {
     if (!scene) {
         return false;
     }
@@ -366,6 +375,8 @@ b8 simple_scene_remove_point_light(simple_scene* scene, struct point_light* ligh
 
             point_light rubbish = {0};
             darray_pop_at(scene->point_lights, i, &rubbish);
+            point_light_lookup rubbish2;
+            darray_pop_at(scene->point_light_lookups, i, &rubbish2);
 
             return true;
         }
@@ -376,11 +387,92 @@ b8 simple_scene_remove_point_light(simple_scene* scene, struct point_light* ligh
 }
 
 b8 simple_scene_remove_mesh(simple_scene* scene, struct mesh* m) {
-    return true;
+    if (!scene || !m) {
+        return false;
+    }
+
+    u32 mesh_count = darray_length(scene->meshes);
+    for (u32 i = 0; i < mesh_count; ++i) {
+        if (scene->meshes[i] == m) {
+            if (!mesh_unload(m)) {
+                KERROR("Failed to unload mesh");
+                return false;
+            }
+
+            mesh rubbish = {0};
+            darray_pop_at(scene->meshes, i, &rubbish);
+            mesh_lookup rubbish2;
+            darray_pop_at(scene->mesh_lookups, i, &rubbish2);
+
+            return true;
+        }
+    }
+
+    KERROR("Cannot remove a point light from a scene of which it is not a part.");
+    return false;
 }
 
 b8 simple_scene_remove_skybox(simple_scene* scene, struct skybox* sb) {
+    if (!scene || !sb) {
+        return false;
+    }
+
+    if (sb != scene->sb) {
+        KWARN("Cannot remove skybox from a scene of which it is not a part.");
+        return false;
+    }
+
+    scene->sb = 0;
+
     return true;
+}
+
+struct directional_light* simple_scene_directional_light_get(simple_scene* scene, const char* name) {
+    if (!scene) {
+        return 0;
+    }
+
+    return scene->dir_light;
+}
+
+struct point_light* simple_scene_point_light_get(simple_scene* scene, const char* name) {
+    if (!scene) {
+        return 0;
+    }
+
+    u32 length = darray_length(scene->point_light_lookups);
+    for (u32 i = 0; i < length; ++i) {
+        if (strings_nequal(name, scene->point_light_lookups[i].name, 256)) {
+            return scene->point_lights[i];
+        }
+    }
+
+    KWARN("Simple scene does not contain a point light called '%s'.", name);
+    return 0;
+}
+
+struct mesh* simple_scene_mesh_get(simple_scene* scene, const char* name) {
+    if (!scene) {
+        return 0;
+    }
+
+    u32 length = darray_length(scene->mesh_lookups);
+    for (u32 i = 0; i < length; ++i) {
+        if (strings_nequal(name, scene->mesh_lookups[i].name, 256)) {
+            return scene->meshes[i];
+        }
+    }
+
+    KWARN("Simple scene does not contain a mesh called '%s'.", name);
+    return 0;
+}
+
+struct skybox* simple_scene_skybox_get(simple_scene* scene, const char* name) {
+    if (!scene) {
+        return 0;
+    }
+
+    return scene->sb;
 }
 
 static void simple_scene_actual_unload(simple_scene* scene) {
@@ -396,6 +488,13 @@ static void simple_scene_actual_unload(simple_scene* scene) {
             if (!mesh_unload(scene->meshes[i])) {
                 KERROR("Failed to unload mesh.");
             }
+        }
+    }
+    u32 mesh_lookup_count = darray_length(scene->mesh_lookups);
+    for (u32 i = 0; i < mesh_lookup_count; ++i) {
+        if (scene->mesh_lookups[i].name) {
+            u32 length = string_length(scene->mesh_lookups[i].name);
+            kfree((void*)scene->mesh_lookups[i].name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
         }
     }
 
@@ -415,6 +514,14 @@ static void simple_scene_actual_unload(simple_scene* scene) {
         }
     }
 
+    u32 p_light_lookup_count = darray_length(scene->point_light_lookups);
+    for (u32 i = 0; i < p_light_lookup_count; ++i) {
+        if (scene->point_light_lookups[i].name) {
+            u32 length = string_length(scene->point_light_lookups[i].name);
+            kfree((void*)scene->point_light_lookups[i].name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+        }
+    }
+
     // Update the state to show the scene is initialized.
     scene->state = SIMPLE_SCENE_STATE_UNLOADED;
 
@@ -426,8 +533,16 @@ static void simple_scene_actual_unload(simple_scene* scene) {
         darray_destroy(scene->point_lights);
     }
 
+    if (scene->point_light_lookups) {
+        darray_destroy(scene->point_light_lookups);
+    }
+
     if (scene->meshes) {
         darray_destroy(scene->meshes);
+    }
+
+    if (scene->mesh_lookups) {
+        darray_destroy(scene->mesh_lookups);
     }
 
     kzero_memory(scene, sizeof(simple_scene));

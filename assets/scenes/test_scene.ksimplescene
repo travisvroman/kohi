@@ -1,0 +1,40 @@
+[Scene]
+name=test_scene
+description=A simple test scene.
+[/Scene]
+
+[Skybox]
+name=skybox
+cubemap_name=skybox
+[/Skybox]
+
+[DirectionalLight]
+name=sun
+color=0.4f 0.4f 0.2f 1.0f
+direction=-0.57735f -0.57735f -0.57735f 0.0f
+[/DirectionalLight]
+
+[Mesh]
+name=sponza
+resource_name=sponza
+transform=x y z qx qy qz qw sx sy sz
+[Transform]
+position=x y z
+rotation=qx qy qz qw
+rotation=ex ey ez
+scale=sx sy sz
+[/Transform]
+[/Mesh]
+
+[Mesh]
+name=falcon
+resource_name=falcon
+transform=x y z qx qy qz qw sx sy sz
+[Transform]
+position=x y z
+rotation=qx qy qz qw
+rotation=ex ey ez
+scale=sx sy sz
+parent=sponza
+[/Transform]
+[/Mesh]
