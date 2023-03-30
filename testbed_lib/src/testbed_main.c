@@ -30,6 +30,7 @@
 #include <systems/render_view_system.h>
 #include <systems/light_system.h>
 #include <resources/simple_scene.h>
+#include <systems/resource_system.h>
 #include "debug_console.h"
 #include "game_commands.h"
 #include "game_keybinds.h"
@@ -726,6 +727,17 @@ b8 configure_render_views(application_config* config) {
 
 static b8 load_main_scene(struct application* game_inst) {
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
+
+    // Load up config file
+    resource simple_scene_resource;
+    if (!resource_system_load("test_scene", RESOURCE_TYPE_SIMPLE_SCENE, 0, &simple_scene_resource)) {
+        KERROR("Failed to load scene file, check above logs.");
+        return false;
+    }
+
+    simple_scene_config* scene_config = (simple_scene_config*)simple_scene_resource.data;
+    if (scene_config) {
+    }
 
     // TODO: temp load/prepare stuff
     if (!simple_scene_create(0, &state->main_scene)) {
