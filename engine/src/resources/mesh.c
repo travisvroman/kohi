@@ -3,6 +3,7 @@
 #include "core/kmemory.h"
 #include "core/logger.h"
 #include "core/identifier.h"
+#include "core/kstring.h"
 #include "systems/job_system.h"
 
 #include "systems/resource_system.h"
@@ -91,6 +92,9 @@ b8 mesh_create(mesh_config config, mesh* out_mesh) {
 
     out_mesh->config = config;
     out_mesh->generation = INVALID_ID_U8;
+    if (config.name) {
+        out_mesh->name = string_duplicate(config.name);
+    }
 
     return true;
 }
@@ -169,5 +173,24 @@ b8 mesh_destroy(mesh* m) {
             return false;
         }
     }
+
+    if (m->name) {
+        kfree(m->name, string_length(m->name) + 1, MEMORY_TAG_STRING);
+        m->name = 0;
+    }
+
+    if (m->config.name) {
+        kfree(m->config.name, string_length(m->config.name) + 1, MEMORY_TAG_STRING);
+        m->config.name = 0;
+    }
+    if (m->config.resource_name) {
+        kfree(m->config.resource_name, string_length(m->config.resource_name) + 1, MEMORY_TAG_STRING);
+        m->config.resource_name = 0;
+    }
+    if (m->config.parent_name) {
+        kfree(m->config.parent_name, string_length(m->config.parent_name) + 1, MEMORY_TAG_STRING);
+        m->config.parent_name = 0;
+    }
+
     return true;
 }

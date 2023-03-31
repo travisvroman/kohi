@@ -268,6 +268,9 @@ b8 string_to_transform(const char* str, transform* out_transform) {
         *out_transform = transform_create();
         return false;
     }
+
+    out_transform->is_dirty = true;
+
     return true;
 }
 

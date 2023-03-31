@@ -6,6 +6,7 @@
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
 #include "math/kmath.h"
+#include "math/transform.h"
 #include "loader_utils.h"
 #include "containers/darray.h"
 
@@ -122,9 +123,15 @@ b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void
                     return false;
                 }
                 kzero_memory(&current_mesh_config, sizeof(mesh_simple_scene_config));
+                // Also setup a default transform.
+                current_mesh_config.transform = transform_create();
             } else if (strings_equali(trimmed, "[/Mesh]")) {
                 if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_MESH, SIMPLE_SCENE_PARSE_MODE_ROOT)) {
                     return false;
+                }
+                if (!current_mesh_config.name || !current_mesh_config.resource_name) {
+                    KWARN("Format error: meshes require both name and resource name. Mesh not added.");
+                    continue;
                 }
                 // Push into the array, then cleanup.
                 darray_push(resource_data->meshes, current_mesh_config);

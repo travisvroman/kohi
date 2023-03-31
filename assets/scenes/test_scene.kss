@@ -27,8 +27,7 @@ transform=15.0 0.0 1.0 0.0 0.0 0.0 1.0 0.05 0.05 0.05
 [Mesh]
 name=falcon
 resource_name=falcon
-transform=15.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 1.0
-parent=sponza
+transform=25.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 1.0
 [/Mesh]
 
 [PointLight]
