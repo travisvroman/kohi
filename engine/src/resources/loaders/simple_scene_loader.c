@@ -53,7 +53,7 @@ b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void
 
     // Buffer objects that get populated when in corresponding mode, and pushed to list when
     // leaving said mode.
-    point_light_simple_scene_config* current_point_light_config = 0;
+    point_light_simple_scene_config current_point_light_config = {0};
     mesh_simple_scene_config current_mesh_config = {0};
 
     // Read each line of the file.
@@ -109,19 +109,14 @@ b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void
                 if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_ROOT, SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT)) {
                     return false;
                 }
-                current_point_light_config = kallocate(sizeof(point_light_simple_scene_config), MEMORY_TAG_ARRAY);
+                kzero_memory(&current_point_light_config, sizeof(point_light_simple_scene_config));
             } else if (strings_equali(trimmed, "[/PointLight]")) {
                 if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT, SIMPLE_SCENE_PARSE_MODE_ROOT)) {
                     return false;
                 }
                 // Push into the array, then cleanup.
-                darray_push(resource_data->point_lights, *current_point_light_config);
-                if (current_point_light_config->name) {
-                    kfree(current_point_light_config->name, string_length(current_point_light_config->name) + 1, MEMORY_TAG_STRING);
-                    current_point_light_config->name = 0;
-                }
-                kfree(current_point_light_config, sizeof(point_light_simple_scene_config), MEMORY_TAG_ARRAY);
-                current_point_light_config = 0;
+                darray_push(resource_data->point_lights, current_point_light_config);
+                kzero_memory(&current_point_light_config, sizeof(point_light_simple_scene_config));
             } else if (strings_equali(trimmed, "[Mesh]")) {
                 if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_ROOT, SIMPLE_SCENE_PARSE_MODE_MESH)) {
                     return false;
@@ -133,15 +128,6 @@ b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void
                 }
                 // Push into the array, then cleanup.
                 darray_push(resource_data->meshes, current_mesh_config);
-                if (current_mesh_config.name) {
-                    kfree(current_mesh_config.name, string_length(current_mesh_config.name) + 1, MEMORY_TAG_STRING);
-                }
-                if (current_mesh_config.resource_name) {
-                    kfree(current_mesh_config.resource_name, string_length(current_mesh_config.resource_name) + 1, MEMORY_TAG_STRING);
-                }
-                if (current_mesh_config.parent_name) {
-                    kfree(current_mesh_config.parent_name, string_length(current_mesh_config.parent_name) + 1, MEMORY_TAG_STRING);
-                }
                 kzero_memory(&current_mesh_config, sizeof(mesh_simple_scene_config));
             } else {
                 KERROR("Error loading simple scene file: format error. Unexpected object type '%s'", trimmed);
@@ -195,9 +181,7 @@ b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void
                         resource_data->skybox_config.name = string_duplicate(trimmed_value);
                         break;
                     case SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT: {
-                        // TODO: Why does this always create at the same address?
-                        char* c = string_duplicate(trimmed_value);
-                        current_point_light_config->name = c;
+                        current_point_light_config.name = string_duplicate(trimmed_value);
                     } break;
                     case SIMPLE_SCENE_PARSE_MODE_MESH:
                         current_mesh_config.name = string_duplicate(trimmed_value);
@@ -215,9 +199,9 @@ b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void
                         }
                         break;
                     case SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT:
-                        if (!string_to_vec4(trimmed_value, &current_point_light_config->colour)) {
+                        if (!string_to_vec4(trimmed_value, &current_point_light_config.colour)) {
                             KWARN("Format error parsing colour. Default value used.");
-                            current_point_light_config->colour = vec4_one();
+                            current_point_light_config.colour = vec4_one();
                         }
                         break;
                 }
@@ -256,9 +240,9 @@ b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void
                 }
             } else if (strings_equali(trimmed_var_name, "position")) {
                 if (mode == SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT) {
-                    if (!string_to_vec4(trimmed_value, &current_point_light_config->position)) {
+                    if (!string_to_vec4(trimmed_value, &current_point_light_config.position)) {
                         KWARN("Error parsing point light position as vec4. Using default value");
-                        current_point_light_config->position = vec4_zero();
+                        current_point_light_config.position = vec4_zero();
                     }
                 } else {
                     KWARN("Format warning: Cannot process direction in the current node.");
@@ -273,27 +257,27 @@ b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void
                 }
             } else if (strings_equali(trimmed_var_name, "constant_f")) {
                 if (mode == SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT) {
-                    if (!string_to_f32(trimmed_value, &current_point_light_config->constant_f)) {
+                    if (!string_to_f32(trimmed_value, &current_point_light_config.constant_f)) {
                         KWARN("Error parsing point light constant_f. Using default value.");
-                        current_point_light_config->constant_f = 1.0f;
+                        current_point_light_config.constant_f = 1.0f;
                     }
                 } else {
                     KWARN("Format warning: Cannot process constant in the current node.");
                 }
             } else if (strings_equali(trimmed_var_name, "linear")) {
                 if (mode == SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT) {
-                    if (!string_to_f32(trimmed_value, &current_point_light_config->linear)) {
+                    if (!string_to_f32(trimmed_value, &current_point_light_config.linear)) {
                         KWARN("Error parsing point light linear. Using default value.");
-                        current_point_light_config->linear = 0.35f;
+                        current_point_light_config.linear = 0.35f;
                     }
                 } else {
                     KWARN("Format warning: Cannot process linear in the current node.");
                 }
             } else if (strings_equali(trimmed_var_name, "quadratic")) {
                 if (mode == SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT) {
-                    if (!string_to_f32(trimmed_value, &current_point_light_config->quadratic)) {
+                    if (!string_to_f32(trimmed_value, &current_point_light_config.quadratic)) {
                         KWARN("Error parsing point light quadratic. Using default value.");
-                        current_point_light_config->quadratic = 0.44f;
+                        current_point_light_config.quadratic = 0.44f;
                     }
                 } else {
                     KWARN("Format warning: Cannot process quadratic in the current node.");
