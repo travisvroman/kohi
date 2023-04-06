@@ -98,9 +98,10 @@ KAPI b8 simple_scene_load(simple_scene* scene);
  * A scene is also destroyed when unloading.
  *
  * @param scene A pointer to the scene to be unloaded.
+ * @param immediate Unload immediately instead of the next frame. NOTE: can have unintended side effects if used improperly.
  * @return True on success; otherwise false.
  */
-KAPI b8 simple_scene_unload(simple_scene* scene);
+KAPI b8 simple_scene_unload(simple_scene* scene, b8 immediate);
 
 /**
  * @brief Performs any required scene updates for the given frame.

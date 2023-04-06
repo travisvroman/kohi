@@ -98,7 +98,7 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
         if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
             KDEBUG("Unloading scene...");
 
-            simple_scene_unload(&state->main_scene);
+            simple_scene_unload(&state->main_scene, false);
 
             KDEBUG("Done.");
         }
@@ -468,6 +468,14 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
 
 void application_shutdown(struct application* game_inst) {
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
+
+    if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
+        KDEBUG("Unloading scene...");
+
+        simple_scene_unload(&state->main_scene, true);
+
+        KDEBUG("Done.");
+    }
 
     // TODO: Temp
 

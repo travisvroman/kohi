@@ -4,6 +4,7 @@
 #include "core/kmemory.h"
 #include "core/kvar.h"
 #include "core/frame_data.h"
+#include "core/kstring.h"
 #include "containers/freelist.h"
 #include "math/kmath.h"
 #include "platform/platform.h"
@@ -340,6 +341,7 @@ b8 renderer_renderpass_create(const renderpass_config* config, renderpass* out_r
     out_renderpass->clear_flags = config->clear_flags;
     out_renderpass->clear_colour = config->clear_colour;
     out_renderpass->render_area = config->render_area;
+    out_renderpass->name = string_duplicate(config->name);
 
     // Copy over config for each target.
     for (u32 t = 0; t < out_renderpass->render_target_count; ++t) {
@@ -368,6 +370,11 @@ void renderer_renderpass_destroy(renderpass* pass) {
     // Destroy its rendertargets.
     for (u32 i = 0; i < pass->render_target_count; ++i) {
         renderer_render_target_destroy(&pass->targets[i], true);
+    }
+
+    if (pass->name) {
+        kfree(pass->name, string_length(pass->name) + 1, MEMORY_TAG_STRING);
+        pass->name = 0;
     }
 
     state_ptr->plugin.renderpass_destroy(&state_ptr->plugin, pass);

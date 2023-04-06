@@ -206,9 +206,15 @@ b8 simple_scene_load(simple_scene* scene) {
     return true;
 }
 
-b8 simple_scene_unload(simple_scene* scene) {
+b8 simple_scene_unload(simple_scene* scene, b8 immediate) {
     if (!scene) {
         return false;
+    }
+
+    if (immediate) {
+        scene->state = SIMPLE_SCENE_STATE_UNLOADING;
+        simple_scene_actual_unload(scene);
+        return true;
     }
 
     // Update the state to show the scene is currently unloading.

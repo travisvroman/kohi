@@ -447,10 +447,7 @@ b8 load_material(material_config config, material* m) {
     // TODO: DRY
     m->diffuse_map.filter_minify = m->diffuse_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
     m->diffuse_map.repeat_u = m->diffuse_map.repeat_v = m->diffuse_map.repeat_w = TEXTURE_REPEAT_REPEAT;
-    if (!renderer_texture_map_acquire_resources(&m->diffuse_map)) {
-        KERROR("Unable to acquire resources for diffuse texture map.");
-        return false;
-    }
+    
     if (string_length(config.diffuse_map_name) > 0) {
         m->diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
         m->diffuse_map.texture = texture_system_acquire(config.diffuse_map_name, true);
@@ -464,15 +461,16 @@ b8 load_material(material_config config, material* m) {
         m->diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
         m->diffuse_map.texture = texture_system_get_default_diffuse_texture();
     }
+    if (!renderer_texture_map_acquire_resources(&m->diffuse_map)) {
+        KERROR("Unable to acquire resources for diffuse texture map.");
+        return false;
+    }
 
     // Specular map
     // TODO: Make this configurable.
     m->specular_map.filter_minify = m->specular_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
     m->specular_map.repeat_u = m->specular_map.repeat_v = m->specular_map.repeat_w = TEXTURE_REPEAT_REPEAT;
-    if (!renderer_texture_map_acquire_resources(&m->specular_map)) {
-        KERROR("Unable to acquire resources for specular texture map.");
-        return false;
-    }
+    
     if (string_length(config.specular_map_name) > 0) {
         m->specular_map.use = TEXTURE_USE_MAP_SPECULAR;
         m->specular_map.texture = texture_system_acquire(config.specular_map_name, true);
@@ -485,15 +483,16 @@ b8 load_material(material_config config, material* m) {
         m->specular_map.use = TEXTURE_USE_MAP_SPECULAR;
         m->specular_map.texture = texture_system_get_default_specular_texture();
     }
+    if (!renderer_texture_map_acquire_resources(&m->specular_map)) {
+        KERROR("Unable to acquire resources for specular texture map.");
+        return false;
+    }
 
     // Normal map
     // TODO: Make this configurable.
     m->normal_map.filter_minify = m->normal_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
     m->normal_map.repeat_u = m->normal_map.repeat_v = m->normal_map.repeat_w = TEXTURE_REPEAT_REPEAT;
-    if (!renderer_texture_map_acquire_resources(&m->normal_map)) {
-        KERROR("Unable to acquire resources for normal texture map.");
-        return false;
-    }
+    
     if (string_length(config.normal_map_name) > 0) {
         m->normal_map.use = TEXTURE_USE_MAP_NORMAL;
         m->normal_map.texture = texture_system_acquire(config.normal_map_name, true);
@@ -505,6 +504,10 @@ b8 load_material(material_config config, material* m) {
         // Use default
         m->normal_map.use = TEXTURE_USE_MAP_NORMAL;
         m->normal_map.texture = texture_system_get_default_normal_texture();
+    }
+    if (!renderer_texture_map_acquire_resources(&m->normal_map)) {
+        KERROR("Unable to acquire resources for normal texture map.");
+        return false;
     }
 
     // TODO: other maps

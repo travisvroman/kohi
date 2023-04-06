@@ -407,16 +407,19 @@ b8 add_sampler(shader* shader, shader_uniform_config* config) {
         default_map.filter_minify = TEXTURE_FILTER_MODE_LINEAR;
         default_map.repeat_u = default_map.repeat_v = default_map.repeat_w = TEXTURE_REPEAT_REPEAT;
         default_map.use = TEXTURE_USE_UNKNOWN;
-        if (!renderer_texture_map_acquire_resources(&default_map)) {
-            KERROR("Failed to acquire resources for global texture map during shader creation.");
-            return false;
-        }
+        
 
         // Allocate a pointer assign the texture, and push into global texture maps.
         // NOTE: This allocation is only done for global texture maps.
         texture_map* map = kallocate(sizeof(texture_map), MEMORY_TAG_RENDERER);
         *map = default_map;
         map->texture = texture_system_get_default_texture();
+
+        if (!renderer_texture_map_acquire_resources(&default_map)) {
+            KERROR("Failed to acquire resources for global texture map during shader creation.");
+            return false;
+        }
+        
         darray_push(shader->global_texture_maps, map);
     } else {
         // Otherwise, it's instance-level, so keep count of how many need to be added during the resource acquisition.
