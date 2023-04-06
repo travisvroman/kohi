@@ -29,12 +29,9 @@ typedef struct testbed_game_state {
     // TODO: temp
     simple_scene main_scene;
     b8 main_scene_unload_triggered;
-    // skybox sb;
 
     mesh meshes[10];
 
-    // directional_light dir_light;
-    // point_light p_lights[3];
     point_light* p_light_1;
 
     mesh ui_meshes[10];

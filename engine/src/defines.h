@@ -66,7 +66,7 @@ typedef struct range {
 } range;
 
 // Properly define static assertions.
-#if defined(__clang__) || defined(__gcc__)
+#if defined(__clang__) || defined(__GNUC__)
 /** @brief Static assertion */
 #define STATIC_ASSERT _Static_assert
 #else
