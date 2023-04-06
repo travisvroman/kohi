@@ -116,6 +116,8 @@ typedef struct renderpass {
     /** @brief The id of the renderpass */
     u16 id;
 
+    char* name;
+
     /** @brief The current render area of the renderpass. */
     vec4 render_area;
     /** @brief The clear colour used for this renderpass. */

@@ -164,6 +164,18 @@ KAPI void string_mid(char* dest, const char* source, i32 start, i32 length);
 KAPI i32 string_index_of(const char* str, char c);
 
 /**
+ * @brief Attempts to parse a transform from the provided string.
+ * If the string contains 10 elements, rotation is parsed as quaternion.
+ * If it contains 9 elements, rotation is parsed as euler angles and is 
+ * converted to quaternion. Anything else is invalid.
+ * 
+ * @param str The string to parse from.
+ * @param out_transform A pointer to the transform to write to.
+ * @return True if parsed successfully, otherwise false.
+ */
+KAPI b8 string_to_transform(const char* str, transform* out_transform);
+
+/**
  * @brief Attempts to parse a vector from the provided string.
  *
  * @param str The string to parse from. Should be space-delimited. (i.e. "1.0 2.0 3.0 4.0")
