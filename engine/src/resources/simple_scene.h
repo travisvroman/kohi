@@ -11,6 +11,7 @@ struct mesh;
 struct skybox;
 struct geometry_config;
 struct camera;
+struct simple_scene_config;
 
 typedef enum simple_scene_state {
     /** @brief created, but nothing more. */
@@ -36,40 +37,33 @@ typedef struct pending_mesh {
     struct geometry_config** g_configs;
 } pending_mesh;
 
-typedef struct mesh_lookup {
-    const char* name;
-} mesh_lookup;
-
-typedef struct point_light_lookup {
-    const char* name;
-} point_light_lookup;
-
 typedef struct simple_scene {
     u32 id;
     simple_scene_state state;
     b8 enabled;
+
+    char* name;
+    char* description;
 
     transform scene_transform;
 
     // Singlular pointer to a directional light.
     struct directional_light* dir_light;
 
-    // darray of pointers to point lights.
-    struct point_light** point_lights;
-    // darray of point light lookups.
-    struct point_light_lookup* point_light_lookups;
+    // darray of point lights.
+    struct point_light* point_lights;
 
-    // darray of pointers to meshes.
-    struct mesh** meshes;
-    // darray of mesh lookups.
-    struct mesh_lookup* mesh_lookups;
+    // darray of meshes.
+    struct mesh* meshes;
 
-    // darray of meshes to be loaded.
+    // darray of meshes to be loaded.`
     pending_mesh* pending_meshes;
 
     // Singlular pointer to a skybox.
     struct skybox* sb;
 
+    // A pointer to the scene configuration, if provided.
+    struct simple_scene_config* config;
 } simple_scene;
 
 /**
@@ -104,9 +98,10 @@ KAPI b8 simple_scene_load(simple_scene* scene);
  * A scene is also destroyed when unloading.
  *
  * @param scene A pointer to the scene to be unloaded.
+ * @param immediate Unload immediately instead of the next frame. NOTE: can have unintended side effects if used improperly.
  * @return True on success; otherwise false.
  */
-KAPI b8 simple_scene_unload(simple_scene* scene);
+KAPI b8 simple_scene_unload(simple_scene* scene, b8 immediate);
 
 /**
  * @brief Performs any required scene updates for the given frame.
@@ -137,13 +132,13 @@ KAPI b8 simple_scene_add_mesh(simple_scene* scene, const char* name, struct mesh
 
 KAPI b8 simple_scene_add_skybox(simple_scene* scene, const char* name, struct skybox* sb);
 
-KAPI b8 simple_scene_remove_directional_light(simple_scene* scene, struct directional_light* light);
+KAPI b8 simple_scene_remove_directional_light(simple_scene* scene, const char* name);
 
-KAPI b8 simple_scene_remove_point_light(simple_scene* scene, struct point_light* light);
+KAPI b8 simple_scene_remove_point_light(simple_scene* scene, const char* name);
 
-KAPI b8 simple_scene_remove_mesh(simple_scene* scene, struct mesh* m);
+KAPI b8 simple_scene_remove_mesh(simple_scene* scene, const char* name);
 
-KAPI b8 simple_scene_remove_skybox(simple_scene* scene, struct skybox* sb);
+KAPI b8 simple_scene_remove_skybox(simple_scene* scene, const char* name);
 
 KAPI struct directional_light* simple_scene_directional_light_get(simple_scene* scene, const char* name);
 

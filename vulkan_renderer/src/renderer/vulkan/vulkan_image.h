@@ -26,6 +26,7 @@
  * @param memory_flags Memory flags for the memory used by the image.
  * @param create_view Indicates if a view should be created with the image.
  * @param view_aspect_flags Aspect flags to be used when creating the view, if applicable.
+ * @param name A name for the image.
  * @param out_image A pointer to hold the newly-created image.
  */
 void vulkan_image_create(
@@ -39,6 +40,7 @@ void vulkan_image_create(
     VkMemoryPropertyFlags memory_flags,
     b32 create_view,
     VkImageAspectFlags view_aspect_flags,
+    const char* name,
     vulkan_image* out_image);
 
 /**

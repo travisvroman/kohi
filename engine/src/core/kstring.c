@@ -2,6 +2,8 @@
 #include "core/kmemory.h"
 #include "core/logger.h"
 #include "containers/darray.h"
+#include "math/kmath.h"
+#include "math/transform.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -231,8 +233,49 @@ i32 string_index_of(const char* str, char c) {
     return -1;
 }
 
+b8 string_to_transform(const char* str, transform* out_transform) {
+    if (!str || !out_transform) {
+        return false;
+    }
+
+    kzero_memory(out_transform, sizeof(transform));
+    f32 values[7] = {0};
+
+    i32 count = sscanf(
+        str,
+        "%f %f %f %f %f %f %f %f %f %f",
+        &out_transform->position.x, &out_transform->position.y, &out_transform->position.z,
+        &values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6]);
+
+    if (count == 10) {
+        // Treat as quat, load directly.
+        out_transform->rotation.x = values[0];
+        out_transform->rotation.y = values[1];
+        out_transform->rotation.z = values[2];
+        out_transform->rotation.w = values[3];
+
+        // Set scale
+        out_transform->scale.x = values[4];
+        out_transform->scale.y = values[5];
+        out_transform->scale.z = values[6];
+    } else if (count == 9) {
+        quat x_rot = quat_from_axis_angle((vec3){1.0f, 0, 0}, deg_to_rad(values[0]), true);
+        quat y_rot = quat_from_axis_angle((vec3){0, 1.0f, 0}, deg_to_rad(values[1]), true);
+        quat z_rot = quat_from_axis_angle((vec3){0, 0, 1.0f}, deg_to_rad(values[2]), true);
+        out_transform->rotation = quat_mul(x_rot, quat_mul(y_rot, z_rot));
+    } else {
+        KWARN("Format error: invalid transform provided. Identity transform will be used.");
+        *out_transform = transform_create();
+        return false;
+    }
+
+    out_transform->is_dirty = true;
+
+    return true;
+}
+
 b8 string_to_vec4(const char* str, vec4* out_vector) {
-    if (!str) {
+    if (!str || !out_vector) {
         return false;
     }
 
@@ -242,7 +285,7 @@ b8 string_to_vec4(const char* str, vec4* out_vector) {
 }
 
 b8 string_to_vec3(const char* str, vec3* out_vector) {
-    if (!str) {
+    if (!str || !out_vector) {
         return false;
     }
 
@@ -252,7 +295,7 @@ b8 string_to_vec3(const char* str, vec3* out_vector) {
 }
 
 b8 string_to_vec2(const char* str, vec2* out_vector) {
-    if (!str) {
+    if (!str || !out_vector) {
         return false;
     }
 
@@ -262,7 +305,7 @@ b8 string_to_vec2(const char* str, vec2* out_vector) {
 }
 
 b8 string_to_f32(const char* str, f32* f) {
-    if (!str) {
+    if (!str || !f) {
         return false;
     }
 
@@ -272,7 +315,7 @@ b8 string_to_f32(const char* str, f32* f) {
 }
 
 b8 string_to_f64(const char* str, f64* f) {
-    if (!str) {
+    if (!str || !f) {
         return false;
     }
 
@@ -282,7 +325,7 @@ b8 string_to_f64(const char* str, f64* f) {
 }
 
 b8 string_to_i8(const char* str, i8* i) {
-    if (!str) {
+    if (!str || !i) {
         return false;
     }
 
@@ -292,7 +335,7 @@ b8 string_to_i8(const char* str, i8* i) {
 }
 
 b8 string_to_i16(const char* str, i16* i) {
-    if (!str) {
+    if (!str || !i) {
         return false;
     }
 
@@ -302,7 +345,7 @@ b8 string_to_i16(const char* str, i16* i) {
 }
 
 b8 string_to_i32(const char* str, i32* i) {
-    if (!str) {
+    if (!str || !i) {
         return false;
     }
 
@@ -312,7 +355,7 @@ b8 string_to_i32(const char* str, i32* i) {
 }
 
 b8 string_to_i64(const char* str, i64* i) {
-    if (!str) {
+    if (!str || !i) {
         return false;
     }
 
@@ -322,7 +365,7 @@ b8 string_to_i64(const char* str, i64* i) {
 }
 
 b8 string_to_u8(const char* str, u8* u) {
-    if (!str) {
+    if (!str || !u) {
         return false;
     }
 
@@ -332,7 +375,7 @@ b8 string_to_u8(const char* str, u8* u) {
 }
 
 b8 string_to_u16(const char* str, u16* u) {
-    if (!str) {
+    if (!str || !u) {
         return false;
     }
 
@@ -342,7 +385,7 @@ b8 string_to_u16(const char* str, u16* u) {
 }
 
 b8 string_to_u32(const char* str, u32* u) {
-    if (!str) {
+    if (!str || !u) {
         return false;
     }
 
@@ -352,7 +395,7 @@ b8 string_to_u32(const char* str, u32* u) {
 }
 
 b8 string_to_u64(const char* str, u64* u) {
-    if (!str) {
+    if (!str || !u) {
         return false;
     }
 
@@ -362,7 +405,7 @@ b8 string_to_u64(const char* str, u64* u) {
 }
 
 b8 string_to_bool(const char* str, b8* b) {
-    if (!str) {
+    if (!str || !b) {
         return false;
     }
 

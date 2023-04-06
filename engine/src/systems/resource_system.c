@@ -12,6 +12,7 @@
 #include "resources/loaders/mesh_loader.h"
 #include "resources/loaders/bitmap_font_loader.h"
 #include "resources/loaders/system_font_loader.h"
+#include "resources/loaders/simple_scene_loader.h"
 
 typedef struct resource_system_state {
     resource_system_config config;
@@ -56,6 +57,7 @@ b8 resource_system_initialize(u64* memory_requirement, void* state, void* config
     resource_system_register_loader(mesh_resource_loader_create());
     resource_system_register_loader(bitmap_font_resource_loader_create());
     resource_system_register_loader(system_font_resource_loader_create());
+    resource_system_register_loader(simple_scene_resource_loader_create());
 
     KINFO("Resource system initialized with base path '%s'.", typed_config->asset_base_path);
 

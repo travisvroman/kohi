@@ -1,9 +1,10 @@
 #include "vulkan_image.h"
 
 #include "vulkan_device.h"
-
+#include "vulkan_utils.h"
 #include "core/kmemory.h"
 #include "core/logger.h"
+#include "core/kstring.h"
 
 void vulkan_image_create(
     vulkan_context* context,
@@ -16,11 +17,13 @@ void vulkan_image_create(
     VkMemoryPropertyFlags memory_flags,
     b32 create_view,
     VkImageAspectFlags view_aspect_flags,
+    const char* name,
     vulkan_image* out_image) {
     // Copy params
     out_image->width = width;
     out_image->height = height;
     out_image->memory_flags = memory_flags;
+    out_image->name = string_duplicate(name);
 
     // Creation info.
     VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
@@ -48,6 +51,8 @@ void vulkan_image_create(
     }
 
     VK_CHECK(vkCreateImage(context->device.logical_device, &image_create_info, context->allocator, &out_image->handle));
+
+    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE, out_image->handle, out_image->name);
 
     // Query memory requirements.
     vkGetImageMemoryRequirements(context->device.logical_device, out_image->handle, &out_image->memory_requirements);
@@ -104,6 +109,10 @@ void vulkan_image_view_create(
     view_create_info.subresourceRange.layerCount = type == TEXTURE_TYPE_CUBE ? 6 : 1;
 
     VK_CHECK(vkCreateImageView(context->device.logical_device, &view_create_info, context->allocator, &image->view));
+
+    char formatted_name[TEXTURE_NAME_MAX_LENGTH] = {0};
+    string_format(formatted_name, "%s_view", image->name);
+    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, image->view, formatted_name);
 }
 
 void vulkan_image_transition_layout(
@@ -287,6 +296,10 @@ void vulkan_image_destroy(vulkan_context* context, vulkan_image* image) {
     if (image->handle) {
         vkDestroyImage(context->device.logical_device, image->handle, context->allocator);
         image->handle = 0;
+    }
+    if (image->name) {
+        kfree(image->name, string_length(image->name) + 1, MEMORY_TAG_STRING);
+        image->name = 0;
     }
 
     // Report the memory as no longer in-use.

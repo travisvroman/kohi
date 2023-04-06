@@ -1,4 +1,5 @@
 #include "vulkan_device.h"
+#include "vulkan_utils.h"
 #include "core/logger.h"
 #include "core/kstring.h"
 #include "core/kmemory.h"
@@ -117,6 +118,8 @@ b8 vulkan_device_create(vulkan_context* context) {
         &device_create_info,
         context->allocator,
         &context->device.logical_device));
+
+    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE, context->device.logical_device, "Vulkan Logical Device");
 
     KINFO("Logical device created.");
 
