@@ -106,7 +106,8 @@
         "vulkan_backend.h": "c",
         "input.h": "c",
         "ui_text.h": "c",
-        "xmemory": "c"
+        "xmemory": "c",
+        "geometry_utils.h": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [

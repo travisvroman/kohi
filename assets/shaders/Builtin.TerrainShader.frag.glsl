@@ -20,6 +20,7 @@ struct point_light {
 };
 
 const int MAX_POINT_LIGHTS = 10;
+const int MAX_TERRAIN_MATERIALS = 8;
 
 layout(set = 1, binding = 0) uniform instance_uniform_object {
     vec4 diffuse_colour;
@@ -30,10 +31,10 @@ layout(set = 1, binding = 0) uniform instance_uniform_object {
 } instance_ubo;
 
 // Samplers, diffuse, spec
-const int SAMP_DIFFUSE = 0;
-const int SAMP_SPECULAR = 1;
-const int SAMP_NORMAL = 2;
-layout(set = 1, binding = 1) uniform sampler2D samplers[3];
+const int SAMP_DIFFUSE_OFFSET = 0;
+const int SAMP_SPECULAR_OFFSET = 1;
+const int SAMP_NORMAL_OFFSET = 2;
+layout(set = 1, binding = 1) uniform sampler2D samplers[3 * MAX_TERRAIN_MATERIALS];
 
 // layout(set=0, binding = 0) uniform TheStruct { vec4 theMember; };
 

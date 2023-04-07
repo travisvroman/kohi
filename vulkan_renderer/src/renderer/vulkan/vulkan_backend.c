@@ -1287,7 +1287,7 @@ b8 vulkan_renderer_create_geometry(renderer_plugin* plugin, geometry* geometry, 
 
     // Vertex data.
     internal_data->vertex_count = vertex_count;
-    internal_data->vertex_element_size = sizeof(vertex_3d);
+    internal_data->vertex_element_size = vertex_size;
     u32 total_size = vertex_count * vertex_size;
     // Allocate space in the buffer.
     if (!renderer_renderbuffer_allocate(&context->object_vertex_buffer, total_size, &internal_data->vertex_buffer_offset)) {
@@ -1304,7 +1304,7 @@ b8 vulkan_renderer_create_geometry(renderer_plugin* plugin, geometry* geometry, 
     // Index data, if applicable
     if (index_count && indices) {
         internal_data->index_count = index_count;
-        internal_data->index_element_size = sizeof(u32);
+        internal_data->index_element_size = index_size;
         total_size = index_count * index_size;
         if (!renderer_renderbuffer_allocate(&context->object_index_buffer, total_size, &internal_data->index_buffer_offset)) {
             KERROR("vulkan_renderer_create_geometry failed to allocate from the index buffer!");
