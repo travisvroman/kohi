@@ -152,7 +152,7 @@ b8 vulkan_set_debug_object_name(vulkan_context* context, VkObjectType object_typ
 
 b8 vulkan_set_debug_object_tag(vulkan_context* context, VkObjectType object_type, void* object_handle, u64 tag_size, const void* tag_data) {
     const VkDebugUtilsObjectTagInfoEXT tag_info = {
-        VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+        VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_TAG_INFO_EXT,
         0,
         object_type,
         (uint64_t)object_handle,
