@@ -177,6 +177,8 @@ KAPI void renderer_destroy_geometry(geometry* geometry);
  */
 KAPI void renderer_draw_geometry(geometry_render_data* data);
 
+KAPI void renderer_draw_terrain_geometry(const geometry_render_data* data);
+
 /**
  * @brief Begins the given renderpass.
  *

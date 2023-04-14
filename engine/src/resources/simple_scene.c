@@ -9,6 +9,7 @@
 #include "resources/resource_types.h"
 #include "resources/skybox.h"
 #include "resources/mesh.h"
+#include "resources/terrain.h"
 #include "renderer/renderer_types.inl"
 #include "systems/render_view_system.h"
 #include "renderer/camera.h"
@@ -37,12 +38,17 @@ b8 simple_scene_create(void* config, simple_scene* out_scene) {
     out_scene->dir_light = 0;
     out_scene->point_lights = darray_create(point_light);
     out_scene->meshes = darray_create(mesh);
+    out_scene->terrains = darray_create(terrain);
     out_scene->sb = 0;
 
     if (config) {
         out_scene->config = kallocate(sizeof(simple_scene_config), MEMORY_TAG_SCENE);
         kcopy_memory(out_scene->config, config, sizeof(simple_scene_config));
     }
+
+    // NOTE: Starting with a reasonably high number to avoid reallocs in the beginning.
+    out_scene->world_data.world_geometries = darray_reserve(geometry_render_data, 512);
+    out_scene->world_data.terrain_geometries = darray_create(geometry_render_data);
 
     return true;
 }
@@ -261,6 +267,11 @@ b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* curre
         render_view_packet* view_packet = &packet->views[i];
         const render_view* view = view_packet->view;
         if (view->type == RENDERER_VIEW_KNOWN_TYPE_WORLD) {
+
+            // Make sure to clear the world geometry array.
+            darray_clear(scene->world_data.world_geometries);
+            darray_clear(scene->world_data.terrain_geometries);
+
             // Update the frustum
             vec3 forward = camera_forward(current_camera);
             vec3 right = camera_right(current_camera);
@@ -268,9 +279,6 @@ b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* curre
             // TODO: get camera fov, aspect, etc.
             frustum f = frustom_create(&current_camera->position, &forward, &right, &up, aspect, deg_to_rad(45.0f), 0.1f, 1000.0f);
 
-            // NOTE: starting at a reasonable default to avoid too many reallocs.
-            // TODO: Use frame allocator.
-            geometry_render_data* world_geometries = darray_reserve(geometry_render_data, 512);
             p_frame_data->drawn_mesh_count = 0;
 
             u32 mesh_count = darray_length(scene->meshes);
@@ -328,7 +336,7 @@ b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* curre
                                 data.model = model;
                                 data.geometry = g;
                                 data.unique_id = m->unique_id;
-                                darray_push(world_geometries, data);
+                                darray_push(scene->world_data.world_geometries, data);
 
                                 p_frame_data->drawn_mesh_count++;
                             }
@@ -337,21 +345,34 @@ b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* curre
                 }
             }
 
+            // TODO: add terrain(s)
+            u32 terrain_count = darray_length(scene->terrains);
+            for(u32 i = 0; i < terrain_count; ++i) {
+                // TODO: Check terrain generation
+                // TODO: Frustum culling
+                //
+                geometry_render_data data = {0};
+                data.model = transform_get_world(&scene->terrains[i].xform);
+                data.geometry = &scene->terrains[i].geo;
+                data.unique_id = 0; // TODO: Terrain unique_id for object picking.
+                darray_push(scene->world_data.terrain_geometries, data);
+
+                // TODO: Counter for terrain geometries.
+                p_frame_data->drawn_mesh_count++;
+            }
+
             // World
-            if (!render_view_system_build_packet(render_view_system_get("world"), p_frame_data->frame_allocator, world_geometries, &packet->views[1])) {
+            if (!render_view_system_build_packet(render_view_system_get("world"), p_frame_data->frame_allocator, &scene->world_data, &packet->views[1])) {
                 KERROR("Failed to build packet for view 'world_opaque'.");
                 return false;
             }
-
-            // TODO: bad.....
-            darray_destroy(world_geometries);
         }
     }
 
     return true;
 }
 
-b8 simple_scene_add_directional_light(simple_scene* scene, const char* name, struct directional_light* light) {
+b8 simple_scene_directional_light_add(simple_scene* scene, const char* name, struct directional_light* light) {
     if (!scene) {
         return false;
     }
@@ -373,7 +394,7 @@ b8 simple_scene_add_directional_light(simple_scene* scene, const char* name, str
     return true;
 }
 
-b8 simple_scene_add_point_light(simple_scene* scene, const char* name, struct point_light* light) {
+b8 simple_scene_point_light_add(simple_scene* scene, const char* name, struct point_light* light) {
     if (!scene || !light) {
         return false;
     }
@@ -388,7 +409,7 @@ b8 simple_scene_add_point_light(simple_scene* scene, const char* name, struct po
     return true;
 }
 
-b8 simple_scene_add_mesh(simple_scene* scene, const char* name, struct mesh* m) {
+b8 simple_scene_mesh_add(simple_scene* scene, const char* name, struct mesh* m) {
     if (!scene || !m) {
         return false;
     }
@@ -412,7 +433,7 @@ b8 simple_scene_add_mesh(simple_scene* scene, const char* name, struct mesh* m) 
     return true;
 }
 
-b8 simple_scene_add_skybox(simple_scene* scene, const char* name, struct skybox* sb) {
+b8 simple_scene_skybox_add(simple_scene* scene, const char* name, struct skybox* sb) {
     if (!scene) {
         return false;
     }
@@ -438,7 +459,32 @@ b8 simple_scene_add_skybox(simple_scene* scene, const char* name, struct skybox*
     return true;
 }
 
-b8 simple_scene_remove_directional_light(simple_scene* scene, const char* name) {
+b8 simple_scene_terrain_add(simple_scene* scene, const char* name, struct terrain* t) {
+    if (!scene || !t) {
+        return false;
+    }
+
+    if (scene->state > SIMPLE_SCENE_STATE_INITIALIZED) {
+        if (!terrain_initialize(t)) {
+            KERROR("Terrain failed to initialize.");
+            return false;
+        }
+    }
+
+    if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
+        if (!terrain_load(t)) {
+            KERROR("Terrain failed to load.");
+            return false;
+        }
+    }
+
+    darray_push(scene->terrains, t);
+
+    return true;
+
+}
+
+b8 simple_scene_directional_light_remove(simple_scene* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -459,7 +505,7 @@ b8 simple_scene_remove_directional_light(simple_scene* scene, const char* name) 
     return true;
 }
 
-b8 simple_scene_remove_point_light(simple_scene* scene, const char* name) {
+b8 simple_scene_point_light_remove(simple_scene* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -483,7 +529,7 @@ b8 simple_scene_remove_point_light(simple_scene* scene, const char* name) {
     return false;
 }
 
-b8 simple_scene_remove_mesh(simple_scene* scene, const char* name) {
+b8 simple_scene_mesh_remove(simple_scene* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -503,11 +549,11 @@ b8 simple_scene_remove_mesh(simple_scene* scene, const char* name) {
         }
     }
 
-    KERROR("Cannot remove a point light from a scene of which it is not a part.");
+    KERROR("Cannot remove a mesh from a scene of which it is not a part.");
     return false;
 }
 
-b8 simple_scene_remove_skybox(simple_scene* scene, const char* name) {
+b8 simple_scene_skybox_remove(simple_scene* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -521,6 +567,30 @@ b8 simple_scene_remove_skybox(simple_scene* scene, const char* name) {
     scene->sb = 0;
 
     return true;
+}
+
+b8 simple_scene_terrain_remove(simple_scene* scene, const char* name) {
+    if (!scene || !name) {
+        return false;
+    }
+
+    u32 terrain_count = darray_length(scene->terrains);
+    for (u32 i = 0; i < terrain_count; ++i) {
+        if (strings_equal(scene->terrains[i].name, name)) {
+            if (!terrain_unload(&scene->terrains[i])) {
+                KERROR("Failed to unload terrain");
+                return false;
+            }
+
+            terrain rubbish = {0};
+            darray_pop_at(scene->terrains, i, &rubbish);
+
+            return true;
+        }
+    }
+
+    KERROR("Cannot remove a terrain from a scene of which it is not a part.");
+    return false;
 }
 
 struct directional_light* simple_scene_directional_light_get(simple_scene* scene, const char* name) {
@@ -571,6 +641,22 @@ struct skybox* simple_scene_skybox_get(simple_scene* scene, const char* name) {
     return scene->sb;
 }
 
+struct terrain* simple_scene_terrain_get(simple_scene* scene, const char* name) {
+    if (!scene || !name) {
+        return 0;
+    }
+
+    u32 length = darray_length(scene->terrains);
+    for (u32 i = 0; i < length; ++i) {
+        if (strings_nequal(name, scene->terrains[i].name, 256)) {
+            return &scene->terrains[i];
+        }
+    }
+
+    KWARN("Simple scene does not contain a terrain called '%s'.", name);
+    return 0;
+}
+
 static void simple_scene_actual_unload(simple_scene* scene) {
     if (scene->sb) {
         if (!skybox_unload(scene->sb)) {
@@ -591,7 +677,7 @@ static void simple_scene_actual_unload(simple_scene* scene) {
 
     if (scene->dir_light) {
         // TODO: If there are resource to unload, that should be done before this next line. Ex: box representing pos/colour
-        if (!simple_scene_remove_directional_light(scene, scene->dir_light->name)) {
+        if (!simple_scene_directional_light_remove(scene, scene->dir_light->name)) {
             KERROR("Failed to unload/remove directional light.");
         }
     }
@@ -618,6 +704,14 @@ static void simple_scene_actual_unload(simple_scene* scene) {
 
     if (scene->meshes) {
         darray_destroy(scene->meshes);
+    }
+
+    if(scene->world_data.world_geometries) {
+        darray_destroy(scene->world_data.world_geometries);
+    }
+    
+    if(scene->world_data.terrain_geometries) {
+        darray_destroy(scene->world_data.terrain_geometries);
     }
 
     kzero_memory(scene, sizeof(simple_scene));

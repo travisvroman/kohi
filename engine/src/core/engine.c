@@ -128,7 +128,8 @@ b8 engine_run(application* game_inst) {
     clock_update(&engine_state->clock);
     engine_state->last_time = engine_state->clock.elapsed;
     // f64 running_time = 0;
-    u8 frame_count = 0;
+    // TODO: frame rate lock
+    //u8 frame_count = 0;
     f64 target_frame_seconds = 1.0f / 60;
     f64 frame_elapsed_time = 0;
 
@@ -196,7 +197,8 @@ b8 engine_run(application* game_inst) {
                     platform_sleep(remaining_ms - 1);
                 }
 
-                frame_count++;
+                // TODO: frame rate lock
+                // frame_count++;
             }
 
             // NOTE: Input update/state copying should always be handled

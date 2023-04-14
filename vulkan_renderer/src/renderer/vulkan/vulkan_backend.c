@@ -1389,6 +1389,31 @@ void vulkan_renderer_draw_geometry(renderer_plugin* plugin, geometry_render_data
     }
 }
 
+void vulkan_renderer_draw_terrain_geometry(renderer_plugin* plugin, const geometry_render_data* data) {
+    vulkan_context* context = (vulkan_context*)plugin->internal_context;
+    // Ignore non-uploaded geometries.
+    if (data->geometry && data->geometry->internal_id == INVALID_ID) {
+        return;
+    }
+
+    vulkan_geometry_data* buffer_data = &context->geometries[data->geometry->internal_id];
+    b8 includes_index_data = buffer_data->index_count > 0;
+    if (!vulkan_buffer_draw(plugin, &context->object_vertex_buffer, buffer_data->vertex_buffer_offset, buffer_data->vertex_count, includes_index_data)) {
+        KERROR("vulkan_renderer_draw_geometry failed to draw vertex buffer;");
+        return;
+    }
+
+    if (includes_index_data) {
+        if (!vulkan_buffer_draw(plugin, &context->object_index_buffer, buffer_data->index_buffer_offset, buffer_data->index_count, !includes_index_data)) {
+            KERROR("vulkan_renderer_draw_geometry failed to draw index buffer;");
+            return;
+        }
+    }
+}
+
+
+
+
 // The index of the global descriptor set.
 const u32 DESC_SET_INDEX_GLOBAL = 0;
 // The index of the instance descriptor set.

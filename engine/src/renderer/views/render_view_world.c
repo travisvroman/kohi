@@ -7,6 +7,8 @@
 #include "math/transform.h"
 #include "memory/linear_allocator.h"
 #include "containers/darray.h"
+#include "renderer/renderer_types.inl"
+#include "resources/terrain.h"
 #include "systems/resource_system.h"
 #include "systems/material_system.h"
 #include "systems/render_view_system.h"
@@ -104,6 +106,10 @@ b8 render_view_world_on_create(struct render_view* self) {
         }
         resource_system_unload(&config_resource);
 
+        // TODO: Load terrain shader.
+        // TODO: Get and store the uniform locations as part of the view.
+        //
+
         // Get either the custom shader override or the defined default.
         data->s = shader_system_get(self->custom_shader_name ? self->custom_shader_name : shader_name);
         // TODO: Set from configuration.
@@ -173,10 +179,11 @@ b8 render_view_world_on_build_packet(const struct render_view* self, struct line
         return false;
     }
 
-    geometry_render_data* geometry_data = (geometry_render_data*)data;
+    render_view_world_data* world_data = (render_view_world_data*)data;
     render_view_world_internal_data* internal_data = (render_view_world_internal_data*)self->internal_data;
 
     out_packet->geometries = darray_create(geometry_render_data);
+    out_packet->terrain_geometries = darray_create(geometry_render_data);
     out_packet->view = self;
 
     // Set matrices, etc.
@@ -189,9 +196,9 @@ b8 render_view_world_on_build_packet(const struct render_view* self, struct line
 
     geometry_distance* geometry_distances = darray_create(geometry_distance);
 
-    u32 geometry_data_count = darray_length(geometry_data);
+    u32 geometry_data_count = darray_length(world_data->world_geometries);
     for (u32 i = 0; i < geometry_data_count; ++i) {
-        geometry_render_data* g_data = &geometry_data[i];
+        geometry_render_data* g_data = &world_data->world_geometries[i];
         if(!g_data->geometry) {
             continue;
         }
@@ -199,7 +206,7 @@ b8 render_view_world_on_build_packet(const struct render_view* self, struct line
         // TODO: Add something to material to check for transparency.
         if ((g_data->geometry->material->diffuse_map.texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) == 0) {
             // Only add meshes with _no_ transparency.
-            darray_push(out_packet->geometries, geometry_data[i]);
+            darray_push(out_packet->geometries, world_data->world_geometries[i]);
             out_packet->geometry_count++;
         } else {
             // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
@@ -211,7 +218,7 @@ b8 render_view_world_on_build_packet(const struct render_view* self, struct line
 
             geometry_distance gdist;
             gdist.distance = kabs(distance);
-            gdist.g = geometry_data[i];
+            gdist.g = world_data->world_geometries[i];
 
             darray_push(geometry_distances, gdist);
         }
@@ -227,6 +234,12 @@ b8 render_view_world_on_build_packet(const struct render_view* self, struct line
         out_packet->geometry_count++;
     }
 
+    u32 terrain_count = darray_length(world_data->terrain_geometries);
+    for(u32 i = 0; i < terrain_count; ++i) {
+        darray_push(out_packet->terrain_geometries, world_data->terrain_geometries[i]);
+        out_packet->terrain_geometry_count++;
+    }
+
     // Clean up.
     darray_destroy(geometry_distances);
 
@@ -235,10 +248,11 @@ b8 render_view_world_on_build_packet(const struct render_view* self, struct line
 
 void render_view_world_on_destroy_packet(const struct render_view* self, struct render_view_packet* packet) {
     darray_destroy(packet->geometries);
+    darray_destroy(packet->terrain_geometries);
     kzero_memory(packet, sizeof(render_view_packet));
 }
 
-b8 render_view_world_on_render(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index) {
+b8 render_view_world_on_render(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index, const struct frame_data* p_frame_data) {
     render_view_world_internal_data* data = self->internal_data;
     u32 shader_id = data->s->id;
 
@@ -247,6 +261,77 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
         if (!renderer_renderpass_begin(pass, &pass->targets[render_target_index])) {
             KERROR("render_view_world_on_render pass index %u failed to start.", p);
             return false;
+        }
+
+        // TODO: Render terrain
+        u32 terrain_count = packet->terrain_geometry_count;
+        for(u32 i = 0; i < terrain_count; ++i) {
+
+            shader* s = shader_system_get("Builtin.TerrainShader");
+    if(!s) {
+        KERROR("Unable to obtain terrain shader.");
+        return false;
+    }
+    shader_system_use_by_id(s->id);
+
+    // Apply uniforms, all are global for terrains.
+    shader_system_uniform_set_by_index(terrain_locations.projection, projection);
+    shader_system_uniform_set_by_index(terrain_locations.view, view);
+    shader_system_uniform_set_by_index(terrain_locations.ambient_colour, ambient_colour);
+    shader_system_uniform_set_by_index(terrain_locations.view_position, view_position);
+    shader_system_uniform_set_by_index(terrain_locations.render_mode, &render_mode);
+
+    
+    // TODO: hardcoded temp
+    vec4 white = vec4_one();
+    shader_system_uniform_set_by_index(terrain_locations.diffuse_colour, &white);
+    //shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_texture, &m->diffuse_map);
+    //shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, &m->specular_map);
+    //shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, &m->normal_map);
+    // TODO: hardcoded temp
+    f32 shininess = 32.0f;
+    shader_system_uniform_set_by_index(terrain_locations.shininess, &shininess);
+
+    // Directional light.
+    directional_light* dir_light = light_system_directional_light_get();
+    if (dir_light) {
+        shader_system_uniform_set_by_index(terrain_locations.dir_light, &dir_light->data);
+    } else {
+        directional_light_data data = {0};
+        shader_system_uniform_set_by_index(terrain_locations.dir_light, &data);
+    }
+    // Point lights.
+    u32 p_light_count = light_system_point_light_count();
+    if (p_light_count) {
+        // TODO: frame allocator?
+        point_light* p_lights = kallocate(sizeof(point_light) * p_light_count, MEMORY_TAG_ARRAY);
+        light_system_point_lights_get(p_lights);
+
+        point_light_data* p_light_datas = kallocate(sizeof(point_light_data) * p_light_count, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < p_light_count; ++i) {
+            p_light_datas[i] = p_lights[i].data;
+        }
+
+        shader_system_uniform_set_by_index(terrain_locations.p_lights, p_light_datas);
+        kfree(p_light_datas, sizeof(point_light_data), MEMORY_TAG_ARRAY);
+        kfree(p_lights, sizeof(point_light), MEMORY_TAG_ARRAY);
+    }
+
+    shader_system_uniform_set_by_index(terrain_locations.num_p_lights, &p_light_count);
+
+    shader_system_uniform_set_by_index(terrain_locations.model, &model);
+
+    shader_system_apply_global();
+
+    
+            // TODO: This isn't needed, use the one passed in instead
+            geometry_render_data render_data = {0};
+            render_data.geometry = &t->geo;
+            renderer_draw_terrain_geometry(&packet->terrain_geometries[i]);
+
+
+            // TODO: This wants the actual terrain, not the geometry. 
+            terrain_render(&packet->terrain_geometries[i], p_frame_data, packet->projection_matrix, packet->view_matrix, packet->terrain_geometries[i].model, packet->ambient_colour, packet->view_position, 0 );
         }
 
         if (!shader_system_use_by_id(shader_id)) {

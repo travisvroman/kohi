@@ -218,9 +218,9 @@ b8 render_view_system_build_packet(const render_view* view, struct linear_alloca
     return false;
 }
 
-b8 render_view_system_on_render(const render_view* view, const render_view_packet* packet, u64 frame_number, u64 render_target_index) {
+b8 render_view_system_on_render(const render_view* view, const render_view_packet* packet, u64 frame_number, u64 render_target_index, const struct frame_data* p_frame_data) {
     if (view && packet) {
-        return view->on_render(view, packet, frame_number, render_target_index);
+        return view->on_render(view, packet, frame_number, render_target_index, p_frame_data);
     }
 
     KERROR("render_view_system_on_render requires a valid pointer to a data.");

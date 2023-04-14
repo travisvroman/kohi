@@ -29,8 +29,9 @@ typedef struct terrain_vertex {
     /** @brief The tangent of the vertex. */
     vec3 tangent;
 
+    // TODO: Materials
     /** @brief A collection of material weights for this vertex. */
-    f32 material_weights[TERRAIN_MAX_MATERIAL_COUNT];
+    //f32 material_weights[TERRAIN_MAX_MATERIAL_COUNT];
 } terrain_vertex;
 
 typedef struct terrain_config {
@@ -81,4 +82,11 @@ KAPI b8 terrain_unload(terrain* t);
 
 KAPI b8 terrain_update(terrain* t);
 
-KAPI b8 terrain_render(const terrain* t, frame_data* p_frame_data);
+KAPI b8 terrain_render(terrain* t, 
+                       frame_data* p_frame_data, 
+                       const mat4* projection, 
+                       const mat4* view, 
+                       const mat4* model, 
+                       const vec4* ambient_colour, 
+                       const vec3* view_position, 
+                       u32 render_mode);

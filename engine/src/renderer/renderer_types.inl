@@ -309,6 +309,9 @@ typedef struct renderer_plugin {
      */
     void (*draw_geometry)(struct renderer_plugin* plugin, geometry_render_data* data);
 
+    void (*draw_terrain_geometry)(struct renderer_plugin* plugin, const geometry_render_data* data);
+
+
     /**
      * @brief Creates a Vulkan-specific texture, acquiring internal resources as needed.
      *
@@ -898,7 +901,7 @@ typedef struct render_view {
      * @param render_target_index The current render target index for renderers that use multiple render targets at once (i.e. Vulkan).
      * @return True on success; otherwise false.
      */
-    b8 (*on_render)(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index);
+    b8 (*on_render)(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index, const struct frame_data* p_frame_data);
 
     /**
      * @brief Regenerates the resources for the given attachment at the provided pass index.
@@ -930,6 +933,11 @@ typedef struct render_view_packet {
     u32 geometry_count;
     /** @brief The geometries to be drawn. */
     geometry_render_data* geometries;
+
+    /** @brief The number of terrain geometries to be drawn. */
+    u32 terrain_geometry_count;
+    /** @brief The terrain geometries to be drawn. */
+    geometry_render_data* terrain_geometries;
     /** @brief The name of the custom shader to use, if applicable. Otherwise 0. */
     const char* custom_shader_name;
     /** @brief Holds a pointer to freeform data, typically understood both by the object and consuming view. */

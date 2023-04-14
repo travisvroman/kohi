@@ -15,6 +15,8 @@
 #include "math/math_types.h"
 #include "renderer/renderer_types.inl"
 
+struct frame_data;
+
 /** @brief The configuration for the render view system. */
 typedef struct render_view_system_config {
     /** @brief The maximum number of views that can be registered with the system. */
@@ -84,6 +86,6 @@ KAPI b8 render_view_system_build_packet(const render_view* view, struct linear_a
  * @param render_target_index The current render target index for renderers that use multiple render targets at once (i.e. Vulkan).
  * @return True on success; otherwise false.
  */
-KAPI b8 render_view_system_on_render(const render_view* view, const render_view_packet* packet, u64 frame_number, u64 render_target_index);
+KAPI b8 render_view_system_on_render(const render_view* view, const render_view_packet* packet, u64 frame_number, u64 render_target_index, const struct frame_data* p_frame_data);
 
 KAPI void render_view_system_regenerate_render_targets(render_view* view);

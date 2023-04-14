@@ -127,7 +127,7 @@ b8 renderer_draw_frame(render_packet* packet, const struct frame_data* p_frame_d
 
         // Render each view.
         for (u32 i = 0; i < packet->view_count; ++i) {
-            if (!render_view_system_on_render(packet->views[i].view, &packet->views[i], state_ptr->plugin.frame_number, attachment_index)) {
+            if (!render_view_system_on_render(packet->views[i].view, &packet->views[i], state_ptr->plugin.frame_number, attachment_index, p_frame_data)) {
                 KERROR("Error rendering view index %i.", i);
                 return false;
             }
@@ -214,6 +214,12 @@ void renderer_draw_geometry(geometry_render_data* data) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     state_ptr->plugin.draw_geometry(&state_ptr->plugin, data);
 }
+
+void renderer_draw_terrain_geometry(const geometry_render_data* data) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.draw_terrain_geometry(&state_ptr->plugin, data);
+}
+
 
 b8 renderer_renderpass_begin(renderpass* pass, render_target* target) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
