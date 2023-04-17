@@ -18,7 +18,7 @@
  * allocation. Tracks free ranges of memory.
  */
 typedef struct freelist {
-    /** @breif The internal state of the freelist. */
+    /** @brief The internal state of the freelist. */
     void* memory;
 } freelist;
 

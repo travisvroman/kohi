@@ -136,7 +136,7 @@ b8 simple_scene_initialize(simple_scene* scene) {
                 continue;
             }
 
-            transform_set_parent(&scene->meshes[i].transform, &parent->transform);
+            transform_parent_set(&scene->meshes[i].transform, &parent->transform);
         }
     }
 
@@ -248,7 +248,7 @@ b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* curre
                 // Skybox
                 skybox_packet_data skybox_data = {};
                 skybox_data.sb = scene->sb;
-                if (!render_view_system_build_packet(view, p_frame_data->frame_allocator, &skybox_data, view_packet)) {
+                if (!render_view_system_packet_build(view, p_frame_data->frame_allocator, &skybox_data, view_packet)) {
                     KERROR("Failed to build packet for view 'skybox'.");
                     return false;
                 }
@@ -277,7 +277,7 @@ b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* curre
             for (u32 i = 0; i < mesh_count; ++i) {
                 mesh* m = &scene->meshes[i];
                 if (m->generation != INVALID_ID_U8) {
-                    mat4 model = transform_get_world(&m->transform);
+                    mat4 model = transform_world_get(&m->transform);
 
                     for (u32 j = 0; j < m->geometry_count; ++j) {
                         geometry* g = m->geometries[j];
@@ -338,7 +338,7 @@ b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* curre
             }
 
             // World
-            if (!render_view_system_build_packet(render_view_system_get("world"), p_frame_data->frame_allocator, world_geometries, &packet->views[1])) {
+            if (!render_view_system_packet_build(render_view_system_get("world"), p_frame_data->frame_allocator, world_geometries, &packet->views[1])) {
                 KERROR("Failed to build packet for view 'world_opaque'.");
                 return false;
             }
