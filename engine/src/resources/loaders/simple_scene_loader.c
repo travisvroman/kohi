@@ -23,7 +23,7 @@ typedef enum simple_scene_parse_mode {
 
 static b8 try_change_mode(const char* value, simple_scene_parse_mode* current, simple_scene_parse_mode expected_current, simple_scene_parse_mode target);
 
-b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
+static b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -307,7 +307,7 @@ b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void
     return true;
 }
 
-void simple_scene_loader_unload(struct resource_loader* self, resource* resource) {
+static void simple_scene_loader_unload(struct resource_loader* self, resource* resource) {
     simple_scene_config* data = (simple_scene_config*)resource->data;
 
     if (data->meshes) {

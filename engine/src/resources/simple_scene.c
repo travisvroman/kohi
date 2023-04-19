@@ -188,14 +188,14 @@ b8 simple_scene_load(simple_scene* scene) {
     }
 
     if (scene->dir_light) {
-        if (!light_system_add_directional(scene->dir_light)) {
+        if (!light_system_directional_add(scene->dir_light)) {
             KWARN("Failed to add directional light to lighting system.");
         }
     }
 
     u32 point_light_count = darray_length(scene->point_lights);
     for (u32 i = 0; i < point_light_count; ++i) {
-        if (!light_system_add_point(&scene->point_lights[i])) {
+        if (!light_system_point_add(&scene->point_lights[i])) {
             KWARN("Failed to add point light to lighting system.");
         }
     }
@@ -351,18 +351,18 @@ b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* curre
     return true;
 }
 
-b8 simple_scene_add_directional_light(simple_scene* scene, const char* name, struct directional_light* light) {
+b8 simple_scene_directional_light_add(simple_scene* scene, const char* name, struct directional_light* light) {
     if (!scene) {
         return false;
     }
 
     if (scene->dir_light) {
         // TODO: Do any resource unloading required.
-        light_system_remove_directional(scene->dir_light);
+        light_system_directional_remove(scene->dir_light);
     }
 
     if (light) {
-        if (!light_system_add_directional(light)) {
+        if (!light_system_directional_add(light)) {
             KERROR("simple_scene_add_directional_light - failed to add directional light to light system.");
             return false;
         }
@@ -373,12 +373,12 @@ b8 simple_scene_add_directional_light(simple_scene* scene, const char* name, str
     return true;
 }
 
-b8 simple_scene_add_point_light(simple_scene* scene, const char* name, struct point_light* light) {
+b8 simple_scene_point_light_add(simple_scene* scene, const char* name, struct point_light* light) {
     if (!scene || !light) {
         return false;
     }
 
-    if (!light_system_add_point(light)) {
+    if (!light_system_point_add(light)) {
         KERROR("Failed to add point light to scene (light system add failure, check logs).");
         return false;
     }
@@ -388,7 +388,7 @@ b8 simple_scene_add_point_light(simple_scene* scene, const char* name, struct po
     return true;
 }
 
-b8 simple_scene_add_mesh(simple_scene* scene, const char* name, struct mesh* m) {
+b8 simple_scene_mesh_add(simple_scene* scene, const char* name, struct mesh* m) {
     if (!scene || !m) {
         return false;
     }
@@ -412,7 +412,7 @@ b8 simple_scene_add_mesh(simple_scene* scene, const char* name, struct mesh* m) 
     return true;
 }
 
-b8 simple_scene_add_skybox(simple_scene* scene, const char* name, struct skybox* sb) {
+b8 simple_scene_skybox_add(simple_scene* scene, const char* name, struct skybox* sb) {
     if (!scene) {
         return false;
     }
@@ -438,7 +438,7 @@ b8 simple_scene_add_skybox(simple_scene* scene, const char* name, struct skybox*
     return true;
 }
 
-b8 simple_scene_remove_directional_light(simple_scene* scene, const char* name) {
+b8 simple_scene_directional_light_remove(simple_scene* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -448,7 +448,7 @@ b8 simple_scene_remove_directional_light(simple_scene* scene, const char* name) 
         return false;
     }
 
-    if (!light_system_remove_directional(scene->dir_light)) {
+    if (!light_system_directional_remove(scene->dir_light)) {
         KERROR("Failed to remove directional light from light system.");
         return false;
     }
@@ -459,7 +459,7 @@ b8 simple_scene_remove_directional_light(simple_scene* scene, const char* name) 
     return true;
 }
 
-b8 simple_scene_remove_point_light(simple_scene* scene, const char* name) {
+b8 simple_scene_point_light_remove(simple_scene* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -467,7 +467,7 @@ b8 simple_scene_remove_point_light(simple_scene* scene, const char* name) {
     u32 light_count = darray_length(scene->point_lights);
     for (u32 i = 0; i < light_count; ++i) {
         if (strings_equal(scene->point_lights[i].name, name)) {
-            if (!light_system_remove_point(&scene->point_lights[i])) {
+            if (!light_system_point_remove(&scene->point_lights[i])) {
                 KERROR("Failed to remove point light from light system.");
                 return false;
             }
@@ -483,7 +483,7 @@ b8 simple_scene_remove_point_light(simple_scene* scene, const char* name) {
     return false;
 }
 
-b8 simple_scene_remove_mesh(simple_scene* scene, const char* name) {
+b8 simple_scene_mesh_remove(simple_scene* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -507,7 +507,7 @@ b8 simple_scene_remove_mesh(simple_scene* scene, const char* name) {
     return false;
 }
 
-b8 simple_scene_remove_skybox(simple_scene* scene, const char* name) {
+b8 simple_scene_skybox_remove(simple_scene* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -591,14 +591,14 @@ static void simple_scene_actual_unload(simple_scene* scene) {
 
     if (scene->dir_light) {
         // TODO: If there are resource to unload, that should be done before this next line. Ex: box representing pos/colour
-        if (!simple_scene_remove_directional_light(scene, scene->dir_light->name)) {
+        if (!simple_scene_directional_light_remove(scene, scene->dir_light->name)) {
             KERROR("Failed to unload/remove directional light.");
         }
     }
 
     u32 p_light_count = darray_length(scene->point_lights);
     for (u32 i = 0; i < p_light_count; ++i) {
-        if (!light_system_remove_point(&scene->point_lights[i])) {
+        if (!light_system_point_remove(&scene->point_lights[i])) {
             KWARN("Failed to remove point light from light system.");
         }
 
@@ -622,3 +622,4 @@ static void simple_scene_actual_unload(simple_scene* scene) {
 
     kzero_memory(scene, sizeof(simple_scene));
 }
+

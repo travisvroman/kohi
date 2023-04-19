@@ -26,7 +26,7 @@ void light_system_shutdown(void* state) {
     }
 }
 
-b8 light_system_add_directional(directional_light* light) {
+b8 light_system_directional_add(directional_light* light) {
     if (!light) {
         return false;
     }
@@ -35,7 +35,7 @@ b8 light_system_add_directional(directional_light* light) {
     return true;
 }
 
-b8 light_system_add_point(point_light* light) {
+b8 light_system_point_add(point_light* light) {
     if (!light) {
         return false;
     }
@@ -52,7 +52,7 @@ b8 light_system_add_point(point_light* light) {
     return false;
 }
 
-b8 light_system_remove_directional(directional_light* light) {
+b8 light_system_directional_remove(directional_light* light) {
     if (!light) {
         return false;
     }
@@ -65,7 +65,7 @@ b8 light_system_remove_directional(directional_light* light) {
     return false;
 }
 
-b8 light_system_remove_point(point_light* light) {
+b8 light_system_point_remove(point_light* light) {
     if (!light) {
         return false;
     }
