@@ -8,6 +8,24 @@ layout(location = 4) in vec3 in_tangent;
 
 const int POINT_LIGHT_MAX = 10;
 
+struct directional_light {
+    vec4 colour;
+    vec4 direction;
+};
+
+struct point_light {
+    vec4 colour;
+    vec4 position;
+    // Usually 1, make sure denominator never gets smaller than 1
+    float constant_f;
+    // Reduces light intensity linearly
+    float linear;
+    // Makes the light fall off slower at longer distances.
+    float quadratic;
+    float padding;
+};
+
+
 layout(set = 0, binding = 0) uniform global_uniform_object {
     mat4 projection;
 	mat4 view;

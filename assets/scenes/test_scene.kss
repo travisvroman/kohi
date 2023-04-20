@@ -56,3 +56,8 @@ constant_f=1.0
 linear=0.35
 quadratic=0.44
 [/PointLight]
+
+[Terrain]
+name=test_terrain
+[/Terrain]
+

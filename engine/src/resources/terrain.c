@@ -11,27 +11,6 @@
 #include "systems/shader_system.h"
 #include "systems/light_system.h"
 
-typedef struct terrain_shader_locations {
-    b8 loaded;
-    u16 projection;
-    u16 view;
-    u16 ambient_colour;
-    u16 view_position;
-    u16 shininess;
-    u16 diffuse_colour;
-    u16 diffuse_texture;
-    u16 specular_texture;
-    u16 normal_texture;
-    u16 model;
-    u16 render_mode;
-    u16 dir_light;
-    u16 p_lights;
-    u16 num_p_lights;
-} terrain_shader_locations;
-
-// NOTE: Might want to hold this state elsewhere in the future.
-static terrain_shader_locations terrain_locations;
-
 b8 terrain_create(terrain_config config, terrain* out_terrain) {
     if (!out_terrain) {
         KERROR("terrain_create requires a valid pointer to out_terrain.");
@@ -133,7 +112,7 @@ b8 terrain_load(terrain* t) {
     g->generation = INVALID_ID_U16;
 
     // Send the geometry off to the renderer to be uploaded to the GPU.
-    if (!renderer_create_geometry(g, sizeof(terrain_vertex), t->vertex_count, t->vertices, sizeof(u32), t->index_count, t->indices)) {
+    if (!renderer_geometry_create(g, sizeof(terrain_vertex), t->vertex_count, t->vertices, sizeof(u32), t->index_count, t->indices)) {
         return false;
     }
 
@@ -152,25 +131,6 @@ b8 terrain_load(terrain* t) {
     //     }
     // }
 
-
-    // Acquire locations.
-    shader* s = shader_system_get("Shader.Builtin.Terrain");
-    terrain_locations.projection = shader_system_uniform_index(s, "projection");
-    terrain_locations.view = shader_system_uniform_index(s, "view");
-    terrain_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
-    terrain_locations.view_position = shader_system_uniform_index(s, "view_position");
-    terrain_locations.diffuse_colour = shader_system_uniform_index(s, "diffuse_colour");
-    terrain_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
-    terrain_locations.specular_texture = shader_system_uniform_index(s, "specular_texture");
-    terrain_locations.normal_texture = shader_system_uniform_index(s, "normal_texture");
-    terrain_locations.shininess = shader_system_uniform_index(s, "shininess");
-    terrain_locations.model = shader_system_uniform_index(s, "model");
-    terrain_locations.render_mode = shader_system_uniform_index(s, "mode");
-    terrain_locations.dir_light = shader_system_uniform_index(s, "dir_light");
-    terrain_locations.p_lights = shader_system_uniform_index(s, "p_lights");
-    terrain_locations.num_p_lights = shader_system_uniform_index(s, "num_p_lights");
-
-
     return true;
 }
 b8 terrain_unload(terrain* t) {
@@ -181,13 +141,3 @@ b8 terrain_update(terrain* t) {
     return true;
 }
 
-b8 terrain_render(terrain* t, frame_data* p_frame_data, const mat4* projection, const mat4* view, const mat4* model, const vec4* ambient_colour, const vec3* view_position, u32 render_mode) {
-
-    if(!t) {
-        KERROR("terrain_render requires a valid pointer to terrain.");
-        return false;
-    }
-
-
-        return true;
-}

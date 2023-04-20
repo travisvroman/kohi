@@ -129,6 +129,36 @@ b8 simple_scene_initialize(simple_scene* scene) {
 
             darray_push(scene->meshes, new_mesh);
         }
+
+        // Terrains
+        // LEFTOFF: Terrain count coming back as zero
+        // BUT HWHY!?
+        u32 terrain_config_count = darray_length(scene->config->terrains);
+        for(u32 i = 0; i < terrain_config_count; ++ i) {
+            if (!scene->config->terrains[i].name || !scene->config->terrains[i].resource_name) {
+                KWARN("Invalid terrain config, name and resource_name are required.");
+                continue;
+            }
+            terrain_config new_terrain_config = {0};
+            new_terrain_config.name = string_duplicate(scene->config->terrains[i].name);
+            // TODO: Copy resource name, load from resource.
+            new_terrain_config.tile_count_x = 100;
+            new_terrain_config.tile_count_z = 100;
+            new_terrain_config.tile_scale_x = 1.0f;
+            new_terrain_config.tile_scale_z = 1.0f;
+            new_terrain_config.material_count = 0;
+            new_terrain_config.material_names = 0;
+
+            terrain new_terrain;
+            if(!terrain_create(new_terrain_config, &new_terrain )) {
+                KWARN("Failed to load terrain.");
+                kfree(new_terrain_config.name, string_length(new_terrain_config.name), MEMORY_TAG_STRING);
+                continue;
+            }
+            new_terrain.xform = scene->config->terrains[i].xform;
+
+            darray_push(scene->terrains, new_terrain);
+        }
     }
 
     // Now handle hierarchy.
@@ -190,6 +220,14 @@ b8 simple_scene_load(simple_scene* scene) {
         if (!mesh_load(&scene->meshes[i])) {
             KERROR("Mesh failed to load.");
             return false;
+        }
+    }
+
+    u32 terrain_count = darray_length(scene->terrains);
+    for(u32 i = 0; i < terrain_count; ++i) {
+        if(!terrain_load(&scene->terrains[i])) {
+            KERROR("Terrain failed to load.");
+            // return false; // Return false on fail?
         }
     }
 
@@ -352,7 +390,7 @@ b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* curre
                 // TODO: Frustum culling
                 //
                 geometry_render_data data = {0};
-                data.model = transform_get_world(&scene->terrains[i].xform);
+                data.model = transform_world_get(&scene->terrains[i].xform);
                 data.geometry = &scene->terrains[i].geo;
                 data.unique_id = 0; // TODO: Terrain unique_id for object picking.
                 darray_push(scene->world_data.terrain_geometries, data);
@@ -716,7 +754,4 @@ static void simple_scene_actual_unload(simple_scene* scene) {
 
     kzero_memory(scene, sizeof(simple_scene));
 }
-<<<<<<< HEAD
-=======
 
->>>>>>> main

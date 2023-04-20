@@ -35,7 +35,7 @@ typedef struct terrain_vertex {
 } terrain_vertex;
 
 typedef struct terrain_config {
-    const char* name;
+    char* name;
     u32 tile_count_x;
     u32 tile_count_z;
     // How large each tile is on the x axis.
@@ -82,11 +82,3 @@ KAPI b8 terrain_unload(terrain* t);
 
 KAPI b8 terrain_update(terrain* t);
 
-KAPI b8 terrain_render(terrain* t, 
-                       frame_data* p_frame_data, 
-                       const mat4* projection, 
-                       const mat4* view, 
-                       const mat4* model, 
-                       const vec4* ambient_colour, 
-                       const vec3* view_position, 
-                       u32 render_mode);

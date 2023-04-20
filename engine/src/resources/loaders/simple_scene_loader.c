@@ -18,7 +18,8 @@ typedef enum simple_scene_parse_mode {
     SIMPLE_SCENE_PARSE_MODE_SKYBOX,
     SIMPLE_SCENE_PARSE_MODE_DIRECTIONAL_LIGHT,
     SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT,
-    SIMPLE_SCENE_PARSE_MODE_MESH
+    SIMPLE_SCENE_PARSE_MODE_MESH,
+    SIMPLE_SCENE_PARSE_MODE_TERRAIN,
 } simple_scene_parse_mode;
 
 static b8 try_change_mode(const char* value, simple_scene_parse_mode* current, simple_scene_parse_mode expected_current, simple_scene_parse_mode target);
@@ -48,6 +49,7 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
     resource_data->name = string_duplicate(name);
     resource_data->point_lights = darray_create(point_light_simple_scene_config);
     resource_data->meshes = darray_create(mesh_simple_scene_config);
+    resource_data->terrains = darray_create(terrain_simple_scene_config);
 
     u32 version = 0;
     simple_scene_parse_mode mode = SIMPLE_SCENE_PARSE_MODE_ROOT;
@@ -56,6 +58,7 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
     // leaving said mode.
     point_light_simple_scene_config current_point_light_config = {0};
     mesh_simple_scene_config current_mesh_config = {0};
+    terrain_simple_scene_config current_terrain_config = {0};
 
     // Read each line of the file.
     char line_buf[512] = "";
@@ -136,6 +139,24 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                 // Push into the array, then cleanup.
                 darray_push(resource_data->meshes, current_mesh_config);
                 kzero_memory(&current_mesh_config, sizeof(mesh_simple_scene_config));
+            } else if (strings_equali(trimmed, "[Terrain]")) {
+                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_ROOT, SIMPLE_SCENE_PARSE_MODE_TERRAIN)) {
+                    return false;
+                }
+                kzero_memory(&current_terrain_config, sizeof(terrain_simple_scene_config));
+                // Also setup a default transform.
+                current_terrain_config.xform = transform_create();
+            } else if (strings_equali(trimmed, "[/Terrain]")) {
+                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_TERRAIN, SIMPLE_SCENE_PARSE_MODE_ROOT)) {
+                    return false;
+                }
+                if (!current_terrain_config.name || !current_terrain_config.resource_name) {
+                    KWARN("Format error: Terrains require both name and resource name. Terrain not added.");
+                    continue;
+                }
+                // Push into the array, then cleanup.
+                darray_push(resource_data->terrains, current_terrain_config);
+                kzero_memory(&current_mesh_config, sizeof(terrain_simple_scene_config));
             } else {
                 KERROR("Error loading simple scene file: format error. Unexpected object type '%s'", trimmed);
                 return false;
@@ -193,6 +214,9 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                     case SIMPLE_SCENE_PARSE_MODE_MESH:
                         current_mesh_config.name = string_duplicate(trimmed_value);
                         break;
+                    case SIMPLE_SCENE_PARSE_MODE_TERRAIN:
+                        current_terrain_config.name = string_duplicate(trimmed_value);
+                        break;
                 }
             } else if (strings_equali(trimmed_var_name, "colour")) {
                 switch (mode) {
@@ -227,6 +251,8 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
             } else if (strings_equali(trimmed_var_name, "resource_name")) {
                 if (mode == SIMPLE_SCENE_PARSE_MODE_MESH) {
                     current_mesh_config.resource_name = string_duplicate(trimmed_value);
+                } else if(mode == SIMPLE_SCENE_PARSE_MODE_TERRAIN) {
+                    current_terrain_config.resource_name = string_duplicate(trimmed_value);
                 } else {
                     KWARN("Format warning: Cannot process resource_name in the current node.");
                 }
@@ -258,6 +284,10 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                 if (mode == SIMPLE_SCENE_PARSE_MODE_MESH) {
                     if (!string_to_transform(trimmed_value, &current_mesh_config.transform)) {
                         KWARN("Error parsing mesh transform. Using default value.");
+                    }
+                } else if (mode == SIMPLE_SCENE_PARSE_MODE_TERRAIN) {
+                    if (!string_to_transform(trimmed_value, &current_terrain_config.xform)) {
+                        KWARN("Error parsing terrain transform. Using default value.");
                     }
                 } else {
                     KWARN("Format warning: Cannot process transform in the current node.");
