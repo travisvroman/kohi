@@ -23,11 +23,11 @@ typedef struct supported_system_font_filetype {
     b8 is_binary;
 } supported_system_font_filetype;
 
-b8 import_fontconfig_file(file_handle* f, const char* type_path, const char* out_ksf_filename, system_font_resource_data* out_resource);
-b8 read_ksf_file(file_handle* file, system_font_resource_data* data);
-b8 write_ksf_file(const char* out_ksf_filename, system_font_resource_data* resource);
+static b8 import_fontconfig_file(file_handle* f, const char* type_path, const char* out_ksf_filename, system_font_resource_data* out_resource);
+static b8 read_ksf_file(file_handle* file, system_font_resource_data* data);
+static b8 write_ksf_file(const char* out_ksf_filename, system_font_resource_data* resource);
 
-b8 system_font_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
+static b8 system_font_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -102,7 +102,7 @@ b8 system_font_loader_load(struct resource_loader* self, const char* name, void*
     return true;
 }
 
-b8 import_fontconfig_file(file_handle* f, const char* type_path, const char* out_ksf_filename, system_font_resource_data* out_resource) {
+static b8 import_fontconfig_file(file_handle* f, const char* type_path, const char* out_ksf_filename, system_font_resource_data* out_resource) {
     out_resource->fonts = darray_create(system_font_face);
     out_resource->binary_size = 0;
     out_resource->font_binary = 0;
@@ -201,7 +201,7 @@ b8 import_fontconfig_file(file_handle* f, const char* type_path, const char* out
     return write_ksf_file(out_ksf_filename, out_resource);
 }
 
-b8 read_ksf_file(file_handle* file, system_font_resource_data* data) {
+static b8 read_ksf_file(file_handle* file, system_font_resource_data* data) {
     kzero_memory(data, sizeof(system_font_resource_data));
 
     u64 bytes_read = 0;
@@ -249,12 +249,12 @@ b8 read_ksf_file(file_handle* file, system_font_resource_data* data) {
     return true;
 }
 
-b8 write_ksf_file(const char* out_ksf_filename, system_font_resource_data* resource) {
+static b8 write_ksf_file(const char* out_ksf_filename, system_font_resource_data* resource) {
     // TODO: Implement binary system font.
     return true;
 }
 
-void system_font_loader_unload(struct resource_loader* self, resource* resource) {
+static void system_font_loader_unload(struct resource_loader* self, resource* resource) {
     if (self && resource) {
         system_font_resource_data* data = (system_font_resource_data*)resource->data;
         if (data->fonts) {

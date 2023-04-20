@@ -23,8 +23,8 @@ typedef struct vulkan_physical_device_queue_family_info {
     i32 transfer_family_index;
 } vulkan_physical_device_queue_family_info;
 
-b8 select_physical_device(vulkan_context* context);
-b8 physical_device_meets_requirements(
+static b8 select_physical_device(vulkan_context* context);
+static b8 physical_device_meets_requirements(
     VkPhysicalDevice device,
     VkSurfaceKHR surface,
     const VkPhysicalDeviceProperties* properties,
@@ -285,7 +285,7 @@ b8 vulkan_device_detect_depth_format(vulkan_device* device) {
     return false;
 }
 
-b8 select_physical_device(vulkan_context* context) {
+static b8 select_physical_device(vulkan_context* context) {
     u32 physical_device_count = 0;
     VK_CHECK(vkEnumeratePhysicalDevices(context->instance, &physical_device_count, 0));
     if (physical_device_count == 0) {
@@ -421,7 +421,7 @@ b8 select_physical_device(vulkan_context* context) {
     return true;
 }
 
-b8 physical_device_meets_requirements(
+static b8 physical_device_meets_requirements(
     VkPhysicalDevice device,
     VkSurfaceKHR surface,
     const VkPhysicalDeviceProperties* properties,

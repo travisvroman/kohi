@@ -9,8 +9,8 @@
 
 #include "systems/texture_system.h"
 
-void create(vulkan_context* context, u32 width, u32 height, renderer_config_flags flags, vulkan_swapchain* swapchain);
-void destroy(vulkan_context* context, vulkan_swapchain* swapchain);
+static void create(vulkan_context* context, u32 width, u32 height, renderer_config_flags flags, vulkan_swapchain* swapchain);
+static void destroy(vulkan_context* context, vulkan_swapchain* swapchain);
 
 void vulkan_swapchain_create(
     vulkan_context* context,
@@ -93,7 +93,7 @@ void vulkan_swapchain_present(
     context->current_frame = (context->current_frame + 1) % swapchain->max_frames_in_flight;
 }
 
-void create(vulkan_context* context, u32 width, u32 height, renderer_config_flags flags, vulkan_swapchain* swapchain) {
+static void create(vulkan_context* context, u32 width, u32 height, renderer_config_flags flags, vulkan_swapchain* swapchain) {
     VkExtent2D swapchain_extent = {width, height};
 
     // Choose a swap surface format.
@@ -299,7 +299,7 @@ void create(vulkan_context* context, u32 width, u32 height, renderer_config_flag
     KINFO("Swapchain created successfully.");
 }
 
-void destroy(vulkan_context* context, vulkan_swapchain* swapchain) {
+static void destroy(vulkan_context* context, vulkan_swapchain* swapchain) {
     vkDeviceWaitIdle(context->device.logical_device);
 
     for (u32 i = 0; i < context->swapchain.image_count; ++i) {

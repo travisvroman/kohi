@@ -62,9 +62,9 @@ typedef struct platform_state {
 
 static platform_state* state_ptr;
 
-void platform_update_watches(void);
+static void platform_update_watches(void);
 // Key translation
-keys translate_keycode(u32 x_keycode);
+static keys translate_keycode(u32 x_keycode);
 
 b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
     platform_system_config* typed_config = (platform_system_config*)config;
@@ -750,7 +750,7 @@ b8 platform_unwatch_file(u32 watch_id) {
     return unregister_watch(watch_id);
 }
 
-void platform_update_watches(void) {
+static void platform_update_watches(void) {
     if (!state_ptr || !state_ptr->watches) {
         return;
     }
@@ -792,7 +792,7 @@ void platform_update_watches(void) {
 }
 
 // Key translation
-keys translate_keycode(u32 x_keycode) {
+static keys translate_keycode(u32 x_keycode) {
     switch (x_keycode) {
         case XK_BackSpace:
             return KEY_BACKSPACE;

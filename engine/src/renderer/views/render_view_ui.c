@@ -34,7 +34,7 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, even
 
     switch (code) {
         case EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED:
-            render_view_system_regenerate_render_targets(self);
+            render_view_system_render_targets_regenerate(self);
             // This needs to be consumed by other views, so consider it _not_ handled.
             return false;
     }
@@ -114,9 +114,9 @@ void render_view_ui_on_resize(struct render_view* self, u32 width, u32 height) {
     }
 }
 
-b8 render_view_ui_on_build_packet(const struct render_view* self, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet) {
+b8 render_view_ui_on_packet_build(const struct render_view* self, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet) {
     if (!self || !data || !out_packet) {
-        KWARN("render_view_ui_on_build_packet requires valid pointer to view, packet, and data.");
+        KWARN("render_view_ui_on_packet_build requires valid pointer to view, packet, and data.");
         return false;
     }
 
@@ -141,7 +141,7 @@ b8 render_view_ui_on_build_packet(const struct render_view* self, struct linear_
         for (u32 j = 0; j < m->geometry_count; ++j) {
             geometry_render_data render_data;
             render_data.geometry = m->geometries[j];
-            render_data.model = transform_get_world(&m->transform);
+            render_data.model = transform_world_get(&m->transform);
             darray_push(out_packet->geometries, render_data);
             out_packet->geometry_count++;
         }
@@ -150,7 +150,7 @@ b8 render_view_ui_on_build_packet(const struct render_view* self, struct linear_
     return true;
 }
 
-void render_view_ui_on_destroy_packet(const struct render_view* self, struct render_view_packet* packet) {
+void render_view_ui_on_packet_destroy(const struct render_view* self, struct render_view_packet* packet) {
     darray_destroy(packet->geometries);
     kzero_memory(packet, sizeof(render_view_packet));
 }
@@ -204,7 +204,7 @@ b8 render_view_ui_on_render(const struct render_view* self, const struct render_
             material_system_apply_local(m, &packet->geometries[i].model);
 
             // Draw it.
-            renderer_draw_geometry(&packet->geometries[i]);
+            renderer_geometry_draw(&packet->geometries[i]);
         }
 
         // Draw bitmap text
@@ -231,7 +231,7 @@ b8 render_view_ui_on_render(const struct render_view* self, const struct render_
             text->render_frame_number = frame_number;
 
             // Apply the locals
-            mat4 model = transform_get_world(&text->transform);
+            mat4 model = transform_world_get(&text->transform);
             if(!shader_system_uniform_set_by_index(data->model_location, &model)) {
                 KERROR("Failed to apply model matrix for text");
             }

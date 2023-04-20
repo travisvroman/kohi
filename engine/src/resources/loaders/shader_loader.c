@@ -11,7 +11,7 @@
 
 #include "platform/filesystem.h"
 
-b8 shader_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
+static b8 shader_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -306,7 +306,7 @@ b8 shader_loader_load(struct resource_loader* self, const char* name, void* para
     return true;
 }
 
-void shader_loader_unload(struct resource_loader* self, resource* resource) {
+static void shader_loader_unload(struct resource_loader* self, resource* resource) {
     shader_config* data = (shader_config*)resource->data;
 
     string_cleanup_split_array(data->stage_filenames);

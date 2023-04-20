@@ -3,7 +3,7 @@
 #include "core/kmemory.h"
 #include "core/logger.h"
 
-u64 hash_name(const char* name, u32 element_count) {
+static u64 hash_name(const char* name, u32 element_count) {
     // A multipler to use when generating a hash. Prime to hopefully avoid collisions.
     static const u64 multiplier = 97;
 
