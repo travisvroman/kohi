@@ -76,7 +76,7 @@ void resource_system_shutdown(void* state);
  * @param loader The loader to be registered.
  * @return True on success; otherwise false.
  */
-KAPI b8 resource_system_register_loader(resource_loader loader);
+KAPI b8 resource_system_loader_register(resource_loader loader);
 
 /**
  * @brief Loads a resource of the given name.

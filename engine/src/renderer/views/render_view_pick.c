@@ -46,7 +46,7 @@ typedef struct render_view_pick_internal_data {
     // u32 render_mode;
 } render_view_pick_internal_data;
 
-b8 on_mouse_moved(u16 code, void* sender, void* listener_inst, event_context event_data) {
+static b8 on_mouse_moved(u16 code, void* sender, void* listener_inst, event_context event_data) {
     if (code == EVENT_CODE_MOUSE_MOVED) {
         render_view* self = (render_view*)listener_inst;
         render_view_pick_internal_data* data = (render_view_pick_internal_data*)self->internal_data;
@@ -71,7 +71,7 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, even
 
     switch (code) {
         case EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED:
-            render_view_system_regenerate_render_targets(self);
+            render_view_system_render_targets_regenerate(self);
             // This needs to be consumed by other views, so consider it _not_ handled.
             return false;
     }
@@ -79,18 +79,18 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, even
     return false;
 }
 
-void acquire_shader_instances(const struct render_view* self) {
+static void acquire_shader_instances(const struct render_view* self) {
     render_view_pick_internal_data* data = self->internal_data;
 
     // Not saving the instance id because it doesn't matter.
     u32 instance;
     // UI shader
-    if (!renderer_shader_acquire_instance_resources(data->ui_shader_info.s, 0, &instance)) {
+    if (!renderer_shader_instance_resources_acquire(data->ui_shader_info.s, 0, &instance)) {
         KFATAL("render_view_pick failed to acquire shader resources.");
         return;
     }
     // World shader
-    if (!renderer_shader_acquire_instance_resources(data->world_shader_info.s, 0, &instance)) {
+    if (!renderer_shader_instance_resources_acquire(data->world_shader_info.s, 0, &instance)) {
         KFATAL("render_view_pick failed to acquire shader resources.");
         return;
     }
@@ -103,12 +103,12 @@ void release_shader_instances(const struct render_view* self) {
 
     for (i32 i = 0; i < data->instance_count; ++i) {
         // UI shader
-        if (!renderer_shader_release_instance_resources(data->ui_shader_info.s, i)) {
+        if (!renderer_shader_instance_resources_release(data->ui_shader_info.s, i)) {
             KWARN("Failed to release shader resources.");
         }
 
         // World shader
-        if (!renderer_shader_release_instance_resources(data->world_shader_info.s, i)) {
+        if (!renderer_shader_instance_resources_release(data->world_shader_info.s, i)) {
             KWARN("Failed to release shader resources.");
         }
     }
@@ -243,9 +243,9 @@ void render_view_pick_on_resize(struct render_view* self, u32 width, u32 height)
     }
 }
 
-b8 render_view_pick_on_build_packet(const struct render_view* self, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet) {
+b8 render_view_pick_on_packet_build(const struct render_view* self, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet) {
     if (!self || !data || !out_packet) {
-        KWARN("render_view_pick_on_build_packet requires valid pointer to view, packet, and data.");
+        KWARN("render_view_pick_on_packet_build requires valid pointer to view, packet, and data.");
         return false;
     }
 
@@ -282,7 +282,7 @@ b8 render_view_pick_on_build_packet(const struct render_view* self, struct linea
         for (u32 j = 0; j < m->geometry_count; ++j) {
             geometry_render_data render_data;
             render_data.geometry = m->geometries[j];
-            render_data.model = transform_get_world(&m->transform);
+            render_data.model = transform_world_get(&m->transform);
             render_data.unique_id = m->unique_id;
             darray_push(out_packet->geometries, render_data);
             out_packet->geometry_count++;
@@ -318,7 +318,7 @@ b8 render_view_pick_on_build_packet(const struct render_view* self, struct linea
     return true;
 }
 
-void render_view_pick_on_destroy_packet(const struct render_view* self, struct render_view_packet* packet) {
+void render_view_pick_on_packet_destroy(const struct render_view* self, struct render_view_packet* packet) {
     darray_destroy(packet->geometries);
     kzero_memory(packet, sizeof(render_view_packet));
 }
@@ -388,7 +388,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
             }
 
             // Draw it.
-            renderer_draw_geometry(&packet->geometries[i]);
+            renderer_geometry_draw(&packet->geometries[i]);
         }
 
         if (!renderer_renderpass_end(pass)) {
@@ -446,7 +446,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
             }
 
             // Draw it.
-            renderer_draw_geometry(&packet->geometries[i]);
+            renderer_geometry_draw(&packet->geometries[i]);
         }
 
         // Draw bitmap text
@@ -468,7 +468,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
             shader_system_apply_instance(true);
 
             // Apply the locals
-            mat4 model = transform_get_world(&text->transform);
+            mat4 model = transform_world_get(&text->transform);
             if (!shader_system_uniform_set_by_index(data->ui_shader_info.model_location, &model)) {
                 KERROR("Failed to apply model matrix for text");
             }
@@ -509,7 +509,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
     return true;
 }
 
-b8 render_view_pick_regenerate_attachment_target(struct render_view* self, u32 pass_index, struct render_target_attachment* attachment) {
+b8 render_view_pick_attachment_target_regenerate(struct render_view* self, u32 pass_index, struct render_target_attachment* attachment) {
     render_view_pick_internal_data* data = self->internal_data;
 
     if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_COLOUR) {

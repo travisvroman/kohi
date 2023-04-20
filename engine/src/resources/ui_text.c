@@ -12,7 +12,7 @@
 #include "systems/font_system.h"
 #include "systems/shader_system.h"
 
-void regenerate_geometry(ui_text* text);
+static void regenerate_geometry(ui_text* text);
 
 b8 ui_text_create(ui_text_type type, const char* font_name, u16 font_size, const char* text_content, ui_text* out_text) {
     if (!font_name || !text_content || !out_text) {
@@ -49,7 +49,7 @@ b8 ui_text_create(ui_text_type type, const char* font_name, u16 font_size, const
     // Acquire resources for font texture map.
     shader* ui_shader = shader_system_get("Shader.Builtin.UI");  // TODO: text shader.
     texture_map* font_maps[1] = {&out_text->data->atlas};
-    if (!renderer_shader_acquire_instance_resources(ui_shader, font_maps, &out_text->instance_id)) {
+    if (!renderer_shader_instance_resources_acquire(ui_shader, font_maps, &out_text->instance_id)) {
         KFATAL("Unable to acquire shader resources for font texture map.");
         return false;
     }
@@ -107,18 +107,18 @@ void ui_text_destroy(ui_text* text) {
 
         // Release resources for font texture map.
         shader* ui_shader = shader_system_get("Shader.Builtin.UI");  // TODO: text shader.
-        if (!renderer_shader_release_instance_resources(ui_shader, text->instance_id)) {
+        if (!renderer_shader_instance_resources_release(ui_shader, text->instance_id)) {
             KFATAL("Unable to release shader resources for font texture map.");
         }
     }
     kzero_memory(text, sizeof(ui_text));
 }
 
-void ui_text_set_position(ui_text* u_text, vec3 position) {
-    transform_set_position(&u_text->transform, position);
+void ui_text_position_set(ui_text* u_text, vec3 position) {
+    transform_position_set(&u_text->transform, position);
 }
 
-void ui_text_set_text(ui_text* u_text, const char* text) {
+void ui_text_text_set(ui_text* u_text, const char* text) {
     if (u_text && u_text->text) {
         // If strings are already equal, don't do anything.
         if (strings_equal(text, u_text->text)) {
@@ -154,7 +154,7 @@ void ui_text_draw(ui_text* u_text) {
     }
 }
 
-void regenerate_geometry(ui_text* text) {
+static void regenerate_geometry(ui_text* text) {
     // Get the UTF-8 string length
     u32 text_length_utf8 = string_utf8_length(text->text);
     // Also get the length in characters.

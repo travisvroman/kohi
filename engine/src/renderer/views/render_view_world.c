@@ -76,7 +76,7 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, even
             return true;
         }
         case EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED:
-            render_view_system_regenerate_render_targets(self);
+            render_view_system_render_targets_regenerate(self);
             // This needs to be consumed by other views, so consider it _not_ handled.
             return false;
     }
@@ -173,7 +173,7 @@ void render_view_world_on_resize(struct render_view* self, u32 width, u32 height
     }
 }
 
-b8 render_view_world_on_build_packet(const struct render_view* self, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet) {
+b8 render_view_world_on_packet_build(const struct render_view* self, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet) {
     if (!self || !data || !out_packet) {
         KWARN("render_view_world_on_build_packet requires valid pointer to view, packet, and data.");
         return false;
@@ -246,7 +246,7 @@ b8 render_view_world_on_build_packet(const struct render_view* self, struct line
     return true;
 }
 
-void render_view_world_on_destroy_packet(const struct render_view* self, struct render_view_packet* packet) {
+void render_view_world_on_packet_destroy(const struct render_view* self, struct render_view_packet* packet) {
     darray_destroy(packet->geometries);
     darray_destroy(packet->terrain_geometries);
     kzero_memory(packet, sizeof(render_view_packet));
@@ -326,7 +326,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             // TODO: This isn't needed, use the one passed in instead
             geometry_render_data render_data = {0};
             render_data.geometry = &t->geo;
-            renderer_draw_terrain_geometry(&packet->terrain_geometries[i]);
+            renderer_terrain_geometry_draw(&packet->terrain_geometries[i]);
 
 
             // TODO: This wants the actual terrain, not the geometry. 
@@ -373,7 +373,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             material_system_apply_local(m, &packet->geometries[i].model);
 
             // Draw it.
-            renderer_draw_geometry(&packet->geometries[i]);
+            renderer_geometry_draw(&packet->geometries[i]);
         }
 
         if (!renderer_renderpass_end(pass)) {

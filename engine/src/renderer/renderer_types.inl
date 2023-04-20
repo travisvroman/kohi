@@ -238,7 +238,7 @@ typedef struct renderer_plugin {
      * @param p_frame_data A constant pointer to the current frame's data.
      * @return True if successful; otherwise false.
      */
-    b8 (*begin_frame)(struct renderer_plugin* plugin, const struct frame_data* p_frame_data);
+    b8 (*frame_begin)(struct renderer_plugin* plugin, const struct frame_data* p_frame_data);
 
     /**
      * @brief Performs routines required to draw a frame, such as presentation. Should only be called
@@ -248,7 +248,7 @@ typedef struct renderer_plugin {
      * @param p_frame_data A constant pointer to the current frame's data.
      * @return True on success; otherwise false.
      */
-    b8 (*end_frame)(struct renderer_plugin* plugin, const struct frame_data* p_frame_data);
+    b8 (*frame_end)(struct renderer_plugin* plugin, const struct frame_data* p_frame_data);
 
     /**
      * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
@@ -307,9 +307,9 @@ typedef struct renderer_plugin {
      * @param plugin A pointer to the renderer plugin interface.
      * @param data A pointer to the render data of the geometry to be drawn.
      */
-    void (*draw_geometry)(struct renderer_plugin* plugin, geometry_render_data* data);
+    void (*geometry_draw)(struct renderer_plugin* plugin, geometry_render_data* data);
 
-    void (*draw_terrain_geometry)(struct renderer_plugin* plugin, const geometry_render_data* data);
+    void (*terrain_geometry_draw)(struct renderer_plugin* plugin, const geometry_render_data* data);
 
 
     /**
@@ -399,7 +399,7 @@ typedef struct renderer_plugin {
      * @param indices An array of indices.
      * @return True on success; otherwise false.
      */
-    b8 (*create_geometry)(struct renderer_plugin* plugin, geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
+    b8 (*geometry_create)(struct renderer_plugin* plugin, geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
 
     /**
      * @brief Destroys the given geometry, releasing internal resources.
@@ -407,7 +407,7 @@ typedef struct renderer_plugin {
      * @param plugin A pointer to the renderer plugin interface.
      * @param geometry A pointer to the geometry to be destroyed.
      */
-    void (*destroy_geometry)(struct renderer_plugin* plugin, geometry* geometry);
+    void (*geometry_destroy)(struct renderer_plugin* plugin, geometry* geometry);
 
     /**
      * @brief Creates internal shader resources using the provided parameters.
@@ -498,7 +498,7 @@ typedef struct renderer_plugin {
      * @param out_instance_id A pointer to hold the new instance identifier.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_acquire_instance_resources)(struct renderer_plugin* plugin, struct shader* s, texture_map** maps, u32* out_instance_id);
+    b8 (*shader_instance_resources_acquire)(struct renderer_plugin* plugin, struct shader* s, texture_map** maps, u32* out_instance_id);
 
     /**
      * @brief Releases internal instance-level resources for the given instance id.
@@ -508,7 +508,7 @@ typedef struct renderer_plugin {
      * @param instance_id The instance identifier whose resources are to be released.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_release_instance_resources)(struct renderer_plugin* plugin, struct shader* s, u32 instance_id);
+    b8 (*shader_instance_resources_release)(struct renderer_plugin* plugin, struct shader* s, u32 instance_id);
 
     /**
      * @brief Sets the uniform of the given shader to the provided value.
@@ -519,7 +519,7 @@ typedef struct renderer_plugin {
      * @param value A pointer to the value to be set.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_set_uniform)(struct renderer_plugin* plugin, struct shader* frontend_shader, struct shader_uniform* uniform, const void* value);
+    b8 (*shader_uniform_set)(struct renderer_plugin* plugin, struct shader* frontend_shader, struct shader_uniform* uniform, const void* value);
 
     /**
      * @brief Acquires internal resources for the given texture map.
@@ -528,7 +528,7 @@ typedef struct renderer_plugin {
      * @param map A pointer to the texture map to obtain resources for.
      * @return True on success; otherwise false.
      */
-    b8 (*texture_map_acquire_resources)(struct renderer_plugin* plugin, struct texture_map* map);
+    b8 (*texture_map_resources_acquire)(struct renderer_plugin* plugin, struct texture_map* map);
 
     /**
      * @brief Releases internal resources for the given texture map.
@@ -536,7 +536,7 @@ typedef struct renderer_plugin {
      * @param plugin A pointer to the renderer plugin interface.
      * @param map A pointer to the texture map to release resources from.
      */
-    void (*texture_map_release_resources)(struct renderer_plugin* plugin, struct texture_map* map);
+    void (*texture_map_resources_release)(struct renderer_plugin* plugin, struct texture_map* map);
 
     /**
      * @brief Creates a new render target using the provided data.
@@ -624,7 +624,7 @@ typedef struct renderer_plugin {
      * @param flag The flag to be checked.
      * @return True if the flag(s) set; otherwise false.
      */
-    b8 (*flag_enabled)(struct renderer_plugin* plugin, renderer_config_flags flag);
+    b8 (*flag_enabled_get)(struct renderer_plugin* plugin, renderer_config_flags flag);
     /**
      * @brief Sets whether the included flag(s) are enabled or not. If multiple flags
      * are passed, multiple are set at once.
@@ -633,7 +633,7 @@ typedef struct renderer_plugin {
      * @param flag The flag to be checked.
      * @param enabled Indicates whether or not to enable the flag(s).
      */
-    void (*flag_set_enabled)(struct renderer_plugin* plugin, renderer_config_flags flag, b8 enabled);
+    void (*flag_enabled_set)(struct renderer_plugin* plugin, renderer_config_flags flag, b8 enabled);
 
     /**
      * @brief Creates and assigns the renderer-backend-specific buffer.
@@ -642,7 +642,7 @@ typedef struct renderer_plugin {
      * @param buffer A pointer to create the internal buffer for.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_create_internal)(struct renderer_plugin* plugin, renderbuffer* buffer);
+    b8 (*renderbuffer_internal_create)(struct renderer_plugin* plugin, renderbuffer* buffer);
 
     /**
      * @brief Destroys the given buffer.
@@ -650,7 +650,7 @@ typedef struct renderer_plugin {
      * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to be destroyed.
      */
-    void (*renderbuffer_destroy_internal)(struct renderer_plugin* plugin, renderbuffer* buffer);
+    void (*renderbuffer_internal_destroy)(struct renderer_plugin* plugin, renderbuffer* buffer);
 
     /**
      * @brief Binds the given buffer at the provided offset.
@@ -884,13 +884,15 @@ typedef struct render_view {
      * @param out_packet A pointer to hold the generated packet.
      * @return True on success; otherwise false.
      */
-    b8 (*on_build_packet)(const struct render_view* self, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet);
+    b8 (*on_packet_build)(const struct render_view* self, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet);
 
     /**
+     * @brief Destroys a render view packet.
+     *
      * @param self A pointer to the view to use.
      * @param packet A pointer to the packet to be destroyed.
      */
-    void (*on_destroy_packet)(const struct render_view* self, struct render_view_packet* packet);
+    void (*on_packet_destroy)(const struct render_view* self, struct render_view_packet* packet);
 
     /**
      * @brief Uses the given view and packet to render the contents therein.
@@ -911,7 +913,7 @@ typedef struct render_view {
      * @param attachment A pointer to the attachment whose resources are to be regenerated.
      * @return True on success; otherwise false.
      */
-    b8 (*regenerate_attachment_target)(struct render_view* self, u32 pass_index, struct render_target_attachment* attachment);
+    b8 (*attachment_target_regenerate)(struct render_view* self, u32 pass_index, struct render_target_attachment* attachment);
 } render_view;
 
 /**

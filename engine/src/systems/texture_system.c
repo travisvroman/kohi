@@ -41,12 +41,12 @@ typedef struct texture_load_params {
 
 static texture_system_state* state_ptr = 0;
 
-b8 create_default_textures(texture_system_state* state);
-void destroy_default_textures(texture_system_state* state);
-b8 load_texture(const char* texture_name, texture* t);
-b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], texture* t);
-void destroy_texture(texture* t);
-b8 process_texture_reference(const char* name, texture_type type, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id);
+static b8 create_default_textures(texture_system_state* state);
+static void destroy_default_textures(texture_system_state* state);
+static b8 load_texture(const char* texture_name, texture* t);
+static b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], texture* t);
+static void destroy_texture(texture* t);
+static b8 process_texture_reference(const char* name, texture_type type, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id);
 
 b8 texture_system_initialize(u64* memory_requirement, void* state, void* config) {
     texture_system_config* typed_config = (texture_system_config*)config;
@@ -283,7 +283,7 @@ texture* texture_system_get_default_normal_texture(void) {
     RETURN_TEXT_PTR_OR_NULL(state_ptr->default_normal_texture, "texture_system_get_default_normal_texture");
 }
 
-b8 create_default_textures(texture_system_state* state) {
+static b8 create_default_textures(texture_system_state* state) {
     // NOTE: Create default texture, a 256x256 blue/white checkerboard pattern.
     // This is done in code to eliminate asset dependencies.
     // KTRACE("Creating default texture...");
@@ -387,7 +387,7 @@ b8 create_default_textures(texture_system_state* state) {
     return true;
 }
 
-void destroy_default_textures(texture_system_state* state) {
+static void destroy_default_textures(texture_system_state* state) {
     if (state) {
         destroy_texture(&state->default_texture);
         destroy_texture(&state->default_diffuse_texture);
@@ -396,7 +396,7 @@ void destroy_default_textures(texture_system_state* state) {
     }
 }
 
-b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], texture* t) {
+static b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], texture* t) {
     u8* pixels = 0;
     u64 image_size = 0;
     for (u8 i = 0; i < 6; ++i) {
@@ -449,7 +449,7 @@ b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME
     return true;
 }
 
-void texture_load_job_success(void* params) {
+static void texture_load_job_success(void* params) {
     texture_load_params* texture_params = (texture_load_params*)params;
 
     // This also handles the GPU upload. Can't be jobified until the renderer is multithreaded.
@@ -485,7 +485,7 @@ void texture_load_job_success(void* params) {
     }
 }
 
-void texture_load_job_fail(void* params) {
+static void texture_load_job_fail(void* params) {
     texture_load_params* texture_params = (texture_load_params*)params;
 
     KERROR("Failed to load texture '%s'.", texture_params->resource_name);
@@ -493,7 +493,7 @@ void texture_load_job_fail(void* params) {
     resource_system_unload(&texture_params->image_resource);
 }
 
-b8 texture_load_job_start(void* params, void* result_data) {
+static b8 texture_load_job_start(void* params, void* result_data) {
     texture_load_params* load_params = (texture_load_params*)params;
 
     image_resource_params resource_params;
@@ -533,7 +533,7 @@ b8 texture_load_job_start(void* params, void* result_data) {
     return result;
 }
 
-b8 load_texture(const char* texture_name, texture* t) {
+static b8 load_texture(const char* texture_name, texture* t) {
     // Kick off a texture loading job. Only handles loading from disk
     // to CPU. GPU upload is handled after completion of this job.
     texture_load_params params;
@@ -548,7 +548,7 @@ b8 load_texture(const char* texture_name, texture* t) {
     return true;
 }
 
-void destroy_texture(texture* t) {
+static void destroy_texture(texture* t) {
     // Clean up backend resources.
     renderer_texture_destroy(t);
 
@@ -558,7 +558,7 @@ void destroy_texture(texture* t) {
     t->generation = INVALID_ID;
 }
 
-b8 process_texture_reference(const char* name, texture_type type, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id) {
+static b8 process_texture_reference(const char* name, texture_type type, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id) {
     *out_texture_id = INVALID_ID;
     if (state_ptr) {
         texture_reference ref;

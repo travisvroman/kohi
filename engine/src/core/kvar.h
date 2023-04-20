@@ -42,7 +42,7 @@ void kvar_shutdown(void* state);
  * @param value The value of the variable.
  * @return True on success; otherwise false.
  */
-KAPI b8 kvar_create_int(const char* name, i32 value);
+KAPI b8 kvar_int_create(const char* name, i32 value);
 
 /**
  * @brief Attempts to obtain a variable value with the given
@@ -52,7 +52,7 @@ KAPI b8 kvar_create_int(const char* name, i32 value);
  * @param out_value A pointer to hold the variable.
  * @return True if the variable was found; otherwise false.
  */
-KAPI b8 kvar_get_int(const char* name, i32* out_value);
+KAPI b8 kvar_int_get(const char* name, i32* out_value);
 
 /**
  * @brief Attempts to set the value of an existing variable with
@@ -62,4 +62,4 @@ KAPI b8 kvar_get_int(const char* name, i32* out_value);
  * @param value The value to be set.
  * @return True if found and set, otherwise false.
  */
-KAPI b8 kvar_set_int(const char* name, i32 value);
+KAPI b8 kvar_int_set(const char* name, i32 value);

@@ -28,7 +28,7 @@ static b8 import_fnt_file(file_handle* fnt_file, const char* out_kbf_filename, b
 static b8 read_kbf_file(file_handle* kbf_file, bitmap_font_resource_data* data);
 static b8 write_kbf_file(const char* path, bitmap_font_resource_data* data);
 
-b8 bitmap_font_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
+static b8 bitmap_font_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -105,7 +105,7 @@ b8 bitmap_font_loader_load(struct resource_loader* self, const char* name, void*
     return true;
 }
 
-void bitmap_font_loader_unload(struct resource_loader* self, resource* resource) {
+static void bitmap_font_loader_unload(struct resource_loader* self, resource* resource) {
     if (self && resource) {
         if (resource->data) {
             bitmap_font_resource_data* data = (bitmap_font_resource_data*)resource->data;

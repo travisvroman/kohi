@@ -67,10 +67,10 @@ enum macos_modifier_keys {
 static platform_state* state_ptr;
 
 // Key translation
-keys translate_keycode(u32 ns_keycode);
+static keys translate_keycode(u32 ns_keycode);
 // Modifier key handling
-void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags);
-void platform_update_watches(void);
+static void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags);
+static void platform_update_watches(void);
 
 @interface WindowDelegate : NSObject <NSWindowDelegate> {
     platform_state* state;
@@ -841,7 +841,7 @@ b8 platform_unwatch_file(u32 watch_id) {
     return unregister_watch(watch_id);
 }
 
-void platform_update_watches(void) {
+static void platform_update_watches(void) {
     if (!state_ptr || !state_ptr->watches) {
         return;
     }
@@ -882,7 +882,7 @@ void platform_update_watches(void) {
     }
 }
 
-keys translate_keycode(u32 ns_keycode) {
+static keys translate_keycode(u32 ns_keycode) {
     // https://boredzo.org/blog/wp-content/uploads/2007/05/IMTx-virtual-keycodes.pdf
     // https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
     switch (ns_keycode) {
@@ -1130,7 +1130,7 @@ keys translate_keycode(u32 ns_keycode) {
 #define MACOS_LALT_MASK (1 << 5)
 #define MACOS_RALT_MASK (1 << 6)
 
-void handle_modifier_key(
+static void handle_modifier_key(
     u32 ns_keycode, 
     u32 ns_key_mask, 
     u32 ns_l_keycode, 
@@ -1179,7 +1179,7 @@ void handle_modifier_key(
     }
 }
 
-void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags) {
+static void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags) {
     // Shift
     handle_modifier_key(
         ns_keycode, 

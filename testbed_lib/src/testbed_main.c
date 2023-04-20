@@ -206,13 +206,13 @@ b8 application_initialize(struct application* game_inst) {
         return false;
     }
     // Move debug text to new bottom of screen.
-    ui_text_set_position(&state->test_text, vec3_create(20, game_inst->app_config.start_height - 75, 0));
+    ui_text_position_set(&state->test_text, vec3_create(20, game_inst->app_config.start_height - 75, 0));
 
     if (!ui_text_create(UI_TEXT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Some system text 123, \n\tyo!\n\n\tこんにちは 한", &state->test_sys_text)) {
         KERROR("Failed to load basic ui system text.");
         return false;
     }
-    ui_text_set_position(&state->test_sys_text, vec3_create(500, 550, 0));
+    ui_text_position_set(&state->test_sys_text, vec3_create(500, 550, 0));
 
     // Load up some test UI geometry.
     geometry_config ui_config;
@@ -337,7 +337,7 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     f64 fps, frame_time;
     metrics_frame(&fps, &frame_time);
 
-    char* vsync_text = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
+    char* vsync_text = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
     char text_buffer[2048];
     string_format(
         text_buffer,
@@ -360,7 +360,7 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
         p_frame_data->drawn_mesh_count,
         state->hovered_object_id == INVALID_ID ? "none" : "",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
-    ui_text_set_text(&state->test_text, text_buffer);
+    ui_text_text_set(&state->test_text, text_buffer);
 
     debug_console_update(&((testbed_game_state*)game_inst->state)->debug_console);
 
@@ -427,7 +427,7 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     }
 
     ui_packet.texts = texts;
-    if (!render_view_system_build_packet(render_view_system_get("ui"), p_frame_data->frame_allocator, &ui_packet, &packet->views[2])) {
+    if (!render_view_system_packet_build(render_view_system_get("ui"), p_frame_data->frame_allocator, &ui_packet, &packet->views[2])) {
         KERROR("Failed to build packet for view 'ui'.");
         return false;
     }
@@ -439,7 +439,7 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     pick_packet.texts = ui_packet.texts;
     pick_packet.text_count = ui_packet.text_count;
 
-    if (!render_view_system_build_packet(render_view_system_get("pick"), p_frame_data->frame_allocator, &pick_packet, &packet->views[3])) {
+    if (!render_view_system_packet_build(render_view_system_get("pick"), p_frame_data->frame_allocator, &pick_packet, &packet->views[3])) {
         KERROR("Failed to build packet for view 'ui'.");
         return false;
     }
@@ -462,7 +462,7 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
 
     // TODO: temp
     // Move debug text to new bottom of screen.
-    ui_text_set_position(&state->test_text, vec3_create(20, state->height - 75, 0));
+    ui_text_position_set(&state->test_text, vec3_create(20, state->height - 75, 0));
     // TODO: end temp
 }
 
@@ -503,9 +503,9 @@ void application_lib_on_load(struct application* game_inst) {
 }
 
 static void toggle_vsync(void) {
-    b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
+    b8 vsync_enabled = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
     vsync_enabled = !vsync_enabled;
-    renderer_flag_set_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
+    renderer_flag_enabled_set(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
 }
 
 static b8 game_on_kvar_changed(u16 code, void* sender, void* listener_inst, event_context data) {
