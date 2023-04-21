@@ -58,11 +58,15 @@ b8 terrain_initialize(terrain* t) {
     t->indices = kallocate(sizeof(u32) * t->index_count, MEMORY_TAG_ARRAY);
 
     t->material_count = t->config.material_count;
-    t->materials = kallocate(sizeof(material_config) * t->material_count, MEMORY_TAG_ARRAY);
+    if(t->material_count) {
+        t->materials = kallocate(sizeof(material_config) * t->material_count, MEMORY_TAG_ARRAY);
+    } else {
+        t->materials = 0;
+    }
 
     // Generate vertices.
-    for (u32 z = 0; z < t->tile_count_z; z++) {
-        for (u32 x = 0, i = 0; x < t->tile_count_x; ++x, ++i) {
+    for (u32 z = 0, i = 0; z < t->tile_count_z; z++) {
+        for (u32 x = 0; x < t->tile_count_x; ++x, ++i) {
             terrain_vertex* v = &t->vertices[i];
             v->position.x = x * t->tile_scale_x;
             v->position.z = z * t->tile_scale_z;
@@ -81,8 +85,8 @@ b8 terrain_initialize(terrain* t) {
     }
 
     // Generate indices.
-    for (u32 z = 0; z < t->tile_count_z - 1; z++) {
-        for (u32 x = 0, i = 0; x < t->tile_count_x - 1; ++x, i += 6) {
+    for (u32 z = 0, i = 0; z < t->tile_count_z - 1; z++) {
+        for (u32 x = 0; x < t->tile_count_x - 1; ++x, i += 6) {
             u32 v0 = (z * t->tile_count_x) + x;
             u32 v1 = (z * t->tile_count_x) + x + 1;
             u32 v2 = ((z + 1) * t->tile_count_x) + x;

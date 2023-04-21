@@ -317,15 +317,15 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
 
         // TODO: Render terrain
         u32 terrain_count = packet->terrain_geometry_count;
-        for(u32 i = 0; i < terrain_count; ++i) {
-
-            shader* s = shader_system_get("Builtin.TerrainShader");
+        if(terrain_count > 0) {
+            shader* s = shader_system_get("Shader.Builtin.Terrain");
             if(!s) {
                 KERROR("Unable to obtain terrain shader.");
                 return false;
             }
             shader_system_use_by_id(s->id);
-
+        }
+        for(u32 i = 0; i < terrain_count; ++i) {
             // Apply uniforms, all are global for terrains.
             shader_system_uniform_set_by_index(data->terrain_locations.projection, &packet->projection_matrix);
             shader_system_uniform_set_by_index(data->terrain_locations.view, &packet->view_matrix);

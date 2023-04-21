@@ -29,6 +29,7 @@ struct point_light {
 layout(set = 0, binding = 0) uniform global_uniform_object {
     mat4 projection;
 	mat4 view;
+    mat4 model;
 	vec4 ambient_colour;
 	vec3 view_position;
 	int mode;
@@ -37,7 +38,6 @@ layout(set = 0, binding = 0) uniform global_uniform_object {
     point_light p_lights[POINT_LIGHT_MAX];
     int num_p_lights;
     float shininess;
-    mat4 model;
 } global_ubo;
 
 layout(location = 0) out int out_mode;

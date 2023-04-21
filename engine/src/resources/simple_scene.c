@@ -131,8 +131,6 @@ b8 simple_scene_initialize(simple_scene* scene) {
         }
 
         // Terrains
-        // LEFTOFF: Terrain count coming back as zero
-        // BUT HWHY!?
         u32 terrain_config_count = darray_length(scene->config->terrains);
         for(u32 i = 0; i < terrain_config_count; ++ i) {
             if (!scene->config->terrains[i].name || !scene->config->terrains[i].resource_name) {
@@ -180,14 +178,22 @@ b8 simple_scene_initialize(simple_scene* scene) {
         if (!skybox_initialize(scene->sb)) {
             KERROR("Skybox failed to initialize.");
             scene->sb = 0;
-            return false;
+            // return false;
         }
     }
 
     for (u32 i = 0; i < mesh_count; ++i) {
         if (!mesh_initialize(&scene->meshes[i])) {
             KERROR("Mesh failed to initialize.");
-            return false;
+            // return false;
+        }
+    }
+
+    u32 terrain_count = darray_length(scene->terrains);
+    for (u32 i = 0; i < terrain_count; ++i) {
+        if(!terrain_initialize(&scene->terrains[i])) {
+            KERROR("Terrain failed to initialize.");
+            // return false;
         }
     }
 

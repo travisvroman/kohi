@@ -19,16 +19,24 @@ struct point_light {
     float padding;
 };
 
-const int MAX_POINT_LIGHTS = 10;
+const int POINT_LIGHT_MAX = 10;
 //const int MAX_TERRAIN_MATERIALS = 8;
 
-layout(set = 1, binding = 0) uniform instance_uniform_object {
+layout(set = 0, binding = 0) uniform global_uniform_object {
+    mat4 projection;
+	mat4 view;
+    mat4 model;
+	vec4 ambient_colour;
+	vec3 view_position;
+	int mode;
     vec4 diffuse_colour;
     directional_light dir_light;
-    point_light p_lights[MAX_POINT_LIGHTS];
+    point_light p_lights[POINT_LIGHT_MAX];
     int num_p_lights;
     float shininess;
-} instance_ubo;
+} global_ubo;
+
+
 
 // Samplers, diffuse, spec
 //const int SAMP_DIFFUSE_OFFSET = 0;
@@ -69,12 +77,12 @@ void main() {
     if(in_mode == 0 || in_mode == 1) {
         vec3 view_direction = normalize(in_dto.view_position - in_dto.frag_position);
 
-        out_colour = calculate_directional_light(instance_ubo.dir_light, normal, view_direction);
+        out_colour = calculate_directional_light(global_ubo.dir_light, normal, view_direction);
 
-        for(int i = 0; i < instance_ubo.num_p_lights; ++i) {
-            out_colour += calculate_point_light(instance_ubo.p_lights[i], normal, in_dto.frag_position, view_direction);
+        for(int i = 0; i < global_ubo.num_p_lights; ++i) {
+            out_colour += calculate_point_light(global_ubo.p_lights[i], normal, in_dto.frag_position, view_direction);
         }
-        // out_colour += calculate_point_light(instance_ubo.p_light_1, normal, in_dto.frag_position, view_direction);
+        // out_colour += calculate_point_light(global_ubo.p_light_1, normal, in_dto.frag_position, view_direction);
     } else if(in_mode == 2) {
         out_colour = vec4(abs(normal), 1.0);
     }
@@ -84,10 +92,10 @@ vec4 calculate_directional_light(directional_light light, vec3 normal, vec3 view
     float diffuse_factor = max(dot(normal, -light.direction.xyz), 0.0);
 
     vec3 half_direction = normalize(view_direction - light.direction.xyz);
-    float specular_factor = pow(max(dot(half_direction, normal), 0.0), instance_ubo.shininess);
+    float specular_factor = pow(max(dot(half_direction, normal), 0.0), global_ubo.shininess);
 
     vec4 diff_samp = vec4(1.0); //texture(samplers[SAMP_DIFFUSE], in_dto.tex_coord);
-    vec4 ambient = vec4(vec3(in_dto.ambient * instance_ubo.diffuse_colour), diff_samp.a);
+    vec4 ambient = vec4(vec3(in_dto.ambient * global_ubo.diffuse_colour), diff_samp.a);
     vec4 diffuse = vec4(vec3(light.colour * diffuse_factor), diff_samp.a);
     vec4 specular = vec4(vec3(light.colour * specular_factor), diff_samp.a);
     
@@ -105,7 +113,7 @@ vec4 calculate_point_light(point_light light, vec3 normal, vec3 frag_position, v
     float diff = max(dot(normal, light_direction), 0.0);
 
     vec3 reflect_direction = reflect(-light_direction, normal);
-    float spec = pow(max(dot(view_direction, reflect_direction), 0.0), instance_ubo.shininess);
+    float spec = pow(max(dot(view_direction, reflect_direction), 0.0), global_ubo.shininess);
 
     // Calculate attenuation, or light falloff over distance.
     float distance = length(light.position.xyz - frag_position);

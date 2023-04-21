@@ -18,6 +18,7 @@ attribute=vec3,in_tangent
 # NOTE: For scope: 0=global, 1=instance, 2=local
 uniform=mat4,0,projection
 uniform=mat4,0,view
+uniform=mat4,0,model
 uniform=vec4,0,ambient_colour
 uniform=vec3,0,view_position
 uniform=u32,0,mode
@@ -29,4 +30,3 @@ uniform=struct32,0,dir_light
 uniform=struct480,0,p_lights
 uniform=i32,0,num_p_lights
 uniform=f32,0,shininess
-uniform=mat4,0,model
