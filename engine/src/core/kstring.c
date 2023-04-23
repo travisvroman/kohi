@@ -263,6 +263,11 @@ b8 string_to_transform(const char* str, transform* out_transform) {
         quat y_rot = quat_from_axis_angle((vec3){0, 1.0f, 0}, deg_to_rad(values[1]), true);
         quat z_rot = quat_from_axis_angle((vec3){0, 0, 1.0f}, deg_to_rad(values[2]), true);
         out_transform->rotation = quat_mul(x_rot, quat_mul(y_rot, z_rot));
+        
+        // Set scale
+        out_transform->scale.x = values[3];
+        out_transform->scale.y = values[4];
+        out_transform->scale.z = values[5];
     } else {
         KWARN("Format error: invalid transform provided. Identity transform will be used.");
         *out_transform = transform_create();
