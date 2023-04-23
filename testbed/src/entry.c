@@ -5,9 +5,75 @@
 #include <core/kstring.h>
 #include <containers/darray.h>
 #include <platform/platform.h>
+#include <core/asserts.h>
 
 typedef b8 (*PFN_plugin_create)(renderer_plugin* out_plugin);
 typedef u64 (*PFN_application_state_size)(void);
+
+typedef enum game_func_type {
+    GAME_FUNC_TYPE_BOOT,
+    GAME_FUNC_TYPE_INITIALIZE,
+    GAME_FUNC_TYPE_UPDATE,
+    GAME_FUNC_TYPE_RENDER,
+    GAME_FUNC_TYPE_ON_RESIZE,
+    GAME_FUNC_TYPE_SHUTDOWN,
+    GAME_FUNC_TYPE_ON_LIB_LOAD,
+    GAME_FUNC_TYPE_ON_LIB_UNLOAD,
+    GAME_FUNC_TYPE_MAX_ENUM,
+} game_func_type;
+
+b8 load_game_func(const char* name, application* app, u32* current_index, game_func_type type) {
+    if (!current_index || !app || !name) {
+        return false;
+    }
+
+    if (!platform_dynamic_library_load_function(name, &app->game_library)) {
+        KERROR("Failed to load function %s!", name);
+        return false;
+    }
+
+    switch (type) {
+        case GAME_FUNC_TYPE_BOOT:
+            app->boot = app->game_library.functions[*current_index].pfn;
+            break;
+
+        case GAME_FUNC_TYPE_INITIALIZE:
+            app->initialize = app->game_library.functions[*current_index].pfn;
+            break;
+
+        case GAME_FUNC_TYPE_UPDATE:
+            app->update = app->game_library.functions[*current_index].pfn;
+            break;
+
+        case GAME_FUNC_TYPE_RENDER:
+            app->render = app->game_library.functions[*current_index].pfn;
+            break;
+
+        case GAME_FUNC_TYPE_ON_RESIZE:
+            app->on_resize = app->game_library.functions[*current_index].pfn;
+            break;
+
+        case GAME_FUNC_TYPE_SHUTDOWN:
+            app->shutdown = app->game_library.functions[*current_index].pfn;
+            break;
+
+        case GAME_FUNC_TYPE_ON_LIB_LOAD:
+            app->lib_on_load = app->game_library.functions[*current_index].pfn;
+            break;
+
+        case GAME_FUNC_TYPE_ON_LIB_UNLOAD:
+            app->lib_on_unload = app->game_library.functions[*current_index].pfn;
+            break;
+
+        case GAME_FUNC_TYPE_MAX_ENUM:
+        default:
+            KASSERT_MSG(false, "Unknown game function type!");
+            break;
+    }
+
+    (*current_index)++;
+    return true;
+}
 
 b8 load_game_lib(application* app) {
     // Dynamically load game library
@@ -15,42 +81,31 @@ b8 load_game_lib(application* app) {
         return false;
     }
 
-    if (!platform_dynamic_library_load_function("application_boot", &app->game_library)) {
+    u32 load_index = 0;
+    if (!load_game_func("application_boot", app, &load_index, GAME_FUNC_TYPE_BOOT)) {
         return false;
     }
-    if (!platform_dynamic_library_load_function("application_initialize", &app->game_library)) {
+    if (!load_game_func("application_initialize", app, &load_index, GAME_FUNC_TYPE_INITIALIZE)) {
         return false;
     }
-    if (!platform_dynamic_library_load_function("application_update", &app->game_library)) {
+    if (!load_game_func("application_update", app, &load_index, GAME_FUNC_TYPE_UPDATE)) {
         return false;
     }
-    if (!platform_dynamic_library_load_function("application_render", &app->game_library)) {
+    if (!load_game_func("application_render", app, &load_index, GAME_FUNC_TYPE_RENDER)) {
         return false;
     }
-    if (!platform_dynamic_library_load_function("application_on_resize", &app->game_library)) {
+    if (!load_game_func("application_on_resize", app, &load_index, GAME_FUNC_TYPE_ON_RESIZE)) {
         return false;
     }
-    if (!platform_dynamic_library_load_function("application_shutdown", &app->game_library)) {
+    if (!load_game_func("application_shutdown", app, &load_index, GAME_FUNC_TYPE_SHUTDOWN)) {
         return false;
     }
-
-    if (!platform_dynamic_library_load_function("application_lib_on_load", &app->game_library)) {
+    if (!load_game_func("application_lib_on_load", app, &load_index, GAME_FUNC_TYPE_ON_LIB_LOAD)) {
         return false;
     }
-
-    if (!platform_dynamic_library_load_function("application_lib_on_unload", &app->game_library)) {
+    if (!load_game_func("application_lib_on_unload", app, &load_index, GAME_FUNC_TYPE_ON_LIB_UNLOAD)) {
         return false;
     }
-
-    // assign function pointers
-    app->boot = app->game_library.functions[0].pfn;
-    app->initialize = app->game_library.functions[1].pfn;
-    app->update = app->game_library.functions[2].pfn;
-    app->render = app->game_library.functions[3].pfn;
-    app->on_resize = app->game_library.functions[4].pfn;
-    app->shutdown = app->game_library.functions[5].pfn;
-    app->lib_on_load = app->game_library.functions[6].pfn;
-    app->lib_on_unload = app->game_library.functions[7].pfn;
 
     // Invoke the onload.
     app->lib_on_load(app);
