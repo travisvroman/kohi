@@ -147,6 +147,7 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
     resource_data->vertex_datas =
         darray_reserve(terrain_vertex_data, resource_data->vertex_data_length);
 
+    // LEFTOFF: Terrains are only loading as a single triangle now...
     for (u32 i = 0; i < pixel_count; ++i) {
       u8 r = image_data->pixels[(i * 4) + 0];
       u8 g = image_data->pixels[(i * 4) + 1];
