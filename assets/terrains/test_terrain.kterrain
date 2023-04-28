@@ -1,0 +1,11 @@
+# Kohi Terrain config file
+version=1
+name=test_terrain
+
+# If set, image is used as heightmap data. 
+heightmap_file=terrain_heightmap
+
+scale_x=1.0
+scale_y=1.0
+scale_z=1.0
+

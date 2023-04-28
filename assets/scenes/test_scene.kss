@@ -18,11 +18,11 @@ colour=0.4 0.4 0.2 1.0
 direction=-0.57735 -0.57735 -0.57735 0.0
 [/DirectionalLight]
 
-[Mesh]
-name=sponza
-resource_name=sponza
-transform=15.0 0.0 1.0 0.0 0.0 0.0 1.0 0.05 0.05 0.05
-[/Mesh]
+#[Mesh]
+#name=sponza
+#resource_name=sponza
+#transform=15.0 0.0 1.0 0.0 0.0 0.0 1.0 0.05 0.05 0.05
+#[/Mesh]
 
 [Mesh]
 name=falcon
