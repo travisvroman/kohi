@@ -361,7 +361,7 @@ b8 simple_scene_populate_render_packet(simple_scene *scene,
             vec3 right = camera_right(current_camera);
             vec3 up = camera_up(current_camera);
             // TODO: get camera fov, aspect, etc.
-            frustum f = frustom_create(&current_camera->position, &forward, &right,
+            frustum f = frustum_create(&current_camera->position, &forward, &right,
                                        &up, aspect, deg_to_rad(45.0f), 0.1f, 1000.0f);
 
             p_frame_data->drawn_mesh_count = 0;

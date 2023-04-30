@@ -1656,7 +1656,7 @@ KAPI plane_3d plane_3d_create(vec3 p1, vec3 norm);
  * @param far The far clipping plane distance.
  * @return A shiny new frustum.
  */
-KAPI frustum frustom_create(const vec3 *position, const vec3 *forward,
+KAPI frustum frustum_create(const vec3 *position, const vec3 *forward,
                             const vec3 *right, const vec3 *up, f32 aspect,
                             f32 fov, f32 near, f32 far);
 
