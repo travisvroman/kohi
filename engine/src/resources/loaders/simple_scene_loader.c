@@ -1,16 +1,15 @@
 #include "simple_scene_loader.h"
 
-#include "core/logger.h"
+#include "containers/darray.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
-#include "resources/resource_types.h"
-#include "systems/resource_system.h"
+#include "core/logger.h"
+#include "loader_utils.h"
 #include "math/kmath.h"
 #include "math/transform.h"
-#include "loader_utils.h"
-#include "containers/darray.h"
-
 #include "platform/filesystem.h"
+#include "resources/resource_types.h"
+#include "systems/resource_system.h"
 
 typedef enum simple_scene_parse_mode {
     SIMPLE_SCENE_PARSE_MODE_ROOT,
@@ -251,7 +250,7 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
             } else if (strings_equali(trimmed_var_name, "resource_name")) {
                 if (mode == SIMPLE_SCENE_PARSE_MODE_MESH) {
                     current_mesh_config.resource_name = string_duplicate(trimmed_value);
-                } else if(mode == SIMPLE_SCENE_PARSE_MODE_TERRAIN) {
+                } else if (mode == SIMPLE_SCENE_PARSE_MODE_TERRAIN) {
                     current_terrain_config.resource_name = string_duplicate(trimmed_value);
                 } else {
                     KWARN("Format warning: Cannot process resource_name in the current node.");

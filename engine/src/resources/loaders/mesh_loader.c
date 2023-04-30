@@ -1,19 +1,18 @@
 #include "mesh_loader.h"
 
-#include "core/logger.h"
+#include <stdio.h>  //sscanf
+
+#include "containers/darray.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
-#include "containers/darray.h"
-#include "resources/resource_types.h"
-#include "systems/resource_system.h"
-#include "systems/geometry_system.h"
-#include "math/kmath.h"
-#include "math/geometry_utils.h"
+#include "core/logger.h"
 #include "loader_utils.h"
-
+#include "math/geometry_utils.h"
+#include "math/kmath.h"
 #include "platform/filesystem.h"
-
-#include <stdio.h>  //sscanf
+#include "resources/resource_types.h"
+#include "systems/geometry_system.h"
+#include "systems/resource_system.h"
 
 typedef enum mesh_file_type {
     MESH_FILE_TYPE_NOT_FOUND,
@@ -883,4 +882,3 @@ resource_loader mesh_resource_loader_create(void) {
 
     return loader;
 }
-

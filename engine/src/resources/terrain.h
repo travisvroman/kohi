@@ -18,68 +18,68 @@ structure) New material type? (terrain/multi material)
 */
 
 typedef struct terrain_vertex {
-  /** @brief The position of the vertex */
-  vec3 position;
-  /** @brief The normal of the vertex. */
-  vec3 normal;
-  /** @brief The texture coordinate of the vertex. */
-  vec2 texcoord;
-  /** @brief The colour of the vertex. */
-  vec4 colour;
-  /** @brief The tangent of the vertex. */
-  vec3 tangent;
+    /** @brief The position of the vertex */
+    vec3 position;
+    /** @brief The normal of the vertex. */
+    vec3 normal;
+    /** @brief The texture coordinate of the vertex. */
+    vec2 texcoord;
+    /** @brief The colour of the vertex. */
+    vec4 colour;
+    /** @brief The tangent of the vertex. */
+    vec3 tangent;
 
-  // TODO: Materials
-  /** @brief A collection of material weights for this vertex. */
-  // f32 material_weights[TERRAIN_MAX_MATERIAL_COUNT];
+    // TODO: Materials
+    /** @brief A collection of material weights for this vertex. */
+    // f32 material_weights[TERRAIN_MAX_MATERIAL_COUNT];
 } terrain_vertex;
 
 typedef struct terrain_vertex_data {
-  f32 height;
+    f32 height;
 } terrain_vertex_data;
 
 typedef struct terrain_config {
-  char *name;
-  u32 tile_count_x;
-  u32 tile_count_z;
-  // How large each tile is on the x axis.
-  f32 tile_scale_x;
-  // How large each tile is on the z axis.
-  f32 tile_scale_z;
-  // The max height of the generated terrain.
-  f32 scale_y;
+    char *name;
+    u32 tile_count_x;
+    u32 tile_count_z;
+    // How large each tile is on the x axis.
+    f32 tile_scale_x;
+    // How large each tile is on the z axis.
+    f32 tile_scale_z;
+    // The max height of the generated terrain.
+    f32 scale_y;
 
-  u32 vertex_data_length;
-  terrain_vertex_data *vertex_datas;
+    u32 vertex_data_length;
+    terrain_vertex_data *vertex_datas;
 
-  u32 material_count;
-  char **material_names;
+    u32 material_count;
+    char **material_names;
 } terrain_config;
 
 typedef struct terrain {
-  terrain_config config;
-  char *name;
-  transform xform;
-  u32 tile_count_x;
-  u32 tile_count_z;
-  // How large each tile is on the x axis.
-  f32 tile_scale_x;
-  // How large each tile is on the z axis.
-  f32 tile_scale_z;
-  extents_3d extents;
-  vec3 origin;
+    terrain_config config;
+    char *name;
+    transform xform;
+    u32 tile_count_x;
+    u32 tile_count_z;
+    // How large each tile is on the x axis.
+    f32 tile_scale_x;
+    // How large each tile is on the z axis.
+    f32 tile_scale_z;
+    extents_3d extents;
+    vec3 origin;
 
-  u32 vertex_count;
-  terrain_vertex *vertices;
+    u32 vertex_count;
+    terrain_vertex *vertices;
 
-  u32 index_count;
-  u32 *indices;
+    u32 index_count;
+    u32 *indices;
 
-  geometry geo;
+    geometry geo;
 
-  u32 material_count;
-  // Array of pointers to materials.
-  material **materials;
+    u32 material_count;
+    // Array of pointers to materials.
+    material **materials;
 } terrain;
 
 KAPI b8 terrain_create(terrain_config config, terrain *out_terrain);
