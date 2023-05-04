@@ -173,14 +173,14 @@ b8 simple_scene_initialize(simple_scene *scene) {
             }
 
             terrain_config *parsed_config = (terrain_config *)terrain_resource.data;
+            parsed_config->xform = scene->config->terrains[i].xform;
 
             terrain new_terrain;
             // TODO: Do we really want to copy this?
-            if (!terrain_create(*parsed_config, &new_terrain)) {
+            if (!terrain_create(parsed_config, &new_terrain)) {
                 KWARN("Failed to load terrain.");
                 continue;
             }
-            new_terrain.xform = scene->config->terrains[i].xform;
 
             resource_system_unload(&terrain_resource);
 

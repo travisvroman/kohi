@@ -549,7 +549,8 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     // Create buffers
 
     // Geometry vertex buffer
-    const u64 vertex_buffer_size = sizeof(vertex_3d) * 1024 * 1024;
+    // TODO: make this configurable.
+    const u64 vertex_buffer_size = sizeof(vertex_3d) * 10 * 1024 * 1024;
     if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_VERTEX,
                                       vertex_buffer_size, true,
                                       &context->object_vertex_buffer)) {
@@ -559,7 +560,8 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     renderer_renderbuffer_bind(&context->object_vertex_buffer, 0);
 
     // Geometry index buffer
-    const u64 index_buffer_size = sizeof(u32) * 1024 * 1024;
+    // TODO: Make this configurable.
+    const u64 index_buffer_size = sizeof(u32) * 100 * 1024 * 1024;
     if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_INDEX, index_buffer_size,
                                       true, &context->object_index_buffer)) {
         KERROR("Error creating index buffer.");

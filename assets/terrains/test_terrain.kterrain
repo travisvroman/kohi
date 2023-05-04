@@ -3,9 +3,9 @@ version=1
 name=test_terrain
 
 # If set, image is used as heightmap data. 
-heightmap_file=terrain_heightmap
+heightmap_file=terrain_heightmap3
 
 scale_x=1.0
-scale_y=1.0
+scale_y=10.0
 scale_z=1.0
 

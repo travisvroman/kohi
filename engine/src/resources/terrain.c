@@ -11,14 +11,55 @@
 #include "systems/light_system.h"
 #include "systems/shader_system.h"
 
-b8 terrain_create(terrain_config config, terrain *out_terrain) {
+b8 terrain_create(const terrain_config *config, terrain *out_terrain) {
     if (!out_terrain) {
         KERROR("terrain_create requires a valid pointer to out_terrain.");
         return false;
     }
 
-    out_terrain->config = config;
-    out_terrain->name = string_duplicate(config.name);
+    out_terrain->name = string_duplicate(config->name);
+
+    if (!config->tile_count_x) {
+        KERROR("Tile count x cannot be less than one.");
+        return false;
+    }
+
+    if (!config->tile_count_z) {
+        KERROR("Tile count z cannot be less than one.");
+        return false;
+    }
+
+    out_terrain->xform = config->xform;
+
+    // TODO: calculate based on actual terrain dimensions.
+    out_terrain->extents = (extents_3d){0};
+    out_terrain->origin = vec3_zero();
+
+    out_terrain->tile_count_x = config->tile_count_x;
+    out_terrain->tile_count_z = config->tile_count_z;
+    out_terrain->tile_scale_x = config->tile_scale_x;
+    out_terrain->tile_scale_z = config->tile_scale_z;
+
+    out_terrain->scale_y = config->scale_y;
+
+    out_terrain->vertex_count = out_terrain->tile_count_x * out_terrain->tile_count_z;
+    out_terrain->vertices = kallocate(sizeof(terrain_vertex) * out_terrain->vertex_count, MEMORY_TAG_ARRAY);
+
+    out_terrain->vertex_data_length = out_terrain->vertex_count;
+    out_terrain->vertex_datas = kallocate(sizeof(terrain_vertex_data) * out_terrain->vertex_data_length, MEMORY_TAG_ARRAY);
+    kcopy_memory(out_terrain->vertex_datas, config->vertex_datas, config->vertex_data_length * sizeof(terrain_vertex_data));
+
+    out_terrain->index_count = out_terrain->vertex_count * 6;
+    out_terrain->indices = kallocate(sizeof(u32) * out_terrain->index_count, MEMORY_TAG_ARRAY);
+
+    out_terrain->material_count = config->material_count;
+    if (out_terrain->material_count) {
+        out_terrain->materials = kallocate(sizeof(material_config) * out_terrain->material_count, MEMORY_TAG_ARRAY);
+        out_terrain->material_names = kallocate(sizeof(char *) * out_terrain->material_count, MEMORY_TAG_ARRAY);
+    } else {
+        out_terrain->materials = 0;
+        out_terrain->material_names = 0;
+    }
 
     return true;
 }
@@ -32,47 +73,13 @@ b8 terrain_initialize(terrain *t) {
         return false;
     }
 
-    if (!t->config.tile_count_x) {
-        KERROR("Tile count x cannot be less than one.");
-        return false;
-    }
-
-    if (!t->config.tile_count_z) {
-        KERROR("Tile count z cannot be less than one.");
-        return false;
-    }
-
-    t->xform = transform_create();
-    t->extents = (extents_3d){0};
-    t->origin = vec3_zero();
-
-    t->tile_count_x = t->config.tile_count_x;
-    t->tile_count_z = t->config.tile_count_z;
-    t->tile_scale_x = t->config.tile_scale_x;
-    t->tile_scale_z = t->config.tile_scale_z;
-
-    t->vertex_count = t->tile_count_x * t->tile_count_z;
-    t->vertices =
-        kallocate(sizeof(terrain_vertex) * t->vertex_count, MEMORY_TAG_ARRAY);
-
-    t->index_count = t->vertex_count * 6;
-    t->indices = kallocate(sizeof(u32) * t->index_count, MEMORY_TAG_ARRAY);
-
-    t->material_count = t->config.material_count;
-    if (t->material_count) {
-        t->materials = kallocate(sizeof(material_config) * t->material_count,
-                                 MEMORY_TAG_ARRAY);
-    } else {
-        t->materials = 0;
-    }
-
     // Generate vertices.
     for (u32 z = 0, i = 0; z < t->tile_count_z; z++) {
         for (u32 x = 0; x < t->tile_count_x; ++x, ++i) {
             terrain_vertex *v = &t->vertices[i];
             v->position.x = x * t->tile_scale_x;
             v->position.z = z * t->tile_scale_z;
-            v->position.y = t->config.vertex_datas[i].height;
+            v->position.y = t->vertex_datas[i].height * t->scale_y;
 
             v->colour = vec4_one();       // white;
             v->normal = (vec3){0, 1, 0};  // TODO: calculate based on geometry.
@@ -133,6 +140,7 @@ b8 terrain_load(terrain *t) {
     g->center = t->origin;
     g->extents.min = t->extents.min;
     g->extents.max = t->extents.max;
+    // TODO: offload generation increments to frontend. Also do this in geometry_system_create.
     g->generation++;
 
     // TODO: acquire material(s)

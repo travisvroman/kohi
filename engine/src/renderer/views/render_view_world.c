@@ -163,7 +163,7 @@ b8 render_view_world_on_create(struct render_view* self) {
         data->s = shader_system_get(self->custom_shader_name ? self->custom_shader_name : shader_name);
         // TODO: Set from configuration.
         data->near_clip = 0.1f;
-        data->far_clip = 1000.0f;
+        data->far_clip = 4000.0f;
         data->fov = deg_to_rad(45.0f);
 
         // Default

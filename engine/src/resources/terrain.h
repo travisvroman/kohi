@@ -49,6 +49,8 @@ typedef struct terrain_config {
     // The max height of the generated terrain.
     f32 scale_y;
 
+    transform xform;
+
     u32 vertex_data_length;
     terrain_vertex_data *vertex_datas;
 
@@ -57,7 +59,6 @@ typedef struct terrain_config {
 } terrain_config;
 
 typedef struct terrain {
-    terrain_config config;
     char *name;
     transform xform;
     u32 tile_count_x;
@@ -66,6 +67,12 @@ typedef struct terrain {
     f32 tile_scale_x;
     // How large each tile is on the z axis.
     f32 tile_scale_z;
+    // The max height of the generated terrain.
+    f32 scale_y;
+
+    u32 vertex_data_length;
+    terrain_vertex_data *vertex_datas;
+
     extents_3d extents;
     vec3 origin;
 
@@ -78,11 +85,12 @@ typedef struct terrain {
     geometry geo;
 
     u32 material_count;
+    char **material_names;
     // Array of pointers to materials.
     material **materials;
 } terrain;
 
-KAPI b8 terrain_create(terrain_config config, terrain *out_terrain);
+KAPI b8 terrain_create(const terrain_config *config, terrain *out_terrain);
 KAPI void terrain_destroy(terrain *t);
 
 KAPI b8 terrain_initialize(terrain *t);
