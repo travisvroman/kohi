@@ -13,6 +13,9 @@ attribute=vec3,in_normal
 attribute=vec2,in_texcoord
 attribute=vec4,in_colour
 attribute=vec3,in_tangent
+# NOTE: Might have to pad the above for alignment.
+# LEFTOFF: Need to bind these locations and attributes in the terrain code.
+attribute=vec4,in_mat_weights
 
 # Uniforms: type,scope,name
 # NOTE: For scope: 0=global, 1=instance, 2=local
@@ -22,11 +25,21 @@ uniform=mat4,0,model
 uniform=vec4,0,ambient_colour
 uniform=vec3,0,view_position
 uniform=u32,0,mode
-#uniform=samp,0,diffuse_texture
-#uniform=samp,0,specular_texture
-#uniform=samp,0,normal_texture
-uniform=vec4,0,diffuse_colour
+uniform=samp,0,diffuse_texture_0
+uniform=samp,0,specular_texture_0
+uniform=samp,0,normal_texture_0
+uniform=samp,0,diffuse_texture_1
+uniform=samp,0,specular_texture_1
+uniform=samp,0,normal_texture_1
+uniform=samp,0,diffuse_texture_2
+uniform=samp,0,specular_texture_2
+uniform=samp,0,normal_texture_2
+uniform=samp,0,diffuse_texture_3
+uniform=samp,0,specular_texture_3
+uniform=samp,0,normal_texture_3
+
+uniform=struct128,0,material_info
 uniform=struct32,0,dir_light
 uniform=struct480,0,p_lights
 uniform=i32,0,num_p_lights
-uniform=f32,0,shininess
+uniform=i32,0,num_materials
