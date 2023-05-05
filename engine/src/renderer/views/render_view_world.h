@@ -7,11 +7,11 @@ struct linear_allocator;
 struct frame_data;
 
 typedef struct render_view_world_data {
-    // darray 
+    // darray
     geometry_render_data* world_geometries;
     // darray
-    geometry_render_data* terrain_geometries;
-}render_view_world_data; 
+    terrain_render_data* terrain_geometries;
+} render_view_world_data;
 
 b8 render_view_world_on_create(struct render_view* self);
 void render_view_world_on_destroy(struct render_view* self);

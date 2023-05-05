@@ -415,7 +415,7 @@ b8 add_sampler(shader* shader, shader_uniform_config* config) {
         *map = default_map;
         map->texture = texture_system_get_default_texture();
 
-        if (!renderer_texture_map_resources_acquire(&default_map)) {
+        if (!renderer_texture_map_resources_acquire(map)) {
             KERROR("Failed to acquire resources for global texture map during shader creation.");
             return false;
         }

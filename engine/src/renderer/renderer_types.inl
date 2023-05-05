@@ -1,19 +1,28 @@
 #pragma once
 
+#include "containers/freelist.h"
 #include "defines.h"
 #include "math/math_types.h"
 #include "resources/resource_types.h"
-#include "containers/freelist.h"
 
 struct shader;
 struct shader_uniform;
 struct frame_data;
+struct terrain;
 
 typedef struct geometry_render_data {
     mat4 model;
     geometry* geometry;
     u32 unique_id;
 } geometry_render_data;
+
+typedef struct terrain_render_data {
+    mat4 model;
+    geometry* g;
+    u32 material_count;
+    material* materials[4];  // TERRAIN_MAX_MATERIAL_COUNT
+    u32 unique_id;
+} terrain_render_data;
 
 typedef enum renderer_debug_view_mode {
     RENDERER_VIEW_MODE_DEFAULT = 0,
@@ -262,7 +271,7 @@ typedef struct renderer_plugin {
      * @brief Resets the viewport to the default, which matches the application window.
      * Must be done within a renderpass.
      * @param plugin A pointer to the renderer plugin interface.
-     * 
+     *
      */
     void (*viewport_reset)(struct renderer_plugin* plugin);
 
@@ -277,7 +286,7 @@ typedef struct renderer_plugin {
     /**
      * @brief Resets the scissor to the default, which matches the application window.
      * Must be done within a renderpass.
-     * 
+     *
      * @param plugin A pointer to the renderer plugin interface.
      */
     void (*scissor_reset)(struct renderer_plugin* plugin);
@@ -309,8 +318,7 @@ typedef struct renderer_plugin {
      */
     void (*geometry_draw)(struct renderer_plugin* plugin, geometry_render_data* data);
 
-    void (*terrain_geometry_draw)(struct renderer_plugin* plugin, const geometry_render_data* data);
-
+    void (*terrain_geometry_draw)(struct renderer_plugin* plugin, const terrain_render_data* data);
 
     /**
      * @brief Creates a Vulkan-specific texture, acquiring internal resources as needed.
@@ -425,7 +433,7 @@ typedef struct renderer_plugin {
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
-     * 
+     *
      * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader to be destroyed.
      */
@@ -588,7 +596,7 @@ typedef struct renderer_plugin {
 
     /**
      * @brief Returns a pointer to the main depth texture target.
-     * 
+     *
      * @param plugin A pointer to the renderer plugin interface.
      * @param index The index of the attachment to get. Must be within the range of window render target count.
      * @return A pointer to a texture attachment if successful; otherwise 0.
@@ -597,21 +605,21 @@ typedef struct renderer_plugin {
 
     /**
      * @brief Returns the current window attachment index.
-     * 
+     *
      * @param plugin A pointer to the renderer plugin interface.
      */
     u8 (*window_attachment_index_get)(struct renderer_plugin* plugin);
 
     /**
      * @brief Returns the number of attachments required for window-based render targets.
-     * 
+     *
      * @param plugin A pointer to the renderer plugin interface.
      */
     u8 (*window_attachment_count_get)(struct renderer_plugin* plugin);
 
     /**
      * @brief Indicates if the renderer is capable of multi-threading.
-     * 
+     *
      * @param plugin A pointer to the renderer plugin interface.
      */
     b8 (*is_multithreaded)(struct renderer_plugin* plugin);
@@ -673,7 +681,7 @@ typedef struct renderer_plugin {
     /**
      * @brief Maps memory from the given buffer in the provided range to a block of memory and returns it.
      * This memory should be considered invalid once unmapped.
-     * 
+     *
      * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to map.
      * @param offset The number of bytes from the beginning of the buffer to map.
@@ -684,7 +692,7 @@ typedef struct renderer_plugin {
     /**
      * @brief Unmaps memory from the given buffer in the provided range to a block of memory.
      * This memory should be considered invalid once unmapped.
-     * 
+     *
      * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to unmap.
      * @param offset The number of bytes from the beginning of the buffer to unmap.
@@ -694,7 +702,7 @@ typedef struct renderer_plugin {
 
     /**
      * @brief Flushes buffer memory at the given range. Should be done after a write.
-     * 
+     *
      * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to unmap.
      * @param offset The number of bytes from the beginning of the buffer to flush.
@@ -705,7 +713,7 @@ typedef struct renderer_plugin {
 
     /**
      * @brief Reads memory from the provided buffer at the given range to the output variable.
-     * 
+     *
      * @param plugin A pointer to the renderer plugin interface.
      * @param buffer A pointer to the buffer to read from.
      * @param offset The number of bytes from the beginning of the buffer to read.
@@ -939,7 +947,9 @@ typedef struct render_view_packet {
     /** @brief The number of terrain geometries to be drawn. */
     u32 terrain_geometry_count;
     /** @brief The terrain geometries to be drawn. */
-    geometry_render_data* terrain_geometries;
+    terrain_render_data* terrain_geometries;
+
+    struct terrain** terrains;
     /** @brief The name of the custom shader to use, if applicable. Otherwise 0. */
     const char* custom_shader_name;
     /** @brief Holds a pointer to freeform data, typically understood both by the object and consuming view. */

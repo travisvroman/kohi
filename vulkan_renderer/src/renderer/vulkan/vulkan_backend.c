@@ -10,6 +10,7 @@
 #include "platform/platform.h"
 #include "platform/vulkan_platform.h"
 #include "renderer/renderer_frontend.h"
+#include "renderer/renderer_types.inl"
 #include "systems/material_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
@@ -1576,15 +1577,15 @@ void vulkan_renderer_geometry_draw(renderer_plugin *plugin,
 }
 
 void vulkan_renderer_terrain_geometry_draw(renderer_plugin *plugin,
-                                           const geometry_render_data *data) {
+                                           const terrain_render_data *data) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     // Ignore non-uploaded geometries.
-    if (data->geometry && data->geometry->internal_id == INVALID_ID) {
+    if (data->g && data->g->internal_id == INVALID_ID) {
         return;
     }
 
     vulkan_geometry_data *buffer_data =
-        &context->geometries[data->geometry->internal_id];
+        &context->geometries[data->g->internal_id];
     b8 includes_index_data = buffer_data->index_count > 0;
     if (!vulkan_buffer_draw(plugin, &context->object_vertex_buffer,
                             buffer_data->vertex_buffer_offset,
@@ -2159,6 +2160,7 @@ b8 vulkan_renderer_shader_apply_globals(renderer_plugin *plugin, shader *s) {
     u32 global_set_binding_count =
         internal->config.descriptor_sets[DESC_SET_INDEX_GLOBAL].binding_count;
     if (global_set_binding_count > 1) {
+        // LEFTOFF: Implement global image samplers.
         // TODO: There are samplers to be written. Support this.
         global_set_binding_count = 1;
         KERROR("Global image samplers are not yet supported.");

@@ -13,8 +13,9 @@
 
 #pragma once
 
-#include "vulkan_renderer_plugin_main.h"
+#include "renderer/renderer_types.inl"
 #include "resources/resource_types.h"
+#include "vulkan_renderer_plugin_main.h"
 
 struct shader;
 struct shader_uniform;
@@ -33,7 +34,7 @@ b8 vulkan_renderer_renderpass_begin(renderer_plugin* backend, renderpass* pass, 
 b8 vulkan_renderer_renderpass_end(renderer_plugin* backend, renderpass* pass);
 
 void vulkan_renderer_geometry_draw(renderer_plugin* backend, geometry_render_data* data);
-void vulkan_renderer_terrain_geometry_draw(renderer_plugin* plugin, const geometry_render_data* data);
+void vulkan_renderer_terrain_geometry_draw(renderer_plugin* plugin, const terrain_render_data* data);
 void vulkan_renderer_texture_create(renderer_plugin* backend, const u8* pixels, texture* texture);
 void vulkan_renderer_texture_destroy(renderer_plugin* backend, texture* texture);
 void vulkan_renderer_texture_create_writeable(renderer_plugin* backend, texture* t);
@@ -88,4 +89,3 @@ b8 vulkan_buffer_read(renderer_plugin* backend, renderbuffer* buffer, u64 offset
 b8 vulkan_buffer_load_range(renderer_plugin* backend, renderbuffer* buffer, u64 offset, u64 size, const void* data);
 b8 vulkan_buffer_copy_range(renderer_plugin* backend, renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size);
 b8 vulkan_buffer_draw(renderer_plugin* backend, renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
-

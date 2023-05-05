@@ -23,8 +23,6 @@ typedef struct terrain_shader_locations {
     u16 view;
     u16 ambient_colour;
     u16 view_position;
-    u16 shininess;
-    u16 diffuse_colour;
     u16 diffuse_texture;
     u16 specular_texture;
     u16 normal_texture;
@@ -33,6 +31,10 @@ typedef struct terrain_shader_locations {
     u16 dir_light;
     u16 p_lights;
     u16 num_p_lights;
+
+    u16 material_info;
+    u16 samplers[TERRAIN_MAX_MATERIAL_COUNT * 3];  // diffuse, spec, normal.
+    u16 num_materials;
 } terrain_shader_locations;
 
 typedef struct render_view_world_internal_data {
@@ -55,6 +57,12 @@ typedef struct geometry_distance {
     /** @brief The distance from the camera. */
     f32 distance;
 } geometry_distance;
+
+typedef struct material_info {
+    vec4 diffuse_colour;
+    float shininess;
+    vec3 padding;
+} material_info;
 
 /**
  * @brief A private, recursive, in-place sort function for geometry_distance structures.
@@ -148,16 +156,33 @@ b8 render_view_world_on_create(struct render_view* self) {
         data->terrain_locations.view = shader_system_uniform_index(s, "view");
         data->terrain_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
         data->terrain_locations.view_position = shader_system_uniform_index(s, "view_position");
-        data->terrain_locations.diffuse_colour = shader_system_uniform_index(s, "diffuse_colour");
         data->terrain_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
         data->terrain_locations.specular_texture = shader_system_uniform_index(s, "specular_texture");
         data->terrain_locations.normal_texture = shader_system_uniform_index(s, "normal_texture");
-        data->terrain_locations.shininess = shader_system_uniform_index(s, "shininess");
         data->terrain_locations.model = shader_system_uniform_index(s, "model");
         data->terrain_locations.render_mode = shader_system_uniform_index(s, "mode");
         data->terrain_locations.dir_light = shader_system_uniform_index(s, "dir_light");
         data->terrain_locations.p_lights = shader_system_uniform_index(s, "p_lights");
         data->terrain_locations.num_p_lights = shader_system_uniform_index(s, "num_p_lights");
+
+        data->terrain_locations.material_info = shader_system_uniform_index(s, "material_info");
+        data->terrain_locations.num_materials = shader_system_uniform_index(s, "num_materials");
+
+        data->terrain_locations.samplers[0] = shader_system_uniform_index(s, "diffuse_texture_0");
+        data->terrain_locations.samplers[1] = shader_system_uniform_index(s, "specular_texture_0");
+        data->terrain_locations.samplers[2] = shader_system_uniform_index(s, "normal_texture_0");
+
+        data->terrain_locations.samplers[3] = shader_system_uniform_index(s, "diffuse_texture_1");
+        data->terrain_locations.samplers[4] = shader_system_uniform_index(s, "specular_texture_1");
+        data->terrain_locations.samplers[5] = shader_system_uniform_index(s, "normal_texture_1");
+
+        data->terrain_locations.samplers[6] = shader_system_uniform_index(s, "diffuse_texture_2");
+        data->terrain_locations.samplers[7] = shader_system_uniform_index(s, "specular_texture_2");
+        data->terrain_locations.samplers[8] = shader_system_uniform_index(s, "normal_texture_2");
+
+        data->terrain_locations.samplers[9] = shader_system_uniform_index(s, "diffuse_texture_3");
+        data->terrain_locations.samplers[10] = shader_system_uniform_index(s, "specular_texture_3");
+        data->terrain_locations.samplers[11] = shader_system_uniform_index(s, "normal_texture_3");
 
         // Get either the custom shader override or the defined default.
         data->s = shader_system_get(self->custom_shader_name ? self->custom_shader_name : shader_name);
@@ -231,8 +256,9 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct line
     render_view_world_data* world_data = (render_view_world_data*)data;
     render_view_world_internal_data* internal_data = (render_view_world_internal_data*)self->internal_data;
 
+    // TODO: Use frame allocator.
     out_packet->geometries = darray_create(geometry_render_data);
-    out_packet->terrain_geometries = darray_create(geometry_render_data);
+    out_packet->terrain_geometries = darray_create(terrain_render_data);
     out_packet->view = self;
 
     // Set matrices, etc.
@@ -330,15 +356,17 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             shader_system_uniform_set_by_index(data->terrain_locations.view_position, &packet->view_position);
             shader_system_uniform_set_by_index(data->terrain_locations.render_mode, &data->render_mode);
 
-            // TODO: hardcoded temp
-            vec4 white = vec4_one();
-            shader_system_uniform_set_by_index(data->terrain_locations.diffuse_colour, &white);
-            // shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_texture, &m->diffuse_map);
-            // shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, &m->specular_map);
-            // shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, &m->normal_map);
-            //  TODO: hardcoded temp
-            f32 shininess = 32.0f;
-            shader_system_uniform_set_by_index(data->terrain_locations.shininess, &shininess);
+            material_info material_infos[TERRAIN_MAX_MATERIAL_COUNT] = {0};
+            for (u32 m = 0; m < packet->terrain_geometries[i].material_count; ++m) {
+                material* pmat = packet->terrain_geometries[i].materials[m];
+
+                material_infos[m].diffuse_colour = pmat->diffuse_colour;
+                material_infos[m].shininess = pmat->shininess;
+
+                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 0], &pmat->diffuse_map);
+                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 1], &pmat->specular_map);
+                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 2], &pmat->normal_map);
+            }
 
             // Directional light.
             directional_light* dir_light = light_system_directional_light_get();

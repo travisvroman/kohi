@@ -9,3 +9,5 @@ scale_x=1.0
 scale_y=10.0
 scale_z=1.0
 
+material0=floor
+material1=cobblestone

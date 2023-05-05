@@ -12,9 +12,7 @@ attribute=vec3,in_position
 attribute=vec3,in_normal
 attribute=vec2,in_texcoord
 attribute=vec4,in_colour
-attribute=vec3,in_tangent
-# NOTE: Might have to pad the above for alignment.
-# LEFTOFF: Need to bind these locations and attributes in the terrain code.
+attribute=vec4,in_tangent
 attribute=vec4,in_mat_weights
 
 # Uniforms: type,scope,name

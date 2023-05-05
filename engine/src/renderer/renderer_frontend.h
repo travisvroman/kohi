@@ -177,7 +177,7 @@ KAPI void renderer_geometry_destroy(geometry* geometry);
  */
 KAPI void renderer_geometry_draw(geometry_render_data* data);
 
-KAPI void renderer_terrain_geometry_draw(const geometry_render_data* data);
+KAPI void renderer_terrain_geometry_draw(const terrain_render_data* data);
 
 /**
  * @brief Begins the given renderpass.
@@ -534,4 +534,3 @@ KAPI b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset
  * @return True on success; otherwise false.
  */
 KAPI b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
-

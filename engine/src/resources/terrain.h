@@ -5,7 +5,7 @@
 #include "math/math_types.h"
 #include "resources/resource_types.h"
 
-#define TERRAIN_MAX_MATERIAL_COUNT 8
+#define TERRAIN_MAX_MATERIAL_COUNT 4
 
 /*
 Need to modify the geometry structure/functions to allow for multiple materials.
@@ -27,11 +27,10 @@ typedef struct terrain_vertex {
     /** @brief The colour of the vertex. */
     vec4 colour;
     /** @brief The tangent of the vertex. */
-    vec3 tangent;
+    vec4 tangent;
 
-    // TODO: Materials
     /** @brief A collection of material weights for this vertex. */
-    // f32 material_weights[TERRAIN_MAX_MATERIAL_COUNT];
+    f32 material_weights[TERRAIN_MAX_MATERIAL_COUNT];
 } terrain_vertex;
 
 typedef struct terrain_vertex_data {

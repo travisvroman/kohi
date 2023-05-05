@@ -4,8 +4,7 @@ layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_normal;
 layout(location = 2) in vec2 in_texcoord;
 layout(location = 3) in vec4 in_colour;
-layout(location = 4) in vec3 in_tangent; // TODO: may need to pad out.
-
+layout(location = 4) in vec4 in_tangent; 
 layout(location = 5) in vec4 in_mat_weights; // Supports 4 materials.
 
 const int POINT_LIGHT_MAX = 10;
@@ -64,7 +63,7 @@ void main() {
 	// Copy the normal over.
 	mat3 m3_model = mat3(global_ubo.model);
 	out_dto.normal = normalize(m3_model * in_normal);
-	out_dto.tangent = normalize(m3_model * in_tangent);
+	out_dto.tangent = normalize(m3_model * in_tangent.xyz);
 	out_dto.ambient = global_ubo.ambient_colour;
 	out_dto.view_position = global_ubo.view_position;
     out_dto.mat_weights = in_mat_weights;

@@ -9,6 +9,7 @@
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.inl"
 #include "systems/light_system.h"
+#include "systems/material_system.h"
 #include "systems/shader_system.h"
 
 b8 terrain_create(const terrain_config *config, terrain *out_terrain) {
@@ -54,8 +55,9 @@ b8 terrain_create(const terrain_config *config, terrain *out_terrain) {
 
     out_terrain->material_count = config->material_count;
     if (out_terrain->material_count) {
-        out_terrain->materials = kallocate(sizeof(material_config) * out_terrain->material_count, MEMORY_TAG_ARRAY);
+        out_terrain->materials = kallocate(sizeof(material *) * out_terrain->material_count, MEMORY_TAG_ARRAY);
         out_terrain->material_names = kallocate(sizeof(char *) * out_terrain->material_count, MEMORY_TAG_ARRAY);
+        kcopy_memory(out_terrain->material_names, config->material_names, sizeof(char *) * out_terrain->material_count);
     } else {
         out_terrain->materials = 0;
         out_terrain->material_names = 0;
@@ -86,10 +88,8 @@ b8 terrain_initialize(terrain *t) {
             v->texcoord.x = (f32)x;
             v->texcoord.y = (f32)z;
 
-            // TODO: Materials
-            // kzero_memory(v->material_weights, sizeof(f32) *
-            // TERRAIN_MAX_MATERIAL_COUNT); v->material_weights[0] = 1.0f;
-            v->tangent = vec3_zero();  // TODO: obviously wrong.
+            // TODO: Figure out a way to auto-assign terrain material weights. Height?
+            v->material_weights[0] = 1.0f;
         }
     }
 
@@ -143,14 +143,13 @@ b8 terrain_load(terrain *t) {
     // TODO: offload generation increments to frontend. Also do this in geometry_system_create.
     g->generation++;
 
-    // TODO: acquire material(s)
-    // Acquire the material
-    // if (string_length(config.material_name) > 0) {
-    //     g->material = material_system_acquire(config.material_name);
-    //     if (!g->material) {
-    //         g->material = material_system_get_default();
-    //     }
-    // }
+    // Acquire material(s)
+    for (u32 i = 0; i < t->material_count; ++i) {
+        t->materials[i] = material_system_acquire(t->material_names[i]);
+        if (!t->materials[i]) {
+            t->materials[i] = material_system_get_default();
+        }
+    }
 
     return true;
 }

@@ -167,7 +167,7 @@ void terrain_geometry_generate_tangents(u32 vertex_count, terrain_vertex *vertic
         f32 tx = deltaV1, ty = deltaV2;
         f32 handedness = ((tx * sy - ty * sx) < 0.0f) ? -1.0f : 1.0f;
 
-        vec3 t4 = vec3_mul_scalar(tangent, handedness);
+        vec4 t4 = vec4_from_vec3(vec3_mul_scalar(tangent, handedness), 0.0f);
         vertices[i0].tangent = t4;
         vertices[i1].tangent = t4;
         vertices[i2].tangent = t4;
