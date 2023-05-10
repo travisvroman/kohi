@@ -315,8 +315,11 @@ static b8 select_physical_device(vulkan_context* context) {
     VkPhysicalDevice physical_devices[32];
     VK_CHECK(vkEnumeratePhysicalDevices(context->instance, &physical_device_count, physical_devices));
     for (u32 i = 0; i < physical_device_count; ++i) {
-        VkPhysicalDeviceProperties properties;
-        vkGetPhysicalDeviceProperties(physical_devices[i], &properties);
+        VkPhysicalDeviceProperties2 properties2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        VkPhysicalDeviceDriverProperties driverProperties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
+        properties2.pNext = &driverProperties;
+        vkGetPhysicalDeviceProperties2(physical_devices[i], &properties2);
+        VkPhysicalDeviceProperties properties = properties2.properties;
 
         VkPhysicalDeviceFeatures features;
         vkGetPhysicalDeviceFeatures(physical_devices[i], &features);
@@ -370,11 +373,7 @@ static b8 select_physical_device(vulkan_context* context) {
                     break;
             }
 
-            KINFO(
-                "GPU Driver version: %d.%d.%d",
-                VK_VERSION_MAJOR(properties.driverVersion),
-                VK_VERSION_MINOR(properties.driverVersion),
-                VK_VERSION_PATCH(properties.driverVersion));
+            KINFO("GPU Driver version: %s", driverProperties.driverInfo);
 
             // Vulkan API version.
             KINFO(
