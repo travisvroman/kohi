@@ -1,6 +1,6 @@
 #material file
 
-version=0.1
+version=1
 name=fabric_e
 diffuse_colour=0.588000 0.588000 0.588000 1.000000
 shininess=10.000000

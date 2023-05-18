@@ -1,6 +1,6 @@
 #material file
 
-version=0.1
+version=1
 name=falc_wreck
 diffuse_colour=0.800000 0.800000 0.800000 1.000000
 shininess=8.000000
