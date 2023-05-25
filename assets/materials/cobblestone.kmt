@@ -2,7 +2,7 @@
 
 version=2
 # types can be phong,pbr,custom
-type=custom
+type=phong
 name=cobblestone
 # If custom, shader is required.
 shader=Shader.Builtin.Material
@@ -31,8 +31,8 @@ texture_name=cobblestone_SPEC
 name=normal
 filter_min=linear
 filter_mag=linear
-repeat_u=repeat
 repeat_v=repeat
+repeat_u=repeat
 repeat_w=repeat
 texture_name=cobblestone_NRM
 [/map]

@@ -1,32 +1,26 @@
 #include "vulkan_backend.h"
 
-#include "vulkan_types.inl"
+#include "containers/darray.h"
+#include "core/event.h"
+#include "core/kmemory.h"
+#include "core/kstring.h"
+#include "core/logger.h"
+#include "math/kmath.h"
+#include "math/math_types.h"
+#include "platform/platform.h"
 #include "platform/vulkan_platform.h"
-#include "vulkan_device.h"
-#include "vulkan_swapchain.h"
+#include "renderer/renderer_frontend.h"
+#include "systems/material_system.h"
+#include "systems/resource_system.h"
+#include "systems/shader_system.h"
+#include "systems/texture_system.h"
 #include "vulkan_command_buffer.h"
-#include "vulkan_utils.h"
+#include "vulkan_device.h"
 #include "vulkan_image.h"
 #include "vulkan_pipeline.h"
-
-#include "core/logger.h"
-#include "core/kstring.h"
-#include "core/kmemory.h"
-#include "core/event.h"
-
-#include "containers/darray.h"
-
-#include "math/math_types.h"
-#include "math/kmath.h"
-
-#include "renderer/renderer_frontend.h"
-
-#include "platform/platform.h"
-
-#include "systems/shader_system.h"
-#include "systems/material_system.h"
-#include "systems/texture_system.h"
-#include "systems/resource_system.h"
+#include "vulkan_swapchain.h"
+#include "vulkan_types.inl"
+#include "vulkan_utils.h"
 
 // NOTE: If wanting to trace allocations, uncomment this.
 // #ifndef KVULKAN_ALLOCATOR_TRACE
@@ -841,7 +835,7 @@ b8 vulkan_renderer_renderpass_end(renderer_plugin* plugin, renderpass* pass) {
     // End the renderpass.
     vkCmdEndRenderPass(command_buffer->handle);
     VK_END_DEBUG_LABEL(context, command_buffer->handle);
-    
+
     command_buffer->state = COMMAND_BUFFER_STATE_RECORDING;
     return true;
 }
@@ -1929,21 +1923,7 @@ b8 vulkan_renderer_shader_apply_instance(renderer_plugin* plugin, shader* s, b8 
 
                 // Ensure the texture is valid.
                 if (t->generation == INVALID_ID) {
-                    switch (map->use) {
-                        case TEXTURE_USE_MAP_DIFFUSE:
-                            t = texture_system_get_default_diffuse_texture();
-                            break;
-                        case TEXTURE_USE_MAP_SPECULAR:
-                            t = texture_system_get_default_specular_texture();
-                            break;
-                        case TEXTURE_USE_MAP_NORMAL:
-                            t = texture_system_get_default_normal_texture();
-                            break;
-                        default:
-                            KWARN("Undefined texture use %d", map->use);
-                            t = texture_system_get_default_texture();
-                            break;
-                    }
+                    t = texture_system_get_default_texture();
                 }
 
                 vulkan_image* image = (vulkan_image*)t->internal_data;
@@ -2951,4 +2931,3 @@ b8 vulkan_buffer_draw(renderer_plugin* plugin, renderbuffer* buffer, u64 offset,
         return false;
     }
 }
-

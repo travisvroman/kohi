@@ -1,15 +1,17 @@
 #include "material_system.h"
 
-#include "core/logger.h"
-#include "core/kstring.h"
+#include "containers/darray.h"
 #include "containers/hashtable.h"
+#include "core/kmemory.h"
+#include "core/kstring.h"
+#include "core/logger.h"
 #include "math/kmath.h"
 #include "renderer/renderer_frontend.h"
-#include "systems/texture_system.h"
-
+#include "resources/resource_types.h"
+#include "systems/light_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
-#include "systems/light_system.h"
+#include "systems/texture_system.h"
 
 typedef struct material_shader_uniform_locations {
     u16 projection;
@@ -64,9 +66,9 @@ typedef struct material_reference {
 
 static material_system_state* state_ptr = 0;
 
-b8 create_default_material(material_system_state* state);
-b8 load_material(material_config config, material* m);
-void destroy_material(material* m);
+static b8 create_default_material(material_system_state* state);
+static b8 load_material(material_config* config, material* m);
+static void destroy_material(material* m);
 
 b8 material_system_initialize(u64* memory_requirement, void* state, void* config) {
     material_system_config* typed_config = (material_system_config*)config;
@@ -197,7 +199,7 @@ material* material_system_acquire(const char* name) {
     // Now acquire from loaded config.
     material* m = 0;
     if (material_resource.data) {
-        m = material_system_acquire_from_config(*(material_config*)material_resource.data);
+        m = material_system_acquire_from_config((material_config*)material_resource.data);
     }
 
     // Clean up
@@ -210,17 +212,17 @@ material* material_system_acquire(const char* name) {
     return m;
 }
 
-material* material_system_acquire_from_config(material_config config) {
+material* material_system_acquire_from_config(material_config* config) {
     // Return default material.
-    if (strings_equali(config.name, DEFAULT_MATERIAL_NAME)) {
+    if (strings_equali(config->name, DEFAULT_MATERIAL_NAME)) {
         return &state_ptr->default_material;
     }
 
     material_reference ref;
-    if (state_ptr && hashtable_get(&state_ptr->registered_material_table, config.name, &ref)) {
+    if (state_ptr && hashtable_get(&state_ptr->registered_material_table, config->name, &ref)) {
         // This can only be changed the first time a material is loaded.
         if (ref.reference_count == 0) {
-            ref.auto_release = config.auto_release;
+            ref.auto_release = config->auto_release;
         }
         ref.reference_count++;
         if (ref.handle == INVALID_ID) {
@@ -244,7 +246,7 @@ material* material_system_acquire_from_config(material_config config) {
 
             // Create new material.
             if (!load_material(config, m)) {
-                KERROR("Failed to load material '%s'.", config.name);
+                KERROR("Failed to load material '%s'.", config->name);
                 return 0;
             }
 
@@ -262,12 +264,12 @@ material* material_system_acquire_from_config(material_config config) {
         }
 
         // Update the entry.
-        hashtable_set(&state_ptr->registered_material_table, config.name, &ref);
+        hashtable_set(&state_ptr->registered_material_table, config->name, &ref);
         return &state_ptr->registered_materials[ref.handle];
     }
 
     // NOTE: This would only happen in the event something went wrong with the state.
-    KERROR("material_system_acquire_from_config failed to acquire material '%s'. Null pointer will be returned.", config.name);
+    KERROR("material_system_acquire_from_config failed to acquire material '%s'. Null pointer will be returned.", config->name);
     return 0;
 }
 
@@ -430,97 +432,124 @@ void material_system_dump(void) {
     }
 }
 
-b8 load_material(material_config config, material* m) {
-    kzero_memory(m, sizeof(material));
+static b8 assign_map(texture_map* map, const material_map* config, const char* material_name, texture* default_tex) {
+    map->filter_minify = config->filter_min;
+    map->filter_magnify = config->filter_mag;
+    map->repeat_u = config->repeat_u;
+    map->repeat_v = config->repeat_v;
+    map->repeat_w = config->repeat_w;
 
-    // name
-    string_ncopy(m->name, config.name, MATERIAL_NAME_MAX_LENGTH);
-
-    m->shader_id = shader_system_get_id(config.shader_name);
-
-    // Diffuse colour
-    m->diffuse_colour = config.diffuse_colour;
-    m->shininess = config.shininess;
-
-    // Diffuse map
-    // TODO: Make this configurable.
-    // TODO: DRY
-    m->diffuse_map.filter_minify = m->diffuse_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-    m->diffuse_map.repeat_u = m->diffuse_map.repeat_v = m->diffuse_map.repeat_w = TEXTURE_REPEAT_REPEAT;
-    
-    if (string_length(config.diffuse_map_name) > 0) {
-        m->diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
-        m->diffuse_map.texture = texture_system_acquire(config.diffuse_map_name, true);
-        if (!m->diffuse_map.texture) {
+    if (string_length(config->texture_name) > 0) {
+        map->texture = texture_system_acquire(config->texture_name, true);
+        if (!map->texture) {
             // Configured, but not found.
-            KWARN("Unable to load texture '%s' for material '%s', using default.", config.diffuse_map_name, m->name);
-            m->diffuse_map.texture = texture_system_get_default_texture();
+            KWARN("Unable to load texture '%s' for material '%s', using default.", config->texture_name, material_name);
+            map->texture = default_tex;
         }
     } else {
         // This is done when a texture is not configured, as opposed to when it is configured and not found (above).
-        m->diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
-        m->diffuse_map.texture = texture_system_get_default_diffuse_texture();
+        map->texture = default_tex;
     }
-    if (!renderer_texture_map_resources_acquire(&m->diffuse_map)) {
-        KERROR("Unable to acquire resources for diffuse texture map.");
+    if (!renderer_texture_map_resources_acquire(map)) {
+        KERROR("Unable to acquire resources for texture map.");
         return false;
     }
+    return true;
+}
 
-    // Specular map
-    // TODO: Make this configurable.
-    m->specular_map.filter_minify = m->specular_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-    m->specular_map.repeat_u = m->specular_map.repeat_v = m->specular_map.repeat_w = TEXTURE_REPEAT_REPEAT;
-    
-    if (string_length(config.specular_map_name) > 0) {
-        m->specular_map.use = TEXTURE_USE_MAP_SPECULAR;
-        m->specular_map.texture = texture_system_acquire(config.specular_map_name, true);
-        if (!m->specular_map.texture) {
-            KWARN("Unable to load specular texture '%s' for material '%s', using default.", config.specular_map_name, m->name);
-            m->specular_map.texture = texture_system_get_default_specular_texture();
+static b8 load_material(material_config* config, material* m) {
+    kzero_memory(m, sizeof(material));
+
+    // name
+    string_ncopy(m->name, config->name, MATERIAL_NAME_MAX_LENGTH);
+
+    m->shader_id = shader_system_get_id(config->shader_name);
+
+    // Phong properties and maps.
+    if (config->type == MATERIAL_TYPE_PHONG) {
+        // Phong-specific properties.
+        u32 prop_count = darray_length(config->properties);
+
+        // Defaults
+        m->diffuse_colour = vec4_one();
+        m->shininess = 32.0f;
+        for (u32 i = 0; i < prop_count; ++i) {
+            // Diffuse colour
+            if (strings_equali(config->properties[i].name, "diffuse_colour")) {
+                m->diffuse_colour = config->properties[i].value_v4;
+                break;
+            }
+            // Shininess
+            if (strings_equali(config->properties[i].name, "shininess")) {
+                m->shininess = config->properties[i].value_f32;
+                break;
+            }
         }
-    } else {
-        // NOTE: Only set for clarity, as call to kzero_memory above does this already.
-        m->specular_map.use = TEXTURE_USE_MAP_SPECULAR;
-        m->specular_map.texture = texture_system_get_default_specular_texture();
-    }
-    if (!renderer_texture_map_resources_acquire(&m->specular_map)) {
-        KERROR("Unable to acquire resources for specular texture map.");
-        return false;
-    }
 
-    // Normal map
-    // TODO: Make this configurable.
-    m->normal_map.filter_minify = m->normal_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-    m->normal_map.repeat_u = m->normal_map.repeat_v = m->normal_map.repeat_w = TEXTURE_REPEAT_REPEAT;
-    
-    if (string_length(config.normal_map_name) > 0) {
-        m->normal_map.use = TEXTURE_USE_MAP_NORMAL;
-        m->normal_map.texture = texture_system_acquire(config.normal_map_name, true);
-        if (!m->normal_map.texture) {
-            KWARN("Unable to load normal texture '%s' for material '%s', using default.", config.normal_map_name, m->name);
-            m->normal_map.texture = texture_system_get_default_normal_texture();
+        // Maps. Phong expects a diffuse, specular and normal.
+        u32 map_count = darray_length(config->maps);
+        for (u32 i = 0; i < map_count; ++i) {
+            if (strings_equali(config->maps[i].name, "diffuse")) {
+                if (!assign_map(&m->diffuse_map, &config->maps[i], m->name, texture_system_get_default_diffuse_texture())) {
+                    return false;
+                }
+            } else if (strings_equali(config->maps[i].name, "specular")) {
+                if (!assign_map(&m->specular_map, &config->maps[i], m->name, texture_system_get_default_specular_texture())) {
+                    return false;
+                }
+            } else if (strings_equali(config->maps[i].name, "normal")) {
+                if (!assign_map(&m->normal_map, &config->maps[i], m->name, texture_system_get_default_normal_texture())) {
+                    return false;
+                }
+            }
+            // TODO: other maps
+            // NOTE: Ignore unexpected maps.
         }
-    } else {
-        // Use default
-        m->normal_map.use = TEXTURE_USE_MAP_NORMAL;
-        m->normal_map.texture = texture_system_get_default_normal_texture();
     }
-    if (!renderer_texture_map_resources_acquire(&m->normal_map)) {
-        KERROR("Unable to acquire resources for normal texture map.");
-        return false;
-    }
-
-    // TODO: other maps
 
     // Send it off to the renderer to acquire resources.
-    shader* s = shader_system_get(config.shader_name);
+    shader* s = 0;
+    if (config->type == MATERIAL_TYPE_PHONG) {
+        if (config->shader_name) {
+            s = shader_system_get(config->shader_name);
+        } else {
+            s = shader_system_get("Shader.Builtin.Material");
+        }
+    } else if (config->type == MATERIAL_TYPE_PBR) {
+        KFATAL("PBR not yet supported.");
+        return false;
+    } else if (config->type == MATERIAL_TYPE_CUSTOM) {
+        if (!config->shader_name) {
+            KERROR("Shader name is required for custom material types. Material '%s' failed to load", m->name);
+            return false;
+        }
+        s = shader_system_get(config->shader_name);
+    }
     if (!s) {
-        KERROR("Unable to load material because its shader was not found: '%s'. This is likely a problem with the material asset.", config.shader_name);
+        KERROR("Unable to load material because its shader was not found: '%s'. This is likely a problem with the material asset.", config->shader_name);
         return false;
     }
 
     // Gather a list of pointers to texture maps;
-    texture_map* maps[3] = {&m->diffuse_map, &m->specular_map, &m->normal_map};
+    u32 map_count = darray_length(config->maps);
+    texture_map** maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
+
+    if (config->type == MATERIAL_TYPE_PHONG) {
+        // Maps for this type are known.
+        maps[0] = &m->diffuse_map;
+        maps[1] = &m->specular_map;
+        maps[2] = &m->normal_map;
+    } else if (config->type == MATERIAL_TYPE_CUSTOM) {
+        KFATAL("PBR not yet supported.");
+        return false;
+    } else if (config->type == MATERIAL_TYPE_CUSTOM) {
+        KFATAL("PBR not yet supported.");
+        return false;
+        // TODO: Custom map range
+        // for (u32 i = 0; i < map_count; ++i) {
+        // maps[i] = &m->maps[i];
+        // }
+    }
     if (!renderer_shader_instance_resources_acquire(s, maps, &m->internal_id)) {
         KERROR("Failed to acquire renderer resources for material '%s'.", m->name);
         return false;
@@ -529,7 +558,7 @@ b8 load_material(material_config config, material* m) {
     return true;
 }
 
-void destroy_material(material* m) {
+static void destroy_material(material* m) {
     // KTRACE("Destroying material '%s'...", m->name);
 
     // Release texture references.
@@ -562,19 +591,16 @@ void destroy_material(material* m) {
     m->render_frame_number = INVALID_ID;
 }
 
-b8 create_default_material(material_system_state* state) {
+static b8 create_default_material(material_system_state* state) {
     kzero_memory(&state->default_material, sizeof(material));
     state->default_material.id = INVALID_ID;
     state->default_material.generation = INVALID_ID;
     string_ncopy(state->default_material.name, DEFAULT_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
     state->default_material.diffuse_colour = vec4_one();  // white
-    state->default_material.diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
     state->default_material.diffuse_map.texture = texture_system_get_default_texture();
 
-    state->default_material.specular_map.use = TEXTURE_USE_MAP_SPECULAR;
     state->default_material.specular_map.texture = texture_system_get_default_specular_texture();
 
-    state->default_material.normal_map.use = TEXTURE_USE_MAP_SPECULAR;
     state->default_material.normal_map.texture = texture_system_get_default_normal_texture();
 
     texture_map* maps[3] = {&state->default_material.diffuse_map, &state->default_material.specular_map, &state->default_material.normal_map};

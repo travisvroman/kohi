@@ -1,15 +1,15 @@
 #include "font_system.h"
 
-#include "core/kmemory.h"
-#include "core/logger.h"
-#include "core/kstring.h"
 #include "containers/darray.h"
 #include "containers/hashtable.h"
+#include "core/kmemory.h"
+#include "core/kstring.h"
+#include "core/logger.h"
+#include "renderer/renderer_frontend.h"
 #include "resources/resource_types.h"
 #include "resources/ui_text.h"
-#include "renderer/renderer_frontend.h"
-#include "systems/texture_system.h"
 #include "systems/resource_system.h"
+#include "systems/texture_system.h"
 
 // For system fonts.
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -413,7 +413,6 @@ static b8 setup_font_data(font_data* font) {
     // Create map resources
     font->atlas.filter_magnify = font->atlas.filter_minify = TEXTURE_FILTER_MODE_LINEAR;
     font->atlas.repeat_u = font->atlas.repeat_v = font->atlas.repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
-    font->atlas.use = TEXTURE_USE_MAP_DIFFUSE;
     if (!renderer_texture_map_resources_acquire(&font->atlas)) {
         KERROR("Unable to acquire resources for font atlas texture map.");
         return false;

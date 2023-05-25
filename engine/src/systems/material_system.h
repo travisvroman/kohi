@@ -13,7 +13,6 @@
 #pragma once
 
 #include "defines.h"
-
 #include "resources/resource_types.h"
 
 /** @brief The name of the default material. */
@@ -62,7 +61,7 @@ KAPI material* material_system_acquire(const char* name);
  * @param config The config of the material to load.
  * @return A pointer to the loaded material.
  */
-KAPI material* material_system_acquire_from_config(material_config config);
+KAPI material* material_system_acquire_from_config(material_config* config);
 
 /**
  * @brief Releases a material with the given name. Ignores non-existant materials.

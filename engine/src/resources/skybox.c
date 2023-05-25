@@ -1,8 +1,8 @@
 #include "skybox.h"
 
-#include "core/logger.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "core/logger.h"
 #include "renderer/renderer_frontend.h"
 #include "systems/geometry_system.h"
 #include "systems/shader_system.h"
@@ -27,7 +27,6 @@ b8 skybox_initialize(skybox* sb) {
     texture_map* cube_map = &sb->cubemap;
     cube_map->filter_magnify = cube_map->filter_minify = TEXTURE_FILTER_MODE_LINEAR;
     cube_map->repeat_u = cube_map->repeat_v = cube_map->repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
-    cube_map->use = TEXTURE_USE_MAP_CUBEMAP;
 
     sb->instance_id = INVALID_ID;
 
