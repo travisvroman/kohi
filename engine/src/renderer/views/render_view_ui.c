@@ -1,18 +1,18 @@
 #include "render_view_ui.h"
 
-#include "core/logger.h"
-#include "core/kmemory.h"
+#include "containers/darray.h"
 #include "core/event.h"
+#include "core/kmemory.h"
+#include "core/logger.h"
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "memory/linear_allocator.h"
-#include "containers/darray.h"
-#include "systems/resource_system.h"
-#include "systems/material_system.h"
-#include "systems/render_view_system.h"
-#include "systems/shader_system.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/ui_text.h"
+#include "systems/material_system.h"
+#include "systems/render_view_system.h"
+#include "systems/resource_system.h"
+#include "systems/shader_system.h"
 
 typedef struct render_view_ui_internal_data {
     shader* s;
@@ -41,7 +41,6 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, even
 
     return false;
 }
-
 
 b8 render_view_ui_on_create(struct render_view* self) {
     if (self) {
@@ -184,7 +183,7 @@ b8 render_view_ui_on_render(const struct render_view* self, const struct render_
             if (packet->geometries[i].geometry->material) {
                 m = packet->geometries[i].geometry->material;
             } else {
-                m = material_system_get_default();
+                m = material_system_get_default_ui();
             }
 
             // Update the material if it hasn't already been this frame. This keeps the
@@ -232,7 +231,7 @@ b8 render_view_ui_on_render(const struct render_view* self, const struct render_
 
             // Apply the locals
             mat4 model = transform_world_get(&text->transform);
-            if(!shader_system_uniform_set_by_index(data->model_location, &model)) {
+            if (!shader_system_uniform_set_by_index(data->model_location, &model)) {
                 KERROR("Failed to apply model matrix for text");
             }
 

@@ -42,6 +42,7 @@ typedef struct material_system_state {
     material_system_config config;
 
     material default_material;
+    material default_ui_material;
 
     // Array of registered materials.
     material* registered_materials;
@@ -67,6 +68,7 @@ typedef struct material_reference {
 static material_system_state* state_ptr = 0;
 
 static b8 create_default_material(material_system_state* state);
+static b8 create_default_ui_material(material_system_state* state);
 static b8 load_material(material_config* config, material* m);
 static void destroy_material(material* m);
 
@@ -137,6 +139,11 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
 
     if (!create_default_material(state_ptr)) {
         KFATAL("Failed to create default material. Application cannot continue.");
+        return false;
+    }
+
+    if (!create_default_ui_material(state_ptr)) {
+        KFATAL("Failed to create default UI material. Application cannot continue.");
         return false;
     }
 
@@ -218,6 +225,11 @@ material* material_system_acquire_from_config(material_config* config) {
         return &state_ptr->default_material;
     }
 
+    // Return default UI material.
+    if (strings_equali(config->name, DEFAULT_UI_MATERIAL_NAME)) {
+        return &state_ptr->default_ui_material;
+    }
+
     material_reference ref;
     if (state_ptr && hashtable_get(&state_ptr->registered_material_table, config->name, &ref)) {
         // This can only be changed the first time a material is loaded.
@@ -275,7 +287,7 @@ material* material_system_acquire_from_config(material_config* config) {
 
 void material_system_release(const char* name) {
     // Ignore release requests for the default material.
-    if (strings_equali(name, DEFAULT_MATERIAL_NAME)) {
+    if (strings_equali(name, DEFAULT_MATERIAL_NAME) || strings_equali(name, DEFAULT_UI_MATERIAL_NAME)) {
         return;
     }
     material_reference ref;
@@ -318,6 +330,15 @@ material* material_system_get_default(void) {
     }
 
     KFATAL("material_system_get_default called before system is initialized.");
+    return 0;
+}
+
+material* material_system_get_default_ui(void) {
+    if (state_ptr) {
+        return &state_ptr->default_ui_material;
+    }
+
+    KFATAL("material_system_get_default_ui called before system is initialized.");
     return 0;
 }
 
@@ -505,11 +526,24 @@ static b8 load_material(material_config* config, material* m) {
             // TODO: other maps
             // NOTE: Ignore unexpected maps.
         }
+    } else if (config->type == MATERIAL_TYPE_UI) {
+        // NOTE: only one map and property, so just use the first.
+        // TODO: If this changes, update this to work as it does above.
+        m->diffuse_colour = config->properties[0].value_v4;
+        if (!assign_map(&m->diffuse_map, &config->maps[0], m->name, texture_system_get_default_diffuse_texture())) {
+            return false;
+        }
     }
 
     // Send it off to the renderer to acquire resources.
     shader* s = 0;
     if (config->type == MATERIAL_TYPE_PHONG) {
+        if (config->shader_name) {
+            s = shader_system_get(config->shader_name);
+        } else {
+            s = shader_system_get("Shader.Builtin.Material");
+        }
+    } else if (config->type == MATERIAL_TYPE_UI) {
         if (config->shader_name) {
             s = shader_system_get(config->shader_name);
         } else {
@@ -539,6 +573,9 @@ static b8 load_material(material_config* config, material* m) {
         maps[0] = &m->diffuse_map;
         maps[1] = &m->specular_map;
         maps[2] = &m->normal_map;
+    } else if (config->type == MATERIAL_TYPE_UI) {
+        // Maps for this type are known.
+        maps[0] = &m->diffuse_map;
     } else if (config->type == MATERIAL_TYPE_CUSTOM) {
         KFATAL("PBR not yet supported.");
         return false;
@@ -613,6 +650,28 @@ static b8 create_default_material(material_system_state* state) {
 
     // Make sure to assign the shader id.
     state->default_material.shader_id = s->id;
+
+    return true;
+}
+
+static b8 create_default_ui_material(material_system_state* state) {
+    kzero_memory(&state->default_ui_material, sizeof(material));
+    state->default_ui_material.id = INVALID_ID;
+    state->default_ui_material.generation = INVALID_ID;
+    string_ncopy(state->default_ui_material.name, DEFAULT_UI_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
+    state->default_ui_material.diffuse_colour = vec4_one();  // white
+    state->default_ui_material.diffuse_map.texture = texture_system_get_default_texture();
+
+    texture_map* maps[1] = {&state->default_ui_material.diffuse_map};
+
+    shader* s = shader_system_get("Shader.Builtin.UI");
+    if (!renderer_shader_instance_resources_acquire(s, maps, &state->default_ui_material.internal_id)) {
+        KFATAL("Failed to acquire renderer resources for default UI material. Application cannot continue.");
+        return false;
+    }
+
+    // Make sure to assign the shader id.
+    state->default_ui_material.shader_id = s->id;
 
     return true;
 }

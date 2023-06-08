@@ -173,6 +173,7 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
     resource_data->maps = darray_create(material_map);
     resource_data->properties = darray_create(material_config_prop);
     resource_data->name = string_duplicate(name);
+    resource_data->type = MATERIAL_TYPE_UNKNOWN;
 
     u8 version = 0;
     // Read each line of the file.
@@ -210,11 +211,13 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
                     case MATERIAL_PARSE_MODE_MAP:
                         darray_push(resource_data->maps, current_map);
                         kzero_memory(&current_map, sizeof(material_map));
-                        break;
+                        parse_mode = MATERIAL_PARSE_MODE_GLOBAL;
+                        continue;
                     case MATERIAL_PARSE_MODE_PROPERTY:
                         darray_push(resource_data->properties, current_prop);
                         kzero_memory(&current_prop, sizeof(material_config_prop));
-                        break;
+                        parse_mode = MATERIAL_PARSE_MODE_GLOBAL;
+                        continue;
                 }
             } else {
                 // Opening tag
@@ -279,7 +282,7 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
             if (version == 1) {
                 material_map new_map =
                     material_map_create_default("diffuse", trimmed_value);
-                darray_push(resource_data->maps, &new_map);
+                darray_push(resource_data->maps, new_map);
             } else {
                 KERROR(
                     "Format error: unexpected variable 'diffuse_map_name', this "
@@ -289,7 +292,7 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
             if (version == 1) {
                 material_map new_map =
                     material_map_create_default("normal", trimmed_value);
-                darray_push(resource_data->maps, &new_map);
+                darray_push(resource_data->maps, new_map);
             } else {
                 KERROR(
                     "Format error: unexpected variable 'diffuse_map_name', this "
@@ -299,7 +302,7 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
             if (version == 1) {
                 material_map new_map =
                     material_map_create_default("specular", trimmed_value);
-                darray_push(resource_data->maps, &new_map);
+                darray_push(resource_data->maps, new_map);
             } else {
                 KERROR(
                     "Format error: unexpected variable 'diffuse_map_name', this "
@@ -311,7 +314,7 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
                     "diffuse_colour", SHADER_UNIFORM_TYPE_FLOAT32_4, trimmed_value);
 
                 // LEFTOFF: nullptr on properties for some reason???
-                darray_push(resource_data->properties, &new_prop);
+                darray_push(resource_data->properties, new_prop);
             } else {
                 KERROR(
                     "Format error: unexpected variable 'diffuse_colour', this "
@@ -324,7 +327,7 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
             if (version == 1) {
                 material_config_prop new_prop = material_config_prop_create(
                     "shininess", SHADER_UNIFORM_TYPE_FLOAT32, trimmed_value);
-                darray_push(resource_data->properties, &new_prop);
+                darray_push(resource_data->properties, new_prop);
             } else {
                 KERROR(
                     "Format error: unexpected variable 'shininess', this "
@@ -332,15 +335,24 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
             }
         } else if (strings_equali(trimmed_var_name, "type")) {
             if (version >= 2) {
-                if (strings_equali(trimmed_value, "phong")) {
-                    resource_data->type = MATERIAL_TYPE_PHONG;
-                } else if (strings_equali(trimmed_value, "pbr")) {
-                    resource_data->type = MATERIAL_TYPE_PBR;
-                } else if (strings_equali(trimmed_value, "custom")) {
-                    resource_data->type = MATERIAL_TYPE_CUSTOM;
+                if (parse_mode == MATERIAL_PARSE_MODE_GLOBAL) {
+                    if (strings_equali(trimmed_value, "phong")) {
+                        resource_data->type = MATERIAL_TYPE_PHONG;
+                    } else if (strings_equali(trimmed_value, "pbr")) {
+                        resource_data->type = MATERIAL_TYPE_PBR;
+                    } else if (strings_equali(trimmed_value, "ui")) {
+                        resource_data->type = MATERIAL_TYPE_UI;
+                    } else if (strings_equali(trimmed_value, "custom")) {
+                        resource_data->type = MATERIAL_TYPE_CUSTOM;
+                    } else {
+                        KERROR("Format error: Unexpected material type '%s' (Material='%s')", trimmed_value, resource_data->name);
+                    }
+                } else if (parse_mode == MATERIAL_PARSE_MODE_PROPERTY) {
+                    current_prop.type = material_parse_prop_type(trimmed_value);
                 } else {
-                    KERROR("Format error: Unexpected material type '%s'", trimmed_value);
+                    KERROR("Format error: Unexpected variable 'type' in mode.");
                 }
+
             } else {
                 KERROR(
                     "Format error: Unexpected variable 'type', this should only "
@@ -369,9 +381,6 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
         } else if (strings_equali(trimmed_var_name, "texture_name")) {
             MATERIAL_PARSE_VERIFY_MODE(MATERIAL_PARSE_MODE_MAP, parse_mode, trimmed_var_name, "map");
             current_map.texture_name = string_duplicate(trimmed_value);
-        } else if (strings_equali(trimmed_var_name, "type")) {
-            MATERIAL_PARSE_VERIFY_MODE(MATERIAL_PARSE_MODE_PROPERTY, parse_mode, trimmed_var_name, "prop");
-            current_prop.type = material_parse_prop_type(trimmed_value);
         } else if (strings_equali(trimmed_var_name, "value")) {
             MATERIAL_PARSE_VERIFY_MODE(MATERIAL_PARSE_MODE_PROPERTY, parse_mode, trimmed_var_name, "prop");
             material_prop_assign_value(&current_prop, trimmed_value);

@@ -471,6 +471,7 @@ typedef enum material_type {
     MATERIAL_TYPE_UNKNOWN = 0,
     MATERIAL_TYPE_PHONG = 1,
     MATERIAL_TYPE_PBR = 2,
+    MATERIAL_TYPE_UI = 3,
     MATERIAL_TYPE_CUSTOM = 99
 } material_type;
 
