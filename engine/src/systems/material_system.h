@@ -13,11 +13,13 @@
 #pragma once
 
 #include "defines.h"
-
 #include "resources/resource_types.h"
 
 /** @brief The name of the default material. */
 #define DEFAULT_MATERIAL_NAME "default"
+
+/** @brief The name of the default UI material. */
+#define DEFAULT_UI_MATERIAL_NAME "default_ui"
 
 /** @brief The configuration for the material system. */
 typedef struct material_system_config {
@@ -62,7 +64,7 @@ KAPI material* material_system_acquire(const char* name);
  * @param config The config of the material to load.
  * @return A pointer to the loaded material.
  */
-KAPI material* material_system_acquire_from_config(material_config config);
+KAPI material* material_system_acquire_from_config(material_config* config);
 
 /**
  * @brief Releases a material with the given name. Ignores non-existant materials.
@@ -77,6 +79,8 @@ KAPI void material_system_release(const char* name);
  * @brief Gets a pointer to the default material. Does not reference count.
  */
 KAPI material* material_system_get_default(void);
+
+KAPI material* material_system_get_default_ui(void);
 
 /**
  * @brief Applies global-level data for the material shader id.

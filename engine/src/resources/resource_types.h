@@ -161,21 +161,6 @@ typedef struct texture {
     void *internal_data;
 } texture;
 
-/** @brief A collection of texture uses */
-typedef enum texture_use {
-    /** @brief An unknown use. This is default, but should never actually be used.
-     */
-    TEXTURE_USE_UNKNOWN = 0x00,
-    /** @brief The texture is used as a diffuse map. */
-    TEXTURE_USE_MAP_DIFFUSE = 0x01,
-    /** @brief The texture is used as a specular map. */
-    TEXTURE_USE_MAP_SPECULAR = 0x02,
-    /** @brief The texture is used as a normal map. */
-    TEXTURE_USE_MAP_NORMAL = 0x03,
-    /** @brief The texture is used as a cube map. */
-    TEXTURE_USE_MAP_CUBEMAP = 0x04,
-} texture_use;
-
 /** @brief Represents supported texture filtering modes. */
 typedef enum texture_filter {
     /** @brief Nearest-neighbor filtering. */
@@ -198,8 +183,6 @@ typedef enum texture_repeat {
 typedef struct texture_map {
     /** @brief A pointer to a texture. */
     texture *texture;
-    /** @brief The use of the texture */
-    texture_use use;
     /** @brief Texture filtering mode for minification. */
     texture_filter filter_minify;
     /** @brief Texture filtering mode for magnification. */
@@ -278,30 +261,6 @@ typedef struct system_font_resource_data {
 
 /** @brief The maximum length of a material name. */
 #define MATERIAL_NAME_MAX_LENGTH 256
-
-/**
- * @brief Material configuration typically loaded from
- * a file or created in code to load a material from.
- */
-typedef struct material_config {
-    /** @brief The name of the material. */
-    char name[MATERIAL_NAME_MAX_LENGTH];
-    /** @brief The material type. */
-    char *shader_name;
-    /** @brief Indicates if the material should be automatically released when no
-     * references to it remain. */
-    b8 auto_release;
-    /** @brief The diffuse colour of the material. */
-    vec4 diffuse_colour;
-    /** @brief The shininess of the material. */
-    f32 shininess;
-    /** @brief The diffuse map name. */
-    char diffuse_map_name[TEXTURE_NAME_MAX_LENGTH];
-    /** @brief The specular map name. */
-    char specular_map_name[TEXTURE_NAME_MAX_LENGTH];
-    /** @brief The normal map name. */
-    char normal_map_name[TEXTURE_NAME_MAX_LENGTH];
-} material_config;
 
 /**
  * @brief A material, which represents various properties
@@ -508,6 +467,57 @@ typedef struct shader_config {
      */
     b8 depth_write;
 } shader_config;
+
+typedef enum material_type {
+    // Invalid.
+    MATERIAL_TYPE_UNKNOWN = 0,
+    MATERIAL_TYPE_PHONG = 1,
+    MATERIAL_TYPE_PBR = 2,
+    MATERIAL_TYPE_UI = 3,
+    MATERIAL_TYPE_CUSTOM = 99
+} material_type;
+
+typedef struct material_config_prop {
+    char *name;
+    shader_uniform_type type;
+    // FIXME: This seems like a colossal waste of memory... perhaps a union or
+    // something better?
+    vec4 value_v4;
+    vec3 value_v3;
+    vec2 value_v2;
+    f32 value_f32;
+    u32 value_u32;
+    u16 value_u16;
+    u8 value_u8;
+    i32 value_i32;
+    i16 value_i16;
+    i8 value_i8;
+    mat4 value_mat4;
+} material_config_prop;
+
+typedef struct material_map {
+    char *name;
+    char *texture_name;
+    texture_filter filter_min;
+    texture_filter filter_mag;
+    texture_repeat repeat_u;
+    texture_repeat repeat_v;
+    texture_repeat repeat_w;
+} material_map;
+
+typedef struct material_config {
+    u8 version;
+    char *name;
+    material_type type;
+    char *shader_name;
+    // darray
+    material_config_prop *properties;
+    // darray
+    material_map *maps;
+    /** @brief Indicates if the material should be automatically released when no
+     * references to it remain. */
+    b8 auto_release;
+} material_config;
 
 typedef struct skybox_simple_scene_config {
     char *name;

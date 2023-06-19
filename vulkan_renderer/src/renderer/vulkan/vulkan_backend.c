@@ -10,7 +10,6 @@
 #include "platform/platform.h"
 #include "platform/vulkan_platform.h"
 #include "renderer/renderer_frontend.h"
-#include "renderer/renderer_types.inl"
 #include "systems/material_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
@@ -2259,21 +2258,7 @@ b8 vulkan_renderer_shader_apply_instance(renderer_plugin *plugin, shader *s,
 
                 // Ensure the texture is valid.
                 if (t->generation == INVALID_ID) {
-                    switch (map->use) {
-                        case TEXTURE_USE_MAP_DIFFUSE:
-                            t = texture_system_get_default_diffuse_texture();
-                            break;
-                        case TEXTURE_USE_MAP_SPECULAR:
-                            t = texture_system_get_default_specular_texture();
-                            break;
-                        case TEXTURE_USE_MAP_NORMAL:
-                            t = texture_system_get_default_normal_texture();
-                            break;
-                        default:
-                            KWARN("Undefined texture use %d", map->use);
-                            t = texture_system_get_default_texture();
-                            break;
-                    }
+                    t = texture_system_get_default_texture();
                 }
 
                 vulkan_image *image = (vulkan_image *)t->internal_data;

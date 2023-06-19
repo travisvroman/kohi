@@ -21,7 +21,7 @@ typedef enum mesh_file_type {
 } mesh_file_type;
 
 typedef struct supported_mesh_filetype {
-    char* extension;
+    char *extension;
     mesh_file_type type;
     b8 is_binary;
 } supported_mesh_filetype;
@@ -38,43 +38,52 @@ typedef struct mesh_face_data {
 
 typedef struct mesh_group_data {
     // darray
-    mesh_face_data* faces;
+    mesh_face_data *faces;
 } mesh_group_data;
 
-static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, geometry_config** out_geometries_darray);
-static void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, mesh_face_data* faces, geometry_config* out_data);
-static b8 import_obj_material_library_file(const char* mtl_file_path);
+static b8 import_obj_file(file_handle *obj_file, const char *out_ksm_filename,
+                          geometry_config **out_geometries_darray);
+static void process_subobject(vec3 *positions, vec3 *normals, vec2 *tex_coords,
+                              mesh_face_data *faces, geometry_config *out_data);
+static b8 import_obj_material_library_file(const char *mtl_file_path);
 
-static b8 load_ksm_file(file_handle* ksm_file, geometry_config** out_geometries_darray);
-static b8 write_ksm_file(const char* path, const char* name, u32 geometry_count, geometry_config* geometries);
-static b8 write_kmt_file(const char* directory, material_config* config);
+static b8 load_ksm_file(file_handle *ksm_file,
+                        geometry_config **out_geometries_darray);
+static b8 write_ksm_file(const char *path, const char *name, u32 geometry_count,
+                         geometry_config *geometries);
+static b8 write_kmt_file(const char *directory, material_config *config);
 
-static b8 mesh_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
+static b8 mesh_loader_load(struct resource_loader *self, const char *name,
+                           void *params, resource *out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
 
-    char* format_str = "%s/%s/%s%s";
+    char *format_str = "%s/%s/%s%s";
     file_handle f;
-    // Supported extensions. Note that these are in order of priority when looked up.
-    // This is to prioritize the loading of a binary version of the mesh, followed by
-    // importing various types of meshes to binary types, which would be loaded on the
-    // next run.
-    // TODO: Might be good to be able to specify an override to always import (i.e. skip
-    // binary versions) for debug purposes.
+    // Supported extensions. Note that these are in order of priority when looked
+    // up. This is to prioritize the loading of a binary version of the mesh,
+    // followed by importing various types of meshes to binary types, which would
+    // be loaded on the next run.
+    // TODO: Might be good to be able to specify an override to always import
+    // (i.e. skip binary versions) for debug purposes.
 #define SUPPORTED_FILETYPE_COUNT 2
     supported_mesh_filetype supported_filetypes[SUPPORTED_FILETYPE_COUNT];
-    supported_filetypes[0] = (supported_mesh_filetype){".ksm", MESH_FILE_TYPE_KSM, true};
-    supported_filetypes[1] = (supported_mesh_filetype){".obj", MESH_FILE_TYPE_OBJ, false};
+    supported_filetypes[0] =
+        (supported_mesh_filetype){".ksm", MESH_FILE_TYPE_KSM, true};
+    supported_filetypes[1] =
+        (supported_mesh_filetype){".obj", MESH_FILE_TYPE_OBJ, false};
 
     char full_file_path[512];
     mesh_file_type type = MESH_FILE_TYPE_NOT_FOUND;
     // Try each supported extension.
     for (u32 i = 0; i < SUPPORTED_FILETYPE_COUNT; ++i) {
-        string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, supported_filetypes[i].extension);
+        string_format(full_file_path, format_str, resource_system_base_path(),
+                      self->type_path, name, supported_filetypes[i].extension);
         // If the file exists, open it and stop looking.
         if (filesystem_exists(full_file_path)) {
-            if (filesystem_open(full_file_path, FILE_MODE_READ, supported_filetypes[i].is_binary, &f)) {
+            if (filesystem_open(full_file_path, FILE_MODE_READ,
+                                supported_filetypes[i].is_binary, &f)) {
                 type = supported_filetypes[i].type;
                 break;
             }
@@ -89,14 +98,15 @@ static b8 mesh_loader_load(struct resource_loader* self, const char* name, void*
     out_resource->full_path = string_duplicate(full_file_path);
 
     // The resource data is just an array of configs.
-    geometry_config* resource_data = darray_create(geometry_config);
+    geometry_config *resource_data = darray_create(geometry_config);
 
     b8 result = false;
     switch (type) {
         case MESH_FILE_TYPE_OBJ: {
             // Generate the ksm filename.
             char ksm_file_name[512];
-            string_format(ksm_file_name, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".ksm");
+            string_format(ksm_file_name, "%s/%s/%s%s", resource_system_base_path(),
+                          self->type_path, name, ".ksm");
             result = import_obj_file(&f, ksm_file_name, &resource_data);
             break;
         }
@@ -127,10 +137,11 @@ static b8 mesh_loader_load(struct resource_loader* self, const char* name, void*
     return true;
 }
 
-static void mesh_loader_unload(struct resource_loader* self, resource* resource) {
+static void mesh_loader_unload(struct resource_loader *self,
+                               resource *resource) {
     u32 count = darray_length(resource->data);
     for (u32 i = 0; i < count; ++i) {
-        geometry_config* config = &((geometry_config*)resource->data)[i];
+        geometry_config *config = &((geometry_config *)resource->data)[i];
         geometry_system_config_dispose(config);
     }
     darray_destroy(resource->data);
@@ -138,7 +149,8 @@ static void mesh_loader_unload(struct resource_loader* self, resource* resource)
     resource->data_size = 0;
 }
 
-static b8 load_ksm_file(file_handle* ksm_file, geometry_config** out_geometries_darray) {
+static b8 load_ksm_file(file_handle *ksm_file,
+                        geometry_config **out_geometries_darray) {
     // Version
     u64 bytes_read = 0;
     u16 version = 0;
@@ -163,25 +175,30 @@ static b8 load_ksm_file(file_handle* ksm_file, geometry_config** out_geometries_
         filesystem_read(ksm_file, sizeof(u32), &g.vertex_size, &bytes_read);
         filesystem_read(ksm_file, sizeof(u32), &g.vertex_count, &bytes_read);
         g.vertices = kallocate(g.vertex_size * g.vertex_count, MEMORY_TAG_ARRAY);
-        filesystem_read(ksm_file, g.vertex_size * g.vertex_count, g.vertices, &bytes_read);
+        filesystem_read(ksm_file, g.vertex_size * g.vertex_count, g.vertices,
+                        &bytes_read);
 
         // Indices (size/count/array)
         filesystem_read(ksm_file, sizeof(u32), &g.index_size, &bytes_read);
         filesystem_read(ksm_file, sizeof(u32), &g.index_count, &bytes_read);
         g.indices = kallocate(g.index_size * g.index_count, MEMORY_TAG_ARRAY);
-        filesystem_read(ksm_file, g.index_size * g.index_count, g.indices, &bytes_read);
+        filesystem_read(ksm_file, g.index_size * g.index_count, g.indices,
+                        &bytes_read);
 
         // Name
         u32 g_name_length = 0;
         filesystem_read(ksm_file, sizeof(u32), &g_name_length, &bytes_read);
-        filesystem_read(ksm_file, sizeof(char) * g_name_length, g.name, &bytes_read);
+        filesystem_read(ksm_file, sizeof(char) * g_name_length, g.name,
+                        &bytes_read);
 
         // Material Name
         u32 m_name_length = 0;
         filesystem_read(ksm_file, sizeof(u32), &m_name_length, &bytes_read);
-        filesystem_read(ksm_file, sizeof(char) * m_name_length, g.material_name, &bytes_read);
+        filesystem_read(ksm_file, sizeof(char) * m_name_length, g.material_name,
+                        &bytes_read);
 
-        // Handles backward compatability for https://github.com/travisvroman/kohi/issues/130
+        // Handles backward compatability for
+        // https://github.com/travisvroman/kohi/issues/130
         u64 extent_size = sizeof(vec3);
         if (version == 0x0001U) {
             extent_size = sizeof(vertex_3d);
@@ -203,7 +220,8 @@ static b8 load_ksm_file(file_handle* ksm_file, geometry_config** out_geometries_
     return true;
 }
 
-static b8 write_ksm_file(const char* path, const char* name, u32 geometry_count, geometry_config* geometries) {
+static b8 write_ksm_file(const char *path, const char *name, u32 geometry_count,
+                         geometry_config *geometries) {
     if (filesystem_exists(path)) {
         KINFO("File '%s' already exists and will be overwritten.", path);
     }
@@ -230,12 +248,13 @@ static b8 write_ksm_file(const char* path, const char* name, u32 geometry_count,
 
     // Each geometry
     for (u32 i = 0; i < geometry_count; ++i) {
-        geometry_config* g = &geometries[i];
+        geometry_config *g = &geometries[i];
 
         // Vertices (size/count/array)
         filesystem_write(&f, sizeof(u32), &g->vertex_size, &written);
         filesystem_write(&f, sizeof(u32), &g->vertex_count, &written);
-        filesystem_write(&f, g->vertex_size * g->vertex_count, g->vertices, &written);
+        filesystem_write(&f, g->vertex_size * g->vertex_count, g->vertices,
+                         &written);
 
         // Indices (size/count/array)
         filesystem_write(&f, sizeof(u32), &g->index_size, &written);
@@ -250,7 +269,8 @@ static b8 write_ksm_file(const char* path, const char* name, u32 geometry_count,
         // Material Name
         u32 m_name_length = string_length(g->material_name) + 1;
         filesystem_write(&f, sizeof(u32), &m_name_length, &written);
-        filesystem_write(&f, sizeof(char) * m_name_length, g->material_name, &written);
+        filesystem_write(&f, sizeof(char) * m_name_length, g->material_name,
+                         &written);
 
         // Center
         filesystem_write(&f, sizeof(vec3), &g->center, &written);
@@ -266,26 +286,28 @@ static b8 write_ksm_file(const char* path, const char* name, u32 geometry_count,
 }
 
 /**
- * @brief Imports an obj file. This reads the obj, creates geometry configs, then calls logic to write
- * those geometries out to a binary ksm file. That file can be used on the next load.
+ * @brief Imports an obj file. This reads the obj, creates geometry configs,
+ * then calls logic to write those geometries out to a binary ksm file. That
+ * file can be used on the next load.
  *
  * @param obj_file A pointer to the obj file handle to be read.
  * @param out_ksm_filename The path to the ksm file to be written to.
  * @param out_geometries_darray A darray of geometries parsed from the file.
  * @return True on success; otherwise false.
  */
-static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, geometry_config** out_geometries_darray) {
+static b8 import_obj_file(file_handle *obj_file, const char *out_ksm_filename,
+                          geometry_config **out_geometries_darray) {
     // Positions
-    vec3* positions = darray_reserve(vec3, 16384);
+    vec3 *positions = darray_reserve(vec3, 16384);
 
     // Normals
-    vec3* normals = darray_reserve(vec3, 16384);
+    vec3 *normals = darray_reserve(vec3, 16384);
 
     // Normals
-    vec2* tex_coords = darray_reserve(vec2, 16384);
+    vec2 *tex_coords = darray_reserve(vec2, 16384);
 
     // Groups
-    mesh_group_data* groups = darray_reserve(mesh_group_data, 4);
+    mesh_group_data *groups = darray_reserve(mesh_group_data, 4);
 
     char material_file_name[512] = "";
 
@@ -295,7 +317,7 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, g
     char material_names[32][64];
 
     char line_buf[512] = "";
-    char* p = &line_buf[0];
+    char *p = &line_buf[0];
     u64 line_length = 0;
 
     // index 0 is previous, 1 is previous before that.
@@ -323,13 +345,7 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, g
                         // Vertex position
                         vec3 pos;
                         char t[2];
-                        sscanf(
-                            line_buf,
-                            "%s %f %f %f",
-                            t,
-                            &pos.x,
-                            &pos.y,
-                            &pos.z);
+                        sscanf(line_buf, "%s %f %f %f", t, &pos.x, &pos.y, &pos.z);
 
                         darray_push(positions, pos);
                     } break;
@@ -337,13 +353,7 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, g
                         // Vertex normal
                         vec3 norm;
                         char t[2];
-                        sscanf(
-                            line_buf,
-                            "%s %f %f %f",
-                            t,
-                            &norm.x,
-                            &norm.y,
-                            &norm.z);
+                        sscanf(line_buf, "%s %f %f %f", t, &norm.x, &norm.y, &norm.z);
 
                         darray_push(normals, norm);
                     } break;
@@ -353,12 +363,7 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, g
                         char t[2];
 
                         // NOTE: Ignoring Z if present.
-                        sscanf(
-                            line_buf,
-                            "%s %f %f",
-                            t,
-                            &tex_coord.x,
-                            &tex_coord.y);
+                        sscanf(line_buf, "%s %f %f", t, &tex_coord.x, &tex_coord.y);
 
                         darray_push(tex_coords, tex_coord);
                     } break;
@@ -376,29 +381,20 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, g
                 u64 tex_coord_count = darray_length(tex_coords);
 
                 if (normal_count == 0 || tex_coord_count == 0) {
-                    sscanf(
-                        line_buf,
-                        "%s %d %d %d",
-                        t,
-                        &face.vertices[0].position_index,
-                        &face.vertices[1].position_index,
-                        &face.vertices[2].position_index);
+                    sscanf(line_buf, "%s %d %d %d", t, &face.vertices[0].position_index,
+                           &face.vertices[1].position_index,
+                           &face.vertices[2].position_index);
                 } else {
-                    sscanf(
-                        line_buf,
-                        "%s %d/%d/%d %d/%d/%d %d/%d/%d",
-                        t,
-                        &face.vertices[0].position_index,
-                        &face.vertices[0].texcoord_index,
-                        &face.vertices[0].normal_index,
+                    sscanf(line_buf, "%s %d/%d/%d %d/%d/%d %d/%d/%d", t,
+                           &face.vertices[0].position_index,
+                           &face.vertices[0].texcoord_index, &face.vertices[0].normal_index,
 
-                        &face.vertices[1].position_index,
-                        &face.vertices[1].texcoord_index,
-                        &face.vertices[1].normal_index,
+                           &face.vertices[1].position_index,
+                           &face.vertices[1].texcoord_index, &face.vertices[1].normal_index,
 
-                        &face.vertices[2].position_index,
-                        &face.vertices[2].texcoord_index,
-                        &face.vertices[2].normal_index);
+                           &face.vertices[2].position_index,
+                           &face.vertices[2].texcoord_index,
+                           &face.vertices[2].normal_index);
                 }
                 u64 group_index = darray_length(groups) - 1;
                 darray_push(groups[group_index].faces, face);
@@ -407,11 +403,7 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, g
                 // Material library file.
                 char substr[7];
 
-                sscanf(
-                    line_buf,
-                    "%s %s",
-                    substr,
-                    material_file_name);
+                sscanf(line_buf, "%s %s", substr, material_file_name);
 
                 // If found, save off the material file name.
                 if (strings_nequali(substr, "mtllib", 6)) {
@@ -420,7 +412,8 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, g
             } break;
             case 'u': {
                 // Any time there is a usemtl, assume a new group.
-                // New named group or smoothing group, all faces coming after should be added to it.
+                // New named group or smoothing group, all faces coming after should be
+                // added to it.
                 mesh_group_data new_group;
                 new_group.faces = darray_reserve(mesh_face_data, 16384);
                 darray_push(groups, new_group);
@@ -442,7 +435,8 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, g
                     }
                     string_ncopy(new_data.material_name, material_names[i], 255);
 
-                    process_subobject(positions, normals, tex_coords, groups[i].faces, &new_data);
+                    process_subobject(positions, normals, tex_coords, groups[i].faces,
+                                      &new_data);
                     new_data.vertex_count = darray_length(new_data.vertices);
                     new_data.vertex_size = sizeof(vertex_3d);
                     new_data.index_count = darray_length(new_data.indices);
@@ -482,7 +476,8 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, g
         }
         string_ncopy(new_data.material_name, material_names[i], 255);
 
-        process_subobject(positions, normals, tex_coords, groups[i].faces, &new_data);
+        process_subobject(positions, normals, tex_coords, groups[i].faces,
+                          &new_data);
         new_data.vertex_count = darray_length(new_data.vertices);
         new_data.vertex_size = sizeof(vertex_3d);
         new_data.index_count = darray_length(new_data.indices);
@@ -515,12 +510,16 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, g
     // De-duplicate geometry
     u32 count = darray_length(*out_geometries_darray);
     for (u64 i = 0; i < count; ++i) {
-        geometry_config* g = &((*out_geometries_darray)[i]);
-        KDEBUG("Geometry de-duplication process starting on geometry object named '%s'...", g->name);
+        geometry_config *g = &((*out_geometries_darray)[i]);
+        KDEBUG(
+            "Geometry de-duplication process starting on geometry object named "
+            "'%s'...",
+            g->name);
 
         u32 new_vert_count = 0;
-        vertex_3d* unique_verts = 0;
-        geometry_deduplicate_vertices(g->vertex_count, g->vertices, g->index_count, g->indices, &new_vert_count, &unique_verts);
+        vertex_3d *unique_verts = 0;
+        geometry_deduplicate_vertices(g->vertex_count, g->vertices, g->index_count,
+                                      g->indices, &new_vert_count, &unique_verts);
 
         // Destroy the old, large array...
         darray_destroy(g->vertices);
@@ -530,22 +529,26 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename, g
         g->vertex_count = new_vert_count;
 
         // Take a copy of the indices as a normal, non-darray
-        u32* indices = kallocate(sizeof(u32) * g->index_count, MEMORY_TAG_ARRAY);
+        u32 *indices = kallocate(sizeof(u32) * g->index_count, MEMORY_TAG_ARRAY);
         kcopy_memory(indices, g->indices, sizeof(u32) * g->index_count);
         // Destroy the darray
         darray_destroy(g->indices);
         // Replace with the non-darray version.
         g->indices = indices;
 
-        // Also generate tangents here, this way tangents are also stored in the output file.
-        geometry_generate_tangents(g->vertex_count, g->vertices, g->index_count, g->indices);
+        // Also generate tangents here, this way tangents are also stored in the
+        // output file.
+        geometry_generate_tangents(g->vertex_count, g->vertices, g->index_count,
+                                   g->indices);
     }
 
     // Output a ksm file, which will be loaded in the future.
     return write_ksm_file(out_ksm_filename, name, count, *out_geometries_darray);
 }
 
-static void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, mesh_face_data* faces, geometry_config* out_data) {
+static void process_subobject(vec3 *positions, vec3 *normals, vec2 *tex_coords,
+                              mesh_face_data *faces,
+                              geometry_config *out_data) {
     out_data->indices = darray_create(u32);
     out_data->vertices = darray_create(vertex_3d);
     b8 extent_set = false;
@@ -624,21 +627,23 @@ static void process_subobject(vec3* positions, vec3* normals, vec2* tex_coords, 
 
     // Calculate the center based on the extents.
     for (u8 i = 0; i < 3; ++i) {
-        out_data->center.elements[i] = (out_data->min_extents.elements[i] + out_data->max_extents.elements[i]) / 2.0f;
+        out_data->center.elements[i] = (out_data->min_extents.elements[i] +
+                                        out_data->max_extents.elements[i]) /
+                                       2.0f;
     }
 }
 
-// TODO: Load the material library file, and create material definitions from it.
-// These definitions should be output to .kmt files. These .kmt files are then
-// loaded when the material is acquired on mesh load.
-// NOTE: This should eventually account for duplicate materials. When the .kmt
-// files are written, if the file already exists the material should have something
-// such as a number appended to its name and a warning thrown to the console. The artist
-// should make sure material names are unique. When the material is acquired, the _original_
-// existing material name would be used, which would visually be wrong and serve as additional
-// reinforcement of the message for material uniqueness.
-// Material configs should not be returned or used here.
-static b8 import_obj_material_library_file(const char* mtl_file_path) {
+// TODO: Load the material library file, and create material definitions from
+// it. These definitions should be output to .kmt files. These .kmt files are
+// then loaded when the material is acquired on mesh load. NOTE: This should
+// eventually account for duplicate materials. When the .kmt files are written,
+// if the file already exists the material should have something such as a
+// number appended to its name and a warning thrown to the console. The artist
+// should make sure material names are unique. When the material is acquired,
+// the _original_ existing material name would be used, which would visually be
+// wrong and serve as additional reinforcement of the message for material
+// uniqueness. Material configs should not be returned or used here.
+static b8 import_obj_material_library_file(const char *mtl_file_path) {
     KDEBUG("Importing obj .mtl file '%s'...", mtl_file_path);
     // Grab the .mtl file, if it exists, and read the material information.
     file_handle mtl_file;
@@ -652,9 +657,9 @@ static b8 import_obj_material_library_file(const char* mtl_file_path) {
 
     b8 hit_name = false;
 
-    char* line = 0;
+    char *line = 0;
     char line_buffer[512];
-    char* p = &line_buffer[0];
+    char *p = &line_buffer[0];
     u64 line_length = 0;
     while (true) {
         if (!filesystem_read_line(&mtl_file, 512, &p, &line_length)) {
@@ -682,17 +687,20 @@ static b8 import_obj_material_library_file(const char* mtl_file_path) {
                         // Ambient/Diffuse colour are treated the same at this level.
                         // ambient colour is determined by the level.
                         char t[2];
-                        sscanf(
-                            line,
-                            "%s %f %f %f",
-                            t,
-                            &current_config.diffuse_colour.r,
-                            &current_config.diffuse_colour.g,
-                            &current_config.diffuse_colour.b);
+                        material_config_prop prop = {0};
+                        prop.name = "diffuse_colour";
+                        prop.type = SHADER_UNIFORM_TYPE_FLOAT32_4;
 
-                        // NOTE: This is only used by the colour shader, and will set to max_norm by default.
-                        // Transparency could be added as a material property all its own at a later time.
-                        current_config.diffuse_colour.a = 1.0f;
+                        sscanf(line, "%s %f %f %f", t, &prop.value_v4.r,
+                               &prop.value_v4.g,
+                               &prop.value_v4.b);
+
+                        // NOTE: This is only used by the colour shader, and will set to
+                        // max_norm by default. Transparency could be added as a material
+                        // property all its own at a later time.
+                        prop.value_v4.a = 1.0f;
+
+                        darray_push(current_config.properties, prop);
                     } break;
                     case 's': {
                         // Specular colour
@@ -700,13 +708,8 @@ static b8 import_obj_material_library_file(const char* mtl_file_path) {
 
                         // NOTE: Not using this for now.
                         f32 spec_rubbish = 0.0f;
-                        sscanf(
-                            line,
-                            "%s %f %f %f",
-                            t,
-                            &spec_rubbish,
-                            &spec_rubbish,
-                            &spec_rubbish);
+                        sscanf(line, "%s %f %f %f", t, &spec_rubbish, &spec_rubbish,
+                               &spec_rubbish);
                     } break;
                 }
             } break;
@@ -717,7 +720,17 @@ static b8 import_obj_material_library_file(const char* mtl_file_path) {
                         // Specular exponent
                         char t[2];
 
-                        sscanf(line, "%s %f", t, &current_config.shininess);
+                        material_config_prop prop = {0};
+                        prop.name = "shininess";
+                        prop.type = SHADER_UNIFORM_TYPE_FLOAT32;
+                        sscanf(line, "%s %f", t, &prop.value_f32);
+                        // NOTE: Need to make sure this is nonzero as this will cause
+                        // artefacts in the rendering of objects.
+                        if (prop.value_f32 == 0) {
+                            prop.value_f32 = 8.0f;
+                        }
+
+                        darray_push(current_config.properties, prop);
                     } break;
                 }
             } break;
@@ -726,60 +739,67 @@ static b8 import_obj_material_library_file(const char* mtl_file_path) {
                 char substr[10];
                 char texture_file_name[512];
 
-                sscanf(
-                    line,
-                    "%s %s",
-                    substr,
-                    texture_file_name);
+                sscanf(line, "%s %s", substr, texture_file_name);
 
-                //
+                material_map map = {0};
+                // NOTE: Making some assumptions about filtering and repeat modes.
+                map.filter_min = map.filter_mag = TEXTURE_FILTER_MODE_LINEAR;
+                map.repeat_u = map.repeat_v = map.repeat_w = TEXTURE_REPEAT_REPEAT;
+
+                // Texture name
+                char tex_name_buf[512] = {0};
+                string_filename_no_extension_from_path(tex_name_buf, texture_file_name);
+                map.texture_name = string_duplicate(tex_name_buf);
+
+                // map name/type
                 if (strings_nequali(substr, "map_Kd", 6)) {
                     // Is a diffuse texture map
-                    string_filename_no_extension_from_path(current_config.diffuse_map_name, texture_file_name);
+                    map.name = "diffuse";
                 } else if (strings_nequali(substr, "map_Ks", 6)) {
                     // Is a specular texture map
-                    string_filename_no_extension_from_path(current_config.specular_map_name, texture_file_name);
+                    map.name = "specular";
                 } else if (strings_nequali(substr, "map_bump", 8)) {
                     // Is a bump texture map
-                    string_filename_no_extension_from_path(current_config.normal_map_name, texture_file_name);
+                    map.name = "normal";
                 }
+
+                darray_push(current_config.maps, map);
             } break;
             case 'b': {
                 // Some implementations use 'bump' instead of 'map_bump'.
                 char substr[10];
                 char texture_file_name[512];
 
-                sscanf(
-                    line,
-                    "%s %s",
-                    substr,
-                    texture_file_name);
+                sscanf(line, "%s %s", substr, texture_file_name);
+
+                material_map map = {0};
+                // NOTE: Making some assumptions about filtering and repeat modes.
+                map.filter_min = map.filter_mag = TEXTURE_FILTER_MODE_LINEAR;
+                map.repeat_u = map.repeat_v = map.repeat_w = TEXTURE_REPEAT_REPEAT;
+
+                // Texture name
+                char tex_name_buf[512] = {0};
+                string_filename_no_extension_from_path(tex_name_buf, texture_file_name);
+                map.texture_name = string_duplicate(tex_name_buf);
+
                 if (strings_nequali(substr, "bump", 4)) {
-                    // Is a bump (normal) texture map
-                    string_filename_no_extension_from_path(current_config.normal_map_name, texture_file_name);
+                    map.name = "normal";
                 }
+
+                darray_push(current_config.maps, map);
             }
             case 'n': {
                 // Some implementations use 'bump' instead of 'map_bump'.
                 char substr[10];
                 char material_name[512];
 
-                sscanf(
-                    line,
-                    "%s %s",
-                    substr,
-                    material_name);
+                sscanf(line, "%s %s", substr, material_name);
                 if (strings_nequali(substr, "newmtl", 6)) {
                     // Is a material name.
 
-                    // NOTE: Hardcoding default material shader name because all objects imported this way
-                    // will be treated the same.
+                    // NOTE: Hardcoding default material shader name because all objects
+                    // imported this way will be treated the same.
                     current_config.shader_name = "Shader.Builtin.Material";
-                    // NOTE: Shininess of 0 will cause problems in the shader. Use a default
-                    // if this is the case.
-                    if (current_config.shininess == 0.0f) {
-                        current_config.shininess = 8.0f;
-                    }
                     if (hit_name) {
                         //  Write out a kmt file and move on.
                         if (!write_kmt_file(mtl_file_path, &current_config)) {
@@ -800,14 +820,9 @@ static b8 import_obj_material_library_file(const char* mtl_file_path) {
     }  // each line
 
     // Write out the remaining kmt file.
-    // NOTE: Hardcoding default material shader name because all objects imported this way
-    // will be treated the same.
+    // NOTE: Hardcoding default material shader name because all objects imported
+    // this way will be treated the same.
     current_config.shader_name = "Shader.Builtin.Material";
-    // NOTE: Shininess of 0 will cause problems in the shader. Use a default
-    // if this is the case.
-    if (current_config.shininess == 0.0f) {
-        current_config.shininess = 8.0f;
-    }
     if (!write_kmt_file(mtl_file_path, &current_config)) {
         KERROR("Unable to write kmt file.");
         return false;
@@ -817,19 +832,64 @@ static b8 import_obj_material_library_file(const char* mtl_file_path) {
     return true;
 }
 
+static const char *string_from_repeat(texture_repeat repeat) {
+    switch (repeat) {
+        default:
+        case TEXTURE_REPEAT_REPEAT:
+            return "repeat";
+        case TEXTURE_REPEAT_CLAMP_TO_EDGE:
+            return "clamp_to_edge";
+        case TEXTURE_REPEAT_CLAMP_TO_BORDER:
+            return "clamp_to_border";
+        case TEXTURE_REPEAT_MIRRORED_REPEAT:
+            return "mirrored";
+    }
+}
+
+static const char *string_from_type(shader_uniform_type type) {
+    switch (type) {
+        case SHADER_UNIFORM_TYPE_FLOAT32:
+            return "f32";
+        case SHADER_UNIFORM_TYPE_FLOAT32_2:
+            return "vec2";
+        case SHADER_UNIFORM_TYPE_FLOAT32_3:
+            return "vec3";
+        case SHADER_UNIFORM_TYPE_FLOAT32_4:
+            return "vec4";
+        case SHADER_UNIFORM_TYPE_INT8:
+            return "i8";
+        case SHADER_UNIFORM_TYPE_INT16:
+            return "i16";
+        case SHADER_UNIFORM_TYPE_INT32:
+            return "i32";
+        case SHADER_UNIFORM_TYPE_UINT8:
+            return "u8";
+        case SHADER_UNIFORM_TYPE_UINT16:
+            return "u16";
+        case SHADER_UNIFORM_TYPE_UINT32:
+            return "u32";
+        case SHADER_UNIFORM_TYPE_MATRIX_4:
+            return "mat4";
+        default:
+            KERROR("Unrecognized uniform type %d, defaulting to i32.", type);
+            return "i32";
+    }
+}
+
 /**
- * @brief Write out a kohi material file from config. This gets loaded by name later when the mesh
- * is requested for load.
+ * @brief Write out a kohi material file from config. This gets loaded by name
+ * later when the mesh is requested for load.
  *
- * @param mtl_file_path The filepath of the material library file which originally contained the material definition.
+ * @param mtl_file_path The filepath of the material library file which
+ * originally contained the material definition.
  * @param config A pointer to the config to be converted to kmt.
  * @return True on success; otherwise false.
  */
-static b8 write_kmt_file(const char* mtl_file_path, material_config* config) {
+static b8 write_kmt_file(const char *mtl_file_path, material_config *config) {
     // NOTE: The .obj file this came from (and resulting .mtl file) sit in the
     // models directory. This moves up a level and back into the materials folder.
     // TODO: Read from config and get an absolute path for output.
-    char* format_str = "%s../materials/%s%s";
+    char *format_str = "%s../materials/%s%s";
     file_handle f;
     char directory[320];
     string_directory_from_path(directory, mtl_file_path);
@@ -843,29 +903,111 @@ static b8 write_kmt_file(const char* mtl_file_path, material_config* config) {
     KDEBUG("Writing .kmt file '%s'...", full_file_path);
 
     char line_buffer[512];
+    // File header
     filesystem_write_line(&f, "#material file");
     filesystem_write_line(&f, "");
-    filesystem_write_line(&f, "version=0.1");  // TODO: hardcoded version.
+    filesystem_write_line(&f, "version=2");
+
+    filesystem_write_line(&f, "# Types can be phong,pbr,custom");
+    filesystem_write_line(&f, "type=phong");  // TODO: Other material types
+
     string_format(line_buffer, "name=%s", config->name);
     filesystem_write_line(&f, line_buffer);
-    string_format(line_buffer, "diffuse_colour=%.6f %.6f %.6f %.6f", config->diffuse_colour.r, config->diffuse_colour.g, config->diffuse_colour.b, config->diffuse_colour.a);
-    filesystem_write_line(&f, line_buffer);
-    string_format(line_buffer, "shininess=%.6f", config->shininess);
-    filesystem_write_line(&f, line_buffer);
-    if (config->diffuse_map_name[0]) {
-        string_format(line_buffer, "diffuse_map_name=%s", config->diffuse_map_name);
-        filesystem_write_line(&f, line_buffer);
-    }
-    if (config->specular_map_name[0]) {
-        string_format(line_buffer, "specular_map_name=%s", config->specular_map_name);
-        filesystem_write_line(&f, line_buffer);
-    }
-    if (config->normal_map_name[0]) {
-        string_format(line_buffer, "normal_map_name=%s", config->normal_map_name);
-        filesystem_write_line(&f, line_buffer);
-    }
+
+    filesystem_write_line(&f, "# If custom, shader is required.");
     string_format(line_buffer, "shader=%s", config->shader_name);
     filesystem_write_line(&f, line_buffer);
+
+    // Write maps
+    u32 map_count = darray_length(config->maps);
+    for (u32 i = 0; i < map_count; ++i) {
+        string_format(line_buffer, "name=%s", config->maps[i].name);
+        filesystem_write_line(&f, line_buffer);
+
+        string_format(line_buffer, "filter_min=%s", config->maps[i].filter_min == TEXTURE_FILTER_MODE_LINEAR ? "linear" : "nearest");
+        filesystem_write_line(&f, line_buffer);
+        string_format(line_buffer, "filter_mag=%s", config->maps[i].filter_mag == TEXTURE_FILTER_MODE_LINEAR ? "linear" : "nearest");
+        filesystem_write_line(&f, line_buffer);
+
+        string_format(line_buffer, "repeat_u=%s", string_from_repeat(config->maps[i].repeat_u));
+        filesystem_write_line(&f, line_buffer);
+        string_format(line_buffer, "repeat_v=%s", string_from_repeat(config->maps[i].repeat_v));
+        filesystem_write_line(&f, line_buffer);
+        string_format(line_buffer, "repeat_w=%s", string_from_repeat(config->maps[i].repeat_w));
+        filesystem_write_line(&f, line_buffer);
+
+        string_format(line_buffer, "texture_name=%s", config->maps[i].texture_name);
+        filesystem_write_line(&f, line_buffer);
+    }
+
+    // Write properties.
+    u32 prop_count = darray_length(config->properties);
+    for (u32 i = 0; i < prop_count; ++i) {
+        string_format(line_buffer, "name=%s", config->properties[i].name);
+        filesystem_write_line(&f, line_buffer);
+
+        // type
+        string_format(line_buffer, "type=%s", string_from_type(config->properties[i].type));
+        filesystem_write_line(&f, line_buffer);
+        // value
+        switch (config->properties[i].type) {
+            case SHADER_UNIFORM_TYPE_FLOAT32:
+                string_format(line_buffer, "value=%f", config->properties[i].value_f32);
+                break;
+            case SHADER_UNIFORM_TYPE_FLOAT32_2:
+                string_format(line_buffer, "value=%f %f", config->properties[i].value_v2);
+                break;
+            case SHADER_UNIFORM_TYPE_FLOAT32_3:
+                string_format(line_buffer, "value=%f %f %f", config->properties[i].value_v3);
+                break;
+            case SHADER_UNIFORM_TYPE_FLOAT32_4:
+                string_format(line_buffer, "value=%f %f %f %f", config->properties[i].value_v4);
+                break;
+            case SHADER_UNIFORM_TYPE_INT8:
+                string_format(line_buffer, "value=%d", config->properties[i].value_i8);
+                break;
+            case SHADER_UNIFORM_TYPE_INT16:
+                string_format(line_buffer, "value=%d", config->properties[i].value_i16);
+                break;
+            case SHADER_UNIFORM_TYPE_INT32:
+                string_format(line_buffer, "value=%d", config->properties[i].value_i32);
+                break;
+            case SHADER_UNIFORM_TYPE_UINT8:
+                string_format(line_buffer, "value=%u", config->properties[i].value_u8);
+                break;
+            case SHADER_UNIFORM_TYPE_UINT16:
+                string_format(line_buffer, "value=%u", config->properties[i].value_u16);
+                break;
+            case SHADER_UNIFORM_TYPE_UINT32:
+                string_format(line_buffer, "value=%u", config->properties[i].value_u32);
+                break;
+            case SHADER_UNIFORM_TYPE_MATRIX_4:
+                string_format(line_buffer, "value=%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f ",
+                              config->properties[i].value_mat4.data[0],
+                              config->properties[i].value_mat4.data[1],
+                              config->properties[i].value_mat4.data[2],
+                              config->properties[i].value_mat4.data[3],
+                              config->properties[i].value_mat4.data[4],
+                              config->properties[i].value_mat4.data[5],
+                              config->properties[i].value_mat4.data[6],
+                              config->properties[i].value_mat4.data[7],
+                              config->properties[i].value_mat4.data[8],
+                              config->properties[i].value_mat4.data[9],
+                              config->properties[i].value_mat4.data[10],
+                              config->properties[i].value_mat4.data[11],
+                              config->properties[i].value_mat4.data[12],
+                              config->properties[i].value_mat4.data[13],
+                              config->properties[i].value_mat4.data[14],
+                              config->properties[i].value_mat4.data[15]);
+                break;
+            case SHADER_UNIFORM_TYPE_SAMPLER:
+            case SHADER_UNIFORM_TYPE_CUSTOM:
+            default:
+                KERROR("Unsupported material property type.");
+                break;
+        }
+        filesystem_write_line(&f, line_buffer);
+    }
 
     filesystem_close(&f);
 

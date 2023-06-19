@@ -1,12 +1,10 @@
 #include "shader_system.h"
 
-#include "core/logger.h"
+#include "containers/darray.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
-
-#include "containers/darray.h"
+#include "core/logger.h"
 #include "renderer/renderer_frontend.h"
-
 #include "systems/texture_system.h"
 
 // The internal shader system state.
@@ -37,7 +35,7 @@ b8 shader_uniform_add_state_valid(shader* shader);
 void shader_destroy(shader* s);
 ///////////////////////
 
-b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config) {\
+b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config) {
     shader_system_config* typed_config = (shader_system_config*)config;
     // Verify configuration.
     if (typed_config->max_shader_count < 512) {
@@ -406,8 +404,6 @@ b8 add_sampler(shader* shader, shader_uniform_config* config) {
         default_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
         default_map.filter_minify = TEXTURE_FILTER_MODE_LINEAR;
         default_map.repeat_u = default_map.repeat_v = default_map.repeat_w = TEXTURE_REPEAT_REPEAT;
-        default_map.use = TEXTURE_USE_UNKNOWN;
-        
 
         // Allocate a pointer assign the texture, and push into global texture maps.
         // NOTE: This allocation is only done for global texture maps.
@@ -419,7 +415,7 @@ b8 add_sampler(shader* shader, shader_uniform_config* config) {
             KERROR("Failed to acquire resources for global texture map during shader creation.");
             return false;
         }
-        
+
         darray_push(shader->global_texture_maps, map);
     } else {
         // Otherwise, it's instance-level, so keep count of how many need to be added during the resource acquisition.
@@ -456,6 +452,7 @@ u32 get_shader_id(const char* shader_name) {
         KERROR("There is no shader registered named '%s'.", shader_name);
         return INVALID_ID;
     }
+    KTRACE("Got id %u for shader named '%s", shader_id, shader_name);
     return shader_id;
 }
 
