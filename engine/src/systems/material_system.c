@@ -547,7 +547,7 @@ static b8 load_material(material_config* config, material* m) {
         if (config->shader_name) {
             s = shader_system_get(config->shader_name);
         } else {
-            s = shader_system_get("Shader.Builtin.Material");
+            s = shader_system_get("Shader.Builtin.UI");
         }
     } else if (config->type == MATERIAL_TYPE_PBR) {
         KFATAL("PBR not yet supported.");
@@ -565,34 +565,45 @@ static b8 load_material(material_config* config, material* m) {
     }
 
     // Gather a list of pointers to texture maps;
-    u32 map_count = darray_length(config->maps);
-    texture_map** maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
 
+    texture_map** maps = 0;
+    u32 map_count = 0;
     if (config->type == MATERIAL_TYPE_PHONG) {
         // Maps for this type are known.
+        map_count = 3;
+        maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
         maps[0] = &m->diffuse_map;
         maps[1] = &m->specular_map;
         maps[2] = &m->normal_map;
     } else if (config->type == MATERIAL_TYPE_UI) {
         // Maps for this type are known.
+        map_count = 1;
+        maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
         maps[0] = &m->diffuse_map;
-    } else if (config->type == MATERIAL_TYPE_CUSTOM) {
+    } else if (config->type == MATERIAL_TYPE_PBR) {
         KFATAL("PBR not yet supported.");
         return false;
     } else if (config->type == MATERIAL_TYPE_CUSTOM) {
         KFATAL("PBR not yet supported.");
+        // u32 map_count = darray_length(config->maps);
+        // maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
         return false;
         // TODO: Custom map range
         // for (u32 i = 0; i < map_count; ++i) {
         // maps[i] = &m->maps[i];
         // }
     }
-    if (!renderer_shader_instance_resources_acquire(s, maps, &m->internal_id)) {
+
+    b8 result = renderer_shader_instance_resources_acquire(s, maps, &m->internal_id);
+    if (!result) {
         KERROR("Failed to acquire renderer resources for material '%s'.", m->name);
-        return false;
     }
 
-    return true;
+    if (maps) {
+        kfree(maps, sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
+    }
+
+    return result;
 }
 
 static void destroy_material(material* m) {

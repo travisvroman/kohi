@@ -110,6 +110,7 @@ static void material_prop_assign_value(material_config_prop *prop, const char *v
 static material_config_prop material_config_prop_create(const char *name, shader_uniform_type type, const char *value) {
     material_config_prop prop = {};
     prop.name = string_duplicate(name);
+    prop.type = type;
     material_prop_assign_value(&prop, value);
     return prop;
 }
@@ -156,26 +157,22 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
 
     file_handle f;
     if (!filesystem_open(full_file_path, FILE_MODE_READ, false, &f)) {
-        KERROR(
-            "material_loader_load - unable to open material file for reading: "
-            "'%s'.",
-            full_file_path);
+        KERROR("material_loader_load - unable to open material file for reading: '%s'.", full_file_path);
         return false;
     }
 
     out_resource->full_path = string_duplicate(full_file_path);
 
-    material_config *resource_data =
-        kallocate(sizeof(material_config), MEMORY_TAG_RESOURCE);
+    material_config *resource_data = kallocate(sizeof(material_config), MEMORY_TAG_RESOURCE);
     // Set some defaults.
-    resource_data->shader_name = "Builtin.Material";  // Default material.
+    resource_data->shader_name = "Shader.Builtin.Material";  // Default material.
     resource_data->auto_release = true;
     resource_data->maps = darray_create(material_map);
     resource_data->properties = darray_create(material_config_prop);
     resource_data->name = string_duplicate(name);
     resource_data->type = MATERIAL_TYPE_UNKNOWN;
-
-    u8 version = 0;
+    // NOTE: Defaulting to version 1 since that version didn't require a "version" tag in the file to denote it.
+    resource_data->version = 1;
     // Read each line of the file.
     char line_buf[512] = "";
     char *p = &line_buf[0];
@@ -261,7 +258,7 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
 
         // Process the variable.
         if (strings_equali(trimmed_var_name, "version")) {
-            if (!string_to_u8(trimmed_value, &version)) {
+            if (!string_to_u8(trimmed_value, &resource_data->version)) {
                 KERROR("Format error: failed to parse version. Aborting.");
                 return false;  // TODO: cleanup memory.
             }
@@ -269,7 +266,13 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
             switch (parse_mode) {
                 default:
                 case MATERIAL_PARSE_MODE_GLOBAL:
-                    string_ncopy(resource_data->name, trimmed_value, MATERIAL_NAME_MAX_LENGTH);
+                    if (resource_data->name) {
+                        u32 len = string_length(resource_data->name);
+                        kfree(resource_data->name, len + 1, MEMORY_TAG_STRING);
+                        resource_data->name = 0;
+                    }
+                    resource_data->name = string_duplicate(trimmed_value);
+                    // string_ncopy(resource_data->name, trimmed_value, MATERIAL_NAME_MAX_LENGTH);
                     break;
                 case MATERIAL_PARSE_MODE_MAP:
                     current_map.name = string_duplicate(trimmed_value);
@@ -279,9 +282,8 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
                     break;
             }
         } else if (strings_equali(trimmed_var_name, "diffuse_map_name")) {
-            if (version == 1) {
-                material_map new_map =
-                    material_map_create_default("diffuse", trimmed_value);
+            if (resource_data->version == 1) {
+                material_map new_map = material_map_create_default("diffuse", trimmed_value);
                 darray_push(resource_data->maps, new_map);
             } else {
                 KERROR(
@@ -289,9 +291,8 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
                     "should only exist for version 1 materials. Ignored.");
             }
         } else if (strings_equali(trimmed_var_name, "specular_map_name")) {
-            if (version == 1) {
-                material_map new_map =
-                    material_map_create_default("normal", trimmed_value);
+            if (resource_data->version == 1) {
+                material_map new_map = material_map_create_default("specular", trimmed_value);
                 darray_push(resource_data->maps, new_map);
             } else {
                 KERROR(
@@ -299,9 +300,8 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
                     "should only exist for version 1 materials. Ignored.");
             }
         } else if (strings_equali(trimmed_var_name, "normal_map_name")) {
-            if (version == 1) {
-                material_map new_map =
-                    material_map_create_default("specular", trimmed_value);
+            if (resource_data->version == 1) {
+                material_map new_map = material_map_create_default("normal", trimmed_value);
                 darray_push(resource_data->maps, new_map);
             } else {
                 KERROR(
@@ -309,11 +309,10 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
                     "should only exist for version 1 materials. Ignored.");
             }
         } else if (strings_equali(trimmed_var_name, "diffuse_colour")) {
-            if (version == 1) {
+            if (resource_data->version == 1) {
                 material_config_prop new_prop = material_config_prop_create(
                     "diffuse_colour", SHADER_UNIFORM_TYPE_FLOAT32_4, trimmed_value);
 
-                // LEFTOFF: nullptr on properties for some reason???
                 darray_push(resource_data->properties, new_prop);
             } else {
                 KERROR(
@@ -324,7 +323,7 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
             // Take a copy of the material name.
             resource_data->shader_name = string_duplicate(trimmed_value);
         } else if (strings_equali(trimmed_var_name, "shininess")) {
-            if (version == 1) {
+            if (resource_data->version == 1) {
                 material_config_prop new_prop = material_config_prop_create(
                     "shininess", SHADER_UNIFORM_TYPE_FLOAT32, trimmed_value);
                 darray_push(resource_data->properties, new_prop);
@@ -334,7 +333,7 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
                     "should only exist for version 1 materials. Ignored.");
             }
         } else if (strings_equali(trimmed_var_name, "type")) {
-            if (version >= 2) {
+            if (resource_data->version >= 2) {
                 if (parse_mode == MATERIAL_PARSE_MODE_GLOBAL) {
                     if (strings_equali(trimmed_value, "phong")) {
                         resource_data->type = MATERIAL_TYPE_PHONG;
@@ -391,6 +390,11 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
         // Clear the line buffer.
         kzero_memory(line_buf, sizeof(char) * 512);
         line_number++;
+    }
+
+    // If version 1 and unknown material type, default to "phong"
+    if (resource_data->version == 1 && resource_data->type == MATERIAL_TYPE_UNKNOWN) {
+        resource_data->type = MATERIAL_TYPE_PHONG;
     }
 
     filesystem_close(&f);

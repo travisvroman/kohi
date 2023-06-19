@@ -452,6 +452,7 @@ u32 get_shader_id(const char* shader_name) {
         KERROR("There is no shader registered named '%s'.", shader_name);
         return INVALID_ID;
     }
+    KTRACE("Got id %u for shader named '%s", shader_id, shader_name);
     return shader_id;
 }
 

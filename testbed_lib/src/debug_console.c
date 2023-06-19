@@ -12,6 +12,14 @@
 b8 debug_console_consumer_write(void* inst, log_level level, const char* message) {
     debug_console_state* state = (debug_console_state*)inst;
     if (state) {
+        // For high-priority error/fatal messages, don't bother with splitting, 
+        // just output them because something truly terrible could prevent this 
+        // split from happening.
+        if(level <= LOG_LEVEL_ERROR) {
+            darray_push(state->lines, message);
+            state->dirty = true;
+            return true;
+        }
         // Create a new copy of the string, and try splitting it
         // by newlines to make each one count as a new line.
         // NOTE: The lack of cleanup on the strings is intentional
