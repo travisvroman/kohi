@@ -383,10 +383,10 @@ b8 material_system_apply_instance(material* m, b8 needs_update) {
         if (m->shader_id == state_ptr->material_shader_id) {
             // Material shader
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_colour, &m->diffuse_colour));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_texture, &m->diffuse_map));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, &m->specular_map));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, &m->normal_map));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.shininess, &m->shininess));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_texture, &m->maps[0]));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, &m->maps[1]));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, &m->maps[2]));
 
             // Directional light.
             directional_light* dir_light = light_system_directional_light_get();
@@ -418,7 +418,7 @@ b8 material_system_apply_instance(material* m, b8 needs_update) {
         } else if (m->shader_id == state_ptr->ui_shader_id) {
             // UI shader
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.diffuse_colour, &m->diffuse_colour));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.diffuse_texture, &m->diffuse_map));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.diffuse_texture, &m->maps[0]));
         } else {
             KERROR("material_system_apply_instance(): Unrecognized shader id '%d' on shader '%s'.", m->shader_id, m->name);
             return false;
@@ -485,6 +485,7 @@ static b8 load_material(material_config* config, material* m) {
     string_ncopy(m->name, config->name, MATERIAL_NAME_MAX_LENGTH);
 
     m->shader_id = shader_system_get_id(config->shader_name);
+    m->type = config->type;
 
     // Phong properties and maps.
     if (config->type == MATERIAL_TYPE_PHONG) {
@@ -508,18 +509,20 @@ static b8 load_material(material_config* config, material* m) {
         }
 
         // Maps. Phong expects a diffuse, specular and normal.
+        m->maps = darray_reserve(texture_map, 3);
+        darray_length_set(m->maps, 3);
         u32 map_count = darray_length(config->maps);
         for (u32 i = 0; i < map_count; ++i) {
             if (strings_equali(config->maps[i].name, "diffuse")) {
-                if (!assign_map(&m->diffuse_map, &config->maps[i], m->name, texture_system_get_default_diffuse_texture())) {
+                if (!assign_map(&m->maps[0], &config->maps[i], m->name, texture_system_get_default_diffuse_texture())) {
                     return false;
                 }
             } else if (strings_equali(config->maps[i].name, "specular")) {
-                if (!assign_map(&m->specular_map, &config->maps[i], m->name, texture_system_get_default_specular_texture())) {
+                if (!assign_map(&m->maps[1], &config->maps[i], m->name, texture_system_get_default_specular_texture())) {
                     return false;
                 }
             } else if (strings_equali(config->maps[i].name, "normal")) {
-                if (!assign_map(&m->normal_map, &config->maps[i], m->name, texture_system_get_default_normal_texture())) {
+                if (!assign_map(&m->maps[2], &config->maps[i], m->name, texture_system_get_default_normal_texture())) {
                     return false;
                 }
             }
@@ -529,9 +532,43 @@ static b8 load_material(material_config* config, material* m) {
     } else if (config->type == MATERIAL_TYPE_UI) {
         // NOTE: only one map and property, so just use the first.
         // TODO: If this changes, update this to work as it does above.
+        m->maps = darray_reserve(texture_map, 1);
+        darray_length_set(m->maps, 1);
         m->diffuse_colour = config->properties[0].value_v4;
-        if (!assign_map(&m->diffuse_map, &config->maps[0], m->name, texture_system_get_default_diffuse_texture())) {
+        if (!assign_map(&m->maps[0], &config->maps[0], m->name, texture_system_get_default_diffuse_texture())) {
             return false;
+        }
+    } else if (config->type == MATERIAL_TYPE_CUSTOM) {
+        // Properties.
+        u32 prop_count = darray_length(config->properties);
+        // Defaults
+        m->diffuse_colour = vec4_one();
+        m->shininess = 32.0f;
+        // Search for exact names to override the defaults and apply them. Otherwise they are
+        // properties to be applied otherwise. TODO: map this to locations in the shader.
+        for (u32 i = 0; i < prop_count; ++i) {
+            // Diffuse colour
+            if (strings_equali(config->properties[i].name, "diffuse_colour")) {
+                m->diffuse_colour = config->properties[i].value_v4;
+                break;
+            }
+            // Shininess
+            if (strings_equali(config->properties[i].name, "shininess")) {
+                m->shininess = config->properties[i].value_f32;
+                break;
+            }
+        }
+
+        // Maps. Custom materials can have any number of maps.
+        u32 map_count = darray_length(config->maps);
+        m->maps = darray_reserve(texture_map, map_count);
+        darray_length_set(m->maps, map_count);
+        for (u32 i = 0; i < map_count; ++i) {
+            // No known mapping, so just map them in order.
+            // Invalid textures will use the default texture because map type isn't known.
+            if (!assign_map(&m->maps[i], &config->maps[i], m->name, texture_system_get_default_texture())) {
+                return false;
+            }
         }
     }
 
@@ -572,26 +609,23 @@ static b8 load_material(material_config* config, material* m) {
         // Maps for this type are known.
         map_count = 3;
         maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
-        maps[0] = &m->diffuse_map;
-        maps[1] = &m->specular_map;
-        maps[2] = &m->normal_map;
+        for (u32 i = 0; i < map_count; ++i) {
+            maps[i] = &m->maps[i];
+        }
     } else if (config->type == MATERIAL_TYPE_UI) {
         // Maps for this type are known.
         map_count = 1;
         maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
-        maps[0] = &m->diffuse_map;
+        maps[0] = &m->maps[0];
     } else if (config->type == MATERIAL_TYPE_PBR) {
         KFATAL("PBR not yet supported.");
         return false;
     } else if (config->type == MATERIAL_TYPE_CUSTOM) {
-        KFATAL("PBR not yet supported.");
-        // u32 map_count = darray_length(config->maps);
-        // maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
-        return false;
-        // TODO: Custom map range
-        // for (u32 i = 0; i < map_count; ++i) {
-        // maps[i] = &m->maps[i];
-        // }
+        map_count = darray_length(config->maps);
+        maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < map_count; ++i) {
+            maps[i] = &m->maps[i];
+        }
     }
 
     b8 result = renderer_shader_instance_resources_acquire(s, maps, &m->internal_id);
@@ -609,21 +643,13 @@ static b8 load_material(material_config* config, material* m) {
 static void destroy_material(material* m) {
     // KTRACE("Destroying material '%s'...", m->name);
 
-    // Release texture references.
-    if (m->diffuse_map.texture) {
-        texture_system_release(m->diffuse_map.texture->name);
+    u32 length = darray_length(m->maps);
+    for (u32 i = 0; i < length; ++i) {
+        // Release texture references.
+        texture_system_release(m->maps[i].texture->name);
+        // Release texture map resources.
+        renderer_texture_map_resources_release(&m->maps[i]);
     }
-    if (m->specular_map.texture) {
-        texture_system_release(m->specular_map.texture->name);
-    }
-    if (m->normal_map.texture) {
-        texture_system_release(m->normal_map.texture->name);
-    }
-
-    // Release texture map resources.
-    renderer_texture_map_resources_release(&m->diffuse_map);
-    renderer_texture_map_resources_release(&m->specular_map);
-    renderer_texture_map_resources_release(&m->normal_map);
 
     // Release renderer resources.
     if (m->shader_id != INVALID_ID && m->internal_id != INVALID_ID) {
@@ -642,16 +668,20 @@ static void destroy_material(material* m) {
 static b8 create_default_material(material_system_state* state) {
     kzero_memory(&state->default_material, sizeof(material));
     state->default_material.id = INVALID_ID;
+    state->default_material.type = MATERIAL_TYPE_PHONG;
     state->default_material.generation = INVALID_ID;
     string_ncopy(state->default_material.name, DEFAULT_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
     state->default_material.diffuse_colour = vec4_one();  // white
-    state->default_material.diffuse_map.texture = texture_system_get_default_texture();
+    state->default_material.maps = darray_reserve(texture_map, 3);
+    darray_length_set(state->default_material.maps, 3);
+    state->default_material.maps[0].texture = texture_system_get_default_texture();
 
-    state->default_material.specular_map.texture = texture_system_get_default_specular_texture();
+    state->default_material.maps[1].texture = texture_system_get_default_specular_texture();
 
-    state->default_material.normal_map.texture = texture_system_get_default_normal_texture();
+    state->default_material.maps[2].texture = texture_system_get_default_normal_texture();
 
-    texture_map* maps[3] = {&state->default_material.diffuse_map, &state->default_material.specular_map, &state->default_material.normal_map};
+    // NOTE: Phong material is default.
+    texture_map* maps[3] = {&state->default_material.maps[0], &state->default_material.maps[1], &state->default_material.maps[2]};
 
     shader* s = shader_system_get("Shader.Builtin.Material");
     if (!renderer_shader_instance_resources_acquire(s, maps, &state->default_material.internal_id)) {
@@ -668,12 +698,15 @@ static b8 create_default_material(material_system_state* state) {
 static b8 create_default_ui_material(material_system_state* state) {
     kzero_memory(&state->default_ui_material, sizeof(material));
     state->default_ui_material.id = INVALID_ID;
+    state->default_ui_material.type = MATERIAL_TYPE_UI;
     state->default_ui_material.generation = INVALID_ID;
     string_ncopy(state->default_ui_material.name, DEFAULT_UI_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
     state->default_ui_material.diffuse_colour = vec4_one();  // white
-    state->default_ui_material.diffuse_map.texture = texture_system_get_default_texture();
+    state->default_ui_material.maps = darray_reserve(texture_map, 1);
+    darray_length_set(state->default_ui_material.maps, 1);
+    state->default_ui_material.maps[0].texture = texture_system_get_default_texture();
 
-    texture_map* maps[1] = {&state->default_ui_material.diffuse_map};
+    texture_map* maps[1] = {&state->default_ui_material.maps[0]};
 
     shader* s = shader_system_get("Shader.Builtin.UI");
     if (!renderer_shader_instance_resources_acquire(s, maps, &state->default_ui_material.internal_id)) {

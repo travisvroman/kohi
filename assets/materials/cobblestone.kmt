@@ -45,7 +45,7 @@ value=1.0 1.0 1.0 1.0
 
 [prop]
 name=shininess
-type=float
+type=f32
 value=32.0
 [/prop]
 

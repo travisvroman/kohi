@@ -192,12 +192,18 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct line
     u32 geometry_data_count = darray_length(geometry_data);
     for (u32 i = 0; i < geometry_data_count; ++i) {
         geometry_render_data* g_data = &geometry_data[i];
-        if(!g_data->geometry) {
+        if (!g_data->geometry) {
             continue;
         }
-        
+
         // TODO: Add something to material to check for transparency.
-        if ((g_data->geometry->material->diffuse_map.texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) == 0) {
+        b8 has_transparency = false;
+        if (g_data->geometry->material->type == MATERIAL_TYPE_PHONG) {
+            // Check diffuse map (slot 0).
+            has_transparency = ((g_data->geometry->material->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) == 0);
+        }
+
+        if (has_transparency) {
             // Only add meshes with _no_ transparency.
             darray_push(out_packet->geometries, geometry_data[i]);
             out_packet->geometry_count++;
