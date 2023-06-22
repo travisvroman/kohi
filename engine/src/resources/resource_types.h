@@ -444,6 +444,7 @@ typedef enum material_type {
 typedef struct material_config_prop {
     char *name;
     shader_uniform_type type;
+    u32 size;
     // FIXME: This seems like a colossal waste of memory... perhaps a union or
     // something better?
     vec4 value_v4;
@@ -483,6 +484,20 @@ typedef struct material_config {
     b8 auto_release;
 } material_config;
 
+typedef struct material_phong_properties {
+    /** @brief The diffuse colour. */
+    vec4 diffuse_colour;
+
+    /** @brief The material shininess, determines how concentrated the specular
+     * lighting is. */
+    f32 shininess;
+} material_phong_properties;
+
+typedef struct material_ui_properties {
+    /** @brief The diffuse colour. */
+    vec4 diffuse_colour;
+} material_ui_properties;
+
 /**
  * @brief A material, which represents various properties
  * of a surface in the world such as texture, colour,
@@ -505,12 +520,18 @@ typedef struct material {
     /** @brief An array of texture maps. */
     texture_map *maps;
 
-    /** @brief The diffuse colour. */
-    vec4 diffuse_colour;
+    /** @brief property structure size. */
+    u32 property_struct_size;
 
-    /** @brief The material shininess, determines how concentrated the specular
-     * lighting is. */
-    f32 shininess;
+    /** @brief array of material property structures, which varies based on material type. e.g. material_phong_properties */
+    void* properties;
+
+    // /** @brief The diffuse colour. */
+    // vec4 diffuse_colour;
+
+    // /** @brief The material shininess, determines how concentrated the specular
+    //  * lighting is. */
+    // f32 shininess;
 
     u32 shader_id;
 

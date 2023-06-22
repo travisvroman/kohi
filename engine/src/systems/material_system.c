@@ -18,8 +18,7 @@ typedef struct material_shader_uniform_locations {
     u16 view;
     u16 ambient_colour;
     u16 view_position;
-    u16 shininess;
-    u16 diffuse_colour;
+    u16 properties;
     u16 diffuse_texture;
     u16 specular_texture;
     u16 normal_texture;
@@ -33,7 +32,7 @@ typedef struct material_shader_uniform_locations {
 typedef struct ui_shader_uniform_locations {
     u16 projection;
     u16 view;
-    u16 diffuse_colour;
+    u16 properties;
     u16 diffuse_texture;
     u16 model;
 } ui_shader_uniform_locations;
@@ -95,17 +94,16 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->material_shader_id = INVALID_ID;
     state_ptr->material_locations.view = INVALID_ID_U16;
     state_ptr->material_locations.projection = INVALID_ID_U16;
-    state_ptr->material_locations.diffuse_colour = INVALID_ID_U16;
+    state_ptr->material_locations.properties = INVALID_ID_U16;
     state_ptr->material_locations.diffuse_texture = INVALID_ID_U16;
     state_ptr->material_locations.specular_texture = INVALID_ID_U16;
     state_ptr->material_locations.normal_texture = INVALID_ID_U16;
     state_ptr->material_locations.ambient_colour = INVALID_ID_U16;
-    state_ptr->material_locations.shininess = INVALID_ID_U16;
     state_ptr->material_locations.model = INVALID_ID_U16;
     state_ptr->material_locations.render_mode = INVALID_ID_U16;
 
     state_ptr->ui_shader_id = INVALID_ID;
-    state_ptr->ui_locations.diffuse_colour = INVALID_ID_U16;
+    state_ptr->ui_locations.properties = INVALID_ID_U16;
     state_ptr->ui_locations.diffuse_texture = INVALID_ID_U16;
     state_ptr->ui_locations.view = INVALID_ID_U16;
     state_ptr->ui_locations.projection = INVALID_ID_U16;
@@ -155,11 +153,10 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->material_locations.view = shader_system_uniform_index(s, "view");
     state_ptr->material_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
     state_ptr->material_locations.view_position = shader_system_uniform_index(s, "view_position");
-    state_ptr->material_locations.diffuse_colour = shader_system_uniform_index(s, "diffuse_colour");
+    state_ptr->material_locations.properties = shader_system_uniform_index(s, "properties");
     state_ptr->material_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
     state_ptr->material_locations.specular_texture = shader_system_uniform_index(s, "specular_texture");
     state_ptr->material_locations.normal_texture = shader_system_uniform_index(s, "normal_texture");
-    state_ptr->material_locations.shininess = shader_system_uniform_index(s, "shininess");
     state_ptr->material_locations.model = shader_system_uniform_index(s, "model");
     state_ptr->material_locations.render_mode = shader_system_uniform_index(s, "mode");
     state_ptr->material_locations.dir_light = shader_system_uniform_index(s, "dir_light");
@@ -170,7 +167,7 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->ui_shader_id = s->id;
     state_ptr->ui_locations.projection = shader_system_uniform_index(s, "projection");
     state_ptr->ui_locations.view = shader_system_uniform_index(s, "view");
-    state_ptr->ui_locations.diffuse_colour = shader_system_uniform_index(s, "diffuse_colour");
+    state_ptr->ui_locations.properties = shader_system_uniform_index(s, "properties");
     state_ptr->ui_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
     state_ptr->ui_locations.model = shader_system_uniform_index(s, "model");
 
@@ -382,8 +379,7 @@ b8 material_system_apply_instance(material* m, b8 needs_update) {
     if (needs_update) {
         if (m->shader_id == state_ptr->material_shader_id) {
             // Material shader
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_colour, &m->diffuse_colour));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.shininess, &m->shininess));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.properties, m->properties));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_texture, &m->maps[0]));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, &m->maps[1]));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, &m->maps[2]));
@@ -417,7 +413,7 @@ b8 material_system_apply_instance(material* m, b8 needs_update) {
 
         } else if (m->shader_id == state_ptr->ui_shader_id) {
             // UI shader
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.diffuse_colour, &m->diffuse_colour));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.properties, m->properties));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.diffuse_texture, &m->maps[0]));
         } else {
             KERROR("material_system_apply_instance(): Unrecognized shader id '%d' on shader '%s'.", m->shader_id, m->name);
@@ -493,17 +489,20 @@ static b8 load_material(material_config* config, material* m) {
         u32 prop_count = darray_length(config->properties);
 
         // Defaults
-        m->diffuse_colour = vec4_one();
-        m->shininess = 32.0f;
+        m->property_struct_size = sizeof(material_phong_properties);
+        m->properties = kallocate(sizeof(material_phong_properties), MEMORY_TAG_MATERIAL_INSTANCE);
+        material_phong_properties* properties = (material_phong_properties*)m->properties;
+        properties->diffuse_colour = vec4_one();
+        properties->shininess = 32.0f;
         for (u32 i = 0; i < prop_count; ++i) {
             // Diffuse colour
             if (strings_equali(config->properties[i].name, "diffuse_colour")) {
-                m->diffuse_colour = config->properties[i].value_v4;
+                properties->diffuse_colour = config->properties[i].value_v4;
                 break;
             }
             // Shininess
             if (strings_equali(config->properties[i].name, "shininess")) {
-                m->shininess = config->properties[i].value_f32;
+                properties->shininess = config->properties[i].value_f32;
                 break;
             }
         }
@@ -534,28 +533,74 @@ static b8 load_material(material_config* config, material* m) {
         // TODO: If this changes, update this to work as it does above.
         m->maps = darray_reserve(texture_map, 1);
         darray_length_set(m->maps, 1);
-        m->diffuse_colour = config->properties[0].value_v4;
+        m->property_struct_size = sizeof(material_ui_properties);
+        m->properties = kallocate(sizeof(material_ui_properties), MEMORY_TAG_MATERIAL_INSTANCE);
+        material_ui_properties* properties = m->properties;
+        properties->diffuse_colour = config->properties[0].value_v4;
         if (!assign_map(&m->maps[0], &config->maps[0], m->name, texture_system_get_default_diffuse_texture())) {
             return false;
         }
     } else if (config->type == MATERIAL_TYPE_CUSTOM) {
         // Properties.
         u32 prop_count = darray_length(config->properties);
-        // Defaults
-        m->diffuse_colour = vec4_one();
-        m->shininess = 32.0f;
-        // Search for exact names to override the defaults and apply them. Otherwise they are
-        // properties to be applied otherwise. TODO: map this to locations in the shader.
+        // Start by getting a total size of all properties.
+        m->property_struct_size = 0;
         for (u32 i = 0; i < prop_count; ++i) {
-            // Diffuse colour
-            if (strings_equali(config->properties[i].name, "diffuse_colour")) {
-                m->diffuse_colour = config->properties[i].value_v4;
-                break;
+            if (config->properties[i].size > 0) {
+                m->property_struct_size += config->properties[i].size;
             }
-            // Shininess
-            if (strings_equali(config->properties[i].name, "shininess")) {
-                m->shininess = config->properties[i].value_f32;
-                break;
+        }
+        // Allocate enough space for the struct.
+        m->properties = kallocate(m->property_struct_size, MEMORY_TAG_MATERIAL_INSTANCE);
+
+        // Loop again and copy values to the struct. NOTE: There are no defaults for custom material uniforms.
+        u32 offset = 0;
+        for (u32 i = 0; i < prop_count; ++i) {
+            if (config->properties[i].size > 0) {
+                void* data = 0;
+                switch (config->properties[i].type) {
+                    case SHADER_UNIFORM_TYPE_INT8:
+                        data = &config->properties[i].value_i8;
+                        break;
+                    case SHADER_UNIFORM_TYPE_UINT8:
+                        data = &config->properties[i].value_u8;
+                        break;
+                    case SHADER_UNIFORM_TYPE_INT16:
+                        data = &config->properties[i].value_i16;
+                        break;
+                    case SHADER_UNIFORM_TYPE_UINT16:
+                        data = &config->properties[i].value_u16;
+                        break;
+                    case SHADER_UNIFORM_TYPE_INT32:
+                        data = &config->properties[i].value_i32;
+                        break;
+                    case SHADER_UNIFORM_TYPE_UINT32:
+                        data = &config->properties[i].value_u32;
+                        break;
+                    case SHADER_UNIFORM_TYPE_FLOAT32:
+                        data = &config->properties[i].value_f32;
+                        break;
+                    case SHADER_UNIFORM_TYPE_FLOAT32_2:
+                        data = &config->properties[i].value_v2;
+                        break;
+                    case SHADER_UNIFORM_TYPE_FLOAT32_3:
+                        data = &config->properties[i].value_v3;
+                        break;
+                    case SHADER_UNIFORM_TYPE_FLOAT32_4:
+                        data = &config->properties[i].value_v4;
+                        break;
+                    case SHADER_UNIFORM_TYPE_MATRIX_4:
+                        data = &config->properties[i].value_mat4;
+                        break;
+                    default:
+                        // TODO: custom size?
+                        // SKIP
+                        continue;
+                }
+
+                // Copy the block and move up.
+                kcopy_memory(m->properties + offset, data, config->properties[i].size);
+                offset += config->properties[i].size;
             }
         }
 
@@ -657,6 +702,11 @@ static void destroy_material(material* m) {
         m->shader_id = INVALID_ID;
     }
 
+    // Release properties
+    if (m->properties && m->property_struct_size) {
+        kfree(m->properties, m->property_struct_size, MEMORY_TAG_MATERIAL_INSTANCE);
+    }
+
     // Zero it out, invalidate IDs.
     kzero_memory(m, sizeof(material));
     m->id = INVALID_ID;
@@ -671,7 +721,11 @@ static b8 create_default_material(material_system_state* state) {
     state->default_material.type = MATERIAL_TYPE_PHONG;
     state->default_material.generation = INVALID_ID;
     string_ncopy(state->default_material.name, DEFAULT_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
-    state->default_material.diffuse_colour = vec4_one();  // white
+    state->default_material.property_struct_size = sizeof(material_phong_properties);
+    state->default_material.properties = kallocate(sizeof(material_phong_properties), MEMORY_TAG_MATERIAL_INSTANCE);
+    material_phong_properties* properties = (material_phong_properties*)state->default_material.properties;
+    properties->diffuse_colour = vec4_one();  // white
+    properties->shininess = 8.0f;
     state->default_material.maps = darray_reserve(texture_map, 3);
     darray_length_set(state->default_material.maps, 3);
     state->default_material.maps[0].texture = texture_system_get_default_texture();
@@ -701,7 +755,10 @@ static b8 create_default_ui_material(material_system_state* state) {
     state->default_ui_material.type = MATERIAL_TYPE_UI;
     state->default_ui_material.generation = INVALID_ID;
     string_ncopy(state->default_ui_material.name, DEFAULT_UI_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
-    state->default_ui_material.diffuse_colour = vec4_one();  // white
+    state->default_ui_material.property_struct_size = sizeof(material_ui_properties);
+    state->default_ui_material.properties = kallocate(sizeof(material_ui_properties), MEMORY_TAG_MATERIAL_INSTANCE);
+    material_ui_properties* properties = (material_ui_properties*)state->default_ui_material.properties;
+    properties->diffuse_colour = vec4_one();  // white
     state->default_ui_material.maps = darray_reserve(texture_map, 1);
     darray_length_set(state->default_ui_material.maps, 1);
     state->default_ui_material.maps[0].texture = texture_system_get_default_texture();
