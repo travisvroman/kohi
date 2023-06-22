@@ -262,41 +262,7 @@ typedef struct system_font_resource_data {
 /** @brief The maximum length of a material name. */
 #define MATERIAL_NAME_MAX_LENGTH 256
 
-/**
- * @brief A material, which represents various properties
- * of a surface in the world such as texture, colour,
- * bumpiness, shininess and more.
- */
-typedef struct material {
-    /** @brief The material id. */
-    u32 id;
-    /** @brief The material generation. Incremented every time the material is
-     * changed. */
-    u32 generation;
-    /** @brief The internal material id. Used by the renderer backend to map to
-     * internal resources. */
-    u32 internal_id;
-    /** @brief The material name. */
-    char name[MATERIAL_NAME_MAX_LENGTH];
-    /** @brief The diffuse colour. */
-    vec4 diffuse_colour;
-    /** @brief The diffuse texture map. */
-    texture_map diffuse_map;
-    /** @brief The specular texture map. */
-    texture_map specular_map;
-    /** @brief The normal texture map. */
-    texture_map normal_map;
-
-    /** @brief The material shininess, determines how concentrated the specular
-     * lighting is. */
-    f32 shininess;
-
-    u32 shader_id;
-
-    /** @brief Synced to the renderer's current frame number when the material has
-     * been applied that frame. */
-    u32 render_frame_number;
-} material;
+struct material;
 
 /** @brief The maximum length of a geometry name. */
 #define GEOMETRY_NAME_MAX_LENGTH 256
@@ -321,7 +287,7 @@ typedef struct geometry {
     /** @brief The geometry name. */
     char name[GEOMETRY_NAME_MAX_LENGTH];
     /** @brief A pointer to the material associated with this geometry.. */
-    material *material;
+    struct material *material;
 } geometry;
 
 struct geometry_config;
@@ -480,6 +446,7 @@ typedef enum material_type {
 typedef struct material_config_prop {
     char *name;
     shader_uniform_type type;
+    u32 size;
     // FIXME: This seems like a colossal waste of memory... perhaps a union or
     // something better?
     vec4 value_v4;
@@ -518,6 +485,62 @@ typedef struct material_config {
      * references to it remain. */
     b8 auto_release;
 } material_config;
+
+typedef struct material_phong_properties {
+    /** @brief The diffuse colour. */
+    vec4 diffuse_colour;
+
+    /** @brief The material shininess, determines how concentrated the specular
+     * lighting is. */
+    f32 shininess;
+} material_phong_properties;
+
+typedef struct material_ui_properties {
+    /** @brief The diffuse colour. */
+    vec4 diffuse_colour;
+} material_ui_properties;
+
+/**
+ * @brief A material, which represents various properties
+ * of a surface in the world such as texture, colour,
+ * bumpiness, shininess and more.
+ */
+typedef struct material {
+    /** @brief The material id. */
+    u32 id;
+    /** @brief The material type. */
+    material_type type;
+    /** @brief The material generation. Incremented every time the material is
+     * changed. */
+    u32 generation;
+    /** @brief The internal material id. Used by the renderer backend to map to
+     * internal resources. */
+    u32 internal_id;
+    /** @brief The material name. */
+    char name[MATERIAL_NAME_MAX_LENGTH];
+
+    /** @brief An array of texture maps. */
+    texture_map *maps;
+
+    /** @brief property structure size. */
+    u32 property_struct_size;
+
+    /** @brief array of material property structures, which varies based on material type. e.g. material_phong_properties */
+    void* properties;
+
+    // /** @brief The diffuse colour. */
+    // vec4 diffuse_colour;
+
+    // /** @brief The material shininess, determines how concentrated the specular
+    //  * lighting is. */
+    // f32 shininess;
+
+    u32 shader_id;
+
+    /** @brief Synced to the renderer's current frame number when the material has
+     * been applied that frame. */
+    u32 render_frame_number;
+} material;
 
 typedef struct skybox_simple_scene_config {
     char *name;

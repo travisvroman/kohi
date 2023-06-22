@@ -68,40 +68,52 @@ static void material_prop_assign_value(material_config_prop *prop, const char *v
     switch (prop->type) {
         case SHADER_UNIFORM_TYPE_FLOAT32:
             string_to_f32(value, &prop->value_f32);
+            prop->size = sizeof(f32);
             break;
         case SHADER_UNIFORM_TYPE_FLOAT32_2:
             string_to_vec2(value, &prop->value_v2);
+            prop->size = sizeof(vec2);
             break;
         case SHADER_UNIFORM_TYPE_FLOAT32_3:
             string_to_vec3(value, &prop->value_v3);
+            prop->size = sizeof(vec3);
             break;
         case SHADER_UNIFORM_TYPE_FLOAT32_4:
             string_to_vec4(value, &prop->value_v4);
+            prop->size = sizeof(vec4);
             break;
         case SHADER_UNIFORM_TYPE_INT8:
             string_to_i8(value, &prop->value_i8);
+            prop->size = sizeof(i8);
             break;
         case SHADER_UNIFORM_TYPE_UINT8:
             string_to_u8(value, &prop->value_u8);
+            prop->size = sizeof(u8);
             break;
         case SHADER_UNIFORM_TYPE_INT16:
             string_to_i16(value, &prop->value_i16);
+            prop->size = sizeof(i16);
             break;
         case SHADER_UNIFORM_TYPE_UINT16:
             string_to_u16(value, &prop->value_u16);
+            prop->size = sizeof(u16);
             break;
         case SHADER_UNIFORM_TYPE_INT32:
             string_to_i32(value, &prop->value_i32);
+            prop->size = sizeof(i32);
             break;
         case SHADER_UNIFORM_TYPE_UINT32:
             string_to_u32(value, &prop->value_u32);
+            prop->size = sizeof(u32);
             break;
         case SHADER_UNIFORM_TYPE_MATRIX_4:
             string_to_mat4(value, &prop->value_mat4);
+            prop->size = sizeof(mat4);
             break;
         case SHADER_UNIFORM_TYPE_SAMPLER:
         case SHADER_UNIFORM_TYPE_CUSTOM:
         default:
+            prop->size = 0;
             KERROR("Unsupported material property type.");
             break;
     }

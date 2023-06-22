@@ -279,7 +279,13 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct line
         }
 
         // TODO: Add something to material to check for transparency.
-        if ((g_data->geometry->material->diffuse_map.texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) == 0) {
+        b8 has_transparency = false;
+        if (g_data->geometry->material->type == MATERIAL_TYPE_PHONG) {
+            // Check diffuse map (slot 0).
+            has_transparency = ((g_data->geometry->material->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) == 0);
+        }
+
+        if (has_transparency) {
             // Only add meshes with _no_ transparency.
             darray_push(out_packet->geometries, world_data->world_geometries[i]);
             out_packet->geometry_count++;
@@ -360,12 +366,13 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             for (u32 m = 0; m < packet->terrain_geometries[i].material_count; ++m) {
                 material* pmat = packet->terrain_geometries[i].materials[m];
 
-                material_infos[m].diffuse_colour = pmat->diffuse_colour;
-                material_infos[m].shininess = pmat->shininess;
+                material_phong_properties* properties = (material_phong_properties*)pmat->properties;
+                material_infos[m].diffuse_colour = properties->diffuse_colour;
+                material_infos[m].shininess = properties->shininess;
 
-                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 0], &pmat->diffuse_map);
-                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 1], &pmat->specular_map);
-                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 2], &pmat->normal_map);
+                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 0], &pmat->maps[0]);
+                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 1], &pmat->maps[1]);
+                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 2], &pmat->maps[2]);
             }
 
             // Directional light.
