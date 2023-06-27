@@ -440,6 +440,7 @@ typedef enum material_type {
     MATERIAL_TYPE_PHONG = 1,
     MATERIAL_TYPE_PBR = 2,
     MATERIAL_TYPE_UI = 3,
+    MATERIAL_TYPE_TERRAIN = 4,
     MATERIAL_TYPE_CUSTOM = 99
 } material_type;
 
@@ -499,6 +500,20 @@ typedef struct material_ui_properties {
     /** @brief The diffuse colour. */
     vec4 diffuse_colour;
 } material_ui_properties;
+
+typedef struct terrain_material_info {
+    /** @brief The diffuse colour. */
+    vec4 diffuse_colour;
+    /** @brief The material shininess, determines how concentrated the specular lighting is. */
+    f32 shininess;
+    vec3 padding;
+} terrain_material_info;
+
+typedef struct material_terrain_properties {
+    terrain_material_info materials[4];
+    i32 num_materials;
+    vec3 padding;
+} material_terrain_properties;
 
 /**
  * @brief A material, which represents various properties

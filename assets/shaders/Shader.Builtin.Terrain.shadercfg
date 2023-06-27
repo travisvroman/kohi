@@ -23,6 +23,8 @@ uniform=mat4,2,model
 uniform=vec4,0,ambient_colour
 uniform=vec3,0,view_position
 uniform=u32,0,mode
+uniform=struct32,0,dir_light
+
 uniform=samp,1,diffuse_texture_0
 uniform=samp,1,specular_texture_0
 uniform=samp,1,normal_texture_0
@@ -36,8 +38,6 @@ uniform=samp,1,diffuse_texture_3
 uniform=samp,1,specular_texture_3
 uniform=samp,1,normal_texture_3
 
-uniform=struct128,1,material_info
-uniform=struct32,0,dir_light
+uniform=struct144,1,properties
 uniform=struct480,1,p_lights
 uniform=i32,1,num_p_lights
-uniform=i32,1,num_materials

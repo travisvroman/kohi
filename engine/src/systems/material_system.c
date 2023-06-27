@@ -594,7 +594,7 @@ static b8 load_material(material_config* config, material* m) {
                         break;
                     default:
                         // TODO: custom size?
-                        // SKIP
+                        KWARN("Unable to process shader uniform type %d (index %u) for material '%s'. Skipping.", config->properties[i].type, i, m->name);
                         continue;
                 }
 
@@ -620,17 +620,11 @@ static b8 load_material(material_config* config, material* m) {
     // Send it off to the renderer to acquire resources.
     shader* s = 0;
     if (config->type == MATERIAL_TYPE_PHONG) {
-        if (config->shader_name) {
-            s = shader_system_get(config->shader_name);
-        } else {
-            s = shader_system_get("Shader.Builtin.Material");
-        }
+        s = shader_system_get(config->shader_name ? config->shader_name : "Shader.Builtin.Material");
     } else if (config->type == MATERIAL_TYPE_UI) {
-        if (config->shader_name) {
-            s = shader_system_get(config->shader_name);
-        } else {
-            s = shader_system_get("Shader.Builtin.UI");
-        }
+        s = shader_system_get(config->shader_name ? config->shader_name : "Shader.Builtin.UI");
+    } else if (config->type == MATERIAL_TYPE_TERRAIN) {
+        s = shader_system_get(config->shader_name ? config->shader_name : "Shader.Builtin.Terrain");
     } else if (config->type == MATERIAL_TYPE_PBR) {
         KFATAL("PBR not yet supported.");
         return false;
@@ -640,6 +634,9 @@ static b8 load_material(material_config* config, material* m) {
             return false;
         }
         s = shader_system_get(config->shader_name);
+    } else {
+        KERROR("Unknown material type: %d. Material '%s' cannot be loaded.", config->type, m->name);
+        return false;
     }
     if (!s) {
         KERROR("Unable to load material because its shader was not found: '%s'. This is likely a problem with the material asset.", config->shader_name);
@@ -647,30 +644,24 @@ static b8 load_material(material_config* config, material* m) {
     }
 
     // Gather a list of pointers to texture maps;
-
-    texture_map** maps = 0;
     u32 map_count = 0;
     if (config->type == MATERIAL_TYPE_PHONG) {
-        // Maps for this type are known.
+        // Map count for this type is known.
         map_count = 3;
-        maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
-        for (u32 i = 0; i < map_count; ++i) {
-            maps[i] = &m->maps[i];
-        }
     } else if (config->type == MATERIAL_TYPE_UI) {
-        // Maps for this type are known.
+        // Map count for this type is known.
         map_count = 1;
-        maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
-        maps[0] = &m->maps[0];
     } else if (config->type == MATERIAL_TYPE_PBR) {
         KFATAL("PBR not yet supported.");
         return false;
     } else if (config->type == MATERIAL_TYPE_CUSTOM) {
+        // Map count provided by config.
         map_count = darray_length(config->maps);
-        maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
-        for (u32 i = 0; i < map_count; ++i) {
-            maps[i] = &m->maps[i];
-        }
+    }
+
+    texture_map** maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
+    for (u32 i = 0; i < map_count; ++i) {
+        maps[i] = &m->maps[i];
     }
 
     b8 result = renderer_shader_instance_resources_acquire(s, maps, &m->internal_id);

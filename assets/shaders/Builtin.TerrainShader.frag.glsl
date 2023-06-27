@@ -28,6 +28,11 @@ struct material_info {
     vec3 padding;
 };
 
+struct material_terrain_properties {
+    material_info materials[MAX_TERRAIN_MATERIALS];
+    int num_materials;
+};
+
 layout(set = 0, binding = 0) uniform global_uniform_object {
     mat4 projection;
 	mat4 view;
@@ -35,13 +40,14 @@ layout(set = 0, binding = 0) uniform global_uniform_object {
 	vec4 ambient_colour;
 	vec3 view_position;
 	int mode;
-    material_info materials[MAX_TERRAIN_MATERIALS];
     directional_light dir_light;
-    point_light p_lights[POINT_LIGHT_MAX];
-    int num_p_lights;
-    int num_materials;
 } global_ubo;
 
+layout(set = 1, binding = 0) uniform instance_uniform_object {
+    material_terrain_properties properties;
+    point_light p_lights[POINT_LIGHT_MAX];
+    int num_p_lights;
+} instance_ubo;
 
 
 // Samplers, diffuse, spec
@@ -89,7 +95,7 @@ void main() {
     vec4 diff = vec4(0);
     vec4 spec = vec4(0);
     vec3 norm = vec3(0);
-    for(int m = 0; m < global_ubo.num_materials; ++m) {
+    for(int m = 0; m < instance_ubo.properties.num_materials; ++m) {
         normals[m] = normalize(TBN * (2.0 * texture(samplers[SAMP_NORMAL_OFFSET * m], in_dto.tex_coord).rgb - 1.0));
         diffuses[m] = texture(samplers[SAMP_DIFFUSE_OFFSET * m], in_dto.tex_coord);
         specs[m] = texture(samplers[SAMP_SPECULAR_OFFSET * m], in_dto.tex_coord);
@@ -98,8 +104,8 @@ void main() {
         diff = mix(diff, diffuses[m], in_dto.mat_weights[m]);
         spec = mix(spec, specs[m], in_dto.mat_weights[m]);
 
-        mat.diffuse_colour = mix(mat.diffuse_colour, global_ubo.materials[m].diffuse_colour, in_dto.mat_weights[m]);
-        mat.shininess = mix(mat.shininess, global_ubo.materials[m].shininess, in_dto.mat_weights[m]);
+        mat.diffuse_colour = mix(mat.diffuse_colour, instance_ubo.properties.materials[m].diffuse_colour, in_dto.mat_weights[m]);
+        mat.shininess = mix(mat.shininess, instance_ubo.properties.materials[m].shininess, in_dto.mat_weights[m]);
     }
 
 
@@ -108,8 +114,8 @@ void main() {
 
         out_colour = calculate_directional_light(global_ubo.dir_light, norm, view_direction, diff, spec, mat);
 
-        for(int i = 0; i < global_ubo.num_p_lights; ++i) {
-            out_colour += calculate_point_light(global_ubo.p_lights[i], norm, in_dto.frag_position, view_direction, diff, spec, mat);
+        for(int i = 0; i < instance_ubo.num_p_lights; ++i) {
+            out_colour += calculate_point_light(instance_ubo.p_lights[i], norm, in_dto.frag_position, view_direction, diff, spec, mat);
         }
         // out_colour += calculate_point_light(global_ubo.p_light_1, normal, in_dto.frag_position, view_direction);
     } else if(in_mode == 2) {

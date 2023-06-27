@@ -34,11 +34,9 @@ layout(set = 0, binding = 0) uniform global_uniform_object {
 	vec4 ambient_colour;
 	vec3 view_position;
 	int mode;
-    vec4 diffuse_colour;
     directional_light dir_light;
     point_light p_lights[POINT_LIGHT_MAX];
     int num_p_lights;
-    float shininess;
 } global_ubo;
 
 layout(location = 0) out int out_mode;

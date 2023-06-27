@@ -353,6 +353,14 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
                 return false;
             }
             shader_system_use_by_id(s->id);
+
+            // Apply globals
+            // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
+            // and mode (from the renderer)
+            if (!material_system_apply_global(s->id, frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
+                KERROR("Failed to use apply globals for terrain shader. Render frame failed.");
+                return false;
+            }
         }
         for (u32 i = 0; i < terrain_count; ++i) {
             // Apply uniforms, all are global for terrains.
