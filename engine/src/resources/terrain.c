@@ -151,6 +151,8 @@ b8 terrain_load(terrain *t) {
         }
     }
 
+    // Create a terrain material
+
     return true;
 }
 b8 terrain_unload(terrain *t) { return true; }

@@ -363,59 +363,85 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             }
         }
         for (u32 i = 0; i < terrain_count; ++i) {
-            // Apply uniforms, all are global for terrains.
-            shader_system_uniform_set_by_index(data->terrain_locations.projection, &packet->projection_matrix);
-            shader_system_uniform_set_by_index(data->terrain_locations.view, &packet->view_matrix);
-            shader_system_uniform_set_by_index(data->terrain_locations.ambient_colour, &packet->ambient_colour);
-            shader_system_uniform_set_by_index(data->terrain_locations.view_position, &packet->view_position);
-            shader_system_uniform_set_by_index(data->terrain_locations.render_mode, &data->render_mode);
+            // // Apply uniforms, all are global for terrains.
+            // shader_system_uniform_set_by_index(data->terrain_locations.projection, &packet->projection_matrix);
+            // shader_system_uniform_set_by_index(data->terrain_locations.view, &packet->view_matrix);
+            // shader_system_uniform_set_by_index(data->terrain_locations.ambient_colour, &packet->ambient_colour);
+            // shader_system_uniform_set_by_index(data->terrain_locations.view_position, &packet->view_position);
+            // shader_system_uniform_set_by_index(data->terrain_locations.render_mode, &data->render_mode);
 
-            material_info material_infos[TERRAIN_MAX_MATERIAL_COUNT] = {0};
-            for (u32 m = 0; m < packet->terrain_geometries[i].material_count; ++m) {
-                material* pmat = packet->terrain_geometries[i].materials[m];
+            // material_info material_infos[TERRAIN_MAX_MATERIAL_COUNT] = {0};
+            // for (u32 m = 0; m < packet->terrain_geometries[i].material_count; ++m) {
+            //     material* pmat = packet->terrain_geometries[i].materials[m];
 
-                material_phong_properties* properties = (material_phong_properties*)pmat->properties;
-                material_infos[m].diffuse_colour = properties->diffuse_colour;
-                material_infos[m].shininess = properties->shininess;
+            //     material_phong_properties* properties = (material_phong_properties*)pmat->properties;
+            //     material_infos[m].diffuse_colour = properties->diffuse_colour;
+            //     material_infos[m].shininess = properties->shininess;
 
-                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 0], &pmat->maps[0]);
-                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 1], &pmat->maps[1]);
-                shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 2], &pmat->maps[2]);
-            }
+            //     shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 0], &pmat->maps[0]);
+            //     shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 1], &pmat->maps[1]);
+            //     shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 2], &pmat->maps[2]);
+            // }
 
-            // Directional light.
-            directional_light* dir_light = light_system_directional_light_get();
-            if (dir_light) {
-                shader_system_uniform_set_by_index(data->terrain_locations.dir_light, &dir_light->data);
+            
+            if (packet->terrain_geometries[i].materials) {
+                m = packet->geometries[i].geometry->material;
             } else {
-                directional_light_data dir_light_data = {0};
-                dir_light_data.direction.y = -1.0f;
-                dir_light_data.colour = vec4_one();  // white
-                shader_system_uniform_set_by_index(data->terrain_locations.dir_light, &dir_light_data);
-            }
-            // Point lights.
-            u32 p_light_count = light_system_point_light_count();
-            if (p_light_count) {
-                // TODO: frame allocator?
-                point_light* p_lights = kallocate(sizeof(point_light) * p_light_count, MEMORY_TAG_ARRAY);
-                light_system_point_lights_get(p_lights);
-
-                point_light_data* p_light_datas = kallocate(sizeof(point_light_data) * p_light_count, MEMORY_TAG_ARRAY);
-                for (u32 i = 0; i < p_light_count; ++i) {
-                    p_light_datas[i] = p_lights[i].data;
-                }
-
-                shader_system_uniform_set_by_index(data->terrain_locations.p_lights, p_light_datas);
-                kfree(p_light_datas, sizeof(point_light_data), MEMORY_TAG_ARRAY);
-                kfree(p_lights, sizeof(point_light), MEMORY_TAG_ARRAY);
+                m = material_system_get_default();
             }
 
-            shader_system_uniform_set_by_index(data->terrain_locations.num_p_lights, &p_light_count);
+            // Update the material if it hasn't already been this frame. This keeps the
+            // same material from being updated multiple times. It still needs to be bound
+            // either way, so this check result gets passed to the backend which either
+            // updates the internal shader bindings and binds them, or only binds them.
+            b8 needs_update = m->render_frame_number != frame_number;
+            if (!material_system_apply_instance(m, needs_update)) {
+                KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
+                continue;
+            } else {
+                // Sync the frame number.
+                m->render_frame_number = frame_number;
+            }
 
-            shader_system_uniform_set_by_index(data->terrain_locations.model, &packet->terrain_geometries[i].model);
-            shader_system_apply_global();
+            // Apply the locals
+            material_system_apply_local(m, &packet->geometries[i].model);
 
-            renderer_terrain_geometry_draw(&packet->terrain_geometries[i]);
+            // Draw it.
+            renderer_geometry_draw(&packet->geometries[i]);
+
+            // // Directional light.
+            // directional_light* dir_light = light_system_directional_light_get();
+            // if (dir_light) {
+            //     shader_system_uniform_set_by_index(data->terrain_locations.dir_light, &dir_light->data);
+            // } else {
+            //     directional_light_data dir_light_data = {0};
+            //     dir_light_data.direction.y = -1.0f;
+            //     dir_light_data.colour = vec4_one();  // white
+            //     shader_system_uniform_set_by_index(data->terrain_locations.dir_light, &dir_light_data);
+            // }
+            // // Point lights.
+            // u32 p_light_count = light_system_point_light_count();
+            // if (p_light_count) {
+            //     // TODO: frame allocator?
+            //     point_light* p_lights = kallocate(sizeof(point_light) * p_light_count, MEMORY_TAG_ARRAY);
+            //     light_system_point_lights_get(p_lights);
+
+            //     point_light_data* p_light_datas = kallocate(sizeof(point_light_data) * p_light_count, MEMORY_TAG_ARRAY);
+            //     for (u32 i = 0; i < p_light_count; ++i) {
+            //         p_light_datas[i] = p_lights[i].data;
+            //     }
+
+            //     shader_system_uniform_set_by_index(data->terrain_locations.p_lights, p_light_datas);
+            //     kfree(p_light_datas, sizeof(point_light_data), MEMORY_TAG_ARRAY);
+            //     kfree(p_lights, sizeof(point_light), MEMORY_TAG_ARRAY);
+            // }
+
+            // shader_system_uniform_set_by_index(data->terrain_locations.num_p_lights, &p_light_count);
+
+            // shader_system_uniform_set_by_index(data->terrain_locations.model, &packet->terrain_geometries[i].model);
+            // shader_system_apply_global();
+
+            // renderer_terrain_geometry_draw(&packet->terrain_geometries[i]);
 
             // TODO: This wants the actual terrain, not the geometry.
             // TODO: Remove this
