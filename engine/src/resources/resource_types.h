@@ -13,6 +13,8 @@
 
 #include "math/math_types.h"
 
+#define TERRAIN_MAX_MATERIAL_COUNT 4
+
 /** @brief Pre-defined resource types. */
 typedef enum resource_type {
     /** @brief Text resource type. */
@@ -541,7 +543,7 @@ typedef struct material {
     u32 property_struct_size;
 
     /** @brief array of material property structures, which varies based on material type. e.g. material_phong_properties */
-    void* properties;
+    void *properties;
 
     // /** @brief The diffuse colour. */
     // vec4 diffuse_colour;

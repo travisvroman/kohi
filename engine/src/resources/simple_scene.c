@@ -54,7 +54,7 @@ b8 simple_scene_create(void *config, simple_scene *out_scene) {
     out_scene->world_data.world_geometries =
         darray_reserve(geometry_render_data, 512);
     out_scene->world_data.terrain_geometries =
-        darray_create(terrain_render_data);
+        darray_create(geometry_render_data);
 
     return true;
 }
@@ -438,16 +438,10 @@ b8 simple_scene_populate_render_packet(simple_scene *scene,
                 // TODO: Check terrain generation
                 // TODO: Frustum culling
                 //
-                terrain_render_data data = {0};
+                geometry_render_data data = {0};
                 data.model = transform_world_get(&scene->terrains[i].xform);
-                data.g = &scene->terrains[i].geo;
+                data.geometry = &scene->terrains[i].geo;
                 data.unique_id = 0;  // TODO: Terrain unique_id for object picking.
-
-                // Take pointers to materials
-                for (u32 m = 0; m < TERRAIN_MAX_MATERIAL_COUNT; ++m) {
-                    data.materials[m] = scene->terrains[i].materials[m];
-                    data.material_count = scene->terrains[i].material_count;
-                }
 
                 darray_push(scene->world_data.terrain_geometries, data);
 

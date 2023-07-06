@@ -3,11 +3,13 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "defines.h"
 #include "math/geometry_utils.h"
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.inl"
+#include "resources/resource_types.h"
 #include "systems/light_system.h"
 #include "systems/material_system.h"
 #include "systems/shader_system.h"
@@ -55,11 +57,9 @@ b8 terrain_create(const terrain_config *config, terrain *out_terrain) {
 
     out_terrain->material_count = config->material_count;
     if (out_terrain->material_count) {
-        out_terrain->materials = kallocate(sizeof(material *) * out_terrain->material_count, MEMORY_TAG_ARRAY);
         out_terrain->material_names = kallocate(sizeof(char *) * out_terrain->material_count, MEMORY_TAG_ARRAY);
         kcopy_memory(out_terrain->material_names, config->material_names, sizeof(char *) * out_terrain->material_count);
     } else {
-        out_terrain->materials = 0;
         out_terrain->material_names = 0;
     }
 
@@ -143,15 +143,14 @@ b8 terrain_load(terrain *t) {
     // TODO: offload generation increments to frontend. Also do this in geometry_system_create.
     g->generation++;
 
-    // Acquire material(s)
-    for (u32 i = 0; i < t->material_count; ++i) {
-        t->materials[i] = material_system_acquire(t->material_names[i]);
-        if (!t->materials[i]) {
-            t->materials[i] = material_system_get_default();
-        }
+    // Create a terrain material by copying the properties of these materials to a new terrain material.
+    char terrain_material_name[MATERIAL_NAME_MAX_LENGTH] = {0};
+    string_format(terrain_material_name, "terrain_mat_%s", t->name);
+    g->material = material_system_acquire_terrain_material(terrain_material_name, t->material_count, (const char **)t->material_names, true);
+    if (!g->material) {
+        KWARN("Failed to acquire terrain material. Using defualt instead.");
+        g->material = material_system_get_default_terrain();
     }
-
-    // Create a terrain material
 
     return true;
 }

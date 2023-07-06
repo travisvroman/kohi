@@ -16,14 +16,6 @@ typedef struct geometry_render_data {
     u32 unique_id;
 } geometry_render_data;
 
-typedef struct terrain_render_data {
-    mat4 model;
-    geometry* g;
-    u32 material_count;
-    material* materials[4];  // TERRAIN_MAX_MATERIAL_COUNT
-    u32 unique_id;
-} terrain_render_data;
-
 typedef enum renderer_debug_view_mode {
     RENDERER_VIEW_MODE_DEFAULT = 0,
     RENDERER_VIEW_MODE_LIGHTING = 1,
@@ -318,8 +310,6 @@ typedef struct renderer_plugin {
      */
     void (*geometry_draw)(struct renderer_plugin* plugin, geometry_render_data* data);
 
-    void (*terrain_geometry_draw)(struct renderer_plugin* plugin, const terrain_render_data* data);
-
     /**
      * @brief Creates a Vulkan-specific texture, acquiring internal resources as needed.
      *
@@ -502,11 +492,12 @@ typedef struct renderer_plugin {
      *
      * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader to acquire resources from.
+     * @param texture_map_count The number of texture maps used.
      * @param maps An array of pointers to texture maps. Must be one map per instance texture.
      * @param out_instance_id A pointer to hold the new instance identifier.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_instance_resources_acquire)(struct renderer_plugin* plugin, struct shader* s, texture_map** maps, u32* out_instance_id);
+    b8 (*shader_instance_resources_acquire)(struct renderer_plugin* plugin, struct shader* s, u32 texture_map_count, texture_map** maps, u32* out_instance_id);
 
     /**
      * @brief Releases internal instance-level resources for the given instance id.
@@ -947,7 +938,7 @@ typedef struct render_view_packet {
     /** @brief The number of terrain geometries to be drawn. */
     u32 terrain_geometry_count;
     /** @brief The terrain geometries to be drawn. */
-    terrain_render_data* terrain_geometries;
+    geometry_render_data* terrain_geometries;
 
     struct terrain** terrains;
     /** @brief The name of the custom shader to use, if applicable. Otherwise 0. */

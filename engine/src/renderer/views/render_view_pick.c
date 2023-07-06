@@ -85,12 +85,12 @@ static void acquire_shader_instances(const struct render_view* self) {
     // Not saving the instance id because it doesn't matter.
     u32 instance;
     // UI shader
-    if (!renderer_shader_instance_resources_acquire(data->ui_shader_info.s, 0, &instance)) {
+    if (!renderer_shader_instance_resources_acquire(data->ui_shader_info.s, 0, 0, &instance)) {
         KFATAL("render_view_pick failed to acquire shader resources.");
         return;
     }
     // World shader
-    if (!renderer_shader_instance_resources_acquire(data->world_shader_info.s, 0, &instance)) {
+    if (!renderer_shader_instance_resources_acquire(data->world_shader_info.s, 0, 0, &instance)) {
         KFATAL("render_view_pick failed to acquire shader resources.");
         return;
     }

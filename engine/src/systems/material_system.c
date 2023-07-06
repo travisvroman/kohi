@@ -5,6 +5,7 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "defines.h"
 #include "math/kmath.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/resource_types.h"
@@ -37,11 +38,37 @@ typedef struct ui_shader_uniform_locations {
     u16 model;
 } ui_shader_uniform_locations;
 
+typedef struct terrain_shader_locations {
+    b8 loaded;
+    u16 projection;
+    u16 view;
+    u16 ambient_colour;
+    u16 view_position;
+    u16 diffuse_texture;
+    u16 specular_texture;
+    u16 normal_texture;
+    u16 model;
+    u16 render_mode;
+    u16 dir_light;
+    u16 p_lights;
+    u16 num_p_lights;
+
+    u16 properties;
+    u16 samplers[TERRAIN_MAX_MATERIAL_COUNT * 3];  // diffuse, spec, normal.
+    u16 num_materials;
+} terrain_shader_locations;
+
+typedef struct terrain_material_properties {
+    material_phong_properties materials[TERRAIN_MAX_MATERIAL_COUNT];
+    i32 num_materials;
+} terrain_material_properties;
+
 typedef struct material_system_state {
     material_system_config config;
 
     material default_material;
     material default_ui_material;
+    material default_terrain_material;
 
     // Array of registered materials.
     material* registered_materials;
@@ -56,6 +83,10 @@ typedef struct material_system_state {
     // Known locations for the UI shader.
     ui_shader_uniform_locations ui_locations;
     u32 ui_shader_id;
+
+    // Known locations for terrain shader.
+    terrain_shader_locations terrain_locations;
+    u32 terrain_shader_id;
 } material_system_state;
 
 typedef struct material_reference {
@@ -68,8 +99,11 @@ static material_system_state* state_ptr = 0;
 
 static b8 create_default_material(material_system_state* state);
 static b8 create_default_ui_material(material_system_state* state);
+static b8 create_default_terrain_material(material_system_state* state);
 static b8 load_material(material_config* config, material* m);
 static void destroy_material(material* m);
+
+static b8 assign_map(texture_map* map, const material_map* config, const char* material_name, texture* default_tex);
 
 b8 material_system_initialize(u64* memory_requirement, void* state, void* config) {
     material_system_config* typed_config = (material_system_config*)config;
@@ -109,6 +143,24 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->ui_locations.projection = INVALID_ID_U16;
     state_ptr->ui_locations.model = INVALID_ID_U16;
 
+    state_ptr->terrain_locations.projection = INVALID_ID_U16;
+    state_ptr->terrain_locations.view = INVALID_ID_U16;
+    state_ptr->terrain_locations.ambient_colour = INVALID_ID_U16;
+    state_ptr->terrain_locations.view_position = INVALID_ID_U16;
+    state_ptr->terrain_locations.diffuse_texture = INVALID_ID_U16;
+    state_ptr->terrain_locations.specular_texture = INVALID_ID_U16;
+    state_ptr->terrain_locations.normal_texture = INVALID_ID_U16;
+    state_ptr->terrain_locations.model = INVALID_ID_U16;
+    state_ptr->terrain_locations.render_mode = INVALID_ID_U16;
+    state_ptr->terrain_locations.dir_light = INVALID_ID_U16;
+    state_ptr->terrain_locations.p_lights = INVALID_ID_U16;
+    state_ptr->terrain_locations.num_p_lights = INVALID_ID_U16;
+    state_ptr->terrain_locations.properties = INVALID_ID_U16;
+    state_ptr->terrain_locations.num_materials = INVALID_ID_U16;
+    for (u32 i = 0; i < 12; ++i) {
+        state_ptr->terrain_locations.samplers[i] = INVALID_ID_U16;
+    }
+
     // The array block is after the state. Already allocated, so just set the pointer.
     void* array_block = state + struct_requirement;
     state_ptr->registered_materials = array_block;
@@ -145,6 +197,11 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
         return false;
     }
 
+    if (!create_default_terrain_material(state_ptr)) {
+        KFATAL("Failed to create default terrain material. Application cannot continue.");
+        return false;
+    }
+
     // Get the uniform indices.
     // Save off the locations for known types for quick lookups.
     shader* s = shader_system_get("Shader.Builtin.Material");
@@ -170,6 +227,40 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->ui_locations.properties = shader_system_uniform_index(s, "properties");
     state_ptr->ui_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
     state_ptr->ui_locations.model = shader_system_uniform_index(s, "model");
+
+    s = shader_system_get("Shader.Builtin.Terrain");
+    state_ptr->terrain_shader_id = s->id;
+    state_ptr->terrain_locations.projection = shader_system_uniform_index(s, "projection");
+    state_ptr->terrain_locations.view = shader_system_uniform_index(s, "view");
+    state_ptr->terrain_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
+    state_ptr->terrain_locations.view_position = shader_system_uniform_index(s, "view_position");
+    state_ptr->terrain_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
+    state_ptr->terrain_locations.specular_texture = shader_system_uniform_index(s, "specular_texture");
+    state_ptr->terrain_locations.normal_texture = shader_system_uniform_index(s, "normal_texture");
+    state_ptr->terrain_locations.model = shader_system_uniform_index(s, "model");
+    state_ptr->terrain_locations.render_mode = shader_system_uniform_index(s, "mode");
+    state_ptr->terrain_locations.dir_light = shader_system_uniform_index(s, "dir_light");
+    state_ptr->terrain_locations.p_lights = shader_system_uniform_index(s, "p_lights");
+    state_ptr->terrain_locations.num_p_lights = shader_system_uniform_index(s, "num_p_lights");
+
+    state_ptr->terrain_locations.properties = shader_system_uniform_index(s, "properties");
+    state_ptr->terrain_locations.num_materials = shader_system_uniform_index(s, "num_materials");
+
+    state_ptr->terrain_locations.samplers[0] = shader_system_uniform_index(s, "diffuse_texture_0");
+    state_ptr->terrain_locations.samplers[1] = shader_system_uniform_index(s, "specular_texture_0");
+    state_ptr->terrain_locations.samplers[2] = shader_system_uniform_index(s, "normal_texture_0");
+
+    state_ptr->terrain_locations.samplers[3] = shader_system_uniform_index(s, "diffuse_texture_1");
+    state_ptr->terrain_locations.samplers[4] = shader_system_uniform_index(s, "specular_texture_1");
+    state_ptr->terrain_locations.samplers[5] = shader_system_uniform_index(s, "normal_texture_1");
+
+    state_ptr->terrain_locations.samplers[6] = shader_system_uniform_index(s, "diffuse_texture_2");
+    state_ptr->terrain_locations.samplers[7] = shader_system_uniform_index(s, "specular_texture_2");
+    state_ptr->terrain_locations.samplers[8] = shader_system_uniform_index(s, "normal_texture_2");
+
+    state_ptr->terrain_locations.samplers[9] = shader_system_uniform_index(s, "diffuse_texture_3");
+    state_ptr->terrain_locations.samplers[10] = shader_system_uniform_index(s, "specular_texture_3");
+    state_ptr->terrain_locations.samplers[11] = shader_system_uniform_index(s, "normal_texture_3");
 
     return true;
 }
@@ -216,22 +307,12 @@ material* material_system_acquire(const char* name) {
     return m;
 }
 
-material* material_system_acquire_from_config(material_config* config) {
-    // Return default material.
-    if (strings_equali(config->name, DEFAULT_MATERIAL_NAME)) {
-        return &state_ptr->default_material;
-    }
-
-    // Return default UI material.
-    if (strings_equali(config->name, DEFAULT_UI_MATERIAL_NAME)) {
-        return &state_ptr->default_ui_material;
-    }
-
+static material* material_system_acquire_reference(const char* name, b8 auto_release, b8* needs_creation) {
     material_reference ref;
-    if (state_ptr && hashtable_get(&state_ptr->registered_material_table, config->name, &ref)) {
+    if (state_ptr && hashtable_get(&state_ptr->registered_material_table, name, &ref)) {
         // This can only be changed the first time a material is loaded.
         if (ref.reference_count == 0) {
-            ref.auto_release = config->auto_release;
+            ref.auto_release = auto_release;
         }
         ref.reference_count++;
         if (ref.handle == INVALID_ID) {
@@ -253,38 +334,166 @@ material* material_system_acquire_from_config(material_config* config) {
                 return 0;
             }
 
-            // Create new material.
-            if (!load_material(config, m)) {
-                KERROR("Failed to load material '%s'.", config->name);
-                return 0;
-            }
-
-            if (m->generation == INVALID_ID) {
-                m->generation = 0;
-            } else {
-                m->generation++;
-            }
+            *needs_creation = true;
 
             // Also use the handle as the material id.
             m->id = ref.handle;
             // KTRACE("Material '%s' does not yet exist. Created, and ref_count is now %i.", config.name, ref.reference_count);
         } else {
             // KTRACE("Material '%s' already exists, ref_count increased to %i.", config.name, ref.reference_count);
+            *needs_creation = false;
         }
 
         // Update the entry.
-        hashtable_set(&state_ptr->registered_material_table, config->name, &ref);
+        hashtable_set(&state_ptr->registered_material_table, name, &ref);
         return &state_ptr->registered_materials[ref.handle];
     }
 
     // NOTE: This would only happen in the event something went wrong with the state.
-    KERROR("material_system_acquire_from_config failed to acquire material '%s'. Null pointer will be returned.", config->name);
+    KERROR("material_system_acquire_from_config failed to acquire material '%s'. Null pointer will be returned.", name);
     return 0;
+}
+
+material* material_system_acquire_terrain_material(const char* material_name, u32 material_count, const char** material_names, b8 auto_release) {
+    // Return default terrain material.
+    if (strings_equali(material_name, DEFAULT_TERRAIN_MATERIAL_NAME)) {
+        return &state_ptr->default_terrain_material;
+    }
+
+    b8 needs_creation = false;
+    material* m = material_system_acquire_reference(material_name, auto_release, &needs_creation);
+    if (!m) {
+        KERROR("Failed to acquire terrain material '%s'", material_name);
+        return 0;
+    }
+
+    if (needs_creation) {
+        // Get all materials by name;
+        material** materials = kallocate(sizeof(material*) * material_count, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < material_count; ++i) {
+            materials[i] = material_system_acquire(material_names[i]);
+        }
+
+        // Create new material.
+        // NOTE: terrain-specific load_material
+        kzero_memory(m, sizeof(material));
+        string_ncopy(m->name, material_name, MATERIAL_NAME_MAX_LENGTH);
+
+        shader* s = shader_system_get("Shader.Builtin.Terrain");
+        m->shader_id = s->id;
+        m->type = MATERIAL_TYPE_TERRAIN;
+
+        // Allocate maps and properties memory.
+        m->property_struct_size = sizeof(terrain_material_properties);
+        m->properties = kallocate(m->property_struct_size, MEMORY_TAG_MATERIAL_INSTANCE);
+        terrain_material_properties* properties = m->properties;
+        properties->num_materials = material_count;
+
+        // 3 maps per material.
+        m->maps = darray_reserve(texture_map, 3 * material_count);
+        darray_length_set(m->maps, 3 * material_count);
+
+        // Map names and default fallback textures.
+        const char* map_names[3] = {"diffuse", "specular", "normal"};
+        texture* default_textures[3] = {
+            texture_system_get_default_diffuse_texture(),
+            texture_system_get_default_specular_texture(),
+            texture_system_get_default_normal_texture()};
+        // Phong properties and maps for each material.
+        for (u32 i = 0; i < material_count; ++i) {
+            // Properties.
+            material_phong_properties* mat_props = &properties->materials[i];
+            material_phong_properties* props = materials[i]->properties;
+            mat_props->diffuse_colour = props->diffuse_colour;
+            mat_props->shininess = props->shininess;
+
+            // Maps
+            for (u32 j = 0; j < 3; ++j) {
+                material_map map_config = {0};
+                char buf[MATERIAL_NAME_MAX_LENGTH] = {0};
+                map_config.name = buf;
+                string_copy(map_config.name, map_names[j]);
+                map_config.repeat_u = materials[i]->maps[j].repeat_u;
+                map_config.repeat_v = materials[i]->maps[j].repeat_v;
+                map_config.repeat_w = materials[i]->maps[j].repeat_w;
+                map_config.filter_min = materials[i]->maps[j].filter_minify;
+                map_config.filter_mag = materials[i]->maps[j].filter_magnify;
+                map_config.texture_name = materials[i]->maps[j].texture->name;
+                if (!assign_map(&m->maps[(i * 3) + j], &map_config, m->name, default_textures[j])) {
+                    KERROR("Failed to assign '%s' texture map for terrain material index %u", map_names[j], i);
+                    return false;
+                }
+            }
+        }
+
+        kfree(materials, sizeof(material*) * material_count, MEMORY_TAG_ARRAY);
+
+        // Acquire instance resources for all maps.
+        u32 map_count = material_count * 3;
+        texture_map** maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < map_count; ++i) {
+            maps[i] = &m->maps[i];
+        }
+
+        b8 result = renderer_shader_instance_resources_acquire(s, map_count, maps, &m->internal_id);
+        if (!result) {
+            KERROR("Failed to acquire renderer resources for material '%s'.", m->name);
+        }
+
+        if (maps) {
+            kfree(maps, sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
+        }
+        // NOTE: end terrain-specific load_material
+
+        if (m->generation == INVALID_ID) {
+            m->generation = 0;
+        } else {
+            m->generation++;
+        }
+    }
+
+    return m;
+}
+
+material* material_system_acquire_from_config(material_config* config) {
+    // Return default material.
+    if (strings_equali(config->name, DEFAULT_MATERIAL_NAME)) {
+        return &state_ptr->default_material;
+    }
+
+    // Return default UI material.
+    if (strings_equali(config->name, DEFAULT_UI_MATERIAL_NAME)) {
+        return &state_ptr->default_ui_material;
+    }
+
+    // Return default terrain material.
+    if (strings_equali(config->name, DEFAULT_TERRAIN_MATERIAL_NAME)) {
+        return &state_ptr->default_terrain_material;
+    }
+
+    b8 needs_creation = false;
+    material* m = material_system_acquire_reference(config->name, config->auto_release, &needs_creation);
+
+    if (needs_creation) {
+        // Create new material.
+        if (!load_material(config, m)) {
+            KERROR("Failed to load material '%s'.", config->name);
+            return 0;
+        }
+
+        if (m->generation == INVALID_ID) {
+            m->generation = 0;
+        } else {
+            m->generation++;
+        }
+    }
+
+    return m;
 }
 
 void material_system_release(const char* name) {
     // Ignore release requests for the default material.
-    if (strings_equali(name, DEFAULT_MATERIAL_NAME) || strings_equali(name, DEFAULT_UI_MATERIAL_NAME)) {
+    if (strings_equali(name, DEFAULT_MATERIAL_NAME) || strings_equali(name, DEFAULT_UI_MATERIAL_NAME) || strings_equali(name, DEFAULT_TERRAIN_MATERIAL_NAME)) {
         return;
     }
     material_reference ref;
@@ -339,6 +548,15 @@ material* material_system_get_default_ui(void) {
     return 0;
 }
 
+material* material_system_get_default_terrain(void) {
+    if (state_ptr) {
+        return &state_ptr->default_terrain_material;
+    }
+
+    KFATAL("material_system_get_default_terrain called before system is initialized.");
+    return 0;
+}
+
 #define MATERIAL_APPLY_OR_FAIL(expr)                  \
     if (!expr) {                                      \
         KERROR("Failed to apply material: %s", expr); \
@@ -353,7 +571,7 @@ b8 material_system_apply_global(u32 shader_id, u64 renderer_frame_number, const 
     if (s->render_frame_number == renderer_frame_number) {
         return true;
     }
-    if (shader_id == state_ptr->material_shader_id) {
+    if (shader_id == state_ptr->material_shader_id || shader_id == state_ptr->terrain_shader_id) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.projection, projection));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.view, view));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.ambient_colour, ambient_colour));
@@ -415,6 +633,43 @@ b8 material_system_apply_instance(material* m, b8 needs_update) {
             // UI shader
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.properties, m->properties));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.diffuse_texture, &m->maps[0]));
+        } else if (m->shader_id == state_ptr->terrain_shader_id) {
+            // Apply maps
+            u32 map_count = darray_length(m->maps);
+            for (u32 i = 0; i < map_count; ++i) {
+                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.samplers[i], &m->maps[i]));
+            }
+
+            // Apply properties.
+            shader_system_uniform_set_by_index(state_ptr->terrain_locations.properties, m->properties);
+
+            // TODO: Duplicating above... move this to its own function, perhaps.
+            // Directional light.
+            directional_light* dir_light = light_system_directional_light_get();
+            if (dir_light) {
+                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.dir_light, &dir_light->data));
+            } else {
+                directional_light_data data = {0};
+                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.dir_light, &data));
+            }
+            // Point lights.
+            u32 p_light_count = light_system_point_light_count();
+            if (p_light_count) {
+                // TODO: frame allocator?
+                point_light* p_lights = kallocate(sizeof(point_light) * p_light_count, MEMORY_TAG_ARRAY);
+                light_system_point_lights_get(p_lights);
+
+                point_light_data* p_light_datas = kallocate(sizeof(point_light_data) * p_light_count, MEMORY_TAG_ARRAY);
+                for (u32 i = 0; i < p_light_count; ++i) {
+                    p_light_datas[i] = p_lights[i].data;
+                }
+
+                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.p_lights, p_light_datas));
+                kfree(p_light_datas, sizeof(point_light_data), MEMORY_TAG_ARRAY);
+                kfree(p_lights, sizeof(point_light), MEMORY_TAG_ARRAY);
+            }
+
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.num_p_lights, &p_light_count));
         } else {
             KERROR("material_system_apply_instance(): Unrecognized shader id '%d' on shader '%s'.", m->shader_id, m->name);
             return false;
@@ -664,7 +919,7 @@ static b8 load_material(material_config* config, material* m) {
         maps[i] = &m->maps[i];
     }
 
-    b8 result = renderer_shader_instance_resources_acquire(s, maps, &m->internal_id);
+    b8 result = renderer_shader_instance_resources_acquire(s, map_count, maps, &m->internal_id);
     if (!result) {
         KERROR("Failed to acquire renderer resources for material '%s'.", m->name);
     }
@@ -729,7 +984,7 @@ static b8 create_default_material(material_system_state* state) {
     texture_map* maps[3] = {&state->default_material.maps[0], &state->default_material.maps[1], &state->default_material.maps[2]};
 
     shader* s = shader_system_get("Shader.Builtin.Material");
-    if (!renderer_shader_instance_resources_acquire(s, maps, &state->default_material.internal_id)) {
+    if (!renderer_shader_instance_resources_acquire(s, 3, maps, &state->default_material.internal_id)) {
         KFATAL("Failed to acquire renderer resources for default material. Application cannot continue.");
         return false;
     }
@@ -757,13 +1012,52 @@ static b8 create_default_ui_material(material_system_state* state) {
     texture_map* maps[1] = {&state->default_ui_material.maps[0]};
 
     shader* s = shader_system_get("Shader.Builtin.UI");
-    if (!renderer_shader_instance_resources_acquire(s, maps, &state->default_ui_material.internal_id)) {
+    if (!renderer_shader_instance_resources_acquire(s, 1, maps, &state->default_ui_material.internal_id)) {
         KFATAL("Failed to acquire renderer resources for default UI material. Application cannot continue.");
         return false;
     }
 
     // Make sure to assign the shader id.
     state->default_ui_material.shader_id = s->id;
+
+    return true;
+}
+
+static b8 create_default_terrain_material(material_system_state* state) {
+    kzero_memory(&state->default_terrain_material, sizeof(material));
+    state->default_terrain_material.id = INVALID_ID;
+    state->default_terrain_material.type = MATERIAL_TYPE_TERRAIN;
+    state->default_terrain_material.generation = INVALID_ID;
+    string_ncopy(state->default_terrain_material.name, DEFAULT_TERRAIN_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
+
+    // Should essentially be the same thing as the defualt material, just mapped to an "array" of one material.
+    state->default_terrain_material.property_struct_size = sizeof(terrain_material_properties);
+    state->default_terrain_material.properties = kallocate(sizeof(terrain_material_properties), MEMORY_TAG_MATERIAL_INSTANCE);
+    terrain_material_properties* properties = (terrain_material_properties*)state->default_terrain_material.properties;
+    properties->num_materials = 1;
+    properties->materials[0].diffuse_colour = vec4_one();  // white
+    properties->materials[0].shininess = 8.0f;
+    state->default_terrain_material.maps = darray_reserve(texture_map, 12);
+    darray_length_set(state->default_terrain_material.maps, 12);
+    state->default_terrain_material.maps[0].texture = texture_system_get_default_texture();
+    state->default_terrain_material.maps[1].texture = texture_system_get_default_specular_texture();
+    state->default_terrain_material.maps[2].texture = texture_system_get_default_normal_texture();
+
+    // NOTE: Phong material is default.
+    texture_map* maps[3] = {
+        &state->default_terrain_material.maps[0],
+        &state->default_terrain_material.maps[1],
+        &state->default_terrain_material.maps[2],
+    };
+
+    shader* s = shader_system_get("Shader.Builtin.Terrain");
+    if (!renderer_shader_instance_resources_acquire(s, 3, maps, &state->default_terrain_material.internal_id)) {
+        KFATAL("Failed to acquire renderer resources for default terrain material. Application cannot continue.");
+        return false;
+    }
+
+    // Make sure to assign the shader id.
+    state->default_terrain_material.shader_id = s->id;
 
     return true;
 }

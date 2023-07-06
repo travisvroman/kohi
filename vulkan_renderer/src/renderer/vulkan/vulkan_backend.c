@@ -1575,34 +1575,6 @@ void vulkan_renderer_geometry_draw(renderer_plugin *plugin,
     }
 }
 
-void vulkan_renderer_terrain_geometry_draw(renderer_plugin *plugin,
-                                           const terrain_render_data *data) {
-    vulkan_context *context = (vulkan_context *)plugin->internal_context;
-    // Ignore non-uploaded geometries.
-    if (data->g && data->g->internal_id == INVALID_ID) {
-        return;
-    }
-
-    vulkan_geometry_data *buffer_data =
-        &context->geometries[data->g->internal_id];
-    b8 includes_index_data = buffer_data->index_count > 0;
-    if (!vulkan_buffer_draw(plugin, &context->object_vertex_buffer,
-                            buffer_data->vertex_buffer_offset,
-                            buffer_data->vertex_count, includes_index_data)) {
-        KERROR("vulkan_renderer_draw_geometry failed to draw vertex buffer;");
-        return;
-    }
-
-    if (includes_index_data) {
-        if (!vulkan_buffer_draw(plugin, &context->object_index_buffer,
-                                buffer_data->index_buffer_offset,
-                                buffer_data->index_count, !includes_index_data)) {
-            KERROR("vulkan_renderer_draw_geometry failed to draw index buffer;");
-            return;
-        }
-    }
-}
-
 // The index of the global descriptor set.
 const u32 DESC_SET_INDEX_GLOBAL = 0;
 // The index of the instance descriptor set.
@@ -2252,8 +2224,7 @@ b8 vulkan_renderer_shader_apply_instance(renderer_plugin *plugin, shader *s,
             VkDescriptorImageInfo image_infos[VULKAN_SHADER_MAX_GLOBAL_TEXTURES];
             for (u32 i = 0; i < total_sampler_count; ++i) {
                 // TODO: only update in the list if actually needing an update.
-                texture_map *map = internal->instance_states[s->bound_instance_id]
-                                       .instance_texture_maps[i];
+                texture_map *map = internal->instance_states[s->bound_instance_id].instance_texture_maps[i];
                 texture *t = map->texture;
 
                 // Ensure the texture is valid.
@@ -2393,6 +2364,7 @@ void vulkan_renderer_texture_map_resources_release(renderer_plugin *plugin,
 
 b8 vulkan_renderer_shader_instance_resources_acquire(renderer_plugin *plugin,
                                                      shader *s,
+                                                     u32 texture_map_count,
                                                      texture_map **maps,
                                                      u32 *out_instance_id) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
@@ -2411,26 +2383,18 @@ b8 vulkan_renderer_shader_instance_resources_acquire(renderer_plugin *plugin,
         return false;
     }
 
-    vulkan_shader_instance_state *instance_state =
-        &internal->instance_states[*out_instance_id];
-    u8 sampler_binding_index =
-        internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE]
-            .sampler_binding_index;
-    u32 instance_texture_count =
-        internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE]
-            .bindings[sampler_binding_index]
-            .descriptorCount;
+    vulkan_shader_instance_state *instance_state = &internal->instance_states[*out_instance_id];
+    // u8 sampler_binding_index = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].sampler_binding_index;
+    // u32 instance_texture_count = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].bindings[sampler_binding_index].descriptorCount;
     // Only setup if the shader actually requires it.
     if (s->instance_texture_count > 0) {
         // Wipe out the memory for the entire array, even if it isn't all used.
-        instance_state->instance_texture_maps = kallocate(
-            sizeof(texture_map *) * s->instance_texture_count, MEMORY_TAG_ARRAY);
+        instance_state->instance_texture_maps = kallocate(sizeof(texture_map *) * s->instance_texture_count, MEMORY_TAG_ARRAY);
         texture *default_texture = texture_system_get_default_texture();
-        kcopy_memory(instance_state->instance_texture_maps, maps,
-                     sizeof(texture_map *) * s->instance_texture_count);
+        kcopy_memory(instance_state->instance_texture_maps, maps, sizeof(texture_map *) * texture_map_count);
         // Set unassigned texture pointers to default until assigned.
-        for (u32 i = 0; i < instance_texture_count; ++i) {
-            if (!maps[i]->texture) {
+        for (u32 i = 0; i < texture_map_count; ++i) {
+            if (maps[i] && !maps[i]->texture) {
                 instance_state->instance_texture_maps[i]->texture = default_texture;
             }
         }
@@ -2439,17 +2403,13 @@ b8 vulkan_renderer_shader_instance_resources_acquire(renderer_plugin *plugin,
     // Allocate some space in the UBO - by the stride, not the size.
     u64 size = s->ubo_stride;
     if (size > 0) {
-        if (!renderer_renderbuffer_allocate(&internal->uniform_buffer, size,
-                                            &instance_state->offset)) {
-            KERROR(
-                "vulkan_material_shader_acquire_resources failed to acquire ubo "
-                "space");
+        if (!renderer_renderbuffer_allocate(&internal->uniform_buffer, size, &instance_state->offset)) {
+            KERROR("vulkan_material_shader_acquire_resources failed to acquire ubo space");
             return false;
         }
     }
 
-    vulkan_shader_descriptor_set_state *set_state =
-        &instance_state->descriptor_set_state;
+    vulkan_shader_descriptor_set_state *set_state = &instance_state->descriptor_set_state;
 
     // Each descriptor binding in the set
     u32 binding_count =

@@ -214,11 +214,6 @@ void renderer_geometry_draw(geometry_render_data* data) {
     state_ptr->plugin.geometry_draw(&state_ptr->plugin, data);
 }
 
-void renderer_terrain_geometry_draw(const terrain_render_data* data) {
-    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    state_ptr->plugin.terrain_geometry_draw(&state_ptr->plugin, data);
-}
-
 b8 renderer_renderpass_begin(renderpass* pass, render_target* target) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->plugin.renderpass_begin(&state_ptr->plugin, pass, target);
@@ -269,9 +264,9 @@ b8 renderer_shader_apply_instance(shader* s, b8 needs_update) {
     return state_ptr->plugin.shader_apply_instance(&state_ptr->plugin, s, needs_update);
 }
 
-b8 renderer_shader_instance_resources_acquire(shader* s, texture_map** maps, u32* out_instance_id) {
+b8 renderer_shader_instance_resources_acquire(shader* s, u32 texture_map_count, texture_map** maps, u32* out_instance_id) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.shader_instance_resources_acquire(&state_ptr->plugin, s, maps, out_instance_id);
+    return state_ptr->plugin.shader_instance_resources_acquire(&state_ptr->plugin, s, texture_map_count, maps, out_instance_id);
 }
 
 b8 renderer_shader_instance_resources_release(shader* s, u32 instance_id) {

@@ -177,8 +177,6 @@ KAPI void renderer_geometry_destroy(geometry* geometry);
  */
 KAPI void renderer_geometry_draw(geometry_render_data* data);
 
-KAPI void renderer_terrain_geometry_draw(const terrain_render_data* data);
-
 /**
  * @brief Begins the given renderpass.
  *
@@ -271,11 +269,12 @@ KAPI b8 renderer_shader_apply_instance(struct shader* s, b8 needs_update);
  * @brief Acquires internal instance-level resources and provides an instance id.
  *
  * @param s A pointer to the shader to acquire resources from.
+ * @param texture_map_count The number of texture maps used.
  * @param maps An array of texture map pointers. Must be one per texture in the instance.
  * @param out_instance_id A pointer to hold the new instance identifier.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_instance_resources_acquire(struct shader* s, texture_map** maps, u32* out_instance_id);
+KAPI b8 renderer_shader_instance_resources_acquire(struct shader* s, u32 texture_map_count, texture_map** maps, u32* out_instance_id);
 
 /**
  * @brief Releases internal instance-level resources for the given instance id.

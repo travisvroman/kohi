@@ -10,7 +10,7 @@ typedef struct render_view_world_data {
     // darray
     geometry_render_data* world_geometries;
     // darray
-    terrain_render_data* terrain_geometries;
+    geometry_render_data* terrain_geometries;
 } render_view_world_data;
 
 b8 render_view_world_on_create(struct render_view* self);

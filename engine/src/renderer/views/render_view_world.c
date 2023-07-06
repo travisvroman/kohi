@@ -17,26 +17,6 @@
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
 
-typedef struct terrain_shader_locations {
-    b8 loaded;
-    u16 projection;
-    u16 view;
-    u16 ambient_colour;
-    u16 view_position;
-    u16 diffuse_texture;
-    u16 specular_texture;
-    u16 normal_texture;
-    u16 model;
-    u16 render_mode;
-    u16 dir_light;
-    u16 p_lights;
-    u16 num_p_lights;
-
-    u16 material_info;
-    u16 samplers[TERRAIN_MAX_MATERIAL_COUNT * 3];  // diffuse, spec, normal.
-    u16 num_materials;
-} terrain_shader_locations;
-
 typedef struct render_view_world_internal_data {
     shader* s;
     f32 fov;
@@ -47,7 +27,6 @@ typedef struct render_view_world_internal_data {
     vec4 ambient_colour;
     u32 render_mode;
 
-    terrain_shader_locations terrain_locations;
 } render_view_world_internal_data;
 
 /** @brief A private structure used to sort geometry by distance from the camera. */
@@ -150,40 +129,6 @@ b8 render_view_world_on_create(struct render_view* self) {
         }
         resource_system_unload(&terrain_shader_config_resource);
 
-        // Get and store the uniform locations as part of the view.
-        shader* s = shader_system_get("Shader.Builtin.Terrain");
-        data->terrain_locations.projection = shader_system_uniform_index(s, "projection");
-        data->terrain_locations.view = shader_system_uniform_index(s, "view");
-        data->terrain_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
-        data->terrain_locations.view_position = shader_system_uniform_index(s, "view_position");
-        data->terrain_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
-        data->terrain_locations.specular_texture = shader_system_uniform_index(s, "specular_texture");
-        data->terrain_locations.normal_texture = shader_system_uniform_index(s, "normal_texture");
-        data->terrain_locations.model = shader_system_uniform_index(s, "model");
-        data->terrain_locations.render_mode = shader_system_uniform_index(s, "mode");
-        data->terrain_locations.dir_light = shader_system_uniform_index(s, "dir_light");
-        data->terrain_locations.p_lights = shader_system_uniform_index(s, "p_lights");
-        data->terrain_locations.num_p_lights = shader_system_uniform_index(s, "num_p_lights");
-
-        data->terrain_locations.material_info = shader_system_uniform_index(s, "material_info");
-        data->terrain_locations.num_materials = shader_system_uniform_index(s, "num_materials");
-
-        data->terrain_locations.samplers[0] = shader_system_uniform_index(s, "diffuse_texture_0");
-        data->terrain_locations.samplers[1] = shader_system_uniform_index(s, "specular_texture_0");
-        data->terrain_locations.samplers[2] = shader_system_uniform_index(s, "normal_texture_0");
-
-        data->terrain_locations.samplers[3] = shader_system_uniform_index(s, "diffuse_texture_1");
-        data->terrain_locations.samplers[4] = shader_system_uniform_index(s, "specular_texture_1");
-        data->terrain_locations.samplers[5] = shader_system_uniform_index(s, "normal_texture_1");
-
-        data->terrain_locations.samplers[6] = shader_system_uniform_index(s, "diffuse_texture_2");
-        data->terrain_locations.samplers[7] = shader_system_uniform_index(s, "specular_texture_2");
-        data->terrain_locations.samplers[8] = shader_system_uniform_index(s, "normal_texture_2");
-
-        data->terrain_locations.samplers[9] = shader_system_uniform_index(s, "diffuse_texture_3");
-        data->terrain_locations.samplers[10] = shader_system_uniform_index(s, "specular_texture_3");
-        data->terrain_locations.samplers[11] = shader_system_uniform_index(s, "normal_texture_3");
-
         // Get either the custom shader override or the defined default.
         data->s = shader_system_get(self->custom_shader_name ? self->custom_shader_name : shader_name);
         // TODO: Set from configuration.
@@ -258,7 +203,7 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct line
 
     // TODO: Use frame allocator.
     out_packet->geometries = darray_create(geometry_render_data);
-    out_packet->terrain_geometries = darray_create(terrain_render_data);
+    out_packet->terrain_geometries = darray_create(geometry_render_data);
     out_packet->view = self;
 
     // Set matrices, etc.
@@ -344,9 +289,10 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             return false;
         }
 
-        // TODO: Render terrain
+        // Use the appropriate shader and apply the global uniforms.
         u32 terrain_count = packet->terrain_geometry_count;
         if (terrain_count > 0) {
+            // TODO: If this uses a custom shader, this will fail. Need to handle those as well.
             shader* s = shader_system_get("Shader.Builtin.Terrain");
             if (!s) {
                 KERROR("Unable to obtain terrain shader.");
@@ -363,31 +309,11 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             }
         }
         for (u32 i = 0; i < terrain_count; ++i) {
-            // // Apply uniforms, all are global for terrains.
-            // shader_system_uniform_set_by_index(data->terrain_locations.projection, &packet->projection_matrix);
-            // shader_system_uniform_set_by_index(data->terrain_locations.view, &packet->view_matrix);
-            // shader_system_uniform_set_by_index(data->terrain_locations.ambient_colour, &packet->ambient_colour);
-            // shader_system_uniform_set_by_index(data->terrain_locations.view_position, &packet->view_position);
-            // shader_system_uniform_set_by_index(data->terrain_locations.render_mode, &data->render_mode);
-
-            // material_info material_infos[TERRAIN_MAX_MATERIAL_COUNT] = {0};
-            // for (u32 m = 0; m < packet->terrain_geometries[i].material_count; ++m) {
-            //     material* pmat = packet->terrain_geometries[i].materials[m];
-
-            //     material_phong_properties* properties = (material_phong_properties*)pmat->properties;
-            //     material_infos[m].diffuse_colour = properties->diffuse_colour;
-            //     material_infos[m].shininess = properties->shininess;
-
-            //     shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 0], &pmat->maps[0]);
-            //     shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 1], &pmat->maps[1]);
-            //     shader_system_uniform_set_by_index(data->terrain_locations.samplers[m * 3 + 2], &pmat->maps[2]);
-            // }
-
-            
-            if (packet->terrain_geometries[i].materials) {
-                m = packet->geometries[i].geometry->material;
+            material* m = 0;
+            if (packet->terrain_geometries[i].geometry->material) {
+                m = packet->terrain_geometries[i].geometry->material;
             } else {
-                m = material_system_get_default();
+                m = material_system_get_default_terrain();
             }
 
             // Update the material if it hasn't already been this frame. This keeps the
@@ -396,7 +322,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             // updates the internal shader bindings and binds them, or only binds them.
             b8 needs_update = m->render_frame_number != frame_number;
             if (!material_system_apply_instance(m, needs_update)) {
-                KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
+                KWARN("Failed to apply terrain material '%s'. Skipping draw.", m->name);
                 continue;
             } else {
                 // Sync the frame number.
@@ -408,44 +334,6 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
 
             // Draw it.
             renderer_geometry_draw(&packet->geometries[i]);
-
-            // // Directional light.
-            // directional_light* dir_light = light_system_directional_light_get();
-            // if (dir_light) {
-            //     shader_system_uniform_set_by_index(data->terrain_locations.dir_light, &dir_light->data);
-            // } else {
-            //     directional_light_data dir_light_data = {0};
-            //     dir_light_data.direction.y = -1.0f;
-            //     dir_light_data.colour = vec4_one();  // white
-            //     shader_system_uniform_set_by_index(data->terrain_locations.dir_light, &dir_light_data);
-            // }
-            // // Point lights.
-            // u32 p_light_count = light_system_point_light_count();
-            // if (p_light_count) {
-            //     // TODO: frame allocator?
-            //     point_light* p_lights = kallocate(sizeof(point_light) * p_light_count, MEMORY_TAG_ARRAY);
-            //     light_system_point_lights_get(p_lights);
-
-            //     point_light_data* p_light_datas = kallocate(sizeof(point_light_data) * p_light_count, MEMORY_TAG_ARRAY);
-            //     for (u32 i = 0; i < p_light_count; ++i) {
-            //         p_light_datas[i] = p_lights[i].data;
-            //     }
-
-            //     shader_system_uniform_set_by_index(data->terrain_locations.p_lights, p_light_datas);
-            //     kfree(p_light_datas, sizeof(point_light_data), MEMORY_TAG_ARRAY);
-            //     kfree(p_lights, sizeof(point_light), MEMORY_TAG_ARRAY);
-            // }
-
-            // shader_system_uniform_set_by_index(data->terrain_locations.num_p_lights, &p_light_count);
-
-            // shader_system_uniform_set_by_index(data->terrain_locations.model, &packet->terrain_geometries[i].model);
-            // shader_system_apply_global();
-
-            // renderer_terrain_geometry_draw(&packet->terrain_geometries[i]);
-
-            // TODO: This wants the actual terrain, not the geometry.
-            // TODO: Remove this
-            // terrain_render(&packet->terrain_geometries[i], p_frame_data, packet->projection_matrix, packet->view_matrix, packet->terrain_geometries[i].model, packet->ambient_colour, packet->view_position, 0 );
         }
 
         if (!shader_system_use_by_id(shader_id)) {

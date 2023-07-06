@@ -658,6 +658,9 @@ static b8 process_texture_reference(const char* name, texture_type type, i8 refe
                             }
                             t->id = ref.handle;
                         }
+
+                        // Make sure to hold onto the texture name.
+                        string_ncopy(t->name, name, TEXTURE_NAME_MAX_LENGTH);
                         // KTRACE("Texture '%s' does not yet exist. Created, and ref_count is now %i.", name, ref.reference_count);
                     }
                 } else {
