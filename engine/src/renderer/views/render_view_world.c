@@ -330,10 +330,10 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             }
 
             // Apply the locals
-            material_system_apply_local(m, &packet->geometries[i].model);
+            material_system_apply_local(m, &packet->terrain_geometries[i].model);
 
             // Draw it.
-            renderer_geometry_draw(&packet->geometries[i]);
+            renderer_geometry_draw(&packet->terrain_geometries[i]);
         }
 
         if (!shader_system_use_by_id(shader_id)) {

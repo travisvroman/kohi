@@ -493,6 +493,7 @@ typedef struct material_phong_properties {
     /** @brief The diffuse colour. */
     vec4 diffuse_colour;
 
+    vec3 padding;
     /** @brief The material shininess, determines how concentrated the specular
      * lighting is. */
     f32 shininess;
@@ -503,18 +504,11 @@ typedef struct material_ui_properties {
     vec4 diffuse_colour;
 } material_ui_properties;
 
-typedef struct terrain_material_info {
-    /** @brief The diffuse colour. */
-    vec4 diffuse_colour;
-    /** @brief The material shininess, determines how concentrated the specular lighting is. */
-    f32 shininess;
-    vec3 padding;
-} terrain_material_info;
-
 typedef struct material_terrain_properties {
-    terrain_material_info materials[4];
-    i32 num_materials;
+    material_phong_properties materials[4];
     vec3 padding;
+    i32 num_materials;
+    vec4 padding2;
 } material_terrain_properties;
 
 /**

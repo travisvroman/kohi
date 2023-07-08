@@ -2225,6 +2225,9 @@ b8 vulkan_renderer_shader_apply_instance(renderer_plugin *plugin, shader *s,
             for (u32 i = 0; i < total_sampler_count; ++i) {
                 // TODO: only update in the list if actually needing an update.
                 texture_map *map = internal->instance_states[s->bound_instance_id].instance_texture_maps[i];
+                // if (!map) {
+                //     continue;
+                // }
                 texture *t = map->texture;
 
                 // Ensure the texture is valid.
@@ -2489,16 +2492,15 @@ b8 vulkan_renderer_shader_instance_resources_release(renderer_plugin *plugin,
     return true;
 }
 
-b8 vulkan_renderer_uniform_set(renderer_plugin *plugin, shader *s,
-                               shader_uniform *uniform, const void *value) {
+b8 vulkan_renderer_uniform_set(renderer_plugin *plugin, shader *s, shader_uniform *uniform, const void *value) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     vulkan_shader *internal = s->internal_data;
     if (uniform->type == SHADER_UNIFORM_TYPE_SAMPLER) {
+        texture_map *map = (texture_map *)value;
         if (uniform->scope == SHADER_SCOPE_GLOBAL) {
-            s->global_texture_maps[uniform->location] = (texture_map *)value;
+            s->global_texture_maps[uniform->location] = map;
         } else {
-            internal->instance_states[s->bound_instance_id]
-                .instance_texture_maps[uniform->location] = (texture_map *)value;
+            internal->instance_states[s->bound_instance_id].instance_texture_maps[uniform->location] = map;
         }
     } else {
         if (uniform->scope == SHADER_SCOPE_LOCAL) {

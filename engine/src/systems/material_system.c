@@ -44,9 +44,6 @@ typedef struct terrain_shader_locations {
     u16 view;
     u16 ambient_colour;
     u16 view_position;
-    u16 diffuse_texture;
-    u16 specular_texture;
-    u16 normal_texture;
     u16 model;
     u16 render_mode;
     u16 dir_light;
@@ -55,13 +52,7 @@ typedef struct terrain_shader_locations {
 
     u16 properties;
     u16 samplers[TERRAIN_MAX_MATERIAL_COUNT * 3];  // diffuse, spec, normal.
-    u16 num_materials;
 } terrain_shader_locations;
-
-typedef struct terrain_material_properties {
-    material_phong_properties materials[TERRAIN_MAX_MATERIAL_COUNT];
-    i32 num_materials;
-} terrain_material_properties;
 
 typedef struct material_system_state {
     material_system_config config;
@@ -147,16 +138,12 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->terrain_locations.view = INVALID_ID_U16;
     state_ptr->terrain_locations.ambient_colour = INVALID_ID_U16;
     state_ptr->terrain_locations.view_position = INVALID_ID_U16;
-    state_ptr->terrain_locations.diffuse_texture = INVALID_ID_U16;
-    state_ptr->terrain_locations.specular_texture = INVALID_ID_U16;
-    state_ptr->terrain_locations.normal_texture = INVALID_ID_U16;
     state_ptr->terrain_locations.model = INVALID_ID_U16;
     state_ptr->terrain_locations.render_mode = INVALID_ID_U16;
     state_ptr->terrain_locations.dir_light = INVALID_ID_U16;
     state_ptr->terrain_locations.p_lights = INVALID_ID_U16;
     state_ptr->terrain_locations.num_p_lights = INVALID_ID_U16;
     state_ptr->terrain_locations.properties = INVALID_ID_U16;
-    state_ptr->terrain_locations.num_materials = INVALID_ID_U16;
     for (u32 i = 0; i < 12; ++i) {
         state_ptr->terrain_locations.samplers[i] = INVALID_ID_U16;
     }
@@ -234,9 +221,6 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->terrain_locations.view = shader_system_uniform_index(s, "view");
     state_ptr->terrain_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
     state_ptr->terrain_locations.view_position = shader_system_uniform_index(s, "view_position");
-    state_ptr->terrain_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
-    state_ptr->terrain_locations.specular_texture = shader_system_uniform_index(s, "specular_texture");
-    state_ptr->terrain_locations.normal_texture = shader_system_uniform_index(s, "normal_texture");
     state_ptr->terrain_locations.model = shader_system_uniform_index(s, "model");
     state_ptr->terrain_locations.render_mode = shader_system_uniform_index(s, "mode");
     state_ptr->terrain_locations.dir_light = shader_system_uniform_index(s, "dir_light");
@@ -244,7 +228,6 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->terrain_locations.num_p_lights = shader_system_uniform_index(s, "num_p_lights");
 
     state_ptr->terrain_locations.properties = shader_system_uniform_index(s, "properties");
-    state_ptr->terrain_locations.num_materials = shader_system_uniform_index(s, "num_materials");
 
     state_ptr->terrain_locations.samplers[0] = shader_system_uniform_index(s, "diffuse_texture_0");
     state_ptr->terrain_locations.samplers[1] = shader_system_uniform_index(s, "specular_texture_0");
@@ -384,14 +367,18 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
         m->type = MATERIAL_TYPE_TERRAIN;
 
         // Allocate maps and properties memory.
-        m->property_struct_size = sizeof(terrain_material_properties);
+        m->property_struct_size = sizeof(material_terrain_properties);
         m->properties = kallocate(m->property_struct_size, MEMORY_TAG_MATERIAL_INSTANCE);
-        terrain_material_properties* properties = m->properties;
+        material_terrain_properties* properties = m->properties;
         properties->num_materials = material_count;
+        properties->padding = vec3_zero();
+        properties->padding2 = vec4_zero();
 
-        // 3 maps per material.
-        m->maps = darray_reserve(texture_map, 3 * material_count);
-        darray_length_set(m->maps, 3 * material_count);
+        // 3 maps per material. Allocate enough slots for all materials.
+        // u32 map_count = material_count * 3;
+        u32 max_map_count = TERRAIN_MAX_MATERIAL_COUNT * 3;
+        m->maps = darray_reserve(texture_map, max_map_count);
+        darray_length_set(m->maps, max_map_count);
 
         // Map names and default fallback textures.
         const char* map_names[3] = {"diffuse", "specular", "normal"};
@@ -399,28 +386,38 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
             texture_system_get_default_diffuse_texture(),
             texture_system_get_default_specular_texture(),
             texture_system_get_default_normal_texture()};
+        // Use the default material for unassigned slots.
+        material* default_material = material_system_get_default();
+
         // Phong properties and maps for each material.
-        for (u32 i = 0; i < material_count; ++i) {
+        for (u32 material_idx = 0; material_idx < TERRAIN_MAX_MATERIAL_COUNT; ++material_idx) {
             // Properties.
-            material_phong_properties* mat_props = &properties->materials[i];
-            material_phong_properties* props = materials[i]->properties;
+            material_phong_properties* mat_props = &properties->materials[material_idx];
+            // Use default material unless within the material count.
+            material* ref_mat = default_material;
+            if (material_idx < material_count) {
+                ref_mat = materials[material_idx];
+            }
+
+            material_phong_properties* props = ref_mat->properties;
             mat_props->diffuse_colour = props->diffuse_colour;
             mat_props->shininess = props->shininess;
+            mat_props->padding = vec3_zero();
 
-            // Maps
-            for (u32 j = 0; j < 3; ++j) {
+            // Maps, 3 for phong. Diffuse, spec, normal.
+            for (u32 map_idx = 0; map_idx < 3; ++map_idx) {
                 material_map map_config = {0};
                 char buf[MATERIAL_NAME_MAX_LENGTH] = {0};
                 map_config.name = buf;
-                string_copy(map_config.name, map_names[j]);
-                map_config.repeat_u = materials[i]->maps[j].repeat_u;
-                map_config.repeat_v = materials[i]->maps[j].repeat_v;
-                map_config.repeat_w = materials[i]->maps[j].repeat_w;
-                map_config.filter_min = materials[i]->maps[j].filter_minify;
-                map_config.filter_mag = materials[i]->maps[j].filter_magnify;
-                map_config.texture_name = materials[i]->maps[j].texture->name;
-                if (!assign_map(&m->maps[(i * 3) + j], &map_config, m->name, default_textures[j])) {
-                    KERROR("Failed to assign '%s' texture map for terrain material index %u", map_names[j], i);
+                string_copy(map_config.name, map_names[map_idx]);
+                map_config.repeat_u = ref_mat->maps[map_idx].repeat_u;
+                map_config.repeat_v = ref_mat->maps[map_idx].repeat_v;
+                map_config.repeat_w = ref_mat->maps[map_idx].repeat_w;
+                map_config.filter_min = ref_mat->maps[map_idx].filter_minify;
+                map_config.filter_mag = ref_mat->maps[map_idx].filter_magnify;
+                map_config.texture_name = ref_mat->maps[map_idx].texture->name;
+                if (!assign_map(&m->maps[(material_idx * 3) + map_idx], &map_config, m->name, default_textures[map_idx])) {
+                    KERROR("Failed to assign '%s' texture map for terrain material index %u", map_names[map_idx], material_idx);
                     return false;
                 }
             }
@@ -429,19 +426,20 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
         kfree(materials, sizeof(material*) * material_count, MEMORY_TAG_ARRAY);
 
         // Acquire instance resources for all maps.
-        u32 map_count = material_count * 3;
-        texture_map** maps = kallocate(sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
-        for (u32 i = 0; i < map_count; ++i) {
+
+        texture_map** maps = kallocate(sizeof(texture_map*) * max_map_count, MEMORY_TAG_ARRAY);
+        // Assign material maps.
+        for (u32 i = 0; i < max_map_count; ++i) {
             maps[i] = &m->maps[i];
         }
 
-        b8 result = renderer_shader_instance_resources_acquire(s, map_count, maps, &m->internal_id);
+        b8 result = renderer_shader_instance_resources_acquire(s, max_map_count, maps, &m->internal_id);
         if (!result) {
             KERROR("Failed to acquire renderer resources for material '%s'.", m->name);
         }
 
         if (maps) {
-            kfree(maps, sizeof(texture_map*) * map_count, MEMORY_TAG_ARRAY);
+            kfree(maps, sizeof(texture_map*) * max_map_count, MEMORY_TAG_ARRAY);
         }
         // NOTE: end terrain-specific load_material
 
@@ -647,10 +645,10 @@ b8 material_system_apply_instance(material* m, b8 needs_update) {
             // Directional light.
             directional_light* dir_light = light_system_directional_light_get();
             if (dir_light) {
-                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.dir_light, &dir_light->data));
+                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.dir_light, &dir_light->data));
             } else {
                 directional_light_data data = {0};
-                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.dir_light, &data));
+                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.dir_light, &data));
             }
             // Point lights.
             u32 p_light_count = light_system_point_light_count();
@@ -664,12 +662,12 @@ b8 material_system_apply_instance(material* m, b8 needs_update) {
                     p_light_datas[i] = p_lights[i].data;
                 }
 
-                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.p_lights, p_light_datas));
+                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.p_lights, p_light_datas));
                 kfree(p_light_datas, sizeof(point_light_data), MEMORY_TAG_ARRAY);
                 kfree(p_lights, sizeof(point_light), MEMORY_TAG_ARRAY);
             }
 
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.num_p_lights, &p_light_count));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.num_p_lights, &p_light_count));
         } else {
             KERROR("material_system_apply_instance(): Unrecognized shader id '%d' on shader '%s'.", m->shader_id, m->name);
             return false;
@@ -685,6 +683,8 @@ b8 material_system_apply_local(material* m, const mat4* model) {
         return shader_system_uniform_set_by_index(state_ptr->material_locations.model, model);
     } else if (m->shader_id == state_ptr->ui_shader_id) {
         return shader_system_uniform_set_by_index(state_ptr->ui_locations.model, model);
+    } else if (m->shader_id == state_ptr->terrain_shader_id) {
+        return shader_system_uniform_set_by_index(state_ptr->terrain_locations.model, model);
     }
 
     KERROR("Unrecognized shader id '%d'", m->shader_id);
@@ -749,16 +749,14 @@ static b8 load_material(material_config* config, material* m) {
         material_phong_properties* properties = (material_phong_properties*)m->properties;
         properties->diffuse_colour = vec4_one();
         properties->shininess = 32.0f;
+        properties->padding = vec3_zero();
         for (u32 i = 0; i < prop_count; ++i) {
-            // Diffuse colour
             if (strings_equali(config->properties[i].name, "diffuse_colour")) {
+                // Diffuse colour
                 properties->diffuse_colour = config->properties[i].value_v4;
-                break;
-            }
-            // Shininess
-            if (strings_equali(config->properties[i].name, "shininess")) {
+            } else if (strings_equali(config->properties[i].name, "shininess")) {
+                // Shininess
                 properties->shininess = config->properties[i].value_f32;
-                break;
             }
         }
 
@@ -974,6 +972,11 @@ static b8 create_default_material(material_system_state* state) {
     properties->shininess = 8.0f;
     state->default_material.maps = darray_reserve(texture_map, 3);
     darray_length_set(state->default_material.maps, 3);
+    for (u32 i = 0; i < 3; ++i) {
+        texture_map* map = &state->default_material.maps[i];
+        map->filter_magnify = map->filter_minify = TEXTURE_FILTER_MODE_LINEAR;
+        map->repeat_u = map->repeat_v = map->repeat_w = TEXTURE_REPEAT_REPEAT;
+    }
     state->default_material.maps[0].texture = texture_system_get_default_texture();
 
     state->default_material.maps[1].texture = texture_system_get_default_specular_texture();
@@ -1031,9 +1034,9 @@ static b8 create_default_terrain_material(material_system_state* state) {
     string_ncopy(state->default_terrain_material.name, DEFAULT_TERRAIN_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
 
     // Should essentially be the same thing as the defualt material, just mapped to an "array" of one material.
-    state->default_terrain_material.property_struct_size = sizeof(terrain_material_properties);
-    state->default_terrain_material.properties = kallocate(sizeof(terrain_material_properties), MEMORY_TAG_MATERIAL_INSTANCE);
-    terrain_material_properties* properties = (terrain_material_properties*)state->default_terrain_material.properties;
+    state->default_terrain_material.property_struct_size = sizeof(material_terrain_properties);
+    state->default_terrain_material.properties = kallocate(sizeof(material_terrain_properties), MEMORY_TAG_MATERIAL_INSTANCE);
+    material_terrain_properties* properties = (material_terrain_properties*)state->default_terrain_material.properties;
     properties->num_materials = 1;
     properties->materials[0].diffuse_colour = vec4_one();  // white
     properties->materials[0].shininess = 8.0f;

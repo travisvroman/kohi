@@ -19,7 +19,6 @@ attribute=vec4,in_mat_weights
 # NOTE: For scope: 0=global, 1=instance, 2=local
 uniform=mat4,0,projection
 uniform=mat4,0,view
-uniform=mat4,2,model
 uniform=vec4,0,ambient_colour
 uniform=vec3,0,view_position
 uniform=u32,0,mode
@@ -38,6 +37,9 @@ uniform=samp,1,diffuse_texture_3
 uniform=samp,1,specular_texture_3
 uniform=samp,1,normal_texture_3
 
-uniform=struct144,1,properties
+uniform=struct160,1,properties
 uniform=struct480,1,p_lights
+uniform=vec3,1,padding
 uniform=i32,1,num_p_lights
+
+uniform=mat4,2,model

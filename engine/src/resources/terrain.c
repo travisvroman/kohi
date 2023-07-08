@@ -89,7 +89,11 @@ b8 terrain_initialize(terrain *t) {
             v->texcoord.y = (f32)z;
 
             // TODO: Figure out a way to auto-assign terrain material weights. Height?
-            v->material_weights[0] = 1.0f;
+            // v->material_weights[0] = 1.0f;
+
+            // TODO: Testing this using random material to apply full weight to.
+            i32 index = krandom_in_range(0, 3);
+            v->material_weights[index] = 1.0f;
         }
     }
 
