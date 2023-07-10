@@ -259,7 +259,7 @@ b8 shader_system_use(const char* shader_name) {
 
 b8 shader_system_use_by_id(u32 shader_id) {
     // Only perform the use if the shader id is different.
-    if (state_ptr->current_shader_id != shader_id) {
+    // if (state_ptr->current_shader_id != shader_id) {
         shader* next_shader = shader_system_get_by_id(shader_id);
         state_ptr->current_shader_id = shader_id;
         if (!renderer_shader_use(next_shader)) {
@@ -270,7 +270,7 @@ b8 shader_system_use_by_id(u32 shader_id) {
             KERROR("Failed to bind globals for shader '%s'.", next_shader->name);
             return false;
         }
-    }
+    // }
     return true;
 }
 

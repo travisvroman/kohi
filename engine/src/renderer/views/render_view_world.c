@@ -307,76 +307,81 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
                 KERROR("Failed to use apply globals for terrain shader. Render frame failed.");
                 return false;
             }
-        }
-        for (u32 i = 0; i < terrain_count; ++i) {
-            material* m = 0;
-            if (packet->terrain_geometries[i].geometry->material) {
-                m = packet->terrain_geometries[i].geometry->material;
-            } else {
-                m = material_system_get_default_terrain();
+
+            for (u32 i = 0; i < terrain_count; ++i) {
+                material* m = 0;
+                if (packet->terrain_geometries[i].geometry->material) {
+                    m = packet->terrain_geometries[i].geometry->material;
+                } else {
+                    m = material_system_get_default_terrain();
+                }
+
+                // Update the material if it hasn't already been this frame. This keeps the
+                // same material from being updated multiple times. It still needs to be bound
+                // either way, so this check result gets passed to the backend which either
+                // updates the internal shader bindings and binds them, or only binds them.
+                b8 needs_update = m->render_frame_number != frame_number;
+                if (!material_system_apply_instance(m, needs_update)) {
+                    KWARN("Failed to apply terrain material '%s'. Skipping draw.", m->name);
+                    continue;
+                } else {
+                    // Sync the frame number.
+                    m->render_frame_number = frame_number;
+                }
+
+                // Apply the locals
+                material_system_apply_local(m, &packet->terrain_geometries[i].model);
+
+                // Draw it.
+                renderer_geometry_draw(&packet->terrain_geometries[i]);
             }
-
-            // Update the material if it hasn't already been this frame. This keeps the
-            // same material from being updated multiple times. It still needs to be bound
-            // either way, so this check result gets passed to the backend which either
-            // updates the internal shader bindings and binds them, or only binds them.
-            b8 needs_update = m->render_frame_number != frame_number;
-            if (!material_system_apply_instance(m, needs_update)) {
-                KWARN("Failed to apply terrain material '%s'. Skipping draw.", m->name);
-                continue;
-            } else {
-                // Sync the frame number.
-                m->render_frame_number = frame_number;
-            }
-
-            // Apply the locals
-            material_system_apply_local(m, &packet->terrain_geometries[i].model);
-
-            // Draw it.
-            renderer_geometry_draw(&packet->terrain_geometries[i]);
-        }
-
-        if (!shader_system_use_by_id(shader_id)) {
-            KERROR("Failed to use material shader. Render frame failed.");
-            return false;
         }
 
-        // Apply globals
-        // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
-        // and mode (from the renderer)
-        if (!material_system_apply_global(shader_id, frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
-            KERROR("Failed to use apply globals for material shader. Render frame failed.");
-            return false;
-        }
-
-        // Draw geometries.
-        u32 count = packet->geometry_count;
-        for (u32 i = 0; i < count; ++i) {
-            material* m = 0;
-            if (packet->geometries[i].geometry->material) {
-                m = packet->geometries[i].geometry->material;
-            } else {
-                m = material_system_get_default();
+        // Static geometries.
+        u32 geometry_count = packet->geometry_count;
+        if (geometry_count > 0) {
+            if (!shader_system_use_by_id(shader_id)) {
+                KERROR("Failed to use material shader. Render frame failed.");
+                return false;
             }
 
-            // Update the material if it hasn't already been this frame. This keeps the
-            // same material from being updated multiple times. It still needs to be bound
-            // either way, so this check result gets passed to the backend which either
-            // updates the internal shader bindings and binds them, or only binds them.
-            b8 needs_update = m->render_frame_number != frame_number;
-            if (!material_system_apply_instance(m, needs_update)) {
-                KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
-                continue;
-            } else {
-                // Sync the frame number.
-                m->render_frame_number = frame_number;
+            // Apply globals
+            // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
+            // and mode (from the renderer)
+            if (!material_system_apply_global(shader_id, frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
+                KERROR("Failed to use apply globals for material shader. Render frame failed.");
+                return false;
             }
 
-            // Apply the locals
-            material_system_apply_local(m, &packet->geometries[i].model);
+            // Draw geometries.
+            u32 count = packet->geometry_count;
+            for (u32 i = 0; i < count; ++i) {
+                material* m = 0;
+                if (packet->geometries[i].geometry->material) {
+                    m = packet->geometries[i].geometry->material;
+                } else {
+                    m = material_system_get_default();
+                }
 
-            // Draw it.
-            renderer_geometry_draw(&packet->geometries[i]);
+                // Update the material if it hasn't already been this frame. This keeps the
+                // same material from being updated multiple times. It still needs to be bound
+                // either way, so this check result gets passed to the backend which either
+                // updates the internal shader bindings and binds them, or only binds them.
+                b8 needs_update = m->render_frame_number != frame_number;
+                if (!material_system_apply_instance(m, needs_update)) {
+                    KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
+                    continue;
+                } else {
+                    // Sync the frame number.
+                    m->render_frame_number = frame_number;
+                }
+
+                // Apply the locals
+                material_system_apply_local(m, &packet->geometries[i].model);
+
+                // Draw it.
+                renderer_geometry_draw(&packet->geometries[i]);
+            }
         }
 
         if (!renderer_renderpass_end(pass)) {
