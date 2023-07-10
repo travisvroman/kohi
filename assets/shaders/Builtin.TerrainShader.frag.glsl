@@ -96,13 +96,13 @@ void main() {
 
     // Manually sample the first material.
     // TODO: This mix isn't quite right.
-    vec4 diff = vec4(normalize(TBN * (2.0 * texture(samplers[SAMP_NORMAL_OFFSET * 1], in_dto.tex_coord).rgb - 1.0)),1.0);//vec4(0);
-    vec4 spec = texture(samplers[SAMP_DIFFUSE_OFFSET * 1], in_dto.tex_coord);
-    vec3 norm = texture(samplers[SAMP_SPECULAR_OFFSET * 1], in_dto.tex_coord).rgb;
+    vec4 diff = vec4(1);
+    vec4 spec = vec4(0.5);
+    vec3 norm = vec3(0, 1, 0);
     for(int m = 0; m < instance_ubo.properties.num_materials; ++m) {
-        normals[m] = normalize(TBN * (2.0 * texture(samplers[SAMP_NORMAL_OFFSET * m], in_dto.tex_coord).rgb - 1.0));
-        diffuses[m] = texture(samplers[SAMP_DIFFUSE_OFFSET * m], in_dto.tex_coord);
-        specs[m] = texture(samplers[SAMP_SPECULAR_OFFSET * m], in_dto.tex_coord);
+        normals[m] = normalize(TBN * (2.0 * texture(samplers[(m * 3) + SAMP_NORMAL_OFFSET], in_dto.tex_coord).rgb - 1.0));
+        diffuses[m] = texture(samplers[(m * 3) + SAMP_DIFFUSE_OFFSET], in_dto.tex_coord);
+        specs[m] = texture(samplers[(m * 3) + SAMP_SPECULAR_OFFSET], in_dto.tex_coord);
 
         norm = mix(norm, normals[m], in_dto.mat_weights[m]);
         diff = mix(diff, diffuses[m], in_dto.mat_weights[m]);

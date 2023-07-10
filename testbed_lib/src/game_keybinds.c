@@ -54,55 +54,49 @@ void game_on_pitch(keys key, keymap_entry_bind_type type, keymap_modifier modifi
 void game_on_move_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
-    static const f32 temp_move_speed = 50.0f;
 
     const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
-    camera_move_forward(state->world_camera, temp_move_speed * p_frame_data->delta_time);
+    camera_move_forward(state->world_camera, state->forward_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_move_backward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
-    static const f32 temp_move_speed = 50.0f;
 
     const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
-    camera_move_backward(state->world_camera, temp_move_speed * p_frame_data->delta_time);
+    camera_move_backward(state->world_camera, state->backward_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_move_left(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
-    static const f32 temp_move_speed = 50.0f;
 
     const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
-    camera_move_left(state->world_camera, temp_move_speed * p_frame_data->delta_time);
+    camera_move_left(state->world_camera, state->forward_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_move_right(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
-    static const f32 temp_move_speed = 50.0f;
 
     const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
-    camera_move_right(state->world_camera, temp_move_speed * p_frame_data->delta_time);
+    camera_move_right(state->world_camera, state->forward_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_move_up(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
-    static const f32 temp_move_speed = 50.0f;
 
     const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
-    camera_move_up(state->world_camera, temp_move_speed * p_frame_data->delta_time);
+    camera_move_up(state->world_camera, state->forward_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_move_down(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
-    static const f32 temp_move_speed = 50.0f;
 
     const struct frame_data* p_frame_data = engine_frame_data_get(game_inst);
-    camera_move_down(state->world_camera, temp_move_speed * p_frame_data->delta_time);
+    camera_move_down(state->world_camera, state->forward_move_speed * p_frame_data->delta_time);
 }
 
 void game_on_console_change_visibility(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {

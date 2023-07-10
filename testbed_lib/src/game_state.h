@@ -47,6 +47,9 @@ typedef struct testbed_game_state {
 
     u64 alloc_count;
     u64 prev_alloc_count;
+
+    f32 forward_move_speed;
+    f32 backward_move_speed;
     // TODO: end temp
 } testbed_game_state;
 

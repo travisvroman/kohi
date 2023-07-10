@@ -3,13 +3,13 @@ version=1
 name=test_terrain
 
 # If set, image is used as heightmap data. 
-heightmap_file=terrain_heightmap2
+heightmap_file=terrain_heightmap_256
 
-scale_x=1.0
+scale_x=2.0
 scale_y=10.0
-scale_z=1.0
+scale_z=2.0
 
-material0=floor
-material1=paving
-material2=paving2
-material3=roof
+material0=river_rock1
+material1=wavy-sand
+material2=grass1
+material3=Crusted_snow2

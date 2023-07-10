@@ -88,12 +88,22 @@ b8 terrain_initialize(terrain *t) {
             v->texcoord.x = (f32)x;
             v->texcoord.y = (f32)z;
 
-            // TODO: Figure out a way to auto-assign terrain material weights. Height?
-            // v->material_weights[0] = 1.0f;
+            // NOTE: Assigning default weights based on overall height. Lower indices are
+            // lower in altitude.
+            v->material_weights[0] = ksmoothstep(0.00f, 0.25f, t->vertex_datas[i].height);
+            v->material_weights[1] = ksmoothstep(0.25f, 0.50f, t->vertex_datas[i].height);
+            v->material_weights[2] = ksmoothstep(0.50f, 0.75f, t->vertex_datas[i].height);
+            v->material_weights[3] = ksmoothstep(0.75f, 1.00f, t->vertex_datas[i].height);
 
-            // TODO: Testing this using random material to apply full weight to.
-            i32 index = krandom_in_range(0, 3);
-            v->material_weights[index] = 1.0f;
+            // if (t->vertex_datas[i].height < 0.25) {
+            //     // v->material_weights[0] = 1.0f;
+            // } else if (t->vertex_datas[i].height >= 0.25 && t->vertex_datas[i].height < 0.5) {
+            //     // v->material_weights[1] = 1.0f;
+            // } else if (t->vertex_datas[i].height >= 0.5 && t->vertex_datas[i].height < 0.75) {
+            //     // v->material_weights[2] = 1.0f;
+            // } else {
+            //     // v->material_weights[3] = 1.0f;
+            // }
         }
     }
 

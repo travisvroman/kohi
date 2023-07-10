@@ -23,12 +23,13 @@ const int MAX_POINT_LIGHTS = 10;
 
 struct phong_properties {
     vec4 diffuse_colour;
+    vec3 padding;
     float shininess;
 };
 
 layout(set = 1, binding = 0) uniform instance_uniform_object {
-    directional_light dir_light;
-    point_light p_lights[MAX_POINT_LIGHTS];
+    directional_light dir_light; // TODO: make global;
+    point_light p_lights[MAX_POINT_LIGHTS]; // TODO: move after props
     phong_properties properties;
     int num_p_lights;
 } instance_ubo;

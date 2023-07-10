@@ -40,7 +40,10 @@ vec3 camera_rotation_euler_get(const camera* c) {
 
 void camera_rotation_euler_set(camera* c, vec3 rotation) {
     if (c) {
-        c->euler_rotation = rotation;
+        // Convert number passed in to radians.
+        c->euler_rotation.x = deg_to_rad(rotation.x);
+        c->euler_rotation.y = deg_to_rad(rotation.y);
+        c->euler_rotation.z = deg_to_rad(rotation.z);
         c->is_dirty = true;
     }
 }

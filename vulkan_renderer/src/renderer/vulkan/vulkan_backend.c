@@ -2356,7 +2356,7 @@ b8 vulkan_renderer_texture_map_resources_acquire(renderer_plugin *plugin,
 void vulkan_renderer_texture_map_resources_release(renderer_plugin *plugin,
                                                    texture_map *map) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
-    if (map) {
+    if (map && map->internal_data) {
         // Make sure there's no way this is in use.
         vkDeviceWaitIdle(context->device.logical_device);
         vkDestroySampler(context->device.logical_device, map->internal_data,

@@ -43,6 +43,13 @@ type=vec4
 value=0.800000 0.800000 0.800000 1.000000
 [/prop]
 
+# The material shader requires this padding to be in place.
+[prop]
+name=padding
+type=vec3
+value=0.000000 0.000000 0.000000
+[/prop]
+
 [prop]
 name=shininess
 type=f32

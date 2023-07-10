@@ -193,6 +193,9 @@ b8 application_initialize(struct application* game_inst) {
 
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
+    state->forward_move_speed = 5.0f;
+    state->backward_move_speed = 2.5f;
+
     // World meshes
     // Invalidate all meshes.
     for (u32 i = 0; i < 10; ++i) {
@@ -267,7 +270,8 @@ b8 application_initialize(struct application* game_inst) {
     // TODO: end temp load/prepare stuff
 
     state->world_camera = camera_system_get_default();
-    camera_position_set(state->world_camera, (vec3){10.5f, 5.0f, 9.5f});
+    camera_position_set(state->world_camera, (vec3){14.3f, 9.93f, -0.11f});
+    camera_rotation_euler_set(state->world_camera, (vec3){-13.265f, -134.810f, 0.0f});
 
     // kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
 

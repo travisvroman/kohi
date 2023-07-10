@@ -162,6 +162,19 @@ KAPI f32 kfrandom(void);
  */
 KAPI f32 kfrandom_in_range(f32 min, f32 max);
 
+/**
+ * @brief Perform Hermite interpolation between two values.
+ * 
+ * @param edge_0 The lower edge of the Hermite function.
+ * @param edge_1 The upper edge of the Hermite function.
+ * @param x The value to interpolate.
+ * @return The interpolated value.
+ */
+KINLINE f32 ksmoothstep(f32 edge_0, f32 edge_1, f32 x) {
+    f32 t = KCLAMP((x - edge_0) / (edge_1 - edge_0), 0.0f, 1.0f);
+    return t * t * (3.0 - 2.0 * t);
+}
+
 // ------------------------------------------
 // Vector 2
 // ------------------------------------------
