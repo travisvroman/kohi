@@ -22,6 +22,9 @@
 /** @brief An approximate representation of PI multiplied by 2. */
 #define K_2PI (2.0f * K_PI)
 
+/** @brief An approximate representation of PI multiplied by 4. */
+#define K_4PI (4.0f * K_PI)
+
 /** @brief An approximate representation of PI divided by 2. */
 #define K_HALF_PI (0.5f * K_PI)
 

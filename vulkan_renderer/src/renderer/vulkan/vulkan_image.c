@@ -67,6 +67,9 @@ void vulkan_image_create(
     memory_allocate_info.allocationSize = out_image->memory_requirements.size;
     memory_allocate_info.memoryTypeIndex = memory_type;
     VK_CHECK(vkAllocateMemory(context->device.logical_device, &memory_allocate_info, context->allocator, &out_image->memory));
+    if (out_image->name && !vulkan_set_debug_object_name(context, VK_OBJECT_TYPE_DEVICE_MEMORY, out_image->memory, out_image->name)) {
+        //
+    }
 
     // Bind the memory
     VK_CHECK(vkBindImageMemory(context->device.logical_device, out_image->handle, out_image->memory, 0));  // TODO: configurable memory offset.

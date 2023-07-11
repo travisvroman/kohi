@@ -16,6 +16,7 @@
 #include "debug_console.h"
 
 typedef struct testbed_game_state {
+    b8 running;
     camera* world_camera;
 
     u16 width, height;

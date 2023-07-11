@@ -394,7 +394,7 @@ void renderer_flag_enabled_set(renderer_config_flags flag, b8 enabled) {
     state_ptr->plugin.flag_enabled_set(&state_ptr->plugin, flag, enabled);
 }
 
-b8 renderer_renderbuffer_create(renderbuffer_type type, u64 total_size, b8 use_freelist, renderbuffer* out_buffer) {
+b8 renderer_renderbuffer_create(const char* name, renderbuffer_type type, u64 total_size, b8 use_freelist, renderbuffer* out_buffer) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     if (!out_buffer) {
         KERROR("renderer_renderbuffer_create requires a valid pointer to hold the created buffer.");
@@ -405,6 +405,13 @@ b8 renderer_renderbuffer_create(renderbuffer_type type, u64 total_size, b8 use_f
 
     out_buffer->type = type;
     out_buffer->total_size = total_size;
+    if (name) {
+        out_buffer->name = string_duplicate(name);
+    } else {
+        char temp_name[256] = {0};
+        string_format(temp_name, "renderbuffer_%s", "unnamed");
+        out_buffer->name = string_duplicate(temp_name);
+    }
 
     // Create the freelist, if needed.
     if (use_freelist) {
@@ -429,6 +436,12 @@ void renderer_renderbuffer_destroy(renderbuffer* buffer) {
             freelist_destroy(&buffer->buffer_freelist);
             kfree(buffer->freelist_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
             buffer->freelist_memory_requirement = 0;
+        }
+
+        if (buffer->name) {
+            u32 length = string_length(buffer->name);
+            kfree(buffer->name, length + 1, MEMORY_TAG_STRING);
+            buffer->name = 0;
         }
 
         // Free up the backend resources.

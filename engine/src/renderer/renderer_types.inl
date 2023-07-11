@@ -153,6 +153,8 @@ typedef enum renderbuffer_type {
 } renderbuffer_type;
 
 typedef struct renderbuffer {
+    /** @brief The name of the buffer, used for debugging purposes. */
+    char* name;
     /** @brief The type of buffer, which typically determines its use. */
     renderbuffer_type type;
     /** @brief The total size of the buffer in bytes. */

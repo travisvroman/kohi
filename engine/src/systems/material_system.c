@@ -425,6 +425,11 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
             }
         }
 
+        // Release reference materials.
+        for (u32 i = 0; i < material_count; ++i) {
+            material_system_release(material_names[i]);
+        }
+
         kfree(materials, sizeof(material*) * material_count, MEMORY_TAG_ARRAY);
 
         // Acquire instance resources for all maps.

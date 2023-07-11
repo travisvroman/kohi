@@ -63,10 +63,53 @@ b8 terrain_create(const terrain_config *config, terrain *out_terrain) {
         out_terrain->material_names = 0;
     }
 
+    // Invalidate the geometry.
+    out_terrain->geo.id = INVALID_ID;
+    out_terrain->geo.internal_id = INVALID_ID;
+    out_terrain->geo.generation = INVALID_ID_U16;
+
     return true;
 }
 void terrain_destroy(terrain *t) {
     // TODO: Fill me out!
+
+    if (t->name) {
+        u32 length = string_length(t->name);
+        kfree(t->name, length + 1, MEMORY_TAG_STRING);
+        t->name = 0;
+    }
+
+    if (t->vertices) {
+        kfree(t->vertices, sizeof(terrain_vertex) * t->vertex_count, MEMORY_TAG_ARRAY);
+        t->vertices = 0;
+    }
+
+    if (t->indices) {
+        kfree(t->indices, sizeof(u32) * t->index_count, MEMORY_TAG_ARRAY);
+        t->indices = 0;
+    }
+
+    if (t->material_names) {
+        kfree(t->material_names, sizeof(char *) * t->material_count, MEMORY_TAG_ARRAY);
+        t->material_names = 0;
+    }
+
+    if (t->vertex_datas) {
+        kfree(t->vertex_datas, sizeof(terrain_vertex_data) * t->vertex_data_length, MEMORY_TAG_ARRAY);
+        t->vertex_datas = 0;
+    }
+
+    // NOTE: Don't just zero the memory, because some structs like geometry should have invalid ids.
+    t->index_count = 0;
+    t->vertex_count = 0;
+    t->scale_y = 0;
+    t->tile_scale_x = 0;
+    t->tile_scale_z = 0;
+    t->tile_count_x = 0;
+    t->tile_count_z = 0;
+    t->vertex_data_length = 0;
+    kzero_memory(&t->origin, sizeof(vec3));
+    kzero_memory(&t->extents, sizeof(vec3));
 }
 
 b8 terrain_initialize(terrain *t) {
@@ -140,8 +183,6 @@ b8 terrain_load(terrain *t) {
     }
 
     geometry *g = &t->geo;
-    kzero_memory(g, sizeof(geometry));
-    g->generation = INVALID_ID_U16;
 
     // Send the geometry off to the renderer to be uploaded to the GPU.
     if (!renderer_geometry_create(g, sizeof(terrain_vertex), t->vertex_count,
@@ -168,6 +209,12 @@ b8 terrain_load(terrain *t) {
 
     return true;
 }
-b8 terrain_unload(terrain *t) { return true; }
+
+b8 terrain_unload(terrain *t) {
+    material_system_release(t->geo.material->name);
+    renderer_geometry_destroy(&t->geo);
+
+    return true;
+}
 
 b8 terrain_update(terrain *t) { return true; }
