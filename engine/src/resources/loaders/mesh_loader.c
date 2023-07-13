@@ -652,8 +652,9 @@ static b8 import_obj_material_library_file(const char *mtl_file_path) {
         return false;
     }
 
-    material_config current_config;
-    kzero_memory(&current_config, sizeof(current_config));
+    material_config current_config = {0};
+    current_config.properties = darray_create(material_config_prop);
+    current_config.maps = darray_create(material_map);
 
     b8 hit_name = false;
 
@@ -808,12 +809,21 @@ static b8 import_obj_material_library_file(const char *mtl_file_path) {
                         }
 
                         // Reset the material for the next round.
+                        darray_destroy(current_config.properties);
+                        darray_destroy(current_config.maps);
+                        if (current_config.name) {
+                            u32 len = string_length(current_config.name);
+                            kfree(current_config.name, len + 1, MEMORY_TAG_STRING);
+                        }
                         kzero_memory(&current_config, sizeof(current_config));
                     }
 
                     hit_name = true;
-
-                    string_ncopy(current_config.name, material_name, 256);
+                    if (!current_config.name) {
+                        current_config.name = string_duplicate(material_name);
+                    } else {
+                        string_ncopy(current_config.name, material_name, 256);
+                    }
                 }
             }
         }
@@ -921,6 +931,7 @@ static b8 write_kmt_file(const char *mtl_file_path, material_config *config) {
     // Write maps
     u32 map_count = darray_length(config->maps);
     for (u32 i = 0; i < map_count; ++i) {
+        filesystem_write_line(&f, "[map]");
         string_format(line_buffer, "name=%s", config->maps[i].name);
         filesystem_write_line(&f, line_buffer);
 
@@ -938,11 +949,13 @@ static b8 write_kmt_file(const char *mtl_file_path, material_config *config) {
 
         string_format(line_buffer, "texture_name=%s", config->maps[i].texture_name);
         filesystem_write_line(&f, line_buffer);
+        filesystem_write_line(&f, "[/map]");
     }
 
     // Write properties.
     u32 prop_count = darray_length(config->properties);
     for (u32 i = 0; i < prop_count; ++i) {
+        filesystem_write_line(&f, "[prop]");
         string_format(line_buffer, "name=%s", config->properties[i].name);
         filesystem_write_line(&f, line_buffer);
 
@@ -1007,6 +1020,7 @@ static b8 write_kmt_file(const char *mtl_file_path, material_config *config) {
                 break;
         }
         filesystem_write_line(&f, line_buffer);
+        filesystem_write_line(&f, "[/prop]");
     }
 
     filesystem_close(&f);
