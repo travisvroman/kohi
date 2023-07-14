@@ -126,8 +126,8 @@ b8 terrain_initialize(terrain *t) {
             v->position.z = z * t->tile_scale_z;
             v->position.y = t->vertex_datas[i].height * t->scale_y;
 
-            v->colour = vec4_one();       // white;
-            v->normal = (vec3){0, 1, 0};  // TODO: calculate based on geometry.
+            v->colour = vec4_one();  // white;
+            v->normal = (vec3){0, 1, 0};
             v->texcoord.x = (f32)x;
             v->texcoord.y = (f32)z;
 
@@ -137,16 +137,6 @@ b8 terrain_initialize(terrain *t) {
             v->material_weights[1] = ksmoothstep(0.25f, 0.50f, t->vertex_datas[i].height);
             v->material_weights[2] = ksmoothstep(0.50f, 0.75f, t->vertex_datas[i].height);
             v->material_weights[3] = ksmoothstep(0.75f, 1.00f, t->vertex_datas[i].height);
-
-            // if (t->vertex_datas[i].height < 0.25) {
-            //     // v->material_weights[0] = 1.0f;
-            // } else if (t->vertex_datas[i].height >= 0.25 && t->vertex_datas[i].height < 0.5) {
-            //     // v->material_weights[1] = 1.0f;
-            // } else if (t->vertex_datas[i].height >= 0.5 && t->vertex_datas[i].height < 0.75) {
-            //     // v->material_weights[2] = 1.0f;
-            // } else {
-            //     // v->material_weights[3] = 1.0f;
-            // }
         }
     }
 
@@ -168,10 +158,8 @@ b8 terrain_initialize(terrain *t) {
         }
     }
 
-    terrain_geometry_generate_normals(t->vertex_count, t->vertices,
-                                      t->index_count, t->indices);
-    terrain_geometry_generate_tangents(t->vertex_count, t->vertices,
-                                       t->index_count, t->indices);
+    terrain_geometry_generate_normals(t->vertex_count, t->vertices, t->index_count, t->indices);
+    terrain_geometry_generate_tangents(t->vertex_count, t->vertices, t->index_count, t->indices);
 
     return true;
 }

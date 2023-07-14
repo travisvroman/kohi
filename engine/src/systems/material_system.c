@@ -771,9 +771,7 @@ static b8 load_material(material_config* config, material* m) {
         m->maps = darray_reserve(texture_map, 3);
         darray_length_set(m->maps, 3);
         u32 map_count = darray_length(config->maps);
-        if (strings_equali("Material__47", m->name)) {
-            KTRACE("Material__47 loaded");  // TODO: nocheckin.
-        }
+
         b8 diffuse_assigned = false;
         b8 spec_assigned = false;
         b8 norm_assigned = false;

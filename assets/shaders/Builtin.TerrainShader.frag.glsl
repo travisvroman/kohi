@@ -98,7 +98,7 @@ void main() {
     // TODO: This mix isn't quite right.
     vec4 diff = vec4(1);
     vec4 spec = vec4(0.5);
-    vec3 norm = vec3(0, 1, 0);
+    vec3 norm = vec3(0, 0, 1);
     for(int m = 0; m < instance_ubo.properties.num_materials; ++m) {
         normals[m] = normalize(TBN * (2.0 * texture(samplers[(m * 3) + SAMP_NORMAL_OFFSET], in_dto.tex_coord).rgb - 1.0));
         diffuses[m] = texture(samplers[(m * 3) + SAMP_DIFFUSE_OFFSET], in_dto.tex_coord);
