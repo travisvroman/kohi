@@ -1,15 +1,14 @@
 #include "shader_loader.h"
 
-#include "core/logger.h"
+#include "containers/darray.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "core/logger.h"
+#include "loader_utils.h"
+#include "math/kmath.h"
+#include "platform/filesystem.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
-#include "math/kmath.h"
-#include "loader_utils.h"
-#include "containers/darray.h"
-
-#include "platform/filesystem.h"
 
 static b8 shader_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
     if (!self || !name || !out_resource) {

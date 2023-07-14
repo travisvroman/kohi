@@ -13,11 +13,16 @@
 #pragma once
 
 #include "defines.h"
-
 #include "resources/resource_types.h"
 
 /** @brief The name of the default material. */
 #define DEFAULT_MATERIAL_NAME "default"
+
+/** @brief The name of the default UI material. */
+#define DEFAULT_UI_MATERIAL_NAME "default_ui"
+
+/** @brief The name of the default terrain material. */
+#define DEFAULT_TERRAIN_MATERIAL_NAME "default_terrain"
 
 /** @brief The configuration for the material system. */
 typedef struct material_system_config {
@@ -55,6 +60,19 @@ void material_system_shutdown(void* state);
 KAPI material* material_system_acquire(const char* name);
 
 /**
+ * @brief Attempts to acquire a terrain material with the given name. If it has not yet been
+ * loaded, this triggers it to be loaded from using the provided standard material names. If
+ * the material is not able to be loaded, a pointer to the default terrain material is returned.
+ * If the material _is_ found and loaded, its reference counter is incremented.
+ *
+ * @param name The name of the terrain material to find.
+ * @param material_count The number of standard source material names.
+ * @param material_names The names of the source materials to be used.
+ * @return A pointer to the loaded terrain material. Can be a pointer to the defualt terrain material if not found.
+ */
+KAPI material* material_system_acquire_terrain_material(const char* material_name, u32 material_count, const char** material_names, b8 auto_release);
+
+/**
  * @brief Attempts to acquire a material from the given configuration. If it has not yet been loaded,
  * this triggers it to load. If the material is not found, a pointer to the default material
  * is returned. If the material _is_ found and loaded, its reference counter is incremented.
@@ -62,7 +80,7 @@ KAPI material* material_system_acquire(const char* name);
  * @param config The config of the material to load.
  * @return A pointer to the loaded material.
  */
-KAPI material* material_system_acquire_from_config(material_config config);
+KAPI material* material_system_acquire_from_config(material_config* config);
 
 /**
  * @brief Releases a material with the given name. Ignores non-existant materials.
@@ -77,6 +95,16 @@ KAPI void material_system_release(const char* name);
  * @brief Gets a pointer to the default material. Does not reference count.
  */
 KAPI material* material_system_get_default(void);
+
+/**
+ * @brief Gets a pointer to the default UI material. Does not reference count.
+ */
+KAPI material* material_system_get_default_ui(void);
+
+/**
+ * @brief Gets a pointer to the default terrain material. Does not reference count.
+ */
+KAPI material* material_system_get_default_terrain(void);
 
 /**
  * @brief Applies global-level data for the material shader id.

@@ -1,6 +1,6 @@
 #material file
 
-version=0.1
+version=1
 name=paving
 diffuse_colour=1.0 1.0 1.0 1.0
 shininess=32.0

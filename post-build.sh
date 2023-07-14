@@ -15,6 +15,8 @@ pushd bin
 ../assets/shaders/Builtin.UIPickShader.frag.glsl \
 ../assets/shaders/Builtin.WorldPickShader.vert.glsl \
 ../assets/shaders/Builtin.WorldPickShader.frag.glsl \
+../assets/shaders/Builtin.TerrainShader.vert.glsl \
+../assets/shaders/Builtin.TerrainShader.frag.glsl
 
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]

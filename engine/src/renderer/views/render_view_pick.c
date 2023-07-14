@@ -1,20 +1,20 @@
 #include "render_view_pick.h"
 
-#include "core/logger.h"
-#include "core/kmemory.h"
+#include "containers/darray.h"
 #include "core/event.h"
+#include "core/kmemory.h"
 #include "core/kstring.h"
+#include "core/logger.h"
 #include "core/uuid.h"
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "memory/linear_allocator.h"
-#include "containers/darray.h"
-#include "systems/resource_system.h"
-#include "systems/shader_system.h"
-#include "systems/camera_system.h"
-#include "systems/render_view_system.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/ui_text.h"
+#include "systems/camera_system.h"
+#include "systems/render_view_system.h"
+#include "systems/resource_system.h"
+#include "systems/shader_system.h"
 
 typedef struct render_view_pick_shader_info {
     shader* s;
@@ -85,12 +85,12 @@ static void acquire_shader_instances(const struct render_view* self) {
     // Not saving the instance id because it doesn't matter.
     u32 instance;
     // UI shader
-    if (!renderer_shader_instance_resources_acquire(data->ui_shader_info.s, 0, &instance)) {
+    if (!renderer_shader_instance_resources_acquire(data->ui_shader_info.s, 0, 0, &instance)) {
         KFATAL("render_view_pick failed to acquire shader resources.");
         return;
     }
     // World shader
-    if (!renderer_shader_instance_resources_acquire(data->world_shader_info.s, 0, &instance)) {
+    if (!renderer_shader_instance_resources_acquire(data->world_shader_info.s, 0, 0, &instance)) {
         KFATAL("render_view_pick failed to acquire shader resources.");
         return;
     }
@@ -177,7 +177,7 @@ b8 render_view_pick_on_create(struct render_view* self) {
 
         // Default World properties
         data->world_shader_info.near_clip = 0.1f;
-        data->world_shader_info.far_clip = 1000.0f;
+        data->world_shader_info.far_clip = 4000.0f;
         data->world_shader_info.fov = deg_to_rad(45.0f);
         data->world_shader_info.projection = mat4_perspective(data->world_shader_info.fov, 1280 / 720.0f, data->world_shader_info.near_clip, data->world_shader_info.far_clip);
         data->world_shader_info.view = mat4_identity();
@@ -268,7 +268,7 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct linea
     u32 highest_instance_id = 0;
     // Iterate all geometries in world data.
     for (u32 i = 0; i < world_geometry_count; ++i) {
-       darray_push(out_packet->geometries, packet_data->world_mesh_data[i]);
+        darray_push(out_packet->geometries, packet_data->world_mesh_data[i]);
 
         // Count all geometries as a single id.
         if (packet_data->world_mesh_data[i].unique_id > highest_instance_id) {
@@ -323,7 +323,7 @@ void render_view_pick_on_packet_destroy(const struct render_view* self, struct r
     kzero_memory(packet, sizeof(render_view_packet));
 }
 
-b8 render_view_pick_on_render(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index) {
+b8 render_view_pick_on_render(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index, const struct frame_data* p_frame_data) {
     render_view_pick_internal_data* data = self->internal_data;
 
     u32 p = 0;
@@ -392,7 +392,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
         }
 
         if (!renderer_renderpass_end(pass)) {
-            KERROR("render_view_ui_on_render pass index %u failed to end.", p);
+            KERROR("render_view_pick_on_render pass index %u failed to end.", p);
             return false;
         }
 
@@ -400,7 +400,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
         pass = &self->passes[p];  // Second pass
 
         if (!renderer_renderpass_begin(pass, &pass->targets[render_target_index])) {
-            KERROR("render_view_ui_on_render pass index %u failed to start.", p);
+            KERROR("render_view_pick_on_render pass index %u failed to start.", p);
             return false;
         }
 

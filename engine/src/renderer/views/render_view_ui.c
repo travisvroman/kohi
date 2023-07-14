@@ -1,18 +1,18 @@
 #include "render_view_ui.h"
 
-#include "core/logger.h"
-#include "core/kmemory.h"
+#include "containers/darray.h"
 #include "core/event.h"
+#include "core/kmemory.h"
+#include "core/logger.h"
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "memory/linear_allocator.h"
-#include "containers/darray.h"
-#include "systems/resource_system.h"
-#include "systems/material_system.h"
-#include "systems/render_view_system.h"
-#include "systems/shader_system.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/ui_text.h"
+#include "systems/material_system.h"
+#include "systems/render_view_system.h"
+#include "systems/resource_system.h"
+#include "systems/shader_system.h"
 
 typedef struct render_view_ui_internal_data {
     shader* s;
@@ -21,7 +21,7 @@ typedef struct render_view_ui_internal_data {
     mat4 projection_matrix;
     mat4 view_matrix;
     u16 diffuse_map_location;
-    u16 diffuse_colour_location;
+    u16 properties_location;
     u16 model_location;
     // u32 render_mode;
 } render_view_ui_internal_data;
@@ -41,7 +41,6 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, even
 
     return false;
 }
-
 
 b8 render_view_ui_on_create(struct render_view* self) {
     if (self) {
@@ -65,7 +64,7 @@ b8 render_view_ui_on_create(struct render_view* self) {
         // Get either the custom shader override or the defined default.
         data->s = shader_system_get(self->custom_shader_name ? self->custom_shader_name : shader_name);
         data->diffuse_map_location = shader_system_uniform_index(data->s, "diffuse_texture");
-        data->diffuse_colour_location = shader_system_uniform_index(data->s, "diffuse_colour");
+        data->properties_location = shader_system_uniform_index(data->s, "properties");
         data->model_location = shader_system_uniform_index(data->s, "model");
         // TODO: Set from configuration.
         data->near_clip = -100.0f;
@@ -155,7 +154,7 @@ void render_view_ui_on_packet_destroy(const struct render_view* self, struct ren
     kzero_memory(packet, sizeof(render_view_packet));
 }
 
-b8 render_view_ui_on_render(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index) {
+b8 render_view_ui_on_render(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index, const struct frame_data* p_frame_data) {
     render_view_ui_internal_data* data = self->internal_data;
     u32 shader_id = data->s->id;
 
@@ -184,7 +183,7 @@ b8 render_view_ui_on_render(const struct render_view* self, const struct render_
             if (packet->geometries[i].geometry->material) {
                 m = packet->geometries[i].geometry->material;
             } else {
-                m = material_system_get_default();
+                m = material_system_get_default_ui();
             }
 
             // Update the material if it hasn't already been this frame. This keeps the
@@ -220,7 +219,7 @@ b8 render_view_ui_on_render(const struct render_view* self, const struct render_
 
             // TODO: font colour.
             static vec4 white_colour = (vec4){1.0f, 1.0f, 1.0f, 1.0f};  // white
-            if (!shader_system_uniform_set_by_index(data->diffuse_colour_location, &white_colour)) {
+            if (!shader_system_uniform_set_by_index(data->properties_location, &white_colour)) {
                 KERROR("Failed to apply bitmap font diffuse colour uniform.");
                 return false;
             }
@@ -232,7 +231,7 @@ b8 render_view_ui_on_render(const struct render_view* self, const struct render_
 
             // Apply the locals
             mat4 model = transform_world_get(&text->transform);
-            if(!shader_system_uniform_set_by_index(data->model_location, &model)) {
+            if (!shader_system_uniform_set_by_index(data->model_location, &model)) {
                 KERROR("Failed to apply model matrix for text");
             }
 

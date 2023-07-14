@@ -8,6 +8,9 @@ void* _darray_create(u64 length, u64 stride) {
     u64 array_size = length * stride;
     u64* new_array = kallocate(header_size + array_size, MEMORY_TAG_DARRAY);
     kset_memory(new_array, 0, header_size + array_size);
+    if (length == 0) {
+        KFATAL("_darray_create called with length of 0");
+    }
     new_array[DARRAY_CAPACITY] = length;
     new_array[DARRAY_LENGTH] = 0;
     new_array[DARRAY_STRIDE] = stride;
@@ -30,14 +33,22 @@ u64 _darray_field_get(void* array, u64 field) {
 
 void _darray_field_set(void* array, u64 field, u64 value) {
     u64* header = (u64*)array - DARRAY_FIELD_LENGTH;
+    if (field == DARRAY_CAPACITY && value == 0) {
+        KFATAL("_darray_field_set trying to set zero capacity.");
+    }
     header[field] = value;
 }
 
 void* _darray_resize(void* array) {
     u64 length = darray_length(array);
     u64 stride = darray_stride(array);
+    u64 capacity = darray_capacity(array);
+    if (capacity == 0) {
+        KFATAL("_darray_resize called on an array with 0 capacity. This should not be possible.");
+        return 0;
+    }
     void* temp = _darray_create(
-        (DARRAY_RESIZE_FACTOR * darray_capacity(array)),
+        (DARRAY_RESIZE_FACTOR * capacity),
         stride);
     kcopy_memory(temp, array, length * stride);
 
@@ -49,7 +60,8 @@ void* _darray_resize(void* array) {
 void* _darray_push(void* array, const void* value_ptr) {
     u64 length = darray_length(array);
     u64 stride = darray_stride(array);
-    if (length >= darray_capacity(array)) {
+    u64 capacity = darray_capacity(array);
+    if (length >= capacity) {
         array = _darray_resize(array);
     }
 

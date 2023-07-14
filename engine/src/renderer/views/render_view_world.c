@@ -1,18 +1,21 @@
 #include "render_view_world.h"
 
-#include "core/logger.h"
-#include "core/kmemory.h"
+#include "containers/darray.h"
 #include "core/event.h"
+#include "core/kmemory.h"
+#include "core/logger.h"
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "memory/linear_allocator.h"
-#include "containers/darray.h"
-#include "systems/resource_system.h"
+#include "renderer/renderer_frontend.h"
+#include "renderer/renderer_types.inl"
+#include "resources/terrain.h"
+#include "systems/camera_system.h"
+#include "systems/light_system.h"
 #include "systems/material_system.h"
 #include "systems/render_view_system.h"
+#include "systems/resource_system.h"
 #include "systems/shader_system.h"
-#include "systems/camera_system.h"
-#include "renderer/renderer_frontend.h"
 
 typedef struct render_view_world_internal_data {
     shader* s;
@@ -23,6 +26,7 @@ typedef struct render_view_world_internal_data {
     camera* world_camera;
     vec4 ambient_colour;
     u32 render_mode;
+
 } render_view_world_internal_data;
 
 /** @brief A private structure used to sort geometry by distance from the camera. */
@@ -32,6 +36,12 @@ typedef struct geometry_distance {
     /** @brief The distance from the camera. */
     f32 distance;
 } geometry_distance;
+
+typedef struct material_info {
+    vec4 diffuse_colour;
+    float shininess;
+    vec3 padding;
+} material_info;
 
 /**
  * @brief A private, recursive, in-place sort function for geometry_distance structures.
@@ -93,7 +103,7 @@ b8 render_view_world_on_create(struct render_view* self) {
         const char* shader_name = "Shader.Builtin.Material";
         resource config_resource;
         if (!resource_system_load(shader_name, RESOURCE_TYPE_SHADER, 0, &config_resource)) {
-            KERROR("Failed to load builtin material shader.");
+            KERROR("Failed to load builtin material shader resource.");
             return false;
         }
         shader_config* config = (shader_config*)config_resource.data;
@@ -104,11 +114,26 @@ b8 render_view_world_on_create(struct render_view* self) {
         }
         resource_system_unload(&config_resource);
 
+        // Load terrain shader.
+        const char* terrain_shader_name = "Shader.Builtin.Terrain";
+        resource terrain_shader_config_resource;
+        if (!resource_system_load(terrain_shader_name, RESOURCE_TYPE_SHADER, 0, &terrain_shader_config_resource)) {
+            KERROR("Failed to load builtin terrain shader resource.");
+            return false;
+        }
+        shader_config* terrain_shader_config = (shader_config*)terrain_shader_config_resource.data;
+        // NOTE: Assuming the first pass since that's all this view has.
+        if (!shader_system_create(&self->passes[0], terrain_shader_config)) {
+            KERROR("Failed to load builtin terrain shader.");
+            return false;
+        }
+        resource_system_unload(&terrain_shader_config_resource);
+
         // Get either the custom shader override or the defined default.
         data->s = shader_system_get(self->custom_shader_name ? self->custom_shader_name : shader_name);
         // TODO: Set from configuration.
         data->near_clip = 0.1f;
-        data->far_clip = 1000.0f;
+        data->far_clip = 4000.0f;
         data->fov = deg_to_rad(45.0f);
 
         // Default
@@ -173,10 +198,12 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct line
         return false;
     }
 
-    geometry_render_data* geometry_data = (geometry_render_data*)data;
+    render_view_world_data* world_data = (render_view_world_data*)data;
     render_view_world_internal_data* internal_data = (render_view_world_internal_data*)self->internal_data;
 
+    // TODO: Use frame allocator.
     out_packet->geometries = darray_create(geometry_render_data);
+    out_packet->terrain_geometries = darray_create(geometry_render_data);
     out_packet->view = self;
 
     // Set matrices, etc.
@@ -189,17 +216,23 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct line
 
     geometry_distance* geometry_distances = darray_create(geometry_distance);
 
-    u32 geometry_data_count = darray_length(geometry_data);
+    u32 geometry_data_count = darray_length(world_data->world_geometries);
     for (u32 i = 0; i < geometry_data_count; ++i) {
-        geometry_render_data* g_data = &geometry_data[i];
-        if(!g_data->geometry) {
+        geometry_render_data* g_data = &world_data->world_geometries[i];
+        if (!g_data->geometry) {
             continue;
         }
-        
+
         // TODO: Add something to material to check for transparency.
-        if ((g_data->geometry->material->diffuse_map.texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) == 0) {
+        b8 has_transparency = false;
+        if (g_data->geometry->material->type == MATERIAL_TYPE_PHONG) {
+            // Check diffuse map (slot 0).
+            has_transparency = ((g_data->geometry->material->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) == 0);
+        }
+
+        if (has_transparency) {
             // Only add meshes with _no_ transparency.
-            darray_push(out_packet->geometries, geometry_data[i]);
+            darray_push(out_packet->geometries, world_data->world_geometries[i]);
             out_packet->geometry_count++;
         } else {
             // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
@@ -211,7 +244,7 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct line
 
             geometry_distance gdist;
             gdist.distance = kabs(distance);
-            gdist.g = geometry_data[i];
+            gdist.g = world_data->world_geometries[i];
 
             darray_push(geometry_distances, gdist);
         }
@@ -227,6 +260,12 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct line
         out_packet->geometry_count++;
     }
 
+    u32 terrain_count = darray_length(world_data->terrain_geometries);
+    for (u32 i = 0; i < terrain_count; ++i) {
+        darray_push(out_packet->terrain_geometries, world_data->terrain_geometries[i]);
+        out_packet->terrain_geometry_count++;
+    }
+
     // Clean up.
     darray_destroy(geometry_distances);
 
@@ -235,10 +274,11 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct line
 
 void render_view_world_on_packet_destroy(const struct render_view* self, struct render_view_packet* packet) {
     darray_destroy(packet->geometries);
+    darray_destroy(packet->terrain_geometries);
     kzero_memory(packet, sizeof(render_view_packet));
 }
 
-b8 render_view_world_on_render(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index) {
+b8 render_view_world_on_render(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index, const struct frame_data* p_frame_data) {
     render_view_world_internal_data* data = self->internal_data;
     u32 shader_id = data->s->id;
 
@@ -249,47 +289,99 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             return false;
         }
 
-        if (!shader_system_use_by_id(shader_id)) {
-            KERROR("Failed to use material shader. Render frame failed.");
-            return false;
-        }
+        // Use the appropriate shader and apply the global uniforms.
+        u32 terrain_count = packet->terrain_geometry_count;
+        if (terrain_count > 0) {
+            // TODO: If this uses a custom shader, this will fail. Need to handle those as well.
+            shader* s = shader_system_get("Shader.Builtin.Terrain");
+            if (!s) {
+                KERROR("Unable to obtain terrain shader.");
+                return false;
+            }
+            shader_system_use_by_id(s->id);
 
-        // Apply globals
-        // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
-        // and mode (from the renderer)
-        if (!material_system_apply_global(shader_id, frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
-            KERROR("Failed to use apply globals for material shader. Render frame failed.");
-            return false;
-        }
-
-        // Draw geometries.
-        u32 count = packet->geometry_count;
-        for (u32 i = 0; i < count; ++i) {
-            material* m = 0;
-            if (packet->geometries[i].geometry->material) {
-                m = packet->geometries[i].geometry->material;
-            } else {
-                m = material_system_get_default();
+            // Apply globals
+            // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
+            // and mode (from the renderer)
+            if (!material_system_apply_global(s->id, frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
+                KERROR("Failed to use apply globals for terrain shader. Render frame failed.");
+                return false;
             }
 
-            // Update the material if it hasn't already been this frame. This keeps the
-            // same material from being updated multiple times. It still needs to be bound
-            // either way, so this check result gets passed to the backend which either
-            // updates the internal shader bindings and binds them, or only binds them.
-            b8 needs_update = m->render_frame_number != frame_number;
-            if (!material_system_apply_instance(m, needs_update)) {
-                KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
-                continue;
-            } else {
-                // Sync the frame number.
-                m->render_frame_number = frame_number;
+            for (u32 i = 0; i < terrain_count; ++i) {
+                material* m = 0;
+                if (packet->terrain_geometries[i].geometry->material) {
+                    m = packet->terrain_geometries[i].geometry->material;
+                } else {
+                    m = material_system_get_default_terrain();
+                }
+
+                // Update the material if it hasn't already been this frame. This keeps the
+                // same material from being updated multiple times. It still needs to be bound
+                // either way, so this check result gets passed to the backend which either
+                // updates the internal shader bindings and binds them, or only binds them.
+                b8 needs_update = m->render_frame_number != frame_number;
+                if (!material_system_apply_instance(m, needs_update)) {
+                    KWARN("Failed to apply terrain material '%s'. Skipping draw.", m->name);
+                    continue;
+                } else {
+                    // Sync the frame number.
+                    m->render_frame_number = frame_number;
+                }
+
+                // Apply the locals
+                material_system_apply_local(m, &packet->terrain_geometries[i].model);
+
+                // Draw it.
+                renderer_geometry_draw(&packet->terrain_geometries[i]);
+            }
+        }
+
+        // Static geometries.
+        u32 geometry_count = packet->geometry_count;
+        if (geometry_count > 0) {
+            if (!shader_system_use_by_id(shader_id)) {
+                KERROR("Failed to use material shader. Render frame failed.");
+                return false;
             }
 
-            // Apply the locals
-            material_system_apply_local(m, &packet->geometries[i].model);
+            // Apply globals
+            // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
+            // and mode (from the renderer)
+            if (!material_system_apply_global(shader_id, frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
+                KERROR("Failed to use apply globals for material shader. Render frame failed.");
+                return false;
+            }
 
-            // Draw it.
-            renderer_geometry_draw(&packet->geometries[i]);
+            // Draw geometries.
+            u32 count = packet->geometry_count;
+            for (u32 i = 0; i < count; ++i) {
+                material* m = 0;
+                if (packet->geometries[i].geometry->material) {
+                    m = packet->geometries[i].geometry->material;
+                } else {
+                    m = material_system_get_default();
+                }
+
+                // Update the material if it hasn't already been this frame. This keeps the
+                // same material from being updated multiple times. It still needs to be bound
+                // either way, so this check result gets passed to the backend which either
+                // updates the internal shader bindings and binds them, or only binds them.
+                b8 needs_update = m->render_frame_number != frame_number;
+                if (!material_system_apply_instance(m, needs_update)) {
+                    KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
+                    continue;
+                } else {
+                    // Sync the frame number.
+                    m->render_frame_number = frame_number;
+                }
+
+                // Apply the locals
+                material_system_apply_local(m, &packet->geometries[i].model);
+
+                // Draw it.
+                renderer_geometry_draw(&packet->geometries[i]);
+            }
         }
 
         if (!renderer_renderpass_end(pass)) {
