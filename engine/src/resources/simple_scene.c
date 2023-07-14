@@ -441,7 +441,7 @@ b8 simple_scene_populate_render_packet(simple_scene *scene,
                 geometry_render_data data = {0};
                 data.model = transform_world_get(&scene->terrains[i].xform);
                 data.geometry = &scene->terrains[i].geo;
-                data.unique_id = 0;  // TODO: Terrain unique_id for object picking.
+                data.unique_id = scene->terrains[i].unique_id;
 
                 darray_push(scene->world_data.terrain_geometries, data);
 

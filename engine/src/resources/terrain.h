@@ -56,6 +56,7 @@ typedef struct terrain_config {
 } terrain_config;
 
 typedef struct terrain {
+    u32 unique_id;
     char *name;
     transform xform;
     u32 tile_count_x;

@@ -33,6 +33,7 @@ typedef struct render_view_pick_shader_info {
 typedef struct render_view_pick_internal_data {
     render_view_pick_shader_info ui_shader_info;
     render_view_pick_shader_info world_shader_info;
+    render_view_pick_shader_info terrain_shader_info;
 
     // Used as the colour attachment for both renderpasses.
     texture colour_target_attachment_texture;
@@ -125,6 +126,7 @@ b8 render_view_pick_on_create(struct render_view* self) {
         // NOTE: In this heavily-customized view, the exact number of passes is known, so
         // these index assumptions are fine.
         data->world_shader_info.pass = &self->passes[0];
+        data->terrain_shader_info.pass = &self->passes[0];
         data->ui_shader_info.pass = &self->passes[1];
 
         // Builtin UI Pick shader.
@@ -182,6 +184,33 @@ b8 render_view_pick_on_create(struct render_view* self) {
         data->world_shader_info.projection = mat4_perspective(data->world_shader_info.fov, 1280 / 720.0f, data->world_shader_info.near_clip, data->world_shader_info.far_clip);
         data->world_shader_info.view = mat4_identity();
 
+        // Builtin Terrain Pick shader.
+        const char* terrain_shader_name = "Shader.Builtin.TerrainPick";
+        if (!resource_system_load(terrain_shader_name, RESOURCE_TYPE_SHADER, 0, &config_resource)) {
+            KERROR("Failed to load builtin Terrain Pick shader.");
+            return false;
+        }
+        config = (shader_config*)config_resource.data;
+        if (!shader_system_create(data->terrain_shader_info.pass, config)) {
+            KERROR("Failed to load builtin Terrain Pick shader.");
+            return false;
+        }
+        resource_system_unload(&config_resource);
+        data->terrain_shader_info.s = shader_system_get(terrain_shader_name);
+
+        // Extract uniform locations.
+        data->terrain_shader_info.id_colour_location = shader_system_uniform_index(data->terrain_shader_info.s, "id_colour");
+        data->terrain_shader_info.model_location = shader_system_uniform_index(data->terrain_shader_info.s, "model");
+        data->terrain_shader_info.projection_location = shader_system_uniform_index(data->terrain_shader_info.s, "projection");
+        data->terrain_shader_info.view_location = shader_system_uniform_index(data->terrain_shader_info.s, "view");
+
+        // Default World properties
+        data->terrain_shader_info.near_clip = 0.1f;
+        data->terrain_shader_info.far_clip = 4000.0f;
+        data->terrain_shader_info.fov = deg_to_rad(45.0f);
+        data->terrain_shader_info.projection = mat4_perspective(data->terrain_shader_info.fov, 1280 / 720.0f, data->terrain_shader_info.near_clip, data->terrain_shader_info.far_clip);
+        data->terrain_shader_info.view = mat4_identity();
+
         data->instance_count = 0;
 
         kzero_memory(&data->colour_target_attachment_texture, sizeof(texture));
@@ -235,6 +264,9 @@ void render_view_pick_on_resize(struct render_view* self, u32 width, u32 height)
     f32 aspect = (f32)self->width / self->height;
     data->world_shader_info.projection = mat4_perspective(data->world_shader_info.fov, aspect, data->world_shader_info.near_clip, data->world_shader_info.far_clip);
 
+    // Terrain
+    data->terrain_shader_info.projection = mat4_perspective(data->terrain_shader_info.fov, aspect, data->terrain_shader_info.near_clip, data->terrain_shader_info.far_clip);
+
     for (u32 i = 0; i < self->renderpass_count; ++i) {
         self->passes[i].render_area.x = 0;
         self->passes[i].render_area.y = 0;
@@ -253,6 +285,7 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct linea
     render_view_pick_internal_data* internal_data = (render_view_pick_internal_data*)self->internal_data;
 
     out_packet->geometries = darray_create(geometry_render_data);
+    out_packet->terrain_geometries = darray_create(geometry_render_data);
     out_packet->view = self;
 
     // TODO: Get active camera.
@@ -273,6 +306,19 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct linea
         // Count all geometries as a single id.
         if (packet_data->world_mesh_data[i].unique_id > highest_instance_id) {
             highest_instance_id = packet_data->world_mesh_data[i].unique_id;
+        }
+    }
+
+    // Iterate all terrains in the world data.
+    u32 terrain_geometry_count = !packet_data->terrain_mesh_data ? 0 : darray_length(packet_data->terrain_mesh_data);
+
+    // Iterate all geometries in terrain data.
+    for (u32 i = 0; i < terrain_geometry_count; ++i) {
+        darray_push(out_packet->terrain_geometries, packet_data->terrain_mesh_data[i]);
+
+        // Count all geometries as a single id.
+        if (packet_data->terrain_mesh_data[i].unique_id > highest_instance_id) {
+            highest_instance_id = packet_data->terrain_mesh_data[i].unique_id;
         }
     }
 
@@ -389,6 +435,53 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
 
             // Draw it.
             renderer_geometry_draw(&packet->geometries[i]);
+        }
+        // End world geometries
+
+        // Terrain geometries
+        if (!shader_system_use_by_id(data->terrain_shader_info.s->id)) {
+            KERROR("Failed to use terrain pick shader. Render frame failed.");
+            return false;
+        }
+
+        // Apply globals
+        if (!shader_system_uniform_set_by_index(data->terrain_shader_info.projection_location, &data->terrain_shader_info.projection)) {
+            KERROR("Failed to apply projection matrix");
+        }
+        if (!shader_system_uniform_set_by_index(data->terrain_shader_info.view_location, &data->terrain_shader_info.view)) {
+            KERROR("Failed to apply view matrix");
+        }
+        shader_system_apply_global();
+
+        // Draw geometries. Start from 0 since terrain geometries are added first, and stop at the terrain geometry count.
+        u32 terrain_geometry_count = !packet_data->terrain_mesh_data ? 0 : darray_length(packet_data->terrain_mesh_data);
+        for (u32 i = 0; i < terrain_geometry_count; ++i) {
+            geometry_render_data* geo = &packet->terrain_geometries[i];
+            current_instance_id = geo->unique_id;
+
+            shader_system_bind_instance(current_instance_id);
+
+            // Get colour based on id
+            vec3 id_colour;
+            u32 r, g, b;
+            u32_to_rgb(geo->unique_id, &r, &g, &b);
+            rgb_u32_to_vec3(r, g, b, &id_colour);
+            if (!shader_system_uniform_set_by_index(data->terrain_shader_info.id_colour_location, &id_colour)) {
+                KERROR("Failed to apply id colour uniform.");
+                return false;
+            }
+
+            b8 needs_update = !data->instance_updated[current_instance_id];
+            shader_system_apply_instance(needs_update);
+            data->instance_updated[current_instance_id] = true;
+
+            // Apply the locals
+            if (!shader_system_uniform_set_by_index(data->terrain_shader_info.model_location, &geo->model)) {
+                KERROR("Failed to apply model matrix for terrain geometry.");
+            }
+
+            // Draw it.
+            renderer_geometry_draw(&packet->terrain_geometries[i]);
         }
 
         if (!renderer_renderpass_end(pass)) {

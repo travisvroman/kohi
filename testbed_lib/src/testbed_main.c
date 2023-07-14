@@ -450,6 +450,7 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     pick_packet_data pick_packet = {};
     pick_packet.ui_mesh_data = ui_packet.mesh_data;
     pick_packet.world_mesh_data = packet->views[1].geometries;  // TODO: non-hardcoded index?
+    pick_packet.terrain_mesh_data = packet->views[1].terrain_geometries;
     pick_packet.texts = ui_packet.texts;
     pick_packet.text_count = ui_packet.text_count;
 
