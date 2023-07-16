@@ -447,7 +447,7 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     }
 
     // Pick uses both world and ui packet data.
-    pick_packet_data pick_packet = {};
+    pick_packet_data pick_packet = {0};
     pick_packet.ui_mesh_data = ui_packet.mesh_data;
     pick_packet.world_mesh_data = packet->views[1].geometries;  // TODO: non-hardcoded index?
     pick_packet.terrain_mesh_data = packet->views[1].terrain_geometries;

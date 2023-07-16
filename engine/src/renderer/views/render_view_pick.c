@@ -87,12 +87,17 @@ static void acquire_shader_instances(const struct render_view* self) {
     u32 instance;
     // UI shader
     if (!renderer_shader_instance_resources_acquire(data->ui_shader_info.s, 0, 0, &instance)) {
-        KFATAL("render_view_pick failed to acquire shader resources.");
+        KFATAL("render_view_pick failed to acquire UI shader resources.");
         return;
     }
     // World shader
     if (!renderer_shader_instance_resources_acquire(data->world_shader_info.s, 0, 0, &instance)) {
-        KFATAL("render_view_pick failed to acquire shader resources.");
+        KFATAL("render_view_pick failed to acquire World shader resources.");
+        return;
+    }
+    // Terrain shader
+    if (!renderer_shader_instance_resources_acquire(data->terrain_shader_info.s, 0, 0, &instance)) {
+        KFATAL("render_view_pick failed to acquire Terrain shader resources.");
         return;
     }
     data->instance_count++;
@@ -105,12 +110,17 @@ void release_shader_instances(const struct render_view* self) {
     for (i32 i = 0; i < data->instance_count; ++i) {
         // UI shader
         if (!renderer_shader_instance_resources_release(data->ui_shader_info.s, i)) {
-            KWARN("Failed to release shader resources.");
+            KWARN("Failed to release UI shader resources.");
         }
 
         // World shader
         if (!renderer_shader_instance_resources_release(data->world_shader_info.s, i)) {
-            KWARN("Failed to release shader resources.");
+            KWARN("Failed to release world shader resources.");
+        }
+
+        // Terrain shader
+        if (!renderer_shader_instance_resources_release(data->terrain_shader_info.s, i)) {
+            KWARN("Failed to release terrain shader resources.");
         }
     }
     darray_destroy(data->instance_updated);
@@ -204,7 +214,7 @@ b8 render_view_pick_on_create(struct render_view* self) {
         data->terrain_shader_info.projection_location = shader_system_uniform_index(data->terrain_shader_info.s, "projection");
         data->terrain_shader_info.view_location = shader_system_uniform_index(data->terrain_shader_info.s, "view");
 
-        // Default World properties
+        // Default terrain properties.
         data->terrain_shader_info.near_clip = 0.1f;
         data->terrain_shader_info.far_clip = 4000.0f;
         data->terrain_shader_info.fov = deg_to_rad(45.0f);
@@ -332,7 +342,6 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct linea
             render_data.unique_id = m->unique_id;
             darray_push(out_packet->geometries, render_data);
             out_packet->geometry_count++;
-            packet_data->ui_geometry_count++;
         }
         // Count all geometries as a single id.
         if (m->unique_id > highest_instance_id) {
@@ -366,6 +375,7 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct linea
 
 void render_view_pick_on_packet_destroy(const struct render_view* self, struct render_view_packet* packet) {
     darray_destroy(packet->geometries);
+    darray_destroy(packet->terrain_geometries);
     kzero_memory(packet, sizeof(render_view_packet));
 }
 
