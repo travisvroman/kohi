@@ -4,7 +4,7 @@ layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_normal;
 layout(location = 2) in vec2 in_texcoord;
 layout(location = 3) in vec4 in_colour;
-layout(location = 4) in vec3 in_tangent;
+layout(location = 4) in vec4 in_tangent;
 layout(location = 5) in vec4 in_mat_weights; // Supports 4 materials.
 
 layout(set = 0, binding = 0) uniform global_uniform_object {

@@ -301,6 +301,7 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct linea
     // TODO: Get active camera.
     camera* world_camera = camera_system_get_default();
     internal_data->world_shader_info.view = camera_view_get(world_camera);
+    internal_data->terrain_shader_info.view = camera_view_get(world_camera);
 
     // Set the pick packet data to extended data.
     packet_data->ui_geometry_count = 0;
