@@ -3,6 +3,7 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "core/identifier.h"
 #include "defines.h"
 #include "math/geometry_utils.h"
 #include "math/kmath.h"
@@ -172,6 +173,8 @@ b8 terrain_load(terrain *t) {
 
     geometry *g = &t->geo;
 
+    t->unique_id = identifier_aquire_new_id(t);
+
     // Send the geometry off to the renderer to be uploaded to the GPU.
     if (!renderer_geometry_create(g, sizeof(terrain_vertex), t->vertex_count,
                                   t->vertices, sizeof(u32), t->index_count,
@@ -201,6 +204,8 @@ b8 terrain_load(terrain *t) {
 b8 terrain_unload(terrain *t) {
     material_system_release(t->geo.material->name);
     renderer_geometry_destroy(&t->geo);
+
+    t->unique_id = 0;
 
     return true;
 }

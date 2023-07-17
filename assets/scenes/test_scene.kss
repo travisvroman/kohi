@@ -27,7 +27,7 @@ transform=50.0 2.5 50.0 0.0 0.0 0.0 1.0 0.01 0.01 0.01
 [Mesh]
 name=falcon
 resource_name=falcon
-transform=59.0 5.8 70.0 0.0 0.0 0.0 1.0 0.35 0.35 0.35
+transform=60.0 5.8 70.0 0.0 0.0 0.0 1.0 0.35 0.35 0.35
 [/Mesh]
 
 [PointLight]

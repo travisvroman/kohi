@@ -248,6 +248,8 @@ typedef struct vulkan_shader_stage {
  * @brief A configuration structure for Vulkan pipelines.
  */
 typedef struct vulkan_pipeline_config {
+    /** @brief The name of the pipeline. Used primarily for debugging purposes. */
+    char* name;
     /** @brief A pointer to the renderpass to associate with the pipeline. */
     vulkan_renderpass* renderpass;
     /** @brief The stride of the vertex data to be used (ex: sizeof(vertex_3d)) */
