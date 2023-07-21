@@ -402,6 +402,17 @@ typedef struct renderer_plugin {
     b8 (*geometry_create)(struct renderer_plugin* plugin, geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
 
     /**
+     * @brief Updates vertex data in the given geometry with the provided data in the given range.
+     * 
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param g A pointer to the geometry to be created.
+     * @param offset The offset in bytes to update. 0 if updating from the beginning.
+     * @param vertex_count The number of vertices which will be updated.
+     * @param vertices The vertex data.
+     */
+    void (*geometry_vertex_update)(struct renderer_plugin *plugin, geometry *g, u32 offset, u32 vertex_count, void *vertices);
+
+    /**
      * @brief Destroys the given geometry, releasing internal resources.
      *
      * @param plugin A pointer to the renderer plugin interface.
@@ -941,6 +952,11 @@ typedef struct render_view_packet {
     u32 terrain_geometry_count;
     /** @brief The terrain geometries to be drawn. */
     geometry_render_data* terrain_geometries;
+
+    /** @brief The number of debug geometries to be drawn. */
+    u32 debug_geometry_count;
+    /** @brief The debug geometries to be drawn. */
+    geometry_render_data* debug_geometries;
 
     struct terrain** terrains;
     /** @brief The name of the custom shader to use, if applicable. Otherwise 0. */

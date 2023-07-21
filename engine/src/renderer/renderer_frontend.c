@@ -204,6 +204,11 @@ b8 renderer_geometry_create(geometry* geometry, u32 vertex_size, u32 vertex_coun
     return state_ptr->plugin.geometry_create(&state_ptr->plugin, geometry, vertex_size, vertex_count, vertices, index_size, index_count, indices);
 }
 
+void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, void* vertices) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.geometry_vertex_update(&state_ptr->plugin, g, offset, vertex_count, vertices);
+}
+
 void renderer_geometry_destroy(geometry* geometry) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     state_ptr->plugin.geometry_destroy(&state_ptr->plugin, geometry);

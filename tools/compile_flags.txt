@@ -1,0 +1,4 @@
+-I../tools/src
+-I../engine/src
+-DKIMPORT
+-D_DEBUG

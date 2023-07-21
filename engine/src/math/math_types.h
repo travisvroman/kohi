@@ -183,6 +183,16 @@ typedef struct vertex_2d {
 } vertex_2d;
 
 /**
+ * @brief Represents a single vertex in 3D space with position and colour data only.
+ */
+typedef struct colour_vertex_3d {
+    /** @brief The position of the vertex. w is ignored. */
+    vec4 position;
+    /** @brief The colour of the vertex. */
+    vec4 colour;
+} colour_vertex_3d;
+
+/**
  * @brief Represents the transform of an object in the world.
  * Transforms can have a parent whose own transform is then
  * taken into account. NOTE: The properties of this should not

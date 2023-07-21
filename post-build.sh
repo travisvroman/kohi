@@ -18,7 +18,9 @@ pushd bin
 ../assets/shaders/Builtin.TerrainPickShader.vert.glsl \
 ../assets/shaders/Builtin.TerrainPickShader.frag.glsl \
 ../assets/shaders/Builtin.TerrainShader.vert.glsl \
-../assets/shaders/Builtin.TerrainShader.frag.glsl
+../assets/shaders/Builtin.TerrainShader.frag.glsl \
+../assets/shaders/Builtin.Colour3DShader.vert.glsl \
+../assets/shaders/Builtin.Colour3DShader.frag.glsl
 
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]

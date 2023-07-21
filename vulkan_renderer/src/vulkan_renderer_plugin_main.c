@@ -44,6 +44,7 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->texture_map_resources_release = vulkan_renderer_texture_map_resources_release;
 
     out_plugin->render_target_create = vulkan_renderer_render_target_create;
+    out_plugin->geometry_vertex_update = vulkan_renderer_geometry_vertex_update;
     out_plugin->render_target_destroy = vulkan_renderer_render_target_destroy;
 
     out_plugin->renderpass_create = vulkan_renderpass_create;

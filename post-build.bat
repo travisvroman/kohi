@@ -18,6 +18,8 @@ tools.exe buildshaders ^
 ..\assets\shaders\Builtin.TerrainPickShader.frag.glsl ^
 ..\assets\shaders\Builtin.TerrainShader.vert.glsl ^
 ..\assets\shaders\Builtin.TerrainShader.frag.glsl ^
+..\assets\shaders\Builtin.Colour3DShader.vert.glsl ^
+..\assets\shaders\Builtin.Colour3DShader.frag.glsl ^
 
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
