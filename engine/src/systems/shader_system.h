@@ -95,6 +95,9 @@ typedef struct shader {
 
     shader_flag_bits flags;
 
+    /** @brief The types of topologies used by the shader and its pipeline. See primitive_topology_type. */
+    u32 topology_types;
+
     /**
      * @brief The amount of bytes that are required for UBO alignment.
      *

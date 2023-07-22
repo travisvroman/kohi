@@ -164,6 +164,16 @@ KAPI void renderer_texture_read_pixel(texture* t, u32 x, u32 y, u8** out_rgba);
 KAPI b8 renderer_geometry_create(geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
 
 /**
+ * @brief Updates vertex data in the given geometry with the provided data in the given range.
+ *
+ * @param g A pointer to the geometry to be created.
+ * @param offset The offset in bytes to update. 0 if updating from the beginning.
+ * @param vertex_count The number of vertices which will be updated.
+ * @param vertices The vertex data.
+ */
+KAPI void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, void* vertices);
+
+/**
  * @brief Destroys the given geometry, releasing GPU resources.
  *
  * @param geometry A pointer to the geometry to be destroyed.

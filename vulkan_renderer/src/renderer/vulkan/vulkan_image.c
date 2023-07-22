@@ -1,10 +1,10 @@
 #include "vulkan_image.h"
 
+#include "core/kmemory.h"
+#include "core/kstring.h"
+#include "core/logger.h"
 #include "vulkan_device.h"
 #include "vulkan_utils.h"
-#include "core/kmemory.h"
-#include "core/logger.h"
-#include "core/kstring.h"
 
 void vulkan_image_create(
     vulkan_context* context,
@@ -67,8 +67,8 @@ void vulkan_image_create(
     memory_allocate_info.allocationSize = out_image->memory_requirements.size;
     memory_allocate_info.memoryTypeIndex = memory_type;
     VK_CHECK(vkAllocateMemory(context->device.logical_device, &memory_allocate_info, context->allocator, &out_image->memory));
-    if (out_image->name && !vulkan_set_debug_object_name(context, VK_OBJECT_TYPE_DEVICE_MEMORY, out_image->memory, out_image->name)) {
-        //
+    if (out_image->name) {
+        VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE_MEMORY, out_image->memory, out_image->name);
     }
 
     // Bind the memory

@@ -45,7 +45,7 @@ if [ $PLATFORM = 'macos' ]
 then
    VULKAN_SDK=/usr/local/
 fi
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=vulkan_renderer VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-Iengine/src -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="-lengine -lvulkan -L$VULKAN_SDK/lib"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=vulkan_renderer VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="-lengine -lvulkan -L$VULKAN_SDK/lib"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -53,7 +53,7 @@ echo "Error:"$ERRORLEVEL && exit
 fi
 
 # Testbed Lib
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed_lib VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-Iengine/src" ADDL_LINK_FLAGS="-lengine"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed_lib VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -61,7 +61,7 @@ echo "Error:"$ERRORLEVEL && exit
 fi
 
 # Testbed
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed ADDL_INC_FLAGS="-Iengine/src" ADDL_LINK_FLAGS="-lengine"
+make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -69,7 +69,7 @@ echo "Error:"$ERRORLEVEL && exit
 fi
 
 # Tests
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tests ADDL_INC_FLAGS="-Iengine/src" ADDL_LINK_FLAGS="-lengine"
+make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tests ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -77,7 +77,7 @@ echo "Error:"$ERRORLEVEL && exit
 fi
 
 # Tools
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tools ADDL_INC_FLAGS=-Iengine/src ADDL_LINK_FLAGS=-lengine
+make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tools ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -85,3 +85,4 @@ echo "Error:"$ERRORLEVEL && exit
 fi
 
 echo "All assemblies $ACTION_STR_PAST successfully on $PLATFORM ($TARGET)."
+

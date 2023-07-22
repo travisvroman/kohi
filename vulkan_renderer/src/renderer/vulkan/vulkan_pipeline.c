@@ -1,13 +1,15 @@
 #include "vulkan_pipeline.h"
-#include "vulkan_utils.h"
+
+#include <vulkan/vulkan_core.h>
 
 #include "core/kmemory.h"
-#include "core/logger.h"
 #include "core/kstring.h"
-
-#include "systems/shader_system.h"
-
+#include "core/logger.h"
 #include "math/math_types.h"
+#include "renderer/vulkan/vulkan_types.inl"
+#include "resources/resource_types.h"
+#include "systems/shader_system.h"
+#include "vulkan_utils.h"
 
 b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipeline_config* config, vulkan_pipeline* out_pipeline) {
     // Viewport state
@@ -89,7 +91,7 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipelin
     VkDynamicState dynamic_states[3] = {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR,
-        VK_DYNAMIC_STATE_LINE_WIDTH};
+        VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY};
 
     VkPipelineDynamicStateCreateInfo dynamic_state_create_info = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
     dynamic_state_create_info.dynamicStateCount = dynamic_state_count;
@@ -110,7 +112,38 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipelin
 
     // Input assembly
     VkPipelineInputAssemblyStateCreateInfo input_assembly = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
-    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    // The pipeline being created already has available types, so just grab the first one.
+    for (u32 i = 1; i < PRIMITIVE_TOPOLOGY_TYPE_MAX; i = i << 1) {
+        if (out_pipeline->supported_topology_types & i) {
+            primitive_topology_type ptt = i;
+
+            switch (ptt) {
+                case PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST:
+                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+                    break;
+                case PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST:
+                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+                    break;
+                case PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP:
+                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+                    break;
+                case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST:
+                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+                    break;
+                case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP:
+                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+                    break;
+                case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN:
+                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+                    break;
+                default:
+                    KWARN("primitive topology '%u' not supported. Skipping.", ptt);
+                    break;
+            }
+
+            break;
+        }
+    }
     input_assembly.primitiveRestartEnable = VK_FALSE;
 
     // Pipeline layout
@@ -151,9 +184,7 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipelin
 
     char pipeline_layout_name_buf[512] = {0};
     string_format(pipeline_layout_name_buf, "pipeline_layout_shader_%s", config->name);
-    if (!vulkan_set_debug_object_name(context, VK_OBJECT_TYPE_PIPELINE_LAYOUT, out_pipeline->pipeline_layout, pipeline_layout_name_buf)) {
-        KWARN("Unable to setup debug object name for %s.", pipeline_layout_name_buf);
-    }
+    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_PIPELINE_LAYOUT, out_pipeline->pipeline_layout, pipeline_layout_name_buf);
 
     // Pipeline create
     VkGraphicsPipelineCreateInfo pipeline_create_info = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
@@ -187,9 +218,7 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipelin
 
     char pipeline_name_buf[512] = {0};
     string_format(pipeline_name_buf, "pipeline_shader_%s", config->name);
-    if (!vulkan_set_debug_object_name(context, VK_OBJECT_TYPE_PIPELINE, out_pipeline->handle, pipeline_name_buf)) {
-        KWARN("Unable to setup debug object name for %s.", pipeline_name_buf);
-    }
+    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_PIPELINE, out_pipeline->handle, pipeline_name_buf);
 
     if (vulkan_result_is_success(result)) {
         KDEBUG("Graphics pipeline created!");
