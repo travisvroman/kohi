@@ -322,6 +322,8 @@ typedef struct mesh {
     u16 geometry_count;
     geometry **geometries;
     transform transform;
+    extents_3d extents;
+    void *debug_data;
 } mesh;
 
 /** @brief Shader stages available in the system. */

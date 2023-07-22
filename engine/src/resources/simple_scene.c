@@ -5,10 +5,13 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "defines.h"
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "renderer/camera.h"
 #include "renderer/renderer_types.inl"
+#include "resources/debug/debug_box3d.h"
+#include "resources/debug/debug_line3d.h"
 #include "resources/mesh.h"
 #include "resources/resource_types.h"
 #include "resources/skybox.h"
@@ -16,7 +19,6 @@
 #include "systems/light_system.h"
 #include "systems/render_view_system.h"
 #include "systems/resource_system.h"
-#include "resources/debug_box3d.h"
 
 static void simple_scene_actual_unload(simple_scene *scene);
 
@@ -24,6 +26,7 @@ static u32 global_scene_id = 0;
 
 typedef struct simple_scene_debug_data {
     debug_box3d box;
+    debug_line3d line;
 } simple_scene_debug_data;
 
 b8 simple_scene_create(void *config, simple_scene *out_scene) {
@@ -66,6 +69,7 @@ b8 simple_scene_create(void *config, simple_scene *out_scene) {
     grid_config.tile_count_dim_1 = 100;
     grid_config.tile_scale = 1.0f;
     grid_config.name = "debug_grid";
+    grid_config.use_third_axis = true;
 
     if (!debug_grid_create(&grid_config, &out_scene->grid)) {
         return false;
@@ -113,7 +117,18 @@ b8 simple_scene_initialize(simple_scene *scene) {
             scene->dir_light->data.direction =
                 scene->config->directional_light_config.direction;
 
-            // TODO: add debug data and initialize it.
+            // Add debug data and initialize it.
+            scene->dir_light->debug_data = kallocate(sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+            simple_scene_debug_data *debug = scene->dir_light->debug_data;
+
+            // Generate the line points based on the light direction.
+            // The first point will always be at the scene's origin.
+            vec3 point_0 = vec3_zero();
+            vec3 point_1 = vec3_mul_scalar(vec3_normalized(vec3_from_vec4(scene->dir_light->data.direction)), -1.0f);
+
+            if (!debug_line3d_create(point_0, point_1, 0, &debug->line)) {
+                KERROR("Failed to create debug line for directional light.");
+            }
         }
 
         // Point lights.
@@ -218,7 +233,16 @@ b8 simple_scene_initialize(simple_scene *scene) {
             return false;
         }
 
-        // TODO: Handle directional light debug lines
+        // Handle directional light debug lines
+        if (scene->dir_light && scene->dir_light->debug_data) {
+            simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->dir_light->debug_data;
+            if (!debug_line3d_initialize(&debug->line)) {
+                KERROR("debug box failed to initialize.");
+                kfree(scene->dir_light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                scene->dir_light->debug_data = 0;
+                return false;
+            }
+        }
 
         // Handle point light debug boxes
         u32 point_light_count = darray_length(scene->point_lights);
@@ -326,6 +350,15 @@ b8 simple_scene_load(simple_scene *scene) {
     if (scene->dir_light) {
         if (!light_system_directional_add(scene->dir_light)) {
             KWARN("Failed to add directional light to lighting system.");
+        } else {
+            if (scene->dir_light->debug_data) {
+                simple_scene_debug_data *debug = scene->dir_light->debug_data;
+                if (!debug_line3d_load(&debug->line)) {
+                    KERROR("debug line failed to load.");
+                    kfree(scene->dir_light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                    scene->dir_light->debug_data = 0;
+                }
+            }
         }
     }
 
@@ -374,6 +407,14 @@ b8 simple_scene_update(simple_scene *scene,
 
     if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
         // TODO: Update directional light, if changed.
+        if (scene->dir_light && scene->dir_light->debug_data) {
+            simple_scene_debug_data *debug = scene->dir_light->debug_data;
+            if (debug->line.geo.generation != INVALID_ID_U16) {
+                // Update colour. NOTE: doing this every frame might be expensive if we have to reload the geometry all the time.
+                // TODO: Perhaps there is another way to accomplish this, like a shader that uses a uniform for colour?
+                debug_line3d_colour_set(&debug->line, scene->dir_light->data.colour);
+            }
+        }
 
         // Update point light debug boxes.
         u32 point_light_count = darray_length(scene->point_lights);
@@ -387,6 +428,44 @@ b8 simple_scene_update(simple_scene *scene,
                     // Update colour. NOTE: doing this every frame might be expensive if we have to reload the geometry all the time.
                     // TODO: Perhaps there is another way to accomplish this, like a shader that uses a uniform for colour?
                     debug_box3d_colour_set(&debug->box, scene->point_lights[i].data.colour);
+                }
+            }
+        }
+
+        // Check meshes to see if they have debug data. If not, add it here and init/load it.
+        // Doing this here because mesh loading is multi-threaded, and may not yet be available
+        // even though the object is present in the scene.
+        u32 mesh_count = darray_length(scene->meshes);
+        for (u32 i = 0; i < mesh_count; ++i) {
+            mesh *m = &scene->meshes[i];
+            if (m->generation == INVALID_ID_U8) {
+                continue;
+            }
+            if (!m->debug_data) {
+                m->debug_data = kallocate(sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                simple_scene_debug_data *debug = m->debug_data;
+
+                if (!debug_box3d_create((vec3){0.2f, 0.2f, 0.2f}, 0, &debug->box)) {
+                    KERROR("Failed to create debug box for mesh '%s'.", m->name);
+                } else {
+                    transform_parent_set(&debug->box.xform, &m->transform);
+
+                    if (!debug_box3d_initialize(&debug->box)) {
+                        KERROR("debug box failed to initialize.");
+                        kfree(m->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                        m->debug_data = 0;
+                        continue;
+                    }
+
+                    if (!debug_box3d_load(&debug->box)) {
+                        KERROR("debug box failed to load.");
+                        kfree(m->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                        m->debug_data = 0;
+                    }
+
+                    // Update the extents.
+                    debug_box3d_colour_set(&debug->box, (vec4){0.0f, 1.0f, 0.0f, 1.0f});
+                    debug_box3d_extents_set(&debug->box, m->extents);
                 }
             }
         }
@@ -541,7 +620,19 @@ b8 simple_scene_populate_render_packet(simple_scene *scene,
                 darray_push(scene->world_data.debug_geometries, data);
             }
 
-            // TODO: directional lights.
+            // Directional light.
+            {
+                if (scene->dir_light && scene->dir_light->debug_data) {
+                    simple_scene_debug_data *debug = scene->dir_light->debug_data;
+
+                    // Debug line 3d
+                    geometry_render_data data = {0};
+                    data.model = transform_world_get(&debug->line.xform);
+                    data.geometry = &debug->line.geo;
+                    data.unique_id = debug->line.unique_id;
+                    darray_push(scene->world_data.debug_geometries, data);
+                }
+            }
 
             // Point lights
             {
@@ -549,6 +640,23 @@ b8 simple_scene_populate_render_packet(simple_scene *scene,
                 for (u32 i = 0; i < point_light_count; ++i) {
                     if (scene->point_lights[i].debug_data) {
                         simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->point_lights[i].debug_data;
+
+                        // Debug box 3d
+                        geometry_render_data data = {0};
+                        data.model = transform_world_get(&debug->box.xform);
+                        data.geometry = &debug->box.geo;
+                        data.unique_id = debug->box.unique_id;
+                        darray_push(scene->world_data.debug_geometries, data);
+                    }
+                }
+            }
+
+            // Mesh debug shapes
+            {
+                u32 mesh_count = darray_length(scene->meshes);
+                for (u32 i = 0; i < mesh_count; ++i) {
+                    if (scene->meshes[i].debug_data) {
+                        simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->meshes[i].debug_data;
 
                         // Debug box 3d
                         geometry_render_data data = {0};
@@ -580,46 +688,58 @@ b8 simple_scene_directional_light_add(simple_scene *scene, const char *name,
     }
 
     if (scene->dir_light) {
-        // TODO: Do any resource unloading required.
         light_system_directional_remove(scene->dir_light);
         if (scene->dir_light->debug_data) {
-            // TODO: release debug data.
+            simple_scene_debug_data *debug = scene->dir_light->debug_data;
+
+            debug_line3d_unload(&debug->line);
+            debug_line3d_destroy(&debug->line);
+
+            // NOTE: not freeing here unless there is a light since it will be used again below.
+            if (!light) {
+                kfree(scene->dir_light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                scene->dir_light->debug_data = 0;
+            }
         }
     }
 
-    if (light) {
+    scene->dir_light = light;
+
+    if (scene->dir_light) {
         if (!light_system_directional_add(light)) {
             KERROR("simple_scene_add_directional_light - failed to add directional light to light system.");
             return false;
         }
 
-        // TODO: lines indicating light direction.
-        // light->debug_data = kallocate(sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
-        // simple_scene_debug_data *debug = light->debug_data;
+        // Add lines indicating light direction.
+        simple_scene_debug_data *debug = scene->dir_light->debug_data;
 
-        // if (!debug_box3d_create((vec3){0.2f, 0.2f, 0.2f}, 0, &debug->box)) {
-        //     KERROR("Failed to create debug box for directional light.");
-        // } else {
-        //     if (scene->state > SIMPLE_SCENE_STATE_INITIALIZED) {
-        //         if (!debug_box3d_initialize(&debug->box)) {
-        //             KERROR("debug box failed to initialize.");
-        //             kfree(light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
-        //             light->debug_data = 0;
-        //             return false;
-        //         }
-        //     }
+        // Generate the line points based on the light direction.
+        // The first point will always be at the scene's origin.
+        vec3 point_0 = vec3_zero();
+        vec3 point_1 = vec3_mul_scalar(vec3_normalized(vec3_from_vec4(scene->dir_light->data.direction)), -1.0f);
 
-        //     if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
-        //         if (!debug_box3d_load(&debug->box)) {
-        //             KERROR("debug box failed to load.");
-        //             kfree(light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
-        //             light->debug_data = 0;
-        //         }
-        //     }
-        // }
+        if (!debug_line3d_create(point_0, point_1, 0, &debug->line)) {
+            KERROR("Failed to create debug line for directional light.");
+        } else {
+            if (scene->state > SIMPLE_SCENE_STATE_INITIALIZED) {
+                if (!debug_line3d_initialize(&debug->line)) {
+                    KERROR("debug line failed to initialize.");
+                    kfree(light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                    light->debug_data = 0;
+                    return false;
+                }
+            }
+
+            if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
+                if (!debug_line3d_load(&debug->line)) {
+                    KERROR("debug line failed to load.");
+                    kfree(light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                    light->debug_data = 0;
+                }
+            }
+        }
     }
-
-    scene->dir_light = light;
 
     return true;
 }
@@ -760,8 +880,15 @@ b8 simple_scene_directional_light_remove(simple_scene *scene,
         KERROR("Failed to remove directional light from light system.");
         return false;
     } else {
+        // Unload directional light debug if it exists.
         if (scene->dir_light->debug_data) {
-            // TODO: remove lines.
+            simple_scene_debug_data *debug = scene->dir_light->debug_data;
+
+            debug_line3d_unload(&debug->line);
+            debug_line3d_destroy(&debug->line);
+
+            kfree(scene->dir_light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+            scene->dir_light->debug_data = 0;
         }
     }
 
@@ -812,6 +939,17 @@ b8 simple_scene_mesh_remove(simple_scene *scene, const char *name) {
     u32 mesh_count = darray_length(scene->meshes);
     for (u32 i = 0; i < mesh_count; ++i) {
         if (strings_equal(scene->meshes[i].name, name)) {
+            // Unload any debug data.
+            if (scene->meshes[i].debug_data) {
+                simple_scene_debug_data *debug = scene->meshes[i].debug_data;
+
+                debug_box3d_unload(&debug->box);
+                debug_box3d_destroy(&debug->box);
+
+                kfree(scene->meshes[i].debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                scene->meshes[i].debug_data = 0;
+            }
+            // Unload the mesh itself.
             if (!mesh_unload(&scene->meshes[i])) {
                 KERROR("Failed to unload mesh");
                 return false;
@@ -947,6 +1085,18 @@ static void simple_scene_actual_unload(simple_scene *scene) {
     u32 mesh_count = darray_length(scene->meshes);
     for (u32 i = 0; i < mesh_count; ++i) {
         if (scene->meshes[i].generation != INVALID_ID_U8) {
+            // Unload any debug data.
+            if (scene->meshes[i].debug_data) {
+                simple_scene_debug_data *debug = scene->meshes[i].debug_data;
+
+                debug_box3d_unload(&debug->box);
+                debug_box3d_destroy(&debug->box);
+
+                kfree(scene->meshes[i].debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                scene->meshes[i].debug_data = 0;
+            }
+
+            // Unload the mesh itself
             if (!mesh_unload(&scene->meshes[i])) {
                 KERROR("Failed to unload mesh.");
             }
@@ -973,10 +1123,10 @@ static void simple_scene_actual_unload(simple_scene *scene) {
         }
 
         if (scene->dir_light && scene->dir_light->debug_data) {
-            // simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->dir_light->debug_data;
-            // TODO: unload directional light line data.
-            // debug_box3d_unload(&debug->box);
-            // debug_box3d_destroy(&debug->box);
+            simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->dir_light->debug_data;
+            // Unload directional light line data.
+            debug_line3d_unload(&debug->line);
+            debug_line3d_destroy(&debug->line);
             kfree(scene->dir_light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
             scene->dir_light->debug_data = 0;
         }

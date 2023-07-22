@@ -19,7 +19,7 @@ typedef enum debug_grid_orientation {
 } debug_grid_orientation;
 
 typedef struct debug_grid_config {
-    char* name;
+    char *name;
     debug_grid_orientation orientation;
     /** @brief The space count in the first dimension of the orientation from both directions outward from origin. */
     u32 tile_count_dim_0;
@@ -27,16 +27,19 @@ typedef struct debug_grid_config {
     u32 tile_count_dim_1;
     /** @brief How large each tile is on the both axes, relative to one unit (default = 1.0). */
     f32 tile_scale;
+
+    /** @brief Indicates if a third axis is to be rendered. */
+    b8 use_third_axis;
 
     /** @brief The total number of vertices. */
     u32 vertex_length;
     /** @brief Generated vertex data. */
-    colour_vertex_3d* vertices;
+    colour_vertex_3d *vertices;
 } debug_grid_config;
 
 typedef struct debug_grid {
     u32 unique_id;
-    char* name;
+    char *name;
     debug_grid_orientation orientation;
     /** @brief The space count in the first dimension of the orientation from both directions outward from origin. */
     u32 tile_count_dim_0;
@@ -45,6 +48,8 @@ typedef struct debug_grid {
     /** @brief How large each tile is on the both axes, relative to one unit (default = 1.0). */
     f32 tile_scale;
 
+    /** @brief Indicates if a third axis is to be rendered. */
+    b8 use_third_axis;
 
     extents_3d extents;
     vec3 origin;

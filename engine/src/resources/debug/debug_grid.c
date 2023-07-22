@@ -1,7 +1,8 @@
 #include "debug_grid.h"
+
+#include "core/identifier.h"
 #include "core/kstring.h"
 #include "math/kmath.h"
-#include "core/identifier.h"
 #include "renderer/renderer_frontend.h"
 
 b8 debug_grid_create(const debug_grid_config *config, debug_grid *out_grid) {
@@ -16,6 +17,7 @@ b8 debug_grid_create(const debug_grid_config *config, debug_grid *out_grid) {
     out_grid->tile_scale = config->tile_scale;
     out_grid->name = string_duplicate(config->name);
     out_grid->orientation = config->orientation;
+    out_grid->use_third_axis = config->use_third_axis;
 
     f32 max_0 = out_grid->tile_count_dim_0 * out_grid->tile_scale;
     f32 min_0 = -max_0;
@@ -47,8 +49,8 @@ b8 debug_grid_create(const debug_grid_config *config, debug_grid *out_grid) {
     out_grid->origin = vec3_zero();
     out_grid->unique_id = identifier_aquire_new_id(out_grid);
 
-    // 2 verts per line, 1 line per tile in each direction, plus one in the middle for each direction.
-    out_grid->vertex_count = ((out_grid->tile_count_dim_0 * 2 + 1) * 2) + ((out_grid->tile_count_dim_1 * 2 + 1) * 2);
+    // 2 verts per line, 1 line per tile in each direction, plus one in the middle for each direction. Adding 2 more for third axis.
+    out_grid->vertex_count = ((out_grid->tile_count_dim_0 * 2 + 1) * 2) + ((out_grid->tile_count_dim_1 * 2 + 1) * 2) + 2;
 
     return true;
 }
@@ -68,27 +70,31 @@ b8 debug_grid_initialize(debug_grid *grid) {
     // Grid line lengths are the amount of spaces in the opposite direction.
     i32 line_length_0 = grid->tile_count_dim_1 * grid->tile_scale;
     i32 line_length_1 = grid->tile_count_dim_0 * grid->tile_scale;
+    i32 line_length_2 = line_length_0 > line_length_1 ? line_length_0 : line_length_1;
 
     // f32 max_0 = grid->tile_count_dim_0 * grid->tile_scale;
     // f32 min_0 = -max_0;
     // f32 max_1 = grid->tile_count_dim_1 * grid->tile_scale;
     // f32 min_1 = -max_1;
 
-    u32 element_index_0, element_index_1;
+    u32 element_index_0, element_index_1, element_index_2;
 
     switch (grid->orientation) {
         default:
         case DEBUG_GRID_ORIENTATION_XZ:
             element_index_0 = 0;  // x
             element_index_1 = 2;  // z
+            element_index_2 = 1;  // y
             break;
         case DEBUG_GRID_ORIENTATION_XY:
             element_index_0 = 0;  // x
             element_index_1 = 1;  // y
+            element_index_2 = 2;  // z
             break;
         case DEBUG_GRID_ORIENTATION_YZ:
             element_index_0 = 1;  // y
             element_index_1 = 2;  // z
+            element_index_2 = 0;  // x
             break;
     }
 
@@ -112,10 +118,25 @@ b8 debug_grid_initialize(debug_grid *grid) {
     grid->vertices[3].colour.elements[element_index_1] = 1.0f;
     grid->vertices[3].colour.a = 1.0f;
 
+    if (grid->use_third_axis) {
+        // Third axis line
+        grid->vertices[4].position.elements[element_index_0] = 0;
+        grid->vertices[4].position.elements[element_index_2] = -line_length_2;
+        grid->vertices[5].position.elements[element_index_0] = 0;
+        grid->vertices[5].position.elements[element_index_2] = line_length_2;
+        grid->vertices[4].colour.elements[element_index_2] = 1.0f;
+        grid->vertices[4].colour.a = 1.0f;
+        grid->vertices[5].colour.elements[element_index_2] = 1.0f;
+        grid->vertices[5].colour.a = 1.0f;
+    }
+
     vec4 alt_line_colour = (vec4){1.0f, 1.0f, 1.0f, 0.5f};
     // calculate 4 lines at a time, 2 in each direction, min/max.
     i32 j = 1;
-    for (u32 i = 4; i < grid->vertex_count; i += 8) {
+
+    u32 start_index = grid->use_third_axis ? 6 : 4;
+
+    for (u32 i = start_index; i < grid->vertex_count; i += 8) {
         // First line (max)
         grid->vertices[i + 0].position.elements[element_index_0] = j * grid->tile_scale;
         grid->vertices[i + 0].position.elements[element_index_1] = line_length_0;
