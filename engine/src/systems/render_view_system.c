@@ -7,16 +7,6 @@
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.inl"
 
-// TODO: list for refactoring:
-//
-// + Change views to be owned by the application. Move existing views to "testbed", for ex.
-// + Remove concept of "known types" of renderer views.
-// + Remove the concept of renderer view configuration, instead opting for the
-//   function pointers to be filled out by the application, as well as all the fields for
-//   the view, then pass that view to a "register" function.
-// + The "register" function should take in a _copy_ of the view, copy those values to
-//   an element of the internal array, and register it by name in the hashtable.
-
 typedef struct render_view_system_state {
     hashtable lookup;
     void* table_block;
