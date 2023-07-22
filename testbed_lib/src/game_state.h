@@ -1,17 +1,18 @@
 #pragma once
 
-#include <defines.h>
 #include <application_types.h>
+#include <defines.h>
 #include <math/math_types.h>
 #include <systems/camera_system.h>
 
+#include "resources/simple_scene.h"
+
 // TODO: temp
-#include <resources/skybox.h>
-#include <resources/ui_text.h>
 #include <core/clock.h>
 #include <core/keymap.h>
+#include <resources/skybox.h>
+#include <resources/ui_text.h>
 #include <systems/light_system.h>
-#include <resources/simple_scene.h>
 
 #include "debug_console.h"
 

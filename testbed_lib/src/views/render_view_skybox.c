@@ -1,19 +1,19 @@
 #include "render_view_skybox.h"
 
-#include "core/logger.h"
-#include "core/kmemory.h"
+#include "containers/darray.h"
 #include "core/event.h"
+#include "core/kmemory.h"
+#include "core/logger.h"
 #include "math/kmath.h"
 #include "math/transform.h"
-#include "resources/skybox.h"
-#include "containers/darray.h"
-#include "systems/resource_system.h"
-#include "systems/material_system.h"
-#include "systems/shader_system.h"
-#include "systems/camera_system.h"
-#include "systems/render_view_system.h"
-#include "renderer/renderer_frontend.h"
 #include "memory/linear_allocator.h"
+#include "renderer/renderer_frontend.h"
+#include "resources/skybox.h"
+#include "systems/camera_system.h"
+#include "systems/material_system.h"
+#include "systems/render_view_system.h"
+#include "systems/resource_system.h"
+#include "systems/shader_system.h"
 
 typedef struct render_view_skybox_internal_data {
     shader* s;
@@ -44,7 +44,7 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, even
     return false;
 }
 
-b8 render_view_skybox_on_create(struct render_view* self) {
+b8 render_view_skybox_on_registered(struct render_view* self) {
     if (self) {
         self->internal_data = kallocate(sizeof(render_view_skybox_internal_data), MEMORY_TAG_RENDERER);
         render_view_skybox_internal_data* data = self->internal_data;

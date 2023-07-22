@@ -2,8 +2,8 @@
 
 #include "defines.h"
 #include "math/math_types.h"
-#include "renderer/views/render_view_world.h"
 #include "resources/debug/debug_grid.h"
+#include "views/render_view_world.h"
 
 struct frame_data;
 struct render_packet;
