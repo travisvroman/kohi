@@ -4,10 +4,10 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
-#include "loader_utils.h"
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "platform/filesystem.h"
+#include "resources/loaders/loader_utils.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
 

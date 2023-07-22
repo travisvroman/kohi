@@ -126,7 +126,7 @@ void release_shader_instances(const struct render_view* self) {
     darray_destroy(data->instance_updated);
 }
 
-b8 render_view_pick_on_create(struct render_view* self) {
+b8 render_view_pick_on_registered(struct render_view* self) {
     if (self) {
         self->internal_data = kallocate(sizeof(render_view_pick_internal_data), MEMORY_TAG_RENDERER);
         render_view_pick_internal_data* data = self->internal_data;

@@ -1,36 +1,44 @@
 #include "testbed_main.h"
-#include "game_state.h"
-
-#include <core/logger.h>
-#include <core/kmemory.h>
-
-#include <core/kstring.h>
-#include <core/input.h>
-#include <core/event.h>
-#include <core/metrics.h>
-#include <core/clock.h>
-#include <core/console.h>
-#include <core/frame_data.h>
 
 #include <containers/darray.h>
-#include <memory/linear_allocator.h>
-
+#include <core/clock.h>
+#include <core/console.h>
+#include <core/event.h>
+#include <core/frame_data.h>
+#include <core/input.h>
+#include <core/kmemory.h>
+#include <core/kstring.h>
+#include <core/logger.h>
+#include <core/metrics.h>
 #include <math/kmath.h>
-#include <renderer/renderer_types.inl>
+#include <memory/linear_allocator.h>
 #include <renderer/renderer_frontend.h>
+
+#include <renderer/renderer_types.inl>
+
+#include "game_state.h"
+#include "testbed_types.h"
+
+// Views
+#include "resources/loaders/simple_scene_loader.h"
+#include "views/render_view_pick.h"
+#include "views/render_view_skybox.h"
+#include "views/render_view_ui.h"
+#include "views/render_view_world.h"
 
 // TODO: temp
 #include <core/identifier.h>
 #include <math/transform.h>
+#include <resources/mesh.h>
+#include <resources/simple_scene.h>
 #include <resources/skybox.h>
 #include <resources/ui_text.h>
-#include <resources/mesh.h>
 #include <systems/geometry_system.h>
+#include <systems/light_system.h>
 #include <systems/material_system.h>
 #include <systems/render_view_system.h>
-#include <systems/light_system.h>
-#include <resources/simple_scene.h>
 #include <systems/resource_system.h>
+
 #include "debug_console.h"
 #include "game_commands.h"
 #include "game_keybinds.h"
@@ -189,6 +197,9 @@ b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
 
     application_register_events(game_inst);
+
+    // Register resource loaders.
+    resource_system_loader_register(simple_scene_resource_loader_create());
 
     debug_console_load(&((testbed_game_state*)game_inst->state)->debug_console);
 
@@ -392,15 +403,14 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
 
     // TODO: temp
 
-    // TODO: Read from frame config.
     packet->view_count = 4;
     packet->views = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(render_view_packet) * packet->view_count);
 
     // FIXME: Read this from config
-    packet->views[0].view = render_view_system_get("skybox");
-    packet->views[1].view = render_view_system_get("world");
-    packet->views[2].view = render_view_system_get("ui");
-    packet->views[3].view = render_view_system_get("pick");
+    packet->views[TESTBED_PACKET_VIEW_SKYBOX].view = render_view_system_get("skybox");
+    packet->views[TESTBED_PACKET_VIEW_WORLD].view = render_view_system_get("world");
+    packet->views[TESTBED_PACKET_VIEW_UI].view = render_view_system_get("ui");
+    packet->views[TESTBED_PACKET_VIEW_PICK].view = render_view_system_get("pick");
 
     // Tell our scene to generate relevant packet data.
     if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
@@ -561,195 +571,230 @@ void application_unregister_events(struct application* game_inst) {
 }
 
 b8 configure_render_views(application_config* config) {
-    config->render_views = darray_create(render_view_config);
+    config->views = darray_create(render_view);
 
     // Skybox view
-    render_view_config skybox_config = {};
-    skybox_config.type = RENDERER_VIEW_KNOWN_TYPE_SKYBOX;
-    skybox_config.width = 0;
-    skybox_config.height = 0;
-    skybox_config.name = "skybox";
-    skybox_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
+    {
+        render_view skybox_view = {0};
+        skybox_view.name = "skybox";
+        skybox_view.renderpass_count = 1;
+        skybox_view.passes = kallocate(sizeof(renderpass) * skybox_view.renderpass_count, MEMORY_TAG_ARRAY);
 
-    // Renderpass config.
-    skybox_config.passes = darray_create(renderpass_config);
-    renderpass_config skybox_pass = {0};
-    skybox_pass.name = "Renderpass.Builtin.Skybox";
-    skybox_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};  // Default render area resolution.
-    skybox_pass.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
-    skybox_pass.clear_flags = RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG;
-    skybox_pass.depth = 1.0f;
-    skybox_pass.stencil = 0;
-    skybox_pass.target.attachments = darray_create(render_target_attachment_config);
+        // Renderpass config.
+        renderpass_config skybox_pass = {0};
+        skybox_pass.name = "Renderpass.Builtin.Skybox";
+        skybox_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};  // Default render area resolution.
+        skybox_pass.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
+        skybox_pass.clear_flags = RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG;
+        skybox_pass.depth = 1.0f;
+        skybox_pass.stencil = 0;
+        skybox_pass.target.attachment_count = 1;
+        skybox_pass.target.attachments = kallocate(sizeof(render_target_attachment_config) * skybox_pass.target.attachment_count, MEMORY_TAG_ARRAY);
+        skybox_pass.render_target_count = renderer_window_attachment_count_get();
 
-    // Color attachment.
-    render_target_attachment_config skybox_target_colour = {0};
-    skybox_target_colour.type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
-    skybox_target_colour.source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
-    skybox_target_colour.load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
-    skybox_target_colour.store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
-    skybox_target_colour.present_after = false;
-    darray_push(skybox_pass.target.attachments, skybox_target_colour);
+        // Color attachment.
+        render_target_attachment_config* skybox_target_colour = &skybox_pass.target.attachments[0];
+        skybox_target_colour->type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+        skybox_target_colour->source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+        skybox_target_colour->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+        skybox_target_colour->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+        skybox_target_colour->present_after = false;
 
-    skybox_pass.target.attachment_count = darray_length(skybox_pass.target.attachments);
+        // TODO: if too soon in the init process, move to on_registered.
+        if (!renderer_renderpass_create(&skybox_pass, &skybox_view.passes[0])) {
+            KERROR("Skybox view - Failed to create renderpass '%s'", skybox_view.passes[0].name);
+            return false;
+        }
 
-    skybox_pass.render_target_count = renderer_window_attachment_count_get();
+        // Assign function pointers.
+        skybox_view.on_registered = render_view_skybox_on_registered;
+        skybox_view.on_packet_build = render_view_skybox_on_packet_build;
+        skybox_view.on_packet_destroy = render_view_skybox_on_packet_destroy;
+        skybox_view.on_render = render_view_skybox_on_render;
+        skybox_view.on_destroy = render_view_skybox_on_destroy;
+        skybox_view.on_resize = render_view_skybox_on_resize;
+        skybox_view.attachment_target_regenerate = 0;
 
-    darray_push(skybox_config.passes, skybox_pass);
-    skybox_config.pass_count = darray_length(skybox_config.passes);
-
-    darray_push(config->render_views, skybox_config);
+        darray_push(config->views, skybox_view);
+    }
 
     // World view.
-    render_view_config world_config = {};
-    world_config.type = RENDERER_VIEW_KNOWN_TYPE_WORLD;
-    world_config.width = 0;
-    world_config.height = 0;
-    world_config.name = "world";
-    world_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
-    world_config.passes = darray_create(renderpass_config);
+    {
+        render_view world_view = {0};
+        world_view.name = "world";
+        world_view.renderpass_count = 1;
+        world_view.passes = kallocate(sizeof(renderpass) * world_view.renderpass_count, MEMORY_TAG_ARRAY);
 
-    // Renderpass config.
-    renderpass_config world_pass = {0};
-    world_pass.name = "Renderpass.Builtin.World";
-    world_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};  // Default render area resolution.
-    world_pass.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
-    world_pass.clear_flags = RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG | RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG;
-    world_pass.depth = 1.0f;
-    world_pass.stencil = 0;
-    world_pass.target.attachments = darray_create(render_target_attachment_config);
+        // Renderpass config.
+        renderpass_config world_pass = {0};
+        world_pass.name = "Renderpass.Builtin.World";
+        world_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};  // Default render area resolution.
+        world_pass.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
+        world_pass.clear_flags = RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG | RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG;
+        world_pass.depth = 1.0f;
+        world_pass.stencil = 0;
+        world_pass.target.attachment_count = 2;
+        world_pass.target.attachments = kallocate(sizeof(render_target_attachment_config) * world_pass.target.attachment_count, MEMORY_TAG_ARRAY);
+        world_pass.render_target_count = renderer_window_attachment_count_get();
 
-    // Colour attachment
-    render_target_attachment_config world_target_colour = {0};
-    world_target_colour.type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
-    world_target_colour.source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
-    world_target_colour.load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD;
-    world_target_colour.store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
-    world_target_colour.present_after = false;
-    darray_push(world_pass.target.attachments, world_target_colour);
+        // Colour attachment
+        render_target_attachment_config* world_target_colour = &world_pass.target.attachments[0];
+        world_target_colour->type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+        world_target_colour->source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+        world_target_colour->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD;
+        world_target_colour->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+        world_target_colour->present_after = false;
 
-    // Depth attachment
-    render_target_attachment_config world_target_depth = {0};
-    world_target_depth.type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
-    world_target_depth.source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
-    world_target_depth.load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
-    world_target_depth.store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
-    world_target_depth.present_after = false;
-    darray_push(world_pass.target.attachments, world_target_depth);
+        // Depth attachment
+        render_target_attachment_config* world_target_depth = &world_pass.target.attachments[1];
+        world_target_depth->type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
+        world_target_depth->source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+        world_target_depth->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+        world_target_depth->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+        world_target_depth->present_after = false;
 
-    world_pass.target.attachment_count = darray_length(world_pass.target.attachments);
-    world_pass.render_target_count = renderer_window_attachment_count_get();
-    darray_push(world_config.passes, world_pass);
+        // TODO: if too soon in the init process, move to on_registered.
+        if (!renderer_renderpass_create(&world_pass, &world_view.passes[0])) {
+            KERROR("World view - Failed to create renderpass '%s'", world_view.passes[0].name);
+            return false;
+        }
 
-    world_config.pass_count = darray_length(world_config.passes);
+        // Assign function pointers.
+        world_view.on_packet_build = render_view_world_on_packet_build;
+        world_view.on_packet_destroy = render_view_world_on_packet_destroy;
+        world_view.on_render = render_view_world_on_render;
+        world_view.on_registered = render_view_world_on_registered;
+        world_view.on_destroy = render_view_world_on_destroy;
+        world_view.on_resize = render_view_world_on_resize;
+        world_view.attachment_target_regenerate = 0;
 
-    darray_push(config->render_views, world_config);
+        darray_push(config->views, world_view);
+    }
 
     // UI view
-    render_view_config ui_view_config = {};
-    ui_view_config.type = RENDERER_VIEW_KNOWN_TYPE_UI;
-    ui_view_config.width = 0;
-    ui_view_config.height = 0;
-    ui_view_config.name = "ui";
-    ui_view_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
-    ui_view_config.passes = darray_create(renderpass_config);
+    {
+        render_view ui_view = {0};
+        ui_view.name = "ui";
+        ui_view.renderpass_count = 1;
+        ui_view.passes = kallocate(sizeof(renderpass) * ui_view.renderpass_count, MEMORY_TAG_ARRAY);
 
-    // Renderpass config
-    renderpass_config ui_pass;
-    ui_pass.name = "Renderpass.Builtin.UI";
-    ui_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};
-    ui_pass.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
-    ui_pass.clear_flags = RENDERPASS_CLEAR_NONE_FLAG;
-    ui_pass.depth = 1.0f;
-    ui_pass.stencil = 0;
-    ui_pass.target.attachments = darray_create(render_target_attachment_config);
+        // Renderpass config
+        renderpass_config ui_pass;
+        ui_pass.name = "Renderpass.Builtin.UI";
+        ui_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};
+        ui_pass.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
+        ui_pass.clear_flags = RENDERPASS_CLEAR_NONE_FLAG;
+        ui_pass.depth = 1.0f;
+        ui_pass.stencil = 0;
+        ui_pass.target.attachment_count = 1;
+        ui_pass.target.attachments = kallocate(sizeof(render_target_attachment_config) * ui_pass.target.attachment_count, MEMORY_TAG_ARRAY);
+        ui_pass.render_target_count = renderer_window_attachment_count_get();
 
-    render_target_attachment_config ui_target_attachment = {};
-    // Colour attachment.
-    ui_target_attachment.type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
-    ui_target_attachment.source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
-    ui_target_attachment.load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD;
-    ui_target_attachment.store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
-    ui_target_attachment.present_after = true;
+        render_target_attachment_config* ui_target_attachment = &ui_pass.target.attachments[0];
+        // Colour attachment.
+        ui_target_attachment->type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+        ui_target_attachment->source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+        ui_target_attachment->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD;
+        ui_target_attachment->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+        ui_target_attachment->present_after = true;
 
-    darray_push(ui_pass.target.attachments, ui_target_attachment);
-    ui_pass.target.attachment_count = darray_length(ui_pass.target.attachments);
-    ui_pass.render_target_count = renderer_window_attachment_count_get();
+        // TODO: if too soon in the init process, move to on_registered.
+        if (!renderer_renderpass_create(&ui_pass, &ui_view.passes[0])) {
+            KERROR("UI view - Failed to create renderpass '%s'", ui_view.passes[0].name);
+            return false;
+        }
 
-    darray_push(ui_view_config.passes, ui_pass);
-    ui_view_config.pass_count = darray_length(ui_view_config.passes);
+        // Assign function pointers.
+        ui_view.on_packet_build = render_view_ui_on_packet_build;
+        ui_view.on_packet_destroy = render_view_ui_on_packet_destroy;
+        ui_view.on_render = render_view_ui_on_render;
+        ui_view.on_registered = render_view_ui_on_registered;
+        ui_view.on_destroy = render_view_ui_on_destroy;
+        ui_view.on_resize = render_view_ui_on_resize;
+        ui_view.attachment_target_regenerate = 0;
 
-    darray_push(config->render_views, ui_view_config);
+        darray_push(config->views, ui_view);
+    }
 
     // Pick pass.
-    render_view_config pick_view_config = {};
-    pick_view_config.type = RENDERER_VIEW_KNOWN_TYPE_PICK;
-    pick_view_config.width = 0;
-    pick_view_config.height = 0;
-    pick_view_config.name = "pick";
-    pick_view_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
+    {
+        render_view pick_view = {};
+        pick_view.name = "pick";
+        pick_view.renderpass_count = 2;
+        pick_view.passes = kallocate(sizeof(renderpass) * pick_view.renderpass_count, MEMORY_TAG_ARRAY);
 
-    pick_view_config.passes = darray_create(renderpass_config);
+        // World pick pass
+        renderpass_config world_pick_pass = {0};
+        world_pick_pass.name = "Renderpass.Builtin.WorldPick";
+        world_pick_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};
+        world_pick_pass.clear_colour = (vec4){1.0f, 1.0f, 1.0f, 1.0f};  // HACK: clearing to white for better visibility// TODO: Clear to black, as 0 is invalid id.
+        world_pick_pass.clear_flags = RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG | RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG;
+        world_pick_pass.depth = 1.0f;
+        world_pick_pass.stencil = 0;
+        world_pick_pass.render_target_count = 1;  // NOTE: Not triple-buffering this.
+        world_pick_pass.target.attachment_count = 2;
+        world_pick_pass.target.attachments = kallocate(sizeof(render_target_attachment_config) * world_pick_pass.target.attachment_count, MEMORY_TAG_ARRAY);
 
-    // World pick pass
-    renderpass_config world_pick_pass = {0};
-    world_pick_pass.name = "Renderpass.Builtin.WorldPick";
-    world_pick_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};
-    world_pick_pass.clear_colour = (vec4){1.0f, 1.0f, 1.0f, 1.0f};  // HACK: clearing to white for better visibility// TODO: Clear to black, as 0 is invalid id.
-    world_pick_pass.clear_flags = RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG | RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG;
-    world_pick_pass.depth = 1.0f;
-    world_pick_pass.stencil = 0;
-    world_pick_pass.target.attachments = darray_create(render_target_attachment_config);
+        // Colour attachment
+        render_target_attachment_config* world_pick_pass_colour = &world_pick_pass.target.attachments[0];
+        world_pick_pass_colour->type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+        world_pick_pass_colour->source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;  // Obtain the attachment from the view.
+        world_pick_pass_colour->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+        world_pick_pass_colour->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+        world_pick_pass_colour->present_after = false;
 
-    // Colour attachment
-    render_target_attachment_config world_pick_pass_colour = {0};
-    world_pick_pass_colour.type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
-    world_pick_pass_colour.source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;  // Obtain the attachment from the view.
-    world_pick_pass_colour.load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
-    world_pick_pass_colour.store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
-    world_pick_pass_colour.present_after = false;
-    darray_push(world_pick_pass.target.attachments, world_pick_pass_colour);
+        // Depth attachment
+        render_target_attachment_config* world_pick_pass_depth = &world_pick_pass.target.attachments[1];
+        world_pick_pass_depth->type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
+        world_pick_pass_depth->source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;  // Obtain the attachment from the view.
+        world_pick_pass_depth->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+        world_pick_pass_depth->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+        world_pick_pass_depth->present_after = false;
 
-    // Depth attachment
-    render_target_attachment_config world_pick_pass_depth = {0};
-    world_pick_pass_depth.type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
-    world_pick_pass_depth.source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;  // Obtain the attachment from the view.
-    world_pick_pass_depth.load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
-    world_pick_pass_depth.store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
-    world_pick_pass_depth.present_after = false;
-    darray_push(world_pick_pass.target.attachments, world_pick_pass_depth);
+        // TODO: if too soon in the init process, move to on_registered.
+        if (!renderer_renderpass_create(&world_pick_pass, &pick_view.passes[0])) {
+            KERROR("Pick view - Failed to create renderpass '%s'", pick_view.passes[0].name);
+            return false;
+        }
 
-    world_pick_pass.target.attachment_count = darray_length(world_pick_pass.target.attachments);
-    world_pick_pass.render_target_count = 1;  // Not triple-buffering this.
-    darray_push(pick_view_config.passes, world_pick_pass);
+        // UI pick pass
+        renderpass_config ui_pick_pass = {0};
+        ui_pick_pass.name = "Renderpass.Builtin.UIPick";
+        ui_pick_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};
+        ui_pick_pass.clear_colour = (vec4){1.0f, 1.0f, 1.0f, 1.0f};
+        ui_pick_pass.clear_flags = RENDERPASS_CLEAR_NONE_FLAG;
+        ui_pick_pass.depth = 1.0f;
+        ui_pick_pass.stencil = 0;
+        ui_pick_pass.target.attachment_count = 1;
+        ui_pick_pass.target.attachments = kallocate(sizeof(render_target_attachment_config) * ui_pick_pass.target.attachment_count, MEMORY_TAG_ARRAY);
+        ui_pick_pass.render_target_count = 1;  // NOTE: Not triple-buffering this.
 
-    // UI pick pass
-    renderpass_config ui_pick_pass = {0};
-    ui_pick_pass.name = "Renderpass.Builtin.UIPick";
-    ui_pick_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};
-    ui_pick_pass.clear_colour = (vec4){1.0f, 1.0f, 1.0f, 1.0f};
-    ui_pick_pass.clear_flags = RENDERPASS_CLEAR_NONE_FLAG;
-    ui_pick_pass.depth = 1.0f;
-    ui_pick_pass.stencil = 0;
-    ui_pick_pass.target.attachments = darray_create(render_target_attachment_config);
+        render_target_attachment_config* ui_pick_pass_attachment = &ui_pick_pass.target.attachments[0];
+        ui_pick_pass_attachment->type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+        // Obtain the attachment from the view.
+        ui_pick_pass_attachment->source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;
+        ui_pick_pass_attachment->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD;
+        // Need to store it so it can be sampled afterward.
+        ui_pick_pass_attachment->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+        ui_pick_pass_attachment->present_after = false;
 
-    render_target_attachment_config ui_pick_pass_attachment = {0};
-    ui_pick_pass_attachment.type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
-    // Obtain the attachment from the view.
-    ui_pick_pass_attachment.source = RENDER_TARGET_ATTACHMENT_SOURCE_VIEW;
-    ui_pick_pass_attachment.load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD;
-    // Need to store it so it can be sampled afterward.
-    ui_pick_pass_attachment.store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
-    ui_pick_pass_attachment.present_after = false;
-    darray_push(ui_pick_pass.target.attachments, ui_pick_pass_attachment);
+        // TODO: if too soon in the init process, move to on_registered.
+        if (!renderer_renderpass_create(&ui_pick_pass, &pick_view.passes[1])) {
+            KERROR("Pick view - Failed to create renderpass '%s'", pick_view.passes[1].name);
+            return false;
+        }
 
-    ui_pick_pass.target.attachment_count = darray_length(ui_pick_pass.target.attachments);
-    ui_pick_pass.render_target_count = 1;  // Not triple-buffering this.
-    darray_push(pick_view_config.passes, ui_pick_pass);
+        // Assign function pointers.
+        pick_view.on_packet_build = render_view_pick_on_packet_build;
+        pick_view.on_packet_destroy = render_view_pick_on_packet_destroy;
+        pick_view.on_render = render_view_pick_on_render;
+        pick_view.on_registered = render_view_pick_on_registered;
+        pick_view.on_destroy = render_view_pick_on_destroy;
+        pick_view.on_resize = render_view_pick_on_resize;
+        pick_view.attachment_target_regenerate = render_view_pick_attachment_target_regenerate;
 
-    pick_view_config.pass_count = darray_length(pick_view_config.passes);
-
-    darray_push(config->render_views, pick_view_config);
+        darray_push(config->views, pick_view);
+    }
 
     return true;
 }

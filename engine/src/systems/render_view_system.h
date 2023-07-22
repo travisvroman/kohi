@@ -48,7 +48,7 @@ void render_view_system_shutdown(void* state);
  * @param config A constant pointer to the view configuration.
  * @return True on success; otherwise false.
  */
-KAPI b8 render_view_system_create(const render_view_config* config);
+KAPI b8 render_view_system_register(render_view* view);
 
 /**
  * @brief Called when the owner of this view (i.e. the window) is resized.

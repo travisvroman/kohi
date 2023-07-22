@@ -403,14 +403,14 @@ typedef struct renderer_plugin {
 
     /**
      * @brief Updates vertex data in the given geometry with the provided data in the given range.
-     * 
+     *
      * @param plugin A pointer to the renderer plugin interface.
      * @param g A pointer to the geometry to be created.
      * @param offset The offset in bytes to update. 0 if updating from the beginning.
      * @param vertex_count The number of vertices which will be updated.
      * @param vertices The vertex data.
      */
-    void (*geometry_vertex_update)(struct renderer_plugin *plugin, geometry *g, u32 offset, u32 vertex_count, void *vertices);
+    void (*geometry_vertex_update)(struct renderer_plugin* plugin, geometry* g, u32 offset, u32 vertex_count, void* vertices);
 
     /**
      * @brief Destroys the given geometry, releasing internal resources.
@@ -779,61 +779,6 @@ typedef struct renderer_plugin {
 
 } renderer_plugin;
 
-/** @brief Known render view types, which have logic associated with them. */
-typedef enum render_view_known_type {
-    /** @brief A view which only renders objects with *no* transparency. */
-    RENDERER_VIEW_KNOWN_TYPE_WORLD = 0x01,
-    /** @brief A view which only renders ui objects. */
-    RENDERER_VIEW_KNOWN_TYPE_UI = 0x02,
-    /** @brief A view which only renders skybox objects. */
-    RENDERER_VIEW_KNOWN_TYPE_SKYBOX = 0x03,
-    /** @brief A view which only renders ui and world objects to be picked. */
-    RENDERER_VIEW_KNOWN_TYPE_PICK = 0x04,
-} render_view_known_type;
-
-/** @brief Known view matrix sources. */
-typedef enum render_view_view_matrix_source {
-    RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA = 0x01,
-    RENDER_VIEW_VIEW_MATRIX_SOURCE_UI_CAMERA = 0x02,
-    RENDER_VIEW_VIEW_MATRIX_SOURCE_LIGHT_CAMERA = 0x03,
-} render_view_view_matrix_source;
-
-/** @brief Known projection matrix sources. */
-typedef enum render_view_projection_matrix_source {
-    RENDER_VIEW_PROJECTION_MATRIX_SOURCE_DEFAULT_PERSPECTIVE = 0x01,
-    RENDER_VIEW_PROJECTION_MATRIX_SOURCE_DEFAULT_ORTHOGRAPHIC = 0x02,
-} render_view_projection_matrix_source;
-
-/**
- * @brief The configuration of a render view.
- * Used as a serialization target.
- */
-typedef struct render_view_config {
-    /** @brief The name of the view. */
-    const char* name;
-
-    /**
-     * @brief The name of a custom shader to be used
-     * instead of the view's default. Must be 0 if
-     * not used.
-     */
-    const char* custom_shader_name;
-    /** @brief The width of the view. Set to 0 for 100% width. */
-    u16 width;
-    /** @brief The height of the view. Set to 0 for 100% height. */
-    u16 height;
-    /** @brief The known type of the view. Used to associate with view logic. */
-    render_view_known_type type;
-    /** @brief The source of the view matrix. */
-    render_view_view_matrix_source view_matrix_source;
-    /** @brief The source of the projection matrix. */
-    render_view_projection_matrix_source projection_matrix_source;
-    /** @brief The number of renderpasses used in this view. */
-    u8 pass_count;
-    /** @brief The configuration of renderpasses used in this view. */
-    renderpass_config* passes;
-} render_view_config;
-
 struct render_view_packet;
 struct linear_allocator;
 
@@ -842,16 +787,12 @@ struct linear_allocator;
  * of view packets based on internal logic and given config.
  */
 typedef struct render_view {
-    /** @brief The unique identifier of this view. */
-    u16 id;
     /** @brief The name of the view. */
     const char* name;
     /** @brief The current width of this view. */
     u16 width;
     /** @brief The current height of this view. */
     u16 height;
-    /** @brief The known type of this view. */
-    render_view_known_type type;
 
     /** @brief The number of renderpasses used by this view. */
     u8 renderpass_count;
@@ -864,12 +805,12 @@ typedef struct render_view {
     void* internal_data;
 
     /**
-     * @brief A pointer to a function to be called when this view is created.
+     * @brief A pointer to a function to be called when this view is registered with the view system.
      *
-     * @param self A pointer to the view being created.
+     * @param self A pointer to the view being registered.
      * @return True on success; otherwise false.
      */
-    b8 (*on_create)(struct render_view* self);
+    b8 (*on_registered)(struct render_view* self);
     /**
      * @brief A pointer to a function to be called when this view is destroyed.
      *
