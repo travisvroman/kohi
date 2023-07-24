@@ -178,8 +178,11 @@ b8 debug_grid_initialize(debug_grid *grid) {
 }
 
 b8 debug_grid_load(debug_grid *grid) {
-    // Send the geometry off to the renderer to be uploaded to the GPU.
     if (!renderer_geometry_create(&grid->geo, sizeof(colour_vertex_3d), grid->vertex_count, grid->vertices, 0, 0, 0)) {
+        return false;
+    }
+    // Send the geometry off to the renderer to be uploaded to the GPU.
+    if (!renderer_geometry_upload(&grid->geo)) {
         return false;
     }
     return true;

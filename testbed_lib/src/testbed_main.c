@@ -26,6 +26,10 @@
 #include "views/render_view_ui.h"
 #include "views/render_view_world.h"
 
+// TODO: Editor temp
+#include "editor/editor_gizmo.h"
+#include "editor/render_view_editor_world.h"
+
 // TODO: temp
 #include <core/identifier.h>
 #include <math/transform.h>
@@ -201,12 +205,25 @@ b8 application_initialize(struct application* game_inst) {
     // Register resource loaders.
     resource_system_loader_register(simple_scene_resource_loader_create());
 
-    debug_console_load(&((testbed_game_state*)game_inst->state)->debug_console);
-
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    debug_console_load(&state->debug_console);
 
     state->forward_move_speed = 5.0f;
     state->backward_move_speed = 2.5f;
+
+    // Setup editor gizmo.
+    if (!editor_gizmo_create(&state->gizmo)) {
+        KERROR("Failed to create editor gizmo!");
+        return false;
+    }
+    if (!editor_gizmo_initialize(&state->gizmo)) {
+        KERROR("Failed to initialize editor gizmo!");
+        return false;
+    }
+    if (!editor_gizmo_load(&state->gizmo)) {
+        KERROR("Failed to load editor gizmo!");
+        return false;
+    }
 
     // World meshes
     // Invalidate all meshes.
@@ -283,7 +300,7 @@ b8 application_initialize(struct application* game_inst) {
 
     state->world_camera = camera_system_get_default();
     camera_position_set(state->world_camera, (vec3){1.45f, 3.34f, 17.15f});
-    camera_rotation_euler_set(state->world_camera, (vec3){-11.083f, 262.600f, 0.0f});
+    camera_rotation_euler_set(state->world_camera, (vec3){-11.083f, 18.250f, 0.0f});
 
     // kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
 
@@ -403,16 +420,17 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
 
     // TODO: temp
 
-    packet->view_count = 4;
+    packet->view_count = 5;
     packet->views = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(render_view_packet) * packet->view_count);
 
-    // FIXME: Read this from config
+    // TODO: Cache these instead of lookups every frame.
     packet->views[TESTBED_PACKET_VIEW_SKYBOX].view = render_view_system_get("skybox");
     packet->views[TESTBED_PACKET_VIEW_WORLD].view = render_view_system_get("world");
+    packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD].view = render_view_system_get("editor_world");
     packet->views[TESTBED_PACKET_VIEW_UI].view = render_view_system_get("ui");
     packet->views[TESTBED_PACKET_VIEW_PICK].view = render_view_system_get("pick");
 
-    // Tell our scene to generate relevant packet data.
+    // Tell our scene to generate relevant packet data. NOTE: Generates skybox and world packets.
     if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
         if (!simple_scene_populate_render_packet(&state->main_scene, state->world_camera, (f32)state->width / state->height, p_frame_data, packet)) {
             KERROR("Failed populare render packet for main scene.");
@@ -420,53 +438,76 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
         }
     }
 
-    // ui
-    ui_packet_data ui_packet = {};
+    // Editor world
+    {
+        render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD];
+        const render_view* view = view_packet->view;
 
-    u32 ui_mesh_count = 0;
-    u32 max_ui_meshes = 10;
-    mesh** ui_meshes = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(mesh*) * max_ui_meshes);
-
-    for (u32 i = 0; i < max_ui_meshes; ++i) {
-        if (state->ui_meshes[i].generation != INVALID_ID_U8) {
-            ui_meshes[ui_mesh_count] = &state->ui_meshes[i];
-            ui_mesh_count++;
+        editor_world_packet_data editor_world_data = {0};
+        editor_world_data.gizmo = &state->gizmo;
+        if (!render_view_system_packet_build(view, p_frame_data->frame_allocator, &editor_world_data, view_packet)) {
+            KERROR("Failed to build packet for view 'editor_world'.");
+            return false;
         }
     }
 
-    ui_packet.mesh_data.mesh_count = ui_mesh_count;
-    ui_packet.mesh_data.meshes = ui_meshes;
-    ui_packet.text_count = 2;
-    ui_text* debug_console_text = debug_console_get_text(&state->debug_console);
-    b8 render_debug_conole = debug_console_text && debug_console_visible(&state->debug_console);
-    if (render_debug_conole) {
-        ui_packet.text_count += 2;
-    }
-    ui_text** texts = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(ui_text*) * ui_packet.text_count);
-    texts[0] = &state->test_text;
-    texts[1] = &state->test_sys_text;
-    if (render_debug_conole) {
-        texts[2] = debug_console_text;
-        texts[3] = debug_console_get_entry_text(&state->debug_console);
+    // UI
+    ui_packet_data ui_packet = {0};
+    {
+        render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_UI];
+        const render_view* view = view_packet->view;
+
+        u32 ui_mesh_count = 0;
+        u32 max_ui_meshes = 10;
+        mesh** ui_meshes = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(mesh*) * max_ui_meshes);
+
+        for (u32 i = 0; i < max_ui_meshes; ++i) {
+            if (state->ui_meshes[i].generation != INVALID_ID_U8) {
+                ui_meshes[ui_mesh_count] = &state->ui_meshes[i];
+                ui_mesh_count++;
+            }
+        }
+
+        ui_packet.mesh_data.mesh_count = ui_mesh_count;
+        ui_packet.mesh_data.meshes = ui_meshes;
+        ui_packet.text_count = 2;
+        ui_text* debug_console_text = debug_console_get_text(&state->debug_console);
+        b8 render_debug_conole = debug_console_text && debug_console_visible(&state->debug_console);
+        if (render_debug_conole) {
+            ui_packet.text_count += 2;
+        }
+        ui_text** texts = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(ui_text*) * ui_packet.text_count);
+        texts[0] = &state->test_text;
+        texts[1] = &state->test_sys_text;
+        if (render_debug_conole) {
+            texts[2] = debug_console_text;
+            texts[3] = debug_console_get_entry_text(&state->debug_console);
+        }
+
+        ui_packet.texts = texts;
+        if (!render_view_system_packet_build(view, p_frame_data->frame_allocator, &ui_packet, view_packet)) {
+            KERROR("Failed to build packet for view 'ui'.");
+            return false;
+        }
     }
 
-    ui_packet.texts = texts;
-    if (!render_view_system_packet_build(render_view_system_get("ui"), p_frame_data->frame_allocator, &ui_packet, &packet->views[2])) {
-        KERROR("Failed to build packet for view 'ui'.");
-        return false;
-    }
+    // Pick
+    {
+        render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_PICK];
+        const render_view* view = view_packet->view;
 
-    // Pick uses both world and ui packet data.
-    pick_packet_data pick_packet = {0};
-    pick_packet.ui_mesh_data = ui_packet.mesh_data;
-    pick_packet.world_mesh_data = packet->views[1].geometries;  // TODO: non-hardcoded index?
-    pick_packet.terrain_mesh_data = packet->views[1].terrain_geometries;
-    pick_packet.texts = ui_packet.texts;
-    pick_packet.text_count = ui_packet.text_count;
+        // Pick uses both world and ui packet data.
+        pick_packet_data pick_packet = {0};
+        pick_packet.ui_mesh_data = ui_packet.mesh_data;
+        pick_packet.world_mesh_data = packet->views[TESTBED_PACKET_VIEW_WORLD].geometries;
+        pick_packet.terrain_mesh_data = packet->views[TESTBED_PACKET_VIEW_WORLD].terrain_geometries;
+        pick_packet.texts = ui_packet.texts;
+        pick_packet.text_count = ui_packet.text_count;
 
-    if (!render_view_system_packet_build(render_view_system_get("pick"), p_frame_data->frame_allocator, &pick_packet, &packet->views[3])) {
-        KERROR("Failed to build packet for view 'ui'.");
-        return false;
+        if (!render_view_system_packet_build(view, p_frame_data->frame_allocator, &pick_packet, view_packet)) {
+            KERROR("Failed to build packet for view 'pick'.");
+            return false;
+        }
     }
     // TODO: end temp
 
@@ -600,7 +641,6 @@ b8 configure_render_views(application_config* config) {
         skybox_target_colour->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
         skybox_target_colour->present_after = false;
 
-        // TODO: if too soon in the init process, move to on_registered.
         if (!renderer_renderpass_create(&skybox_pass, &skybox_view.passes[0])) {
             KERROR("Skybox view - Failed to create renderpass '%s'", skybox_view.passes[0].name);
             return false;
@@ -653,7 +693,6 @@ b8 configure_render_views(application_config* config) {
         world_target_depth->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
         world_target_depth->present_after = false;
 
-        // TODO: if too soon in the init process, move to on_registered.
         if (!renderer_renderpass_create(&world_pass, &world_view.passes[0])) {
             KERROR("World view - Failed to create renderpass '%s'", world_view.passes[0].name);
             return false;
@@ -669,6 +708,59 @@ b8 configure_render_views(application_config* config) {
         world_view.attachment_target_regenerate = 0;
 
         darray_push(config->views, world_view);
+    }
+
+    // TODO: Editor temp
+    // Editor World view.
+    {
+        render_view editor_world_view = {0};
+        editor_world_view.name = "editor_world";
+        editor_world_view.renderpass_count = 1;
+        editor_world_view.passes = kallocate(sizeof(renderpass) * editor_world_view.renderpass_count, MEMORY_TAG_ARRAY);
+
+        // Renderpass config.
+        renderpass_config editor_world_pass = {0};
+        editor_world_pass.name = "Renderpass.Testbed.EditorWorld";
+        editor_world_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};  // Default render area resolution.
+        editor_world_pass.clear_colour = (vec4){0.0f, 0.0f, 0.0f, 1.0f};
+        editor_world_pass.clear_flags = RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG | RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG;
+        editor_world_pass.depth = 1.0f;
+        editor_world_pass.stencil = 0;
+        editor_world_pass.target.attachment_count = 2;
+        editor_world_pass.target.attachments = kallocate(sizeof(render_target_attachment_config) * editor_world_pass.target.attachment_count, MEMORY_TAG_ARRAY);
+        editor_world_pass.render_target_count = renderer_window_attachment_count_get();
+
+        // Colour attachment
+        render_target_attachment_config* editor_world_target_colour = &editor_world_pass.target.attachments[0];
+        editor_world_target_colour->type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+        editor_world_target_colour->source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+        editor_world_target_colour->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD;
+        editor_world_target_colour->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+        editor_world_target_colour->present_after = false;
+
+        // Depth attachment
+        render_target_attachment_config* editor_world_target_depth = &editor_world_pass.target.attachments[1];
+        editor_world_target_depth->type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
+        editor_world_target_depth->source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+        editor_world_target_depth->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+        editor_world_target_depth->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+        editor_world_target_depth->present_after = false;
+
+        if (!renderer_renderpass_create(&editor_world_pass, &editor_world_view.passes[0])) {
+            KERROR("World view - Failed to create renderpass '%s'", editor_world_view.passes[0].name);
+            return false;
+        }
+
+        // Assign function pointers.
+        editor_world_view.on_packet_build = render_view_editor_world_on_packet_build;
+        editor_world_view.on_packet_destroy = render_view_editor_world_on_packet_destroy;
+        editor_world_view.on_render = render_view_editor_world_on_render;
+        editor_world_view.on_registered = render_view_editor_world_on_registered;
+        editor_world_view.on_destroy = render_view_editor_world_on_destroy;
+        editor_world_view.on_resize = render_view_editor_world_on_resize;
+        editor_world_view.attachment_target_regenerate = 0;
+
+        darray_push(config->views, editor_world_view);
     }
 
     // UI view
@@ -698,7 +790,6 @@ b8 configure_render_views(application_config* config) {
         ui_target_attachment->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
         ui_target_attachment->present_after = true;
 
-        // TODO: if too soon in the init process, move to on_registered.
         if (!renderer_renderpass_create(&ui_pass, &ui_view.passes[0])) {
             KERROR("UI view - Failed to create renderpass '%s'", ui_view.passes[0].name);
             return false;
@@ -751,7 +842,6 @@ b8 configure_render_views(application_config* config) {
         world_pick_pass_depth->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
         world_pick_pass_depth->present_after = false;
 
-        // TODO: if too soon in the init process, move to on_registered.
         if (!renderer_renderpass_create(&world_pick_pass, &pick_view.passes[0])) {
             KERROR("Pick view - Failed to create renderpass '%s'", pick_view.passes[0].name);
             return false;
@@ -778,7 +868,6 @@ b8 configure_render_views(application_config* config) {
         ui_pick_pass_attachment->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
         ui_pick_pass_attachment->present_after = false;
 
-        // TODO: if too soon in the init process, move to on_registered.
         if (!renderer_renderpass_create(&ui_pick_pass, &pick_view.passes[1])) {
             KERROR("Pick view - Failed to create renderpass '%s'", pick_view.passes[1].name);
             return false;

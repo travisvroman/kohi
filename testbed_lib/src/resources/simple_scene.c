@@ -19,7 +19,7 @@
 #include "systems/light_system.h"
 #include "systems/render_view_system.h"
 #include "systems/resource_system.h"
-#include "testbed_types.h"
+#include "../testbed_types.h"
 
 static void
 simple_scene_actual_unload(simple_scene *scene);
@@ -33,8 +33,7 @@ typedef struct simple_scene_debug_data {
 
 b8 simple_scene_create(void *config, simple_scene *out_scene) {
     if (!out_scene) {
-        KERROR(
-            ("simple_scene_create(): A valid pointer to out_scene is required."));
+        KERROR("simple_scene_create(): A valid pointer to out_scene is required.");
         return false;
     }
 
@@ -54,8 +53,7 @@ b8 simple_scene_create(void *config, simple_scene *out_scene) {
     out_scene->sb = 0;
 
     if (config) {
-        out_scene->config =
-            kallocate(sizeof(simple_scene_config), MEMORY_TAG_SCENE);
+        out_scene->config = kallocate(sizeof(simple_scene_config), MEMORY_TAG_SCENE);
         kcopy_memory(out_scene->config, config, sizeof(simple_scene_config));
     }
 
@@ -480,11 +478,7 @@ b8 simple_scene_update(simple_scene *scene,
     return true;
 }
 
-b8 simple_scene_populate_render_packet(simple_scene *scene,
-                                       struct camera *current_camera,
-                                       f32 aspect,
-                                       struct frame_data *p_frame_data,
-                                       struct render_packet *packet) {
+b8 simple_scene_populate_render_packet(simple_scene *scene, struct camera *current_camera, f32 aspect, struct frame_data *p_frame_data, struct render_packet *packet) {
     if (!scene || !packet) {
         return false;
     }
@@ -664,8 +658,8 @@ b8 simple_scene_populate_render_packet(simple_scene *scene,
         }
 
         // World
-        if (!render_view_system_packet_build(view, p_frame_data->frame_allocator, &scene->world_data, &packet->views[1])) {
-            KERROR("Failed to build packet for view 'world_opaque'.");
+        if (!render_view_system_packet_build(view, p_frame_data->frame_allocator, &scene->world_data, view_packet)) {
+            KERROR("Failed to build packet for view 'world'.");
             return false;
         }
     }

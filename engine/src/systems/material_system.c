@@ -589,7 +589,7 @@ b8 material_system_apply_global(u32 shader_id, u64 renderer_frame_number, const 
         KERROR("material_system_apply_global(): Unrecognized shader id '%d' ", shader_id);
         return false;
     }
-    MATERIAL_APPLY_OR_FAIL(shader_system_apply_global());
+    MATERIAL_APPLY_OR_FAIL(shader_system_apply_global(true));
 
     // Sync the frame number.
     s->render_frame_number = renderer_frame_number;

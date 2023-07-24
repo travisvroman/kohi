@@ -1,3 +1,5 @@
+#pragma once
+
 #include <defines.h>
 #include <math/math_types.h>
 #include <resources/resource_types.h>

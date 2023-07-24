@@ -175,10 +175,13 @@ b8 terrain_load(terrain *t) {
 
     t->unique_id = identifier_aquire_new_id(t);
 
-    // Send the geometry off to the renderer to be uploaded to the GPU.
     if (!renderer_geometry_create(g, sizeof(terrain_vertex), t->vertex_count,
                                   t->vertices, sizeof(u32), t->index_count,
                                   t->indices)) {
+        return false;
+    }
+    // Send the geometry off to the renderer to be uploaded to the GPU.
+    if (!renderer_geometry_upload(g)) {
         return false;
     }
 

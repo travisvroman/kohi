@@ -305,15 +305,7 @@ typedef struct renderer_plugin {
     b8 (*renderpass_end)(struct renderer_plugin* plugin, renderpass* pass);
 
     /**
-     * @brief Draws the given geometry. Should only be called inside a renderpass, within a frame.
-     *
-     * @param plugin A pointer to the renderer plugin interface.
-     * @param data A pointer to the render data of the geometry to be drawn.
-     */
-    void (*geometry_draw)(struct renderer_plugin* plugin, geometry_render_data* data);
-
-    /**
-     * @brief Creates a Vulkan-specific texture, acquiring internal resources as needed.
+     * @brief Creates a renderer-backend-API-specific texture, acquiring internal resources as needed.
      *
      * @param plugin A pointer to the renderer plugin interface.
      * @param pixels The raw image data used for the texture.
@@ -386,20 +378,28 @@ typedef struct renderer_plugin {
     void (*texture_read_pixel)(struct renderer_plugin* plugin, texture* t, u32 x, u32 y, u8** out_rgba);
 
     /**
-     * @brief Creates Vulkan-specific internal resources for the given geometry using
+     * @brief Creates renderer-backend-API-specific internal resources for the given geometry using
      * the data provided.
      *
      * @param plugin A pointer to the renderer plugin interface.
-     * @param geometry A pointer to the geometry to be created.
-     * @param vertex_size The size of a single vertex.
-     * @param vertex_count The total number of vertices.
-     * @param vertices An array of vertices.
-     * @param index_size The size of an individual index.
-     * @param index_count The total number of indices.
-     * @param indices An array of indices.
+     * @param g A pointer to the geometry to be created.
      * @return True on success; otherwise false.
      */
-    b8 (*geometry_create)(struct renderer_plugin* plugin, geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
+    b8 (*geometry_create)(struct renderer_plugin* plugin, geometry* g);
+
+    /**
+     * @brief Acquires renderer-backend-API-specific internal resources for the given geometry and
+     * uploads data to the GPU.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param g A pointer to the geometry to be initialized.
+     * @param vertex_offset The offset in bytes from the beginning of the geometry's vertex data.
+     * @param vertex_size The amount in bytes of vertex data to be uploaded.
+     * @param index_offset The offset in bytes from the beginning of the geometry's index data.
+     * @param index_size The amount in bytes of index data to be uploaded.
+     * @return True on success; otherwise false.
+     */
+    b8 (*geometry_upload)(struct renderer_plugin* plugin, geometry* g, u32 vertex_offset, u32 vertex_size, u32 index_offset, u32 index_size);
 
     /**
      * @brief Updates vertex data in the given geometry with the provided data in the given range.
@@ -416,9 +416,17 @@ typedef struct renderer_plugin {
      * @brief Destroys the given geometry, releasing internal resources.
      *
      * @param plugin A pointer to the renderer plugin interface.
-     * @param geometry A pointer to the geometry to be destroyed.
+     * @param g A pointer to the geometry to be destroyed.
      */
-    void (*geometry_destroy)(struct renderer_plugin* plugin, geometry* geometry);
+    void (*geometry_destroy)(struct renderer_plugin* plugin, geometry* g);
+
+    /**
+     * @brief Draws the given geometry. Should only be called inside a renderpass, within a frame.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param data A pointer to the render data of the geometry to be drawn.
+     */
+    void (*geometry_draw)(struct renderer_plugin* plugin, geometry_render_data* data);
 
     /**
      * @brief Creates internal shader resources using the provided parameters.
@@ -486,9 +494,10 @@ typedef struct renderer_plugin {
      *
      * @param plugin A pointer to the renderer plugin interface.
      * @param s A pointer to the shader to apply the global data for.
+     * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_globals)(struct renderer_plugin* plugin, struct shader* s);
+    b8 (*shader_apply_globals)(struct renderer_plugin* plugin, struct shader* s, b8 needs_update);
 
     /**
      * @brief Applies data for the currently bound instance.

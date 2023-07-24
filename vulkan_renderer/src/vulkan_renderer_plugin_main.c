@@ -16,7 +16,6 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->renderpass_begin = vulkan_renderer_renderpass_begin;
     out_plugin->renderpass_end = vulkan_renderer_renderpass_end;
     out_plugin->resized = vulkan_renderer_backend_on_resized;
-    out_plugin->geometry_draw = vulkan_renderer_geometry_draw;
     out_plugin->texture_create = vulkan_renderer_texture_create;
     out_plugin->texture_destroy = vulkan_renderer_texture_destroy;
     out_plugin->texture_create_writeable = vulkan_renderer_texture_create_writeable;
@@ -24,8 +23,12 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->texture_write_data = vulkan_renderer_texture_write_data;
     out_plugin->texture_read_data = vulkan_renderer_texture_read_data;
     out_plugin->texture_read_pixel = vulkan_renderer_texture_read_pixel;
+
     out_plugin->geometry_create = vulkan_renderer_geometry_create;
+    out_plugin->geometry_upload = vulkan_renderer_geometry_upload;
+    out_plugin->geometry_vertex_update = vulkan_renderer_geometry_vertex_update;
     out_plugin->geometry_destroy = vulkan_renderer_geometry_destroy;
+    out_plugin->geometry_draw = vulkan_renderer_geometry_draw;
 
     out_plugin->shader_create = vulkan_renderer_shader_create;
     out_plugin->shader_destroy = vulkan_renderer_shader_destroy;
@@ -44,7 +47,6 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->texture_map_resources_release = vulkan_renderer_texture_map_resources_release;
 
     out_plugin->render_target_create = vulkan_renderer_render_target_create;
-    out_plugin->geometry_vertex_update = vulkan_renderer_geometry_vertex_update;
     out_plugin->render_target_destroy = vulkan_renderer_render_target_destroy;
 
     out_plugin->renderpass_create = vulkan_renderpass_create;

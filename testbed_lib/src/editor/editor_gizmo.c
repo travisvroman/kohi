@@ -25,8 +25,6 @@ b8 editor_gizmo_create(editor_gizmo* out_gizmo) {
 
     // Initialize default values for all modes.
     for (u32 i = 0; i < EDITOR_GIZMO_MODE_MAX + 1; ++i) {
-        out_gizmo->mode_data[i].geo.generation = INVALID_ID_U16;
-        out_gizmo->mode_data[i].geo.internal_id = INVALID_ID;
         out_gizmo->mode_data[i].vertex_count = 0;
         out_gizmo->mode_data[i].vertices = 0;
 
@@ -64,7 +62,11 @@ b8 editor_gizmo_load(editor_gizmo* gizmo) {
 
     for (u32 i = 0; i < EDITOR_GIZMO_MODE_MAX + 1; ++i) {
         if (!renderer_geometry_create(&gizmo->mode_data[i].geo, sizeof(colour_vertex_3d), gizmo->mode_data[i].vertex_count, gizmo->mode_data[i].vertices, 0, 0, 0)) {
-            KERROR("Failed to load gizmo geometry type: '%u'", i);
+            KERROR("Failed to create gizmo geometry type: '%u'", i);
+            return false;
+        }
+        if (!renderer_geometry_upload(&gizmo->mode_data[i].geo)) {
+            KERROR("Failed to upload gizmo geometry type: '%u'", i);
             return false;
         }
         if (gizmo->mode_data[i].geo.generation == INVALID_ID_U16) {
@@ -99,7 +101,6 @@ static void create_gizmo_mode_none(editor_gizmo* gizmo) {
 
     data->vertex_count = 6;  // 2 per line, 3 lines
     data->vertices = kallocate(sizeof(colour_vertex_3d) * data->vertex_count, MEMORY_TAG_ARRAY);
-
     vec4 grey = (vec4){0.5f, 0.5f, 0.5f, 1.0f};
 
     // x
@@ -135,13 +136,13 @@ static void create_gizmo_mode_move(editor_gizmo* gizmo) {
 
     // y
     data->vertices[2].colour = g;
-    data->vertices[2].position.x = 0.2f;
+    data->vertices[2].position.y = 0.2f;
     data->vertices[3].colour = g;
     data->vertices[3].position.y = 1.0f;
 
     // z
     data->vertices[4].colour = b;
-    data->vertices[4].position.x = 0.2f;
+    data->vertices[4].position.z = 0.2f;
     data->vertices[5].colour = b;
     data->vertices[5].position.z = 1.0f;
 
@@ -231,7 +232,7 @@ static void create_gizmo_mode_scale(editor_gizmo* gizmo) {
 
 static void create_gizmo_mode_rotate(editor_gizmo* gizmo) {
     editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_ROTATE];
-    const u8 segments = 8;
+    const u8 segments = 32;
     const f32 radius = 1.0f;
 
     data->vertex_count = 12 + (segments * 2 * 3);  // 2 per line, 3 lines + 3 lines
@@ -291,12 +292,12 @@ static void create_gizmo_mode_rotate(editor_gizmo* gizmo) {
     for (u32 i = 0; i < segments; ++i, j += 2) {
         // 2 at a time to form a line.
         f32 theta = (f32)i / segments * K_2PI;
-        data->vertices[j].position.x = radius * kcos(theta);
+        data->vertices[j].position.y = radius * kcos(theta);
         data->vertices[j].position.z = radius * ksin(theta);
         data->vertices[j].colour = r;
 
         theta = (f32)((i + 1) % segments) / segments * K_2PI;
-        data->vertices[j + 1].position.x = radius * kcos(theta);
+        data->vertices[j + 1].position.y = radius * kcos(theta);
         data->vertices[j + 1].position.z = radius * ksin(theta);
         data->vertices[j + 1].colour = r;
     }

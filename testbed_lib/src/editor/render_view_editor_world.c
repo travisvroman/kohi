@@ -10,6 +10,7 @@
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "memory/linear_allocator.h"
+#include "renderer/camera.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.inl"
 #include "resources/terrain.h"
@@ -35,11 +36,6 @@ typedef struct render_view_editor_world_internal_data {
     camera* world_camera;
 
     debug_colour_shader_locations debug_locations;
-
-    // TODO: This should NOT be owned by the view, but by an editor viewport.
-    // This is just here for now until the editor is built.
-    editor_gizmo gizmo;
-
 } render_view_editor_world_internal_data;
 
 static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
@@ -63,7 +59,7 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, even
     return false;
 }
 
-b8 render_view_editor_world_on_create(struct render_view* self) {
+b8 render_view_editor_world_on_registered(struct render_view* self) {
     if (self) {
         self->internal_data = kallocate(sizeof(render_view_editor_world_internal_data), MEMORY_TAG_RENDERER);
         render_view_editor_world_internal_data* data = self->internal_data;
@@ -92,20 +88,6 @@ b8 render_view_editor_world_on_create(struct render_view* self) {
         data->projection_matrix = mat4_perspective(data->fov, 1280 / 720.0f, data->near_clip, data->far_clip);
 
         data->world_camera = camera_system_get_default();
-
-        // Load up the gizmo. TODO: This should be moved to the editor.
-        if (!editor_gizmo_create(&data->gizmo)) {
-            KERROR("Failed to create editor gizmo!");
-            return false;
-        }
-        if (editor_gizmo_initialize(&data->gizmo)) {
-            KERROR("Failed to initialize editor gizmo!");
-            return false;
-        }
-        if (editor_gizmo_load(&data->gizmo)) {
-            KERROR("Failed to load editor gizmo!");
-            return false;
-        }
 
         if (!event_register(EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED, self, render_view_on_event)) {
             KERROR("Unable to listen for refresh required event, creation failed.");
@@ -153,12 +135,42 @@ b8 render_view_editor_world_on_packet_build(const struct render_view* self, stru
         return false;
     }
 
-    // TODO: generally we would generate a packet here, but since this owns the gizmo, skip this for now.
+    // TODO: use frame allocator
+    out_packet->geometries = darray_create(geometry_render_data);
+
+    render_view_editor_world_internal_data* internal_data = self->internal_data;
+    out_packet->projection_matrix = internal_data->projection_matrix;
+    out_packet->view_matrix = camera_view_get(internal_data->world_camera);
+
+    editor_world_packet_data* packet_data = (editor_world_packet_data*)data;
+    if (packet_data->gizmo) {
+        geometry* g = &packet_data->gizmo->mode_data[packet_data->gizmo->mode].geo;
+
+        vec3 camera_pos = camera_position_get(internal_data->world_camera);
+        vec3 gizmo_pos = transform_position_get(&packet_data->gizmo->xform);
+        // TODO: Should get this from the camera/viewport.
+        f32 fov = deg_to_rad(45.0f);
+        f32 dist = vec3_distance(camera_pos, gizmo_pos);
+
+        mat4 model = transform_world_get(&packet_data->gizmo->xform);
+        f32 fixed_size = 0.1f;  // TODO: Make this a configurable option for gizmo size.
+        f32 scale_scalar = ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
+        mat4 scale = mat4_scale((vec3){scale_scalar, scale_scalar, scale_scalar});
+        model = mat4_mul(model, scale);
+
+        geometry_render_data render_data = {0};
+        render_data.model = model;
+        render_data.geometry = g;
+        render_data.unique_id = INVALID_ID;
+
+        darray_push(out_packet->geometries, render_data);
+    }
 
     return true;
 }
 
 void render_view_editor_world_on_packet_destroy(const struct render_view* self, struct render_view_packet* packet) {
+    darray_destroy(packet->geometries);
     kzero_memory(packet, sizeof(render_view_packet));
 }
 
@@ -180,31 +192,26 @@ b8 render_view_editor_world_on_render(const struct render_view* self, const stru
         }
         shader_system_use_by_id(s->id);
 
+        renderer_shader_bind_globals(s);
         // Globals
-        shader_system_uniform_set_by_index(data->debug_locations.projection, &packet->projection_matrix);
-        shader_system_uniform_set_by_index(data->debug_locations.view, &packet->view_matrix);
+        b8 needs_update = frame_number != s->render_frame_number;
+        if (needs_update) {
+            shader_system_uniform_set_by_index(data->debug_locations.projection, &packet->projection_matrix);
+            shader_system_uniform_set_by_index(data->debug_locations.view, &packet->view_matrix);
+        }
+        shader_system_apply_global(needs_update);
 
-        shader_system_apply_global();
+        u32 geometry_count = darray_length(packet->geometries);
+        for (u32 i = 0; i < geometry_count; ++i) {
+            // NOTE: No instance-level uniforms to be set.
+            geometry_render_data* render_data = &packet->geometries[i];
 
-        // TODO: Just drawing the gizmo here manually for now.
-        geometry_render_data grd = {0};
-        grd.model = transform_world_get(&data->gizmo.xform);
-        grd.geometry = &data->gizmo.mode_data[data->gizmo.mode].geo;
-        grd.unique_id = INVALID_ID;
+            // Set model matrix.
+            shader_system_uniform_set_by_index(data->debug_locations.model, &render_data->model);
 
-        shader_system_uniform_set_by_index(data->debug_locations.model, &grd.model);
-        renderer_geometry_draw(&grd);
-
-        // Each geometry.
-        // for (u32 i = 0; i < debug_geometry_count; ++i) {
-        // NOTE: No instance-level uniforms to be set.
-
-        // Local
-        // shader_system_uniform_set_by_index(data->debug_locations.model, &packet->debug_geometries[i].model);
-
-        // Draw it.
-        // renderer_geometry_draw(&packet->debug_geometries[i]);
-        // }
+            // Draw it.
+            renderer_geometry_draw(render_data);
+        }
 
         if (!renderer_renderpass_end(pass)) {
             KERROR("render_view_editor_world_on_render pass index %u failed to end.", p);
