@@ -324,16 +324,10 @@ typedef struct vulkan_geometry_data {
     u32 id;
     /** @brief The geometry generation. Incremented every time the geometry data changes. */
     u32 generation;
-    /** @brief The vertex count. */
-    u32 vertex_count;
-    /** @brief The size of each vertex. */
-    u32 vertex_element_size;
+    
     /** @brief The offset in bytes in the vertex buffer. */
     u64 vertex_buffer_offset;
-    /** @brief The index count. */
-    u32 index_count;
-    /** @brief The size of each index. */
-    u32 index_element_size;
+    
     /** @brief The offset in bytes in the index buffer. */
     u64 index_buffer_offset;
 } vulkan_geometry_data;

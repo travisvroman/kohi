@@ -199,9 +199,49 @@ void renderer_texture_resize(texture* t, u32 new_width, u32 new_height) {
     state_ptr->plugin.texture_resize(&state_ptr->plugin, t, new_width, new_height);
 }
 
-b8 renderer_geometry_create(geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
+b8 renderer_geometry_create(geometry* g, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
+    if (!g) {
+        KERROR("renderer_geometry_create requires a valid pointer to geometry.");
+        return false;
+    }
+    if (!vertex_count || !vertices) {
+        KERROR("renderer_geometry_create requires vertex data, and none was supplied. vertex_count=%d, vertices=%p", vertex_count, vertices);
+        return false;
+    }
+
+    g->material = 0;
+
+    // Invalidate IDs. NOTE: Don't invalidate g->id! It should have a valid id at this point,
+    // and invalidating it wreaks havoc.
+    g->internal_id = INVALID_ID;
+    g->generation = INVALID_ID_U16;
+
+    // Take a copy of the vertex data.
+    g->vertex_count = vertex_count;
+    g->vertex_element_size = vertex_size;
+    g->vertices = kallocate(vertex_size * vertex_count, MEMORY_TAG_RENDERER);
+    kcopy_memory(g->vertices, vertices, vertex_size * vertex_count);
+
+    g->index_count = index_count;
+    g->index_element_size = index_size;
+    g->indices = 0;
+    // If supplied, take a copy of the index data.
+    if (index_size && index_count) {
+        g->indices = kallocate(index_size * index_count, MEMORY_TAG_RENDERER);
+        kcopy_memory(g->indices, indices, index_size * index_count);
+    }
+
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.geometry_create(&state_ptr->plugin, geometry, vertex_size, vertex_count, vertices, index_size, index_count, indices);
+    return state_ptr->plugin.geometry_create(&state_ptr->plugin, g);
+}
+
+b8 renderer_geometry_upload(geometry* g) {
+    if (!g) {
+        KERROR("renderer_geometry_upload requires a valid pointer to geometry.");
+        return false;
+    }
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.geometry_upload(&state_ptr->plugin, g, 0, g->vertex_element_size * g->vertex_count, 0, g->index_element_size * g->index_count);
 }
 
 void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, void* vertices) {
@@ -259,9 +299,9 @@ b8 renderer_shader_bind_instance(shader* s, u32 instance_id) {
     return state_ptr->plugin.shader_bind_instance(&state_ptr->plugin, s, instance_id);
 }
 
-b8 renderer_shader_apply_globals(shader* s) {
+b8 renderer_shader_apply_globals(shader* s, b8 needs_update) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.shader_apply_globals(&state_ptr->plugin, s);
+    return state_ptr->plugin.shader_apply_globals(&state_ptr->plugin, s, needs_update);
 }
 
 b8 renderer_shader_apply_instance(shader* s, b8 needs_update) {

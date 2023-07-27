@@ -299,6 +299,21 @@ typedef struct geometry {
     vec3 center;
     /** @brief The extents of the geometry in local coordinates. */
     extents_3d extents;
+
+    /** @brief The vertex count. */
+    u32 vertex_count;
+    /** @brief The size of each vertex. */
+    u32 vertex_element_size;
+    /** @brief The vertex data. */
+    void* vertices;
+
+    /** @brief The index count. */
+    u32 index_count;
+    /** @brief The size of each index. */
+    u32 index_element_size;
+    /** @brief The index data. */
+    void* indices;
+
     /** @brief The geometry name. */
     char name[GEOMETRY_NAME_MAX_LENGTH];
     /** @brief A pointer to the material associated with this geometry.. */

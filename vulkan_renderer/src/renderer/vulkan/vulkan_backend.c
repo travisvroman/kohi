@@ -1393,39 +1393,25 @@ void vulkan_renderer_texture_read_pixel(renderer_plugin *plugin, texture *t,
     renderer_renderbuffer_destroy(&staging);
 }
 
-b8 vulkan_renderer_geometry_create(renderer_plugin *plugin, geometry *geometry,
-                                   u32 vertex_size, u32 vertex_count,
-                                   const void *vertices, u32 index_size,
-                                   u32 index_count, const void *indices) {
-    vulkan_context *context = (vulkan_context *)plugin->internal_context;
-    if (!vertex_count || !vertices) {
-        KERROR(
-            "vulkan_renderer_create_geometry requires vertex data, and none was "
-            "supplied. vertex_count=%d, vertices=%p",
-            vertex_count, vertices);
-        return false;
-    }
+b8 vulkan_renderer_geometry_create(renderer_plugin *plugin, geometry *geometry) {
+    // NOTE: This particular backend doesn't need to do anything here.
+    return true;
+}
 
-    // Check if this is a re-upload. If it is, need to free old data afterward.
-    b8 is_reupload = geometry->internal_id != INVALID_ID;
-    vulkan_geometry_data old_range;
+b8 vulkan_renderer_geometry_upload(renderer_plugin *plugin, geometry *g, u32 vertex_offset, u32 vertex_size, u32 index_offset, u32 index_size) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+
+    // Check if this is a re-upload. If it is, don't need to allocate resources.
+    b8 is_reupload = g->internal_id != INVALID_ID;
 
     vulkan_geometry_data *internal_data = 0;
     if (is_reupload) {
-        internal_data = &context->geometries[geometry->internal_id];
-
-        // Take a copy of the old range.
-        old_range.index_buffer_offset = internal_data->index_buffer_offset;
-        old_range.index_count = internal_data->index_count;
-        old_range.index_element_size = internal_data->index_element_size;
-        old_range.vertex_buffer_offset = internal_data->vertex_buffer_offset;
-        old_range.vertex_count = internal_data->vertex_count;
-        old_range.vertex_element_size = internal_data->vertex_element_size;
+        internal_data = &context->geometries[g->internal_id];
     } else {
         for (u32 i = 0; i < VULKAN_MAX_GEOMETRY_COUNT; ++i) {
             if (context->geometries[i].id == INVALID_ID) {
                 // Found a free index.
-                geometry->internal_id = i;
+                g->internal_id = i;
                 context->geometries[i].id = i;
                 internal_data = &context->geometries[i];
                 break;
@@ -1433,56 +1419,38 @@ b8 vulkan_renderer_geometry_create(renderer_plugin *plugin, geometry *geometry,
         }
     }
     if (!internal_data) {
-        KFATAL(
-            "vulkan_renderer_create_geometry failed to find a free index for a "
-            "new geometry upload. Adjust config to allow for more.");
+        KFATAL("vulkan_renderer_geometry_upload failed to find a free index for a new geometry upload. Adjust config to allow for more.");
         return false;
     }
 
     // Vertex data.
-    internal_data->vertex_count = vertex_count;
-    internal_data->vertex_element_size = vertex_size;
-    u32 total_size = vertex_count * vertex_size;
-    // Allocate space in the buffer.
-    if (!renderer_renderbuffer_allocate(&context->object_vertex_buffer,
-                                        total_size,
-                                        &internal_data->vertex_buffer_offset)) {
-        KERROR(
-            "vulkan_renderer_create_geometry failed to allocate from the vertex "
-            "buffer!");
-        return false;
+    if (!is_reupload) {
+        // Allocate space in the buffer.
+        if (!renderer_renderbuffer_allocate(&context->object_vertex_buffer, g->vertex_element_size * g->vertex_count, &internal_data->vertex_buffer_offset)) {
+            KERROR("vulkan_renderer_geometry_upload failed to allocate from the vertex buffer!");
+            return false;
+        }
     }
 
     // Load the data.
-    if (!renderer_renderbuffer_load_range(&context->object_vertex_buffer,
-                                          internal_data->vertex_buffer_offset,
-                                          total_size, vertices)) {
-        KERROR(
-            "vulkan_renderer_create_geometry failed to upload to the vertex "
-            "buffer!");
+    if (!renderer_renderbuffer_load_range(&context->object_vertex_buffer, internal_data->vertex_buffer_offset + vertex_offset, vertex_size, g->vertices + vertex_offset)) {
+        KERROR("vulkan_renderer_geometry_upload failed to upload to the vertex buffer!");
         return false;
     }
 
     // Index data, if applicable
-    if (index_count && indices) {
-        internal_data->index_count = index_count;
-        internal_data->index_element_size = index_size;
-        total_size = index_count * index_size;
-        if (!renderer_renderbuffer_allocate(&context->object_index_buffer,
-                                            total_size,
-                                            &internal_data->index_buffer_offset)) {
-            KERROR(
-                "vulkan_renderer_create_geometry failed to allocate from the "
-                "index buffer!");
-            return false;
+    if (g->index_count && g->indices && index_size) {
+        if (!is_reupload) {
+            // Allocate space in the buffer.
+            if (!renderer_renderbuffer_allocate(&context->object_index_buffer, g->index_element_size * g->index_count, &internal_data->index_buffer_offset)) {
+                KERROR("vulkan_renderer_geometry_upload failed to allocate from the index buffer!");
+                return false;
+            }
         }
 
-        if (!renderer_renderbuffer_load_range(&context->object_index_buffer,
-                                              internal_data->index_buffer_offset,
-                                              total_size, indices)) {
-            KERROR(
-                "vulkan_renderer_create_geometry failed to upload to the index "
-                "buffer!");
+        // Load the data.
+        if (!renderer_renderbuffer_load_range(&context->object_index_buffer, internal_data->index_buffer_offset + index_offset, index_size, g->indices + index_offset)) {
+            KERROR("vulkan_renderer_geometry_upload failed to upload to the index buffer!");
             return false;
         }
     }
@@ -1493,79 +1461,41 @@ b8 vulkan_renderer_geometry_create(renderer_plugin *plugin, geometry *geometry,
         internal_data->generation++;
     }
 
-    if (is_reupload) {
-        // Free vertex data
-        if (!renderer_renderbuffer_free(&context->object_vertex_buffer,
-                                        old_range.vertex_element_size *
-                                            old_range.vertex_count,
-                                        old_range.vertex_buffer_offset)) {
-            KERROR(
-                "vulkan_renderer_create_geometry free operation failed during "
-                "reupload of vertex data.");
-            return false;
-        }
-
-        // Free index data, if applicable
-        if (old_range.index_element_size > 0) {
-            if (!renderer_renderbuffer_free(&context->object_index_buffer,
-                                            old_range.index_element_size *
-                                                old_range.index_count,
-                                            old_range.index_buffer_offset)) {
-                KERROR(
-                    "vulkan_renderer_create_geometry free operation failed during "
-                    "reupload of index data.");
-                return false;
-            }
-        }
-    }
-
     return true;
 }
 
 void vulkan_renderer_geometry_vertex_update(renderer_plugin *plugin, geometry *g, u32 offset, u32 vertex_count, void *vertices) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     vulkan_geometry_data *internal_data = internal_data = &context->geometries[g->internal_id];
-    if (vertex_count > internal_data->vertex_count) {
+    if (vertex_count > g->vertex_count) {
         // TODO: realloc is needed.
         KFATAL("vulkan_renderer_geometry_vertex_update realloc not supported.");
         return;
     }
 
-    u32 total_size = vertex_count * internal_data->vertex_element_size;
+    u32 total_size = vertex_count * g->vertex_element_size;
 
     // Load the data.
-    if (!renderer_renderbuffer_load_range(&context->object_vertex_buffer,
-                                          internal_data->vertex_buffer_offset + offset, total_size, vertices)) {
+    if (!renderer_renderbuffer_load_range(&context->object_vertex_buffer, internal_data->vertex_buffer_offset + offset, total_size, vertices + offset)) {
         KERROR("vulkan_renderer_geometry_vertex_update failed to upload to the vertex buffer!");
     }
 }
 
-void vulkan_renderer_geometry_destroy(renderer_plugin *plugin, geometry *geometry) {
+void vulkan_renderer_geometry_destroy(renderer_plugin *plugin, geometry *g) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
-    if (geometry && geometry->internal_id != INVALID_ID) {
+    if (g && g->internal_id != INVALID_ID) {
         vkDeviceWaitIdle(context->device.logical_device);
-        vulkan_geometry_data *internal_data =
-            &context->geometries[geometry->internal_id];
+        vulkan_geometry_data *internal_data = &context->geometries[g->internal_id];
 
         // Free vertex data
-        if (!renderer_renderbuffer_free(&context->object_vertex_buffer,
-                                        internal_data->vertex_element_size *
-                                            internal_data->vertex_count,
-                                        internal_data->vertex_buffer_offset)) {
-            KERROR(
-                "vulkan_renderer_destroy_geometry failed to free vertex buffer "
-                "range.");
+        if (!renderer_renderbuffer_free(&context->object_vertex_buffer, g->vertex_element_size * g->vertex_count, internal_data->vertex_buffer_offset)) {
+            KERROR("vulkan_renderer_destroy_geometry failed to free vertex buffer range.");
         }
 
         // Free index data, if applicable
-        if (internal_data->index_element_size > 0) {
-            if (!renderer_renderbuffer_free(&context->object_index_buffer,
-                                            internal_data->index_element_size *
-                                                internal_data->index_count,
-                                            internal_data->index_buffer_offset)) {
-                KERROR(
-                    "vulkan_renderer_destroy_geometry failed to free index buffer "
-                    "range.");
+        if (g->index_element_size > 0) {
+            if (!renderer_renderbuffer_free(&context->object_index_buffer, g->index_element_size * g->index_count, internal_data->index_buffer_offset)) {
+                KERROR("vulkan_renderer_destroy_geometry failed to free index buffer range.");
             }
         }
 
@@ -1573,32 +1503,26 @@ void vulkan_renderer_geometry_destroy(renderer_plugin *plugin, geometry *geometr
         kzero_memory(internal_data, sizeof(vulkan_geometry_data));
         internal_data->id = INVALID_ID;
         internal_data->generation = INVALID_ID;
-        geometry->internal_id = INVALID_ID;
+        g->internal_id = INVALID_ID;
     }
 }
 
-void vulkan_renderer_geometry_draw(renderer_plugin *plugin,
-                                   geometry_render_data *data) {
+void vulkan_renderer_geometry_draw(renderer_plugin *plugin, geometry_render_data *data) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     // Ignore non-uploaded geometries.
     if (data->geometry && data->geometry->internal_id == INVALID_ID) {
         return;
     }
 
-    vulkan_geometry_data *buffer_data =
-        &context->geometries[data->geometry->internal_id];
-    b8 includes_index_data = buffer_data->index_count > 0;
-    if (!vulkan_buffer_draw(plugin, &context->object_vertex_buffer,
-                            buffer_data->vertex_buffer_offset,
-                            buffer_data->vertex_count, includes_index_data)) {
+    vulkan_geometry_data *buffer_data = &context->geometries[data->geometry->internal_id];
+    b8 includes_index_data = data->geometry->index_count > 0;
+    if (!vulkan_buffer_draw(plugin, &context->object_vertex_buffer, buffer_data->vertex_buffer_offset, data->geometry->vertex_count, includes_index_data)) {
         KERROR("vulkan_renderer_draw_geometry failed to draw vertex buffer;");
         return;
     }
 
     if (includes_index_data) {
-        if (!vulkan_buffer_draw(plugin, &context->object_index_buffer,
-                                buffer_data->index_buffer_offset,
-                                buffer_data->index_count, !includes_index_data)) {
+        if (!vulkan_buffer_draw(plugin, &context->object_index_buffer, buffer_data->index_buffer_offset, data->geometry->index_count, !includes_index_data)) {
             KERROR("vulkan_renderer_draw_geometry failed to draw index buffer;");
             return;
         }
@@ -2225,48 +2149,47 @@ b8 vulkan_renderer_shader_bind_instance(renderer_plugin *plugin, shader *s,
     return true;
 }
 
-b8 vulkan_renderer_shader_apply_globals(renderer_plugin *plugin, shader *s) {
+b8 vulkan_renderer_shader_apply_globals(renderer_plugin *plugin, shader *s, b8 needs_update) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     u32 image_index = context->image_index;
     vulkan_shader *internal = s->internal_data;
-    VkCommandBuffer command_buffer =
-        context->graphics_command_buffers[image_index].handle;
-    VkDescriptorSet global_descriptor =
-        internal->global_descriptor_sets[image_index];
+    VkCommandBuffer command_buffer = context->graphics_command_buffers[image_index].handle;
+    VkDescriptorSet global_descriptor = internal->global_descriptor_sets[image_index];
+    if (needs_update) {
+        // Apply UBO first
+        VkDescriptorBufferInfo bufferInfo;
+        bufferInfo.buffer =
+            ((vulkan_buffer *)internal->uniform_buffer.internal_data)->handle;
+        bufferInfo.offset = s->global_ubo_offset;
+        bufferInfo.range = s->global_ubo_stride;
 
-    // Apply UBO first
-    VkDescriptorBufferInfo bufferInfo;
-    bufferInfo.buffer =
-        ((vulkan_buffer *)internal->uniform_buffer.internal_data)->handle;
-    bufferInfo.offset = s->global_ubo_offset;
-    bufferInfo.range = s->global_ubo_stride;
+        // Update descriptor sets.
+        VkWriteDescriptorSet ubo_write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        ubo_write.dstSet = internal->global_descriptor_sets[image_index];
+        ubo_write.dstBinding = 0;
+        ubo_write.dstArrayElement = 0;
+        ubo_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        ubo_write.descriptorCount = 1;
+        ubo_write.pBufferInfo = &bufferInfo;
 
-    // Update descriptor sets.
-    VkWriteDescriptorSet ubo_write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    ubo_write.dstSet = internal->global_descriptor_sets[image_index];
-    ubo_write.dstBinding = 0;
-    ubo_write.dstArrayElement = 0;
-    ubo_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    ubo_write.descriptorCount = 1;
-    ubo_write.pBufferInfo = &bufferInfo;
+        VkWriteDescriptorSet descriptor_writes[2];
+        descriptor_writes[0] = ubo_write;
 
-    VkWriteDescriptorSet descriptor_writes[2];
-    descriptor_writes[0] = ubo_write;
+        u32 global_set_binding_count =
+            internal->config.descriptor_sets[DESC_SET_INDEX_GLOBAL].binding_count;
+        if (global_set_binding_count > 1) {
+            // LEFTOFF: Implement global image samplers.
+            // TODO: There are samplers to be written. Support this.
+            global_set_binding_count = 1;
+            KERROR("Global image samplers are not yet supported.");
 
-    u32 global_set_binding_count =
-        internal->config.descriptor_sets[DESC_SET_INDEX_GLOBAL].binding_count;
-    if (global_set_binding_count > 1) {
-        // LEFTOFF: Implement global image samplers.
-        // TODO: There are samplers to be written. Support this.
-        global_set_binding_count = 1;
-        KERROR("Global image samplers are not yet supported.");
+            // VkWriteDescriptorSet sampler_write =
+            // {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET}; descriptor_writes[1] = ...
+        }
 
-        // VkWriteDescriptorSet sampler_write =
-        // {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET}; descriptor_writes[1] = ...
+        vkUpdateDescriptorSets(context->device.logical_device,
+                               global_set_binding_count, descriptor_writes, 0, 0);
     }
-
-    vkUpdateDescriptorSets(context->device.logical_device,
-                           global_set_binding_count, descriptor_writes, 0, 0);
 
     // Bind the global descriptor set to be updated.
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -2389,8 +2312,7 @@ b8 vulkan_renderer_shader_apply_instance(renderer_plugin *plugin, shader *s,
         }
 
         if (descriptor_count > 0) {
-            vkUpdateDescriptorSets(context->device.logical_device, descriptor_count,
-                                   descriptor_writes, 0, 0);
+            vkUpdateDescriptorSets(context->device.logical_device, descriptor_count, descriptor_writes, 0, 0);
         }
     }
 

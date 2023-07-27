@@ -98,8 +98,11 @@ b8 debug_line3d_initialize(debug_line3d *line) {
 }
 
 b8 debug_line3d_load(debug_line3d *line) {
-    // Send the geometry off to the renderer to be uploaded to the GPU.
     if (!renderer_geometry_create(&line->geo, sizeof(colour_vertex_3d), line->vertex_count, line->vertices, 0, 0, 0)) {
+        return false;
+    }
+    // Send the geometry off to the renderer to be uploaded to the GPU.
+    if (!renderer_geometry_upload(&line->geo)) {
         return false;
     }
     if (line->geo.generation == INVALID_ID_U16) {

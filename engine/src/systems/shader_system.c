@@ -260,16 +260,16 @@ b8 shader_system_use(const char* shader_name) {
 b8 shader_system_use_by_id(u32 shader_id) {
     // Only perform the use if the shader id is different.
     // if (state_ptr->current_shader_id != shader_id) {
-        shader* next_shader = shader_system_get_by_id(shader_id);
-        state_ptr->current_shader_id = shader_id;
-        if (!renderer_shader_use(next_shader)) {
-            KERROR("Failed to use shader '%s'.", next_shader->name);
-            return false;
-        }
-        if (!renderer_shader_bind_globals(next_shader)) {
-            KERROR("Failed to bind globals for shader '%s'.", next_shader->name);
-            return false;
-        }
+    shader* next_shader = shader_system_get_by_id(shader_id);
+    state_ptr->current_shader_id = shader_id;
+    if (!renderer_shader_use(next_shader)) {
+        KERROR("Failed to use shader '%s'.", next_shader->name);
+        return false;
+    }
+    if (!renderer_shader_bind_globals(next_shader)) {
+        KERROR("Failed to bind globals for shader '%s'.", next_shader->name);
+        return false;
+    }
     // }
     return true;
 }
@@ -321,8 +321,8 @@ b8 shader_system_sampler_set_by_index(u16 index, const texture* t) {
     return shader_system_uniform_set_by_index(index, t);
 }
 
-b8 shader_system_apply_global(void) {
-    return renderer_shader_apply_globals(&state_ptr->shaders[state_ptr->current_shader_id]);
+b8 shader_system_apply_global(b8 needs_update) {
+    return renderer_shader_apply_globals(&state_ptr->shaders[state_ptr->current_shader_id], needs_update);
 }
 b8 shader_system_apply_instance(b8 needs_update) {
     return renderer_shader_apply_instance(&state_ptr->shaders[state_ptr->current_shader_id], needs_update);

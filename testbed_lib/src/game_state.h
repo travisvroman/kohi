@@ -5,6 +5,7 @@
 #include <math/math_types.h>
 #include <systems/camera_system.h>
 
+#include "editor/editor_gizmo.h"
 #include "resources/simple_scene.h"
 
 // TODO: temp
@@ -52,6 +53,8 @@ typedef struct testbed_game_state {
 
     f32 forward_move_speed;
     f32 backward_move_speed;
+
+    editor_gizmo gizmo;
     // TODO: end temp
 } testbed_game_state;
 

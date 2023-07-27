@@ -183,7 +183,7 @@ b8 render_view_skybox_on_render(const struct render_view* self, const struct ren
                 KERROR("Failed to apply skybox view uniform.");
                 return false;
             }
-            shader_system_apply_global();
+            shader_system_apply_global(true);
 
             // Instance
             shader_system_bind_instance(skybox_data->sb->instance_id);
