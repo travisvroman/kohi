@@ -1,11 +1,13 @@
 #include "simple_scene.h"
 
+#include "../testbed_types.h"
 #include "containers/darray.h"
 #include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
 #include "defines.h"
+#include "math/geometry_3d.h"
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "renderer/camera.h"
@@ -19,7 +21,6 @@
 #include "systems/light_system.h"
 #include "systems/render_view_system.h"
 #include "systems/resource_system.h"
-#include "../testbed_types.h"
 
 static void
 simple_scene_actual_unload(simple_scene *scene);
@@ -665,6 +666,19 @@ b8 simple_scene_populate_render_packet(simple_scene *scene, struct camera *curre
     }
 
     return true;
+}
+
+b8 simple_scene_raycast(simple_scene *scene, const struct ray *r, struct raycast_result *out_result) {
+    if (!scene || !r || !out_result || scene->state < SIMPLE_SCENE_STATE_LOADED) {
+        return false;
+    }
+
+    // Only create if needed.
+    out_result->hits = 0;
+
+    // TODO: Iterate meshes in the scene.
+    //
+    return false;
 }
 
 b8 simple_scene_directional_light_add(simple_scene *scene, const char *name,
