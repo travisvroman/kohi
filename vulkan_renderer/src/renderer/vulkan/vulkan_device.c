@@ -99,15 +99,28 @@ b8 vulkan_device_create(vulkan_context* context) {
     }
     kfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
 
-    u32 extension_count = portability_required ? 3 : 2;
-    const char** extension_names = portability_required
-                                       ? (const char* [3]){VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, "VK_KHR_portability_subset"}
-                                       : (const char* [2]){VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME};
+
+    // Setup an array of 3, even if we don't use them all.
+    const char* extension_names[3];
+    u32 ext_idx = 0;
+    extension_names[ext_idx] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+    ext_idx++;
+    // If portability is required (i.e. mac), add it.
+    if(portability_required) {
+        extension_names[ext_idx] = "VK_KHR_portability_subset";
+        ext_idx++;
+    }
+    // If dynamic topology isn't supported natively but *is* supported via extension, 
+    // include the extension. These may both be false in the event of macos.
+    if(!context->device.supports_native_dynamic_topology && context->device.supports_dynamic_topology) {
+        extension_names[ext_idx] = VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME;
+        ext_idx++;
+    }
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     device_create_info.queueCreateInfoCount = index_count;
     device_create_info.pQueueCreateInfos = queue_create_infos;
     device_create_info.pEnabledFeatures = &device_features;
-    device_create_info.enabledExtensionCount = extension_count;
+    device_create_info.enabledExtensionCount = ext_idx;
     device_create_info.ppEnabledExtensionNames = extension_names;
 
     // Deprecated and ignored, so pass nothing.
@@ -130,7 +143,16 @@ b8 vulkan_device_create(vulkan_context* context) {
 
     KINFO("Logical device created.");
 
-    context->vkCmdSetPrimitiveTopologyEXT = (PFN_vkCmdSetPrimitiveTopologyEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetPrimitiveTopologyEXT");
+    if(!context->device.supports_native_dynamic_topology && context->device.supports_dynamic_topology) {
+        KINFO("Vulkan device doesn't support native dynamic topology, but does via extension. Using extension.");
+        context->vkCmdSetPrimitiveTopologyEXT = (PFN_vkCmdSetPrimitiveTopologyEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetPrimitiveTopologyEXT");
+    } else {
+        if(context->device.supports_native_dynamic_topology) {
+            KINFO("Vulkan device supports native dynamic topology.");
+        } else {
+            KINFO("Vulkan device does not support native or extension dynamic topology.");
+        }
+    }
 
     // Get queues.
     vkGetDeviceQueue(
@@ -390,12 +412,17 @@ static b8 select_physical_device(vulkan_context* context) {
                 VK_VERSION_MINOR(properties.driverVersion),
                 VK_VERSION_PATCH(properties.driverVersion));
 
+            // Save off the device-supported API version.
+            context->device.api_major = VK_VERSION_MAJOR(properties.apiVersion);
+            context->device.api_minor = VK_VERSION_MINOR(properties.apiVersion);
+            context->device.api_patch = VK_VERSION_PATCH(properties.apiVersion);
+
             // Vulkan API version.
             KINFO(
                 "Vulkan API version: %d.%d.%d",
-                VK_VERSION_MAJOR(properties.apiVersion),
-                VK_VERSION_MINOR(properties.apiVersion),
-                VK_VERSION_PATCH(properties.apiVersion));
+                context->device.api_major,
+                context->device.api_minor,
+                context->device.api_minor);
 
             // Memory information
             for (u32 j = 0; j < memory.memoryHeapCount; ++j) {
@@ -418,6 +445,12 @@ static b8 select_physical_device(vulkan_context* context) {
             context->device.features = features;
             context->device.memory = memory;
             context->device.supports_device_local_host_visible = supports_device_local_host_visible;
+
+            // The device may or may not support this, so save that here.
+            context->device.supports_dynamic_topology = dynamic_state_next.extendedDynamicState;
+
+            // Use the device supported version to determine this. Anything >= 1.3.
+            context->device.supports_native_dynamic_topology = context->device.api_major > 1 || context->device.api_minor > 2;
             break;
         }
     }

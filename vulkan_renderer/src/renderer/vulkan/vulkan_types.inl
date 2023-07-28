@@ -72,6 +72,16 @@ typedef struct vulkan_swapchain_support_info {
  * and various properties of the devices.
  */
 typedef struct vulkan_device {
+
+    /** @brief The supported device-level api major version. */
+    u32 api_major;
+
+    /** @brief The supported device-level api minor version. */
+    u32 api_minor;
+
+    /** @brief The supported device-level api patch version. */
+    u32 api_patch;
+
     /** @brief The physical device. This is a representation of the GPU itself. */
     VkPhysicalDevice physical_device;
     /** @brief The logical device. This is the application's view of the device, used for most Vulkan operations. */
@@ -109,6 +119,14 @@ typedef struct vulkan_device {
     VkFormat depth_format;
     /** @brief The chosen depth format's number of channels.*/
     u8 depth_channel_count;
+
+    /** @brief Indicates if this device supports dynamic topology. If not,
+     * the renderer will need to generate a separate pipeline per topology type. */
+    b8 supports_dynamic_topology;
+
+    /** @brief Indicates if the device supports native dynamic topology (i.e.
+     * using Vulkan API >= 1.3). */
+    b8 supports_native_dynamic_topology;
 } vulkan_device;
 
 /**
@@ -522,6 +540,15 @@ typedef struct vulkan_shader {
  * global renderer backend state, Vulkan instance, etc.
  */
 typedef struct vulkan_context {
+    /** @brief The instance-level api major version. */
+    u32 api_major;
+
+    /** @brief The instance-level api minor version. */
+    u32 api_minor;
+
+    /** @brief The instance-level api patch version. */
+    u32 api_patch;
+
     /** @brief The framebuffer's current width. */
     u32 framebuffer_width;
 
