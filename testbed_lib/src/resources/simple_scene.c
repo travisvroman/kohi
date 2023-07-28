@@ -1,11 +1,13 @@
 #include "simple_scene.h"
 
+#include "../testbed_types.h"
 #include "containers/darray.h"
 #include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
 #include "defines.h"
+#include "math/geometry_3d.h"
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "renderer/camera.h"
@@ -19,7 +21,6 @@
 #include "systems/light_system.h"
 #include "systems/render_view_system.h"
 #include "systems/resource_system.h"
-#include "../testbed_types.h"
 
 static void
 simple_scene_actual_unload(simple_scene *scene);
@@ -665,6 +666,40 @@ b8 simple_scene_populate_render_packet(simple_scene *scene, struct camera *curre
     }
 
     return true;
+}
+
+b8 simple_scene_raycast(simple_scene *scene, const struct ray *r, struct raycast_result *out_result) {
+    if (!scene || !r || !out_result || scene->state < SIMPLE_SCENE_STATE_LOADED) {
+        return false;
+    }
+
+    // Only create if needed.
+    out_result->hits = 0;
+
+    // Iterate meshes in the scene.
+    // TODO: This needs to be optimized. We need some sort of spatial partitioning to speed this up.
+    // Otherwise a scene with thousands of objects will be super slow!
+    u32 mesh_count = darray_length(scene->meshes);
+    for (u32 i = 0; i < mesh_count; ++i) {
+        mesh *m = &scene->meshes[i];
+        mat4 model = transform_world_get(&m->transform);
+        f32 dist;
+        if (raycast_oriented_extents(m->extents, &model, r, &dist)) {
+            // Hit
+            if (!out_result->hits) {
+                out_result->hits = darray_create(raycast_hit);
+            }
+
+            raycast_hit hit = {0};
+            hit.distance = dist;
+            hit.type = RAYCAST_HIT_TYPE_OBB;
+            hit.position = vec3_add(r->origin, vec3_mul_scalar(r->direction, hit.distance));
+            hit.unique_id = m->unique_id;
+
+            darray_push(out_result->hits, hit);
+        }
+    }
+    return out_result->hits != 0;
 }
 
 b8 simple_scene_directional_light_add(simple_scene *scene, const char *name,

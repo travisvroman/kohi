@@ -167,7 +167,7 @@ KAPI f32 kfrandom_in_range(f32 min, f32 max);
 
 /**
  * @brief Perform Hermite interpolation between two values.
- * 
+ *
  * @param edge_0 The lower edge of the Hermite function.
  * @param edge_1 The upper edge of the Hermite function.
  * @param x The value to interpolate.
@@ -176,6 +176,14 @@ KAPI f32 kfrandom_in_range(f32 min, f32 max);
 KINLINE f32 ksmoothstep(f32 edge_0, f32 edge_1, f32 x) {
     f32 t = KCLAMP((x - edge_0) / (edge_1 - edge_0), 0.0f, 1.0f);
     return t * t * (3.0 - 2.0 * t);
+}
+
+/**
+ * @brief Compares the two floats and returns true if both are less
+ * than K_FLOAT_EPSILON apart; otherwise false.
+ */
+KINLINE b8 kfloat_compare(f32 f_0, f32 f_1) {
+    return kabs(f_0 - f_1) < K_FLOAT_EPSILON;
 }
 
 // ------------------------------------------

@@ -16,6 +16,9 @@ b8 debug_line3d_create(vec3 point_0, vec3 point_1, transform *parent, debug_line
     out_line->vertex_count = 0;
     out_line->vertices = 0;
     out_line->xform = transform_create();
+    if (parent) {
+        transform_parent_set(&out_line->xform, parent);
+    }
     // out_line->name // TODO: name?
     out_line->point_0 = point_0;
     out_line->point_1 = point_1;
