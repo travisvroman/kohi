@@ -60,6 +60,30 @@ void application_register_events(struct application* game_inst);
 void application_unregister_events(struct application* game_inst);
 static b8 load_main_scene(struct application* game_inst);
 
+static void clear_debug_objects(struct application* game_inst) {
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+
+    if (state->test_boxes) {
+        u32 box_count = darray_length(state->test_boxes);
+        for (u32 i = 0; i < box_count; ++i) {
+            debug_box3d* box = &state->test_boxes[i];
+            debug_box3d_unload(box);
+            debug_box3d_destroy(box);
+        }
+        darray_clear(state->test_boxes);
+    }
+
+    if (state->test_lines) {
+        u32 line_count = darray_length(state->test_lines);
+        for (u32 i = 0; i < line_count; ++i) {
+            debug_line3d* line = &state->test_lines[i];
+            debug_line3d_unload(line);
+            debug_line3d_destroy(line);
+        }
+        darray_clear(state->test_lines);
+    }
+}
+
 b8 game_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
     application* game_inst = (application*)listener_inst;
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
@@ -118,7 +142,7 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
             KDEBUG("Unloading scene...");
 
             simple_scene_unload(&state->main_scene, false);
-
+            clear_debug_objects(game_inst);
             KDEBUG("Done.");
         }
         return true;
@@ -175,10 +199,36 @@ b8 game_on_button_up(u16 code, void* sender, void* listener_inst, event_context 
                     projection_matrix);
 
                 raycast_result r_result;
-                b8 hit = simple_scene_raycast(&state->main_scene, &r, &r_result);
+                if (simple_scene_raycast(&state->main_scene, &r, &r_result)) {
+                    u32 hit_count = darray_length(r_result.hits);
+                    for (u32 i = 0; i < hit_count; ++i) {
+                        raycast_hit* hit = &r_result.hits[i];
+                        KINFO("Hit! id: %u, dist: %f", hit->unique_id, hit->distance);
 
-                if (hit) {
-                    KINFO("Hit");
+                        // Create a debug line where the ray cast starts and ends (at the intersection).
+                        debug_line3d test_line;
+                        debug_line3d_create(r.origin, hit->position, 0, &test_line);
+                        debug_line3d_initialize(&test_line);
+                        debug_line3d_load(&test_line);
+                        // Yellow for hits.
+                        debug_line3d_colour_set(&test_line, (vec4){1.0f, 1.0f, 0.0f, 1.0f});
+
+                        darray_push(state->test_lines, test_line);
+
+                        // Create a debug box to show the intersection point.
+                        debug_box3d test_box;
+
+                        debug_box3d_create((vec3){0.1f, 0.1f, 0.1f}, 0, &test_box);
+                        debug_box3d_initialize(&test_box);
+                        debug_box3d_load(&test_box);
+
+                        extents_3d ext;
+                        ext.min = vec3_create(hit->position.x - 0.05f, hit->position.y - 0.05f, hit->position.z - 0.05f);
+                        ext.max = vec3_create(hit->position.x + 0.05f, hit->position.y + 0.05f, hit->position.z + 0.05f);
+                        debug_box3d_extents_set(&test_box, ext);
+
+                        darray_push(state->test_boxes, test_box);
+                    }
                 } else {
                     KINFO("No hit");
 
@@ -199,6 +249,7 @@ b8 game_on_button_up(u16 code, void* sender, void* listener_inst, event_context 
 
     return false;
 }
+
 u64 application_state_size(void) {
     return sizeof(testbed_game_state);
 }
@@ -500,14 +551,25 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     }
 
     // HACK: Inject debug geometries into world packet.
-    u32 line_count = darray_length(state->test_lines);
-    for (u32 i = 0; i < line_count; ++i) {
-        geometry_render_data rd = {0};
-        rd.model = transform_world_get(&state->test_lines[i].xform);
-        rd.geometry = &state->test_lines[i].geo;
-        rd.unique_id = INVALID_ID_U16;
-        darray_push(packet->views[TESTBED_PACKET_VIEW_WORLD].debug_geometries, rd);
-        packet->views[TESTBED_PACKET_VIEW_WORLD].debug_geometry_count++;
+    if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
+        u32 line_count = darray_length(state->test_lines);
+        for (u32 i = 0; i < line_count; ++i) {
+            geometry_render_data rd = {0};
+            rd.model = transform_world_get(&state->test_lines[i].xform);
+            rd.geometry = &state->test_lines[i].geo;
+            rd.unique_id = INVALID_ID_U16;
+            darray_push(packet->views[TESTBED_PACKET_VIEW_WORLD].debug_geometries, rd);
+            packet->views[TESTBED_PACKET_VIEW_WORLD].debug_geometry_count++;
+        }
+        u32 box_count = darray_length(state->test_boxes);
+        for (u32 i = 0; i < box_count; ++i) {
+            geometry_render_data rd = {0};
+            rd.model = transform_world_get(&state->test_boxes[i].xform);
+            rd.geometry = &state->test_boxes[i].geo;
+            rd.unique_id = INVALID_ID_U16;
+            darray_push(packet->views[TESTBED_PACKET_VIEW_WORLD].debug_geometries, rd);
+            packet->views[TESTBED_PACKET_VIEW_WORLD].debug_geometry_count++;
+        }
     }
 
     // Editor world
@@ -612,6 +674,7 @@ void application_shutdown(struct application* game_inst) {
         KDEBUG("Unloading scene...");
 
         simple_scene_unload(&state->main_scene, true);
+        clear_debug_objects(game_inst);
 
         KDEBUG("Done.");
     }
