@@ -324,10 +324,10 @@ typedef struct vulkan_geometry_data {
     u32 id;
     /** @brief The geometry generation. Incremented every time the geometry data changes. */
     u32 generation;
-    
+
     /** @brief The offset in bytes in the vertex buffer. */
     u64 vertex_buffer_offset;
-    
+
     /** @brief The offset in bytes in the index buffer. */
     u64 index_buffer_offset;
 } vulkan_geometry_data;
@@ -617,4 +617,6 @@ typedef struct vulkan_context {
      * @returns The index of the found memory type. Returns -1 if not found.
      */
     i32 (*find_memory_index)(struct vulkan_context* context, u32 type_filter, u32 property_flags);
+
+    PFN_vkCmdSetPrimitiveTopologyEXT vkCmdSetPrimitiveTopologyEXT;
 } vulkan_context;

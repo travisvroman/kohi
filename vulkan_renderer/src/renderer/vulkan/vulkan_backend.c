@@ -291,7 +291,7 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
 
     // Setup Vulkan instance.
     VkApplicationInfo app_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
-    app_info.apiVersion = VK_API_VERSION_1_3;
+    app_info.apiVersion = VK_API_VERSION_1_2;
     app_info.pApplicationName = config->application_name;
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "Kohi Engine";
@@ -2120,7 +2120,8 @@ b8 vulkan_renderer_shader_use(renderer_plugin *plugin, shader *shader) {
     vulkan_pipeline_bind(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, s->pipelines[s->bound_pipeline_index]);
 
     // Make sure to use the current bound type as well.
-    vkCmdSetPrimitiveTopology(command_buffer->handle, s->current_topology);
+    context->vkCmdSetPrimitiveTopologyEXT(command_buffer->handle, s->current_topology);
+    // vkCmdSetPrimitiveTopology(command_buffer->handle, s->current_topology);
     return true;
 }
 

@@ -1,9 +1,11 @@
 #include "vulkan_device.h"
-#include "vulkan_utils.h"
-#include "core/logger.h"
-#include "core/kstring.h"
-#include "core/kmemory.h"
+
 #include "containers/darray.h"
+#include "core/kmemory.h"
+#include "core/kstring.h"
+#include "core/logger.h"
+#include "vulkan/vulkan_core.h"
+#include "vulkan_utils.h"
 
 typedef struct vulkan_physical_device_requirements {
     b8 graphics;
@@ -97,10 +99,10 @@ b8 vulkan_device_create(vulkan_context* context) {
     }
     kfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
 
-    u32 extension_count = portability_required ? 2 : 1;
+    u32 extension_count = portability_required ? 3 : 2;
     const char** extension_names = portability_required
-                                       ? (const char* [2]){VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_portability_subset"}
-                                       : (const char* [1]){VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+                                       ? (const char* [3]){VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, "VK_KHR_portability_subset"}
+                                       : (const char* [2]){VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME};
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     device_create_info.queueCreateInfoCount = index_count;
     device_create_info.pQueueCreateInfos = queue_create_infos;
@@ -112,6 +114,11 @@ b8 vulkan_device_create(vulkan_context* context) {
     device_create_info.enabledLayerCount = 0;
     device_create_info.ppEnabledLayerNames = 0;
 
+    // VK_EXT_extended_dynamic_state
+    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT};
+    extended_dynamic_state.extendedDynamicState = VK_TRUE;
+    device_create_info.pNext = &extended_dynamic_state;
+
     // Create the device.
     VK_CHECK(vkCreateDevice(
         context->device.physical_device,
@@ -122,6 +129,8 @@ b8 vulkan_device_create(vulkan_context* context) {
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE, context->device.logical_device, "Vulkan Logical Device");
 
     KINFO("Logical device created.");
+
+    context->vkCmdSetPrimitiveTopologyEXT = (PFN_vkCmdSetPrimitiveTopologyEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetPrimitiveTopologyEXT");
 
     // Get queues.
     vkGetDeviceQueue(
@@ -320,6 +329,11 @@ static b8 select_physical_device(vulkan_context* context) {
 
         VkPhysicalDeviceFeatures features;
         vkGetPhysicalDeviceFeatures(physical_devices[i], &features);
+
+        VkPhysicalDeviceFeatures2 features2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+        VkPhysicalDeviceExtendedDynamicStateFeaturesEXT dynamic_state_next = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT};
+        features2.pNext = &dynamic_state_next;
+        vkGetPhysicalDeviceFeatures2(physical_devices[i], &features2);
 
         VkPhysicalDeviceMemoryProperties memory;
         vkGetPhysicalDeviceMemoryProperties(physical_devices[i], &memory);
