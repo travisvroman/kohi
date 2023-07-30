@@ -1948,7 +1948,10 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
     u32 pipeline_count = 0;
     // If dynamic topology is supported, create one pipeline per topology class. Otherwise,
     // we must create one pipeline per topology type.
-    if (context->device.supports_native_dynamic_topology || context->device.supports_dynamic_topology) {
+
+    if (
+        (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT) ||
+        (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT)) {
         pipeline_count = 3;
 
         // Create an array of pointers to pipelines, one per topology class. Null means not supported for this shader.
@@ -2175,9 +2178,9 @@ b8 vulkan_renderer_shader_use(renderer_plugin *plugin, shader *shader) {
     vulkan_pipeline_bind(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, s->pipelines[s->bound_pipeline_index]);
 
     // Make sure to use the current bound type as well.
-    if (context->device.supports_native_dynamic_topology) {
+    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT) {
         vkCmdSetPrimitiveTopology(command_buffer->handle, s->current_topology);
-    } else if (context->device.supports_dynamic_topology) {
+    } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT) {
         context->vkCmdSetPrimitiveTopologyEXT(command_buffer->handle, s->current_topology);
     }
     return true;

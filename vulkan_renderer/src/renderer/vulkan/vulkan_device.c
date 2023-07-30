@@ -4,6 +4,7 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "renderer/vulkan/vulkan_types.inl"
 #include "vulkan/vulkan_core.h"
 #include "vulkan_utils.h"
 
@@ -99,21 +100,27 @@ b8 vulkan_device_create(vulkan_context* context) {
     }
     kfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
 
-
     // Setup an array of 3, even if we don't use them all.
-    const char* extension_names[3];
+    const char* extension_names[4];
     u32 ext_idx = 0;
     extension_names[ext_idx] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
     ext_idx++;
     // If portability is required (i.e. mac), add it.
-    if(portability_required) {
+    if (portability_required) {
         extension_names[ext_idx] = "VK_KHR_portability_subset";
         ext_idx++;
     }
-    // If dynamic topology isn't supported natively but *is* supported via extension, 
+    // If dynamic topology isn't supported natively but *is* supported via extension,
     // include the extension. These may both be false in the event of macos.
-    if(!context->device.supports_native_dynamic_topology && context->device.supports_dynamic_topology) {
+    if (
+        ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT) == 0) &&
+        ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT) != 0)) {
         extension_names[ext_idx] = VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME;
+        ext_idx++;
+    }
+    // If smooth lines are supported, load the extension.
+    if ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT)) {
+        extension_names[ext_idx] = VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME;
         ext_idx++;
     }
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
@@ -132,6 +139,14 @@ b8 vulkan_device_create(vulkan_context* context) {
     extended_dynamic_state.extendedDynamicState = VK_TRUE;
     device_create_info.pNext = &extended_dynamic_state;
 
+    // Smooth line rasterisation, if supported.
+    VkPhysicalDeviceLineRasterizationFeaturesEXT line_rasterization_ext = {0};
+    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT) {
+        line_rasterization_ext.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
+        line_rasterization_ext.smoothLines = VK_TRUE;
+        extended_dynamic_state.pNext = &line_rasterization_ext;
+    }
+
     // Create the device.
     VK_CHECK(vkCreateDevice(
         context->device.physical_device,
@@ -143,11 +158,13 @@ b8 vulkan_device_create(vulkan_context* context) {
 
     KINFO("Logical device created.");
 
-    if(!context->device.supports_native_dynamic_topology && context->device.supports_dynamic_topology) {
+    if (
+        !(context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT) &&
+        (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT)) {
         KINFO("Vulkan device doesn't support native dynamic topology, but does via extension. Using extension.");
         context->vkCmdSetPrimitiveTopologyEXT = (PFN_vkCmdSetPrimitiveTopologyEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetPrimitiveTopologyEXT");
     } else {
-        if(context->device.supports_native_dynamic_topology) {
+        if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT) {
             KINFO("Vulkan device supports native dynamic topology.");
         } else {
             KINFO("Vulkan device does not support native or extension dynamic topology.");
@@ -353,8 +370,13 @@ static b8 select_physical_device(vulkan_context* context) {
         vkGetPhysicalDeviceFeatures(physical_devices[i], &features);
 
         VkPhysicalDeviceFeatures2 features2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+        // Check for dynamic topology support via extension.
         VkPhysicalDeviceExtendedDynamicStateFeaturesEXT dynamic_state_next = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT};
         features2.pNext = &dynamic_state_next;
+        // Check for smooth line rasterisation support via extension.
+        VkPhysicalDeviceLineRasterizationFeaturesEXT smooth_line_next = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT};
+        dynamic_state_next.pNext = &smooth_line_next;
+        // Perform the query.
         vkGetPhysicalDeviceFeatures2(physical_devices[i], &features2);
 
         VkPhysicalDeviceMemoryProperties memory;
@@ -447,10 +469,15 @@ static b8 select_physical_device(vulkan_context* context) {
             context->device.supports_device_local_host_visible = supports_device_local_host_visible;
 
             // The device may or may not support this, so save that here.
-            context->device.supports_dynamic_topology = dynamic_state_next.extendedDynamicState;
-
-            // Use the device supported version to determine this. Anything >= 1.3.
-            context->device.supports_native_dynamic_topology = context->device.api_major > 1 || context->device.api_minor > 2;
+            if (dynamic_state_next.extendedDynamicState) {
+                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT;
+            }
+            if (context->device.api_major > 1 || context->device.api_minor > 2) {
+                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT;
+            }
+            if (smooth_line_next.smoothLines) {
+                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT;
+            }
             break;
         }
     }

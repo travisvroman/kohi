@@ -66,13 +66,26 @@ typedef struct vulkan_swapchain_support_info {
     VkPresentModeKHR* present_modes;
 } vulkan_swapchain_support_info;
 
+typedef enum vulkan_device_support_flag_bits {
+    VULKAN_DEVICE_SUPPORT_FLAG_NONE_BIT = 0x0,
+
+    /** @brief Indicates if the device supports native dynamic topology (i.e. * using Vulkan API >= 1.3). */
+    VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT = 0x1,
+
+    /** @brief Indicates if this device supports dynamic topology. If not, the renderer will need to generate a separate pipeline per topology type. */
+    VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT = 0x2,
+    VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT = 0x4
+} vulkan_device_support_flag_bits;
+
+/** @brief Bitwise flags for device support. @see vulkan_device_support_flag_bits. */
+typedef u32 vulkan_device_support_flags;
+
 /**
  * @brief A representation of both the physical and logical
  * Vulkan devices. Also contains handles to queues, command pools,
  * and various properties of the devices.
  */
 typedef struct vulkan_device {
-
     /** @brief The supported device-level api major version. */
     u32 api_major;
 
@@ -120,13 +133,8 @@ typedef struct vulkan_device {
     /** @brief The chosen depth format's number of channels.*/
     u8 depth_channel_count;
 
-    /** @brief Indicates if this device supports dynamic topology. If not,
-     * the renderer will need to generate a separate pipeline per topology type. */
-    b8 supports_dynamic_topology;
-
-    /** @brief Indicates if the device supports native dynamic topology (i.e.
-     * using Vulkan API >= 1.3). */
-    b8 supports_native_dynamic_topology;
+    /** @brief Indicates support for various features. */
+    vulkan_device_support_flags support_flags;
 } vulkan_device;
 
 /**
