@@ -270,6 +270,32 @@ KINLINE vec2 vec2_mul(vec2 vector_0, vec2 vector_1) {
 }
 
 /**
+ * @brief Multiplies all elements of vector_0 by scalar and returns a copy of
+ * the result.
+ *
+ * @param vector_0 The vector to be multiplied.
+ * @param scalar The scalar value.
+ * @return A copy of the resulting vector.
+ */
+KINLINE vec2 vec2_mul_scalar(vec2 vector_0, f32 scalar) {
+    return (vec2){vector_0.x * scalar, vector_0.y * scalar};
+}
+
+/**
+ * @brief Multiplies vector_0 by vector_1, then adds the result to vector_2.
+ *
+ * @param vector_0 The first vector.
+ * @param vector_1 The second vector.
+ * @param vector_2 The third vector.
+ * @return The resulting vector.
+ */
+KINLINE vec2 vec2_mul_add(vec2 vector_0, vec2 vector_1, vec2 vector_2) {
+    return (vec2){
+        vector_0.x * vector_1.x + vector_2.x,
+        vector_0.y * vector_1.y + vector_2.y};
+}
+
+/**
  * @brief Divides vector_0 by vector_1 and returns a copy of the result.
  *
  * @param vector_0 The first vector.
@@ -481,6 +507,21 @@ KINLINE vec3 vec3_mul(vec3 vector_0, vec3 vector_1) {
  */
 KINLINE vec3 vec3_mul_scalar(vec3 vector_0, f32 scalar) {
     return (vec3){vector_0.x * scalar, vector_0.y * scalar, vector_0.z * scalar};
+}
+
+/**
+ * @brief Multiplies vector_0 by vector_1, then adds the result to vector_2.
+ *
+ * @param vector_0 The first vector.
+ * @param vector_1 The second vector.
+ * @param vector_2 The third vector.
+ * @return The resulting vector.
+ */
+KINLINE vec3 vec3_mul_add(vec3 vector_0, vec3 vector_1, vec3 vector_2) {
+    return (vec3){
+        vector_0.x * vector_1.x + vector_2.x,
+        vector_0.y * vector_1.y + vector_2.y,
+        vector_0.z * vector_1.z + vector_2.z};
 }
 
 /**
@@ -738,6 +779,35 @@ KINLINE vec4 vec4_mul(vec4 vector_0, vec4 vector_1) {
         result.elements[i] = vector_0.elements[i] * vector_1.elements[i];
     }
     return result;
+}
+
+/**
+ * @brief Multiplies all elements of vector_0 by scalar and returns a copy of
+ * the result.
+ *
+ * @param vector_0 The vector to be multiplied.
+ * @param scalar The scalar value.
+ * @return A copy of the resulting vector.
+ */
+KINLINE vec4 vec4_mul_scalar(vec4 vector_0, f32 scalar) {
+    return (vec4){vector_0.x * scalar, vector_0.y * scalar, vector_0.z * scalar, vector_0.w * scalar};
+}
+
+/**
+ * @brief Multiplies vector_0 by vector_1, then adds the result to vector_2.
+ *
+ * @param vector_0 The first vector.
+ * @param vector_1 The second vector.
+ * @param vector_2 The third vector.
+ * @return The resulting vector.
+ */
+KINLINE vec4 vec4_mul_add(vec4 vector_0, vec4 vector_1, vec4 vector_2) {
+    return (vec4){
+        vector_0.x * vector_1.x + vector_2.x,
+        vector_0.y * vector_1.y + vector_2.y,
+        vector_0.z * vector_1.z + vector_2.z,
+        vector_0.w * vector_1.w + vector_2.w,
+    };
 }
 
 /**
