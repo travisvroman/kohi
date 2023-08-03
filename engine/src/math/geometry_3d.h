@@ -31,3 +31,5 @@ KAPI ray ray_create(vec3 position, vec3 direction);
 KAPI ray ray_from_screen(vec2 screen_pos, vec2 viewport_size, vec3 origin, mat4 view, mat4 projection);
 
 KAPI b8 raycast_oriented_extents(extents_3d bb_extents, const mat4* bb_model, const ray* r, f32* out_dist);
+
+KAPI b8 raycast_plane_3d(const ray* r, const plane_3d* p, vec3* out_point, f32* out_distance, b8* is_front_facing);

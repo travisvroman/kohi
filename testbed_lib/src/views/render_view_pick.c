@@ -58,10 +58,8 @@ static b8 on_mouse_moved(u16 code, void* sender, void* listener_inst, event_cont
 
         data->mouse_x = x;
         data->mouse_y = y;
-
-        return true;
     }
-    return false;
+    return false;  // Allow other handlers to pick up the event.
 }
 
 static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, event_context context) {

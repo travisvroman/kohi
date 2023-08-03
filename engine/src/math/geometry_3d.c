@@ -108,3 +108,25 @@ b8 raycast_oriented_extents(extents_3d bb_extents, const mat4* bb_model, const r
     *out_dist = nearest_far_intersection;
     return true;
 }
+
+b8 raycast_plane_3d(const ray* r, const plane_3d* p, vec3* out_point, f32* out_distance, b8* is_front_facing) {
+    f32 t = -(vec3_dot(p->normal, r->origin) + p->distance) / (vec3_dot(p->normal, r->direction));
+    if (t < 0) {
+        return false;
+    }
+
+    *out_point = vec3_add(r->origin, vec3_mul_scalar(r->direction, t));
+
+    vec3 plane_to_ray_origin = vec3_sub(r->origin, *out_point);
+    f32 dot = vec3_dot(plane_to_ray_origin, p->normal);
+    // Check for orthogonal intersection (i.e. plane is coplanar to ray) and don't count it.
+    if (kfloat_compare(dot, 0)) {
+        return false;
+    }
+
+    // Make a note of front/back facing.
+    *is_front_facing = dot > 0;
+
+    *out_distance = t;
+    return true;
+}

@@ -155,6 +155,7 @@ b8 render_view_editor_world_on_packet_build(const struct render_view* self, stru
         mat4 model = transform_world_get(&packet_data->gizmo->xform);
         f32 fixed_size = 0.1f;  // TODO: Make this a configurable option for gizmo size.
         f32 scale_scalar = ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
+        packet_data->gizmo->scale_scalar = scale_scalar;  // Keep a copy of this for hit detection.
         mat4 scale = mat4_scale((vec3){scale_scalar, scale_scalar, scale_scalar});
         model = mat4_mul(model, scale);
 

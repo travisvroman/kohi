@@ -15,6 +15,7 @@ typedef struct mouse_state {
     i16 x;
     i16 y;
     b8 buttons[BUTTON_MAX_BUTTONS];
+    b8 dragging[BUTTON_MAX_BUTTONS];
 } mouse_state;
 
 typedef struct input_state {
@@ -191,6 +192,20 @@ void input_process_button(buttons button, b8 pressed) {
         context.data.i16[2] = state_ptr->mouse_current.y;
         event_fire(pressed ? EVENT_CODE_BUTTON_PRESSED : EVENT_CODE_BUTTON_RELEASED, 0, context);
     }
+
+    // Check for drag releases.
+    if (!pressed && state_ptr->mouse_current.dragging[button]) {
+        // Issue a drag end event.
+
+        state_ptr->mouse_current.dragging[button] = false;
+        // KTRACE("mouse drag ended at: x:%hi, y:%hi, button: %hu", state_ptr->mouse_current.x, state_ptr->mouse_current.y, button);
+
+        event_context context;
+        context.data.i16[0] = state_ptr->mouse_current.x;
+        context.data.i16[1] = state_ptr->mouse_current.y;
+        context.data.u16[2] = button;
+        event_fire(EVENT_CODE_MOUSE_DRAG_END, 0, context);
+    }
 }
 
 void input_process_mouse_move(i16 x, i16 y) {
@@ -208,6 +223,32 @@ void input_process_mouse_move(i16 x, i16 y) {
         context.data.i16[0] = x;
         context.data.i16[1] = y;
         event_fire(EVENT_CODE_MOUSE_MOVED, 0, context);
+
+        for (u16 i = 0; i < BUTTON_MAX_BUTTONS; ++i) {
+            // Check if the button is down first.
+            if (state_ptr->mouse_current.buttons[i]) {
+                if (!state_ptr->mouse_previous.dragging[i] && !state_ptr->mouse_current.dragging[i]) {
+                    // Start a drag for this button.
+
+                    state_ptr->mouse_current.dragging[i] = true;
+
+                    event_context drag_context;
+                    drag_context.data.i16[0] = state_ptr->mouse_current.x;
+                    drag_context.data.i16[1] = state_ptr->mouse_current.y;
+                    drag_context.data.u16[2] = i;
+                    event_fire(EVENT_CODE_MOUSE_DRAG_BEGIN, 0, drag_context);
+                    // KTRACE("mouse drag began at: x:%hi, y:%hi, button: %hu", state_ptr->mouse_current.x, state_ptr->mouse_current.y, i);
+                } else if (state_ptr->mouse_current.dragging[i]) {
+                    // Issue a continuance of the drag operation.
+                    event_context drag_context;
+                    drag_context.data.i16[0] = state_ptr->mouse_current.x;
+                    drag_context.data.i16[1] = state_ptr->mouse_current.y;
+                    drag_context.data.u16[2] = i;
+                    event_fire(EVENT_CODE_MOUSE_DRAGGED, 0, drag_context);
+                    // KTRACE("mouse drag continued at: x:%hi, y:%hi, button: %hu", state_ptr->mouse_current.x, state_ptr->mouse_current.y, i);
+                }
+            }
+        }
     }
 }
 
@@ -275,6 +316,14 @@ b8 input_was_button_up(buttons button) {
         return true;
     }
     return state_ptr->mouse_previous.buttons[button] == false;
+}
+
+b8 input_is_button_dragging(buttons button) {
+    if (!state_ptr) {
+        return false;
+    }
+
+    return state_ptr->mouse_current.dragging[button];
 }
 
 void input_get_mouse_position(i32* x, i32* y) {
