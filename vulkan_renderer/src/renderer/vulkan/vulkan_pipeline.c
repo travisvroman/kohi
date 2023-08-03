@@ -46,6 +46,14 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipelin
     rasterizer_create_info.depthBiasClamp = 0.0f;
     rasterizer_create_info.depthBiasSlopeFactor = 0.0f;
 
+    // Smooth line rasterisation, if supported.
+    VkPipelineRasterizationLineStateCreateInfoEXT line_rasterization_ext = {0};
+    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT) {
+        line_rasterization_ext.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT;
+        line_rasterization_ext.lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH_EXT;
+        rasterizer_create_info.pNext = &line_rasterization_ext;
+    }
+
     // Multisampling.
     VkPipelineMultisampleStateCreateInfo multisampling_create_info = {VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
     multisampling_create_info.sampleShadingEnable = VK_FALSE;
