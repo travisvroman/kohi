@@ -1,4 +1,5 @@
 #include "vulkan_utils.h"
+
 #include "core/kmemory.h"
 
 const char* vulkan_result_string(VkResult result, b8 get_extended) {
@@ -134,7 +135,7 @@ b8 vulkan_result_is_success(VkResult result) {
 }
 
 #if defined(_DEBUG)
-b8 vulkan_set_debug_object_name(vulkan_context* context, VkObjectType object_type, void* object_handle, const char* object_name) {
+void vulkan_set_debug_object_name(vulkan_context* context, VkObjectType object_type, void* object_handle, const char* object_name) {
     const VkDebugUtilsObjectNameInfoEXT name_info = {
         VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
         0,
@@ -145,14 +146,12 @@ b8 vulkan_set_debug_object_name(vulkan_context* context, VkObjectType object_typ
 
     if (context->pfnSetDebugUtilsObjectNameEXT) {
         VK_CHECK(context->pfnSetDebugUtilsObjectNameEXT(context->device.logical_device, &name_info));
-        return true;
     }
-    return false;
 }
 
-b8 vulkan_set_debug_object_tag(vulkan_context* context, VkObjectType object_type, void* object_handle, u64 tag_size, const void* tag_data) {
+void vulkan_set_debug_object_tag(vulkan_context* context, VkObjectType object_type, void* object_handle, u64 tag_size, const void* tag_data) {
     const VkDebugUtilsObjectTagInfoEXT tag_info = {
-        VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+        VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_TAG_INFO_EXT,
         0,
         object_type,
         (uint64_t)object_handle,
@@ -162,12 +161,10 @@ b8 vulkan_set_debug_object_tag(vulkan_context* context, VkObjectType object_type
 
     if (context->pfnSetDebugUtilsObjectTagEXT) {
         VK_CHECK(context->pfnSetDebugUtilsObjectTagEXT(context->device.logical_device, &tag_info));
-        return true;
     }
-    return false;
 }
 
-b8 vulkan_begin_label(vulkan_context* context, VkCommandBuffer buffer, const char* label_name, vec4 colour) {
+void vulkan_begin_label(vulkan_context* context, VkCommandBuffer buffer, const char* label_name, vec4 colour) {
     VkDebugUtilsLabelEXT label_info = {
         VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
         0,
@@ -176,16 +173,12 @@ b8 vulkan_begin_label(vulkan_context* context, VkCommandBuffer buffer, const cha
 
     if (context->pfnCmdBeginDebugUtilsLabelEXT) {
         context->pfnCmdBeginDebugUtilsLabelEXT(buffer, &label_info);
-        return true;
     }
-    return false;
 }
 
-b8 vulkan_end_label(vulkan_context* context, VkCommandBuffer buffer) {
+void vulkan_end_label(vulkan_context* context, VkCommandBuffer buffer) {
     if (context->pfnCmdEndDebugUtilsLabelEXT) {
         context->pfnCmdEndDebugUtilsLabelEXT(buffer);
-        return true;
     }
-    return false;
 }
 #endif

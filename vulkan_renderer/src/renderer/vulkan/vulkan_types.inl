@@ -12,13 +12,13 @@
 
 #pragma once
 
-#include "defines.h"
-#include "core/asserts.h"
-#include "renderer/renderer_types.inl"
+#include <vulkan/vulkan.h>
+
 #include "containers/freelist.h"
 #include "containers/hashtable.h"
-
-#include <vulkan/vulkan.h>
+#include "core/asserts.h"
+#include "defines.h"
+#include "renderer/renderer_types.inl"
 
 /**
  * @brief Checks the given expression's return value against VK_SUCCESS.
@@ -66,12 +66,35 @@ typedef struct vulkan_swapchain_support_info {
     VkPresentModeKHR* present_modes;
 } vulkan_swapchain_support_info;
 
+typedef enum vulkan_device_support_flag_bits {
+    VULKAN_DEVICE_SUPPORT_FLAG_NONE_BIT = 0x0,
+
+    /** @brief Indicates if the device supports native dynamic topology (i.e. * using Vulkan API >= 1.3). */
+    VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT = 0x1,
+
+    /** @brief Indicates if this device supports dynamic topology. If not, the renderer will need to generate a separate pipeline per topology type. */
+    VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT = 0x2,
+    VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT = 0x4
+} vulkan_device_support_flag_bits;
+
+/** @brief Bitwise flags for device support. @see vulkan_device_support_flag_bits. */
+typedef u32 vulkan_device_support_flags;
+
 /**
  * @brief A representation of both the physical and logical
  * Vulkan devices. Also contains handles to queues, command pools,
  * and various properties of the devices.
  */
 typedef struct vulkan_device {
+    /** @brief The supported device-level api major version. */
+    u32 api_major;
+
+    /** @brief The supported device-level api minor version. */
+    u32 api_minor;
+
+    /** @brief The supported device-level api patch version. */
+    u32 api_patch;
+
     /** @brief The physical device. This is a representation of the GPU itself. */
     VkPhysicalDevice physical_device;
     /** @brief The logical device. This is the application's view of the device, used for most Vulkan operations. */
@@ -109,6 +132,9 @@ typedef struct vulkan_device {
     VkFormat depth_format;
     /** @brief The chosen depth format's number of channels.*/
     u8 depth_channel_count;
+
+    /** @brief Indicates support for various features. */
+    vulkan_device_support_flags support_flags;
 } vulkan_device;
 
 /**
@@ -244,10 +270,19 @@ typedef struct vulkan_shader_stage {
     VkPipelineShaderStageCreateInfo shader_stage_create_info;
 } vulkan_shader_stage;
 
+typedef enum vulkan_topology_class {
+    VULKAN_TOPOLOGY_CLASS_POINT = 0,
+    VULKAN_TOPOLOGY_CLASS_LINE = 1,
+    VULKAN_TOPOLOGY_CLASS_TRIANGLE = 2,
+    VULKAN_TOPOLOGY_CLASS_MAX = VULKAN_TOPOLOGY_CLASS_TRIANGLE + 1
+} vulkan_topology_class;
+
 /**
  * @brief A configuration structure for Vulkan pipelines.
  */
 typedef struct vulkan_pipeline_config {
+    /** @brief The name of the pipeline. Used primarily for debugging purposes. */
+    char* name;
     /** @brief A pointer to the renderpass to associate with the pipeline. */
     vulkan_renderpass* renderpass;
     /** @brief The stride of the vertex data to be used (ex: sizeof(vertex_3d)) */
@@ -278,6 +313,8 @@ typedef struct vulkan_pipeline_config {
     u32 push_constant_range_count;
     /** @brief An array of push constant data ranges. */
     range* push_constant_ranges;
+    /** @brief Collection of topology types to be supported on this pipeline. */
+    u32 topology_types;
 } vulkan_pipeline_config;
 
 /**
@@ -288,6 +325,8 @@ typedef struct vulkan_pipeline {
     VkPipeline handle;
     /** @brief The pipeline layout. */
     VkPipelineLayout pipeline_layout;
+    /** @brief Indicates the topology types used by this pipeline. See primitive_topology_type.*/
+    u32 supported_topology_types;
 } vulkan_pipeline;
 
 /**
@@ -311,16 +350,10 @@ typedef struct vulkan_geometry_data {
     u32 id;
     /** @brief The geometry generation. Incremented every time the geometry data changes. */
     u32 generation;
-    /** @brief The vertex count. */
-    u32 vertex_count;
-    /** @brief The size of each vertex. */
-    u32 vertex_element_size;
+
     /** @brief The offset in bytes in the vertex buffer. */
     u64 vertex_buffer_offset;
-    /** @brief The index count. */
-    u32 index_count;
-    /** @brief The size of each index. */
-    u32 index_element_size;
+
     /** @brief The offset in bytes in the index buffer. */
     u64 index_buffer_offset;
 } vulkan_geometry_data;
@@ -485,8 +518,13 @@ typedef struct vulkan_shader {
     /** @brief The uniform buffer used by this shader. */
     renderbuffer uniform_buffer;
 
-    /** @brief The pipeline associated with this shader. */
-    vulkan_pipeline pipeline;
+    /** @brief An array of pointers to pipelines associated with this shader. */
+    vulkan_pipeline** pipelines;
+
+    /** @brief The currently bound pipeline index. */
+    u8 bound_pipeline_index;
+    /** @brief The currently-selected topology. */
+    VkPrimitiveTopology current_topology;
 
     /** @brief The instance states for all instances. @todo TODO: make dynamic */
     u32 instance_count;
@@ -510,6 +548,15 @@ typedef struct vulkan_shader {
  * global renderer backend state, Vulkan instance, etc.
  */
 typedef struct vulkan_context {
+    /** @brief The instance-level api major version. */
+    u32 api_major;
+
+    /** @brief The instance-level api minor version. */
+    u32 api_minor;
+
+    /** @brief The instance-level api patch version. */
+    u32 api_patch;
+
     /** @brief The framebuffer's current width. */
     u32 framebuffer_width;
 
@@ -585,7 +632,7 @@ typedef struct vulkan_context {
 
     /** @brief Indicates if the swapchain is currently being recreated. */
     b8 recreating_swapchain;
-    
+
     b8 render_flag_changed;
 
     /** @brief The A collection of loaded geometries. @todo TODO: make dynamic */
@@ -605,4 +652,6 @@ typedef struct vulkan_context {
      * @returns The index of the found memory type. Returns -1 if not found.
      */
     i32 (*find_memory_index)(struct vulkan_context* context, u32 type_filter, u32 property_flags);
+
+    PFN_vkCmdSetPrimitiveTopologyEXT vkCmdSetPrimitiveTopologyEXT;
 } vulkan_context;

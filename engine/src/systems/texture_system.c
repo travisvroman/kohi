@@ -122,6 +122,21 @@ texture* texture_system_acquire(const char* name, b8 auto_release) {
         return &state_ptr->default_texture;
     }
 
+    if (strings_equali(name, DEFAULT_DIFFUSE_TEXTURE_NAME)) {
+        KWARN("texture_system_acquire called for default diffuse texture. Use texture_system_get_default_diffuse_texture for texture 'default_DIFF'.");
+        return &state_ptr->default_diffuse_texture;
+    }
+
+    if (strings_equali(name, DEFAULT_SPECULAR_TEXTURE_NAME)) {
+        KWARN("texture_system_acquire called for default texture. Use texture_system_get_default_specular_texture for texture 'default_SPEC'.");
+        return &state_ptr->default_specular_texture;
+    }
+
+    if (strings_equali(name, DEFAULT_NORMAL_TEXTURE_NAME)) {
+        KWARN("texture_system_acquire called for default texture. Use texture_system_get_default_normal_texture for texture 'default_NORM'.");
+        return &state_ptr->default_normal_texture;
+    }
+
     u32 id = INVALID_ID;
     // NOTE: Increments reference count, or creates new entry.
     if (!process_texture_reference(name, TEXTURE_TYPE_2D, 1, auto_release, false, &id)) {
@@ -658,6 +673,9 @@ static b8 process_texture_reference(const char* name, texture_type type, i8 refe
                             }
                             t->id = ref.handle;
                         }
+
+                        // Make sure to hold onto the texture name.
+                        string_ncopy(t->name, name, TEXTURE_NAME_MAX_LENGTH);
                         // KTRACE("Texture '%s' does not yet exist. Created, and ref_count is now %i.", name, ref.reference_count);
                     }
                 } else {

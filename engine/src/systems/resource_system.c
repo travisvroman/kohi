@@ -1,36 +1,42 @@
 #include "resource_system.h"
 
-#include "core/logger.h"
 #include "core/kstring.h"
+#include "core/logger.h"
 
 // Known resource loaders.
-#include "resources/loaders/text_loader.h"
 #include "resources/loaders/binary_loader.h"
+#include "resources/loaders/bitmap_font_loader.h"
 #include "resources/loaders/image_loader.h"
 #include "resources/loaders/material_loader.h"
-#include "resources/loaders/shader_loader.h"
 #include "resources/loaders/mesh_loader.h"
-#include "resources/loaders/bitmap_font_loader.h"
+#include "resources/loaders/shader_loader.h"
 #include "resources/loaders/system_font_loader.h"
-#include "resources/loaders/simple_scene_loader.h"
+#include "resources/loaders/terrain_loader.h"
+#include "resources/loaders/text_loader.h"
 
 typedef struct resource_system_state {
     resource_system_config config;
-    resource_loader* registered_loaders;
+    resource_loader *registered_loaders;
 } resource_system_state;
 
-static resource_system_state* state_ptr = 0;
+static resource_system_state *state_ptr = 0;
 
-static b8 load(const char* name, resource_loader* loader, void* params, resource* out_resource);
+static b8 load(const char *name, resource_loader *loader, void *params,
+               resource *out_resource);
 
-b8 resource_system_initialize(u64* memory_requirement, void* state, void* config) {
-    resource_system_config* typed_config = (resource_system_config*)config;
+b8 resource_system_initialize(u64 *memory_requirement, void *state,
+                              void *config) {
+    resource_system_config *typed_config = (resource_system_config *)config;
     if (typed_config->max_loader_count == 0) {
-        KFATAL("resource_system_initialize failed because config.max_loader_count==0.");
+        KFATAL(
+            "resource_system_initialize failed because "
+            "config.max_loader_count==0.");
         return false;
     }
 
-    *memory_requirement = sizeof(resource_system_state) + (sizeof(resource_loader) * typed_config->max_loader_count);
+    *memory_requirement =
+        sizeof(resource_system_state) +
+        (sizeof(resource_loader) * typed_config->max_loader_count);
 
     if (!state) {
         return true;
@@ -39,7 +45,7 @@ b8 resource_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr = state;
     state_ptr->config = *typed_config;
 
-    void* array_block = state + sizeof(resource_system_state);
+    void *array_block = state + sizeof(resource_system_state);
     state_ptr->registered_loaders = array_block;
 
     // Invalidate all loaders
@@ -57,14 +63,15 @@ b8 resource_system_initialize(u64* memory_requirement, void* state, void* config
     resource_system_loader_register(mesh_resource_loader_create());
     resource_system_loader_register(bitmap_font_resource_loader_create());
     resource_system_loader_register(system_font_resource_loader_create());
-    resource_system_loader_register(simple_scene_resource_loader_create());
+    resource_system_loader_register(terrain_resource_loader_create());
 
-    KINFO("Resource system initialized with base path '%s'.", typed_config->asset_base_path);
+    KINFO("Resource system initialized with base path '%s'.",
+          typed_config->asset_base_path);
 
     return true;
 }
 
-void resource_system_shutdown(void* state) {
+void resource_system_shutdown(void *state) {
     if (state_ptr) {
         state_ptr = 0;
     }
@@ -75,13 +82,21 @@ b8 resource_system_loader_register(resource_loader loader) {
         u32 count = state_ptr->config.max_loader_count;
         // Ensure no loaders for the given type already exist
         for (u32 i = 0; i < count; ++i) {
-            resource_loader* l = &state_ptr->registered_loaders[i];
+            resource_loader *l = &state_ptr->registered_loaders[i];
             if (l->id != INVALID_ID) {
                 if (l->type == loader.type) {
-                    KERROR("resource_system_register_loader - Loader of type %d already exists and will not be registered.", loader.type);
+                    KERROR(
+                        "resource_system_register_loader - Loader of type %d already "
+                        "exists and will not be registered.",
+                        loader.type);
                     return false;
-                } else if (loader.custom_type && string_length(loader.custom_type) > 0 && strings_equali(l->custom_type, loader.custom_type)) {
-                    KERROR("resource_system_register_loader - Loader of custom type %s already exists and will not be registered.", loader.custom_type);
+                } else if (loader.custom_type &&
+                           string_length(loader.custom_type) > 0 &&
+                           strings_equali(l->custom_type, loader.custom_type)) {
+                    KERROR(
+                        "resource_system_register_loader - Loader of custom type %s "
+                        "already exists and will not be registered.",
+                        loader.custom_type);
                     return false;
                 }
             }
@@ -99,12 +114,13 @@ b8 resource_system_loader_register(resource_loader loader) {
     return false;
 }
 
-b8 resource_system_load(const char* name, resource_type type, void* params, resource* out_resource) {
+b8 resource_system_load(const char *name, resource_type type, void *params,
+                        resource *out_resource) {
     if (state_ptr && type != RESOURCE_TYPE_CUSTOM) {
         // Select loader.
         u32 count = state_ptr->config.max_loader_count;
         for (u32 i = 0; i < count; ++i) {
-            resource_loader* l = &state_ptr->registered_loaders[i];
+            resource_loader *l = &state_ptr->registered_loaders[i];
             if (l->id != INVALID_ID && l->type == type) {
                 return load(name, l, params, out_resource);
             }
@@ -116,27 +132,30 @@ b8 resource_system_load(const char* name, resource_type type, void* params, reso
     return false;
 }
 
-b8 resource_system_load_custom(const char* name, const char* custom_type, void* params, resource* out_resource) {
+b8 resource_system_load_custom(const char *name, const char *custom_type,
+                               void *params, resource *out_resource) {
     if (state_ptr && custom_type && string_length(custom_type) > 0) {
         // Select loader.
         u32 count = state_ptr->config.max_loader_count;
         for (u32 i = 0; i < count; ++i) {
-            resource_loader* l = &state_ptr->registered_loaders[i];
-            if (l->id != INVALID_ID && l->type == RESOURCE_TYPE_CUSTOM && strings_equali(l->custom_type, custom_type)) {
+            resource_loader *l = &state_ptr->registered_loaders[i];
+            if (l->id != INVALID_ID && l->type == RESOURCE_TYPE_CUSTOM &&
+                strings_equali(l->custom_type, custom_type)) {
                 return load(name, l, params, out_resource);
             }
         }
     }
 
     out_resource->loader_id = INVALID_ID;
-    KERROR("resource_system_load_custom - No loader for type %s was found.", custom_type);
+    KERROR("resource_system_load_custom - No loader for type %s was found.",
+           custom_type);
     return false;
 }
 
-void resource_system_unload(resource* resource) {
+void resource_system_unload(resource *resource) {
     if (state_ptr && resource) {
         if (resource->loader_id != INVALID_ID) {
-            resource_loader* l = &state_ptr->registered_loaders[resource->loader_id];
+            resource_loader *l = &state_ptr->registered_loaders[resource->loader_id];
             if (l->id != INVALID_ID && l->unload) {
                 l->unload(l, resource);
             }
@@ -144,16 +163,19 @@ void resource_system_unload(resource* resource) {
     }
 }
 
-const char* resource_system_base_path(void) {
+const char *resource_system_base_path(void) {
     if (state_ptr) {
         return state_ptr->config.asset_base_path;
     }
 
-    KERROR("resource_system_base_path called before initialization, returning empty string.");
+    KERROR(
+        "resource_system_base_path called before initialization, returning "
+        "empty string.");
     return "";
 }
 
-static b8 load(const char* name, resource_loader* loader, void* params, resource* out_resource) {
+static b8 load(const char *name, resource_loader *loader, void *params,
+               resource *out_resource) {
     if (!name || !loader || !loader->load || !out_resource) {
         if (out_resource) {
             out_resource->loader_id = INVALID_ID;

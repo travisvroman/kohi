@@ -150,9 +150,9 @@ KAPI void renderer_texture_read_data(texture* t, u32 offset, u32 size, void** ou
 KAPI void renderer_texture_read_pixel(texture* t, u32 x, u32 y, u8** out_rgba);
 
 /**
- * @brief Acquiores GPU resources and uploads geometry data.
+ * @brief Creates geometry, taking a copy of the provided data and setting up the data structure.
  *
- * @param geometry A pointer to the geometry to acquire resources for.
+ * @param geometry A pointer to the geometry to create.
  * @param vertex_size The size of each vertex.
  * @param vertex_count The number of vertices.
  * @param vertices The vertex array.
@@ -162,6 +162,24 @@ KAPI void renderer_texture_read_pixel(texture* t, u32 x, u32 y, u8** out_rgba);
  * @return True on success; otherwise false.
  */
 KAPI b8 renderer_geometry_create(geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
+
+/**
+ * @brief Acquires GPU resources and uploads geometry data.
+ *
+ * @param geometry A pointer to the geometry to upload.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 renderer_geometry_upload(geometry* geometry);
+
+/**
+ * @brief Updates vertex data in the given geometry with the provided data in the given range.
+ *
+ * @param g A pointer to the geometry to be created.
+ * @param offset The offset in bytes to update. 0 if updating from the beginning.
+ * @param vertex_count The number of vertices which will be updated.
+ * @param vertices The vertex data.
+ */
+KAPI void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, void* vertices);
 
 /**
  * @brief Destroys the given geometry, releasing GPU resources.
@@ -252,9 +270,10 @@ KAPI b8 renderer_shader_bind_instance(struct shader* s, u32 instance_id);
  * @brief Applies global data to the uniform buffer.
  *
  * @param s A pointer to the shader to apply the global data for.
+ * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_globals(struct shader* s);
+KAPI b8 renderer_shader_apply_globals(struct shader* s, b8 needs_update);
 
 /**
  * @brief Applies data for the currently bound instance.
@@ -269,11 +288,12 @@ KAPI b8 renderer_shader_apply_instance(struct shader* s, b8 needs_update);
  * @brief Acquires internal instance-level resources and provides an instance id.
  *
  * @param s A pointer to the shader to acquire resources from.
+ * @param texture_map_count The number of texture maps used.
  * @param maps An array of texture map pointers. Must be one per texture in the instance.
  * @param out_instance_id A pointer to hold the new instance identifier.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_instance_resources_acquire(struct shader* s, texture_map** maps, u32* out_instance_id);
+KAPI b8 renderer_shader_instance_resources_acquire(struct shader* s, u32 texture_map_count, texture_map** maps, u32* out_instance_id);
 
 /**
  * @brief Releases internal instance-level resources for the given instance id.
@@ -396,13 +416,14 @@ KAPI void renderer_flag_enabled_set(renderer_config_flags flag, b8 enabled);
  * @brief Creates a new renderbuffer to hold data for a given purpose/use. Backed by a
  * renderer-backend-specific buffer resource.
  *
+ * @param name The name of the renderbuffer, used for debugging purposes.
  * @param type The type of buffer, indicating it's use (i.e. vertex/index data, uniforms, etc.)
  * @param total_size The total size in bytes of the buffer.
  * @param use_freelist Indicates if the buffer should use a freelist to track allocations.
  * @param out_buffer A pointer to hold the newly created buffer.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_create(renderbuffer_type type, u64 total_size, b8 use_freelist, renderbuffer* out_buffer);
+KAPI b8 renderer_renderbuffer_create(const char* name, renderbuffer_type type, u64 total_size, b8 use_freelist, renderbuffer* out_buffer);
 
 /**
  * @brief Destroys the given renderbuffer.
@@ -532,4 +553,3 @@ KAPI b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset
  * @return True on success; otherwise false.
  */
 KAPI b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
-

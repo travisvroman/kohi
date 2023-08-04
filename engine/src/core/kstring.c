@@ -1,14 +1,15 @@
 #include "core/kstring.h"
+
+#include <ctype.h>  // isspace
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "containers/darray.h"
 #include "core/kmemory.h"
 #include "core/logger.h"
-#include "containers/darray.h"
 #include "math/kmath.h"
 #include "math/transform.h"
-
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <ctype.h>  // isspace
 
 #ifndef _MSC_VER
 #include <strings.h>
@@ -263,7 +264,7 @@ b8 string_to_transform(const char* str, transform* out_transform) {
         quat y_rot = quat_from_axis_angle((vec3){0, 1.0f, 0}, deg_to_rad(values[1]), true);
         quat z_rot = quat_from_axis_angle((vec3){0, 0, 1.0f}, deg_to_rad(values[2]), true);
         out_transform->rotation = quat_mul(x_rot, quat_mul(y_rot, z_rot));
-
+        
         // Set scale
         out_transform->scale.x = values[3];
         out_transform->scale.y = values[4];
@@ -277,6 +278,32 @@ b8 string_to_transform(const char* str, transform* out_transform) {
     out_transform->is_dirty = true;
 
     return true;
+}
+
+b8 string_to_mat4(const char* str, mat4* out_mat) {
+    if (!str || !out_mat) {
+        return false;
+    }
+
+    kzero_memory(out_mat, sizeof(mat4));
+    i32 result = sscanf(str, "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
+                        &out_mat->data[0],
+                        &out_mat->data[1],
+                        &out_mat->data[2],
+                        &out_mat->data[3],
+                        &out_mat->data[4],
+                        &out_mat->data[5],
+                        &out_mat->data[6],
+                        &out_mat->data[7],
+                        &out_mat->data[8],
+                        &out_mat->data[9],
+                        &out_mat->data[10],
+                        &out_mat->data[11],
+                        &out_mat->data[12],
+                        &out_mat->data[13],
+                        &out_mat->data[14],
+                        &out_mat->data[15]);
+    return result != -1;
 }
 
 b8 string_to_vec4(const char* str, vec4* out_vector) {

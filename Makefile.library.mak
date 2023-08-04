@@ -12,7 +12,7 @@ ifeq ($(OS),Windows_NT)
 	BUILD_PLATFORM := windows
 	EXTENSION := .dll
 	COMPILER_FLAGS := -Wall -Wextra -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -Wstrict-prototypes -Wno-unused-parameter -Wno-missing-field-initializers
-	INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
+	INCLUDE_FLAGS := -I./$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
 	LINKER_FLAGS := -shared -luser32 -L$(OBJ_DIR)\$(ASSEMBLY) -L.\$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 	DEFINES += -D_CRT_SECURE_NO_WARNINGS
 
@@ -42,7 +42,7 @@ else
 		BUILD_PLATFORM := linux
 		EXTENSION := .so
 		COMPILER_FLAGS := -Wall -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC
-		INCLUDE_FLAGS := -I$(ASSEMBLY)/src -I$(VULKAN_SDK)/include $(ADDL_INC_FLAGS)
+		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src -I$(VULKAN_SDK)/include $(ADDL_INC_FLAGS)
 		LINKER_FLAGS := -shared -lvulkan -lxcb -lX11 -lX11-xcb -lxkbcommon -L$(VULKAN_SDK)/lib -L/usr/X11R6/lib -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
@@ -55,7 +55,7 @@ else
 		BUILD_PLATFORM := macos
 		EXTENSION := .dylib
 		COMPILER_FLAGS := -Wall -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC -ObjC
-		INCLUDE_FLAGS := -I$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
+		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
 		LINKER_FLAGS := -shared -dynamiclib -install_name @rpath/lib$(ASSEMBLY).dylib -lobjc -framework AppKit -framework QuartzCore -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 		# .c and .m files
 		SRC_FILES := $(shell find $(ASSEMBLY) -type f \( -name "*.c" -o -name "*.m" \))
@@ -104,7 +104,7 @@ COMPILER_FLAGS += -g -MD
 LINKER_FLAGS += -g
 endif
 
-all: scaffold compile link
+all: scaffold compile link gen_compile_flags
 
 .PHONY: scaffold
 scaffold: # create build directory
@@ -170,3 +170,8 @@ $(OBJ_DIR)/%.m.o: %.m
 endif
 
 -include $(OBJ_FILES:.o=.d)
+
+.PHONY: gen_compile_flags
+gen_compile_flags:
+	@echo $(INCLUDE_FLAGS) $(DEFINES) | tr " " "\n" | sed "s/\-I\.\//\-I\.\.\//g" > $(ASSEMBLY)/compile_flags.txt
+

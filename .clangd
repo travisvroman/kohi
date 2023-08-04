@@ -1,0 +1,12 @@
+# NOTE: Not sure if this file is needed. Disabling it for now, will uncomment if need be.
+#
+#If:
+#  PathMatch: /vulkan_renderer/src/.*
+#CompileFlags:
+#  CompilationDatabase: /vulkan_renderer/
+#---
+#If:
+#  PathMatch: /tests/src/.*
+#CompileFlags:
+#  CompilationDatabase: /tests/
+

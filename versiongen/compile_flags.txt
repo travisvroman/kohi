@@ -1,0 +1,3 @@
+-I../versiongen/src
+-DKIMPORT
+-D_DEBUG

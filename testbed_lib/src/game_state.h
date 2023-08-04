@@ -1,21 +1,26 @@
 #pragma once
 
-#include <defines.h>
 #include <application_types.h>
+#include <defines.h>
 #include <math/math_types.h>
 #include <systems/camera_system.h>
 
+#include "editor/editor_gizmo.h"
+#include "resources/simple_scene.h"
+
 // TODO: temp
-#include <resources/skybox.h>
-#include <resources/ui_text.h>
 #include <core/clock.h>
 #include <core/keymap.h>
+#include <resources/skybox.h>
+#include <resources/ui_text.h>
 #include <systems/light_system.h>
-#include <resources/simple_scene.h>
 
 #include "debug_console.h"
+struct debug_line3d;
+struct debug_box3d;
 
 typedef struct testbed_game_state {
+    b8 running;
     camera* world_camera;
 
     u16 width, height;
@@ -47,6 +52,15 @@ typedef struct testbed_game_state {
 
     u64 alloc_count;
     u64 prev_alloc_count;
+
+    f32 forward_move_speed;
+    f32 backward_move_speed;
+
+    editor_gizmo gizmo;
+
+    // Used for visualization of our casts/collisions.
+    struct debug_line3d* test_lines;
+    struct debug_box3d* test_boxes;
     // TODO: end temp
 } testbed_game_state;
 
