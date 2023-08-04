@@ -1,3 +1,22 @@
+
+// TODO: Test with a raycast against the gizmo first. Gizmo should have 3 obbs (one per axis) for scale and move, then 3 more OBBs for 2-axis combos (x/y, x/z, y/z),
+// and finally one more for all 3 axes in the center. Rotation should use either 3 OBBs (one per axis surrounding each ring) or better, cylinders. Not sure yet how combos
+// should work for this.
+// If a hit is found (specifically on one of the OBBs), flip to a "manipulating gizmo" state unless the state is "none".
+// Next, determine the gizmo mode and act accordingly:
+// - For move, detect which axis has been hit (x, y, z or a combo or 2/3), and create an imaginary plane on the axe(s). Its normal should
+//   be that axis, making the plane orthogonal to it. (so for x, dragging on the y/z plane would move it along x, etc.). Its position is at the gizmo's origin.
+//   As the user drags, cast a new ray against that plane, then get the distance from the original position to the hit, and adjust position accordingly.
+// - Combinations of 2 axes should create a normal between the 2 axes, so its plane is orthogonal to that center normal.
+// - If all 3 axes are selected for move, create a plane whose normal faces the camera, and translate along that plane.
+// - Scale should act the same way, but scale instead of move the object.
+// - For rotate, detect axis, then detect diff in mouse position and apply rotation of that diff, along said axis.
+// - The gizmo should only be active/visible on a selected object. Object selection is done by the closest intersection on button release.
+// - The gizmo should be able to get a pointer to a transform by id. This transform is what is edited.
+// - Before editing begins, a copy of the transform should be taken beforehand to allow canceling of the operation.
+// - Canceling can be done by pressing the right mouse button while manipulating or by presseing esc.
+// - Undo will be handled later by an undo stack.
+
 #include "editor_gizmo.h"
 
 #include <core/logger.h>
@@ -5,10 +24,12 @@
 #include <math/geometry_3d.h>
 #include <math/kmath.h>
 #include <math/transform.h>
+#include <renderer/camera.h>
 #include <renderer/renderer_frontend.h>
 
 #include "core/kmemory.h"
 #include "math/math_types.h"
+#include "renderer/camera.h"
 
 static void create_gizmo_mode_none(editor_gizmo* gizmo);
 static void create_gizmo_mode_move(editor_gizmo* gizmo);
@@ -23,6 +44,7 @@ b8 editor_gizmo_create(editor_gizmo* out_gizmo) {
 
     out_gizmo->mode = EDITOR_GIZMO_MODE_NONE;
     out_gizmo->xform = transform_create();
+    out_gizmo->selected_xform = 0;
 
     // Initialize default values for all modes.
     for (u32 i = 0; i < EDITOR_GIZMO_MODE_MAX + 1; ++i) {
@@ -88,6 +110,10 @@ b8 editor_gizmo_unload(editor_gizmo* gizmo) {
 
 void editor_gizmo_update(editor_gizmo* gizmo) {
     if (gizmo) {
+        if (gizmo->selected_xform) {
+            transform_position_set(&gizmo->xform, gizmo->selected_xform->position);
+            transform_rotation_set(&gizmo->xform, gizmo->selected_xform->rotation);
+        }
     }
 }
 
@@ -346,7 +372,7 @@ static void create_gizmo_mode_rotate(editor_gizmo* gizmo) {
     }
 }
 
-void editor_gizmo_interaction_begin(editor_gizmo* gizmo, struct ray* r, editor_gizmo_interaction_type interaction_type) {
+void editor_gizmo_interaction_begin(editor_gizmo* gizmo, camera* c, struct ray* r, editor_gizmo_interaction_type interaction_type) {
     if (!gizmo || !r) {
         return;
     }
@@ -357,29 +383,40 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, struct ray* r, editor_g
         if (gizmo->mode == EDITOR_GIZMO_MODE_MOVE) {
             // Create the plane.
             editor_gizmo_mode_data* data = &gizmo->mode_data[gizmo->mode];
+            mat4 gizmo_world = transform_world_get(&gizmo->xform);
+            vec3 origin = transform_position_get(&gizmo->xform);
+            vec3 plane_dir;
             switch (data->current_axis_index) {
-                case 0: {
-                    // x axis
-                    vec3 origin = transform_position_get(&gizmo->xform);
-                    data->interaction_plane = plane_3d_create(origin, (vec3){0, 0, 1});
-                    // Get the initiail intersection point of the ray on the plane.
-                    vec3 intersection = {0};
-                    f32 distance;
-                    b8 front_facing;
-                    if (!raycast_plane_3d(r, &data->interaction_plane, &intersection, &distance, &front_facing)) {
-                        KERROR("Raycast/plane intersection not found. But hwhy?");
-                        return;
-                    }
-                    data->interaction_start_pos = intersection;
-                    data->last_interaction_pos = intersection;
-                } break;
-                case 1:
-                    // TODO:
+                case 0:  // x axis
+                case 3:  // xy axes
+                    plane_dir = mat4_backward(gizmo_world);
                     break;
-                case 2:
-                    // TODO:
+                case 1:  // y axis
+                    plane_dir = camera_backward(c);
                     break;
+                case 4:  // xz axes
+                    plane_dir = mat4_down(gizmo_world);
+                    break;
+                case 2:  // z axis
+                case 5:  // yz axes
+                    plane_dir = mat4_left(gizmo_world);
+                    break;
+                case 6:  /// xyz
+                    plane_dir = camera_backward(c);
+                    return;
             }
+            data->interaction_plane = plane_3d_create(origin, plane_dir);
+
+            // Get the initial intersection point of the ray on the plane.
+            vec3 intersection = {0};
+            f32 distance;
+            b8 front_facing;
+            if (!raycast_plane_3d(r, &data->interaction_plane, &intersection, &distance, &front_facing)) {
+                KERROR("Raycast/plane intersection not found. But hwhy?");
+                return;
+            }
+            data->interaction_start_pos = intersection;
+            data->last_interaction_pos = intersection;
         }
     }
 }
@@ -392,7 +429,7 @@ void editor_gizmo_interaction_end(editor_gizmo* gizmo) {
     gizmo->interaction = EDITOR_GIZMO_INTERACTION_TYPE_NONE;
 }
 
-void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct ray* r, editor_gizmo_interaction_type interaction_type) {
+void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, struct ray* r, editor_gizmo_interaction_type interaction_type) {
     if (!gizmo || !r) {
         return;
     }
@@ -400,21 +437,46 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct ray* r, editor_
     if (gizmo->mode == EDITOR_GIZMO_MODE_MOVE) {
         editor_gizmo_mode_data* data = &gizmo->mode_data[gizmo->mode];
         if (interaction_type == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG) {
-            if (data->current_axis_index == 0) {
-                // x
-                vec3 intersection = {0};
-                f32 distance;
-                b8 front_facing;
-                if (!raycast_plane_3d(r, &data->interaction_plane, &intersection, &distance, &front_facing)) {
-                    KERROR("Raycast/plane intersection not found. But hwhy?");
-                    return;
-                }
+            mat4 gizmo_world = transform_world_get(&gizmo->xform);
 
-                vec3 diff = vec3_sub(intersection, data->last_interaction_pos);
-                transform_translate(&gizmo->xform, (vec3){diff.x, 0, 0});
-
-                data->last_interaction_pos = intersection;
+            vec3 intersection = {0};
+            f32 distance;
+            b8 front_facing;
+            if (!raycast_plane_3d(r, &data->interaction_plane, &intersection, &distance, &front_facing)) {
+                KERROR("Raycast/plane intersection not found. But hwhy?");
+                return;
             }
+            vec3 diff = vec3_sub(intersection, data->last_interaction_pos);
+            vec3 direction;
+            vec3 translation;
+            switch (data->current_axis_index) {
+                case 0:  // x
+                    direction = mat4_left(gizmo_world);
+                    // Project diff onto direction.
+                    translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
+                    break;
+                case 1:  // y
+                    direction = mat4_up(gizmo_world);
+                    // Project diff onto direction.
+                    translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
+                    break;
+                case 2:  // z
+                    direction = mat4_backward(gizmo_world);
+                    // Project diff onto direction.
+                    translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
+                    break;
+                case 3:  // xy
+                case 4:  // xz
+                case 5:  // yz
+                case 6:  // xyz
+                    // TODO: this just kinda disappears on occasion. Debug this.
+                    translation = diff;
+                    break;
+                default:
+                    return;
+            }
+            transform_translate(&gizmo->xform, translation);
+            data->last_interaction_pos = intersection;
         } else if (interaction_type == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER) {
             f32 dist;
             mat4 model = transform_world_get(&gizmo->xform);

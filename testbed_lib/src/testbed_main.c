@@ -195,9 +195,9 @@ static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_contex
 
         if (code == EVENT_CODE_MOUSE_DRAG_BEGIN) {
             // Drag start -- change the interaction mode to "dragging".
-            editor_gizmo_interaction_begin(&state->gizmo, &r, EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG);
+            editor_gizmo_interaction_begin(&state->gizmo, state->world_camera, &r, EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG);
         } else if (code == EVENT_CODE_MOUSE_DRAGGED) {
-            editor_gizmo_handle_interaction(&state->gizmo, &r, EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG);
+            editor_gizmo_handle_interaction(&state->gizmo, state->world_camera, &r, EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG);
         } else if (code == EVENT_CODE_MOUSE_DRAG_END) {
             editor_gizmo_interaction_end(&state->gizmo);
         }
@@ -206,25 +206,9 @@ static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_contex
     return false;  // Let other handlers handle.
 }
 
-b8 game_on_button_up(u16 code, void* sender, void* listener_inst, event_context context) {
+b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context context) {
     if (code == EVENT_CODE_BUTTON_PRESSED) {
-        // TODO: Test with a raycast against the gizmo first. Gizmo should have 3 obbs (one per axis) for scale and move, then 3 more OBBs for 2-axis combos (x/y, x/z, y/z),
-        // and finally one more for all 3 axes in the center. Rotation should use either 3 OBBs (one per axis surrounding each ring) or better, cylinders. Not sure yet how combos
-        // should work for this.
-        // If a hit is found (specifically on one of the OBBs), flip to a "manipulating gizmo" state unless the state is "none".
-        // Next, determine the gizmo mode and act accordingly:
-        // - For move, detect which axis has been hit (x, y, z or a combo or 2/3), and create an imaginary plane on the axe(s). Its normal should
-        //   be that axis, making the plane orthogonal to it. (so for x, dragging on the y/z plane would move it along x, etc.). Its position is at the gizmo's origin.
-        //   As the user drags, cast a new ray against that plane, then get the distance from the original position to the hit, and adjust position accordingly.
-        // - Combinations of 2 axes should create a normal between the 2 axes, so its plane is orthogonal to that center normal.
-        // - If all 3 axes are selected for move, create a plane whose normal faces the camera, and translate along that plane.
-        // - Scale should act the same way, but scale instead of move the object.
-        // - For rotate, detect axis, then detect diff in mouse position and apply rotation of that diff, along said axis.
-        // - The gizmo should only be active/visible on a selected object. Object selection is done by the closest intersection on button release.
-        // - The gizmo should be able to get a pointer to a transform by id. This transform is what is edited.
-        // - Before editing begins, a copy of the transform should be taken beforehand to allow canceling of the operation.
-        // - Canceling can be done by pressing the right mouse button while manipulating or by presseing esc.
-        // - Undo will be handled later by an undo stack.
+        //
     } else if (code == EVENT_CODE_BUTTON_RELEASED) {
         u16 button = context.data.u16[0];
         switch (button) {
@@ -282,6 +266,17 @@ b8 game_on_button_up(u16 code, void* sender, void* listener_inst, event_context 
                         debug_box3d_extents_set(&test_box, ext);
 
                         darray_push(state->test_boxes, test_box);
+
+                        // Object selection
+                        if (i == 0) {
+                            state->selection.unique_id = hit->unique_id;
+                            state->selection.xform = simple_scene_transform_get_by_id(&state->main_scene, hit->unique_id);
+                            if (state->selection.xform) {
+                                KINFO("Selected object id %u", hit->unique_id);
+                                state->gizmo.selected_xform = state->selection.xform;
+                                // transform_parent_set(&state->gizmo.xform, state->selection.xform);
+                            }
+                        }
                     }
                 } else {
                     KINFO("No hit");
@@ -295,6 +290,9 @@ b8 game_on_button_up(u16 code, void* sender, void* listener_inst, event_context 
                     debug_line3d_colour_set(&test_line, (vec4){1.0f, 0.0f, 1.0f, 1.0f});
 
                     darray_push(state->test_lines, test_line);
+
+                    state->selection.xform = 0;
+                    state->selection.unique_id = INVALID_ID;
                 }
 
             } break;
@@ -324,7 +322,7 @@ static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_
             view,
             projection_matrix);
 
-        editor_gizmo_handle_interaction(&state->gizmo, &r, EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER);
+        editor_gizmo_handle_interaction(&state->gizmo, state->world_camera, &r, EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER);
     }
     return false;  // Allow other event handlers to recieve this event.
 }
@@ -394,6 +392,9 @@ b8 application_initialize(struct application* game_inst) {
     resource_system_loader_register(simple_scene_resource_loader_create());
 
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    state->selection.unique_id = INVALID_ID;
+    state->selection.xform = 0;
+
     debug_console_load(&state->debug_console);
 
     state->test_lines = darray_create(debug_line3d);
@@ -523,6 +524,8 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
         if (!simple_scene_update(&state->main_scene, p_frame_data)) {
             KWARN("Failed to update main scene.");
         }
+
+        editor_gizmo_update(&state->gizmo);
 
         // // Perform a small rotation on the first mesh.
         // quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, -0.5f * p_frame_data->delta_time, false);
@@ -803,7 +806,7 @@ void application_register_events(struct application* game_inst) {
         event_register(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_DEBUG2, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
-        event_register(EVENT_CODE_BUTTON_RELEASED, game_inst->state, game_on_button_up);
+        event_register(EVENT_CODE_BUTTON_RELEASED, game_inst->state, game_on_button);
         event_register(EVENT_CODE_MOUSE_MOVED, game_inst->state, game_on_mouse_move);
         event_register(EVENT_CODE_MOUSE_DRAG_BEGIN, game_inst->state, game_on_drag);
         event_register(EVENT_CODE_MOUSE_DRAG_END, game_inst->state, game_on_drag);
@@ -822,7 +825,7 @@ void application_unregister_events(struct application* game_inst) {
     event_unregister(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_DEBUG2, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
-    event_unregister(EVENT_CODE_BUTTON_RELEASED, game_inst->state, game_on_button_up);
+    event_unregister(EVENT_CODE_BUTTON_RELEASED, game_inst->state, game_on_button);
     event_unregister(EVENT_CODE_MOUSE_MOVED, game_inst->state, game_on_mouse_move);
     event_unregister(EVENT_CODE_MOUSE_DRAG_BEGIN, game_inst->state, game_on_drag);
     event_unregister(EVENT_CODE_MOUSE_DRAG_END, game_inst->state, game_on_drag);

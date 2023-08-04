@@ -18,6 +18,12 @@
 #include "debug_console.h"
 struct debug_line3d;
 struct debug_box3d;
+struct transform;
+
+typedef struct selected_object {
+    u32 unique_id;
+    struct transform* xform;
+} selected_object;
 
 typedef struct testbed_game_state {
     b8 running;
@@ -61,6 +67,8 @@ typedef struct testbed_game_state {
     // Used for visualization of our casts/collisions.
     struct debug_line3d* test_lines;
     struct debug_box3d* test_boxes;
+
+    selected_object selection;
     // TODO: end temp
 } testbed_game_state;
 

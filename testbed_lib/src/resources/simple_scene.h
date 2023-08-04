@@ -17,6 +17,7 @@ struct simple_scene_config;
 struct terrain;
 struct ray;
 struct raycast_result;
+struct transform;
 
 typedef enum simple_scene_state {
     /** @brief created, but nothing more. */
@@ -168,3 +169,5 @@ KAPI struct mesh* simple_scene_mesh_get(simple_scene* scene, const char* name);
 KAPI struct skybox* simple_scene_skybox_get(simple_scene* scene, const char* name);
 
 KAPI struct terrain* simple_scene_terrain_get(simple_scene* scene, const char* name);
+
+KAPI struct transform* simple_scene_transform_get_by_id(simple_scene* scene, u32 unique_id);

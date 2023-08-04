@@ -5,6 +5,7 @@
 #include <resources/resource_types.h>
 
 struct ray;
+struct camera;
 
 typedef enum editor_gizmo_mode {
     EDITOR_GIZMO_MODE_NONE = 0,
@@ -44,6 +45,8 @@ typedef struct editor_gizmo_mode_data {
 typedef struct editor_gizmo {
     /** @brief The transform of the gizmo. */
     transform xform;
+    /** @brief A pointer to the currently selected object's transform. Null if nothing is selected. */
+    transform* selected_xform;
     /** @brief The current mode of the gizmo. */
     editor_gizmo_mode mode;
 
@@ -67,6 +70,6 @@ KAPI void editor_gizmo_update(editor_gizmo* gizmo);
 
 KAPI void editor_gizmo_mode_set(editor_gizmo* gizmo, editor_gizmo_mode mode);
 
-KAPI void editor_gizmo_interaction_begin(editor_gizmo* gizmo, struct ray* r, editor_gizmo_interaction_type interaction_type);
+KAPI void editor_gizmo_interaction_begin(editor_gizmo* gizmo, struct camera* c, struct ray* r, editor_gizmo_interaction_type interaction_type);
 KAPI void editor_gizmo_interaction_end(editor_gizmo* gizmo);
-KAPI void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct ray* r, editor_gizmo_interaction_type interaction_type);
+KAPI void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, struct ray* r, editor_gizmo_interaction_type interaction_type);

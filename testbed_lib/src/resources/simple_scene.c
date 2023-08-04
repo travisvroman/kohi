@@ -1202,3 +1202,25 @@ static void simple_scene_actual_unload(simple_scene *scene) {
 
     kzero_memory(scene, sizeof(simple_scene));
 }
+
+struct transform *simple_scene_transform_get_by_id(simple_scene *scene, u32 unique_id) {
+    if (!scene) {
+        return 0;
+    }
+
+    u32 mesh_count = darray_length(scene->meshes);
+    for (u32 i = 0; i < mesh_count; ++i) {
+        if (scene->meshes[i].unique_id == unique_id) {
+            return &scene->meshes[i].transform;
+        }
+    }
+
+    u32 terrain_count = darray_length(scene->terrains);
+    for (u32 i = 0; i < terrain_count; ++i) {
+        if (scene->terrains[i].unique_id == unique_id) {
+            return &scene->terrains[i].xform;
+        }
+    }
+
+    return 0;
+}
