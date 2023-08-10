@@ -305,14 +305,14 @@ typedef struct geometry {
     /** @brief The size of each vertex. */
     u32 vertex_element_size;
     /** @brief The vertex data. */
-    void* vertices;
+    void *vertices;
 
     /** @brief The index count. */
     u32 index_count;
     /** @brief The size of each index. */
     u32 index_element_size;
     /** @brief The index data. */
-    void* indices;
+    void *indices;
 
     /** @brief The geometry name. */
     char name[GEOMETRY_NAME_MAX_LENGTH];
@@ -336,6 +336,7 @@ typedef struct mesh {
     u8 generation;
     u16 geometry_count;
     geometry **geometries;
+    // TODO: rename to xform
     transform transform;
     extents_3d extents;
     void *debug_data;

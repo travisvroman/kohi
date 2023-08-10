@@ -146,15 +146,16 @@ b8 render_view_editor_world_on_packet_build(const struct render_view* self, stru
     if (packet_data->gizmo) {
         geometry* g = &packet_data->gizmo->mode_data[packet_data->gizmo->mode].geo;
 
-        vec3 camera_pos = camera_position_get(internal_data->world_camera);
-        vec3 gizmo_pos = transform_position_get(&packet_data->gizmo->xform);
+        // vec3 camera_pos = camera_position_get(internal_data->world_camera);
+        // vec3 gizmo_pos = transform_position_get(&packet_data->gizmo->xform);
         // TODO: Should get this from the camera/viewport.
-        f32 fov = deg_to_rad(45.0f);
-        f32 dist = vec3_distance(camera_pos, gizmo_pos);
+        // f32 fov = deg_to_rad(45.0f);
+        // f32 dist = vec3_distance(camera_pos, gizmo_pos);
 
         mat4 model = transform_world_get(&packet_data->gizmo->xform);
-        f32 fixed_size = 0.1f;  // TODO: Make this a configurable option for gizmo size.
-        f32 scale_scalar = ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
+        // f32 fixed_size = 0.1f;                            // TODO: Make this a configurable option for gizmo size.
+        f32 scale_scalar = 1.0f;                          // ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
+        packet_data->gizmo->scale_scalar = scale_scalar;  // Keep a copy of this for hit detection.
         mat4 scale = mat4_scale((vec3){scale_scalar, scale_scalar, scale_scalar});
         model = mat4_mul(model, scale);
 
@@ -164,6 +165,14 @@ b8 render_view_editor_world_on_packet_build(const struct render_view* self, stru
         render_data.unique_id = INVALID_ID;
 
         darray_push(out_packet->geometries, render_data);
+
+#ifdef _DEBUG
+        geometry_render_data plane_normal_render_data = {0};
+        plane_normal_render_data.model = transform_world_get(&packet_data->gizmo->plane_normal_line.xform);
+        plane_normal_render_data.geometry = &packet_data->gizmo->plane_normal_line.geo;
+        plane_normal_render_data.unique_id = INVALID_ID;
+        darray_push(out_packet->geometries, plane_normal_render_data);
+#endif
     }
 
     return true;
