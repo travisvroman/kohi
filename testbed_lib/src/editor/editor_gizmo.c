@@ -1,18 +1,7 @@
 
-// TODO: Test with a raycast against the gizmo first. Gizmo should have 3 obbs (one per axis) for scale and move, then 3 more OBBs for 2-axis combos (x/y, x/z, y/z),
-// and finally one more for all 3 axes in the center. Rotation should use either 3 OBBs (one per axis surrounding each ring) or better, cylinders. Not sure yet how combos
-// should work for this.
-// If a hit is found (specifically on one of the OBBs), flip to a "manipulating gizmo" state unless the state is "none".
-// Next, determine the gizmo mode and act accordingly:
-// - For move, detect which axis has been hit (x, y, z or a combo or 2/3), and create an imaginary plane on the axe(s). Its normal should
-//   be that axis, making the plane orthogonal to it. (so for x, dragging on the y/z plane would move it along x, etc.). Its position is at the gizmo's origin.
-//   As the user drags, cast a new ray against that plane, then get the distance from the original position to the hit, and adjust position accordingly.
-// - Combinations of 2 axes should create a normal between the 2 axes, so its plane is orthogonal to that center normal.
-// - If all 3 axes are selected for move, create a plane whose normal faces the camera, and translate along that plane.
-// - Scale should act the same way, but scale instead of move the object.
-// - For rotate, detect axis, then detect diff in mouse position and apply rotation of that diff, along said axis.
-// - The gizmo should only be active/visible on a selected object. Object selection is done by the closest intersection on button release.
-// - The gizmo should be able to get a pointer to a transform by id. This transform is what is edited.
+// TODO:
+// - multi-axis rotations.
+// - The gizmo should only be active/visible on a selected object.
 // - Before editing begins, a copy of the transform should be taken beforehand to allow canceling of the operation.
 // - Canceling can be done by pressing the right mouse button while manipulating or by presseing esc.
 // - Undo will be handled later by an undo stack.
@@ -767,7 +756,6 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
                     return;
                 }
             }
-            // vec3 diff = vec3_sub(intersection, data->last_interaction_pos);
             vec3 direction;
             vec3 scale;
             vec3 origin = transform_position_get(&gizmo->xform);
