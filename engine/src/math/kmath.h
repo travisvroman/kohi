@@ -75,6 +75,35 @@
 // ------------------------------------------
 
 /**
+ * Swaps the values in the given float pointers.
+ * @param a A pointer to the first float.
+ * @param b A pointer to the second float.
+ */
+KINLINE void kswapf(f32 *a, f32 *b) {
+    f32 temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+#define KSWAP(type, a, b) \
+    {                     \
+        type temp = a;    \
+        a = b;            \
+        b = temp;         \
+    }
+
+/** @brief Returns 0.0f if x == 0.0f, -1.0f if negative, otherwise 1.0f. */
+KINLINE f32 ksign(f32 x) {
+    return x == 0.0f ? 0.0f : x < 0.0f ? -1.0f
+                                       : 1.0f;
+}
+
+/** @brief Compares x to edge, returning 0 if x < edge; otherwise 1.0f; */
+KINLINE f32 kstep(f32 edge, f32 x) {
+    return x < edge ? 0.0f : 1.0f;
+}
+
+/**
  * @brief Calculates the sine of x.
  *
  * @param x The number to calculate the sine of.
@@ -650,22 +679,31 @@ KINLINE f32 vec3_distance(vec3 vector_0, vec3 vector_1) {
 }
 
 /**
- * @brief Transform v by m. NOTE: It is assumed by this function that the
- * vector v is a point, not a direction, and is calculated as if a w component
- * with a value of 1.0f is there.
+ * @brief Returns the squared distance between vector_0 and vector_1.
+ * Less intensive than calling the non-squared version due to sqrt.
  *
+ * @param vector_0 The first vector.
+ * @param vector_1 The second vector.
+ * @return The squared distance between vector_0 and vector_1.
+ */
+KINLINE f32 vec3_distance_squared(vec3 vector_0, vec3 vector_1) {
+    vec3 d = (vec3){vector_0.x - vector_1.x, vector_0.y - vector_1.y,
+                    vector_0.z - vector_1.z};
+    return vec3_length_squared(d);
+}
+
+/**
+ * @brief Transform v by m.
  * @param v The vector to transform.
+ * @param w Pass 1.0f for a point, or 0.0f for a direction.
  * @param m The matrix to transform by.
  * @return A transformed copy of v.
  */
-KINLINE vec3 vec3_transform(vec3 v, mat4 m) {
+KINLINE vec3 vec3_transform(vec3 v, f32 w, mat4 m) {
     vec3 out;
-    out.x = v.x * m.data[0 + 0] + v.y * m.data[4 + 0] + v.z * m.data[8 + 0] +
-            1.0f * m.data[12 + 0];
-    out.y = v.x * m.data[0 + 1] + v.y * m.data[4 + 1] + v.z * m.data[8 + 1] +
-            1.0f * m.data[12 + 1];
-    out.z = v.x * m.data[0 + 2] + v.y * m.data[4 + 2] + v.z * m.data[8 + 2] +
-            1.0f * m.data[12 + 2];
+    out.x = v.x * m.data[0 + 0] + v.y * m.data[4 + 0] + v.z * m.data[8 + 0] + w * m.data[12 + 0];
+    out.y = v.x * m.data[0 + 1] + v.y * m.data[4 + 1] + v.z * m.data[8 + 1] + w * m.data[12 + 1];
+    out.z = v.x * m.data[0 + 2] + v.y * m.data[4 + 2] + v.z * m.data[8 + 2] + w * m.data[12 + 2];
     return out;
 }
 
@@ -1090,6 +1128,44 @@ KINLINE mat4 mat4_transposed(mat4 matrix) {
 }
 
 /**
+ * @brief Calculates the determinant of the given matrix.
+ *
+ * @param matrix The matrix to calculate the determinant of.
+ * @return The determinant of the given matrix.
+ */
+KINLINE f32 mat4_determinant(mat4 matrix) {
+    const f32 *m = matrix.data;
+
+    f32 t0 = m[10] * m[15];
+    f32 t1 = m[14] * m[11];
+    f32 t2 = m[6] * m[15];
+    f32 t3 = m[14] * m[7];
+    f32 t4 = m[6] * m[11];
+    f32 t5 = m[10] * m[7];
+    f32 t6 = m[2] * m[15];
+    f32 t7 = m[14] * m[3];
+    f32 t8 = m[2] * m[11];
+    f32 t9 = m[10] * m[3];
+    f32 t10 = m[2] * m[7];
+    f32 t11 = m[6] * m[3];
+
+    mat3 temp_mat;
+    f32 *o = temp_mat.data;
+
+    o[0] = (t0 * m[5] + t3 * m[9] + t4 * m[13]) -
+           (t1 * m[5] + t2 * m[9] + t5 * m[13]);
+    o[1] = (t1 * m[1] + t6 * m[9] + t9 * m[13]) -
+           (t0 * m[1] + t7 * m[9] + t8 * m[13]);
+    o[2] = (t2 * m[1] + t7 * m[5] + t10 * m[13]) -
+           (t3 * m[1] + t6 * m[5] + t11 * m[13]);
+    o[3] = (t5 * m[1] + t8 * m[5] + t11 * m[9]) -
+           (t4 * m[1] + t9 * m[5] + t10 * m[9]);
+
+    f32 determinant = 1.0f / (m[0] * o[0] + m[4] * o[1] + m[8] * o[2] + m[12] * o[3]);
+    return determinant;
+}
+
+/**
  * @brief Creates and returns an inverse of the provided matrix.
  *
  * @param matrix The matrix to be inverted.
@@ -1501,6 +1577,35 @@ KINLINE quat quat_mul(quat q_0, quat q_1) {
  */
 KINLINE f32 quat_dot(quat q_0, quat q_1) {
     return q_0.x * q_1.x + q_0.y * q_1.y + q_0.z * q_1.z + q_0.w * q_1.w;
+}
+
+KINLINE vec3 vec3_min(vec3 vector_0, vec3 vector_1) {
+    return vec3_create(
+        KMIN(vector_0.x, vector_1.y),
+        KMIN(vector_0.y, vector_1.y),
+        KMIN(vector_0.z, vector_1.z));
+}
+
+KINLINE vec3 vec3_max(vec3 vector_0, vec3 vector_1) {
+    return vec3_create(
+        KMAX(vector_0.x, vector_1.y),
+        KMAX(vector_0.y, vector_1.y),
+        KMAX(vector_0.z, vector_1.z));
+}
+
+KINLINE vec3 vec3_sign(vec3 v) {
+    return vec3_create(ksign(v.x), ksign(v.y), ksign(v.z));
+}
+
+KINLINE vec3 vec3_rotate(vec3 v, quat q) {
+    vec3 u = vec3_create(q.x, q.y, q.z);
+    f32 s = q.w;
+
+    return vec3_add(
+        vec3_add(
+            vec3_mul_scalar(u, 2.0f * vec3_dot(u, v)),
+            vec3_mul_scalar(v, (s * s - vec3_dot(u, u)))),
+        vec3_mul_scalar(vec3_cross(u, v), 2.0f * s));
 }
 
 /**

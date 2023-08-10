@@ -130,6 +130,12 @@ typedef union vec4_u {
 /** @brief A quaternion, used to represent rotational orientation. */
 typedef vec4 quat;
 
+/** @brief A 3x3 matrix */
+typedef union mat3_u {
+    /** @brief The matrix elements. */
+    f32 data[12];
+} mat3;
+
 /** @brief a 4x4 matrix, typically used to represent object transformations. */
 typedef union mat4_u {
     /** @brief The matrix elements */
@@ -216,6 +222,8 @@ typedef struct transform {
      * the position, rotation or scale have changed.
      */
     mat4 local;
+
+    f32 determinant;
 
     /** @brief A pointer to a parent transform if one is assigned. Can also be null. */
     struct transform* parent;

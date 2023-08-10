@@ -135,7 +135,10 @@ mat4 transform_world_get(transform* t) {
         mat4 l = transform_local_get(t);
         if (t->parent) {
             mat4 p = transform_world_get(t->parent);
-            return mat4_mul(l, p);
+            mat4 r = mat4_mul(l, p);
+            // Save off the determinant at the bottom-most level.
+            t->determinant = mat4_determinant(r);
+            return r;
         }
         return l;
     }

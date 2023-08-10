@@ -276,7 +276,7 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct line
             // Get the center, extract the global position from the model matrix and add it to the center,
             // then calculate the distance between it and the camera, and finally save it to a list to be sorted.
             // NOTE: This isn't perfect for translucent meshes that intersect, but is enough for our purposes now.
-            vec3 center = vec3_transform(g_data->geometry->center, g_data->model);
+            vec3 center = vec3_transform(g_data->geometry->center, 1.0f, g_data->model);
             f32 distance = vec3_distance(center, internal_data->world_camera->position);
 
             geometry_distance gdist;

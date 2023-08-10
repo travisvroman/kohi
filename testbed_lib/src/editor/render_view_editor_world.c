@@ -165,6 +165,14 @@ b8 render_view_editor_world_on_packet_build(const struct render_view* self, stru
         render_data.unique_id = INVALID_ID;
 
         darray_push(out_packet->geometries, render_data);
+
+#ifdef _DEBUG
+        geometry_render_data plane_normal_render_data = {0};
+        plane_normal_render_data.model = transform_world_get(&packet_data->gizmo->plane_normal_line.xform);
+        plane_normal_render_data.geometry = &packet_data->gizmo->plane_normal_line.geo;
+        plane_normal_render_data.unique_id = INVALID_ID;
+        darray_push(out_packet->geometries, plane_normal_render_data);
+#endif
     }
 
     return true;

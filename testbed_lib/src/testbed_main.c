@@ -152,23 +152,20 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
 }
 
 b8 game_on_key(u16 code, void* sender, void* listener_inst, event_context context) {
-    // if (code == EVENT_CODE_KEY_PRESSED) {
-    //     u16 key_code = context.data.u16[0];
-    //     if (key_code == KEY_A) {
-    //         // Example on checking for a key
-    //         KDEBUG("Explicit - A key pressed!");
-    //     } else {
-    //         // KTRACE("'%s' key pressed in window.", input_keycode_str(key_code));
-    //     }
-    // } else if (code == EVENT_CODE_KEY_RELEASED) {
-    //     u16 key_code = context.data.u16[0];
-    //     if (key_code == KEY_B) {
-    //         // Example on checking for a key
-    //         KDEBUG("Explicit - B key released!");
-    //     } else {
-    //         // KTRACE("'%s' key released in window.", input_keycode_str(key_code));
-    //     }
-    // }
+    application* game_inst = (application*)listener_inst;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    if (code == EVENT_CODE_KEY_RELEASED) {
+        u16 key_code = context.data.u16[0];
+        // Change gizmo orientation.
+        if (key_code == KEY_G) {
+            editor_gizmo_orientation orientation = editor_gizmo_orientation_get(&state->gizmo);
+            orientation++;
+            if (orientation > EDITOR_GIZMO_ORIENTATION_MAX) {
+                orientation = 0;
+            }
+            editor_gizmo_orientation_set(&state->gizmo, orientation);
+        }
+    }
     return false;
 }
 
@@ -194,12 +191,14 @@ static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_contex
             projection_matrix);
 
         if (code == EVENT_CODE_MOUSE_DRAG_BEGIN) {
+            state->using_gizmo = true;
             // Drag start -- change the interaction mode to "dragging".
             editor_gizmo_interaction_begin(&state->gizmo, state->world_camera, &r, EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG);
         } else if (code == EVENT_CODE_MOUSE_DRAGGED) {
             editor_gizmo_handle_interaction(&state->gizmo, state->world_camera, &r, EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG);
         } else if (code == EVENT_CODE_MOUSE_DRAG_END) {
             editor_gizmo_interaction_end(&state->gizmo);
+            state->using_gizmo = false;
         }
     }
 
@@ -222,7 +221,10 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
                     return false;
                 }
 
-                // TODO: If "manipulating gizmo", don't do below logic.
+                // If "manipulating gizmo", don't do below logic.
+                if (state->using_gizmo) {
+                    return false;
+                }
 
                 mat4 view = camera_view_get(state->world_camera);
                 vec3 origin = camera_position_get(state->world_camera);
@@ -273,7 +275,8 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
                             state->selection.xform = simple_scene_transform_get_by_id(&state->main_scene, hit->unique_id);
                             if (state->selection.xform) {
                                 KINFO("Selected object id %u", hit->unique_id);
-                                state->gizmo.selected_xform = state->selection.xform;
+                                // state->gizmo.selected_xform = state->selection.xform;
+                                editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform);
                                 // transform_parent_set(&state->gizmo.xform, state->selection.xform);
                             }
                         }
@@ -291,8 +294,15 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
 
                     darray_push(state->test_lines, test_line);
 
-                    state->selection.xform = 0;
-                    state->selection.unique_id = INVALID_ID;
+                    if (state->selection.xform) {
+                        KINFO("Object deselected.");
+                        state->selection.xform = 0;
+                        state->selection.unique_id = INVALID_ID;
+
+                        editor_gizmo_selected_transform_set(&state->gizmo, 0);
+                    }
+
+                    // TODO: hide gizmo, disable input, etc.
                 }
 
             } break;
@@ -491,8 +501,8 @@ b8 application_initialize(struct application* game_inst) {
     // TODO: end temp load/prepare stuff
 
     state->world_camera = camera_system_get_default();
-    camera_position_set(state->world_camera, (vec3){1.45f, 3.34f, 17.15f});
-    camera_rotation_euler_set(state->world_camera, (vec3){-11.083f, 18.250f, 0.0f});
+    camera_position_set(state->world_camera, (vec3){2.07f, 3.09f, 2.46f});
+    camera_rotation_euler_set(state->world_camera, (vec3){-47.34f, 38.450f, 0.0f});
 
     // kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
 

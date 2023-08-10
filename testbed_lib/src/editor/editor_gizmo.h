@@ -4,6 +4,10 @@
 #include <math/math_types.h>
 #include <resources/resource_types.h>
 
+#ifdef _DEBUG
+#include <resources/debug/debug_line3d.h>
+#endif
+
 struct ray;
 struct camera;
 
@@ -38,9 +42,21 @@ typedef struct editor_gizmo_mode_data {
 
     u8 current_axis_index;
     plane_3d interaction_plane;
+    plane_3d interaction_plane_back;
+
     vec3 interaction_start_pos;
     vec3 last_interaction_pos;
 } editor_gizmo_mode_data;
+
+typedef enum editor_gizmo_orientation {
+    /** @brief The gizmo's transform operations are relative to global transform. */
+    EDITOR_GIZMO_ORIENTATION_GLOBAL = 0,
+    /** @brief The gizmo's transform operations are relative to local transform. */
+    EDITOR_GIZMO_ORIENTATION_LOCAL = 1,
+    /** @brief The gizmo's transform operations are relative to the current view. */
+    // EDITOR_GIZMO_ORIENTATION_VIEW = 2,
+    EDITOR_GIZMO_ORIENTATION_MAX = EDITOR_GIZMO_ORIENTATION_LOCAL
+} editor_gizmo_orientation;
 
 typedef struct editor_gizmo {
     /** @brief The transform of the gizmo. */
@@ -53,10 +69,17 @@ typedef struct editor_gizmo {
     /** @brief Used to keep the gizmo a consistent size on the screen despite camera distance. */
     f32 scale_scalar;
 
+    /** @brief Indicates the editor transform operaton orientation. */
+    editor_gizmo_orientation orientation;
+
     /** @brief The data for each mode of the gizmo. */
     editor_gizmo_mode_data mode_data[EDITOR_GIZMO_MODE_MAX + 1];
 
     editor_gizmo_interaction_type interaction;
+
+#ifdef _DEBUG
+    debug_line3d plane_normal_line;
+#endif
 } editor_gizmo;
 
 KAPI b8 editor_gizmo_create(editor_gizmo* out_gizmo);
@@ -65,6 +88,11 @@ KAPI void editor_gizmo_destroy(editor_gizmo* gizmo);
 KAPI b8 editor_gizmo_initialize(editor_gizmo* gizmo);
 KAPI b8 editor_gizmo_load(editor_gizmo* gizmo);
 KAPI b8 editor_gizmo_unload(editor_gizmo* gizmo);
+
+KAPI void editor_gizmo_refresh(editor_gizmo* gizmo);
+KAPI editor_gizmo_orientation editor_gizmo_orientation_get(editor_gizmo* gizmo);
+KAPI void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orientation orientation);
+KAPI void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, transform* xform);
 
 KAPI void editor_gizmo_update(editor_gizmo* gizmo);
 

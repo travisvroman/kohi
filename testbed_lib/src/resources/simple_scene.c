@@ -684,7 +684,7 @@ b8 simple_scene_raycast(simple_scene *scene, const struct ray *r, struct raycast
         mesh *m = &scene->meshes[i];
         mat4 model = transform_world_get(&m->transform);
         f32 dist;
-        if (raycast_oriented_extents(m->extents, &model, r, &dist)) {
+        if (raycast_oriented_extents(m->extents, model, r, &dist)) {
             // Hit
             if (!out_result->hits) {
                 out_result->hits = darray_create(raycast_hit);
@@ -697,6 +697,26 @@ b8 simple_scene_raycast(simple_scene *scene, const struct ray *r, struct raycast
             hit.unique_id = m->unique_id;
 
             darray_push(out_result->hits, hit);
+        }
+    }
+
+    // Sort the results based on distance.
+    if (out_result->hits) {
+        b8 swapped;
+        u32 length = darray_length(out_result->hits);
+        for (u32 i = 0; i < length - 1; ++i) {
+            swapped = false;
+            for (u32 j = 0; j < length - 1; ++j) {
+                if (out_result->hits[j].distance > out_result->hits[j + 1].distance) {
+                    KSWAP(raycast_hit, out_result->hits[j], out_result->hits[j + 1]);
+                    swapped = true;
+                }
+            }
+
+            // If no 2 elements were swapped, then sort is complete.
+            if (!swapped) {
+                break;
+            }
         }
     }
     return out_result->hits != 0;

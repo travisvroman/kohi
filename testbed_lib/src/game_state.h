@@ -69,6 +69,7 @@ typedef struct testbed_game_state {
     struct debug_box3d* test_boxes;
 
     selected_object selection;
+    b8 using_gizmo;
     // TODO: end temp
 } testbed_game_state;
 
