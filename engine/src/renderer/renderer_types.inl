@@ -44,6 +44,11 @@ typedef enum render_target_attachment_store_operation {
     RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE = 0x1
 } render_target_attachment_store_operation;
 
+typedef enum renderer_projection_matrix_type {
+    RENDERER_PROJECTION_MATRIX_TYPE_PERSPECTIVE = 0x0,
+    RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC = 0x1
+} renderer_projection_matrix_type;
+
 typedef struct render_target_attachment_config {
     render_target_attachment_type type;
     render_target_attachment_source source;

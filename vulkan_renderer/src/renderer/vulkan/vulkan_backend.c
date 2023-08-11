@@ -769,13 +769,13 @@ b8 vulkan_renderer_backend_frame_begin(renderer_plugin *plugin,
     vulkan_command_buffer_begin(command_buffer, false, false, false);
 
     // Dynamic state
-    context->viewport_rect = (vec4){0.0f, (f32)context->framebuffer_height,
-                                    (f32)context->framebuffer_width,
-                                    -(f32)context->framebuffer_height};
+    context->viewport_rect = (vec4){0.0f + 20.0f, (f32)context->framebuffer_height - 20.0f,
+                                    (f32)context->framebuffer_width - 40.0f,
+                                    -(f32)context->framebuffer_height - 40.0f};
     vulkan_renderer_viewport_set(plugin, context->viewport_rect);
 
     context->scissor_rect =
-        (vec4){0, 0, context->framebuffer_width, context->framebuffer_height};
+        (vec4){0 + 20.0f, 0 + 20.0f, context->framebuffer_width - 40.0f, context->framebuffer_height - 40.0f};
     vulkan_renderer_scissor_set(plugin, context->scissor_rect);
 
     vulkan_renderer_winding_set(plugin, RENDERER_WINDING_COUNTER_CLOCKWISE);
