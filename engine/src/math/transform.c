@@ -140,6 +140,8 @@ mat4 transform_world_get(transform* t) {
             t->determinant = mat4_determinant(r);
             return r;
         }
+        // If no parent, do it against the local matrix instead.
+        t->determinant = mat4_determinant(l);
         return l;
     }
     return mat4_identity();

@@ -501,8 +501,8 @@ b8 application_initialize(struct application* game_inst) {
     // TODO: end temp load/prepare stuff
 
     state->world_camera = camera_system_get_default();
-    camera_position_set(state->world_camera, (vec3){2.07f, 3.09f, 2.46f});
-    camera_rotation_euler_set(state->world_camera, (vec3){-47.34f, 38.450f, 0.0f});
+    camera_position_set(state->world_camera, (vec3){16.07f, 4.5f, 25.0f});
+    camera_rotation_euler_set(state->world_camera, (vec3){-20.0f, 51.0f, 0.0f});
 
     // kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
 

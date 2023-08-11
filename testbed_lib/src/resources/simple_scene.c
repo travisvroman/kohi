@@ -521,6 +521,7 @@ b8 simple_scene_populate_render_packet(simple_scene *scene, struct camera *curre
             mesh *m = &scene->meshes[i];
             if (m->generation != INVALID_ID_U8) {
                 mat4 model = transform_world_get(&m->transform);
+                b8 winding_inverted = m->transform.determinant < 0;
 
                 for (u32 j = 0; j < m->geometry_count; ++j) {
                     geometry *g = m->geometries[j];
@@ -573,6 +574,7 @@ b8 simple_scene_populate_render_packet(simple_scene *scene, struct camera *curre
                             data.model = model;
                             data.geometry = g;
                             data.unique_id = m->unique_id;
+                            data.winding_inverted = winding_inverted;
                             darray_push(scene->world_data.world_geometries, data);
 
                             p_frame_data->drawn_mesh_count++;

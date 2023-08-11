@@ -13,6 +13,7 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->viewport_reset = vulkan_renderer_viewport_reset;
     out_plugin->scissor_set = vulkan_renderer_scissor_set;
     out_plugin->scissor_reset = vulkan_renderer_scissor_reset;
+    out_plugin->winding_set = vulkan_renderer_winding_set;
     out_plugin->renderpass_begin = vulkan_renderer_renderpass_begin;
     out_plugin->renderpass_end = vulkan_renderer_renderpass_end;
     out_plugin->resized = vulkan_renderer_backend_on_resized;

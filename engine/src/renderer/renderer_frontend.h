@@ -87,6 +87,13 @@ KAPI void renderer_scissor_set(vec4 rect);
 KAPI void renderer_scissor_reset(void);
 
 /**
+ * @brief Set the renderer to use the given winding direction.
+ *
+ * @param winding The winding direction.
+ */
+KAPI void renderer_winding_set(renderer_winding winding);
+
+/**
  * @brief Creates a new texture.
  *
  * @param pixels The raw image data to be uploaded to the GPU.

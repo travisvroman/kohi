@@ -30,6 +30,8 @@ void vulkan_renderer_viewport_set(renderer_plugin* backend, vec4 rect);
 void vulkan_renderer_viewport_reset(renderer_plugin* backend);
 void vulkan_renderer_scissor_set(renderer_plugin* backend, vec4 rect);
 void vulkan_renderer_scissor_reset(renderer_plugin* backend);
+
+void vulkan_renderer_winding_set(struct renderer_plugin* plugin, renderer_winding winding);
 b8 vulkan_renderer_renderpass_begin(renderer_plugin* backend, renderpass* pass, render_target* target);
 b8 vulkan_renderer_renderpass_end(renderer_plugin* backend, renderpass* pass);
 

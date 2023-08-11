@@ -110,6 +110,8 @@ b8 vulkan_device_create(vulkan_context* context) {
         extension_names[ext_idx] = "VK_KHR_portability_subset";
         ext_idx++;
     }
+
+    b8 dynamic_state_extension_included = false;
     // If dynamic topology isn't supported natively but *is* supported via extension,
     // include the extension. These may both be false in the event of macos.
     if (
@@ -117,11 +119,23 @@ b8 vulkan_device_create(vulkan_context* context) {
         ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT) != 0)) {
         extension_names[ext_idx] = VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME;
         ext_idx++;
+        dynamic_state_extension_included = true;
     }
     // If smooth lines are supported, load the extension.
     if ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT)) {
         extension_names[ext_idx] = VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME;
         ext_idx++;
+    }
+    if (!dynamic_state_extension_included) {
+        // If dynamic front-face isn't supported natively but *is* supported via extension,
+        // include the extension. These may both be false in the event of macos.
+        if (
+            ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT) == 0) &&
+            ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT) != 0)) {
+            extension_names[ext_idx] = VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME;
+            ext_idx++;
+            dynamic_state_extension_included = true;
+        }
     }
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     device_create_info.queueCreateInfoCount = index_count;
@@ -158,6 +172,7 @@ b8 vulkan_device_create(vulkan_context* context) {
 
     KINFO("Logical device created.");
 
+    // Examine dynamic topology support and load function pointer if need be.
     if (
         !(context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT) &&
         (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT)) {
@@ -168,6 +183,20 @@ b8 vulkan_device_create(vulkan_context* context) {
             KINFO("Vulkan device supports native dynamic topology.");
         } else {
             KINFO("Vulkan device does not support native or extension dynamic topology.");
+        }
+    }
+
+    // Examine dynamic front-face support and load function pointer if need be.
+    if (
+        !(context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT) &&
+        (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT)) {
+        KINFO("Vulkan device doesn't support native dynamic front-face, but does via extension. Using extension.");
+        context->vkCmdSetFrontFaceEXT = (PFN_vkCmdSetFrontFaceEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetFrontFaceEXT");
+    } else {
+        if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT) {
+            KINFO("Vulkan device supports native dynamic front-face.");
+        } else {
+            KINFO("Vulkan device does not support native or extension dynamic front-face.");
         }
     }
 
@@ -470,9 +499,11 @@ static b8 select_physical_device(vulkan_context* context) {
             // The device may or may not support this, so save that here.
             if (dynamic_state_next.extendedDynamicState) {
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT;
+                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT;
             }
-            if (context->device.api_major > 1 || context->device.api_minor > 2) {
+            if (context->device.api_major > 1 && context->device.api_minor > 2) {
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT;
+                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT;
             }
             if (smooth_line_next.smoothLines) {
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT;

@@ -164,6 +164,11 @@ void renderer_scissor_reset(void) {
     state_ptr->plugin.scissor_reset(&state_ptr->plugin);
 }
 
+void renderer_winding_set(renderer_winding winding) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.winding_set(&state_ptr->plugin, winding);
+}
+
 void renderer_texture_create(const u8* pixels, struct texture* texture) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     state_ptr->plugin.texture_create(&state_ptr->plugin, pixels, texture);
