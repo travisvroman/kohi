@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 
 /** @brief The texture system configuration */
 typedef struct texture_system_config {

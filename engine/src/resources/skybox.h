@@ -2,7 +2,7 @@
 
 #include "math/math_types.h"
 #include "resources/resource_types.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 #include "systems/geometry_system.h"
 
 typedef struct skybox_config {

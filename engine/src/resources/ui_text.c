@@ -7,7 +7,7 @@
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "renderer/renderer_frontend.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 #include "systems/font_system.h"
 #include "systems/shader_system.h"
 

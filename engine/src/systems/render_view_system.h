@@ -13,7 +13,7 @@
 
 #include "defines.h"
 #include "math/math_types.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 
 struct frame_data;
 

@@ -9,7 +9,7 @@
 #include "core/systems_manager.h"
 #include "math/kmath.h"
 #include "platform/platform.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
 #include "systems/camera_system.h"
 #include "systems/material_system.h"

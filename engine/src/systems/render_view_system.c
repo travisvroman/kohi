@@ -5,7 +5,7 @@
 #include "core/kstring.h"
 #include "core/logger.h"
 #include "renderer/renderer_frontend.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 
 typedef struct render_view_system_state {
     hashtable lookup;

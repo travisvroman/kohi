@@ -5,7 +5,7 @@
 #include "core/kstring.h"
 #include "core/logger.h"
 #include "math/math_types.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 #include "systems/geometry_system.h"
 #include "systems/job_system.h"
 #include "systems/resource_system.h"

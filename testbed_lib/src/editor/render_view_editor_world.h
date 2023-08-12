@@ -2,7 +2,7 @@
 #pragma once
 
 #include "defines.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 
 struct linear_allocator;
 struct frame_data;

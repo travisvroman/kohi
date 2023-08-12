@@ -8,7 +8,7 @@
 #include "math/transform.h"
 #include "memory/linear_allocator.h"
 #include "renderer/renderer_frontend.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 #include "resources/terrain.h"
 #include "systems/camera_system.h"
 #include "systems/light_system.h"

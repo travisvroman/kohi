@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 
 /** @brief The geometry system configuration. */
 typedef struct geometry_system_config {

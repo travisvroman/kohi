@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
 #include "vulkan_renderer_plugin_main.h"
 

@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "vulkan_types.inl"
+#include "vulkan_types.h"
 
 /**
  * @brief Creates a new Vulkan image.

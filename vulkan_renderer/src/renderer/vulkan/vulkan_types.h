@@ -1,5 +1,5 @@
 /**
- * @file vulkan_types.inl
+ * @file vulkan_types.h
  * @author Travis Vroman (travis@kohiengine.com)
  * @brief This file contains a collection fo Vulkan-specific types used
  * for the Vulkan backend.
@@ -18,7 +18,7 @@
 #include "containers/hashtable.h"
 #include "core/asserts.h"
 #include "defines.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 
 /**
  * @brief Checks the given expression's return value against VK_SUCCESS.
