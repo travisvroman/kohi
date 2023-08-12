@@ -11,7 +11,7 @@
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "renderer/camera.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 #include "resources/debug/debug_box3d.h"
 #include "resources/debug/debug_line3d.h"
 #include "resources/mesh.h"

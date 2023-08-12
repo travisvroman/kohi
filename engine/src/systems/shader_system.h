@@ -15,7 +15,7 @@
 
 #include "containers/hashtable.h"
 #include "defines.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 
 /** @brief Configuration for the shader system. */
 typedef struct shader_system_config {

@@ -12,7 +12,7 @@
 #pragma once
 
 #include "math/math_types.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 
 /**
  * @brief The configuration for a system font.

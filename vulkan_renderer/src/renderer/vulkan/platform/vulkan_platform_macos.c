@@ -10,7 +10,7 @@
 #include <core/kmemory.h>
 #include <core/logger.h>
 
-#include "renderer/vulkan/vulkan_types.inl"
+#include "renderer/vulkan/vulkan_types.h"
 #include "renderer/vulkan/platform/vulkan_platform.h"
 
 typedef struct macos_handle_info {
