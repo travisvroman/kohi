@@ -5,7 +5,7 @@
 
 typedef struct viewport {
     /** @brief the dimensions of this viewport, x/y position, z/w are width/height.*/
-    vec4 rect;
+    rect_2d rect;
     f32 fov;
     f32 near_clip;
     f32 far_clip;

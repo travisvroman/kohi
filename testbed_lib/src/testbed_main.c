@@ -21,6 +21,7 @@
 #include "defines.h"
 #include "game_state.h"
 #include "math/math_types.h"
+#include "renderer/viewport.h"
 #include "testbed_types.h"
 
 // Views
@@ -180,15 +181,15 @@ static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_contex
         mat4 view = camera_view_get(state->world_camera);
         vec3 origin = camera_position_get(state->world_camera);
 
-        // TODO: Get this from a viewport.
-        mat4 projection_matrix = mat4_perspective(deg_to_rad(45.0f), (f32)state->width / state->height, 0.1f, 4000.0f);
+        viewport* v = renderer_active_viewport_get();
+        // mat4 projection_matrix = mat4_perspective(deg_to_rad(45.0f), (f32)state->width / state->height, 0.1f, 4000.0f);
 
         ray r = ray_from_screen(
             vec2_create((f32)x, (f32)y),
             vec2_create((f32)state->width, (f32)state->height),
             origin,
             view,
-            projection_matrix);
+            v->projection);
 
         if (code == EVENT_CODE_MOUSE_DRAG_BEGIN) {
             state->using_gizmo = true;
@@ -229,14 +230,14 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
                 mat4 view = camera_view_get(state->world_camera);
                 vec3 origin = camera_position_get(state->world_camera);
 
-                // TODO: Get this from the viewport.
-                mat4 projection_matrix = mat4_perspective(deg_to_rad(45.0f), (f32)state->width / state->height, 0.1f, 4000.0f);
+                viewport* v = renderer_active_viewport_get();
+                // mat4 projection_matrix = mat4_perspective(deg_to_rad(45.0f), (f32)state->width / state->height, 0.1f, 4000.0f);
                 ray r = ray_from_screen(
                     vec2_create((f32)x, (f32)y),
                     vec2_create((f32)state->width, (f32)state->height),
                     origin,
                     view,
-                    projection_matrix);
+                    v->projection);
 
                 raycast_result r_result;
                 if (simple_scene_raycast(&state->main_scene, &r, &r_result)) {
@@ -322,15 +323,15 @@ static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_
         mat4 view = camera_view_get(state->world_camera);
         vec3 origin = camera_position_get(state->world_camera);
 
-        // TODO: Get this from a viewport.
-        mat4 projection_matrix = mat4_perspective(deg_to_rad(45.0f), (f32)state->width / state->height, 0.1f, 4000.0f);
+        viewport* v = renderer_active_viewport_get();
+        // mat4 projection_matrix = mat4_perspective(deg_to_rad(45.0f), (f32)state->width / state->height, 0.1f, 4000.0f);
 
         ray r = ray_from_screen(
             vec2_create((f32)x, (f32)y),
             vec2_create((f32)state->width, (f32)state->height),
             origin,
             view,
-            projection_matrix);
+            v->projection);
 
         editor_gizmo_handle_interaction(&state->gizmo, state->world_camera, &r, EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER);
     }
@@ -409,6 +410,21 @@ b8 application_initialize(struct application* game_inst) {
 
     state->test_lines = darray_create(debug_line3d);
     state->test_boxes = darray_create(debug_box3d);
+
+    // Viewport setup.
+    // World Viewport
+    rect_2d world_vp_rect = vec4_create(20.0f, 20.0f, 1280.0f - 40.0f, 720.0f - 40.0f);
+    if (!viewport_create(world_vp_rect, deg_to_rad(45.0f), 0.1f, 4000.0f, RENDERER_PROJECTION_MATRIX_TYPE_PERSPECTIVE, &state->world_viewport)) {
+        KERROR("Failed to create world viewport. Cannot start application.");
+        return false;
+    }
+
+    // World Viewport
+    rect_2d ui_vp_rect = vec4_create(0.0f, 0.0f, 1280.0f, 720.0f);
+    if (!viewport_create(ui_vp_rect, deg_to_rad(45.0f), 0.1f, 4000.0f, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC, &state->ui_viewport)) {
+        KERROR("Failed to create UI viewport. Cannot start application.");
+        return false;
+    }
 
     state->forward_move_speed = 5.0f;
     state->backward_move_speed = 2.5f;
@@ -613,18 +629,13 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
     return true;
 }
 
-b8 application_render(struct application* game_inst, struct render_packet* packet, struct frame_data* p_frame_data) {
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+b8 application_prepare_render_packet(struct application* app_inst, struct render_packet* packet, struct frame_data* p_frame_data) {
+    testbed_game_state* state = (testbed_game_state*)app_inst->state;
     if (!state->running) {
         return true;
     }
-    // testbed_application_frame_data* app_frame_data = (testbed_application_frame_data*)p_frame_data->application_frame_data;
 
-    clock_start(&state->render_clock);
-
-    // TODO: temp
-
-    packet->view_count = 5;
+    packet->view_count = 4;  // 5;
     packet->views = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(render_view_packet) * packet->view_count);
 
     // TODO: Cache these instead of lookups every frame.
@@ -632,7 +643,7 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     packet->views[TESTBED_PACKET_VIEW_WORLD].view = render_view_system_get("world");
     packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD].view = render_view_system_get("editor_world");
     packet->views[TESTBED_PACKET_VIEW_UI].view = render_view_system_get("ui");
-    packet->views[TESTBED_PACKET_VIEW_PICK].view = render_view_system_get("pick");
+    // packet->views[TESTBED_PACKET_VIEW_PICK].view = render_view_system_get("pick");
 
     // Tell our scene to generate relevant packet data. NOTE: Generates skybox and world packets.
     if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
@@ -718,7 +729,7 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     }
 
     // Pick
-    {
+    /*{
         render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_PICK];
         const render_view* view = view_packet->view;
 
@@ -734,8 +745,43 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
             KERROR("Failed to build packet for view 'pick'.");
             return false;
         }
-    }
+    }*/
     // TODO: end temp
+    return true;
+}
+
+b8 application_render(struct application* game_inst, struct render_packet* packet, struct frame_data* p_frame_data) {
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    if (!state->running) {
+        return true;
+    }
+    // testbed_application_frame_data* app_frame_data = (testbed_application_frame_data*)p_frame_data->application_frame_data;
+
+    clock_start(&state->render_clock);
+
+    // Activate the world viewport first.
+    renderer_active_viewport_set(&state->world_viewport);
+
+    // Render the views with it.
+
+    // Skybox
+    render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_SKYBOX];
+    view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
+
+    // World
+    view_packet = &packet->views[TESTBED_PACKET_VIEW_WORLD];
+    view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
+
+    // Editor world
+    view_packet = &packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD];
+    view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
+
+    // Activate the UI viewport.
+    renderer_active_viewport_set(&state->ui_viewport);
+
+    // Render views with it.
+    view_packet = &packet->views[TESTBED_PACKET_VIEW_UI];
+    view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
     clock_update(&state->render_clock);
 
@@ -861,7 +907,6 @@ b8 configure_render_views(application_config* config) {
         // Renderpass config.
         renderpass_config skybox_pass = {0};
         skybox_pass.name = "Renderpass.Builtin.Skybox";
-        skybox_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};  // Default render area resolution.
         skybox_pass.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
         skybox_pass.clear_flags = RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG;
         skybox_pass.depth = 1.0f;
@@ -905,7 +950,6 @@ b8 configure_render_views(application_config* config) {
         // Renderpass config.
         renderpass_config world_pass = {0};
         world_pass.name = "Renderpass.Builtin.World";
-        world_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};  // Default render area resolution.
         world_pass.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
         world_pass.clear_flags = RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG | RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG;
         world_pass.depth = 1.0f;
@@ -958,7 +1002,6 @@ b8 configure_render_views(application_config* config) {
         // Renderpass config.
         renderpass_config editor_world_pass = {0};
         editor_world_pass.name = "Renderpass.Testbed.EditorWorld";
-        editor_world_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};  // Default render area resolution.
         editor_world_pass.clear_colour = (vec4){0.0f, 0.0f, 0.0f, 1.0f};
         editor_world_pass.clear_flags = RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG | RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG;
         editor_world_pass.depth = 1.0f;
@@ -1010,7 +1053,6 @@ b8 configure_render_views(application_config* config) {
         // Renderpass config
         renderpass_config ui_pass;
         ui_pass.name = "Renderpass.Builtin.UI";
-        ui_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};
         ui_pass.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
         ui_pass.clear_flags = RENDERPASS_CLEAR_NONE_FLAG;
         ui_pass.depth = 1.0f;
@@ -1045,7 +1087,8 @@ b8 configure_render_views(application_config* config) {
     }
 
     // Pick pass.
-    {
+    // TODO: Split this into 2 views and re-enable.
+    /*{
         render_view pick_view = {};
         pick_view.name = "pick";
         pick_view.renderpass_count = 2;
@@ -1054,7 +1097,6 @@ b8 configure_render_views(application_config* config) {
         // World pick pass
         renderpass_config world_pick_pass = {0};
         world_pick_pass.name = "Renderpass.Builtin.WorldPick";
-        world_pick_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};
         world_pick_pass.clear_colour = (vec4){1.0f, 1.0f, 1.0f, 1.0f};  // HACK: clearing to white for better visibility// TODO: Clear to black, as 0 is invalid id.
         world_pick_pass.clear_flags = RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG | RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG;
         world_pick_pass.depth = 1.0f;
@@ -1087,7 +1129,6 @@ b8 configure_render_views(application_config* config) {
         // UI pick pass
         renderpass_config ui_pick_pass = {0};
         ui_pick_pass.name = "Renderpass.Builtin.UIPick";
-        ui_pick_pass.render_area = (vec4){0, 0, (f32)config->start_width, (f32)config->start_height};
         ui_pick_pass.clear_colour = (vec4){1.0f, 1.0f, 1.0f, 1.0f};
         ui_pick_pass.clear_flags = RENDERPASS_CLEAR_NONE_FLAG;
         ui_pick_pass.depth = 1.0f;
@@ -1120,7 +1161,7 @@ b8 configure_render_views(application_config* config) {
         pick_view.attachment_target_regenerate = render_view_pick_attachment_target_regenerate;
 
         darray_push(config->views, pick_view);
-    }
+    }*/
 
     return true;
 }

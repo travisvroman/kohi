@@ -1,23 +1,20 @@
 #include "engine.h"
+
 #include "application_types.h"
-
-#include "version.h"
-
-#include "platform/platform.h"
-#include "core/kmemory.h"
-#include "core/logger.h"
-#include "core/event.h"
-#include "core/input.h"
-#include "core/clock.h"
-#include "core/kstring.h"
-#include "core/uuid.h"
-#include "core/metrics.h"
-#include "core/frame_data.h"
-
 #include "containers/darray.h"
-
-#include "renderer/renderer_frontend.h"
+#include "core/clock.h"
+#include "core/event.h"
+#include "core/frame_data.h"
+#include "core/input.h"
+#include "core/kmemory.h"
+#include "core/kstring.h"
+#include "core/logger.h"
+#include "core/metrics.h"
+#include "core/uuid.h"
 #include "memory/linear_allocator.h"
+#include "platform/platform.h"
+#include "renderer/renderer_frontend.h"
+#include "version.h"
 
 // systems
 #include "core/systems_manager.h"
@@ -129,7 +126,7 @@ b8 engine_run(application* game_inst) {
     engine_state->last_time = engine_state->clock.elapsed;
     // f64 running_time = 0;
     // TODO: frame rate lock
-    //u8 frame_count = 0;
+    // u8 frame_count = 0;
     f64 target_frame_seconds = 1.0f / 60;
     f64 frame_elapsed_time = 0;
 
@@ -165,17 +162,33 @@ b8 engine_run(application* game_inst) {
                 break;
             }
 
-            // TODO: refactor packet creation
+            // This frame's render packet.
             render_packet packet = {};
 
-            // Call the game's render routine.
-            if (!engine_state->game_inst->render(engine_state->game_inst, &packet, &engine_state->p_frame_data)) {
-                KFATAL("Game render failed, shutting down.");
-                engine_state->is_running = false;
-                break;
+            // Have the application generate the render packet.
+            b8 prepare_result = engine_state->game_inst->prepare_render_packet(engine_state->game_inst, &packet, &engine_state->p_frame_data);
+            if (!prepare_result) {
+                KERROR("Application failed to prepare the render packet. Skipping this frame.");
+                continue;
             }
 
-            renderer_draw_frame(&packet, &engine_state->p_frame_data);
+            // Start the frame
+            b8 begin_result = renderer_frame_begin(&engine_state->p_frame_data);
+
+            if (begin_result) {
+                // Call the game's render routine.
+                if (!engine_state->game_inst->render(engine_state->game_inst, &packet, &engine_state->p_frame_data)) {
+                    KFATAL("Game render failed, shutting down.");
+                    engine_state->is_running = false;
+                    break;
+                }
+
+                if (!renderer_frame_end(&engine_state->p_frame_data)) {
+                    KERROR("The call to renderer_frame_end failed. This is likely unrecoverable. Shutting down.");
+                    engine_state->is_running = false;
+                    break;
+                }
+            }
 
             // Cleanup the packet.
             for (u32 i = 0; i < packet.view_count; ++i) {

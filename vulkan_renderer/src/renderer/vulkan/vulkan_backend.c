@@ -14,6 +14,7 @@
 #include "platform/platform.h"
 #include "platform/vulkan_platform.h"
 #include "renderer/renderer_frontend.h"
+#include "renderer/viewport.h"
 #include "resources/resource_types.h"
 #include "systems/material_system.h"
 #include "systems/resource_system.h"
@@ -769,13 +770,12 @@ b8 vulkan_renderer_backend_frame_begin(renderer_plugin *plugin,
     vulkan_command_buffer_begin(command_buffer, false, false, false);
 
     // Dynamic state
-    context->viewport_rect = (vec4){0.0f + 20.0f, (f32)context->framebuffer_height - 20.0f,
-                                    (f32)context->framebuffer_width - 40.0f,
-                                    -(f32)context->framebuffer_height - 40.0f};
+    viewport *v = renderer_active_viewport_get();
+    // NOTE: y might have to be height - y
+    context->viewport_rect = (vec4){v->rect.x, v->rect.height - v->rect.y, v->rect.width, -v->rect.height};
     vulkan_renderer_viewport_set(plugin, context->viewport_rect);
 
-    context->scissor_rect =
-        (vec4){0 + 20.0f, 0 + 20.0f, context->framebuffer_width - 40.0f, context->framebuffer_height - 40.0f};
+    context->scissor_rect = (vec4){v->rect.x, v->rect.y, v->rect.width, v->rect.height};
     vulkan_renderer_scissor_set(plugin, context->scissor_rect);
 
     vulkan_renderer_winding_set(plugin, RENDERER_WINDING_COUNTER_CLOCKWISE);
@@ -940,13 +940,15 @@ b8 vulkan_renderer_renderpass_begin(renderer_plugin *plugin, renderpass *pass,
     // Begin the render pass.
     vulkan_renderpass *internal_data = pass->internal_data;
 
+    viewport *v = renderer_active_viewport_get();
+
     VkRenderPassBeginInfo begin_info = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
     begin_info.renderPass = internal_data->handle;
     begin_info.framebuffer = target->internal_framebuffer;
-    begin_info.renderArea.offset.x = pass->render_area.x;
-    begin_info.renderArea.offset.y = pass->render_area.y;
-    begin_info.renderArea.extent.width = pass->render_area.z;
-    begin_info.renderArea.extent.height = pass->render_area.w;
+    begin_info.renderArea.offset.x = v->rect.x;
+    begin_info.renderArea.offset.y = v->rect.y;
+    begin_info.renderArea.extent.width = v->rect.width;
+    begin_info.renderArea.extent.height = v->rect.height;
 
     begin_info.clearValueCount = 0;
     begin_info.pClearValues = 0;

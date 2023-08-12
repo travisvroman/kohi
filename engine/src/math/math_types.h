@@ -113,7 +113,9 @@ typedef union vec4_u {
                     /** @brief The third element. */
                     b,
                     /** @brief The third element. */
-                    p;
+                    p,
+                    /** @brief The third element. */
+                    width;
             };
             union {
                 /** @brief The fourth element. */
@@ -121,7 +123,9 @@ typedef union vec4_u {
                     /** @brief The fourth element. */
                     a,
                     /** @brief The fourth element. */
-                    q;
+                    q,
+                    /** @brief The fourth element. */
+                    height;
             };
         };
     };
@@ -129,6 +133,9 @@ typedef union vec4_u {
 
 /** @brief A quaternion, used to represent rotational orientation. */
 typedef vec4 quat;
+
+/** @brief A 2d rectangle. */
+typedef vec4 rect_2d;
 
 /** @brief A 3x3 matrix */
 typedef union mat3_u {

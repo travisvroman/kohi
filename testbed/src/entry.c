@@ -1,9 +1,8 @@
-#include <entry.h>
-
+#include <containers/darray.h>
 #include <core/event.h>
 #include <core/kmemory.h>
 #include <core/kstring.h>
-#include <containers/darray.h>
+#include <entry.h>
 #include <platform/platform.h>
 
 typedef b8 (*PFN_plugin_create)(renderer_plugin* out_plugin);
@@ -22,6 +21,9 @@ b8 load_game_lib(application* app) {
         return false;
     }
     if (!platform_dynamic_library_load_function("application_update", &app->game_library)) {
+        return false;
+    }
+    if (!platform_dynamic_library_load_function("application_prepare_render_packet", &app->game_library)) {
         return false;
     }
     if (!platform_dynamic_library_load_function("application_render", &app->game_library)) {
@@ -46,11 +48,12 @@ b8 load_game_lib(application* app) {
     app->boot = app->game_library.functions[0].pfn;
     app->initialize = app->game_library.functions[1].pfn;
     app->update = app->game_library.functions[2].pfn;
-    app->render = app->game_library.functions[3].pfn;
-    app->on_resize = app->game_library.functions[4].pfn;
-    app->shutdown = app->game_library.functions[5].pfn;
-    app->lib_on_load = app->game_library.functions[6].pfn;
-    app->lib_on_unload = app->game_library.functions[7].pfn;
+    app->prepare_render_packet = app->game_library.functions[3].pfn;
+    app->render = app->game_library.functions[4].pfn;
+    app->on_resize = app->game_library.functions[5].pfn;
+    app->shutdown = app->game_library.functions[6].pfn;
+    app->lib_on_load = app->game_library.functions[7].pfn;
+    app->lib_on_unload = app->game_library.functions[8].pfn;
 
     // Invoke the onload.
     app->lib_on_load(app);

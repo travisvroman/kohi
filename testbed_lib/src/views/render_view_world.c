@@ -2,6 +2,7 @@
 
 #include "containers/darray.h"
 #include "core/event.h"
+#include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/logger.h"
 #include "math/kmath.h"
@@ -9,6 +10,7 @@
 #include "memory/linear_allocator.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
+#include "renderer/viewport.h"
 #include "resources/terrain.h"
 #include "systems/camera_system.h"
 #include "systems/light_system.h"
@@ -25,10 +27,6 @@ typedef struct debug_colour_shader_locations {
 
 typedef struct render_view_world_internal_data {
     shader* s;
-    f32 fov;
-    f32 near_clip;
-    f32 far_clip;
-    mat4 projection_matrix;
     camera* world_camera;
     vec4 ambient_colour;
     u32 render_mode;
@@ -167,13 +165,6 @@ b8 render_view_world_on_registered(struct render_view* self) {
 
         // Get either the custom shader override or the defined default.
         data->s = shader_system_get(self->custom_shader_name ? self->custom_shader_name : shader_name);
-        // TODO: Set from configuration.
-        data->near_clip = 0.1f;
-        data->far_clip = 4000.0f;
-        data->fov = deg_to_rad(45.0f);
-
-        // Default
-        data->projection_matrix = mat4_perspective(data->fov, 1280 / 720.0f, data->near_clip, data->far_clip);
 
         data->world_camera = camera_system_get_default();
 
@@ -212,23 +203,14 @@ void render_view_world_on_destroy(struct render_view* self) {
 void render_view_world_on_resize(struct render_view* self, u32 width, u32 height) {
     // Check if different. If so, regenerate projection matrix.
     if (width != self->width || height != self->height) {
-        render_view_world_internal_data* data = self->internal_data;
+        // render_view_world_internal_data* data = self->internal_data;
 
         self->width = width;
         self->height = height;
-        f32 aspect = (f32)self->width / self->height;
-        data->projection_matrix = mat4_perspective(data->fov, aspect, data->near_clip, data->far_clip);
-
-        for (u32 i = 0; i < self->renderpass_count; ++i) {
-            self->passes[i].render_area.x = 0;
-            self->passes[i].render_area.y = 0;
-            self->passes[i].render_area.z = width;
-            self->passes[i].render_area.w = height;
-        }
     }
 }
 
-b8 render_view_world_on_packet_build(const struct render_view* self, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet) {
+b8 render_view_world_on_packet_build(const struct render_view* self, struct frame_data* frame_data, viewport* v, void* data, struct render_view_packet* out_packet) {
     if (!self || !data || !out_packet) {
         KWARN("render_view_world_on_build_packet requires valid pointer to view, packet, and data.");
         return false;
@@ -244,7 +226,14 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct line
     out_packet->view = self;
 
     // Set matrices, etc.
-    out_packet->projection_matrix = internal_data->projection_matrix;
+    // LEFTOFF: At this point, an active viewport won't have been set. Can't set one now because we are not in
+    // a recording command buffer. However, viewport information _should_ be included in the packet at this time.
+    // There are 2 ways of handling this:
+    //  - Take a pointer to the viewport, and bind said viewport at render time (in on_render below), but save the matrix now. This is probably less error prone, but also technically less flexible.
+    //  - Take a pointer to the viewport in the build function, but only to retrieve it's projection matrix. Then leave it to the app to bind it at the right time.
+    // Both have benefits and drawbacks...
+    viewport* v = renderer_active_viewport_get();  // TODO: Either way, this needs to be eliminated...
+    out_packet->projection_matrix = v->projection;
     out_packet->view_matrix = camera_view_get(internal_data->world_camera);
     out_packet->view_position = camera_position_get(internal_data->world_camera);
     out_packet->ambient_colour = internal_data->ambient_colour;
@@ -323,13 +312,13 @@ void render_view_world_on_packet_destroy(const struct render_view* self, struct 
     kzero_memory(packet, sizeof(render_view_packet));
 }
 
-b8 render_view_world_on_render(const struct render_view* self, const struct render_view_packet* packet, u64 frame_number, u64 render_target_index, const struct frame_data* p_frame_data) {
+b8 render_view_world_on_render(const struct render_view* self, const struct render_view_packet* packet, const struct frame_data* p_frame_data) {
     render_view_world_internal_data* data = self->internal_data;
     u32 shader_id = data->s->id;
 
     for (u32 p = 0; p < self->renderpass_count; ++p) {
         renderpass* pass = &self->passes[p];
-        if (!renderer_renderpass_begin(pass, &pass->targets[render_target_index])) {
+        if (!renderer_renderpass_begin(pass, &pass->targets[p_frame_data->render_target_index])) {
             KERROR("render_view_world_on_render pass index %u failed to start.", p);
             return false;
         }
@@ -348,7 +337,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             // Apply globals
             // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
             // and mode (from the renderer)
-            if (!material_system_apply_global(s->id, frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
+            if (!material_system_apply_global(s->id, p_frame_data->renderer_frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
                 KERROR("Failed to use apply globals for terrain shader. Render frame failed.");
                 return false;
             }
@@ -365,13 +354,13 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
                 // same material from being updated multiple times. It still needs to be bound
                 // either way, so this check result gets passed to the backend which either
                 // updates the internal shader bindings and binds them, or only binds them.
-                b8 needs_update = m->render_frame_number != frame_number;
+                b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number;
                 if (!material_system_apply_instance(m, needs_update)) {
                     KWARN("Failed to apply terrain material '%s'. Skipping draw.", m->name);
                     continue;
                 } else {
                     // Sync the frame number.
-                    m->render_frame_number = frame_number;
+                    m->render_frame_number = p_frame_data->renderer_frame_number;
                 }
 
                 // Apply the locals
@@ -393,7 +382,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             // Apply globals
             // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
             // and mode (from the renderer)
-            if (!material_system_apply_global(shader_id, frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
+            if (!material_system_apply_global(shader_id, p_frame_data->renderer_frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
                 KERROR("Failed to use apply globals for material shader. Render frame failed.");
                 return false;
             }
@@ -412,13 +401,13 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
                 // same material from being updated multiple times. It still needs to be bound
                 // either way, so this check result gets passed to the backend which either
                 // updates the internal shader bindings and binds them, or only binds them.
-                b8 needs_update = m->render_frame_number != frame_number;
+                b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number;
                 if (!material_system_apply_instance(m, needs_update)) {
                     KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
                     continue;
                 } else {
                     // Sync the frame number.
-                    m->render_frame_number = frame_number;
+                    m->render_frame_number = p_frame_data->renderer_frame_number;
                 }
 
                 // Apply the locals
@@ -468,7 +457,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             }
 
             // HACK: This should be handled somehow, every frame, by the shader system.
-            s->render_frame_number = frame_number;
+            s->render_frame_number = p_frame_data->renderer_frame_number;
         }
 
         if (!renderer_renderpass_end(pass)) {
