@@ -16,6 +16,7 @@
 #include "renderer/renderer_types.h"
 
 struct frame_data;
+struct viewport;
 
 /** @brief The configuration for the render view system. */
 typedef struct render_view_system_config {
@@ -75,7 +76,7 @@ KAPI render_view* render_view_system_get(const char* name);
  * @param out_packet A pointer to hold the generated packet.
  * @return True on success; otherwise false.
  */
-KAPI b8 render_view_system_packet_build(const render_view* view, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet);
+KAPI b8 render_view_system_packet_build(const render_view* view, struct frame_data* p_frame_data, struct viewport* v, void* data, struct render_view_packet* out_packet);
 
 /**
  * @brief Uses the given view and packet to render the contents therein.

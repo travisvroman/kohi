@@ -1,6 +1,7 @@
 #include "render_view_system.h"
 
 #include "containers/hashtable.h"
+#include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
@@ -151,9 +152,9 @@ render_view* render_view_system_get(const char* name) {
     return 0;
 }
 
-b8 render_view_system_packet_build(const render_view* view, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet) {
+b8 render_view_system_packet_build(const render_view* view, struct frame_data* p_frame_data, struct viewport* v, void* data, struct render_view_packet* out_packet) {
     if (view && out_packet) {
-        return view->on_packet_build(view, frame_allocator, data, out_packet);
+        return view->on_packet_build(view, p_frame_data, v, data, out_packet);
     }
 
     KERROR("render_view_system_packet_build requires valid pointers to a view and a packet.");

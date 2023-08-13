@@ -72,6 +72,8 @@ typedef struct testbed_game_state {
     viewport world_viewport;
     viewport ui_viewport;
 
+    viewport world_viewport2;
+
     selected_object selection;
     b8 using_gizmo;
     // TODO: end temp

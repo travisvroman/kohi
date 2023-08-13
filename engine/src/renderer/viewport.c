@@ -3,15 +3,15 @@
 #include "core/kmemory.h"
 #include "core/logger.h"
 #include "math/kmath.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 
 static void regenerate_projection_matrix(viewport* v) {
     if (v) {
         if (v->projection_matrix_type == RENDERER_PROJECTION_MATRIX_TYPE_PERSPECTIVE) {
-            v->projection = mat4_perspective(v->fov, v->rect.z / v->rect.w, v->near_clip, v->far_clip);
+            v->projection = mat4_perspective(v->fov, v->rect.width / v->rect.height, v->near_clip, v->far_clip);
         } else if (v->projection_matrix_type == RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC) {
             // NOTE: may need to reverse y/w
-            v->projection = mat4_orthographic(v->rect.x, v->rect.z, v->rect.y, v->rect.w, v->near_clip, v->far_clip);
+            v->projection = mat4_orthographic(v->rect.x, v->rect.width, v->rect.height, v->rect.y, v->near_clip, v->far_clip);
         } else {
             KERROR("Regenerating default perspect projection matrix, as an invalid type was specified.");
             v->projection = mat4_perspective(v->fov, v->rect.z / v->rect.w, v->near_clip, v->far_clip);

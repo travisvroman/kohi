@@ -15,7 +15,6 @@
 #include <memory/linear_allocator.h>
 #include <renderer/camera.h>
 #include <renderer/renderer_frontend.h>
-
 #include <renderer/renderer_types.h>
 
 #include "defines.h"
@@ -27,7 +26,6 @@
 // Views
 #include "resources/loaders/simple_scene_loader.h"
 #include "views/render_view_pick.h"
-#include "views/render_view_skybox.h"
 #include "views/render_view_ui.h"
 #include "views/render_view_world.h"
 
@@ -181,12 +179,10 @@ static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_contex
         mat4 view = camera_view_get(state->world_camera);
         vec3 origin = camera_position_get(state->world_camera);
 
-        viewport* v = renderer_active_viewport_get();
-        // mat4 projection_matrix = mat4_perspective(deg_to_rad(45.0f), (f32)state->width / state->height, 0.1f, 4000.0f);
-
+        viewport* v = &state->world_viewport;
         ray r = ray_from_screen(
             vec2_create((f32)x, (f32)y),
-            vec2_create((f32)state->width, (f32)state->height),
+            (v->rect),
             origin,
             view,
             v->projection);
@@ -230,11 +226,10 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
                 mat4 view = camera_view_get(state->world_camera);
                 vec3 origin = camera_position_get(state->world_camera);
 
-                viewport* v = renderer_active_viewport_get();
-                // mat4 projection_matrix = mat4_perspective(deg_to_rad(45.0f), (f32)state->width / state->height, 0.1f, 4000.0f);
+                viewport* v = &state->world_viewport;
                 ray r = ray_from_screen(
                     vec2_create((f32)x, (f32)y),
-                    vec2_create((f32)state->width, (f32)state->height),
+                    (v->rect),
                     origin,
                     view,
                     v->projection);
@@ -323,12 +318,10 @@ static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_
         mat4 view = camera_view_get(state->world_camera);
         vec3 origin = camera_position_get(state->world_camera);
 
-        viewport* v = renderer_active_viewport_get();
-        // mat4 projection_matrix = mat4_perspective(deg_to_rad(45.0f), (f32)state->width / state->height, 0.1f, 4000.0f);
-
+        viewport* v = &state->world_viewport;
         ray r = ray_from_screen(
             vec2_create((f32)x, (f32)y),
-            vec2_create((f32)state->width, (f32)state->height),
+            (v->rect),
             origin,
             view,
             v->projection);
@@ -419,10 +412,17 @@ b8 application_initialize(struct application* game_inst) {
         return false;
     }
 
-    // World Viewport
+    // UI Viewport
     rect_2d ui_vp_rect = vec4_create(0.0f, 0.0f, 1280.0f, 720.0f);
-    if (!viewport_create(ui_vp_rect, deg_to_rad(45.0f), 0.1f, 4000.0f, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC, &state->ui_viewport)) {
+    if (!viewport_create(ui_vp_rect, 0.0f, -100.0f, 100.0f, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC, &state->ui_viewport)) {
         KERROR("Failed to create UI viewport. Cannot start application.");
+        return false;
+    }
+
+    // TODO: test
+    rect_2d world_vp_rect2 = vec4_create(20.0f, 20.0f, 128.8f, 72.0f);
+    if (!viewport_create(world_vp_rect2, deg_to_rad(45.0f), 0.1f, 4000.0f, RENDERER_PROJECTION_MATRIX_TYPE_PERSPECTIVE, &state->world_viewport2)) {
+        KERROR("Failed to create world viewport. Cannot start application.");
         return false;
     }
 
@@ -601,7 +601,8 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
         "\
 FPS: %5.1f(%4.1fms)        Pos=[%7.3f %7.3f %7.3f] Rot=[%7.3f, %7.3f, %7.3f]\n\
 Upd: %8.3fus, Rend: %8.3fus Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
-VSync: %s Drawn: %-5u Hovered: %s%u",
+VSync: %s Drawn: %-5u Hovered: %s%u\n\
+Text",
         fps,
         frame_time,
         pos.x, pos.y, pos.z,
@@ -635,11 +636,11 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
         return true;
     }
 
-    packet->view_count = 4;  // 5;
+    packet->view_count = 3;
     packet->views = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(render_view_packet) * packet->view_count);
 
     // TODO: Cache these instead of lookups every frame.
-    packet->views[TESTBED_PACKET_VIEW_SKYBOX].view = render_view_system_get("skybox");
+    // packet->views[TESTBED_PACKET_VIEW_SKYBOX].view = render_view_system_get("skybox");
     packet->views[TESTBED_PACKET_VIEW_WORLD].view = render_view_system_get("world");
     packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD].view = render_view_system_get("editor_world");
     packet->views[TESTBED_PACKET_VIEW_UI].view = render_view_system_get("ui");
@@ -647,10 +648,14 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
 
     // Tell our scene to generate relevant packet data. NOTE: Generates skybox and world packets.
     if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
-        if (!simple_scene_populate_render_packet(&state->main_scene, state->world_camera, (f32)state->width / state->height, p_frame_data, packet)) {
+        if (!simple_scene_populate_render_packet(&state->main_scene, state->world_camera, &state->world_viewport, p_frame_data, packet)) {
             KERROR("Failed populare render packet for main scene.");
             return false;
         }
+    } else {
+        // Make sure they at least have a viewport.
+        // packet->views[TESTBED_PACKET_VIEW_SKYBOX].vp = &state->world_viewport;
+        packet->views[TESTBED_PACKET_VIEW_WORLD].vp = &state->world_viewport;
     }
 
     // HACK: Inject debug geometries into world packet.
@@ -682,7 +687,7 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
 
         editor_world_packet_data editor_world_data = {0};
         editor_world_data.gizmo = &state->gizmo;
-        if (!render_view_system_packet_build(view, p_frame_data->frame_allocator, &editor_world_data, view_packet)) {
+        if (!render_view_system_packet_build(view, p_frame_data, &state->world_viewport, &editor_world_data, view_packet)) {
             KERROR("Failed to build packet for view 'editor_world'.");
             return false;
         }
@@ -722,7 +727,7 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
         }
 
         ui_packet.texts = texts;
-        if (!render_view_system_packet_build(view, p_frame_data->frame_allocator, &ui_packet, view_packet)) {
+        if (!render_view_system_packet_build(view, p_frame_data, &state->ui_viewport, &ui_packet, view_packet)) {
             KERROR("Failed to build packet for view 'ui'.");
             return false;
         }
@@ -759,27 +764,24 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
 
     clock_start(&state->render_clock);
 
-    // Activate the world viewport first.
-    renderer_active_viewport_set(&state->world_viewport);
-
-    // Render the views with it.
-
-    // Skybox
-    render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_SKYBOX];
+    // World
+    render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_WORLD];
     view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
-    // World
-    view_packet = &packet->views[TESTBED_PACKET_VIEW_WORLD];
+    // TODO: test rendering the world again but with a different viewport.
+    // LEFTOFF: This won't work as-is because it would require binding all the
+    // descriptor sets again, which you can't do until after the queue has run.
+    // Need to research a way to be able to render the scene again without needing
+    // to do this. Might just have to be on a separate queue?
+    view_packet->projection_matrix = state->world_viewport2.projection;
+    renderer_active_viewport_set(&state->world_viewport2);
     view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
     // Editor world
     view_packet = &packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD];
     view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
-    // Activate the UI viewport.
-    renderer_active_viewport_set(&state->ui_viewport);
-
-    // Render views with it.
+    // UI
     view_packet = &packet->views[TESTBED_PACKET_VIEW_UI];
     view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
@@ -797,6 +799,18 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
 
     state->width = width;
     state->height = height;
+    if (!width || !height) {
+        return;
+    }
+
+    // Resize viewports.
+    // World Viewport
+    rect_2d world_vp_rect = vec4_create(380.0f, 20.0f, state->width - 380.0f - 20.0f, state->height - 40.0f);
+    viewport_resize(&state->world_viewport, world_vp_rect);
+
+    // UI Viewport
+    rect_2d ui_vp_rect = vec4_create(0.0f, 0.0f, state->width, state->height);
+    viewport_resize(&state->ui_viewport, ui_vp_rect);
 
     // TODO: temp
     // Move debug text to new bottom of screen.
@@ -897,14 +911,14 @@ void application_unregister_events(struct application* game_inst) {
 b8 configure_render_views(application_config* config) {
     config->views = darray_create(render_view);
 
-    // Skybox view
+    // World view.
     {
-        render_view skybox_view = {0};
-        skybox_view.name = "skybox";
-        skybox_view.renderpass_count = 1;
-        skybox_view.passes = kallocate(sizeof(renderpass) * skybox_view.renderpass_count, MEMORY_TAG_ARRAY);
+        render_view world_view = {0};
+        world_view.name = "world";
+        world_view.renderpass_count = 2;
+        world_view.passes = kallocate(sizeof(renderpass) * world_view.renderpass_count, MEMORY_TAG_ARRAY);
 
-        // Renderpass config.
+        // Renderpass config - SKYBOX.
         renderpass_config skybox_pass = {0};
         skybox_pass.name = "Renderpass.Builtin.Skybox";
         skybox_pass.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
@@ -923,31 +937,11 @@ b8 configure_render_views(application_config* config) {
         skybox_target_colour->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
         skybox_target_colour->present_after = false;
 
-        if (!renderer_renderpass_create(&skybox_pass, &skybox_view.passes[0])) {
-            KERROR("Skybox view - Failed to create renderpass '%s'", skybox_view.passes[0].name);
+        if (!renderer_renderpass_create(&skybox_pass, &world_view.passes[0])) {
+            KERROR("Skybox view - Failed to create renderpass '%s'", world_view.passes[0].name);
             return false;
         }
-
-        // Assign function pointers.
-        skybox_view.on_registered = render_view_skybox_on_registered;
-        skybox_view.on_packet_build = render_view_skybox_on_packet_build;
-        skybox_view.on_packet_destroy = render_view_skybox_on_packet_destroy;
-        skybox_view.on_render = render_view_skybox_on_render;
-        skybox_view.on_destroy = render_view_skybox_on_destroy;
-        skybox_view.on_resize = render_view_skybox_on_resize;
-        skybox_view.attachment_target_regenerate = 0;
-
-        darray_push(config->views, skybox_view);
-    }
-
-    // World view.
-    {
-        render_view world_view = {0};
-        world_view.name = "world";
-        world_view.renderpass_count = 1;
-        world_view.passes = kallocate(sizeof(renderpass) * world_view.renderpass_count, MEMORY_TAG_ARRAY);
-
-        // Renderpass config.
+        // Renderpass config - WORLD.
         renderpass_config world_pass = {0};
         world_pass.name = "Renderpass.Builtin.World";
         world_pass.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
@@ -974,8 +968,8 @@ b8 configure_render_views(application_config* config) {
         world_target_depth->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
         world_target_depth->present_after = false;
 
-        if (!renderer_renderpass_create(&world_pass, &world_view.passes[0])) {
-            KERROR("World view - Failed to create renderpass '%s'", world_view.passes[0].name);
+        if (!renderer_renderpass_create(&world_pass, &world_view.passes[1])) {
+            KERROR("World view - Failed to create renderpass '%s'", world_view.passes[1].name);
             return false;
         }
 

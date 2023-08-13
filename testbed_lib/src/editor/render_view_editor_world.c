@@ -105,7 +105,7 @@ void render_view_editor_world_on_resize(struct render_view* self, u32 width, u32
     }
 }
 
-b8 render_view_editor_world_on_packet_build(const struct render_view* self, struct linear_allocator* frame_allocator, void* data, struct render_view_packet* out_packet) {
+b8 render_view_editor_world_on_packet_build(const struct render_view* self, struct frame_data* p_frame_data, struct viewport* v, void* data, struct render_view_packet* out_packet) {
     if (!self || !data || !out_packet) {
         KWARN("render_view_editor_world_on_build_packet requires valid pointer to view, packet, and data.");
         return false;
@@ -113,7 +113,8 @@ b8 render_view_editor_world_on_packet_build(const struct render_view* self, stru
 
     // TODO: use frame allocator
     out_packet->geometries = darray_create(geometry_render_data);
-    viewport* v = renderer_active_viewport_get();
+    out_packet->view = self;
+    out_packet->vp = v;
     render_view_editor_world_internal_data* internal_data = self->internal_data;
     out_packet->projection_matrix = v->projection;
     out_packet->view_matrix = camera_view_get(internal_data->world_camera);
@@ -162,6 +163,9 @@ void render_view_editor_world_on_packet_destroy(const struct render_view* self, 
 b8 render_view_editor_world_on_render(const struct render_view* self, const struct render_view_packet* packet, const struct frame_data* p_frame_data) {
     render_view_editor_world_internal_data* data = self->internal_data;
     // u32 shader_id = data->s->id;
+
+    // Bind the viewport
+    renderer_active_viewport_set(packet->vp);
 
     for (u32 p = 0; p < self->renderpass_count; ++p) {
         renderpass* pass = &self->passes[p];

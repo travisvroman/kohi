@@ -120,14 +120,9 @@ b8 renderer_frame_begin(struct frame_data* p_frame_data) {
             // Skip rendering the frame and try again next time.
             // NOTE: Simulate a frame being "drawn" at 60 FPS.
             platform_sleep(16);
-            return true;
+            return false;
         }
     }
-
-    // Update the frame data with renderer info.
-    u8 attachment_index = state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
-    p_frame_data->renderer_frame_number = state_ptr->plugin.frame_number;
-    p_frame_data->render_target_index = attachment_index;
 
     // If the begin frame returned successfully, mid-frame operations may continue.
     // if (state_ptr->plugin.frame_begin(&state_ptr->plugin, p_frame_data)) {
@@ -150,7 +145,14 @@ b8 renderer_frame_begin(struct frame_data* p_frame_data) {
     }*/
     // }
 
-    return state_ptr->plugin.frame_begin(&state_ptr->plugin, p_frame_data);
+    b8 result = state_ptr->plugin.frame_begin(&state_ptr->plugin, p_frame_data);
+
+    // Update the frame data with renderer info.
+    u8 attachment_index = state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
+    p_frame_data->renderer_frame_number = state_ptr->plugin.frame_number;
+    p_frame_data->render_target_index = attachment_index;
+
+    return result;
 }
 
 b8 renderer_frame_end(const struct frame_data* p_frame_data) {
@@ -637,7 +639,8 @@ void renderer_active_viewport_set(viewport* v) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     state_ptr->active_viewport = v;
 
-    rect_2d viewport_rect = (vec4){v->rect.x, v->rect.height - v->rect.y, v->rect.width, -v->rect.height};
+    // rect_2d viewport_rect = (vec4){v->rect.x, v->rect.height - v->rect.y, v->rect.width, -v->rect.height};
+    rect_2d viewport_rect = (vec4){v->rect.x, v->rect.y + v->rect.height, v->rect.width, -v->rect.height};
     state_ptr->plugin.viewport_set(&state_ptr->plugin, viewport_rect);
 
     rect_2d scissor_rect = (vec4){v->rect.x, v->rect.y, v->rect.width, v->rect.height};

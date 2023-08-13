@@ -1,7 +1,7 @@
 #pragma once
 
 #include "math/math_types.h"
-#include "renderer/renderer_types.inl"
+#include "renderer/renderer_types.h"
 
 typedef struct viewport {
     /** @brief the dimensions of this viewport, x/y position, z/w are width/height.*/
