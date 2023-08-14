@@ -253,10 +253,26 @@ typedef struct renderer_plugin {
      * that it should be attempted again on the next loop. End frame does not need to (and
      * should not) be called if this is the case.
      * @param plugin A pointer to the renderer plugin interface.
-     * @param p_frame_data A constant pointer to the current frame's data.
+     * @param p_frame_data A pointer to the current frame's data.
      * @return True if successful; otherwise false.
      */
-    b8 (*frame_begin)(struct renderer_plugin* plugin, const struct frame_data* p_frame_data);
+    b8 (*frame_prepare)(struct renderer_plugin* plugin, struct frame_data* p_frame_data);
+
+    /**
+     * @brief Begins a render. There must be at least one of these and a matching end per frame.
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param p_frame_data A pointer to the current frame's data.
+     * @return True if successful; otherwise false.
+     */
+    b8 (*begin)(struct renderer_plugin* plugin, struct frame_data* p_frame_data);
+
+    /**
+     * @brief Ends a render. 
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param p_frame_data A pointer to the current frame's data.
+     * @return True if successful; otherwise false.
+     */
+    b8 (*end)(struct renderer_plugin* plugin, struct frame_data* p_frame_data);
 
     /**
      * @brief Performs routines required to draw a frame, such as presentation. Should only be called
@@ -266,7 +282,7 @@ typedef struct renderer_plugin {
      * @param p_frame_data A constant pointer to the current frame's data.
      * @return True on success; otherwise false.
      */
-    b8 (*frame_end)(struct renderer_plugin* plugin, const struct frame_data* p_frame_data);
+    b8 (*present)(struct renderer_plugin* plugin, struct frame_data* p_frame_data);
 
     /**
      * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.

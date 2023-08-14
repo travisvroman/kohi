@@ -756,6 +756,16 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
 }
 
 b8 application_render(struct application* game_inst, struct render_packet* packet, struct frame_data* p_frame_data) {
+    
+    // Start the frame
+    if(!renderer_frame_prepare(p_frame_data)) {
+        return true;
+    }
+
+    if(!renderer_begin(p_frame_data)) {
+        //
+    }
+
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
     if (!state->running) {
         return true;
@@ -768,17 +778,21 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_WORLD];
     view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
+    // Editor world
+    view_packet = &packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD];
+    view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
+
+    renderer_end(p_frame_data);
+    renderer_begin(p_frame_data);
+
     // TODO: test rendering the world again but with a different viewport.
     // LEFTOFF: This won't work as-is because it would require binding all the
     // descriptor sets again, which you can't do until after the queue has run.
     // Need to research a way to be able to render the scene again without needing
     // to do this. Might just have to be on a separate queue?
+    view_packet = &packet->views[TESTBED_PACKET_VIEW_WORLD];
     view_packet->projection_matrix = state->world_viewport2.projection;
-    renderer_active_viewport_set(&state->world_viewport2);
-    view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
-
-    // Editor world
-    view_packet = &packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD];
+    view_packet->vp = &state->world_viewport2;
     view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
     // UI
@@ -786,6 +800,13 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
     clock_update(&state->render_clock);
+
+    renderer_end(p_frame_data);
+
+    if (!renderer_present(p_frame_data)) {
+        KERROR("The call to renderer_present failed. This is likely unrecoverable. Shutting down.");
+        return false;
+    }
 
     return true;
 }

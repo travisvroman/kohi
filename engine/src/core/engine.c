@@ -172,10 +172,6 @@ b8 engine_run(application* game_inst) {
                 continue;
             }
 
-            // Start the frame
-            if(!renderer_frame_begin(&engine_state->p_frame_data)) {
-                continue;
-            }
 
             // Call the game's render routine.
             if (!engine_state->game_inst->render(engine_state->game_inst, &packet, &engine_state->p_frame_data)) {
@@ -184,11 +180,6 @@ b8 engine_run(application* game_inst) {
                 break;
             }
 
-            if (!renderer_frame_end(&engine_state->p_frame_data)) {
-                KERROR("The call to renderer_frame_end failed. This is likely unrecoverable. Shutting down.");
-                engine_state->is_running = false;
-                break;
-            }
 
             // Cleanup the packet.
             for (u32 i = 0; i < packet.view_count; ++i) {

@@ -95,7 +95,7 @@ void renderer_on_resized(u16 width, u16 height) {
     }
 }
 
-b8 renderer_frame_begin(struct frame_data* p_frame_data) {
+b8 renderer_frame_prepare(struct frame_data* p_frame_data) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     state_ptr->plugin.frame_number++;
 
@@ -124,28 +124,7 @@ b8 renderer_frame_begin(struct frame_data* p_frame_data) {
         }
     }
 
-    // If the begin frame returned successfully, mid-frame operations may continue.
-    // if (state_ptr->plugin.frame_begin(&state_ptr->plugin, p_frame_data)) {
-    /*u8 attachment_index = state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
-
-    // Render each view.
-    for (u32 i = 0; i < packet->view_count; ++i) {
-        if (!render_view_system_on_render(packet->views[i].view, &packet->views[i], state_ptr->plugin.frame_number, attachment_index, p_frame_data)) {
-            KERROR("Error rendering view index %i.", i);
-            return false;
-        }
-    }
-
-    // End the frame. If this fails, it is likely unrecoverable.
-    b8 result = state_ptr->plugin.frame_end(&state_ptr->plugin, p_frame_data);
-
-    if (!result) {
-        KERROR("renderer_end_frame failed. Application shutting down...");
-        return false;
-    }*/
-    // }
-
-    b8 result = state_ptr->plugin.frame_begin(&state_ptr->plugin, p_frame_data);
+    b8 result = state_ptr->plugin.frame_prepare(&state_ptr->plugin, p_frame_data);
 
     // Update the frame data with renderer info.
     u8 attachment_index = state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
@@ -155,14 +134,24 @@ b8 renderer_frame_begin(struct frame_data* p_frame_data) {
     return result;
 }
 
-b8 renderer_frame_end(const struct frame_data* p_frame_data) {
+b8 renderer_begin(struct frame_data *p_frame_data) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.begin(&state_ptr->plugin, p_frame_data);
+}
+
+b8 renderer_end(struct frame_data *p_frame_data) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.end(&state_ptr->plugin, p_frame_data);
+}
+
+b8 renderer_present(struct frame_data* p_frame_data) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
 
     // End the frame. If this fails, it is likely unrecoverable.
-    b8 result = state_ptr->plugin.frame_end(&state_ptr->plugin, p_frame_data);
+    b8 result = state_ptr->plugin.present(&state_ptr->plugin, p_frame_data);
 
     if (!result) {
-        KERROR("renderer_end_frame failed. Application shutting down...");
+        KERROR("renderer_present failed. Application shutting down...");
     }
 
     return result;

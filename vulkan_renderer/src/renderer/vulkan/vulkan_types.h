@@ -591,6 +591,8 @@ typedef struct vulkan_context {
     /** @brief The internal Vulkan surface for the window to be drawn to. */
     VkSurfaceKHR surface;
 
+    u8 draw_index;
+
 #if defined(_DEBUG)
     /** @brief The debug messenger, if active.. */
     VkDebugUtilsMessengerEXT debug_messenger;

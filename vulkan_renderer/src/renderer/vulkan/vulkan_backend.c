@@ -1,8 +1,7 @@
 #include "vulkan_backend.h"
 
-#include <vulkan/vulkan_core.h>
-
 #include <renderer/renderer_types.h>
+#include <vulkan/vulkan_core.h>
 
 #include "containers/darray.h"
 #include "core/event.h"
@@ -693,11 +692,12 @@ void vulkan_renderer_backend_on_resized(renderer_plugin *plugin, u16 width,
           context->framebuffer_size_generation);
 }
 
-b8 vulkan_renderer_backend_frame_begin(renderer_plugin *plugin,
-                                       const struct frame_data *p_frame_data) {
+b8 vulkan_renderer_frame_prepare(renderer_plugin *plugin, struct frame_data *p_frame_data) {
     // Cold-cast the context
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     vulkan_device *device = &context->device;
+
+    context->draw_index = 0;
 
     // Check if recreating swap chain and boot out.
     if (context->recreating_swapchain) {
@@ -747,8 +747,7 @@ b8 vulkan_renderer_backend_frame_begin(renderer_plugin *plugin,
         context->device.logical_device, 1,
         &context->in_flight_fences[context->current_frame], true, UINT64_MAX);
     if (!vulkan_result_is_success(result)) {
-        KFATAL("In-flight fence wait failure! error: %s",
-               vulkan_result_string(result, true));
+        KFATAL("In-flight fence wait failure! error: %s", vulkan_result_string(result, true));
         return false;
     }
 
@@ -763,9 +762,24 @@ b8 vulkan_renderer_backend_frame_begin(renderer_plugin *plugin,
         return false;
     }
 
+    return true;
+}
+
+b8 vulkan_renderer_begin(renderer_plugin *plugin, struct frame_data *p_frame_data) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
     // Begin recording commands.
-    vulkan_command_buffer *command_buffer =
-        &context->graphics_command_buffers[context->image_index];
+    vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
+
+    // Wait for the execution of the current frame to complete. The fence being
+    // free will allow this one to move on.
+    VkResult result = vkWaitForFences(
+        context->device.logical_device, 1,
+        &context->in_flight_fences[context->current_frame], true, UINT64_MAX);
+    if (!vulkan_result_is_success(result)) {
+        KFATAL("In-flight fence wait failure! error: %s", vulkan_result_string(result, true));
+        return false;
+    }
+
     vulkan_command_buffer_reset(command_buffer);
     vulkan_command_buffer_begin(command_buffer, false, false, false);
 
@@ -783,34 +797,26 @@ b8 vulkan_renderer_backend_frame_begin(renderer_plugin *plugin,
     return true;
 }
 
-b8 vulkan_renderer_backend_frame_end(renderer_plugin *plugin,
-                                     const struct frame_data *p_frame_data) {
-    // Cold-cast the context
+b8 vulkan_renderer_end(renderer_plugin *plugin, struct frame_data *p_frame_data) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
-    vulkan_command_buffer *command_buffer =
-        &context->graphics_command_buffers[context->image_index];
+    vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
 
     vulkan_command_buffer_end(command_buffer);
 
     // Make sure the previous frame is not using this image (i.e. its fence is
     // being waited on)
-    if (context->images_in_flight[context->image_index] !=
-        VK_NULL_HANDLE) {  // was frame
-        VkResult result = vkWaitForFences(
-            context->device.logical_device, 1,
-            &context->images_in_flight[context->image_index], true, UINT64_MAX);
+    if (context->images_in_flight[context->image_index] != VK_NULL_HANDLE) {  // was frame
+        VkResult result = vkWaitForFences(context->device.logical_device, 1, &context->images_in_flight[context->image_index], true, UINT64_MAX);
         if (!vulkan_result_is_success(result)) {
             KFATAL("vkWaitForFences error: %s", vulkan_result_string(result, true));
         }
     }
 
     // Mark the image fence as in-use by this frame.
-    context->images_in_flight[context->image_index] =
-        context->in_flight_fences[context->current_frame];
+    context->images_in_flight[context->image_index] = context->in_flight_fences[context->current_frame];
 
     // Reset the fence for use on the next frame
-    VK_CHECK(vkResetFences(context->device.logical_device, 1,
-                           &context->in_flight_fences[context->current_frame]));
+    VK_CHECK(vkResetFences(context->device.logical_device, 1, &context->in_flight_fences[context->current_frame]));
 
     // Submit the queue and wait for the operation to complete.
     // Begin queue submission
@@ -821,22 +827,27 @@ b8 vulkan_renderer_backend_frame_end(renderer_plugin *plugin,
     submit_info.pCommandBuffers = &command_buffer->handle;
 
     // The semaphore(s) to be signaled when the queue is complete.
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores =
-        &context->queue_complete_semaphores[context->current_frame];
+    if (context->draw_index == 0) {
+        submit_info.signalSemaphoreCount = 1;
+        submit_info.pSignalSemaphores = &context->queue_complete_semaphores[context->current_frame];
+    } else {
+        submit_info.signalSemaphoreCount = 0;
+    }
 
     // Wait semaphore ensures that the operation cannot begin until the image is
     // available.
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores =
-        &context->image_available_semaphores[context->current_frame];
+    if (context->draw_index == 0) {
+        submit_info.waitSemaphoreCount = 1;
+        submit_info.pWaitSemaphores = &context->image_available_semaphores[context->current_frame];
+    } else {
+        submit_info.waitSemaphoreCount = 0;
+    }
 
     // Each semaphore waits on the corresponding pipeline stage to complete. 1:1
     // ratio. VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT prevents subsequent
     // colour attachment writes from executing until the semaphore signals (i.e.
     // one frame is presented at a time)
-    VkPipelineStageFlags flags[1] = {
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    VkPipelineStageFlags flags[1] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submit_info.pWaitDstStageMask = flags;
 
     VkResult result =
@@ -850,6 +861,14 @@ b8 vulkan_renderer_backend_frame_end(renderer_plugin *plugin,
 
     vulkan_command_buffer_update_submitted(command_buffer);
     // End queue submission
+
+    context->draw_index++;
+    return true;
+}
+
+b8 vulkan_renderer_present(renderer_plugin *plugin, struct frame_data *p_frame_data) {
+    // Cold-cast the context
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
 
     // Give the image back to the swapchain.
     vulkan_swapchain_present(
@@ -2232,6 +2251,7 @@ b8 vulkan_renderer_shader_use(renderer_plugin *plugin, shader *shader) {
     vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
     vulkan_pipeline_bind(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, s->pipelines[s->bound_pipeline_index]);
 
+    context->bound_shader = shader;
     // Make sure to use the current bound type as well.
     if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT) {
         vkCmdSetPrimitiveTopology(command_buffer->handle, s->current_topology);
