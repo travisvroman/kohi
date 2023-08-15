@@ -86,7 +86,7 @@ b8 raycast_aabb(extents_3d bb_extents, const ray* r, vec3* out_point) {
     if (max_t.elements[which_plane] < 0.0f) {
         return false;
     }
-    for (u32 i = 0; i < 3; ++i) {
+    for (i32 i = 0; i < 3; ++i) {
         if (which_plane != i) {
             out_point->elements[i] = r->origin.elements[i] + max_t.elements[which_plane] * r->direction.elements[i];
             if (out_point->elements[i] < bb_extents.min.elements[i] || out_point->elements[i] > bb_extents.max.elements[i]) {
