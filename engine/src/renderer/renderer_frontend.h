@@ -71,7 +71,7 @@ KAPI b8 renderer_frame_prepare(struct frame_data* p_frame_data);
 KAPI b8 renderer_begin(struct frame_data* p_frame_data);
 
 /**
- * @brief Ends a render. 
+ * @brief Ends a render.
  * @param p_frame_data A pointer to the current frame's data.
  * @return True if successful; otherwise false.
  */
@@ -85,7 +85,6 @@ KAPI b8 renderer_end(struct frame_data* p_frame_data);
  * @return True on success; otherwise false.
  */
 KAPI b8 renderer_present(struct frame_data* p_frame_data);
-
 
 /**
  * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
@@ -591,7 +590,7 @@ KAPI b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element
 /**
  * @brief Returns a pointer to the currently active viewport.
  */
-KAPI struct viewport* renderer_active_viewport_get();
+KAPI struct viewport* renderer_active_viewport_get(void);
 
 /**
  * @brief Sets the currently active viewport.
