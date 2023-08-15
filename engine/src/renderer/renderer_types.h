@@ -209,8 +209,14 @@ typedef enum renderer_winding {
  * the way things actually work on the backend.
  */
 typedef struct renderer_plugin {
+    /** @brief The current frame number. */
     u64 frame_number;
 
+    /**
+     * @brief The draw index for the current frame. Typically aligns with the
+     * number of queue submissions per frame.
+     */
+    u8 draw_index;
     /**
      * @brief The size of the plugin-specific renderer context.
      */
@@ -267,7 +273,7 @@ typedef struct renderer_plugin {
     b8 (*begin)(struct renderer_plugin* plugin, struct frame_data* p_frame_data);
 
     /**
-     * @brief Ends a render. 
+     * @brief Ends a render.
      * @param plugin A pointer to the renderer plugin interface.
      * @param p_frame_data A pointer to the current frame's data.
      * @return True if successful; otherwise false.

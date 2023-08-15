@@ -183,12 +183,16 @@ b8 render_view_editor_world_on_render(const struct render_view* self, const stru
 
         renderer_shader_bind_globals(s);
         // Globals
-        b8 needs_update = p_frame_data->renderer_frame_number != s->render_frame_number;
+        b8 needs_update = p_frame_data->renderer_frame_number != s->render_frame_number || s->draw_index != p_frame_data->draw_index;
         if (needs_update) {
             shader_system_uniform_set_by_index(data->debug_locations.projection, &packet->projection_matrix);
             shader_system_uniform_set_by_index(data->debug_locations.view, &packet->view_matrix);
         }
         shader_system_apply_global(needs_update);
+
+        // Sync frame number and draw index.
+        s->render_frame_number = p_frame_data->renderer_frame_number;
+        s->draw_index = p_frame_data->draw_index;
 
         u32 geometry_count = darray_length(packet->geometries);
         for (u32 i = 0; i < geometry_count; ++i) {

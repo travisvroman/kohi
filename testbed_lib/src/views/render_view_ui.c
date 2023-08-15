@@ -161,7 +161,7 @@ b8 render_view_ui_on_render(const struct render_view* self, const struct render_
         }
 
         // Apply globals
-        if (!material_system_apply_global(shader_id, p_frame_data->renderer_frame_number, &packet->projection_matrix, &packet->view_matrix, 0, 0, 0)) {
+        if (!material_system_apply_global(shader_id, p_frame_data->renderer_frame_number, p_frame_data->draw_index, &packet->projection_matrix, &packet->view_matrix, 0, 0, 0)) {
             KERROR("Failed to use apply globals for material shader. Render frame failed.");
             return false;
         }
@@ -213,11 +213,12 @@ b8 render_view_ui_on_render(const struct render_view* self, const struct render_
                 KERROR("Failed to apply bitmap font diffuse colour uniform.");
                 return false;
             }
-            b8 needs_update = text->render_frame_number != p_frame_data->renderer_frame_number;
+            b8 needs_update = text->render_frame_number != p_frame_data->renderer_frame_number || text->draw_index != p_frame_data->draw_index;
             shader_system_apply_instance(needs_update);
 
-            // Sync the frame number.
+            // Sync the frame number and draw index.
             text->render_frame_number = p_frame_data->renderer_frame_number;
+            text->draw_index = p_frame_data->draw_index;
 
             // Apply the locals
             mat4 model = transform_world_get(&text->transform);

@@ -697,8 +697,6 @@ b8 vulkan_renderer_frame_prepare(renderer_plugin *plugin, struct frame_data *p_f
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     vulkan_device *device = &context->device;
 
-    context->draw_index = 0;
-
     // Check if recreating swap chain and boot out.
     if (context->recreating_swapchain) {
         VkResult result = vkDeviceWaitIdle(device->logical_device);
@@ -827,7 +825,7 @@ b8 vulkan_renderer_end(renderer_plugin *plugin, struct frame_data *p_frame_data)
     submit_info.pCommandBuffers = &command_buffer->handle;
 
     // The semaphore(s) to be signaled when the queue is complete.
-    if (context->draw_index == 0) {
+    if (plugin->draw_index == 0) {
         submit_info.signalSemaphoreCount = 1;
         submit_info.pSignalSemaphores = &context->queue_complete_semaphores[context->current_frame];
     } else {
@@ -836,7 +834,7 @@ b8 vulkan_renderer_end(renderer_plugin *plugin, struct frame_data *p_frame_data)
 
     // Wait semaphore ensures that the operation cannot begin until the image is
     // available.
-    if (context->draw_index == 0) {
+    if (plugin->draw_index == 0) {
         submit_info.waitSemaphoreCount = 1;
         submit_info.pWaitSemaphores = &context->image_available_semaphores[context->current_frame];
     } else {
@@ -862,7 +860,6 @@ b8 vulkan_renderer_end(renderer_plugin *plugin, struct frame_data *p_frame_data)
     vulkan_command_buffer_update_submitted(command_buffer);
     // End queue submission
 
-    context->draw_index++;
     return true;
 }
 

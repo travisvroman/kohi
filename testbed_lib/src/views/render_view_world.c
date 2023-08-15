@@ -383,11 +383,12 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
                 KERROR("Failed to apply skybox cube map uniform.");
                 return false;
             }
-            b8 needs_update = packet->skybox_data.sb->render_frame_number != p_frame_data->renderer_frame_number;
+            b8 needs_update = packet->skybox_data.sb->render_frame_number != p_frame_data->renderer_frame_number || packet->skybox_data.sb->draw_index != p_frame_data->draw_index;
             shader_system_apply_instance(needs_update);
 
-            // Sync the frame number.
+            // Sync the frame number and draw index.
             packet->skybox_data.sb->render_frame_number = p_frame_data->renderer_frame_number;
+            packet->skybox_data.sb->draw_index = p_frame_data->draw_index;
 
             // Draw it.
             geometry_render_data render_data = {};
@@ -422,7 +423,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             // Apply globals
             // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
             // and mode (from the renderer)
-            if (!material_system_apply_global(s->id, p_frame_data->renderer_frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
+            if (!material_system_apply_global(s->id, p_frame_data->renderer_frame_number, p_frame_data->draw_index, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
                 KERROR("Failed to use apply globals for terrain shader. Render frame failed.");
                 return false;
             }
@@ -439,13 +440,15 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
                 // same material from being updated multiple times. It still needs to be bound
                 // either way, so this check result gets passed to the backend which either
                 // updates the internal shader bindings and binds them, or only binds them.
-                b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number;
+                // Also need to check against the renderer draw index.
+                b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number || m->render_draw_index != p_frame_data->draw_index;
                 if (!material_system_apply_instance(m, needs_update)) {
                     KWARN("Failed to apply terrain material '%s'. Skipping draw.", m->name);
                     continue;
                 } else {
-                    // Sync the frame number.
+                    // Sync the frame number and draw index.
                     m->render_frame_number = p_frame_data->renderer_frame_number;
+                    m->render_draw_index = p_frame_data->draw_index;
                 }
 
                 // Apply the locals
@@ -467,7 +470,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             // Apply globals
             // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
             // and mode (from the renderer)
-            if (!material_system_apply_global(shader_id, p_frame_data->renderer_frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
+            if (!material_system_apply_global(shader_id, p_frame_data->renderer_frame_number, p_frame_data->draw_index, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
                 KERROR("Failed to use apply globals for material shader. Render frame failed.");
                 return false;
             }
@@ -486,13 +489,15 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
                 // same material from being updated multiple times. It still needs to be bound
                 // either way, so this check result gets passed to the backend which either
                 // updates the internal shader bindings and binds them, or only binds them.
-                b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number;
+                // Also need to check against the draw index.
+                b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number || m->render_draw_index != p_frame_data->draw_index;
                 if (!material_system_apply_instance(m, needs_update)) {
                     KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
                     continue;
                 } else {
-                    // Sync the frame number.
+                    // Sync the frame number and draw index.
                     m->render_frame_number = p_frame_data->renderer_frame_number;
+                    m->render_draw_index = p_frame_data->draw_index;
                 }
 
                 // Apply the locals

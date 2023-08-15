@@ -97,7 +97,12 @@ void renderer_on_resized(u16 width, u16 height) {
 
 b8 renderer_frame_prepare(struct frame_data* p_frame_data) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+
+    // Increment the frame number.
     state_ptr->plugin.frame_number++;
+
+    // Reset the draw index for this frame.
+    state_ptr->plugin.draw_index = 0;
 
     // Make sure the window is not currently being resized by waiting a designated
     // number of frames after the last resize operation before performing the backend updates.
@@ -129,19 +134,26 @@ b8 renderer_frame_prepare(struct frame_data* p_frame_data) {
     // Update the frame data with renderer info.
     u8 attachment_index = state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
     p_frame_data->renderer_frame_number = state_ptr->plugin.frame_number;
+    p_frame_data->draw_index = state_ptr->plugin.draw_index;
     p_frame_data->render_target_index = attachment_index;
 
     return result;
 }
 
-b8 renderer_begin(struct frame_data *p_frame_data) {
+b8 renderer_begin(struct frame_data* p_frame_data) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->plugin.begin(&state_ptr->plugin, p_frame_data);
 }
 
-b8 renderer_end(struct frame_data *p_frame_data) {
+b8 renderer_end(struct frame_data* p_frame_data) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.end(&state_ptr->plugin, p_frame_data);
+    b8 result = state_ptr->plugin.end(&state_ptr->plugin, p_frame_data);
+    // Increment the draw index for this frame.
+    state_ptr->plugin.draw_index++;
+    // Sync the frame data to it.
+    p_frame_data->draw_index = state_ptr->plugin.draw_index;
+
+    return result;
 }
 
 b8 renderer_present(struct frame_data* p_frame_data) {

@@ -10,6 +10,7 @@
 #include <core/kstring.h>
 #include <core/logger.h>
 #include <core/metrics.h>
+#include <math/geometry_2d.h>
 #include <math/geometry_3d.h>
 #include <math/kmath.h>
 #include <memory/linear_allocator.h>
@@ -227,78 +228,81 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
                 vec3 origin = camera_position_get(state->world_camera);
 
                 viewport* v = &state->world_viewport;
-                ray r = ray_from_screen(
-                    vec2_create((f32)x, (f32)y),
-                    (v->rect),
-                    origin,
-                    view,
-                    v->projection);
+                // Only allow this action in the "primary" viewport.
+                if (point_in_rect_2d((vec2){(f32)x, (f32)y}, v->rect)) {
+                    ray r = ray_from_screen(
+                        vec2_create((f32)x, (f32)y),
+                        (v->rect),
+                        origin,
+                        view,
+                        v->projection);
 
-                raycast_result r_result;
-                if (simple_scene_raycast(&state->main_scene, &r, &r_result)) {
-                    u32 hit_count = darray_length(r_result.hits);
-                    for (u32 i = 0; i < hit_count; ++i) {
-                        raycast_hit* hit = &r_result.hits[i];
-                        KINFO("Hit! id: %u, dist: %f", hit->unique_id, hit->distance);
+                    raycast_result r_result;
+                    if (simple_scene_raycast(&state->main_scene, &r, &r_result)) {
+                        u32 hit_count = darray_length(r_result.hits);
+                        for (u32 i = 0; i < hit_count; ++i) {
+                            raycast_hit* hit = &r_result.hits[i];
+                            KINFO("Hit! id: %u, dist: %f", hit->unique_id, hit->distance);
 
-                        // Create a debug line where the ray cast starts and ends (at the intersection).
+                            // Create a debug line where the ray cast starts and ends (at the intersection).
+                            debug_line3d test_line;
+                            debug_line3d_create(r.origin, hit->position, 0, &test_line);
+                            debug_line3d_initialize(&test_line);
+                            debug_line3d_load(&test_line);
+                            // Yellow for hits.
+                            debug_line3d_colour_set(&test_line, (vec4){1.0f, 1.0f, 0.0f, 1.0f});
+
+                            darray_push(state->test_lines, test_line);
+
+                            // Create a debug box to show the intersection point.
+                            debug_box3d test_box;
+
+                            debug_box3d_create((vec3){0.1f, 0.1f, 0.1f}, 0, &test_box);
+                            debug_box3d_initialize(&test_box);
+                            debug_box3d_load(&test_box);
+
+                            extents_3d ext;
+                            ext.min = vec3_create(hit->position.x - 0.05f, hit->position.y - 0.05f, hit->position.z - 0.05f);
+                            ext.max = vec3_create(hit->position.x + 0.05f, hit->position.y + 0.05f, hit->position.z + 0.05f);
+                            debug_box3d_extents_set(&test_box, ext);
+
+                            darray_push(state->test_boxes, test_box);
+
+                            // Object selection
+                            if (i == 0) {
+                                state->selection.unique_id = hit->unique_id;
+                                state->selection.xform = simple_scene_transform_get_by_id(&state->main_scene, hit->unique_id);
+                                if (state->selection.xform) {
+                                    KINFO("Selected object id %u", hit->unique_id);
+                                    // state->gizmo.selected_xform = state->selection.xform;
+                                    editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform);
+                                    // transform_parent_set(&state->gizmo.xform, state->selection.xform);
+                                }
+                            }
+                        }
+                    } else {
+                        KINFO("No hit");
+
+                        // Create a debug line where the ray cast starts and continues to.
                         debug_line3d test_line;
-                        debug_line3d_create(r.origin, hit->position, 0, &test_line);
+                        debug_line3d_create(r.origin, vec3_add(r.origin, vec3_mul_scalar(r.direction, 100.0f)), 0, &test_line);
                         debug_line3d_initialize(&test_line);
                         debug_line3d_load(&test_line);
-                        // Yellow for hits.
-                        debug_line3d_colour_set(&test_line, (vec4){1.0f, 1.0f, 0.0f, 1.0f});
+                        // Magenta for non-hits.
+                        debug_line3d_colour_set(&test_line, (vec4){1.0f, 0.0f, 1.0f, 1.0f});
 
                         darray_push(state->test_lines, test_line);
 
-                        // Create a debug box to show the intersection point.
-                        debug_box3d test_box;
+                        if (state->selection.xform) {
+                            KINFO("Object deselected.");
+                            state->selection.xform = 0;
+                            state->selection.unique_id = INVALID_ID;
 
-                        debug_box3d_create((vec3){0.1f, 0.1f, 0.1f}, 0, &test_box);
-                        debug_box3d_initialize(&test_box);
-                        debug_box3d_load(&test_box);
-
-                        extents_3d ext;
-                        ext.min = vec3_create(hit->position.x - 0.05f, hit->position.y - 0.05f, hit->position.z - 0.05f);
-                        ext.max = vec3_create(hit->position.x + 0.05f, hit->position.y + 0.05f, hit->position.z + 0.05f);
-                        debug_box3d_extents_set(&test_box, ext);
-
-                        darray_push(state->test_boxes, test_box);
-
-                        // Object selection
-                        if (i == 0) {
-                            state->selection.unique_id = hit->unique_id;
-                            state->selection.xform = simple_scene_transform_get_by_id(&state->main_scene, hit->unique_id);
-                            if (state->selection.xform) {
-                                KINFO("Selected object id %u", hit->unique_id);
-                                // state->gizmo.selected_xform = state->selection.xform;
-                                editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform);
-                                // transform_parent_set(&state->gizmo.xform, state->selection.xform);
-                            }
+                            editor_gizmo_selected_transform_set(&state->gizmo, 0);
                         }
+
+                        // TODO: hide gizmo, disable input, etc.
                     }
-                } else {
-                    KINFO("No hit");
-
-                    // Create a debug line where the ray cast starts and continues to.
-                    debug_line3d test_line;
-                    debug_line3d_create(r.origin, vec3_add(r.origin, vec3_mul_scalar(r.direction, 100.0f)), 0, &test_line);
-                    debug_line3d_initialize(&test_line);
-                    debug_line3d_load(&test_line);
-                    // Magenta for non-hits.
-                    debug_line3d_colour_set(&test_line, (vec4){1.0f, 0.0f, 1.0f, 1.0f});
-
-                    darray_push(state->test_lines, test_line);
-
-                    if (state->selection.xform) {
-                        KINFO("Object deselected.");
-                        state->selection.xform = 0;
-                        state->selection.unique_id = INVALID_ID;
-
-                        editor_gizmo_selected_transform_set(&state->gizmo, 0);
-                    }
-
-                    // TODO: hide gizmo, disable input, etc.
                 }
 
             } break;
@@ -756,13 +760,12 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
 }
 
 b8 application_render(struct application* game_inst, struct render_packet* packet, struct frame_data* p_frame_data) {
-    
     // Start the frame
-    if(!renderer_frame_prepare(p_frame_data)) {
+    if (!renderer_frame_prepare(p_frame_data)) {
         return true;
     }
 
-    if(!renderer_begin(p_frame_data)) {
+    if (!renderer_begin(p_frame_data)) {
         //
     }
 
@@ -782,14 +785,13 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     view_packet = &packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD];
     view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
+    // Executes the current command buffer.
     renderer_end(p_frame_data);
+
+    // Begins the command buffer.
     renderer_begin(p_frame_data);
 
-    // TODO: test rendering the world again but with a different viewport.
-    // LEFTOFF: This won't work as-is because it would require binding all the
-    // descriptor sets again, which you can't do until after the queue has run.
-    // Need to research a way to be able to render the scene again without needing
-    // to do this. Might just have to be on a separate queue?
+    // Render the world again, but with the new viewport and camera.
     view_packet = &packet->views[TESTBED_PACKET_VIEW_WORLD];
     view_packet->projection_matrix = state->world_viewport2.projection;
     view_packet->vp = &state->world_viewport2;
@@ -824,14 +826,20 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
         return;
     }
 
+    f32 half_width = state->width * 0.5f;
+
     // Resize viewports.
-    // World Viewport
-    rect_2d world_vp_rect = vec4_create(380.0f, 20.0f, state->width - 380.0f - 20.0f, state->height - 40.0f);
+    // World Viewport - right side
+    rect_2d world_vp_rect = vec4_create(half_width + 20.0f, 20.0f, half_width - 40.0f, state->height - 40.0f);
     viewport_resize(&state->world_viewport, world_vp_rect);
 
     // UI Viewport
     rect_2d ui_vp_rect = vec4_create(0.0f, 0.0f, state->width, state->height);
     viewport_resize(&state->ui_viewport, ui_vp_rect);
+
+    // World viewport 2
+    rect_2d world_vp_rect2 = vec4_create(20.0f, 20.0f, half_width - 40.0f, state->height - 40.0f);
+    viewport_resize(&state->world_viewport2, world_vp_rect2);
 
     // TODO: temp
     // Move debug text to new bottom of screen.
