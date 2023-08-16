@@ -25,4 +25,4 @@ struct resource_loader;
  * @param tag The memory tag that was used by the resource loader, and should be used to unload the resource.
  * @return True on success; otherwise false.
  */
-b8 resource_unload(struct resource_loader* self, resource* resource, memory_tag tag);
+KAPI b8 resource_unload(struct resource_loader* self, resource* resource, memory_tag tag);

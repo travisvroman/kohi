@@ -12,7 +12,7 @@ ifeq ($(OS),Windows_NT)
 	BUILD_PLATFORM := windows
 	EXTENSION := .dll
 	COMPILER_FLAGS := -Wall -Wextra -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -Wstrict-prototypes -Wno-unused-parameter -Wno-missing-field-initializers
-	INCLUDE_FLAGS := -I./$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
+	INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
 	LINKER_FLAGS := -shared -luser32 -L$(OBJ_DIR)\$(ASSEMBLY) -L.\$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 	DEFINES += -D_CRT_SECURE_NO_WARNINGS
 
@@ -173,5 +173,8 @@ endif
 
 .PHONY: gen_compile_flags
 gen_compile_flags:
+ifeq ($(BUILD_PLATFORM),windows)
+	$(shell powershell \"$(INCLUDE_FLAGS) $(DEFINES)\".replace('-I', '-I..\').replace(' ', \"`n\") > $(ASSEMBLY)/compile_flags.txt)
+else
 	@echo $(INCLUDE_FLAGS) $(DEFINES) | tr " " "\n" | sed "s/\-I\.\//\-I\.\.\//g" > $(ASSEMBLY)/compile_flags.txt
-
+endif

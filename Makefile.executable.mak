@@ -11,7 +11,7 @@ ifeq ($(OS),Windows_NT)
 	BUILD_PLATFORM := windows
 	EXTENSION := .exe
 	COMPILER_FLAGS := -Wall -Werror -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -Wstrict-prototypes
-	INCLUDE_FLAGS := -I./$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
+	INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
 	LINKER_FLAGS := -L$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 	DEFINES += -D_CRT_SECURE_NO_WARNINGS
 
@@ -133,5 +133,8 @@ $(OBJ_DIR)/%.c.o: %.c
 
 .PHONY: gen_compile_flags
 gen_compile_flags:
+ifeq ($(BUILD_PLATFORM),windows)
+	$(shell powershell \"$(INCLUDE_FLAGS) $(DEFINES)\".replace('-I', '-I..\').replace(' ', \"`n\") > $(ASSEMBLY)/compile_flags.txt)
+else
 	@echo $(INCLUDE_FLAGS) $(DEFINES) | tr " " "\n" | sed "s/\-I\.\//\-I\.\.\//g" > $(ASSEMBLY)/compile_flags.txt
-
+endif
