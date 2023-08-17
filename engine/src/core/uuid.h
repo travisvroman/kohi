@@ -21,4 +21,4 @@ void uuid_seed(u64 seed);
  * 
  * @return a newly-generated UUID.
  */
-uuid uuid_generate(void);
+KAPI uuid uuid_generate(void);

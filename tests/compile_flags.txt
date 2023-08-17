@@ -1,4 +1,0 @@
--I../tests/src
--I../engine/src
--DKIMPORT
--D_DEBUG
