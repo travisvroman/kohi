@@ -12,14 +12,14 @@ ray ray_create(vec3 position, vec3 direction) {
     return r;
 }
 
-ray ray_from_screen(vec2 screen_pos, vec2 viewport_size, vec3 origin, mat4 view, mat4 projection) {
+ray ray_from_screen(vec2 screen_pos, rect_2d viewport_rect, vec3 origin, mat4 view, mat4 projection) {
     ray r = {0};
     r.origin = origin;
 
     // Get normalized device coordinates (i.e. -1:1 range).
     vec3 ray_ndc;
-    ray_ndc.x = (2.0f * screen_pos.x) / viewport_size.x - 1.0f;
-    ray_ndc.y = 1.0f - (2.0f * screen_pos.y) / viewport_size.y;
+    ray_ndc.x = (2.0f * (screen_pos.x - viewport_rect.x)) / viewport_rect.width - 1.0f;
+    ray_ndc.y = 1.0f - (2.0f * (screen_pos.y - viewport_rect.y)) / viewport_rect.height;
     ray_ndc.z = 1.0f;
 
     // Clip space

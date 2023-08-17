@@ -411,6 +411,19 @@ KINLINE f32 vec2_distance(vec2 vector_0, vec2 vector_1) {
     return vec2_length(d);
 }
 
+/**
+ * @brief Returns the squared distance between vector_0 and vector_1.
+ * NOTE: If purely for comparison purposes, prefer this over non-squared version to avoid a sqrt call.
+ *
+ * @param vector_0 The first vector.
+ * @param vector_1 The second vector.
+ * @return The distance between vector_0 and vector_1.
+ */
+KINLINE f32 vec2_distance_squared(vec2 vector_0, vec2 vector_1) {
+    vec2 d = (vec2){vector_0.x - vector_1.x, vector_0.y - vector_1.y};
+    return vec2_length_squared(d);
+}
+
 // ------------------------------------------
 // Vector 3
 // ------------------------------------------

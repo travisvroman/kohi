@@ -7,8 +7,10 @@
 b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->initialize = vulkan_renderer_backend_initialize;
     out_plugin->shutdown = vulkan_renderer_backend_shutdown;
-    out_plugin->frame_begin = vulkan_renderer_backend_frame_begin;
-    out_plugin->frame_end = vulkan_renderer_backend_frame_end;
+    out_plugin->frame_prepare = vulkan_renderer_frame_prepare;
+    out_plugin->begin = vulkan_renderer_begin;
+    out_plugin->end = vulkan_renderer_end;
+    out_plugin->present = vulkan_renderer_present;
     out_plugin->viewport_set = vulkan_renderer_viewport_set;
     out_plugin->viewport_reset = vulkan_renderer_viewport_reset;
     out_plugin->scissor_set = vulkan_renderer_scissor_set;

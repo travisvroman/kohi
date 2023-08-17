@@ -28,7 +28,7 @@ typedef struct raycast_result {
 } raycast_result;
 
 KAPI ray ray_create(vec3 position, vec3 direction);
-KAPI ray ray_from_screen(vec2 screen_pos, vec2 viewport_size, vec3 origin, mat4 view, mat4 projection);
+KAPI ray ray_from_screen(vec2 screen_pos, rect_2d viewport_rect, vec3 origin, mat4 view, mat4 projection);
 
 KAPI b8 raycast_aabb(extents_3d bb_extents, const ray* r, vec3* out_point);
 KAPI b8 raycast_oriented_extents(extents_3d bb_extents, mat4 model, const ray* r, f32* out_dist);

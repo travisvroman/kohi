@@ -8,8 +8,10 @@
 #include "core/logger.h"
 #include "core/systems_manager.h"
 #include "math/kmath.h"
+#include "math/math_types.h"
 #include "platform/platform.h"
 #include "renderer/renderer_types.h"
+#include "renderer/viewport.h"
 #include "resources/resource_types.h"
 #include "systems/camera_system.h"
 #include "systems/material_system.h"
@@ -32,6 +34,8 @@ typedef struct renderer_system_state {
     // The current number of frames since the last resize operation.'
     // Only set if resizing = true. Otherwise 0.
     u8 frames_since_resize;
+
+    viewport* active_viewport;
 } renderer_system_state;
 
 b8 renderer_system_initialize(u64* memory_requirement, void* state, void* config) {
@@ -91,9 +95,14 @@ void renderer_on_resized(u16 width, u16 height) {
     }
 }
 
-b8 renderer_draw_frame(render_packet* packet, const struct frame_data* p_frame_data) {
+b8 renderer_frame_prepare(struct frame_data* p_frame_data) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+
+    // Increment the frame number.
     state_ptr->plugin.frame_number++;
+
+    // Reset the draw index for this frame.
+    state_ptr->plugin.draw_index = 0;
 
     // Make sure the window is not currently being resized by waiting a designated
     // number of frames after the last resize operation before performing the backend updates.
@@ -116,32 +125,48 @@ b8 renderer_draw_frame(render_packet* packet, const struct frame_data* p_frame_d
             // Skip rendering the frame and try again next time.
             // NOTE: Simulate a frame being "drawn" at 60 FPS.
             platform_sleep(16);
-            return true;
-        }
-    }
-
-    // If the begin frame returned successfully, mid-frame operations may continue.
-    if (state_ptr->plugin.frame_begin(&state_ptr->plugin, p_frame_data)) {
-        u8 attachment_index = state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
-
-        // Render each view.
-        for (u32 i = 0; i < packet->view_count; ++i) {
-            if (!render_view_system_on_render(packet->views[i].view, &packet->views[i], state_ptr->plugin.frame_number, attachment_index, p_frame_data)) {
-                KERROR("Error rendering view index %i.", i);
-                return false;
-            }
-        }
-
-        // End the frame. If this fails, it is likely unrecoverable.
-        b8 result = state_ptr->plugin.frame_end(&state_ptr->plugin, p_frame_data);
-
-        if (!result) {
-            KERROR("renderer_end_frame failed. Application shutting down...");
             return false;
         }
     }
 
-    return true;
+    b8 result = state_ptr->plugin.frame_prepare(&state_ptr->plugin, p_frame_data);
+
+    // Update the frame data with renderer info.
+    u8 attachment_index = state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
+    p_frame_data->renderer_frame_number = state_ptr->plugin.frame_number;
+    p_frame_data->draw_index = state_ptr->plugin.draw_index;
+    p_frame_data->render_target_index = attachment_index;
+
+    return result;
+}
+
+b8 renderer_begin(struct frame_data* p_frame_data) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.begin(&state_ptr->plugin, p_frame_data);
+}
+
+b8 renderer_end(struct frame_data* p_frame_data) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    b8 result = state_ptr->plugin.end(&state_ptr->plugin, p_frame_data);
+    // Increment the draw index for this frame.
+    state_ptr->plugin.draw_index++;
+    // Sync the frame data to it.
+    p_frame_data->draw_index = state_ptr->plugin.draw_index;
+
+    return result;
+}
+
+b8 renderer_present(struct frame_data* p_frame_data) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+
+    // End the frame. If this fails, it is likely unrecoverable.
+    b8 result = state_ptr->plugin.present(&state_ptr->plugin, p_frame_data);
+
+    if (!result) {
+        KERROR("renderer_present failed. Application shutting down...");
+    }
+
+    return result;
 }
 
 void renderer_viewport_set(vec4 rect) {
@@ -389,7 +414,6 @@ b8 renderer_renderpass_create(const renderpass_config* config, renderpass* out_r
     out_renderpass->targets = kallocate(sizeof(render_target) * out_renderpass->render_target_count, MEMORY_TAG_ARRAY);
     out_renderpass->clear_flags = config->clear_flags;
     out_renderpass->clear_colour = config->clear_colour;
-    out_renderpass->render_area = config->render_area;
     out_renderpass->name = string_duplicate(config->name);
 
     // Copy over config for each target.
@@ -610,4 +634,21 @@ b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, ren
 b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->plugin.renderbuffer_draw(&state_ptr->plugin, buffer, offset, element_count, bind_only);
+}
+
+void renderer_active_viewport_set(viewport* v) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    state_ptr->active_viewport = v;
+
+    // rect_2d viewport_rect = (vec4){v->rect.x, v->rect.height - v->rect.y, v->rect.width, -v->rect.height};
+    rect_2d viewport_rect = (vec4){v->rect.x, v->rect.y + v->rect.height, v->rect.width, -v->rect.height};
+    state_ptr->plugin.viewport_set(&state_ptr->plugin, viewport_rect);
+
+    rect_2d scissor_rect = (vec4){v->rect.x, v->rect.y, v->rect.width, v->rect.height};
+    state_ptr->plugin.scissor_set(&state_ptr->plugin, scissor_rect);
+}
+
+viewport* renderer_active_viewport_get() {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    return state_ptr->active_viewport;
 }

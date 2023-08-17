@@ -584,7 +584,8 @@ typedef struct material {
 
     /** @brief Synced to the renderer's current frame number when the material has
      * been applied that frame. */
-    u32 render_frame_number;
+    u64 render_frame_number;
+    u64 render_draw_index;
 } material;
 
 typedef struct skybox_simple_scene_config {

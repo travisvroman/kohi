@@ -18,6 +18,7 @@
 struct shader;
 struct shader_uniform;
 struct frame_data;
+struct viewport;
 
 typedef struct renderer_system_config {
     char* application_name;
@@ -52,13 +53,38 @@ KAPI void renderer_system_shutdown(void* state);
 KAPI void renderer_on_resized(u16 width, u16 height);
 
 /**
- * @brief Draws the next frame using the data provided in the render packet.
+ * @brief Performs setup routines required at the start of a frame.
+ * @note A false result does not necessarily indicate failure. It can also specify that
+ * the backend is simply not in a state capable of drawing a frame at the moment, and
+ * that it should be attempted again on the next loop. End frame does not need to (and
+ * should not) be called if this is the case.
+ * @param p_frame_data A pointer to the current frame's data.
+ * @return True if successful; otherwise false.
+ */
+KAPI b8 renderer_frame_prepare(struct frame_data* p_frame_data);
+
+/**
+ * @brief Begins a render. There must be at least one of these and a matching end per frame.
+ * @param p_frame_data A pointer to the current frame's data.
+ * @return True if successful; otherwise false.
+ */
+KAPI b8 renderer_begin(struct frame_data* p_frame_data);
+
+/**
+ * @brief Ends a render.
+ * @param p_frame_data A pointer to the current frame's data.
+ * @return True if successful; otherwise false.
+ */
+KAPI b8 renderer_end(struct frame_data* p_frame_data);
+
+/**
+ * @brief Performs routines required to draw a frame, such as presentation. Should only be called
+ * after a successful return of begin_frame.
  *
- * @param packet A pointer to the render packet, which contains data on what should be rendered.
  * @param p_frame_data A constant pointer to the current frame's data.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_draw_frame(render_packet* packet, const struct frame_data* p_frame_data);
+KAPI b8 renderer_present(struct frame_data* p_frame_data);
 
 /**
  * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
@@ -560,3 +586,15 @@ KAPI b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset
  * @return True on success; otherwise false.
  */
 KAPI b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
+
+/**
+ * @brief Returns a pointer to the currently active viewport.
+ */
+KAPI struct viewport* renderer_active_viewport_get(void);
+
+/**
+ * @brief Sets the currently active viewport.
+ *
+ * @param viewport A pointer to the viewport to be set.
+ */
+KAPI void renderer_active_viewport_set(struct viewport* v);

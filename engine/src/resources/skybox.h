@@ -1,8 +1,8 @@
 #pragma once
 
 #include "math/math_types.h"
-#include "resources/resource_types.h"
 #include "renderer/renderer_types.h"
+#include "resources/resource_types.h"
 #include "systems/geometry_system.h"
 
 typedef struct skybox_config {
@@ -18,11 +18,13 @@ typedef struct skybox {
     u32 instance_id;
     /** @brief Synced to the renderer's current frame number when the material has been applied that frame. */
     u64 render_frame_number;
+    /** @brief Synced to the renderer's current draw index when the material has been applied that frame. */
+    u8 draw_index;
 } skybox;
 
 /**
  * @brief Attempts to create a skybox using the specified parameters.
- * 
+ *
  * @param config The configuration to be used when creating the skybox.
  * @param out_skybox A pointer to hold the newly-created skybox.
  * @return True on success; otherwise false.
@@ -37,7 +39,7 @@ KAPI b8 skybox_unload(skybox* sb);
 
 /**
  * @brief Destroys the provided skybox.
- * 
+ *
  * @param sb A pointer to the skybox to be destroyed.
  */
 KAPI void skybox_destroy(skybox* sb);

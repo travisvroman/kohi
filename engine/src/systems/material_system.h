@@ -111,6 +111,7 @@ KAPI material* material_system_get_default_terrain(void);
  *
  * @param shader_id The identifier of the shader to apply globals for.
  * @param renderer_frame_number The renderer's current frame number.
+ * @param renderer_draw_index The renderer's current draw index.
  * @param projection A constant pointer to a projection matrix.
  * @param view A constant pointer to a view matrix.
  * @param ambient_colour The ambient colour of the scene.
@@ -118,7 +119,7 @@ KAPI material* material_system_get_default_terrain(void);
  * @param render_mode The render mode.
  * @return True on success; otherwise false.
  */
-KAPI b8 material_system_apply_global(u32 shader_id, u64 renderer_frame_number, const mat4* projection, const mat4* view, const vec4* ambient_colour, const vec3* view_position, u32 render_mode);
+KAPI b8 material_system_apply_global(u32 shader_id, u64 renderer_frame_number, u8 renderer_draw_index, const mat4* projection, const mat4* view, const vec4* ambient_colour, const vec3* view_position, u32 render_mode);
 
 /**
  * @brief Applies instance-level material data for the given material.
