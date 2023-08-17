@@ -782,14 +782,6 @@ b8 vulkan_renderer_begin(renderer_plugin *plugin, struct frame_data *p_frame_dat
     vulkan_command_buffer_begin(command_buffer, false, false, false);
 
     // Dynamic state
-    // NOTE: Should be done by views instead.
-    // viewport *v = renderer_active_viewport_get();
-    // // NOTE: y might have to be height - y
-    // context->viewport_rect = (vec4){v->rect.x, v->rect.height - v->rect.y, v->rect.width, -v->rect.height};
-    // vulkan_renderer_viewport_set(plugin, context->viewport_rect);
-
-    // context->scissor_rect = (vec4){v->rect.x, v->rect.y, v->rect.width, v->rect.height};
-    // vulkan_renderer_scissor_set(plugin, context->scissor_rect);
 
     vulkan_renderer_winding_set(plugin, RENDERER_WINDING_COUNTER_CLOCKWISE);
     return true;

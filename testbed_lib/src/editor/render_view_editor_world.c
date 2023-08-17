@@ -102,6 +102,8 @@ void render_view_editor_world_on_destroy(struct render_view* self) {
 void render_view_editor_world_on_resize(struct render_view* self, u32 width, u32 height) {
     if (width != self->width || height != self->height) {
         // render_view_editor_world_internal_data* data = self->internal_data;
+        self->width = width;
+        self->height = height;
     }
 }
 
