@@ -10,6 +10,7 @@ struct shader_uniform;
 struct frame_data;
 struct terrain;
 struct viewport;
+struct camera;
 
 typedef struct geometry_render_data {
     mat4 model;
@@ -886,12 +887,14 @@ typedef struct render_view {
      * @brief Builds a render view packet using the provided view and meshes.
      *
      * @param self A pointer to the view to use.
-     * @param frame_allocator A frame allocator used this frame when building the packet.
+     * @param frame_data A pointer to the current frame's data.
+     * @param v A pointer to the viewport to be used.
+     * @param c A pointer to the camera to be used.
      * @param data Freeform data used to build the packet.
      * @param out_packet A pointer to hold the generated packet.
      * @return True on success; otherwise false.
      */
-    b8 (*on_packet_build)(const struct render_view* self, struct frame_data* p_frame_data, struct viewport* v, void* data, struct render_view_packet* out_packet);
+    b8 (*on_packet_build)(const struct render_view* self, struct frame_data* p_frame_data, struct viewport* v, struct camera* c, void* data, struct render_view_packet* out_packet);
 
     /**
      * @brief Destroys a render view packet.

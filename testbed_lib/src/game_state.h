@@ -30,6 +30,9 @@ typedef struct testbed_game_state {
     b8 running;
     camera* world_camera;
 
+    // TODO: temp
+    camera* world_camera_2;
+
     u16 width, height;
 
     frustum camera_frustum;

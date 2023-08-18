@@ -33,9 +33,11 @@ typedef struct skybox_shader_locations {
 } skybox_shader_locations;
 
 typedef struct render_view_world_internal_data {
-    shader* s;
+    shader* material_shader;
     shader* skybox_shader;
-    camera* world_camera;
+    shader* terrain_shader;
+    shader* colour_shader;
+
     vec4 ambient_colour;
     u32 render_mode;
 
@@ -115,19 +117,21 @@ b8 render_view_world_on_registered(struct render_view* self) {
 
         // TODO: move to material system and get a reference here instead.
         // Builtin material shader.
-        const char* shader_name = "Shader.Builtin.Material";
-        resource config_resource;
-        if (!resource_system_load(shader_name, RESOURCE_TYPE_SHADER, 0, &config_resource)) {
+        const char* material_shader_name = "Shader.Builtin.Material";
+        resource material_config_resource;
+        if (!resource_system_load(material_shader_name, RESOURCE_TYPE_SHADER, 0, &material_config_resource)) {
             KERROR("Failed to load builtin material shader resource.");
             return false;
         }
-        shader_config* config = (shader_config*)config_resource.data;
+        shader_config* config = (shader_config*)material_config_resource.data;
         // NOTE: Second pass is the world pass.
         if (!shader_system_create(&self->passes[1], config)) {
             KERROR("Failed to load builtin material shader.");
             return false;
         }
-        resource_system_unload(&config_resource);
+        resource_system_unload(&material_config_resource);
+        // Save off a pointer to the material shader.
+        data->material_shader = shader_system_get(material_shader_name);
 
         // Load skybox shader.
         const char* skybox_shader_name = "Shader.Builtin.Skybox";
@@ -164,6 +168,8 @@ b8 render_view_world_on_registered(struct render_view* self) {
             return false;
         }
         resource_system_unload(&terrain_shader_config_resource);
+        // Save off a pointer to the terrain shader.
+        data->terrain_shader = shader_system_get(terrain_shader_name);
 
         // Load debug colour3d shader.
         // TODO: move builtin shaders to the shader system itself.
@@ -181,22 +187,14 @@ b8 render_view_world_on_registered(struct render_view* self) {
         }
         resource_system_unload(&colour3d_shader_config_resource);
 
+        // Save off a pointer to the colour shader.
+        data->colour_shader = shader_system_get(colour3d_shader_name);
         // Get colour3d shader uniform locations.
         {
-            shader* s = shader_system_get(colour3d_shader_name);
-            if (!s) {
-                KERROR("Unable to get colour3d shader!");
-                return false;
-            }
-            data->debug_locations.projection = shader_system_uniform_index(s, "projection");
-            data->debug_locations.view = shader_system_uniform_index(s, "view");
-            data->debug_locations.model = shader_system_uniform_index(s, "model");
+            data->debug_locations.projection = shader_system_uniform_index(data->colour_shader, "projection");
+            data->debug_locations.view = shader_system_uniform_index(data->colour_shader, "view");
+            data->debug_locations.model = shader_system_uniform_index(data->colour_shader, "model");
         }
-
-        // Get either the custom shader override or the defined default.
-        data->s = shader_system_get(self->custom_shader_name ? self->custom_shader_name : shader_name);
-
-        data->world_camera = camera_system_get_default();
 
         // TODO: Obtain from scene
         data->ambient_colour = (vec4){0.25f, 0.25f, 0.25f, 1.0f};
@@ -240,7 +238,7 @@ void render_view_world_on_resize(struct render_view* self, u32 width, u32 height
     }
 }
 
-b8 render_view_world_on_packet_build(const struct render_view* self, struct frame_data* frame_data, viewport* v, void* data, struct render_view_packet* out_packet) {
+b8 render_view_world_on_packet_build(const struct render_view* self, struct frame_data* frame_data, viewport* v, camera* c, void* data, struct render_view_packet* out_packet) {
     if (!self || !data || !out_packet) {
         KWARN("render_view_world_on_build_packet requires valid pointer to view, packet, and data.");
         return false;
@@ -258,8 +256,8 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct fram
 
     // Set matrices, etc.
     out_packet->projection_matrix = v->projection;
-    out_packet->view_matrix = camera_view_get(internal_data->world_camera);
-    out_packet->view_position = camera_position_get(internal_data->world_camera);
+    out_packet->view_matrix = camera_view_get(c);
+    out_packet->view_position = camera_position_get(c);
     out_packet->ambient_colour = internal_data->ambient_colour;
 
     // Skybox data.
@@ -293,7 +291,7 @@ b8 render_view_world_on_packet_build(const struct render_view* self, struct fram
             // then calculate the distance between it and the camera, and finally save it to a list to be sorted.
             // NOTE: This isn't perfect for translucent meshes that intersect, but is enough for our purposes now.
             vec3 center = vec3_transform(g_data->geometry->center, 1.0f, g_data->model);
-            f32 distance = vec3_distance(center, internal_data->world_camera->position);
+            f32 distance = vec3_distance(center, c->position);
 
             geometry_distance gdist;
             gdist.distance = kabs(distance);
@@ -341,7 +339,6 @@ void render_view_world_on_packet_destroy(const struct render_view* self, struct 
 
 b8 render_view_world_on_render(const struct render_view* self, const struct render_view_packet* packet, const struct frame_data* p_frame_data) {
     render_view_world_internal_data* data = self->internal_data;
-    u32 shader_id = data->s->id;
 
     // Bind the viewport
     renderer_active_viewport_set(packet->vp);
@@ -359,14 +356,13 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             shader_system_use_by_id(data->skybox_shader->id);
 
             // Get the view matrix, but zero out the position so the skybox stays put on screen.
-            mat4 view_matrix = camera_view_get(data->world_camera);
+            mat4 view_matrix = packet->view_matrix;
             view_matrix.data[12] = 0.0f;
             view_matrix.data[13] = 0.0f;
             view_matrix.data[14] = 0.0f;
 
             // Apply globals
-            // TODO: This is terrible. Need to bind by id.
-            renderer_shader_bind_globals(shader_system_get_by_id(shader_id));
+            renderer_shader_bind_globals(data->skybox_shader);
             if (!shader_system_uniform_set_by_index(data->skybox_locations.projection_location, &packet->projection_matrix)) {
                 KERROR("Failed to apply skybox projection uniform.");
                 return false;
@@ -412,18 +408,12 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
         // Use the appropriate shader and apply the global uniforms.
         u32 terrain_count = packet->terrain_geometry_count;
         if (terrain_count > 0) {
-            // TODO: If this uses a custom shader, this will fail. Need to handle those as well.
-            shader* s = shader_system_get("Shader.Builtin.Terrain");
-            if (!s) {
-                KERROR("Unable to obtain terrain shader.");
-                return false;
-            }
-            shader_system_use_by_id(s->id);
+            shader_system_use_by_id(data->terrain_shader->id);
 
             // Apply globals
             // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
             // and mode (from the renderer)
-            if (!material_system_apply_global(s->id, p_frame_data->renderer_frame_number, p_frame_data->draw_index, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
+            if (!material_system_apply_global(data->terrain_shader->id, p_frame_data, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
                 KERROR("Failed to use apply globals for terrain shader. Render frame failed.");
                 return false;
             }
@@ -462,7 +452,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
         // Static geometries.
         u32 geometry_count = packet->geometry_count;
         if (geometry_count > 0) {
-            if (!shader_system_use_by_id(shader_id)) {
+            if (!shader_system_use_by_id(data->material_shader->id)) {
                 KERROR("Failed to use material shader. Render frame failed.");
                 return false;
             }
@@ -470,7 +460,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             // Apply globals
             // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
             // and mode (from the renderer)
-            if (!material_system_apply_global(shader_id, p_frame_data->renderer_frame_number, p_frame_data->draw_index, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
+            if (!material_system_apply_global(data->material_shader->id, p_frame_data, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_colour, &packet->view_position, data->render_mode)) {
                 KERROR("Failed to use apply globals for material shader. Render frame failed.");
                 return false;
             }
@@ -518,16 +508,11 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             }
         }
 
-        // TODO: Debug geometries (i.e. grids, lines, boxes, gizmos, etc.)
-        // This should go through the same geometry system as anything else.
+        // Debug geometries (i.e. grids, lines, boxes, gizmos, etc.)
+        // This goes through the same geometry system as anything else.
         u32 debug_geometry_count = packet->debug_geometry_count;
         if (debug_geometry_count > 0) {
-            shader* s = shader_system_get("Shader.Builtin.ColourShader3D");
-            if (!s) {
-                KERROR("Unable to obtain colour3d shader.");
-                return false;
-            }
-            shader_system_use_by_id(s->id);
+            shader_system_use_by_id(data->colour_shader->id);
 
             // Globals
             shader_system_uniform_set_by_index(data->debug_locations.projection, &packet->projection_matrix);
@@ -547,7 +532,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
             }
 
             // HACK: This should be handled somehow, every frame, by the shader system.
-            s->render_frame_number = p_frame_data->renderer_frame_number;
+            data->colour_shader->render_frame_number = p_frame_data->renderer_frame_number;
         }
 
         if (!renderer_renderpass_end(pass)) {

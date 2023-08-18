@@ -651,7 +651,7 @@ b8 simple_scene_populate_render_packet(simple_scene *scene, struct camera *curre
         }
 
         // World
-        if (!render_view_system_packet_build(view, p_frame_data, v, &scene->world_data, view_packet)) {
+        if (!render_view_system_packet_build(view, p_frame_data, v, current_camera, &scene->world_data, view_packet)) {
             KERROR("Failed to build packet for view 'world'.");
             return false;
         }

@@ -31,7 +31,6 @@ typedef struct debug_colour_shader_locations {
 
 typedef struct render_view_editor_world_internal_data {
     shader* s;
-    camera* world_camera;
 
     debug_colour_shader_locations debug_locations;
 } render_view_editor_world_internal_data;
@@ -76,8 +75,6 @@ b8 render_view_editor_world_on_registered(struct render_view* self) {
             data->debug_locations.model = shader_system_uniform_index(data->s, "model");
         }
 
-        data->world_camera = camera_system_get_default();
-
         if (!event_register(EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED, self, render_view_on_event)) {
             KERROR("Unable to listen for refresh required event, creation failed.");
             return false;
@@ -107,7 +104,7 @@ void render_view_editor_world_on_resize(struct render_view* self, u32 width, u32
     }
 }
 
-b8 render_view_editor_world_on_packet_build(const struct render_view* self, struct frame_data* p_frame_data, struct viewport* v, void* data, struct render_view_packet* out_packet) {
+b8 render_view_editor_world_on_packet_build(const struct render_view* self, struct frame_data* p_frame_data, struct viewport* v, struct camera* c, void* data, struct render_view_packet* out_packet) {
     if (!self || !data || !out_packet) {
         KWARN("render_view_editor_world_on_build_packet requires valid pointer to view, packet, and data.");
         return false;
@@ -117,15 +114,14 @@ b8 render_view_editor_world_on_packet_build(const struct render_view* self, stru
     out_packet->geometries = darray_create(geometry_render_data);
     out_packet->view = self;
     out_packet->vp = v;
-    render_view_editor_world_internal_data* internal_data = self->internal_data;
     out_packet->projection_matrix = v->projection;
-    out_packet->view_matrix = camera_view_get(internal_data->world_camera);
+    out_packet->view_matrix = camera_view_get(c);
 
     editor_world_packet_data* packet_data = (editor_world_packet_data*)data;
     if (packet_data->gizmo) {
         geometry* g = &packet_data->gizmo->mode_data[packet_data->gizmo->mode].geo;
 
-        // vec3 camera_pos = camera_position_get(internal_data->world_camera);
+        // vec3 camera_pos = camera_position_get(c);
         // vec3 gizmo_pos = transform_position_get(&packet_data->gizmo->xform);
         // TODO: Should get this from the camera/viewport.
         // f32 fov = deg_to_rad(45.0f);

@@ -152,9 +152,9 @@ render_view* render_view_system_get(const char* name) {
     return 0;
 }
 
-b8 render_view_system_packet_build(const render_view* view, struct frame_data* p_frame_data, struct viewport* v, void* data, struct render_view_packet* out_packet) {
+b8 render_view_system_packet_build(const render_view* view, struct frame_data* p_frame_data, struct viewport* v, struct camera* c, void* data, struct render_view_packet* out_packet) {
     if (view && out_packet) {
-        return view->on_packet_build(view, p_frame_data, v, data, out_packet);
+        return view->on_packet_build(view, p_frame_data, v, c, data, out_packet);
     }
 
     KERROR("render_view_system_packet_build requires valid pointers to a view and a packet.");

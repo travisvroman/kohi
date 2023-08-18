@@ -99,7 +99,7 @@ void render_view_ui_on_resize(struct render_view* self, u32 width, u32 height) {
     }
 }
 
-b8 render_view_ui_on_packet_build(const struct render_view* self, struct frame_data* p_frame_data, struct viewport* v, void* data, struct render_view_packet* out_packet) {
+b8 render_view_ui_on_packet_build(const struct render_view* self, struct frame_data* p_frame_data, struct viewport* v, struct camera* c, void* data, struct render_view_packet* out_packet) {
     if (!self || !data || !out_packet) {
         KWARN("render_view_ui_on_packet_build requires valid pointer to view, packet, and data.");
         return false;
@@ -161,7 +161,7 @@ b8 render_view_ui_on_render(const struct render_view* self, const struct render_
         }
 
         // Apply globals
-        if (!material_system_apply_global(shader_id, p_frame_data->renderer_frame_number, p_frame_data->draw_index, &packet->projection_matrix, &packet->view_matrix, 0, 0, 0)) {
+        if (!material_system_apply_global(shader_id, p_frame_data, &packet->projection_matrix, &packet->view_matrix, 0, 0, 0)) {
             KERROR("Failed to use apply globals for material shader. Render frame failed.");
             return false;
         }

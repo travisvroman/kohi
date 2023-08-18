@@ -22,6 +22,7 @@
 #include "game_state.h"
 #include "math/math_types.h"
 #include "renderer/viewport.h"
+#include "systems/camera_system.h"
 #include "testbed_types.h"
 
 // Views
@@ -520,9 +521,14 @@ b8 application_initialize(struct application* game_inst) {
 
     // TODO: end temp load/prepare stuff
 
-    state->world_camera = camera_system_get_default();
+    state->world_camera = camera_system_acquire("world");
     camera_position_set(state->world_camera, (vec3){16.07f, 4.5f, 25.0f});
     camera_rotation_euler_set(state->world_camera, (vec3){-20.0f, 51.0f, 0.0f});
+
+    // TODO: temp test
+    state->world_camera_2 = camera_system_acquire("world_2");
+    camera_position_set(state->world_camera_2, (vec3){-17.64f, 22.07f, 30.89f});
+    camera_rotation_euler_set(state->world_camera_2, (vec3){-40.0f, -51.0f, 0.0f});
 
     // kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
 
@@ -581,9 +587,8 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     state->alloc_count = get_memory_alloc_count();
 
     // Update the bitmap text with camera position. NOTE: just using the default camera for now.
-    camera* world_camera = camera_system_get_default();
-    vec3 pos = camera_position_get(world_camera);
-    vec3 rot = camera_rotation_euler_get(world_camera);
+    vec3 pos = camera_position_get(state->world_camera);
+    vec3 rot = camera_rotation_euler_get(state->world_camera);
 
     // Also tack on current mouse state.
     b8 left_down = input_is_button_down(BUTTON_LEFT);
@@ -691,7 +696,7 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
 
         editor_world_packet_data editor_world_data = {0};
         editor_world_data.gizmo = &state->gizmo;
-        if (!render_view_system_packet_build(view, p_frame_data, &state->world_viewport, &editor_world_data, view_packet)) {
+        if (!render_view_system_packet_build(view, p_frame_data, &state->world_viewport, state->world_camera, &editor_world_data, view_packet)) {
             KERROR("Failed to build packet for view 'editor_world'.");
             return false;
         }
@@ -731,7 +736,7 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
         }
 
         ui_packet.texts = texts;
-        if (!render_view_system_packet_build(view, p_frame_data, &state->ui_viewport, &ui_packet, view_packet)) {
+        if (!render_view_system_packet_build(view, p_frame_data, &state->ui_viewport, 0, &ui_packet, view_packet)) {
             KERROR("Failed to build packet for view 'ui'.");
             return false;
         }
@@ -795,6 +800,7 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     view_packet = &packet->views[TESTBED_PACKET_VIEW_WORLD];
     view_packet->projection_matrix = state->world_viewport2.projection;
     view_packet->vp = &state->world_viewport2;
+    view_packet->view_matrix = camera_view_get(state->world_camera_2);
     view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
     // UI
