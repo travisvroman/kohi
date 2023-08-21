@@ -1,10 +1,10 @@
 #include "linear_allocator_tests.h"
-#include "../test_manager.h"
-#include "../expect.h"
 
 #include <defines.h>
-
 #include <memory/linear_allocator.h>
+
+#include "../expect.h"
+#include "../test_manager.h"
 
 u8 linear_allocator_should_create_and_destroy(void) {
     linear_allocator alloc;
@@ -100,7 +100,7 @@ u8 linear_allocator_multi_allocation_all_space_then_free(void) {
     }
 
     // Validate that pointer is reset.
-    linear_allocator_free_all(&alloc);
+    linear_allocator_free_all(&alloc, true);
     expect_should_be(0, alloc.allocated);
 
     linear_allocator_destroy(&alloc);

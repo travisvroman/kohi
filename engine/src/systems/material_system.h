@@ -126,10 +126,11 @@ KAPI b8 material_system_apply_global(u32 shader_id, const struct frame_data* p_f
  * @brief Applies instance-level material data for the given material.
  *
  * @param m A pointer to the material to be applied.
+ * @param p_frame_data A pointer to the current frame's data.
  * @param needs_update Indicates if material internals require updating, or if they should just be bound.
  * @return True on success; otherwise false.
  */
-KAPI b8 material_system_apply_instance(material* m, b8 needs_update);
+KAPI b8 material_system_apply_instance(material* m, struct frame_data* p_frame_data, b8 needs_update);
 
 /**
  * @brief Applies local-level material data (typically just model matrix).

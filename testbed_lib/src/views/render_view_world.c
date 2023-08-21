@@ -7,7 +7,6 @@
 #include "core/logger.h"
 #include "math/kmath.h"
 #include "math/transform.h"
-#include "memory/linear_allocator.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "renderer/viewport.h"
@@ -337,7 +336,7 @@ void render_view_world_on_packet_destroy(const struct render_view* self, struct 
     kzero_memory(packet, sizeof(render_view_packet));
 }
 
-b8 render_view_world_on_render(const struct render_view* self, const struct render_view_packet* packet, const struct frame_data* p_frame_data) {
+b8 render_view_world_on_render(const struct render_view* self, const struct render_view_packet* packet, struct frame_data* p_frame_data) {
     render_view_world_internal_data* data = self->internal_data;
 
     // Bind the viewport
@@ -432,7 +431,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
                 // updates the internal shader bindings and binds them, or only binds them.
                 // Also need to check against the renderer draw index.
                 b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number || m->render_draw_index != p_frame_data->draw_index;
-                if (!material_system_apply_instance(m, needs_update)) {
+                if (!material_system_apply_instance(m, p_frame_data, needs_update)) {
                     KWARN("Failed to apply terrain material '%s'. Skipping draw.", m->name);
                     continue;
                 } else {
@@ -481,7 +480,7 @@ b8 render_view_world_on_render(const struct render_view* self, const struct rend
                 // updates the internal shader bindings and binds them, or only binds them.
                 // Also need to check against the draw index.
                 b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number || m->render_draw_index != p_frame_data->draw_index;
-                if (!material_system_apply_instance(m, needs_update)) {
+                if (!material_system_apply_instance(m, p_frame_data, needs_update)) {
                     KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
                     continue;
                 } else {
