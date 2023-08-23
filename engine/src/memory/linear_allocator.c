@@ -20,7 +20,7 @@ void linear_allocator_destroy(linear_allocator* allocator) {
         allocator->allocated = 0;
         if (allocator->owns_memory && allocator->memory) {
             kfree(allocator->memory, allocator->total_size, MEMORY_TAG_LINEAR_ALLOCATOR);
-        } 
+        }
         allocator->memory = 0;
         allocator->total_size = 0;
         allocator->owns_memory = false;
@@ -44,9 +44,11 @@ void* linear_allocator_allocate(linear_allocator* allocator, u64 size) {
     return 0;
 }
 
-void linear_allocator_free_all(linear_allocator* allocator) {
+void linear_allocator_free_all(linear_allocator* allocator, b8 clear) {
     if (allocator && allocator->memory) {
         allocator->allocated = 0;
-        kzero_memory(allocator->memory, allocator->total_size);
+        if (clear) {
+            kzero_memory(allocator->memory, allocator->total_size);
+        }
     }
 }

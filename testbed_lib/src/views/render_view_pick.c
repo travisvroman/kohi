@@ -9,7 +9,6 @@
 #include "core/uuid.h"
 #include "math/kmath.h"
 #include "math/transform.h"
-#include "memory/linear_allocator.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/viewport.h"
 #include "resources/ui_text.h"
@@ -271,7 +270,7 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct frame
 
     // Set the pick packet data to extended data.
     packet_data->ui_geometry_count = 0;
-    out_packet->extended_data = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(pick_packet_data));
+    out_packet->extended_data = p_frame_data->allocator.allocate(sizeof(pick_packet_data));
 
     u32 world_geometry_count = !packet_data->world_mesh_data ? 0 : darray_length(packet_data->world_mesh_data);
 
@@ -346,7 +345,7 @@ void render_view_pick_on_packet_destroy(const struct render_view* self, struct r
     kzero_memory(packet, sizeof(render_view_packet));
 }
 
-b8 render_view_pick_on_render(const struct render_view* self, const struct render_view_packet* packet, const struct frame_data* p_frame_data) {
+b8 render_view_pick_on_render(const struct render_view* self, const struct render_view_packet* packet, struct frame_data* p_frame_data) {
     render_view_pick_internal_data* data = self->internal_data;
 
     // Bind the viewport

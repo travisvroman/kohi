@@ -161,7 +161,7 @@ b8 render_view_system_packet_build(const render_view* view, struct frame_data* p
     return false;
 }
 
-b8 render_view_system_on_render(const render_view* view, const render_view_packet* packet, u64 frame_number, u64 render_target_index, const struct frame_data* p_frame_data) {
+b8 render_view_system_on_render(const render_view* view, const render_view_packet* packet, u64 frame_number, u64 render_target_index, struct frame_data* p_frame_data) {
     if (view && packet) {
         return view->on_render(view, packet, p_frame_data);
     }

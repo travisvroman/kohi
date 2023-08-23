@@ -90,6 +90,6 @@ KAPI b8 render_view_system_packet_build(const render_view* view, struct frame_da
  * @param render_target_index The current render target index for renderers that use multiple render targets at once (i.e. Vulkan).
  * @return True on success; otherwise false.
  */
-KAPI b8 render_view_system_on_render(const render_view* view, const render_view_packet* packet, u64 frame_number, u64 render_target_index, const struct frame_data* p_frame_data);
+KAPI b8 render_view_system_on_render(const render_view* view, const render_view_packet* packet, u64 frame_number, u64 render_target_index, struct frame_data* p_frame_data);
 
 KAPI void render_view_system_render_targets_regenerate(render_view* view);

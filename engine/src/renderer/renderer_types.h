@@ -912,7 +912,7 @@ typedef struct render_view {
      * @param p_frame_data A pointer to the current frame's data.
      * @return True on success; otherwise false.
      */
-    b8 (*on_render)(const struct render_view* self, const struct render_view_packet* packet, const struct frame_data* p_frame_data);
+    b8 (*on_render)(const struct render_view* self, const struct render_view_packet* packet, struct frame_data* p_frame_data);
 
     /**
      * @brief Regenerates the resources for the given attachment at the provided pass index.
