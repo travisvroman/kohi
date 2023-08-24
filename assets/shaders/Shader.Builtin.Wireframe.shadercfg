@@ -6,6 +6,7 @@ stages=vertex,fragment
 stagefiles=shaders/Builtin.WireframeShader.vert.spv,shaders/Builtin.WireframeShader.frag.spv
 depth_test=1
 depth_write=1
+wireframe=1
 
 # Attributes: type,name
 attribute=vec3,in_position

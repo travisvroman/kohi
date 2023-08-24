@@ -309,8 +309,6 @@ typedef struct vulkan_pipeline_config {
     VkRect2D scissor;
     /** @brief The face cull mode. */
     face_cull_mode cull_mode;
-    /** @brief Indicates if this pipeline should use wireframe mode. */
-    b8 is_wireframe;
     /** @brief The shader flags used for creating the pipeline. */
     u32 shader_flags;
     /** @brief The number of push constant data ranges. */

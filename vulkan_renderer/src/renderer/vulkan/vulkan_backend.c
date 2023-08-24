@@ -2105,7 +2105,6 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
         pipeline_config.viewport = viewport;
         pipeline_config.scissor = scissor;
         pipeline_config.cull_mode = internal_shader->config.cull_mode;
-        pipeline_config.is_wireframe = false;
         pipeline_config.shader_flags = s->flags;
         pipeline_config.push_constant_range_count = s->push_constant_range_count;
         pipeline_config.push_constant_ranges = s->push_constant_ranges;
