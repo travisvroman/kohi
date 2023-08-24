@@ -149,14 +149,8 @@ b8 shader_system_create(renderpass* pass, const shader_config* config) {
     out_shader->push_constant_stride = 128;
     out_shader->push_constant_size = 0;
 
-    // Process flags.
-    out_shader->flags = 0;
-    if (config->depth_test) {
-        out_shader->flags |= SHADER_FLAG_DEPTH_TEST;
-    }
-    if (config->depth_write) {
-        out_shader->flags |= SHADER_FLAG_DEPTH_WRITE;
-    }
+    // Take a copy of the flags.
+    out_shader->flags = config->flags;
 
     if (!renderer_shader_create(out_shader, config, pass, config->stage_count, (const char**)config->stage_filenames, config->stages)) {
         KERROR("Error creating shader.");

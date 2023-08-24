@@ -79,7 +79,8 @@ typedef struct shader_attribute {
 typedef enum shader_flags {
     SHADER_FLAG_NONE = 0x0,
     SHADER_FLAG_DEPTH_TEST = 0x1,
-    SHADER_FLAG_DEPTH_WRITE = 0x2
+    SHADER_FLAG_DEPTH_WRITE = 0x2,
+    SHADER_FLAG_WIREFRAME = 0x4
 } shader_flags;
 
 typedef u32 shader_flag_bits;

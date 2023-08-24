@@ -460,14 +460,8 @@ typedef struct shader_config {
      * Must align with stages array. Darray. */
     char **stage_filenames;
 
-    // TODO: Convert these bools to flags.
-    /** @brief Indicates if depth testing should be done. */
-    b8 depth_test;
-    /**
-     * @brief Indicates if the results of depth testing should be written to the
-     * depth buffer. NOTE: This is ignored if depth_test is false.
-     */
-    b8 depth_write;
+    /** @brief The flags set for this shader. */
+    u32 flags;
 } shader_config;
 
 typedef enum material_type {

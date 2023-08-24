@@ -48,7 +48,10 @@ typedef enum render_target_attachment_store_operation {
 
 typedef enum renderer_projection_matrix_type {
     RENDERER_PROJECTION_MATRIX_TYPE_PERSPECTIVE = 0x0,
-    RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC = 0x1
+    /** @brief An orthographic matrix that is zero-based on the top left. */
+    RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC = 0x1,
+    /** @brief An orthographic matrix that is centered around width/height instead of zero-based. Uses fov as a "zoom". */
+    RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC_CENTERED = 0x2
 } renderer_projection_matrix_type;
 
 typedef struct render_target_attachment_config {

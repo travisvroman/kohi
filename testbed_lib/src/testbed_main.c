@@ -25,6 +25,7 @@
 #include "testbed_types.h"
 
 // Views
+#include "editor/render_view_wireframe.h"
 #include "resources/loaders/simple_scene_loader.h"
 #include "views/render_view_pick.h"
 #include "views/render_view_ui.h"
@@ -425,8 +426,8 @@ b8 application_initialize(struct application* game_inst) {
 
     // TODO: test
     rect_2d world_vp_rect2 = vec4_create(20.0f, 20.0f, 128.8f, 72.0f);
-    if (!viewport_create(world_vp_rect2, deg_to_rad(45.0f), 0.1f, 4000.0f, RENDERER_PROJECTION_MATRIX_TYPE_PERSPECTIVE, &state->world_viewport2)) {
-        KERROR("Failed to create world viewport. Cannot start application.");
+    if (!viewport_create(world_vp_rect2, 0.015f, -100.0f, 100.0f, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC_CENTERED, &state->world_viewport2)) {
+        KERROR("Failed to create wireframe viewport. Cannot start application.");
         return false;
     }
 
@@ -644,13 +645,14 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
         return true;
     }
 
-    packet->view_count = 3;
+    packet->view_count = 4;
     packet->views = p_frame_data->allocator.allocate(sizeof(render_view_packet) * packet->view_count);
 
     // TODO: Cache these instead of lookups every frame.
     // packet->views[TESTBED_PACKET_VIEW_SKYBOX].view = render_view_system_get("skybox");
     packet->views[TESTBED_PACKET_VIEW_WORLD].view = render_view_system_get("world");
     packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD].view = render_view_system_get("editor_world");
+    packet->views[TESTBED_PACKET_VIEW_WIREFRAME].view = render_view_system_get("wireframe");
     packet->views[TESTBED_PACKET_VIEW_UI].view = render_view_system_get("ui");
     // packet->views[TESTBED_PACKET_VIEW_PICK].view = render_view_system_get("pick");
 
@@ -697,6 +699,21 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
         editor_world_data.gizmo = &state->gizmo;
         if (!render_view_system_packet_build(view, p_frame_data, &state->world_viewport, state->world_camera, &editor_world_data, view_packet)) {
             KERROR("Failed to build packet for view 'editor_world'.");
+            return false;
+        }
+    }
+
+    // Wireframe
+    {
+        render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_WIREFRAME];
+        const render_view* view = view_packet->view;
+
+        render_view_wireframe_data wireframe_data = {0};
+        // TODO: Get a list of geometries not culled for the current camera.
+        wireframe_data.selected_id = state->selection.unique_id;
+        wireframe_data.world_geometries = packet->views[TESTBED_PACKET_VIEW_WORLD].geometries;
+        if (!render_view_system_packet_build(view, p_frame_data, &state->world_viewport2, state->world_camera_2, &wireframe_data, view_packet)) {
+            KERROR("Failed to build packet for view 'wireframe'");
             return false;
         }
     }
@@ -789,17 +806,8 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
     view_packet = &packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD];
     view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
-    // Executes the current command buffer.
-    renderer_end(p_frame_data);
-
-    // Begins the command buffer.
-    renderer_begin(p_frame_data);
-
-    // Render the world again, but with the new viewport and camera.
-    view_packet = &packet->views[TESTBED_PACKET_VIEW_WORLD];
-    view_packet->projection_matrix = state->world_viewport2.projection;
-    view_packet->vp = &state->world_viewport2;
-    view_packet->view_matrix = camera_view_get(state->world_camera_2);
+    // Render the wireframe view
+    view_packet = &packet->views[TESTBED_PACKET_VIEW_WIREFRAME];
     view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
 
     // UI
@@ -1069,6 +1077,57 @@ b8 configure_render_views(application_config* config) {
         editor_world_view.attachment_target_regenerate = 0;
 
         darray_push(config->views, editor_world_view);
+    }
+
+    // Wireframe view.
+    {
+        render_view wireframe_view = {0};
+        wireframe_view.name = "wireframe";
+        wireframe_view.renderpass_count = 1;
+        wireframe_view.passes = kallocate(sizeof(renderpass) * wireframe_view.renderpass_count, MEMORY_TAG_ARRAY);
+
+        // Renderpass config.
+        renderpass_config wireframe_pass = {0};
+        wireframe_pass.name = "Renderpass.Testbed.Wireframe";
+        wireframe_pass.clear_colour = (vec4){0.2f, 0.2f, 0.2f, 1.0f};
+        wireframe_pass.clear_flags = RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG | RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG | RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG;
+        wireframe_pass.depth = 1.0f;
+        wireframe_pass.stencil = 0;
+        wireframe_pass.target.attachment_count = 2;
+        wireframe_pass.target.attachments = kallocate(sizeof(render_target_attachment_config) * wireframe_pass.target.attachment_count, MEMORY_TAG_ARRAY);
+        wireframe_pass.render_target_count = renderer_window_attachment_count_get();
+
+        // Colour attachment
+        render_target_attachment_config* wireframe_target_colour = &wireframe_pass.target.attachments[0];
+        wireframe_target_colour->type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+        wireframe_target_colour->source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+        wireframe_target_colour->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD;
+        wireframe_target_colour->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+        wireframe_target_colour->present_after = false;
+
+        // Depth attachment
+        render_target_attachment_config* wireframe_target_depth = &wireframe_pass.target.attachments[1];
+        wireframe_target_depth->type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
+        wireframe_target_depth->source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+        wireframe_target_depth->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+        wireframe_target_depth->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+        wireframe_target_depth->present_after = false;
+
+        if (!renderer_renderpass_create(&wireframe_pass, &wireframe_view.passes[0])) {
+            KERROR("World view - Failed to create renderpass '%s'", wireframe_view.passes[0].name);
+            return false;
+        }
+
+        // Assign function pointers.
+        wireframe_view.on_packet_build = render_view_wireframe_on_packet_build;
+        wireframe_view.on_packet_destroy = render_view_wireframe_on_packet_destroy;
+        wireframe_view.on_render = render_view_wireframe_on_render;
+        wireframe_view.on_registered = render_view_wireframe_on_registered;
+        wireframe_view.on_destroy = render_view_wireframe_on_destroy;
+        wireframe_view.on_resize = render_view_wireframe_on_resize;
+        wireframe_view.attachment_target_regenerate = 0;
+
+        darray_push(config->views, wireframe_view);
     }
 
     // UI view
