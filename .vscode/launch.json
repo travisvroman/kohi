@@ -28,6 +28,29 @@
             }
         },
         {
+            "name": "Launch Editor",
+            "type": "cppdbg",
+            "request": "launch",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/bin/",
+            "environment": [],
+            "program": "${workspaceFolder}/bin/editor",
+            "osx": {
+                "MIMode": "lldb",
+                "targetArchitecture": "arm64",
+                "externalConsole": false,
+            },
+            "linux": {
+                "externalConsole": false,
+            },
+            "windows": {
+                "type": "cppvsdbg",
+                "program": "${workspaceFolder}/bin/editor.exe",
+                // cppvsdbg requires this instead of externalConsole
+                "console": "integratedTerminal",
+            }
+        },
+        {
             "name": "Launch Unit Tests",
             "type": "cppdbg",
             "request": "launch",

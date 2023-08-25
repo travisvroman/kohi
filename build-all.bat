@@ -46,6 +46,14 @@ REM Testbed
 make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed ADDL_INC_FLAGS="-Iengine\src" ADDL_LINK_FLAGS="-lengine"
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
+REM Editor lib
+make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=editor_lib VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-Iengine\src" ADDL_LINK_FLAGS="-lengine"
+IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
+
+REM Editor
+make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=editor ADDL_INC_FLAGS="-Iengine\src" ADDL_LINK_FLAGS="-lengine"
+IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
+
 REM Tests
 make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=tests ADDL_INC_FLAGS=-Iengine\src ADDL_LINK_FLAGS=-lengine
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)

@@ -72,6 +72,22 @@ then
 echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
 
+# Editor Lib
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=editor_lib VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
+ERRORLEVEL=$?
+if [ $ERRORLEVEL -ne 0 ]
+then
+echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
+fi
+
+# Editor
+make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=editor ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
+ERRORLEVEL=$?
+if [ $ERRORLEVEL -ne 0 ]
+then
+echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
+fi
+
 # Tests
 make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tests ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
 ERRORLEVEL=$?
