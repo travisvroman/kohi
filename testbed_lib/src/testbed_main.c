@@ -426,7 +426,7 @@ b8 application_initialize(struct application* game_inst) {
 
     // TODO: test
     rect_2d world_vp_rect2 = vec4_create(20.0f, 20.0f, 128.8f, 72.0f);
-    if (!viewport_create(world_vp_rect2, 0.015f, -100.0f, 100.0f, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC_CENTERED, &state->world_viewport2)) {
+    if (!viewport_create(world_vp_rect2, 0.015f, -4000.0f, 4000.0f, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC_CENTERED, &state->world_viewport2)) {
         KERROR("Failed to create wireframe viewport. Cannot start application.");
         return false;
     }
@@ -527,8 +527,8 @@ b8 application_initialize(struct application* game_inst) {
 
     // TODO: temp test
     state->world_camera_2 = camera_system_acquire("world_2");
-    camera_position_set(state->world_camera_2, (vec3){-17.64f, 22.07f, 30.89f});
-    camera_rotation_euler_set(state->world_camera_2, (vec3){-40.0f, -51.0f, 0.0f});
+    camera_position_set(state->world_camera_2, (vec3){8.0f, 0.0f, 10.0f});
+    camera_rotation_euler_set(state->world_camera_2, (vec3){0.0f, -90.0f, 0.0f});
 
     // kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
 
@@ -712,6 +712,7 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
         // TODO: Get a list of geometries not culled for the current camera.
         wireframe_data.selected_id = state->selection.unique_id;
         wireframe_data.world_geometries = packet->views[TESTBED_PACKET_VIEW_WORLD].geometries;
+        wireframe_data.terrain_geometries = packet->views[TESTBED_PACKET_VIEW_WORLD].terrain_geometries;
         if (!render_view_system_packet_build(view, p_frame_data, &state->world_viewport2, state->world_camera_2, &wireframe_data, view_packet)) {
             KERROR("Failed to build packet for view 'wireframe'");
             return false;
