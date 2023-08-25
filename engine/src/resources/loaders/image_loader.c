@@ -69,12 +69,14 @@ static b8 image_loader_load(struct resource_loader *self, const char *name,
     i32 width;
     i32 height;
     i32 channel_count;
+    // The final result of all operations from here down.
+    b8 final_result = false;
 
     u8 *raw_data = kallocate(file_size, MEMORY_TAG_TEXTURE);
     if (!raw_data) {
         KERROR("Unable to read file '%s'.", full_file_path);
         filesystem_close(&f);
-        return false;
+        goto image_loader_load_return;
     }
 
     u64 bytes_read = 0;
@@ -83,26 +85,22 @@ static b8 image_loader_load(struct resource_loader *self, const char *name,
 
     if (!read_result) {
         KERROR("Unable to read file: '%s'", full_file_path);
-        return false;
+        goto image_loader_load_return;
     }
 
     if (bytes_read != file_size) {
-        KERROR("File size if %llu does not match expected: %llu", bytes_read,
-               file_size);
-        return false;
+        KERROR("File size if %llu does not match expected: %llu", bytes_read, file_size);
+        goto image_loader_load_return;
     }
 
     u8 *data = stbi_load_from_memory(raw_data, file_size, &width, &height,
                                      &channel_count, required_channel_count);
     if (!data) {
         KERROR("Image resource loader failed to load file '%s'.", full_file_path);
-        return false;
+        goto image_loader_load_return;
     }
 
-    kfree(raw_data, file_size, MEMORY_TAG_TEXTURE);
-
-    image_resource_data *resource_data =
-        kallocate(sizeof(image_resource_data), MEMORY_TAG_TEXTURE);
+    image_resource_data *resource_data = kallocate(sizeof(image_resource_data), MEMORY_TAG_TEXTURE);
     resource_data->pixels = data;
     resource_data->width = width;
     resource_data->height = height;
@@ -110,12 +108,17 @@ static b8 image_loader_load(struct resource_loader *self, const char *name,
 
     out_resource->data = resource_data;
     out_resource->data_size = sizeof(image_resource_data);
+    final_result = true;
 
-    return true;
+    // No matter the result, clean up and return.
+image_loader_load_return:
+    if (raw_data) {
+        kfree(raw_data, file_size, MEMORY_TAG_TEXTURE);
+    }
+    return final_result;
 }
 
-static void image_loader_unload(struct resource_loader *self,
-                                resource *resource) {
+static void image_loader_unload(struct resource_loader *self, resource *resource) {
     stbi_image_free(((image_resource_data *)resource->data)->pixels);
     if (!resource_unload(self, resource, MEMORY_TAG_TEXTURE)) {
         KWARN("image_loader_unload called with nullptr for self or resource.");
