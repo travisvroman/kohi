@@ -46,7 +46,7 @@ static void* frame_allocator_allocate(u64 size) {
 
     return linear_allocator_allocate(&engine_state->frame_allocator, size);
 }
-static void frame_allocator_free(u64 size) {
+static void frame_allocator_free(void* block, u64 size) {
     // NOTE: Linear allocator doesn't free, so this is a no-op
     /* if (engine_state) {
     } */
