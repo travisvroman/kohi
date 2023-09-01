@@ -20,7 +20,6 @@ typedef enum rendergraph_source_origin {
 } rendergraph_source_origin;
 
 typedef struct rendergraph_source {
-    u32 id;
     char* name;
     rendergraph_source_type type;
     rendergraph_source_origin origin;
@@ -29,7 +28,6 @@ typedef struct rendergraph_source {
 } rendergraph_source;
 
 typedef struct rendergraph_sink {
-    u32 id;
     char* name;
     rendergraph_source* bound_source;
 } rendergraph_sink;
@@ -43,7 +41,6 @@ typedef struct rendergraph_pass_data {
 } rendergraph_pass_data;
 
 typedef struct rendergraph_pass {
-    u32 id;
     char* name;
 
     rendergraph_pass_data pass_data;
@@ -56,13 +53,15 @@ typedef struct rendergraph_pass {
     renderpass pass;
     void* internal_data;
 
+    b8 presents_after;
+
     b8 (*initialize)(struct rendergraph_pass* self);
     b8 (*execute)(struct rendergraph_pass* self, struct frame_data* p_frame_data);
     void (*destroy)(struct rendergraph_pass* self);
 } rendergraph_pass;
 
 typedef struct rendergraph {
-    const char* name;
+    char* name;
     struct application* app;
 
     // darray
@@ -80,7 +79,7 @@ KAPI void rendergraph_destroy(rendergraph* graph);
 KAPI b8 rendergraph_global_source_add(rendergraph* graph, const char* name, rendergraph_source_type type, rendergraph_source_origin origin);
 
 // pass functions
-KAPI b8 rendergraph_pass_create(rendergraph* graph, const char* name, b8(create_pfn)(struct rendergraph_pass* self), rendergraph_pass* out_pass);
+KAPI b8 rendergraph_pass_create(rendergraph* graph, const char* name, b8 (*create_pfn)(struct rendergraph_pass* self), rendergraph_pass* out_pass);
 KAPI b8 rendergraph_pass_source_add(rendergraph* graph, const char* pass_name, const char* source_name, rendergraph_source_type type, rendergraph_source_origin origin);
 KAPI b8 rendergraph_pass_sink_add(rendergraph* graph, const char* pass_name, const char* sink_name);
 
