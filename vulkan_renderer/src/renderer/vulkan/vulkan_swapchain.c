@@ -1,13 +1,12 @@
 #include "vulkan_swapchain.h"
 
-#include "core/logger.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "core/logger.h"
+#include "systems/texture_system.h"
 #include "vulkan_device.h"
 #include "vulkan_image.h"
 #include "vulkan_utils.h"
-
-#include "systems/texture_system.h"
 
 static void create(vulkan_context* context, u32 width, u32 height, renderer_config_flags flags, vulkan_swapchain* swapchain);
 static void destroy(vulkan_context* context, vulkan_swapchain* swapchain);
@@ -156,6 +155,10 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
         image_count = context->device.swapchain_support.capabilities.maxImageCount;
     }
 
+    // NOTE: To test different numbers of images (i.e. for devices requiring > 3 images), uncomment this line.
+    // Not to be shipped in production code.
+    // image_count = 4;
+
     swapchain->max_frames_in_flight = image_count - 1;
 
     // Swapchain create info
@@ -226,6 +229,10 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
             texture_system_resize(&swapchain->render_textures[i], swapchain_extent.width, swapchain_extent.height, false);
         }
     }
+    // Create the render targets array if it doesn't exist.
+    if (!swapchain->render_targets) {
+        swapchain->render_targets = kallocate(sizeof(render_target) * swapchain->image_count, MEMORY_TAG_ARRAY);
+    }
     VkImage swapchain_images[32];
     VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, swapchain_images));
     for (u32 i = 0; i < swapchain->image_count; ++i) {
@@ -266,7 +273,7 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
     for (u32 i = 0; i < context->swapchain.image_count; ++i) {
         // Create depth image and its view.
         char formatted_name[TEXTURE_NAME_MAX_LENGTH] = {0};
-        string_format(formatted_name, "swapchain_image_%u", i);
+        string_format(formatted_name, "depth_image_%u", i);
 
         vulkan_image* image = kallocate(sizeof(vulkan_image), MEMORY_TAG_TEXTURE);
         vulkan_image_create(
@@ -283,9 +290,11 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
             formatted_name,
             image);
 
+        char image_name[32] = "__kohi_default_depth_texture_0_";
+        image_name[30] = '0' + i;
         // Wrap it in a texture.
         texture_system_wrap_internal(
-            "__kohi_default_depth_texture__",
+            image_name,
             swapchain_extent.width,
             swapchain_extent.height,
             context->device.depth_channel_count,

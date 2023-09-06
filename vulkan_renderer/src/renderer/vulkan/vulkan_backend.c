@@ -532,6 +532,9 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     context->queue_complete_semaphores =
         darray_reserve(VkSemaphore, context->swapchain.max_frames_in_flight);
 
+    if (!context->in_flight_fences) {
+        context->in_flight_fences = kallocate(sizeof(VkFence) * context->swapchain.max_frames_in_flight, MEMORY_TAG_ARRAY);
+    }
     for (u8 i = 0; i < context->swapchain.max_frames_in_flight; ++i) {
         VkSemaphoreCreateInfo semaphore_create_info = {
             VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
@@ -555,6 +558,9 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     // In flight fences should not yet exist at this point, so clear the list.
     // These are stored in pointers because the initial state should be 0, and
     // will be 0 when not in use. Acutal fences are not owned by this list.
+    if (!context->images_in_flight) {
+        context->images_in_flight = kallocate(sizeof(VkFence) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
+    }
     for (u32 i = 0; i < context->swapchain.image_count; ++i) {
         context->images_in_flight[i] = 0;
     }
@@ -2205,20 +2211,23 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
     internal_shader->mapped_uniform_buffer_block = vulkan_buffer_map_memory(
         plugin, &internal_shader->uniform_buffer, 0, VK_WHOLE_SIZE);
 
-    // Allocate global descriptor sets, one per frame. Global is always the first
-    // set.
-    VkDescriptorSetLayout global_layouts[3] = {
-        internal_shader->descriptor_set_layouts[DESC_SET_INDEX_GLOBAL],
-        internal_shader->descriptor_set_layouts[DESC_SET_INDEX_GLOBAL],
-        internal_shader->descriptor_set_layouts[DESC_SET_INDEX_GLOBAL]};
+    internal_shader->global_descriptor_sets = kallocate(sizeof(VkDescriptorSet) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
+
+    // Allocate global descriptor sets, one per frame. Global is always the first set.
+    VkDescriptorSetLayout *global_layouts = kallocate(sizeof(VkDescriptorSetLayout) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
+    for (u32 i = 0; i < context->swapchain.image_count; ++i) {
+        global_layouts[i] = internal_shader->descriptor_set_layouts[DESC_SET_INDEX_GLOBAL];
+    }
 
     VkDescriptorSetAllocateInfo alloc_info = {
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     alloc_info.descriptorPool = internal_shader->descriptor_pool;
-    alloc_info.descriptorSetCount = 3;
+    alloc_info.descriptorSetCount = context->swapchain.image_count;
     alloc_info.pSetLayouts = global_layouts;
     VK_CHECK(vkAllocateDescriptorSets(context->device.logical_device, &alloc_info,
                                       internal_shader->global_descriptor_sets));
+
+    kfree(global_layouts, sizeof(VkDescriptorSetLayout) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
 
     return true;
 }
@@ -2587,38 +2596,42 @@ b8 vulkan_renderer_shader_instance_resources_acquire(renderer_plugin *plugin,
     vulkan_shader_descriptor_set_state *set_state = &instance_state->descriptor_set_state;
 
     // Each descriptor binding in the set
-    u32 binding_count =
-        internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].binding_count;
-    kzero_memory(set_state->descriptor_states,
-                 sizeof(vulkan_descriptor_state) * VULKAN_SHADER_MAX_BINDINGS);
+    u32 binding_count = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].binding_count;
+    kzero_memory(set_state->descriptor_states, sizeof(vulkan_descriptor_state) * VULKAN_SHADER_MAX_BINDINGS);
     for (u32 i = 0; i < binding_count; ++i) {
-        for (u32 j = 0; j < 3; ++j) {
+        set_state->descriptor_states[i].generations = kallocate(sizeof(u8) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
+        set_state->descriptor_states[i].ids = kallocate(sizeof(u32) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
+        for (u32 j = 0; j < context->swapchain.image_count; ++j) {
             set_state->descriptor_states[i].generations[j] = INVALID_ID_U8;
             set_state->descriptor_states[i].ids[j] = INVALID_ID;
         }
     }
 
+    instance_state->descriptor_set_state.descriptor_sets = kallocate(sizeof(VkDescriptorSet) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
+
     // Allocate 3 descriptor sets (one per frame).
-    VkDescriptorSetLayout layouts[3] = {
-        internal->descriptor_set_layouts[DESC_SET_INDEX_INSTANCE],
-        internal->descriptor_set_layouts[DESC_SET_INDEX_INSTANCE],
-        internal->descriptor_set_layouts[DESC_SET_INDEX_INSTANCE]};
+    VkDescriptorSetLayout *layouts = kallocate(sizeof(VkDescriptorSetLayout) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
+    for (u32 i = 0; i < context->swapchain.image_count; ++i) {
+        layouts[i] = internal->descriptor_set_layouts[DESC_SET_INDEX_INSTANCE];
+    };
 
     VkDescriptorSetAllocateInfo alloc_info = {
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     alloc_info.descriptorPool = internal->descriptor_pool;
-    alloc_info.descriptorSetCount = 3;
+    alloc_info.descriptorSetCount = context->swapchain.image_count;
     alloc_info.pSetLayouts = layouts;
     VkResult result = vkAllocateDescriptorSets(
         context->device.logical_device, &alloc_info,
         instance_state->descriptor_set_state.descriptor_sets);
+    b8 fn_result = true;
     if (result != VK_SUCCESS) {
-        KERROR("Error allocating instance descriptor sets in shader: '%s'.",
-               vulkan_result_string(result, true));
-        return false;
+        KERROR("Error allocating instance descriptor sets in shader: '%s'.", vulkan_result_string(result, true));
+        fn_result = false;
     }
 
-    return true;
+    kfree(layouts, sizeof(VkDescriptorSetLayout) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
+
+    return fn_result;
 }
 
 b8 vulkan_renderer_shader_instance_resources_release(renderer_plugin *plugin,
@@ -2634,10 +2647,19 @@ b8 vulkan_renderer_shader_instance_resources_release(renderer_plugin *plugin,
 
     // Free 3 descriptor sets (one per frame)
     VkResult result = vkFreeDescriptorSets(
-        context->device.logical_device, internal->descriptor_pool, 3,
+        context->device.logical_device, internal->descriptor_pool, context->swapchain.image_count,
         instance_state->descriptor_set_state.descriptor_sets);
     if (result != VK_SUCCESS) {
         KERROR("Error freeing object shader descriptor sets!");
+    }
+
+    kfree(instance_state->descriptor_set_state.descriptor_sets, sizeof(VkDescriptorSet) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
+
+    // Each descriptor binding in the set
+    u32 binding_count = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].binding_count;
+    for (u32 i = 0; i < binding_count; ++i) {
+        kfree(instance_state->descriptor_set_state.descriptor_states[i].generations, sizeof(u8) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
+        kfree(instance_state->descriptor_set_state.descriptor_states[i].ids, sizeof(u32) * context->swapchain.image_count, MEMORY_TAG_ARRAY);
     }
 
     // Destroy descriptor states.

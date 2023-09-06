@@ -227,7 +227,7 @@ typedef struct vulkan_swapchain {
      * @brief Render targets used for on-screen rendering, one per frame.
      * The images contained in these are created and owned by the swapchain.
      * */
-    render_target render_targets[3];
+    render_target* render_targets;
 } vulkan_swapchain;
 
 /**
@@ -454,9 +454,9 @@ typedef struct vulkan_shader_config {
  */
 typedef struct vulkan_descriptor_state {
     /** @brief The descriptor generation, per frame. */
-    u8 generations[3];
+    u8* generations;
     /** @brief The identifier, per frame. Typically used for texture ids. */
-    u32 ids[3];
+    u32* ids;
 } vulkan_descriptor_state;
 
 /**
@@ -466,7 +466,7 @@ typedef struct vulkan_descriptor_state {
  */
 typedef struct vulkan_shader_descriptor_set_state {
     /** @brief The descriptor sets for this instance, one per frame. */
-    VkDescriptorSet descriptor_sets[3];
+    VkDescriptorSet* descriptor_sets;
 
     /** @brief A descriptor state per descriptor, which in turn handles frames. Count is managed in shader config. */
     vulkan_descriptor_state descriptor_states[VULKAN_SHADER_MAX_BINDINGS];
@@ -518,7 +518,7 @@ typedef struct vulkan_shader {
     /** @brief Descriptor set layouts, max of 2. Index 0=global, 1=instance. */
     VkDescriptorSetLayout descriptor_set_layouts[2];
     /** @brief Global descriptor sets, one per frame. */
-    VkDescriptorSet global_descriptor_sets[3];
+    VkDescriptorSet* global_descriptor_sets;
     /** @brief The uniform buffer used by this shader. */
     renderbuffer uniform_buffer;
 
@@ -626,10 +626,10 @@ typedef struct vulkan_context {
     /** @brief The current number of in-flight fences. */
     u32 in_flight_fence_count;
     /** @brief The in-flight fences, used to indicate to the application when a frame is busy/ready. */
-    VkFence in_flight_fences[2];
+    VkFence* in_flight_fences;
 
     /** @brief Holds pointers to fences which exist and are owned elsewhere, one per frame. */
-    VkFence images_in_flight[3];
+    VkFence* images_in_flight;
 
     /** @brief The current image index. */
     u32 image_index;
@@ -644,9 +644,6 @@ typedef struct vulkan_context {
 
     /** @brief The A collection of loaded geometries. @todo TODO: make dynamic */
     vulkan_geometry_data geometries[VULKAN_MAX_GEOMETRY_COUNT];
-
-    /** @brief Render targets used for world rendering. @note One per frame. */
-    render_target world_render_targets[3];
 
     /** @brief Indicates if multi-threading is supported by this device. */
     b8 multithreading_enabled;
