@@ -159,8 +159,6 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
     // Not to be shipped in production code.
     // image_count = 4;
 
-    swapchain->max_frames_in_flight = image_count - 1;
-
     // Swapchain create info
     VkSwapchainCreateInfoKHR swapchain_create_info = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
     swapchain_create_info.surface = context->surface;
@@ -229,6 +227,10 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
             texture_system_resize(&swapchain->render_textures[i], swapchain_extent.width, swapchain_extent.height, false);
         }
     }
+    // TODO: the image count here can change based on presentation mode on some platforms (looking at you mesa on linux...)
+    // This means whenever the swapchain is recreated we should probably also trigger a recreation of all resources based on the image
+    // count. Ugh.
+    swapchain->max_frames_in_flight = swapchain->image_count - 1;
     // Create the render targets array if it doesn't exist.
     if (!swapchain->render_targets) {
         swapchain->render_targets = kallocate(sizeof(render_target) * swapchain->image_count, MEMORY_TAG_ARRAY);
