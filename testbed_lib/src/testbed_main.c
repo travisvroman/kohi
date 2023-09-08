@@ -24,6 +24,13 @@
 #include "systems/camera_system.h"
 #include "testbed_types.h"
 
+// Rendergraph and passes.
+#include "passes/editor_pass.h"
+#include "passes/scene_pass.h"
+#include "passes/skybox_pass.h"
+#include "passes/ui_pass.h"
+#include "renderer/rendergraph.h"
+
 // Views
 #include "editor/render_view_wireframe.h"
 #include "resources/loaders/simple_scene_loader.h"
@@ -60,6 +67,7 @@ b8 configure_render_views(application_config* config);
 void application_register_events(struct application* game_inst);
 void application_unregister_events(struct application* game_inst);
 static b8 load_main_scene(struct application* game_inst);
+static b8 configure_rendergraph(application* app);
 
 static void clear_debug_objects(struct application* game_inst) {
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
@@ -949,6 +957,90 @@ void application_unregister_events(struct application* game_inst) {
     event_unregister(EVENT_CODE_KEY_RELEASED, game_inst, game_on_key);
 
     event_unregister(EVENT_CODE_KVAR_CHANGED, 0, game_on_kvar_changed);
+}
+
+#define RG_CHECK(expr)                             \
+    if (!expr) {                                   \
+        KERROR("Failed to execute: '%s'.", #expr); \
+        return false;                              \
+    }
+
+static void refresh_rendergraph_pfns(application* app) {
+    testbed_game_state* state = (testbed_game_state*)app->state;
+
+    state->skybox_pass.initialize = skybox_pass_initialize;
+    state->skybox_pass.execute = skybox_pass_execute;
+    state->skybox_pass.destroy = skybox_pass_destroy;
+
+    state->scene_pass.initialize = scene_pass_initialize;
+    state->scene_pass.execute = scene_pass_execute;
+    state->scene_pass.destroy = scene_pass_destroy;
+
+    state->editor_pass.initialize = editor_pass_initialize;
+    state->editor_pass.execute = editor_pass_execute;
+    state->editor_pass.destroy = editor_pass_destroy;
+
+    state->ui_pass.initialize = ui_pass_initialize;
+    state->ui_pass.execute = ui_pass_execute;
+    state->ui_pass.destroy = ui_pass_destroy;
+}
+
+static b8 configure_rendergraph(application* app) {
+    testbed_game_state* state = (testbed_game_state*)app->state;
+
+    if (!rendergraph_create("testbed_frame_rendergraph", app, &state->frame_graph)) {
+        KERROR("Failed to create rendergraph.");
+        return false;
+    }
+
+    // Add global sources.
+    if (!rendergraph_global_source_add(&state->frame_graph, "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_GLOBAL)) {
+        KERROR("Failed to add global colourbuffer source.");
+        return false;
+    }
+    if (!rendergraph_global_source_add(&state->frame_graph, "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_GLOBAL)) {
+        KERROR("Failed to add global depthbuffer source.");
+        return false;
+    }
+
+    // Skybox pass
+    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "skybox", skybox_pass_create, &state->skybox_pass));
+    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "skybox", "colourbuffer"));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "skybox", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "skybox", "colourbuffer", 0, "colourbuffer"));
+
+    // Scene pass
+    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "scene", scene_pass_create, &state->scene_pass));
+    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "colourbuffer"));
+    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "depthbuffer"));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "scene", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "scene", "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_GLOBAL));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "colourbuffer", "skybox", "colourbuffer"));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "depthbuffer", 0, "depthbuffer"));
+
+    // Editor pass
+    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "editor", editor_pass_create, &state->editor_pass));
+    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "editor", "colourbuffer"));
+    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "editor", "depthbuffer"));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "editor", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "editor", "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "editor", "colourbuffer", "scene", "colourbuffer"));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "editor", "depthbuffer", "scene", "depthbuffer"));
+
+    // UI pass
+    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "ui", ui_pass_create, &state->ui_pass));
+    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "ui", "colourbuffer"));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "ui", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "ui", "colourbuffer", "editor", "colourbuffer"));
+
+    refresh_rendergraph_pfns(app);
+
+    if (!rendergraph_finalize(&state->frame_graph)) {
+        KERROR("Failed to finalize rendergraph. See log for details.");
+        return false;
+    }
+
+    return true;
 }
 
 b8 configure_render_views(application_config* config) {

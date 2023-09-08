@@ -3,6 +3,7 @@
 #include <application_types.h>
 #include <defines.h>
 #include <math/math_types.h>
+#include <renderer/rendergraph.h>
 #include <systems/camera_system.h>
 
 #include "editor/editor_gizmo.h"
@@ -76,6 +77,12 @@ typedef struct testbed_game_state {
     viewport ui_viewport;
 
     viewport world_viewport2;
+
+    rendergraph frame_graph;
+    rendergraph_pass skybox_pass;
+    rendergraph_pass scene_pass;
+    rendergraph_pass editor_pass;
+    rendergraph_pass ui_pass;
 
     selected_object selection;
     b8 using_gizmo;
