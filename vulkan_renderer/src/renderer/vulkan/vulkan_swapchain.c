@@ -124,6 +124,7 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
             for (u32 i = 0; i < context->device.swapchain_support.present_mode_count; ++i) {
                 VkPresentModeKHR mode = context->device.swapchain_support.present_modes[i];
                 if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+                    KTRACE("Mailbox mode supported and selected.");
                     present_mode = mode;
                     break;
                 }
@@ -195,8 +196,10 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
     context->current_frame = 0;
 
     // Images
+    KTRACE("Image count before vkGetSwapchainImagesKHR: %u", swapchain->image_count);
     swapchain->image_count = 0;
     VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, 0));
+    KTRACE("Image count after vkGetSwapchainImagesKHR: %u", swapchain->image_count);
     if (!swapchain->render_textures) {
         swapchain->render_textures = (texture*)kallocate(sizeof(texture) * swapchain->image_count, MEMORY_TAG_RENDERER);
         // If creating the array, then the internal texture objects aren't created yet either.
@@ -237,6 +240,8 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
     }
     VkImage swapchain_images[32];
     VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, swapchain_images));
+
+    KTRACE("Image count after vkGetSwapchainImagesKHR call 2: %u", swapchain->image_count);
     for (u32 i = 0; i < swapchain->image_count; ++i) {
         // Update the internal image for each.
         vulkan_image* image = (vulkan_image*)swapchain->render_textures[i].internal_data;

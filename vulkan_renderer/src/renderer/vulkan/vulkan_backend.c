@@ -46,6 +46,7 @@ static i32 find_memory_index(vulkan_context *context, u32 type_filter,
                              u32 property_flags);
 
 static void create_command_buffers(vulkan_context *context);
+static void create_sync_objects(vulkan_context *context);
 static b8 recreate_swapchain(vulkan_context *context);
 static b8 create_shader_module(vulkan_context *context, vulkan_shader *shader,
                                vulkan_shader_stage_config config,
@@ -527,33 +528,7 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     create_command_buffers(context);
 
     // Create sync objects.
-    context->image_available_semaphores =
-        darray_reserve(VkSemaphore, context->swapchain.max_frames_in_flight);
-    context->queue_complete_semaphores =
-        darray_reserve(VkSemaphore, context->swapchain.max_frames_in_flight);
-
-    if (!context->in_flight_fences) {
-        context->in_flight_fences = kallocate(sizeof(VkFence) * context->swapchain.max_frames_in_flight, MEMORY_TAG_ARRAY);
-    }
-    for (u8 i = 0; i < context->swapchain.max_frames_in_flight; ++i) {
-        VkSemaphoreCreateInfo semaphore_create_info = {
-            VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        vkCreateSemaphore(context->device.logical_device, &semaphore_create_info,
-                          context->allocator,
-                          &context->image_available_semaphores[i]);
-        vkCreateSemaphore(context->device.logical_device, &semaphore_create_info,
-                          context->allocator,
-                          &context->queue_complete_semaphores[i]);
-
-        // Create the fence in a signaled state, indicating that the first frame has
-        // already been "rendered". This will prevent the application from waiting
-        // indefinitely for the first frame to render since it cannot be rendered
-        // until a frame is "rendered" before it.
-        VkFenceCreateInfo fence_create_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-        fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        VK_CHECK(vkCreateFence(context->device.logical_device, &fence_create_info,
-                               context->allocator, &context->in_flight_fences[i]));
-    }
+    create_sync_objects(context);
 
     // In flight fences should not yet exist at this point, so clear the list.
     // These are stored in pointers because the initial state should be 0, and
@@ -627,11 +602,12 @@ void vulkan_renderer_backend_shutdown(renderer_plugin *plugin) {
         vkDestroyFence(context->device.logical_device, context->in_flight_fences[i],
                        context->allocator);
     }
-    darray_destroy(context->image_available_semaphores);
+    kfree(context->image_available_semaphores, sizeof(VkSemaphore) * context->swapchain.max_frames_in_flight, MEMORY_TAG_ARRAY);
+    kfree(context->queue_complete_semaphores, sizeof(VkSemaphore) * context->swapchain.max_frames_in_flight, MEMORY_TAG_ARRAY);
+    kfree(context->in_flight_fences, sizeof(VkFence) * context->swapchain.max_frames_in_flight, MEMORY_TAG_ARRAY);
     context->image_available_semaphores = 0;
-
-    darray_destroy(context->queue_complete_semaphores);
     context->queue_complete_semaphores = 0;
+    context->in_flight_fences = 0;
 
     // Command buffers
     for (u32 i = 0; i < context->swapchain.image_count; ++i) {
@@ -1100,6 +1076,31 @@ static void create_command_buffers(vulkan_context *context) {
     KDEBUG("Vulkan command buffers created.");
 }
 
+static void create_sync_objects(vulkan_context *context) {
+    context->image_available_semaphores = kallocate(sizeof(VkSemaphore) * context->swapchain.max_frames_in_flight, MEMORY_TAG_ARRAY);
+    context->queue_complete_semaphores = kallocate(sizeof(VkSemaphore) * context->swapchain.max_frames_in_flight, MEMORY_TAG_ARRAY);
+    context->in_flight_fences = kallocate(sizeof(VkFence) * context->swapchain.max_frames_in_flight, MEMORY_TAG_ARRAY);
+    for (u8 i = 0; i < context->swapchain.max_frames_in_flight; ++i) {
+        VkSemaphoreCreateInfo semaphore_create_info = {
+            VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        vkCreateSemaphore(context->device.logical_device, &semaphore_create_info,
+                          context->allocator,
+                          &context->image_available_semaphores[i]);
+        vkCreateSemaphore(context->device.logical_device, &semaphore_create_info,
+                          context->allocator,
+                          &context->queue_complete_semaphores[i]);
+
+        // Create the fence in a signaled state, indicating that the first frame has
+        // already been "rendered". This will prevent the application from waiting
+        // indefinitely for the first frame to render since it cannot be rendered
+        // until a frame is "rendered" before it.
+        VkFenceCreateInfo fence_create_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        VK_CHECK(vkCreateFence(context->device.logical_device, &fence_create_info,
+                               context->allocator, &context->in_flight_fences[i]));
+    }
+}
+
 static b8 recreate_swapchain(vulkan_context *context) {
     // If already being recreated, do not try again.
     if (context->recreating_swapchain) {
@@ -1126,6 +1127,8 @@ static b8 recreate_swapchain(vulkan_context *context) {
         context->images_in_flight[i] = 0;
     }
 
+    u8 previous_max_frames_in_flight = context->swapchain.max_frames_in_flight;
+
     // Requery support
     vulkan_device_query_swapchain_support(context->device.physical_device,
                                           context->surface,
@@ -1151,6 +1154,29 @@ static b8 recreate_swapchain(vulkan_context *context) {
                event_context);
 
     create_command_buffers(context);
+
+    // Cleanup objects and arrays if they exist.
+    if (context->image_available_semaphores) {
+        for (u8 i = 0; i < previous_max_frames_in_flight; ++i) {
+            vkDestroySemaphore(context->device.logical_device, context->image_available_semaphores[i], context->allocator);
+        }
+        kfree(context->image_available_semaphores, sizeof(VkSemaphore) * previous_max_frames_in_flight, MEMORY_TAG_ARRAY);
+    }
+    if (context->queue_complete_semaphores) {
+        for (u8 i = 0; i < previous_max_frames_in_flight; ++i) {
+            vkDestroySemaphore(context->device.logical_device, context->queue_complete_semaphores[i], context->allocator);
+        }
+        kfree(context->queue_complete_semaphores, sizeof(VkSemaphore) * previous_max_frames_in_flight, MEMORY_TAG_ARRAY);
+    }
+    if (context->in_flight_fences) {
+        for (u8 i = 0; i < previous_max_frames_in_flight; ++i) {
+            vkDestroyFence(context->device.logical_device, context->in_flight_fences[i], context->allocator);
+        }
+        kfree(context->in_flight_fences, sizeof(VkFence) * previous_max_frames_in_flight, MEMORY_TAG_ARRAY);
+    }
+
+    // Recreate fences and semaphores to ensure the right amount exist.
+    create_sync_objects(context);
 
     // Clear the recreating flag.
     context->recreating_swapchain = false;

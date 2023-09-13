@@ -175,6 +175,50 @@ void render_view_system_render_targets_regenerate(render_view* view) {
 
     for (u64 r = 0; r < view->renderpass_count; ++r) {
         renderpass* pass = &view->passes[r];
+        // Ensure that the number of window/framebuffers hasn't changed. This seems to
+        // be an exception case, specifically for the mesa drivers on Linux where the 
+        // number of attachments can change between vsync/non-vsync.
+        u8 attachment_count = renderer_window_attachment_count_get();
+        if (pass->render_target_count != attachment_count) {
+            // Expand the array if need be.
+            if (pass->render_target_count < attachment_count) {
+                render_target* new_target_array = kallocate(sizeof(render_target) * attachment_count, MEMORY_TAG_ARRAY);
+                kcopy_memory(new_target_array, pass->targets, sizeof(render_target) * pass->render_target_count);
+                kfree(pass->targets, sizeof(render_target) * pass->render_target_count, MEMORY_TAG_ARRAY);
+                pass->targets = new_target_array;
+
+                render_target* source_target = &pass->targets[0];
+                for (u32 t = pass->render_target_count; t < attachment_count; ++t) {
+                    render_target* target = &pass->targets[t];
+                    // Create attachments array if it doesn't exist. Base it off the first target which should be valid.
+                    if(!target->attachment_count || !target->attachments) {
+                        target->attachment_count = source_target->attachment_count;
+                        target->attachments = kallocate(sizeof(render_target_attachment) * target->attachment_count, MEMORY_TAG_ARRAY);
+                    }
+                    // Each attachment for the target.
+                    for (u32 a = 0; a < target->attachment_count; ++a) {
+                        render_target_attachment* attachment = &target->attachments[a];
+                        render_target_attachment* source_attachment = &source_target->attachments[a];
+
+                        // The first target's attachment config should be valid, so copy from it.
+                        attachment->source = source_attachment->source;
+                        attachment->type = source_attachment->type;
+                        attachment->load_operation = source_attachment->load_operation;
+                        attachment->store_operation = source_attachment->store_operation;
+                        attachment->present_after = source_attachment->present_after;
+                        attachment->texture = 0;
+                    }
+                }
+            } else {
+                // If shrinking, need to destroy the extras to avoid dangling resources.
+                for (u32 t = attachment_count; t < pass->render_target_count; ++t) {
+                    renderer_render_target_destroy(&pass->targets[t], true);
+                }
+            }
+
+            // Update the count. TODO: This will leave dangling attachments on a shrink.
+            pass->render_target_count = attachment_count;
+        }
 
         for (u8 i = 0; i < pass->render_target_count; ++i) {
             render_target* target = &pass->targets[i];
