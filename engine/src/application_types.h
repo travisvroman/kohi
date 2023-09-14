@@ -67,22 +67,20 @@ typedef struct application {
     b8 (*update)(struct application* app_inst, struct frame_data* p_frame_data);
 
     /**
-     * @brief Function pointer to application's prepare_render_packet function.
+     * @brief Function pointer to application's prepare_frame function.
      * @param app_inst A pointer to the application instance.
-     * @param packet A pointer to the packet to be populated by the application.
      * @param p_frame_data A pointer to the current frame's data.
      * @returns True on success; otherwise false.
      */
-    b8 (*prepare_render_packet)(struct application* app_inst, struct render_packet* packet, struct frame_data* p_frame_data);
+    b8 (*prepare_frame)(struct application* app_inst, struct frame_data* p_frame_data);
 
     /**
-     * @brief Function pointer to application's render function.
+     * @brief Function pointer to application's render_frame function.
      * @param app_inst A pointer to the application instance.
-     * @param packet A pointer to the packet to be rendered by the application.
      * @param p_frame_data A pointer to the current frame's data.
      * @returns True on success; otherwise false.
      * */
-    b8 (*render)(struct application* app_inst, struct render_packet* packet, struct frame_data* p_frame_data);
+    b8 (*render_frame)(struct application* app_inst, struct frame_data* p_frame_data);
 
     /**
      * @brief Function pointer to handle resizes, if applicable.

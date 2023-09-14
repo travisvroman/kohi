@@ -186,26 +186,18 @@ b8 engine_run(application* game_inst) {
                 break;
             }
 
-            // This frame's render packet.
-            render_packet packet = {};
-
             // Have the application generate the render packet.
-            b8 prepare_result = engine_state->game_inst->prepare_render_packet(engine_state->game_inst, &packet, &engine_state->p_frame_data);
+            b8 prepare_result = engine_state->game_inst->prepare_frame(engine_state->game_inst, &engine_state->p_frame_data);
             if (!prepare_result) {
                 KERROR("Application failed to prepare the render packet. Skipping this frame.");
                 continue;
             }
 
             // Call the game's render routine.
-            if (!engine_state->game_inst->render(engine_state->game_inst, &packet, &engine_state->p_frame_data)) {
+            if (!engine_state->game_inst->render_frame(engine_state->game_inst, &engine_state->p_frame_data)) {
                 KFATAL("Game render failed, shutting down.");
                 engine_state->is_running = false;
                 break;
-            }
-
-            // Cleanup the packet.
-            for (u32 i = 0; i < packet.view_count; ++i) {
-                packet.views[i].view->on_packet_destroy(packet.views[i].view, &packet.views[i]);
             }
 
             // Figure out how long the frame took and, if below

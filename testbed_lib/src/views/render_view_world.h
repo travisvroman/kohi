@@ -8,16 +8,6 @@ struct frame_data;
 struct viewport;
 struct camera;
 
-typedef struct render_view_world_data {
-    skybox_packet_data skybox_data;
-    // darray
-    geometry_render_data* world_geometries;
-    // darray
-    geometry_render_data* terrain_geometries;
-    // darray
-    geometry_render_data* debug_geometries;
-} render_view_world_data;
-
 b8 render_view_world_on_registered(struct render_view* self);
 void render_view_world_on_destroy(struct render_view* self);
 void render_view_world_on_resize(struct render_view* self, u32 width, u32 height);

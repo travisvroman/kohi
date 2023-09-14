@@ -16,6 +16,7 @@
 #include <renderer/camera.h>
 #include <renderer/renderer_frontend.h>
 #include <renderer/renderer_types.h>
+#include <resources/terrain.h>
 
 #include "defines.h"
 #include "game_state.h"
@@ -62,6 +63,14 @@
 #include "game_commands.h"
 #include "game_keybinds.h"
 // TODO: end temp
+
+/** @brief A private structure used to sort geometry by distance from the camera. */
+typedef struct geometry_distance {
+    /** @brief The geometry render data. */
+    geometry_render_data g;
+    /** @brief The distance from the camera. */
+    f32 distance;
+} geometry_distance;
 
 b8 configure_render_views(application_config* config);
 void application_register_events(struct application* game_inst);
@@ -647,77 +656,276 @@ Text",
     return true;
 }
 
-b8 application_prepare_render_packet(struct application* app_inst, struct render_packet* packet, struct frame_data* p_frame_data) {
+// TODO: Make this more generic and move it the heck out of here.
+// Quicksort for geometry_distance
+
+static void gdistance_swap(geometry_distance* a, geometry_distance* b) {
+    geometry_distance temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+static i32 gdistance_partition(geometry_distance arr[], i32 low_index, i32 high_index, b8 ascending) {
+    geometry_distance pivot = arr[high_index];
+    i32 i = (low_index - 1);
+
+    for (i32 j = low_index; j <= high_index - 1; ++j) {
+        if (ascending) {
+            if (arr[j].distance < pivot.distance) {
+                ++i;
+                gdistance_swap(&arr[i], &arr[j]);
+            }
+        } else {
+            if (arr[j].distance > pivot.distance) {
+                ++i;
+                gdistance_swap(&arr[i], &arr[j]);
+            }
+        }
+    }
+    gdistance_swap(&arr[i + 1], &arr[high_index]);
+    return i + 1;
+}
+
+static void gdistance_quick_sort(geometry_distance arr[], i32 low_index, i32 high_index, b8 ascending) {
+    if (low_index < high_index) {
+        i32 partition_index = gdistance_partition(arr, low_index, high_index, ascending);
+
+        // Independently sort elements before and after the partition index.
+        gdistance_quick_sort(arr, low_index, partition_index - 1, ascending);
+        gdistance_quick_sort(arr, partition_index + 1, high_index, ascending);
+    }
+}
+
+b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_frame_data) {
     testbed_game_state* state = (testbed_game_state*)app_inst->state;
     if (!state->running) {
         return true;
     }
 
-    packet->view_count = 4;
-    packet->views = p_frame_data->allocator.allocate(sizeof(render_view_packet) * packet->view_count);
-
-    // TODO: Cache these instead of lookups every frame.
-    // packet->views[TESTBED_PACKET_VIEW_SKYBOX].view = render_view_system_get("skybox");
-    packet->views[TESTBED_PACKET_VIEW_WORLD].view = render_view_system_get("world");
-    packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD].view = render_view_system_get("editor_world");
-    packet->views[TESTBED_PACKET_VIEW_WIREFRAME].view = render_view_system_get("wireframe");
-    packet->views[TESTBED_PACKET_VIEW_UI].view = render_view_system_get("ui");
-    // packet->views[TESTBED_PACKET_VIEW_PICK].view = render_view_system_get("pick");
-
     // Tell our scene to generate relevant packet data. NOTE: Generates skybox and world packets.
     if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
-        if (!simple_scene_populate_render_packet(&state->main_scene, state->world_camera, &state->world_viewport, p_frame_data, packet)) {
-            KERROR("Failed populare render packet for main scene.");
-            return false;
+        {
+            skybox_pass_extended_data* ext_data = state->skybox_pass.pass_data.ext_data;
+            ext_data->sb = state->main_scene.sb;
         }
-    } else {
-        // Make sure they at least have a viewport.
-        // packet->views[TESTBED_PACKET_VIEW_SKYBOX].vp = &state->world_viewport;
-        packet->views[TESTBED_PACKET_VIEW_WORLD].vp = &state->world_viewport;
+        {
+            scene_pass_extended_data* ext_data = state->scene_pass.pass_data.ext_data;
+
+            // Populate scene pass data.
+            camera* current_camera = state->world_camera;
+            viewport* v = &state->world_viewport;
+            simple_scene* scene = &state->main_scene;
+
+            // Update the frustum
+            vec3 forward = camera_forward(current_camera);
+            vec3 right = camera_right(current_camera);
+            vec3 up = camera_up(current_camera);
+            frustum f = frustum_create(&current_camera->position, &forward, &right,
+                                       &up, v->rect.width / v->rect.height, v->fov, v->near_clip, v->far_clip);
+
+            p_frame_data->drawn_mesh_count = 0;
+
+            ext_data->geometries = darray_reserve_with_allocator(geometry_render_data, 512, &p_frame_data->allocator);
+            geometry_distance* transparent_geometries = darray_create_with_allocator(geometry_distance, &p_frame_data->allocator);
+
+            u32 mesh_count = darray_length(scene->meshes);
+            for (u32 i = 0; i < mesh_count; ++i) {
+                mesh* m = &scene->meshes[i];
+                if (m->generation != INVALID_ID_U8) {
+                    mat4 model = transform_world_get(&m->transform);
+                    b8 winding_inverted = m->transform.determinant < 0;
+
+                    for (u32 j = 0; j < m->geometry_count; ++j) {
+                        geometry* g = m->geometries[j];
+
+                        // // Bounding sphere calculation.
+                        // {
+                        //     // Translate/scale the extents.
+                        //     vec3 extents_min = vec3_mul_mat4(g->extents.min, model);
+                        //     vec3 extents_max = vec3_mul_mat4(g->extents.max, model);
+
+                        //     f32 min = KMIN(KMIN(extents_min.x, extents_min.y),
+                        //     extents_min.z); f32 max = KMAX(KMAX(extents_max.x,
+                        //     extents_max.y), extents_max.z); f32 diff = kabs(max - min);
+                        //     f32 radius = diff * 0.5f;
+
+                        //     // Translate/scale the center.
+                        //     vec3 center = vec3_mul_mat4(g->center, model);
+
+                        //     if (frustum_intersects_sphere(&state->camera_frustum,
+                        //     &center, radius)) {
+                        //         // Add it to the list to be rendered.
+                        //         geometry_render_data data = {0};
+                        //         data.model = model;
+                        //         data.geometry = g;
+                        //         data.unique_id = m->unique_id;
+                        //         darray_push(game_inst->frame_data.world_geometries,
+                        //         data);
+
+                        //         draw_count++;
+                        //     }
+                        // }
+
+                        // AABB calculation
+                        {
+                            // Translate/scale the extents.
+                            // vec3 extents_min = vec3_mul_mat4(g->extents.min, model);
+                            vec3 extents_max = vec3_mul_mat4(g->extents.max, model);
+
+                            // Translate/scale the center.
+                            vec3 center = vec3_mul_mat4(g->center, model);
+                            vec3 half_extents = {
+                                kabs(extents_max.x - center.x),
+                                kabs(extents_max.y - center.y),
+                                kabs(extents_max.z - center.z),
+                            };
+
+                            if (frustum_intersects_aabb(&f, &center, &half_extents)) {
+                                // Add it to the list to be rendered.
+                                geometry_render_data data = {0};
+                                data.model = model;
+                                data.geometry = g;
+                                data.unique_id = m->unique_id;
+                                data.winding_inverted = winding_inverted;
+
+                                // Check if transparent. If so, put into a separate, temp array to be
+                                // sorted by distance from the camera. Otherwise, put into the
+                                // ext_data->geometries array directly.
+                                b8 has_transparency = false;
+                                if (g->material->type == MATERIAL_TYPE_PHONG) {
+                                    // Check diffuse map (slot 0).
+                                    has_transparency = ((g->material->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) != 0);
+                                }
+
+                                if (has_transparency) {
+                                    // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
+                                    // Get the center, extract the global position from the model matrix and add it to the center,
+                                    // then calculate the distance between it and the camera, and finally save it to a list to be sorted.
+                                    // NOTE: This isn't perfect for translucent meshes that intersect, but is enough for our purposes now.
+                                    vec3 center = vec3_transform(g->center, 1.0f, model);
+                                    f32 distance = vec3_distance(center, current_camera->position);
+
+                                    geometry_distance gdist;
+                                    gdist.distance = kabs(distance);
+                                    gdist.g = data;
+                                    darray_push(transparent_geometries, gdist);
+                                } else {
+                                    darray_push(ext_data->geometries, data);
+                                }
+                                p_frame_data->drawn_mesh_count++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Sort transparent geometries, then add them to the ext_data->geometries array.
+            u32 geometry_count = darray_length(transparent_geometries);
+            gdistance_quick_sort(transparent_geometries, 0, geometry_count - 1, false);
+            for (u32 i = 0; i < geometry_count; ++i) {
+                darray_push(ext_data->geometries, transparent_geometries[i].g);
+            }
+            ext_data->geometry_count = darray_length(ext_data->geometries);
+
+            // Add terrain(s)
+            u32 terrain_count = darray_length(scene->terrains);
+            ext_data->terrain_geometries = darray_reserve_with_allocator(geometry_render_data, 16, &p_frame_data->allocator);
+            ext_data->terrain_geometries = 0;
+            for (u32 i = 0; i < terrain_count; ++i) {
+                // TODO: Frustum culling
+                geometry_render_data data = {0};
+                data.model = transform_world_get(&scene->terrains[i].xform);
+                data.geometry = &scene->terrains[i].geo;
+                data.unique_id = scene->terrains[i].unique_id;
+
+                darray_push(ext_data->terrain_geometries, data);
+
+                // TODO: Counter for terrain geometries.
+                p_frame_data->drawn_mesh_count++;
+            }
+            ext_data->terrain_geometry_count = darray_length(ext_data->terrain_geometries);
+
+            // Debug geometry
+            if (!simple_scene_debug_render_data_query(scene, &ext_data->debug_geometry_count, 0)) {
+                KERROR("Failed to obtain count of debug render objects.");
+                return false;
+            }
+            ext_data->debug_geometries = p_frame_data->allocator.allocate(sizeof(geometry_render_data) * ext_data->debug_geometry_count);
+
+            if (!simple_scene_debug_render_data_query(scene, &ext_data->debug_geometry_count, &ext_data->debug_geometries)) {
+                KERROR("Failed to obtain debug render objects.");
+                return false;
+            }
+
+            // HACK: Inject raycast debug geometries into scene pass data.
+            if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
+                u32 line_count = darray_length(state->test_lines);
+                for (u32 i = 0; i < line_count; ++i) {
+                    geometry_render_data rd = {0};
+                    rd.model = transform_world_get(&state->test_lines[i].xform);
+                    rd.geometry = &state->test_lines[i].geo;
+                    rd.unique_id = INVALID_ID_U16;
+                    darray_push(ext_data->debug_geometries, rd);
+                    ext_data->debug_geometry_count++;
+                }
+                u32 box_count = darray_length(state->test_boxes);
+                for (u32 i = 0; i < box_count; ++i) {
+                    geometry_render_data rd = {0};
+                    rd.model = transform_world_get(&state->test_boxes[i].xform);
+                    rd.geometry = &state->test_boxes[i].geo;
+                    rd.unique_id = INVALID_ID_U16;
+                    darray_push(ext_data->debug_geometries, rd);
+                    ext_data->debug_geometry_count++;
+                }
+            }
+        }  // scene loaded.
     }
 
-    // HACK: Inject debug geometries into world packet.
-    if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
-        u32 line_count = darray_length(state->test_lines);
-        for (u32 i = 0; i < line_count; ++i) {
-            geometry_render_data rd = {0};
-            rd.model = transform_world_get(&state->test_lines[i].xform);
-            rd.geometry = &state->test_lines[i].geo;
-            rd.unique_id = INVALID_ID_U16;
-            darray_push(packet->views[TESTBED_PACKET_VIEW_WORLD].debug_geometries, rd);
-            packet->views[TESTBED_PACKET_VIEW_WORLD].debug_geometry_count++;
-        }
-        u32 box_count = darray_length(state->test_boxes);
-        for (u32 i = 0; i < box_count; ++i) {
-            geometry_render_data rd = {0};
-            rd.model = transform_world_get(&state->test_boxes[i].xform);
-            rd.geometry = &state->test_boxes[i].geo;
-            rd.unique_id = INVALID_ID_U16;
-            darray_push(packet->views[TESTBED_PACKET_VIEW_WORLD].debug_geometries, rd);
-            packet->views[TESTBED_PACKET_VIEW_WORLD].debug_geometry_count++;
-        }
-    }
-
-    // Editor world
+    // Editor pass
     {
-        render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD];
-        const render_view* view = view_packet->view;
+        editor_pass_extended_data* ext_data = state->editor_pass.pass_data.ext_data;
 
-        editor_world_packet_data editor_world_data = {0};
-        editor_world_data.gizmo = &state->gizmo;
-        if (!render_view_system_packet_build(view, p_frame_data, &state->world_viewport, state->world_camera, &editor_world_data, view_packet)) {
-            KERROR("Failed to build packet for view 'editor_world'.");
-            return false;
-        }
+        geometry* g = &state->gizmo.mode_data[state->gizmo.mode].geo;
+
+        // vec3 camera_pos = camera_position_get(c);
+        // vec3 gizmo_pos = transform_position_get(&packet_data->gizmo->xform);
+        // TODO: Should get this from the camera/viewport.
+        // f32 fov = deg_to_rad(45.0f);
+        // f32 dist = vec3_distance(camera_pos, gizmo_pos);
+
+        mat4 model = transform_world_get(&state->gizmo.xform);
+        // f32 fixed_size = 0.1f;                            // TODO: Make this a configurable option for gizmo size.
+        f32 scale_scalar = 1.0f;                   // ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
+        state->gizmo.scale_scalar = scale_scalar;  // Keep a copy of this for hit detection.
+        mat4 scale = mat4_scale((vec3){scale_scalar, scale_scalar, scale_scalar});
+        model = mat4_mul(model, scale);
+
+        geometry_render_data render_data = {0};
+        render_data.model = model;
+        render_data.geometry = g;
+        render_data.unique_id = INVALID_ID;
+
+        ext_data->debug_geometries = darray_create_with_allocator(geometry_render_data, &p_frame_data->allocator);
+        darray_push(ext_data->debug_geometries, render_data);
+
+#ifdef _DEBUG
+        geometry_render_data plane_normal_render_data = {0};
+        plane_normal_render_data.model = transform_world_get(&state->gizmo.plane_normal_line.xform);
+        plane_normal_render_data.geometry = &state->gizmo.plane_normal_line.geo;
+        plane_normal_render_data.unique_id = INVALID_ID;
+        darray_push(ext_data->debug_geometries, plane_normal_render_data);
+#endif
+        ext_data->debug_geometry_count = darray_length(ext_data->debug_geometries);
     }
 
-    // Wireframe
+    /* // Wireframe
     {
         render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_WIREFRAME];
         const render_view* view = view_packet->view;
 
         render_view_wireframe_data wireframe_data = {0};
         // TODO: Get a list of geometries not culled for the current camera.
+        //
         wireframe_data.selected_id = state->selection.unique_id;
         wireframe_data.world_geometries = packet->views[TESTBED_PACKET_VIEW_WORLD].geometries;
         wireframe_data.terrain_geometries = packet->views[TESTBED_PACKET_VIEW_WORLD].terrain_geometries;
@@ -725,46 +933,37 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
             KERROR("Failed to build packet for view 'wireframe'");
             return false;
         }
-    }
+    } */
 
     // UI
-    ui_packet_data ui_packet = {0};
     {
-        render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_UI];
-        const render_view* view = view_packet->view;
+        ui_pass_extended_data* ext_data = state->ui_pass.pass_data.ext_data;
 
-        u32 ui_mesh_count = 0;
-        u32 max_ui_meshes = 10;
-        mesh** ui_meshes = p_frame_data->allocator.allocate(sizeof(mesh*) * max_ui_meshes);
-
-        for (u32 i = 0; i < max_ui_meshes; ++i) {
+        ext_data->geometries = darray_reserve_with_allocator(geometry_render_data, 10, &p_frame_data->allocator);
+        for (u32 i = 0; i < 10; ++i) {
             if (state->ui_meshes[i].generation != INVALID_ID_U8) {
-                ui_meshes[ui_mesh_count] = &state->ui_meshes[i];
-                ui_mesh_count++;
+                mesh* m = &state->ui_meshes[i];
+                u32 geometry_count = m->geometry_count;
+                for (u32 j = 0; j < geometry_count; ++j) {
+                    geometry_render_data render_data;
+                    render_data.geometry = m->geometries[j];
+                    render_data.model = transform_world_get(&m->transform);
+                    darray_push(ext_data->geometries, render_data);
+                }
             }
         }
+        ext_data->geometry_count = darray_length(ext_data->geometries);
 
-        ui_packet.mesh_data.mesh_count = ui_mesh_count;
-        ui_packet.mesh_data.meshes = ui_meshes;
-        ui_packet.text_count = 2;
+        darray_push(ext_data->texts, &state->test_text);
+        darray_push(ext_data->texts, &state->test_sys_text);
+
         ui_text* debug_console_text = debug_console_get_text(&state->debug_console);
         b8 render_debug_conole = debug_console_text && debug_console_visible(&state->debug_console);
         if (render_debug_conole) {
-            ui_packet.text_count += 2;
+            darray_push(ext_data->texts, debug_console_text);
+            darray_push(ext_data->texts, debug_console_get_entry_text(&state->debug_console));
         }
-        ui_text** texts = p_frame_data->allocator.allocate(sizeof(ui_text*) * ui_packet.text_count);
-        texts[0] = &state->test_text;
-        texts[1] = &state->test_sys_text;
-        if (render_debug_conole) {
-            texts[2] = debug_console_text;
-            texts[3] = debug_console_get_entry_text(&state->debug_console);
-        }
-
-        ui_packet.texts = texts;
-        if (!render_view_system_packet_build(view, p_frame_data, &state->ui_viewport, 0, &ui_packet, view_packet)) {
-            KERROR("Failed to build packet for view 'ui'.");
-            return false;
-        }
+        ext_data->ui_text_count = darray_length(ext_data->texts);
     }
 
     // Pick
@@ -789,7 +988,7 @@ b8 application_prepare_render_packet(struct application* app_inst, struct render
     return true;
 }
 
-b8 application_render(struct application* game_inst, struct render_packet* packet, struct frame_data* p_frame_data) {
+b8 application_render_frame(struct application* game_inst, struct frame_data* p_frame_data) {
     // Start the frame
     if (!renderer_frame_prepare(p_frame_data)) {
         return true;
@@ -807,21 +1006,10 @@ b8 application_render(struct application* game_inst, struct render_packet* packe
 
     clock_start(&state->render_clock);
 
-    // World
-    render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_WORLD];
-    view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
-
-    // Editor world
-    view_packet = &packet->views[TESTBED_PACKET_VIEW_EDITOR_WORLD];
-    view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
-
-    // Render the wireframe view
-    view_packet = &packet->views[TESTBED_PACKET_VIEW_WIREFRAME];
-    view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
-
-    // UI
-    view_packet = &packet->views[TESTBED_PACKET_VIEW_UI];
-    view_packet->view->on_render(view_packet->view, view_packet, p_frame_data);
+    if (!rendergraph_execute_frame(&state->frame_graph, p_frame_data)) {
+        KERROR("Failed to execute rendergraph frame.");
+        return false;
+    }
 
     clock_update(&state->render_clock);
 

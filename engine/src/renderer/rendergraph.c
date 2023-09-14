@@ -294,7 +294,7 @@ b8 rendergraph_finalize(rendergraph* graph) {
     // Then figure out what is the last render target source output and
     // link that to the global sink backbuffer_global_sink.
     for (u32 i = 0; i < pass_count; ++i) {
-        rendergraph_pass* pass = &graph->passes[i];
+        rendergraph_pass* pass = graph->passes[i];
 
         // Look for a "backbuffer" source for this pass, if there is one.
         u32 source_count = darray_length(pass->sources);
@@ -306,7 +306,7 @@ b8 rendergraph_finalize(rendergraph* graph) {
                     // Search all other pass' sinks to see if any have this source
                     // as a bound source.
                     for (u32 k = 0; k < pass_count; ++k) {
-                        rendergraph_pass* ref_check_pass = &graph->passes[k];
+                        rendergraph_pass* ref_check_pass = graph->passes[k];
                         u32 sink_count = darray_length(ref_check_pass->sinks);
                         b8 found = false;
                         for (u32 s = 0; s < sink_count; ++s) {
