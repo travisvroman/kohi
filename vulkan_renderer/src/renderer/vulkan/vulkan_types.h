@@ -79,6 +79,7 @@ typedef enum vulkan_device_support_flag_bits {
     VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT = 0x08,
     /** @brief Indicates if the device supports extension-based dynamic front-face swapping. */
     VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT = 0x10,
+    VULKAN_DEVICE_SUPPORT_FLAG_MAILBOX_MODE = 0x20
 } vulkan_device_support_flag_bits;
 
 /** @brief Bitwise flags for device support. @see vulkan_device_support_flag_bits. */

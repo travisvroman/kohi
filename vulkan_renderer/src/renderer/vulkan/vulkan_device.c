@@ -463,6 +463,14 @@ static b8 select_physical_device(vulkan_context* context) {
 
             KINFO("GPU Driver version: %s", driverProperties.driverInfo);
 
+            // HACK: Detect the mesa driver.
+            if (string_index_of_str(driverProperties.driverInfo, "Mesa") != -1) {
+                KINFO("Mesa driver detected. Mailbox mode will not be available.");
+            } else {
+                // Enable potential support for mailbox mode.
+                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_MAILBOX_MODE;
+            }
+
             // Save off the device-supported API version.
             context->device.api_major = VK_VERSION_MAJOR(properties.apiVersion);
             context->device.api_minor = VK_VERSION_MINOR(properties.apiVersion);

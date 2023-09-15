@@ -3,6 +3,7 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "renderer/vulkan/vulkan_types.h"
 #include "systems/texture_system.h"
 #include "vulkan_device.h"
 #include "vulkan_image.h"
@@ -120,14 +121,21 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
     if (flags & RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) {
         present_mode = VK_PRESENT_MODE_FIFO_KHR;
         // Only try for mailbox mode if not in power-saving mode.
-        if ((flags & RENDERER_CONFIG_FLAG_POWER_SAVING_BIT) == 0) {
+        if ((flags & RENDERER_CONFIG_FLAG_POWER_SAVING_BIT) == 0 && (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_MAILBOX_MODE) != 0) {
+            b8 mailbox_found = false;
             for (u32 i = 0; i < context->device.swapchain_support.present_mode_count; ++i) {
                 VkPresentModeKHR mode = context->device.swapchain_support.present_modes[i];
                 if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
                     KTRACE("Mailbox mode supported and selected.");
                     present_mode = mode;
+                    mailbox_found = true;
                     break;
                 }
+            }
+            if (!mailbox_found) {
+                // Mailbox mode not found, remove the flag.
+                context->device.support_flags &= ~VULKAN_DEVICE_SUPPORT_FLAG_MAILBOX_MODE;
+                KTRACE("Mailbox mode not found, and is thus not supported.");
             }
         }
     } else {
