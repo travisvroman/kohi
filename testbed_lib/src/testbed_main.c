@@ -22,6 +22,7 @@
 #include "game_state.h"
 #include "math/math_types.h"
 #include "renderer/viewport.h"
+#include "resources/loaders/simple_scene_loader.h"
 #include "systems/camera_system.h"
 #include "testbed_types.h"
 
@@ -33,18 +34,17 @@
 #include "renderer/rendergraph.h"
 
 // Views
-#include "editor/render_view_wireframe.h"
-#include "resources/loaders/simple_scene_loader.h"
+/* #include "editor/render_view_wireframe.h"
 #include "views/render_view_pick.h"
 #include "views/render_view_ui.h"
-#include "views/render_view_world.h"
+#include "views/render_view_world.h" */
 
 // TODO: Editor temp
 #include <resources/debug/debug_box3d.h>
 #include <resources/debug/debug_line3d.h>
 
 #include "editor/editor_gizmo.h"
-#include "editor/render_view_editor_world.h"
+/* #include "editor/render_view_editor_world.h" */
 
 // TODO: temp
 #include <core/identifier.h>
@@ -395,9 +395,13 @@ b8 application_boot(struct application* game_inst) {
     config->font_config.max_bitmap_font_count = 101;
     config->font_config.max_system_font_count = 101;
 
-    // Configure render views. TODO: read from file?
+    /* // Configure render views. TODO: read from file?
     if (!configure_render_views(config)) {
         KERROR("Failed to configure renderer views. Aborting application.");
+        return false;
+    } */
+    if (!configure_rendergraph(game_inst)) {
+        KERROR("Failed to setup render graph. Aboring application.");
         return false;
     }
 
@@ -702,11 +706,19 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
         return true;
     }
 
+    // Skybox pass. This pass must always run, as it is what clears the screen.
+    skybox_pass_extended_data* skybox_pass_ext_data = state->skybox_pass.pass_data.ext_data;
+    state->skybox_pass.pass_data.vp = &state->world_viewport;
+    camera* current_camera = state->world_camera;
+    state->skybox_pass.pass_data.view_matrix = camera_view_get(current_camera);
+    state->skybox_pass.pass_data.view_position = camera_position_get(current_camera);
+    state->skybox_pass.pass_data.projection_matrix = state->world_viewport.projection;
+    state->skybox_pass.pass_data.do_execute = true;
+
     // Tell our scene to generate relevant packet data. NOTE: Generates skybox and world packets.
     if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
         {
-            skybox_pass_extended_data* ext_data = state->skybox_pass.pass_data.ext_data;
-            ext_data->sb = state->main_scene.sb;
+            skybox_pass_ext_data->sb = state->main_scene.sb;
         }
         {
             scene_pass_extended_data* ext_data = state->scene_pass.pass_data.ext_data;
@@ -879,65 +891,69 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 }
             }
         }  // scene loaded.
-    }
 
-    // Editor pass
-    {
-        editor_pass_extended_data* ext_data = state->editor_pass.pass_data.ext_data;
+        // Editor pass
+        {
+            editor_pass_extended_data* ext_data = state->editor_pass.pass_data.ext_data;
 
-        geometry* g = &state->gizmo.mode_data[state->gizmo.mode].geo;
+            geometry* g = &state->gizmo.mode_data[state->gizmo.mode].geo;
 
-        // vec3 camera_pos = camera_position_get(c);
-        // vec3 gizmo_pos = transform_position_get(&packet_data->gizmo->xform);
-        // TODO: Should get this from the camera/viewport.
-        // f32 fov = deg_to_rad(45.0f);
-        // f32 dist = vec3_distance(camera_pos, gizmo_pos);
+            // vec3 camera_pos = camera_position_get(c);
+            // vec3 gizmo_pos = transform_position_get(&packet_data->gizmo->xform);
+            // TODO: Should get this from the camera/viewport.
+            // f32 fov = deg_to_rad(45.0f);
+            // f32 dist = vec3_distance(camera_pos, gizmo_pos);
 
-        mat4 model = transform_world_get(&state->gizmo.xform);
-        // f32 fixed_size = 0.1f;                            // TODO: Make this a configurable option for gizmo size.
-        f32 scale_scalar = 1.0f;                   // ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
-        state->gizmo.scale_scalar = scale_scalar;  // Keep a copy of this for hit detection.
-        mat4 scale = mat4_scale((vec3){scale_scalar, scale_scalar, scale_scalar});
-        model = mat4_mul(model, scale);
+            mat4 model = transform_world_get(&state->gizmo.xform);
+            // f32 fixed_size = 0.1f;                            // TODO: Make this a configurable option for gizmo size.
+            f32 scale_scalar = 1.0f;                   // ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
+            state->gizmo.scale_scalar = scale_scalar;  // Keep a copy of this for hit detection.
+            mat4 scale = mat4_scale((vec3){scale_scalar, scale_scalar, scale_scalar});
+            model = mat4_mul(model, scale);
 
-        geometry_render_data render_data = {0};
-        render_data.model = model;
-        render_data.geometry = g;
-        render_data.unique_id = INVALID_ID;
+            geometry_render_data render_data = {0};
+            render_data.model = model;
+            render_data.geometry = g;
+            render_data.unique_id = INVALID_ID;
 
-        ext_data->debug_geometries = darray_create_with_allocator(geometry_render_data, &p_frame_data->allocator);
-        darray_push(ext_data->debug_geometries, render_data);
+            ext_data->debug_geometries = darray_create_with_allocator(geometry_render_data, &p_frame_data->allocator);
+            darray_push(ext_data->debug_geometries, render_data);
 
 #ifdef _DEBUG
-        geometry_render_data plane_normal_render_data = {0};
-        plane_normal_render_data.model = transform_world_get(&state->gizmo.plane_normal_line.xform);
-        plane_normal_render_data.geometry = &state->gizmo.plane_normal_line.geo;
-        plane_normal_render_data.unique_id = INVALID_ID;
-        darray_push(ext_data->debug_geometries, plane_normal_render_data);
+            geometry_render_data plane_normal_render_data = {0};
+            plane_normal_render_data.model = transform_world_get(&state->gizmo.plane_normal_line.xform);
+            plane_normal_render_data.geometry = &state->gizmo.plane_normal_line.geo;
+            plane_normal_render_data.unique_id = INVALID_ID;
+            darray_push(ext_data->debug_geometries, plane_normal_render_data);
 #endif
-        ext_data->debug_geometry_count = darray_length(ext_data->debug_geometries);
-    }
-
-    /* // Wireframe
-    {
-        render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_WIREFRAME];
-        const render_view* view = view_packet->view;
-
-        render_view_wireframe_data wireframe_data = {0};
-        // TODO: Get a list of geometries not culled for the current camera.
-        //
-        wireframe_data.selected_id = state->selection.unique_id;
-        wireframe_data.world_geometries = packet->views[TESTBED_PACKET_VIEW_WORLD].geometries;
-        wireframe_data.terrain_geometries = packet->views[TESTBED_PACKET_VIEW_WORLD].terrain_geometries;
-        if (!render_view_system_packet_build(view, p_frame_data, &state->world_viewport2, state->world_camera_2, &wireframe_data, view_packet)) {
-            KERROR("Failed to build packet for view 'wireframe'");
-            return false;
+            ext_data->debug_geometry_count = darray_length(ext_data->debug_geometries);
         }
-    } */
+
+        /* // Wireframe
+        {
+            render_view_packet* view_packet = &packet->views[TESTBED_PACKET_VIEW_WIREFRAME];
+            const render_view* view = view_packet->view;
+
+            render_view_wireframe_data wireframe_data = {0};
+            // TODO: Get a list of geometries not culled for the current camera.
+            //
+            wireframe_data.selected_id = state->selection.unique_id;
+            wireframe_data.world_geometries = packet->views[TESTBED_PACKET_VIEW_WORLD].geometries;
+            wireframe_data.terrain_geometries = packet->views[TESTBED_PACKET_VIEW_WORLD].terrain_geometries;
+            if (!render_view_system_packet_build(view, p_frame_data, &state->world_viewport2, state->world_camera_2, &wireframe_data, view_packet)) {
+                KERROR("Failed to build packet for view 'wireframe'");
+                return false;
+            }
+        } */
+    }
 
     // UI
     {
         ui_pass_extended_data* ext_data = state->ui_pass.pass_data.ext_data;
+        state->ui_pass.pass_data.vp = &state->ui_viewport;
+        state->ui_pass.pass_data.view_matrix = mat4_identity();
+        state->ui_pass.pass_data.projection_matrix = state->ui_viewport.projection;
+        state->ui_pass.pass_data.do_execute = true;
 
         ext_data->geometries = darray_reserve_with_allocator(geometry_render_data, 10, &p_frame_data->allocator);
         for (u32 i = 0; i < 10; ++i) {
@@ -954,6 +970,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
         }
         ext_data->geometry_count = darray_length(ext_data->geometries);
 
+        ext_data->texts = darray_create_with_allocator(ui_text, &p_frame_data->allocator);
         darray_push(ext_data->texts, &state->test_text);
         darray_push(ext_data->texts, &state->test_sys_text);
 
@@ -1054,6 +1071,9 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
     // TODO: temp
     // Move debug text to new bottom of screen.
     ui_text_position_set(&state->test_text, vec3_create(20, state->height - 75, 0));
+
+    rendergraph_on_resize(&state->frame_graph, width, height);
+
     // TODO: end temp
 }
 
@@ -1231,7 +1251,7 @@ static b8 configure_rendergraph(application* app) {
     return true;
 }
 
-b8 configure_render_views(application_config* config) {
+/* b8 configure_render_views(application_config* config) {
     config->views = darray_create(render_view);
 
     // World view.
@@ -1456,7 +1476,7 @@ b8 configure_render_views(application_config* config) {
 
     // Pick pass.
     // TODO: Split this into 2 views and re-enable.
-    /*{
+    {
         render_view pick_view = {};
         pick_view.name = "pick";
         pick_view.renderpass_count = 2;
@@ -1529,10 +1549,10 @@ b8 configure_render_views(application_config* config) {
         pick_view.attachment_target_regenerate = render_view_pick_attachment_target_regenerate;
 
         darray_push(config->views, pick_view);
-    }*/
+    }
 
     return true;
-}
+} */
 
 static b8 load_main_scene(struct application* game_inst) {
     testbed_game_state* state = (testbed_game_state*)game_inst->state;

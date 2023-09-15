@@ -27,6 +27,7 @@ b8 scene_pass_create(struct rendergraph_pass* self) {
     }
 
     self->internal_data = kallocate(sizeof(scene_pass_internal_data), MEMORY_TAG_RENDERER);
+    self->pass_data.ext_data = kallocate(sizeof(scene_pass_extended_data), MEMORY_TAG_RENDERER);
 
     return true;
 }

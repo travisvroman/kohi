@@ -59,12 +59,6 @@ b8 simple_scene_create(void *config, simple_scene *out_scene) {
         kcopy_memory(out_scene->config, config, sizeof(simple_scene_config));
     }
 
-    // NOTE: Starting with a reasonably high number to avoid reallocs in the
-    // beginning.
-    out_scene->world_data.world_geometries = darray_reserve(geometry_render_data, 512);
-    out_scene->world_data.terrain_geometries = darray_create(geometry_render_data);
-    out_scene->world_data.debug_geometries = darray_create(geometry_render_data);
-
     debug_grid_config grid_config = {0};
     grid_config.orientation = DEBUG_GRID_ORIENTATION_XZ;
     grid_config.tile_count_dim_0 = 100;
@@ -481,7 +475,7 @@ b8 simple_scene_update(simple_scene *scene,
 }
 
 b8 simple_scene_populate_render_packet(simple_scene *scene, struct camera *current_camera, viewport *v, struct frame_data *p_frame_data, struct render_packet *packet) {
-    if (!scene || !packet) {
+    /* if (!scene || !packet) {
         return false;
     }
 
@@ -656,7 +650,7 @@ b8 simple_scene_populate_render_packet(simple_scene *scene, struct camera *curre
             return false;
         }
     }
-
+*/
     return true;
 }
 
@@ -1280,18 +1274,6 @@ static void simple_scene_actual_unload(simple_scene *scene) {
 
     if (scene->terrains) {
         darray_destroy(scene->terrains);
-    }
-
-    if (scene->world_data.world_geometries) {
-        darray_destroy(scene->world_data.world_geometries);
-    }
-
-    if (scene->world_data.terrain_geometries) {
-        darray_destroy(scene->world_data.terrain_geometries);
-    }
-
-    if (scene->world_data.debug_geometries) {
-        darray_destroy(scene->world_data.debug_geometries);
     }
 
     kzero_memory(scene, sizeof(simple_scene));

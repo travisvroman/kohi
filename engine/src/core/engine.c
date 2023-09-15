@@ -28,6 +28,12 @@ typedef struct engine_state_t {
     clock clock;
     f64 last_time;
 
+    // Indicates if the window is currently being resized.
+    b8 resizing;
+    // The current number of frames since the last resize operation.
+    // Only set if resizing = true. Otherwise 0.
+    u8 frames_since_resize;
+
     systems_manager_state sys_manager_state;
 
     // An allocator used for per-frame allocations, that is reset every frame.
@@ -89,6 +95,8 @@ b8 engine_create(application* game_inst) {
     engine_state->game_inst = game_inst;
     engine_state->is_running = false;
     engine_state->is_suspended = false;
+    engine_state->resizing = false;
+    engine_state->frames_since_resize = 0;
 
     game_inst->app_config.renderer_plugin = game_inst->render_plugin;
 
@@ -271,6 +279,11 @@ static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_con
 
 static b8 engine_on_resized(u16 code, void* sender, void* listener_inst, event_context context) {
     if (code == EVENT_CODE_RESIZED) {
+        // Flag as resizing and store the change, but wait to regenerate.
+        engine_state->resizing = true;
+        // Also reset the frame count since the last  resize operation.
+        engine_state->frames_since_resize = 0;
+
         u16 width = context.data.u16[0];
         u16 height = context.data.u16[1];
 
@@ -291,8 +304,25 @@ static b8 engine_on_resized(u16 code, void* sender, void* listener_inst, event_c
                     KINFO("Window restored, resuming application.");
                     engine_state->is_suspended = false;
                 }
-                engine_state->game_inst->on_resize(engine_state->game_inst, width, height);
-                renderer_on_resized(width, height);
+
+                // Make sure the window is not currently being resized by waiting a designated
+                // number of frames after the last resize operation before performing the backend updates.
+                if (engine_state->resizing) {
+                    engine_state->frames_since_resize++;
+
+                    // If the required number of frames have passed since the resize, go ahead and perform the actual updates.
+                    if (engine_state->frames_since_resize >= 30) {
+                        renderer_on_resized(width, height);
+                        engine_state->game_inst->on_resize(engine_state->game_inst, width, height);
+
+                        engine_state->frames_since_resize = 0;
+                        engine_state->resizing = false;
+                    } else {
+                        // Skip rendering the frame and try again next time.
+                        // NOTE: Simulate a frame being "drawn" at 60 FPS.
+                        platform_sleep(16);
+                    }
+                }
             }
         }
     }

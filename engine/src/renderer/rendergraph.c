@@ -363,10 +363,26 @@ b8 rendergraph_execute_frame(rendergraph* graph, frame_data* p_frame_data) {
     // Passes will be executed in the order they are added.
     u32 pass_count = darray_length(graph->passes);
     for (u32 i = 0; i < pass_count; ++i) {
+        if (!graph->passes[i]->pass_data.do_execute) {
+            continue;
+        }
         if (!graph->passes[i]->execute(graph->passes[i], p_frame_data)) {
             KERROR("Error executing pass. Check logs for additional details.");
             return false;
         }
+    }
+
+    return true;
+}
+
+b8 rendergraph_on_resize(rendergraph* graph, f32 width, f32 height) {
+    if (!graph) {
+        return false;
+    }
+
+    u32 pass_count = darray_length(graph->passes);
+    for (u32 i = 0; i < pass_count; ++i) {
+        regenerate_render_targets(graph, graph->passes[i]);
     }
 
     return true;

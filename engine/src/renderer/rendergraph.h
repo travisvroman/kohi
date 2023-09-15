@@ -33,6 +33,7 @@ typedef struct rendergraph_sink {
 } rendergraph_sink;
 
 typedef struct rendergraph_pass_data {
+    b8 do_execute;
     struct viewport* vp;
     mat4 view_matrix;
     mat4 projection_matrix;
@@ -88,5 +89,7 @@ KAPI b8 rendergraph_pass_set_sink_linkage(rendergraph* graph, const char* pass_n
 KAPI b8 rendergraph_finalize(rendergraph* graph);
 
 KAPI b8 rendergraph_execute_frame(rendergraph* graph, frame_data* p_frame_data);
+
+KAPI b8 rendergraph_on_resize(rendergraph* graph, f32 width, f32 height);
 
 #endif

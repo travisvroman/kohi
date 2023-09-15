@@ -38,7 +38,11 @@ void darray_destroy(void* array) {
         u64 header_size = sizeof(darray_header);
         darray_header* header = (darray_header*)((u8*)array - header_size);
         u64 total_size = header_size + header->capacity * header->stride;
-        kfree(header, total_size, MEMORY_TAG_DARRAY);
+        if (header->allocator) {
+            header->allocator->free(header, total_size);
+        } else {
+            kfree(header, total_size, MEMORY_TAG_DARRAY);
+        }
     }
 }
 
