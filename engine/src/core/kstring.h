@@ -164,6 +164,15 @@ KAPI void string_mid(char* dest, const char* source, i32 start, i32 length);
 KAPI i32 string_index_of(const char* str, char c);
 
 /**
+ * @brief Returns the index of the first occurance of str_1 in str_0; otherwise -1.
+ *
+ * @param str_0 The string to be scanned.
+ * @param str_1 The substring to search for.
+ * @return The index of the first occurance of str_1; otherwise -1 if not found.
+ */
+KAPI i32 string_index_of_str(const char* str_0, const char* str_1);
+
+/**
  * @brief Attempts to parse a transform from the provided string.
  * If the string contains 10 elements, rotation is parsed as quaternion.
  * If it contains 9 elements, rotation is parsed as euler angles and is

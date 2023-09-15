@@ -1,13 +1,13 @@
 #include "vulkan_swapchain.h"
 
-#include "core/logger.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "core/logger.h"
+#include "renderer/vulkan/vulkan_types.h"
+#include "systems/texture_system.h"
 #include "vulkan_device.h"
 #include "vulkan_image.h"
 #include "vulkan_utils.h"
-
-#include "systems/texture_system.h"
 
 static void create(vulkan_context* context, u32 width, u32 height, renderer_config_flags flags, vulkan_swapchain* swapchain);
 static void destroy(vulkan_context* context, vulkan_swapchain* swapchain);
@@ -121,13 +121,21 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
     if (flags & RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) {
         present_mode = VK_PRESENT_MODE_FIFO_KHR;
         // Only try for mailbox mode if not in power-saving mode.
-        if ((flags & RENDERER_CONFIG_FLAG_POWER_SAVING_BIT) == 0) {
+        if ((flags & RENDERER_CONFIG_FLAG_POWER_SAVING_BIT) == 0 && (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_MAILBOX_MODE) != 0) {
+            b8 mailbox_found = false;
             for (u32 i = 0; i < context->device.swapchain_support.present_mode_count; ++i) {
                 VkPresentModeKHR mode = context->device.swapchain_support.present_modes[i];
                 if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+                    KTRACE("Mailbox mode supported and selected.");
                     present_mode = mode;
+                    mailbox_found = true;
                     break;
                 }
+            }
+            if (!mailbox_found) {
+                // Mailbox mode not found, remove the flag.
+                context->device.support_flags &= ~VULKAN_DEVICE_SUPPORT_FLAG_MAILBOX_MODE;
+                KTRACE("Mailbox mode not found, and is thus not supported.");
             }
         }
     } else {
@@ -156,7 +164,9 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
         image_count = context->device.swapchain_support.capabilities.maxImageCount;
     }
 
-    swapchain->max_frames_in_flight = image_count - 1;
+    // NOTE: To test different numbers of images (i.e. for devices requiring > 3 images), uncomment this line.
+    // Not to be shipped in production code.
+    // image_count = 4;
 
     // Swapchain create info
     VkSwapchainCreateInfoKHR swapchain_create_info = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
@@ -194,8 +204,10 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
     context->current_frame = 0;
 
     // Images
+    KTRACE("Image count before vkGetSwapchainImagesKHR: %u", swapchain->image_count);
     swapchain->image_count = 0;
     VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, 0));
+    KTRACE("Image count after vkGetSwapchainImagesKHR: %u", swapchain->image_count);
     if (!swapchain->render_textures) {
         swapchain->render_textures = (texture*)kallocate(sizeof(texture) * swapchain->image_count, MEMORY_TAG_RENDERER);
         // If creating the array, then the internal texture objects aren't created yet either.
@@ -226,8 +238,18 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
             texture_system_resize(&swapchain->render_textures[i], swapchain_extent.width, swapchain_extent.height, false);
         }
     }
+    // TODO: the image count here can change based on presentation mode on some platforms (looking at you mesa on linux...)
+    // This means whenever the swapchain is recreated we should probably also trigger a recreation of all resources based on the image
+    // count. Ugh.
+    swapchain->max_frames_in_flight = swapchain->image_count - 1;
+    // Create the render targets array if it doesn't exist.
+    if (!swapchain->render_targets) {
+        swapchain->render_targets = kallocate(sizeof(render_target) * swapchain->image_count, MEMORY_TAG_ARRAY);
+    }
     VkImage swapchain_images[32];
     VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, swapchain_images));
+
+    KTRACE("Image count after vkGetSwapchainImagesKHR call 2: %u", swapchain->image_count);
     for (u32 i = 0; i < swapchain->image_count; ++i) {
         // Update the internal image for each.
         vulkan_image* image = (vulkan_image*)swapchain->render_textures[i].internal_data;
@@ -266,7 +288,7 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
     for (u32 i = 0; i < context->swapchain.image_count; ++i) {
         // Create depth image and its view.
         char formatted_name[TEXTURE_NAME_MAX_LENGTH] = {0};
-        string_format(formatted_name, "swapchain_image_%u", i);
+        string_format(formatted_name, "depth_image_%u", i);
 
         vulkan_image* image = kallocate(sizeof(vulkan_image), MEMORY_TAG_TEXTURE);
         vulkan_image_create(
@@ -283,9 +305,11 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
             formatted_name,
             image);
 
+        char image_name[32] = "__kohi_default_depth_texture_0_";
+        image_name[30] = '0' + i;
         // Wrap it in a texture.
         texture_system_wrap_internal(
-            "__kohi_default_depth_texture__",
+            image_name,
             swapchain_extent.width,
             swapchain_extent.height,
             context->device.depth_channel_count,

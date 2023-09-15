@@ -60,7 +60,7 @@ b8 renderer_system_initialize(u64* memory_requirement, void* state, void* config
     renderer_backend_config renderer_config = {};
     renderer_config.application_name = typed_config->application_name;
     // TODO: expose this to the application to configure.
-    renderer_config.flags = RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT | RENDERER_CONFIG_FLAG_POWER_SAVING_BIT;
+    renderer_config.flags = RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT;  // | RENDERER_CONFIG_FLAG_POWER_SAVING_BIT;
 
     // Create the vsync kvar
     kvar_int_create("vsync", (renderer_config.flags & RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? 1 : 0);
