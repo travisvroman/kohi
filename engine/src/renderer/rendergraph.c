@@ -10,7 +10,7 @@
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 
-static b8 regenerate_render_targets(rendergraph* graph, rendergraph_pass* pass);
+static b8 regenerate_render_targets(rendergraph* graph, rendergraph_pass* pass, u16 width, u16 height);
 
 b8 rendergraph_create(const char* name, struct application* app, rendergraph* out_graph) {
     if (!out_graph) {
@@ -35,6 +35,36 @@ void rendergraph_destroy(rendergraph* graph) {
         }
 
         if (graph->passes) {
+            // Destroy render passes.
+            u32 pass_count = darray_length(graph->passes);
+            for (u32 i = 0; i < pass_count; ++i) {
+                rendergraph_pass* pass = graph->passes[i];
+
+                // Destroy render targets.
+                for (u32 p = 0; p < pass->pass.render_target_count; ++p) {
+                    render_target* target = &pass->pass.targets[p];
+
+                    // Destroy the old target if it exists.
+                    renderer_render_target_destroy(target, false);
+
+                    for (u32 a = 0; a < target->attachment_count; ++a) {
+                        render_target_attachment* attachment = &target->attachments[a];
+                        if (attachment->source == RENDER_TARGET_ATTACHMENT_SOURCE_VIEW) {
+                            // TODO: Self-owned attachments for rendergraph passes, e.g. call a pfn to (re)generate attachements.
+                            KERROR("Self-owned attachements not yet supported.");
+                            continue;
+                        }
+                    }
+
+                    // Destroy the underlying render target.
+                    renderer_render_target_destroy(target, true);
+                }
+
+                // Destroy the pass itself.
+                pass->destroy(pass);
+            }
+
+            // Now destroy the array.
             darray_destroy(graph->passes);
             graph->passes = 0;
         }
@@ -346,7 +376,8 @@ b8 rendergraph_finalize(rendergraph* graph) {
         }
 
         // Also generate render targets.
-        if (!regenerate_render_targets(graph, graph->passes[i])) {
+        // TODO: Get default resolution.
+        if (!regenerate_render_targets(graph, graph->passes[i], 1280, 720)) {
             KERROR("Failed to rengenerate render targets");
             return false;
         }
@@ -375,20 +406,20 @@ b8 rendergraph_execute_frame(rendergraph* graph, frame_data* p_frame_data) {
     return true;
 }
 
-b8 rendergraph_on_resize(rendergraph* graph, f32 width, f32 height) {
+b8 rendergraph_on_resize(rendergraph* graph, u16 width, u16 height) {
     if (!graph) {
         return false;
     }
 
     u32 pass_count = darray_length(graph->passes);
     for (u32 i = 0; i < pass_count; ++i) {
-        regenerate_render_targets(graph, graph->passes[i]);
+        regenerate_render_targets(graph, graph->passes[i], width, height);
     }
 
     return true;
 }
 
-static b8 regenerate_render_targets(rendergraph* graph, rendergraph_pass* pass) {
+static b8 regenerate_render_targets(rendergraph* graph, rendergraph_pass* pass, u16 width, u16 height) {
     if (!graph || !pass) {
         return false;
     }
@@ -422,8 +453,8 @@ static b8 regenerate_render_targets(rendergraph* graph, rendergraph_pass* pass) 
             target->attachment_count,
             target->attachments,
             &pass->pass,
-            target->attachments[0].texture->width,
-            target->attachments[0].texture->height,
+            width,
+            height,
             &pass->pass.targets[i]);
     }
 

@@ -136,6 +136,8 @@ b8 editor_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame
 void editor_pass_destroy(struct rendergraph_pass* self) {
     if (self) {
         if (self->internal_data) {
+            // Destroy the pass.
+            renderer_renderpass_destroy(&self->pass);
             kfree(self->internal_data, sizeof(editor_pass_internal_data), MEMORY_TAG_RENDERER);
         }
     }

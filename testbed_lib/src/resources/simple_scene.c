@@ -1109,12 +1109,13 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
 
     // TODO: Check if grid exists.
     {
-        geometry_render_data data = {0};
-        data.model = mat4_identity();
-        data.geometry = &scene->grid.geo;
-        data.unique_id = INVALID_ID;
         if (debug_geometries) {
-            *debug_geometries[*data_count] = data;
+            geometry_render_data data = {0};
+            data.model = mat4_identity();
+            data.geometry = &scene->grid.geo;
+            data.unique_id = INVALID_ID;
+
+            (*debug_geometries)[(*data_count)] = data;
         }
         (*data_count)++;
     }
@@ -1122,16 +1123,16 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
     // Directional light.
     {
         if (scene->dir_light && scene->dir_light->debug_data) {
-            simple_scene_debug_data *debug = scene->dir_light->debug_data;
-
-            // Debug line 3d
-            geometry_render_data data = {0};
-            data.model = transform_world_get(&debug->line.xform);
-            data.geometry = &debug->line.geo;
-            data.unique_id = debug->line.unique_id;
-
             if (debug_geometries) {
-                *debug_geometries[*data_count] = data;
+                simple_scene_debug_data *debug = scene->dir_light->debug_data;
+
+                // Debug line 3d
+                geometry_render_data data = {0};
+                data.model = transform_world_get(&debug->line.xform);
+                data.geometry = &debug->line.geo;
+                data.unique_id = debug->line.unique_id;
+
+                (*debug_geometries)[(*data_count)] = data;
             }
             (*data_count)++;
         }
@@ -1142,16 +1143,16 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
         u32 point_light_count = darray_length(scene->point_lights);
         for (u32 i = 0; i < point_light_count; ++i) {
             if (scene->point_lights[i].debug_data) {
-                simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->point_lights[i].debug_data;
-
-                // Debug box 3d
-                geometry_render_data data = {0};
-                data.model = transform_world_get(&debug->box.xform);
-                data.geometry = &debug->box.geo;
-                data.unique_id = debug->box.unique_id;
-
                 if (debug_geometries) {
-                    *debug_geometries[*data_count] = data;
+                    simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->point_lights[i].debug_data;
+
+                    // Debug box 3d
+                    geometry_render_data data = {0};
+                    data.model = transform_world_get(&debug->box.xform);
+                    data.geometry = &debug->box.geo;
+                    data.unique_id = debug->box.unique_id;
+
+                    (*debug_geometries)[(*data_count)] = data;
                 }
                 (*data_count)++;
             }
@@ -1163,16 +1164,16 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
         u32 mesh_count = darray_length(scene->meshes);
         for (u32 i = 0; i < mesh_count; ++i) {
             if (scene->meshes[i].debug_data) {
-                simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->meshes[i].debug_data;
-
-                // Debug box 3d
-                geometry_render_data data = {0};
-                data.model = transform_world_get(&debug->box.xform);
-                data.geometry = &debug->box.geo;
-                data.unique_id = debug->box.unique_id;
-
                 if (debug_geometries) {
-                    *debug_geometries[*data_count] = data;
+                    simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->meshes[i].debug_data;
+
+                    // Debug box 3d
+                    geometry_render_data data = {0};
+                    data.model = transform_world_get(&debug->box.xform);
+                    data.geometry = &debug->box.geo;
+                    data.unique_id = debug->box.unique_id;
+
+                    (*debug_geometries)[(*data_count)] = data;
                 }
                 (*data_count)++;
             }

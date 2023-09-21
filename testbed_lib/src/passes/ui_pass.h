@@ -13,7 +13,7 @@ typedef struct ui_pass_extended_data {
     u32 geometry_count;
     struct geometry_render_data* geometries;
     u32 ui_text_count;
-    struct ui_text* texts;
+    struct ui_text** texts;
 } ui_pass_extended_data;
 
 b8 ui_pass_create(struct rendergraph_pass* self);

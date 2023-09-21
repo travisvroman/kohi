@@ -143,10 +143,6 @@ b8 engine_create(application* game_inst) {
     }
     game_inst->stage = APPLICATION_STAGE_INITIALIZED;
 
-    // Call resize once to ensure the proper size has been set.
-    renderer_on_resized(engine_state->width, engine_state->height);
-    engine_state->game_inst->on_resize(engine_state->game_inst, engine_state->width, engine_state->height);
-
     return true;
 }
 
@@ -188,6 +184,43 @@ b8 engine_run(application* game_inst) {
             // update metrics
             metrics_update(frame_elapsed_time);
 
+            // Make sure the window is not currently being resized by waiting a designated
+            // number of frames after the last resize operation before performing the backend updates.
+            if (engine_state->resizing) {
+                engine_state->frames_since_resize++;
+
+                // If the required number of frames have passed since the resize, go ahead and perform the actual updates.
+                if (engine_state->frames_since_resize >= 30) {
+                    renderer_on_resized(engine_state->width, engine_state->height);
+
+                    // NOTE: Don't bother checking the result of this, since this will likely
+                    // recreate the swapchain and boot to the next frame anyway.
+                    renderer_frame_prepare(&engine_state->p_frame_data);
+
+                    // Notify the application of the resize.
+                    engine_state->game_inst->on_resize(engine_state->game_inst, engine_state->width, engine_state->height);
+
+                    engine_state->frames_since_resize = 0;
+                    engine_state->resizing = false;
+                } else {
+                    // Skip rendering the frame and try again next time.
+                    // NOTE: Simulate a frame being "drawn" at 60 FPS.
+                    platform_sleep(16);
+                }
+
+                // Either way, don't process this frame any further while resizing.
+                // Try again next frame.
+                continue;
+            }
+            if (!renderer_frame_prepare(&engine_state->p_frame_data)) {
+                // This can also happen not just from a resize above, but also if a renderer flag
+                // (such as VSync) changed, which may also require resource recreation. To handle this,
+                // Notify the application of a resize event, which it can then pass on to its rendergraph(s)
+                // as needed.
+                engine_state->game_inst->on_resize(engine_state->game_inst, engine_state->width, engine_state->height);
+                continue;
+            }
+
             if (!engine_state->game_inst->update(engine_state->game_inst, &engine_state->p_frame_data)) {
                 KFATAL("Game update failed, shutting down.");
                 engine_state->is_running = false;
@@ -197,7 +230,6 @@ b8 engine_run(application* game_inst) {
             // Have the application generate the render packet.
             b8 prepare_result = engine_state->game_inst->prepare_frame(engine_state->game_inst, &engine_state->p_frame_data);
             if (!prepare_result) {
-                KERROR("Application failed to prepare the render packet. Skipping this frame.");
                 continue;
             }
 
@@ -303,25 +335,6 @@ static b8 engine_on_resized(u16 code, void* sender, void* listener_inst, event_c
                 if (engine_state->is_suspended) {
                     KINFO("Window restored, resuming application.");
                     engine_state->is_suspended = false;
-                }
-
-                // Make sure the window is not currently being resized by waiting a designated
-                // number of frames after the last resize operation before performing the backend updates.
-                if (engine_state->resizing) {
-                    engine_state->frames_since_resize++;
-
-                    // If the required number of frames have passed since the resize, go ahead and perform the actual updates.
-                    if (engine_state->frames_since_resize >= 30) {
-                        renderer_on_resized(width, height);
-                        engine_state->game_inst->on_resize(engine_state->game_inst, width, height);
-
-                        engine_state->frames_since_resize = 0;
-                        engine_state->resizing = false;
-                    } else {
-                        // Skip rendering the frame and try again next time.
-                        // NOTE: Simulate a frame being "drawn" at 60 FPS.
-                        platform_sleep(16);
-                    }
                 }
             }
         }

@@ -86,6 +86,8 @@ typedef struct testbed_game_state {
 
     selected_object selection;
     b8 using_gizmo;
+
+    u32 render_mode;
     // TODO: end temp
 } testbed_game_state;
 

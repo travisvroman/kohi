@@ -111,6 +111,25 @@ b8 game_on_event(u16 code, void* sender, void* listener_inst, event_context cont
             state->hovered_object_id = context.data.u32[0];
             return true;
         }
+        case EVENT_CODE_SET_RENDER_MODE: {
+            i32 mode = context.data.i32[0];
+            switch (mode) {
+                default:
+                case RENDERER_VIEW_MODE_DEFAULT:
+                    KDEBUG("Renderer mode set to default.");
+                    state->render_mode = RENDERER_VIEW_MODE_DEFAULT;
+                    break;
+                case RENDERER_VIEW_MODE_LIGHTING:
+                    KDEBUG("Renderer mode set to lighting.");
+                    state->render_mode = RENDERER_VIEW_MODE_LIGHTING;
+                    break;
+                case RENDERER_VIEW_MODE_NORMALS:
+                    KDEBUG("Renderer mode set to normals.");
+                    state->render_mode = RENDERER_VIEW_MODE_NORMALS;
+                    break;
+            }
+            return true;
+        }
     }
 
     return false;
@@ -703,7 +722,7 @@ static void gdistance_quick_sort(geometry_distance arr[], i32 low_index, i32 hig
 b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_frame_data) {
     testbed_game_state* state = (testbed_game_state*)app_inst->state;
     if (!state->running) {
-        return true;
+        return false;
     }
 
     // Skybox pass. This pass must always run, as it is what clears the screen.
@@ -721,10 +740,20 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             skybox_pass_ext_data->sb = state->main_scene.sb;
         }
         {
+            // Enable this pass for this frame.
+            state->scene_pass.pass_data.do_execute = true;
+            state->scene_pass.pass_data.vp = &state->world_viewport;
+            camera* current_camera = state->world_camera;
+            state->scene_pass.pass_data.view_matrix = camera_view_get(current_camera);
+            state->scene_pass.pass_data.view_position = camera_position_get(current_camera);
+            state->scene_pass.pass_data.projection_matrix = state->world_viewport.projection;
+
             scene_pass_extended_data* ext_data = state->scene_pass.pass_data.ext_data;
+            // TODO: Get from scene.
+            ext_data->ambient_colour = (vec4){0.25f, 0.25f, 0.25f, 1.0f};
+            ext_data->render_mode = state->render_mode;
 
             // Populate scene pass data.
-            camera* current_camera = state->world_camera;
             viewport* v = &state->world_viewport;
             simple_scene* scene = &state->main_scene;
 
@@ -842,7 +871,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             // Add terrain(s)
             u32 terrain_count = darray_length(scene->terrains);
             ext_data->terrain_geometries = darray_reserve_with_allocator(geometry_render_data, 16, &p_frame_data->allocator);
-            ext_data->terrain_geometries = 0;
+            ext_data->terrain_geometry_count = 0;
             for (u32 i = 0; i < terrain_count; ++i) {
                 // TODO: Frustum culling
                 geometry_render_data data = {0};
@@ -862,12 +891,14 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 KERROR("Failed to obtain count of debug render objects.");
                 return false;
             }
-            ext_data->debug_geometries = p_frame_data->allocator.allocate(sizeof(geometry_render_data) * ext_data->debug_geometry_count);
+            ext_data->debug_geometries = darray_reserve_with_allocator(geometry_render_data, ext_data->debug_geometry_count, &p_frame_data->allocator);
 
             if (!simple_scene_debug_render_data_query(scene, &ext_data->debug_geometry_count, &ext_data->debug_geometries)) {
                 KERROR("Failed to obtain debug render objects.");
                 return false;
             }
+            // Make sure the count is correct before pushing.
+            darray_length_set(ext_data->debug_geometries, ext_data->debug_geometry_count);
 
             // HACK: Inject raycast debug geometries into scene pass data.
             if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
@@ -894,6 +925,13 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
         // Editor pass
         {
+            // Enable this pass for this frame.
+            state->editor_pass.pass_data.do_execute = true;
+            state->editor_pass.pass_data.vp = &state->world_viewport;
+            state->editor_pass.pass_data.view_matrix = camera_view_get(current_camera);
+            state->editor_pass.pass_data.view_position = camera_position_get(current_camera);
+            state->editor_pass.pass_data.projection_matrix = state->world_viewport.projection;
+
             editor_pass_extended_data* ext_data = state->editor_pass.pass_data.ext_data;
 
             geometry* g = &state->gizmo.mode_data[state->gizmo.mode].geo;
@@ -970,15 +1008,25 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
         }
         ext_data->geometry_count = darray_length(ext_data->geometries);
 
-        ext_data->texts = darray_create_with_allocator(ui_text, &p_frame_data->allocator);
-        darray_push(ext_data->texts, &state->test_text);
-        darray_push(ext_data->texts, &state->test_sys_text);
+        ext_data->texts = 0;
+        ext_data->texts = darray_reserve_with_allocator(ui_text*, 2, &p_frame_data->allocator);
+        if (state->test_text.text) {
+            darray_push(ext_data->texts, &state->test_text);
+        }
+        if (state->test_sys_text.text) {
+            darray_push(ext_data->texts, &state->test_sys_text);
+        }
 
         ui_text* debug_console_text = debug_console_get_text(&state->debug_console);
         b8 render_debug_conole = debug_console_text && debug_console_visible(&state->debug_console);
         if (render_debug_conole) {
-            darray_push(ext_data->texts, debug_console_text);
-            darray_push(ext_data->texts, debug_console_get_entry_text(&state->debug_console));
+            if (debug_console_text->text) {
+                darray_push(ext_data->texts, debug_console_text);
+            }
+            ui_text* debug_console_entry_text = debug_console_get_entry_text(&state->debug_console);
+            if (debug_console_entry_text->text) {
+                darray_push(ext_data->texts, debug_console_entry_text);
+            }
         }
         ext_data->ui_text_count = darray_length(ext_data->texts);
     }
@@ -1007,9 +1055,6 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
 b8 application_render_frame(struct application* game_inst, struct frame_data* p_frame_data) {
     // Start the frame
-    if (!renderer_frame_prepare(p_frame_data)) {
-        return true;
-    }
 
     if (!renderer_begin(p_frame_data)) {
         //
@@ -1072,7 +1117,8 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
     // Move debug text to new bottom of screen.
     ui_text_position_set(&state->test_text, vec3_create(20, state->height - 75, 0));
 
-    rendergraph_on_resize(&state->frame_graph, width, height);
+    // Pass the resize onto the rendergraph.
+    rendergraph_on_resize(&state->frame_graph, state->width, state->height);
 
     // TODO: end temp
 }
@@ -1097,6 +1143,9 @@ void application_shutdown(struct application* game_inst) {
     ui_text_destroy(&state->test_sys_text);
 
     debug_console_unload(&state->debug_console);
+
+    // Destroy rendergraph(s)
+    rendergraph_destroy(&state->frame_graph);
 }
 
 void application_lib_on_unload(struct application* game_inst) {
@@ -1135,6 +1184,7 @@ void application_register_events(struct application* game_inst) {
         event_register(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_DEBUG2, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
+        event_register(EVENT_CODE_SET_RENDER_MODE, game_inst, game_on_event);
         event_register(EVENT_CODE_BUTTON_RELEASED, game_inst->state, game_on_button);
         event_register(EVENT_CODE_MOUSE_MOVED, game_inst->state, game_on_mouse_move);
         event_register(EVENT_CODE_MOUSE_DRAG_BEGIN, game_inst->state, game_on_drag);
@@ -1154,6 +1204,7 @@ void application_unregister_events(struct application* game_inst) {
     event_unregister(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_DEBUG2, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
+    event_unregister(EVENT_CODE_SET_RENDER_MODE, game_inst, game_on_event);
     event_unregister(EVENT_CODE_BUTTON_RELEASED, game_inst->state, game_on_button);
     event_unregister(EVENT_CODE_MOUSE_MOVED, game_inst->state, game_on_mouse_move);
     event_unregister(EVENT_CODE_MOUSE_DRAG_BEGIN, game_inst->state, game_on_drag);

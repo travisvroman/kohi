@@ -78,6 +78,8 @@ void renderer_on_resized(u16 width, u16 height) {
     if (state_ptr) {
         state_ptr->framebuffer_width = width;
         state_ptr->framebuffer_height = height;
+
+        state_ptr->plugin.resized(&state_ptr->plugin, width, height);
     } else {
         KWARN("renderer backend does not exist to accept resize: %i %i", width, height);
     }

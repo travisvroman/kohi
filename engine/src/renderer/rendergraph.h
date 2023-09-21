@@ -90,6 +90,6 @@ KAPI b8 rendergraph_finalize(rendergraph* graph);
 
 KAPI b8 rendergraph_execute_frame(rendergraph* graph, frame_data* p_frame_data);
 
-KAPI b8 rendergraph_on_resize(rendergraph* graph, f32 width, f32 height);
+KAPI b8 rendergraph_on_resize(rendergraph* graph, u16 width, u16 height);
 
 #endif

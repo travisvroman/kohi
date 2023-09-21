@@ -147,7 +147,7 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
 
     // Draw bitmap text
     for (u32 i = 0; i < ext_data->ui_text_count; ++i) {
-        ui_text* text = &ext_data->texts[i];
+        ui_text* text = ext_data->texts[i];
         shader_system_bind_instance(text->instance_id);
 
         if (!shader_system_uniform_set_by_index(internal_data->locations.diffuse_map, &text->data->atlas)) {
@@ -188,6 +188,8 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
 void ui_pass_destroy(struct rendergraph_pass* self) {
     if (self) {
         if (self->internal_data) {
+            // Destroy the pass.
+            renderer_renderpass_destroy(&self->pass);
             kfree(self->internal_data, sizeof(ui_pass_internal_data), MEMORY_TAG_RENDERER);
         }
     }
