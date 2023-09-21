@@ -553,6 +553,15 @@ KAPI b8 renderer_renderbuffer_allocate(renderbuffer* buffer, u64 size, u64* out_
 KAPI b8 renderer_renderbuffer_free(renderbuffer* buffer, u64 size, u64 offset);
 
 /**
+ * @brief Clears the given buffer. Internally, resets the free list if one is used.
+ *
+ * @param buffer A pointer to the buffer to be freed from.
+ * @param zero_memory True if memory should be zeroed; otherwise false. NOTE: this can be an expensive operation on large sums of memory.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 renderer_renderbuffer_clear(renderbuffer* buffer, b8 zero_memory);
+
+/**
  * @brief Loads provided data into the specified rage of the given buffer.
  *
  * @param buffer A pointer to the buffer to load data into.

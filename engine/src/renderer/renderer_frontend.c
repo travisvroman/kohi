@@ -560,12 +560,12 @@ b8 renderer_renderbuffer_resize(renderbuffer* buffer, u64 new_total_size) {
 
 b8 renderer_renderbuffer_allocate(renderbuffer* buffer, u64 size, u64* out_offset) {
     if (!buffer || !size || !out_offset) {
-        KERROR("vulkan_buffer_allocate requires valid buffer, a nonzero size and valid pointer to hold offset.");
+        KERROR("renderer_renderbuffer_allocate requires valid buffer, a nonzero size and valid pointer to hold offset.");
         return false;
     }
 
     if (buffer->freelist_memory_requirement == 0) {
-        KWARN("vulkan_buffer_allocate called on a buffer not using freelists. Offset will not be valid. Call renderer_renderbuffer_load_range instead.");
+        KWARN("renderer_renderbuffer_allocate called on a buffer not using freelists. Offset will not be valid. Call renderer_renderbuffer_load_range instead.");
         *out_offset = 0;
         return true;
     }
@@ -574,15 +574,34 @@ b8 renderer_renderbuffer_allocate(renderbuffer* buffer, u64 size, u64* out_offse
 
 b8 renderer_renderbuffer_free(renderbuffer* buffer, u64 size, u64 offset) {
     if (!buffer || !size) {
-        KERROR("vulkan_buffer_free requires valid buffer and a nonzero size.");
+        KERROR("renderer_renderbuffer_free requires valid buffer and a nonzero size.");
         return false;
     }
 
     if (buffer->freelist_memory_requirement == 0) {
-        KWARN("vulkan_buffer_allocate called on a buffer not using freelists. Nothing was done.");
+        KWARN("renderer_render_buffer_allocate called on a buffer not using freelists. Nothing was done.");
         return true;
     }
     return freelist_free_block(&buffer->buffer_freelist, size, offset);
+}
+
+b8 renderer_renderbuffer_clear(renderbuffer* buffer, b8 zero_memory) {
+    if (!buffer) {
+        KERROR("renderer_renderbuffer_clear requires valid buffer and a nonzero size.");
+        return false;
+    }
+
+    if (buffer->freelist_memory_requirement != 0) {
+        freelist_clear(&buffer->buffer_freelist);
+    }
+
+    if (zero_memory) {
+        // TODO: zero memory
+        KFATAL("TODO: Zero memory");
+        return false;
+    }
+
+    return true;
 }
 
 b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data) {
