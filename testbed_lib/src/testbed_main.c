@@ -56,7 +56,6 @@
 #include <systems/geometry_system.h>
 #include <systems/light_system.h>
 #include <systems/material_system.h>
-#include <systems/render_view_system.h>
 #include <systems/resource_system.h>
 
 #include "debug_console.h"

@@ -20,7 +20,6 @@
 #include "resources/skybox.h"
 #include "resources/terrain.h"
 #include "systems/light_system.h"
-#include "systems/render_view_system.h"
 #include "systems/resource_system.h"
 
 static void

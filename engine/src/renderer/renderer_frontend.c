@@ -15,7 +15,6 @@
 #include "resources/resource_types.h"
 #include "systems/camera_system.h"
 #include "systems/material_system.h"
-#include "systems/render_view_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
