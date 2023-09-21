@@ -6,7 +6,7 @@ struct linear_allocator;
 
 typedef struct frame_allocator_int {
     void* (*allocate)(u64 size);
-    void (*free)(u64 size);
+    void (*free)(void* block, u64 size);
     void (*free_all)(void);
 } frame_allocator_int;
 

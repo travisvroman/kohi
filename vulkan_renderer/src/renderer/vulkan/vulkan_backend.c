@@ -701,10 +701,7 @@ b8 vulkan_renderer_frame_prepare(renderer_plugin *plugin, struct frame_data *p_f
     if (context->recreating_swapchain) {
         VkResult result = vkDeviceWaitIdle(device->logical_device);
         if (!vulkan_result_is_success(result)) {
-            KERROR(
-                "vulkan_renderer_backend_begin_frame vkDeviceWaitIdle (1) failed: "
-                "'%s'",
-                vulkan_result_string(result, true));
+            KERROR("vulkan_renderer_backend_begin_frame vkDeviceWaitIdle (1) failed: '%s'", vulkan_result_string(result, true));
             return false;
         }
         KINFO("Recreating swapchain, booting.");
@@ -713,15 +710,11 @@ b8 vulkan_renderer_frame_prepare(renderer_plugin *plugin, struct frame_data *p_f
 
     // Check if the framebuffer has been resized. If so, a new swapchain must be
     // created. Also include a vsync changed check.
-    if (context->framebuffer_size_generation !=
-            context->framebuffer_size_last_generation ||
+    if (context->framebuffer_size_generation != context->framebuffer_size_last_generation ||
         context->render_flag_changed) {
         VkResult result = vkDeviceWaitIdle(device->logical_device);
         if (!vulkan_result_is_success(result)) {
-            KERROR(
-                "vulkan_renderer_backend_begin_frame vkDeviceWaitIdle (2) failed: "
-                "'%s'",
-                vulkan_result_string(result, true));
+            KERROR("vulkan_renderer_backend_begin_frame vkDeviceWaitIdle (2) failed: '%s'", vulkan_result_string(result, true));
             return false;
         }
 
@@ -3065,13 +3058,11 @@ b8 vulkan_renderer_render_target_create(renderer_plugin *plugin,
                                         render_target *out_target) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     // Max number of attachments
-    VkImageView attachment_views[32];
+    VkImageView attachment_views[32] = {0};
     for (u32 i = 0; i < attachment_count; ++i) {
-        attachment_views[i] =
-            ((vulkan_image *)attachments[i].texture->internal_data)->view;
+        attachment_views[i] = ((vulkan_image *)attachments[i].texture->internal_data)->view;
     }
-    kcopy_memory(out_target->attachments, attachments,
-                 sizeof(render_target_attachment) * attachment_count);
+    kcopy_memory(out_target->attachments, attachments, sizeof(render_target_attachment) * attachment_count);
 
     VkFramebufferCreateInfo framebuffer_create_info = {
         VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};

@@ -3,7 +3,6 @@
 #include "defines.h"
 #include "math/math_types.h"
 #include "resources/debug/debug_grid.h"
-#include "views/render_view_world.h"
 
 struct frame_data;
 struct render_packet;
@@ -19,6 +18,7 @@ struct ray;
 struct raycast_result;
 struct transform;
 struct viewport;
+struct geometry_render_data;
 
 typedef enum simple_scene_state {
     /** @brief created, but nothing more. */
@@ -78,7 +78,6 @@ typedef struct simple_scene {
     // A pointer to the scene configuration, if provided.
     struct simple_scene_config* config;
 
-    render_view_world_data world_data;
 } simple_scene;
 
 /**
@@ -172,3 +171,5 @@ KAPI struct skybox* simple_scene_skybox_get(simple_scene* scene, const char* nam
 KAPI struct terrain* simple_scene_terrain_get(simple_scene* scene, const char* name);
 
 KAPI struct transform* simple_scene_transform_get_by_id(simple_scene* scene, u32 unique_id);
+
+KAPI b8 simple_scene_debug_render_data_query(simple_scene* scene, u32* data_count, struct geometry_render_data** debug_geometries);

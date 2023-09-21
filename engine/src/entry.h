@@ -1,7 +1,7 @@
 /**
  * @file entry.h
  * @author Travis Vroman (travis@kohiengine.com)
- * @brief This file contains the main entry point to the application. 
+ * @brief This file contains the main entry point to the application.
  * It also contains a reference to an externally defined create_application
  * method, which should create and set a custom application object to the
  * location pointed to by out_app. This would be provided by the
@@ -9,16 +9,16 @@
  * during the bootstrapping phase.
  * @version 1.0
  * @date 2022-01-10
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
- * 
+ *
  */
 
 #pragma once
 
+#include "application_types.h"
 #include "core/engine.h"
 #include "core/logger.h"
-#include "application_types.h"
 
 /** @brief Externally-defined function to create a application, provided by the consumer
  * of this library.
@@ -42,7 +42,7 @@ int main(void) {
     }
 
     // Ensure the function pointers exist.
-    if (!app_inst.render || !app_inst.update || !app_inst.initialize || !app_inst.on_resize) {
+    if (!app_inst.render_frame || !app_inst.prepare_frame || !app_inst.update || !app_inst.initialize || !app_inst.on_resize) {
         KFATAL("The application's function pointers must be assigned!");
         return -2;
     }
