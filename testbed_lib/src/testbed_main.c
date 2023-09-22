@@ -18,6 +18,7 @@
 #include <renderer/renderer_types.h>
 #include <resources/terrain.h>
 
+#include "core/engine.h"
 #include "defines.h"
 #include "game_state.h"
 #include "math/math_types.h"
@@ -57,7 +58,11 @@
 #include <systems/light_system.h>
 #include <systems/material_system.h>
 #include <systems/resource_system.h>
+// Standard ui
+#include <core/systems_manager.h>
 
+#include "standard_ui_system.h"
+// Game code.
 #include "debug_console.h"
 #include "game_commands.h"
 #include "game_keybinds.h"
@@ -433,6 +438,15 @@ b8 application_boot(struct application* game_inst) {
 
 b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
+
+    systems_manager_state* sys_mgr_state = engine_systems_manager_state_get(game_inst);
+    // FIXME: Need to maintain a list of extension types somewhere and pull from there.
+    const u16 K_SYSTEM_TYPE_STANDARD_UI_EXT = 128;
+    standard_ui_system_config standard_ui_cfg = {0};
+    if (!systems_manager_register(sys_mgr_state, K_SYSTEM_TYPE_STANDARD_UI_EXT, standard_ui_system_initialize, standard_ui_system_shutdown, standard_ui_system_update, &standard_ui_cfg)) {
+        KERROR("Failed to register standard ui system.");
+        return false;
+    }
 
     application_register_events(game_inst);
 

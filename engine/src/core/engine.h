@@ -20,6 +20,7 @@
 
 struct application;
 struct frame_data;
+struct systems_manager_state;
 
 /**
  * @brief Represents configuration for the application. The application config
@@ -85,3 +86,11 @@ void engine_on_event_system_initialized(void);
  * @return A constant pointer to the current frame data.
  */
 KAPI const struct frame_data* engine_frame_data_get(struct application* game_inst);
+
+/**
+ * @brief Obtains a pointer to the systems manager state.
+ *
+ * @param game_inst A pointer to the application instance.
+ * @return A pointer to the systems manager state.
+ */
+KAPI struct systems_manager_state* engine_systems_manager_state_get(struct application* game_inst);

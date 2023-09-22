@@ -4,9 +4,9 @@
  * @brief The camera system is responsible for managing cameras throughout the engine.
  * @version 1.0
  * @date 2022-05-21
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
- * 
+ *
  */
 
 #pragma once
@@ -39,7 +39,7 @@ typedef struct camera_system_config {
 b8 camera_system_initialize(u64* memory_requirement, void* state, void* config);
 
 /**
- * @brief Shuts down the geometry camera.
+ * @brief Shuts down the camera system.
  *
  * @param state The state block of memory.
  */
@@ -49,7 +49,7 @@ void camera_system_shutdown(void* state);
  * @brief Acquires a pointer to a camera by name.
  * If one is not found, a new one is created and retuned.
  * Internal reference counter is incremented.
- * 
+ *
  * @param name The name of the camera to acquire.
  * @return A pointer to a camera if successful; 0 if an error occurs.
  */
@@ -59,14 +59,14 @@ KAPI camera* camera_system_acquire(const char* name);
  * @brief Releases a camera with the given name. Intenral reference
  * counter is decremented. If this reaches 0, the camera is reset,
  * and the reference is usable by a new camera.
- * 
+ *
  * @param name The name of the camera to release.
  */
 KAPI void camera_system_release(const char* name);
 
 /**
  * @brief Gets a pointer to the default camera.
- * 
+ *
  * @return A pointer to the default camera.
  */
 KAPI camera* camera_system_get_default(void);
