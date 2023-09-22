@@ -4,9 +4,9 @@
  * @brief The implementation of the Vulkan image, which can be thought of as a texture.
  * @version 1.0
  * @date 2022-01-11
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
- * 
+ *
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 
 /**
  * @brief Creates a new Vulkan image.
- * 
+ *
  * @param context A pointer to the Vulkan context.
  * @param type The type of texture. Provides hints to creation.
  * @param width The width of the image. For cubemaps, this is for each side of the cube.
@@ -45,7 +45,7 @@ void vulkan_image_create(
 
 /**
  * @brief Creates a view for the given image.
- * 
+ *
  * @param context A pointer to the Vulkan context.
  * @param type The type of texture. Provides hints to creation.
  * @param format The image format.
@@ -61,7 +61,7 @@ void vulkan_image_view_create(
 
 /**
  * @brief Transitions the provided image from old_layout to new_layout.
- * 
+ *
  * @param context A pointer to the Vulkan context.
  * @param type The type of texture. Provides hints to creation.
  * @param command_buffer A pointer to the command buffer to be used.
@@ -85,12 +85,15 @@ void vulkan_image_transition_layout(
  * @param type The type of texture. Provides hints to creation.
  * @param image The image to copy the buffer's data to.
  * @param buffer The buffer whose data will be copied.
+ * @param offset The offset in bytes from the beginning of the buffer.
+ * @param command_buffer A pointer to the command buffer to be used for this operation.
  */
 void vulkan_image_copy_from_buffer(
     vulkan_context* context,
     texture_type type,
     vulkan_image* image,
     VkBuffer buffer,
+    u64 offset,
     vulkan_command_buffer* command_buffer);
 
 /**
@@ -111,7 +114,7 @@ void vulkan_image_copy_to_buffer(
 
 /**
  * @brief Copies a single pixel's data from the given image to the provided buffer.
- * 
+ *
  * @param context The Vulkan context.
  * @param type The type of texture. Provides hints to layer count.
  * @param image The image to copy the image's data from.
@@ -131,7 +134,7 @@ void vulkan_image_copy_pixel_to_buffer(
 
 /**
  * @brief Destroys the given image.
- * 
+ *
  * @param context A pointer to the Vulkan context.
  * @param image A pointer to the image to be destroyed.
  */

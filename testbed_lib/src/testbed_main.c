@@ -1101,7 +1101,7 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
 
     // Resize viewports.
     // World Viewport - right side
-    rect_2d world_vp_rect = vec4_create(half_width + 20.0f, 20.0f, half_width - 40.0f, state->height - 40.0f);
+    rect_2d world_vp_rect = vec4_create(0.0f, 0.0f, state->width, state->height);  // vec4_create(half_width + 20.0f, 20.0f, half_width - 40.0f, state->height - 40.0f);
     viewport_resize(&state->world_viewport, world_vp_rect);
 
     // UI Viewport
