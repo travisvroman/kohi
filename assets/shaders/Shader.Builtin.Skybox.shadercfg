@@ -4,7 +4,7 @@ cull_mode=front
 name=Shader.Builtin.Skybox
 renderpass=Renderpass.Builtin.Skybox
 stages=vertex,fragment
-stagefiles=shaders/Builtin.SkyboxShader.vert.spv,shaders/Builtin.SkyboxShader.frag.spv
+stagefiles=shaders/Builtin.SkyboxShader.vert.glsl,shaders/Builtin.SkyboxShader.frag.glsl
 depth_test=0
 depth_write=0
 

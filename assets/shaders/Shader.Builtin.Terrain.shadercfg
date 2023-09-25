@@ -3,7 +3,7 @@ version=1.0
 name=Shader.Builtin.Terrain
 renderpass=Renderpass.Builtin.World
 stages=vertex,fragment
-stagefiles=shaders/Builtin.TerrainShader.vert.spv,shaders/Builtin.TerrainShader.frag.spv
+stagefiles=shaders/Builtin.TerrainShader.vert.glsl,shaders/Builtin.TerrainShader.frag.glsl
 depth_test=1
 depth_write=1
 

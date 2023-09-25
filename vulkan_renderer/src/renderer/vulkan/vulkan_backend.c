@@ -27,6 +27,9 @@
 #include "vulkan_types.h"
 #include "vulkan_utils.h"
 
+// For runtime shader compilation.
+#include <shaderc/shaderc.h>
+#include <shaderc/status.h>
 // NOTE: If wanting to trace allocations, uncomment this.
 // #ifndef KVULKAN_ALLOCATOR_TRACE
 // #define KVULKAN_ALLOCATOR_TRACE 1
@@ -597,6 +600,9 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
         context->geometries[i].id = INVALID_ID;
     }
 
+    // Create a shader compiler to be used.
+    context->shader_compiler = shaderc_compiler_initialize();
+
     KINFO("Vulkan renderer initialized successfully.");
     return true;
 }
@@ -605,6 +611,12 @@ void vulkan_renderer_backend_shutdown(renderer_plugin *plugin) {
     // Cold-cast the context
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     vkDeviceWaitIdle(context->device.logical_device);
+
+    // Destroy the runtime shader compiler.
+    if (context->shader_compiler) {
+        shaderc_compiler_release(context->shader_compiler);
+        context->shader_compiler = 0;
+    }
 
     // Destroy in the opposite order of creation.
     // Destroy buffers
@@ -2694,31 +2706,94 @@ static b8 create_shader_module(vulkan_context *context, vulkan_shader *shader,
                                vulkan_shader_stage_config config,
                                vulkan_shader_stage *shader_stage) {
     // Read the resource.
-    resource binary_resource;
-    if (!resource_system_load(config.file_name, RESOURCE_TYPE_BINARY, 0,
-                              &binary_resource)) {
-        KERROR("Unable to read shader module: %s.", config.file_name);
+    resource text_resource;
+    if (!resource_system_load(config.file_name, RESOURCE_TYPE_TEXT, 0, &text_resource)) {
+        KERROR("Unable to read shader file: %s.", config.file_name);
         return false;
     }
 
+    shaderc_shader_kind shader_kind;
+    switch (config.stage) {
+        case VK_SHADER_STAGE_VERTEX_BIT:
+            shader_kind = shaderc_glsl_default_vertex_shader;
+            break;
+        case VK_SHADER_STAGE_FRAGMENT_BIT:
+            shader_kind = shaderc_glsl_default_fragment_shader;
+            break;
+        case VK_SHADER_STAGE_COMPUTE_BIT:
+            shader_kind = shaderc_glsl_default_compute_shader;
+            break;
+        case VK_SHADER_STAGE_GEOMETRY_BIT:
+            shader_kind = shaderc_glsl_default_geometry_shader;
+            break;
+        default:
+            KERROR("Unsupported shader kind. Unable to create module.");
+            return false;
+    }
+
+    KDEBUG("Compiling shader '%s'...", config.file_name);
+
+    // Attempt to compile the shader.
+    shaderc_compilation_result_t compilation_result = shaderc_compile_into_spv(
+        context->shader_compiler,
+        text_resource.data,
+        text_resource.data_size,
+        shader_kind,
+        config.file_name,
+        "main",
+        0);
+
+    // Release the resource as it isn't needed anymore at this point.
+    resource_system_unload(&text_resource);
+
+    if (!compilation_result) {
+        KERROR("An unknown error occurred while trying to compile the shader. Unable to process futher.");
+        return false;
+    }
+    shaderc_compilation_status status = shaderc_result_get_compilation_status(compilation_result);
+
+    // Handle errors, if any.
+    if (status != shaderc_compilation_status_success) {
+        const char *error_message = shaderc_result_get_error_message(compilation_result);
+        u64 error_count = shaderc_result_get_num_errors(compilation_result);
+        KERROR("Error compiling shader with %llu errors.", error_count);
+        KERROR("Error(s):\n%s", error_message);
+        shaderc_result_release(compilation_result);
+        return false;
+    }
+
+    KDEBUG("Shader compiled successfully.");
+
+    // Output warnings if there are any.
+    u64 warning_count = shaderc_result_get_num_warnings(compilation_result);
+    if (warning_count) {
+        // NOTE: Not sure this it the correct way to obtain warnings.
+        KWARN("%llu warnings were generated during shader compilation:\n%s", warning_count, shaderc_result_get_error_message(compilation_result));
+    }
+
+    // Extract the data from the result.
+    const char *bytes = shaderc_result_get_bytes(compilation_result);
+    size_t result_length = shaderc_result_get_length(compilation_result);
+    // Take a copy of the result data and cast it to a u32* as is required by Vulkan.
+    u32 *code = kallocate(result_length, MEMORY_TAG_RENDERER);
+    kcopy_memory(code, bytes, result_length);
+
+    // Release the compilation result.
+    shaderc_result_release(compilation_result);
+
     kzero_memory(&shader_stage->create_info, sizeof(VkShaderModuleCreateInfo));
     shader_stage->create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    // Use the resource's size and data directly.
-    shader_stage->create_info.codeSize = binary_resource.data_size;
-    shader_stage->create_info.pCode = (u32 *)binary_resource.data;
+    shader_stage->create_info.codeSize = result_length;
+    shader_stage->create_info.pCode = code;
 
-    VK_CHECK(vkCreateShaderModule(context->device.logical_device,
-                                  &shader_stage->create_info, context->allocator,
-                                  &shader_stage->handle));
+    VK_CHECK(vkCreateShaderModule(context->device.logical_device, &shader_stage->create_info, context->allocator, &shader_stage->handle));
 
-    // Release the resource.
-    resource_system_unload(&binary_resource);
+    // Release the copy of the code.
+    kfree(code, result_length, MEMORY_TAG_RENDERER);
 
     // Shader stage info
-    kzero_memory(&shader_stage->shader_stage_create_info,
-                 sizeof(VkPipelineShaderStageCreateInfo));
-    shader_stage->shader_stage_create_info.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    kzero_memory(&shader_stage->shader_stage_create_info, sizeof(VkPipelineShaderStageCreateInfo));
+    shader_stage->shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shader_stage->shader_stage_create_info.stage = config.stage;
     shader_stage->shader_stage_create_info.module = shader_stage->handle;
     shader_stage->shader_stage_create_info.pName = "main";
