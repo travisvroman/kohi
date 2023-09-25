@@ -3,7 +3,7 @@ version=1.0
 name=Shader.Builtin.TerrainPick
 renderpass=Renderpass.Builtin.Pick
 stages=vertex,fragment
-stagefiles=shaders/Builtin.TerrainPickShader.vert.spv,shaders/Builtin.TerrainPickShader.frag.spv
+stagefiles=shaders/Builtin.TerrainPickShader.vert.glsl,shaders/Builtin.TerrainPickShader.frag.glsl
 depth_test=1
 depth_write=1
 
