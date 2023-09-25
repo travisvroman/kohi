@@ -27,6 +27,9 @@
 #include "vulkan_types.h"
 #include "vulkan_utils.h"
 
+// For runtime shader compilation.
+#include <shaderc/shaderc.h>
+#include <shaderc/status.h>
 // NOTE: If wanting to trace allocations, uncomment this.
 // #ifndef KVULKAN_ALLOCATOR_TRACE
 // #define KVULKAN_ALLOCATOR_TRACE 1
@@ -597,6 +600,9 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
         context->geometries[i].id = INVALID_ID;
     }
 
+    // Create a shader compiler to be used.
+    context->shader_compiler = shaderc_compiler_initialize();
+
     KINFO("Vulkan renderer initialized successfully.");
     return true;
 }
@@ -605,6 +611,12 @@ void vulkan_renderer_backend_shutdown(renderer_plugin *plugin) {
     // Cold-cast the context
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     vkDeviceWaitIdle(context->device.logical_device);
+
+    // Destroy the runtime shader compiler.
+    if (context->shader_compiler) {
+        shaderc_compiler_release(context->shader_compiler);
+        context->shader_compiler = 0;
+    }
 
     // Destroy in the opposite order of creation.
     // Destroy buffers
@@ -2690,35 +2702,260 @@ b8 vulkan_renderer_uniform_set(renderer_plugin *plugin, shader *s, shader_unifor
     return true;
 }
 
+#include <spirv_cross/spirv_cross_c.h>
+
+void spvc_error_callback_impl(void *userdata, const char *error) {
+    KERROR("spvc error: %s", error);
+}
+
 static b8 create_shader_module(vulkan_context *context, vulkan_shader *shader,
                                vulkan_shader_stage_config config,
                                vulkan_shader_stage *shader_stage) {
     // Read the resource.
-    resource binary_resource;
-    if (!resource_system_load(config.file_name, RESOURCE_TYPE_BINARY, 0,
-                              &binary_resource)) {
-        KERROR("Unable to read shader module: %s.", config.file_name);
+    resource text_resource;
+    if (!resource_system_load(config.file_name, RESOURCE_TYPE_TEXT, 0, &text_resource)) {
+        KERROR("Unable to read shader file: %s.", config.file_name);
         return false;
     }
 
+    shaderc_shader_kind shader_kind;
+    switch (config.stage) {
+        case VK_SHADER_STAGE_VERTEX_BIT:
+            shader_kind = shaderc_glsl_default_vertex_shader;
+            break;
+        case VK_SHADER_STAGE_FRAGMENT_BIT:
+            shader_kind = shaderc_glsl_default_fragment_shader;
+            break;
+        case VK_SHADER_STAGE_COMPUTE_BIT:
+            shader_kind = shaderc_glsl_default_compute_shader;
+            break;
+        case VK_SHADER_STAGE_GEOMETRY_BIT:
+            shader_kind = shaderc_glsl_default_geometry_shader;
+            break;
+        default:
+            KERROR("Unsupported shader kind. Unable to create module.");
+            return false;
+    }
+
+    KDEBUG("Compiling shader '%s'...", config.file_name);
+
+    // Attempt to compile the shader.
+    shaderc_compilation_result_t compilation_result = shaderc_compile_into_spv(
+        context->shader_compiler,
+        text_resource.data,
+        text_resource.data_size,
+        shader_kind,
+        config.file_name,
+        "main",
+        0);
+
+    // Release the resource as it isn't needed anymore at this point.
+    resource_system_unload(&text_resource);
+
+    if (!compilation_result) {
+        KERROR("An unknown error occurred while trying to compile the shader. Unable to process futher.");
+        return false;
+    }
+    shaderc_compilation_status status = shaderc_result_get_compilation_status(compilation_result);
+
+    // Handle errors, if any.
+    if (status != shaderc_compilation_status_success) {
+        const char *error_message = shaderc_result_get_error_message(compilation_result);
+        u64 error_count = shaderc_result_get_num_errors(compilation_result);
+        KERROR("Error compiling shader with %llu errors.", error_count);
+        KERROR("Error(s):\n%s", error_message);
+        shaderc_result_release(compilation_result);
+        return false;
+    }
+
+    KDEBUG("Shader compiled successfully.");
+
+    // Output warnings if there are any.
+    u64 warning_count = shaderc_result_get_num_warnings(compilation_result);
+    if (warning_count) {
+        // NOTE: Not sure this it the correct way to obtain warnings.
+        KWARN("%llu warnings were generated during shader compilation:\n%s", warning_count, shaderc_result_get_error_message(compilation_result));
+    }
+
+    // Extract the data from the result.
+    const char *bytes = shaderc_result_get_bytes(compilation_result);
+    size_t result_length = shaderc_result_get_length(compilation_result);
+    // Take a copy of the result data and cast it to a u32* as is required by Vulkan.
+    u32 *code = kallocate(result_length, MEMORY_TAG_RENDERER);
+    kcopy_memory(code, bytes, result_length);
+
+    // Release the compilation result.
+    shaderc_result_release(compilation_result);
+
+    // Reflection
+    spvc_context s_context;
+    spvc_context_create(&s_context);
+
+    spvc_context_set_error_callback(s_context, spvc_error_callback_impl, 0);
+
+    // Parse the spir-v
+    spvc_result s_result;
+    spvc_parsed_ir ir = 0;
+    // Because code is an array of u32 but the original bytes were char, need to divide by sizeof(u32) to get the
+    // actual length needed by this function.
+    s_result = spvc_context_parse_spirv(s_context, code, result_length / sizeof(u32), &ir);
+    if (s_result != SPVC_SUCCESS) {
+    }
+
+    // Hand this off to a compiler instance and give it ownership of the IR
+    spvc_compiler compiler_glsl = 0;
+    s_result = spvc_context_create_compiler(s_context, SPVC_BACKEND_GLSL, ir, SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, &compiler_glsl);
+
+    // Do some basic reflection.
+    spvc_resources resources = 0;
+    spvc_compiler_create_shader_resources(compiler_glsl, &resources);
+    const spvc_reflected_resource *list = 0;
+    unsigned long count = 0;
+    spvc_resources_get_resource_list_for_type(resources, SPVC_RESOURCE_TYPE_UNIFORM_BUFFER, &list, &count);
+    for (u32 i = 0; i < count; ++i) {
+        KINFO("ID: %u, BaseTypeID: %u, TypeID: %u, Name: %s\n", list[i].id, list[i].base_type_id, list[i].type_id, list[i].name);
+        KINFO("  Set: %u, Binding: %u, Location: %u\n",
+              spvc_compiler_get_decoration(compiler_glsl, list[i].id, SpvDecorationDescriptorSet),
+              spvc_compiler_get_decoration(compiler_glsl, list[i].id, SpvDecorationBinding),
+              spvc_compiler_get_decoration(compiler_glsl, list[i].id, SpvDecorationLocation));
+        spvc_type t = spvc_compiler_get_type_handle(compiler_glsl, list[i].base_type_id);
+        spvc_basetype bt = spvc_type_get_basetype(t);
+        if (bt == SPVC_BASETYPE_STRUCT) {
+            // Dig deeper
+
+            u32 member_count = spvc_type_get_num_member_types(t);
+            for (u32 m = 0; m < member_count; ++m) {
+                spvc_type_id member_type_id = spvc_type_get_member_type(t, m);
+                spvc_type mt = spvc_compiler_get_type_handle(compiler_glsl, member_type_id);
+                spvc_basetype mbt = spvc_type_get_basetype(mt);
+                char typestr[10] = {0};
+                switch (mbt) {
+                    case SPVC_BASETYPE_BOOLEAN:
+                        string_copy(typestr, "bool");
+                        break;
+                    case SPVC_BASETYPE_INT8:
+                        string_copy(typestr, "int8");
+                        break;
+                    case SPVC_BASETYPE_INT16:
+                        string_copy(typestr, "int16");
+                        break;
+                    case SPVC_BASETYPE_INT32:
+                        string_copy(typestr, "int32");
+                        break;
+                    case SPVC_BASETYPE_INT64:
+                        string_copy(typestr, "int64");
+                        break;
+                    case SPVC_BASETYPE_UINT8:
+                        string_copy(typestr, "uint8");
+                        break;
+                    case SPVC_BASETYPE_UINT16:
+                        string_copy(typestr, "uint16");
+                        break;
+                    case SPVC_BASETYPE_UINT32:
+                        string_copy(typestr, "uint32");
+                        break;
+                    case SPVC_BASETYPE_UINT64:
+                        string_copy(typestr, "uint64");
+                        break;
+                    case SPVC_BASETYPE_FP16:
+                        string_copy(typestr, "float16");
+                        break;
+                    case SPVC_BASETYPE_FP32: {
+                        u32 col_size = spvc_type_get_columns(mt);
+                        u32 vec_size = spvc_type_get_vector_size(mt);
+                        if (col_size == 1) {
+                            // Is a vector
+                            if (vec_size == 1) {
+                                string_copy(typestr, "float");  // vector1 would be a float.
+                            } else if (vec_size == 2) {
+                                string_copy(typestr, "vec2");
+                            } else if (vec_size == 3) {
+                                string_copy(typestr, "vec3");
+                            } else if (vec_size == 4) {
+                                string_copy(typestr, "vec4");
+                            } else {
+                                KERROR("Unsupported vector size: %u", vec_size);
+                                return false;
+                            }
+                        } else {
+                            // Matrix NOTE: assuming square matrices.
+                            if (col_size == 2) {
+                                string_copy(typestr, "mat2");
+                            } else if (col_size == 3) {
+                                string_copy(typestr, "mat3");
+                            } else if (col_size == 4) {
+                                string_copy(typestr, "mat4");
+                            } else {
+                                KERROR("Unsupported column width: %u", col_size);
+                                return false;
+                            }
+                        }
+                        u32 array_dimensions = spvc_type_get_num_array_dimensions(mt);
+                        for (u32 d = 0; d < array_dimensions; ++d) {
+                            // u32 array_dim_typeid = spvc_type_get_array_dimension(mt, d);
+                        }
+                        // TODO: Check for array of all other types
+
+                    } break;
+                    case SPVC_BASETYPE_FP64:
+                        string_copy(typestr, "double");
+                        break;
+                    case SPVC_BASETYPE_IMAGE: {
+                        // texture2D or texture2D<T>
+                    } break;
+                    case SPVC_BASETYPE_SAMPLED_IMAGE: {
+                        // sampler2D
+                    } break;
+                    case SPVC_BASETYPE_SAMPLER: {
+                        // sampler or SamplerState
+                    } break;
+                    case SPVC_BASETYPE_STRUCT: {
+                        string_copy(typestr, "struct");
+                        // struct TODO: nested struct support.
+                    } break;
+                    case SPVC_BASETYPE_VOID:
+                        string_copy(typestr, "void");
+                        // NOTE: Not sure how this would come to be here...
+                        break;
+                    default:
+                        KERROR("Unrecognized/unsupported member type %u", mbt);
+                        break;
+                }
+                // Test for array types, get dimensions, etc.
+                u32 array_dimensions = spvc_type_get_num_array_dimensions(mt);
+                if (array_dimensions > 0) {
+                    for (u32 d = 0; d < array_dimensions; ++d) {
+                        u32 array_dim_typeid = spvc_type_get_array_dimension(mt, d);
+                        b8 is_array_literal = spvc_type_array_dimension_is_literal(mt, d);
+                        KINFO("dimtypeid: %u, isarrayLiteral:%u", array_dim_typeid, is_array_literal);
+                        if (is_array_literal) {
+                            string_format(typestr, "%s[%u]", typestr, array_dim_typeid);
+                        }
+                    }
+                }
+
+                KINFO("Member: idx=%u, type=%s, member_name=%s, name=%s", m, typestr,
+                      spvc_compiler_get_member_name(compiler_glsl, list[i].base_type_id, m),
+                      spvc_compiler_get_name(compiler_glsl, list[i].base_type_id));
+                /* spvc_compiler_get_member_decoration_string(compiler_glsl, list[i].base_type_id, m, SpvDecorationLocation); */
+            }
+        }
+    }
+    // End reflection.
+
     kzero_memory(&shader_stage->create_info, sizeof(VkShaderModuleCreateInfo));
     shader_stage->create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    // Use the resource's size and data directly.
-    shader_stage->create_info.codeSize = binary_resource.data_size;
-    shader_stage->create_info.pCode = (u32 *)binary_resource.data;
+    shader_stage->create_info.codeSize = result_length;
+    shader_stage->create_info.pCode = code;
 
-    VK_CHECK(vkCreateShaderModule(context->device.logical_device,
-                                  &shader_stage->create_info, context->allocator,
-                                  &shader_stage->handle));
+    VK_CHECK(vkCreateShaderModule(context->device.logical_device, &shader_stage->create_info, context->allocator, &shader_stage->handle));
 
-    // Release the resource.
-    resource_system_unload(&binary_resource);
+    // Release the copy of the code.
+    kfree(code, result_length, MEMORY_TAG_RENDERER);
 
     // Shader stage info
-    kzero_memory(&shader_stage->shader_stage_create_info,
-                 sizeof(VkPipelineShaderStageCreateInfo));
-    shader_stage->shader_stage_create_info.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    kzero_memory(&shader_stage->shader_stage_create_info, sizeof(VkPipelineShaderStageCreateInfo));
+    shader_stage->shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shader_stage->shader_stage_create_info.stage = config.stage;
     shader_stage->shader_stage_create_info.module = shader_stage->handle;
     shader_stage->shader_stage_create_info.pName = "main";
