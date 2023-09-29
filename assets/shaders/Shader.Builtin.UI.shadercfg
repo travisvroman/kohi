@@ -3,7 +3,7 @@ version=1.0
 name=Shader.Builtin.UI
 renderpass=Renderpass.Builtin.UI
 stages=vertex,fragment
-stagefiles=shaders/Builtin.UIShader.vert.spv,shaders/Builtin.UIShader.frag.spv
+stagefiles=shaders/Builtin.UIShader.vert.glsl,shaders/Builtin.UIShader.frag.glsl
 depth_test=0
 depth_write=0
 

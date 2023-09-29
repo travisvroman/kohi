@@ -3,7 +3,7 @@ version=1.0
 name=Shader.Builtin.WorldPick
 renderpass=Renderpass.Builtin.Pick
 stages=vertex,fragment
-stagefiles=shaders/Builtin.WorldPickShader.vert.spv,shaders/Builtin.WorldPickShader.frag.spv
+stagefiles=shaders/Builtin.WorldPickShader.vert.glsl,shaders/Builtin.WorldPickShader.frag.glsl
 depth_test=1
 depth_write=1
 
