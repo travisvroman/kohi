@@ -23,7 +23,7 @@ typedef struct standard_ui_system_config {
 } standard_ui_system_config;
 
 typedef struct sui_control {
-    vec2 position;
+    transform xform;
     char* name;
     b8 is_active;
     b8 is_visible;
@@ -32,7 +32,6 @@ typedef struct sui_control {
 
     void* internal_data;
 
-    b8 (*create)(struct sui_control* self, void* config);
     void (*destroy)(struct sui_control* self);
     b8 (*load)(struct sui_control* self);
     void (*unload)(struct sui_control* self);
@@ -66,4 +65,16 @@ KAPI b8 standard_ui_system_render(void* state, sui_control* root, struct frame_d
 
 KAPI b8 standard_ui_system_update_active(void* state, sui_control* control);
 
-KAPI b8 stanard_ui_system_register_control(void* state, sui_control* control);
+KAPI b8 standard_ui_system_register_control(void* state, sui_control* control);
+
+// ---------------------------
+// Base control
+// ---------------------------
+KAPI b8 sui_base_control_create(const char* name, struct sui_control* out_control);
+KAPI void sui_base_control_destroy(struct sui_control* self);
+
+KAPI b8 sui_base_control_load(struct sui_control* self);
+KAPI void sui_base_control_unload(struct sui_control* self);
+
+KAPI b8 sui_base_control_update(struct sui_control* self, struct frame_data* p_frame_data);
+KAPI b8 sui_base_control_render(struct sui_control* self, struct frame_data* p_frame_data);

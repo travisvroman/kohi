@@ -2,6 +2,7 @@
 
 #include <containers/darray.h>
 #include <core/kmemory.h>
+#include <core/kstring.h>
 #include <core/logger.h>
 #include <defines.h>
 
@@ -134,7 +135,7 @@ b8 standard_ui_system_update_active(void* state, sui_control* control) {
     return false;
 }
 
-b8 stanard_ui_system_register_control(void* state, sui_control* control) {
+b8 standard_ui_system_register_control(void* state, sui_control* control) {
     if (!state) {
         return false;
     }
@@ -149,5 +150,58 @@ b8 stanard_ui_system_register_control(void* state, sui_control* control) {
     // Found available space, put it there.
     typed_state->inactive_controls[typed_state->inactive_control_count] = control;
     typed_state->inactive_control_count++;
+    return true;
+}
+
+b8 sui_base_control_create(const char* name, struct sui_control* out_control) {
+    if (out_control) {
+        return false;
+    }
+
+    // Assign function pointers.
+    out_control->destroy = sui_base_control_destroy;
+    out_control->load = sui_base_control_load;
+    out_control->unload = sui_base_control_unload;
+    out_control->update = sui_base_control_update;
+    out_control->render = sui_base_control_render;
+
+    out_control->name = string_duplicate(name);
+
+    return true;
+}
+void sui_base_control_destroy(struct sui_control* self) {
+    if (self) {
+        if (self->name) {
+            string_free(self->name);
+        }
+        kzero_memory(self, sizeof(sui_control));
+    }
+}
+
+b8 sui_base_control_load(struct sui_control* self) {
+    if (self) {
+        return false;
+    }
+
+    return true;
+}
+void sui_base_control_unload(struct sui_control* self) {
+    if (self) {
+        //
+    }
+}
+
+b8 sui_base_control_update(struct sui_control* self, struct frame_data* p_frame_data) {
+    if (self) {
+        return false;
+    }
+
+    return true;
+}
+b8 sui_base_control_render(struct sui_control* self, struct frame_data* p_frame_data) {
+    if (self) {
+        return false;
+    }
+
     return true;
 }

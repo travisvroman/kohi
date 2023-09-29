@@ -443,6 +443,7 @@ b8 application_initialize(struct application* game_inst) {
     // FIXME: Need to maintain a list of extension types somewhere and pull from there.
     const u16 K_SYSTEM_TYPE_STANDARD_UI_EXT = 128;
     standard_ui_system_config standard_ui_cfg = {0};
+    standard_ui_cfg.max_control_count = 1024;
     if (!systems_manager_register(sys_mgr_state, K_SYSTEM_TYPE_STANDARD_UI_EXT, standard_ui_system_initialize, standard_ui_system_shutdown, standard_ui_system_update, &standard_ui_cfg)) {
         KERROR("Failed to register standard ui system.");
         return false;
