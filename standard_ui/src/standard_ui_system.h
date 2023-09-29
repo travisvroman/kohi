@@ -12,14 +12,34 @@
 
 #pragma once
 
-#include "defines.h"
+#include <math/math_types.h>
 
+#include "defines.h"
 struct frame_data;
 
 /** @brief The standard UI system configuration. */
 typedef struct standard_ui_system_config {
-    u16 dummy;
+    u64 max_control_count;
 } standard_ui_system_config;
+
+typedef struct sui_control {
+    vec2 position;
+    char* name;
+    b8 is_active;
+    b8 is_visible;
+    // darray
+    struct sui_control** children;
+
+    void* internal_data;
+
+    b8 (*create)(struct sui_control* self, void* config);
+    void (*destroy)(struct sui_control* self);
+    b8 (*load)(struct sui_control* self);
+    void (*unload)(struct sui_control* self);
+
+    b8 (*update)(struct sui_control* self, struct frame_data* p_frame_data);
+    b8 (*render)(struct sui_control* self, struct frame_data* p_frame_data);
+} sui_control;
 
 /**
  * @brief Initializes the standard UI system.
@@ -31,13 +51,19 @@ typedef struct standard_ui_system_config {
  * @param config The configuration (standard_ui_system_config) for this system.
  * @return True on success; otherwise false.
  */
-b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* config);
+KAPI b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* config);
 
 /**
  * @brief Shuts down the standard UI system.
  *
  * @param state The state block of memory.
  */
-void standard_ui_system_shutdown(void* state);
+KAPI void standard_ui_system_shutdown(void* state);
 
-b8 standard_ui_system_update(void* state, const struct frame_data* p_frame_data);
+KAPI b8 standard_ui_system_update(void* state, struct frame_data* p_frame_data);
+
+KAPI b8 standard_ui_system_render(void* state, sui_control* root, struct frame_data* p_frame_data);
+
+KAPI b8 standard_ui_system_update_active(void* state, sui_control* control);
+
+KAPI b8 stanard_ui_system_register_control(void* state, sui_control* control);

@@ -60,10 +60,10 @@
 #include <systems/resource_system.h>
 // Standard ui
 #include <core/systems_manager.h>
+#include <standard_ui_system.h>
 
-#include "standard_ui_system.h"
-// Game code.
 #include "debug_console.h"
+// Game code.
 #include "game_commands.h"
 #include "game_keybinds.h"
 // TODO: end temp

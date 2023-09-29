@@ -106,7 +106,7 @@ void job_system_shutdown(void* state);
 /**
  * @brief Updates the job system. Should happen once an update cycle.
  */
-b8 job_system_update(void* state, const struct frame_data* p_frame_data);
+b8 job_system_update(void* state, struct frame_data* p_frame_data);
 
 /**
  * @brief Submits the provided job to be queued for execution.
