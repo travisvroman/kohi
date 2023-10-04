@@ -56,6 +56,14 @@ then
 echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
+# OpenAL Audio Plugin lib
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=plugin_audio_openal VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine -lopenal"
+ERRORLEVEL=$?
+if [ $ERRORLEVEL -ne 0 ]
+then
+echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
+fi
+
 # Testbed Lib
 make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed_lib VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
 ERRORLEVEL=$?

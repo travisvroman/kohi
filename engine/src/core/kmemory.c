@@ -1,14 +1,14 @@
 #include "kmemory.h"
 
-#include "core/logger.h"
-#include "core/kstring.h"
 #include "core/kmutex.h"
-#include "platform/platform.h"
+#include "core/kstring.h"
+#include "core/logger.h"
 #include "memory/dynamic_allocator.h"
+#include "platform/platform.h"
 
 // TODO: Custom string lib
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 struct memory_stats {
     u64 total_allocated;
@@ -43,7 +43,8 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "BITMAP_FONT",
     "SYSTEM_FONT",
     "KEYMAP     ",
-    "HASHTABLE  "};
+    "HASHTABLE  ",
+    "AUDIO      "};
 
 typedef struct memory_system_state {
     memory_system_configuration config;

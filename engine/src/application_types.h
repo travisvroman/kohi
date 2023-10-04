@@ -113,5 +113,8 @@ typedef struct application {
     dynamic_library renderer_library;
     renderer_plugin render_plugin;
 
+    dynamic_library audio_library;
+    audio_plugin audio_plugin;
+
     dynamic_library game_library;
 } application;

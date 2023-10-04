@@ -53,6 +53,7 @@
 #include <resources/simple_scene.h>
 #include <resources/skybox.h>
 #include <resources/ui_text.h>
+#include <systems/audio_system.h>
 #include <systems/geometry_system.h>
 #include <systems/light_system.h>
 #include <systems/material_system.h>
@@ -182,6 +183,15 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
             KDEBUG("Done.");
         }
         return true;
+    } else if (code == EVENT_CODE_DEBUG3) {
+        if (state->test_audio_file) {
+            // Cycle between first 5 channels.
+            static i8 channel_id = -1;
+            channel_id++;
+            channel_id = channel_id % 5;
+            KTRACE("Playing sound on channel %u", channel_id);
+            audio_system_channel_play(channel_id, state->test_audio_file);
+        }
     }
 
     return false;
@@ -577,6 +587,34 @@ b8 application_initialize(struct application* game_inst) {
     kzero_memory(&state->update_clock, sizeof(clock));
     kzero_memory(&state->render_clock, sizeof(clock));
 
+    // Load up a test audio file.
+    state->test_audio_file = audio_system_sound_load("../assets/sounds/Test.ogg");
+    if (!state->test_audio_file) {
+        KERROR("Failed to load test audio file.");
+    }
+    state->test_loop_audio_file = audio_system_sound_load("../assets/sounds/Fire_loop_2.ogg");
+    if (!state->test_loop_audio_file) {
+        KERROR("Failed to load test loop audio file.");
+    }
+
+    state->test_emitter.sound = state->test_loop_audio_file;
+    state->test_emitter.volume = 1.0f;
+    state->test_emitter.looping = true;
+    state->test_emitter.falloff = 1.0f;
+    state->test_emitter.position = vec3_create(10.0f, 0.8f, 20.0f);
+
+    // Set some channel volumes.
+    audio_system_channel_volume_set(0, 1.0f);
+    audio_system_channel_volume_set(1, 0.75f);
+    audio_system_channel_volume_set(2, 0.50f);
+    audio_system_channel_volume_set(3, 0.25);
+    audio_system_channel_volume_set(4, 0.0f);
+
+    // Try playing the emitter.
+    if (!audio_system_emitter_play(1.0f, &state->test_emitter)) {
+        KERROR("Failed to play test emitter.");
+    }
+
     state->running = true;
 
     return true;
@@ -671,6 +709,10 @@ Text",
     }
 
     debug_console_update(&((testbed_game_state*)game_inst->state)->debug_console);
+
+    vec3 forward = camera_forward(state->world_camera);
+    vec3 up = camera_up(state->world_camera);
+    audio_system_listener_orientation_set(pos, forward, up);
 
     clock_update(&state->update_clock);
     state->last_update_elapsed = state->update_clock.elapsed;
@@ -1182,6 +1224,7 @@ void application_register_events(struct application* game_inst) {
         event_register(EVENT_CODE_DEBUG0, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_DEBUG2, game_inst, game_on_debug_event);
+        event_register(EVENT_CODE_DEBUG3, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
         event_register(EVENT_CODE_SET_RENDER_MODE, game_inst, game_on_event);
         event_register(EVENT_CODE_BUTTON_RELEASED, game_inst->state, game_on_button);
@@ -1202,6 +1245,7 @@ void application_unregister_events(struct application* game_inst) {
     event_unregister(EVENT_CODE_DEBUG0, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_DEBUG2, game_inst, game_on_debug_event);
+    event_unregister(EVENT_CODE_DEBUG3, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
     event_unregister(EVENT_CODE_SET_RENDER_MODE, game_inst, game_on_event);
     event_unregister(EVENT_CODE_BUTTON_RELEASED, game_inst->state, game_on_button);

@@ -6,6 +6,7 @@
 #include <renderer/rendergraph.h>
 #include <systems/camera_system.h>
 
+#include "audio/audio_types.h"
 #include "editor/editor_gizmo.h"
 #include "renderer/viewport.h"
 #include "resources/simple_scene.h"
@@ -27,6 +28,7 @@ typedef struct selected_object {
     struct transform* xform;
 } selected_object;
 
+struct audio_sound;
 typedef struct testbed_game_state {
     b8 running;
     camera* world_camera;
@@ -88,6 +90,11 @@ typedef struct testbed_game_state {
     b8 using_gizmo;
 
     u32 render_mode;
+
+    struct audio_sound* test_audio_file;
+    struct audio_sound* test_loop_audio_file;
+    audio_emitter test_emitter;
+
     // TODO: end temp
 } testbed_game_state;
 
