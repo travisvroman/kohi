@@ -31,10 +31,14 @@ b8 plugin_create(struct audio_plugin* out_plugin) {
     out_plugin->source_looping_set = oal_plugin_source_looping_set;
 
     out_plugin->load_sound = oal_plugin_load_sound;
+    out_plugin->load_music = oal_plugin_load_music;
     out_plugin->sound_close = oal_plugin_sound_close;
+    out_plugin->music_close = oal_plugin_music_close;
     out_plugin->play_sound_with_volume = oal_plugin_play_sound_with_volume;
+    out_plugin->play_music_with_volume = oal_plugin_play_music_with_volume;
 
     out_plugin->play_emitter = oal_plugin_play_emitter;
+    out_plugin->update_emitter = oal_plugin_update_emitter;
     out_plugin->stop_emitter = oal_plugin_stop_emitter;
 
     KINFO("OpenAL Plugin Creation successful.");

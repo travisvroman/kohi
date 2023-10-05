@@ -21,6 +21,11 @@ typedef struct audio_system_config {
     u32 channel_count;
 
     /**
+     * The size to chunk streamed audio data in.
+     */
+    u32 chunk_size;
+
+    /**
      * @brief The number of separately-controlled channels used for mixing purposes. Each channel
      * can have its volume independently controlled. Not to be confused with channel_count above.
      */
@@ -51,6 +56,13 @@ void audio_system_shutdown(void* state);
  */
 b8 audio_system_update(void* state, struct frame_data* p_frame_data);
 
+/**
+ * Sets the orientation of the listener. Typically linked to the current camera in the world.
+ * @param position The position of the listener.
+ * @param forward The listener's forward vector.
+ * @param up The listener's up vector.
+ * @return True on success; otherwise false.
+ */
 b8 audio_system_listener_orientation_set(vec3 position, vec3 forward, vec3 up);
 
 /**
@@ -63,10 +75,25 @@ b8 audio_system_listener_orientation_set(vec3 position, vec3 forward, vec3 up);
 struct audio_sound* audio_system_sound_load(const char* path);
 
 /**
+ * @brief Attempts to load a music file at the given path. Returns a pointer
+ * to a loaded music. This dynamically allocates memory, so make sure to
+ * call audio_system_music_close() on it when done.
+ * @param path The full path to the asset to be loaded.
+ * @return A pointer to an audio_music one success; otherwise null/0.
+ */
+struct audio_music* audio_system_music_load(const char* path);
+
+/**
  * @brief Closes the given sound, releasing all internal resources.
  * @param sound A pointer to the sound to be closed.
  */
 void audio_system_sound_close(struct audio_sound* sound);
+
+/**
+ * @brief Closes the given music, releasing all internal resources.
+ * @param sound A pointer to the music to be closed.
+ */
+void audio_system_music_close(struct audio_music* music);
 
 /**
  * @brief Sets the volume for the given channel id.
@@ -77,13 +104,49 @@ void audio_system_sound_close(struct audio_sound* sound);
 b8 audio_system_channel_volume_set(u8 channel_id, f32 volume);
 
 /**
- * Plays the provided sound on the channel with the given id.
+ * Plays the provided sound on the channel with the given id. Note that this
+ * is effectively "2d" sound, meant for sounds which don't exist in the world
+ * and should be played globally (i.e. UI sound effects).
  * @param channel_id The id of the channel to play the sound on.
  * @param sound The sound to be played.
  * @return True on success; otherwise false.
  */
 b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound);
 
-b8 audio_system_emitter_play(f32 master_volume, struct audio_emitter* emitter);
+/**
+ * Plays the provided music on the channel with the given id. Note that this
+ * is effectively "2d" sound, meant for sounds which don't exist in the world
+ * and should be played globally (i.e. UI music).
+ * @param channel_id The id of the channel to play the music on.
+ * @param music The music to be played.
+ * @return True on success; otherwise false.
+ */
+b8 audio_system_channel_play_music(u8 channel_id, struct audio_music* music);
 
+/**
+ * Plays spatially-oriented 3d sound from the context of an audio_emitter. The
+ * emitter should already have a loaded sound associated with it. In addition,
+ * if the emitter is moving, it should be updated per frame with a call to
+ * audio_system_emitter_update().
+ * @param channel_id The id of the channel to play through.
+ * @param emitter A pointer to an emitter to use for playback.
+ * @return True on success; otherwise false.
+ */
+b8 audio_system_emitter_play(u8 channel_id, struct audio_emitter* emitter);
+
+/**
+ * Updates a spatially-oriented 3d sound with the current properties of an audio_emitter.
+ * The emitter should already have a loaded sound associated with it. Should be called on
+ * update of the emitter, or perhaps every frame.
+ * @param channel_id The id of the channel to play through.
+ * @param emitter A pointer to an emitter to use for playback.
+ * @return True on success; otherwise false.
+ */
+b8 audio_system_emitter_update(u8 channel_id, struct audio_emitter* emitter);
+
+/**
+ * Stops a currently playing emitter.
+ * @param emitter A pointer to the emitter whose audio should be stopped.
+ * @return True on success; otherwise false.
+ */
 b8 audio_system_emitter_stop(struct audio_emitter* emitter);

@@ -27,6 +27,10 @@ b8 audio_system_initialize(u64* memory_requirement, void* state, void* config) {
         typed_config->audio_channel_count = 1;
     }
 
+    if (typed_config->chunk_size == 0) {
+        typed_config->chunk_size = 4096 * 16;
+    }
+
     u64 struct_requirement = sizeof(audio_system_state);
     *memory_requirement = struct_requirement;
     if (!state) {
@@ -45,6 +49,9 @@ b8 audio_system_initialize(u64* memory_requirement, void* state, void* config) {
 
     audio_plugin_config plugin_config = {0};
     plugin_config.max_sources = 5;
+    plugin_config.chunk_size = typed_config->chunk_size;
+    plugin_config.frequency = typed_config->frequency;
+    plugin_config.channel_count = typed_config->channel_count;
     return typed_state->plugin.initialize(&typed_state->plugin, plugin_config);
 }
 
@@ -80,9 +87,19 @@ struct audio_sound* audio_system_sound_load(const char* path) {
     return state->plugin.load_sound(&state->plugin, path);
 }
 
+struct audio_music* audio_system_music_load(const char* path) {
+    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    return state->plugin.load_music(&state->plugin, path);
+}
+
 void audio_system_sound_close(struct audio_sound* sound) {
     audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
     state->plugin.sound_close(&state->plugin, sound);
+}
+
+void audio_system_music_close(struct audio_music* music) {
+    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    state->plugin.music_close(&state->plugin, music);
 }
 
 b8 audio_system_channel_volume_set(u8 channel_id, f32 volume) {
@@ -95,22 +112,46 @@ b8 audio_system_channel_volume_set(u8 channel_id, f32 volume) {
     return true;
 }
 
-b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound) {
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+static f32 calculate_master_channel_volume(audio_system_state* state, u8 channel_id) {
     if (channel_id >= state->config.audio_channel_count) {
         KWARN("channel id %u is outside the range of available channels. Defaulting to the first channel.");
         channel_id = 0;
     }
-    return state->plugin.play_sound_with_volume(&state->plugin, sound, state->channels[channel_id].volume);
+
+    // Use the channel volume, also modified by the master volume.
+    return state->master_volume * state->channels[channel_id].volume;
 }
 
-b8 audio_system_emitter_play(f32 master_volume, struct audio_emitter* emitter) {
+b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound) {
+    if (!sound) {
+        return false;
+    }
+    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    return state->plugin.play_sound_with_volume(&state->plugin, sound, calculate_master_channel_volume(state, channel_id));
+}
+
+b8 audio_system_channel_play_music(u8 channel_id, struct audio_music* music) {
+    if (!music) {
+        return false;
+    }
+    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    return state->plugin.play_music_with_volume(&state->plugin, music, calculate_master_channel_volume(state, channel_id));
+}
+
+b8 audio_system_emitter_play(u8 channel_id, struct audio_emitter* emitter) {
     if (!emitter) {
         return false;
     }
     audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    return state->plugin.play_emitter(&state->plugin, calculate_master_channel_volume(state, channel_id), emitter);
+}
 
-    return state->plugin.play_emitter(&state->plugin, master_volume, emitter);
+b8 audio_system_emitter_update(u8 channel_id, struct audio_emitter* emitter) {
+    if (!emitter) {
+        return false;
+    }
+    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    return state->plugin.update_emitter(&state->plugin, calculate_master_channel_volume(state, channel_id), emitter);
 }
 
 b8 audio_system_emitter_stop(struct audio_emitter* emitter) {
@@ -118,6 +159,5 @@ b8 audio_system_emitter_stop(struct audio_emitter* emitter) {
         return false;
     }
     audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
-
     return state->plugin.stop_emitter(&state->plugin, emitter);
 }

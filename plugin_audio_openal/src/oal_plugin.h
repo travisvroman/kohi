@@ -33,7 +33,11 @@ b8 oal_plugin_source_looping_query(struct audio_plugin* plugin, u32 source_id, b
 b8 oal_plugin_source_looping_set(struct audio_plugin* plugin, u32 source_id, b8 looping);
 
 struct audio_sound* oal_plugin_load_sound(struct audio_plugin* plugin, const char* path);
+struct audio_music* oal_plugin_load_music(struct audio_plugin* plugin, const char* path);
 void oal_plugin_sound_close(struct audio_plugin* plugin, struct audio_sound* sound);
+void oal_plugin_music_close(struct audio_plugin* plugin, struct audio_music* music);
 b8 oal_plugin_play_sound_with_volume(struct audio_plugin* plugin, struct audio_sound* sound, f32 volume);
+b8 oal_plugin_play_music_with_volume(struct audio_plugin* plugin, struct audio_music* music, f32 volume);
 b8 oal_plugin_play_emitter(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
+b8 oal_plugin_update_emitter(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
 b8 oal_plugin_stop_emitter(struct audio_plugin* plugin, struct audio_emitter* emitter);

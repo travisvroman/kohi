@@ -192,6 +192,18 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
             KTRACE("Playing sound on channel %u", channel_id);
             audio_system_channel_play(channel_id, state->test_audio_file);
         }
+    } else if (code == EVENT_CODE_DEBUG4) {
+        if (state->test_loop_audio_file) {
+            static b8 playing = true;
+            playing = !playing;
+            if (playing) {
+                if (!audio_system_emitter_play(1.0f, &state->test_emitter)) {
+                    KERROR("Failed to play test emitter.");
+                }
+            } else {
+                audio_system_emitter_stop(&state->test_emitter);
+            }
+        }
     }
 
     return false;
@@ -592,12 +604,17 @@ b8 application_initialize(struct application* game_inst) {
     if (!state->test_audio_file) {
         KERROR("Failed to load test audio file.");
     }
-    state->test_loop_audio_file = audio_system_sound_load("../assets/sounds/Fire_loop_2.ogg");
-    if (!state->test_loop_audio_file) {
-        KERROR("Failed to load test loop audio file.");
+    // Looping audio file.
+    state->test_loop_audio_file = audio_system_sound_load("../assets/sounds/Fire_loop.ogg");
+    // Test music
+    state->test_music = audio_system_music_load("../assets/sounds/Woodland Fantasy mono.ogg");
+    if (!state->test_music) {
+        KERROR("Failed to load test music file.");
     }
 
-    state->test_emitter.sound = state->test_loop_audio_file;
+    // Setup a test emitter.
+    /* state->test_emitter.sound = state->test_loop_audio_file; */
+    state->test_emitter.music = state->test_music;
     state->test_emitter.volume = 1.0f;
     state->test_emitter.looping = true;
     state->test_emitter.falloff = 1.0f;
@@ -614,6 +631,7 @@ b8 application_initialize(struct application* game_inst) {
     if (!audio_system_emitter_play(1.0f, &state->test_emitter)) {
         KERROR("Failed to play test emitter.");
     }
+    /* audio_system_channel_play_music(0, state->test_music); */
 
     state->running = true;
 
@@ -656,6 +674,10 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
                 KCLAMP(ksin(p_frame_data->total_time - (K_4PI / 3)) * 0.75f + 0.5f, 0.0f, 1.0f),
                 1.0f};
             state->p_light_1->data.position.z = 20.0f + ksin(p_frame_data->total_time);
+
+            // Make the audio emitter follow it.
+            state->test_emitter.position = vec3_from_vec4(state->p_light_1->data.position);
+            audio_system_emitter_update(0, &state->test_emitter);
         }
     }
 
@@ -1225,6 +1247,7 @@ void application_register_events(struct application* game_inst) {
         event_register(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_DEBUG2, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_DEBUG3, game_inst, game_on_debug_event);
+        event_register(EVENT_CODE_DEBUG4, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
         event_register(EVENT_CODE_SET_RENDER_MODE, game_inst, game_on_event);
         event_register(EVENT_CODE_BUTTON_RELEASED, game_inst->state, game_on_button);
@@ -1246,6 +1269,7 @@ void application_unregister_events(struct application* game_inst) {
     event_unregister(EVENT_CODE_DEBUG1, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_DEBUG2, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_DEBUG3, game_inst, game_on_debug_event);
+    event_unregister(EVENT_CODE_DEBUG4, game_inst, game_on_debug_event);
     event_unregister(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
     event_unregister(EVENT_CODE_SET_RENDER_MODE, game_inst, game_on_event);
     event_unregister(EVENT_CODE_BUTTON_RELEASED, game_inst->state, game_on_button);

@@ -9,7 +9,9 @@ struct audio_plugin_state;
 struct frame_data;
 
 struct audio_file_internal;
+struct music_file_internal;
 struct audio_sound;
+struct audio_music;
 
 typedef struct audio_file {
     char* file_path;
@@ -17,10 +19,17 @@ typedef struct audio_file {
     struct audio_file_internal* internal_data;
     file_handle file;
     u8* raw_data;
+} audio_file;
+
+typedef struct music_file {
+    char* file_path;
+
+    struct music_file_internal* internal_data;
+    file_handle file;
+    u8* raw_data;
 
     u32 total_samples_left;
-
-} audio_file;
+} music_file;
 
 typedef struct audio_emitter {
     vec3 position;
@@ -28,10 +37,23 @@ typedef struct audio_emitter {
     f32 falloff;
     b8 looping;
     struct audio_sound* sound;
+    struct audio_music* music;
 } audio_emitter;
 
 typedef struct audio_plugin_config {
     u32 max_sources;
+    /** @brief The frequency to output audio at. */
+    u32 frequency;
+    /**
+     * @brief The number of audio channels to support (i.e. 2 for stereo, 1 for mono).
+     * not to be confused with audio_channel_count below.
+     */
+    u32 channel_count;
+
+    /**
+     * The size to chunk streamed audio data in.
+     */
+    u32 chunk_size;
 } audio_plugin_config;
 
 typedef struct audio_plugin {
@@ -79,10 +101,14 @@ typedef struct audio_plugin {
     b8 (*source_looping_set)(struct audio_plugin* plugin, u32 source_id, b8 looping);
 
     struct audio_sound* (*load_sound)(struct audio_plugin* plugin, const char* path);
+    struct audio_music* (*load_music)(struct audio_plugin* plugin, const char* path);
     void (*sound_close)(struct audio_plugin* plugin, struct audio_sound* sound);
+    void (*music_close)(struct audio_plugin* plugin, struct audio_music* music);
 
     b8 (*play_sound_with_volume)(struct audio_plugin* plugin, struct audio_sound* sound, f32 volume);
+    b8 (*play_music_with_volume)(struct audio_plugin* plugin, struct audio_music* music, f32 volume);
     b8 (*play_emitter)(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
+    b8 (*update_emitter)(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
     b8 (*stop_emitter)(struct audio_plugin* plugin, struct audio_emitter* emitter);
 
 } audio_plugin;

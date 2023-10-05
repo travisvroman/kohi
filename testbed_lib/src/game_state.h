@@ -93,6 +93,7 @@ typedef struct testbed_game_state {
 
     struct audio_sound* test_audio_file;
     struct audio_sound* test_loop_audio_file;
+    struct audio_music* test_music;
     audio_emitter test_emitter;
 
     // TODO: end temp
