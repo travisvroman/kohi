@@ -38,9 +38,13 @@ typedef struct audio_emitter {
     b8 looping;
     struct audio_sound* sound;
     struct audio_music* music;
+    u32 source_id;
 } audio_emitter;
 
 typedef struct audio_plugin_config {
+    /** @brief The maximum number of buffers available. Default: 256 */
+    u32 max_buffers;
+    /** @brief The maximum number of sources available. Default: 8 */
     u32 max_sources;
     /** @brief The frequency to output audio at. */
     u32 frequency;
@@ -105,8 +109,8 @@ typedef struct audio_plugin {
     void (*sound_close)(struct audio_plugin* plugin, struct audio_sound* sound);
     void (*music_close)(struct audio_plugin* plugin, struct audio_music* music);
 
-    b8 (*play_sound_with_volume)(struct audio_plugin* plugin, struct audio_sound* sound, f32 volume);
-    b8 (*play_music_with_volume)(struct audio_plugin* plugin, struct audio_music* music, f32 volume);
+    b8 (*play_sound_with_volume)(struct audio_plugin* plugin, struct audio_sound* sound, f32 volume, b8 loop);
+    b8 (*play_music_with_volume)(struct audio_plugin* plugin, struct audio_music* music, f32 volume, b8 loop);
     b8 (*play_emitter)(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
     b8 (*update_emitter)(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
     b8 (*stop_emitter)(struct audio_plugin* plugin, struct audio_emitter* emitter);

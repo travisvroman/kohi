@@ -18,7 +18,7 @@ b8 oal_plugin_listener_orientation_query(struct audio_plugin* plugin, vec3* out_
 b8 oal_plugin_listener_orientation_set(struct audio_plugin* plugin, vec3 forward, vec3 up);
 
 struct audio_plugin_source* oal_plugin_find_free_source(struct audio_plugin* plugin);
-b8 oal_plugin_source_reset(struct audio_plugin* plugin, struct audio_plugin_source* source);
+b8 oal_plugin_source_reset(struct audio_plugin* plugin, struct audio_plugin_source* source, b8 reset_use);
 
 b8 oal_plugin_source_gain_query(struct audio_plugin* plugin, u32 source_id, f32* out_gain);
 b8 oal_plugin_source_gain_set(struct audio_plugin* plugin, u32 source_id, f32 gain);
@@ -36,8 +36,8 @@ struct audio_sound* oal_plugin_load_sound(struct audio_plugin* plugin, const cha
 struct audio_music* oal_plugin_load_music(struct audio_plugin* plugin, const char* path);
 void oal_plugin_sound_close(struct audio_plugin* plugin, struct audio_sound* sound);
 void oal_plugin_music_close(struct audio_plugin* plugin, struct audio_music* music);
-b8 oal_plugin_play_sound_with_volume(struct audio_plugin* plugin, struct audio_sound* sound, f32 volume);
-b8 oal_plugin_play_music_with_volume(struct audio_plugin* plugin, struct audio_music* music, f32 volume);
+b8 oal_plugin_play_sound_with_volume(struct audio_plugin* plugin, struct audio_sound* sound, f32 volume, b8 loop);
+b8 oal_plugin_play_music_with_volume(struct audio_plugin* plugin, struct audio_music* music, f32 volume, b8 loop);
 b8 oal_plugin_play_emitter(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
 b8 oal_plugin_update_emitter(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
 b8 oal_plugin_stop_emitter(struct audio_plugin* plugin, struct audio_emitter* emitter);

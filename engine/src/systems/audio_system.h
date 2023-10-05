@@ -109,9 +109,10 @@ b8 audio_system_channel_volume_set(u8 channel_id, f32 volume);
  * and should be played globally (i.e. UI sound effects).
  * @param channel_id The id of the channel to play the sound on.
  * @param sound The sound to be played.
+ * @param loop Indicates if the sound should loop.
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound);
+b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound, b8 loop);
 
 /**
  * Plays the provided music on the channel with the given id. Note that this
@@ -119,9 +120,10 @@ b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound);
  * and should be played globally (i.e. UI music).
  * @param channel_id The id of the channel to play the music on.
  * @param music The music to be played.
+ * @param loop Indicates if the music should loop.
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_play_music(u8 channel_id, struct audio_music* music);
+b8 audio_system_channel_play_music(u8 channel_id, struct audio_music* music, b8 loop);
 
 /**
  * Plays spatially-oriented 3d sound from the context of an audio_emitter. The

@@ -48,7 +48,8 @@ b8 audio_system_initialize(u64* memory_requirement, void* state, void* config) {
     typed_state->plugin = typed_config->plugin;
 
     audio_plugin_config plugin_config = {0};
-    plugin_config.max_sources = 5;
+    plugin_config.max_sources = 8;
+    plugin_config.max_buffers = 256;
     plugin_config.chunk_size = typed_config->chunk_size;
     plugin_config.frequency = typed_config->frequency;
     plugin_config.channel_count = typed_config->channel_count;
@@ -122,20 +123,20 @@ static f32 calculate_master_channel_volume(audio_system_state* state, u8 channel
     return state->master_volume * state->channels[channel_id].volume;
 }
 
-b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound) {
+b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound, b8 loop) {
     if (!sound) {
         return false;
     }
     audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
-    return state->plugin.play_sound_with_volume(&state->plugin, sound, calculate_master_channel_volume(state, channel_id));
+    return state->plugin.play_sound_with_volume(&state->plugin, sound, calculate_master_channel_volume(state, channel_id), loop);
 }
 
-b8 audio_system_channel_play_music(u8 channel_id, struct audio_music* music) {
+b8 audio_system_channel_play_music(u8 channel_id, struct audio_music* music, b8 loop) {
     if (!music) {
         return false;
     }
     audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
-    return state->plugin.play_music_with_volume(&state->plugin, music, calculate_master_channel_volume(state, channel_id));
+    return state->plugin.play_music_with_volume(&state->plugin, music, calculate_master_channel_volume(state, channel_id), loop);
 }
 
 b8 audio_system_emitter_play(u8 channel_id, struct audio_emitter* emitter) {

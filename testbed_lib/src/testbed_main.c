@@ -190,7 +190,7 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
             channel_id++;
             channel_id = channel_id % 5;
             KTRACE("Playing sound on channel %u", channel_id);
-            audio_system_channel_play(channel_id, state->test_audio_file);
+            audio_system_channel_play(channel_id, state->test_audio_file, false);
         }
     } else if (code == EVENT_CODE_DEBUG4) {
         if (state->test_loop_audio_file) {
@@ -607,14 +607,14 @@ b8 application_initialize(struct application* game_inst) {
     // Looping audio file.
     state->test_loop_audio_file = audio_system_sound_load("../assets/sounds/Fire_loop.ogg");
     // Test music
-    state->test_music = audio_system_music_load("../assets/sounds/Woodland Fantasy mono.ogg");
+    state->test_music = audio_system_music_load("../assets/sounds/Woodland Fantasy.ogg");
     if (!state->test_music) {
         KERROR("Failed to load test music file.");
     }
 
     // Setup a test emitter.
     /* state->test_emitter.sound = state->test_loop_audio_file; */
-    state->test_emitter.music = state->test_music;
+    state->test_emitter.sound = state->test_loop_audio_file;
     state->test_emitter.volume = 1.0f;
     state->test_emitter.looping = true;
     state->test_emitter.falloff = 1.0f;
@@ -631,7 +631,7 @@ b8 application_initialize(struct application* game_inst) {
     if (!audio_system_emitter_play(1.0f, &state->test_emitter)) {
         KERROR("Failed to play test emitter.");
     }
-    /* audio_system_channel_play_music(0, state->test_music); */
+    audio_system_channel_play_music(2, state->test_music, true);
 
     state->running = true;
 
