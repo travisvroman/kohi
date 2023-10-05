@@ -57,7 +57,12 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # OpenAL Audio Plugin lib
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=plugin_audio_openal VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine -lopenal"
+if [ $PLATFORM = 'macos' ]
+then
+    OPENAL_INC=-I/opt/homebrew/opt/openal-soft/include/
+    OPENAL_LIB=-L/opt/homebrew/opt/openal-soft/lib/
+fi
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=plugin_audio_openal VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src $OPENAL_INC" ADDL_LINK_FLAGS="-lengine -lopenal $OPENAL_LIB"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
