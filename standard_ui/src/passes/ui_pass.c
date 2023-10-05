@@ -1,11 +1,13 @@
 #include "ui_pass.h"
 
+#include "containers/darray.h"
 #include "core/kmemory.h"
 #include "core/logger.h"
 #include "math/transform.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
 #include "resources/ui_text.h"
+#include "standard_ui_system.h"
 #include "systems/material_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
@@ -18,9 +20,19 @@ typedef struct ui_shader_locations {
     u16 properties;
 } ui_shader_locations;
 
+typedef struct sui_shader_locations {
+    u16 projection;
+    u16 view;
+    u16 model;
+    u16 properties;
+    u16 diffuse_map;
+} sui_shader_locations;
+
 typedef struct ui_pass_internal_data {
     shader* s;
+    shader* sui_shader;  // standard ui // TODO: different render pass?
     ui_shader_locations locations;
+    sui_shader_locations sui_locations;
 } ui_pass_internal_data;
 
 b8 ui_pass_create(struct rendergraph_pass* self) {
@@ -86,6 +98,28 @@ b8 ui_pass_initialize(struct rendergraph_pass* self) {
     internal_data->locations.properties = shader_system_uniform_index(internal_data->s, "properties");
     internal_data->locations.model = shader_system_uniform_index(internal_data->s, "model");
 
+    // Load the StandardUI shader.
+    const char* sui_shader_name = "Shader.StandardUI";
+    resource sui_config_resource;
+    if (!resource_system_load(sui_shader_name, RESOURCE_TYPE_SHADER, 0, &sui_config_resource)) {
+        KERROR("Failed to load StandardUI shader resource.");
+        return false;
+    }
+    shader_config* sui_config = (shader_config*)sui_config_resource.data;
+    // NOTE: Assuming the first pass since that's all this view has.
+    if (!shader_system_create(&self->pass, sui_config)) {
+        KERROR("Failed to create StandardUI shader.");
+        return false;
+    }
+    resource_system_unload(&sui_config_resource);
+
+    // Get either the custom shader override or the defined default.
+    internal_data->sui_shader = shader_system_get(sui_shader_name);
+    internal_data->sui_locations.projection = shader_system_uniform_index(internal_data->sui_shader, "projection");
+    internal_data->sui_locations.view = shader_system_uniform_index(internal_data->sui_shader, "view");
+    internal_data->sui_locations.properties = shader_system_uniform_index(internal_data->sui_shader, "properties");
+    internal_data->sui_locations.model = shader_system_uniform_index(internal_data->sui_shader, "model");
+    internal_data->sui_locations.diffuse_map = shader_system_uniform_index(internal_data->sui_shader, "diffuse_texture");
     return true;
 }
 
@@ -175,6 +209,43 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
         }
 
         ui_text_draw(text);
+    }
+
+    // Renderables
+    if (!shader_system_use_by_id(internal_data->sui_shader->id)) {
+        KERROR("Failed to use StandardUI shader. Render frame failed.");
+        return false;
+    }
+
+    // Apply globals.
+    shader_system_uniform_set_by_index(internal_data->sui_locations.projection, &self->pass_data.projection_matrix);
+    shader_system_uniform_set_by_index(internal_data->sui_locations.view, &self->pass_data.view_matrix);
+    shader_system_apply_global(true);
+
+    // Sync the frame number.
+    internal_data->sui_shader->render_frame_number = p_frame_data->renderer_frame_number;
+
+    u32 renderable_count = darray_length(ext_data->sui_render_data.renderables);
+    for (u32 i = 0; i < renderable_count; ++i) {
+        standard_ui_renderable* renderable = &ext_data->sui_render_data.renderables[i];
+
+        // Apply instance
+        b8 needs_update = *renderable->frame_number != p_frame_data->renderer_frame_number || *renderable->draw_index != p_frame_data->draw_index;
+        shader_system_bind_instance(*renderable->instance_id);
+        // NOTE: Expand this to a structure if more data is needed.
+        shader_system_uniform_set_by_index(internal_data->sui_locations.properties, &renderable->diffuse_colour);
+        shader_system_uniform_set_by_index(internal_data->sui_locations.diffuse_map, ext_data->sui_render_data.ui_atlas);
+        shader_system_apply_instance(needs_update);
+
+        // Sync the frame number.
+        *renderable->frame_number = p_frame_data->renderer_frame_number;
+        *renderable->draw_index = p_frame_data->draw_index;
+
+        // Apply local
+        shader_system_uniform_set_by_index(internal_data->sui_locations.model, &renderable->render_data.model);
+
+        // Draw
+        renderer_geometry_draw(&renderable->render_data);
     }
 
     if (!renderer_renderpass_end(&self->pass)) {

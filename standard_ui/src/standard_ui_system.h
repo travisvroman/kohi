@@ -15,6 +15,8 @@
 #include <math/math_types.h>
 
 #include "defines.h"
+#include "renderer/renderer_types.h"
+#include "resources/resource_types.h"
 struct frame_data;
 
 /** @brief The standard UI system configuration. */
@@ -22,7 +24,22 @@ typedef struct standard_ui_system_config {
     u64 max_control_count;
 } standard_ui_system_config;
 
+typedef struct standard_ui_renderable {
+    vec4 diffuse_colour;
+    u32* instance_id;
+    u64* frame_number;
+    u8* draw_index;
+    geometry_render_data render_data;
+} standard_ui_renderable;
+
+typedef struct standard_ui_render_data {
+    texture_map* ui_atlas;
+    // darray
+    standard_ui_renderable* renderables;
+} standard_ui_render_data;
+
 typedef struct sui_control {
+    u32 unique_id;
     transform xform;
     char* name;
     b8 is_active;
@@ -31,13 +48,14 @@ typedef struct sui_control {
     struct sui_control** children;
 
     void* internal_data;
+    u64 internal_data_size;
 
     void (*destroy)(struct sui_control* self);
     b8 (*load)(struct sui_control* self);
     void (*unload)(struct sui_control* self);
 
     b8 (*update)(struct sui_control* self, struct frame_data* p_frame_data);
-    b8 (*render)(struct sui_control* self, struct frame_data* p_frame_data);
+    b8 (*render)(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* reneder_data);
 } sui_control;
 
 /**
@@ -61,7 +79,7 @@ KAPI void standard_ui_system_shutdown(void* state);
 
 KAPI b8 standard_ui_system_update(void* state, struct frame_data* p_frame_data);
 
-KAPI b8 standard_ui_system_render(void* state, sui_control* root, struct frame_data* p_frame_data);
+KAPI b8 standard_ui_system_render(void* state, sui_control* root, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
 
 KAPI b8 standard_ui_system_update_active(void* state, sui_control* control);
 
@@ -77,4 +95,17 @@ KAPI b8 sui_base_control_load(struct sui_control* self);
 KAPI void sui_base_control_unload(struct sui_control* self);
 
 KAPI b8 sui_base_control_update(struct sui_control* self, struct frame_data* p_frame_data);
-KAPI b8 sui_base_control_render(struct sui_control* self, struct frame_data* p_frame_data);
+KAPI b8 sui_base_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
+
+// ---------------------------
+// Panel control
+// ---------------------------
+
+KAPI b8 sui_panel_control_create(const char* name, struct sui_control* out_control);
+KAPI void sui_panel_control_destroy(struct sui_control* self);
+
+KAPI b8 sui_panel_control_load(struct sui_control* self);
+KAPI void sui_panel_control_unload(struct sui_control* self);
+
+KAPI b8 sui_panel_control_update(struct sui_control* self, struct frame_data* p_frame_data);
+KAPI b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);

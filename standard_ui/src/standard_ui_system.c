@@ -1,10 +1,20 @@
 #include "standard_ui_system.h"
 
 #include <containers/darray.h>
+#include <core/identifier.h>
 #include <core/kmemory.h>
 #include <core/kstring.h>
 #include <core/logger.h>
+#include <core/systems_manager.h>
 #include <defines.h>
+#include <math/kmath.h>
+#include <math/transform.h>
+#include <renderer/renderer_frontend.h>
+#include <resources/resource_types.h>
+#include <systems/geometry_system.h>
+#include <systems/shader_system.h>
+
+#include "renderer/renderer_types.h"
 
 typedef struct standard_ui_state {
     standard_ui_system_config config;
@@ -14,6 +24,9 @@ typedef struct standard_ui_state {
     sui_control** active_controls;
     u32 inactive_control_count;
     sui_control** inactive_controls;
+    sui_control root;
+    texture_map ui_atlas;
+
 } standard_ui_state;
 
 b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* config) {
@@ -43,6 +56,8 @@ b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* con
     kzero_memory(typed_state->active_controls, sizeof(sui_control) * typed_config->max_control_count);
     typed_state->inactive_controls = (void*)((u8*)typed_state->active_controls + active_array_requirement);
     kzero_memory(typed_state->inactive_controls, sizeof(sui_control) * typed_config->max_control_count);
+
+    sui_base_control_create("__ROOT__", &typed_state->root);
 
     KTRACE("Initialized standard UI system.");
 
@@ -81,13 +96,18 @@ b8 standard_ui_system_update(void* state, struct frame_data* p_frame_data) {
     return true;
 }
 
-b8 standard_ui_system_render(void* state, sui_control* root, struct frame_data* p_frame_data) {
+b8 standard_ui_system_render(void* state, sui_control* root, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
     if (!state) {
         return false;
     }
 
+    standard_ui_state* typed_state = (standard_ui_state*)state;
+    if (!root) {
+        root = &typed_state->root;
+    }
+
     if (root->render) {
-        if (!root->render(root, p_frame_data)) {
+        if (!root->render(root, p_frame_data, render_data)) {
             KERROR("Root element failed to render. See logs for more details");
             return false;
         }
@@ -97,7 +117,7 @@ b8 standard_ui_system_render(void* state, sui_control* root, struct frame_data* 
         u32 length = darray_length(root->children);
         for (u32 i = 0; i < length; ++i) {
             sui_control* c = root->children[i];
-            if (!standard_ui_system_render(state, c, p_frame_data)) {
+            if (!standard_ui_system_render(state, c, p_frame_data, render_data)) {
                 KERROR("Child element failed to render. See logs for more details");
                 return false;
             }
@@ -166,11 +186,17 @@ b8 sui_base_control_create(const char* name, struct sui_control* out_control) {
     out_control->render = sui_base_control_render;
 
     out_control->name = string_duplicate(name);
+    out_control->unique_id = identifier_aquire_new_id(out_control);
 
     return true;
 }
 void sui_base_control_destroy(struct sui_control* self) {
     if (self) {
+        identifier_release_id(self->unique_id);
+
+        if (self->internal_data && self->internal_data_size) {
+            kfree(self->internal_data, self->internal_data_size, MEMORY_TAG_UI);
+        }
         if (self->name) {
             string_free(self->name);
         }
@@ -198,9 +224,138 @@ b8 sui_base_control_update(struct sui_control* self, struct frame_data* p_frame_
 
     return true;
 }
-b8 sui_base_control_render(struct sui_control* self, struct frame_data* p_frame_data) {
+b8 sui_base_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
     if (self) {
         return false;
+    }
+
+    return true;
+}
+
+typedef struct sui_panel_internal_data {
+    vec4 rect;
+    vec4 colour;
+    geometry* g;
+    u32 instance_id;
+    u64 frame_number;
+    u8 draw_index;
+} sui_panel_internal_data;
+
+b8 sui_panel_control_create(const char* name, struct sui_control* out_control) {
+    if (!sui_base_control_create(name, out_control)) {
+        return false;
+    }
+
+    out_control->internal_data_size = sizeof(sui_panel_internal_data);
+    out_control->internal_data = kallocate(out_control->internal_data_size, MEMORY_TAG_UI);
+    sui_panel_internal_data* typed_data = out_control->internal_data;
+
+    // Reasonable defaults.
+    typed_data->rect = vec4_create(0, 0, 10, 10);
+    typed_data->colour = vec4_one();
+
+    // Assign function pointers.
+    out_control->destroy = sui_panel_control_destroy;
+    out_control->load = sui_panel_control_load;
+    out_control->unload = sui_panel_control_unload;
+    out_control->update = sui_panel_control_update;
+    out_control->render = sui_panel_control_render;
+
+    out_control->name = string_duplicate(name);
+    return true;
+}
+
+void sui_panel_control_destroy(struct sui_control* self) {
+    sui_base_control_destroy(self);
+}
+
+b8 sui_panel_control_load(struct sui_control* self) {
+    if (!sui_base_control_load(self)) {
+        return false;
+    }
+
+    sui_panel_internal_data* typed_data = self->internal_data;
+
+    // Create a simple plane.
+    geometry_config ui_config;
+    ui_config.vertex_size = sizeof(vertex_2d);
+    ui_config.vertex_count = 4;
+    ui_config.index_size = sizeof(u32);
+    ui_config.index_count = 6;
+    string_ncopy(ui_config.name, self->name, GEOMETRY_NAME_MAX_LENGTH);
+
+    const f32 w = 128.0f;
+    const f32 h = 32.0f;
+    vertex_2d uiverts[4];
+    uiverts[0].position.x = 0.0f;  // 0    3
+    uiverts[0].position.y = 0.0f;  //
+    uiverts[0].texcoord.x = 0.0f;  //
+    uiverts[0].texcoord.y = 0.0f;  // 2    1
+
+    uiverts[1].position.y = h;
+    uiverts[1].position.x = w;
+    uiverts[1].texcoord.x = 1.0f;
+    uiverts[1].texcoord.y = 1.0f;
+
+    uiverts[2].position.x = 0.0f;
+    uiverts[2].position.y = h;
+    uiverts[2].texcoord.x = 0.0f;
+    uiverts[2].texcoord.y = 1.0f;
+
+    uiverts[3].position.x = w;
+    uiverts[3].position.y = 0.0;
+    uiverts[3].texcoord.x = 1.0f;
+    uiverts[3].texcoord.y = 0.0f;
+    ui_config.vertices = uiverts;
+
+    // Indices - counter-clockwise
+    u32 uiindices[6] = {2, 1, 0, 3, 0, 1};
+    ui_config.indices = uiindices;
+
+    // Get UI geometry from config. NOTE: this uploads to GPU
+    typed_data->g = geometry_system_acquire_from_config(ui_config, true);
+
+    standard_ui_state* typed_state = systems_manager_get_state(128);  // HACK: need standard way to get extension types.
+
+    // Acquire instance resources for this control.
+    texture_map* maps[1] = {&typed_state->ui_atlas};
+    shader* s = shader_system_get("Shader.StandardUI");
+    renderer_shader_instance_resources_acquire(s, 1, maps, &typed_data->instance_id);
+
+    return true;
+}
+
+void sui_panel_control_unload(struct sui_control* self) {
+}
+
+b8 sui_panel_control_update(struct sui_control* self, struct frame_data* p_frame_data) {
+    if (!sui_base_control_update(self, p_frame_data)) {
+        return false;
+    }
+
+    //
+
+    return true;
+}
+
+b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
+    if (!sui_base_control_render(self, p_frame_data, render_data)) {
+        return false;
+    }
+
+    sui_panel_internal_data* typed_data = self->internal_data;
+    if (typed_data->g) {
+        standard_ui_renderable renderable = {0};
+        renderable.render_data.unique_id = self->unique_id;
+        renderable.render_data.geometry = typed_data->g;
+        renderable.render_data.model = transform_world_get(&self->xform);
+        renderable.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.
+
+        renderable.instance_id = &typed_data->instance_id;
+        renderable.frame_number = &typed_data->frame_number;
+        renderable.draw_index = &typed_data->draw_index;
+
+        darray_push(render_data->renderables, renderable);
     }
 
     return true;

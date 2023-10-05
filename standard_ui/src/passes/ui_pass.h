@@ -2,6 +2,7 @@
 #define _UI_PASS_H_
 
 #include "defines.h"
+#include "standard_ui_system.h"
 
 struct rendergraph_pass;
 struct frame_data;
@@ -14,6 +15,7 @@ typedef struct ui_pass_extended_data {
     struct geometry_render_data* geometries;
     u32 ui_text_count;
     struct ui_text** texts;
+    standard_ui_render_data sui_render_data;
 } ui_pass_extended_data;
 
 b8 ui_pass_create(struct rendergraph_pass* self);

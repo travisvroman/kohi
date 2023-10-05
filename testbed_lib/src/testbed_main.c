@@ -27,11 +27,14 @@
 #include "systems/camera_system.h"
 #include "testbed_types.h"
 
+// Standard UI.
+#include <passes/ui_pass.h>
+#include <standard_ui_system.h>
+
 // Rendergraph and passes.
 #include "passes/editor_pass.h"
 #include "passes/scene_pass.h"
 #include "passes/skybox_pass.h"
-#include "passes/ui_pass.h"
 #include "renderer/rendergraph.h"
 
 // Views
@@ -75,6 +78,9 @@ typedef struct geometry_distance {
     /** @brief The distance from the camera. */
     f32 distance;
 } geometry_distance;
+
+// FIXME: Need to maintain a list of extension types somewhere and pull from there.
+const u16 K_SYSTEM_TYPE_STANDARD_UI_EXT = 128;
 
 b8 configure_render_views(application_config* config);
 void application_register_events(struct application* game_inst);
@@ -440,8 +446,6 @@ b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
 
     systems_manager_state* sys_mgr_state = engine_systems_manager_state_get(game_inst);
-    // FIXME: Need to maintain a list of extension types somewhere and pull from there.
-    const u16 K_SYSTEM_TYPE_STANDARD_UI_EXT = 128;
     standard_ui_system_config standard_ui_cfg = {0};
     standard_ui_cfg.max_control_count = 1024;
     if (!systems_manager_register(sys_mgr_state, K_SYSTEM_TYPE_STANDARD_UI_EXT, standard_ui_system_initialize, standard_ui_system_shutdown, standard_ui_system_update, &standard_ui_cfg)) {
@@ -1043,6 +1047,14 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             }
         }
         ext_data->ui_text_count = darray_length(ext_data->texts);
+
+        // Renderables.
+        ext_data->sui_render_data.renderables = darray_create_with_allocator(standard_ui_renderable, &p_frame_data->allocator);
+        ext_data->sui_render_data.ui_atlas = 0;  // TODO: call to sui system to get this.
+        void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+        if (!standard_ui_system_render(sui_state, 0, p_frame_data, &ext_data->sui_render_data)) {
+            KERROR("The standard ui system failed to render.");
+        }
     }
 
     // Pick

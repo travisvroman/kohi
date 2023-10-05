@@ -50,6 +50,7 @@ typedef enum memory_tag {
     MEMORY_TAG_SYSTEM_FONT,
     MEMORY_TAG_KEYMAP,
     MEMORY_TAG_HASHTABLE,
+    MEMORY_TAG_UI,
 
     MEMORY_TAG_MAX_TAGS
 } memory_tag;
