@@ -112,7 +112,7 @@ b8 audio_system_channel_volume_set(u8 channel_id, f32 volume);
  * @param loop Indicates if the sound should loop.
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound, b8 loop);
+b8 audio_system_channel_sound_play(u8 channel_id, struct audio_sound* sound, b8 loop);
 
 /**
  * Plays the provided music on the channel with the given id. Note that this
@@ -123,7 +123,7 @@ b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound, b8 loop);
  * @param loop Indicates if the music should loop.
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_play_music(u8 channel_id, struct audio_music* music, b8 loop);
+b8 audio_system_channel_music_play(u8 channel_id, struct audio_music* music, b8 loop);
 
 /**
  * Plays spatially-oriented 3d sound from the context of an audio_emitter. The
@@ -134,7 +134,7 @@ b8 audio_system_channel_play_music(u8 channel_id, struct audio_music* music, b8 
  * @param emitter A pointer to an emitter to use for playback.
  * @return True on success; otherwise false.
  */
-b8 audio_system_emitter_play(u8 channel_id, struct audio_emitter* emitter);
+b8 audio_system_channel_emitter_play(u8 channel_id, struct audio_emitter* emitter);
 
 /**
  * Updates a spatially-oriented 3d sound with the current properties of an audio_emitter.

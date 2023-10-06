@@ -18,6 +18,9 @@
 
 // Loading vorbis files.
 #include "../vendor/stb_vorbis.h"
+// Loading mp3 files.
+#define MINIMP3_IMPLEMENTATION
+#include <vendor/minimp3_ex.h>
 
 // Sources are used to play sounds, potentially at a space in 3D.
 typedef struct audio_plugin_source {
@@ -47,6 +50,8 @@ typedef struct audio_file_internal {
     u32 sample_rate;
     // The internal ogg vorbis file handle, if the file is ogg. Otherwise null.
     stb_vorbis* vorbis;
+    // The internal mp3 file handle.
+    mp3dec_file_info_t mp3_info;
 } audio_file_internal;
 
 // The number of buffers used for streaming music file data.
@@ -67,6 +72,13 @@ typedef struct music_file_internal {
 
     // The internal ogg vorbis file handle, if the file is ogg. Otherwise null.
     stb_vorbis* vorbis;
+
+    // The internal mp3 file handle.
+    mp3dec_file_info_t mp3_info;
+
+    // Pulse-code modulation buffer, or raw data to be fed into a buffer.
+    // Only used for some formats.
+    ALshort* pcm;
 } music_file_internal;
 
 // An entry for the sound queue, used when no sources are available for immediate playback.
@@ -123,6 +135,9 @@ typedef struct audio_plugin_state {
     music_queue_entry* queued_music;
     // Queued emitters. darray.
     emitter_queue_entry* queued_emitters;
+
+    // MP3 decoder;
+    mp3dec_t decoder;
 
 } audio_plugin_state;
 
@@ -194,6 +209,9 @@ b8 oal_plugin_initialize(struct audio_plugin* plugin, audio_plugin_config config
         plugin->internal_state->queued_sounds = darray_create(sound_queue_entry);
         plugin->internal_state->queued_music = darray_create(music_queue_entry);
         plugin->internal_state->queued_emitters = darray_create(emitter_queue_entry);
+
+        // Initialize mp3 decoder
+        mp3dec_init(&plugin->internal_state->decoder);
 
         // NOTE: source generation, which is basically a sound emitter.
         KINFO("OpenAL plugin intialized");
@@ -669,29 +687,33 @@ static b8 oal_plugin_stream_music_data(audio_plugin* plugin, ALuint buffer, musi
         return false;
     }
 
-    // Chunk buffer.
-    u64 buffer_length = plugin->internal_state->config.chunk_size * sizeof(ALshort);
-    ALshort* pcm = kallocate(buffer_length, MEMORY_TAG_AUDIO);
+    // Figure out how many samples can be taken.
     u64 size = 0;
-    u64 result = 0;
-    while (size < plugin->internal_state->config.chunk_size) {
-        result = stb_vorbis_get_samples_short_interleaved(file->internal_data->vorbis, file->internal_data->channels, pcm + size, plugin->internal_state->config.chunk_size - size);
-        if (result > 0) {
-            size += result * file->internal_data->channels;
-        } else {
-            break;
-        }
+    if (file->internal_data->vorbis) {
+        i64 samples = stb_vorbis_get_samples_short_interleaved(file->internal_data->vorbis, file->internal_data->channels, file->internal_data->pcm + size, plugin->internal_state->config.chunk_size - size);
+        // Sample here does not include channels, so factor them in.
+        size = samples * file->internal_data->channels;
+    } else if (file->internal_data->mp3_info.buffer) {
+        // samples count includes channels.
+        size = KMIN(file->total_samples_left, plugin->internal_state->config.chunk_size);
     }
 
+    // 0 means the end of the file has been reached, and either the stream stops or needs to start over.
     if (size == 0) {
         return false;
     }
 
     // Load the data into the buffer.
-    alBufferData(buffer, file->internal_data->format, pcm, size * sizeof(ALshort), file->internal_data->sample_rate);
-    oal_plugin_check_error();
-    kfree(pcm, buffer_length, MEMORY_TAG_AUDIO);
-    oal_plugin_check_error();
+    if (file->internal_data->vorbis) {
+        alBufferData(buffer, file->internal_data->format, file->internal_data->pcm, size * sizeof(ALshort), file->internal_data->sample_rate);
+        oal_plugin_check_error();
+    } else if (file->internal_data->mp3_info.buffer) {
+        u64 pos = file->internal_data->mp3_info.samples - file->total_samples_left;
+        alBufferData(buffer, file->internal_data->format, file->internal_data->mp3_info.buffer + pos, size * sizeof(ALshort), file->internal_data->sample_rate);
+        oal_plugin_check_error();
+    }
+
+    // Update the samples remaining.
     file->total_samples_left -= size;
 
     return true;
@@ -724,11 +746,16 @@ static b8 oal_plugin_stream_update(audio_plugin* plugin, music_file* file, audio
 
             // If set to loop, start over at the beginning.
             if (file->internal_data->is_looping) {
-                // Loop around.
-                stb_vorbis_seek_start(file->internal_data->vorbis);
+                if (file->internal_data->vorbis) {
+                    // Loop around.
+                    stb_vorbis_seek_start(file->internal_data->vorbis);
 
-                // Reset sample counter.
-                file->total_samples_left = stb_vorbis_stream_length_in_samples(file->internal_data->vorbis) * file->internal_data->channels;
+                    // Reset sample counter.
+                    file->total_samples_left = stb_vorbis_stream_length_in_samples(file->internal_data->vorbis) * file->internal_data->channels;
+                } else if (file->internal_data->mp3_info.samples) {
+                    // Reset sample counter.
+                    file->total_samples_left = file->internal_data->mp3_info.samples;
+                }
                 done = !oal_plugin_stream_music_data(plugin, buffer_id, file);
             }
 
@@ -764,8 +791,8 @@ static b8 oal_plugin_open_music_file(audio_plugin* plugin, const char* path, mus
     }
 
     oal_plugin_check_error();
-    if (string_index_of_str(".ogg", path)) {
-        KTRACE("Processing OGG music file...");
+    if (string_index_of_str(".ogg", path) != -1) {
+        KTRACE("Processing OGG music file '%s'...", path);
 
         i32 ogg_error = 0;
         // TODO: Use filesystem and stream from memory.
@@ -790,6 +817,26 @@ static b8 oal_plugin_open_music_file(audio_plugin* plugin, const char* path, mus
         // Samples including all channels.
         out_file->total_samples_left = stb_vorbis_stream_length_in_samples(out_file->internal_data->vorbis) * info.channels;
 
+        // Need a buffer to extract sample data into;
+        u64 buffer_length = plugin->internal_state->config.chunk_size * sizeof(ALshort);
+        out_file->internal_data->pcm = kallocate(buffer_length, MEMORY_TAG_AUDIO);
+
+        return true;
+    } else if (string_index_of_str(".mp3", path) != -1) {
+        KTRACE("Processing MP3 file '%s'...", path);
+
+        mp3dec_load(&plugin->internal_state->decoder, path, &out_file->internal_data->mp3_info, 0, 0);
+        mp3dec_file_info_t* info = &out_file->internal_data->mp3_info;
+        KDEBUG("mp3 freq: %dHz, avg kbit/s rate: %u", info->hz, info->avg_bitrate_kbps);
+        out_file->internal_data->channels = info->channels;
+        out_file->internal_data->sample_rate = info->hz;
+        out_file->internal_data->format = AL_FORMAT_MONO16;
+        if (info->channels) {
+            out_file->internal_data->format = AL_FORMAT_STEREO16;
+        }
+
+        out_file->total_samples_left = info->samples;
+
         return true;
     }
 
@@ -812,8 +859,8 @@ static b8 oal_plugin_open_sound_file(audio_plugin* plugin, const char* path, aud
         return false;
     }
     oal_plugin_check_error();
-    if (string_index_of_str(".ogg", path)) {
-        KTRACE("Processing OGG file...");
+    if (string_index_of_str(".ogg", path) != -1) {
+        KTRACE("Processing OGG sound file '%s'...", path);
 
         i32 ogg_error = 0;
         // TODO: Use filestream and stream from memory.
@@ -838,27 +885,20 @@ static b8 oal_plugin_open_sound_file(audio_plugin* plugin, const char* path, aud
         // Samples including all channels.
         u64 length_samples = stb_vorbis_stream_length_in_samples(out_file->internal_data->vorbis) * info.channels;
 
-        // stream in the data.
+        // Load all the data into a buffer at once.
         u64 buffer_length = length_samples * sizeof(ALshort);
-        buffer_length = buffer_length + (buffer_length % 4);  // Make sure this is a multiple of 4.
+        // Since the whole thing is being read into a buffer at once, just use an inline array for the data.
         ALshort* pcm = kallocate(buffer_length, MEMORY_TAG_AUDIO);
-        i32 read_samples = 0;
-        while (read_samples < length_samples) {
-            ALshort* buffer_pos = (pcm + read_samples);
-            i32 samples = stb_vorbis_get_samples_short_interleaved(out_file->internal_data->vorbis, info.channels, buffer_pos, length_samples - read_samples);
-            if (samples > 0) {
-                read_samples += samples * info.channels;
-            } else {
-                break;
-            }
+        i32 read_samples = stb_vorbis_get_samples_short_interleaved(out_file->internal_data->vorbis, info.channels, pcm, length_samples);
+        if (read_samples != length_samples) {
+            KWARN("Read/length mismatch while reading ogg file. This might cause playback issues.");
         }
-        // Make sure this is a multiple of 4.
-        read_samples = read_samples + (read_samples % 4);
+        // Make sure this is a multiple of 4. If not, loading into the buffer below can fail.
+        length_samples += (length_samples % 4);
 
         if (read_samples > 0) {
             // Load the whole thing into the buffer.
-            // NOTE: for streaming, use the current buffer block size instead (i.e. 4096 * 8 or similar).
-            alBufferData(out_file->internal_data->buffer, out_file->internal_data->format, pcm, read_samples, info.sample_rate);
+            alBufferData(out_file->internal_data->buffer, out_file->internal_data->format, pcm, length_samples, info.sample_rate);
             oal_plugin_check_error();
         }
         // Clean up
@@ -866,6 +906,23 @@ static b8 oal_plugin_open_sound_file(audio_plugin* plugin, const char* path, aud
 
         if (read_samples == 0) {
             return false;
+        }
+    } else if (string_index_of_str(".mp3", path) != -1) {
+        KTRACE("Processing MP3 sound file '%s'...", path);
+
+        mp3dec_load(&plugin->internal_state->decoder, path, &out_file->internal_data->mp3_info, 0, 0);
+        mp3dec_file_info_t* info = &out_file->internal_data->mp3_info;
+        KDEBUG("mp3 freq: %dHz, avg kbit/s rate: %u", info->hz, info->avg_bitrate_kbps);
+        out_file->internal_data->channels = info->channels;
+        out_file->internal_data->sample_rate = info->hz;
+        out_file->internal_data->format = AL_FORMAT_MONO16;
+        if (info->channels) {
+            out_file->internal_data->format = AL_FORMAT_STEREO16;
+        }
+
+        // Load the data into the buffer.
+        if (info->samples > 0) {
+            alBufferData(out_file->internal_data->buffer, out_file->internal_data->format, info->buffer, info->samples * sizeof(mp3d_sample_t), info->hz);
         }
     } else {
         KERROR("Unsupported audio format.");
@@ -885,6 +942,8 @@ static void oal_plugin_close_audio_file(audio_plugin* plugin, audio_file* file) 
         if (file->internal_data->vorbis) {
             stb_vorbis_close(file->internal_data->vorbis);
             file->internal_data->vorbis = 0;
+        } else if (file->internal_data->mp3_info.buffer) {
+            // TODO: dispose of mp3 data.
         }
         kfree(file->internal_data, sizeof(audio_file_internal), MEMORY_TAG_AUDIO);
         file->internal_data = 0;
@@ -908,7 +967,17 @@ static void oal_plugin_close_music_file(audio_plugin* plugin, music_file* file) 
         if (file->internal_data->vorbis) {
             stb_vorbis_close(file->internal_data->vorbis);
             file->internal_data->vorbis = 0;
+
+            // Also free the internal pcm buffer.
+            if (file->internal_data->pcm) {
+                u64 buffer_length = plugin->internal_state->config.chunk_size * sizeof(ALshort);
+                kfree(file->internal_data->pcm, buffer_length, MEMORY_TAG_AUDIO);
+                file->internal_data->pcm = 0;
+            }
+        } else if (file->internal_data->mp3_info.buffer) {
+            // TODO: dispose of mp3 data.
         }
+
         kfree(file->internal_data, sizeof(audio_file_internal), MEMORY_TAG_AUDIO);
         file->internal_data = 0;
     }

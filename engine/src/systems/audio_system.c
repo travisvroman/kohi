@@ -123,7 +123,7 @@ static f32 calculate_master_channel_volume(audio_system_state* state, u8 channel
     return state->master_volume * state->channels[channel_id].volume;
 }
 
-b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound, b8 loop) {
+b8 audio_system_channel_sound_play(u8 channel_id, struct audio_sound* sound, b8 loop) {
     if (!sound) {
         return false;
     }
@@ -131,7 +131,7 @@ b8 audio_system_channel_play(u8 channel_id, struct audio_sound* sound, b8 loop) 
     return state->plugin.play_sound_with_volume(&state->plugin, sound, calculate_master_channel_volume(state, channel_id), loop);
 }
 
-b8 audio_system_channel_play_music(u8 channel_id, struct audio_music* music, b8 loop) {
+b8 audio_system_channel_music_play(u8 channel_id, struct audio_music* music, b8 loop) {
     if (!music) {
         return false;
     }
@@ -139,7 +139,7 @@ b8 audio_system_channel_play_music(u8 channel_id, struct audio_music* music, b8 
     return state->plugin.play_music_with_volume(&state->plugin, music, calculate_master_channel_volume(state, channel_id), loop);
 }
 
-b8 audio_system_emitter_play(u8 channel_id, struct audio_emitter* emitter) {
+b8 audio_system_channel_emitter_play(u8 channel_id, struct audio_emitter* emitter) {
     if (!emitter) {
         return false;
     }
