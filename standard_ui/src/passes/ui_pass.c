@@ -120,6 +120,7 @@ b8 ui_pass_initialize(struct rendergraph_pass* self) {
     internal_data->sui_locations.properties = shader_system_uniform_index(internal_data->sui_shader, "properties");
     internal_data->sui_locations.model = shader_system_uniform_index(internal_data->sui_shader, "model");
     internal_data->sui_locations.diffuse_map = shader_system_uniform_index(internal_data->sui_shader, "diffuse_texture");
+
     return true;
 }
 
@@ -233,7 +234,7 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
         b8 needs_update = *renderable->frame_number != p_frame_data->renderer_frame_number || *renderable->draw_index != p_frame_data->draw_index;
         shader_system_bind_instance(*renderable->instance_id);
         // NOTE: Expand this to a structure if more data is needed.
-        shader_system_uniform_set_by_index(internal_data->sui_locations.properties, &renderable->diffuse_colour);
+        shader_system_uniform_set_by_index(internal_data->sui_locations.properties, &renderable->render_data.diffuse_colour);
         shader_system_uniform_set_by_index(internal_data->sui_locations.diffuse_map, ext_data->sui_render_data.ui_atlas);
         shader_system_apply_instance(needs_update);
 

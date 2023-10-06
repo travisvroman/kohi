@@ -24,6 +24,8 @@
 static b8 register_known_systems_pre_boot(systems_manager_state* state, application_config* app_config);
 static b8 register_known_systems_post_boot(systems_manager_state* state, application_config* app_config);
 static void shutdown_known_systems(systems_manager_state* state);
+static void shutdown_extension_systems(systems_manager_state* state);
+static void shutdown_user_systems(systems_manager_state* state);
 
 // TODO: Find a way to have this not be static.
 static systems_manager_state* g_state;
@@ -43,6 +45,8 @@ b8 systems_manager_post_boot_initialize(systems_manager_state* state, applicatio
 }
 
 void systems_manager_shutdown(systems_manager_state* state) {
+    shutdown_user_systems(state);
+    shutdown_extension_systems(state);
     shutdown_known_systems(state);
 }
 
@@ -251,6 +255,23 @@ static void shutdown_known_systems(systems_manager_state* state) {
     state->systems[K_SYSTEM_TYPE_CONSOLE].shutdown(state->systems[K_SYSTEM_TYPE_CONSOLE].state);
 
     state->systems[K_SYSTEM_TYPE_MEMORY].shutdown(state->systems[K_SYSTEM_TYPE_MEMORY].state);
+}
+
+static void shutdown_extension_systems(systems_manager_state* state) {
+    // NOTE: Anything between 127-254 is extension space.
+    for (u32 i = K_SYSTEM_TYPE_KNOWN_MAX; i < K_SYSTEM_TYPE_EXT_MAX; ++i) {
+        if (state->systems[i].shutdown) {
+            state->systems[i].shutdown(state->systems[i].state);
+        }
+    }
+}
+static void shutdown_user_systems(systems_manager_state* state) {
+    // NOTE: Anything beyond this is in user space.
+    for (u32 i = K_SYSTEM_TYPE_EXT_MAX; i < K_SYSTEM_TYPE_MAX; ++i) {
+        if (state->systems[i].shutdown) {
+            state->systems[i].shutdown(state->systems[i].state);
+        }
+    }
 }
 
 static b8 register_known_systems_post_boot(systems_manager_state* state, application_config* app_config) {

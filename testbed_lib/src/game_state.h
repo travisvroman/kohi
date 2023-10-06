@@ -15,6 +15,7 @@
 #include <core/keymap.h>
 #include <resources/skybox.h>
 #include <resources/ui_text.h>
+#include <standard_ui_system.h>
 #include <systems/light_system.h>
 
 #include "debug_console.h"
@@ -88,6 +89,9 @@ typedef struct testbed_game_state {
     b8 using_gizmo;
 
     u32 render_mode;
+
+    struct sui_control test_panel;
+
     // TODO: end temp
 } testbed_game_state;
 

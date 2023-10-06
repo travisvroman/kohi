@@ -25,7 +25,6 @@ typedef struct standard_ui_system_config {
 } standard_ui_system_config;
 
 typedef struct standard_ui_renderable {
-    vec4 diffuse_colour;
     u32* instance_id;
     u64* frame_number;
     u8* draw_index;
@@ -44,6 +43,7 @@ typedef struct sui_control {
     char* name;
     b8 is_active;
     b8 is_visible;
+    struct sui_control* parent;
     // darray
     struct sui_control** children;
 
@@ -84,6 +84,10 @@ KAPI b8 standard_ui_system_render(void* state, sui_control* root, struct frame_d
 KAPI b8 standard_ui_system_update_active(void* state, sui_control* control);
 
 KAPI b8 standard_ui_system_register_control(void* state, sui_control* control);
+
+KAPI b8 standard_ui_system_control_add_child(void* state, sui_control* parent, sui_control* child);
+
+KAPI b8 standard_ui_system_control_remove_child(void* state, sui_control* parent, sui_control* child);
 
 // ---------------------------
 // Base control

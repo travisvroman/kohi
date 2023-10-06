@@ -577,6 +577,29 @@ b8 application_initialize(struct application* game_inst) {
     // transform_translate_rotate(&state->ui_meshes[0].transform, (vec3){5, 5, 0}, rotation);
     transform_translate(&state->ui_meshes[0].transform, (vec3){650, 5, 0});
 
+    // Standard ui stuff.
+    if (!sui_panel_control_create("test_panel", &state->test_panel)) {
+        KERROR("Failed to create test panel.");
+    } else {
+        if (!sui_panel_control_load(&state->test_panel)) {
+            KERROR("Failed to load test panel.");
+        } else {
+            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+            if (!standard_ui_system_register_control(sui_state, &state->test_panel)) {
+                KERROR("Unable to register control.");
+            } else {
+                if (!standard_ui_system_control_add_child(sui_state, 0, &state->test_panel)) {
+                    KERROR("Failed to parent test panel.");
+                } else {
+                    state->test_panel.is_active = true;
+                    if (!standard_ui_system_update_active(sui_state, &state->test_panel)) {
+                        KERROR("Unable to update active state.");
+                    }
+                }
+            }
+        }
+    }
+
     // TODO: end temp load/prepare stuff
 
     state->world_camera = camera_system_acquire("world");
@@ -1050,7 +1073,6 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
         // Renderables.
         ext_data->sui_render_data.renderables = darray_create_with_allocator(standard_ui_renderable, &p_frame_data->allocator);
-        ext_data->sui_render_data.ui_atlas = 0;  // TODO: call to sui system to get this.
         void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
         if (!standard_ui_system_render(sui_state, 0, p_frame_data, &ext_data->sui_render_data)) {
             KERROR("The standard ui system failed to render.");

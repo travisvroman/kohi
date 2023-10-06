@@ -1,8 +1,13 @@
 #include "geometry_utils.h"
 
+#include "core/asserts.h"
+#include "core/kmemory.h"
+#include "core/kstring.h"
 #include "core/logger.h"
 #include "kmath.h"
+#include "math/math_types.h"
 #include "resources/terrain.h"
+#include "systems/geometry_system.h"
 
 void geometry_generate_normals(u32 vertex_count, vertex_3d *vertices, u32 index_count, u32 *indices) {
     for (u32 i = 0; i < index_count; i += 3) {
@@ -171,5 +176,51 @@ void terrain_geometry_generate_tangents(u32 vertex_count, terrain_vertex *vertic
         vertices[i0].tangent = t4;
         vertices[i1].tangent = t4;
         vertices[i2].tangent = t4;
+    }
+}
+
+void generate_uvs_from_image_coords(u32 img_width, u32 img_height, u32 px_x, u32 px_y, f32 *out_tx, f32 *out_ty) {
+    KASSERT_DEBUG(out_tx);
+    KASSERT_DEBUG(out_ty);
+    *out_tx = (f32)px_x / img_width;
+    *out_ty = (f32)px_y / img_height;
+}
+
+void generate_quad_2d(const char *name, f32 width, f32 height, f32 tx_min, f32 tx_max, f32 ty_min, f32 ty_max, struct geometry_config *out_config) {
+    if (out_config) {
+        kzero_memory(out_config, sizeof(geometry_config));
+        out_config->vertex_size = sizeof(vertex_2d);
+        out_config->vertex_count = 4;
+        out_config->vertices = kallocate(out_config->vertex_size * out_config->vertex_count, MEMORY_TAG_ARRAY);
+        out_config->index_size = sizeof(u32);
+        out_config->index_count = 6;
+        out_config->indices = kallocate(out_config->index_size * out_config->index_count, MEMORY_TAG_ARRAY);
+        string_ncopy(out_config->name, name, GEOMETRY_NAME_MAX_LENGTH);
+
+        vertex_2d uiverts[4];
+        uiverts[0].position.x = 0.0f;    // 0    3
+        uiverts[0].position.y = 0.0f;    //
+        uiverts[0].texcoord.x = tx_min;  //
+        uiverts[0].texcoord.y = ty_min;  // 2    1
+
+        uiverts[1].position.y = height;
+        uiverts[1].position.x = width;
+        uiverts[1].texcoord.x = tx_max;
+        uiverts[1].texcoord.y = ty_max;
+
+        uiverts[2].position.x = 0.0f;
+        uiverts[2].position.y = height;
+        uiverts[2].texcoord.x = tx_min;
+        uiverts[2].texcoord.y = ty_max;
+
+        uiverts[3].position.x = width;
+        uiverts[3].position.y = 0.0;
+        uiverts[3].texcoord.x = tx_max;
+        uiverts[3].texcoord.y = ty_min;
+        kcopy_memory(out_config->vertices, uiverts, out_config->vertex_size * out_config->vertex_count);
+
+        // Indices - counter-clockwise
+        u32 uiindices[6] = {2, 1, 0, 3, 0, 1};
+        kcopy_memory(out_config->indices, uiindices, out_config->index_size * out_config->index_count);
     }
 }

@@ -20,5 +20,5 @@ layout(location = 1) in struct dto {
 } in_dto;
 
 void main() {
-    out_colour =  object_ubo.properties.diffuse_colour * texture(samplers[SAMP_DIFFUSE], in_dto.tex_coord);
+    out_colour = object_ubo.properties.diffuse_colour * texture(samplers[SAMP_DIFFUSE], in_dto.tex_coord);
 }
