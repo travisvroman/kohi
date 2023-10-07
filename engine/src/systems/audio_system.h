@@ -5,7 +5,7 @@
  * The maximum number of individually-controlled channels of audio available, each
  * with separate volume control. These are all nested under a master audio volume.
  */
-#define MAX_AUDIO_CHANNELS 8
+#define MAX_AUDIO_CHANNELS 16
 
 struct frame_data;
 
@@ -101,7 +101,7 @@ void audio_system_music_close(struct audio_music* music);
  * @volume The volume to set. Clamped to a range of [0.0-1.0].
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_volume_set(u8 channel_id, f32 volume);
+b8 audio_system_channel_volume_set(i8 channel_id, f32 volume);
 
 /**
  * Plays the provided sound on the channel with the given id. Note that this
@@ -112,7 +112,7 @@ b8 audio_system_channel_volume_set(u8 channel_id, f32 volume);
  * @param loop Indicates if the sound should loop.
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_sound_play(u8 channel_id, struct audio_sound* sound, b8 loop);
+b8 audio_system_channel_sound_play(i8 channel_id, struct audio_sound* sound, b8 loop);
 
 /**
  * Plays the provided music on the channel with the given id. Note that this
@@ -123,7 +123,7 @@ b8 audio_system_channel_sound_play(u8 channel_id, struct audio_sound* sound, b8 
  * @param loop Indicates if the music should loop.
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_music_play(u8 channel_id, struct audio_music* music, b8 loop);
+b8 audio_system_channel_music_play(i8 channel_id, struct audio_music* music, b8 loop);
 
 /**
  * Plays spatially-oriented 3d sound from the context of an audio_emitter. The
@@ -134,21 +134,13 @@ b8 audio_system_channel_music_play(u8 channel_id, struct audio_music* music, b8 
  * @param emitter A pointer to an emitter to use for playback.
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_emitter_play(u8 channel_id, struct audio_emitter* emitter);
+b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitter);
 
 /**
- * Updates a spatially-oriented 3d sound with the current properties of an audio_emitter.
- * The emitter should already have a loaded sound associated with it. Should be called on
- * update of the emitter, or perhaps every frame.
- * @param channel_id The id of the channel to play through.
- * @param emitter A pointer to an emitter to use for playback.
+ * Stops the given channel id.
+ * @param channel_id The id of the channel to be stopped. If -1 is passed, all channels are stopped.
  * @return True on success; otherwise false.
  */
-b8 audio_system_emitter_update(u8 channel_id, struct audio_emitter* emitter);
-
-/**
- * Stops a currently playing emitter.
- * @param emitter A pointer to the emitter whose audio should be stopped.
- * @return True on success; otherwise false.
- */
-b8 audio_system_emitter_stop(struct audio_emitter* emitter);
+void audio_system_channel_stop(i8 channel_id);
+void audio_system_channel_pause(i8 channel_id);
+void audio_system_channel_resume(i8 channel_id);

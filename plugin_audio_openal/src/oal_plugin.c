@@ -1,6 +1,7 @@
 #include "oal_plugin.h"
 
 #include <alloca.h>
+#include <core/kthread.h>
 #include <math/kmath.h>
 #include <platform/platform.h>
 
@@ -352,19 +353,19 @@ static b8 source_set_defaults(struct audio_plugin* plugin, audio_plugin_source* 
     }
 
     // Set some defaults.
-    if (!oal_plugin_source_gain_set(plugin, source->id, 1.0f)) {
+    if (!oal_plugin_source_gain_set(plugin, source->id - 1, 1.0f)) {
         KERROR("Failed to set source default gain.");
         return false;
     }
-    if (!oal_plugin_source_pitch_set(plugin, source->id, 1.0f)) {
+    if (!oal_plugin_source_pitch_set(plugin, source->id - 1, 1.0f)) {
         KERROR("Failed to set source default pitch.");
         return false;
     }
-    if (!oal_plugin_source_position_set(plugin, source->id, vec3_zero())) {
+    if (!oal_plugin_source_position_set(plugin, source->id - 1, vec3_zero())) {
         KERROR("Failed to set source default position.");
         return false;
     }
-    if (!oal_plugin_source_looping_set(plugin, source->id, false)) {
+    if (!oal_plugin_source_looping_set(plugin, source->id - 1, false)) {
         KERROR("Failed to set source default looping.");
         return false;
     }
@@ -566,91 +567,91 @@ b8 oal_plugin_source_reset(struct audio_plugin* plugin, audio_plugin_source* sou
     return true;
 }
 
-b8 oal_plugin_source_gain_query(struct audio_plugin* plugin, u32 source_id, f32* out_gain) {
-    if (plugin && out_gain && source_id <= plugin->internal_state->config.max_sources) {
-        *out_gain = plugin->internal_state->sources[source_id - 1].gain;
+b8 oal_plugin_source_gain_query(struct audio_plugin* plugin, u32 source_index, f32* out_gain) {
+    if (plugin && out_gain && source_index <= plugin->internal_state->config.max_sources) {
+        *out_gain = plugin->internal_state->sources[source_index].gain;
         return true;
     }
 
-    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_id);
+    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_index);
     return false;
 }
 
-b8 oal_plugin_source_gain_set(struct audio_plugin* plugin, u32 source_id, f32 gain) {
-    if (plugin && source_id <= plugin->internal_state->config.max_sources) {
-        audio_plugin_source* source = &plugin->internal_state->sources[source_id - 1];
+b8 oal_plugin_source_gain_set(struct audio_plugin* plugin, u32 source_index, f32 gain) {
+    if (plugin && source_index <= plugin->internal_state->config.max_sources) {
+        audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->gain = gain;
         alSourcef(source->id, AL_GAIN, gain);
         return oal_plugin_check_error();
     }
 
-    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_id);
+    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_index);
     return false;
 }
 
-b8 oal_plugin_source_pitch_query(struct audio_plugin* plugin, u32 source_id, f32* out_pitch) {
-    if (plugin && out_pitch && source_id <= plugin->internal_state->config.max_sources) {
-        *out_pitch = plugin->internal_state->sources[source_id - 1].pitch;
+b8 oal_plugin_source_pitch_query(struct audio_plugin* plugin, u32 source_index, f32* out_pitch) {
+    if (plugin && out_pitch && source_index <= plugin->internal_state->config.max_sources) {
+        *out_pitch = plugin->internal_state->sources[source_index].pitch;
         return true;
     }
 
-    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_id);
+    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_index);
     return false;
 }
 
-b8 oal_plugin_source_pitch_set(struct audio_plugin* plugin, u32 source_id, f32 pitch) {
-    if (plugin && source_id <= plugin->internal_state->config.max_sources) {
-        audio_plugin_source* source = &plugin->internal_state->sources[source_id - 1];
+b8 oal_plugin_source_pitch_set(struct audio_plugin* plugin, u32 source_index, f32 pitch) {
+    if (plugin && source_index <= plugin->internal_state->config.max_sources) {
+        audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->pitch = pitch;
         alSourcef(source->id, AL_PITCH, pitch);
         return oal_plugin_check_error();
     }
 
-    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_id);
+    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_index);
     return false;
 }
 
-b8 oal_plugin_source_position_query(struct audio_plugin* plugin, u32 source_id, vec3* out_position) {
-    if (plugin && out_position && source_id <= plugin->internal_state->config.max_sources) {
-        *out_position = plugin->internal_state->sources[source_id - 1].position;
+b8 oal_plugin_source_position_query(struct audio_plugin* plugin, u32 source_index, vec3* out_position) {
+    if (plugin && out_position && source_index <= plugin->internal_state->config.max_sources) {
+        *out_position = plugin->internal_state->sources[source_index].position;
         return true;
     }
 
-    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_id);
+    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_index);
     return false;
 }
 
-b8 oal_plugin_source_position_set(struct audio_plugin* plugin, u32 source_id, vec3 position) {
-    if (plugin && source_id <= plugin->internal_state->config.max_sources) {
-        audio_plugin_source* source = &plugin->internal_state->sources[source_id - 1];
+b8 oal_plugin_source_position_set(struct audio_plugin* plugin, u32 source_index, vec3 position) {
+    if (plugin && source_index <= plugin->internal_state->config.max_sources) {
+        audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->position = position;
         alSource3f(source->id, AL_POSITION, position.x, position.y, position.z);
         return oal_plugin_check_error();
     }
 
-    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_id);
+    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_index);
     return false;
 }
 
-b8 oal_plugin_source_looping_query(struct audio_plugin* plugin, u32 source_id, b8* out_looping) {
-    if (plugin && out_looping && source_id <= plugin->internal_state->config.max_sources) {
-        *out_looping = plugin->internal_state->sources[source_id - 1].looping;
+b8 oal_plugin_source_looping_query(struct audio_plugin* plugin, u32 source_index, b8* out_looping) {
+    if (plugin && out_looping && source_index <= plugin->internal_state->config.max_sources) {
+        *out_looping = plugin->internal_state->sources[source_index].looping;
         return true;
     }
 
-    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_id);
+    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_index);
     return false;
 }
 
-b8 oal_plugin_source_looping_set(struct audio_plugin* plugin, u32 source_id, b8 looping) {
-    if (plugin && source_id <= plugin->internal_state->config.max_sources) {
-        audio_plugin_source* source = &plugin->internal_state->sources[source_id - 1];
+b8 oal_plugin_source_looping_set(struct audio_plugin* plugin, u32 source_index, b8 looping) {
+    if (plugin && source_index <= plugin->internal_state->config.max_sources) {
+        audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->looping = looping;
         alSourcei(source->id, AL_LOOPING, looping ? AL_TRUE : AL_FALSE);
         return oal_plugin_check_error();
     }
 
-    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_id);
+    KERROR("Plugin pointer invalid or source id is invalid: %u.", source_index);
     return false;
 }
 
@@ -1381,6 +1382,237 @@ b8 oal_plugin_stop_emitter(struct audio_plugin* plugin, struct audio_emitter* em
     } else {
         KERROR("Unable to stop emitter with no sound or music.");
         return false;
+    }
+
+    return true;
+}
+
+typedef struct source_play_job_params {
+    struct audio_plugin* plugin;
+    audio_plugin_source* source;
+} source_play_job_params;
+
+// Source play function run by spun-up thread.
+static u32 oal_plugin_source_play_thread_entry(void* params) {
+    source_play_job_params* play_params = (source_play_job_params*)params;
+
+    audio_plugin_source* source = play_params->source;
+
+    // Release this right away since it's no longer needed.
+    kfree(play_params, sizeof(source_play_job_params), MEMORY_TAG_AUDIO);
+
+    alSourcePlay(source->id);
+    if (oal_plugin_check_error()) {
+        // Spin until the source is done playing.
+        // NOTE: This means that audio files that loop hold a thread for the entirety of the loop.
+        ALint source_state;
+        alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
+        while (source_state == AL_PLAYING || source_state == AL_PAUSED) {
+            // Query the source again, then wait a bit before looping.
+            alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
+            platform_sleep(2);
+        }
+        KTRACE("Playing complete by source index: %u.", source->id - 1);  // 1-indexed source ids.
+        // Mark this as available again.
+
+        return true;
+    }
+
+    return false;
+}
+
+typedef struct source_play_music_job_params {
+    struct audio_plugin* plugin;
+    audio_plugin_source* source;
+    audio_music* music;
+} source_play_music_job_params;
+
+static u32 oal_plugin_music_source_play_thread_entry(void* params) {
+    source_play_music_job_params* play_params = params;
+
+    b8 result = true;
+
+    audio_music* music = play_params->music;
+    music_file* file = &music->file;
+    audio_plugin_source* source = play_params->source;
+    audio_plugin* plugin = play_params->plugin;
+
+    // Release this right away since it's no longer needed.
+    kfree(play_params, sizeof(source_play_music_job_params), MEMORY_TAG_AUDIO);
+
+    // Load data into all buffers initially.
+    for (u32 i = 0; i < OAL_PLUGIN_MUSIC_BUFFER_COUNT; ++i) {
+        if (!oal_plugin_stream_music_data(plugin, file->internal_data->buffers[i], file)) {
+            KERROR("Failed to stream data to buffer &u in music file. File load failed.", i);
+            result = false;
+            break;
+        }
+    }
+
+    if (result) {
+        // Line up the buffers to be played.
+        alSourceQueueBuffers(source->id, OAL_PLUGIN_MUSIC_BUFFER_COUNT, file->internal_data->buffers);
+        if (oal_plugin_check_error()) {
+            alSourcePlay(source->id);
+
+            // Spin until the source is done playing.
+            // NOTE: This means that audio files that loop hold a thread for the entirety of the loop.
+            while (true) {
+                if (!file->internal_data || !source) {
+                    break;
+                }
+                if (music->trigger_stop) {
+                    alSourceStop(source->id);
+                    // Make sure to turn the stop flag back off.
+                    music->trigger_stop = false;
+                    break;
+                }
+
+                // Also try updating the stream.
+                oal_plugin_stream_update(plugin, file, source);
+                platform_sleep(2);
+            }
+            KTRACE("Sound playing complete.");
+        } else {
+            result = false;
+        }
+    }
+
+    return result;
+}
+
+b8 oal_plugin_source_play(struct audio_plugin* plugin, i8 source_index) {
+    if (!plugin || source_index < 0) {
+        return false;
+    }
+
+    audio_plugin_source* source = &plugin->internal_state->sources[source_index];
+    source->in_use = true;
+
+    // Spin this off to a job.
+    //
+    source_play_job_params* params = kallocate(sizeof(source_play_job_params), MEMORY_TAG_AUDIO);
+    params->plugin = plugin;
+    params->source = source;
+
+    // Manually create a new thread instead of taking a job thread.
+    kthread play_thread;
+    kthread_create(oal_plugin_source_play_thread_entry, params, true, &play_thread);
+
+    /* job_info job = job_create(oal_plugin_source_play_job_entry, oal_plugin_source_play_job_success, oal_plugin_source_play_job_fail, &params, sizeof(source_play_job_params), 0);
+    job_system_submit(job); */
+
+    return true;
+}
+
+b8 oal_plugin_sound_play_on_source(struct audio_plugin* plugin, struct audio_sound* sound, i8 source_index, b8 loop) {
+    if (!plugin || !sound || source_index < 0) {
+        return false;
+    }
+
+    // Assign the sound's buffer to the source.
+    audio_plugin_source* source = &plugin->internal_state->sources[source_index];
+    alSourceQueueBuffers(source->id, 1, &sound->file.internal_data->buffer);
+
+    // Kick off playing of the source.
+    return oal_plugin_source_play(plugin, source_index);
+}
+b8 oal_plugin_music_play_on_source(struct audio_plugin* plugin, struct audio_music* music, i8 source_index, b8 loop) {
+    if (!plugin || !music || source_index < 0) {
+        return false;
+    }
+
+    // Assign the music's buffers to the source.
+    audio_plugin_source* source = &plugin->internal_state->sources[source_index];
+    alSourceQueueBuffers(source->id, OAL_PLUGIN_MUSIC_BUFFER_COUNT, music->file.internal_data->buffers);
+
+    source->in_use = true;
+
+    // Spin this off to a job.
+    //
+    source_play_music_job_params* params = kallocate(sizeof(source_play_music_job_params), MEMORY_TAG_AUDIO);
+    params->plugin = plugin;
+    params->source = source;
+    params->music = music;
+
+    // Manually create a new thread instead of taking a job thread.
+    kthread play_thread;
+    kthread_create(oal_plugin_music_source_play_thread_entry, params, true, &play_thread);
+
+    return true;
+}
+
+b8 oal_plugin_source_stop(struct audio_plugin* plugin, i8 source_index) {
+    if (!plugin || source_index < 0) {
+        return false;
+    }
+
+    audio_plugin_source* source = &plugin->internal_state->sources[source_index];
+
+    // Stop/reset if the source is currently playing or paused.
+    ALint source_state;
+    alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
+    if (source_state == AL_PAUSED || source_state == AL_PLAYING) {
+        alSourceStop(source->id);
+
+        // Detach all buffers.
+        alSourcei(source->id, AL_BUFFER, 0);
+        oal_plugin_check_error();
+
+        // Clear any queued buffers.
+        ALint queued_buffer_count;
+        alGetSourcei(source->id, AL_BUFFERS_QUEUED, &queued_buffer_count);
+        if (queued_buffer_count > 0) {
+            KTRACE("Clearing %u queued buffers.", queued_buffer_count);
+            ALuint* unqueued_buffers = alloca(sizeof(ALuint) * queued_buffer_count);
+            alSourceUnqueueBuffers(source->id, queued_buffer_count, unqueued_buffers);
+            oal_plugin_check_error();
+        }
+
+        // Clear any processed buffers.
+        ALint processed_buffer_count;
+        alGetSourcei(source->id, AL_BUFFERS_PROCESSED, &processed_buffer_count);
+        if (processed_buffer_count > 0) {
+            KTRACE("Clearing %u processed buffers.", processed_buffer_count);
+            ALuint* unqueued_buffers = alloca(sizeof(ALuint) * queued_buffer_count);
+            alSourceUnqueueBuffers(source->id, processed_buffer_count, unqueued_buffers);
+            oal_plugin_check_error();
+        }
+
+        // Rewind.
+        alSourceRewind(source->id);
+    }
+
+    source->in_use = false;
+
+    return true;
+}
+b8 oal_plugin_source_pause(struct audio_plugin* plugin, i8 source_index) {
+    if (!plugin || source_index < 0) {
+        return false;
+    }
+
+    // Trigger a pause if the source is currently playing.
+    audio_plugin_source* source = &plugin->internal_state->sources[source_index];
+    ALint source_state;
+    alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
+    if (source_state == AL_PLAYING) {
+        alSourcePause(source->id);
+    }
+
+    return true;
+}
+b8 oal_plugin_source_resume(struct audio_plugin* plugin, i8 source_index) {
+    if (!plugin || source_index < 0) {
+        return false;
+    }
+
+    // Trigger a resume if the source is currently paused.
+    audio_plugin_source* source = &plugin->internal_state->sources[source_index];
+    ALint source_state;
+    alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
+    if (source_state == AL_PAUSED) {
+        alSourcePlay(source->id);
     }
 
     return true;

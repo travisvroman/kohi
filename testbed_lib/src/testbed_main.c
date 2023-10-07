@@ -190,18 +190,20 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
             channel_id++;
             channel_id = channel_id % 5;
             KTRACE("Playing sound on channel %u", channel_id);
-            audio_system_channel_play(channel_id, state->test_audio_file, false);
+            audio_system_channel_sound_play(channel_id, state->test_audio_file, false);
         }
     } else if (code == EVENT_CODE_DEBUG4) {
         if (state->test_loop_audio_file) {
             static b8 playing = true;
             playing = !playing;
             if (playing) {
-                if (!audio_system_emitter_play(1.0f, &state->test_emitter)) {
+                // Play on channel 6
+                if (!audio_system_channel_emitter_play(6, &state->test_emitter)) {
                     KERROR("Failed to play test emitter.");
                 }
             } else {
-                audio_system_emitter_stop(&state->test_emitter);
+                // Stop channel 6.
+                audio_system_channel_stop(6);
             }
         }
     }
@@ -622,16 +624,16 @@ b8 application_initialize(struct application* game_inst) {
 
     // Set some channel volumes.
     audio_system_channel_volume_set(0, 1.0f);
-    audio_system_channel_volume_set(1, 0.75f);
+    /* audio_system_channel_volume_set(1, 0.75f);
     audio_system_channel_volume_set(2, 0.50f);
     audio_system_channel_volume_set(3, 0.25);
-    audio_system_channel_volume_set(4, 0.0f);
+    audio_system_channel_volume_set(4, 0.0f); */
 
     // Try playing the emitter.
-    if (!audio_system_emitter_play(1.0f, &state->test_emitter)) {
+    if (!audio_system_channel_emitter_play(6, &state->test_emitter)) {
         KERROR("Failed to play test emitter.");
     }
-    audio_system_channel_play_music(2, state->test_music, true);
+    audio_system_channel_music_play(7, state->test_music, true);
 
     state->running = true;
 
@@ -677,7 +679,6 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
 
             // Make the audio emitter follow it.
             state->test_emitter.position = vec3_from_vec4(state->p_light_1->data.position);
-            audio_system_emitter_update(0, &state->test_emitter);
         }
     }
 

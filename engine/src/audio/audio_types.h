@@ -109,10 +109,18 @@ typedef struct audio_plugin {
     void (*sound_close)(struct audio_plugin* plugin, struct audio_sound* sound);
     void (*music_close)(struct audio_plugin* plugin, struct audio_music* music);
 
-    b8 (*play_sound_with_volume)(struct audio_plugin* plugin, struct audio_sound* sound, f32 volume, b8 loop);
-    b8 (*play_music_with_volume)(struct audio_plugin* plugin, struct audio_music* music, f32 volume, b8 loop);
-    b8 (*play_emitter)(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
+    /* b8 (*play_sound_with_volume)(struct audio_plugin* plugin, struct audio_sound* sound, f32 volume, b8 loop);
+    b8 (*play_music_with_volume)(struct audio_plugin* plugin, struct audio_music* music, f32 volume, b8 loop); */
+    /* b8 (*play_emitter)(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
     b8 (*update_emitter)(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
-    b8 (*stop_emitter)(struct audio_plugin* plugin, struct audio_emitter* emitter);
+    b8 (*stop_emitter)(struct audio_plugin* plugin, struct audio_emitter* emitter); */
+
+    b8 (*source_play)(struct audio_plugin* plugin, i8 source_index);
+    b8 (*sound_play_on_source)(struct audio_plugin* plugin, struct audio_sound* sound, i8 source_index, b8 loop);
+    b8 (*music_play_on_source)(struct audio_plugin* plugin, struct audio_music* music, i8 source_index, b8 loop);
+
+    b8 (*source_stop)(struct audio_plugin* plugin, i8 source_index);
+    b8 (*source_pause)(struct audio_plugin* plugin, i8 source_index);
+    b8 (*source_resume)(struct audio_plugin* plugin, i8 source_index);
 
 } audio_plugin;
