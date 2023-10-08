@@ -1,6 +1,7 @@
 #include "oal_plugin.h"
 
 #include <alloca.h>
+#include <core/kmutex.h>
 #include <core/kthread.h>
 #include <math/kmath.h>
 #include <platform/platform.h>
@@ -37,6 +38,15 @@ typedef struct audio_plugin_source {
     b8 looping;
     // Indicates if this souce is in use.
     b8 in_use;
+
+    // Worker thread for this source.
+    kthread thread;
+
+    kmutex data_mutex;  // everything from here down should be accessed/changed during lock.
+    struct audio_sound* current_sound;
+    struct audio_music* current_music;
+    b8 trigger_play;
+    b8 trigger_exit;
 } audio_plugin_source;
 
 // Internal audio file data. This is for sound effects.
@@ -130,23 +140,247 @@ typedef struct audio_plugin_state {
 
     // Queues for when there are no sources currently available for playback. All are darrays.
 
-    // Queued sounds. darray.
-    sound_queue_entry* queued_sounds;
-    // Queued music. darray.
-    music_queue_entry* queued_music;
-    // Queued emitters. darray.
-    emitter_queue_entry* queued_emitters;
-
     // MP3 decoder;
     mp3dec_t decoder;
 
 } audio_plugin_state;
+
+typedef struct audio_music {
+    music_file file;
+    b8 trigger_stop;
+} audio_music;
+
+typedef struct audio_sound {
+    audio_file file;
+    b8 trigger_stop;
+} audio_sound;
 
 static b8 oal_plugin_check_error();
 static b8 oal_plugin_source_create(struct audio_plugin* plugin, audio_plugin_source* out_source);
 static void oal_plugin_source_destroy(struct audio_plugin* plugin, audio_plugin_source* source);
 static u32 oal_plugin_find_free_buffer(struct audio_plugin* plugin);
 
+// HACK: This should be in a file loader and streamed, but the file system doesn't yet support this...
+static b8 oal_plugin_stream_music_data(audio_plugin* plugin, ALuint buffer, music_file* file) {
+    if (!plugin || !file) {
+        return false;
+    }
+
+    // Figure out how many samples can be taken.
+    u64 size = 0;
+    if (file->internal_data->vorbis) {
+        i64 samples = stb_vorbis_get_samples_short_interleaved(file->internal_data->vorbis, file->internal_data->channels, file->internal_data->pcm + size, plugin->internal_state->config.chunk_size - size);
+        // Sample here does not include channels, so factor them in.
+        size = samples * file->internal_data->channels;
+    } else if (file->internal_data->mp3_info.buffer) {
+        // samples count includes channels.
+        size = KMIN(file->total_samples_left, plugin->internal_state->config.chunk_size);
+    }
+
+    // 0 means the end of the file has been reached, and either the stream stops or needs to start over.
+    if (size == 0) {
+        return false;
+    }
+
+    // Load the data into the buffer.
+    if (file->internal_data->vorbis) {
+        alBufferData(buffer, file->internal_data->format, file->internal_data->pcm, size * sizeof(ALshort), file->internal_data->sample_rate);
+        oal_plugin_check_error();
+    } else if (file->internal_data->mp3_info.buffer) {
+        u64 pos = file->internal_data->mp3_info.samples - file->total_samples_left;
+        alBufferData(buffer, file->internal_data->format, file->internal_data->mp3_info.buffer + pos, size * sizeof(ALshort), file->internal_data->sample_rate);
+        oal_plugin_check_error();
+    }
+
+    // Update the samples remaining.
+    file->total_samples_left -= size;
+
+    return true;
+}
+static b8 oal_plugin_stream_update(audio_plugin* plugin, music_file* file, audio_plugin_source* source) {
+    if (!plugin || !file) {
+        return false;
+    }
+
+    // It's possible sometimes for this to not be playing, even with buffers queued up.
+    // Make sure to handle this case.
+    ALint source_state;
+    alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
+    if (source_state != AL_PLAYING) {
+        alSourcePlay(source->id);
+    }
+
+    // Check for processed buffers that can be popped off.
+    ALint processed_buffer_count = 0;
+    alGetSourcei(source->id, AL_BUFFERS_PROCESSED, &processed_buffer_count);
+
+    while (processed_buffer_count--) {
+        ALuint buffer_id = 0;
+        alSourceUnqueueBuffers(source->id, 1, &buffer_id);
+
+        // If this returns false, there was nothing further to read (i.e at the end of the file).
+        if (!oal_plugin_stream_music_data(plugin, buffer_id, file)) {
+            b8 done = true;
+
+            // If set to loop, start over at the beginning.
+            if (file->internal_data->is_looping) {
+                if (file->internal_data->vorbis) {
+                    // Loop around.
+                    stb_vorbis_seek_start(file->internal_data->vorbis);
+
+                    // Reset sample counter.
+                    file->total_samples_left = stb_vorbis_stream_length_in_samples(file->internal_data->vorbis) * file->internal_data->channels;
+                } else if (file->internal_data->mp3_info.samples) {
+                    // Reset sample counter.
+                    file->total_samples_left = file->internal_data->mp3_info.samples;
+                }
+                done = !oal_plugin_stream_music_data(plugin, buffer_id, file);
+            }
+
+            // If not set to loop, the sound is done playing.
+            if (done) {
+                return false;
+            }
+        }
+        // Queue up the next buffer.
+        alSourceQueueBuffers(source->id, 1, &buffer_id);
+    }
+
+    return true;
+}
+typedef struct source_work_thread_params {
+    struct audio_plugin* plugin;
+    audio_plugin_source* source;
+} source_work_thread_params;
+
+static u32 source_work_thread(void* params) {
+    source_work_thread_params* typed_params = params;
+    audio_plugin* plugin = typed_params->plugin;
+    audio_plugin_source* source = typed_params->source;
+
+    // Release this right away since it's no longer needed.
+    kfree(params, sizeof(source_work_thread_params), MEMORY_TAG_AUDIO);
+
+    KDEBUG("Audio source thread starting...");
+
+    b8 do_break = false;
+    while (!do_break) {
+        kmutex_lock(&source->data_mutex);
+        if (source->trigger_exit) {
+            do_break = true;
+        }
+        if (source->trigger_play) {
+            alSourcePlay(source->id);
+            source->trigger_play = false;
+        }
+        kmutex_unlock(&source->data_mutex);
+
+        if (source->current_music) {
+            // If currently playing music, try updating the stream.
+            oal_plugin_stream_update(plugin, &source->current_music->file, source);
+        }
+
+        platform_sleep(2);
+    }
+
+    KDEBUG("Audio source thread shutting down.");
+    return 0;
+}
+
+/* typedef struct source_play_job_params {
+    struct audio_plugin* plugin;
+    audio_plugin_source* source;
+} source_play_job_params;
+
+// Source play function run by spun-up thread.
+static u32 oal_plugin_source_play_thread_entry(void* params) {
+    source_play_job_params* play_params = (source_play_job_params*)params;
+
+    audio_plugin_source* source = play_params->source;
+
+    // Release this right away since it's no longer needed.
+    kfree(play_params, sizeof(source_play_job_params), MEMORY_TAG_AUDIO);
+
+    alSourcePlay(source->id);
+    if (oal_plugin_check_error()) {
+        // Spin until the source is done playing.
+        // NOTE: This means that audio files that loop hold a thread for the entirety of the loop.
+        ALint source_state;
+        alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
+        while (source_state == AL_PLAYING || source_state == AL_PAUSED) {
+            // Query the source again, then wait a bit before looping.
+            alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
+            platform_sleep(2);
+        }
+        KTRACE("Playing complete by source index: %u.", source->id - 1);  // 1-indexed source ids.
+        // Mark this as available again.
+
+        return true;
+    }
+
+    return false;
+} */
+
+/* typedef struct source_play_music_job_params {
+    struct audio_plugin* plugin;
+    audio_plugin_source* source;
+    audio_music* music;
+} source_play_music_job_params;
+
+static u32 oal_plugin_music_source_play_thread_entry(void* params) {
+    source_play_music_job_params* play_params = params;
+
+    b8 result = true;
+
+    audio_music* music = play_params->music;
+    music_file* file = &music->file;
+    audio_plugin_source* source = play_params->source;
+    audio_plugin* plugin = play_params->plugin;
+
+    // Release this right away since it's no longer needed.
+    kfree(play_params, sizeof(source_play_music_job_params), MEMORY_TAG_AUDIO);
+
+    // Load data into all buffers initially.
+    for (u32 i = 0; i < OAL_PLUGIN_MUSIC_BUFFER_COUNT; ++i) {
+        if (!oal_plugin_stream_music_data(plugin, file->internal_data->buffers[i], file)) {
+            KERROR("Failed to stream data to buffer &u in music file. File load failed.", i);
+            result = false;
+            break;
+        }
+    }
+
+    if (result) {
+        // Line up the buffers to be played.
+        alSourceQueueBuffers(source->id, OAL_PLUGIN_MUSIC_BUFFER_COUNT, file->internal_data->buffers);
+        if (oal_plugin_check_error()) {
+            alSourcePlay(source->id);
+
+            // Spin until the source is done playing.
+            // NOTE: This means that audio files that loop hold a thread for the entirety of the loop.
+            while (true) {
+                if (!file->internal_data || !source) {
+                    break;
+                }
+                if (music->trigger_stop) {
+                    alSourceStop(source->id);
+                    // Make sure to turn the stop flag back off.
+                    music->trigger_stop = false;
+                    break;
+                }
+
+                // Also try updating the stream.
+                oal_plugin_stream_update(plugin, file, source);
+                platform_sleep(2);
+            }
+            KTRACE("Sound playing complete.");
+        } else {
+            result = false;
+        }
+    }
+
+    return result;
+}
+*/
 b8 oal_plugin_initialize(struct audio_plugin* plugin, audio_plugin_config config) {
     if (plugin) {
         plugin->internal_state = kallocate(sizeof(audio_plugin_state), MEMORY_TAG_AUDIO);
@@ -206,11 +440,6 @@ b8 oal_plugin_initialize(struct audio_plugin* plugin, audio_plugin_config config
         alGenBuffers(plugin->internal_state->buffer_count, plugin->internal_state->buffers);
         oal_plugin_check_error();
 
-        // Create queues.
-        plugin->internal_state->queued_sounds = darray_create(sound_queue_entry);
-        plugin->internal_state->queued_music = darray_create(music_queue_entry);
-        plugin->internal_state->queued_emitters = darray_create(emitter_queue_entry);
-
         // Initialize mp3 decoder
         mp3dec_init(&plugin->internal_state->decoder);
 
@@ -262,40 +491,6 @@ b8 oal_plugin_update(struct audio_plugin* plugin, struct frame_data* p_frame_dat
         return false;
     }
 
-    // Evaluate queued sounds, music and emitters, in that order. A max of one each per frame will be started,
-    // provided the sources are available.
-    // Start with sounds.
-    if (source_available(plugin)) {
-        u32 queued_sound_count = darray_length(plugin->internal_state->queued_sounds);
-        if (queued_sound_count > 0) {
-            KDEBUG("Source is available to play queued sound. Attempting to play.");
-            sound_queue_entry entry;
-            darray_pop_at(plugin->internal_state->queued_sounds, 0, &entry);
-            oal_plugin_play_sound_with_volume(plugin, entry.sound, entry.volume, entry.loop);
-        }
-    }
-
-    // Music.
-    if (source_available(plugin)) {
-        u32 queued_music_count = darray_length(plugin->internal_state->queued_music);
-        if (queued_music_count > 0) {
-            KDEBUG("Source is available to play queued music. Attempting to play.");
-            music_queue_entry entry;
-            darray_pop_at(plugin->internal_state->queued_music, 0, &entry);
-            oal_plugin_play_music_with_volume(plugin, entry.music, entry.volume, entry.loop);
-        }
-    }
-
-    // Emitter.
-    if (source_available(plugin)) {
-        u32 queued_emitter_count = darray_length(plugin->internal_state->queued_emitters);
-        if (queued_emitter_count > 0) {
-            KDEBUG("Source is available to play queued emitter. Attempting to play.");
-            emitter_queue_entry entry;
-            darray_pop_at(plugin->internal_state->queued_emitters, 0, &entry);
-            oal_plugin_play_emitter(plugin, entry.master_volume, entry.emitter);
-        }
-    }
     return true;
 }
 
@@ -388,6 +583,15 @@ static b8 oal_plugin_source_create(struct audio_plugin* plugin, audio_plugin_sou
     if (!source_set_defaults(plugin, out_source, true)) {
         KERROR("Failed to set source defaults, and thus failed to create source.");
     }
+
+    // Create the source worker thread's mutex.
+    kmutex_create(&out_source->data_mutex);
+
+    // Also create the worker thread itself for this source.
+    source_work_thread_params* params = kallocate(sizeof(source_work_thread_params), MEMORY_TAG_AUDIO);
+    params->source = out_source;
+    params->plugin = plugin;
+    kthread_create(source_work_thread, params, true, &out_source->thread);
 
     return true;
 }
@@ -681,97 +885,6 @@ static b8 oal_plugin_check_error() {
     return true;
 }
 
-// HACK: This should be in a file loader and streamed, but the file system doesn't yet support this...
-
-static b8 oal_plugin_stream_music_data(audio_plugin* plugin, ALuint buffer, music_file* file) {
-    if (!plugin || !file) {
-        return false;
-    }
-
-    // Figure out how many samples can be taken.
-    u64 size = 0;
-    if (file->internal_data->vorbis) {
-        i64 samples = stb_vorbis_get_samples_short_interleaved(file->internal_data->vorbis, file->internal_data->channels, file->internal_data->pcm + size, plugin->internal_state->config.chunk_size - size);
-        // Sample here does not include channels, so factor them in.
-        size = samples * file->internal_data->channels;
-    } else if (file->internal_data->mp3_info.buffer) {
-        // samples count includes channels.
-        size = KMIN(file->total_samples_left, plugin->internal_state->config.chunk_size);
-    }
-
-    // 0 means the end of the file has been reached, and either the stream stops or needs to start over.
-    if (size == 0) {
-        return false;
-    }
-
-    // Load the data into the buffer.
-    if (file->internal_data->vorbis) {
-        alBufferData(buffer, file->internal_data->format, file->internal_data->pcm, size * sizeof(ALshort), file->internal_data->sample_rate);
-        oal_plugin_check_error();
-    } else if (file->internal_data->mp3_info.buffer) {
-        u64 pos = file->internal_data->mp3_info.samples - file->total_samples_left;
-        alBufferData(buffer, file->internal_data->format, file->internal_data->mp3_info.buffer + pos, size * sizeof(ALshort), file->internal_data->sample_rate);
-        oal_plugin_check_error();
-    }
-
-    // Update the samples remaining.
-    file->total_samples_left -= size;
-
-    return true;
-}
-
-static b8 oal_plugin_stream_update(audio_plugin* plugin, music_file* file, audio_plugin_source* source) {
-    if (!plugin || !file) {
-        return false;
-    }
-
-    // It's possible sometimes for this to not be playing, even with buffers queued up.
-    // Make sure to handle this case.
-    ALint source_state;
-    alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
-    if (source_state != AL_PLAYING) {
-        alSourcePlay(source->id);
-    }
-
-    // Check for processed buffers that can be popped off.
-    ALint processed_buffer_count = 0;
-    alGetSourcei(source->id, AL_BUFFERS_PROCESSED, &processed_buffer_count);
-
-    while (processed_buffer_count--) {
-        ALuint buffer_id = 0;
-        alSourceUnqueueBuffers(source->id, 1, &buffer_id);
-
-        // If this returns false, there was nothing further to read (i.e at the end of the file).
-        if (!oal_plugin_stream_music_data(plugin, buffer_id, file)) {
-            b8 done = true;
-
-            // If set to loop, start over at the beginning.
-            if (file->internal_data->is_looping) {
-                if (file->internal_data->vorbis) {
-                    // Loop around.
-                    stb_vorbis_seek_start(file->internal_data->vorbis);
-
-                    // Reset sample counter.
-                    file->total_samples_left = stb_vorbis_stream_length_in_samples(file->internal_data->vorbis) * file->internal_data->channels;
-                } else if (file->internal_data->mp3_info.samples) {
-                    // Reset sample counter.
-                    file->total_samples_left = file->internal_data->mp3_info.samples;
-                }
-                done = !oal_plugin_stream_music_data(plugin, buffer_id, file);
-            }
-
-            // If not set to loop, the sound is done playing.
-            if (done) {
-                return false;
-            }
-        }
-        // Queue up the next buffer.
-        alSourceQueueBuffers(source->id, 1, &buffer_id);
-    }
-
-    return true;
-}
-
 static b8 oal_plugin_open_music_file(audio_plugin* plugin, const char* path, music_file* out_file) {
     if (!plugin || !path || !out_file) {
         KERROR("oal_plugin_open_music_file requires valid pointers to plugin, path and out_file");
@@ -933,219 +1046,6 @@ static b8 oal_plugin_open_sound_file(audio_plugin* plugin, const char* path, aud
     return true;
 }
 
-static void oal_plugin_close_audio_file(audio_plugin* plugin, audio_file* file) {
-    if (!plugin || !file) {
-        KERROR("oal_plugin_close_audio_file requires valid pointers to plugin and file");
-        return;
-    }
-
-    if (file->internal_data) {
-        if (file->internal_data->vorbis) {
-            stb_vorbis_close(file->internal_data->vorbis);
-            file->internal_data->vorbis = 0;
-        } else if (file->internal_data->mp3_info.buffer) {
-            // TODO: dispose of mp3 data.
-        }
-        kfree(file->internal_data, sizeof(audio_file_internal), MEMORY_TAG_AUDIO);
-        file->internal_data = 0;
-    }
-
-    if (file->file_path) {
-        string_free(file->file_path);
-        file->file_path = 0;
-    }
-
-    kzero_memory(file, sizeof(audio_file));
-}
-
-static void oal_plugin_close_music_file(audio_plugin* plugin, music_file* file) {
-    if (!plugin || !file) {
-        KERROR("oal_plugin_close_music_file requires valid pointers to plugin and file");
-        return;
-    }
-
-    if (file->internal_data) {
-        if (file->internal_data->vorbis) {
-            stb_vorbis_close(file->internal_data->vorbis);
-            file->internal_data->vorbis = 0;
-
-            // Also free the internal pcm buffer.
-            if (file->internal_data->pcm) {
-                u64 buffer_length = plugin->internal_state->config.chunk_size * sizeof(ALshort);
-                kfree(file->internal_data->pcm, buffer_length, MEMORY_TAG_AUDIO);
-                file->internal_data->pcm = 0;
-            }
-        } else if (file->internal_data->mp3_info.buffer) {
-            // TODO: dispose of mp3 data.
-        }
-
-        kfree(file->internal_data, sizeof(audio_file_internal), MEMORY_TAG_AUDIO);
-        file->internal_data = 0;
-    }
-
-    if (file->file_path) {
-        string_free(file->file_path);
-        file->file_path = 0;
-    }
-
-    kzero_memory(file, sizeof(audio_file));
-}
-
-typedef struct audio_music {
-    music_file file;
-    b8 trigger_stop;
-} audio_music;
-
-typedef struct play_music_job_params {
-    struct audio_plugin* plugin;
-    audio_music* music;
-    audio_plugin_source* source;
-} play_music_job_params;
-
-static void oal_plugin_play_music_job_success(void* result_data) {
-    play_music_job_params* play_result = (play_music_job_params*)result_data;
-    KTRACE("Music played successfully.");
-    // Reset the source.
-    oal_plugin_source_reset(play_result->plugin, play_result->source, true);
-
-    // TODO: event or callback on done playing?
-}
-static void oal_plugin_play_music_job_fail(void* result_data) {
-    play_music_job_params* play_result = (play_music_job_params*)result_data;
-    KTRACE("Music failed to play.");
-    // Reset the source.
-    oal_plugin_source_reset(play_result->plugin, play_result->source, true);
-
-    // TODO: event or callback on done playing?
-}
-
-static b8 oal_plugin_play_music_job_entry(void* params, void* result_data) {
-    play_music_job_params* play_params = (play_music_job_params*)params;
-    play_music_job_params* play_result = (play_music_job_params*)result_data;
-
-    b8 result = true;
-
-    music_file* file = &play_params->music->file;
-    audio_plugin_source* source = play_params->source;
-
-    // Load data into all buffers initially.
-    for (u32 i = 0; i < OAL_PLUGIN_MUSIC_BUFFER_COUNT; ++i) {
-        if (!oal_plugin_stream_music_data(play_params->plugin, file->internal_data->buffers[i], file)) {
-            KERROR("Failed to stream data to buffer &u in music file. File load failed.", i);
-            result = false;
-            break;
-        }
-    }
-
-    if (result) {
-        // Line up the buffers to be played.
-        alSourceQueueBuffers(source->id, OAL_PLUGIN_MUSIC_BUFFER_COUNT, file->internal_data->buffers);
-        if (oal_plugin_check_error()) {
-            alSourcePlay(source->id);
-
-            // Spin until the source is done playing.
-            // NOTE: This means that audio files that loop hold a thread for the entirety of the loop.
-            while (true) {
-                if (!file->internal_data || !source) {
-                    break;
-                }
-                if (play_params->music->trigger_stop) {
-                    alSourceStop(source->id);
-                    // Make sure to turn the stop flag back off.
-                    play_params->music->trigger_stop = false;
-                    break;
-                }
-
-                // Also try updating the stream.
-                oal_plugin_stream_update(play_params->plugin, file, source);
-                platform_sleep(2);
-            }
-            KTRACE("Sound playing complete.");
-        } else {
-            result = false;
-        }
-    }
-
-    // Copy over the params data to the result data.
-    play_result->source = source;
-    play_result->plugin = play_params->plugin;
-    play_result->music = play_params->music;
-    return result;
-}
-
-typedef struct audio_sound {
-    audio_file file;
-    b8 trigger_stop;
-} audio_sound;
-
-typedef struct play_sound_job_params {
-    struct audio_plugin* plugin;
-    audio_sound* sound;
-    audio_plugin_source* source;
-} play_sound_job_params;
-
-static void oal_plugin_play_sound_job_success(void* result_data) {
-    play_sound_job_params* play_result = (play_sound_job_params*)result_data;
-    KTRACE("Sound played successfully.");
-    // Reset the source.
-    oal_plugin_source_reset(play_result->plugin, play_result->source, true);
-
-    // TODO: event or callback on done playing?
-}
-static void oal_plugin_play_sound_job_fail(void* result_data) {
-    play_sound_job_params* play_result = (play_sound_job_params*)result_data;
-    KTRACE("Sound failed to play.");
-    // Reset the source.
-    oal_plugin_source_reset(play_result->plugin, play_result->source, true);
-
-    // TODO: event or callback on done playing?
-}
-
-static b8 oal_plugin_play_sound_job_entry(void* params, void* result_data) {
-    play_sound_job_params* play_params = (play_sound_job_params*)params;
-    play_sound_job_params* play_result = (play_sound_job_params*)result_data;
-
-    b8 result = true;
-
-    audio_file* file = &play_params->sound->file;
-    audio_plugin_source* source = play_params->source;
-
-    // oal_plugin_source_reset(play_params->plugin, source, false);
-
-    alSourceQueueBuffers(source->id, 1, &file->internal_data->buffer);
-    if (oal_plugin_check_error()) {
-        alSourcePlay(source->id);
-
-        // Spin until the source is done playing.
-        // NOTE: This means that audio files that loop hold a thread for the entirety of the loop.
-        ALint source_state;
-        alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
-        while (source_state == AL_PLAYING) {
-            if (!file->internal_data || !source) {
-                break;
-            }
-            if (play_params->sound->trigger_stop) {
-                alSourceStop(source->id);
-                // Make sure to turn the stop flag back off.
-                play_params->sound->trigger_stop = false;
-                break;
-            }
-            alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
-            platform_sleep(2);
-        }
-
-        KTRACE("Sound playing complete, source index: %u.", source->id - 1);  // 1-indexed source ids.
-    } else {
-        result = false;
-    }
-
-    // Copy over the params data to the result data.
-    play_result->source = source;
-    play_result->plugin = play_params->plugin;
-    play_result->sound = play_params->sound;
-    return result;
-}
-
 struct audio_music* oal_plugin_load_music(struct audio_plugin* plugin, const char* path) {
     if (!plugin) {
         return 0;
@@ -1181,304 +1081,66 @@ struct audio_sound* oal_plugin_load_sound(struct audio_plugin* plugin, const cha
 }
 
 void oal_plugin_sound_close(struct audio_plugin* plugin, struct audio_sound* sound) {
-    if (plugin && sound) {
-        oal_plugin_close_audio_file(plugin, &sound->file);
-        clear_buffer(plugin, &sound->file.internal_data->buffer, 1);
+    if (!plugin || !sound) {
+        KERROR("oal_plugin_close_audio_file requires valid pointers to plugin and file");
+        return;
     }
+
+    clear_buffer(plugin, &sound->file.internal_data->buffer, 0);
+    audio_file* file = &sound->file;
+
+    if (file->internal_data) {
+        if (file->internal_data->vorbis) {
+            stb_vorbis_close(file->internal_data->vorbis);
+            file->internal_data->vorbis = 0;
+        } else if (file->internal_data->mp3_info.buffer) {
+            // TODO: dispose of mp3 data.
+        }
+        kfree(file->internal_data, sizeof(audio_file_internal), MEMORY_TAG_AUDIO);
+        file->internal_data = 0;
+    }
+
+    if (file->file_path) {
+        string_free(file->file_path);
+        file->file_path = 0;
+    }
+
+    kzero_memory(file, sizeof(audio_file));
 }
 void oal_plugin_music_close(struct audio_plugin* plugin, struct audio_music* music) {
-    if (plugin && music) {
-        oal_plugin_close_music_file(plugin, &music->file);
-        clear_buffer(plugin, music->file.internal_data->buffers, 2);
-    }
-}
-
-b8 oal_plugin_play_sound_with_volume(struct audio_plugin* plugin, struct audio_sound* sound, f32 volume, b8 loop) {
-    // NOTE: This needs to be done on the main thread to avoid having to synchronize.
-    audio_plugin_source* source = oal_plugin_find_free_source(plugin);
-    if (!source) {
-        KWARN("No free source could be found, adding to queue.");
-        sound_queue_entry entry;
-        entry.volume = volume;
-        entry.sound = sound;
-        entry.loop = loop;
-        darray_push(plugin->internal_state->queued_sounds, entry);
-        return true;
+    if (!plugin || !music) {
+        KERROR("oal_plugin_close_music_file requires valid pointers to plugin and file");
+        return;
     }
 
-    // Make sure the source is reset.
-    oal_plugin_source_reset(plugin, source, false);
-
-    // Spin this off to a job.
-    play_sound_job_params params = {0};
-    params.plugin = plugin;
-    params.sound = sound;
-    params.source = source;
-
-    // Set the volume.
-    oal_plugin_source_gain_set(plugin, source->id, volume);
-    // Effectively disable "3d" sound by placing the source at the same position as the listener.
-    oal_plugin_source_position_set(plugin, source->id, plugin->internal_state->listener_position);
-
-    oal_plugin_source_looping_set(plugin, source->id, loop);
-
-    job_info job = job_create(oal_plugin_play_sound_job_entry, oal_plugin_play_sound_job_success, oal_plugin_play_sound_job_fail, &params, sizeof(play_sound_job_params), sizeof(play_sound_job_params));
-    job_system_submit(job);
-
-    return true;
-}
-
-b8 oal_plugin_play_music_with_volume(struct audio_plugin* plugin, struct audio_music* music, f32 volume, b8 loop) {
-    // NOTE: This needs to be done on the main thread to avoid having to synchronize.
-    audio_plugin_source* source = oal_plugin_find_free_source(plugin);
-    if (!source) {
-        KWARN("No free source could be found, adding to queue.");
-        music_queue_entry entry;
-        entry.volume = volume;
-        entry.music = music;
-        entry.loop = loop;
-        darray_push(plugin->internal_state->queued_music, entry);
-        return true;
-    }
-
-    // Make sure the source is reset.
-    oal_plugin_source_reset(plugin, source, false);
-
-    // Spin this off to a job.
-    play_music_job_params params = {0};
-    params.plugin = plugin;
-    params.music = music;
-    params.source = source;
-
-    // Set looping for music.
-    params.music->file.internal_data->is_looping = loop;
-    // Ensure looping is _off_ on the source, as this is handled differently for streamed resources (i.e. music).
-    oal_plugin_source_looping_set(plugin, source->id, false);
-
-    job_info job = job_create(oal_plugin_play_music_job_entry, oal_plugin_play_music_job_success, oal_plugin_play_music_job_fail, &params, sizeof(play_sound_job_params), sizeof(play_sound_job_params));
-
-    // Set the volume.
-    if (!oal_plugin_source_gain_set(plugin, source->id, volume)) {
-        KERROR("Failed to set gain on source for music playback.");
-    }
-    // Effectively disable "3d" sound by placing the source at the same position as the listener.
-    if (!oal_plugin_source_position_set(plugin, source->id, plugin->internal_state->listener_position)) {
-        KERROR("Failed to set position on source for music playback.");
-    }
-
-    job_system_submit(job);
-
-    return true;
-}
-b8 oal_plugin_play_emitter(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter) {
-    if (!plugin || !emitter) {
-        return false;
-    }
-
-    if (!emitter->music && !emitter->sound) {
-        KERROR("Emitter must have music or sound assigned.");
-        return false;
-    }
-
-    if (emitter->music && emitter->sound) {
-        KERROR("Emitter cannot have both music and sound assigned.");
-        return false;
-    }
-
-    // Calculate the volume by multiplyingthe master volume against the emitter volume.
-    f32 volume = master_volume * emitter->volume;
-
-    // NOTE: This needs to be done on the main thread to avoid having to synchronize.
-    audio_plugin_source* source = oal_plugin_find_free_source(plugin);
-    if (!source) {
-        KWARN("No free source could be found, adding to queue.");
-        emitter_queue_entry entry;
-        entry.master_volume = master_volume;
-        entry.emitter = emitter;
-        darray_push(plugin->internal_state->queued_emitters, entry);
-        return true;
-    }
-
-    // Make sure the source is reset.
-    oal_plugin_source_reset(plugin, source, false);
-
-    // Spin this off to a job.
-    job_info job;
-    if (emitter->sound) {
-        play_sound_job_params params = {0};
-        params.plugin = plugin;
-        params.sound = emitter->sound;
-        params.source = source;
-
-        // Set looping. Note that looping for music is handled differently.
-        oal_plugin_source_looping_set(plugin, source->id, emitter->looping);
-
-        job = job_create(oal_plugin_play_sound_job_entry, oal_plugin_play_sound_job_success, oal_plugin_play_sound_job_fail, &params, sizeof(play_sound_job_params), sizeof(play_sound_job_params));
-    } else if (emitter->music) {
-        play_music_job_params params = {0};
-        params.plugin = plugin;
-        params.music = emitter->music;
-        params.source = source;
-
-        // Set looping for music.
-        emitter->music->file.internal_data->is_looping = emitter->looping;
-
-        job = job_create(oal_plugin_play_music_job_entry, oal_plugin_play_music_job_success, oal_plugin_play_music_job_fail, &params, sizeof(play_music_job_params), sizeof(play_sound_job_params));
-    } else {
-        KERROR("Cannot play emitter that has no sound or music.");
-        return false;
-    }
-
-    emitter->source_id = source->id;
-
-    // Set the volume.
-    oal_plugin_source_gain_set(plugin, source->id, volume);
-    // Set the position.
-    oal_plugin_source_position_set(plugin, source->id, emitter->position);
-
-    // Kick off the job.
-    job_system_submit(job);
-    return true;
-}
-
-b8 oal_plugin_update_emitter(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter) {
-    if (!plugin || !emitter) {
-        return false;
-    }
-
-    if (emitter->source_id != INVALID_ID && emitter->source_id > 0) {
-        // Calculate the volume by multiplying the master volume against the emitter volume.
-        f32 volume = master_volume * emitter->volume;
-
-        // Set the volume.
-        oal_plugin_source_gain_set(plugin, emitter->source_id, volume);
-        // Set the position.
-        oal_plugin_source_position_set(plugin, emitter->source_id, emitter->position);
-        // Set looping on source if sound.
-        if (emitter->sound) {
-            oal_plugin_source_looping_set(plugin, emitter->source_id, emitter->looping);
-        } else {
-            // Set looping for music.
-            emitter->music->file.internal_data->is_looping = emitter->looping;
-        }
-        return true;
-    }
-
-    return false;
-}
-
-b8 oal_plugin_stop_emitter(struct audio_plugin* plugin, struct audio_emitter* emitter) {
-    if (!plugin || !emitter) {
-        return false;
-    }
-
-    // Disassociate the source. A new one will be picked up on the next play.
-    emitter->source_id = INVALID_ID;
-
-    if (emitter->sound) {
-        emitter->sound->trigger_stop = true;
-    } else if (emitter->music) {
-        emitter->music->trigger_stop = true;
-    } else {
-        KERROR("Unable to stop emitter with no sound or music.");
-        return false;
-    }
-
-    return true;
-}
-
-typedef struct source_play_job_params {
-    struct audio_plugin* plugin;
-    audio_plugin_source* source;
-} source_play_job_params;
-
-// Source play function run by spun-up thread.
-static u32 oal_plugin_source_play_thread_entry(void* params) {
-    source_play_job_params* play_params = (source_play_job_params*)params;
-
-    audio_plugin_source* source = play_params->source;
-
-    // Release this right away since it's no longer needed.
-    kfree(play_params, sizeof(source_play_job_params), MEMORY_TAG_AUDIO);
-
-    alSourcePlay(source->id);
-    if (oal_plugin_check_error()) {
-        // Spin until the source is done playing.
-        // NOTE: This means that audio files that loop hold a thread for the entirety of the loop.
-        ALint source_state;
-        alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
-        while (source_state == AL_PLAYING || source_state == AL_PAUSED) {
-            // Query the source again, then wait a bit before looping.
-            alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
-            platform_sleep(2);
-        }
-        KTRACE("Playing complete by source index: %u.", source->id - 1);  // 1-indexed source ids.
-        // Mark this as available again.
-
-        return true;
-    }
-
-    return false;
-}
-
-typedef struct source_play_music_job_params {
-    struct audio_plugin* plugin;
-    audio_plugin_source* source;
-    audio_music* music;
-} source_play_music_job_params;
-
-static u32 oal_plugin_music_source_play_thread_entry(void* params) {
-    source_play_music_job_params* play_params = params;
-
-    b8 result = true;
-
-    audio_music* music = play_params->music;
+    clear_buffer(plugin, music->file.internal_data->buffers, 2);
     music_file* file = &music->file;
-    audio_plugin_source* source = play_params->source;
-    audio_plugin* plugin = play_params->plugin;
 
-    // Release this right away since it's no longer needed.
-    kfree(play_params, sizeof(source_play_music_job_params), MEMORY_TAG_AUDIO);
+    if (file->internal_data) {
+        if (file->internal_data->vorbis) {
+            stb_vorbis_close(file->internal_data->vorbis);
+            file->internal_data->vorbis = 0;
 
-    // Load data into all buffers initially.
-    for (u32 i = 0; i < OAL_PLUGIN_MUSIC_BUFFER_COUNT; ++i) {
-        if (!oal_plugin_stream_music_data(plugin, file->internal_data->buffers[i], file)) {
-            KERROR("Failed to stream data to buffer &u in music file. File load failed.", i);
-            result = false;
-            break;
-        }
-    }
-
-    if (result) {
-        // Line up the buffers to be played.
-        alSourceQueueBuffers(source->id, OAL_PLUGIN_MUSIC_BUFFER_COUNT, file->internal_data->buffers);
-        if (oal_plugin_check_error()) {
-            alSourcePlay(source->id);
-
-            // Spin until the source is done playing.
-            // NOTE: This means that audio files that loop hold a thread for the entirety of the loop.
-            while (true) {
-                if (!file->internal_data || !source) {
-                    break;
-                }
-                if (music->trigger_stop) {
-                    alSourceStop(source->id);
-                    // Make sure to turn the stop flag back off.
-                    music->trigger_stop = false;
-                    break;
-                }
-
-                // Also try updating the stream.
-                oal_plugin_stream_update(plugin, file, source);
-                platform_sleep(2);
+            // Also free the internal pcm buffer.
+            if (file->internal_data->pcm) {
+                u64 buffer_length = plugin->internal_state->config.chunk_size * sizeof(ALshort);
+                kfree(file->internal_data->pcm, buffer_length, MEMORY_TAG_AUDIO);
+                file->internal_data->pcm = 0;
             }
-            KTRACE("Sound playing complete.");
-        } else {
-            result = false;
+        } else if (file->internal_data->mp3_info.buffer) {
+            // TODO: dispose of mp3 data.
         }
+
+        kfree(file->internal_data, sizeof(audio_file_internal), MEMORY_TAG_AUDIO);
+        file->internal_data = 0;
     }
 
-    return result;
+    if (file->file_path) {
+        string_free(file->file_path);
+        file->file_path = 0;
+    }
+
+    kzero_memory(file, sizeof(audio_file));
 }
 
 b8 oal_plugin_source_play(struct audio_plugin* plugin, i8 source_index) {
@@ -1487,20 +1149,12 @@ b8 oal_plugin_source_play(struct audio_plugin* plugin, i8 source_index) {
     }
 
     audio_plugin_source* source = &plugin->internal_state->sources[source_index];
-    source->in_use = true;
-
-    // Spin this off to a job.
-    //
-    source_play_job_params* params = kallocate(sizeof(source_play_job_params), MEMORY_TAG_AUDIO);
-    params->plugin = plugin;
-    params->source = source;
-
-    // Manually create a new thread instead of taking a job thread.
-    kthread play_thread;
-    kthread_create(oal_plugin_source_play_thread_entry, params, true, &play_thread);
-
-    /* job_info job = job_create(oal_plugin_source_play_job_entry, oal_plugin_source_play_job_success, oal_plugin_source_play_job_fail, &params, sizeof(source_play_job_params), 0);
-    job_system_submit(job); */
+    kmutex_lock(&source->data_mutex);
+    if (source->current_sound || source->current_music) {
+        source->trigger_play = true;
+        source->in_use = true;
+    }
+    kmutex_unlock(&source->data_mutex);
 
     return true;
 }
@@ -1512,11 +1166,20 @@ b8 oal_plugin_sound_play_on_source(struct audio_plugin* plugin, struct audio_sou
 
     // Assign the sound's buffer to the source.
     audio_plugin_source* source = &plugin->internal_state->sources[source_index];
+    kmutex_lock(&source->data_mutex);
+    alSourceStop(source->id);
     alSourceQueueBuffers(source->id, 1, &sound->file.internal_data->buffer);
 
-    // Kick off playing of the source.
-    return oal_plugin_source_play(plugin, source_index);
+    // Unassign music, if appropriate, and assign sound.
+    source->current_sound = sound;
+    source->current_music = 0;
+    source->in_use = true;
+    source->trigger_play = true;
+    kmutex_unlock(&source->data_mutex);
+
+    return true;
 }
+
 b8 oal_plugin_music_play_on_source(struct audio_plugin* plugin, struct audio_music* music, i8 source_index, b8 loop) {
     if (!plugin || !music || source_index < 0) {
         return false;
@@ -1524,20 +1187,29 @@ b8 oal_plugin_music_play_on_source(struct audio_plugin* plugin, struct audio_mus
 
     // Assign the music's buffers to the source.
     audio_plugin_source* source = &plugin->internal_state->sources[source_index];
-    alSourceQueueBuffers(source->id, OAL_PLUGIN_MUSIC_BUFFER_COUNT, music->file.internal_data->buffers);
 
-    source->in_use = true;
+    // Load data into all buffers initially.
+    b8 result = true;
+    for (u32 i = 0; i < OAL_PLUGIN_MUSIC_BUFFER_COUNT; ++i) {
+        if (!oal_plugin_stream_music_data(plugin, music->file.internal_data->buffers[i], &music->file)) {
+            KERROR("Failed to stream data to buffer &u in music file. File load failed.", i);
+            result = false;
+            break;
+        }
+    }
 
-    // Spin this off to a job.
-    //
-    source_play_music_job_params* params = kallocate(sizeof(source_play_music_job_params), MEMORY_TAG_AUDIO);
-    params->plugin = plugin;
-    params->source = source;
-    params->music = music;
+    if (result) {
+        kmutex_lock(&source->data_mutex);
+        // Unassign sound, if appropriate, and assign music.
+        source->current_sound = 0;
+        source->current_music = music;
+        alSourceStop(source->id);
+        alSourceQueueBuffers(source->id, OAL_PLUGIN_MUSIC_BUFFER_COUNT, music->file.internal_data->buffers);
 
-    // Manually create a new thread instead of taking a job thread.
-    kthread play_thread;
-    kthread_create(oal_plugin_music_source_play_thread_entry, params, true, &play_thread);
+        source->in_use = true;
+        source->trigger_play = true;
+        kmutex_unlock(&source->data_mutex);
+    }
 
     return true;
 }
