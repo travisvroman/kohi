@@ -8,18 +8,18 @@
 struct audio_plugin_state;
 struct frame_data;
 
-struct audio_file_internal;
+struct sound_file_internal;
 struct music_file_internal;
 struct audio_sound;
 struct audio_music;
 
-typedef struct audio_file {
+typedef struct sound_file {
     char* file_path;
 
-    struct audio_file_internal* internal_data;
+    struct sound_file_internal* internal_data;
     file_handle file;
     u8* raw_data;
-} audio_file;
+} sound_file;
 
 typedef struct music_file {
     char* file_path;
@@ -28,7 +28,6 @@ typedef struct music_file {
     file_handle file;
     u8* raw_data;
 
-    u32 total_samples_left;
 } music_file;
 
 typedef struct audio_emitter {

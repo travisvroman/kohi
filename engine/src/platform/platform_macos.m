@@ -648,8 +648,11 @@ b8 kmutex_create(kmutex* out_mutex) {
     }
 
     // Initialize
+    pthread_mutexattr_t mutex_attr;
+    pthread_mutexattr_init(&mutex_attr);
+    pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_t mutex;
-    i32 result = pthread_mutex_init(&mutex, 0);
+    i32 result = pthread_mutex_init(&mutex, &mutex_attr);
     if (result != 0) {
         KERROR("Mutex creation failure!");
         return false;
