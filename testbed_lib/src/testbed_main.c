@@ -519,14 +519,14 @@ b8 application_initialize(struct application* game_inst) {
     }
 
     // Create test ui text objects
-    if (!ui_text_create("testbed_mono_test_text", UI_TEXT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "Some test text 123,\n\tyo!", &state->test_text)) {
+    if (!ui_text_create("testbed_mono_test_text", UI_TEXT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "test text 123,\n\tyo!", &state->test_text)) {
         KERROR("Failed to load basic ui bitmap text.");
         return false;
     }
     // Move debug text to new bottom of screen.
     ui_text_position_set(&state->test_text, vec3_create(20, game_inst->app_config.start_height - 75, 0));
 
-    if (!ui_text_create("testbed_UTF_test_text", UI_TEXT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Some system text 123, \n\tyo!\n\n\tこんにちは 한", &state->test_sys_text)) {
+    if (!ui_text_create("testbed_UTF_test_text", UI_TEXT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Press 'L' to load a scene, \n\tyo!\n\n\tこんにちは 한", &state->test_sys_text)) {
         KERROR("Failed to load basic ui system text.");
         return false;
     }
@@ -623,11 +623,12 @@ b8 application_initialize(struct application* game_inst) {
     state->test_emitter.position = vec3_create(10.0f, 0.8f, 20.0f);
 
     // Set some channel volumes.
+    audio_system_master_volume_set(0.7f);
     audio_system_channel_volume_set(0, 1.0f);
-    /* audio_system_channel_volume_set(1, 0.75f);
+    audio_system_channel_volume_set(1, 0.75f);
     audio_system_channel_volume_set(2, 0.50f);
     audio_system_channel_volume_set(3, 0.25);
-    audio_system_channel_volume_set(4, 0.0f); */
+    audio_system_channel_volume_set(4, 0.0f);
 
     // Try playing the emitter.
     if (!audio_system_channel_emitter_play(6, &state->test_emitter)) {

@@ -96,12 +96,33 @@ void audio_system_sound_close(struct audio_sound* sound);
 void audio_system_music_close(struct audio_music* music);
 
 /**
+ * @brief Sets the master volume level. This affects all channels
+ * overall.
+ * @param volume The volume to set. Clamed to a range of [0.0-1.0].
+ */
+void audio_system_master_volume_set(f32 volume);
+
+/**
+ * @brief Queries the master volume.
+ * @param volume A pointer to hold the volume.
+ */
+void audio_system_master_volume_query(f32* out_volume);
+
+/**
  * @brief Sets the volume for the given channel id.
  * @param channel_id The id of the channel to adjust volume for.
  * @volume The volume to set. Clamped to a range of [0.0-1.0].
  * @return True on success; otherwise false.
  */
 b8 audio_system_channel_volume_set(i8 channel_id, f32 volume);
+
+/**
+ * @brief Queries the given channel's volume volume.
+ * @param channel_id The id of the channel to query. -1 cannot be used here.
+ * @param volume A pointer to hold the volume.
+ * @return True on success; otherwise false.
+ */
+b8 audio_system_channel_volume_query(i8 channel_id, f32* out_volume);
 
 /**
  * Plays the provided sound on the channel with the given id. Note that this

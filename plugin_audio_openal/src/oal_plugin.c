@@ -93,7 +93,6 @@ typedef struct music_file_internal {
     u32 total_samples_left;
 } music_file_internal;
 
-
 // The internal state for this audio plugin.
 typedef struct audio_plugin_state {
     // A copy of the configuration.
@@ -248,7 +247,7 @@ static u32 source_work_thread(void* params) {
 
     b8 do_break = false;
     while (!do_break) {
-        if(!source->data_mutex.internal_data) {
+        if (!source->data_mutex.internal_data) {
             // This can happen during unexpected shutdown, and if so kill the thread.
             return 0;
         }
@@ -1061,6 +1060,10 @@ b8 oal_plugin_sound_play_on_source(struct audio_plugin* plugin, struct audio_sou
     audio_plugin_source* source = &plugin->internal_state->sources[source_index];
     kmutex_lock(&source->data_mutex);
     alSourceStop(source->id);
+    // Detach all buffers.
+    alSourcei(source->id, AL_BUFFER, 0);
+    oal_plugin_check_error();
+    // Queue up sound buffer.
     alSourceQueueBuffers(source->id, 1, &sound->file.internal_data->buffer);
 
     // Unassign music, if appropriate, and assign sound.
@@ -1097,6 +1100,10 @@ b8 oal_plugin_music_play_on_source(struct audio_plugin* plugin, struct audio_mus
         source->current_sound = 0;
         source->current_music = music;
         alSourceStop(source->id);
+        // Detach all buffers.
+        alSourcei(source->id, AL_BUFFER, 0);
+        oal_plugin_check_error();
+        // Queue up new buffers.
         alSourceQueueBuffers(source->id, OAL_PLUGIN_MUSIC_BUFFER_COUNT, music->file.internal_data->buffers);
 
         source->in_use = true;
@@ -1117,36 +1124,37 @@ b8 oal_plugin_source_stop(struct audio_plugin* plugin, i8 source_index) {
     // Stop/reset if the source is currently playing or paused.
     ALint source_state;
     alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
-    if (source_state == AL_PAUSED || source_state == AL_PLAYING) {
-        alSourceStop(source->id);
+    /* if (source_state == AL_PAUSED || source_state == AL_PLAYING) { */
+    KTRACE("stopping playing/paused source.");
+    alSourceStop(source->id);
 
-        // Detach all buffers.
-        alSourcei(source->id, AL_BUFFER, 0);
+    // Detach all buffers.
+    alSourcei(source->id, AL_BUFFER, 0);
+    oal_plugin_check_error();
+
+    // Clear any queued buffers.
+    ALint queued_buffer_count;
+    alGetSourcei(source->id, AL_BUFFERS_QUEUED, &queued_buffer_count);
+    if (queued_buffer_count > 0) {
+        KTRACE("Clearing %u queued buffers.", queued_buffer_count);
+        ALuint* unqueued_buffers = alloca(sizeof(ALuint) * queued_buffer_count);
+        alSourceUnqueueBuffers(source->id, queued_buffer_count, unqueued_buffers);
         oal_plugin_check_error();
-
-        // Clear any queued buffers.
-        ALint queued_buffer_count;
-        alGetSourcei(source->id, AL_BUFFERS_QUEUED, &queued_buffer_count);
-        if (queued_buffer_count > 0) {
-            KTRACE("Clearing %u queued buffers.", queued_buffer_count);
-            ALuint* unqueued_buffers = alloca(sizeof(ALuint) * queued_buffer_count);
-            alSourceUnqueueBuffers(source->id, queued_buffer_count, unqueued_buffers);
-            oal_plugin_check_error();
-        }
-
-        // Clear any processed buffers.
-        ALint processed_buffer_count;
-        alGetSourcei(source->id, AL_BUFFERS_PROCESSED, &processed_buffer_count);
-        if (processed_buffer_count > 0) {
-            KTRACE("Clearing %u processed buffers.", processed_buffer_count);
-            ALuint* unqueued_buffers = alloca(sizeof(ALuint) * queued_buffer_count);
-            alSourceUnqueueBuffers(source->id, processed_buffer_count, unqueued_buffers);
-            oal_plugin_check_error();
-        }
-
-        // Rewind.
-        alSourceRewind(source->id);
     }
+
+    // Clear any processed buffers.
+    ALint processed_buffer_count;
+    alGetSourcei(source->id, AL_BUFFERS_PROCESSED, &processed_buffer_count);
+    if (processed_buffer_count > 0) {
+        KTRACE("Clearing %u processed buffers.", processed_buffer_count);
+        ALuint* unqueued_buffers = alloca(sizeof(ALuint) * queued_buffer_count);
+        alSourceUnqueueBuffers(source->id, processed_buffer_count, unqueued_buffers);
+        oal_plugin_check_error();
+    }
+
+    // Rewind.
+    alSourceRewind(source->id);
+    /* } */
 
     source->in_use = false;
 

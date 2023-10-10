@@ -64,11 +64,6 @@ b8 audio_system_initialize(u64* memory_requirement, void* state, void* config) {
     return typed_state->plugin.initialize(&typed_state->plugin, plugin_config);
 }
 
-/**
- * @brief Shuts down the audio system.
- *
- * @param state The state block of memory.
- */
 void audio_system_shutdown(void* state) {
     if (state) {
         audio_system_state* typed_state = (audio_system_state*)state;
@@ -76,9 +71,6 @@ void audio_system_shutdown(void* state) {
     }
 }
 
-/**
- * @brief Updates the audio system. Should happen once an update cycle.
- */
 b8 audio_system_update(void* state, struct frame_data* p_frame_data) {
     audio_system_state* typed_state = (audio_system_state*)state;
 
@@ -121,25 +113,47 @@ void audio_system_music_close(struct audio_music* music) {
     state->plugin.music_close(&state->plugin, music);
 }
 
+void audio_system_master_volume_query(f32* out_volume) {
+    if (out_volume) {
+        audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+        *out_volume = state->master_volume;
+    }
+}
+
+void audio_system_master_volume_set(f32 volume) {
+    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    state->master_volume = KCLAMP(volume, 0.0f, 1.0f);
+
+    // Now adjust each channel's volume to take this into account.
+    for (u32 i = 0; i < state->config.audio_channel_count; ++i) {
+        f32 mixed_volume = state->channels[i].volume * state->master_volume;
+        state->plugin.source_gain_set(&state->plugin, i, mixed_volume);
+    }
+}
+
+b8 audio_system_channel_volume_query(i8 channel_id, f32* out_volume) {
+    if (channel_id < 0 || !out_volume) {
+        return false;
+    }
+    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    *out_volume = state->channels[channel_id].volume;
+
+    return true;
+}
+
 b8 audio_system_channel_volume_set(i8 channel_id, f32 volume) {
     audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
     if (channel_id >= state->config.audio_channel_count) {
         KERROR("Channel id %u is outside the range of available channels. Nothing was done.", channel_id);
         return false;
     }
+
     state->channels[channel_id].volume = KCLAMP(volume, 0.0f, 1.0f);
+    // Apply the channel volume, taking the master volume into account.
+    f32 mixed_volume = state->channels[channel_id].volume * state->master_volume;
+    state->plugin.source_gain_set(&state->plugin, channel_id, mixed_volume);
     return true;
 }
-
-/* static f32 calculate_master_channel_volume(audio_system_state* state, i8 channel_id) {
-    if (channel_id >= state->config.audio_channel_count) {
-        KWARN("channel id %u is outside the range of available channels. Defaulting to the first channel.");
-        channel_id = 0;
-    }
-
-    // Use the channel volume, also modified by the master volume.
-    return state->master_volume * state->channels[channel_id].volume;
-} */
 
 b8 audio_system_channel_sound_play(i8 channel_id, struct audio_sound* sound, b8 loop) {
     if (!sound) {
@@ -154,38 +168,34 @@ b8 audio_system_channel_sound_play(i8 channel_id, struct audio_sound* sound, b8 
             audio_channel* ch = &state->channels[i];
             if (!ch->music && !ch->sound && !ch->emitter) {
                 // Available, assign away.
-                ch->sound = sound;
                 channel_id = i;
                 break;
             }
         }
-    } else {
-        state->channels[channel_id].sound = sound;
     }
 
     if (channel_id == -1) {
         // This means all channels are playing something. Drop the sound.
-        // TODO: perhaps have behaviour chosen by config, perhaps cut off another channel playing
-        // a sound instead, if configured to do so.
         KWARN("No channel available for playback. Dropping sound.");
         return false;
     }
 
     audio_channel* channel = &state->channels[channel_id];
-    // If there is something currently playing, stop it and unassign.
-    // TODO: this needs to be handled for both -1 and other channel id cases.
-    /*if (channel->sound || channel->music || channel->emitter) {
-        state->plugin.source_stop(&state->plugin, channel_id);
-        channel->sound = 0;
-        channel->music = 0;
-        channel->emitter = 0;
-    } */
-
+    // Ensure nothing is assigned but what should be.
+    channel->music = 0;
+    channel->emitter = 0;
     channel->sound = sound;
+
+    // Set the channel volume.
+    state->plugin.source_gain_set(&state->plugin, channel_id, channel->volume);
+
+    // Set the position to the listener position.
+    vec3 position;
+    state->plugin.listener_position_query(&state->plugin, &position);
+    state->plugin.source_position_set(&state->plugin, channel_id, position);
+    // Set looping.
     state->plugin.source_looping_set(&state->plugin, channel_id, loop);
     return state->plugin.sound_play_on_source(&state->plugin, sound, channel_id, loop);
-
-    /* return state->plugin.play_sound_with_volume(&state->plugin, sound, calculate_master_channel_volume(state, channel_id), loop); */
 }
 
 b8 audio_system_channel_music_play(i8 channel_id, struct audio_music* music, b8 loop) {
@@ -210,26 +220,21 @@ b8 audio_system_channel_music_play(i8 channel_id, struct audio_music* music, b8 
 
     if (channel_id == -1) {
         // This means all channels are playing something. Drop the sound.
-        // TODO: perhaps have behaviour chosen by config, perhaps cut off another channel playing
-        // a sound instead, if configured to do so.
         KWARN("No channel available for playback. Dropping music.");
         return false;
     }
 
     audio_channel* channel = &state->channels[channel_id];
-    // If there is something currently playing, stop it and unassign.
-    // TODO: this needs to be handled for both -1 and other channel id cases.
-    /* if (channel->sound || channel->music || channel->emitter) {
-        state->plugin.source_stop(&state->plugin, channel_id);
-        channel->sound = 0;
-        channel->music = 0;
-        channel->emitter = 0;
-    } */
-
+    // Ensure nothing is assigned but what should be.
+    state->plugin.source_stop(&state->plugin, channel_id);
+    channel->sound = 0;
     channel->music = music;
-    return state->plugin.music_play_on_source(&state->plugin, music, channel_id, loop);
+    channel->emitter = 0;
 
-    /* return state->plugin.play_music_with_volume(&state->plugin, music, calculate_master_channel_volume(state, channel_id), loop); */
+    // Set the channel volume.
+    state->plugin.source_gain_set(&state->plugin, channel_id, channel->volume);
+
+    return state->plugin.music_play_on_source(&state->plugin, music, channel_id, loop);
 }
 
 b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitter) {
@@ -244,34 +249,34 @@ b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitte
             audio_channel* ch = &state->channels[i];
             if (!ch->music && !ch->sound && !ch->emitter) {
                 // Available, assign away.
-                ch->emitter = emitter;
                 channel_id = i;
                 break;
             }
         }
-    } else {
-        state->channels[channel_id].emitter = emitter;
     }
 
     if (channel_id == -1) {
         // This means all channels are playing something. Drop the sound.
-        // TODO: perhaps have behaviour chosen by config, perhaps cut off another channel playing
-        // a sound instead, if configured to do so.
         KWARN("No channel available for playback. Dropping emitter.");
         return false;
     }
+    audio_channel* channel = &state->channels[channel_id];
+    // Ensure nothing is assigned but what should be.
+    channel->sound = 0;
+    channel->music = 0;
+    channel->emitter = emitter;
 
     // Now assign the music or sound effect.
     if (emitter->music) {
-        return audio_system_channel_music_play(channel_id, emitter->music, emitter->looping);
+        channel->music = emitter->music;
+        return state->plugin.music_play_on_source(&state->plugin, emitter->music, channel_id, emitter->looping);
     } else if (emitter->sound) {
-        return audio_system_channel_sound_play(channel_id, emitter->sound, emitter->looping);
+        channel->sound = emitter->sound;
+        return state->plugin.sound_play_on_source(&state->plugin, emitter->sound, channel_id, emitter->looping);
     } else {
         KERROR("Emitter has no sound or music assigned; nothing to do.");
         return false;
     }
-    /* audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
-    return state->plugin.play_emitter(&state->plugin, calculate_master_channel_volume(state, channel_id), emitter); */
 }
 
 void audio_system_channel_stop(i8 channel_id) {
