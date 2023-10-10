@@ -66,34 +66,28 @@ b8 audio_system_update(void* state, struct frame_data* p_frame_data);
 b8 audio_system_listener_orientation_set(vec3 position, vec3 forward, vec3 up);
 
 /**
- * @brief Attempts to load a sound at the given path. Returns a pointer
+ * @brief Attempts to load a sound chunk at the given path. Returns a pointer
  * to a loaded sound. This dynamically allocates memory, so make sure to
- * call audio_system_sound_close() on it when done.
+ * call audio_system_close() on it when done.
  * @param path The full path to the asset to be loaded.
  * @return A pointer to an audio_sound one success; otherwise null/0.
  */
-struct audio_sound* audio_system_sound_load(const char* path);
+struct audio_file* audio_system_chunk_load(const char* path);
 
 /**
- * @brief Attempts to load a music file at the given path. Returns a pointer
+ * @brief Attempts to load a audio stream file at the given path. Returns a pointer
  * to a loaded music. This dynamically allocates memory, so make sure to
- * call audio_system_music_close() on it when done.
+ * call audio_system_close() on it when done.
  * @param path The full path to the asset to be loaded.
  * @return A pointer to an audio_music one success; otherwise null/0.
  */
-struct audio_music* audio_system_music_load(const char* path);
+struct audio_file* audio_system_stream_load(const char* path);
 
 /**
  * @brief Closes the given sound, releasing all internal resources.
- * @param sound A pointer to the sound to be closed.
+ * @param file A pointer to the sound file to be closed.
  */
-void audio_system_sound_close(struct audio_sound* sound);
-
-/**
- * @brief Closes the given music, releasing all internal resources.
- * @param sound A pointer to the music to be closed.
- */
-void audio_system_music_close(struct audio_music* music);
+void audio_system_close(struct audio_file* file);
 
 /**
  * @brief Sets the master volume level. This affects all channels
@@ -133,18 +127,7 @@ b8 audio_system_channel_volume_query(i8 channel_id, f32* out_volume);
  * @param loop Indicates if the sound should loop.
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_sound_play(i8 channel_id, struct audio_sound* sound, b8 loop);
-
-/**
- * Plays the provided music on the channel with the given id. Note that this
- * is effectively "2d" sound, meant for sounds which don't exist in the world
- * and should be played globally (i.e. UI music).
- * @param channel_id The id of the channel to play the music on.
- * @param music The music to be played.
- * @param loop Indicates if the music should loop.
- * @return True on success; otherwise false.
- */
-b8 audio_system_channel_music_play(i8 channel_id, struct audio_music* music, b8 loop);
+b8 audio_system_channel_play(i8 channel_id, struct audio_file* file, b8 loop);
 
 /**
  * Plays spatially-oriented 3d sound from the context of an audio_emitter. The

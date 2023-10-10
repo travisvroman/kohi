@@ -30,13 +30,11 @@ b8 plugin_create(struct audio_plugin* out_plugin) {
     out_plugin->source_looping_query = oal_plugin_source_looping_query;
     out_plugin->source_looping_set = oal_plugin_source_looping_set;
 
-    out_plugin->load_sound = oal_plugin_load_sound;
-    out_plugin->load_music = oal_plugin_load_music;
-    out_plugin->sound_close = oal_plugin_sound_close;
-    out_plugin->music_close = oal_plugin_music_close;
+    out_plugin->chunk_load = oal_plugin_chunk_load;
+    out_plugin->stream_load = oal_plugin_stream_load;
+    out_plugin->audio_unload = oal_plugin_audio_file_close;
     out_plugin->source_play = oal_plugin_source_play;
-    out_plugin->sound_play_on_source = oal_plugin_sound_play_on_source;
-    out_plugin->music_play_on_source = oal_plugin_music_play_on_source;
+    out_plugin->play_on_source = oal_plugin_play_on_source;
 
     out_plugin->source_stop = oal_plugin_source_stop;
     out_plugin->source_pause = oal_plugin_source_pause;

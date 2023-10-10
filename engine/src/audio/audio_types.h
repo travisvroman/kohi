@@ -8,35 +8,42 @@
 struct audio_plugin_state;
 struct frame_data;
 
-struct sound_file_internal;
-struct music_file_internal;
-struct audio_sound;
-struct audio_music;
+struct audio_file_internal;
+struct audio_file_plugin_data;
+struct resource;
 
-typedef struct sound_file {
-    char* file_path;
+typedef enum audio_file_type {
+    AUDIO_FILE_TYPE_SOUND_EFFECT,
+    AUDIO_FILE_TYPE_MUSIC_STREAM
+} audio_file_type;
 
-    struct sound_file_internal* internal_data;
-    file_handle file;
-    u8* raw_data;
-} sound_file;
+typedef struct audio_file {
+    // The type of audio file.
+    audio_file_type type;
+    struct resource* audio_resource;
+    // The format (i.e. 16 bit stereo)
+    u32 format;
+    // The number of channels (i.e. 1 for mono or 2 for stereo)
+    i32 channels;
+    // The sample rate of the sound/music (i.e. 44100)
+    u32 sample_rate;
+    // Used to track samples in streaming type files.
+    u32 total_samples_left;
+    struct audio_file_internal* internal_data;
+    struct audio_file_plugin_data* plugin_data;
 
-typedef struct music_file {
-    char* file_path;
+    u64 (*load_samples)(struct audio_file* audio, u32 chunk_size, i32 count);
+    void* (*stream_buffer_data)(struct audio_file* audio);
+    void (*rewind)(struct audio_file* audio);
 
-    struct music_file_internal* internal_data;
-    file_handle file;
-    u8* raw_data;
-
-} music_file;
+} audio_file;
 
 typedef struct audio_emitter {
     vec3 position;
     f32 volume;
     f32 falloff;
     b8 looping;
-    struct audio_sound* sound;
-    struct audio_music* music;
+    struct audio_file* file;
     u32 source_id;
 } audio_emitter;
 
@@ -103,20 +110,12 @@ typedef struct audio_plugin {
     b8 (*source_looping_query)(struct audio_plugin* plugin, u32 source_id, b8* out_looping);
     b8 (*source_looping_set)(struct audio_plugin* plugin, u32 source_id, b8 looping);
 
-    struct audio_sound* (*load_sound)(struct audio_plugin* plugin, const char* path);
-    struct audio_music* (*load_music)(struct audio_plugin* plugin, const char* path);
-    void (*sound_close)(struct audio_plugin* plugin, struct audio_sound* sound);
-    void (*music_close)(struct audio_plugin* plugin, struct audio_music* music);
-
-    /* b8 (*play_sound_with_volume)(struct audio_plugin* plugin, struct audio_sound* sound, f32 volume, b8 loop);
-    b8 (*play_music_with_volume)(struct audio_plugin* plugin, struct audio_music* music, f32 volume, b8 loop); */
-    /* b8 (*play_emitter)(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
-    b8 (*update_emitter)(struct audio_plugin* plugin, f32 master_volume, struct audio_emitter* emitter);
-    b8 (*stop_emitter)(struct audio_plugin* plugin, struct audio_emitter* emitter); */
+    struct audio_file* (*chunk_load)(struct audio_plugin* plugin, const char* name);
+    struct audio_file* (*stream_load)(struct audio_plugin* plugin, const char* name);
+    void (*audio_unload)(struct audio_plugin* plugin, struct audio_file* file);
 
     b8 (*source_play)(struct audio_plugin* plugin, i8 source_index);
-    b8 (*sound_play_on_source)(struct audio_plugin* plugin, struct audio_sound* sound, i8 source_index, b8 loop);
-    b8 (*music_play_on_source)(struct audio_plugin* plugin, struct audio_music* music, i8 source_index, b8 loop);
+    b8 (*play_on_source)(struct audio_plugin* plugin, struct audio_file* file, i8 source_index);
 
     b8 (*source_stop)(struct audio_plugin* plugin, i8 source_index);
     b8 (*source_pause)(struct audio_plugin* plugin, i8 source_index);

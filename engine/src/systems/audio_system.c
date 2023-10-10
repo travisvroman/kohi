@@ -7,10 +7,8 @@
 
 typedef struct audio_channel {
     f32 volume;
-    // The currently bound sound.
-    struct audio_sound* sound;
-    // The currently bound music.
-    struct audio_music* music;
+    // The currently bound sound/stream.
+    struct audio_file* current;
     // The currently bound audio emitter.
     audio_emitter* emitter;
 
@@ -93,24 +91,19 @@ b8 audio_system_listener_orientation_set(vec3 position, vec3 forward, vec3 up) {
     return true;
 }
 
-struct audio_sound* audio_system_sound_load(const char* path) {
+struct audio_file* audio_system_chunk_load(const char* path) {
     audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
-    return state->plugin.load_sound(&state->plugin, path);
+    return state->plugin.chunk_load(&state->plugin, path);
 }
 
-struct audio_music* audio_system_music_load(const char* path) {
+struct audio_file* audio_system_stream_load(const char* path) {
     audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
-    return state->plugin.load_music(&state->plugin, path);
+    return state->plugin.stream_load(&state->plugin, path);
 }
 
-void audio_system_sound_close(struct audio_sound* sound) {
+void audio_system_close(struct audio_file* file) {
     audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
-    state->plugin.sound_close(&state->plugin, sound);
-}
-
-void audio_system_music_close(struct audio_music* music) {
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
-    state->plugin.music_close(&state->plugin, music);
+    state->plugin.audio_unload(&state->plugin, file);
 }
 
 void audio_system_master_volume_query(f32* out_volume) {
@@ -155,8 +148,8 @@ b8 audio_system_channel_volume_set(i8 channel_id, f32 volume) {
     return true;
 }
 
-b8 audio_system_channel_sound_play(i8 channel_id, struct audio_sound* sound, b8 loop) {
-    if (!sound) {
+b8 audio_system_channel_play(i8 channel_id, struct audio_file* file, b8 loop) {
+    if (!file) {
         return false;
     }
 
@@ -166,7 +159,7 @@ b8 audio_system_channel_sound_play(i8 channel_id, struct audio_sound* sound, b8 
     if (channel_id == -1) {
         for (u32 i = 0; i < state->config.audio_channel_count; ++i) {
             audio_channel* ch = &state->channels[i];
-            if (!ch->music && !ch->sound && !ch->emitter) {
+            if (!ch->current && !ch->emitter) {
                 // Available, assign away.
                 channel_id = i;
                 break;
@@ -182,63 +175,28 @@ b8 audio_system_channel_sound_play(i8 channel_id, struct audio_sound* sound, b8 
 
     audio_channel* channel = &state->channels[channel_id];
     // Ensure nothing is assigned but what should be.
-    channel->music = 0;
     channel->emitter = 0;
-    channel->sound = sound;
+    channel->current = file;
 
     // Set the channel volume.
     state->plugin.source_gain_set(&state->plugin, channel_id, channel->volume);
 
-    // Set the position to the listener position.
-    vec3 position;
-    state->plugin.listener_position_query(&state->plugin, &position);
-    state->plugin.source_position_set(&state->plugin, channel_id, position);
-    // Set looping.
-    state->plugin.source_looping_set(&state->plugin, channel_id, loop);
-    return state->plugin.sound_play_on_source(&state->plugin, sound, channel_id, loop);
-}
-
-b8 audio_system_channel_music_play(i8 channel_id, struct audio_music* music, b8 loop) {
-    if (!music) {
-        return false;
-    }
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
-    // If -1 is passed, use the first available channel.
-    if (channel_id == -1) {
-        for (u32 i = 0; i < state->config.audio_channel_count; ++i) {
-            audio_channel* ch = &state->channels[i];
-            if (!ch->music && !ch->sound && !ch->emitter) {
-                // Available, assign away.
-                ch->music = music;
-                channel_id = i;
-                break;
-            }
-        }
+    if (file->type == AUDIO_FILE_TYPE_SOUND_EFFECT) {
+        // Set the position to the listener position.
+        vec3 position;
+        state->plugin.listener_position_query(&state->plugin, &position);
+        state->plugin.source_position_set(&state->plugin, channel_id, position);
+        // Set looping.
+        state->plugin.source_looping_set(&state->plugin, channel_id, loop);
     } else {
-        state->channels[channel_id].music = music;
+        //
     }
-
-    if (channel_id == -1) {
-        // This means all channels are playing something. Drop the sound.
-        KWARN("No channel available for playback. Dropping music.");
-        return false;
-    }
-
-    audio_channel* channel = &state->channels[channel_id];
-    // Ensure nothing is assigned but what should be.
     state->plugin.source_stop(&state->plugin, channel_id);
-    channel->sound = 0;
-    channel->music = music;
-    channel->emitter = 0;
-
-    // Set the channel volume.
-    state->plugin.source_gain_set(&state->plugin, channel_id, channel->volume);
-
-    return state->plugin.music_play_on_source(&state->plugin, music, channel_id, loop);
+    return state->plugin.play_on_source(&state->plugin, file, channel_id);
 }
 
 b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitter) {
-    if (!emitter) {
+    if (!emitter || !emitter->file) {
         return false;
     }
 
@@ -247,7 +205,7 @@ b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitte
     if (channel_id == -1) {
         for (u32 i = 0; i < state->config.audio_channel_count; ++i) {
             audio_channel* ch = &state->channels[i];
-            if (!ch->music && !ch->sound && !ch->emitter) {
+            if (!ch->current && !ch->emitter) {
                 // Available, assign away.
                 channel_id = i;
                 break;
@@ -262,21 +220,10 @@ b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitte
     }
     audio_channel* channel = &state->channels[channel_id];
     // Ensure nothing is assigned but what should be.
-    channel->sound = 0;
-    channel->music = 0;
     channel->emitter = emitter;
+    channel->current = emitter->file;
 
-    // Now assign the music or sound effect.
-    if (emitter->music) {
-        channel->music = emitter->music;
-        return state->plugin.music_play_on_source(&state->plugin, emitter->music, channel_id, emitter->looping);
-    } else if (emitter->sound) {
-        channel->sound = emitter->sound;
-        return state->plugin.sound_play_on_source(&state->plugin, emitter->sound, channel_id, emitter->looping);
-    } else {
-        KERROR("Emitter has no sound or music assigned; nothing to do.");
-        return false;
-    }
+    return state->plugin.play_on_source(&state->plugin, emitter->file, channel_id);
 }
 
 void audio_system_channel_stop(i8 channel_id) {

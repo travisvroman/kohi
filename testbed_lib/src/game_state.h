@@ -28,7 +28,6 @@ typedef struct selected_object {
     struct transform* xform;
 } selected_object;
 
-struct audio_sound;
 typedef struct testbed_game_state {
     b8 running;
     camera* world_camera;
@@ -91,9 +90,9 @@ typedef struct testbed_game_state {
 
     u32 render_mode;
 
-    struct audio_sound* test_audio_file;
-    struct audio_sound* test_loop_audio_file;
-    struct audio_music* test_music;
+    struct audio_file* test_audio_file;
+    struct audio_file* test_loop_audio_file;
+    struct audio_file* test_music;
     audio_emitter test_emitter;
 
     // TODO: end temp

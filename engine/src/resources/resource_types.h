@@ -37,6 +37,8 @@ typedef enum resource_type {
     RESOURCE_TYPE_SIMPLE_SCENE,
     /** @brief Terrain resource type. */
     RESOURCE_TYPE_TERRAIN,
+    /** @brief Audio resource type. */
+    RESOURCE_TYPE_AUDIO,
     /** @brief Custom resource type. Used by loaders outside the core engine. */
     RESOURCE_TYPE_CUSTOM
 } resource_type;
