@@ -17,7 +17,7 @@
 #include "../vendor/stb_vorbis.h"
 // Loading mp3 files.
 #define MINIMP3_IMPLEMENTATION
-#include <vendor/minimp3_ex.h>
+#include "../vendor/minimp3_ex.h"
 
 // MP3 decoder;
 static mp3dec_t decoder;
