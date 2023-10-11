@@ -14,10 +14,10 @@
 #include "systems/resource_system.h"
 
 // Loading vorbis files.
-#include "../vendor/stb_vorbis.h"
+#include "vendor/stb_vorbis.h"
 // Loading mp3 files.
 #define MINIMP3_IMPLEMENTATION
-#include "../vendor/minimp3_ex.h"
+#include "vendor/minimp3_ex.h"
 
 // MP3 decoder;
 static mp3dec_t decoder;
@@ -127,7 +127,7 @@ static b8 audio_loader_load(struct resource_loader* self, const char* name, void
             resource_data->internal_data->pcm = kallocate(buffer_length, MEMORY_TAG_AUDIO);
             resource_data->internal_data->pcm_size = buffer_length;
             i32 read_samples = stb_vorbis_get_samples_short_interleaved(resource_data->internal_data->vorbis, info.channels, resource_data->internal_data->pcm, length_samples);
-            if (read_samples != length_samples) {
+            if (read_samples != (i64)length_samples) {
                 KWARN("Read/length mismatch while reading ogg file. This might cause playback issues.");
             }
             // Make sure this is a multiple of 4. If not, loading into the buffer below can fail.

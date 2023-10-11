@@ -1,4 +1,5 @@
-#include <AL/al.h>
+#include "plugin_audio_main.h"
+
 #include <audio/audio_types.h>
 #include <core/logger.h>
 #include <defines.h>

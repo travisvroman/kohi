@@ -42,19 +42,19 @@ typedef struct audio_system_config {
  * @param config The configuration (audio_system_config) for this system.
  * @return True on success; otherwise false.
  */
-b8 audio_system_initialize(u64* memory_requirement, void* state, void* config);
+KAPI b8 audio_system_initialize(u64* memory_requirement, void* state, void* config);
 
 /**
  * @brief Shuts down the audio system.
  *
  * @param state The state block of memory.
  */
-void audio_system_shutdown(void* state);
+KAPI void audio_system_shutdown(void* state);
 
 /**
  * @brief Updates the audio system. Should happen once an update cycle.
  */
-b8 audio_system_update(void* state, struct frame_data* p_frame_data);
+KAPI b8 audio_system_update(void* state, struct frame_data* p_frame_data);
 
 /**
  * Sets the orientation of the listener. Typically linked to the current camera in the world.
@@ -63,7 +63,7 @@ b8 audio_system_update(void* state, struct frame_data* p_frame_data);
  * @param up The listener's up vector.
  * @return True on success; otherwise false.
  */
-b8 audio_system_listener_orientation_set(vec3 position, vec3 forward, vec3 up);
+KAPI b8 audio_system_listener_orientation_set(vec3 position, vec3 forward, vec3 up);
 
 /**
  * @brief Attempts to load a sound chunk at the given path. Returns a pointer
@@ -72,7 +72,7 @@ b8 audio_system_listener_orientation_set(vec3 position, vec3 forward, vec3 up);
  * @param path The full path to the asset to be loaded.
  * @return A pointer to an audio_sound one success; otherwise null/0.
  */
-struct audio_file* audio_system_chunk_load(const char* path);
+KAPI struct audio_file* audio_system_chunk_load(const char* path);
 
 /**
  * @brief Attempts to load a audio stream file at the given path. Returns a pointer
@@ -81,26 +81,26 @@ struct audio_file* audio_system_chunk_load(const char* path);
  * @param path The full path to the asset to be loaded.
  * @return A pointer to an audio_music one success; otherwise null/0.
  */
-struct audio_file* audio_system_stream_load(const char* path);
+KAPI struct audio_file* audio_system_stream_load(const char* path);
 
 /**
  * @brief Closes the given sound, releasing all internal resources.
  * @param file A pointer to the sound file to be closed.
  */
-void audio_system_close(struct audio_file* file);
+KAPI void audio_system_close(struct audio_file* file);
 
 /**
  * @brief Sets the master volume level. This affects all channels
  * overall.
  * @param volume The volume to set. Clamed to a range of [0.0-1.0].
  */
-void audio_system_master_volume_set(f32 volume);
+KAPI void audio_system_master_volume_set(f32 volume);
 
 /**
  * @brief Queries the master volume.
  * @param volume A pointer to hold the volume.
  */
-void audio_system_master_volume_query(f32* out_volume);
+KAPI void audio_system_master_volume_query(f32* out_volume);
 
 /**
  * @brief Sets the volume for the given channel id.
@@ -108,7 +108,7 @@ void audio_system_master_volume_query(f32* out_volume);
  * @volume The volume to set. Clamped to a range of [0.0-1.0].
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_volume_set(i8 channel_id, f32 volume);
+KAPI b8 audio_system_channel_volume_set(i8 channel_id, f32 volume);
 
 /**
  * @brief Queries the given channel's volume volume.
@@ -116,7 +116,7 @@ b8 audio_system_channel_volume_set(i8 channel_id, f32 volume);
  * @param volume A pointer to hold the volume.
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_volume_query(i8 channel_id, f32* out_volume);
+KAPI b8 audio_system_channel_volume_query(i8 channel_id, f32* out_volume);
 
 /**
  * Plays the provided sound on the channel with the given id. Note that this
@@ -127,7 +127,7 @@ b8 audio_system_channel_volume_query(i8 channel_id, f32* out_volume);
  * @param loop Indicates if the sound should loop.
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_play(i8 channel_id, struct audio_file* file, b8 loop);
+KAPI b8 audio_system_channel_play(i8 channel_id, struct audio_file* file, b8 loop);
 
 /**
  * Plays spatially-oriented 3d sound from the context of an audio_emitter. The
@@ -138,13 +138,13 @@ b8 audio_system_channel_play(i8 channel_id, struct audio_file* file, b8 loop);
  * @param emitter A pointer to an emitter to use for playback.
  * @return True on success; otherwise false.
  */
-b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitter);
+KAPI b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitter);
 
 /**
  * Stops the given channel id.
  * @param channel_id The id of the channel to be stopped. If -1 is passed, all channels are stopped.
  * @return True on success; otherwise false.
  */
-void audio_system_channel_stop(i8 channel_id);
-void audio_system_channel_pause(i8 channel_id);
-void audio_system_channel_resume(i8 channel_id);
+KAPI void audio_system_channel_stop(i8 channel_id);
+KAPI void audio_system_channel_pause(i8 channel_id);
+KAPI void audio_system_channel_resume(i8 channel_id);

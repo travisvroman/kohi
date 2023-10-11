@@ -54,7 +54,7 @@ b8 audio_system_initialize(u64* memory_requirement, void* state, void* config) {
     typed_state->plugin = typed_config->plugin;
 
     audio_plugin_config plugin_config = {0};
-    plugin_config.max_sources = MAX_AUDIO_CHANNELS;
+    plugin_config.max_sources = 8;//MAX_AUDIO_CHANNELS;
     plugin_config.max_buffers = 256;
     plugin_config.chunk_size = typed_config->chunk_size;
     plugin_config.frequency = typed_config->frequency;
@@ -136,7 +136,7 @@ b8 audio_system_channel_volume_query(i8 channel_id, f32* out_volume) {
 
 b8 audio_system_channel_volume_set(i8 channel_id, f32 volume) {
     audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
-    if (channel_id >= state->config.audio_channel_count) {
+    if ((u8)channel_id >= state->config.audio_channel_count) {
         KERROR("Channel id %u is outside the range of available channels. Nothing was done.", channel_id);
         return false;
     }

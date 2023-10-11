@@ -16,25 +16,25 @@ typedef struct kmutex {
  * @param out_mutex A pointer to hold the created mutex.
  * @returns True if created successfully; otherwise false.
  */
-b8 kmutex_create(kmutex* out_mutex);
+KAPI b8 kmutex_create(kmutex *out_mutex);
 
 /**
  * @brief Destroys the provided mutex.
- * 
+ *
  * @param mutex A pointer to the mutex to be destroyed.
  */
-void kmutex_destroy(kmutex* mutex);
+KAPI void kmutex_destroy(kmutex *mutex);
 
 /**
  * Creates a mutex lock.
  * @param mutex A pointer to the mutex.
  * @returns True if locked successfully; otherwise false.
  */
-b8 kmutex_lock(kmutex *mutex);
+KAPI b8 kmutex_lock(kmutex *mutex);
 
 /**
  * Unlocks the given mutex.
  * @param mutex The mutex to unlock.
  * @returns True if unlocked successfully; otherwise false.
  */
-b8 kmutex_unlock(kmutex *mutex);
+KAPI b8 kmutex_unlock(kmutex *mutex);

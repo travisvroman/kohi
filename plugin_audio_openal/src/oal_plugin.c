@@ -1,6 +1,11 @@
 #include "oal_plugin.h"
 
+#include "defines.h"
+#ifdef KPLATFORM_WINDOWS
+#include <malloc.h>
+#else
 #include <alloca.h>
+#endif
 #include <core/kmutex.h>
 #include <core/kthread.h>
 #include <math/kmath.h>
@@ -19,9 +24,13 @@
 #include "systems/resource_system.h"
 
 // OpenAL
+#ifdef KPLATFORM_WINDOWS
+#include <al.h>
+#include <alc.h>
+#else
 #include <AL/al.h>
 #include <AL/alc.h>
-
+#endif
 // The number of buffers used for streaming music file data.
 #define OAL_PLUGIN_MUSIC_BUFFER_COUNT 2
 
@@ -70,7 +79,7 @@ typedef struct audio_plugin_state {
     // A pool of buffers to be used for all kinds of audio/music playback.
     ALuint* buffers;
     // The total number of buffers available.
-    ALsizei buffer_count;
+    u32 buffer_count;
 
     // The listener's current position in the world.
     vec3 listener_position;
@@ -86,7 +95,7 @@ typedef struct audio_plugin_state {
     u32* free_buffers;
 } audio_plugin_state;
 
-static b8 oal_plugin_check_error();
+static b8 oal_plugin_check_error(void);
 static b8 oal_plugin_source_create(struct audio_plugin* plugin, audio_plugin_source* out_source);
 static void oal_plugin_source_destroy(struct audio_plugin* plugin, audio_plugin_source* source);
 static u32 oal_plugin_find_free_buffer(struct audio_plugin* plugin);
@@ -229,13 +238,9 @@ b8 oal_plugin_initialize(struct audio_plugin* plugin, audio_plugin_config config
 
         plugin->internal_state->free_buffers = darray_create(u32);
 
-        // Make sure all buffers are marked as free.
-        for (u32 i = 0; i < plugin->internal_state->buffer_count; ++i) {
-            darray_push(plugin->internal_state->free_buffers, i + 1);  // buffer ids are 1-indexed.
-        }
-
         // Get the default device. TODO: enumerate devices and pick via ALC_ENUMERATION_EXT?
         plugin->internal_state->device = alcOpenDevice(0);
+        oal_plugin_check_error();
         if (!plugin->internal_state->device) {
             KERROR("Unable to obtain OpenAL device. Plugin initialize failed.");
             return false;
@@ -245,6 +250,7 @@ b8 oal_plugin_initialize(struct audio_plugin* plugin, audio_plugin_config config
 
         // Get context and make it current.
         plugin->internal_state->context = alcCreateContext(plugin->internal_state->device, 0);
+        oal_plugin_check_error();
         if (!alcMakeContextCurrent(plugin->internal_state->context)) {
             oal_plugin_check_error();
         }
@@ -270,6 +276,13 @@ b8 oal_plugin_initialize(struct audio_plugin* plugin, audio_plugin_config config
         plugin->internal_state->buffers = kallocate(sizeof(u32) * plugin->internal_state->buffer_count, MEMORY_TAG_ARRAY);
         alGenBuffers(plugin->internal_state->buffer_count, plugin->internal_state->buffers);
         oal_plugin_check_error();
+
+        // Make sure all buffers are marked as free. Note that the array of buffers retrieved above must be used
+        // directly, as there is no guarantee as to what the buffer ids will be. On one Windows installation, this
+        // started at id 9. Yep. 9. Makes no sense, I'll tell ya hwhat. But there it is.
+        for (u32 i = 0; i < plugin->internal_state->buffer_count; ++i) {
+            darray_push(plugin->internal_state->free_buffers, plugin->internal_state->buffers[i]);
+        }
 
         // NOTE: source generation, which is basically a sound emitter.
         KINFO("OpenAL plugin intialized");
@@ -617,7 +630,7 @@ static const char* oal_plugin_error_str(ALCenum err) {
     }
 }
 
-static b8 oal_plugin_check_error() {
+static b8 oal_plugin_check_error(void) {
     ALCenum error = alGetError();
     if (error != AL_NO_ERROR) {
         KERROR("OpenAL error %u: '%s'", error, oal_plugin_error_str(error));
@@ -722,7 +735,8 @@ struct audio_file* oal_plugin_chunk_load(struct audio_plugin* plugin, const char
     if (out_file->total_samples_left > 0) {
         // Load the whole thing into the buffer.
         void* pcm = out_file->stream_buffer_data(out_file);
-        alBufferData(out_file->plugin_data->buffer, out_file->format, pcm, out_file->total_samples_left, out_file->sample_rate);
+        oal_plugin_check_error();
+        alBufferData(out_file->plugin_data->buffer, out_file->format, (i16*)pcm, out_file->total_samples_left, out_file->sample_rate);
         oal_plugin_check_error();
         return out_file;
     }
