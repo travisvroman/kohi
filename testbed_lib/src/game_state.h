@@ -91,6 +91,7 @@ typedef struct testbed_game_state {
     u32 render_mode;
 
     struct sui_control test_panel;
+    struct sui_control test_button;
 
     // TODO: end temp
 } testbed_game_state;

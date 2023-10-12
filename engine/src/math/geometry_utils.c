@@ -224,3 +224,270 @@ void generate_quad_2d(const char *name, f32 width, f32 height, f32 tx_min, f32 t
         kcopy_memory(out_config->indices, uiindices, out_config->index_size * out_config->index_count);
     }
 }
+
+typedef struct nine_slice_pos_tc {
+    f32 tx_min, ty_min, tx_max, ty_max;
+    f32 posx_min, posy_min, posx_max, posy_max;
+} nine_slice_pos_tc;
+
+b8 generate_nine_slice(const char *name, vec2i size, vec2i atlas_px_size, vec2i atlas_px_min, vec2i atlas_px_max, vec2i corner_px_size, vec2i corner_size, nine_slice *out_nine_slice) {
+    if (!out_nine_slice) {
+        return false;
+    }
+
+    out_nine_slice->size = size;
+    out_nine_slice->atlas_px_size = atlas_px_size;
+    out_nine_slice->atlas_px_min = atlas_px_min;
+    out_nine_slice->atlas_px_max = atlas_px_max;
+    out_nine_slice->corner_size = corner_size;
+    out_nine_slice->corner_px_size = corner_px_size;
+
+    geometry_config out_config = {0};
+    out_config.vertex_size = sizeof(vertex_2d);
+    out_config.vertex_count = 4 * 9;
+    out_config.vertices = kallocate(out_config.vertex_size * out_config.vertex_count, MEMORY_TAG_ARRAY);
+    out_config.index_size = sizeof(u32);
+    out_config.index_count = 6 * 9;
+    out_config.indices = kallocate(out_config.index_size * out_config.index_count, MEMORY_TAG_ARRAY);
+    string_ncopy(out_config.name, name, GEOMETRY_NAME_MAX_LENGTH);
+
+    vertex_2d *verts = (vertex_2d *)out_config.vertices;
+    u32 *indices = (u32 *)out_config.indices;
+
+    // Generate UVs.
+    nine_slice_pos_tc pt[9];
+    u8 pt_index = 0;
+    // Corners first
+    {
+        // Top left
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_min.x,
+            out_nine_slice->atlas_px_min.y,
+            &pt[pt_index].tx_min, &pt[pt_index].ty_min);
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_min.x + out_nine_slice->corner_px_size.x,
+            out_nine_slice->atlas_px_min.y + out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_max, &pt[pt_index].ty_max);
+        // Generate positions.
+        pt[pt_index].posx_min = 0.0f;
+        pt[pt_index].posy_min = 0.0f;
+        pt[pt_index].posx_max = out_nine_slice->corner_size.x;
+        pt[pt_index].posy_max = out_nine_slice->corner_size.y;
+    }
+    {
+        // Top right
+        pt_index++;
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_max.x - out_nine_slice->corner_px_size.x,
+            out_nine_slice->atlas_px_min.y,
+            &pt[pt_index].tx_min, &pt[pt_index].ty_min);
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_max.x,
+            out_nine_slice->atlas_px_min.y + out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_max, &pt[pt_index].ty_max);
+        // Generate positions.
+        pt[pt_index].posx_min = size.x - corner_size.x;
+        pt[pt_index].posy_min = 0.0f;
+        pt[pt_index].posx_max = size.x;
+        pt[pt_index].posy_max = out_nine_slice->corner_size.y;
+    }
+    {
+        // Bottom right
+        pt_index++;
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_max.x - out_nine_slice->corner_px_size.x,
+            out_nine_slice->atlas_px_max.y - out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_min, &pt[pt_index].ty_min);
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_max.x,
+            out_nine_slice->atlas_px_max.y,
+            &pt[pt_index].tx_max, &pt[pt_index].ty_max);
+        // Generate positions.
+        pt[pt_index].posx_min = size.x - corner_size.x;
+        pt[pt_index].posy_min = size.y - corner_size.y;
+        pt[pt_index].posx_max = size.x;
+        pt[pt_index].posy_max = size.y;
+    }
+    {
+        // Bottom left
+        pt_index++;
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_min.x,
+            out_nine_slice->atlas_px_max.y - out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_min, &pt[pt_index].ty_min);
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_min.x + out_nine_slice->corner_px_size.x,
+            out_nine_slice->atlas_px_max.y,
+            &pt[pt_index].tx_max, &pt[pt_index].ty_max);
+        // Generate positions.
+        pt[pt_index].posx_min = 0.0f;
+        pt[pt_index].posy_min = size.y - corner_size.y;
+        pt[pt_index].posx_max = out_nine_slice->corner_size.x;
+        pt[pt_index].posy_max = size.y;
+    }
+    {
+        // Top center
+        pt_index++;
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_min.x + out_nine_slice->corner_px_size.x,
+            out_nine_slice->atlas_px_min.y,
+            &pt[pt_index].tx_min, &pt[pt_index].ty_min);
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_max.x - out_nine_slice->corner_px_size.x,
+            out_nine_slice->atlas_px_min.y + out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_max, &pt[pt_index].ty_max);
+        // Generate positions.
+        pt[pt_index].posx_min = out_nine_slice->corner_size.x;
+        pt[pt_index].posy_min = 0.0f;
+        pt[pt_index].posx_max = out_nine_slice->size.x - out_nine_slice->corner_size.x;
+        pt[pt_index].posy_max = out_nine_slice->corner_size.y;
+    }
+    {
+        // Bottom center
+        pt_index++;
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_min.x + out_nine_slice->corner_px_size.x,
+            out_nine_slice->atlas_px_max.y - out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_min, &pt[pt_index].ty_min);
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_max.x - out_nine_slice->corner_px_size.x,
+            out_nine_slice->atlas_px_max.y,
+            &pt[pt_index].tx_max, &pt[pt_index].ty_max);
+        // Generate positions.
+        pt[pt_index].posx_min = out_nine_slice->corner_size.x;
+        pt[pt_index].posy_min = out_nine_slice->corner_size.y;
+        pt[pt_index].posx_max = out_nine_slice->size.x - out_nine_slice->corner_size.x;
+        pt[pt_index].posy_max = out_nine_slice->size.y - out_nine_slice->corner_size.y;
+    }
+    {
+        // Middle left
+        pt_index++;
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_min.x,
+            out_nine_slice->atlas_px_min.y + out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_min, &pt[pt_index].ty_min);
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_min.x + out_nine_slice->corner_px_size.x,
+            out_nine_slice->atlas_px_max.y - out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_max, &pt[pt_index].ty_max);
+        // Generate positions.
+        pt[pt_index].posx_min = 0.0f;
+        pt[pt_index].posy_min = out_nine_slice->corner_size.y;
+        pt[pt_index].posx_max = out_nine_slice->corner_size.x;
+        pt[pt_index].posy_max = out_nine_slice->size.y - out_nine_slice->corner_size.y;
+    }
+    {
+        // Middle right
+        pt_index++;
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_max.x - out_nine_slice->corner_px_size.x,
+            out_nine_slice->atlas_px_min.y + out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_min, &pt[pt_index].ty_min);
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_min.x,
+            out_nine_slice->atlas_px_max.y - out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_max, &pt[pt_index].ty_max);
+        // Generate positions.
+        pt[pt_index].posx_min = out_nine_slice->size.x - out_nine_slice->corner_size.x;
+        pt[pt_index].posy_min = out_nine_slice->corner_size.y;
+        pt[pt_index].posx_max = out_nine_slice->size.x;
+        pt[pt_index].posy_max = out_nine_slice->size.y - out_nine_slice->corner_size.y;
+    }
+    {
+        // Center
+        pt_index++;
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_min.x + out_nine_slice->corner_px_size.y,
+            out_nine_slice->atlas_px_min.y + out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_min, &pt[pt_index].ty_min);
+        generate_uvs_from_image_coords(
+            out_nine_slice->atlas_px_size.x,
+            out_nine_slice->atlas_px_size.y,
+            out_nine_slice->atlas_px_max.x - out_nine_slice->corner_px_size.x,
+            out_nine_slice->atlas_px_max.y - out_nine_slice->corner_px_size.y,
+            &pt[pt_index].tx_max, &pt[pt_index].ty_max);
+        // Generate positions.
+        pt[pt_index].posx_min = out_nine_slice->corner_size.x;
+        pt[pt_index].posy_min = out_nine_slice->corner_size.y;
+        pt[pt_index].posx_max = out_nine_slice->size.x - out_nine_slice->corner_size.x;
+        pt[pt_index].posy_max = out_nine_slice->size.y - out_nine_slice->corner_size.y;
+    }
+
+    // Generate the 9 quads.
+    for (u32 i = 0; i < 9; ++i) {
+        // Vertices
+        u32 v_index = i * 4;
+
+        verts[v_index + 0].position.x = pt[i].posx_min;  // 0    3
+        verts[v_index + 0].position.y = pt[i].posy_min;  //
+        verts[v_index + 0].texcoord.x = pt[i].tx_min;    //
+        verts[v_index + 0].texcoord.y = pt[i].ty_min;    // 2    1
+
+        verts[v_index + 1].position.x = pt[i].posx_max;
+        verts[v_index + 1].position.y = pt[i].posy_max;
+        verts[v_index + 1].texcoord.x = pt[i].tx_max;
+        verts[v_index + 1].texcoord.y = pt[i].ty_max;
+
+        verts[v_index + 2].position.x = pt[i].posx_min;
+        verts[v_index + 2].position.y = pt[i].posy_max;
+        verts[v_index + 2].texcoord.x = pt[i].tx_min;
+        verts[v_index + 2].texcoord.y = pt[i].ty_max;
+
+        verts[v_index + 3].position.x = pt[i].posx_max;
+        verts[v_index + 3].position.y = pt[i].posy_min;
+        verts[v_index + 3].texcoord.x = pt[i].tx_max;
+        verts[v_index + 3].texcoord.y = pt[i].ty_min;
+
+        // Indices - counter-clockwise
+        u32 i_index = i * 6;
+        indices[i_index + 0] = v_index + 2;
+        indices[i_index + 1] = v_index + 1;
+        indices[i_index + 2] = v_index + 0;
+        indices[i_index + 3] = v_index + 3;
+        indices[i_index + 4] = v_index + 0;
+        indices[i_index + 5] = v_index + 1;
+    }
+
+    // Get UI geometry from config. NOTE: this uploads to GPU
+    out_nine_slice->g = geometry_system_acquire_from_config(out_config, true);
+
+    // Cleanup
+    kfree(out_config.vertices, out_config.vertex_size * out_config.vertex_count, MEMORY_TAG_ARRAY);
+    kfree(out_config.indices, out_config.index_size * out_config.index_count, MEMORY_TAG_ARRAY);
+
+    return true;
+}

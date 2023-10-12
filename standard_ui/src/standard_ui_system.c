@@ -16,6 +16,7 @@
 #include <systems/shader_system.h>
 #include <systems/texture_system.h>
 
+#include "math/math_types.h"
 #include "renderer/renderer_types.h"
 
 typedef struct standard_ui_state {
@@ -404,6 +405,108 @@ b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_frame
         standard_ui_renderable renderable = {0};
         renderable.render_data.unique_id = self->unique_id;
         renderable.render_data.geometry = typed_data->g;
+        renderable.render_data.model = transform_world_get(&self->xform);
+        renderable.render_data.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.
+
+        renderable.instance_id = &typed_data->instance_id;
+        renderable.frame_number = &typed_data->frame_number;
+        renderable.draw_index = &typed_data->draw_index;
+
+        darray_push(render_data->renderables, renderable);
+    }
+
+    return true;
+}
+
+typedef struct sui_button_internal_data {
+    vec2i size;
+    vec4 colour;
+    nine_slice nslice;
+    u32 instance_id;
+    u64 frame_number;
+    u8 draw_index;
+} sui_button_internal_data;
+
+b8 sui_button_control_create(const char* name, struct sui_control* out_control) {
+    if (!sui_base_control_create(name, out_control)) {
+        return false;
+    }
+
+    out_control->internal_data_size = sizeof(sui_button_internal_data);
+    out_control->internal_data = kallocate(out_control->internal_data_size, MEMORY_TAG_UI);
+    sui_button_internal_data* typed_data = out_control->internal_data;
+
+    // Reasonable defaults.
+    typed_data->size = (vec2i){200, 50};
+    typed_data->colour = vec4_one();
+
+    // Assign function pointers.
+    out_control->destroy = sui_button_control_destroy;
+    out_control->load = sui_button_control_load;
+    out_control->unload = sui_button_control_unload;
+    out_control->update = sui_button_control_update;
+    out_control->render = sui_button_control_render;
+
+    out_control->name = string_duplicate(name);
+    return true;
+}
+
+void sui_button_control_destroy(struct sui_control* self) {
+    sui_base_control_destroy(self);
+}
+
+b8 sui_button_control_load(struct sui_control* self) {
+    if (!sui_base_control_load(self)) {
+        return false;
+    }
+
+    sui_button_internal_data* typed_data = self->internal_data;
+    standard_ui_state* typed_state = systems_manager_get_state(128);  // HACK: need standard way to get extension types.
+
+    // HACK: TODO: remove hardcoded stuff.
+    /* vec2i atlas_size = (vec2i){typed_state->ui_atlas.texture->width, typed_state->ui_atlas.texture->height}; */
+    vec2i atlas_size = (vec2i){512, 512};
+    vec2i atlas_min = (vec2i){151, 12};
+    vec2i atlas_max = (vec2i){159, 20};
+    vec2i corner_px_size = (vec2i){3, 3};
+    vec2i corner_size = (vec2i){10, 10};
+    if (!generate_nine_slice(self->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
+        KERROR("Failed to generate nine slice.");
+        return false;
+    }
+
+    // Acquire instance resources for this control.
+    texture_map* maps[1] = {&typed_state->ui_atlas};
+    shader* s = shader_system_get("Shader.StandardUI");
+    renderer_shader_instance_resources_acquire(s, 1, maps, &typed_data->instance_id);
+
+    return true;
+}
+
+void sui_button_control_unload(struct sui_control* self) {
+    //
+}
+
+b8 sui_button_control_update(struct sui_control* self, struct frame_data* p_frame_data) {
+    if (!sui_base_control_update(self, p_frame_data)) {
+        return false;
+    }
+
+    //
+
+    return true;
+}
+
+b8 sui_button_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
+    if (!sui_base_control_render(self, p_frame_data, render_data)) {
+        return false;
+    }
+
+    sui_button_internal_data* typed_data = self->internal_data;
+    if (typed_data->nslice.g) {
+        standard_ui_renderable renderable = {0};
+        renderable.render_data.unique_id = self->unique_id;
+        renderable.render_data.geometry = typed_data->nslice.g;
         renderable.render_data.model = transform_world_get(&self->xform);
         renderable.render_data.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.
 

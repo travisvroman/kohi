@@ -245,3 +245,33 @@ typedef struct frustum {
     // Top, bottom, right, left, far, near
     plane_3d sides[6];
 } frustum;
+
+/**
+ * @brief A 2-element integer-based vector.
+ */
+typedef union vec2i_t {
+    /** @brief An array of x, y */
+    i32 elements[2];
+    struct {
+        union {
+            /** @brief The first element. */
+            i32 x,
+                /** @brief The first element. */
+                r,
+                /** @brief The first element. */
+                s,
+                /** @brief The first element. */
+                u;
+        };
+        union {
+            /** @brief The second element. */
+            i32 y,
+                /** @brief The second element. */
+                g,
+                /** @brief The second element. */
+                t,
+                /** @brief The second element. */
+                v;
+        };
+    };
+} vec2i;

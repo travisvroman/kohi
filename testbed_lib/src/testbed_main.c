@@ -600,6 +600,27 @@ b8 application_initialize(struct application* game_inst) {
         }
     }
 
+    if (!sui_button_control_create("test_button", &state->test_button)) {
+        KERROR("Failed to create test button.");
+    } else {
+        if (!sui_button_control_load(&state->test_button)) {
+            KERROR("Failed to load test button.");
+        } else {
+            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+            if (!standard_ui_system_register_control(sui_state, &state->test_button)) {
+                KERROR("Unable to register control.");
+            } else {
+                if (!standard_ui_system_control_add_child(sui_state, &state->test_panel, &state->test_button)) {
+                    KERROR("Failed to parent test button.");
+                } else {
+                    state->test_button.is_active = true;
+                    if (!standard_ui_system_update_active(sui_state, &state->test_button)) {
+                        KERROR("Unable to update active state.");
+                    }
+                }
+            }
+        }
+    }
     // TODO: end temp load/prepare stuff
 
     state->world_camera = camera_system_acquire("world");

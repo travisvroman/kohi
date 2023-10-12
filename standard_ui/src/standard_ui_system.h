@@ -17,6 +17,7 @@
 #include "defines.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
+
 struct frame_data;
 
 /** @brief The standard UI system configuration. */
@@ -113,3 +114,16 @@ KAPI void sui_panel_control_unload(struct sui_control* self);
 
 KAPI b8 sui_panel_control_update(struct sui_control* self, struct frame_data* p_frame_data);
 KAPI b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
+
+// ---------------------------
+// Button control
+// ---------------------------
+
+KAPI b8 sui_button_control_create(const char* name, struct sui_control* out_control);
+KAPI void sui_button_control_destroy(struct sui_control* self);
+
+KAPI b8 sui_button_control_load(struct sui_control* self);
+KAPI void sui_button_control_unload(struct sui_control* self);
+
+KAPI b8 sui_button_control_update(struct sui_control* self, struct frame_data* p_frame_data);
+KAPI b8 sui_button_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
