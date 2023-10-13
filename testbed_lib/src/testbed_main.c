@@ -382,6 +382,17 @@ static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_
     return false;  // Allow other event handlers to recieve this event.
 }
 
+static b8 sui_test_button_on_click(struct sui_control* self, struct sui_mouse_event event) {
+    if (!self) {
+        return false;
+    }
+
+    KDEBUG("Clicked '%s'!", self->name);
+
+    // TODO: configurable event propagation.
+    return true;
+}
+
 u64 application_state_size(void) {
     return sizeof(testbed_game_state);
 }
@@ -603,6 +614,13 @@ b8 application_initialize(struct application* game_inst) {
     if (!sui_button_control_create("test_button", &state->test_button)) {
         KERROR("Failed to create test button.");
     } else {
+        // Assign a click handler.
+        state->test_button.on_click = sui_test_button_on_click;
+
+        // Move and rotate it some.
+        quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
+        transform_translate_rotate(&state->test_button.xform, (vec3){50, 50, 0}, rotation);
+
         if (!sui_button_control_load(&state->test_button)) {
             KERROR("Failed to load test button.");
         } else {
@@ -657,6 +675,11 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     }
 
     clock_start(&state->update_clock);
+
+    // TODO: testing resize
+    static f32 button_height = 50.0f;
+    button_height = 50.0f + (ksin(p_frame_data->total_time) * 20.0f);
+    sui_button_control_height_set(&state->test_button, (i32)button_height);
 
     if (state->main_scene.state >= SIMPLE_SCENE_STATE_LOADED) {
         if (!simple_scene_update(&state->main_scene, p_frame_data)) {

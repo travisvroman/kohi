@@ -1,7 +1,9 @@
 #include "standard_ui_system.h"
 
 #include <containers/darray.h>
+#include <core/event.h>
 #include <core/identifier.h>
+#include <core/input.h>
 #include <core/kmemory.h>
 #include <core/kstring.h>
 #include <core/logger.h>
@@ -32,6 +34,28 @@ typedef struct standard_ui_state {
 
 } standard_ui_state;
 
+static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, event_context context) {
+    standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+
+    sui_mouse_event evt;
+    evt.mouse_button = (buttons)context.data.i16[0];
+    evt.x = context.data.i16[1];
+    evt.y = context.data.i16[2];
+    for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+        sui_control* control = typed_state->active_controls[i];
+        if (control->on_click) {
+            mat4 model = transform_world_get(&control->xform);
+            mat4 inv = mat4_inverse(model);
+            vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+            if (transformed_evt.x >= control->bounds.x && transformed_evt.x <= control->bounds.x + control->bounds.width) {
+                if (transformed_evt.y >= control->bounds.y && transformed_evt.y <= control->bounds.y + control->bounds.height) {
+                    control->on_click(control, evt);
+                }
+            }
+        }
+    }
+    return true;
+}
 b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* config) {
     if (!memory_requirement) {
         KERROR("standard_ui_system_initialize requires a valid pointer to memory_requirement.");
@@ -78,6 +102,9 @@ b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* con
         return false;
     }
 
+    // Listen for input events.
+    event_register(EVENT_CODE_BUTTON_CLICKED, state, standard_ui_system_click);
+
     KTRACE("Initialized standard UI system.");
 
     return true;
@@ -86,6 +113,10 @@ b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* con
 void standard_ui_system_shutdown(void* state) {
     if (state) {
         standard_ui_state* typed_state = (standard_ui_state*)state;
+
+        // Stop listening for input events.
+        event_unregister(EVENT_CODE_BUTTON_CLICKED, state, standard_ui_system_click);
+
         // Unload and destroy inactive controls.
         for (u32 i = 0; i < typed_state->inactive_control_count; ++i) {
             sui_control* c = typed_state->inactive_controls[i];
@@ -455,6 +486,22 @@ void sui_button_control_destroy(struct sui_control* self) {
     sui_base_control_destroy(self);
 }
 
+b8 sui_button_control_height_set(struct sui_control* self, i32 height) {
+    if (!self) {
+        return false;
+    }
+
+    sui_button_internal_data* typed_data = self->internal_data;
+    typed_data->size.y = height;
+    typed_data->nslice.size.y = height;
+
+    self->bounds.height = height;
+
+    update_nine_slice(&typed_data->nslice, 0);
+
+    return true;
+}
+
 b8 sui_button_control_load(struct sui_control* self) {
     if (!sui_base_control_load(self)) {
         return false;
@@ -467,13 +514,18 @@ b8 sui_button_control_load(struct sui_control* self) {
     /* vec2i atlas_size = (vec2i){typed_state->ui_atlas.texture->width, typed_state->ui_atlas.texture->height}; */
     vec2i atlas_size = (vec2i){512, 512};
     vec2i atlas_min = (vec2i){151, 12};
-    vec2i atlas_max = (vec2i){159, 20};
+    vec2i atlas_max = (vec2i){158, 19};
     vec2i corner_px_size = (vec2i){3, 3};
     vec2i corner_size = (vec2i){10, 10};
     if (!generate_nine_slice(self->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
         KERROR("Failed to generate nine slice.");
         return false;
     }
+
+    self->bounds.x = 0.0f;
+    self->bounds.y = 0.0f;
+    self->bounds.width = typed_data->size.x;
+    self->bounds.height = typed_data->size.y;
 
     // Acquire instance resources for this control.
     texture_map* maps[1] = {&typed_state->ui_atlas};

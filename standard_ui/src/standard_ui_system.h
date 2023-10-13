@@ -14,6 +14,7 @@
 
 #include <math/math_types.h>
 
+#include "core/input.h"
 #include "defines.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
@@ -38,12 +39,20 @@ typedef struct standard_ui_render_data {
     standard_ui_renderable* renderables;
 } standard_ui_render_data;
 
+typedef struct sui_mouse_event {
+    buttons mouse_button;
+    u16 x;
+    u16 y;
+} sui_mouse_event;
+
 typedef struct sui_control {
     u32 unique_id;
     transform xform;
     char* name;
     b8 is_active;
     b8 is_visible;
+    vec4i bounds;
+
     struct sui_control* parent;
     // darray
     struct sui_control** children;
@@ -57,6 +66,14 @@ typedef struct sui_control {
 
     b8 (*update)(struct sui_control* self, struct frame_data* p_frame_data);
     b8 (*render)(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* reneder_data);
+
+    /**
+     * The click handler for a control.
+     * @param self A pointer to the control.
+     * @param event The mouse event.
+     * @returns True if the event should be allowed to propagate to other controls; otherwise false.
+     */
+    b8 (*on_click)(struct sui_control* self, struct sui_mouse_event event);
 } sui_control;
 
 /**
@@ -121,6 +138,7 @@ KAPI b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_
 
 KAPI b8 sui_button_control_create(const char* name, struct sui_control* out_control);
 KAPI void sui_button_control_destroy(struct sui_control* self);
+KAPI b8 sui_button_control_height_set(struct sui_control* self, i32 width);
 
 KAPI b8 sui_button_control_load(struct sui_control* self);
 KAPI void sui_button_control_unload(struct sui_control* self);

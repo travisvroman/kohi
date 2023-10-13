@@ -129,34 +129,46 @@ typedef enum system_event_code {
     /** @brief Mouse button pressed.
      * Context usage:
      * u16 button = data.data.u16[0];
+     * u16 x = data.data.i16[1];
+     * u16 y = data.data.i16[2];
      */
     EVENT_CODE_BUTTON_PRESSED = 0x04,
 
     /** @brief Mouse button released.
      * Context usage:
      * u16 button = data.data.u16[0];
+     * u16 x = data.data.i16[1];
+     * u16 y = data.data.i16[2];
      */
     EVENT_CODE_BUTTON_RELEASED = 0x05,
+
+    /** @brief Mouse button pressed then released.
+     * Context usage:
+     * u16 button = data.data.u16[0];
+     * u16 x = data.data.i16[1];
+     * u16 y = data.data.i16[2];
+     */
+    EVENT_CODE_BUTTON_CLICKED = 0x06,
 
     /** @brief Mouse moved.
      * Context usage:
      * u16 x = data.data.i16[0];
      * u16 y = data.data.i16[1];
      */
-    EVENT_CODE_MOUSE_MOVED = 0x06,
+    EVENT_CODE_MOUSE_MOVED = 0x07,
 
     /** @brief Mouse moved.
      * Context usage:
      * ui z_delta = data.data.i8[0];
      */
-    EVENT_CODE_MOUSE_WHEEL = 0x07,
+    EVENT_CODE_MOUSE_WHEEL = 0x08,
 
     /** @brief Resized/resolution changed from the OS.
      * Context usage:
      * u16 width = data.data.u16[0];
      * u16 height = data.data.u16[1];
      */
-    EVENT_CODE_RESIZED = 0x08,
+    EVENT_CODE_RESIZED = 0x09,
 
     // Change the render mode for debugging purposes.
     /* Context usage:

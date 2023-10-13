@@ -194,17 +194,28 @@ void input_process_button(buttons button, b8 pressed) {
     }
 
     // Check for drag releases.
-    if (!pressed && state_ptr->mouse_current.dragging[button]) {
-        // Issue a drag end event.
+    if (!pressed) {
+        if (state_ptr->mouse_current.dragging[button]) {
+            // Issue a drag end event.
 
-        state_ptr->mouse_current.dragging[button] = false;
-        // KTRACE("mouse drag ended at: x:%hi, y:%hi, button: %hu", state_ptr->mouse_current.x, state_ptr->mouse_current.y, button);
+            state_ptr->mouse_current.dragging[button] = false;
+            // KTRACE("mouse drag ended at: x:%hi, y:%hi, button: %hu", state_ptr->mouse_current.x, state_ptr->mouse_current.y, button);
 
-        event_context context;
-        context.data.i16[0] = state_ptr->mouse_current.x;
-        context.data.i16[1] = state_ptr->mouse_current.y;
-        context.data.u16[2] = button;
-        event_fire(EVENT_CODE_MOUSE_DRAG_END, 0, context);
+            event_context context;
+            context.data.i16[0] = state_ptr->mouse_current.x;
+            context.data.i16[1] = state_ptr->mouse_current.y;
+            context.data.u16[2] = button;
+            event_fire(EVENT_CODE_MOUSE_DRAG_END, 0, context);
+        } else {
+            // If not a drag release, then it is a click.
+
+            // Fire the event.
+            event_context context;
+            context.data.u16[0] = button;
+            context.data.i16[1] = state_ptr->mouse_current.x;
+            context.data.i16[2] = state_ptr->mouse_current.y;
+            event_fire(EVENT_CODE_BUTTON_CLICKED, 0, context);
+        }
     }
 }
 
