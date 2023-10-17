@@ -446,8 +446,8 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     u32 log_severity =
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;  //|
-                                                       //    VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
 
     VkDebugUtilsMessengerCreateInfoEXT debug_create_info = {
         VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
@@ -455,7 +455,8 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     debug_create_info.messageType =
         VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
     debug_create_info.pfnUserCallback = vk_debug_callback;
 
     PFN_vkCreateDebugUtilsMessengerEXT func =
@@ -553,13 +554,6 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
         fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
         VK_CHECK(vkCreateFence(context->device.logical_device, &fence_create_info,
                                context->allocator, &context->in_flight_fences[i]));
-    }
-
-    // In flight fences should not yet exist at this point, so clear the list.
-    // These are stored in pointers because the initial state should be 0, and
-    // will be 0 when not in use. Acutal fences are not owned by this list.
-    for (u32 i = 0; i < context->swapchain.image_count; ++i) {
-        context->images_in_flight[i] = 0;
     }
 
     // Create buffers
@@ -771,13 +765,25 @@ b8 vulkan_renderer_frame_prepare(renderer_plugin *plugin, struct frame_data *p_f
     // Acquire the next image from the swap chain. Pass along the semaphore that
     // should signaled when this completes. This same semaphore will later be
     // waited on by the queue submission to ensure this image is available.
-    if (!vulkan_swapchain_acquire_next_image_index(
-            context, &context->swapchain, UINT64_MAX,
-            context->image_available_semaphores[context->current_frame], 0,
-            &context->image_index)) {
-        KERROR("Failed to acquire next image index, booting.");
+    result = vkAcquireNextImageKHR(
+        context->device.logical_device,
+        context->swapchain.handle,
+        UINT64_MAX,
+        context->image_available_semaphores[context->current_frame],
+        0,
+        &context->image_index);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        // Trigger swapchain recreation, then boot out of the render loop.
+        vulkan_swapchain_recreate(context, context->framebuffer_width, context->framebuffer_height, &context->swapchain);
+        return false;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        KFATAL("Failed to acquire swapchain image!");
         return false;
     }
+
+    // Reset the fence for use on the next frame
+    VK_CHECK(vkResetFences(context->device.logical_device, 1, &context->in_flight_fences[context->current_frame]));
 
     return true;
 }
@@ -786,16 +792,6 @@ b8 vulkan_renderer_begin(renderer_plugin *plugin, struct frame_data *p_frame_dat
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     // Begin recording commands.
     vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
-
-    // Wait for the execution of the current frame to complete. The fence being
-    // free will allow this one to move on.
-    VkResult result = vkWaitForFences(
-        context->device.logical_device, 1,
-        &context->in_flight_fences[context->current_frame], true, UINT64_MAX);
-    if (!vulkan_result_is_success(result)) {
-        KFATAL("In-flight fence wait failure! error: %s", vulkan_result_string(result, true));
-        return false;
-    }
 
     vulkan_command_buffer_reset(command_buffer);
     vulkan_command_buffer_begin(command_buffer, false, false, false);
@@ -811,21 +807,6 @@ b8 vulkan_renderer_end(renderer_plugin *plugin, struct frame_data *p_frame_data)
     vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
 
     vulkan_command_buffer_end(command_buffer);
-
-    // Make sure the previous frame is not using this image (i.e. its fence is
-    // being waited on)
-    if (context->images_in_flight[context->image_index] != VK_NULL_HANDLE) {  // was frame
-        VkResult result = vkWaitForFences(context->device.logical_device, 1, &context->images_in_flight[context->image_index], true, UINT64_MAX);
-        if (!vulkan_result_is_success(result)) {
-            KFATAL("vkWaitForFences error: %s", vulkan_result_string(result, true));
-        }
-    }
-
-    // Mark the image fence as in-use by this frame.
-    context->images_in_flight[context->image_index] = context->in_flight_fences[context->current_frame];
-
-    // Reset the fence for use on the next frame
-    VK_CHECK(vkResetFences(context->device.logical_device, 1, &context->in_flight_fences[context->current_frame]));
 
     // Submit the queue and wait for the operation to complete.
     // Begin queue submission
@@ -878,11 +859,30 @@ b8 vulkan_renderer_present(renderer_plugin *plugin, struct frame_data *p_frame_d
     // Cold-cast the context
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
 
-    // Give the image back to the swapchain.
-    vulkan_swapchain_present(
-        context, &context->swapchain, context->device.present_queue,
-        context->queue_complete_semaphores[context->current_frame],
-        context->image_index);
+    // Return the image to the swapchain for presentation.
+    VkPresentInfoKHR present_info = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &context->queue_complete_semaphores[context->current_frame];
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &context->swapchain.handle;
+    present_info.pImageIndices = &context->image_index;
+    present_info.pResults = 0;
+
+    // HACK: Waiting on the fence here solves the issue, but this shouldn't
+    // be needed since it _should_ be waiting on the pWaitSemaphores, which _should_ be
+    // signaled by the queue's completion after submission.
+    vkWaitForFences(context->device.logical_device, 1, &context->in_flight_fences[context->current_frame], true, UINT64_MAX);
+    VkResult result = vkQueuePresentKHR(context->device.present_queue, &present_info);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        // Swapchain is out of date, suboptimal or a framebuffer resize has occurred. Trigger swapchain recreation.
+        vulkan_swapchain_recreate(context, context->framebuffer_width, context->framebuffer_height, &context->swapchain);
+        KDEBUG("Swapchain recreated because swapchain returned out of date or suboptimal.");
+    } else if (result != VK_SUCCESS) {
+        KFATAL("Failed to present swap chain image!");
+    }
+
+    // Increment (and loop) the index.
+    context->current_frame = (context->current_frame + 1) % context->swapchain.max_frames_in_flight;
 
     return true;
 }
@@ -1133,11 +1133,6 @@ static b8 recreate_swapchain(vulkan_context *context) {
 
     // Wait for any operations to complete.
     vkDeviceWaitIdle(context->device.logical_device);
-
-    // Clear these out just in case.
-    for (u32 i = 0; i < context->swapchain.image_count; ++i) {
-        context->images_in_flight[i] = 0;
-    }
 
     // Requery support
     vulkan_device_query_swapchain_support(context->device.physical_device,
