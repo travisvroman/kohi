@@ -225,6 +225,7 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
             true,
             VK_IMAGE_ASPECT_DEPTH_BIT,
             formatted_name,
+            1,
             image);
 
         // Wrap it in a texture.

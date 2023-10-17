@@ -87,6 +87,12 @@ typedef struct image_resource_data {
     u32 height;
     /** @brief The pixel data of the image. */
     u8 *pixels;
+    /**
+     * @brief The number of mip levels to be generated for this
+     * image resource. Should be passed on to the texture using it.
+     * Must always be at least 1.
+     */
+    u32 mip_levels;
 } image_resource_data;
 
 /** @brief Parameters used when loading an image. */
@@ -174,6 +180,8 @@ typedef struct texture {
     char name[TEXTURE_NAME_MAX_LENGTH];
     /** @brief The raw texture data (pixels). */
     void *internal_data;
+    /** @brief The number of mip maps the internal texture has. Must always be at least 1. */
+    u32 mip_levels;
 } texture;
 
 /** @brief Represents supported texture filtering modes. */
@@ -196,6 +204,18 @@ typedef enum texture_repeat {
  * other properties.
  */
 typedef struct texture_map {
+    /**
+     * @brief The cached generation of the assigned texture.
+     * Used to determine when to regenerate this texture map's
+     * resources when a texture's generation changes (as this could
+     * be required if, say, a texture's mip levels change).
+     * */
+    u32 generation;
+    /**
+     * @brief Cached mip map levels. Should match assigned
+     * texture. Must always be at least 1.
+     */
+    u32 mip_levels;
     /** @brief A pointer to a texture. */
     texture *texture;
     /** @brief Texture filtering mode for minification. */
