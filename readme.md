@@ -66,3 +66,4 @@ All contributions are subject to review and may or may not be accepted, or have 
 
 ## .support me
 I am developing Kohi in my spare time. I don't have any sponsors at the moment. If you like my work, please feel free to support me over on [Patreon](https://patreon.com/travisvroman) or via [YouTube membership](https://www.youtube.com/TravisVroman/join). Your support is greatly appreciated and will be re-invested back into the project.
+
