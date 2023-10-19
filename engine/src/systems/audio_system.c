@@ -29,7 +29,7 @@ b8 audio_system_initialize(u64* memory_requirement, void* state, void* config) {
     audio_system_config* typed_config = (audio_system_config*)config;
 
     if (typed_config->audio_channel_count < 4) {
-        KWARN("Invalid audio system config - audio_channel_count must be at least 1. Defaulting to 4.");
+        KWARN("Invalid audio system config - audio_channel_count must be at least 4. Defaulting to 4.");
         typed_config->audio_channel_count = 4;
     }
 
@@ -54,7 +54,7 @@ b8 audio_system_initialize(u64* memory_requirement, void* state, void* config) {
     typed_state->plugin = typed_config->plugin;
 
     audio_plugin_config plugin_config = {0};
-    plugin_config.max_sources = 8;//MAX_AUDIO_CHANNELS;
+    plugin_config.max_sources = typed_config->audio_channel_count;  // MAX_AUDIO_CHANNELS;
     plugin_config.max_buffers = 256;
     plugin_config.chunk_size = typed_config->chunk_size;
     plugin_config.frequency = typed_config->frequency;
@@ -78,6 +78,7 @@ b8 audio_system_update(void* state, struct frame_data* p_frame_data) {
             // TODO: sync all properties
             typed_state->plugin.source_position_set(&typed_state->plugin, i, channel->emitter->position);
             typed_state->plugin.source_looping_set(&typed_state->plugin, i, channel->emitter->looping);
+            typed_state->plugin.source_gain_set(&typed_state->plugin, i, typed_state->master_volume * typed_state->channels[i].volume * channel->emitter->volume);
         }
     }
 
@@ -120,6 +121,10 @@ void audio_system_master_volume_set(f32 volume) {
     // Now adjust each channel's volume to take this into account.
     for (u32 i = 0; i < state->config.audio_channel_count; ++i) {
         f32 mixed_volume = state->channels[i].volume * state->master_volume;
+        if (state->channels[i].emitter) {
+            // Take the emitter's volume into account if there is one.
+            mixed_volume *= state->channels[i].emitter->volume;
+        }
         state->plugin.source_gain_set(&state->plugin, i, mixed_volume);
     }
 }
@@ -144,6 +149,10 @@ b8 audio_system_channel_volume_set(i8 channel_id, f32 volume) {
     state->channels[channel_id].volume = KCLAMP(volume, 0.0f, 1.0f);
     // Apply the channel volume, taking the master volume into account.
     f32 mixed_volume = state->channels[channel_id].volume * state->master_volume;
+    if (state->channels[channel_id].emitter) {
+        // Take the emitter's volume into account if there is one.
+        mixed_volume *= state->channels[channel_id].emitter->volume;
+    }
     state->plugin.source_gain_set(&state->plugin, channel_id, mixed_volume);
     return true;
 }
@@ -179,7 +188,7 @@ b8 audio_system_channel_play(i8 channel_id, struct audio_file* file, b8 loop) {
     channel->current = file;
 
     // Set the channel volume.
-    state->plugin.source_gain_set(&state->plugin, channel_id, channel->volume);
+    state->plugin.source_gain_set(&state->plugin, channel_id, state->master_volume * channel->volume);
 
     if (file->type == AUDIO_FILE_TYPE_SOUND_EFFECT) {
         // Set the position to the listener position.
@@ -188,9 +197,8 @@ b8 audio_system_channel_play(i8 channel_id, struct audio_file* file, b8 loop) {
         state->plugin.source_position_set(&state->plugin, channel_id, position);
         // Set looping.
         state->plugin.source_looping_set(&state->plugin, channel_id, loop);
-    } else {
-        //
     }
+
     state->plugin.source_stop(&state->plugin, channel_id);
     return state->plugin.play_on_source(&state->plugin, file, channel_id);
 }

@@ -631,6 +631,8 @@ b8 application_initialize(struct application* game_inst) {
     audio_system_channel_volume_set(3, 0.25);
     audio_system_channel_volume_set(4, 0.0f);
 
+    audio_system_channel_volume_set(7, 0.4f);
+
     // Try playing the emitter.
     if (!audio_system_channel_emitter_play(6, &state->test_emitter)) {
         KERROR("Failed to play test emitter.");

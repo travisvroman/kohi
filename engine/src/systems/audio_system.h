@@ -1,3 +1,5 @@
+#pragma once
+
 #include "audio/audio_types.h"
 #include "defines.h"
 

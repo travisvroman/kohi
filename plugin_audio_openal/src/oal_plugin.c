@@ -100,7 +100,6 @@ static b8 oal_plugin_source_create(struct audio_plugin* plugin, audio_plugin_sou
 static void oal_plugin_source_destroy(struct audio_plugin* plugin, audio_plugin_source* source);
 static u32 oal_plugin_find_free_buffer(struct audio_plugin* plugin);
 
-// HACK: This should be in a file loader and streamed, but the file system doesn't yet support this...
 static b8 oal_plugin_stream_music_data(audio_plugin* plugin, ALuint buffer, audio_file* audio) {
     if (!plugin || !audio) {
         return false;
@@ -231,7 +230,7 @@ b8 oal_plugin_initialize(struct audio_plugin* plugin, audio_plugin_config config
             plugin->internal_state->config.max_sources = 8;
         }
         if (plugin->internal_state->config.max_buffers < 20) {
-            KWARN("Audio plugin config.max_buffers was configured to be less than 20, the recommended minimum. Defaulting to 20.");
+            KWARN("Audio plugin config.max_buffers was configured to be less than 20, the recommended minimum. Defaulting to 256.");
             plugin->internal_state->config.max_buffers = 256;
         }
         plugin->internal_state->buffer_count = plugin->internal_state->config.max_buffers;
@@ -493,7 +492,7 @@ static u32 oal_plugin_find_free_buffer(struct audio_plugin* plugin) {
                     oal_plugin_check_error();
 
                     clear_buffer(plugin, &buffers_freed, to_be_freed);
-                    alSourcePlay(plugin->internal_state->sources[i - 1].id);
+                    /* alSourcePlay(plugin->internal_state->sources[i - 1].id); */
                 }
             }
 
@@ -866,7 +865,7 @@ b8 oal_plugin_source_resume(struct audio_plugin* plugin, i8 source_index) {
     ALint source_state;
     alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
     if (source_state == AL_PAUSED) {
-        /* alSourcePlay(source->id); */
+        alSourcePlay(source->id);
     }
 
     return true;
