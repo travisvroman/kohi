@@ -152,6 +152,22 @@ KAPI f32 ksqrt(f32 x);
 KAPI f32 kabs(f32 x);
 
 /**
+ * @brief Returns the largest integer value less than or equal to x.
+ *
+ * @param x The value to be examined.
+ * @return the largest integer value less than or equal to x.
+ */
+KAPI f32 kfloor(f32 x);
+
+/**
+ * @brief Computes the base-2 logarithm of x (i.e. how many times x can be divided by 2).
+ *
+ * @param x The value to be examined.
+ * @return The base-2 logarithm of x.
+ */
+KAPI f32 klog2(f32 x);
+
+/**
  * @brief Indicates if the value is a power of 2. 0 is considered _not_ a power
  * of 2.
  * @param value The value to be interpreted.

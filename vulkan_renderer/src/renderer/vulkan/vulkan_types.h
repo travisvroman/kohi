@@ -157,12 +157,16 @@ typedef struct vulkan_image {
     VkMemoryRequirements memory_requirements;
     /** @brief Memory property flags */
     VkMemoryPropertyFlags memory_flags;
+    /** @brief The format of the image. */
+    VkFormat format;
     /** @brief The image width. */
     u32 width;
     /** @brief The image height. */
     u32 height;
     /** @brief The name of the image. */
     char* name;
+    /** The number of mipmaps to be generated for this image. Must always be at least 1. */
+    u32 mip_levels;
 } vulkan_image;
 
 /** @brief Represents the possible states of a renderpass. */

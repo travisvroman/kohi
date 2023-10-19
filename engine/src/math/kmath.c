@@ -23,6 +23,10 @@ f32 ksqrt(f32 x) { return sqrtf(x); }
 
 f32 kabs(f32 x) { return fabsf(x); }
 
+f32 kfloor(f32 x) { return floorf(x); }
+
+f32 klog2(f32 x) { return log2f(x); }
+
 i32 krandom(void) {
     if (!rand_seeded) {
         srand((u32)platform_get_absolute_time());
