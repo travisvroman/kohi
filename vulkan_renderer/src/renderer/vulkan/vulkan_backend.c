@@ -941,7 +941,7 @@ void vulkan_renderer_winding_set(struct renderer_plugin *plugin, renderer_windin
     VkFrontFace vk_winding = winding == RENDERER_WINDING_COUNTER_CLOCKWISE ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
     if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT) {
         vkCmdSetFrontFace(command_buffer->handle, vk_winding);
-    } else if (context->device.support_flags * VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT) {
+    } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT) {
         context->vkCmdSetFrontFaceEXT(command_buffer->handle, vk_winding);
     } else {
         if (context->bound_shader) {
@@ -1589,26 +1589,26 @@ b8 vulkan_renderer_shader_create(renderer_plugin *plugin, shader *s,
     s->internal_data = kallocate(sizeof(vulkan_shader), MEMORY_TAG_RENDERER);
 
     // Translate stages
-    VkShaderStageFlags vk_stages[VULKAN_SHADER_MAX_STAGES];
+    /* VkShaderStageFlags vk_stages[VULKAN_SHADER_MAX_STAGES]; */
     for (u8 i = 0; i < stage_count; ++i) {
         switch (stages[i]) {
             case SHADER_STAGE_FRAGMENT:
-                vk_stages[i] = VK_SHADER_STAGE_FRAGMENT_BIT;
+                /* vk_stages[i] = VK_SHADER_STAGE_FRAGMENT_BIT; */
                 break;
             case SHADER_STAGE_VERTEX:
-                vk_stages[i] = VK_SHADER_STAGE_VERTEX_BIT;
+                /* vk_stages[i] = VK_SHADER_STAGE_VERTEX_BIT; */
                 break;
             case SHADER_STAGE_GEOMETRY:
                 KWARN(
                     "vulkan_renderer_shader_create: VK_SHADER_STAGE_GEOMETRY_BIT is "
                     "set but not yet supported.");
-                vk_stages[i] = VK_SHADER_STAGE_GEOMETRY_BIT;
+                /* vk_stages[i] = VK_SHADER_STAGE_GEOMETRY_BIT; */
                 break;
             case SHADER_STAGE_COMPUTE:
                 KWARN(
                     "vulkan_renderer_shader_create: SHADER_STAGE_COMPUTE is set but "
                     "not yet supported.");
-                vk_stages[i] = VK_SHADER_STAGE_COMPUTE_BIT;
+                /* vk_stages[i] = VK_SHADER_STAGE_COMPUTE_BIT; */
                 break;
             default:
                 KERROR("Unsupported stage type: %d", stages[i]);
