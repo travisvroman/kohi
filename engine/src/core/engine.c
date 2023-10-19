@@ -99,6 +99,7 @@ b8 engine_create(application* game_inst) {
     engine_state->frames_since_resize = 0;
 
     game_inst->app_config.renderer_plugin = game_inst->render_plugin;
+    game_inst->app_config.audio_plugin = game_inst->audio_plugin;
 
     if (!systems_manager_initialize(&engine_state->sys_manager_state, &game_inst->app_config)) {
         KFATAL("Systems manager failed to initialize. Aborting process.");

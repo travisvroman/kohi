@@ -124,7 +124,7 @@ b8 filesystem_read_all_text(file_handle* handle, char* out_text, u64* out_bytes_
         }
 
         *out_bytes_read = fread(out_text, 1, size, (FILE*)handle->handle);
-        return *out_bytes_read == size;
+        return true;//*out_bytes_read == size;
     }
     return false;
 }
