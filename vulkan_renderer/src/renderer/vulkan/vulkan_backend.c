@@ -446,8 +446,8 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     u32 log_severity =
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;  //|
-                                                       //    VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
 
     VkDebugUtilsMessengerCreateInfoEXT debug_create_info = {
         VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
@@ -455,7 +455,8 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     debug_create_info.messageType =
         VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
     debug_create_info.pfnUserCallback = vk_debug_callback;
 
     PFN_vkCreateDebugUtilsMessengerEXT func =
@@ -553,13 +554,6 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
         fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
         VK_CHECK(vkCreateFence(context->device.logical_device, &fence_create_info,
                                context->allocator, &context->in_flight_fences[i]));
-    }
-
-    // In flight fences should not yet exist at this point, so clear the list.
-    // These are stored in pointers because the initial state should be 0, and
-    // will be 0 when not in use. Acutal fences are not owned by this list.
-    for (u32 i = 0; i < context->swapchain.image_count; ++i) {
-        context->images_in_flight[i] = 0;
     }
 
     // Create buffers
@@ -771,13 +765,25 @@ b8 vulkan_renderer_frame_prepare(renderer_plugin *plugin, struct frame_data *p_f
     // Acquire the next image from the swap chain. Pass along the semaphore that
     // should signaled when this completes. This same semaphore will later be
     // waited on by the queue submission to ensure this image is available.
-    if (!vulkan_swapchain_acquire_next_image_index(
-            context, &context->swapchain, UINT64_MAX,
-            context->image_available_semaphores[context->current_frame], 0,
-            &context->image_index)) {
-        KERROR("Failed to acquire next image index, booting.");
+    result = vkAcquireNextImageKHR(
+        context->device.logical_device,
+        context->swapchain.handle,
+        UINT64_MAX,
+        context->image_available_semaphores[context->current_frame],
+        0,
+        &context->image_index);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        // Trigger swapchain recreation, then boot out of the render loop.
+        vulkan_swapchain_recreate(context, context->framebuffer_width, context->framebuffer_height, &context->swapchain);
+        return false;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        KFATAL("Failed to acquire swapchain image!");
         return false;
     }
+
+    // Reset the fence for use on the next frame
+    VK_CHECK(vkResetFences(context->device.logical_device, 1, &context->in_flight_fences[context->current_frame]));
 
     return true;
 }
@@ -786,16 +792,6 @@ b8 vulkan_renderer_begin(renderer_plugin *plugin, struct frame_data *p_frame_dat
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     // Begin recording commands.
     vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
-
-    // Wait for the execution of the current frame to complete. The fence being
-    // free will allow this one to move on.
-    VkResult result = vkWaitForFences(
-        context->device.logical_device, 1,
-        &context->in_flight_fences[context->current_frame], true, UINT64_MAX);
-    if (!vulkan_result_is_success(result)) {
-        KFATAL("In-flight fence wait failure! error: %s", vulkan_result_string(result, true));
-        return false;
-    }
 
     vulkan_command_buffer_reset(command_buffer);
     vulkan_command_buffer_begin(command_buffer, false, false, false);
@@ -811,21 +807,6 @@ b8 vulkan_renderer_end(renderer_plugin *plugin, struct frame_data *p_frame_data)
     vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
 
     vulkan_command_buffer_end(command_buffer);
-
-    // Make sure the previous frame is not using this image (i.e. its fence is
-    // being waited on)
-    if (context->images_in_flight[context->image_index] != VK_NULL_HANDLE) {  // was frame
-        VkResult result = vkWaitForFences(context->device.logical_device, 1, &context->images_in_flight[context->image_index], true, UINT64_MAX);
-        if (!vulkan_result_is_success(result)) {
-            KFATAL("vkWaitForFences error: %s", vulkan_result_string(result, true));
-        }
-    }
-
-    // Mark the image fence as in-use by this frame.
-    context->images_in_flight[context->image_index] = context->in_flight_fences[context->current_frame];
-
-    // Reset the fence for use on the next frame
-    VK_CHECK(vkResetFences(context->device.logical_device, 1, &context->in_flight_fences[context->current_frame]));
 
     // Submit the queue and wait for the operation to complete.
     // Begin queue submission
@@ -878,11 +859,30 @@ b8 vulkan_renderer_present(renderer_plugin *plugin, struct frame_data *p_frame_d
     // Cold-cast the context
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
 
-    // Give the image back to the swapchain.
-    vulkan_swapchain_present(
-        context, &context->swapchain, context->device.present_queue,
-        context->queue_complete_semaphores[context->current_frame],
-        context->image_index);
+    // Return the image to the swapchain for presentation.
+    VkPresentInfoKHR present_info = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &context->queue_complete_semaphores[context->current_frame];
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &context->swapchain.handle;
+    present_info.pImageIndices = &context->image_index;
+    present_info.pResults = 0;
+
+    // HACK: Waiting on the fence here solves the issue, but this shouldn't
+    // be needed since it _should_ be waiting on the pWaitSemaphores, which _should_ be
+    // signaled by the queue's completion after submission.
+    vkWaitForFences(context->device.logical_device, 1, &context->in_flight_fences[context->current_frame], true, UINT64_MAX);
+    VkResult result = vkQueuePresentKHR(context->device.present_queue, &present_info);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        // Swapchain is out of date, suboptimal or a framebuffer resize has occurred. Trigger swapchain recreation.
+        vulkan_swapchain_recreate(context, context->framebuffer_width, context->framebuffer_height, &context->swapchain);
+        KDEBUG("Swapchain recreated because swapchain returned out of date or suboptimal.");
+    } else if (result != VK_SUCCESS) {
+        KFATAL("Failed to present swap chain image!");
+    }
+
+    // Increment (and loop) the index.
+    context->current_frame = (context->current_frame + 1) % context->swapchain.max_frames_in_flight;
 
     return true;
 }
@@ -941,7 +941,7 @@ void vulkan_renderer_winding_set(struct renderer_plugin *plugin, renderer_windin
     VkFrontFace vk_winding = winding == RENDERER_WINDING_COUNTER_CLOCKWISE ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
     if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT) {
         vkCmdSetFrontFace(command_buffer->handle, vk_winding);
-    } else if (context->device.support_flags * VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT) {
+    } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT) {
         context->vkCmdSetFrontFaceEXT(command_buffer->handle, vk_winding);
     } else {
         if (context->bound_shader) {
@@ -1134,11 +1134,6 @@ static b8 recreate_swapchain(vulkan_context *context) {
     // Wait for any operations to complete.
     vkDeviceWaitIdle(context->device.logical_device);
 
-    // Clear these out just in case.
-    for (u32 i = 0; i < context->swapchain.image_count; ++i) {
-        context->images_in_flight[i] = 0;
-    }
-
     // Requery support
     vulkan_device_query_swapchain_support(context->device.physical_device,
                                           context->surface,
@@ -1193,7 +1188,7 @@ void vulkan_renderer_texture_create(renderer_plugin *plugin, const u8 *pixels,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT,
-        t->name, image);
+        t->name, t->mip_levels, image);
 
     // Load the data.
     vulkan_renderer_texture_write_data(plugin, t, 0, size, pixels);
@@ -1258,7 +1253,7 @@ void vulkan_renderer_texture_create_writeable(renderer_plugin *plugin,
     vulkan_image_create(context, t->type, t->width, t->height, image_format,
                         VK_IMAGE_TILING_OPTIMAL, usage,
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, aspect,
-                        t->name, image);
+                        t->name, t->mip_levels, image);
 
     t->generation++;
 }
@@ -1276,6 +1271,16 @@ void vulkan_renderer_texture_resize(renderer_plugin *plugin, texture *t,
         VkFormat image_format =
             channel_count_to_format(t->channel_count, VK_FORMAT_R8G8B8A8_UNORM);
 
+        // Recalculate mip levels if anything other than 1.
+        if (t->mip_levels > 1) {
+            // Recalculate the number of levels.
+            // The number of mip levels is calculated by first taking the largest dimension
+            // (either width or height), figuring out how many times that number can be divided
+            // by 2, taking the floor value (rounding down) and adding 1 to represent the
+            // base level. This always leaves a value of at least 1.
+            t->mip_levels = (u32)(kfloor(klog2(KMAX(new_width, new_height))) + 1);
+        }
+
         // TODO: Lots of assumptions here, different texture types will require
         // different options here.
         vulkan_image_create(
@@ -1284,7 +1289,7 @@ void vulkan_renderer_texture_resize(renderer_plugin *plugin, texture *t,
             VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
                 VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_COLOR_BIT,
-            t->name, image);
+            t->name, t->mip_levels, image);
 
         t->generation++;
     }
@@ -1318,12 +1323,14 @@ void vulkan_renderer_texture_write_data(renderer_plugin *plugin, texture *t,
     // Copy the data from the buffer.
     vulkan_image_copy_from_buffer(context, t->type, image, ((vulkan_buffer *)context->staging.internal_data)->handle, staging_offset, &temp_command_buffer);
 
-    // Transition from optimal for data reciept to shader-read-only optimal
-    // layout.
-    vulkan_image_transition_layout(context, t->type, &temp_command_buffer, image,
-                                   image_format,
-                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                   VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    if (t->mip_levels <= 1 || !vulkan_image_mipmaps_generate(context, image, &temp_command_buffer)) {
+        // If mip generation isn't needed or fails, fall back to ordinary transition.
+        // Transition from optimal for data reciept to shader-read-only optimal layout.
+        vulkan_image_transition_layout(context, t->type, &temp_command_buffer, image,
+                                       image_format,
+                                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
 
     vulkan_command_buffer_end_single_use(context, pool, &temp_command_buffer, queue);
 
@@ -1594,26 +1601,26 @@ b8 vulkan_renderer_shader_create(renderer_plugin *plugin, shader *s,
     s->internal_data = kallocate(sizeof(vulkan_shader), MEMORY_TAG_RENDERER);
 
     // Translate stages
-    VkShaderStageFlags vk_stages[VULKAN_SHADER_MAX_STAGES];
+    /* VkShaderStageFlags vk_stages[VULKAN_SHADER_MAX_STAGES]; */
     for (u8 i = 0; i < stage_count; ++i) {
         switch (stages[i]) {
             case SHADER_STAGE_FRAGMENT:
-                vk_stages[i] = VK_SHADER_STAGE_FRAGMENT_BIT;
+                /* vk_stages[i] = VK_SHADER_STAGE_FRAGMENT_BIT; */
                 break;
             case SHADER_STAGE_VERTEX:
-                vk_stages[i] = VK_SHADER_STAGE_VERTEX_BIT;
+                /* vk_stages[i] = VK_SHADER_STAGE_VERTEX_BIT; */
                 break;
             case SHADER_STAGE_GEOMETRY:
                 KWARN(
                     "vulkan_renderer_shader_create: VK_SHADER_STAGE_GEOMETRY_BIT is "
                     "set but not yet supported.");
-                vk_stages[i] = VK_SHADER_STAGE_GEOMETRY_BIT;
+                /* vk_stages[i] = VK_SHADER_STAGE_GEOMETRY_BIT; */
                 break;
             case SHADER_STAGE_COMPUTE:
                 KWARN(
                     "vulkan_renderer_shader_create: SHADER_STAGE_COMPUTE is set but "
                     "not yet supported.");
-                vk_stages[i] = VK_SHADER_STAGE_COMPUTE_BIT;
+                /* vk_stages[i] = VK_SHADER_STAGE_COMPUTE_BIT; */
                 break;
             default:
                 KERROR("Unsupported stage type: %d", stages[i]);
@@ -2411,7 +2418,22 @@ b8 vulkan_renderer_shader_apply_instance(renderer_plugin *plugin, shader *s,
 
                 // Ensure the texture is valid.
                 if (t->generation == INVALID_ID) {
+                    // If using the default texture, invalidate the map's generation so it's updated next run.
                     t = texture_system_get_default_texture();
+                    map->generation = INVALID_ID;
+                } else {
+                    // If valid, ensure the texture map's generation matches the texture's.
+                    // If not, the texture map resources should be regenerated.
+                    if (t->generation != map->generation) {
+                        b8 refresh_required = t->mip_levels != map->mip_levels;
+                        KTRACE("A sampler refresh is%s required. Tex/map mips: %u/%u", refresh_required ? "" : " not", t->mip_levels, map->mip_levels);
+                        if (refresh_required && !vulkan_renderer_texture_map_resources_refresh(plugin, map)) {
+                            KWARN("Failed to refresh texture map resources. This means the sampler settings could be out of date.");
+                        } else {
+                            // Sync the generations.
+                            map->generation = t->generation;
+                        }
+                    }
                 }
 
                 vulkan_image *image = (vulkan_image *)t->internal_data;
@@ -2489,11 +2511,12 @@ static VkFilter convert_filter_type(const char *op, texture_filter filter) {
     }
 }
 
-b8 vulkan_renderer_texture_map_resources_acquire(renderer_plugin *plugin,
-                                                 texture_map *map) {
-    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+static b8 create_sampler(vulkan_context *context, texture_map *map, VkSampler *sampler) {
     // Create a sampler for the texture
     VkSamplerCreateInfo sampler_info = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+
+    // Sync the mip levels with that of the assigned texture.
+    map->mip_levels = map->texture->mip_levels;
 
     sampler_info.minFilter = convert_filter_type("min", map->filter_minify);
     sampler_info.magFilter = convert_filter_type("mag", map->filter_magnify);
@@ -2511,15 +2534,24 @@ b8 vulkan_renderer_texture_map_resources_acquire(renderer_plugin *plugin,
     sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
     sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     sampler_info.mipLodBias = 0.0f;
+    // Use the full range of mips available.
     sampler_info.minLod = 0.0f;
-    sampler_info.maxLod = 0.0f;
+    // NOTE: Uncomment the following line to test the lowest mip level.
+    /* sampler_info.minLod = map->texture->mip_levels > 1 ? map->texture->mip_levels : 0.0f; */
+    sampler_info.maxLod = map->texture->mip_levels;
 
-    VkResult result =
-        vkCreateSampler(context->device.logical_device, &sampler_info,
-                        context->allocator, (VkSampler *)&map->internal_data);
+    VkResult result = vkCreateSampler(context->device.logical_device, &sampler_info, context->allocator, sampler);
     if (!vulkan_result_is_success(VK_SUCCESS)) {
-        KERROR("Error creating texture sampler: %s",
-               vulkan_result_string(result, true));
+        KERROR("Error creating texture sampler: %s", vulkan_result_string(result, true));
+        return false;
+    }
+
+    return true;
+}
+
+b8 vulkan_renderer_texture_map_resources_acquire(renderer_plugin *plugin, texture_map *map) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    if (!create_sampler(context, map, (VkSampler *)&map->internal_data)) {
         return false;
     }
 
@@ -2531,8 +2563,7 @@ b8 vulkan_renderer_texture_map_resources_acquire(renderer_plugin *plugin,
     return true;
 }
 
-void vulkan_renderer_texture_map_resources_release(renderer_plugin *plugin,
-                                                   texture_map *map) {
+void vulkan_renderer_texture_map_resources_release(renderer_plugin *plugin, texture_map *map) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     if (map && map->internal_data) {
         // Make sure there's no way this is in use.
@@ -2541,6 +2572,28 @@ void vulkan_renderer_texture_map_resources_release(renderer_plugin *plugin,
                          context->allocator);
         map->internal_data = 0;
     }
+}
+
+b8 vulkan_renderer_texture_map_resources_refresh(renderer_plugin *plugin, texture_map *map) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    if (map && map->internal_data) {
+        // Create a new sampler first.
+        VkSampler new_sampler = 0;
+        if (!create_sampler(context, map, &new_sampler)) {
+            return false;
+        }
+
+        // Take a pointer to the current sampler.
+        VkSampler old_sampler = map->internal_data;
+
+        // Make sure there's no way this is in use.
+        vkDeviceWaitIdle(context->device.logical_device);
+        // Assign the new.
+        map->internal_data = new_sampler;
+        // Destroy the old.
+        vkDestroySampler(context->device.logical_device, old_sampler, context->allocator);
+    }
+    return true;
 }
 
 b8 vulkan_renderer_shader_instance_resources_acquire(renderer_plugin *plugin,

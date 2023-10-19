@@ -4,6 +4,7 @@
 #include "core/kstring.h"
 #include "core/logger.h"
 #include "loader_utils.h"
+#include "math/kmath.h"
 #include "platform/filesystem.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
@@ -105,6 +106,11 @@ static b8 image_loader_load(struct resource_loader *self, const char *name,
     resource_data->width = width;
     resource_data->height = height;
     resource_data->channel_count = required_channel_count;
+    // The number of mip levels is calculated by first taking the largest dimension
+    // (either width or height), figuring out how many times that number can be divided
+    // by 2, taking the floor value (rounding down) and adding 1 to represent the
+    // base level. This always leaves a value of at least 1.
+    resource_data->mip_levels = (u32)(kfloor(klog2(KMAX(width, height))) + 1);
 
     out_resource->data = resource_data;
     out_resource->data_size = sizeof(image_resource_data);

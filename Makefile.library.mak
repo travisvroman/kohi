@@ -41,10 +41,15 @@ else
         # LINUX
 		BUILD_PLATFORM := linux
 		EXTENSION := .so
-		COMPILER_FLAGS := -Wall -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC
+		# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say
+		# otherwise are exported (i.e. via KAPI).
+		COMPILER_FLAGS :=-fvisibility=hidden -fpic -Wall -Werror -Wvla -Wno-missing-braces -fdeclspec 
 		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src -I$(VULKAN_SDK)/include $(ADDL_INC_FLAGS)
-		LINKER_FLAGS := -shared -lvulkan -lxcb -lX11 -lX11-xcb -lxkbcommon -L$(VULKAN_SDK)/lib -L/usr/X11R6/lib -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS)
-		# .c files
+		# NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
+		# These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
+		# here that would not on other platforms from not being exported (i.e. Windows)
+		# Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
+		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -shared -lvulkan -lxcb -lX11 -lX11-xcb -lxkbcommon -lm -L$(VULKAN_SDK)/lib -L/usr/X11R6/lib -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
 		# directories with .h files
 		DIRECTORIES := $(shell find $(ASSEMBLY) -type d)
@@ -54,9 +59,13 @@ else
         # OSX
 		BUILD_PLATFORM := macos
 		EXTENSION := .dylib
-		COMPILER_FLAGS := -Wall -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC -ObjC
+		# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say
+		# otherwise are exported (i.e. via KAPI).
+		COMPILER_FLAGS :=-fvisibility=hidden -fpic -Wall -Werror -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -ObjC
 		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
-		LINKER_FLAGS := -shared -dynamiclib -install_name @rpath/lib$(ASSEMBLY).dylib -lobjc -framework AppKit -framework QuartzCore -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS)
+		# NOTE: Equivalent of the linux version above, this ensures that symbols linking against are resolved.
+		# Discovered this here: https://stackoverflow.com/questions/26971333/what-is-clangs-equivalent-to-no-undefined-gcc-flag
+		LINKER_FLAGS :=-Wl,-undefined,error -shared -dynamiclib -install_name @rpath/lib$(ASSEMBLY).dylib -lobjc -framework AppKit -framework QuartzCore -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 		# .c and .m files
 		SRC_FILES := $(shell find $(ASSEMBLY) -type f \( -name "*.c" -o -name "*.m" \))
 		# directories with .h files

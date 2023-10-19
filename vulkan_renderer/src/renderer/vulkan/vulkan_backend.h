@@ -65,6 +65,7 @@ b8 vulkan_renderer_uniform_set(renderer_plugin* backend, struct shader* frontend
 
 b8 vulkan_renderer_texture_map_resources_acquire(renderer_plugin* backend, texture_map* map);
 void vulkan_renderer_texture_map_resources_release(renderer_plugin* backend, texture_map* map);
+b8 vulkan_renderer_texture_map_resources_refresh(renderer_plugin* plugin, texture_map* map);
 
 b8 vulkan_renderpass_create(renderer_plugin* backend, const renderpass_config* config, renderpass* out_renderpass);
 void vulkan_renderpass_destroy(renderer_plugin* backend, renderpass* pass);
