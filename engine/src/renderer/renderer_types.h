@@ -163,6 +163,12 @@ typedef enum renderbuffer_type {
     RENDERBUFFER_TYPE_STORAGE
 } renderbuffer_type;
 
+typedef enum renderbuffer_track_type {
+    RENDERBUFFER_TRACK_TYPE_NONE = 0,
+    RENDERBUFFER_TRACK_TYPE_FREELIST = 1,
+    RENDERBUFFER_TRACK_TYPE_LINEAR = 2
+} renderbuffer_track_type;
+
 typedef struct renderbuffer {
     /** @brief The name of the buffer, used for debugging purposes. */
     char* name;
@@ -170,6 +176,8 @@ typedef struct renderbuffer {
     renderbuffer_type type;
     /** @brief The total size of the buffer in bytes. */
     u64 total_size;
+    /** @brief indicates the allocation tracking type. */
+    renderbuffer_track_type track_type;
     /** @brief The amount of memory required to store the freelist. 0 if not used. */
     u64 freelist_memory_requirement;
     /** @brief The buffer freelist, if used. */
@@ -178,6 +186,8 @@ typedef struct renderbuffer {
     void* freelist_block;
     /** @brief Contains internal data for the renderer-API-specific buffer. */
     void* internal_data;
+    /** @brief The byte offset used for linear tracking. */
+    u64 offset;
 } renderbuffer;
 
 typedef enum renderer_config_flag_bits {

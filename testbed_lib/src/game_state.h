@@ -40,7 +40,9 @@ typedef struct testbed_game_state {
     frustum camera_frustum;
 
     clock update_clock;
+    clock prepare_clock;
     clock render_clock;
+    clock present_clock;
     f64 last_update_elapsed;
 
     // TODO: temp

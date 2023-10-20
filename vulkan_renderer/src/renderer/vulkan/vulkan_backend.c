@@ -564,7 +564,7 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     kzero_memory(bufname, 256);
     string_format(bufname, "renderbuffer_vertexbuffer_globalgeometry");
     const u64 vertex_buffer_size = sizeof(vertex_3d) * 10 * 1024 * 1024;
-    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_VERTEX, vertex_buffer_size, true, &context->object_vertex_buffer)) {
+    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_VERTEX, vertex_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, &context->object_vertex_buffer)) {
         KERROR("Error creating vertex buffer.");
         return false;
     }
@@ -575,7 +575,7 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     kzero_memory(bufname, 256);
     string_format(bufname, "renderbuffer_indexbuffer_globalgeometry");
     const u64 index_buffer_size = sizeof(u32) * 100 * 1024 * 1024;
-    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_INDEX, index_buffer_size, true, &context->object_index_buffer)) {
+    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_INDEX, index_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, &context->object_index_buffer)) {
         KERROR("Error creating index buffer.");
         return false;
     }
@@ -583,7 +583,7 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
 
     // Staging buffer.
     const u64 staging_buffer_size = 256 * 1000 * 1000;
-    if (!renderer_renderbuffer_create("staging", RENDERBUFFER_TYPE_STAGING, staging_buffer_size, true, &context->staging)) {
+    if (!renderer_renderbuffer_create("staging", RENDERBUFFER_TYPE_STAGING, staging_buffer_size, RENDERBUFFER_TRACK_TYPE_LINEAR, &context->staging)) {
         KERROR("Failed to create staging buffer.");
         return false;
     }
@@ -852,6 +852,11 @@ b8 vulkan_renderer_end(renderer_plugin *plugin, struct frame_data *p_frame_data)
     vulkan_command_buffer_update_submitted(command_buffer);
     // End queue submission
 
+    // For timing purposes, wait for the queue to complete.
+    // This gives an accurate picture of how long the render takes, including the
+    // work submitted to the actual queue.
+    vkWaitForFences(context->device.logical_device, 1, &context->in_flight_fences[context->current_frame], true, UINT64_MAX);
+
     return true;
 }
 
@@ -868,10 +873,12 @@ b8 vulkan_renderer_present(renderer_plugin *plugin, struct frame_data *p_frame_d
     present_info.pImageIndices = &context->image_index;
     present_info.pResults = 0;
 
-    // HACK: Waiting on the fence here solves the issue, but this shouldn't
+    // HACK: By waiting on the transfer queue, we avoid a segfault here for some reason. This shouldn't
     // be needed since it _should_ be waiting on the pWaitSemaphores, which _should_ be
-    // signaled by the queue's completion after submission.
-    vkWaitForFences(context->device.logical_device, 1, &context->in_flight_fences[context->current_frame], true, UINT64_MAX);
+    // signaled by the queue's completion after submission. And strangely, it's specifically the
+    // _transfer_ queue, even though the one being used for presentation here is the present queue.
+    // TODO: Need to dive a bit deeper on this to figure it out.
+    vkQueueWaitIdle(context->device.transfer_queue);
     VkResult result = vkQueuePresentKHR(context->device.present_queue, &present_info);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         // Swapchain is out of date, suboptimal or a framebuffer resize has occurred. Trigger swapchain recreation.
@@ -1352,7 +1359,7 @@ void vulkan_renderer_texture_read_data(renderer_plugin *plugin, texture *t,
     char bufname[256];
     kzero_memory(bufname, 256);
     string_format(bufname, "renderbuffer_texture_read_staging");
-    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_READ, size, false, &staging)) {
+    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_READ, size, RENDERBUFFER_TRACK_TYPE_NONE, &staging)) {
         KERROR("Failed to create staging buffer for texture read.");
         return;
     }
@@ -1409,7 +1416,7 @@ void vulkan_renderer_texture_read_pixel(renderer_plugin *plugin, texture *t,
     char bufname[256];
     kzero_memory(bufname, 256);
     string_format(bufname, "renderbuffer_texture_read_pixel_staging");
-    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_READ, sizeof(u8) * 4, false, &staging)) {
+    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_READ, sizeof(u8) * 4, RENDERBUFFER_TRACK_TYPE_NONE, &staging)) {
         KERROR("Failed to create staging buffer for texture pixel read.");
         return;
     }
@@ -2201,7 +2208,7 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
     char bufname[256];
     kzero_memory(bufname, 256);
     string_format(bufname, "renderbuffer_global_uniform");
-    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_UNIFORM, total_buffer_size, true, &internal_shader->uniform_buffer)) {
+    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_UNIFORM, total_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, &internal_shader->uniform_buffer)) {
         KERROR("Vulkan buffer creation failed for object shader.");
         return false;
     }
@@ -3633,7 +3640,7 @@ b8 vulkan_buffer_read(renderer_plugin *plugin, renderbuffer *buffer, u64 offset,
         char bufname[256];
         kzero_memory(bufname, 256);
         string_format(bufname, "renderbuffer_read");
-        if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_READ, size, false, &read)) {
+        if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_READ, size, RENDERBUFFER_TRACK_TYPE_NONE, &read)) {
             KERROR("vulkan_buffer_read() - Failed to create read buffer.");
             return false;
         }

@@ -452,11 +452,11 @@ KAPI void renderer_flag_enabled_set(renderer_config_flags flag, b8 enabled);
  * @param name The name of the renderbuffer, used for debugging purposes.
  * @param type The type of buffer, indicating it's use (i.e. vertex/index data, uniforms, etc.)
  * @param total_size The total size in bytes of the buffer.
- * @param use_freelist Indicates if the buffer should use a freelist to track allocations.
+ * @param track_type Indicates what type of allocation tracking should be used.
  * @param out_buffer A pointer to hold the newly created buffer.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_create(const char* name, renderbuffer_type type, u64 total_size, b8 use_freelist, renderbuffer* out_buffer);
+KAPI b8 renderer_renderbuffer_create(const char* name, renderbuffer_type type, u64 total_size, renderbuffer_track_type track_type, renderbuffer* out_buffer);
 
 /**
  * @brief Destroys the given renderbuffer.

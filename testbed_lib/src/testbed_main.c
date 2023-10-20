@@ -598,10 +598,9 @@ b8 application_initialize(struct application* game_inst) {
     // kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
 
     kzero_memory(&state->update_clock, sizeof(clock));
+    kzero_memory(&state->prepare_clock, sizeof(clock));
     kzero_memory(&state->render_clock, sizeof(clock));
-
-    kzero_memory(&state->update_clock, sizeof(clock));
-    kzero_memory(&state->render_clock, sizeof(clock));
+    kzero_memory(&state->present_clock, sizeof(clock));
 
     // Load up a test audio file.
     state->test_audio_file = audio_system_chunk_load("Test.ogg");
@@ -707,21 +706,57 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     f64 fps, frame_time;
     metrics_frame(&fps, &frame_time);
 
+    // Keep a running average of update and render timers over the last 60 frames.
+    static f64 accumulated_ms = 0;
+    static f32 total_update_seconds = 0;
+    static f32 total_prepare_seconds = 0;
+    static f32 total_render_seconds = 0;
+    static f32 total_present_seconds = 0;
+
+    static f32 total_update_avg_us = 0;
+    static f32 total_prepare_avg_us = 0;
+    static f32 total_render_avg_us = 0;
+    static f32 total_present_avg_us = 0;
+    static f32 total_avg = 0;  // total average across the frame
+
+    total_update_seconds += state->last_update_elapsed;
+    total_prepare_seconds += state->prepare_clock.elapsed;
+    total_render_seconds += state->render_clock.elapsed;
+    total_present_seconds += state->present_clock.elapsed;
+    accumulated_ms += frame_time;
+
+    // Once ~1 second has gone by, calculate the average and wipe the accumulators.
+    if (accumulated_ms >= 1000.0f) {
+        total_update_avg_us = (total_update_seconds / 1000.0f) * K_SEC_TO_US_MULTIPLIER;
+        total_prepare_avg_us = (total_prepare_seconds / 1000.0f) * K_SEC_TO_US_MULTIPLIER;
+        total_render_avg_us = (total_render_seconds / 1000.0f) * K_SEC_TO_US_MULTIPLIER;
+        total_present_avg_us = (total_present_seconds / 1000.0f) * K_SEC_TO_US_MULTIPLIER;
+        total_avg = total_update_avg_us + total_prepare_avg_us + total_render_avg_us + total_present_avg_us;
+        total_render_seconds = 0;
+        total_prepare_seconds = 0;
+        total_update_seconds = 0;
+        total_present_seconds = 0;
+        accumulated_ms = 0;
+    }
+
     char* vsync_text = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
     char text_buffer[2048];
     string_format(
         text_buffer,
         "\
 FPS: %5.1f(%4.1fms)        Pos=[%7.3f %7.3f %7.3f] Rot=[%7.3f, %7.3f, %7.3f]\n\
-Upd: %8.3fus, Rend: %8.3fus Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
-VSync: %s Drawn: %-5u Hovered: %s%u\n\
-Text",
+Upd: %8.3fus, Prep: %8.3fus, Rend: %8.3fus, Pres: %8.3fus, Tot: %8.3fus \n\
+Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
+VSync: %s Drawn: %-5u Hovered: %s%u",
         fps,
         frame_time,
         pos.x, pos.y, pos.z,
         rad_to_deg(rot.x), rad_to_deg(rot.y), rad_to_deg(rot.z),
-        state->last_update_elapsed * K_SEC_TO_US_MULTIPLIER,
-        state->render_clock.elapsed * K_SEC_TO_US_MULTIPLIER,
+        total_update_avg_us,  // state->last_update_elapsed * K_SEC_TO_US_MULTIPLIER,
+        total_prepare_avg_us,
+        total_render_avg_us,  // state->render_clock.elapsed * K_SEC_TO_US_MULTIPLIER,
+        total_present_avg_us,
+        total_avg,
         mouse_x, mouse_y,
         left_down ? "Y" : "N",
         right_down ? "Y" : "N",
@@ -792,6 +827,8 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
     if (!state->running) {
         return false;
     }
+
+    clock_start(&state->prepare_clock);
 
     // Skybox pass. This pass must always run, as it is what clears the screen.
     skybox_pass_extended_data* skybox_pass_ext_data = state->skybox_pass.pass_data.ext_data;
@@ -1118,37 +1155,41 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
         }
     }*/
     // TODO: end temp
+
+    clock_update(&state->prepare_clock);
     return true;
 }
 
 b8 application_render_frame(struct application* game_inst, struct frame_data* p_frame_data) {
     // Start the frame
-
-    if (!renderer_begin(p_frame_data)) {
-        //
-    }
-
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
     if (!state->running) {
         return true;
     }
-    // testbed_application_frame_data* app_frame_data = (testbed_application_frame_data*)p_frame_data->application_frame_data;
 
     clock_start(&state->render_clock);
+    if (!renderer_begin(p_frame_data)) {
+        //
+    }
+
+    // testbed_application_frame_data* app_frame_data = (testbed_application_frame_data*)p_frame_data->application_frame_data;
 
     if (!rendergraph_execute_frame(&state->frame_graph, p_frame_data)) {
         KERROR("Failed to execute rendergraph frame.");
         return false;
     }
 
-    clock_update(&state->render_clock);
-
     renderer_end(p_frame_data);
 
+    // NOTE: Stopping the timer before presentation since that can greatly impact this timing.
+    clock_update(&state->render_clock);
+
+    clock_start(&state->present_clock);
     if (!renderer_present(p_frame_data)) {
         KERROR("The call to renderer_present failed. This is likely unrecoverable. Shutting down.");
         return false;
     }
+    clock_update(&state->present_clock);
 
     return true;
 }
@@ -1183,7 +1224,7 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
 
     // TODO: temp
     // Move debug text to new bottom of screen.
-    ui_text_position_set(&state->test_text, vec3_create(20, state->height - 75, 0));
+    ui_text_position_set(&state->test_text, vec3_create(20, state->height - 95, 0));
 
     // Pass the resize onto the rendergraph.
     rendergraph_on_resize(&state->frame_graph, state->width, state->height);
