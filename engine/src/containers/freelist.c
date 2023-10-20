@@ -51,14 +51,12 @@ void freelist_create(u64 total_size, u64* memory_requirement, void* memory, free
     state->max_entries = max_entries;
     state->total_size = total_size;
 
+    kzero_memory(state->nodes, sizeof(freelist_node) * state->max_entries);
+
     state->head = &state->nodes[0];
     state->head->offset = 0;
     state->head->size = total_size;
     state->head->next = 0;
-
-    // Invalidate the offset for all but the first node. The invalid
-    // value will be checked for when seeking a new node from the list.
-    kzero_memory(state->nodes, sizeof(freelist_node) * state->max_entries);
 }
 
 void freelist_destroy(freelist* list) {

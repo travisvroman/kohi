@@ -752,9 +752,9 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
         frame_time,
         pos.x, pos.y, pos.z,
         rad_to_deg(rot.x), rad_to_deg(rot.y), rad_to_deg(rot.z),
-        total_update_avg_us,  // state->last_update_elapsed * K_SEC_TO_US_MULTIPLIER,
+        total_update_avg_us,
         total_prepare_avg_us,
-        total_render_avg_us,  // state->render_clock.elapsed * K_SEC_TO_US_MULTIPLIER,
+        total_render_avg_us,
         total_present_avg_us,
         total_avg,
         mouse_x, mouse_y,
@@ -1171,8 +1171,6 @@ b8 application_render_frame(struct application* game_inst, struct frame_data* p_
     if (!renderer_begin(p_frame_data)) {
         //
     }
-
-    // testbed_application_frame_data* app_frame_data = (testbed_application_frame_data*)p_frame_data->application_frame_data;
 
     if (!rendergraph_execute_frame(&state->frame_graph, p_frame_data)) {
         KERROR("Failed to execute rendergraph frame.");
