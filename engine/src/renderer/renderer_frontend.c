@@ -575,8 +575,9 @@ b8 renderer_renderbuffer_allocate(renderbuffer* buffer, u64 size, u64* out_offse
         *out_offset = 0;
         return true;
     } else if (buffer->track_type == RENDERBUFFER_TRACK_TYPE_LINEAR) {
-        *out_offset = buffer->track_type;
-        buffer->track_type += size;
+        *out_offset = buffer->offset;
+        buffer->offset += size;
+        return true;
     }
     return freelist_allocate_block(&buffer->buffer_freelist, size, out_offset);
 }
