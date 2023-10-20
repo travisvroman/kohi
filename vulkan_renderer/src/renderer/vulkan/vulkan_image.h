@@ -27,6 +27,7 @@
  * @param create_view Indicates if a view should be created with the image.
  * @param view_aspect_flags Aspect flags to be used when creating the view, if applicable.
  * @param name A name for the image.
+ * @param mip_levels The number of mip map levels to use. Default is 1.
  * @param out_image A pointer to hold the newly-created image.
  */
 void vulkan_image_create(
@@ -41,6 +42,7 @@ void vulkan_image_create(
     b32 create_view,
     VkImageAspectFlags view_aspect_flags,
     const char* name,
+    u32 mip_levels,
     vulkan_image* out_image);
 
 /**
@@ -78,6 +80,20 @@ void vulkan_image_transition_layout(
     VkFormat format,
     VkImageLayout old_layout,
     VkImageLayout new_layout);
+
+/**
+ * @brief Generates mipmaps for the given image based on mip_levels set in the image.
+ * mip_levels must be > 1 for this to succeed.
+ *
+ * @param context A pointer to the Vulkan context.
+ * @param image A pointer to the image to generate mips for.
+ * @param command_buffer A pointer to the command buffer to be used for this operation.
+ * @returns True on success; otherwise false.
+ */
+b8 vulkan_image_mipmaps_generate(
+    vulkan_context* context,
+    vulkan_image* image,
+    vulkan_command_buffer* command_buffer);
 
 /**
  * @brief Copies data in buffer to provided image.

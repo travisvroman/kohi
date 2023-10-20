@@ -157,12 +157,16 @@ typedef struct vulkan_image {
     VkMemoryRequirements memory_requirements;
     /** @brief Memory property flags */
     VkMemoryPropertyFlags memory_flags;
+    /** @brief The format of the image. */
+    VkFormat format;
     /** @brief The image width. */
     u32 width;
     /** @brief The image height. */
     u32 height;
     /** @brief The name of the image. */
     char* name;
+    /** The number of mipmaps to be generated for this image. Must always be at least 1. */
+    u32 mip_levels;
 } vulkan_image;
 
 /** @brief Represents the possible states of a renderpass. */
@@ -630,9 +634,6 @@ typedef struct vulkan_context {
     u32 in_flight_fence_count;
     /** @brief The in-flight fences, used to indicate to the application when a frame is busy/ready. */
     VkFence in_flight_fences[2];
-
-    /** @brief Holds pointers to fences which exist and are owned elsewhere, one per frame. */
-    VkFence images_in_flight[3];
 
     /** @brief The current image index. */
     u32 image_index;

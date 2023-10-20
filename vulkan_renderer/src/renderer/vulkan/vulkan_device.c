@@ -63,11 +63,17 @@ b8 vulkan_device_create(vulkan_context* context) {
     }
 
     VkDeviceQueueCreateInfo queue_create_infos[32];
-    f32 queue_priority = 1.0f;
+    f32 queue_priorities[2] = {0.9f, 1.0f};
     for (u32 i = 0; i < index_count; ++i) {
         queue_create_infos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queue_create_infos[i].queueFamilyIndex = indices[i];
         queue_create_infos[i].queueCount = 1;
+
+        if (present_shares_graphics_queue && indices[i] == context->device.present_queue_index) {
+            // If the same family is shared between graphic and presentation,
+            // pull from the second index instead of the first for a unique queue.
+            queue_create_infos[i].queueCount = 2;
+        }
 
         // TODO: Enable this for a future enhancement.
         // if (indices[i] == context->device.graphics_queue_index) {
@@ -75,7 +81,7 @@ b8 vulkan_device_create(vulkan_context* context) {
         // }
         queue_create_infos[i].flags = 0;
         queue_create_infos[i].pNext = 0;
-        queue_create_infos[i].pQueuePriorities = &queue_priority;
+        queue_create_infos[i].pQueuePriorities = queue_priorities;
     }
 
     // Request device features.
@@ -211,7 +217,9 @@ b8 vulkan_device_create(vulkan_context* context) {
     vkGetDeviceQueue(
         context->device.logical_device,
         context->device.present_queue_index,
-        0,
+        // If the same family is shared between graphic and presentation,
+        // pull from the second index instead of the first for a unique queue.
+        context->device.graphics_queue_index == context->device.present_queue_index ? 1 : 0,
         &context->device.present_queue);
 
     vkGetDeviceQueue(

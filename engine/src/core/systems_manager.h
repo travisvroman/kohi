@@ -21,7 +21,7 @@ struct frame_data;
 typedef b8 (*PFN_system_initialize)(u64* memory_requirement, void* memory, void* config);
 /** @brief Typedef for a system shutdown function pointer. */
 typedef void (*PFN_system_shutdown)(void* state);
-/** @brief Typedef for a update initialize function pointer. */
+/** @brief Typedef for a update function pointer. */
 typedef b8 (*PFN_system_update)(void* state, struct frame_data* p_frame_data);
 
 /**
@@ -69,6 +69,7 @@ typedef enum k_system_type {
     K_SYSTEM_TYPE_MATERIAL,
     K_SYSTEM_TYPE_GEOMETRY,
     K_SYSTEM_TYPE_LIGHT,
+    K_SYSTEM_TYPE_AUDIO,
 
     // NOTE: Anything between 127-254 is extension space.
     K_SYSTEM_TYPE_KNOWN_MAX = 127,

@@ -3,41 +3,38 @@
 // Linux platform layer.
 #if KPLATFORM_LINUX
 
-#include "core/logger.h"
-#include "core/event.h"
-#include "core/input.h"
-#include "core/kthread.h"
-#include "core/kmutex.h"
-#include "core/kmemory.h"
-#include "core/asserts.h"
-#include "core/kstring.h"
+#include <X11/XKBlib.h>    // sudo apt-get install libx11-dev
+#include <X11/Xlib-xcb.h>  // sudo apt-get install libxkbcommon-x11-dev libx11-xcb-dev
+#include <X11/Xlib.h>
+#include <X11/keysym.h>
+#include <sys/time.h>
+#include <xcb/xcb.h>
 
 #include "containers/darray.h"
-
-#include <xcb/xcb.h>
-#include <X11/keysym.h>
-#include <X11/XKBlib.h>  // sudo apt-get install libx11-dev
-#include <X11/Xlib.h>
-#include <X11/Xlib-xcb.h>  // sudo apt-get install libxkbcommon-x11-dev libx11-xcb-dev
-#include <sys/time.h>
+#include "core/asserts.h"
+#include "core/event.h"
+#include "core/input.h"
+#include "core/kmemory.h"
+#include "core/kmutex.h"
+#include "core/kstring.h"
+#include "core/kthread.h"
+#include "core/logger.h"
 
 #if _POSIX_C_SOURCE >= 199309L
 #include <time.h>  // nanosleep
 #endif
 
-#include <pthread.h>
-#include <errno.h>        // For error reporting
-#include <sys/sysinfo.h>  // Processor info
-#include <sys/stat.h>
-#include <sys/sendfile.h>
-
+#include <errno.h>  // For error reporting
 #include <fcntl.h>
 #include <limits.h>
-#include <unistd.h>
-
-#include <stdlib.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
+#include <sys/sysinfo.h>  // Processor info
+#include <unistd.h>
 
 typedef struct linux_handle_info {
     xcb_connection_t* connection;
@@ -46,7 +43,7 @@ typedef struct linux_handle_info {
 
 typedef struct linux_file_watch {
     u32 id;
-    const char *file_path;
+    const char* file_path;
     long last_write_time;
 } linux_file_watch;
 
@@ -475,8 +472,11 @@ b8 kmutex_create(kmutex* out_mutex) {
     }
 
     // Initialize
+    pthread_mutexattr_t mutex_attr;
+    pthread_mutexattr_init(&mutex_attr);
+    pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_t mutex;
-    i32 result = pthread_mutex_init(&mutex, 0);
+    i32 result = pthread_mutex_init(&mutex, &mutex_attr);
     if (result != 0) {
         KERROR("Mutex creation failure!");
         return false;
@@ -571,7 +571,7 @@ const char* platform_dynamic_library_extension(void) {
     return ".so";
 }
 
-const char *platform_dynamic_library_prefix(void) {
+const char* platform_dynamic_library_prefix(void) {
     return "./lib";
 }
 
@@ -676,7 +676,7 @@ close_handles:
     return ret_code;
 }
 
-static b8 register_watch(const char *file_path, u32 *out_watch_id) {
+static b8 register_watch(const char* file_path, u32* out_watch_id) {
     if (!state_ptr || !file_path || !out_watch_id) {
         if (out_watch_id) {
             *out_watch_id = INVALID_ID;
@@ -691,8 +691,8 @@ static b8 register_watch(const char *file_path, u32 *out_watch_id) {
 
     struct stat info;
     int result = stat(file_path, &info);
-    if(result != 0) {
-        if(errno == ENOENT) {
+    if (result != 0) {
+        if (errno == ENOENT) {
             // File doesn't exist. TODO: report?
         }
         return false;
@@ -700,7 +700,7 @@ static b8 register_watch(const char *file_path, u32 *out_watch_id) {
 
     u32 count = darray_length(state_ptr->watches);
     for (u32 i = 0; i < count; ++i) {
-        linux_file_watch *w = &state_ptr->watches[i];
+        linux_file_watch* w = &state_ptr->watches[i];
         if (w->id == INVALID_ID) {
             // Found a free slot to use.
             w->id = i;
@@ -732,17 +732,17 @@ static b8 unregister_watch(u32 watch_id) {
         return false;
     }
 
-    linux_file_watch *w = &state_ptr->watches[watch_id];
+    linux_file_watch* w = &state_ptr->watches[watch_id];
     w->id = INVALID_ID;
     u32 len = string_length(w->file_path);
-    kfree((void *)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+    kfree((void*)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
     w->file_path = 0;
     kzero_memory(&w->last_write_time, sizeof(long));
 
     return true;
 }
 
-b8 platform_watch_file(const char *file_path, u32 *out_watch_id) {
+b8 platform_watch_file(const char* file_path, u32* out_watch_id) {
     return register_watch(file_path, out_watch_id);
 }
 
@@ -757,13 +757,12 @@ static void platform_update_watches(void) {
 
     u32 count = darray_length(state_ptr->watches);
     for (u32 i = 0; i < count; ++i) {
-        linux_file_watch *f = &state_ptr->watches[i];
+        linux_file_watch* f = &state_ptr->watches[i];
         if (f->id != INVALID_ID) {
-
             struct stat info;
             int result = stat(f->file_path, &info);
-            if(result != 0) {
-                if(errno == ENOENT) {
+            if (result != 0) {
+                if (errno == ENOENT) {
                     // File doesn't exist. Which means it was deleted. Remove the watch.
                     event_context context = {0};
                     context.data.u32[0] = f->id;

@@ -12,6 +12,7 @@
 #include "core/kvar.h"
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
+#include "systems/audio_system.h"
 #include "systems/camera_system.h"
 #include "systems/geometry_system.h"
 #include "systems/job_system.h"
@@ -231,6 +232,15 @@ static b8 register_known_systems_pre_boot(systems_manager_state* state, applicat
         return false;
     }
 
+    // Audio system
+    audio_system_config audio_sys_config = {0};
+    audio_sys_config.plugin = app_config->audio_plugin;
+    audio_sys_config.audio_channel_count = 8;
+    if (!systems_manager_register(state, K_SYSTEM_TYPE_AUDIO, audio_system_initialize, audio_system_shutdown, audio_system_update, &audio_sys_config)) {
+        KERROR("Failed to register audio system.");
+        return false;
+    }
+
     return true;
 }
 
@@ -242,6 +252,7 @@ static void shutdown_known_systems(systems_manager_state* state) {
     state->systems[K_SYSTEM_TYPE_MATERIAL].shutdown(state->systems[K_SYSTEM_TYPE_MATERIAL].state);
     state->systems[K_SYSTEM_TYPE_TEXTURE].shutdown(state->systems[K_SYSTEM_TYPE_TEXTURE].state);
 
+    state->systems[K_SYSTEM_TYPE_AUDIO].shutdown(state->systems[K_SYSTEM_TYPE_AUDIO].state);
     state->systems[K_SYSTEM_TYPE_JOB].shutdown(state->systems[K_SYSTEM_TYPE_JOB].state);
     state->systems[K_SYSTEM_TYPE_SHADER].shutdown(state->systems[K_SYSTEM_TYPE_SHADER].state);
     state->systems[K_SYSTEM_TYPE_RENDERER].shutdown(state->systems[K_SYSTEM_TYPE_RENDERER].state);
