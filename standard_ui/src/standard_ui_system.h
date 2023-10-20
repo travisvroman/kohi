@@ -41,17 +41,19 @@ typedef struct standard_ui_render_data {
 
 typedef struct sui_mouse_event {
     buttons mouse_button;
-    u16 x;
-    u16 y;
+    i16 x;
+    i16 y;
 } sui_mouse_event;
 
 typedef struct sui_control {
     u32 unique_id;
     transform xform;
     char* name;
+    // TODO: Convert to flags.
     b8 is_active;
     b8 is_visible;
     b8 is_hovered;
+    b8 is_pressed;
     rect_2d bounds;
 
     struct sui_control* parent;
@@ -75,6 +77,8 @@ typedef struct sui_control {
      * @returns True if the event should be allowed to propagate to other controls; otherwise false.
      */
     b8 (*on_click)(struct sui_control* self, struct sui_mouse_event event);
+    b8 (*on_mouse_down)(struct sui_control* self, struct sui_mouse_event event);
+    b8 (*on_mouse_up)(struct sui_control* self, struct sui_mouse_event event);
 
     b8 (*on_mouse_over)(struct sui_control* self, struct sui_mouse_event event);
     b8 (*on_mouse_out)(struct sui_control* self, struct sui_mouse_event event);
@@ -149,3 +153,8 @@ KAPI void sui_button_control_unload(struct sui_control* self);
 
 KAPI b8 sui_button_control_update(struct sui_control* self, struct frame_data* p_frame_data);
 KAPI b8 sui_button_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
+
+KAPI b8 sui_button_on_mouse_out(struct sui_control* self, struct sui_mouse_event event);
+KAPI b8 sui_button_on_mouse_over(struct sui_control* self, struct sui_mouse_event event);
+KAPI b8 sui_button_on_mouse_down(struct sui_control* self, struct sui_mouse_event event);
+KAPI b8 sui_button_on_mouse_up(struct sui_control* self, struct sui_mouse_event event);

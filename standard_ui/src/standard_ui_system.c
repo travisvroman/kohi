@@ -34,6 +34,48 @@ typedef struct standard_ui_state {
 
 } standard_ui_state;
 
+static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
+    standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+
+    sui_mouse_event evt;
+    evt.mouse_button = (buttons)context.data.i16[0];
+    evt.x = context.data.i16[1];
+    evt.y = context.data.i16[2];
+    for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+        sui_control* control = typed_state->active_controls[i];
+        mat4 model = transform_world_get(&control->xform);
+        mat4 inv = mat4_inverse(model);
+        vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+        if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
+            control->is_pressed = true;
+            // TODO: Can't assume buttons.
+            sui_button_on_mouse_down(control, evt);
+        }
+    }
+    return false;
+}
+static b8 standard_ui_system_mouse_up(u16 code, void* sender, void* listener_inst, event_context context) {
+    standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+
+    sui_mouse_event evt;
+    evt.mouse_button = (buttons)context.data.i16[0];
+    evt.x = context.data.i16[1];
+    evt.y = context.data.i16[2];
+    for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+        sui_control* control = typed_state->active_controls[i];
+
+        control->is_pressed = false;
+
+        mat4 model = transform_world_get(&control->xform);
+        mat4 inv = mat4_inverse(model);
+        vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+        if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
+            // TODO: Can't assume buttons.
+            sui_button_on_mouse_up(control, evt);
+        }
+    }
+    return false;
+}
 static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, event_context context) {
     standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
 
@@ -47,45 +89,48 @@ static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, 
             mat4 model = transform_world_get(&control->xform);
             mat4 inv = mat4_inverse(model);
             vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
-            if (transformed_evt.x >= control->bounds.x && transformed_evt.x <= control->bounds.x + control->bounds.width) {
-                if (transformed_evt.y >= control->bounds.y && transformed_evt.y <= control->bounds.y + control->bounds.height) {
-                    control->on_click(control, evt);
-                }
+            if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
+                control->on_click(control, evt);
             }
         }
     }
-    return true;
+    return false;
 }
 
 static b8 standard_ui_system_move(u16 code, void* sender, void* listener_inst, event_context context) {
     standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
 
     sui_mouse_event evt;
-    evt.mouse_button = (buttons)context.data.i16[0];
-    evt.x = context.data.i16[1];
-    evt.y = context.data.i16[2];
+    evt.x = context.data.i16[0];
+    evt.y = context.data.i16[1];
     for (u32 i = 0; i < typed_state->active_control_count; ++i) {
         sui_control* control = typed_state->active_controls[i];
-        if (control->on_mouse_over || control->on_mouse_out) {
-            mat4 model = transform_world_get(&control->xform);
-            mat4 inv = mat4_inverse(model);
-            vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
-            vec2 transformed_vec2 = (vec2){transformed_evt.x, transformed_evt.y};
-            if (rect_2d_contains_point(control->bounds, transformed_vec2)) {
-                if (!control->is_hovered) {
-                    control->is_hovered = true;
+        mat4 model = transform_world_get(&control->xform);
+        mat4 inv = mat4_inverse(model);
+        vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+        vec2 transformed_vec2 = (vec2){transformed_evt.x, transformed_evt.y};
+        if (rect_2d_contains_point(control->bounds, transformed_vec2)) {
+            KTRACE("Button hover: %s", control->name);
+            if (!control->is_hovered) {
+                control->is_hovered = true;
+                sui_button_on_mouse_over(control, evt);
+                if (control->on_mouse_over) {
                     control->on_mouse_over(control, evt);
                 }
-            } else {
-                if (control->is_hovered) {
-                    control->is_hovered = false;
+            }
+        } else {
+            if (control->is_hovered) {
+                control->is_hovered = false;
+                sui_button_on_mouse_out(control, evt);
+                if (control->on_mouse_out) {
                     control->on_mouse_out(control, evt);
                 }
             }
         }
     }
-    return true;
+    return false;
 }
+
 b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* config) {
     if (!memory_requirement) {
         KERROR("standard_ui_system_initialize requires a valid pointer to memory_requirement.");
@@ -134,6 +179,9 @@ b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* con
 
     // Listen for input events.
     event_register(EVENT_CODE_BUTTON_CLICKED, state, standard_ui_system_click);
+    event_register(EVENT_CODE_MOUSE_MOVED, state, standard_ui_system_move);
+    event_register(EVENT_CODE_BUTTON_PRESSED, state, standard_ui_system_mouse_down);
+    event_register(EVENT_CODE_BUTTON_RELEASED, state, standard_ui_system_mouse_up);
 
     KTRACE("Initialized standard UI system.");
 
@@ -146,6 +194,9 @@ void standard_ui_system_shutdown(void* state) {
 
         // Stop listening for input events.
         event_unregister(EVENT_CODE_BUTTON_CLICKED, state, standard_ui_system_click);
+        event_unregister(EVENT_CODE_MOUSE_MOVED, state, standard_ui_system_move);
+        event_unregister(EVENT_CODE_BUTTON_PRESSED, state, standard_ui_system_mouse_down);
+        event_unregister(EVENT_CODE_BUTTON_RELEASED, state, standard_ui_system_mouse_up);
 
         // Unload and destroy inactive controls.
         for (u32 i = 0; i < typed_state->inactive_control_count; ++i) {
@@ -598,6 +649,78 @@ b8 sui_button_control_render(struct sui_control* self, struct frame_data* p_fram
 
         darray_push(render_data->renderables, renderable);
     }
+
+    return true;
+}
+
+b8 sui_button_on_mouse_out(struct sui_control* self, struct sui_mouse_event event) {
+    if (!self) {
+        return false;
+    }
+    sui_button_internal_data* typed_data = self->internal_data;
+    typed_data->nslice.atlas_px_min.x = 151;
+    typed_data->nslice.atlas_px_min.y = 12;
+    typed_data->nslice.atlas_px_max.x = 158;
+    typed_data->nslice.atlas_px_max.y = 19;
+    update_nine_slice(&typed_data->nslice, 0);
+
+    return true;
+}
+
+b8 sui_button_on_mouse_over(struct sui_control* self, struct sui_mouse_event event) {
+    if (!self) {
+        return false;
+    }
+
+    sui_button_internal_data* typed_data = self->internal_data;
+    if (self->is_pressed) {
+        typed_data->nslice.atlas_px_min.x = 151;
+        typed_data->nslice.atlas_px_min.y = 21;
+        typed_data->nslice.atlas_px_max.x = 158;
+        typed_data->nslice.atlas_px_max.y = 28;
+    } else {
+        typed_data->nslice.atlas_px_min.x = 151;
+        typed_data->nslice.atlas_px_min.y = 31;
+        typed_data->nslice.atlas_px_max.x = 158;
+        typed_data->nslice.atlas_px_max.y = 37;
+    }
+    update_nine_slice(&typed_data->nslice, 0);
+
+    return true;
+}
+b8 sui_button_on_mouse_down(struct sui_control* self, struct sui_mouse_event event) {
+    if (!self) {
+        return false;
+    }
+
+    sui_button_internal_data* typed_data = self->internal_data;
+    typed_data->nslice.atlas_px_min.x = 151;
+    typed_data->nslice.atlas_px_min.y = 21;
+    typed_data->nslice.atlas_px_max.x = 158;
+    typed_data->nslice.atlas_px_max.y = 28;
+    update_nine_slice(&typed_data->nslice, 0);
+
+    return true;
+}
+b8 sui_button_on_mouse_up(struct sui_control* self, struct sui_mouse_event event) {
+    if (!self) {
+        return false;
+    }
+
+    // TODO: DRY
+    sui_button_internal_data* typed_data = self->internal_data;
+    if (self->is_hovered) {
+        typed_data->nslice.atlas_px_min.x = 151;
+        typed_data->nslice.atlas_px_min.y = 31;
+        typed_data->nslice.atlas_px_max.x = 158;
+        typed_data->nslice.atlas_px_max.y = 37;
+    } else {
+        typed_data->nslice.atlas_px_min.x = 151;
+        typed_data->nslice.atlas_px_min.y = 31;
+        typed_data->nslice.atlas_px_max.x = 158;
+        typed_data->nslice.atlas_px_max.y = 37;
+    }
+    update_nine_slice(&typed_data->nslice, 0);
 
     return true;
 }
