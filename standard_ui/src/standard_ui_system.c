@@ -56,6 +56,36 @@ static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, 
     }
     return true;
 }
+
+static b8 standard_ui_system_move(u16 code, void* sender, void* listener_inst, event_context context) {
+    standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
+
+    sui_mouse_event evt;
+    evt.mouse_button = (buttons)context.data.i16[0];
+    evt.x = context.data.i16[1];
+    evt.y = context.data.i16[2];
+    for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+        sui_control* control = typed_state->active_controls[i];
+        if (control->on_mouse_over || control->on_mouse_out) {
+            mat4 model = transform_world_get(&control->xform);
+            mat4 inv = mat4_inverse(model);
+            vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+            vec2 transformed_vec2 = (vec2){transformed_evt.x, transformed_evt.y};
+            if (rect_2d_contains_point(control->bounds, transformed_vec2)) {
+                if (!control->is_hovered) {
+                    control->is_hovered = true;
+                    control->on_mouse_over(control, evt);
+                }
+            } else {
+                if (control->is_hovered) {
+                    control->is_hovered = false;
+                    control->on_mouse_out(control, evt);
+                }
+            }
+        }
+    }
+    return true;
+}
 b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* config) {
     if (!memory_requirement) {
         KERROR("standard_ui_system_initialize requires a valid pointer to memory_requirement.");

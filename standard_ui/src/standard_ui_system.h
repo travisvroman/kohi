@@ -51,7 +51,8 @@ typedef struct sui_control {
     char* name;
     b8 is_active;
     b8 is_visible;
-    vec4i bounds;
+    b8 is_hovered;
+    rect_2d bounds;
 
     struct sui_control* parent;
     // darray
@@ -74,6 +75,9 @@ typedef struct sui_control {
      * @returns True if the event should be allowed to propagate to other controls; otherwise false.
      */
     b8 (*on_click)(struct sui_control* self, struct sui_mouse_event event);
+
+    b8 (*on_mouse_over)(struct sui_control* self, struct sui_mouse_event event);
+    b8 (*on_mouse_out)(struct sui_control* self, struct sui_mouse_event event);
 } sui_control;
 
 /**
