@@ -706,7 +706,7 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     f64 fps, frame_time;
     metrics_frame(&fps, &frame_time);
 
-    // Keep a running average of update and render timers over the last 60 frames.
+    // Keep a running average of update and render timers over the last ~1 second.
     static f64 accumulated_ms = 0;
     static f32 total_update_seconds = 0;
     static f32 total_prepare_seconds = 0;
@@ -727,10 +727,10 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
 
     // Once ~1 second has gone by, calculate the average and wipe the accumulators.
     if (accumulated_ms >= 1000.0f) {
-        total_update_avg_us = (total_update_seconds / 1000.0f) * K_SEC_TO_US_MULTIPLIER;
-        total_prepare_avg_us = (total_prepare_seconds / 1000.0f) * K_SEC_TO_US_MULTIPLIER;
-        total_render_avg_us = (total_render_seconds / 1000.0f) * K_SEC_TO_US_MULTIPLIER;
-        total_present_avg_us = (total_present_seconds / 1000.0f) * K_SEC_TO_US_MULTIPLIER;
+        total_update_avg_us = (total_update_seconds / accumulated_ms) * K_SEC_TO_US_MULTIPLIER;
+        total_prepare_avg_us = (total_prepare_seconds / accumulated_ms) * K_SEC_TO_US_MULTIPLIER;
+        total_render_avg_us = (total_render_seconds / accumulated_ms) * K_SEC_TO_US_MULTIPLIER;
+        total_present_avg_us = (total_present_seconds / accumulated_ms) * K_SEC_TO_US_MULTIPLIER;
         total_avg = total_update_avg_us + total_prepare_avg_us + total_render_avg_us + total_present_avg_us;
         total_render_seconds = 0;
         total_prepare_seconds = 0;
