@@ -58,9 +58,7 @@ void freelist_create(u64 total_size, u64* memory_requirement, void* memory, free
 
     // Invalidate the offset for all but the first node. The invalid
     // value will be checked for when seeking a new node from the list.
-    for (u64 i = 1; i < state->max_entries; ++i) {
-        state->nodes[i].offset = INVALID_ID;
-    }
+    kzero_memory(state->nodes, sizeof(freelist_node) * state->max_entries);
 }
 
 void freelist_destroy(freelist* list) {
@@ -245,9 +243,6 @@ b8 freelist_resize(freelist* list, u64* memory_requirement, void* new_memory, u6
 
     // Invalidate the offset for all but the first node. The invalid
     // value will be checked for when seeking a new node from the list.
-    /* for (u64 i = 1; i < state->max_entries; ++i) {
-        state->nodes[i].offset = INVALID_ID;
-    } */
     kzero_memory(state->nodes, sizeof(freelist_node) * state->max_entries);
 
     state->head = &state->nodes[0];
@@ -307,9 +302,6 @@ void freelist_clear(freelist* list) {
     internal_state* state = list->memory;
     // Invalidate the offset for all but the first node. The invalid
     // value will be checked for when seeking a new node from the list.
-    /* for (u64 i = 1; i < state->max_entries; ++i) {
-        state->nodes[i].offset = INVALID_ID;
-    } */
     kzero_memory(state->nodes, sizeof(freelist_node) * state->max_entries);
 
     // Reset the head to occupy the entire thing.
