@@ -572,7 +572,7 @@ b8 application_initialize(struct application* game_inst) {
     ui_config.indices = uiindices;
 
     // Get UI geometry from config.
-    state->ui_meshes[0].unique_id = identifier_aquire_new_id(&state->ui_meshes[0]);
+    state->ui_meshes[0].id = identifier_create();
     state->ui_meshes[0].geometry_count = 1;
     state->ui_meshes[0].geometries = kallocate(sizeof(geometry*), MEMORY_TAG_ARRAY);
     state->ui_meshes[0].geometries[0] = geometry_system_acquire_from_config(ui_config, true);
@@ -587,8 +587,8 @@ b8 application_initialize(struct application* game_inst) {
     // TODO: end temp load/prepare stuff
 
     state->world_camera = camera_system_acquire("world");
-    camera_position_set(state->world_camera, (vec3){6.1, 1.7f, 19.7f});
-    camera_rotation_euler_set(state->world_camera, (vec3){-7.6f, -86.4f, 0.0f});
+    camera_position_set(state->world_camera, (vec3){-24.5, 19.3f, 30.2f});
+    camera_rotation_euler_set(state->world_camera, (vec3){-23.9f, -42.4f, 0.0f});
 
     // TODO: temp test
     state->world_camera_2 = camera_system_acquire("world_2");
@@ -821,6 +821,42 @@ static void gdistance_quick_sort(geometry_distance arr[], i32 low_index, i32 hig
         gdistance_quick_sort(arr, partition_index + 1, high_index, ascending);
     }
 }
+static void geometry_swap(geometry_render_data* a, geometry_render_data* b) {
+    geometry_render_data temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+static i32 geometry_partition(geometry_render_data arr[], i32 low_index, i32 high_index, b8 ascending) {
+    geometry_render_data pivot = arr[high_index];
+    i32 i = (low_index - 1);
+
+    for (i32 j = low_index; j <= high_index - 1; ++j) {
+        if (ascending) {
+            if (arr[j].geometry->material->internal_id < pivot.geometry->material->internal_id) {
+                ++i;
+                geometry_swap(&arr[i], &arr[j]);
+            }
+        } else {
+            if (arr[j].geometry->material->internal_id > pivot.geometry->material->internal_id) {
+                ++i;
+                geometry_swap(&arr[i], &arr[j]);
+            }
+        }
+    }
+    geometry_swap(&arr[i + 1], &arr[high_index]);
+    return i + 1;
+}
+
+static void geometry_quick_sort_by_material(geometry_render_data arr[], i32 low_index, i32 high_index, b8 ascending) {
+    if (low_index < high_index) {
+        i32 partition_index = geometry_partition(arr, low_index, high_index, ascending);
+
+        // Independently sort elements before and after the partition index.
+        geometry_quick_sort_by_material(arr, low_index, partition_index - 1, ascending);
+        geometry_quick_sort_by_material(arr, partition_index + 1, high_index, ascending);
+    }
+}
 
 b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_frame_data) {
     testbed_game_state* state = (testbed_game_state*)app_inst->state;
@@ -931,7 +967,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                                 geometry_render_data data = {0};
                                 data.model = model;
                                 data.geometry = g;
-                                data.unique_id = m->unique_id;
+                                data.unique_id = m->id.uniqueid;
                                 data.winding_inverted = winding_inverted;
 
                                 // Check if transparent. If so, put into a separate, temp array to be
@@ -965,6 +1001,9 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 }
             }
 
+            // Sort opaque geometries by material.
+            geometry_quick_sort_by_material(ext_data->geometries, 0, darray_length(ext_data->geometries) - 1, true);
+
             // Sort transparent geometries, then add them to the ext_data->geometries array.
             u32 geometry_count = darray_length(transparent_geometries);
             gdistance_quick_sort(transparent_geometries, 0, geometry_count - 1, false);
@@ -982,7 +1021,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 geometry_render_data data = {0};
                 data.model = transform_world_get(&scene->terrains[i].xform);
                 data.geometry = &scene->terrains[i].geo;
-                data.unique_id = scene->terrains[i].unique_id;
+                data.unique_id = scene->terrains[i].id.uniqueid;
 
                 darray_push(ext_data->terrain_geometries, data);
 

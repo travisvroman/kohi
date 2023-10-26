@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/frame_data.h"
+#include "core/identifier.h"
 #include "defines.h"
 #include "math/math_types.h"
 #include "resources/resource_types.h"
@@ -56,7 +57,7 @@ typedef struct terrain_config {
 } terrain_config;
 
 typedef struct terrain {
-    u32 unique_id;
+    identifier id;
     char *name;
     transform xform;
     u32 tile_count_x;

@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "core/identifier.h"
 #include "math/math_types.h"
 
 #define TERRAIN_MAX_MATERIAL_COUNT 4
@@ -354,7 +355,7 @@ typedef struct mesh_config {
 typedef struct mesh {
     char *name;
     mesh_config config;
-    u32 unique_id;
+    identifier id;
     u8 generation;
     u16 geometry_count;
     geometry **geometries;

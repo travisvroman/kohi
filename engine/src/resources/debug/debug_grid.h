@@ -1,3 +1,4 @@
+#include "core/identifier.h"
 #include "defines.h"
 #include "math/math_types.h"
 #include "resources/resource_types.h"
@@ -38,7 +39,7 @@ typedef struct debug_grid_config {
 } debug_grid_config;
 
 typedef struct debug_grid {
-    u32 unique_id;
+    identifier id;
     char *name;
     debug_grid_orientation orientation;
     /** @brief The space count in the first dimension of the orientation from both directions outward from origin. */

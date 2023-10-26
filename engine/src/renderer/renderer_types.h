@@ -15,7 +15,7 @@ struct camera;
 typedef struct geometry_render_data {
     mat4 model;
     geometry* geometry;
-    u32 unique_id;
+    u64 unique_id;
     b8 winding_inverted;
 } geometry_render_data;
 

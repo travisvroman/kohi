@@ -17,7 +17,7 @@ typedef enum raycast_hit_type {
 
 typedef struct raycast_hit {
     raycast_hit_type type;
-    u32 unique_id;
+    u64 unique_id;
     vec3 position;
     f32 distance;
 } raycast_hit;

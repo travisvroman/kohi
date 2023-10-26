@@ -175,7 +175,7 @@ b8 mesh_load(mesh* m) {
         return false;
     }
 
-    m->unique_id = identifier_aquire_new_id(m);
+    m->id = identifier_create();
 
     if (m->config.resource_name) {
         return mesh_load_from_resource(m->config.resource_name, m);

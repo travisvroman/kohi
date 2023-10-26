@@ -679,7 +679,7 @@ b8 simple_scene_raycast(simple_scene *scene, const struct ray *r, struct raycast
             hit.distance = dist;
             hit.type = RAYCAST_HIT_TYPE_OBB;
             hit.position = vec3_add(r->origin, vec3_mul_scalar(r->direction, hit.distance));
-            hit.unique_id = m->unique_id;
+            hit.unique_id = m->id.uniqueid;
 
             darray_push(out_result->hits, hit);
         }
@@ -1129,7 +1129,7 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
                 geometry_render_data data = {0};
                 data.model = transform_world_get(&debug->line.xform);
                 data.geometry = &debug->line.geo;
-                data.unique_id = debug->line.unique_id;
+                data.unique_id = debug->line.id.uniqueid;
 
                 (*debug_geometries)[(*data_count)] = data;
             }
@@ -1149,7 +1149,7 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
                     geometry_render_data data = {0};
                     data.model = transform_world_get(&debug->box.xform);
                     data.geometry = &debug->box.geo;
-                    data.unique_id = debug->box.unique_id;
+                    data.unique_id = debug->box.id.uniqueid;
 
                     (*debug_geometries)[(*data_count)] = data;
                 }
@@ -1170,7 +1170,7 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
                     geometry_render_data data = {0};
                     data.model = transform_world_get(&debug->box.xform);
                     data.geometry = &debug->box.geo;
-                    data.unique_id = debug->box.unique_id;
+                    data.unique_id = debug->box.id.uniqueid;
 
                     (*debug_geometries)[(*data_count)] = data;
                 }
@@ -1279,21 +1279,21 @@ static void simple_scene_actual_unload(simple_scene *scene) {
     kzero_memory(scene, sizeof(simple_scene));
 }
 
-struct transform *simple_scene_transform_get_by_id(simple_scene *scene, u32 unique_id) {
+struct transform *simple_scene_transform_get_by_id(simple_scene *scene, u64 unique_id) {
     if (!scene) {
         return 0;
     }
 
     u32 mesh_count = darray_length(scene->meshes);
     for (u32 i = 0; i < mesh_count; ++i) {
-        if (scene->meshes[i].unique_id == unique_id) {
+        if (scene->meshes[i].id.uniqueid == unique_id) {
             return &scene->meshes[i].transform;
         }
     }
 
     u32 terrain_count = darray_length(scene->terrains);
     for (u32 i = 0; i < terrain_count; ++i) {
-        if (scene->terrains[i].unique_id == unique_id) {
+        if (scene->terrains[i].id.uniqueid == unique_id) {
             return &scene->terrains[i].xform;
         }
     }

@@ -2,6 +2,7 @@
 
 #include "core/identifier.h"
 #include "core/kmemory.h"
+#include "defines.h"
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "renderer/renderer_frontend.h"
@@ -21,7 +22,7 @@ b8 debug_box3d_create(vec3 size, transform *parent, debug_box3d *out_box) {
     }
     // out_box->name // TODO: name?
     out_box->size = size;
-    out_box->unique_id = identifier_aquire_new_id(out_box);
+    out_box->id = identifier_create();
     out_box->colour = vec4_one();  // Default to white.
 
     out_box->geo.id = INVALID_ID;
@@ -33,8 +34,7 @@ b8 debug_box3d_create(vec3 size, transform *parent, debug_box3d *out_box) {
 
 void debug_box3d_destroy(debug_box3d *box) {
     // TODO: zero out, etc.
-    identifier_release_id(box->unique_id);
-    box->unique_id = INVALID_ID;
+    box->id.uniqueid = INVALID_ID_U64;
 }
 
 void debug_box3d_parent_set(debug_box3d *box, transform *parent) {
