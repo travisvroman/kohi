@@ -45,6 +45,7 @@ b8 vulkan_device_create(vulkan_context* context) {
     // NOTE: Do not create additional queues for shared indices.
     b8 present_shares_graphics_queue = context->device.graphics_queue_index == context->device.present_queue_index;
     b8 transfer_shares_graphics_queue = context->device.graphics_queue_index == context->device.transfer_queue_index;
+    b8 present_must_share_graphics = false;
     u32 index_count = 1;
     if (!present_shares_graphics_queue) {
         index_count++;
@@ -64,15 +65,26 @@ b8 vulkan_device_create(vulkan_context* context) {
 
     VkDeviceQueueCreateInfo queue_create_infos[32];
     f32 queue_priorities[2] = {0.9f, 1.0f};
+
+    VkQueueFamilyProperties props[32];
+    u32 prop_count;
+    vkGetPhysicalDeviceQueueFamilyProperties(context->device.physical_device, &prop_count, 0);
+    vkGetPhysicalDeviceQueueFamilyProperties(context->device.physical_device, &prop_count, props);
+
     for (u32 i = 0; i < index_count; ++i) {
         queue_create_infos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queue_create_infos[i].queueFamilyIndex = indices[i];
         queue_create_infos[i].queueCount = 1;
 
         if (present_shares_graphics_queue && indices[i] == context->device.present_queue_index) {
-            // If the same family is shared between graphic and presentation,
-            // pull from the second index instead of the first for a unique queue.
-            queue_create_infos[i].queueCount = 2;
+            if (props[context->device.present_queue_index].queueCount > 1) {
+                // If the same family is shared between graphic and presentation,
+                // pull from the second index instead of the first for a unique queue.
+                queue_create_infos[i].queueCount = 2;
+            } else {
+                // Don't have available queues, just share them.
+                present_must_share_graphics = true;
+            }
         }
 
         // TODO: Enable this for a future enhancement.
@@ -219,7 +231,7 @@ b8 vulkan_device_create(vulkan_context* context) {
         context->device.present_queue_index,
         // If the same family is shared between graphic and presentation,
         // pull from the second index instead of the first for a unique queue.
-        context->device.graphics_queue_index == context->device.present_queue_index ? 1 : 0,
+        present_must_share_graphics ? 0 : (context->device.graphics_queue_index == context->device.present_queue_index) ? 1                                                                                                                : 0,
         &context->device.present_queue);
 
     vkGetDeviceQueue(

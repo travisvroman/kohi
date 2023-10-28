@@ -15,6 +15,7 @@ Changelog
   - Fixed scene unloading by handling this state in application_prepare_frame in testbed_lib.
   - Fixed a state checking issue in simple scene updates to trigger an unload and return if an unload has been requested.
   - Added device pixel ratio logic for Windows and macOS.
+  - Added event handler for monitor changing on macOS. This helps capture DPI changes when switching monitors.
     
 - 0.2x - Added audio plugin. Build versioning wasn't fixed yet, though, so this wasn't a readily visible
     change in version number. Also recieved a plethora of nondescript bugfixes and performance tweaks.

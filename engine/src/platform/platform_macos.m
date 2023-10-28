@@ -273,6 +273,20 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
     return YES;
 }
 
+- (void)windowDidChangeScreen:(NSNotification *)notification {
+    event_context context;
+    CGSize viewSize = state_ptr->view.bounds.size;
+    NSSize newDrawableSize = [state_ptr->view convertSizeToBacking:viewSize];
+    state_ptr->handle.layer.drawableSize = newDrawableSize;
+    state_ptr->handle.layer.contentsScale = state_ptr->view.window.backingScaleFactor;
+    // Save off the device pixel ratio.
+    state_ptr->device_pixel_ratio = state_ptr->handle.layer.contentsScale;
+
+    context.data.u16[0] = (u16)newDrawableSize.width;
+    context.data.u16[1] = (u16)newDrawableSize.height;
+    event_fire(EVENT_CODE_RESIZED, 0, context);
+}
+
 - (void)windowDidResize:(NSNotification *)notification {
     event_context context;
     CGSize viewSize = state_ptr->view.bounds.size;
