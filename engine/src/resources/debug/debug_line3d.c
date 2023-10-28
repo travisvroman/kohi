@@ -27,7 +27,6 @@ b8 debug_line3d_create(vec3 point_0, vec3 point_1, transform *parent, debug_line
 
     out_line->geo.id = INVALID_ID;
     out_line->geo.generation = INVALID_ID_U16;
-    out_line->geo.internal_id = INVALID_ID;
 
     return true;
 }

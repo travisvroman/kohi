@@ -27,7 +27,6 @@ b8 debug_box3d_create(vec3 size, transform *parent, debug_box3d *out_box) {
 
     out_box->geo.id = INVALID_ID;
     out_box->geo.generation = INVALID_ID_U16;
-    out_box->geo.internal_id = INVALID_ID;
 
     return true;
 }

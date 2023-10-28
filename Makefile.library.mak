@@ -108,10 +108,12 @@ endif
 # Defaults to debug unless release is specified.
 ifeq ($(TARGET),release)
 # release
+DEFINES += -DKRELEASE
+COMPILER_FLAGS += -MD -O2
 else
 # debug
 DEFINES += -D_DEBUG
-COMPILER_FLAGS += -g -MD
+COMPILER_FLAGS += -g -MD -O0
 LINKER_FLAGS += -g
 endif
 
@@ -128,18 +130,20 @@ else
 endif
 
 # TODO: re-enable this conditionally
-# # Generate version file
-# ifeq ($(BUILD_PLATFORM),windows)
-# 	@if exist $(VERFILE) del $(VERFILE)
-# # Write out the version file.
-# 	@echo $(VER_COMMENT)\n > $(VERFILE)
-# 	@echo #define KVERSION "$(KVERSION)" >> $(VERFILE)
-# else
-# 	@rm -rf $(VERFILE)
-# # Write out the version file.
-# 	@echo $(VER_COMMENT)\n > $(VERFILE)
-# 	@echo "#define KVERSION \"$(KVERSION)\"" >> $(VERFILE)
-# endif
+# Generate version file
+ifeq ($(DO_VERSION),yes)
+ifeq ($(BUILD_PLATFORM),windows)
+	@if exist $(VERFILE) del $(VERFILE)
+# Write out the version file.
+	@echo $(VER_COMMENT)\n > $(VERFILE)
+	@echo #define KVERSION "$(KVERSION)" >> $(VERFILE)
+else
+	@rm -rf $(VERFILE)
+# Write out the version file.
+	@echo "$(VER_COMMENT)\n" > $(VERFILE)
+	@echo "#define KVERSION \"$(KVERSION)\"" >> $(VERFILE)
+endif
+endif
 
 .PHONY: link
 link: scaffold $(OBJ_FILES) # link

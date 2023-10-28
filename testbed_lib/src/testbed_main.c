@@ -874,6 +874,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
     state->skybox_pass.pass_data.view_position = camera_position_get(current_camera);
     state->skybox_pass.pass_data.projection_matrix = state->world_viewport.projection;
     state->skybox_pass.pass_data.do_execute = true;
+    skybox_pass_ext_data->sb = 0;
 
     // Tell our scene to generate relevant packet data. NOTE: Generates skybox and world packets.
     if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
@@ -1127,6 +1128,10 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 return false;
             }
         } */
+    } else {
+        // Do not run these passes if the scene is not loaded.
+        state->scene_pass.pass_data.do_execute = false;
+        state->scene_pass.pass_data.do_execute = false;
     }
 
     // UI

@@ -173,8 +173,6 @@ b8 debug_grid_initialize(debug_grid *grid) {
         j++;
     }
 
-    grid->geo.internal_id = INVALID_ID;
-
     return true;
 }
 

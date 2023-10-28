@@ -19,6 +19,7 @@
 #include "core/asserts.h"
 #include "defines.h"
 #include "renderer/renderer_types.h"
+#include "vulkan/vulkan_core.h"
 
 /**
  * @brief Checks the given expression's return value against VK_SUCCESS.
@@ -344,29 +345,6 @@ typedef struct vulkan_pipeline {
 #define VULKAN_MAX_MATERIAL_COUNT 1024
 
 /**
- * @brief Max number of simultaneously uploaded geometries
- * @todo TODO: make configurable
- */
-#define VULKAN_MAX_GEOMETRY_COUNT 4096
-
-/**
- * @brief Internal buffer data for geometry. This data gets loaded
- * directly into a buffer.
- */
-typedef struct vulkan_geometry_data {
-    /** @brief The unique geometry identifier. */
-    u32 id;
-    /** @brief The geometry generation. Incremented every time the geometry data changes. */
-    u32 generation;
-
-    /** @brief The offset in bytes in the vertex buffer. */
-    u64 vertex_buffer_offset;
-
-    /** @brief The offset in bytes in the index buffer. */
-    u64 index_buffer_offset;
-} vulkan_geometry_data;
-
-/**
  * @brief Max number of UI control instances
  * @todo TODO: make configurable
  */
@@ -616,11 +594,6 @@ typedef struct vulkan_context {
     /** @brief The swapchain. */
     vulkan_swapchain swapchain;
 
-    /** @brief The object vertex buffer, used to hold geometry vertices. */
-    renderbuffer object_vertex_buffer;
-    /** @brief The object index buffer, used to hold geometry indices. */
-    renderbuffer object_index_buffer;
-
     /** @brief The graphics command buffers, one per frame. @note: darray */
     vulkan_command_buffer* graphics_command_buffers;
 
@@ -646,14 +619,14 @@ typedef struct vulkan_context {
 
     b8 render_flag_changed;
 
-    /** @brief The A collection of loaded geometries. @todo TODO: make dynamic */
-    vulkan_geometry_data geometries[VULKAN_MAX_GEOMETRY_COUNT];
-
     /** @brief Render targets used for world rendering. @note One per frame. */
     render_target world_render_targets[3];
 
     /** @brief Indicates if multi-threading is supported by this device. */
     b8 multithreading_enabled;
+
+    /** @brief Collection of samplers. darray */
+    VkSampler* samplers;
 
     /**
      * @brief A function pointer to find a memory index of the given type and with the given properties.

@@ -66,7 +66,6 @@ b8 terrain_create(const terrain_config *config, terrain *out_terrain) {
 
     // Invalidate the geometry.
     out_terrain->geo.id = INVALID_ID;
-    out_terrain->geo.internal_id = INVALID_ID;
     out_terrain->geo.generation = INVALID_ID_U16;
 
     return true;

@@ -400,6 +400,11 @@ b8 simple_scene_update(simple_scene *scene,
         return false;
     }
 
+    if (scene->state == SIMPLE_SCENE_STATE_UNLOADING) {
+        simple_scene_actual_unload(scene);
+        return true;
+    }
+
     if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
         // TODO: Update directional light, if changed.
         if (scene->dir_light && scene->dir_light->debug_data) {
@@ -466,9 +471,7 @@ b8 simple_scene_update(simple_scene *scene,
         }
     }
 
-    if (scene->state == SIMPLE_SCENE_STATE_UNLOADING) {
-        simple_scene_actual_unload(scene);
-    }
+    
 
     return true;
 }
