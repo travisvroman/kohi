@@ -52,7 +52,7 @@ b8 vulkan_device_create(vulkan_context* context) {
     if (!transfer_shares_graphics_queue) {
         index_count++;
     }
-    u32 indices[32];
+    i32 indices[32];
     u8 index = 0;
     indices[index++] = context->device.graphics_queue_index;
     if (!present_shares_graphics_queue) {

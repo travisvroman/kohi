@@ -25,7 +25,7 @@ typedef struct identifier {
 /**
  * @brief Generates a new unique identifier.
  */
-KAPI identifier identifier_create();
+KAPI identifier identifier_create(void);
 
 /**
  * @brief Creates an identifier from a known value. Useful for deserialization.

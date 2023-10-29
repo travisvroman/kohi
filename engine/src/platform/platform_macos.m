@@ -51,6 +51,7 @@ typedef struct platform_state {
     u8  modifier_key_states;
     // darray
     macos_file_watch *watches;
+    f32 device_pixel_ratio;
 } platform_state;
 
 enum macos_modifier_keys {
@@ -278,6 +279,8 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
     NSSize newDrawableSize = [state_ptr->view convertSizeToBacking:viewSize];
     state_ptr->handle.layer.drawableSize = newDrawableSize;
     state_ptr->handle.layer.contentsScale = state_ptr->view.window.backingScaleFactor;
+    // Save off the device pixel ratio.
+    state_ptr->device_pixel_ratio = state_ptr->handle.layer.contentsScale;
 
     context.data.u16[0] = (u16)newDrawableSize.width;
     context.data.u16[1] = (u16)newDrawableSize.height;
@@ -300,6 +303,8 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
     NSSize newDrawableSize = [state_ptr->view convertSizeToBacking:viewSize];
     state_ptr->handle.layer.drawableSize = newDrawableSize;
     state_ptr->handle.layer.contentsScale = state_ptr->view.window.backingScaleFactor;
+    // Save off the device pixel ratio.
+    state_ptr->device_pixel_ratio = state_ptr->handle.layer.contentsScale;
 
     context.data.u16[0] = (u16)newDrawableSize.width;
     context.data.u16[1] = (u16)newDrawableSize.height;
@@ -318,6 +323,8 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
     }
 
     state_ptr = state;
+
+    state_ptr->device_pixel_ratio = 1.0f;
 
     @autoreleasepool {
 
@@ -391,6 +398,8 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
     // See also https://github.com/KhronosGroup/MoltenVK/issues/428
     state_ptr->handle.layer.contentsScale = state_ptr->view.window.backingScaleFactor;
     KDEBUG("contentScale: %f", state_ptr->handle.layer.contentsScale);
+    // Save off the device pixel ratio.
+    state_ptr->device_pixel_ratio = state_ptr->handle.layer.contentsScale;
 
     [state_ptr->view setLayer:state_ptr->handle.layer];
 
@@ -531,6 +540,10 @@ void platform_get_handle_info(u64 *out_size, void *memory) {
     }
 
     kcopy_memory(memory, &state_ptr->handle, *out_size);
+}
+
+f32 platform_device_pixel_ratio(void) {
+    return state_ptr->device_pixel_ratio;
 }
 
 // NOTE: Begin threads.

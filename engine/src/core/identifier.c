@@ -9,7 +9,7 @@
 static b8 generator_created = false;
 static mtrand_state generator;
 
-identifier identifier_create() {
+identifier identifier_create(void) {
     if (!generator_created) {
         generator = mtrand_create(time(0));
         generator_created = true;

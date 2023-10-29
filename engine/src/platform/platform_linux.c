@@ -55,6 +55,7 @@ typedef struct platform_state {
     xcb_atom_t wm_delete_win;
     // darray
     linux_file_watch* watches;
+    f32 device_pixel_ratio;
 } platform_state;
 
 static platform_state* state_ptr;
@@ -71,6 +72,7 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
     }
 
     state_ptr = state;
+    state_ptr->device_pixel_ratio = 1.0f;
 
     // Connect to X
     state_ptr->display = XOpenDisplay(NULL);
