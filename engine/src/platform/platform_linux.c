@@ -1,11 +1,24 @@
+#include <X11/extensions/Xrender.h>
+#include <xcb/xproto.h>
+
+#include "math/kmath.h"
 #include "platform.h"
 
 // Linux platform layer.
 #if KPLATFORM_LINUX
 
+#ifndef XRANDR_ROTATION_LEFT
+#define XRANDR_ROTATION_LEFT (1 << 1)
+#endif
+#ifndef XRANDR_ROTATION_RIGHT
+#define XRANDR_ROTATION_RIGHT (1 << 9)
+#endif
+
 #include <X11/XKBlib.h>    // sudo apt-get install libx11-dev
 #include <X11/Xlib-xcb.h>  // sudo apt-get install libxkbcommon-x11-dev libx11-xcb-dev
 #include <X11/Xlib.h>
+#include <X11/Xresource.h>
+#include <X11/extensions/Xrandr.h>
 #include <X11/keysym.h>
 #include <sys/time.h>
 #include <xcb/xcb.h>
@@ -53,6 +66,7 @@ typedef struct platform_state {
     xcb_screen_t* screen;
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_win;
+    i32 screen_count;
     // darray
     linux_file_watch* watches;
     f32 device_pixel_ratio;
@@ -93,8 +107,14 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
 
     // Loop through screens using iterator
     xcb_screen_iterator_t it = xcb_setup_roots_iterator(setup);
-    int screen_p = 0;
-    for (i32 s = screen_p; s > 0; s--) {
+    for (i32 s = 0; s < state_ptr->screen_count; ++s) {
+        /* f32 w_inches = it.data->width_in_millimeters * 0.0394;
+        f32 h_inches = it.data->height_in_millimeters * 0.0394;
+        f32 x_dpi = (f32)it.data->width_in_pixels / w_inches;
+
+        KINFO("Monitor '%s' has a DPI of %.2f for a device pixelratio of %0.2f", it.index, x_dpi, x_dpi / 96.0f);
+        // state_ptr->device_pixel_ratio = x_dpi / 96.0f;  // Default DPI is considered 96. */
+
         xcb_screen_next(&it);
     }
 
@@ -133,6 +153,101 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
         state_ptr->screen->root_visual,
         event_mask,
         value_list);
+
+    // NOTE: After much research and effort, it seems as though there is not a good, reliable, global solution
+    // to determine device pixel ratio using X, _in particular_ when using mixed HiDPI and normal DPI monitors.
+    // The commented code below _would_ work if the values reported by op_info->mm_width and op_info->mm_height
+    // were actually correct (they aren't, and the "solution" is to have the user manually set this in config
+    // files). To compound this issue, X treats the whole thing as one large "screen", and the DPI on _that_ isn't
+    // accurate either. For example, on a setup that has one known 96 DPI monitor and one known 192 DPI monitor,
+    // this reports... 144. Wrong on both accounts. This is supported on Wayland, supposedly, so if a Wayland
+    // backend ever gets added it'll be supported there. It's just not worth attempting on X11.
+    /*
+    // Get monitor info
+    XRRMonitorInfo* monitors = XRRGetMonitors(state_ptr->display, state_ptr->handle.window, true, &state_ptr->screen_count);
+    for (u32 i = 0; i < state_ptr->screen_count; ++i) {
+        if (monitors[i].noutput > 0) {
+            // XRRScreenResources* current_resources = XRRGetScreenResourcesCurrent(state_ptr->display, state_ptr->handle.window);
+            XRRScreenResources* resources = XRRGetScreenResources(state_ptr->display, state_ptr->handle.window);
+            for (u32 o = 0; o < monitors[i].noutput; ++o) {
+                RROutput op = monitors[i].outputs[o];
+                XRROutputInfo* op_info = XRRGetOutputInfo(state_ptr->display, resources, op);
+                if (op_info) {
+                    XRRCrtcInfo* crtc_info = XRRGetCrtcInfo(state_ptr->display, resources, op_info->crtc);
+                    if (crtc_info) {
+                        // find the mode
+                        for (i32 m = 0; m < resources->nmode; ++m) {
+                            const XRRModeInfo* mode_info = &resources->modes[m];
+                            if (mode_info->id == crtc_info->mode) {
+                                //
+                                XFixed scale_w = 0x10000, scale_h = 0x10000;
+                                XRRCrtcTransformAttributes* attr = 0;
+
+                                if (XRRGetCrtcTransform(state_ptr->display, op_info->crtc, &attr) && attr) {
+                                    scale_w = attr->currentTransform.matrix[0][0];
+                                    scale_h = attr->currentTransform.matrix[1][1];
+
+                                    f32 scale;
+                                    if (attr->currentTransform.matrix[0][0] == attr->currentTransform.matrix[1][1]) {
+                                        scale = XFixedToDouble(attr->currentTransform.matrix[0][0]);
+                                    } else {
+                                        scale = XFixedToDouble(attr->currentTransform.matrix[0][0] + attr->currentTransform.matrix[0][0]);
+                                    }
+
+                                    // scale = 1.0f / scale;
+                                    KTRACE("Scale before: %.2f", scale);
+                                    scale = range_convert_f32(scale, 0.0f, 1.0f, 1.0f, 2.0f);
+                                    KTRACE("Scale after: %.2f", scale);
+
+                                    // If rotated, flip actual w/h
+                                    i32 actual_w, actual_h;
+                                    f32 w_inches, h_inches;
+                                    if (crtc_info->rotation & (XRANDR_ROTATION_LEFT | XRANDR_ROTATION_RIGHT)) {
+                                        actual_w = mode_info->height;
+                                        actual_h = mode_info->width;
+                                        w_inches = op_info->mm_height * 0.0394f;
+                                        h_inches = op_info->mm_width * 0.0394f;
+                                    } else {
+                                        actual_w = mode_info->width;
+                                        actual_h = mode_info->height;
+                                        w_inches = op_info->mm_width * 0.0394f;
+                                        h_inches = op_info->mm_height * 0.0394f;
+                                    }
+                                    f32 dpi_x = (f32)actual_w / w_inches;
+                                    f32 dpi_y = (f32)actual_h / h_inches;
+
+                                    KTRACE("device_pixel_ratio x/y: %.2f, %.2f", dpi_x / 96.0f, dpi_y / 96.0f);
+
+                                    KTRACE("Scale x/y: %i/%i, actual w/h: %i/%i", scale_w >> 16, scale_h >> 16, actual_w, actual_h);
+                                    XFree(attr);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    const char* resource_string = XResourceManagerString(state_ptr->display);
+    XrmDatabase db;
+    XrmValue value;
+    char* type = 0;
+    f32 dpi = 0.0f;
+
+    XrmInitialize();
+    db = XrmGetStringDatabase(resource_string);
+    if (resource_string) {
+        KTRACE("Entire DB: '%s'", resource_string);
+        if (XrmGetResource(db, "Xft.dpi", "String", &type, &value) == true) {
+            if (value.addr) {
+                if (!string_to_f32(value.addr, &dpi)) {
+                    KERROR("Unable to parse DPI from Xft.dpi");
+                }
+            }
+        }
+    }
+    */
 
     // Change the title
     xcb_change_property(
