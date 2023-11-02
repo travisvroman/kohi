@@ -14,7 +14,6 @@
 #include "memory/linear_allocator.h"
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
-#include "version.h"
 
 // systems
 #include "core/systems_manager.h"
@@ -132,9 +131,6 @@ b8 engine_create(application* game_inst) {
         KFATAL("Post-boot system manager initialization failed!");
         return false;
     }
-
-    // Report engine version
-    KINFO("Kohi Engine v. %s", KVERSION);
 
     // Initialize the game.
     game_inst->stage = APPLICATION_STAGE_INITIALIZING;

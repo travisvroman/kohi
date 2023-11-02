@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/identifier.h"
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
@@ -13,7 +14,7 @@ typedef enum ui_text_type {
 
 typedef struct ui_text {
     char* name;
-    u32 unique_id;
+    identifier id;
     ui_text_type type;
     struct font_data* data;
     renderbuffer vertex_buffer;

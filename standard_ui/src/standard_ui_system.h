@@ -14,6 +14,7 @@
 
 #include <math/math_types.h>
 
+#include "core/identifier.h"
 #include "core/input.h"
 #include "defines.h"
 #include "renderer/renderer_types.h"
@@ -46,7 +47,7 @@ typedef struct sui_mouse_event {
 } sui_mouse_event;
 
 typedef struct sui_control {
-    u32 unique_id;
+    identifier id;
     transform xform;
     char* name;
     // TODO: Convert to flags.

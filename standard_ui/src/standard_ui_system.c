@@ -380,7 +380,7 @@ b8 sui_base_control_create(const char* name, struct sui_control* out_control) {
     out_control->render = sui_base_control_render;
 
     out_control->name = string_duplicate(name);
-    out_control->unique_id = identifier_aquire_new_id(out_control);
+    out_control->id = identifier_create();
 
     out_control->xform = transform_create();
 
@@ -389,7 +389,6 @@ b8 sui_base_control_create(const char* name, struct sui_control* out_control) {
 void sui_base_control_destroy(struct sui_control* self) {
     if (!self) {
         // TODO: recurse children/unparent?
-        identifier_release_id(self->unique_id);
 
         if (self->internal_data && self->internal_data_size) {
             kfree(self->internal_data, self->internal_data_size, MEMORY_TAG_UI);
@@ -515,7 +514,7 @@ b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_frame
     sui_panel_internal_data* typed_data = self->internal_data;
     if (typed_data->g) {
         standard_ui_renderable renderable = {0};
-        renderable.render_data.unique_id = self->unique_id;
+        renderable.render_data.unique_id = self->id.uniqueid;
         renderable.render_data.geometry = typed_data->g;
         renderable.render_data.model = transform_world_get(&self->xform);
         renderable.render_data.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.
@@ -638,7 +637,7 @@ b8 sui_button_control_render(struct sui_control* self, struct frame_data* p_fram
     sui_button_internal_data* typed_data = self->internal_data;
     if (typed_data->nslice.g) {
         standard_ui_renderable renderable = {0};
-        renderable.render_data.unique_id = self->unique_id;
+        renderable.render_data.unique_id = self->id.uniqueid;
         renderable.render_data.geometry = typed_data->nslice.g;
         renderable.render_data.model = transform_world_get(&self->xform);
         renderable.render_data.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.

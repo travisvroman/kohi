@@ -89,16 +89,13 @@ b8 ui_text_create(const char* name, ui_text_type type, const char* font_name, u1
     regenerate_geometry(out_text);
 
     // Get a unique identifier for the text object.
-    out_text->unique_id = identifier_aquire_new_id(out_text);
+    out_text->id = identifier_create();
 
     return true;
 }
 
 void ui_text_destroy(ui_text* text) {
     if (text) {
-        // Release the unique identifier.
-        identifier_release_id(text->unique_id);
-
         if (text->name) {
             u32 text_length = string_length(text->name);
             kfree(text->name, sizeof(char) * text_length + 1, MEMORY_TAG_STRING);

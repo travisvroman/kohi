@@ -1,11 +1,12 @@
 #pragma once
 
+#include "core/identifier.h"
 #include "defines.h"
 #include "math/math_types.h"
 #include "resources/resource_types.h"
 
 typedef struct debug_line3d {
-    u32 unique_id;
+    identifier id;
     char *name;
     vec3 point_0;
     vec3 point_1;
