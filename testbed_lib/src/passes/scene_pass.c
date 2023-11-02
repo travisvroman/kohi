@@ -2,6 +2,7 @@
 
 #include "core/kmemory.h"
 #include "core/logger.h"
+#include "defines.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
 #include "systems/material_system.h"
@@ -200,6 +201,7 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
             return false;
         }
 
+        u32 current_material_id = INVALID_ID - 1;
         // Draw geometries.
         u32 count = ext_data->geometry_count;
         for (u32 i = 0; i < count; ++i) {
@@ -210,19 +212,23 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
                 m = material_system_get_default();
             }
 
-            // Update the material if it hasn't already been this frame. This keeps the
-            // same material from being updated multiple times. It still needs to be bound
-            // either way, so this check result gets passed to the backend which either
-            // updates the internal shader bindings and binds them, or only binds them.
-            // Also need to check against the draw index.
-            b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number || m->render_draw_index != p_frame_data->draw_index;
-            if (!material_system_apply_instance(m, p_frame_data, needs_update)) {
-                KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
-                continue;
-            } else {
-                // Sync the frame number and draw index.
-                m->render_frame_number = p_frame_data->renderer_frame_number;
-                m->render_draw_index = p_frame_data->draw_index;
+            // Only rebind/update the material if it's a new material. Duplicates can reuse the already-bound material.
+            if (m->internal_id != current_material_id) {
+                // Update the material if it hasn't already been this frame. This keeps the
+                // same material from being updated multiple times. It still needs to be bound
+                // either way, so this check result gets passed to the backend which either
+                // updates the internal shader bindings and binds them, or only binds them.
+                // Also need to check against the draw index.
+                b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number || m->render_draw_index != p_frame_data->draw_index;
+                if (!material_system_apply_instance(m, p_frame_data, needs_update)) {
+                    KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
+                    continue;
+                } else {
+                    // Sync the frame number and draw index.
+                    m->render_frame_number = p_frame_data->renderer_frame_number;
+                    m->render_draw_index = p_frame_data->draw_index;
+                }
+                current_material_id = m->id;
             }
 
             // Apply the locals

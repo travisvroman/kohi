@@ -82,8 +82,7 @@ static void store_result(pfn_job_on_complete callback, u32 param_size, void* par
 static u32 job_thread_run(void* params) {
     u32 index = *(u32*)params;
     job_thread* thread = &state_ptr->job_threads[index];
-    u64 thread_id = thread->thread.thread_id;
-    KTRACE("Starting job thread #%i (id=%#x, type=%#x).", thread->index, thread_id, thread->type_mask);
+    KTRACE("Starting job thread #%i (id=%#x, type=%#x).", thread->index, thread->thread.thread_id, thread->type_mask);
 
     // A mutex to lock info for this thread.
     if (!kmutex_create(&thread->info_mutex)) {

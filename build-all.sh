@@ -37,7 +37,7 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Engine
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=engine VER_MAJOR=0 VER_MINOR=1 DO_VERSION=$DO_VERSION
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=engine VER_MAJOR=0 VER_MINOR=3 DO_VERSION=$DO_VERSION
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -49,7 +49,7 @@ if [ $PLATFORM = 'macos' ]
 then
    VULKAN_SDK=/usr/local/
 fi
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=vulkan_renderer VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="-lengine -lvulkan -lshaderc_shared -lspirv-cross-c-shared -L$VULKAN_SDK/lib"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=vulkan_renderer VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="-lengine -lvulkan -lshaderc_shared -L$VULKAN_SDK/lib"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then

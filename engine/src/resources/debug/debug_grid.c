@@ -2,6 +2,7 @@
 
 #include "core/identifier.h"
 #include "core/kstring.h"
+#include "defines.h"
 #include "math/kmath.h"
 #include "renderer/renderer_frontend.h"
 
@@ -47,7 +48,7 @@ b8 debug_grid_create(const debug_grid_config *config, debug_grid *out_grid) {
             break;
     }
     out_grid->origin = vec3_zero();
-    out_grid->unique_id = identifier_aquire_new_id(out_grid);
+    out_grid->id = identifier_create();
 
     // 2 verts per line, 1 line per tile in each direction, plus one in the middle for each direction. Adding 2 more for third axis.
     out_grid->vertex_count = ((out_grid->tile_count_dim_0 * 2 + 1) * 2) + ((out_grid->tile_count_dim_1 * 2 + 1) * 2) + 2;
@@ -57,7 +58,7 @@ b8 debug_grid_create(const debug_grid_config *config, debug_grid *out_grid) {
 
 void debug_grid_destroy(debug_grid *grid) {
     // TODO: zero out, etc.
-    identifier_release_id(grid->unique_id);
+    grid->id.uniqueid = INVALID_ID_U64;
 }
 
 b8 debug_grid_initialize(debug_grid *grid) {
@@ -172,8 +173,6 @@ b8 debug_grid_initialize(debug_grid *grid) {
         j++;
     }
 
-    grid->geo.internal_id = INVALID_ID;
-
     return true;
 }
 
@@ -191,7 +190,7 @@ b8 debug_grid_load(debug_grid *grid) {
 b8 debug_grid_unload(debug_grid *grid) {
     renderer_geometry_destroy(&grid->geo);
 
-    grid->unique_id = INVALID_ID;
+    grid->id.uniqueid = INVALID_ID_U64;
 
     return true;
 }

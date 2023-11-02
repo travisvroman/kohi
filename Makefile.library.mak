@@ -49,7 +49,7 @@ else
 		# These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
 		# here that would not on other platforms from not being exported (i.e. Windows)
 		# Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
-		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -shared -lvulkan -lxcb -lX11 -lX11-xcb -lxkbcommon -lm -L$(VULKAN_SDK)/lib -L/usr/X11R6/lib -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) 		# .c files
+		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -shared -lvulkan -lxcb -lX11 -lXrandr -lX11-xcb -lxkbcommon -lm -L$(VULKAN_SDK)/lib -L/usr/X11R6/lib -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
 		# directories with .h files
 		DIRECTORIES := $(shell find $(ASSEMBLY) -type d)
@@ -108,10 +108,12 @@ endif
 # Defaults to debug unless release is specified.
 ifeq ($(TARGET),release)
 # release
+DEFINES += -DKRELEASE
+COMPILER_FLAGS += -MD -O2
 else
 # debug
 DEFINES += -D_DEBUG
-COMPILER_FLAGS += -g -MD
+COMPILER_FLAGS += -g -MD -O0
 LINKER_FLAGS += -g
 endif
 
@@ -128,18 +130,20 @@ else
 endif
 
 # TODO: re-enable this conditionally
-# # Generate version file
-# ifeq ($(BUILD_PLATFORM),windows)
-# 	@if exist $(VERFILE) del $(VERFILE)
-# # Write out the version file.
-# 	@echo $(VER_COMMENT)\n > $(VERFILE)
-# 	@echo #define KVERSION "$(KVERSION)" >> $(VERFILE)
-# else
-# 	@rm -rf $(VERFILE)
-# # Write out the version file.
-# 	@echo $(VER_COMMENT)\n > $(VERFILE)
-# 	@echo "#define KVERSION \"$(KVERSION)\"" >> $(VERFILE)
-# endif
+# Generate version file
+ifeq ($(DO_VERSION),yes)
+ifeq ($(BUILD_PLATFORM),windows)
+	@if exist $(VERFILE) del $(VERFILE)
+# Write out the version file.
+	@echo $(VER_COMMENT)\n > $(VERFILE)
+	@echo #define KVERSION "$(KVERSION)" >> $(VERFILE)
+else
+	@rm -rf $(VERFILE)
+# Write out the version file.
+	@echo "$(VER_COMMENT)\n" > $(VERFILE)
+	@echo "#define KVERSION \"$(KVERSION)\"" >> $(VERFILE)
+endif
+endif
 
 .PHONY: link
 link: scaffold $(OBJ_FILES) # link
