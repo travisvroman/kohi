@@ -15,7 +15,6 @@
 #include <core/clock.h>
 #include <core/keymap.h>
 #include <resources/skybox.h>
-#include <resources/ui_text.h>
 #include <standard_ui_system.h>
 #include <systems/light_system.h>
 
@@ -95,7 +94,7 @@ typedef struct testbed_game_state {
 
     struct sui_control test_panel;
     struct sui_control test_button;
-    
+
     struct audio_file* test_audio_file;
     struct audio_file* test_loop_audio_file;
     struct audio_file* test_music;

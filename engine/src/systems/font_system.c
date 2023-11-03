@@ -7,7 +7,6 @@
 #include "core/logger.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/resource_types.h"
-#include "resources/ui_text.h"
 #include "systems/resource_system.h"
 #include "systems/texture_system.h"
 
@@ -306,8 +305,8 @@ b8 font_system_bitmap_font_load(bitmap_font_config* config) {
     return result;
 }
 
-b8 font_system_acquire(const char* font_name, u16 font_size, struct ui_text* text) {
-    if (text->type == UI_TEXT_TYPE_BITMAP) {
+font_data* font_system_acquire(const char* font_name, u16 font_size, font_type type) {
+    if (type == FONT_TYPE_BITMAP) {
         u16 id = INVALID_ID_U16;
         if (!hashtable_get(&state_ptr->bitmap_font_lookup, font_name, &id)) {
             KERROR("Bitmap font lookup failed on acquire.");
@@ -322,12 +321,11 @@ b8 font_system_acquire(const char* font_name, u16 font_size, struct ui_text* tex
         // Get the lookup.
         bitmap_font_lookup* lookup = &state_ptr->bitmap_fonts[id];
 
-        // Assign the data, increment the reference.
-        text->data = &lookup->font.resource_data->data;
+        // Increment the reference.
         lookup->reference_count++;
 
-        return true;
-    } else if (text->type == UI_TEXT_TYPE_SYSTEM) {
+        return &lookup->font.resource_data->data;
+    } else if (type == FONT_TYPE_SYSTEM) {
         u16 id = INVALID_ID_U16;
         if (!hashtable_get(&state_ptr->system_font_lookup, font_name, &id)) {
             KERROR("System font lookup failed on acquire.");
@@ -346,10 +344,9 @@ b8 font_system_acquire(const char* font_name, u16 font_size, struct ui_text* tex
         u32 count = darray_length(lookup->size_variants);
         for (u32 i = 0; i < count; ++i) {
             if (lookup->size_variants[i].size == font_size) {
-                // Assign the data, increment the reference.
-                text->data = &lookup->size_variants[i];
+                // Increment the reference.
                 lookup->reference_count++;
-                return true;
+                return &lookup->size_variants[i];
             }
         }
 
@@ -368,14 +365,14 @@ b8 font_system_acquire(const char* font_name, u16 font_size, struct ui_text* tex
         // Add to the lookup's size variants.
         darray_push(lookup->size_variants, variant);
         u32 length = darray_length(lookup->size_variants);
-        // Assign the data, increment the reference.
-        text->data = &lookup->size_variants[length - 1];
+
+        // Increment the reference.
         lookup->reference_count++;
-        return true;
+        return &lookup->size_variants[length - 1];
     }
 
-    KERROR("Unrecognized font type: %d", text->type);
-    return false;
+    KERROR("Unrecognized font type: %d", type);
+    return 0;
 }
 
 b8 font_system_release(struct ui_text* text) {

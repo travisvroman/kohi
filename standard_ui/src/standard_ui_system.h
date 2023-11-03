@@ -163,12 +163,8 @@ KAPI b8 sui_button_on_mouse_up(struct sui_control* self, struct sui_mouse_event 
 // ---------------------------
 // Label control
 // ---------------------------
-typedef enum sui_label_type {
-    SUI_LABEL_TYPE_BITMAP,
-    SUI_LABEL_TYPE_SYSTEM
-} sui_label_type;
 
-KAPI b8 sui_label_control_create(const char* name, sui_label_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control);
+KAPI b8 sui_label_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control);
 KAPI void sui_label_control_destroy(struct sui_control* self);
 KAPI b8 sui_label_control_load(struct sui_control* self);
 KAPI void sui_label_control_unload(struct sui_control* self);

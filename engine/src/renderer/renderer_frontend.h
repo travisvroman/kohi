@@ -183,6 +183,13 @@ KAPI void renderer_texture_read_data(texture* t, u32 offset, u32 size, void** ou
 KAPI void renderer_texture_read_pixel(texture* t, u32 x, u32 y, u8** out_rgba);
 
 /**
+ * @brief Attempts retrieve the renderer's internal buffer of the given type.
+ * @param type The type of buffer to retrieve.
+ * @returns A pointer to the buffer on success; otherwise 0/null.
+ */
+KAPI renderbuffer* renderer_renderbuffer_get(renderbuffer_type type);
+
+/**
  * @brief Creates geometry, taking a copy of the provided data and setting up the data structure.
  *
  * @param geometry A pointer to the geometry to create.

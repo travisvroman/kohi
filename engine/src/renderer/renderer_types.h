@@ -11,13 +11,30 @@ struct frame_data;
 struct terrain;
 struct viewport;
 struct camera;
+struct material;
 
 typedef struct geometry_render_data {
     mat4 model;
-    geometry* geometry;
+    // TODO: keep material id/handle instead.
+    struct material* material;
+    // geometry* geometry;
     u64 unique_id;
     b8 winding_inverted;
     vec4 diffuse_colour;
+
+    /** @brief The vertex count. */
+    u32 vertex_count;
+    /** @brief The size of each vertex. */
+    u32 vertex_element_size;
+    /** @brief The offset from the beginning of the vertex buffer. */
+    u64 vertex_buffer_offset;
+
+    /** @brief The index count. */
+    u32 index_count;
+    /** @brief The size of each index. */
+    u32 index_element_size;
+    /** @brief The offset from the beginning of the index buffer. */
+    u64 index_buffer_offset;
 } geometry_render_data;
 
 typedef enum renderer_debug_view_mode {

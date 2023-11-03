@@ -227,6 +227,19 @@ void renderer_texture_resize(texture* t, u32 new_width, u32 new_height) {
     state_ptr->plugin.texture_resize(&state_ptr->plugin, t, new_width, new_height);
 }
 
+renderbuffer* renderer_renderbuffer_get(renderbuffer_type type) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    switch (type) {
+        case RENDERBUFFER_TYPE_VERTEX:
+            return &state_ptr->geometry_vertex_buffer;
+        case RENDERBUFFER_TYPE_INDEX:
+            return &state_ptr->geometry_index_buffer;
+        default:
+            KERROR("Unsupported buffer type %u", type);
+            return 0;
+    }
+}
+
 b8 renderer_geometry_create(geometry* g, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
     if (!g) {
         KERROR("renderer_geometry_create requires a valid pointer to geometry.");
@@ -354,14 +367,14 @@ void renderer_geometry_destroy(geometry* g) {
 
 void renderer_geometry_draw(geometry_render_data* data) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    b8 includes_index_data = data->geometry->index_count > 0;
-    if (!renderer_renderbuffer_draw(&state_ptr->geometry_vertex_buffer, data->geometry->vertex_buffer_offset, data->geometry->vertex_count, includes_index_data)) {
+    b8 includes_index_data = data->index_count > 0;
+    if (!renderer_renderbuffer_draw(&state_ptr->geometry_vertex_buffer, data->vertex_buffer_offset, data->vertex_count, includes_index_data)) {
         KERROR("vulkan_renderer_draw_geometry failed to draw vertex buffer;");
         return;
     }
 
     if (includes_index_data) {
-        if (!renderer_renderbuffer_draw(&state_ptr->geometry_index_buffer, data->geometry->index_buffer_offset, data->geometry->index_count, !includes_index_data)) {
+        if (!renderer_renderbuffer_draw(&state_ptr->geometry_index_buffer, data->index_buffer_offset, data->index_count, !includes_index_data)) {
             KERROR("vulkan_renderer_draw_geometry failed to draw index buffer;");
             return;
         }

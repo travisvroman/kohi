@@ -1,4 +1,4 @@
-#include "ui_text.h"
+/* #include "ui_text.h"
 
 #include "core/identifier.h"
 #include "core/kmemory.h"
@@ -333,4 +333,4 @@ static void regenerate_geometry(ui_text* text) {
     if (!index_load_result) {
         KERROR("regenerate_geometry failed to load data into index buffer range.");
     }
-}
+} */

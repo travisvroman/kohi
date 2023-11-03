@@ -6,7 +6,6 @@
 #include "math/transform.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
-#include "resources/ui_text.h"
 #include "standard_ui_system.h"
 #include "systems/material_system.h"
 #include "systems/resource_system.h"
@@ -154,8 +153,8 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
     // Draw geometries.
     for (u32 i = 0; i < ext_data->geometry_count; ++i) {
         material* m = 0;
-        if (ext_data->geometries[i].geometry->material) {
-            m = ext_data->geometries[i].geometry->material;
+        if (ext_data->geometries[i].material) {
+            m = ext_data->geometries[i].material;
         } else {
             m = material_system_get_default_ui();
         }
@@ -181,7 +180,7 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
     }
 
     // Draw bitmap text
-    for (u32 i = 0; i < ext_data->ui_text_count; ++i) {
+    /* for (u32 i = 0; i < ext_data->ui_text_count; ++i) {
         ui_text* text = ext_data->texts[i];
         shader_system_bind_instance(text->instance_id);
 
@@ -210,7 +209,7 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
         }
 
         ui_text_draw(text);
-    }
+    } */
 
     // Renderables
     if (!shader_system_use_by_id(internal_data->sui_shader->id)) {

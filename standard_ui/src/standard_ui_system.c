@@ -516,7 +516,13 @@ b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_frame
     if (typed_data->g) {
         standard_ui_renderable renderable = {0};
         renderable.render_data.unique_id = self->id.uniqueid;
-        renderable.render_data.geometry = typed_data->g;
+        renderable.render_data.material = typed_data->g->material;
+        renderable.render_data.vertex_count = typed_data->g->vertex_count;
+        renderable.render_data.vertex_element_size = typed_data->g->vertex_element_size;
+        renderable.render_data.vertex_buffer_offset = typed_data->g->vertex_buffer_offset;
+        renderable.render_data.index_count = typed_data->g->index_count;
+        renderable.render_data.index_element_size = typed_data->g->index_element_size;
+        renderable.render_data.index_buffer_offset = typed_data->g->index_buffer_offset;
         renderable.render_data.model = transform_world_get(&self->xform);
         renderable.render_data.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.
 
@@ -639,7 +645,13 @@ b8 sui_button_control_render(struct sui_control* self, struct frame_data* p_fram
     if (typed_data->nslice.g) {
         standard_ui_renderable renderable = {0};
         renderable.render_data.unique_id = self->id.uniqueid;
-        renderable.render_data.geometry = typed_data->nslice.g;
+        renderable.render_data.material = typed_data->nslice.g->material;
+        renderable.render_data.vertex_count = typed_data->nslice.g->vertex_count;
+        renderable.render_data.vertex_element_size = typed_data->nslice.g->vertex_element_size;
+        renderable.render_data.vertex_buffer_offset = typed_data->nslice.g->vertex_buffer_offset;
+        renderable.render_data.index_count = typed_data->nslice.g->index_count;
+        renderable.render_data.index_element_size = typed_data->nslice.g->index_element_size;
+        renderable.render_data.index_buffer_offset = typed_data->nslice.g->index_buffer_offset;
         renderable.render_data.model = transform_world_get(&self->xform);
         renderable.render_data.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.
 
@@ -732,16 +744,17 @@ typedef struct sui_label_internal_data {
     u64 frame_number;
     u8 draw_index;
 
-    sui_label_type type;
+    font_type type;
     struct font_data* data;
-    renderbuffer vertex_buffer;
-    renderbuffer index_buffer;
+    u64 vertex_buffer_offset;
+    u64 index_buffer_offset;
     char* text;
+    u32 max_text_length;
 } sui_label_internal_data;
 
 static void regenerate_label_geometry(sui_control* self);
 
-b8 sui_label_control_create(const char* name, sui_label_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control) {
+b8 sui_label_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control) {
     if (!sui_base_control_create(name, out_control)) {
         return false;
     }
@@ -767,17 +780,17 @@ b8 sui_label_control_create(const char* name, sui_label_type type, const char* f
 
     // Acquire the font of the correct type and assign its internal data.
     // This also gets the atlas texture.
-    if (!font_system_acquire(font_name, font_size, typed_data)) {
+    typed_data->data = font_system_acquire(font_name, font_size, typed_data->type);
+    if (!typed_data->data) {
         KERROR("Unable to acquire font: '%s'. ui_text cannot be created.", font_name);
         return false;
     }
 
     typed_data->text = string_duplicate(text);
+    typed_data->max_text_length = string_length(text);
 
     typed_data->instance_id = INVALID_ID;
     typed_data->frame_number = INVALID_ID_U64;
-
-    static const u64 quad_size = (sizeof(vertex_2d) * 4);
 
     u32 text_length = string_length(typed_data->text);
     // In the case of an empty string, cannot create an empty buffer so just create enough to hold one for now.
@@ -791,33 +804,6 @@ b8 sui_label_control_create(const char* name, sui_label_type type, const char* f
     texture_map* font_maps[1] = {&typed_data->data->atlas};
     if (!renderer_shader_instance_resources_acquire(ui_shader, 1, font_maps, &typed_data->instance_id)) {
         KFATAL("Unable to acquire shader resources for font texture map.");
-        return false;
-    }
-
-    // Generate the vertex buffer.
-    // TODO: Use renderer's vertex buffer
-    char bufname[256] = {0};
-    string_format(bufname, "renderbuffer_vertexbuffer_uitext_%s", typed_data->name);
-    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_VERTEX, text_length * quad_size, RENDERBUFFER_TRACK_TYPE_NONE, &typed_data->vertex_buffer)) {
-        KERROR("ui_text_create failed to create vertex renderbuffer.");
-        return false;
-    }
-    if (!renderer_renderbuffer_bind(&typed_data->vertex_buffer, 0)) {
-        KERROR("ui_text_create failed to bind vertex renderbuffer.");
-        return false;
-    }
-
-    // Generate an index buffer.
-    // TODO: Use renderer's index buffer
-    kzero_memory(bufname, 256);
-    string_format(bufname, "renderbuffer_indexbuffer_uitext_%s", typed_data->name);
-    static const u8 quad_index_size = sizeof(u32) * 6;
-    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_INDEX, text_length * quad_index_size, RENDERBUFFER_TRACK_TYPE_NONE, &typed_data->index_buffer)) {
-        KERROR("ui_text_create failed to create index renderbuffer.");
-        return false;
-    }
-    if (!renderer_renderbuffer_bind(&typed_data->index_buffer, 0)) {
-        KERROR("ui_text_create failed to bind index renderbuffer.");
         return false;
     }
 
@@ -845,6 +831,24 @@ b8 sui_label_control_load(struct sui_control* self) {
 
     sui_label_internal_data* typed_data = self->internal_data;
 
+    if (typed_data->text && typed_data->text[0] != 0) {
+        static const u64 quad_vertex_size = (sizeof(vertex_2d) * 4);
+        static const u64 quad_index_size = (sizeof(u32) * 6);
+        u64 text_length = string_utf8_length(typed_data->text);
+        // Allocate space in the buffers.
+        renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
+        if (!renderer_renderbuffer_allocate(vertex_buffer, quad_vertex_size * text_length, &typed_data->vertex_buffer_offset)) {
+            KERROR("sui_label_control_load failed to allocate from the renderer's vertex buffer!");
+            return false;
+        }
+
+        renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
+        if (!renderer_renderbuffer_allocate(index_buffer, quad_index_size * text_length, &typed_data->index_buffer_offset)) {
+            KERROR("sui_label_control_load failed to allocate from the renderer's index buffer!");
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -857,9 +861,18 @@ void sui_label_control_unload(struct sui_control* self) {
         typed_data->text = 0;
     }
 
-    // Destroy buffers.
-    renderer_renderbuffer_destroy(&typed_data->vertex_buffer);
-    renderer_renderbuffer_destroy(&typed_data->index_buffer);
+    // Free from the vertex buffer.
+    renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
+    if (typed_data->max_text_length > 0) {
+        renderer_renderbuffer_free(vertex_buffer, sizeof(vertex_2d) * 4 * typed_data->max_text_length, typed_data->vertex_buffer_offset);
+    }
+
+    // Free from the index buffer.
+    static const u64 quad_index_size = (sizeof(u32) * 6);
+    renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
+    if (typed_data->max_text_length > 0) {
+        renderer_renderbuffer_free(index_buffer, quad_index_size * typed_data->max_text_length, typed_data->index_buffer_offset);
+    }
 
     // Release resources for font texture map.
     shader* ui_shader = shader_system_get("Shader.Builtin.UI");  // TODO: text shader.
@@ -885,26 +898,17 @@ b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame
 
     sui_label_internal_data* typed_data = self->internal_data;
 
-    // TODO: Instead of this, need to create a geometry and a geometry render data, and append to the list
-    // like the other controls do.
-    u32 text_length = string_length(typed_data->text);
-    if (text_length > 0) {
-        static const u64 quad_vert_count = 4;
-        if (!renderer_renderbuffer_draw(&typed_data->vertex_buffer, 0, text_length * quad_vert_count, true)) {
-            KERROR("Failed to draw ui font vertex buffer.");
-        }
-
-        static const u8 quad_index_count = 6;
-        if (!renderer_renderbuffer_draw(&typed_data->index_buffer, 0, text_length * quad_index_count, false)) {
-            KERROR("Failed to draw ui font index buffer.");
-        }
-    }
-
-    if (typed_data->g) {
+    if (typed_data->max_text_length) {
         standard_ui_renderable renderable = {0};
         renderable.render_data.unique_id = self->id.uniqueid;
-        // TODO: use geometry?
-        renderable.render_data.geometry = typed_data->g;
+        renderable.render_data.material = 0;
+        renderable.render_data.vertex_count = typed_data->max_text_length * 4;
+        renderable.render_data.vertex_buffer_offset = typed_data->vertex_buffer_offset;
+        renderable.render_data.vertex_element_size = sizeof(vertex_2d);
+        renderable.render_data.index_count = typed_data->max_text_length * 6;
+        renderable.render_data.index_buffer_offset = typed_data->index_buffer_offset;
+        renderable.render_data.index_element_size = sizeof(u32);
+
         renderable.render_data.model = transform_world_get(&self->xform);
         renderable.render_data.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.
 
@@ -948,10 +952,13 @@ void sui_label_text_set(struct sui_control* self, const char* text) {
 
 static void regenerate_label_geometry(sui_control* self) {
     sui_label_internal_data* typed_data = self->internal_data;
+
     // Get the UTF-8 string length
     u32 text_length_utf8 = string_utf8_length(typed_data->text);
     // Also get the length in characters.
     u32 char_length = string_length(typed_data->text);
+
+    b8 needs_realloc = text_length_utf8 > typed_data->max_text_length;
 
     // Don't try to regenerate geometry for something that doesn't have any text.
     if (text_length_utf8 < 1) {
@@ -961,23 +968,41 @@ static void regenerate_label_geometry(sui_control* self) {
     // Calculate buffer sizes.
     static const u64 verts_per_quad = 4;
     static const u8 indices_per_quad = 6;
+    u64 prev_vertex_buffer_size = sizeof(vertex_2d) * verts_per_quad * typed_data->max_text_length;
+    u64 prev_index_buffer_size = sizeof(u32) * indices_per_quad * typed_data->max_text_length;
     u64 vertex_buffer_size = sizeof(vertex_2d) * verts_per_quad * text_length_utf8;
     u64 index_buffer_size = sizeof(u32) * indices_per_quad * text_length_utf8;
 
-    // Resize the vertex buffer, but only if larger.
-    if (vertex_buffer_size > typed_data->vertex_buffer.total_size) {
-        if (!renderer_renderbuffer_resize(&typed_data->vertex_buffer, vertex_buffer_size)) {
-            KERROR("regenerate_geometry for ui text failed to resize vertex renderbuffer.");
+    renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
+    renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
+
+    if (needs_realloc) {
+        // Realloc from the vertex buffer.
+        if (typed_data->max_text_length > 0) {
+            if (!renderer_renderbuffer_free(vertex_buffer, prev_vertex_buffer_size, typed_data->vertex_buffer_offset)) {
+                KERROR("Failed to free from renderer vertex buffer: size=%u, offset=%u", vertex_buffer_size, typed_data->vertex_buffer_offset);
+            }
+        }
+        if (!renderer_renderbuffer_allocate(vertex_buffer, vertex_buffer_size, &typed_data->vertex_buffer_offset)) {
+            KERROR("regenerate_label_geometry failed to allocate from the renderer's vertex buffer!");
+            return;
+        }
+
+        // Realloc from the index buffer.
+        if (typed_data->max_text_length > 0) {
+            if (!renderer_renderbuffer_free(index_buffer, prev_index_buffer_size, typed_data->index_buffer_offset)) {
+                KERROR("Failed to free from renderer index buffer: size=%u, offset=%u", index_buffer_size, typed_data->index_buffer_offset);
+            }
+        }
+        if (!renderer_renderbuffer_allocate(index_buffer, index_buffer_size, &typed_data->index_buffer_offset)) {
+            KERROR("regenerate_label_geometry failed to allocate from the renderer's index buffer!");
             return;
         }
     }
 
-    // Resize the index buffer, but only if larger.
-    if (index_buffer_size > typed_data->index_buffer.total_size) {
-        if (!renderer_renderbuffer_resize(&typed_data->index_buffer, index_buffer_size)) {
-            KERROR("regenerate_geometry for ui text failed to resize index renderbuffer.");
-            return;
-        }
+    // Update the max length if the string is now longer.
+    if (text_length_utf8 > typed_data->max_text_length) {
+        typed_data->max_text_length = text_length_utf8;
     }
 
     // Generate new geometry for each character.
@@ -1043,7 +1068,7 @@ static void regenerate_label_geometry(sui_control* self) {
             f32 tminy = (f32)g->y / typed_data->data->atlas_size_y;
             f32 tmaxy = (f32)(g->y + g->height) / typed_data->data->atlas_size_y;
             // Flip the y axis for system text
-            if (typed_data->type == SUI_LABEL_TYPE_SYSTEM) {
+            if (typed_data->type == FONT_TYPE_SYSTEM) {
                 tminy = 1.0f - tminy;
                 tmaxy = 1.0f - tmaxy;
             }
@@ -1105,8 +1130,8 @@ static void regenerate_label_geometry(sui_control* self) {
     }
 
     // Load up the data.
-    b8 vertex_load_result = renderer_renderbuffer_load_range(&typed_data->vertex_buffer, 0, vertex_buffer_size, vertex_buffer_data);
-    b8 index_load_result = renderer_renderbuffer_load_range(&typed_data->index_buffer, 0, index_buffer_size, index_buffer_data);
+    b8 vertex_load_result = renderer_renderbuffer_load_range(vertex_buffer, 0, vertex_buffer_size, vertex_buffer_data);
+    b8 index_load_result = renderer_renderbuffer_load_range(index_buffer, 0, index_buffer_size, index_buffer_data);
 
     // Clean up.
     kfree(vertex_buffer_data, vertex_buffer_size, MEMORY_TAG_ARRAY);
