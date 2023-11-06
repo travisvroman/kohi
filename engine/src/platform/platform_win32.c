@@ -10,6 +10,7 @@
 #include "core/kmutex.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "core/clock.h"
 #include "containers/darray.h"
 
 #include "containers/darray.h"
@@ -18,6 +19,7 @@
 #include <windows.h>
 #include <windowsx.h>  // param input extraction
 #include <stdlib.h>
+#include <timeapi.h>
 
 typedef struct win32_handle_info {
     HINSTANCE h_instance;
@@ -43,6 +45,7 @@ static platform_state *state_ptr;
 
 // Clock
 static f64 clock_frequency;
+static UINT min_period;
 static LARGE_INTEGER start_time;
 
 static void platform_update_watches(void);
@@ -53,6 +56,10 @@ void clock_setup(void) {
     QueryPerformanceFrequency(&frequency);
     clock_frequency = 1.0 / (f64)frequency.QuadPart;
     QueryPerformanceCounter(&start_time);
+
+    TIMECAPS tc;
+    timeGetDevCaps(&tc, sizeof(tc));
+    min_period = tc.wPeriodMin;
 }
 
 b8 platform_system_startup(u64 *memory_requirement, void *state, void *config) {
@@ -240,7 +247,22 @@ f64 platform_get_absolute_time(void) {
 }
 
 void platform_sleep(u64 ms) {
+    clock clock;
+    clock_start(&clock);
+    timeBeginPeriod(min_period);
     Sleep(ms);
+    timeEndPeriod(min_period);
+
+    clock_update(&clock);
+    f64 observed = clock.elapsed * 1000.0;
+    f64 ms_remaining = ms - observed;
+
+    // spin lock
+    clock_start(&clock);
+    while(clock.elapsed * 1000.0 < ms_remaining) {
+        _mm_pause();
+        clock_update(&clock);
+    }
 }
 
 i32 platform_get_processor_count(void) {
