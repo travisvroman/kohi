@@ -7,7 +7,9 @@
 #include <core/kmemory.h>
 #include <core/kstring.h>
 
-#include "resources/ui_text.h"
+#include "core/systems_manager.h"
+#include "resources/resource_types.h"
+#include "standard_ui_system.h"
 
 b8 debug_console_consumer_write(void* inst, log_level level, const char* message) {
     debug_console_state* state = (debug_console_state*)inst;
@@ -59,26 +61,28 @@ static b8 debug_console_on_key(u16 code, void* sender, void* listener_inst, even
         b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT);
 
         if (key_code == KEY_ENTER) {
-            u32 len = string_length(state->entry_control.text);
+            const char* entry_control_text = sui_label_text_get(&state->entry_control);
+            u32 len = string_length(entry_control_text);
             if (len > 0) {
                 // Keep the command in the history list.
                 command_history_entry entry;
-                entry.command = string_duplicate(state->entry_control.text);
+                entry.command = string_duplicate(entry_control_text);
                 darray_push(state->history, entry);
 
                 // Execute the command and clear the text.
-                if (!console_command_execute(state->entry_control.text)) {
+                if (!console_command_execute(entry_control_text)) {
                     // TODO: handle error?
                 }
                 // Clear the text.
-                ui_text_text_set(&state->entry_control, "");
+                sui_label_text_set(&state->entry_control, "");
             }
         } else if (key_code == KEY_BACKSPACE) {
-            u32 len = string_length(state->entry_control.text);
+            const char* entry_control_text = sui_label_text_get(&state->entry_control);
+            u32 len = string_length(entry_control_text);
             if (len > 0) {
-                char* str = string_duplicate(state->entry_control.text);
+                char* str = string_duplicate(entry_control_text);
                 str[len - 1] = 0;
-                ui_text_text_set(&state->entry_control, str);
+                sui_label_text_set(&state->entry_control, str);
                 kfree(str, len + 1, MEMORY_TAG_STRING);
             }
         } else {
@@ -145,10 +149,11 @@ static b8 debug_console_on_key(u16 code, void* sender, void* listener_inst, even
             }
 
             if (char_code != 0) {
-                u32 len = string_length(state->entry_control.text);
+                const char* entry_control_text = sui_label_text_get(&state->entry_control);
+                u32 len = string_length(entry_control_text);
                 char* new_text = kallocate(len + 2, MEMORY_TAG_STRING);
-                string_format(new_text, "%s%c", state->entry_control.text, char_code);
-                ui_text_text_set(&state->entry_control, new_text);
+                string_format(new_text, "%s%c", entry_control_text, char_code);
+                sui_label_text_set(&state->entry_control, new_text);
                 kfree(new_text, len + 1, MEMORY_TAG_STRING);
             }
         }
@@ -191,20 +196,56 @@ b8 debug_console_load(debug_console_state* state) {
     }
 
     // Create a ui text control for rendering.
-    if (!ui_text_create("debug_console_log_text", UI_TEXT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "", &state->text_control)) {
+    if (!sui_label_control_create("debug_console_log_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "", &state->text_control)) {
         KFATAL("Unable to create text control for debug console.");
         return false;
+    } else {
+        if (!sui_panel_control_load(&state->text_control)) {
+            KERROR("Failed to load test panel.");
+        } else {
+            void* sui_state = systems_manager_get_state(128);
+            if (!standard_ui_system_register_control(sui_state, &state->text_control)) {
+                KERROR("Unable to register control.");
+            } else {
+                if (!standard_ui_system_control_add_child(sui_state, 0, &state->text_control)) {
+                    KERROR("Failed to parent test panel.");
+                } else {
+                    state->text_control.is_active = true;
+                    if (!standard_ui_system_update_active(sui_state, &state->text_control)) {
+                        KERROR("Unable to update active state.");
+                    }
+                }
+            }
+        }
     }
 
-    ui_text_position_set(&state->text_control, (vec3){3.0f, 30.0f, 0.0f});
+    sui_label_position_set(&state->text_control, (vec3){3.0f, 30.0f, 0.0f});
 
     // Create another ui text control for rendering typed text.
-    if (!ui_text_create("debug_console_entry_text", UI_TEXT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "", &state->entry_control)) {
+    if (!sui_label_control_create("debug_console_entry_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "", &state->entry_control)) {
         KFATAL("Unable to create entry text control for debug console.");
         return false;
+    } else {
+        if (!sui_panel_control_load(&state->entry_control)) {
+            KERROR("Failed to load test panel.");
+        } else {
+            void* sui_state = systems_manager_get_state(128);
+            if (!standard_ui_system_register_control(sui_state, &state->entry_control)) {
+                KERROR("Unable to register control.");
+            } else {
+                if (!standard_ui_system_control_add_child(sui_state, 0, &state->entry_control)) {
+                    KERROR("Failed to parent test panel.");
+                } else {
+                    state->entry_control.is_active = true;
+                    if (!standard_ui_system_update_active(sui_state, &state->entry_control)) {
+                        KERROR("Unable to update active state.");
+                    }
+                }
+            }
+        }
     }
 
-    ui_text_position_set(&state->entry_control, (vec3){3.0f, 30.0f + (31.0f * state->line_display_count), 0.0f});
+    sui_label_position_set(&state->entry_control, (vec3){3.0f, 30.0f + (31.0f * state->line_display_count), 0.0f});
 
     state->loaded = true;
 
@@ -214,8 +255,6 @@ b8 debug_console_load(debug_console_state* state) {
 void debug_console_unload(debug_console_state* state) {
     if (state) {
         state->loaded = false;
-        ui_text_destroy(&state->text_control);
-        ui_text_destroy(&state->entry_control);
     }
 }
 
@@ -249,7 +288,7 @@ void debug_console_update(debug_console_state* state) {
         buffer[buffer_pos] = '\0';
 
         // Once the string is built, set the text.
-        ui_text_text_set(&state->text_control, buffer);
+        sui_label_text_set(&state->text_control, buffer);
 
         state->dirty = false;
     }
@@ -269,14 +308,14 @@ void debug_console_on_lib_unload(debug_console_state* state) {
     console_consumer_update(state->console_consumer_id, 0, 0);
 }
 
-ui_text* debug_console_get_text(debug_console_state* state) {
+sui_control* debug_console_get_text(debug_console_state* state) {
     if (state) {
         return &state->text_control;
     }
     return 0;
 }
 
-ui_text* debug_console_get_entry_text(debug_console_state* state) {
+sui_control* debug_console_get_entry_text(debug_console_state* state) {
     if (state) {
         return &state->entry_control;
     }
@@ -355,7 +394,7 @@ void debug_console_history_back(debug_console_state* state) {
         u32 length = darray_length(state->history);
         if (length > 0) {
             state->history_offset = KMIN(state->history_offset + 1, length - 1);
-            ui_text_text_set(&state->entry_control, state->history[length - state->history_offset - 1].command);
+            sui_label_text_set(&state->entry_control, state->history[length - state->history_offset - 1].command);
         }
     }
 }
@@ -365,7 +404,7 @@ void debug_console_history_forward(debug_console_state* state) {
         u32 length = darray_length(state->history);
         if (length > 0) {
             state->history_offset = KMAX(state->history_offset - 1, 0);
-            ui_text_text_set(&state->entry_control, state->history[length - state->history_offset - 1].command);
+            sui_label_text_set(&state->entry_control, state->history[length - state->history_offset - 1].command);
         }
     }
 }

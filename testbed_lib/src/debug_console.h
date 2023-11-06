@@ -1,8 +1,7 @@
 #pragma once
 
 #include "defines.h"
-
-#include <resources/ui_text.h>
+#include "standard_ui_system.h"
 
 typedef struct command_history_entry {
     const char* command;
@@ -25,8 +24,8 @@ typedef struct debug_console_state {
     b8 dirty;
     b8 visible;
 
-    ui_text text_control;
-    ui_text entry_control;
+    sui_control text_control;
+    sui_control entry_control;
 
 } debug_console_state;
 
@@ -39,8 +38,8 @@ void debug_console_update(debug_console_state* state);
 void debug_console_on_lib_load(debug_console_state* state, b8 update_consumer);
 void debug_console_on_lib_unload(debug_console_state* state);
 
-struct ui_text* debug_console_get_text(debug_console_state* state);
-struct ui_text* debug_console_get_entry_text(debug_console_state* state);
+struct sui_control* debug_console_get_text(debug_console_state* state);
+struct sui_control* debug_console_get_entry_text(debug_console_state* state);
 
 b8 debug_console_visible(debug_console_state* state);
 void debug_console_visible_set(debug_console_state* state, b8 visible);

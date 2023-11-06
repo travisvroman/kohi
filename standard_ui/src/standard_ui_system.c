@@ -388,7 +388,7 @@ b8 sui_base_control_create(const char* name, struct sui_control* out_control) {
     return true;
 }
 void sui_base_control_destroy(struct sui_control* self) {
-    if (!self) {
+    if (self) {
         // TODO: recurse children/unparent?
 
         if (self->internal_data && self->internal_data_size) {
@@ -787,20 +787,16 @@ b8 sui_label_control_create(const char* name, font_type type, const char* font_n
     }
 
     typed_data->text = string_duplicate(text);
-    typed_data->max_text_length = string_length(text);
 
     typed_data->instance_id = INVALID_ID;
     typed_data->frame_number = INVALID_ID_U64;
 
-    u32 text_length = string_length(typed_data->text);
-    // In the case of an empty string, cannot create an empty buffer so just create enough to hold one for now.
-    if (text_length < 1) {
-        text_length = 1;
-    }
+    typed_data->vertex_buffer_offset = INVALID_ID_U64;
+    typed_data->index_buffer_offset = INVALID_ID_U64;
 
     // Acquire resources for font texture map.
     // TODO: Should there be an override option for the shader?
-    shader* ui_shader = shader_system_get("Shader.Builtin.UI");  // TODO: text shader.
+    shader* ui_shader = shader_system_get("Shader.StandardUI");  // TODO: text shader.
     texture_map* font_maps[1] = {&typed_data->data->atlas};
     if (!renderer_shader_instance_resources_acquire(ui_shader, 1, font_maps, &typed_data->instance_id)) {
         KFATAL("Unable to acquire shader resources for font texture map.");
@@ -835,6 +831,7 @@ b8 sui_label_control_load(struct sui_control* self) {
         static const u64 quad_vertex_size = (sizeof(vertex_2d) * 4);
         static const u64 quad_index_size = (sizeof(u32) * 6);
         u64 text_length = string_utf8_length(typed_data->text);
+
         // Allocate space in the buffers.
         renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
         if (!renderer_renderbuffer_allocate(vertex_buffer, quad_vertex_size * text_length, &typed_data->vertex_buffer_offset)) {
@@ -868,16 +865,22 @@ void sui_label_control_unload(struct sui_control* self) {
     }
 
     // Free from the index buffer.
-    static const u64 quad_index_size = (sizeof(u32) * 6);
-    renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
-    if (typed_data->max_text_length > 0) {
-        renderer_renderbuffer_free(index_buffer, quad_index_size * typed_data->max_text_length, typed_data->index_buffer_offset);
+    if (typed_data->vertex_buffer_offset != INVALID_ID_U64) {
+        static const u64 quad_index_size = (sizeof(u32) * 6);
+        renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
+        if (typed_data->max_text_length > 0) {
+            renderer_renderbuffer_free(index_buffer, quad_index_size * typed_data->max_text_length, typed_data->index_buffer_offset);
+        }
+        typed_data->vertex_buffer_offset = INVALID_ID_U64;
     }
 
     // Release resources for font texture map.
-    shader* ui_shader = shader_system_get("Shader.Builtin.UI");  // TODO: text shader.
-    if (!renderer_shader_instance_resources_release(ui_shader, typed_data->instance_id)) {
-        KFATAL("Unable to release shader resources for font texture map.");
+    if (typed_data->index_buffer_offset != INVALID_ID_U64) {
+        shader* ui_shader = shader_system_get("Shader.StandardUI");  // TODO: text shader.
+        if (!renderer_shader_instance_resources_release(ui_shader, typed_data->instance_id)) {
+            KFATAL("Unable to release shader resources for font texture map.");
+        }
+        typed_data->index_buffer_offset = INVALID_ID_U64;
     }
 }
 
@@ -908,6 +911,9 @@ b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame
         renderable.render_data.index_count = typed_data->max_text_length * 6;
         renderable.render_data.index_buffer_offset = typed_data->index_buffer_offset;
         renderable.render_data.index_element_size = sizeof(u32);
+
+        // NOTE: Override the default UI atlas and use that of the loaded font instead.
+        renderable.atlas_override = &typed_data->data->atlas;
 
         renderable.render_data.model = transform_world_get(&self->xform);
         renderable.render_data.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.
@@ -948,6 +954,14 @@ void sui_label_text_set(struct sui_control* self, const char* text) {
 
         regenerate_label_geometry(self);
     }
+}
+
+const char* sui_label_text_get(struct sui_control* self) {
+    if (self && self->internal_data) {
+        sui_label_internal_data* typed_data = self->internal_data;
+        return typed_data->text;
+    }
+    return 0;
 }
 
 static void regenerate_label_geometry(sui_control* self) {
@@ -1130,8 +1144,8 @@ static void regenerate_label_geometry(sui_control* self) {
     }
 
     // Load up the data.
-    b8 vertex_load_result = renderer_renderbuffer_load_range(vertex_buffer, 0, vertex_buffer_size, vertex_buffer_data);
-    b8 index_load_result = renderer_renderbuffer_load_range(index_buffer, 0, index_buffer_size, index_buffer_data);
+    b8 vertex_load_result = renderer_renderbuffer_load_range(vertex_buffer, typed_data->vertex_buffer_offset, vertex_buffer_size, vertex_buffer_data);
+    b8 index_load_result = renderer_renderbuffer_load_range(index_buffer, typed_data->index_buffer_offset, index_buffer_size, index_buffer_data);
 
     // Clean up.
     kfree(vertex_buffer_data, vertex_buffer_size, MEMORY_TAG_ARRAY);

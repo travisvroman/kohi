@@ -471,8 +471,6 @@ b8 simple_scene_update(simple_scene *scene,
         }
     }
 
-    
-
     return true;
 }
 
@@ -1114,7 +1112,13 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
         if (debug_geometries) {
             geometry_render_data data = {0};
             data.model = mat4_identity();
-            data.geometry = &scene->grid.geo;
+
+            geometry *g = &scene->grid.geo;
+            data.material = g->material;
+            data.vertex_count = g->vertex_count;
+            data.vertex_buffer_offset = g->vertex_buffer_offset;
+            data.index_count = g->index_count;
+            data.index_buffer_offset = g->index_buffer_offset;
             data.unique_id = INVALID_ID;
 
             (*debug_geometries)[(*data_count)] = data;
@@ -1131,7 +1135,12 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
                 // Debug line 3d
                 geometry_render_data data = {0};
                 data.model = transform_world_get(&debug->line.xform);
-                data.geometry = &debug->line.geo;
+                geometry *g = &debug->line.geo;
+                data.material = g->material;
+                data.vertex_count = g->vertex_count;
+                data.vertex_buffer_offset = g->vertex_buffer_offset;
+                data.index_count = g->index_count;
+                data.index_buffer_offset = g->index_buffer_offset;
                 data.unique_id = debug->line.id.uniqueid;
 
                 (*debug_geometries)[(*data_count)] = data;
@@ -1151,7 +1160,12 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
                     // Debug box 3d
                     geometry_render_data data = {0};
                     data.model = transform_world_get(&debug->box.xform);
-                    data.geometry = &debug->box.geo;
+                    geometry *g = &debug->box.geo;
+                    data.material = g->material;
+                    data.vertex_count = g->vertex_count;
+                    data.vertex_buffer_offset = g->vertex_buffer_offset;
+                    data.index_count = g->index_count;
+                    data.index_buffer_offset = g->index_buffer_offset;
                     data.unique_id = debug->box.id.uniqueid;
 
                     (*debug_geometries)[(*data_count)] = data;
@@ -1172,7 +1186,12 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
                     // Debug box 3d
                     geometry_render_data data = {0};
                     data.model = transform_world_get(&debug->box.xform);
-                    data.geometry = &debug->box.geo;
+                    geometry *g = &debug->box.geo;
+                    data.material = g->material;
+                    data.vertex_count = g->vertex_count;
+                    data.vertex_buffer_offset = g->vertex_buffer_offset;
+                    data.index_count = g->index_count;
+                    data.index_buffer_offset = g->index_buffer_offset;
                     data.unique_id = debug->box.id.uniqueid;
 
                     (*debug_geometries)[(*data_count)] = data;

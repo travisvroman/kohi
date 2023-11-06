@@ -30,6 +30,7 @@ typedef struct standard_ui_system_config {
 typedef struct standard_ui_renderable {
     u32* instance_id;
     u64* frame_number;
+    texture_map* atlas_override;
     u8* draw_index;
     geometry_render_data render_data;
 } standard_ui_renderable;
@@ -185,3 +186,5 @@ KAPI void sui_label_position_set(struct sui_control* self, vec3 position);
  * @param text The text to be set.
  */
 KAPI void sui_label_text_set(struct sui_control* self, const char* text);
+
+KAPI const char* sui_label_text_get(struct sui_control* self);

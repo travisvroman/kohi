@@ -54,8 +54,8 @@ typedef struct testbed_game_state {
     point_light* p_light_1;
 
     mesh ui_meshes[10];
-    ui_text test_text;
-    ui_text test_sys_text;
+    sui_control test_text;
+    sui_control test_sys_text;
 
     debug_console_state debug_console;
 

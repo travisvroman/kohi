@@ -234,7 +234,8 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
         shader_system_bind_instance(*renderable->instance_id);
         // NOTE: Expand this to a structure if more data is needed.
         shader_system_uniform_set_by_index(internal_data->sui_locations.properties, &renderable->render_data.diffuse_colour);
-        shader_system_uniform_set_by_index(internal_data->sui_locations.diffuse_map, ext_data->sui_render_data.ui_atlas);
+        texture_map* atlas = renderable->atlas_override ? renderable->atlas_override : ext_data->sui_render_data.ui_atlas;
+        shader_system_uniform_set_by_index(internal_data->sui_locations.diffuse_map, atlas);
         shader_system_apply_instance(needs_update);
 
         // Sync the frame number.
