@@ -80,9 +80,6 @@ typedef struct geometry_distance {
     f32 distance;
 } geometry_distance;
 
-// FIXME: Need to maintain a list of extension types somewhere and pull from there.
-const u16 K_SYSTEM_TYPE_STANDARD_UI_EXT = 128;
-
 b8 configure_render_views(application_config* config);
 void application_register_events(struct application* game_inst);
 void application_unregister_events(struct application* game_inst);
@@ -554,15 +551,15 @@ b8 application_initialize(struct application* game_inst) {
         KERROR("Failed to load basic ui bitmap text.");
         return false;
     } else {
-        if (!sui_panel_control_load(&state->test_text)) {
-            KERROR("Failed to load test panel.");
+        if (!sui_label_control_load(&state->test_text)) {
+            KERROR("Failed to load test text.");
         } else {
             void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
             if (!standard_ui_system_register_control(sui_state, &state->test_text)) {
                 KERROR("Unable to register control.");
             } else {
                 if (!standard_ui_system_control_add_child(sui_state, 0, &state->test_text)) {
-                    KERROR("Failed to parent test panel.");
+                    KERROR("Failed to parent test text.");
                 } else {
                     state->test_text.is_active = true;
                     if (!standard_ui_system_update_active(sui_state, &state->test_text)) {
@@ -579,15 +576,15 @@ b8 application_initialize(struct application* game_inst) {
         KERROR("Failed to load basic ui system text.");
         return false;
     } else {
-        if (!sui_panel_control_load(&state->test_sys_text)) {
-            KERROR("Failed to load test panel.");
+        if (!sui_label_control_load(&state->test_sys_text)) {
+            KERROR("Failed to load test system text.");
         } else {
             void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
             if (!standard_ui_system_register_control(sui_state, &state->test_sys_text)) {
                 KERROR("Unable to register control.");
             } else {
                 if (!standard_ui_system_control_add_child(sui_state, 0, &state->test_sys_text)) {
-                    KERROR("Failed to parent test panel.");
+                    KERROR("Failed to parent test system text.");
                 } else {
                     state->test_sys_text.is_active = true;
                     if (!standard_ui_system_update_active(sui_state, &state->test_sys_text)) {
@@ -598,7 +595,7 @@ b8 application_initialize(struct application* game_inst) {
         }
     }
 
-    sui_label_position_set(&state->test_sys_text, vec3_create(500, 550, 0));
+    sui_label_position_set(&state->test_sys_text, vec3_create(500, 350, 0));
 
     // Load up some test UI geometry.
     geometry_config ui_config;
@@ -651,12 +648,13 @@ b8 application_initialize(struct application* game_inst) {
     transform_translate(&state->ui_meshes[0].transform, (vec3){650, 5, 0});
 
     // Standard ui stuff.
-    if (!sui_panel_control_create("test_panel", &state->test_panel)) {
+    if (!sui_panel_control_create("test_panel", (vec2){100.0f, 200.0f}, &state->test_panel)) {
         KERROR("Failed to create test panel.");
     } else {
         if (!sui_panel_control_load(&state->test_panel)) {
             KERROR("Failed to load test panel.");
         } else {
+            transform_translate(&state->test_panel.xform, (vec3){500, 100});
             void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
             if (!standard_ui_system_register_control(sui_state, &state->test_panel)) {
                 KERROR("Unable to register control.");

@@ -259,6 +259,9 @@ b8 standard_ui_system_render(void* state, sui_control* root, struct frame_data* 
         u32 length = darray_length(root->children);
         for (u32 i = 0; i < length; ++i) {
             sui_control* c = root->children[i];
+            if (!c->is_visible) {
+                continue;
+            }
             if (!standard_ui_system_render(state, c, p_frame_data, render_data)) {
                 KERROR("Child element failed to render. See logs for more details");
                 return false;
@@ -373,6 +376,9 @@ b8 sui_base_control_create(const char* name, struct sui_control* out_control) {
         return false;
     }
 
+    // Set all controls to visible by default.
+    out_control->is_visible = true;
+
     // Assign function pointers.
     out_control->destroy = sui_base_control_destroy;
     out_control->load = sui_base_control_load;
@@ -438,7 +444,7 @@ typedef struct sui_panel_internal_data {
     u8 draw_index;
 } sui_panel_internal_data;
 
-b8 sui_panel_control_create(const char* name, struct sui_control* out_control) {
+b8 sui_panel_control_create(const char* name, vec2 size, struct sui_control* out_control) {
     if (!sui_base_control_create(name, out_control)) {
         return false;
     }
@@ -448,7 +454,7 @@ b8 sui_panel_control_create(const char* name, struct sui_control* out_control) {
     sui_panel_internal_data* typed_data = out_control->internal_data;
 
     // Reasonable defaults.
-    typed_data->rect = vec4_create(0, 0, 10, 10);
+    typed_data->rect = vec4_create(0, 0, size.x, size.y);
     typed_data->colour = vec4_one();
 
     // Assign function pointers.
@@ -480,7 +486,7 @@ b8 sui_panel_control_load(struct sui_control* self) {
 
     // Create a simple plane.
     geometry_config ui_config = {0};
-    generate_quad_2d(self->name, 512.0f, 512.0f, xmin, xmax, ymin, ymax, &ui_config);
+    generate_quad_2d(self->name, typed_data->rect.width, typed_data->rect.height, xmin, xmax, ymin, ymax, &ui_config);
     // Get UI geometry from config. NOTE: this uploads to GPU
     typed_data->g = geometry_system_acquire_from_config(ui_config, true);
 
@@ -532,6 +538,33 @@ b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_frame
 
         darray_push(render_data->renderables, renderable);
     }
+
+    return true;
+}
+vec2 sui_panel_size(struct sui_control* self) {
+    if (!self) {
+        return vec2_zero();
+    }
+
+    sui_panel_internal_data* typed_data = self->internal_data;
+    return (vec2){typed_data->rect.width, typed_data->rect.height};
+}
+
+b8 sui_panel_control_resize(struct sui_control* self, vec2 new_size) {
+    if (!self) {
+        return false;
+    }
+
+    sui_panel_internal_data* typed_data = self->internal_data;
+
+    typed_data->rect.width = new_size.x;
+    typed_data->rect.height = new_size.y;
+    vertex_2d* vertices = typed_data->g->vertices;
+    vertices[1].position.y = new_size.y;
+    vertices[1].position.x = new_size.x;
+    vertices[2].position.y = new_size.y;
+    vertices[3].position.x = new_size.x;
+    renderer_geometry_vertex_update(typed_data->g, 0, typed_data->g->vertex_count, vertices);
 
     return true;
 }
@@ -750,6 +783,7 @@ typedef struct sui_label_internal_data {
     u64 index_buffer_offset;
     char* text;
     u32 max_text_length;
+    u32 cached_ut8_length;
 } sui_label_internal_data;
 
 static void regenerate_label_geometry(sui_control* self);
@@ -809,10 +843,6 @@ b8 sui_label_control_create(const char* name, font_type type, const char* font_n
         return false;
     }
 
-    // Generate geometry.
-    // TODO: This is part of load
-    regenerate_label_geometry(out_control);
-
     return true;
 }
 
@@ -845,6 +875,8 @@ b8 sui_label_control_load(struct sui_control* self) {
             return false;
         }
     }
+    // Generate geometry.
+    regenerate_label_geometry(self);
 
     return true;
 }
@@ -901,14 +933,14 @@ b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame
 
     sui_label_internal_data* typed_data = self->internal_data;
 
-    if (typed_data->max_text_length) {
+    if (typed_data->cached_ut8_length) {
         standard_ui_renderable renderable = {0};
         renderable.render_data.unique_id = self->id.uniqueid;
         renderable.render_data.material = 0;
-        renderable.render_data.vertex_count = typed_data->max_text_length * 4;
+        renderable.render_data.vertex_count = typed_data->cached_ut8_length * 4;
         renderable.render_data.vertex_buffer_offset = typed_data->vertex_buffer_offset;
         renderable.render_data.vertex_element_size = sizeof(vertex_2d);
-        renderable.render_data.index_count = typed_data->max_text_length * 6;
+        renderable.render_data.index_count = typed_data->cached_ut8_length * 6;
         renderable.render_data.index_buffer_offset = typed_data->index_buffer_offset;
         renderable.render_data.index_element_size = sizeof(u32);
 
@@ -969,6 +1001,7 @@ static void regenerate_label_geometry(sui_control* self) {
 
     // Get the UTF-8 string length
     u32 text_length_utf8 = string_utf8_length(typed_data->text);
+    typed_data->cached_ut8_length = text_length_utf8;
     // Also get the length in characters.
     u32 char_length = string_length(typed_data->text);
 

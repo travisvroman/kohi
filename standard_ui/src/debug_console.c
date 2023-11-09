@@ -6,6 +6,7 @@
 #include <core/input.h>
 #include <core/kmemory.h>
 #include <core/kstring.h>
+#include <math/transform.h>
 
 #include "core/systems_manager.h"
 #include "resources/resource_types.h"
@@ -164,6 +165,16 @@ static b8 debug_console_on_key(u16 code, void* sender, void* listener_inst, even
     return false;
 }
 
+static b8 debug_console_on_resize(u16 code, void* sender, void* listener_inst, event_context context) {
+    u16 width = context.data.u16[0];
+    /* u16 height = context.data.u16[1]; */
+
+    debug_console_state* state = listener_inst;
+    vec2 size = sui_panel_size(&state->bg_panel);
+    sui_panel_control_resize(&state->bg_panel, (vec2){width, size.y});
+
+    return false;
+}
 void debug_console_create(debug_console_state* out_console_state) {
     if (out_console_state) {
         out_console_state->line_display_count = 10;
@@ -186,6 +197,7 @@ void debug_console_create(debug_console_state* out_console_state) {
         // Register for key events.
         event_register(EVENT_CODE_KEY_PRESSED, out_console_state, debug_console_on_key);
         event_register(EVENT_CODE_KEY_RELEASED, out_console_state, debug_console_on_key);
+        event_register(EVENT_CODE_RESIZED, out_console_state, debug_console_on_resize);
     }
 }
 
@@ -195,20 +207,47 @@ b8 debug_console_load(debug_console_state* state) {
         return false;
     }
 
+    u16 font_size = 31;
+    f32 height = 30.0f + (font_size * state->line_display_count + 1);
+
+    if (!sui_panel_control_create("debug_console_bg_panel", (vec2){1280.0f, height}, &state->bg_panel)) {
+        KERROR("Failed to create background panel.");
+    } else {
+        if (!sui_panel_control_load(&state->bg_panel)) {
+            KERROR("Failed to load background panel.");
+        } else {
+            /* transform_translate(&state->bg_panel.xform, (vec3){500, 100}); */
+            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+            if (!standard_ui_system_register_control(sui_state, &state->bg_panel)) {
+                KERROR("Unable to register control.");
+            } else {
+                if (!standard_ui_system_control_add_child(sui_state, 0, &state->bg_panel)) {
+                    KERROR("Failed to parent background panel.");
+                } else {
+                    state->bg_panel.is_active = true;
+                    state->bg_panel.is_visible = false;
+                    if (!standard_ui_system_update_active(sui_state, &state->bg_panel)) {
+                        KERROR("Unable to update active state.");
+                    }
+                }
+            }
+        }
+    }
+
     // Create a ui text control for rendering.
-    if (!sui_label_control_create("debug_console_log_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "", &state->text_control)) {
+    if (!sui_label_control_create("debug_console_log_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->text_control)) {
         KFATAL("Unable to create text control for debug console.");
         return false;
     } else {
         if (!sui_panel_control_load(&state->text_control)) {
-            KERROR("Failed to load test panel.");
+            KERROR("Failed to load text control.");
         } else {
-            void* sui_state = systems_manager_get_state(128);
+            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
             if (!standard_ui_system_register_control(sui_state, &state->text_control)) {
                 KERROR("Unable to register control.");
             } else {
-                if (!standard_ui_system_control_add_child(sui_state, 0, &state->text_control)) {
-                    KERROR("Failed to parent test panel.");
+                if (!standard_ui_system_control_add_child(sui_state, &state->bg_panel, &state->text_control)) {
+                    KERROR("Failed to parent background panel.");
                 } else {
                     state->text_control.is_active = true;
                     if (!standard_ui_system_update_active(sui_state, &state->text_control)) {
@@ -222,7 +261,7 @@ b8 debug_console_load(debug_console_state* state) {
     sui_label_position_set(&state->text_control, (vec3){3.0f, 30.0f, 0.0f});
 
     // Create another ui text control for rendering typed text.
-    if (!sui_label_control_create("debug_console_entry_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "", &state->entry_control)) {
+    if (!sui_label_control_create("debug_console_entry_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->entry_control)) {
         KFATAL("Unable to create entry text control for debug console.");
         return false;
     } else {
@@ -233,7 +272,7 @@ b8 debug_console_load(debug_console_state* state) {
             if (!standard_ui_system_register_control(sui_state, &state->entry_control)) {
                 KERROR("Unable to register control.");
             } else {
-                if (!standard_ui_system_control_add_child(sui_state, 0, &state->entry_control)) {
+                if (!standard_ui_system_control_add_child(sui_state, &state->bg_panel, &state->entry_control)) {
                     KERROR("Failed to parent test panel.");
                 } else {
                     state->entry_control.is_active = true;
@@ -245,7 +284,8 @@ b8 debug_console_load(debug_console_state* state) {
         }
     }
 
-    sui_label_position_set(&state->entry_control, (vec3){3.0f, 30.0f + (31.0f * state->line_display_count), 0.0f});
+    // HACK: This is definitely not the best way to figure out the height of the above text control.
+    sui_label_position_set(&state->entry_control, (vec3){3.0f, 30.0f + (font_size * state->line_display_count), 0.0f});
 
     state->loaded = true;
 
@@ -298,6 +338,7 @@ void debug_console_on_lib_load(debug_console_state* state, b8 update_consumer) {
     if (update_consumer) {
         event_register(EVENT_CODE_KEY_PRESSED, state, debug_console_on_key);
         event_register(EVENT_CODE_KEY_RELEASED, state, debug_console_on_key);
+        event_register(EVENT_CODE_RESIZED, state, debug_console_on_resize);
         console_consumer_update(state->console_consumer_id, state, debug_console_consumer_write);
     }
 }
@@ -305,6 +346,7 @@ void debug_console_on_lib_load(debug_console_state* state, b8 update_consumer) {
 void debug_console_on_lib_unload(debug_console_state* state) {
     event_unregister(EVENT_CODE_KEY_PRESSED, state, debug_console_on_key);
     event_unregister(EVENT_CODE_KEY_RELEASED, state, debug_console_on_key);
+    event_unregister(EVENT_CODE_RESIZED, state, debug_console_on_resize);
     console_consumer_update(state->console_consumer_id, 0, 0);
 }
 
@@ -333,6 +375,12 @@ b8 debug_console_visible(debug_console_state* state) {
 void debug_console_visible_set(debug_console_state* state, b8 visible) {
     if (state) {
         state->visible = visible;
+        state->bg_panel.is_visible = visible;
+        /* void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT); */
+        /* state->bg_panel.is_active = visible;
+        if (!standard_ui_system_update_active(sui_state, &state->bg_panel)) {
+            KERROR("Unable to update active state.");
+        } */
     }
 }
 

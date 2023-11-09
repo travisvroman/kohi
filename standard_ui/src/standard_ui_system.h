@@ -20,6 +20,9 @@
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
 
+// FIXME: Need to maintain a list of extension types somewhere and pull from there.
+#define K_SYSTEM_TYPE_STANDARD_UI_EXT 128
+
 struct frame_data;
 
 /** @brief The standard UI system configuration. */
@@ -133,7 +136,7 @@ KAPI b8 sui_base_control_render(struct sui_control* self, struct frame_data* p_f
 // Panel control
 // ---------------------------
 
-KAPI b8 sui_panel_control_create(const char* name, struct sui_control* out_control);
+KAPI b8 sui_panel_control_create(const char* name, vec2 size, struct sui_control* out_control);
 KAPI void sui_panel_control_destroy(struct sui_control* self);
 
 KAPI b8 sui_panel_control_load(struct sui_control* self);
@@ -142,6 +145,8 @@ KAPI void sui_panel_control_unload(struct sui_control* self);
 KAPI b8 sui_panel_control_update(struct sui_control* self, struct frame_data* p_frame_data);
 KAPI b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
 
+KAPI vec2 sui_panel_size(struct sui_control* self);
+KAPI b8 sui_panel_control_resize(struct sui_control* self, vec2 new_size);
 // ---------------------------
 // Button control
 // ---------------------------
