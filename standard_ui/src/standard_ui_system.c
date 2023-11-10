@@ -33,6 +33,8 @@ typedef struct standard_ui_state {
     sui_control root;
     texture_map ui_atlas;
 
+    u64 focused_id;
+
 } standard_ui_state;
 
 static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
@@ -44,13 +46,19 @@ static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_i
     evt.y = context.data.i16[2];
     for (u32 i = 0; i < typed_state->active_control_count; ++i) {
         sui_control* control = typed_state->active_controls[i];
-        mat4 model = transform_world_get(&control->xform);
-        mat4 inv = mat4_inverse(model);
-        vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
-        if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
-            control->is_pressed = true;
-            // TODO: Can't assume buttons.
-            sui_button_on_mouse_down(control, evt);
+        if (control->internal_mouse_down || control->on_mouse_down) {
+            mat4 model = transform_world_get(&control->xform);
+            mat4 inv = mat4_inverse(model);
+            vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+            if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
+                control->is_pressed = true;
+                if (control->internal_mouse_down) {
+                    control->internal_mouse_down(control, evt);
+                }
+                if (control->on_mouse_down) {
+                    control->on_mouse_down(control, evt);
+                }
+            }
         }
     }
     return false;
@@ -64,15 +72,20 @@ static b8 standard_ui_system_mouse_up(u16 code, void* sender, void* listener_ins
     evt.y = context.data.i16[2];
     for (u32 i = 0; i < typed_state->active_control_count; ++i) {
         sui_control* control = typed_state->active_controls[i];
-
         control->is_pressed = false;
 
-        mat4 model = transform_world_get(&control->xform);
-        mat4 inv = mat4_inverse(model);
-        vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
-        if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
-            // TODO: Can't assume buttons.
-            sui_button_on_mouse_up(control, evt);
+        if (control->internal_mouse_up || control->on_mouse_up) {
+            mat4 model = transform_world_get(&control->xform);
+            mat4 inv = mat4_inverse(model);
+            vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+            if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
+                if (control->internal_mouse_up) {
+                    control->internal_mouse_up(control, evt);
+                }
+                if (control->on_mouse_up) {
+                    control->on_mouse_up(control, evt);
+                }
+            }
         }
     }
     return false;
@@ -86,12 +99,17 @@ static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, 
     evt.y = context.data.i16[2];
     for (u32 i = 0; i < typed_state->active_control_count; ++i) {
         sui_control* control = typed_state->active_controls[i];
-        if (control->on_click) {
+        if (control->on_click || control->internal_click) {
             mat4 model = transform_world_get(&control->xform);
             mat4 inv = mat4_inverse(model);
             vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
             if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
-                control->on_click(control, evt);
+                if (control->internal_click) {
+                    control->internal_click(control, evt);
+                }
+                if (control->on_click) {
+                    control->on_click(control, evt);
+                }
             }
         }
     }
@@ -106,25 +124,39 @@ static b8 standard_ui_system_move(u16 code, void* sender, void* listener_inst, e
     evt.y = context.data.i16[1];
     for (u32 i = 0; i < typed_state->active_control_count; ++i) {
         sui_control* control = typed_state->active_controls[i];
-        mat4 model = transform_world_get(&control->xform);
-        mat4 inv = mat4_inverse(model);
-        vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
-        vec2 transformed_vec2 = (vec2){transformed_evt.x, transformed_evt.y};
-        if (rect_2d_contains_point(control->bounds, transformed_vec2)) {
-            KTRACE("Button hover: %s", control->name);
-            if (!control->is_hovered) {
-                control->is_hovered = true;
-                sui_button_on_mouse_over(control, evt);
-                if (control->on_mouse_over) {
-                    control->on_mouse_over(control, evt);
+        if (control->on_mouse_over || control->on_mouse_out || control->internal_mouse_over || control->internal_mouse_out) {
+            mat4 model = transform_world_get(&control->xform);
+            mat4 inv = mat4_inverse(model);
+            vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
+            vec2 transformed_vec2 = (vec2){transformed_evt.x, transformed_evt.y};
+            if (rect_2d_contains_point(control->bounds, transformed_vec2)) {
+                KTRACE("Button hover: %s", control->name);
+                if (!control->is_hovered) {
+                    control->is_hovered = true;
+                    if (control->internal_mouse_over) {
+                        control->internal_mouse_over(control, evt);
+                    }
+                    if (control->on_mouse_over) {
+                        control->on_mouse_over(control, evt);
+                    }
                 }
-            }
-        } else {
-            if (control->is_hovered) {
-                control->is_hovered = false;
-                sui_button_on_mouse_out(control, evt);
-                if (control->on_mouse_out) {
-                    control->on_mouse_out(control, evt);
+
+                // Move events are only triggered while actually over the control.
+                if (control->internal_mouse_move) {
+                    control->internal_mouse_move(control, evt);
+                }
+                if (control->on_mouse_move) {
+                    control->on_mouse_move(control, evt);
+                }
+            } else {
+                if (control->is_hovered) {
+                    control->is_hovered = false;
+                    if (control->internal_mouse_out) {
+                        control->internal_mouse_out(control, evt);
+                    }
+                    if (control->on_mouse_out) {
+                        control->on_mouse_out(control, evt);
+                    }
                 }
             }
         }
@@ -183,6 +215,8 @@ b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* con
     event_register(EVENT_CODE_MOUSE_MOVED, state, standard_ui_system_move);
     event_register(EVENT_CODE_BUTTON_PRESSED, state, standard_ui_system_mouse_down);
     event_register(EVENT_CODE_BUTTON_RELEASED, state, standard_ui_system_mouse_up);
+
+    typed_state->focused_id = INVALID_ID_U64;
 
     KTRACE("Initialized standard UI system.");
 
@@ -369,6 +403,11 @@ b8 standard_ui_system_control_remove_child(void* state, sui_control* parent, sui
 
     KERROR("Unable to remove child which is not a child of given parent.");
     return false;
+}
+
+void standard_ui_system_focus_control(void* state, sui_control* control) {
+    standard_ui_state* typed_state = (standard_ui_state*)state;
+    typed_state->focused_id = control ? control->id.uniqueid : INVALID_ID_U64;
 }
 
 b8 sui_base_control_create(const char* name, struct sui_control* out_control) {
@@ -598,6 +637,11 @@ b8 sui_button_control_create(const char* name, struct sui_control* out_control) 
     out_control->update = sui_button_control_update;
     out_control->render = sui_button_control_render;
 
+    out_control->internal_mouse_down = sui_button_on_mouse_down;
+    out_control->internal_mouse_up = sui_button_on_mouse_up;
+    out_control->internal_mouse_out = sui_button_on_mouse_out;
+    out_control->internal_mouse_over = sui_button_on_mouse_over;
+
     out_control->name = string_duplicate(name);
     return true;
 }
@@ -698,76 +742,61 @@ b8 sui_button_control_render(struct sui_control* self, struct frame_data* p_fram
     return true;
 }
 
-b8 sui_button_on_mouse_out(struct sui_control* self, struct sui_mouse_event event) {
-    if (!self) {
-        return false;
+void sui_button_on_mouse_out(struct sui_control* self, struct sui_mouse_event event) {
+    if (self) {
+        sui_button_internal_data* typed_data = self->internal_data;
+        typed_data->nslice.atlas_px_min.x = 151;
+        typed_data->nslice.atlas_px_min.y = 12;
+        typed_data->nslice.atlas_px_max.x = 158;
+        typed_data->nslice.atlas_px_max.y = 19;
+        update_nine_slice(&typed_data->nslice, 0);
     }
-    sui_button_internal_data* typed_data = self->internal_data;
-    typed_data->nslice.atlas_px_min.x = 151;
-    typed_data->nslice.atlas_px_min.y = 12;
-    typed_data->nslice.atlas_px_max.x = 158;
-    typed_data->nslice.atlas_px_max.y = 19;
-    update_nine_slice(&typed_data->nslice, 0);
-
-    return true;
 }
 
-b8 sui_button_on_mouse_over(struct sui_control* self, struct sui_mouse_event event) {
-    if (!self) {
-        return false;
+void sui_button_on_mouse_over(struct sui_control* self, struct sui_mouse_event event) {
+    if (self) {
+        sui_button_internal_data* typed_data = self->internal_data;
+        if (self->is_pressed) {
+            typed_data->nslice.atlas_px_min.x = 151;
+            typed_data->nslice.atlas_px_min.y = 21;
+            typed_data->nslice.atlas_px_max.x = 158;
+            typed_data->nslice.atlas_px_max.y = 28;
+        } else {
+            typed_data->nslice.atlas_px_min.x = 151;
+            typed_data->nslice.atlas_px_min.y = 31;
+            typed_data->nslice.atlas_px_max.x = 158;
+            typed_data->nslice.atlas_px_max.y = 37;
+        }
+        update_nine_slice(&typed_data->nslice, 0);
     }
-
-    sui_button_internal_data* typed_data = self->internal_data;
-    if (self->is_pressed) {
+}
+void sui_button_on_mouse_down(struct sui_control* self, struct sui_mouse_event event) {
+    if (self) {
+        sui_button_internal_data* typed_data = self->internal_data;
         typed_data->nslice.atlas_px_min.x = 151;
         typed_data->nslice.atlas_px_min.y = 21;
         typed_data->nslice.atlas_px_max.x = 158;
         typed_data->nslice.atlas_px_max.y = 28;
-    } else {
-        typed_data->nslice.atlas_px_min.x = 151;
-        typed_data->nslice.atlas_px_min.y = 31;
-        typed_data->nslice.atlas_px_max.x = 158;
-        typed_data->nslice.atlas_px_max.y = 37;
+        update_nine_slice(&typed_data->nslice, 0);
     }
-    update_nine_slice(&typed_data->nslice, 0);
-
-    return true;
 }
-b8 sui_button_on_mouse_down(struct sui_control* self, struct sui_mouse_event event) {
-    if (!self) {
-        return false;
+void sui_button_on_mouse_up(struct sui_control* self, struct sui_mouse_event event) {
+    if (self) {
+        // TODO: DRY
+        sui_button_internal_data* typed_data = self->internal_data;
+        if (self->is_hovered) {
+            typed_data->nslice.atlas_px_min.x = 151;
+            typed_data->nslice.atlas_px_min.y = 31;
+            typed_data->nslice.atlas_px_max.x = 158;
+            typed_data->nslice.atlas_px_max.y = 37;
+        } else {
+            typed_data->nslice.atlas_px_min.x = 151;
+            typed_data->nslice.atlas_px_min.y = 31;
+            typed_data->nslice.atlas_px_max.x = 158;
+            typed_data->nslice.atlas_px_max.y = 37;
+        }
+        update_nine_slice(&typed_data->nslice, 0);
     }
-
-    sui_button_internal_data* typed_data = self->internal_data;
-    typed_data->nslice.atlas_px_min.x = 151;
-    typed_data->nslice.atlas_px_min.y = 21;
-    typed_data->nslice.atlas_px_max.x = 158;
-    typed_data->nslice.atlas_px_max.y = 28;
-    update_nine_slice(&typed_data->nslice, 0);
-
-    return true;
-}
-b8 sui_button_on_mouse_up(struct sui_control* self, struct sui_mouse_event event) {
-    if (!self) {
-        return false;
-    }
-
-    // TODO: DRY
-    sui_button_internal_data* typed_data = self->internal_data;
-    if (self->is_hovered) {
-        typed_data->nslice.atlas_px_min.x = 151;
-        typed_data->nslice.atlas_px_min.y = 31;
-        typed_data->nslice.atlas_px_max.x = 158;
-        typed_data->nslice.atlas_px_max.y = 37;
-    } else {
-        typed_data->nslice.atlas_px_min.x = 151;
-        typed_data->nslice.atlas_px_min.y = 31;
-        typed_data->nslice.atlas_px_max.x = 158;
-        typed_data->nslice.atlas_px_max.y = 37;
-    }
-    update_nine_slice(&typed_data->nslice, 0);
-
-    return true;
 }
 
 typedef struct sui_label_internal_data {
@@ -1191,4 +1220,343 @@ static void regenerate_label_geometry(sui_control* self) {
     if (!index_load_result) {
         KERROR("regenerate_geometry failed to load data into index buffer range.");
     }
+}
+
+// --------------------------------
+// Textbox
+// --------------------------------
+
+/*
+ * TODO: Textbox items
+ *
+ * - The ability to edit (i.e. enter or remove text) from any position in the textbox.
+ * - The ability to hightlight text, then add/remove/overwrite highlighted text.
+ * - Clipping
+ * - The ability to "scroll" left/right in Textbox in overflow cases.
+ * - Navigation of textbox caret, including jump to home/end functionality.
+ */
+typedef struct sui_textbox_internal_data {
+    vec2i size;
+    vec4 colour;
+    nine_slice nslice;
+    u32 instance_id;
+    u64 frame_number;
+    u8 draw_index;
+    sui_control content_label;
+} sui_textbox_internal_data;
+
+static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context);
+
+b8 sui_textbox_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control) {
+    if (!sui_base_control_create(name, out_control)) {
+        return false;
+    }
+
+    out_control->internal_data_size = sizeof(sui_textbox_internal_data);
+    out_control->internal_data = kallocate(out_control->internal_data_size, MEMORY_TAG_UI);
+    sui_textbox_internal_data* typed_data = out_control->internal_data;
+
+    // Reasonable defaults.
+    typed_data->size = (vec2i){200, font_size + 4};
+    typed_data->colour = vec4_one();
+
+    // Assign function pointers.
+    out_control->destroy = sui_textbox_control_destroy;
+    out_control->load = sui_textbox_control_load;
+    out_control->unload = sui_textbox_control_unload;
+    out_control->update = sui_textbox_control_update;
+    out_control->render = sui_textbox_control_render;
+
+    out_control->internal_mouse_down = sui_textbox_on_mouse_down;
+    out_control->internal_mouse_up = sui_textbox_on_mouse_up;
+    /* out_control->internal_mouse_out = sui_textbox_on_mouse_out;
+    out_control->internal_mouse_over = sui_textbox_on_mouse_over; */
+
+    out_control->name = string_duplicate(name);
+
+    return sui_label_control_create("testbed_UTF_test_sys_text", type, font_name, font_size, text, &typed_data->content_label);
+}
+
+void sui_textbox_control_destroy(struct sui_control* self) {
+    sui_base_control_destroy(self);
+}
+
+b8 sui_textbox_control_size_set(struct sui_control* self, i32 width, i32 height) {
+    if (!self) {
+        return false;
+    }
+
+    sui_button_internal_data* typed_data = self->internal_data;
+    typed_data->size.x = width;
+    typed_data->size.y = height;
+    typed_data->nslice.size.x = width;
+    typed_data->nslice.size.y = height;
+
+    self->bounds.height = height;
+    self->bounds.width = width;
+
+    update_nine_slice(&typed_data->nslice, 0);
+
+    return true;
+}
+b8 sui_textbox_control_width_set(struct sui_control* self, i32 width) {
+    sui_button_internal_data* typed_data = self->internal_data;
+    return sui_textbox_control_size_set(self, width, typed_data->size.y);
+}
+b8 sui_textbox_control_height_set(struct sui_control* self, i32 height) {
+    sui_button_internal_data* typed_data = self->internal_data;
+    return sui_textbox_control_size_set(self, typed_data->size.x, height);
+}
+
+b8 sui_textbox_control_load(struct sui_control* self) {
+    if (!sui_base_control_load(self)) {
+        return false;
+    }
+
+    sui_textbox_internal_data* typed_data = self->internal_data;
+    standard_ui_state* typed_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+
+    // HACK: TODO: remove hardcoded stuff.
+    /* vec2i atlas_size = (vec2i){typed_state->ui_atlas.texture->width, typed_state->ui_atlas.texture->height}; */
+    vec2i atlas_size = (vec2i){512, 512};
+    vec2i atlas_min = (vec2i){180, 31};
+    vec2i atlas_max = (vec2i){193, 43};
+    vec2i corner_px_size = (vec2i){3, 3};
+    vec2i corner_size = (vec2i){10, 10};
+    if (!generate_nine_slice(self->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
+        KERROR("Failed to generate nine slice.");
+        return false;
+    }
+
+    self->bounds.x = 0.0f;
+    self->bounds.y = 0.0f;
+    self->bounds.width = typed_data->size.x;
+    self->bounds.height = typed_data->size.y;
+
+    // Acquire instance resources for this control.
+    texture_map* maps[1] = {&typed_state->ui_atlas};
+    shader* s = shader_system_get("Shader.StandardUI");
+    renderer_shader_instance_resources_acquire(s, 1, maps, &typed_data->instance_id);
+
+    if (!sui_label_control_load(&typed_data->content_label)) {
+        KERROR("Failed to setup label within textbox.");
+        return false;
+    }
+
+    if (!standard_ui_system_register_control(typed_state, &typed_data->content_label)) {
+        KERROR("Unable to register control.");
+    } else {
+        if (!standard_ui_system_control_add_child(typed_state, self, &typed_data->content_label)) {
+            KERROR("Failed to parent textbox system text.");
+        } else {
+            sui_label_internal_data* label_data = typed_data->content_label.internal_data;
+            // TODO: Adjustable padding
+            transform_position_set(&typed_data->content_label.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 4.0f, 0.0f});
+            typed_data->content_label.is_active = true;
+            if (!standard_ui_system_update_active(typed_state, &typed_data->content_label)) {
+                KERROR("Unable to update active state for textbox system text.");
+            }
+        }
+    }
+
+    event_register(EVENT_CODE_KEY_PRESSED, self, sui_textbox_on_key);
+    event_register(EVENT_CODE_KEY_RELEASED, self, sui_textbox_on_key);
+
+    return true;
+}
+
+void sui_textbox_control_unload(struct sui_control* self) {
+    //
+    event_unregister(EVENT_CODE_KEY_PRESSED, self, sui_textbox_on_key);
+    event_unregister(EVENT_CODE_KEY_RELEASED, self, sui_textbox_on_key);
+}
+
+b8 sui_textbox_control_update(struct sui_control* self, struct frame_data* p_frame_data) {
+    if (!sui_base_control_update(self, p_frame_data)) {
+        return false;
+    }
+
+    //
+
+    return true;
+}
+
+b8 sui_textbox_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
+    if (!sui_base_control_render(self, p_frame_data, render_data)) {
+        return false;
+    }
+
+    sui_textbox_internal_data* typed_data = self->internal_data;
+    if (typed_data->nslice.g) {
+        standard_ui_renderable renderable = {0};
+        renderable.render_data.unique_id = self->id.uniqueid;
+        renderable.render_data.material = typed_data->nslice.g->material;
+        renderable.render_data.vertex_count = typed_data->nslice.g->vertex_count;
+        renderable.render_data.vertex_element_size = typed_data->nslice.g->vertex_element_size;
+        renderable.render_data.vertex_buffer_offset = typed_data->nslice.g->vertex_buffer_offset;
+        renderable.render_data.index_count = typed_data->nslice.g->index_count;
+        renderable.render_data.index_element_size = typed_data->nslice.g->index_element_size;
+        renderable.render_data.index_buffer_offset = typed_data->nslice.g->index_buffer_offset;
+        renderable.render_data.model = transform_world_get(&self->xform);
+        renderable.render_data.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.
+
+        renderable.instance_id = &typed_data->instance_id;
+        renderable.frame_number = &typed_data->frame_number;
+        renderable.draw_index = &typed_data->draw_index;
+
+        darray_push(render_data->renderables, renderable);
+    }
+
+    return sui_label_control_render(&typed_data->content_label, p_frame_data, render_data);
+}
+
+const char* sui_textbox_text_get(struct sui_control* self) {
+    if (!self) {
+        return 0;
+    }
+
+    sui_textbox_internal_data* typed_data = self->internal_data;
+    return sui_label_text_get(&typed_data->content_label);
+}
+
+void sui_textbox_text_set(struct sui_control* self, const char* text) {
+    if (self) {
+        sui_textbox_internal_data* typed_data = self->internal_data;
+        sui_label_text_set(&typed_data->content_label, text);
+    }
+}
+
+void sui_textbox_on_mouse_down(struct sui_control* self, struct sui_mouse_event event) {
+    if (!self) {
+        return;
+
+        /* sui_button_internal_data* typed_data = self->internal_data;
+        typed_data->nslice.atlas_px_min.x = 151;
+        typed_data->nslice.atlas_px_min.y = 21;
+        typed_data->nslice.atlas_px_max.x = 158;
+        typed_data->nslice.atlas_px_max.y = 28;
+        update_nine_slice(&typed_data->nslice, 0); */
+    }
+}
+void sui_textbox_on_mouse_up(struct sui_control* self, struct sui_mouse_event event) {
+    if (!self) {
+        /* // TODO: DRY
+        sui_button_internal_data* typed_data = self->internal_data;
+        if (self->is_hovered) {
+            typed_data->nslice.atlas_px_min.x = 151;
+            typed_data->nslice.atlas_px_min.y = 31;
+            typed_data->nslice.atlas_px_max.x = 158;
+            typed_data->nslice.atlas_px_max.y = 37;
+        } else {
+            typed_data->nslice.atlas_px_min.x = 151;
+            typed_data->nslice.atlas_px_min.y = 31;
+            typed_data->nslice.atlas_px_max.x = 158;
+            typed_data->nslice.atlas_px_max.y = 37;
+        }
+        update_nine_slice(&typed_data->nslice, 0); */
+    }
+}
+
+static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context) {
+    sui_control* self = listener_inst;
+    standard_ui_state* typed_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+    sui_textbox_internal_data* typed_data = self->internal_data;
+    if (typed_state->focused_id != self->id.uniqueid) {
+        return false;
+    }
+    u16 key_code = context.data.u16[0];
+    if (code == EVENT_CODE_KEY_PRESSED) {
+        b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT);
+
+        if (key_code == KEY_BACKSPACE) {
+            const char* entry_control_text = sui_label_text_get(&typed_data->content_label);
+            u32 len = string_length(entry_control_text);
+            if (len > 0) {
+                char* str = string_duplicate(entry_control_text);
+                str[len - 1] = 0;
+                sui_label_text_set(&typed_data->content_label, str);
+                kfree(str, len + 1, MEMORY_TAG_STRING);
+            }
+        } else {
+            // Use A-Z and 0-9 as-is.
+            char char_code = key_code;
+            if ((key_code >= KEY_A && key_code <= KEY_Z)) {
+                // TODO: check caps lock.
+                if (!shift_held) {
+                    char_code = key_code + 32;
+                }
+            } else if ((key_code >= KEY_0 && key_code <= KEY_9)) {
+                if (shift_held) {
+                    // NOTE: this handles US standard keyboard layouts.
+                    // Will need to handle other layouts as well.
+                    switch (key_code) {
+                        case KEY_0:
+                            char_code = ')';
+                            break;
+                        case KEY_1:
+                            char_code = '!';
+                            break;
+                        case KEY_2:
+                            char_code = '@';
+                            break;
+                        case KEY_3:
+                            char_code = '#';
+                            break;
+                        case KEY_4:
+                            char_code = '$';
+                            break;
+                        case KEY_5:
+                            char_code = '%';
+                            break;
+                        case KEY_6:
+                            char_code = '^';
+                            break;
+                        case KEY_7:
+                            char_code = '&';
+                            break;
+                        case KEY_8:
+                            char_code = '*';
+                            break;
+                        case KEY_9:
+                            char_code = '(';
+                            break;
+                    }
+                }
+            } else {
+                switch (key_code) {
+                    case KEY_SPACE:
+                        char_code = key_code;
+                        break;
+                    case KEY_MINUS:
+                        char_code = shift_held ? '_' : '-';
+                        break;
+                    case KEY_EQUAL:
+                        char_code = shift_held ? '+' : '=';
+                        break;
+                    default:
+                        // Not valid for entry, use 0
+                        char_code = 0;
+                        break;
+                }
+            }
+
+            // HACK: TODO: Fix input from any position.
+            if (char_code != 0) {
+                const char* entry_control_text = sui_label_text_get(&typed_data->content_label);
+                u32 len = string_length(entry_control_text);
+                char* new_text = kallocate(len + 2, MEMORY_TAG_STRING);
+                string_format(new_text, "%s%c", entry_control_text, char_code);
+                sui_label_text_set(&typed_data->content_label, new_text);
+                kfree(new_text, len + 1, MEMORY_TAG_STRING);
+            }
+        }
+    }
+    if (self->on_key) {
+        sui_keyboard_event evt = {0};
+        evt.key = key_code;
+        evt.type = code == EVENT_CODE_KEY_PRESSED ? SUI_KEYBOARD_EVENT_TYPE_PRESS : SUI_KEYBOARD_EVENT_TYPE_RELEASE;
+        self->on_key(self, evt);
+    }
+
+    return false;
 }

@@ -26,7 +26,7 @@ typedef struct debug_console_state {
 
     sui_control bg_panel;
     sui_control text_control;
-    sui_control entry_control;
+    sui_control entry_textbox;
 
 } debug_console_state;
 

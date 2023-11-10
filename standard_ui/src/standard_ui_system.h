@@ -50,6 +50,16 @@ typedef struct sui_mouse_event {
     i16 y;
 } sui_mouse_event;
 
+typedef enum sui_keyboard_event_type {
+    SUI_KEYBOARD_EVENT_TYPE_PRESS,
+    SUI_KEYBOARD_EVENT_TYPE_RELEASE,
+} sui_keyboard_event_type;
+
+typedef struct sui_keyboard_event {
+    keys key;
+    sui_keyboard_event_type type;
+} sui_keyboard_event;
+
 typedef struct sui_control {
     identifier id;
     transform xform;
@@ -68,6 +78,9 @@ typedef struct sui_control {
     void* internal_data;
     u64 internal_data_size;
 
+    void* user_data;
+    u64 user_data_size;
+
     void (*destroy)(struct sui_control* self);
     b8 (*load)(struct sui_control* self);
     void (*unload)(struct sui_control* self);
@@ -81,12 +94,22 @@ typedef struct sui_control {
      * @param event The mouse event.
      * @returns True if the event should be allowed to propagate to other controls; otherwise false.
      */
-    b8 (*on_click)(struct sui_control* self, struct sui_mouse_event event);
-    b8 (*on_mouse_down)(struct sui_control* self, struct sui_mouse_event event);
-    b8 (*on_mouse_up)(struct sui_control* self, struct sui_mouse_event event);
+    void (*on_click)(struct sui_control* self, struct sui_mouse_event event);
+    void (*on_mouse_down)(struct sui_control* self, struct sui_mouse_event event);
+    void (*on_mouse_up)(struct sui_control* self, struct sui_mouse_event event);
+    void (*on_mouse_over)(struct sui_control* self, struct sui_mouse_event event);
+    void (*on_mouse_out)(struct sui_control* self, struct sui_mouse_event event);
+    void (*on_mouse_move)(struct sui_control* self, struct sui_mouse_event event);
 
-    b8 (*on_mouse_over)(struct sui_control* self, struct sui_mouse_event event);
-    b8 (*on_mouse_out)(struct sui_control* self, struct sui_mouse_event event);
+    void (*internal_click)(struct sui_control* self, struct sui_mouse_event event);
+    void (*internal_mouse_over)(struct sui_control* self, struct sui_mouse_event event);
+    void (*internal_mouse_out)(struct sui_control* self, struct sui_mouse_event event);
+    void (*internal_mouse_down)(struct sui_control* self, struct sui_mouse_event event);
+    void (*internal_mouse_up)(struct sui_control* self, struct sui_mouse_event event);
+    void (*internal_mouse_move)(struct sui_control* self, struct sui_mouse_event event);
+
+    void (*on_key)(struct sui_control* self, struct sui_keyboard_event event);
+
 } sui_control;
 
 /**
@@ -119,6 +142,8 @@ KAPI b8 standard_ui_system_register_control(void* state, sui_control* control);
 KAPI b8 standard_ui_system_control_add_child(void* state, sui_control* parent, sui_control* child);
 
 KAPI b8 standard_ui_system_control_remove_child(void* state, sui_control* parent, sui_control* child);
+
+KAPI void standard_ui_system_focus_control(void* state, sui_control* control);
 
 // ---------------------------
 // Base control
@@ -161,10 +186,10 @@ KAPI void sui_button_control_unload(struct sui_control* self);
 KAPI b8 sui_button_control_update(struct sui_control* self, struct frame_data* p_frame_data);
 KAPI b8 sui_button_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
 
-KAPI b8 sui_button_on_mouse_out(struct sui_control* self, struct sui_mouse_event event);
-KAPI b8 sui_button_on_mouse_over(struct sui_control* self, struct sui_mouse_event event);
-KAPI b8 sui_button_on_mouse_down(struct sui_control* self, struct sui_mouse_event event);
-KAPI b8 sui_button_on_mouse_up(struct sui_control* self, struct sui_mouse_event event);
+KAPI void sui_button_on_mouse_out(struct sui_control* self, struct sui_mouse_event event);
+KAPI void sui_button_on_mouse_over(struct sui_control* self, struct sui_mouse_event event);
+KAPI void sui_button_on_mouse_down(struct sui_control* self, struct sui_mouse_event event);
+KAPI void sui_button_on_mouse_up(struct sui_control* self, struct sui_mouse_event event);
 
 // ---------------------------
 // Label control
@@ -193,3 +218,24 @@ KAPI void sui_label_position_set(struct sui_control* self, vec3 position);
 KAPI void sui_label_text_set(struct sui_control* self, const char* text);
 
 KAPI const char* sui_label_text_get(struct sui_control* self);
+
+KAPI b8 sui_textbox_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control);
+
+KAPI void sui_textbox_control_destroy(struct sui_control* self);
+
+KAPI b8 sui_textbox_control_size_set(struct sui_control* self, i32 width, i32 height);
+KAPI b8 sui_textbox_control_width_set(struct sui_control* self, i32 width);
+KAPI b8 sui_textbox_control_height_set(struct sui_control* self, i32 height);
+
+KAPI b8 sui_textbox_control_load(struct sui_control* self);
+
+KAPI void sui_textbox_control_unload(struct sui_control* self);
+
+KAPI b8 sui_textbox_control_update(struct sui_control* self, struct frame_data* p_frame_data);
+
+KAPI b8 sui_textbox_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
+
+KAPI const char* sui_textbox_text_get(struct sui_control* self);
+KAPI void sui_textbox_text_set(struct sui_control* self, const char* text);
+KAPI void sui_textbox_on_mouse_down(struct sui_control* self, struct sui_mouse_event event);
+KAPI void sui_textbox_on_mouse_up(struct sui_control* self, struct sui_mouse_event event);
