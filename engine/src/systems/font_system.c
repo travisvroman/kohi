@@ -481,7 +481,7 @@ static b8 create_system_font_variant(system_font_lookup* lookup, u16 size, const
     // Create texture.
     char font_tex_name[255];
     string_format(font_tex_name, "__system_text_atlas_%s_i%i_sz%i__", font_name, lookup->index, size);
-    out_variant->atlas.texture = texture_system_aquire_writeable(font_tex_name, out_variant->atlas_size_x, out_variant->atlas_size_y, 4, true);
+    out_variant->atlas.texture = texture_system_acquire_writeable(font_tex_name, out_variant->atlas_size_x, out_variant->atlas_size_y, 4, true);
 
     // Obtain some metrics
     internal_data->scale = stbtt_ScaleForPixelHeight(&lookup->info, (f32)size);

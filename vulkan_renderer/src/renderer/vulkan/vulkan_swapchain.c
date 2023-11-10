@@ -1,13 +1,12 @@
 #include "vulkan_swapchain.h"
 
-#include "core/logger.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "core/logger.h"
+#include "systems/texture_system.h"
 #include "vulkan_device.h"
 #include "vulkan_image.h"
 #include "vulkan_utils.h"
-
-#include "systems/texture_system.h"
 
 static void create(vulkan_context* context, u32 width, u32 height, renderer_config_flags flags, vulkan_swapchain* swapchain);
 static void destroy(vulkan_context* context, vulkan_swapchain* swapchain);
@@ -36,61 +35,6 @@ void vulkan_swapchain_destroy(
     vulkan_context* context,
     vulkan_swapchain* swapchain) {
     destroy(context, swapchain);
-}
-
-b8 vulkan_swapchain_acquire_next_image_index(
-    vulkan_context* context,
-    vulkan_swapchain* swapchain,
-    u64 timeout_ns,
-    VkSemaphore image_available_semaphore,
-    VkFence fence,
-    u32* out_image_index) {
-    VkResult result = vkAcquireNextImageKHR(
-        context->device.logical_device,
-        swapchain->handle,
-        timeout_ns,
-        image_available_semaphore,
-        fence,
-        out_image_index);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        // Trigger swapchain recreation, then boot out of the render loop.
-        vulkan_swapchain_recreate(context, context->framebuffer_width, context->framebuffer_height, swapchain);
-        return false;
-    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-        KFATAL("Failed to acquire swapchain image!");
-        return false;
-    }
-
-    return true;
-}
-
-void vulkan_swapchain_present(
-    vulkan_context* context,
-    vulkan_swapchain* swapchain,
-    VkQueue present_queue,
-    VkSemaphore render_complete_semaphore,
-    u32 present_image_index) {
-    // Return the image to the swapchain for presentation.
-    VkPresentInfoKHR present_info = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
-    present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &render_complete_semaphore;
-    present_info.swapchainCount = 1;
-    present_info.pSwapchains = &swapchain->handle;
-    present_info.pImageIndices = &present_image_index;
-    present_info.pResults = 0;
-
-    VkResult result = vkQueuePresentKHR(present_queue, &present_info);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        // Swapchain is out of date, suboptimal or a framebuffer resize has occurred. Trigger swapchain recreation.
-        vulkan_swapchain_recreate(context, context->framebuffer_width, context->framebuffer_height, swapchain);
-        KDEBUG("Swapchain recreated because swapchain returned out of date or suboptimal.");
-    } else if (result != VK_SUCCESS) {
-        KFATAL("Failed to present swap chain image!");
-    }
-
-    // Increment (and loop) the index.
-    context->current_frame = (context->current_frame + 1) % swapchain->max_frames_in_flight;
 }
 
 static void create(vulkan_context* context, u32 width, u32 height, renderer_config_flags flags, vulkan_swapchain* swapchain) {
@@ -281,6 +225,7 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
             true,
             VK_IMAGE_ASPECT_DEPTH_BIT,
             formatted_name,
+            1,
             image);
 
         // Wrap it in a texture.

@@ -57,7 +57,7 @@ b8 ui_text_create(const char* name, ui_text_type type, const char* font_name, u1
     // Generate the vertex buffer.
     char bufname[256] = {0};
     string_format(bufname, "renderbuffer_vertexbuffer_uitext_%s", out_text->name);
-    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_VERTEX, text_length * quad_size, false, &out_text->vertex_buffer)) {
+    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_VERTEX, text_length * quad_size, RENDERBUFFER_TRACK_TYPE_NONE, &out_text->vertex_buffer)) {
         KERROR("ui_text_create failed to create vertex renderbuffer.");
         return false;
     }
@@ -70,7 +70,7 @@ b8 ui_text_create(const char* name, ui_text_type type, const char* font_name, u1
     kzero_memory(bufname, 256);
     string_format(bufname, "renderbuffer_indexbuffer_uitext_%s", out_text->name);
     static const u8 quad_index_size = sizeof(u32) * 6;
-    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_INDEX, text_length * quad_index_size, false, &out_text->index_buffer)) {
+    if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_INDEX, text_length * quad_index_size, RENDERBUFFER_TRACK_TYPE_NONE, &out_text->index_buffer)) {
         KERROR("ui_text_create failed to create index renderbuffer.");
         return false;
     }
@@ -89,17 +89,14 @@ b8 ui_text_create(const char* name, ui_text_type type, const char* font_name, u1
     regenerate_geometry(out_text);
 
     // Get a unique identifier for the text object.
-    out_text->unique_id = identifier_aquire_new_id(out_text);
+    out_text->id = identifier_create();
 
     return true;
 }
 
 void ui_text_destroy(ui_text* text) {
     if (text) {
-        // Release the unique identifier.
-        identifier_release_id(text->unique_id);
-
-        if(text->name) {
+        if (text->name) {
             u32 text_length = string_length(text->name);
             kfree(text->name, sizeof(char) * text_length + 1, MEMORY_TAG_STRING);
             text->name = 0;

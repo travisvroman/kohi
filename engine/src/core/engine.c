@@ -14,7 +14,6 @@
 #include "memory/linear_allocator.h"
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
-#include "version.h"
 
 // systems
 #include "core/systems_manager.h"
@@ -99,6 +98,7 @@ b8 engine_create(application* game_inst) {
     engine_state->frames_since_resize = 0;
 
     game_inst->app_config.renderer_plugin = game_inst->render_plugin;
+    game_inst->app_config.audio_plugin = game_inst->audio_plugin;
 
     if (!systems_manager_initialize(&engine_state->sys_manager_state, &game_inst->app_config)) {
         KFATAL("Systems manager failed to initialize. Aborting process.");
@@ -131,9 +131,6 @@ b8 engine_create(application* game_inst) {
         KFATAL("Post-boot system manager initialization failed!");
         return false;
     }
-
-    // Report engine version
-    KINFO("Kohi Engine v. %s", KVERSION);
 
     // Initialize the game.
     game_inst->stage = APPLICATION_STAGE_INITIALIZING;

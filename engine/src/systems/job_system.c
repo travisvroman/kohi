@@ -1,11 +1,11 @@
 #include "job_system.h"
 
-#include "core/kthread.h"
-#include "core/kmutex.h"
-#include "core/kmemory.h"
-#include "core/logger.h"
-#include "core/frame_data.h"
 #include "containers/ring_queue.h"
+#include "core/frame_data.h"
+#include "core/kmemory.h"
+#include "core/kmutex.h"
+#include "core/kthread.h"
+#include "core/logger.h"
 
 typedef struct job_thread {
     u8 index;
@@ -82,8 +82,7 @@ static void store_result(pfn_job_on_complete callback, u32 param_size, void* par
 static u32 job_thread_run(void* params) {
     u32 index = *(u32*)params;
     job_thread* thread = &state_ptr->job_threads[index];
-    u64 thread_id = thread->thread.thread_id;
-    KTRACE("Starting job thread #%i (id=%#x, type=%#x).", thread->index, thread_id, thread->type_mask);
+    KTRACE("Starting job thread #%i (id=%#x, type=%#x).", thread->index, thread->thread.thread_id, thread->type_mask);
 
     // A mutex to lock info for this thread.
     if (!kmutex_create(&thread->info_mutex)) {
@@ -283,7 +282,7 @@ static void process_queue(ring_queue* queue, kmutex* queue_mutex) {
     }
 }
 
-b8 job_system_update(void* state, const struct frame_data* p_frame_data) {
+b8 job_system_update(void* state, struct frame_data* p_frame_data) {
     if (!state_ptr || !state_ptr->running) {
         return false;
     }

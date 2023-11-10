@@ -177,6 +177,11 @@ i32 platform_get_processor_count(void);
 KAPI void platform_get_handle_info(u64* out_size, void* memory);
 
 /**
+ * @brief Returns the device pixel ratio of the main window.
+ */
+KAPI f32 platform_device_pixel_ratio(void);
+
+/**
  * @brief Loads a dynamic library.
  *
  * @param name The name of the library file, *excluding* the extension. Required.

@@ -36,6 +36,7 @@ typedef struct platform_state {
     CONSOLE_SCREEN_BUFFER_INFO err_output_csbi;
     // darray
     win32_file_watch *watches;
+    f32 device_pixel_ratio;
 } platform_state;
 
 static platform_state *state_ptr;
@@ -65,6 +66,12 @@ b8 platform_system_startup(u64 *memory_requirement, void *state, void *config) {
 
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &state_ptr->std_output_csbi);
     GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &state_ptr->err_output_csbi);
+
+    // Only available in the Creators update for Windows 10+.
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    // NOTE: Older versions of windows might have to use this:
+    // SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
+    state_ptr->device_pixel_ratio = 1.0f;
 
     // Setup and register window class.
     HICON icon = LoadIcon(state_ptr->handle.h_instance, IDI_APPLICATION);
@@ -250,6 +257,10 @@ void platform_get_handle_info(u64 *out_size, void *memory) {
     }
 
     kcopy_memory(memory, &state_ptr->handle, *out_size);
+}
+
+f32 platform_device_pixel_ratio(void) {
+    return state_ptr->device_pixel_ratio;
 }
 
 // NOTE: Begin threads
@@ -620,12 +631,33 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;
+        case WM_DPICHANGED:
+            // x- and y-axis DPI are always the same, so just grab one.
+            i32 x_dpi = GET_X_LPARAM(w_param);
+
+            // Store off the device pixel ratio.
+            state_ptr->device_pixel_ratio = (f32)x_dpi / USER_DEFAULT_SCREEN_DPI;
+            KINFO("Display device pixel ratio is: %.2f", state_ptr->device_pixel_ratio);
+
+            return 0;
         case WM_SIZE: {
             // Get the updated size.
             RECT r;
             GetClientRect(hwnd, &r);
             u32 width = r.right - r.left;
             u32 height = r.bottom - r.top;
+
+            {
+                HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+
+                MONITORINFO monitor_info = {0};
+                monitor_info.cbSize = sizeof(MONITORINFO);
+                if (!GetMonitorInfoA(monitor, &monitor_info)) {
+                    KWARN("Failed to get monitor info. ");
+                }
+
+                KINFO("monitor: %u", monitor_info.rcMonitor.left);
+            }
 
             // Fire the event. The application layer should pick this up, but not handle it
             // as it shouldn be visible to other parts of the application.

@@ -1,13 +1,13 @@
 #include "debug_console.h"
-#include "resources/ui_text.h"
 
-#include <core/console.h>
-#include <core/kmemory.h>
-#include <core/kstring.h>
 #include <containers/darray.h>
-
+#include <core/console.h>
 #include <core/event.h>
 #include <core/input.h>
+#include <core/kmemory.h>
+#include <core/kstring.h>
+
+#include "resources/ui_text.h"
 
 b8 debug_console_consumer_write(void* inst, log_level level, const char* message) {
     debug_console_state* state = (debug_console_state*)inst;
@@ -354,7 +354,7 @@ void debug_console_history_back(debug_console_state* state) {
     if (state) {
         u32 length = darray_length(state->history);
         if (length > 0) {
-            state->history_offset = KMIN(state->history_offset++, length - 1);
+            state->history_offset = KMIN(state->history_offset + 1, length - 1);
             ui_text_text_set(&state->entry_control, state->history[length - state->history_offset - 1].command);
         }
     }
@@ -364,7 +364,7 @@ void debug_console_history_forward(debug_console_state* state) {
     if (state) {
         u32 length = darray_length(state->history);
         if (length > 0) {
-            state->history_offset = KMAX(state->history_offset--, 0);
+            state->history_offset = KMAX(state->history_offset - 1, 0);
             ui_text_text_set(&state->entry_control, state->history[length - state->history_offset - 1].command);
         }
     }

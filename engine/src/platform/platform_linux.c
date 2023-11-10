@@ -1,43 +1,53 @@
+#include <X11/extensions/Xrender.h>
+#include <xcb/xproto.h>
+
+#include "math/kmath.h"
 #include "platform.h"
 
 // Linux platform layer.
 #if KPLATFORM_LINUX
 
-#include "core/logger.h"
-#include "core/event.h"
-#include "core/input.h"
-#include "core/kthread.h"
-#include "core/kmutex.h"
-#include "core/kmemory.h"
-#include "core/asserts.h"
-#include "core/kstring.h"
+#ifndef XRANDR_ROTATION_LEFT
+#define XRANDR_ROTATION_LEFT (1 << 1)
+#endif
+#ifndef XRANDR_ROTATION_RIGHT
+#define XRANDR_ROTATION_RIGHT (1 << 9)
+#endif
+
+#include <X11/XKBlib.h>    // sudo apt-get install libx11-dev
+#include <X11/Xlib-xcb.h>  // sudo apt-get install libxkbcommon-x11-dev libx11-xcb-dev
+#include <X11/Xlib.h>
+#include <X11/Xresource.h>
+#include <X11/extensions/Xrandr.h>
+#include <X11/keysym.h>
+#include <sys/time.h>
+#include <xcb/xcb.h>
 
 #include "containers/darray.h"
-
-#include <xcb/xcb.h>
-#include <X11/keysym.h>
-#include <X11/XKBlib.h>  // sudo apt-get install libx11-dev
-#include <X11/Xlib.h>
-#include <X11/Xlib-xcb.h>  // sudo apt-get install libxkbcommon-x11-dev libx11-xcb-dev
-#include <sys/time.h>
+#include "core/asserts.h"
+#include "core/event.h"
+#include "core/input.h"
+#include "core/kmemory.h"
+#include "core/kmutex.h"
+#include "core/kstring.h"
+#include "core/kthread.h"
+#include "core/logger.h"
 
 #if _POSIX_C_SOURCE >= 199309L
 #include <time.h>  // nanosleep
 #endif
 
-#include <pthread.h>
-#include <errno.h>        // For error reporting
-#include <sys/sysinfo.h>  // Processor info
-#include <sys/stat.h>
-#include <sys/sendfile.h>
-
+#include <errno.h>  // For error reporting
 #include <fcntl.h>
 #include <limits.h>
-#include <unistd.h>
-
-#include <stdlib.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
+#include <sys/sysinfo.h>  // Processor info
+#include <unistd.h>
 
 typedef struct linux_handle_info {
     xcb_connection_t* connection;
@@ -46,7 +56,7 @@ typedef struct linux_handle_info {
 
 typedef struct linux_file_watch {
     u32 id;
-    const char *file_path;
+    const char* file_path;
     long last_write_time;
 } linux_file_watch;
 
@@ -56,8 +66,10 @@ typedef struct platform_state {
     xcb_screen_t* screen;
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_win;
+    i32 screen_count;
     // darray
     linux_file_watch* watches;
+    f32 device_pixel_ratio;
 } platform_state;
 
 static platform_state* state_ptr;
@@ -74,6 +86,7 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
     }
 
     state_ptr = state;
+    state_ptr->device_pixel_ratio = 1.0f;
 
     // Connect to X
     state_ptr->display = XOpenDisplay(NULL);
@@ -94,8 +107,14 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
 
     // Loop through screens using iterator
     xcb_screen_iterator_t it = xcb_setup_roots_iterator(setup);
-    int screen_p = 0;
-    for (i32 s = screen_p; s > 0; s--) {
+    for (i32 s = 0; s < state_ptr->screen_count; ++s) {
+        /* f32 w_inches = it.data->width_in_millimeters * 0.0394;
+        f32 h_inches = it.data->height_in_millimeters * 0.0394;
+        f32 x_dpi = (f32)it.data->width_in_pixels / w_inches;
+
+        KINFO("Monitor '%s' has a DPI of %.2f for a device pixelratio of %0.2f", it.index, x_dpi, x_dpi / 96.0f);
+        // state_ptr->device_pixel_ratio = x_dpi / 96.0f;  // Default DPI is considered 96. */
+
         xcb_screen_next(&it);
     }
 
@@ -134,6 +153,101 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
         state_ptr->screen->root_visual,
         event_mask,
         value_list);
+
+    // NOTE: After much research and effort, it seems as though there is not a good, reliable, global solution
+    // to determine device pixel ratio using X, _in particular_ when using mixed HiDPI and normal DPI monitors.
+    // The commented code below _would_ work if the values reported by op_info->mm_width and op_info->mm_height
+    // were actually correct (they aren't, and the "solution" is to have the user manually set this in config
+    // files). To compound this issue, X treats the whole thing as one large "screen", and the DPI on _that_ isn't
+    // accurate either. For example, on a setup that has one known 96 DPI monitor and one known 192 DPI monitor,
+    // this reports... 144. Wrong on both accounts. This is supported on Wayland, supposedly, so if a Wayland
+    // backend ever gets added it'll be supported there. It's just not worth attempting on X11.
+    /*
+    // Get monitor info
+    XRRMonitorInfo* monitors = XRRGetMonitors(state_ptr->display, state_ptr->handle.window, true, &state_ptr->screen_count);
+    for (u32 i = 0; i < state_ptr->screen_count; ++i) {
+        if (monitors[i].noutput > 0) {
+            // XRRScreenResources* current_resources = XRRGetScreenResourcesCurrent(state_ptr->display, state_ptr->handle.window);
+            XRRScreenResources* resources = XRRGetScreenResources(state_ptr->display, state_ptr->handle.window);
+            for (u32 o = 0; o < monitors[i].noutput; ++o) {
+                RROutput op = monitors[i].outputs[o];
+                XRROutputInfo* op_info = XRRGetOutputInfo(state_ptr->display, resources, op);
+                if (op_info) {
+                    XRRCrtcInfo* crtc_info = XRRGetCrtcInfo(state_ptr->display, resources, op_info->crtc);
+                    if (crtc_info) {
+                        // find the mode
+                        for (i32 m = 0; m < resources->nmode; ++m) {
+                            const XRRModeInfo* mode_info = &resources->modes[m];
+                            if (mode_info->id == crtc_info->mode) {
+                                //
+                                XFixed scale_w = 0x10000, scale_h = 0x10000;
+                                XRRCrtcTransformAttributes* attr = 0;
+
+                                if (XRRGetCrtcTransform(state_ptr->display, op_info->crtc, &attr) && attr) {
+                                    scale_w = attr->currentTransform.matrix[0][0];
+                                    scale_h = attr->currentTransform.matrix[1][1];
+
+                                    f32 scale;
+                                    if (attr->currentTransform.matrix[0][0] == attr->currentTransform.matrix[1][1]) {
+                                        scale = XFixedToDouble(attr->currentTransform.matrix[0][0]);
+                                    } else {
+                                        scale = XFixedToDouble(attr->currentTransform.matrix[0][0] + attr->currentTransform.matrix[0][0]);
+                                    }
+
+                                    // scale = 1.0f / scale;
+                                    KTRACE("Scale before: %.2f", scale);
+                                    scale = range_convert_f32(scale, 0.0f, 1.0f, 1.0f, 2.0f);
+                                    KTRACE("Scale after: %.2f", scale);
+
+                                    // If rotated, flip actual w/h
+                                    i32 actual_w, actual_h;
+                                    f32 w_inches, h_inches;
+                                    if (crtc_info->rotation & (XRANDR_ROTATION_LEFT | XRANDR_ROTATION_RIGHT)) {
+                                        actual_w = mode_info->height;
+                                        actual_h = mode_info->width;
+                                        w_inches = op_info->mm_height * 0.0394f;
+                                        h_inches = op_info->mm_width * 0.0394f;
+                                    } else {
+                                        actual_w = mode_info->width;
+                                        actual_h = mode_info->height;
+                                        w_inches = op_info->mm_width * 0.0394f;
+                                        h_inches = op_info->mm_height * 0.0394f;
+                                    }
+                                    f32 dpi_x = (f32)actual_w / w_inches;
+                                    f32 dpi_y = (f32)actual_h / h_inches;
+
+                                    KTRACE("device_pixel_ratio x/y: %.2f, %.2f", dpi_x / 96.0f, dpi_y / 96.0f);
+
+                                    KTRACE("Scale x/y: %i/%i, actual w/h: %i/%i", scale_w >> 16, scale_h >> 16, actual_w, actual_h);
+                                    XFree(attr);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    const char* resource_string = XResourceManagerString(state_ptr->display);
+    XrmDatabase db;
+    XrmValue value;
+    char* type = 0;
+    f32 dpi = 0.0f;
+
+    XrmInitialize();
+    db = XrmGetStringDatabase(resource_string);
+    if (resource_string) {
+        KTRACE("Entire DB: '%s'", resource_string);
+        if (XrmGetResource(db, "Xft.dpi", "String", &type, &value) == true) {
+            if (value.addr) {
+                if (!string_to_f32(value.addr, &dpi)) {
+                    KERROR("Unable to parse DPI from Xft.dpi");
+                }
+            }
+        }
+    }
+    */
 
     // Change the title
     xcb_change_property(
@@ -475,8 +589,11 @@ b8 kmutex_create(kmutex* out_mutex) {
     }
 
     // Initialize
+    pthread_mutexattr_t mutex_attr;
+    pthread_mutexattr_init(&mutex_attr);
+    pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_t mutex;
-    i32 result = pthread_mutex_init(&mutex, 0);
+    i32 result = pthread_mutex_init(&mutex, &mutex_attr);
     if (result != 0) {
         KERROR("Mutex creation failure!");
         return false;
@@ -571,7 +688,7 @@ const char* platform_dynamic_library_extension(void) {
     return ".so";
 }
 
-const char *platform_dynamic_library_prefix(void) {
+const char* platform_dynamic_library_prefix(void) {
     return "./lib";
 }
 
@@ -676,7 +793,7 @@ close_handles:
     return ret_code;
 }
 
-static b8 register_watch(const char *file_path, u32 *out_watch_id) {
+static b8 register_watch(const char* file_path, u32* out_watch_id) {
     if (!state_ptr || !file_path || !out_watch_id) {
         if (out_watch_id) {
             *out_watch_id = INVALID_ID;
@@ -691,8 +808,8 @@ static b8 register_watch(const char *file_path, u32 *out_watch_id) {
 
     struct stat info;
     int result = stat(file_path, &info);
-    if(result != 0) {
-        if(errno == ENOENT) {
+    if (result != 0) {
+        if (errno == ENOENT) {
             // File doesn't exist. TODO: report?
         }
         return false;
@@ -700,7 +817,7 @@ static b8 register_watch(const char *file_path, u32 *out_watch_id) {
 
     u32 count = darray_length(state_ptr->watches);
     for (u32 i = 0; i < count; ++i) {
-        linux_file_watch *w = &state_ptr->watches[i];
+        linux_file_watch* w = &state_ptr->watches[i];
         if (w->id == INVALID_ID) {
             // Found a free slot to use.
             w->id = i;
@@ -732,17 +849,17 @@ static b8 unregister_watch(u32 watch_id) {
         return false;
     }
 
-    linux_file_watch *w = &state_ptr->watches[watch_id];
+    linux_file_watch* w = &state_ptr->watches[watch_id];
     w->id = INVALID_ID;
     u32 len = string_length(w->file_path);
-    kfree((void *)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+    kfree((void*)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
     w->file_path = 0;
     kzero_memory(&w->last_write_time, sizeof(long));
 
     return true;
 }
 
-b8 platform_watch_file(const char *file_path, u32 *out_watch_id) {
+b8 platform_watch_file(const char* file_path, u32* out_watch_id) {
     return register_watch(file_path, out_watch_id);
 }
 
@@ -757,13 +874,12 @@ static void platform_update_watches(void) {
 
     u32 count = darray_length(state_ptr->watches);
     for (u32 i = 0; i < count; ++i) {
-        linux_file_watch *f = &state_ptr->watches[i];
+        linux_file_watch* f = &state_ptr->watches[i];
         if (f->id != INVALID_ID) {
-
             struct stat info;
             int result = stat(f->file_path, &info);
-            if(result != 0) {
-                if(errno == ENOENT) {
+            if (result != 0) {
+                if (errno == ENOENT) {
                     // File doesn't exist. Which means it was deleted. Remove the watch.
                     event_context context = {0};
                     context.data.u32[0] = f->id;

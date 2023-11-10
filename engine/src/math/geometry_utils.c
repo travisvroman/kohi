@@ -115,9 +115,8 @@ void geometry_deduplicate_vertices(u32 vertex_count, vertex_3d *vertices,
     // Destroy temp array
     kfree(unique_verts, sizeof(vertex_3d) * vertex_count, MEMORY_TAG_ARRAY);
 
-    u32 removed_count = vertex_count - *out_vertex_count;
     KDEBUG("geometry_deduplicate_vertices: removed %d vertices, orig/now %d/%d.",
-           removed_count, vertex_count, *out_vertex_count);
+           vertex_count - *out_vertex_count, vertex_count, *out_vertex_count);
 }
 
 void terrain_geometry_generate_normals(u32 vertex_count, terrain_vertex *vertices, u32 index_count, u32 *indices) {

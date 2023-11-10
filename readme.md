@@ -24,6 +24,10 @@ You will need to have Clang and the Vulkan SDK installed:
  - Clang: https://releases.llvm.org/download.html
  - Vulkan SDK: https://vulkan.lunarg.com/
 
+The audio plugin requires an installatiion of OpenAL.
+ - Linux: use a package manager to install OpenAL, if not already installed (i.e. `sudo apt install openal` for Ubuntu or `sudo pacman -S openal` on Arch)
+ - macOS: install openal-soft via homebrew: `brew install openal-soft`. Note on M1 macs this installs to `/opt/homebrew/opt/openal-soft/`, where the `include`, `lib`, and `'bin` directories can be found. The `build-all.sh` script accounts for this version of the install.
+
 Note that you are free to use other compilers (such as gcc), but they are not officially supported at this time (although it shouldn't be much work to get them setup).
 
 See the setup videos in the series for Windows or Linux for details. macOS setup
@@ -66,3 +70,4 @@ All contributions are subject to review and may or may not be accepted, or have 
 
 ## .support me
 I am developing Kohi in my spare time. I don't have any sponsors at the moment. If you like my work, please feel free to support me over on [Patreon](https://patreon.com/travisvroman) or via [YouTube membership](https://www.youtube.com/TravisVroman/join). Your support is greatly appreciated and will be re-invested back into the project.
+

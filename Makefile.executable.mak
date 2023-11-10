@@ -40,9 +40,15 @@ else
         # LINUX
 		BUILD_PLATFORM := linux
 		EXTENSION := 
-		COMPILER_FLAGS := -Wall -Werror -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC
+		# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say
+		# otherwise are exported (i.e. via KAPI).
+		COMPILER_FLAGS :=-fvisibility=hidden -fpic -Wall -Werror -Wvla -Wno-missing-braces -fdeclspec
 		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
-		LINKER_FLAGS := -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Wl,-rpath,.
+		# NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
+		# These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
+		# here that would not on other platforms from not being exported (i.e. Windows)
+		# Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
+		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Wl,-rpath,.
 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
 		# directories with .h files
@@ -53,9 +59,13 @@ else
         # OSX
 		BUILD_PLATFORM := macos
 		EXTENSION := 
-		COMPILER_FLAGS := -Wall -Werror -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC
+		# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say
+		# otherwise are exported (i.e. via KAPI).
+		COMPILER_FLAGS :=-fvisibility=hidden -Wall -Werror -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC
 		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
-		LINKER_FLAGS := -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Wl,-rpath,.
+		# NOTE: Equivalent of the linux version above, this ensures that symbols linking against are resolved.
+		# Discovered this here: https://stackoverflow.com/questions/26971333/what-is-clangs-equivalent-to-no-undefined-gcc-flag
+		LINKER_FLAGS :=-Wl,-undefined,error -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Wl,-rpath,.
 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
 		# directories with .h files
@@ -77,10 +87,12 @@ endif
 # Defaults to debug unless release is specified.
 ifeq ($(TARGET),release)
 # release
+DEFINES += -DKRELEASE
+COMPILER_FLAGS += -MD -O2
 else
 # debug
 DEFINES += -D_DEBUG
-COMPILER_FLAGS += -g -MD
+COMPILER_FLAGS += -g -MD -O0
 LINKER_FLAGS += -g
 endif
 

@@ -3,6 +3,7 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "vulkan/vulkan_core.h"
 #include "vulkan_device.h"
 #include "vulkan_utils.h"
 
@@ -18,13 +19,19 @@ void vulkan_image_create(
     b32 create_view,
     VkImageAspectFlags view_aspect_flags,
     const char* name,
+    u32 mip_levels,
     vulkan_image* out_image) {
+    if (mip_levels < 1) {
+        KWARN("Mip levels must be >= 1. Defaulting to 1.");
+        mip_levels = 1;
+    }
     // Copy params
     out_image->width = width;
     out_image->height = height;
     out_image->memory_flags = memory_flags;
     out_image->name = string_duplicate(name);
-
+    out_image->mip_levels = mip_levels;
+    out_image->format = format;
     // Creation info.
     VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     switch (type) {
@@ -37,9 +44,9 @@ void vulkan_image_create(
 
     image_create_info.extent.width = width;
     image_create_info.extent.height = height;
-    image_create_info.extent.depth = 1;                                 // TODO: Support configurable depth.
-    image_create_info.mipLevels = 4;                                    // TODO: Support mip mapping
-    image_create_info.arrayLayers = type == TEXTURE_TYPE_CUBE ? 6 : 1;  // TODO: Support number of layers in the image.
+    image_create_info.extent.depth = 1;  // TODO: Support configurable depth.
+    image_create_info.mipLevels = out_image->mip_levels;
+    image_create_info.arrayLayers = type == TEXTURE_TYPE_CUBE ? 6 : 1;
     image_create_info.format = format;
     image_create_info.tiling = tiling;
     image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -107,7 +114,7 @@ void vulkan_image_view_create(
 
     // TODO: Make configurable
     view_create_info.subresourceRange.baseMipLevel = 0;
-    view_create_info.subresourceRange.levelCount = 1;
+    view_create_info.subresourceRange.levelCount = image->mip_levels;
     view_create_info.subresourceRange.baseArrayLayer = 0;
     view_create_info.subresourceRange.layerCount = type == TEXTURE_TYPE_CUBE ? 6 : 1;
 
@@ -134,7 +141,7 @@ void vulkan_image_transition_layout(
     barrier.image = image->handle;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.levelCount = image->mip_levels;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = type == TEXTURE_TYPE_CUBE ? 6 : 1;
 
@@ -192,6 +199,129 @@ void vulkan_image_transition_layout(
         0, 0,
         0, 0,
         1, &barrier);
+}
+
+b8 vulkan_image_mipmaps_generate(vulkan_context* context, vulkan_image* image, vulkan_command_buffer* command_buffer) {
+    if (image->mip_levels <= 1) {
+        KWARN("Attempted to generate mips for an image that isn't configured for them.");
+        return false;
+    }
+
+    // Check if the image format supports linear blitting.
+    VkFormatProperties format_properties;
+    vkGetPhysicalDeviceFormatProperties(context->device.physical_device, image->format, &format_properties);
+
+    if (!(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+        KWARN("Texture image format does not support linear blitting! Mipmaps cannot be created.");
+        return false;
+    }
+
+    // The same barrier can be used for all mip levels, albeit with some modifications for each one.
+    VkImageMemoryBarrier barrier = {0};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.image = image->handle;
+    barrier.srcQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.dstQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.levelCount = 1;
+
+    i32 mip_width = (i32)image->width;
+    i32 mip_height = (i32)image->height;
+
+    // Iterate each sub-mip level, starting at 1 (i.e. not the base level/full res image).
+    // Each mip level uses the previous level as source material for the blitting operation.
+    for (u32 i = 1; i < image->mip_levels; ++i) {
+        barrier.subresourceRange.baseMipLevel = i - 1;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+        // Transition the mip image subresource to a transfer layout.
+        vkCmdPipelineBarrier(
+            command_buffer->handle,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, 0,
+            0, 0,
+            1, &barrier);
+
+        // Setup the blit.
+        VkImageBlit blit = {0};
+        // Source offset is always in the upper-left corner.
+        blit.srcOffsets[0] = (VkOffset3D){0, 0, 0};
+        // The extents of the source mip level.
+        blit.srcOffsets[1] = (VkOffset3D){mip_width, mip_height, 1};
+        blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        // Source is the previous level.
+        blit.srcSubresource.mipLevel = i - 1;
+        blit.srcSubresource.baseArrayLayer = 0;
+        blit.srcSubresource.layerCount = 1;
+        // Destination offset is also always in the upper-left corner.
+        blit.dstOffsets[0] = (VkOffset3D){0, 0, 0};
+        // The destination extents are now half the width/height of the
+        // previous, unless that previous was already 1.
+        blit.dstOffsets[1] = (VkOffset3D){mip_width > 1 ? mip_width / 2 : 1, mip_height > 1 ? mip_height / 2 : 1, 1};
+        blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        // The destination is the current mip level.
+        blit.dstSubresource.mipLevel = i;
+        blit.dstSubresource.baseArrayLayer = 0;
+        blit.dstSubresource.layerCount = 1;
+
+        // Perform the blit for this layer.
+        vkCmdBlitImage(
+            command_buffer->handle,
+            image->handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            image->handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1, &blit,
+            VK_FILTER_LINEAR);
+
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        // Transition the previous mip layer's image subresource to a shader-readable layout.
+        vkCmdPipelineBarrier(
+            command_buffer->handle,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            0,
+            0, 0,
+            0, 0,
+            1, &barrier);
+
+        // Split the width and height in half for the next level, if there is one.
+        if (mip_width > 1) {
+            mip_width /= 2;
+        }
+        if (mip_height > 1) {
+            mip_height /= 2;
+        }
+    }
+
+    // Finally, transition the last mipmap level to a shader-readable layout.
+    // This would not have been handled in the above loop since that always transitions
+    // the previous layer.
+    barrier.subresourceRange.baseMipLevel = image->mip_levels - 1;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(
+        command_buffer->handle,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        0,
+        0, 0,
+        0, 0,
+        1, &barrier);
+
+    return true;
 }
 
 void vulkan_image_copy_from_buffer(

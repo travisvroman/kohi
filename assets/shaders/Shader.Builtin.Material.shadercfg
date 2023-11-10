@@ -3,7 +3,7 @@ version=1.0
 name=Shader.Builtin.Material
 renderpass=Renderpass.Builtin.World
 stages=vertex,fragment
-stagefiles=shaders/Builtin.MaterialShader.vert.spv,shaders/Builtin.MaterialShader.frag.spv
+stagefiles=shaders/Builtin.MaterialShader.vert.glsl,shaders/Builtin.MaterialShader.frag.glsl
 depth_test=1
 depth_write=1
 

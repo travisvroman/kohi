@@ -110,6 +110,4 @@ void skybox_destroy(skybox* sb) {
             KERROR("skybox_destroy() - Failed to successfully unload skybox before destruction.");
         }
     }
-
-    kzero_memory(sb, sizeof(skybox));
 }

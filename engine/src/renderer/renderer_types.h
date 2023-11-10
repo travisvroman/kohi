@@ -15,7 +15,7 @@ struct camera;
 typedef struct geometry_render_data {
     mat4 model;
     geometry* geometry;
-    u32 unique_id;
+    u64 unique_id;
     b8 winding_inverted;
 } geometry_render_data;
 
@@ -163,6 +163,12 @@ typedef enum renderbuffer_type {
     RENDERBUFFER_TYPE_STORAGE
 } renderbuffer_type;
 
+typedef enum renderbuffer_track_type {
+    RENDERBUFFER_TRACK_TYPE_NONE = 0,
+    RENDERBUFFER_TRACK_TYPE_FREELIST = 1,
+    RENDERBUFFER_TRACK_TYPE_LINEAR = 2
+} renderbuffer_track_type;
+
 typedef struct renderbuffer {
     /** @brief The name of the buffer, used for debugging purposes. */
     char* name;
@@ -170,6 +176,8 @@ typedef struct renderbuffer {
     renderbuffer_type type;
     /** @brief The total size of the buffer in bytes. */
     u64 total_size;
+    /** @brief indicates the allocation tracking type. */
+    renderbuffer_track_type track_type;
     /** @brief The amount of memory required to store the freelist. 0 if not used. */
     u64 freelist_memory_requirement;
     /** @brief The buffer freelist, if used. */
@@ -178,6 +186,8 @@ typedef struct renderbuffer {
     void* freelist_block;
     /** @brief Contains internal data for the renderer-API-specific buffer. */
     void* internal_data;
+    /** @brief The byte offset used for linear tracking. */
+    u64 offset;
 } renderbuffer;
 
 typedef enum renderer_config_flag_bits {
@@ -425,57 +435,6 @@ typedef struct renderer_plugin {
      * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
      */
     void (*texture_read_pixel)(struct renderer_plugin* plugin, texture* t, u32 x, u32 y, u8** out_rgba);
-
-    /**
-     * @brief Creates renderer-backend-API-specific internal resources for the given geometry using
-     * the data provided.
-     *
-     * @param plugin A pointer to the renderer plugin interface.
-     * @param g A pointer to the geometry to be created.
-     * @return True on success; otherwise false.
-     */
-    b8 (*geometry_create)(struct renderer_plugin* plugin, geometry* g);
-
-    /**
-     * @brief Acquires renderer-backend-API-specific internal resources for the given geometry and
-     * uploads data to the GPU.
-     *
-     * @param plugin A pointer to the renderer plugin interface.
-     * @param g A pointer to the geometry to be initialized.
-     * @param vertex_offset The offset in bytes from the beginning of the geometry's vertex data.
-     * @param vertex_size The amount in bytes of vertex data to be uploaded.
-     * @param index_offset The offset in bytes from the beginning of the geometry's index data.
-     * @param index_size The amount in bytes of index data to be uploaded.
-     * @return True on success; otherwise false.
-     */
-    b8 (*geometry_upload)(struct renderer_plugin* plugin, geometry* g, u32 vertex_offset, u32 vertex_size, u32 index_offset, u32 index_size);
-
-    /**
-     * @brief Updates vertex data in the given geometry with the provided data in the given range.
-     *
-     * @param plugin A pointer to the renderer plugin interface.
-     * @param g A pointer to the geometry to be created.
-     * @param offset The offset in bytes to update. 0 if updating from the beginning.
-     * @param vertex_count The number of vertices which will be updated.
-     * @param vertices The vertex data.
-     */
-    void (*geometry_vertex_update)(struct renderer_plugin* plugin, geometry* g, u32 offset, u32 vertex_count, void* vertices);
-
-    /**
-     * @brief Destroys the given geometry, releasing internal resources.
-     *
-     * @param plugin A pointer to the renderer plugin interface.
-     * @param g A pointer to the geometry to be destroyed.
-     */
-    void (*geometry_destroy)(struct renderer_plugin* plugin, geometry* g);
-
-    /**
-     * @brief Draws the given geometry. Should only be called inside a renderpass, within a frame.
-     *
-     * @param plugin A pointer to the renderer plugin interface.
-     * @param data A pointer to the render data of the geometry to be drawn.
-     */
-    void (*geometry_draw)(struct renderer_plugin* plugin, geometry_render_data* data);
 
     /**
      * @brief Creates internal shader resources using the provided parameters.

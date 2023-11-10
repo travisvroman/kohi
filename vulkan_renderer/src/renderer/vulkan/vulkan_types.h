@@ -19,6 +19,7 @@
 #include "core/asserts.h"
 #include "defines.h"
 #include "renderer/renderer_types.h"
+#include "vulkan/vulkan_core.h"
 
 /**
  * @brief Checks the given expression's return value against VK_SUCCESS.
@@ -157,12 +158,16 @@ typedef struct vulkan_image {
     VkMemoryRequirements memory_requirements;
     /** @brief Memory property flags */
     VkMemoryPropertyFlags memory_flags;
+    /** @brief The format of the image. */
+    VkFormat format;
     /** @brief The image width. */
     u32 width;
     /** @brief The image height. */
     u32 height;
     /** @brief The name of the image. */
     char* name;
+    /** The number of mipmaps to be generated for this image. Must always be at least 1. */
+    u32 mip_levels;
 } vulkan_image;
 
 /** @brief Represents the possible states of a renderpass. */
@@ -338,29 +343,6 @@ typedef struct vulkan_pipeline {
  * @todo TODO: make configurable
  */
 #define VULKAN_MAX_MATERIAL_COUNT 1024
-
-/**
- * @brief Max number of simultaneously uploaded geometries
- * @todo TODO: make configurable
- */
-#define VULKAN_MAX_GEOMETRY_COUNT 4096
-
-/**
- * @brief Internal buffer data for geometry. This data gets loaded
- * directly into a buffer.
- */
-typedef struct vulkan_geometry_data {
-    /** @brief The unique geometry identifier. */
-    u32 id;
-    /** @brief The geometry generation. Incremented every time the geometry data changes. */
-    u32 generation;
-
-    /** @brief The offset in bytes in the vertex buffer. */
-    u64 vertex_buffer_offset;
-
-    /** @brief The offset in bytes in the index buffer. */
-    u64 index_buffer_offset;
-} vulkan_geometry_data;
 
 /**
  * @brief Max number of UI control instances
@@ -550,6 +532,9 @@ typedef struct vulkan_shader {
 
 } vulkan_shader;
 
+// Forward declare shaderc compiler.
+struct shaderc_compiler;
+
 /**
  * @brief The overall Vulkan context for the backend. Holds and maintains
  * global renderer backend state, Vulkan instance, etc.
@@ -609,11 +594,6 @@ typedef struct vulkan_context {
     /** @brief The swapchain. */
     vulkan_swapchain swapchain;
 
-    /** @brief The object vertex buffer, used to hold geometry vertices. */
-    renderbuffer object_vertex_buffer;
-    /** @brief The object index buffer, used to hold geometry indices. */
-    renderbuffer object_index_buffer;
-
     /** @brief The graphics command buffers, one per frame. @note: darray */
     vulkan_command_buffer* graphics_command_buffers;
 
@@ -628,9 +608,6 @@ typedef struct vulkan_context {
     /** @brief The in-flight fences, used to indicate to the application when a frame is busy/ready. */
     VkFence in_flight_fences[2];
 
-    /** @brief Holds pointers to fences which exist and are owned elsewhere, one per frame. */
-    VkFence images_in_flight[3];
-
     /** @brief The current image index. */
     u32 image_index;
 
@@ -642,14 +619,14 @@ typedef struct vulkan_context {
 
     b8 render_flag_changed;
 
-    /** @brief The A collection of loaded geometries. @todo TODO: make dynamic */
-    vulkan_geometry_data geometries[VULKAN_MAX_GEOMETRY_COUNT];
-
     /** @brief Render targets used for world rendering. @note One per frame. */
     render_target world_render_targets[3];
 
     /** @brief Indicates if multi-threading is supported by this device. */
     b8 multithreading_enabled;
+
+    /** @brief Collection of samplers. darray */
+    VkSampler* samplers;
 
     /**
      * @brief A function pointer to find a memory index of the given type and with the given properties.
@@ -668,4 +645,9 @@ typedef struct vulkan_context {
 
     /** @brief A resusable staging buffer to transfer data from a resource to a GPU-only buffer. */
     renderbuffer staging;
+
+    /**
+     * Used for dynamic compilation of vulkan shaders (using the shaderc lib.)
+     */
+    struct shaderc_compiler* shader_compiler;
 } vulkan_context;

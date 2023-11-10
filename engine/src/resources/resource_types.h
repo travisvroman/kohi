@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "core/identifier.h"
 #include "math/math_types.h"
 
 #define TERRAIN_MAX_MATERIAL_COUNT 4
@@ -37,6 +38,8 @@ typedef enum resource_type {
     RESOURCE_TYPE_SIMPLE_SCENE,
     /** @brief Terrain resource type. */
     RESOURCE_TYPE_TERRAIN,
+    /** @brief Audio resource type. */
+    RESOURCE_TYPE_AUDIO,
     /** @brief Custom resource type. Used by loaders outside the core engine. */
     RESOURCE_TYPE_CUSTOM
 } resource_type;
@@ -87,6 +90,12 @@ typedef struct image_resource_data {
     u32 height;
     /** @brief The pixel data of the image. */
     u8 *pixels;
+    /**
+     * @brief The number of mip levels to be generated for this
+     * image resource. Should be passed on to the texture using it.
+     * Must always be at least 1.
+     */
+    u32 mip_levels;
 } image_resource_data;
 
 /** @brief Parameters used when loading an image. */
@@ -174,6 +183,8 @@ typedef struct texture {
     char name[TEXTURE_NAME_MAX_LENGTH];
     /** @brief The raw texture data (pixels). */
     void *internal_data;
+    /** @brief The number of mip maps the internal texture has. Must always be at least 1. */
+    u32 mip_levels;
 } texture;
 
 /** @brief Represents supported texture filtering modes. */
@@ -196,6 +207,18 @@ typedef enum texture_repeat {
  * other properties.
  */
 typedef struct texture_map {
+    /**
+     * @brief The cached generation of the assigned texture.
+     * Used to determine when to regenerate this texture map's
+     * resources when a texture's generation changes (as this could
+     * be required if, say, a texture's mip levels change).
+     * */
+    u32 generation;
+    /**
+     * @brief Cached mip map levels. Should match assigned
+     * texture. Must always be at least 1.
+     */
+    u32 mip_levels;
     /** @brief A pointer to a texture. */
     texture *texture;
     /** @brief Texture filtering mode for minification. */
@@ -208,9 +231,8 @@ typedef struct texture_map {
     texture_repeat repeat_v;
     /** @brief The repeat mode on the W axis (or Z, or U) */
     texture_repeat repeat_w;
-    /** @brief A pointer to internal, render API-specific data. Typically the
-     * internal sampler. */
-    void *internal_data;
+    /** @brief An identifier used for internal resource lookups/management. */
+    u32 internal_id;
 } texture_map;
 
 typedef struct font_glyph {
@@ -289,9 +311,6 @@ struct material;
 typedef struct geometry {
     /** @brief The geometry identifier. */
     u32 id;
-    /** @brief The internal geometry identifier, used by the renderer backend to
-     * map to internal resources. */
-    u32 internal_id;
     /** @brief The geometry generation. Incremented every time the geometry
      * changes. */
     u16 generation;
@@ -306,6 +325,8 @@ typedef struct geometry {
     u32 vertex_element_size;
     /** @brief The vertex data. */
     void *vertices;
+    /** @brief The offset from the beginning of the vertex buffer. */
+    u64 vertex_buffer_offset;
 
     /** @brief The index count. */
     u32 index_count;
@@ -313,6 +334,8 @@ typedef struct geometry {
     u32 index_element_size;
     /** @brief The index data. */
     void *indices;
+    /** @brief The offset from the beginning of the index buffer. */
+    u64 index_buffer_offset;
 
     /** @brief The geometry name. */
     char name[GEOMETRY_NAME_MAX_LENGTH];
@@ -332,7 +355,7 @@ typedef struct mesh_config {
 typedef struct mesh {
     char *name;
     mesh_config config;
-    u32 unique_id;
+    identifier id;
     u8 generation;
     u16 geometry_count;
     geometry **geometries;
