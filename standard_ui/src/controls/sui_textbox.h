@@ -7,7 +7,6 @@
 /*
  * TODO: Textbox items
  *
- * - The ability to edit (i.e. enter or remove text) from any position in the textbox.
  * - The ability to hightlight text, then add/remove/overwrite highlighted text.
  * - Clipping
  * - The ability to "scroll" left/right in Textbox in overflow cases.
@@ -21,6 +20,9 @@ typedef struct sui_textbox_internal_data {
     u64 frame_number;
     u8 draw_index;
     sui_control content_label;
+    sui_control cursor;
+    u32 cursor_position;
+    u32 text_view_offset;
 } sui_textbox_internal_data;
 
 KAPI b8 sui_textbox_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control);

@@ -406,6 +406,114 @@ b8 font_system_verify_atlas(font_data* font, const char* text) {
     return false;
 }
 
+vec2 font_system_measure_string(font_data* font, const char* text) {
+    vec2 extents = {0};
+
+    u32 char_length = string_length(text);
+    u32 text_length_utf8 = string_utf8_length(text);
+
+    f32 x = 0;
+    f32 y = 0;
+
+    // Take the length in chars and get the correct codepoint from it.
+    for (u32 c = 0, uc = 0; c < char_length; ++c) {
+        i32 codepoint = text[c];
+
+        // Continue to next line for newline.
+        if (codepoint == '\n') {
+            if (x > extents.x) {
+                extents.x = x;
+            }
+            x = 0;
+            y += font->line_height;
+            // Increment utf-8 character count.
+            uc++;
+            continue;
+        }
+
+        if (codepoint == '\t') {
+            x += font->tab_x_advance;
+            uc++;
+            continue;
+        }
+
+        // NOTE: UTF-8 codepoint handling.
+        u8 advance = 0;
+        if (!bytes_to_codepoint(text, c, &codepoint, &advance)) {
+            KWARN("Invalid UTF-8 found in string, using unknown codepoint of -1");
+            codepoint = -1;
+        }
+
+        font_glyph* g = 0;
+        for (u32 i = 0; i < font->glyph_count; ++i) {
+            if (font->glyphs[i].codepoint == codepoint) {
+                g = &font->glyphs[i];
+                break;
+            }
+        }
+
+        if (!g) {
+            // If not found, use the codepoint -1
+            codepoint = -1;
+            for (u32 i = 0; i < font->glyph_count; ++i) {
+                if (font->glyphs[i].codepoint == codepoint) {
+                    g = &font->glyphs[i];
+                    break;
+                }
+            }
+        }
+
+        if (g) {
+            // Try to find kerning
+            i32 kerning = 0;
+
+            // Get the offset of the next character. If there is no advance, move forward one,
+            // otherwise use advance as-is.
+            u32 offset = c + advance;  //(advance < 1 ? 1 : advance);
+            if (offset < text_length_utf8 - 1) {
+                // Get the next codepoint.
+                i32 next_codepoint = 0;
+                u8 advance_next = 0;
+
+                if (!bytes_to_codepoint(text, offset, &next_codepoint, &advance_next)) {
+                    KWARN("Invalid UTF-8 found in string, using unknown codepoint of -1");
+                    codepoint = -1;
+                } else {
+                    for (u32 i = 0; i < font->kerning_count; ++i) {
+                        font_kerning* k = &font->kernings[i];
+                        if (k->codepoint_0 == codepoint && k->codepoint_1 == next_codepoint) {
+                            kerning = k->amount;
+                        }
+                    }
+                }
+            }
+
+            x += g->x_advance + kerning;
+        } else {
+            KERROR("Unable to find unknown codepoint. Skipping.");
+            // Increment utf-8 character count.
+            uc++;
+            continue;
+        }
+
+        // Now advance c
+        c += advance - 1;  // Subtracting 1 because the loop always increments once for single-byte anyway.
+        // Increment utf-8 character count.
+        uc++;
+    }
+
+    // One last check in case of no more newlines.
+    if (x > extents.x) {
+        extents.x = x;
+    }
+
+    // Since y starts 0-based, we need to add one more to make it 1-line based.
+    y += font->line_height;
+    extents.y = y;
+
+    return extents;
+}
+
 static b8 setup_font_data(font_data* font) {
     // Create map resources
     font->atlas.filter_magnify = font->atlas.filter_minify = TEXTURE_FILTER_MODE_LINEAR;

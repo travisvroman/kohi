@@ -6,6 +6,7 @@ Changelog
   - Moved DebugConsole to Standard UI.
   - Resolved several DebugConsole bugs, in particular ones involving commands and command history.
   - Modified the Windows build process to use incremental linking to speed things up.
+  - Added cursor to textbox control. Fixed typing, backspace, delete and left/right navigation.
 
 - 0.3x - Changelog started at this point to track change list. The major changes here are:
   - Fixed build process for both debug _and_ release builds, including a few required code changes.

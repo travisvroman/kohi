@@ -121,3 +121,11 @@ KAPI b8 font_system_release(struct ui_text* text);
  * @return True on success; otherwise false.
  */
 KAPI b8 font_system_verify_atlas(font_data* font, const char* text);
+
+/**
+ * @brief Measures the given string to find out how large it is at the widest/tallest point.
+ *
+ * @param font A pointer to the font to use for measuring.
+ * @param text The text to be measured.
+ */
+KAPI vec2 font_system_measure_string(font_data* font, const char* text);

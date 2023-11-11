@@ -172,6 +172,10 @@ KAPI i32 string_index_of(const char* str, char c);
  */
 KAPI i32 string_index_of_str(const char* str_0, const char* str_1);
 
+KAPI void string_insert_char_at(char* dest, const char* src, u32 pos, char c);
+KAPI void string_insert_str_at(char* dest, const char* src, u32 pos, const char* str);
+KAPI void string_remove_at(char* dest, const char* src, u32 pos, u32 length);
+
 /**
  * @brief Attempts to parse a transform from the provided string.
  * If the string contains 10 elements, rotation is parsed as quaternion.

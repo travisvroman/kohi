@@ -11,9 +11,41 @@
 #include <renderer/renderer_frontend.h>
 #include <systems/shader_system.h>
 
+#include "controls/sui_panel.h"
+#include "core/input.h"
+#include "resources/resource_types.h"
 #include "sui_label.h"
+#include "systems/font_system.h"
 
 static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context);
+
+static f32 sui_textbox_calculate_cursor_pos(u32 string_pos, u32 string_view_offset, const char* full_string, font_data* font) {
+    if (string_pos == 0) {
+        return 0;
+    }
+    // Measure font string based on the mid of the string starting at string_view_offset to string_pos using full_string and font.
+    char* mid_target = string_duplicate(full_string);
+    u32 original_length = string_length(mid_target);
+    string_mid(mid_target, full_string, string_view_offset, string_pos - string_view_offset);
+
+    vec2 size = font_system_measure_string(font, mid_target);
+    KTRACE("measure string x/y: %.2f/%.2f", size.x, size.y);
+
+    // Make sure to cleanup the string.
+    kfree(mid_target, sizeof(char) * original_length + 1, MEMORY_TAG_STRING);
+
+    // Use the x-axis of the mesurement to place the cursor.
+    return size.x;
+}
+
+static void sui_textbox_update_cursor_position(sui_control* self) {
+    sui_textbox_internal_data* typed_data = self->internal_data;
+    sui_label_internal_data* label_data = typed_data->content_label.internal_data;
+    vec3 pos = {0};
+    pos.x = typed_data->nslice.corner_size.x + sui_textbox_calculate_cursor_pos(typed_data->cursor_position, typed_data->text_view_offset, label_data->text, label_data->data);
+    pos.y = 2.0f;
+    transform_position_set(&typed_data->cursor.xform, pos);
+}
 
 b8 sui_textbox_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control) {
     if (!sui_base_control_create(name, out_control)) {
@@ -42,7 +74,22 @@ b8 sui_textbox_control_create(const char* name, font_type type, const char* font
 
     out_control->name = string_duplicate(name);
 
-    return sui_label_control_create("testbed_UTF_test_sys_text", type, font_name, font_size, text, &typed_data->content_label);
+    char buffer[512] = {0};
+    string_format(buffer, "%s_textbox_internal_label", name);
+    if (!sui_label_control_create(buffer, type, font_name, font_size, text, &typed_data->content_label)) {
+        KERROR("Failed to create internal label control for textbox. Textbox creation failed.");
+        return false;
+    }
+
+    // Use a panel as the cursor.
+    kzero_memory(buffer, sizeof(char) * 512);
+    string_format(buffer, "%s_textbox_cursor_panel", name);
+    if (!sui_panel_control_create(buffer, (vec2){3.0f, font_size}, &typed_data->cursor)) {
+        KERROR("Failed to create internal cursor control for textbox. Textbox creation failed.");
+        return false;
+    }
+
+    return true;
 }
 
 void sui_textbox_control_destroy(struct sui_control* self) {
@@ -106,7 +153,8 @@ b8 sui_textbox_control_load(struct sui_control* self) {
     shader* s = shader_system_get("Shader.StandardUI");
     renderer_shader_instance_resources_acquire(s, 1, maps, &typed_data->instance_id);
 
-    if (!sui_label_control_load(&typed_data->content_label)) {
+    // Load up a label control to use as the text.
+    if (!typed_data->content_label.load(&typed_data->content_label)) {
         KERROR("Failed to setup label within textbox.");
         return false;
     }
@@ -123,6 +171,28 @@ b8 sui_textbox_control_load(struct sui_control* self) {
             typed_data->content_label.is_active = true;
             if (!standard_ui_system_update_active(typed_state, &typed_data->content_label)) {
                 KERROR("Unable to update active state for textbox system text.");
+            }
+        }
+    }
+
+    // Load up a panel control for the cursor.
+    if (!typed_data->cursor.load(&typed_data->cursor)) {
+        KERROR("Failed to setup cursor within textbox.");
+        return false;
+    }
+
+    if (!standard_ui_system_register_control(typed_state, &typed_data->cursor)) {
+        KERROR("Unable to register control.");
+    } else {
+        if (!standard_ui_system_control_add_child(typed_state, self, &typed_data->cursor)) {
+            KERROR("Failed to parent textbox system text.");
+        } else {
+            sui_label_internal_data* label_data = typed_data->content_label.internal_data;
+            // Set an initial position.
+            transform_position_set(&typed_data->cursor.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 4.0f, 0.0f});
+            typed_data->cursor.is_active = true;
+            if (!standard_ui_system_update_active(typed_state, &typed_data->cursor)) {
+                KERROR("Unable to update active state for textbox cursor.");
             }
         }
     }
@@ -175,7 +245,15 @@ b8 sui_textbox_control_render(struct sui_control* self, struct frame_data* p_fra
         darray_push(render_data->renderables, renderable);
     }
 
-    return sui_label_control_render(&typed_data->content_label, p_frame_data, render_data);
+    if (!typed_data->content_label.render(&typed_data->content_label, p_frame_data, render_data)) {
+        KERROR("Failed to render content label for textbox '%s'", self->name);
+        return false;
+    }
+    if (!typed_data->cursor.render(&typed_data->cursor, p_frame_data, render_data)) {
+        KERROR("Failed to render cursor for textbox '%s'", self->name);
+        return false;
+    }
+    return true;
 }
 
 const char* sui_textbox_text_get(struct sui_control* self) {
@@ -236,14 +314,38 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
     if (code == EVENT_CODE_KEY_PRESSED) {
         b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT);
 
+        const char* entry_control_text = sui_label_text_get(&typed_data->content_label);
+        u32 len = string_length(entry_control_text);
         if (key_code == KEY_BACKSPACE) {
-            const char* entry_control_text = sui_label_text_get(&typed_data->content_label);
-            u32 len = string_length(entry_control_text);
-            if (len > 0) {
+            if (len > 0 && typed_data->cursor_position > 0) {
                 char* str = string_duplicate(entry_control_text);
-                str[len - 1] = 0;
+                string_remove_at(str, entry_control_text, typed_data->cursor_position - 1, 1);  // TODO: selected chars
                 sui_label_text_set(&typed_data->content_label, str);
                 kfree(str, len + 1, MEMORY_TAG_STRING);
+                // TODO: "view scrolling" when outside box bounds.
+                typed_data->cursor_position--;
+                sui_textbox_update_cursor_position(self);
+            }
+        } else if (key_code == KEY_DELETE) {
+            if (len > 0 && typed_data->cursor_position < len) {
+                char* str = string_duplicate(entry_control_text);
+                string_remove_at(str, entry_control_text, typed_data->cursor_position, 1);  // TODO: selected chars
+                sui_label_text_set(&typed_data->content_label, str);
+                kfree(str, len + 1, MEMORY_TAG_STRING);
+                sui_textbox_update_cursor_position(self);
+            }
+        } else if (key_code == KEY_LEFT) {
+            if (typed_data->cursor_position > 0) {
+                typed_data->cursor_position--;
+                // TODO: "view scrolling" when outside box bounds.
+                sui_textbox_update_cursor_position(self);
+            }
+        } else if (key_code == KEY_RIGHT) {
+            // NOTE: cursor position can go past the end of the str so backspacing works right.
+            if (typed_data->cursor_position < len) {
+                typed_data->cursor_position++;
+                // TODO: "view scrolling" when outside box bounds.
+                sui_textbox_update_cursor_position(self);
             }
         } else {
             // Use A-Z and 0-9 as-is.
@@ -313,9 +415,14 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
                 const char* entry_control_text = sui_label_text_get(&typed_data->content_label);
                 u32 len = string_length(entry_control_text);
                 char* new_text = kallocate(len + 2, MEMORY_TAG_STRING);
-                string_format(new_text, "%s%c", entry_control_text, char_code);
+
+                string_insert_char_at(new_text, entry_control_text, typed_data->cursor_position, char_code);
+                /* string_format(new_text, "%s%c", entry_control_text, char_code); */
+
                 sui_label_text_set(&typed_data->content_label, new_text);
-                kfree(new_text, len + 1, MEMORY_TAG_STRING);
+                kfree(new_text, len + 2, MEMORY_TAG_STRING);
+                typed_data->cursor_position++;
+                sui_textbox_update_cursor_position(self);
             }
         }
     }
