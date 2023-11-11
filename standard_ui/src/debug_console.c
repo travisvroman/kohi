@@ -6,10 +6,13 @@
 #include <core/input.h>
 #include <core/kmemory.h>
 #include <core/kstring.h>
+#include <core/systems_manager.h>
 #include <math/transform.h>
+#include <resources/resource_types.h>
 
-#include "core/systems_manager.h"
-#include "resources/resource_types.h"
+#include "controls/sui_label.h"
+#include "controls/sui_panel.h"
+#include "controls/sui_textbox.h"
 #include "standard_ui_system.h"
 
 static void debug_console_entry_box_on_key(sui_control* self, sui_keyboard_event evt);
@@ -25,7 +28,7 @@ b8 debug_console_consumer_write(void* inst, log_level level, const char* message
         // just output them because something truly terrible could prevent this
         // split from happening.
         if (level <= LOG_LEVEL_ERROR) {
-            darray_push(state->lines, message);
+            darray_push(state->lines, string_duplicate(message));
             state->dirty = true;
             return true;
         }
@@ -67,7 +70,7 @@ void debug_console_create(debug_console_state* out_console_state) {
         out_console_state->lines = darray_create(char*);
         out_console_state->visible = false;
         out_console_state->history = darray_create(command_history_entry);
-        out_console_state->history_offset = 0;
+        out_console_state->history_offset = -1;
         out_console_state->loaded = false;
 
         // NOTE: update the text based on number of lines to display and
@@ -231,13 +234,15 @@ static void debug_console_entry_box_on_key(sui_control* self, sui_keyboard_event
             u32 len = string_length(entry_control_text);
             if (len > 0) {
                 // Keep the command in the history list.
-                command_history_entry entry;
+                command_history_entry entry = {0};
                 entry.command = string_duplicate(entry_control_text);
-                darray_push(((debug_console_state*)self->user_data)->history, entry);
+                if (entry.command) {
+                    darray_push(((debug_console_state*)self->user_data)->history, entry);
 
-                // Execute the command and clear the text.
-                if (!console_command_execute(entry_control_text)) {
-                    // TODO: handle error?
+                    // Execute the command and clear the text.
+                    if (!console_command_execute(entry_control_text)) {
+                        // TODO: handle error?
+                    }
                 }
                 // Clear the text.
                 sui_textbox_text_set(self, "");
@@ -343,23 +348,27 @@ void debug_console_move_to_bottom(debug_console_state* state) {
         state->line_offset = 0;
     }
 }
-// TODO: Investigate this not working quite right...
+
 void debug_console_history_back(debug_console_state* state) {
     if (state) {
-        u32 length = darray_length(state->history);
+        i32 length = darray_length(state->history);
         if (length > 0) {
             state->history_offset = KMIN(state->history_offset + 1, length - 1);
-            sui_textbox_text_set(&state->entry_textbox, state->history[length - state->history_offset - 1].command);
+            i32 idx = length - state->history_offset - 1;
+            sui_textbox_text_set(&state->entry_textbox, state->history[idx].command);
         }
     }
 }
 
 void debug_console_history_forward(debug_console_state* state) {
     if (state) {
-        u32 length = darray_length(state->history);
+        i32 length = darray_length(state->history);
         if (length > 0) {
-            state->history_offset = KMAX(state->history_offset - 1, 0);
-            sui_textbox_text_set(&state->entry_textbox, state->history[length - state->history_offset - 1].command);
+            state->history_offset = KMAX(state->history_offset - 1, -1);
+            i32 idx = length - state->history_offset - 1;
+            sui_textbox_text_set(
+                &state->entry_textbox,
+                state->history_offset == -1 ? "" : state->history[idx].command);
         }
     }
 }

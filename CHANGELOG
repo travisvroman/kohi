@@ -1,5 +1,12 @@
 Changelog
 
+- 0.4
+  - Added first pass of Standard UI system, including panel, button, label, and textbox controls.
+  - Removed ui_text and replaced with sui_label_control as part of the Standard UI system.
+  - Moved DebugConsole to Standard UI.
+  - Resolved several DebugConsole bugs, in particular ones involving commands and command history.
+  - Modified the Windows build process to use incremental linking to speed things up.
+
 - 0.3x - Changelog started at this point to track change list. The major changes here are:
   - Fixed build process for both debug _and_ release builds, including a few required code changes.
   - Release builds now properly make no-ops out of KTRACE and KDEBUG log messages.
@@ -16,7 +23,6 @@ Changelog
   - Fixed a state checking issue in simple scene updates to trigger an unload and return if an unload has been requested.
   - Added device pixel ratio logic for Windows and macOS.
   - Added event handler for monitor changing on macOS. This helps capture DPI changes when switching monitors.
-  - Removed ui_text and replaced with sui_label_control as part of the Standard UI system.
     
 - 0.2x - Added audio plugin. Build versioning wasn't fixed yet, though, so this wasn't a readily visible
     change in version number. Also recieved a plethora of nondescript bugfixes and performance tweaks.

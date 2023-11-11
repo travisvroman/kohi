@@ -28,6 +28,9 @@
 #include "testbed_types.h"
 
 // Standard UI.
+#include <controls/sui_button.h>
+#include <controls/sui_label.h>
+#include <controls/sui_panel.h>
 #include <passes/ui_pass.h>
 #include <standard_ui_system.h>
 
@@ -403,15 +406,10 @@ static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_
     return false;  // Allow other event handlers to recieve this event.
 }
 
-static b8 sui_test_button_on_click(struct sui_control* self, struct sui_mouse_event event) {
-    if (!self) {
-        return false;
+static void sui_test_button_on_click(struct sui_control* self, struct sui_mouse_event event) {
+    if (self) {
+        KDEBUG("Clicked '%s'!", self->name);
     }
-
-    KDEBUG("Clicked '%s'!", self->name);
-
-    // TODO: configurable event propagation.
-    return true;
 }
 
 u64 application_state_size(void) {
@@ -738,20 +736,20 @@ b8 application_initialize(struct application* game_inst) {
     state->test_emitter.position = vec3_create(10.0f, 0.8f, 20.0f);
 
     // Set some channel volumes.
-    audio_system_master_volume_set(0.7f);
+    audio_system_master_volume_set(0.9f);
     audio_system_channel_volume_set(0, 1.0f);
     audio_system_channel_volume_set(1, 0.75f);
     audio_system_channel_volume_set(2, 0.50f);
     audio_system_channel_volume_set(3, 0.25);
     audio_system_channel_volume_set(4, 0.0f);
 
-    audio_system_channel_volume_set(7, 0.4f);
+    audio_system_channel_volume_set(7, 0.9f);
 
     // Try playing the emitter.
     /* if (!audio_system_channel_emitter_play(6, &state->test_emitter)) {
         KERROR("Failed to play test emitter.");
-    } */
-    /* audio_system_channel_play(7, state->test_music, true); */
+    }
+    audio_system_channel_play(7, state->test_music, true); */
 
     state->running = true;
 

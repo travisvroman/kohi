@@ -19,7 +19,7 @@ typedef struct debug_console_state {
     char** lines;
     // darray
     command_history_entry* history;
-    u32 history_offset;
+    i32 history_offset;
 
     b8 dirty;
     b8 visible;
