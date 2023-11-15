@@ -533,12 +533,12 @@ static b8 select_physical_device(vulkan_context* context) {
             context->device.supports_device_local_host_visible = supports_device_local_host_visible;
 
             // The device may or may not support this, so save that here.
-            if (dynamic_state_next.extendedDynamicState) {
+            if (context->device.api_major >= 1 && context->device.api_minor > 2) {
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT;
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT;
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STENCIL_BIT;
             }
-            if (context->device.api_major > 1 && context->device.api_minor > 2) {
+            if (dynamic_state_next.extendedDynamicState) {
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT;
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT;
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STENCIL_BIT;
