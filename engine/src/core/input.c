@@ -26,6 +26,7 @@ typedef struct input_state {
 
     stack keymap_stack;
     // keymap active_keymap;
+    b8 allow_key_repeats;
 } input_state;
 
 // Internal input state pointer
@@ -44,6 +45,8 @@ b8 input_system_initialize(u64* memory_requirement, void* state, void* config) {
     // Create the keymap stack and an active keymap to apply to.
     stack_create(&state_ptr->keymap_stack, sizeof(keymap));
     // state_ptr->active_keymap = keymap_create();
+
+    state_ptr->allow_key_repeats = false;
 
     KINFO("Input subsystem initialized.");
 
@@ -117,11 +120,16 @@ static b8 check_modifiers(keymap_modifier modifiers) {
 }
 
 void input_process_key(keys key, b8 pressed) {
+    if (!state_ptr) {
+        return;
+    }
     // keymap_entry* map_entry = &state_ptr->active_keymap.entries[key];
 
-    // Only handle this if the state actually changed.
-    if (state_ptr && state_ptr->keyboard_current.keys[key] != pressed) {
-        // Update internal state_ptr->
+    // Only handle this if the state actually changed, or if repeats are allowed.
+    b8 is_repeat = pressed && state_ptr->keyboard_current.keys[key];
+    b8 changed = state_ptr->keyboard_current.keys[key] != pressed;
+    if (state_ptr->allow_key_repeats || changed) {
+        // Update internal state.
         state_ptr->keyboard_current.keys[key] = pressed;
 
         // if (key == KEY_LALT) {
@@ -176,6 +184,7 @@ void input_process_key(keys key, b8 pressed) {
         // Fire off an event for immediate processing.
         event_context context;
         context.data.u16[0] = key;
+        context.data.u16[1] = is_repeat ? 1 : 0;
         event_fire(pressed ? EVENT_CODE_KEY_PRESSED : EVENT_CODE_KEY_RELEASED, 0, context);
     }
 }
@@ -270,6 +279,12 @@ void input_process_mouse_wheel(i8 z_delta) {
     event_context context;
     context.data.i8[0] = z_delta;
     event_fire(EVENT_CODE_MOUSE_WHEEL, 0, context);
+}
+
+void input_key_repeats_enable(b8 enable) {
+    if (state_ptr) {
+        state_ptr->allow_key_repeats = enable;
+    }
 }
 
 b8 input_is_key_down(keys key) {

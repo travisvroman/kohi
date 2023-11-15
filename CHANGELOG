@@ -7,6 +7,9 @@ Changelog
   - Resolved several DebugConsole bugs, in particular ones involving commands and command history.
   - Modified the Windows build process to use incremental linking to speed things up.
   - Added cursor to textbox control. Fixed typing, backspace, delete and left/right navigation.
+  - Added support for stencil buffers/stencil testing.
+  - Added support for toggling keyboard key repeats on/off.
+  - Added Standard UI clip masks.
 
 - 0.3x - Changelog started at this point to track change list. The major changes here are:
   - Fixed build process for both debug _and_ release builds, including a few required code changes.

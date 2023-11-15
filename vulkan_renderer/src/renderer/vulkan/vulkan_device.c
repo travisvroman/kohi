@@ -219,6 +219,22 @@ b8 vulkan_device_create(vulkan_context* context) {
         }
     }
 
+    // Dynamic depth and stencil functions.
+    if (
+        !(context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STENCIL_BIT) &&
+        (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STENCIL_BIT)) {
+        KINFO("Vulkan device doesn't support native dynamic stencil, but does via extension. Using extension.");
+        context->vkCmdSetStencilOpEXT = (PFN_vkCmdSetStencilOpEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetStencilOpEXT");
+        context->vkCmdSetStencilTestEnableEXT = (PFN_vkCmdSetStencilTestEnableEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetStencilTestEnableEXT");
+        context->vkCmdSetDepthTestEnableEXT = (PFN_vkCmdSetDepthTestEnableEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetDepthTestEnableEXT");
+    } else {
+        if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STENCIL_BIT) {
+            KINFO("Vulkan device supports native dynamic stencil state.");
+        } else {
+            KINFO("Vulkan device does not support native or extension dynamic stencil state.");
+        }
+    }
+
     // Get queues.
     vkGetDeviceQueue(
         context->device.logical_device,
@@ -231,7 +247,8 @@ b8 vulkan_device_create(vulkan_context* context) {
         context->device.present_queue_index,
         // If the same family is shared between graphic and presentation,
         // pull from the second index instead of the first for a unique queue.
-        present_must_share_graphics ? 0 : (context->device.graphics_queue_index == context->device.present_queue_index) ? 1                                                                                                                : 0,
+        present_must_share_graphics ? 0 : (context->device.graphics_queue_index == context->device.present_queue_index) ? 1
+                                                                                                                        : 0,
         &context->device.present_queue);
 
     vkGetDeviceQueue(
@@ -353,14 +370,12 @@ void vulkan_device_query_swapchain_support(
 
 b8 vulkan_device_detect_depth_format(vulkan_device* device) {
     // Format candidates
-    const u64 candidate_count = 3;
-    VkFormat candidates[3] = {
-        VK_FORMAT_D32_SFLOAT,
+    const u64 candidate_count = 2;
+    VkFormat candidates[2] = {
         VK_FORMAT_D32_SFLOAT_S8_UINT,
         VK_FORMAT_D24_UNORM_S8_UINT};
 
-    u8 sizes[3] = {
-        4,
+    u8 sizes[2] = {
         4,
         3};
 
@@ -519,12 +534,14 @@ static b8 select_physical_device(vulkan_context* context) {
 
             // The device may or may not support this, so save that here.
             if (dynamic_state_next.extendedDynamicState) {
-                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT;
-                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT;
-            }
-            if (context->device.api_major > 1 && context->device.api_minor > 2) {
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT;
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT;
+                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STENCIL_BIT;
+            }
+            if (context->device.api_major > 1 && context->device.api_minor > 2) {
+                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT;
+                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT;
+                context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STENCIL_BIT;
             }
             if (smooth_line_next.smoothLines) {
                 context->device.support_flags |= VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT;

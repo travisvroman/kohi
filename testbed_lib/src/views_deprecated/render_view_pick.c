@@ -10,6 +10,7 @@
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "renderer/renderer_frontend.h"
+#include "renderer/renderer_types.h"
 #include "renderer/viewport.h"
 #include "systems/camera_system.h"
 #include "systems/resource_system.h"
@@ -598,7 +599,7 @@ b8 render_view_pick_attachment_target_regenerate(struct render_view* self, u32 p
 
     if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_COLOUR) {
         attachment->texture = &data->colour_target_attachment_texture;
-    } else if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
+    } else if (attachment->type & RENDER_TARGET_ATTACHMENT_TYPE_DEPTH || attachment->type & RENDER_TARGET_ATTACHMENT_TYPE_STENCIL) {
         attachment->texture = &data->depth_target_attachment_texture;
     } else {
         KERROR("Unsupported attachment type 0x%x.", attachment->type);

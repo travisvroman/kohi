@@ -5,9 +5,9 @@
 #include "core/logger.h"
 #include "math/transform.h"
 #include "renderer/renderer_frontend.h"
+#include "renderer/renderer_types.h"
 #include "renderer/rendergraph.h"
 #include "standard_ui_system.h"
-#include "systems/material_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
 
@@ -56,10 +56,10 @@ b8 ui_pass_initialize(struct rendergraph_pass* self) {
     renderpass_config ui_pass_config;
     ui_pass_config.name = "Renderpass.UI";
     ui_pass_config.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
-    ui_pass_config.clear_flags = RENDERPASS_CLEAR_NONE_FLAG;
+    ui_pass_config.clear_flags = RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG | RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG;
     ui_pass_config.depth = 1.0f;
     ui_pass_config.stencil = 0;
-    ui_pass_config.target.attachment_count = 1;
+    ui_pass_config.target.attachment_count = 2;
     ui_pass_config.target.attachments = kallocate(sizeof(render_target_attachment_config) * ui_pass_config.target.attachment_count, MEMORY_TAG_ARRAY);
     ui_pass_config.render_target_count = renderer_window_attachment_count_get();
 
@@ -71,13 +71,21 @@ b8 ui_pass_initialize(struct rendergraph_pass* self) {
     ui_target_attachment->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
     ui_target_attachment->present_after = true;
 
+    // Depth/stencil attachment.
+    render_target_attachment_config* ui_depth_attachment = &ui_pass_config.target.attachments[1];
+    ui_depth_attachment->type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH | RENDER_TARGET_ATTACHMENT_TYPE_STENCIL;
+    ui_depth_attachment->source = RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT;
+    ui_depth_attachment->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+    ui_depth_attachment->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+    ui_depth_attachment->present_after = false;
+
     if (!renderer_renderpass_create(&ui_pass_config, &self->pass)) {
         KERROR("Failed to create UI renderpass.");
         return false;
     }
 
     // Load the shader.
-    const char* shader_name = "Shader.Builtin.UI";
+    const char* shader_name = "Shader.StandardUI";
     resource config_resource;
     if (!resource_system_load(shader_name, RESOURCE_TYPE_SHADER, 0, &config_resource)) {
         KERROR("Failed to load UI shader resource.");
@@ -134,82 +142,12 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
     // Bind the viewport
     renderer_active_viewport_set(self->pass_data.vp);
 
+    renderer_set_depth_test_enabled(false);
+
     if (!renderer_renderpass_begin(&self->pass, &self->pass.targets[p_frame_data->render_target_index])) {
         KERROR("UI renderpass failed to start.");
         return false;
     }
-
-    if (!shader_system_use_by_id(internal_data->s->id)) {
-        KERROR("Failed to use shader. Render frame failed.");
-        return false;
-    }
-
-    // Apply globals
-    if (!material_system_apply_global(internal_data->s->id, p_frame_data, &self->pass_data.projection_matrix, &self->pass_data.view_matrix, 0, 0, 0)) {
-        KERROR("Failed to use apply globals for shader. Render frame failed.");
-        return false;
-    }
-
-    // Draw geometries.
-    for (u32 i = 0; i < ext_data->geometry_count; ++i) {
-        material* m = 0;
-        if (ext_data->geometries[i].material) {
-            m = ext_data->geometries[i].material;
-        } else {
-            m = material_system_get_default_ui();
-        }
-
-        // Update the material if it hasn't already been this frame. This keeps the
-        // same material from being updated multiple times. It still needs to be bound
-        // either way, so this check result gets passed to the backend which either
-        // updates the internal shader bindings and binds them, or only binds them.
-        b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number;
-        if (!material_system_apply_instance(m, p_frame_data, needs_update)) {
-            KWARN("Failed to apply material '%s'. Skipping draw.", m->name);
-            continue;
-        } else {
-            // Sync the frame number.
-            m->render_frame_number = p_frame_data->renderer_frame_number;
-        }
-
-        // Apply the locals
-        material_system_apply_local(m, &ext_data->geometries[i].model);
-
-        // Draw it.
-        renderer_geometry_draw(&ext_data->geometries[i]);
-    }
-
-    // Draw bitmap text
-    /* for (u32 i = 0; i < ext_data->ui_text_count; ++i) {
-        ui_text* text = ext_data->texts[i];
-        shader_system_bind_instance(text->instance_id);
-
-        if (!shader_system_uniform_set_by_index(internal_data->locations.diffuse_map, &text->data->atlas)) {
-            KERROR("Failed to apply bitmap font diffuse map uniform.");
-            return false;
-        }
-
-        // TODO: font colour.
-        static vec4 white_colour = (vec4){1.0f, 1.0f, 1.0f, 1.0f};  // white
-        if (!shader_system_uniform_set_by_index(internal_data->locations.properties, &white_colour)) {
-            KERROR("Failed to apply bitmap font diffuse colour uniform.");
-            return false;
-        }
-        b8 needs_update = text->render_frame_number != p_frame_data->renderer_frame_number || text->draw_index != p_frame_data->draw_index;
-        shader_system_apply_instance(needs_update);
-
-        // Sync the frame number and draw index.
-        text->render_frame_number = p_frame_data->renderer_frame_number;
-        text->draw_index = p_frame_data->draw_index;
-
-        // Apply the locals
-        mat4 model = transform_world_get(&text->transform);
-        if (!shader_system_uniform_set_by_index(internal_data->locations.model, &model)) {
-            KERROR("Failed to apply model matrix for text");
-        }
-
-        ui_text_draw(text);
-    } */
 
     // Renderables
     if (!shader_system_use_by_id(internal_data->sui_shader->id)) {
@@ -242,11 +180,53 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
         *renderable->frame_number = p_frame_data->renderer_frame_number;
         *renderable->draw_index = p_frame_data->draw_index;
 
+        // Render clipping mask geometry if it exists.
+        if (renderable->clip_mask_render_data) {
+            // Enable writing, disable test.
+            renderer_set_stencil_test_enabled(true);
+            renderer_set_depth_test_enabled(false);
+            renderer_set_stencil_reference((u32)renderable->clip_mask_render_data->unique_id);
+            renderer_set_stencil_write_mask(0xFF);
+            renderer_set_stencil_op(
+                RENDERER_STENCIL_OP_REPLACE,
+                RENDERER_STENCIL_OP_REPLACE,
+                RENDERER_STENCIL_OP_REPLACE,
+                RENDERER_COMPARE_OP_ALWAYS);
+
+            shader_system_uniform_set_by_index(internal_data->sui_locations.model, &renderable->clip_mask_render_data->model);
+            // Draw the clip mask geometry.
+            renderer_geometry_draw(renderable->clip_mask_render_data);
+
+            // Disable writing, enable test.
+            renderer_set_stencil_write_mask(0x00);
+            renderer_set_stencil_test_enabled(true);
+            renderer_set_stencil_compare_mask(0xFF);
+            renderer_set_stencil_op(
+                RENDERER_STENCIL_OP_KEEP,
+                RENDERER_STENCIL_OP_REPLACE,
+                RENDERER_STENCIL_OP_KEEP,
+                RENDERER_COMPARE_OP_EQUAL);
+        } else {
+            renderer_set_stencil_write_mask(0x00);
+            renderer_set_stencil_test_enabled(false);
+        }
+
         // Apply local
         shader_system_uniform_set_by_index(internal_data->sui_locations.model, &renderable->render_data.model);
 
         // Draw
         renderer_geometry_draw(&renderable->render_data);
+
+        // Turn off stencil tests if they were on.
+        if (renderable->clip_mask_render_data) {
+            // Turn off stencil testing.
+            renderer_set_stencil_test_enabled(false);
+            renderer_set_stencil_op(
+                RENDERER_STENCIL_OP_KEEP,
+                RENDERER_STENCIL_OP_KEEP,
+                RENDERER_STENCIL_OP_KEEP,
+                RENDERER_COMPARE_OP_ALWAYS);
+        }
     }
 
     if (!renderer_renderpass_end(&self->pass)) {

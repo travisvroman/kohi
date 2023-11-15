@@ -9,10 +9,12 @@
 #include <math/kmath.h>
 #include <math/transform.h>
 #include <renderer/renderer_frontend.h>
+#include <systems/geometry_system.h>
 #include <systems/shader_system.h>
 
 #include "controls/sui_panel.h"
 #include "core/input.h"
+#include "math/geometry_utils.h"
 #include "resources/resource_types.h"
 #include "sui_label.h"
 #include "systems/font_system.h"
@@ -148,6 +150,30 @@ b8 sui_textbox_control_load(struct sui_control* self) {
     self->bounds.width = typed_data->size.x;
     self->bounds.height = typed_data->size.y;
 
+    // Setup textbox clipping mask geometry.
+    typed_data->clip_mask.reference_id = 1;  // TODO: move creation/reference_id assignment.
+
+    geometry_config clip_config;
+    generate_quad_2d("textbox_clipping_box", typed_data->size.x - (corner_size.x * 2), typed_data->size.y, 0, 0, 0, 0, &clip_config);
+    typed_data->clip_mask.clip_geometry = geometry_system_acquire_from_config(clip_config, false);
+
+    typed_data->clip_mask.render_data.model = mat4_identity();
+    typed_data->clip_mask.render_data.material = 0;
+    typed_data->clip_mask.render_data.unique_id = typed_data->clip_mask.reference_id;
+
+    typed_data->clip_mask.render_data.vertex_count = typed_data->clip_mask.clip_geometry->vertex_count;
+    typed_data->clip_mask.render_data.vertex_element_size = typed_data->clip_mask.clip_geometry->vertex_element_size;
+    typed_data->clip_mask.render_data.vertex_buffer_offset = typed_data->clip_mask.clip_geometry->vertex_buffer_offset;
+
+    typed_data->clip_mask.render_data.index_count = typed_data->clip_mask.clip_geometry->index_count;
+    typed_data->clip_mask.render_data.index_element_size = typed_data->clip_mask.clip_geometry->index_element_size;
+    typed_data->clip_mask.render_data.index_buffer_offset = typed_data->clip_mask.clip_geometry->index_buffer_offset;
+
+    typed_data->clip_mask.render_data.diffuse_colour = vec4_zero();  // transparent;
+
+    typed_data->clip_mask.clip_xform = transform_from_position((vec3){corner_size.x, 0.0f, 0.0f});
+    transform_parent_set(&typed_data->clip_mask.clip_xform, &self->xform);
+
     // Acquire instance resources for this control.
     texture_map* maps[1] = {&typed_state->ui_atlas};
     shader* s = shader_system_get("Shader.StandardUI");
@@ -162,16 +188,15 @@ b8 sui_textbox_control_load(struct sui_control* self) {
     if (!standard_ui_system_register_control(typed_state, &typed_data->content_label)) {
         KERROR("Unable to register control.");
     } else {
-        if (!standard_ui_system_control_add_child(typed_state, self, &typed_data->content_label)) {
-            KERROR("Failed to parent textbox system text.");
-        } else {
-            sui_label_internal_data* label_data = typed_data->content_label.internal_data;
-            // TODO: Adjustable padding
-            transform_position_set(&typed_data->content_label.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 4.0f, 0.0f});
-            typed_data->content_label.is_active = true;
-            if (!standard_ui_system_update_active(typed_state, &typed_data->content_label)) {
-                KERROR("Unable to update active state for textbox system text.");
-            }
+        // NOTE: Only parenting the transform, the control. This is to have control over how the
+        // clipping mask is attached and drawn. See the render function for the other half of this.
+        sui_label_internal_data* label_data = typed_data->content_label.internal_data;
+        // TODO: Adjustable padding
+        transform_position_set(&typed_data->content_label.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 4.0f, 0.0f});
+        transform_parent_set(&typed_data->content_label.xform, &self->xform);
+        typed_data->content_label.is_active = true;
+        if (!standard_ui_system_update_active(typed_state, &typed_data->content_label)) {
+            KERROR("Unable to update active state for textbox system text.");
         }
     }
 
@@ -181,6 +206,7 @@ b8 sui_textbox_control_load(struct sui_control* self) {
         return false;
     }
 
+    // Create the cursor and attach it as a child.
     if (!standard_ui_system_register_control(typed_state, &typed_data->cursor)) {
         KERROR("Unable to register control.");
     } else {
@@ -196,6 +222,9 @@ b8 sui_textbox_control_load(struct sui_control* self) {
             }
         }
     }
+
+    // Ensure the cursor position is correct.
+    sui_textbox_update_cursor_position(self);
 
     event_register(EVENT_CODE_KEY_PRESSED, self, sui_textbox_on_key);
     event_register(EVENT_CODE_KEY_RELEASED, self, sui_textbox_on_key);
@@ -224,6 +253,7 @@ b8 sui_textbox_control_render(struct sui_control* self, struct frame_data* p_fra
         return false;
     }
 
+    // Render the nine-slice.
     sui_textbox_internal_data* typed_data = self->internal_data;
     if (typed_data->nslice.g) {
         standard_ui_renderable renderable = {0};
@@ -245,14 +275,19 @@ b8 sui_textbox_control_render(struct sui_control* self, struct frame_data* p_fra
         darray_push(render_data->renderables, renderable);
     }
 
+    // Render the content label manually so the clip mask can be attached to it.
+    // This ensures the content label is rendered and clipped before the cursor or other
+    // children are drawn.
     if (!typed_data->content_label.render(&typed_data->content_label, p_frame_data, render_data)) {
         KERROR("Failed to render content label for textbox '%s'", self->name);
         return false;
     }
-    if (!typed_data->cursor.render(&typed_data->cursor, p_frame_data, render_data)) {
-        KERROR("Failed to render cursor for textbox '%s'", self->name);
-        return false;
-    }
+
+    // Attach clipping mask to text, which would be the last element added.
+    u32 renderable_count = darray_length(render_data->renderables);
+    typed_data->clip_mask.render_data.model = transform_world_get(&typed_data->clip_mask.clip_xform);
+    render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data;
+
     return true;
 }
 

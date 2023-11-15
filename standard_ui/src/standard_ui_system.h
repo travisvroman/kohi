@@ -36,6 +36,7 @@ typedef struct standard_ui_renderable {
     texture_map* atlas_override;
     u8* draw_index;
     geometry_render_data render_data;
+    geometry_render_data* clip_mask_render_data;
 } standard_ui_renderable;
 
 typedef struct standard_ui_render_data {
@@ -59,6 +60,13 @@ typedef struct sui_keyboard_event {
     keys key;
     sui_keyboard_event_type type;
 } sui_keyboard_event;
+
+typedef struct sui_clip_mask {
+    u32 reference_id;
+    transform clip_xform;
+    struct geometry* clip_geometry;
+    geometry_render_data render_data;
+} sui_clip_mask;
 
 typedef struct sui_control {
     identifier id;

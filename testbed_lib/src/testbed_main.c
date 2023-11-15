@@ -595,56 +595,6 @@ b8 application_initialize(struct application* game_inst) {
 
     sui_label_position_set(&state->test_sys_text, vec3_create(500, 350, 0));
 
-    // Load up some test UI geometry.
-    geometry_config ui_config;
-    ui_config.vertex_size = sizeof(vertex_2d);
-    ui_config.vertex_count = 4;
-    ui_config.index_size = sizeof(u32);
-    ui_config.index_count = 6;
-    string_ncopy(ui_config.material_name, "test_ui_material", MATERIAL_NAME_MAX_LENGTH);
-    string_ncopy(ui_config.name, "test_ui_geometry", GEOMETRY_NAME_MAX_LENGTH);
-
-    const f32 w = 128.0f;
-    const f32 h = 32.0f;
-    vertex_2d uiverts[4];
-    uiverts[0].position.x = 0.0f;  // 0    3
-    uiverts[0].position.y = 0.0f;  //
-    uiverts[0].texcoord.x = 0.0f;  //
-    uiverts[0].texcoord.y = 0.0f;  // 2    1
-
-    uiverts[1].position.y = h;
-    uiverts[1].position.x = w;
-    uiverts[1].texcoord.x = 1.0f;
-    uiverts[1].texcoord.y = 1.0f;
-
-    uiverts[2].position.x = 0.0f;
-    uiverts[2].position.y = h;
-    uiverts[2].texcoord.x = 0.0f;
-    uiverts[2].texcoord.y = 1.0f;
-
-    uiverts[3].position.x = w;
-    uiverts[3].position.y = 0.0;
-    uiverts[3].texcoord.x = 1.0f;
-    uiverts[3].texcoord.y = 0.0f;
-    ui_config.vertices = uiverts;
-
-    // Indices - counter-clockwise
-    u32 uiindices[6] = {2, 1, 0, 3, 0, 1};
-    ui_config.indices = uiindices;
-
-    // Get UI geometry from config.
-    state->ui_meshes[0].id = identifier_create();
-    state->ui_meshes[0].geometry_count = 1;
-    state->ui_meshes[0].geometries = kallocate(sizeof(geometry*), MEMORY_TAG_ARRAY);
-    state->ui_meshes[0].geometries[0] = geometry_system_acquire_from_config(ui_config, true);
-    state->ui_meshes[0].transform = transform_create();
-    state->ui_meshes[0].generation = 0;
-
-    // Move and rotate it some.
-    // quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
-    // transform_translate_rotate(&state->ui_meshes[0].transform, (vec3){5, 5, 0}, rotation);
-    transform_translate(&state->ui_meshes[0].transform, (vec3){650, 5, 0});
-
     // Standard ui stuff.
     if (!sui_panel_control_create("test_panel", (vec2){100.0f, 200.0f}, &state->test_panel)) {
         KERROR("Failed to create test panel.");
@@ -1291,40 +1241,6 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
         state->ui_pass.pass_data.projection_matrix = state->ui_viewport.projection;
         state->ui_pass.pass_data.do_execute = true;
 
-        ext_data->geometries = darray_reserve_with_allocator(geometry_render_data, 10, &p_frame_data->allocator);
-        for (u32 i = 0; i < 10; ++i) {
-            if (state->ui_meshes[i].generation != INVALID_ID_U8) {
-                mesh* m = &state->ui_meshes[i];
-                u32 geometry_count = m->geometry_count;
-                for (u32 j = 0; j < geometry_count; ++j) {
-                    geometry* g = m->geometries[j];
-                    geometry_render_data render_data;
-                    render_data.material = g->material;
-                    render_data.vertex_count = g->vertex_count;
-                    render_data.vertex_buffer_offset = g->vertex_buffer_offset;
-                    render_data.index_count = g->index_count;
-                    render_data.index_buffer_offset = g->index_buffer_offset;
-
-                    render_data.model = transform_world_get(&m->transform);
-                    darray_push(ext_data->geometries, render_data);
-                }
-            }
-        }
-        ext_data->geometry_count = darray_length(ext_data->geometries);
-
-        /* sui_control* debug_console_text = debug_console_get_text(&state->debug_console);
-        b8 render_debug_conole = debug_console_text && debug_console_visible(&state->debug_console);
-        if (render_debug_conole) {
-            if (debug_console_text->text) {
-                darray_push(ext_data->texts, debug_console_text);
-            }
-            sui_control* debug_console_entry_text = debug_console_get_entry_text(&state->debug_console);
-            if (debug_console_entry_text->text) {
-                darray_push(ext_data->texts, debug_console_entry_text);
-            }
-        }
-        ext_data->ui_text_count = darray_length(ext_data->texts); */
-
         // Renderables.
         ext_data->sui_render_data.renderables = darray_create_with_allocator(standard_ui_renderable, &p_frame_data->allocator);
         void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
@@ -1594,8 +1510,11 @@ static b8 configure_rendergraph(application* app) {
     // UI pass
     RG_CHECK(rendergraph_pass_create(&state->frame_graph, "ui", ui_pass_create, &state->ui_pass));
     RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "ui", "colourbuffer"));
+    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "ui", "depthbuffer"));
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "ui", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "ui", "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_GLOBAL));
     RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "ui", "colourbuffer", "editor", "colourbuffer"));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "ui", "depthbuffer", 0, "depthbuffer"));
 
     refresh_rendergraph_pfns(app);
 

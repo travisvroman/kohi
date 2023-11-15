@@ -80,6 +80,10 @@ typedef enum vulkan_device_support_flag_bits {
     VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT = 0x08,
     /** @brief Indicates if the device supports extension-based dynamic front-face swapping. */
     VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT = 0x10,
+    /** @brief Indicates if the device supports native dynamic stencil state changes. */
+    VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STENCIL_BIT = 0x20,
+    /** @brief Indicates if the device supports extension-based dynamic stencil state changes. */
+    VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STENCIL_BIT = 0x4
 } vulkan_device_support_flag_bits;
 
 /** @brief Bitwise flags for device support. @see vulkan_device_support_flag_bits. */
@@ -639,6 +643,9 @@ typedef struct vulkan_context {
 
     PFN_vkCmdSetPrimitiveTopologyEXT vkCmdSetPrimitiveTopologyEXT;
     PFN_vkCmdSetFrontFaceEXT vkCmdSetFrontFaceEXT;
+    PFN_vkCmdSetStencilTestEnableEXT vkCmdSetStencilTestEnableEXT;
+    PFN_vkCmdSetDepthTestEnableEXT vkCmdSetDepthTestEnableEXT;
+    PFN_vkCmdSetStencilOpEXT vkCmdSetStencilOpEXT;
 
     /** @brief A pointer to the currently bound shader. */
     struct shader* bound_shader;

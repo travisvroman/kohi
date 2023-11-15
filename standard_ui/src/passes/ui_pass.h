@@ -10,8 +10,6 @@ struct frame_data;
 struct geometry_render_data;
 
 typedef struct ui_pass_extended_data {
-    u32 geometry_count;
-    struct geometry_render_data* geometries;
     standard_ui_render_data sui_render_data;
 } ui_pass_extended_data;
 

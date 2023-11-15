@@ -18,9 +18,6 @@
 /** @brief The name of the default material. */
 #define DEFAULT_MATERIAL_NAME "default"
 
-/** @brief The name of the default UI material. */
-#define DEFAULT_UI_MATERIAL_NAME "default_ui"
-
 /** @brief The name of the default terrain material. */
 #define DEFAULT_TERRAIN_MATERIAL_NAME "default_terrain"
 
@@ -97,11 +94,6 @@ KAPI void material_system_release(const char* name);
  * @brief Gets a pointer to the default material. Does not reference count.
  */
 KAPI material* material_system_get_default(void);
-
-/**
- * @brief Gets a pointer to the default UI material. Does not reference count.
- */
-KAPI material* material_system_get_default_ui(void);
 
 /**
  * @brief Gets a pointer to the default terrain material. Does not reference count.

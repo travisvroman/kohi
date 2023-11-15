@@ -1,6 +1,7 @@
 #pragma once
 
 #include <math/geometry_utils.h>
+#include <renderer/renderer_types.h>
 
 #include "standard_ui_system.h"
 
@@ -23,6 +24,7 @@ typedef struct sui_textbox_internal_data {
     sui_control cursor;
     u32 cursor_position;
     u32 text_view_offset;
+    sui_clip_mask clip_mask;
 } sui_textbox_internal_data;
 
 KAPI b8 sui_textbox_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control);

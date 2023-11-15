@@ -45,7 +45,7 @@ typedef struct geometry_config {
     vec3 center;
     vec3 min_extents;
     vec3 max_extents;
-    
+
     /** @brief The name of the geometry. */
     char name[GEOMETRY_NAME_MAX_LENGTH];
     /** @brief The name of the material used by the geometry. */
@@ -111,13 +111,6 @@ KAPI void geometry_system_release(geometry* geometry);
  * @return A pointer to the default geometry.
  */
 KAPI geometry* geometry_system_get_default(void);
-
-/**
- * @brief Obtains a pointer to the default geometry.
- *
- * @return A pointer to the default geometry.
- */
-KAPI geometry* geometry_system_get_default_2d(void);
 
 /**
  * @brief Generates configuration for plane geometries given the provided parameters.

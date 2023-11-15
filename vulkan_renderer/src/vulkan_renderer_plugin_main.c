@@ -15,7 +15,15 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->viewport_reset = vulkan_renderer_viewport_reset;
     out_plugin->scissor_set = vulkan_renderer_scissor_set;
     out_plugin->scissor_reset = vulkan_renderer_scissor_reset;
+
     out_plugin->winding_set = vulkan_renderer_winding_set;
+    out_plugin->set_stencil_test_enabled = vulkan_renderer_set_stencil_test_enabled;
+    out_plugin->set_depth_test_enabled = vulkan_renderer_set_depth_test_enabled;
+    out_plugin->set_stencil_reference = vulkan_renderer_set_stencil_reference;
+    out_plugin->set_stencil_op = vulkan_renderer_set_stencil_op;
+    out_plugin->set_stencil_compare_mask = vulkan_renderer_set_stencil_compare_mask;
+    out_plugin->set_stencil_write_mask = vulkan_renderer_set_stencil_write_mask;
+
     out_plugin->renderpass_begin = vulkan_renderer_renderpass_begin;
     out_plugin->renderpass_end = vulkan_renderer_renderpass_end;
     out_plugin->resized = vulkan_renderer_backend_on_resized;

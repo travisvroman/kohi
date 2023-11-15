@@ -149,7 +149,7 @@ b8 debug_console_load(debug_console_state* state) {
     // Create another ui text control for rendering typed text.
 
     // new one
-    if (!sui_textbox_control_create("debug_console_entry_textbox", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->entry_textbox)) {
+    if (!sui_textbox_control_create("debug_console_entry_textbox", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "Some really long test text in the textbox.", &state->entry_textbox)) {
         KFATAL("Unable to create entry textbox control for debug console.");
         return false;
     } else {
@@ -293,6 +293,7 @@ void debug_console_visible_set(debug_console_state* state, b8 visible) {
         state->bg_panel.is_visible = visible;
         void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
         standard_ui_system_focus_control(sui_state, visible ? &state->entry_textbox : 0);
+        input_key_repeats_enable(visible);
     }
 }
 

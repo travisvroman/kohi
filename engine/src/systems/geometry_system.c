@@ -17,7 +17,6 @@ typedef struct geometry_system_state {
     geometry_system_config config;
 
     geometry default_geometry;
-    geometry default_2d_geometry;
 
     // Array of registered meshes.
     geometry_reference* registered_geometries;
@@ -155,15 +154,6 @@ geometry* geometry_system_get_default(void) {
     return 0;
 }
 
-geometry* geometry_system_get_default_2d(void) {
-    if (state_ptr) {
-        return &state_ptr->default_2d_geometry;
-    }
-
-    KFATAL("geometry_system_get_default_2d called before system was initialized. Returning nullptr.");
-    return 0;
-}
-
 static b8 create_geometry(geometry_system_state* state, geometry_config config, geometry* g) {
     if (!g) {
         KERROR("geometry_system->create_geometry requires a valid pointer to geometry.");
@@ -261,45 +251,6 @@ static b8 create_default_geometries(geometry_system_state* state) {
 
     // Acquire the default material.
     state->default_geometry.material = material_system_get_default();
-
-    // Create default 2d geometry.
-    vertex_2d verts2d[4];
-    kzero_memory(verts2d, sizeof(vertex_2d) * 4);
-    verts2d[0].position.x = -0.5 * f;  // 0    3
-    verts2d[0].position.y = -0.5 * f;  //
-    verts2d[0].texcoord.x = 0.0f;      //
-    verts2d[0].texcoord.y = 0.0f;      // 2    1
-
-    verts2d[1].position.y = 0.5 * f;
-    verts2d[1].position.x = 0.5 * f;
-    verts2d[1].texcoord.x = 1.0f;
-    verts2d[1].texcoord.y = 1.0f;
-
-    verts2d[2].position.x = -0.5 * f;
-    verts2d[2].position.y = 0.5 * f;
-    verts2d[2].texcoord.x = 0.0f;
-    verts2d[2].texcoord.y = 1.0f;
-
-    verts2d[3].position.x = 0.5 * f;
-    verts2d[3].position.y = -0.5 * f;
-    verts2d[3].texcoord.x = 1.0f;
-    verts2d[3].texcoord.y = 0.0f;
-
-    // Indices (NOTE: counter-clockwise)
-    u32 indices2d[6] = {2, 1, 0, 3, 0, 1};
-
-    // Send the geometry off to the renderer to be uploaded to the GPU.
-    if (!renderer_geometry_create(&state->default_2d_geometry, sizeof(vertex_2d), 4, verts2d, sizeof(u32), 6, indices2d)) {
-        KFATAL("Failed to create default 2d geometry. Application cannot continue.");
-        return false;
-    }
-    if (!renderer_geometry_upload(&state->default_2d_geometry)) {
-        KFATAL("Failed to upload default 2d geometry. Application cannot continue.");
-        return false;
-    }
-
-    // Acquire the default material.
-    state->default_2d_geometry.material = material_system_get_default_ui();
 
     return true;
 }

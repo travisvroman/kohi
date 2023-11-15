@@ -117,12 +117,14 @@ typedef enum system_event_code {
     /** @brief Keyboard key pressed.
      * Context usage:
      * u16 key_code = data.data.u16[0];
+     * u16 repeat_count = data.data.u16[1];
      */
     EVENT_CODE_KEY_PRESSED = 0x02,
 
     /** @brief Keyboard key released.
      * Context usage:
      * u16 key_code = data.data.u16[0];
+     * u16 repeat_count = data.data.u16[1];
      */
     EVENT_CODE_KEY_RELEASED = 0x03,
 

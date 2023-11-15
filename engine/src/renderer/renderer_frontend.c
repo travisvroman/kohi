@@ -192,6 +192,36 @@ void renderer_winding_set(renderer_winding winding) {
     state_ptr->plugin.winding_set(&state_ptr->plugin, winding);
 }
 
+void renderer_set_stencil_test_enabled(b8 enabled) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.set_stencil_test_enabled(&state_ptr->plugin, enabled);
+}
+
+void renderer_set_stencil_reference(u32 reference) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.set_stencil_reference(&state_ptr->plugin, reference);
+}
+
+void renderer_set_depth_test_enabled(b8 enabled) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.set_depth_test_enabled(&state_ptr->plugin, enabled);
+}
+
+void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.set_stencil_op(&state_ptr->plugin, fail_op, pass_op, depth_fail_op, compare_op);
+}
+
+void renderer_set_stencil_compare_mask(u32 compare_mask) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.set_stencil_compare_mask(&state_ptr->plugin, compare_mask);
+}
+
+void renderer_set_stencil_write_mask(u32 write_mask) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.set_stencil_write_mask(&state_ptr->plugin, write_mask);
+}
+
 void renderer_texture_create(const u8* pixels, struct texture* texture) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     state_ptr->plugin.texture_create(&state_ptr->plugin, pixels, texture);
