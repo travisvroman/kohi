@@ -1018,7 +1018,7 @@ void vulkan_renderer_set_depth_test_enabled(struct renderer_plugin *plugin, b8 e
     if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STENCIL_BIT) {
         vkCmdSetDepthTestEnable(command_buffer->handle, (VkBool32)enabled);
     } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STENCIL_BIT) {
-        context->vkCmdSetStencilTestEnableEXT(command_buffer->handle, (VkBool32)enabled);
+        context->vkCmdSetDepthTestEnableEXT(command_buffer->handle, (VkBool32)enabled);
     } else {
         // TODO: special pipeline... ugh.
         KFATAL("Needs to support this, yo");

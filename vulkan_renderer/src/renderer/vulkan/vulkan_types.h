@@ -83,7 +83,7 @@ typedef enum vulkan_device_support_flag_bits {
     /** @brief Indicates if the device supports native dynamic stencil state changes. */
     VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STENCIL_BIT = 0x20,
     /** @brief Indicates if the device supports extension-based dynamic stencil state changes. */
-    VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STENCIL_BIT = 0x4
+    VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STENCIL_BIT = 0x40
 } vulkan_device_support_flag_bits;
 
 /** @brief Bitwise flags for device support. @see vulkan_device_support_flag_bits. */
