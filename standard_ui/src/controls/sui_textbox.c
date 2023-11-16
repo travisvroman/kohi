@@ -283,10 +283,13 @@ b8 sui_textbox_control_render(struct sui_control* self, struct frame_data* p_fra
         return false;
     }
 
-    // Attach clipping mask to text, which would be the last element added.
-    u32 renderable_count = darray_length(render_data->renderables);
-    typed_data->clip_mask.render_data.model = transform_world_get(&typed_data->clip_mask.clip_xform);
-    render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data;
+    // Only attach clipping mask if the content label actually has... content.
+    if (string_utf8_length(sui_label_text_get(&typed_data->content_label))) {
+        // Attach clipping mask to text, which would be the last element added.
+        u32 renderable_count = darray_length(render_data->renderables);
+        typed_data->clip_mask.render_data.model = transform_world_get(&typed_data->clip_mask.clip_xform);
+        render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data;
+    }
 
     return true;
 }

@@ -126,16 +126,10 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipelin
     VkDynamicState* dynamic_states = darray_create(VkDynamicState);
     darray_push(dynamic_states, VK_DYNAMIC_STATE_VIEWPORT);
     darray_push(dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
-    // Primitive topology, if supported.
-    if ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT) || (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT)) {
+    // Dynamic state, if supported.
+    if ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) || (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT)) {
         darray_push(dynamic_states, VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY);
-    }
-    // Front-face, if supported.
-    if ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT) || (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT)) {
         darray_push(dynamic_states, VK_DYNAMIC_STATE_FRONT_FACE);
-    }
-    // Stencil, if supported.
-    if ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STENCIL_BIT) || (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STENCIL_BIT)) {
         darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_OP);
         darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE_EXT);
         darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
