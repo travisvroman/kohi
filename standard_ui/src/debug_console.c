@@ -176,7 +176,6 @@ b8 debug_console_load(debug_console_state* state) {
     }
     // HACK: This is definitely not the best way to figure out the height of the above text control.
     sui_label_position_set(&state->entry_textbox, (vec3){3.0f, 30.0f + (font_size * state->line_display_count), 0.0f});
-    // transform_rotate(&state->entry_textbox.xform, (quat){0, 0, -0.4871745f, -0.8733046f});
     state->loaded = true;
 
     return true;

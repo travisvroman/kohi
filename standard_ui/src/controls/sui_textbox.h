@@ -9,7 +9,6 @@
  * TODO: Textbox items
  *
  * - The ability to hightlight text, then add/remove/overwrite highlighted text.
- * - Clipping
  * - The ability to "scroll" left/right in Textbox in overflow cases.
  * - Navigation of textbox caret, including jump to home/end functionality.
  */
@@ -23,7 +22,7 @@ typedef struct sui_textbox_internal_data {
     sui_control content_label;
     sui_control cursor;
     u32 cursor_position;
-    u32 text_view_offset;
+    f32 text_view_offset;
     sui_clip_mask clip_mask;
 } sui_textbox_internal_data;
 

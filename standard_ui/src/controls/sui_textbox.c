@@ -21,14 +21,14 @@
 
 static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context);
 
-static f32 sui_textbox_calculate_cursor_pos(u32 string_pos, u32 string_view_offset, const char* full_string, font_data* font) {
+static f32 sui_textbox_calculate_cursor_offset(u32 string_pos, const char* full_string, font_data* font) {
     if (string_pos == 0) {
         return 0;
     }
-    // Measure font string based on the mid of the string starting at string_view_offset to string_pos using full_string and font.
+
     char* mid_target = string_duplicate(full_string);
     u32 original_length = string_length(mid_target);
-    string_mid(mid_target, full_string, string_view_offset, string_pos - string_view_offset);
+    string_mid(mid_target, full_string, 0, string_pos);
 
     vec2 size = font_system_measure_string(font, mid_target);
     KTRACE("measure string x/y: %.2f/%.2f", size.x, size.y);
@@ -43,10 +43,33 @@ static f32 sui_textbox_calculate_cursor_pos(u32 string_pos, u32 string_view_offs
 static void sui_textbox_update_cursor_position(sui_control* self) {
     sui_textbox_internal_data* typed_data = self->internal_data;
     sui_label_internal_data* label_data = typed_data->content_label.internal_data;
-    vec3 pos = {0};
-    pos.x = typed_data->nslice.corner_size.x + sui_textbox_calculate_cursor_pos(typed_data->cursor_position, typed_data->text_view_offset, label_data->text, label_data->data);
-    pos.y = 2.0f;
-    transform_position_set(&typed_data->cursor.xform, pos);
+
+    // Offset from the start of the string.
+    f32 offset = sui_textbox_calculate_cursor_offset(typed_data->cursor_position, label_data->text, label_data->data);
+    f32 padding = typed_data->nslice.corner_size.x;
+
+    vec3 cursor_pos = {0};
+    cursor_pos.x = padding + offset + typed_data->text_view_offset;
+    cursor_pos.y = 2.0f;
+
+    // Ensure the cursor is within the bounds of the textbox.
+    f32 clip_width = typed_data->size.x - (padding * 2);
+    f32 clip_x_min = padding;
+    f32 clip_x_max = clip_x_min + clip_width;
+
+    if (cursor_pos.x > clip_x_max) {
+        f32 diff = clip_x_max - cursor_pos.x;
+        typed_data->text_view_offset += diff;
+        // Set the cursor right up against the edge.
+        cursor_pos.x = clip_x_max;
+
+        // Translate the label backward.
+        vec3 label_pos = typed_data->content_label.xform.position;
+        transform_position_set(&typed_data->content_label.xform, (vec3){typed_data->text_view_offset, label_pos.y, label_pos.z});
+    }
+    /* f32 clip_height = typed_data->size.y; */
+
+    transform_position_set(&typed_data->cursor.xform, cursor_pos);
 }
 
 b8 sui_textbox_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control) {
