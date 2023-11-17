@@ -568,41 +568,18 @@ b8 application_initialize(struct application* game_inst) {
         }
     }
     // Move debug text to new bottom of screen.
-    sui_label_position_set(&state->test_text, vec3_create(20, game_inst->app_config.start_height - 75, 0));
+    sui_control_position_set(&state->test_text, vec3_create(20, game_inst->app_config.start_height - 75, 0));
 
-    if (!sui_label_control_create("testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Press 'L' to load a scene, \n\tyo!\n\n\tこんにちは 한", &state->test_sys_text)) {
-        KERROR("Failed to load basic ui system text.");
-        return false;
-    } else {
-        if (!sui_label_control_load(&state->test_sys_text)) {
-            KERROR("Failed to load test system text.");
-        } else {
-            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
-            if (!standard_ui_system_register_control(sui_state, &state->test_sys_text)) {
-                KERROR("Unable to register control.");
-            } else {
-                if (!standard_ui_system_control_add_child(sui_state, 0, &state->test_sys_text)) {
-                    KERROR("Failed to parent test system text.");
-                } else {
-                    state->test_sys_text.is_active = true;
-                    if (!standard_ui_system_update_active(sui_state, &state->test_sys_text)) {
-                        KERROR("Unable to update active state.");
-                    }
-                }
-            }
-        }
-    }
-
-    sui_label_position_set(&state->test_sys_text, vec3_create(500, 350, 0));
+        
 
     // Standard ui stuff.
-    if (!sui_panel_control_create("test_panel", (vec2){100.0f, 200.0f}, &state->test_panel)) {
+    if (!sui_panel_control_create("test_panel", (vec2){300.0f, 300.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.5f}, &state->test_panel)) {
         KERROR("Failed to create test panel.");
     } else {
         if (!sui_panel_control_load(&state->test_panel)) {
             KERROR("Failed to load test panel.");
         } else {
-            transform_translate(&state->test_panel.xform, (vec3){500, 100});
+            transform_translate(&state->test_panel.xform, (vec3){950, 350});
             void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
             if (!standard_ui_system_register_control(sui_state, &state->test_panel)) {
                 KERROR("Unable to register control.");
@@ -626,8 +603,8 @@ b8 application_initialize(struct application* game_inst) {
         state->test_button.on_click = sui_test_button_on_click;
 
         // Move and rotate it some.
-        quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
-        transform_translate_rotate(&state->test_button.xform, (vec3){50, 50, 0}, rotation);
+        // quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
+        // transform_translate_rotate(&state->test_button.xform, (vec3){50, 50, 0}, rotation);
 
         if (!sui_button_control_load(&state->test_button)) {
             KERROR("Failed to load test button.");
@@ -647,6 +624,30 @@ b8 application_initialize(struct application* game_inst) {
             }
         }
     }
+
+    if (!sui_label_control_create("testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Press 'L' to load a \n\tscene!\n\n\tこんにちは 한", &state->test_sys_text)) {
+        KERROR("Failed to load basic ui system text.");
+        return false;
+    } else {
+        if (!sui_label_control_load(&state->test_sys_text)) {
+            KERROR("Failed to load test system text.");
+        } else {
+            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+            if (!standard_ui_system_register_control(sui_state, &state->test_sys_text)) {
+                KERROR("Unable to register control.");
+            } else {
+                if (!standard_ui_system_control_add_child(sui_state, 0, &state->test_sys_text)) {
+                    KERROR("Failed to parent test system text.");
+                } else {
+                    state->test_sys_text.is_active = true;
+                    if (!standard_ui_system_update_active(sui_state, &state->test_sys_text)) {
+                        KERROR("Unable to update active state.");
+                    }
+                }
+            }
+        }
+    }
+    sui_control_position_set(&state->test_sys_text, vec3_create(950, 450, 0));
     // TODO: end temp load/prepare stuff
 
     state->world_camera = camera_system_acquire("world");
@@ -1335,7 +1336,7 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
 
     // TODO: temp
     // Move debug text to new bottom of screen.
-    sui_label_position_set(&state->test_text, vec3_create(20, state->height - 95, 0));
+    sui_control_position_set(&state->test_text, vec3_create(20, state->height - 95, 0));
 
     // Pass the resize onto the rendergraph.
     rendergraph_on_resize(&state->frame_graph, state->width, state->height);

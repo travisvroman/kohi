@@ -26,13 +26,6 @@ KAPI b8 sui_label_control_update(struct sui_control* self, struct frame_data* p_
 KAPI b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
 
 /**
- * @brief Sets the position on the given label object.
- *
- * @param u_text A pointer to the label whose text will be set.
- * @param text The position to be set.
- */
-KAPI void sui_label_position_set(struct sui_control* self, vec3 position);
-/**
  * @brief Sets the text on the given label object.
  *
  * @param u_text A pointer to the label whose text will be set.

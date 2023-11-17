@@ -9,8 +9,6 @@
  * TODO: Textbox items
  *
  * - The ability to hightlight text, then add/remove/overwrite highlighted text.
- * - The ability to "scroll" left/right in Textbox in overflow cases.
- * - Navigation of textbox caret, including jump to home/end functionality.
  */
 typedef struct sui_textbox_internal_data {
     vec2i size;

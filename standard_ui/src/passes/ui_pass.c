@@ -167,19 +167,6 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
     for (u32 i = 0; i < renderable_count; ++i) {
         standard_ui_renderable* renderable = &ext_data->sui_render_data.renderables[i];
 
-        // Apply instance
-        b8 needs_update = *renderable->frame_number != p_frame_data->renderer_frame_number || *renderable->draw_index != p_frame_data->draw_index;
-        shader_system_bind_instance(*renderable->instance_id);
-        // NOTE: Expand this to a structure if more data is needed.
-        shader_system_uniform_set_by_index(internal_data->sui_locations.properties, &renderable->render_data.diffuse_colour);
-        texture_map* atlas = renderable->atlas_override ? renderable->atlas_override : ext_data->sui_render_data.ui_atlas;
-        shader_system_uniform_set_by_index(internal_data->sui_locations.diffuse_map, atlas);
-        shader_system_apply_instance(needs_update);
-
-        // Sync the frame number.
-        *renderable->frame_number = p_frame_data->renderer_frame_number;
-        *renderable->draw_index = p_frame_data->draw_index;
-
         // Render clipping mask geometry if it exists.
         if (renderable->clip_mask_render_data) {
             // Enable writing, disable test.
@@ -211,6 +198,15 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
             renderer_set_stencil_test_enabled(false);
         }
 
+        // Apply instance
+        b8 needs_update = *renderable->frame_number != p_frame_data->renderer_frame_number || *renderable->draw_index != p_frame_data->draw_index;
+        shader_system_bind_instance(*renderable->instance_id);
+        // NOTE: Expand this to a structure if more data is needed.
+        shader_system_uniform_set_by_index(internal_data->sui_locations.properties, &renderable->render_data.diffuse_colour);
+        texture_map* atlas = renderable->atlas_override ? renderable->atlas_override : ext_data->sui_render_data.ui_atlas;
+        shader_system_uniform_set_by_index(internal_data->sui_locations.diffuse_map, atlas);
+        shader_system_apply_instance(needs_update);
+
         // Apply local
         shader_system_uniform_set_by_index(internal_data->sui_locations.model, &renderable->render_data.model);
 
@@ -227,6 +223,10 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
                 RENDERER_STENCIL_OP_KEEP,
                 RENDERER_COMPARE_OP_ALWAYS);
         }
+
+        // Sync the frame number.
+        *renderable->frame_number = p_frame_data->renderer_frame_number;
+        *renderable->draw_index = p_frame_data->draw_index;
     }
 
     if (!renderer_renderpass_end(&self->pass)) {

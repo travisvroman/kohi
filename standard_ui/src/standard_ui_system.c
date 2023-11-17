@@ -458,3 +458,11 @@ b8 sui_base_control_render(struct sui_control* self, struct frame_data* p_frame_
 
     return true;
 }
+
+void sui_control_position_set(struct sui_control* self, vec3 position) {
+    transform_position_set(&self->xform, position);
+}
+
+vec3 sui_control_position_get(struct sui_control* self) {
+    return transform_position_get(&self->xform);
+}

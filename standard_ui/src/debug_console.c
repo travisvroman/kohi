@@ -28,7 +28,8 @@ b8 debug_console_consumer_write(void* inst, log_level level, const char* message
         // just output them because something truly terrible could prevent this
         // split from happening.
         if (level <= LOG_LEVEL_ERROR) {
-            darray_push(state->lines, string_duplicate(message));
+            // NOTE: Trim the string to get rid of the newline appended at the console level.
+            darray_push(state->lines, string_trim(string_duplicate(message)));
             state->dirty = true;
             return true;
         }
@@ -94,9 +95,9 @@ b8 debug_console_load(debug_console_state* state) {
     }
 
     u16 font_size = 31;
-    f32 height = 30.0f + (font_size * state->line_display_count + 1);
+    f32 height = 50.0f + (font_size * state->line_display_count + 1); // Account for padding and textbox at the bottom
 
-    if (!sui_panel_control_create("debug_console_bg_panel", (vec2){1280.0f, height}, &state->bg_panel)) {
+    if (!sui_panel_control_create("debug_console_bg_panel", (vec2){1280.0f, height}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->bg_panel)) {
         KERROR("Failed to create background panel.");
     } else {
         if (!sui_panel_control_load(&state->bg_panel)) {
@@ -144,7 +145,7 @@ b8 debug_console_load(debug_console_state* state) {
         }
     }
 
-    sui_label_position_set(&state->text_control, (vec3){3.0f, 30.0f, 0.0f});
+    sui_control_position_set(&state->text_control, (vec3){3.0f, font_size, 0.0f});
 
     // Create another ui text control for rendering typed text.
 
@@ -175,7 +176,7 @@ b8 debug_console_load(debug_console_state* state) {
         }
     }
     // HACK: This is definitely not the best way to figure out the height of the above text control.
-    sui_label_position_set(&state->entry_textbox, (vec3){3.0f, 30.0f + (font_size * state->line_display_count), 0.0f});
+    sui_control_position_set(&state->entry_textbox, (vec3){3.0f, 10.0f + (font_size * state->line_display_count), 0.0f});
     state->loaded = true;
 
     return true;

@@ -31,7 +31,6 @@ static f32 sui_textbox_calculate_cursor_offset(u32 string_pos, const char* full_
     string_mid(mid_target, full_string, 0, string_pos);
 
     vec2 size = font_system_measure_string(font, mid_target);
-    KTRACE("measure string x/y: %.2f/%.2f", size.x, size.y);
 
     // Make sure to cleanup the string.
     kfree(mid_target, sizeof(char) * original_length + 1, MEMORY_TAG_STRING);
@@ -48,27 +47,36 @@ static void sui_textbox_update_cursor_position(sui_control* self) {
     f32 offset = sui_textbox_calculate_cursor_offset(typed_data->cursor_position, label_data->text, label_data->data);
     f32 padding = typed_data->nslice.corner_size.x;
 
+    // The would-be cursor position, not yet taking padding into account.
     vec3 cursor_pos = {0};
-    cursor_pos.x = padding + offset + typed_data->text_view_offset;
-    cursor_pos.y = 2.0f;
+    cursor_pos.x = offset + typed_data->text_view_offset;
+    cursor_pos.y = 6.0f;  // TODO: configurable
 
     // Ensure the cursor is within the bounds of the textbox.
+    // Don't take the padding into account just yet.
     f32 clip_width = typed_data->size.x - (padding * 2);
     f32 clip_x_min = padding;
     f32 clip_x_max = clip_x_min + clip_width;
-
-    if (cursor_pos.x > clip_x_max) {
-        f32 diff = clip_x_max - cursor_pos.x;
-        typed_data->text_view_offset += diff;
-        // Set the cursor right up against the edge.
+    f32 diff = 0;
+    if (cursor_pos.x > clip_width) {
+        diff = clip_width - cursor_pos.x;
+        // Set the cursor right up against the edge, taking padding into account.
         cursor_pos.x = clip_x_max;
-
-        // Translate the label backward.
-        vec3 label_pos = typed_data->content_label.xform.position;
-        transform_position_set(&typed_data->content_label.xform, (vec3){typed_data->text_view_offset, label_pos.y, label_pos.z});
+    } else if (cursor_pos.x < 0) {
+        diff = 0 - cursor_pos.x;
+        // Set the cursor right up against the edge, taking padding into account.
+        cursor_pos.x = clip_x_min;
+    } else {
+        // Use the position as-is, but add padding.
+        cursor_pos.x += padding;
     }
-    /* f32 clip_height = typed_data->size.y; */
+    // Save the view offset.
+    typed_data->text_view_offset += diff;
+    // Translate the label forward/backward to line up with the cursor, taking padding into account.
+    vec3 label_pos = typed_data->content_label.xform.position;
+    transform_position_set(&typed_data->content_label.xform, (vec3){padding + typed_data->text_view_offset, label_pos.y, label_pos.z});
 
+    // Translate the cursor to it's new position.
     transform_position_set(&typed_data->cursor.xform, cursor_pos);
 }
 
@@ -82,7 +90,7 @@ b8 sui_textbox_control_create(const char* name, font_type type, const char* font
     sui_textbox_internal_data* typed_data = out_control->internal_data;
 
     // Reasonable defaults.
-    typed_data->size = (vec2i){200, font_size + 4};
+    typed_data->size = (vec2i){200, font_size + 10};  // add padding
     typed_data->colour = vec4_one();
 
     // Assign function pointers.
@@ -109,7 +117,7 @@ b8 sui_textbox_control_create(const char* name, font_type type, const char* font
     // Use a panel as the cursor.
     kzero_memory(buffer, sizeof(char) * 512);
     string_format(buffer, "%s_textbox_cursor_panel", name);
-    if (!sui_panel_control_create(buffer, (vec2){3.0f, font_size}, &typed_data->cursor)) {
+    if (!sui_panel_control_create(buffer, (vec2){1.0f, font_size - 4.0f}, (vec4){1.0f, 1.0f, 1.0f, 1.0f}, &typed_data->cursor)) {
         KERROR("Failed to create internal cursor control for textbox. Textbox creation failed.");
         return false;
     }
@@ -215,7 +223,7 @@ b8 sui_textbox_control_load(struct sui_control* self) {
         // clipping mask is attached and drawn. See the render function for the other half of this.
         sui_label_internal_data* label_data = typed_data->content_label.internal_data;
         // TODO: Adjustable padding
-        transform_position_set(&typed_data->content_label.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 4.0f, 0.0f});
+        transform_position_set(&typed_data->content_label.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 5.0f, 0.0f});  // padding/2 for y
         transform_parent_set(&typed_data->content_label.xform, &self->xform);
         typed_data->content_label.is_active = true;
         if (!standard_ui_system_update_active(typed_state, &typed_data->content_label)) {
@@ -330,6 +338,10 @@ void sui_textbox_text_set(struct sui_control* self, const char* text) {
     if (self) {
         sui_textbox_internal_data* typed_data = self->internal_data;
         sui_label_text_set(&typed_data->content_label, text);
+
+        // Reset the cursor position when the text is set.
+        typed_data->cursor_position = 0;
+        sui_textbox_update_cursor_position(self);
     }
 }
 
@@ -383,7 +395,6 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
                 string_remove_at(str, entry_control_text, typed_data->cursor_position - 1, 1);  // TODO: selected chars
                 sui_label_text_set(&typed_data->content_label, str);
                 kfree(str, len + 1, MEMORY_TAG_STRING);
-                // TODO: "view scrolling" when outside box bounds.
                 typed_data->cursor_position--;
                 sui_textbox_update_cursor_position(self);
             }
@@ -398,16 +409,20 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
         } else if (key_code == KEY_LEFT) {
             if (typed_data->cursor_position > 0) {
                 typed_data->cursor_position--;
-                // TODO: "view scrolling" when outside box bounds.
                 sui_textbox_update_cursor_position(self);
             }
         } else if (key_code == KEY_RIGHT) {
             // NOTE: cursor position can go past the end of the str so backspacing works right.
             if (typed_data->cursor_position < len) {
                 typed_data->cursor_position++;
-                // TODO: "view scrolling" when outside box bounds.
                 sui_textbox_update_cursor_position(self);
             }
+        } else if (key_code == KEY_HOME) {
+            typed_data->cursor_position = 0;
+            sui_textbox_update_cursor_position(self);
+        } else if (key_code == KEY_END) {
+            typed_data->cursor_position = len;
+            sui_textbox_update_cursor_position(self);
         } else {
             // Use A-Z and 0-9 as-is.
             char char_code = key_code;

@@ -11,7 +11,7 @@ typedef struct sui_panel_internal_data {
     u8 draw_index;
 } sui_panel_internal_data;
 
-KAPI b8 sui_panel_control_create(const char* name, vec2 size, struct sui_control* out_control);
+KAPI b8 sui_panel_control_create(const char* name, vec2 size, vec4 colour, struct sui_control* out_control);
 KAPI void sui_panel_control_destroy(struct sui_control* self);
 
 KAPI b8 sui_panel_control_load(struct sui_control* self);

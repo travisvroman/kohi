@@ -179,3 +179,19 @@ KAPI void sui_base_control_unload(struct sui_control* self);
 
 KAPI b8 sui_base_control_update(struct sui_control* self, struct frame_data* p_frame_data);
 KAPI b8 sui_base_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
+
+/**
+ * @brief Sets the position on the given control.
+ *
+ * @param self A pointer to the control whose position will be set.
+ * @param position The position to be set.
+ */
+KAPI void sui_control_position_set(struct sui_control* self, vec3 position);
+
+/**
+ * @brief Gets the position on the given control.
+ *
+ * @param u_text A pointer to the control whose position will be retrieved.
+ * @param The position of the given control.
+ */
+KAPI vec3 sui_control_position_get(struct sui_control* self);

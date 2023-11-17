@@ -11,7 +11,7 @@
 #include <systems/geometry_system.h>
 #include <systems/shader_system.h>
 
-b8 sui_panel_control_create(const char* name, vec2 size, struct sui_control* out_control) {
+b8 sui_panel_control_create(const char* name, vec2 size, vec4 colour, struct sui_control* out_control) {
     if (!sui_base_control_create(name, out_control)) {
         return false;
     }
@@ -22,7 +22,7 @@ b8 sui_panel_control_create(const char* name, vec2 size, struct sui_control* out
 
     // Reasonable defaults.
     typed_data->rect = vec4_create(0, 0, size.x, size.y);
-    typed_data->colour = vec4_one();
+    typed_data->colour = colour;
 
     // Assign function pointers.
     out_control->destroy = sui_panel_control_destroy;
@@ -97,7 +97,7 @@ b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_frame
         renderable.render_data.index_element_size = typed_data->g->index_element_size;
         renderable.render_data.index_buffer_offset = typed_data->g->index_buffer_offset;
         renderable.render_data.model = transform_world_get(&self->xform);
-        renderable.render_data.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.
+        renderable.render_data.diffuse_colour = typed_data->colour;
 
         renderable.instance_id = &typed_data->instance_id;
         renderable.frame_number = &typed_data->frame_number;

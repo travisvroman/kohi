@@ -172,7 +172,7 @@ b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame
         renderable.atlas_override = &typed_data->data->atlas;
 
         renderable.render_data.model = transform_world_get(&self->xform);
-        renderable.render_data.diffuse_colour = vec4_one();  // white. TODO: pull from object properties.
+        renderable.render_data.diffuse_colour = typed_data->colour;
 
         renderable.instance_id = &typed_data->instance_id;
         renderable.frame_number = &typed_data->frame_number;
@@ -182,10 +182,6 @@ b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame
     }
 
     return true;
-}
-
-void sui_label_position_set(struct sui_control* self, vec3 position) {
-    transform_position_set(&self->xform, position);
 }
 
 void sui_label_text_set(struct sui_control* self, const char* text) {
