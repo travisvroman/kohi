@@ -14,8 +14,10 @@
 
 #include "controls/sui_panel.h"
 #include "core/input.h"
+#include "defines.h"
 #include "math/geometry_utils.h"
 #include "resources/resource_types.h"
+#include "standard_ui_system.h"
 #include "sui_label.h"
 #include "systems/font_system.h"
 
@@ -37,6 +39,29 @@ static f32 sui_textbox_calculate_cursor_offset(u32 string_pos, const char* full_
 
     // Use the x-axis of the mesurement to place the cursor.
     return size.x;
+}
+
+static void sui_textbox_update_highlight_box(sui_control* self) {
+    sui_textbox_internal_data* typed_data = self->internal_data;
+    sui_label_internal_data* label_data = typed_data->content_label.internal_data;
+
+    if (typed_data->highlight_range.size == 0) {
+        typed_data->highlight_box.is_visible = false;
+        return;
+    }
+
+    typed_data->highlight_box.is_visible = true;
+
+    // Offset from the start of the string.
+    f32 offset_start = sui_textbox_calculate_cursor_offset(typed_data->highlight_range.offset, label_data->text, label_data->data);
+    f32 offset_end = sui_textbox_calculate_cursor_offset(typed_data->highlight_range.offset + typed_data->highlight_range.size, label_data->text, label_data->data);
+    f32 width = offset_end - offset_start;
+    /* f32 padding = typed_data->nslice.corner_size.x; */
+
+    vec3 initial_pos = transform_position_get(&typed_data->highlight_box.xform);
+    initial_pos.y = -label_data->data->line_height + 10.0f;
+    transform_position_set(&typed_data->highlight_box.xform, (vec3){offset_start, initial_pos.y, initial_pos.z});
+    transform_scale_set(&typed_data->highlight_box.xform, (vec3){width, 1.0f, 1.0f});
 }
 
 static void sui_textbox_update_cursor_position(sui_control* self) {
@@ -119,6 +144,14 @@ b8 sui_textbox_control_create(const char* name, font_type type, const char* font
     string_format(buffer, "%s_textbox_cursor_panel", name);
     if (!sui_panel_control_create(buffer, (vec2){1.0f, font_size - 4.0f}, (vec4){1.0f, 1.0f, 1.0f, 1.0f}, &typed_data->cursor)) {
         KERROR("Failed to create internal cursor control for textbox. Textbox creation failed.");
+        return false;
+    }
+
+    // Highlight box.
+    kzero_memory(buffer, sizeof(char) * 512);
+    string_format(buffer, "%s_textbox_highlight_panel", name);
+    if (!sui_panel_control_create(buffer, (vec2){1.0f, font_size}, (vec4){0.0f, 0.5f, 0.9f, 0.5f}, &typed_data->highlight_box)) {
+        KERROR("Failed to create internal highlight box control for textbox. Textbox creation failed.");
         return false;
     }
 
@@ -257,6 +290,32 @@ b8 sui_textbox_control_load(struct sui_control* self) {
     // Ensure the cursor position is correct.
     sui_textbox_update_cursor_position(self);
 
+    // Load up a panel control for the highlight box.
+    if (!typed_data->cursor.load(&typed_data->highlight_box)) {
+        KERROR("Failed to setup highlight box within textbox.");
+        return false;
+    }
+
+    // Create the highlight box and attach it as a child.
+    if (!standard_ui_system_register_control(typed_state, &typed_data->highlight_box)) {
+        KERROR("Unable to register control.");
+    } else {
+        // NOTE: Only parenting the transform, the control. This is to have control over how the
+        // clipping mask is attached and drawn. See the render function for the other half of this.
+        sui_label_internal_data* label_data = typed_data->content_label.internal_data;
+        // Set an initial position.
+        transform_position_set(&typed_data->highlight_box.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 4.0f, 0.0f});
+        transform_parent_set(&typed_data->highlight_box.xform, &typed_data->content_label.xform);
+        typed_data->highlight_box.is_active = true;
+        typed_data->highlight_box.is_visible = false;
+        if (!standard_ui_system_update_active(typed_state, &typed_data->highlight_box)) {
+            KERROR("Unable to update active state for textbox highlight box.");
+        }
+    }
+
+    // Ensure the highlight box size and position is correct.
+    sui_textbox_update_highlight_box(self);
+
     event_register(EVENT_CODE_KEY_PRESSED, self, sui_textbox_on_key);
     event_register(EVENT_CODE_KEY_RELEASED, self, sui_textbox_on_key);
 
@@ -264,7 +323,7 @@ b8 sui_textbox_control_load(struct sui_control* self) {
 }
 
 void sui_textbox_control_unload(struct sui_control* self) {
-    //
+    // TODO: unload sub-controls that aren't children (i.e content_label and highlight_box)
     event_unregister(EVENT_CODE_KEY_PRESSED, self, sui_textbox_on_key);
     event_unregister(EVENT_CODE_KEY_RELEASED, self, sui_textbox_on_key);
 }
@@ -316,6 +375,22 @@ b8 sui_textbox_control_render(struct sui_control* self, struct frame_data* p_fra
 
     // Only attach clipping mask if the content label actually has... content.
     if (string_utf8_length(sui_label_text_get(&typed_data->content_label))) {
+        // Attach clipping mask to text, which would be the last element added.
+        u32 renderable_count = darray_length(render_data->renderables);
+        typed_data->clip_mask.render_data.model = transform_world_get(&typed_data->clip_mask.clip_xform);
+        render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data;
+    }
+
+    // Only perform highlight_box logic if it is visible.
+    if (typed_data->highlight_box.is_visible) {
+        // Render the highlight box manually so the clip mask can be attached to it.
+        // This ensures the highlight boxis rendered and clipped before the cursor or other
+        // children are drawn.
+        if (!typed_data->highlight_box.render(&typed_data->highlight_box, p_frame_data, render_data)) {
+            KERROR("Failed to render highlight box for textbox '%s'", self->name);
+            return false;
+        }
+
         // Attach clipping mask to text, which would be the last element added.
         u32 renderable_count = darray_length(render_data->renderables);
         typed_data->clip_mask.render_data.model = transform_world_get(&typed_data->clip_mask.clip_xform);
@@ -392,36 +467,129 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
         if (key_code == KEY_BACKSPACE) {
             if (len > 0 && typed_data->cursor_position > 0) {
                 char* str = string_duplicate(entry_control_text);
-                string_remove_at(str, entry_control_text, typed_data->cursor_position - 1, 1);  // TODO: selected chars
+                if (typed_data->highlight_range.size > 0) {
+                    if (typed_data->highlight_range.size == (i32)len) {
+                        str = string_empty(str);
+                        typed_data->cursor_position = 0;
+                    } else {
+                        string_remove_at(str, entry_control_text, typed_data->highlight_range.offset, typed_data->highlight_range.size);
+                        typed_data->cursor_position = typed_data->highlight_range.offset;
+                    }
+                    // Clear the highlight range.
+                    typed_data->highlight_range.offset = 0;
+                    typed_data->highlight_range.size = 0;
+                    sui_textbox_update_highlight_box(self);
+                } else {
+                    string_remove_at(str, entry_control_text, typed_data->cursor_position - 1, 1);
+                    typed_data->cursor_position--;
+                }
                 sui_label_text_set(&typed_data->content_label, str);
                 kfree(str, len + 1, MEMORY_TAG_STRING);
-                typed_data->cursor_position--;
                 sui_textbox_update_cursor_position(self);
             }
         } else if (key_code == KEY_DELETE) {
-            if (len > 0 && typed_data->cursor_position < len) {
-                char* str = string_duplicate(entry_control_text);
-                string_remove_at(str, entry_control_text, typed_data->cursor_position, 1);  // TODO: selected chars
-                sui_label_text_set(&typed_data->content_label, str);
-                kfree(str, len + 1, MEMORY_TAG_STRING);
-                sui_textbox_update_cursor_position(self);
+            if (len > 0) {
+                if (typed_data->cursor_position == len && typed_data->highlight_range.size == (i32)len) {
+                    char* str = string_duplicate(entry_control_text);
+                    str = string_empty(str);
+                    typed_data->cursor_position = 0;
+                    // Clear the highlight range.
+                    typed_data->highlight_range.offset = 0;
+                    typed_data->highlight_range.size = 0;
+                    sui_textbox_update_highlight_box(self);
+                    sui_label_text_set(&typed_data->content_label, str);
+                    kfree(str, len + 1, MEMORY_TAG_STRING);
+                    sui_textbox_update_cursor_position(self);
+                } else if (typed_data->cursor_position < len) {
+                    char* str = string_duplicate(entry_control_text);
+                    if (typed_data->highlight_range.size > 0) {
+                        string_remove_at(str, entry_control_text, typed_data->highlight_range.offset, typed_data->highlight_range.size);
+                        typed_data->cursor_position = typed_data->highlight_range.offset;
+                        // Clear the highlight range.
+                        typed_data->highlight_range.offset = 0;
+                        typed_data->highlight_range.size = 0;
+                        sui_textbox_update_highlight_box(self);
+                    } else {
+                        string_remove_at(str, entry_control_text, typed_data->cursor_position, 1);
+                    }
+                    sui_label_text_set(&typed_data->content_label, str);
+                    kfree(str, len + 1, MEMORY_TAG_STRING);
+                    sui_textbox_update_cursor_position(self);
+                }
             }
         } else if (key_code == KEY_LEFT) {
             if (typed_data->cursor_position > 0) {
-                typed_data->cursor_position--;
+                if (shift_held) {
+                    if (typed_data->highlight_range.size == 0) {
+                        typed_data->highlight_range.offset = (i32)typed_data->cursor_position;
+                    }
+                    if ((i32)typed_data->cursor_position == typed_data->highlight_range.offset) {
+                        typed_data->highlight_range.offset--;
+                        typed_data->highlight_range.size = KCLAMP(typed_data->highlight_range.size + 1, 0, (i32)len);
+                    } else {
+                        typed_data->highlight_range.size = KCLAMP(typed_data->highlight_range.size - 1, 0, (i32)len);
+                    }
+                    typed_data->cursor_position--;
+                } else {
+                    if (typed_data->highlight_range.size > 0) {
+                        typed_data->cursor_position = typed_data->highlight_range.offset;
+                    } else {
+                        typed_data->cursor_position--;
+                    }
+                    typed_data->highlight_range.offset = 0;
+                    typed_data->highlight_range.size = 0;
+                }
+                sui_textbox_update_highlight_box(self);
                 sui_textbox_update_cursor_position(self);
             }
         } else if (key_code == KEY_RIGHT) {
             // NOTE: cursor position can go past the end of the str so backspacing works right.
             if (typed_data->cursor_position < len) {
-                typed_data->cursor_position++;
+                if (shift_held) {
+                    if (typed_data->highlight_range.size == 0) {
+                        typed_data->highlight_range.offset = (i32)typed_data->cursor_position;
+                    }
+                    if ((i32)typed_data->cursor_position == typed_data->highlight_range.offset + typed_data->highlight_range.size) {
+                        typed_data->highlight_range.size = KCLAMP(typed_data->highlight_range.size + 1, 0, (i32)len);
+                    } else {
+                        typed_data->highlight_range.offset = KCLAMP(typed_data->highlight_range.offset + 1, 0, (i32)len);
+                        typed_data->highlight_range.size = KCLAMP(typed_data->highlight_range.size - 1, 0, (i32)len);
+                    }
+                    typed_data->cursor_position++;
+                } else {
+                    if (typed_data->highlight_range.size > 0) {
+                        typed_data->cursor_position = typed_data->highlight_range.offset + typed_data->highlight_range.size;
+                    } else {
+                        typed_data->cursor_position++;
+                    }
+                    typed_data->highlight_range.offset = 0;
+                    typed_data->highlight_range.size = 0;
+                }
+
+                sui_textbox_update_highlight_box(self);
                 sui_textbox_update_cursor_position(self);
             }
         } else if (key_code == KEY_HOME) {
+            if (shift_held) {
+                typed_data->highlight_range.offset = 0;
+                typed_data->highlight_range.size = typed_data->cursor_position;
+            } else {
+                typed_data->highlight_range.offset = 0;
+                typed_data->highlight_range.size = 0;
+            }
             typed_data->cursor_position = 0;
+            sui_textbox_update_highlight_box(self);
             sui_textbox_update_cursor_position(self);
         } else if (key_code == KEY_END) {
+            if (shift_held) {
+                typed_data->highlight_range.offset = typed_data->cursor_position;
+                typed_data->highlight_range.size = len - typed_data->cursor_position;
+            } else {
+                typed_data->highlight_range.offset = 0;
+                typed_data->highlight_range.size = 0;
+            }
             typed_data->cursor_position = len;
+            sui_textbox_update_highlight_box(self);
             sui_textbox_update_cursor_position(self);
         } else {
             // Use A-Z and 0-9 as-is.
@@ -486,18 +654,37 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
                 }
             }
 
-            // HACK: TODO: Fix input from any position.
             if (char_code != 0) {
                 const char* entry_control_text = sui_label_text_get(&typed_data->content_label);
                 u32 len = string_length(entry_control_text);
-                char* new_text = kallocate(len + 2, MEMORY_TAG_STRING);
+                char* str = kallocate(sizeof(char) * (len + 2), MEMORY_TAG_STRING);
 
-                string_insert_char_at(new_text, entry_control_text, typed_data->cursor_position, char_code);
-                /* string_format(new_text, "%s%c", entry_control_text, char_code); */
+                // If text is highlighted, delete highlighted text, then insert at cursor position.
+                if (typed_data->highlight_range.size > 0) {
+                    if (typed_data->highlight_range.size == (i32)len) {
+                        str = string_empty(str);
+                        typed_data->cursor_position = 0;
+                    } else {
+                        string_remove_at(str, entry_control_text, typed_data->highlight_range.offset, typed_data->highlight_range.size);
+                        typed_data->cursor_position = typed_data->highlight_range.offset;
+                    }
+                } else {
+                    string_copy(str, entry_control_text);
+                }
 
-                sui_label_text_set(&typed_data->content_label, new_text);
-                kfree(new_text, len + 2, MEMORY_TAG_STRING);
-                typed_data->cursor_position++;
+                string_insert_char_at(str, str, typed_data->cursor_position, char_code);
+                /* string_format(str, "%s%c", entry_control_text, char_code); */
+
+                sui_label_text_set(&typed_data->content_label, str);
+                kfree(str, len + 2, MEMORY_TAG_STRING);
+                if (typed_data->highlight_range.size > 0) {
+                    // Clear the highlight range.
+                    typed_data->highlight_range.offset = 0;
+                    typed_data->highlight_range.size = 0;
+                    sui_textbox_update_highlight_box(self);
+                } else {
+                    typed_data->cursor_position++;
+                }
                 sui_textbox_update_cursor_position(self);
             }
         }

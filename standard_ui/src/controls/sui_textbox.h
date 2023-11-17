@@ -3,6 +3,7 @@
 #include <math/geometry_utils.h>
 #include <renderer/renderer_types.h>
 
+#include "defines.h"
 #include "standard_ui_system.h"
 
 /*
@@ -19,6 +20,8 @@ typedef struct sui_textbox_internal_data {
     u8 draw_index;
     sui_control content_label;
     sui_control cursor;
+    sui_control highlight_box;
+    range32 highlight_range;
     u32 cursor_position;
     f32 text_view_offset;
     sui_clip_mask clip_mask;

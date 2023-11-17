@@ -298,16 +298,16 @@ void string_insert_str_at(char* dest, const char* src, u32 pos, const char* str)
 }
 
 void string_remove_at(char* dest, const char* src, u32 pos, u32 length) {
-    u32 len = string_length(src);
-    u32 remaining = len - pos - length;
+    u32 original_length = string_length(src);
+    u32 remaining = original_length - pos - length;
     if (pos > 0) {
         kcopy_memory(dest, src, sizeof(char) * pos);
     }
 
-    if (pos < len) {
+    if (pos < original_length) {
         kcopy_memory(dest + pos, src + pos + length, sizeof(char) * remaining);
     }
-    dest[len - 1] = 0;
+    dest[original_length - length] = 0;
 }
 
 b8 string_to_transform(const char* str, transform* out_transform) {
