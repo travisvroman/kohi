@@ -461,11 +461,12 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
     u16 key_code = context.data.u16[0];
     if (code == EVENT_CODE_KEY_PRESSED) {
         b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT);
+        b8 ctrl_held = input_is_key_down(KEY_LCONTROL) || input_is_key_down(KEY_RCONTROL) || input_is_key_down(KEY_CONTROL);
 
         const char* entry_control_text = sui_label_text_get(&typed_data->content_label);
         u32 len = string_length(entry_control_text);
         if (key_code == KEY_BACKSPACE) {
-            if (len > 0 && typed_data->cursor_position > 0) {
+            if (len > 0 && (typed_data->cursor_position > 0 || typed_data->highlight_range.size > 0)) {
                 char* str = string_duplicate(entry_control_text);
                 if (typed_data->highlight_range.size > 0) {
                     if (typed_data->highlight_range.size == (i32)len) {
@@ -500,7 +501,7 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
                     sui_label_text_set(&typed_data->content_label, str);
                     kfree(str, len + 1, MEMORY_TAG_STRING);
                     sui_textbox_update_cursor_position(self);
-                } else if (typed_data->cursor_position < len) {
+                } else if (typed_data->cursor_position <= len) {
                     char* str = string_duplicate(entry_control_text);
                     if (typed_data->highlight_range.size > 0) {
                         string_remove_at(str, entry_control_text, typed_data->highlight_range.offset, typed_data->highlight_range.size);
@@ -595,8 +596,19 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
             // Use A-Z and 0-9 as-is.
             char char_code = key_code;
             if ((key_code >= KEY_A && key_code <= KEY_Z)) {
+                if (ctrl_held) {
+                    if (key_code == KEY_A) {
+                        char_code = 0;
+                        // Select all and set cursor to the end.
+                        typed_data->highlight_range.size = len;
+                        typed_data->highlight_range.offset = 0;
+                        typed_data->cursor_position = len;
+                        sui_textbox_update_highlight_box(self);
+                        sui_textbox_update_cursor_position(self);
+                    }
+                }
                 // TODO: check caps lock.
-                if (!shift_held) {
+                if (!shift_held && !ctrl_held) {
                     char_code = key_code + 32;
                 }
             } else if ((key_code >= KEY_0 && key_code <= KEY_9)) {
