@@ -1,5 +1,21 @@
 Changelog
 
+- 0.4x
+  - Added first pass of Standard UI system, including panel, button, label, and textbox controls.
+  - Removed ui_text and replaced with sui_label_control as part of the Standard UI system.
+  - Moved DebugConsole to Standard UI.
+  - Resolved several DebugConsole bugs, in particular ones involving commands and command history.
+  - Modified the Windows build process to use incremental linking to speed things up.
+  - Added cursor to textbox control. Fixed typing, backspace, delete and left/right navigation.
+  - Added support for stencil buffers/stencil testing.
+  - Added support for toggling keyboard key repeats on/off.
+  - Added Standard UI clip masks.
+  - Fixed various issues around Vulkan dynamic state feature detection.
+  - Changed Vulkan backend to require dynamic pipeline state either natively (Vulkan 1.3+) or via extension (VK_EXT_extended_dynamic_state). If this plugin is not available, this backend won't work. This is because the engine requires several forms of dynamic state, potentially all at once, which would mean having a pipeline for each state _on top of_ per topology category, which was becoming unweildy.
+  - Updated readme with build instructions and updated prerequisites.
+  - Updated VSCode configuration to include new libraries' include paths.
+  - Various tweaks to debug console to make it look/act nicer.
+
 - 0.3x - Changelog started at this point to track change list. The major changes here are:
   - Fixed build process for both debug _and_ release builds, including a few required code changes.
   - Release builds now properly make no-ops out of KTRACE and KDEBUG log messages.

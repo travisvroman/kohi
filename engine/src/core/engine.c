@@ -294,6 +294,10 @@ const struct frame_data* engine_frame_data_get(struct application* game_inst) {
     return &((engine_state_t*)game_inst->engine_state)->p_frame_data;
 }
 
+systems_manager_state* engine_systems_manager_state_get(struct application* game_inst) {
+    return &((engine_state_t*)game_inst->engine_state)->sys_manager_state;
+}
+
 static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
     switch (code) {
         case EVENT_CODE_APPLICATION_QUIT: {

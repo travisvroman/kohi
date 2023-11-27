@@ -245,3 +245,81 @@ typedef struct frustum {
     // Top, bottom, right, left, far, near
     plane_3d sides[6];
 } frustum;
+
+/**
+ * @brief A 2-element integer-based vector.
+ */
+typedef union vec2i_t {
+    /** @brief An array of x, y */
+    i32 elements[2];
+    struct {
+        union {
+            /** @brief The first element. */
+            i32 x,
+                /** @brief The first element. */
+                r,
+                /** @brief The first element. */
+                s,
+                /** @brief The first element. */
+                u;
+        };
+        union {
+            /** @brief The second element. */
+            i32 y,
+                /** @brief The second element. */
+                g,
+                /** @brief The second element. */
+                t,
+                /** @brief The second element. */
+                v;
+        };
+    };
+} vec2i;
+
+/**
+ * @brief A 4-element integer-based vector.
+ */
+typedef union vec4i_t {
+    /** @brief An array of x, y, z, w */
+    i32 elements[4];
+    union {
+        struct {
+            union {
+                /** @brief The first element. */
+                i32 x,
+                    /** @brief The first element. */
+                    r,
+                    /** @brief The first element. */
+                    s;
+            };
+            union {
+                /** @brief The second element. */
+                i32 y,
+                    /** @brief The third element. */
+                    g,
+                    /** @brief The third element. */
+                    t;
+            };
+            union {
+                /** @brief The third element. */
+                i32 z,
+                    /** @brief The third element. */
+                    b,
+                    /** @brief The third element. */
+                    p,
+                    /** @brief The third element. */
+                    width;
+            };
+            union {
+                /** @brief The fourth element. */
+                i32 w,
+                    /** @brief The fourth element. */
+                    a,
+                    /** @brief The fourth element. */
+                    q,
+                    /** @brief The fourth element. */
+                    height;
+            };
+        };
+    };
+} vec4i;

@@ -156,8 +156,8 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
 
         for (u32 i = 0; i < terrain_count; ++i) {
             material* m = 0;
-            if (ext_data->terrain_geometries[i].geometry->material) {
-                m = ext_data->terrain_geometries[i].geometry->material;
+            if (ext_data->terrain_geometries[i].material) {
+                m = ext_data->terrain_geometries[i].material;
             } else {
                 m = material_system_get_default_terrain();
             }
@@ -206,8 +206,8 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
         u32 count = ext_data->geometry_count;
         for (u32 i = 0; i < count; ++i) {
             material* m = 0;
-            if (ext_data->geometries[i].geometry->material) {
-                m = ext_data->geometries[i].geometry->material;
+            if (ext_data->geometries[i].material) {
+                m = ext_data->geometries[i].material;
             } else {
                 m = material_system_get_default();
             }

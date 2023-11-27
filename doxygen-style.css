@@ -1,0 +1,638 @@
+/* This doxygen theme is free to use. If you like this, please Star https://github.com/kcwongjoe/doxygen_theme_flat_design */
+
+/* Color Pattern. You can change this pattern to design your theme. */
+
+:root {
+    /* Content */
+    --bgcolor: #303030;
+    --bgfont: #ffffff;
+    --bgfont2: #f3c60a;
+    --bgfont-hover: #f3c60a;
+    --bgfont-hover-text-decoration: none;
+    --bgborder: #7d7d7d;
+    --bgborder2: #f6f6f6;
+    /* Main Header */
+    --bg1color: #101010;
+    --bg1font: #ffffff;
+    --bg1font2: #f3c60a;
+    /* Second header */
+    --bg2color: #303030;
+    --bg2font: #eee;
+    --bg2-hover-bg: #7d7d7d;
+    --bg2-hover-font: #eee;
+    --bg2-hover-topborder: #f3c60a;
+    /* Third header */
+    --bg3color: #202020;
+    --bg3font: #f6f6f6;
+    --bg3font2: #7D7D7D;
+    /* Code */
+    --code-bg: #202020;
+    --code-comment: #7D7D7D;
+    --code-keyword: #d73a49;
+    --code-preprocessor: #d73a49;
+    --code-keywordtype: #d73a49;
+    --code-text: #303030;
+    --code-code: #6f42c1;
+    --code-line: #7D7D7D;
+    --code-line-bg: #303030;
+    /* Namespace List, Class List icon */
+    --icon-bg: #303030;
+    --icon-font: #f3c60a;
+    /* Class Index */
+    --qindex-menu-bg: #303030;
+    --qindex-menu-font: #ffffff;
+    --qindex-menu-font-hover: #f3c60a;
+    --qindex-icon-bg: #f3c60a;
+    --qindex-icon-font: #303030;
+    /* Member table */
+    --mem-title-bg: #303030;
+    --mem-title-font: #ffffff;
+    --mem-subtitle-bg: #f3c60a;
+    --mem-subtitle-font: #303030;
+    --mem-subtitle-font-hover: #303030;
+    --mem-content-bg: #303030;
+    --mem-content-font: #ffffff;
+    --mem-content-border: #f6f6f6;
+    /* Nav Tree */
+    --nav-tree-bg: #202020;
+    --nav-tree-bg-hover: #303030;
+    --nav-tree-font: #E2E2E2;
+    --nav-tree-font-hover: #ffffff;
+    --nav-tree-bg-selected: #f3c60a;
+    --nav-tree-font-selected: #303030;
+}
+
+body, table, div, p, dl {
+    color: var(--bgfont);
+    background-color: var(--bgcolor);
+    line-height: 150%;
+    font: 14px/22px, Roboto, Arial;
+}
+
+div.contents {
+    margin: 20px 40px;
+}
+
+div.contents ul {
+    line-height: 200%;
+}
+
+/***********************************/
+
+/********** Project header *********/
+
+/***********************************/
+
+#titlearea {
+    border-bottom: none;
+    padding-bottom: 20px;
+    padding-top: 20px;
+}
+
+#titlearea, #titlearea * {
+    color: var(--bg1font);
+    background-color: var(--bg1color);
+}
+
+#projectname {
+    padding: 0px 40px !important;
+}
+
+#projectbrief {
+    padding: 0px 40px !important;
+}
+
+#projectalign {
+    padding: 0px !important;
+}
+
+/***********************************/
+
+/************ Main Menu ************/
+
+/***********************************/
+
+/* Margin */
+
+#main-menu {
+    padding: 0px 30px;
+}
+
+#main-menu a, #main-menu a:hover {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+/* Menu button */
+
+#main-menu li a {
+    background-image: none;
+    font-family: Arial;
+    text-transform: uppercase;
+    text-shadow: none;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+#main-menu, #main-menu>li>a {
+    background-image: none;
+    background-color: var(--bg2color);
+    color: var(--bg2font);
+    transition: 0.2s;
+}
+
+/* hover Effect */
+
+#main-menu>li {
+    border-top: 5px solid var(--bg2color);
+}
+
+#main-menu>li:hover {
+    color: var(--bg2-hover-font);
+    background-color: var(--bg2-hover-bg);
+    border-top: 5px solid var(--bg2-hover-topborder);
+}
+
+#main-menu>li:hover, #main-menu>li>a:hover, #main-menu>li>a.highlighted {
+    color: var(--bg2-hover-font);
+    background-color: var(--bg2-hover-bg);
+}
+
+/* Search Bar */
+
+#MSearchBox {
+    border-radius: 0;
+    box-shadow: none;
+}
+
+#MSearchBox>span {
+    margin: 10px;
+}
+
+#main-menu>li:last-child {
+    padding: 25px 0px;
+}
+
+/* Reset search hover color*/
+
+#main-menu>li:last-child:hover {
+    color: var(--bg2font);
+    background-color: var(--bg2color);
+    border-top: 5px solid var(--bg2color);
+}
+
+#MSearchResultsWindow {
+    border: 1px solid var(--bg3font2);
+    background-color: var(--bg3color);
+    padding: 10px;
+}
+
+body.SRPage, body.SRPage * {
+    font-family: Arial;
+}
+
+/* Sub Menu  */
+
+#main-menu>li ul {
+    transition: max-height 0.2s ease-in-out;
+    padding: 0px;
+    border-radius: 0px !important;
+}
+
+#main-menu>li ul:before, #main-menu>li ul:after {
+    border-width: 0px;
+}
+
+#main-menu>li>ul li a, #main-menu>li>ul li {
+    background-color: var(--bgcolor);
+    color: var(--bgfont);
+    background-image: none;
+}
+
+#main-menu>li>ul li a:hover, #main-menu>li>ul li:hover {
+    background-color: var(--bgfont2);
+    color: var(--bgfont);
+}
+
+/***********************************/
+
+/************** Header *************/
+
+/***********************************/
+
+div.headertitle {
+    padding: 5px 40px;
+}
+
+div.header, div.header * {
+    color: var(--bg3font);
+    background-color: var(--bg3color);
+    border-bottom: none;
+}
+
+div.summary {
+    padding-right: 40px;
+}
+
+/***********************************/
+
+/************** Link *************/
+
+/***********************************/
+
+a, a:visited, a:active, .contents a:visited, body.SRPage a, body.SRPage a:visited, body.SRPage a:active {
+    color: var(--bgfont);
+    text-decoration: none;
+}
+
+a:hover, .contents a:hover, body.SRPage a:hover {
+    color: var(--bgfont-hover);
+    text-decoration: var(--bgfont-hover-text-decoration);
+}
+
+/***********************************/
+
+/************ Nav-path ************/
+
+/***********************************/
+
+#nav-path, #nav-path ul {
+    background-image: none;
+}
+
+#nav-path ul {
+    padding: 5px 30px;
+}
+
+#nav-path, #nav-path * {
+    color: var(--bg3font2);
+    background-color: var(--bg3color);
+    border: none;
+    font-family: Arial;
+}
+
+li.navelem {
+    background-image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHhtbG5zOnN2Z2pzPSJodHRwOi8vc3ZnanMuY29tL3N2Z2pzIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgeD0iMCIgeT0iMCIgdmlld0JveD0iMCAwIDI5Mi4zNTkgMjkyLjM1OSIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgNTEyIDUxMiIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIgY2xhc3M9IiI+PGc+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+Cgk8cGF0aCBkPSJNMjIyLjk3OSwxMzMuMzMxTDk1LjA3Myw1LjQyNEM5MS40NTYsMS44MDcsODcuMTc4LDAsODIuMjI2LDBjLTQuOTUyLDAtOS4yMzMsMS44MDctMTIuODUsNS40MjQgICBjLTMuNjE3LDMuNjE3LTUuNDI0LDcuODk4LTUuNDI0LDEyLjg0N3YyNTUuODEzYzAsNC45NDgsMS44MDcsOS4yMzIsNS40MjQsMTIuODQ3YzMuNjIxLDMuNjE3LDcuOTAyLDUuNDI4LDEyLjg1LDUuNDI4ICAgYzQuOTQ5LDAsOS4yMy0xLjgxMSwxMi44NDctNS40MjhsMTI3LjkwNi0xMjcuOTA3YzMuNjE0LTMuNjEzLDUuNDI4LTcuODk3LDUuNDI4LTEyLjg0NyAgIEMyMjguNDA3LDE0MS4yMjksMjI2LjU5NCwxMzYuOTQ4LDIyMi45NzksMTMzLjMzMXoiIGZpbGw9IiM3ZDdkN2QiIGRhdGEtb3JpZ2luYWw9IiMwMDAwMDAiIHN0eWxlPSIiIGNsYXNzPSIiPjwvcGF0aD4KPC9nPgo8ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8L2c+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjwvZz4KPGcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPC9nPgo8ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8L2c+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjwvZz4KPGcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPC9nPgo8ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8L2c+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjwvZz4KPGcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPC9nPgo8ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8L2c+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjwvZz4KPGcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPC9nPgo8ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8L2c+CjxnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjwvZz4KPGcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPC9nPgo8L2c+PC9zdmc+);
+    background-size: 9px;
+}
+
+li.navelem a {
+    margin-right: 20px;
+}
+
+/***********************************/
+
+/*************** mem ***************/
+
+/***********************************/
+
+.memtitle {
+    padding: 15px;
+    margin-top: 30px;
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+}
+
+.memtitle, .memtitle *, .memtitle a:visited {
+    border: none;
+    background-image: none;
+    color: var(--mem-title-font);
+    background-color: var(--mem-title-bg);
+}
+
+.memproto {
+    padding: 10px;
+    text-shadow: none;
+    padding: 20px;
+    border-top-right-radius: 0px;
+    -moz-border-radius-topright: 0px;
+    -webkit-border-top-right-radius: 0px;
+}
+
+.memproto, .memproto *, .memproto a:visited {
+    border: none;
+    background-image: none;
+    background-color: var(--mem-subtitle-bg);
+    color: var(--mem-subtitle-font);
+    font-size: inherit;
+    line-height: 100%
+}
+
+.memproto a:hover {
+    color: var(--mem-subtitle-font-hover);
+}
+
+.memdoc {
+    border-bottom: 1px solid var(--mem-content-border);
+    border-left: 1px solid var(--mem-content-border);
+    border-right: 1px solid var(--mem-content-border);
+    background-color: var(--mem-content-bg);
+    color: var(--mem-content-font);
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px;
+    -moz-border-radius-bottomleft: 0px;
+    -moz-border-radius-bottomright: 0px;
+    -webkit-border-bottom-left-radius: 0px;
+    -webkit-border-bottom-right-radius: 0px;
+}
+
+.memdoc p, .memdoc dt {
+    padding: 0px 20px;
+}
+
+/***********************************/
+
+/************* Contents ************/
+
+/***********************************/
+
+a.anchor {
+    padding-top: 20px;
+}
+
+/***********************************/
+
+/************* fragment ************/
+
+/***********************************/
+
+h2.groupheader {
+    color: #303030;
+    font-size: 200%;
+    font-weight: bold;
+    border-bottom: none;
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+div.fragment, pre.fragment {
+    border: none;
+    padding: 20px;
+    margin: none;
+    background-color: var(--code-bg);
+}
+
+div.line {
+    background-color: var(--code-bg);
+}
+
+span.comment {
+    color: var(--code-comment);
+}
+
+span.keyword {
+    color: var(--code-keyword);
+}
+
+span.preprocessor {
+    color: var(--code-preprocessor);
+}
+
+span.keywordtype {
+    color: var(--code-keywordtype);
+}
+
+span.mlabel {
+    background-color: var(--code-text);
+    color: var(--code-bg);
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    padding: 10px;
+    border-radius: 0px;
+}
+
+a.code {
+    color: var(--code-code);
+}
+
+span.lineno, span.lineno>* {
+    color: var(--code-line);
+    border-right: none;
+    background-color: var(--code-bg);
+}
+
+span.lineno a {
+    background-color: var(--code-line-bg);
+}
+
+span.lineno a:hover {
+    color: var(--bg3font);
+    background-color: var(--code-line-bg);
+}
+
+/***********************************/
+
+/************* directory ***********/
+
+/***********************************/
+
+.directory tr.even {
+    background-color: inherit;
+}
+
+.iconfclosed {
+    background-image: url(closed-folder.png);
+    margin-right: 10px;
+}
+
+.iconfopen {
+    background-image: url(opened-folder.png);
+    margin-right: 10px;
+}
+
+.icondoc {
+    background-image: url(document.png);
+    margin-right: 10px;
+}
+
+.arrow {
+    color: #7d7d7d;
+}
+
+.icona {
+    vertical-align: middle;
+    margin-right: 5px;
+}
+
+.icon {
+    background-color: var(--icon-bg);
+    color: var(--icon-font);
+    display: table-cell;
+    vertical-align: middle;
+    height: 20px;
+    width: 20px;
+}
+
+div.ah {
+    background-color: var(--qindex-icon-bg);
+    color: var(--qindex-icon-font);
+    text-align: center;
+    background-image: none;
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    -webkit-border-radius: 0px;
+    border-radius: 0px;
+    border: none;
+}
+
+div.qindex {
+    background-color: var(--qindex-menu-bg);
+    border: none;
+    padding: 20px;
+}
+
+a.qindex {
+    color: var(--qindex-menu-font);
+    font-weight: normal;
+    font-size: 20px;
+}
+
+a:hover.qindex {
+    color: var(--qindex-menu-font-hover);
+}
+
+a:visited.qindex {
+    color: var(--qindex-menu-font);
+}
+
+table.classindex {
+    margin-top: 30px;
+    margin-bottom: 30px;
+}
+
+table.classindex a.el {
+    font-weight: normal;
+}
+
+/***********************************/
+
+/************** footer *************/
+
+/***********************************/
+
+div.directory {
+    border-top: 1px solid var(--bgborder);
+    border-bottom: none;
+    margin: 20px 0px;
+}
+
+div.directory a.el {
+    font-weight: normal;
+}
+
+div.directory>table {
+    margin: 20px 0px;
+}
+
+hr.footer {
+    border: none;
+}
+
+.contents>hr {
+    border-top: 0px;
+}
+
+/***********************************/
+
+/*********** memberdecls ***********/
+
+/***********************************/
+
+.memItemLeft, .memItemRight {
+    padding: 15px 30px;
+    background-color: inherit;
+}
+
+.mdescRight {
+    padding: 0px 30px 10px 30px;
+}
+
+.memberdecls * {
+    background-color: inherit;
+}
+
+.memSeparator {
+    border-bottom: 1px solid var(--bgborder2);
+}
+
+.memTemplParams {
+    color: var(--bgfont);
+}
+
+/***********************************/
+
+/*********** nav-tree ***********/
+
+/***********************************/
+
+#nav-tree-contents {
+    background-color: var(--nav-tree-bg);
+    margin: 0px;
+}
+
+#side-nav, #nav-tree {
+    background-image: none;
+    background-color: var(--nav-tree-bg);
+}
+
+#nav-tree .item {
+    background-color: var(--nav-tree-bg);
+    font-family: Arial;
+    text-transform: uppercase;
+    text-shadow: none;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px;
+    color: var(--nav-tree-font);
+}
+
+#nav-tree .arrow {
+    color: var(--nav-tree-font);
+}
+
+#nav-tree .item:hover {
+    background-color: var(--nav-tree-bg-hover);
+    color: var(--nav-tree-font-hover);
+}
+
+#nav-tree .item a:hover {
+    color: var(--nav-tree-font-hover);
+}
+
+#nav-tree .selected, #nav-tree .selected:hover {
+    background-image: none;
+    background-color: var(--nav-tree-bg-selected);
+}
+
+#nav-tree .selected a, #nav-tree .selected a:hover {
+    color: var(--nav-tree-font-selected);
+}
+
+#side-nav .ui-resizable-e {
+    background-image: none;
+    background-color: var(--nav-tree-bg);
+}
+
+#nav-sync {
+    background-color: transparent;
+}
+
+#nav-sync>img {
+    content: url(off_sync.png);
+}
+
+#nav-sync.sync>img {
+    content: url(on_sync.png);
+}
+
+/***********************************/
+
+/*********** Plant UML ***********/
+
+/***********************************/
+
+.plantumlgraph > img {
+    width: 80%;
+}

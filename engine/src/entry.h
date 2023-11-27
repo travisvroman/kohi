@@ -14,6 +14,27 @@
  *
  */
 
+/*! \mainpage Home Page
+ *
+ * \section intro Introduction
+ *
+ * This site contains the auto-generated API documentation for the Kohi Game Engine. 
+ *
+ * \section information Information
+ *
+ * \subsection mainsite Main Website
+ * See [kohiengine.com](https://kohiengine.com) for the newest project updates.
+ * 
+ * \subsection twitch Twitch
+ * The Twitch channel is where development happens LIVE on stream.
+ * 
+ * Link: [Twitch Channel](https://twitch.tv/travisvroman)
+ * 
+ * \subsection yt YouTube
+ * The YouTube channel contains all of the archives of the Twitch streams, as well as the original video series for the Kohi Game Engine. It also contains lots of other content outside of this project.
+ * 
+ * Link: [YouTube Channel](https://youtube.com/travisvroman)
+ */
 #pragma once
 
 #include "application_types.h"

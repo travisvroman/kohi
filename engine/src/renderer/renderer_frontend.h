@@ -120,6 +120,51 @@ KAPI void renderer_scissor_reset(void);
 KAPI void renderer_winding_set(renderer_winding winding);
 
 /**
+ * @brief Set stencil testing enabled/disabled.
+ *
+ * @param enabled Indicates if stencil testing should be enabled/disabled for subsequent draws.
+ */
+KAPI void renderer_set_stencil_test_enabled(b8 enabled);
+
+/**
+ * @brief Set the stencil reference for testing.
+ *
+ * @param reference The reference to use when stencil testing/writing.
+ */
+KAPI void renderer_set_stencil_reference(u32 reference);
+
+/**
+ * @brief Set depth testing enabled/disabled.
+ *
+ * @param enabled Indicates if depth testing should be enabled/disabled for subsequent draws.
+ */
+KAPI void renderer_set_depth_test_enabled(b8 enabled);
+
+/**
+ * @brief Set stencil operation.
+ *
+ * @param fail_op Specifys the action performed on samples that fail the stencil test.
+ * @param pass_op Specifys the action performed on samples that pass both the depth and stencil tests.
+ * @param depth_fail_op Specifys the action performed on samples that pass the stencil test and fail the depth test.
+ * @param compare_op Specifys the comparison operator used in the stencil test.
+ */
+KAPI void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
+
+/**
+ * @brief Set stencil compare mask.
+ *
+ * @param compare_mask The new value to use as the stencil compare mask.
+ */
+KAPI void renderer_set_stencil_compare_mask(u32 compare_mask);
+
+/**
+ * @brief Set stencil write mask.
+ *
+ * @param write_mask The new value to use as the stencil write mask.
+ */
+KAPI void renderer_set_stencil_write_mask(u32 write_mask);
+
+/**
  * @brief Creates a new texture.
  *
  * @param pixels The raw image data to be uploaded to the GPU.
@@ -181,6 +226,13 @@ KAPI void renderer_texture_read_data(texture* t, u32 offset, u32 size, void** ou
  * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
  */
 KAPI void renderer_texture_read_pixel(texture* t, u32 x, u32 y, u8** out_rgba);
+
+/**
+ * @brief Attempts retrieve the renderer's internal buffer of the given type.
+ * @param type The type of buffer to retrieve.
+ * @returns A pointer to the buffer on success; otherwise 0/null.
+ */
+KAPI renderbuffer* renderer_renderbuffer_get(renderbuffer_type type);
 
 /**
  * @brief Creates geometry, taking a copy of the provided data and setting up the data structure.

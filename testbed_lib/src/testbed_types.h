@@ -1,5 +1,7 @@
 #pragma once
 
+#include <defines.h>
+
 typedef enum testbed_packet_views {
     TESTBED_PACKET_VIEW_WORLD = 0,
     TESTBED_PACKET_VIEW_EDITOR_WORLD = 1,

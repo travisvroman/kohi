@@ -10,8 +10,8 @@
 #include "math/kmath.h"
 #include "math/transform.h"
 #include "renderer/renderer_frontend.h"
+#include "renderer/renderer_types.h"
 #include "renderer/viewport.h"
-#include "resources/ui_text.h"
 #include "systems/camera_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
@@ -302,7 +302,12 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct frame
         mesh* m = packet_data->ui_mesh_data.meshes[i];
         for (u32 j = 0; j < m->geometry_count; ++j) {
             geometry_render_data render_data;
-            render_data.geometry = m->geometries[j];
+            geometry* g = m->geometries[j];
+            render_data.material = g->material;
+            render_data.vertex_count = g->vertex_count;
+            render_data.vertex_buffer_offset = g->vertex_buffer_offset;
+            render_data.index_count = g->index_count;
+            render_data.index_buffer_offset = g->index_buffer_offset;
             render_data.model = transform_world_get(&m->transform);
             render_data.unique_id = m->id.uniqueid;
             darray_push(out_packet->geometries, render_data);
@@ -315,11 +320,11 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct frame
     }
 
     // Count texts as well.
-    for (u32 i = 0; i < packet_data->text_count; ++i) {
+    /* for (u32 i = 0; i < packet_data->text_count; ++i) {
         if (packet_data->texts[i]->id.uniqueid > highest_instance_id) {
             highest_instance_id = packet_data->texts[i]->id.uniqueid;
         }
-    }
+    } */
 
     i32 required_instance_count = highest_instance_id + 1;
 
@@ -530,7 +535,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
         }
 
         // Draw bitmap text
-        for (u32 i = 0; i < packet_data->text_count; ++i) {
+        /* for (u32 i = 0; i < packet_data->text_count; ++i) {
             ui_text* text = packet_data->texts[i];
             current_instance_id = text->id.uniqueid;
             shader_system_bind_instance(current_instance_id);
@@ -554,7 +559,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
             }
 
             ui_text_draw(text);
-        }
+        } */
 
         if (!renderer_renderpass_end(pass)) {
             KERROR("render_view_ui_on_render pass index %u failed to end.", p);
@@ -594,7 +599,7 @@ b8 render_view_pick_attachment_target_regenerate(struct render_view* self, u32 p
 
     if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_COLOUR) {
         attachment->texture = &data->colour_target_attachment_texture;
-    } else if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
+    } else if (attachment->type & RENDER_TARGET_ATTACHMENT_TYPE_DEPTH || attachment->type & RENDER_TARGET_ATTACHMENT_TYPE_STENCIL) {
         attachment->texture = &data->depth_target_attachment_texture;
     } else {
         KERROR("Unsupported attachment type 0x%x.", attachment->type);

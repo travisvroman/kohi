@@ -81,6 +81,10 @@ void* _darray_push(void* array, const void* value_ptr) {
 void _darray_pop(void* array, void* dest) {
     u64 length = darray_length(array);
     u64 stride = darray_stride(array);
+    if (length < 1) {
+        KERROR("darray_pop called on an empty darray. Nothing to be done.");
+        return;
+    }
     u64 addr = (u64)array;
     addr += ((length - 1) * stride);
     kcopy_memory(dest, (void*)addr, stride);
@@ -103,7 +107,7 @@ void* darray_pop_at(void* array, u64 index, void* dest) {
         kcopy_memory(
             (void*)(addr + (index * stride)),
             (void*)(addr + ((index + 1) * stride)),
-            stride * (length - (index + 1)));
+            stride * (length - (index - 1)));
     }
 
     darray_length_set(array, length - 1);
@@ -123,13 +127,12 @@ void* _darray_insert_at(void* array, u64 index, void* value_ptr) {
 
     u64 addr = (u64)array;
 
-    // If not on the last element, copy the rest outward.
-    if (index != length - 1) {
-        kcopy_memory(
-            (void*)(addr + ((index + 1) * stride)),
-            (void*)(addr + (index * stride)),
-            stride * (length - index));
-    }
+    // Push element(s) from index forward out by one. This should
+    // even happen if inserted at the last index.
+    kcopy_memory(
+        (void*)(addr + ((index + 1) * stride)),
+        (void*)(addr + (index * stride)),
+        stride * (length - index));
 
     // Set the value at the index
     kcopy_memory((void*)(addr + (index * stride)), value_ptr, stride);

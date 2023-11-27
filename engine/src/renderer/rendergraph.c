@@ -435,7 +435,7 @@ static b8 regenerate_render_targets(rendergraph* graph, rendergraph_pass* pass, 
             if (attachment->source == RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT) {
                 if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_COLOUR) {
                     attachment->texture = renderer_window_attachment_get(i);
-                } else if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
+                } else if (attachment->type & RENDER_TARGET_ATTACHMENT_TYPE_DEPTH || attachment->type & RENDER_TARGET_ATTACHMENT_TYPE_STENCIL) {
                     attachment->texture = renderer_depth_attachment_get(i);
                 } else {
                     KERROR("Unsupported attachment type: 0x%x", attachment->type);

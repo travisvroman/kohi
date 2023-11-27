@@ -1,11 +1,12 @@
-#include <X11/extensions/Xrender.h>
-#include <xcb/xproto.h>
 
-#include "math/kmath.h"
 #include "platform.h"
 
 // Linux platform layer.
 #if KPLATFORM_LINUX
+#include <X11/extensions/Xrender.h>
+#include <xcb/xproto.h>
+
+#include "math/kmath.h"
 
 #ifndef XRANDR_ROTATION_LEFT
 #define XRANDR_ROTATION_LEFT (1 << 1)

@@ -174,6 +174,12 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
             if (depth_write) {
                 resource_data->flags |= SHADER_FLAG_DEPTH_WRITE;
             }
+        } else if (strings_equali(trimmed_var_name, "stencil_test")) {
+            b8 stencil_test;
+            string_to_bool(trimmed_value, &stencil_test);
+            if (stencil_test) {
+                resource_data->flags |= SHADER_FLAG_STENCIL_TEST;
+            }
         } else if (strings_equali(trimmed_var_name, "wireframe")) {
             b8 wireframe;
             string_to_bool(trimmed_value, &wireframe);

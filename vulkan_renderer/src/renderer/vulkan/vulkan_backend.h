@@ -34,6 +34,13 @@ void vulkan_renderer_scissor_set(renderer_plugin* backend, vec4 rect);
 void vulkan_renderer_scissor_reset(renderer_plugin* backend);
 
 void vulkan_renderer_winding_set(struct renderer_plugin* plugin, renderer_winding winding);
+void vulkan_renderer_set_stencil_test_enabled(struct renderer_plugin* plugin, b8 enabled);
+void vulkan_renderer_set_depth_test_enabled(struct renderer_plugin* plugin, b8 enabled);
+void vulkan_renderer_set_stencil_reference(struct renderer_plugin* plugin, u32 reference);
+void vulkan_renderer_set_stencil_op(struct renderer_plugin* plugin, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
+void vulkan_renderer_set_stencil_compare_mask(struct renderer_plugin* plugin, u32 compare_mask);
+void vulkan_renderer_set_stencil_write_mask(struct renderer_plugin* plugin, u32 write_mask);
+
 b8 vulkan_renderer_renderpass_begin(renderer_plugin* backend, renderpass* pass, render_target* target);
 b8 vulkan_renderer_renderpass_end(renderer_plugin* backend, renderpass* pass);
 

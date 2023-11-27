@@ -335,6 +335,12 @@ void input_update(const struct frame_data* p_frame_data);
 // keyboard input
 
 /**
+ * @brief Enables/disables keyboard key repeats.
+ * @param enable Indicates if key repeats should be enabled.
+ */
+KAPI void input_key_repeats_enable(b8 enable);
+
+/**
  * @brief Indicates if the given key is currently pressed down.
  * @param key They key to be checked.
  * @returns True if currently pressed; otherwise false.

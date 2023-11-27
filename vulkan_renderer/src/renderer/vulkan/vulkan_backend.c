@@ -770,6 +770,19 @@ b8 vulkan_renderer_begin(renderer_plugin *plugin, struct frame_data *p_frame_dat
     // Dynamic state
 
     vulkan_renderer_winding_set(plugin, RENDERER_WINDING_COUNTER_CLOCKWISE);
+
+    vulkan_renderer_set_stencil_reference(plugin, 0);
+    vulkan_renderer_set_stencil_compare_mask(plugin, 0xFF);
+    vulkan_renderer_set_stencil_op(
+        plugin,
+        RENDERER_STENCIL_OP_KEEP,
+        RENDERER_STENCIL_OP_REPLACE,
+        RENDERER_STENCIL_OP_KEEP,
+        RENDERER_COMPARE_OP_ALWAYS);
+    vulkan_renderer_set_stencil_test_enabled(plugin, false);
+    vulkan_renderer_set_depth_test_enabled(plugin, true);
+    // Disable stencil writing.
+    vulkan_renderer_set_stencil_write_mask(plugin, 0x00);
     return true;
 }
 
@@ -917,31 +930,141 @@ void vulkan_renderer_winding_set(struct renderer_plugin *plugin, renderer_windin
     vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
 
     VkFrontFace vk_winding = winding == RENDERER_WINDING_COUNTER_CLOCKWISE ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
-    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_FRONT_FACE_BIT) {
+    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
         vkCmdSetFrontFace(command_buffer->handle, vk_winding);
-    } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_FRONT_FACE_BIT) {
+    } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT) {
         context->vkCmdSetFrontFaceEXT(command_buffer->handle, vk_winding);
     } else {
-        if (context->bound_shader) {
-            vulkan_shader *internal_shader = context->bound_shader->internal_data;
-            // Bind the correct winding pipeline.
-            if (winding == RENDERER_WINDING_COUNTER_CLOCKWISE) {
-                vulkan_pipeline_bind(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, internal_shader->pipelines[internal_shader->bound_pipeline_index]);
-            } else {
-                vulkan_pipeline_bind(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, internal_shader->clockwise_pipelines[internal_shader->bound_pipeline_index]);
-            }
-        } else {
-            KERROR("Unable to set winding because there is no currently bound shader.");
-        }
+        KFATAL("renderer_winding_set cannot be used on a device without dynamic state support.");
     }
 }
 
-b8 vulkan_renderer_renderpass_begin(renderer_plugin *plugin, renderpass *pass,
-                                    render_target *target) {
+static VkStencilOp vulkan_renderer_get_stencil_op(renderer_stencil_op op) {
+    switch (op) {
+        case RENDERER_STENCIL_OP_KEEP:
+            return VK_STENCIL_OP_KEEP;
+        case RENDERER_STENCIL_OP_ZERO:
+            return VK_STENCIL_OP_ZERO;
+        case RENDERER_STENCIL_OP_REPLACE:
+            return VK_STENCIL_OP_REPLACE;
+        case RENDERER_STENCIL_OP_INCREMENT_AND_CLAMP:
+            return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+        case RENDERER_STENCIL_OP_DECREMENT_AND_CLAMP:
+            return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+        case RENDERER_STENCIL_OP_INCREMENT_AND_WRAP:
+            return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+        case RENDERER_STENCIL_OP_DECREMENT_AND_WRAP:
+            return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+        case RENDERER_STENCIL_OP_INVERT:
+            return VK_STENCIL_OP_INVERT;
+        default:
+            KWARN("Unsupported stencil op, defaulting to keep.");
+            return VK_STENCIL_OP_KEEP;
+    }
+}
+
+static VkCompareOp vulkan_renderer_get_compare_op(renderer_compare_op op) {
+    switch (op) {
+        case RENDERER_COMPARE_OP_NEVER:
+            return VK_COMPARE_OP_NEVER;
+        case RENDERER_COMPARE_OP_LESS:
+            return VK_COMPARE_OP_LESS;
+        case RENDERER_COMPARE_OP_EQUAL:
+            return VK_COMPARE_OP_EQUAL;
+        case RENDERER_COMPARE_OP_LESS_OR_EQUAL:
+            return VK_COMPARE_OP_LESS_OR_EQUAL;
+        case RENDERER_COMPARE_OP_GREATER:
+            return VK_COMPARE_OP_GREATER;
+        case RENDERER_COMPARE_OP_NOT_EQUAL:
+            return VK_COMPARE_OP_NOT_EQUAL;
+        case RENDERER_COMPARE_OP_GREATER_OR_EQUAL:
+            return VK_COMPARE_OP_GREATER_OR_EQUAL;
+        case RENDERER_COMPARE_OP_ALWAYS:
+            return VK_COMPARE_OP_ALWAYS;
+        default:
+            KWARN("Unsupported compare op, using always.");
+            return VK_COMPARE_OP_ALWAYS;
+    }
+}
+
+void vulkan_renderer_set_stencil_test_enabled(struct renderer_plugin *plugin, b8 enabled) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
+
+    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
+        vkCmdSetStencilTestEnable(command_buffer->handle, (VkBool32)enabled);
+    } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT) {
+        context->vkCmdSetStencilTestEnableEXT(command_buffer->handle, (VkBool32)enabled);
+    } else {
+        KFATAL("renderer_set_stencil_test_enabled cannot be used on a device without dynamic state support.");
+    }
+}
+
+void vulkan_renderer_set_depth_test_enabled(struct renderer_plugin *plugin, b8 enabled) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
+
+    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
+        vkCmdSetDepthTestEnable(command_buffer->handle, (VkBool32)enabled);
+    } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT) {
+        context->vkCmdSetDepthTestEnableEXT(command_buffer->handle, (VkBool32)enabled);
+    } else {
+        KFATAL("renderer_set_depth_test_enabled cannot be used on a device without dynamic state support.");
+    }
+}
+
+void vulkan_renderer_set_stencil_reference(struct renderer_plugin *plugin, u32 reference) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
+
+    vkCmdSetStencilReference(command_buffer->handle, VK_STENCIL_FACE_FRONT_AND_BACK, reference);
+}
+
+void vulkan_renderer_set_stencil_op(struct renderer_plugin *plugin, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
+
+    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
+        vkCmdSetStencilOp(
+            command_buffer->handle,
+            VK_STENCIL_FACE_FRONT_AND_BACK,
+            vulkan_renderer_get_stencil_op(fail_op),
+            vulkan_renderer_get_stencil_op(pass_op),
+            vulkan_renderer_get_stencil_op(depth_fail_op),
+            vulkan_renderer_get_compare_op(compare_op));
+    } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT) {
+        context->vkCmdSetStencilOpEXT(
+            command_buffer->handle,
+            VK_STENCIL_FACE_FRONT_AND_BACK,
+            vulkan_renderer_get_stencil_op(fail_op),
+            vulkan_renderer_get_stencil_op(pass_op),
+            vulkan_renderer_get_stencil_op(depth_fail_op),
+            vulkan_renderer_get_compare_op(compare_op));
+    } else {
+        KFATAL("renderer_set_stencil_op cannot be used on a device without dynamic state support.");
+    }
+}
+
+void vulkan_renderer_set_stencil_compare_mask(struct renderer_plugin *plugin, u32 compare_mask) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
+
+    // Supported as of vulkan 1.0, so no need to check for dynamic state support.
+    vkCmdSetStencilCompareMask(command_buffer->handle, VK_STENCIL_FACE_FRONT_AND_BACK, compare_mask);
+}
+
+void vulkan_renderer_set_stencil_write_mask(struct renderer_plugin *plugin, u32 write_mask) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
+
+    // Supported as of vulkan 1.0, so no need to check for dynamic state support.
+    vkCmdSetStencilWriteMask(command_buffer->handle, VK_STENCIL_FACE_FRONT_AND_BACK, write_mask);
+}
+
+b8 vulkan_renderer_renderpass_begin(renderer_plugin *plugin, renderpass *pass, render_target *target) {
     // Cold-cast the context
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
-    vulkan_command_buffer *command_buffer =
-        &context->graphics_command_buffers[context->image_index];
+    vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
 
     // Begin the render pass.
     vulkan_renderpass *internal_data = pass->internal_data;
@@ -961,11 +1084,9 @@ b8 vulkan_renderer_renderpass_begin(renderer_plugin *plugin, renderpass *pass,
 
     VkClearValue clear_values[2];
     kzero_memory(clear_values, sizeof(VkClearValue) * 2);
-    b8 do_clear_colour =
-        (pass->clear_flags & RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG) != 0;
+    b8 do_clear_colour = (pass->clear_flags & RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG) != 0;
     if (do_clear_colour) {
-        kcopy_memory(clear_values[begin_info.clearValueCount].color.float32,
-                     pass->clear_colour.elements, sizeof(f32) * 4);
+        kcopy_memory(clear_values[begin_info.clearValueCount].color.float32, pass->clear_colour.elements, sizeof(f32) * 4);
         begin_info.clearValueCount++;
     } else {
         // Still add it anyway, but don't bother copying data since it will be
@@ -973,23 +1094,18 @@ b8 vulkan_renderer_renderpass_begin(renderer_plugin *plugin, renderpass *pass,
         begin_info.clearValueCount++;
     }
 
-    b8 do_clear_depth =
-        (pass->clear_flags & RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG) != 0;
-    if (do_clear_depth) {
-        kcopy_memory(clear_values[begin_info.clearValueCount].color.float32,
-                     pass->clear_colour.elements, sizeof(f32) * 4);
-        clear_values[begin_info.clearValueCount].depthStencil.depth =
-            internal_data->depth;
+    b8 do_clear_depth = (pass->clear_flags & RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG) != 0;
+    b8 do_clear_stencil = (pass->clear_flags & RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG) != 0;
+    if (do_clear_depth || do_clear_stencil) {
+        kcopy_memory(clear_values[begin_info.clearValueCount].color.float32, pass->clear_colour.elements, sizeof(f32) * 4);
+        clear_values[begin_info.clearValueCount].depthStencil.depth = internal_data->depth;
 
-        b8 do_clear_stencil =
-            (pass->clear_flags & RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG) != 0;
-        clear_values[begin_info.clearValueCount].depthStencil.stencil =
-            do_clear_stencil ? internal_data->stencil : 0;
+        clear_values[begin_info.clearValueCount].depthStencil.stencil = do_clear_stencil ? internal_data->stencil : 0;
         begin_info.clearValueCount++;
     } else {
         for (u32 i = 0; i < target->attachment_count; ++i) {
-            if (target->attachments[i].type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
-                // If there is a depth attachment, make sure to add the clear count, but
+            if (target->attachments[i].type & RENDER_TARGET_ATTACHMENT_TYPE_DEPTH || target->attachments[i].type & RENDER_TARGET_ATTACHMENT_TYPE_STENCIL) {
+                // If there is a depth/stencil attachment, make sure to add the clear count, but
                 // don't bother copying the data.
                 begin_info.clearValueCount++;
             }
@@ -998,8 +1114,7 @@ b8 vulkan_renderer_renderpass_begin(renderer_plugin *plugin, renderpass *pass,
 
     begin_info.pClearValues = begin_info.clearValueCount > 0 ? clear_values : 0;
 
-    vkCmdBeginRenderPass(command_buffer->handle, &begin_info,
-                         VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(command_buffer->handle, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
     command_buffer->state = COMMAND_BUFFER_STATE_IN_RENDER_PASS;
 
 #ifdef _DEBUG
@@ -1838,108 +1953,38 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
         stage_create_infos[i] = internal_shader->stages[i].shader_stage_create_info;
     }
 
-    u32 pipeline_count = 0;
-    // If dynamic topology is supported, create one pipeline per topology class. Otherwise,
-    // we must create one pipeline per topology type.
+    // Only dynamic topology is supported. Create one pipeline per topology class.
+    // If this isn't supported, perhaps a different backend should be used.
+    u32 pipeline_count = 3;
 
-    if (
-        (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT) ||
-        (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT)) {
-        pipeline_count = 3;
+    // Create an array of pointers to pipelines, one per topology class. Null means not supported for this shader.
+    internal_shader->pipelines = kallocate(sizeof(vulkan_pipeline *) * pipeline_count, MEMORY_TAG_ARRAY);
 
-        // Create an array of pointers to pipelines, one per topology class. Null means not supported for this shader.
-        internal_shader->pipelines = kallocate(sizeof(vulkan_pipeline *) * pipeline_count, MEMORY_TAG_ARRAY);
+    // Create one pipeline per topology class.
+    // Point class.
+    if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST) {
+        internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_POINT] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
+        // Set the supported types for this class.
+        internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_POINT]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST;
+    }
 
-        // Create one pipeline per topology class.
-        // Point class.
-        if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST) {
-            internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_POINT] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            // Set the supported types for this class.
-            internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_POINT]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST;
-        }
+    // Line class.
+    if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST || s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP) {
+        internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_LINE] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
+        // Set the supported types for this class.
+        internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_LINE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST;
+        internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_LINE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP;
+    }
 
-        // Line class.
-        if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST || s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP) {
-            internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_LINE] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            // Set the supported types for this class.
-            internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_LINE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST;
-            internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_LINE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP;
-        }
-
-        // Triangle class.
-        if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST ||
-            s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP ||
-            s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN) {
-            internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_TRIANGLE] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            // Set the supported types for this class.
-            internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_TRIANGLE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST;
-            internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_TRIANGLE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP;
-            internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_TRIANGLE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN;
-        }
-    } else {
-        // In this case, one pipeline must be created per topology type.
-        pipeline_count = 6;
-
-        // Create an array of pointers to pipelines, one per topology type. Counter-clockwise. Null means not supported for this shader.
-        internal_shader->pipelines = kallocate(sizeof(vulkan_pipeline *) * pipeline_count, MEMORY_TAG_ARRAY);
-        // Create an array of pointers to pipelines, one per topology type. Clockwise. Null means not supported for this shader.
-        internal_shader->clockwise_pipelines = kallocate(sizeof(vulkan_pipeline *) * pipeline_count, MEMORY_TAG_ARRAY);
-
-        // Check each type individually. Will always be in this order.
-
-        // Point
-        if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST) {
-            // Counter-clockwise
-            internal_shader->pipelines[0] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->pipelines[0]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST;
-            // Clockwise
-            internal_shader->clockwise_pipelines[0] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->clockwise_pipelines[0]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST;
-        }
-
-        // Line
-        if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST) {
-            // Counter-clockwise
-            internal_shader->pipelines[1] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->pipelines[1]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST;
-            // Clockwise
-            internal_shader->clockwise_pipelines[1] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->clockwise_pipelines[1]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST;
-        }
-        if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP) {
-            // Counter-clockwise
-            internal_shader->pipelines[2] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->pipelines[2]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP;
-            // Clockwise
-            internal_shader->clockwise_pipelines[2] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->clockwise_pipelines[2]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP;
-        }
-
-        // Triangle
-        if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST) {
-            // Clockwise
-            internal_shader->pipelines[3] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->pipelines[3]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST;
-            // Clockwise
-            internal_shader->clockwise_pipelines[3] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->clockwise_pipelines[3]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST;
-        }
-        if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP) {
-            // Clockwise
-            internal_shader->pipelines[4] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->pipelines[4]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP;
-            // Counter-clockwise
-            internal_shader->clockwise_pipelines[4] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->clockwise_pipelines[4]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP;
-        }
-        if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN) {
-            // Clockwise
-            internal_shader->pipelines[5] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->pipelines[5]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN;
-            // Clockwise
-            internal_shader->clockwise_pipelines[5] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
-            internal_shader->clockwise_pipelines[5]->supported_topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN;
-        }
+    // Triangle class.
+    if (s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST ||
+        s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP ||
+        s->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN) {
+        internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_TRIANGLE] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
+        // Set the supported types for this class.
+        internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_TRIANGLE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST;
+        internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_TRIANGLE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP;
+        internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_TRIANGLE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN;
     }
 
     // Loop through and config/create one pipeline per class. Null entries are skipped.
@@ -2086,9 +2131,9 @@ b8 vulkan_renderer_shader_use(renderer_plugin *plugin, shader *shader) {
 
     context->bound_shader = shader;
     // Make sure to use the current bound type as well.
-    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_TOPOLOGY_BIT) {
+    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
         vkCmdSetPrimitiveTopology(command_buffer->handle, s->current_topology);
-    } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_TOPOLOGY_BIT) {
+    } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT) {
         context->vkCmdSetPrimitiveTopologyEXT(command_buffer->handle, s->current_topology);
     }
     return true;
@@ -2700,14 +2745,10 @@ static b8 create_shader_module(vulkan_context *context, vulkan_shader *shader,
     return true;
 }
 
-b8 vulkan_renderpass_create(renderer_plugin *plugin,
-                            const renderpass_config *config,
-                            renderpass *out_renderpass) {
+b8 vulkan_renderpass_create(renderer_plugin *plugin, const renderpass_config *config, renderpass *out_renderpass) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
-    out_renderpass->internal_data =
-        kallocate(sizeof(vulkan_renderpass), MEMORY_TAG_RENDERER);
-    vulkan_renderpass *internal_data =
-        (vulkan_renderpass *)out_renderpass->internal_data;
+    out_renderpass->internal_data = kallocate(sizeof(vulkan_renderpass), MEMORY_TAG_RENDERER);
+    vulkan_renderpass *internal_data = (vulkan_renderpass *)out_renderpass->internal_data;
 
     internal_data->depth = config->depth;
     internal_data->stencil = config->stencil;
@@ -2717,27 +2758,21 @@ b8 vulkan_renderpass_create(renderer_plugin *plugin,
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
     // Attachments.
-    VkAttachmentDescription *attachment_descriptions =
-        darray_create(VkAttachmentDescription);
-    VkAttachmentDescription *colour_attachment_descs =
-        darray_create(VkAttachmentDescription);
-    VkAttachmentDescription *depth_attachment_descs =
-        darray_create(VkAttachmentDescription);
+    VkAttachmentDescription *attachment_descriptions = darray_create(VkAttachmentDescription);
+    VkAttachmentDescription *colour_attachment_descs = darray_create(VkAttachmentDescription);
+    VkAttachmentDescription *depth_attachment_descs = darray_create(VkAttachmentDescription);
 
     // Can always just look at the first target since they are all the same (one
     // per frame). render_target* target = &out_renderpass->targets[0];
     for (u32 i = 0; i < config->target.attachment_count; ++i) {
-        render_target_attachment_config *attachment_config =
-            &config->target.attachments[i];
+        render_target_attachment_config *attachment_config = &config->target.attachments[i];
 
         VkAttachmentDescription attachment_desc = {};
         if (attachment_config->type == RENDER_TARGET_ATTACHMENT_TYPE_COLOUR) {
             // Colour attachment.
-            b8 do_clear_colour = (out_renderpass->clear_flags &
-                                  RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG) != 0;
+            b8 do_clear_colour = (out_renderpass->clear_flags & RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG) != 0;
 
-            if (attachment_config->source ==
-                RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT) {
+            if (attachment_config->source == RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT) {
                 attachment_desc.format = context->swapchain.image_format.format;
             } else {
                 // TODO: configurable format?
@@ -2749,18 +2784,14 @@ b8 vulkan_renderpass_create(renderer_plugin *plugin,
             // : VK_ATTACHMENT_LOAD_OP_LOAD;
 
             // Determine which load operation to use.
-            if (attachment_config->load_operation ==
-                RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE) {
+            if (attachment_config->load_operation == RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE) {
                 // If we don't care, the only other thing that needs checking is if the
                 // attachment is being cleared.
-                attachment_desc.loadOp = do_clear_colour
-                                             ? VK_ATTACHMENT_LOAD_OP_CLEAR
-                                             : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                attachment_desc.loadOp = do_clear_colour ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             } else {
                 // If we are loading, check if we are also clearing. This combination
                 // doesn't make sense, and should be warned about.
-                if (attachment_config->load_operation ==
-                    RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD) {
+                if (attachment_config->load_operation == RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD) {
                     if (do_clear_colour) {
                         KWARN(
                             "Colour attachment load operation set to load, but is also "
@@ -2780,17 +2811,12 @@ b8 vulkan_renderpass_create(renderer_plugin *plugin,
             }
 
             // Determine which store operation to use.
-            if (attachment_config->store_operation ==
-                RENDER_TARGET_ATTACHMENT_STORE_OPERATION_DONT_CARE) {
+            if (attachment_config->store_operation == RENDER_TARGET_ATTACHMENT_STORE_OPERATION_DONT_CARE) {
                 attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            } else if (attachment_config->store_operation ==
-                       RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE) {
+            } else if (attachment_config->store_operation == RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE) {
                 attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             } else {
-                KFATAL(
-                    "Invalid store operation (0x%x) set for depth attachment. Check "
-                    "configuration.",
-                    attachment_config->store_operation);
+                KFATAL("Invalid store operation (0x%x) set for colour attachment. Check configuration.", attachment_config->store_operation);
                 return false;
             }
 
@@ -2818,13 +2844,12 @@ b8 vulkan_renderpass_create(renderer_plugin *plugin,
 
             // Push to colour attachments array.
             darray_push(colour_attachment_descs, attachment_desc);
-        } else if (attachment_config->type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
+        } else if (attachment_config->type & RENDER_TARGET_ATTACHMENT_TYPE_DEPTH || attachment_config->type & RENDER_TARGET_ATTACHMENT_TYPE_STENCIL) {
             // Depth attachment.
-            b8 do_clear_depth = (out_renderpass->clear_flags &
-                                 RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG) != 0;
+            b8 do_clear_depth = (out_renderpass->clear_flags & RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG) != 0;
+            b8 do_clear_stencil = (out_renderpass->clear_flags & RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG) != 0;
 
-            if (attachment_config->source ==
-                RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT) {
+            if (attachment_config->source == RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT) {
                 attachment_desc.format = context->device.depth_format;
             } else {
                 // TODO: There may be a more optimal format to use when not the default
@@ -2834,18 +2859,16 @@ b8 vulkan_renderpass_create(renderer_plugin *plugin,
 
             attachment_desc.samples = VK_SAMPLE_COUNT_1_BIT;
             // Determine which load operation to use.
-            if (attachment_config->load_operation ==
-                RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE) {
+            if (attachment_config->load_operation == RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE) {
                 // If we don't care, the only other thing that needs checking is if the
                 // attachment is being cleared.
-                attachment_desc.loadOp = do_clear_depth
-                                             ? VK_ATTACHMENT_LOAD_OP_CLEAR
-                                             : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                attachment_desc.loadOp = do_clear_depth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                attachment_desc.stencilLoadOp = do_clear_stencil ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             } else {
                 // If we are loading, check if we are also clearing. This combination
                 // doesn't make sense, and should be warned about.
-                if (attachment_config->load_operation ==
-                    RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD) {
+                if (attachment_config->load_operation == RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD) {
+                    // Depth
                     if (do_clear_depth) {
                         KWARN(
                             "Depth attachment load operation set to load, but is also "
@@ -2854,6 +2877,16 @@ b8 vulkan_renderpass_create(renderer_plugin *plugin,
                         attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
                     } else {
                         attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+                    }
+                    // Stencil
+                    if (do_clear_stencil) {
+                        KWARN(
+                            "Stencil attachment load operation set to load, but is also "
+                            "set to clear. This combination is invalid, and will err "
+                            "toward clearing. Verify attachment configuration.");
+                        attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                    } else {
+                        attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
                     }
                 } else {
                     KFATAL(
@@ -2865,33 +2898,25 @@ b8 vulkan_renderpass_create(renderer_plugin *plugin,
             }
 
             // Determine which store operation to use.
-            if (attachment_config->store_operation ==
-                RENDER_TARGET_ATTACHMENT_STORE_OPERATION_DONT_CARE) {
+            if (attachment_config->store_operation == RENDER_TARGET_ATTACHMENT_STORE_OPERATION_DONT_CARE) {
                 attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            } else if (attachment_config->store_operation ==
-                       RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE) {
+                attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            } else if (attachment_config->store_operation == RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE) {
                 attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
             } else {
-                KFATAL(
-                    "Invalid store operation (0x%x) set for depth attachment. Check "
-                    "configuration.",
-                    attachment_config->store_operation);
+                KFATAL("Invalid store operation (0x%x) set for depth attachment. Check configuration.", attachment_config->store_operation);
                 return false;
             }
 
-            // TODO: Configurability for stencil attachments.
-            attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             // If coming from a previous pass, should already be
             // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL. Otherwise undefined.
             attachment_desc.initialLayout =
-                attachment_config->load_operation ==
-                        RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD
+                attachment_config->load_operation == RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD
                     ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
                     : VK_IMAGE_LAYOUT_UNDEFINED;
             // Final layout for depth stencil attachments is always this.
-            attachment_desc.finalLayout =
-                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            attachment_desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
             // Push to colour attachments array.
             darray_push(depth_attachment_descs, attachment_desc);
@@ -2907,14 +2932,10 @@ b8 vulkan_renderpass_create(renderer_plugin *plugin,
     VkAttachmentReference *colour_attachment_references = 0;
     u32 colour_attachment_count = darray_length(colour_attachment_descs);
     if (colour_attachment_count > 0) {
-        colour_attachment_references =
-            kallocate(sizeof(VkAttachmentReference) * colour_attachment_count,
-                      MEMORY_TAG_ARRAY);
+        colour_attachment_references = kallocate(sizeof(VkAttachmentReference) * colour_attachment_count, MEMORY_TAG_ARRAY);
         for (u32 i = 0; i < colour_attachment_count; ++i) {
-            colour_attachment_references[i].attachment =
-                attachments_added;  // Attachment description array index
-            colour_attachment_references[i].layout =
-                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            colour_attachment_references[i].attachment = attachments_added;  // Attachment description array index
+            colour_attachment_references[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             attachments_added++;
         }
 
@@ -2929,16 +2950,11 @@ b8 vulkan_renderpass_create(renderer_plugin *plugin,
     VkAttachmentReference *depth_attachment_references = 0;
     u32 depth_attachment_count = darray_length(depth_attachment_descs);
     if (depth_attachment_count > 0) {
-        KASSERT_MSG(depth_attachment_count == 1,
-                    "Multiple depth attachments not supported.");
-        depth_attachment_references =
-            kallocate(sizeof(VkAttachmentReference) * depth_attachment_count,
-                      MEMORY_TAG_ARRAY);
+        KASSERT_MSG(depth_attachment_count == 1, "Multiple depth/stencil attachments not supported.");
+        depth_attachment_references = kallocate(sizeof(VkAttachmentReference) * depth_attachment_count, MEMORY_TAG_ARRAY);
         for (u32 i = 0; i < depth_attachment_count; ++i) {
-            depth_attachment_references[i].attachment =
-                attachments_added;  // Attachment description array index
-            depth_attachment_references[i].layout =
-                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            depth_attachment_references[i].attachment = attachments_added;  // Attachment description array index
+            depth_attachment_references[i].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             attachments_added++;
         }
 
@@ -2966,16 +2982,13 @@ b8 vulkan_renderpass_create(renderer_plugin *plugin,
     dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependency.srcAccessMask = 0;
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-                               VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     dependency.dependencyFlags = 0;
 
     // Render pass create.
-    VkRenderPassCreateInfo render_pass_create_info = {
-        VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    render_pass_create_info.attachmentCount =
-        darray_length(attachment_descriptions);
-    ;
+    VkRenderPassCreateInfo render_pass_create_info = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    render_pass_create_info.attachmentCount = darray_length(attachment_descriptions);
+
     render_pass_create_info.pAttachments = attachment_descriptions;
     render_pass_create_info.subpassCount = 1;
     render_pass_create_info.pSubpasses = &subpass;
@@ -3006,9 +3019,7 @@ b8 vulkan_renderpass_create(renderer_plugin *plugin,
         darray_destroy(depth_attachment_descs);
     }
     if (depth_attachment_references) {
-        kfree(depth_attachment_references,
-              sizeof(VkAttachmentReference) * depth_attachment_count,
-              MEMORY_TAG_ARRAY);
+        kfree(depth_attachment_references, sizeof(VkAttachmentReference) * depth_attachment_count, MEMORY_TAG_ARRAY);
     }
 
     return true;
@@ -3039,10 +3050,8 @@ b8 vulkan_renderer_render_target_create(renderer_plugin *plugin,
     }
     kcopy_memory(out_target->attachments, attachments, sizeof(render_target_attachment) * attachment_count);
 
-    VkFramebufferCreateInfo framebuffer_create_info = {
-        VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-    framebuffer_create_info.renderPass =
-        ((vulkan_renderpass *)pass->internal_data)->handle;
+    VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+    framebuffer_create_info.renderPass = ((vulkan_renderpass *)pass->internal_data)->handle;
     framebuffer_create_info.attachmentCount = attachment_count;
     framebuffer_create_info.pAttachments = attachment_views;
     framebuffer_create_info.width = width;

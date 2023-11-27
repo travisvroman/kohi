@@ -6,8 +6,7 @@
     "terminal.integrated.fontWeight": "1",
     "editor.fontSize": 16,
     "editor.fontWeight": "1",
-    "workbench.editor.showTabs": true,
-    "workbench.activityBar.visible": true,
+    "workbench.editor.showTabs": "multiple",
     "workbench.colorCustomizations": {
         "editorCursor.foreground": "#00ff33",
         "editor.lineHighlightBackground": "#111144"

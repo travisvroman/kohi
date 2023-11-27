@@ -269,6 +269,46 @@ i32 string_index_of_str(const char* str_0, const char* str_1) {
 
     return -1;
 }
+void string_insert_char_at(char* dest, const char* src, u32 pos, char c) {
+    u32 len = string_length(src);
+    u32 remaining = len - pos;
+    if (pos > 0) {
+        kcopy_memory(dest, src, sizeof(char) * pos);
+    }
+
+    if (pos < len) {
+        kcopy_memory(dest + pos + 1, src + pos, sizeof(char) * remaining);
+    }
+    dest[pos] = c;
+}
+
+void string_insert_str_at(char* dest, const char* src, u32 pos, const char* str) {
+    u32 len = string_length(src);
+    u32 ins_len = string_length(str);
+    u32 remaining = len - pos;
+    if (pos > 0) {
+        kcopy_memory(dest, src, sizeof(char) * pos);
+    }
+
+    if (pos < len) {
+        kcopy_memory(dest + pos + ins_len, src + pos, sizeof(char) * remaining);
+    }
+
+    kcopy_memory(dest + pos, str, sizeof(char) * ins_len);
+}
+
+void string_remove_at(char* dest, const char* src, u32 pos, u32 length) {
+    u32 original_length = string_length(src);
+    u32 remaining = original_length - pos - length;
+    if (pos > 0) {
+        kcopy_memory(dest, src, sizeof(char) * pos);
+    }
+
+    if (pos < original_length) {
+        kcopy_memory(dest + pos, src + pos + length, sizeof(char) * remaining);
+    }
+    dest[original_length - length] = 0;
+}
 
 b8 string_to_transform(const char* str, transform* out_transform) {
     if (!str || !out_transform) {

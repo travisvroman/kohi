@@ -26,6 +26,7 @@ typedef struct input_state {
 
     stack keymap_stack;
     // keymap active_keymap;
+    b8 allow_key_repeats;
 } input_state;
 
 // Internal input state pointer
@@ -44,6 +45,8 @@ b8 input_system_initialize(u64* memory_requirement, void* state, void* config) {
     // Create the keymap stack and an active keymap to apply to.
     stack_create(&state_ptr->keymap_stack, sizeof(keymap));
     // state_ptr->active_keymap = keymap_create();
+
+    state_ptr->allow_key_repeats = false;
 
     KINFO("Input subsystem initialized.");
 
@@ -117,11 +120,16 @@ static b8 check_modifiers(keymap_modifier modifiers) {
 }
 
 void input_process_key(keys key, b8 pressed) {
+    if (!state_ptr) {
+        return;
+    }
     // keymap_entry* map_entry = &state_ptr->active_keymap.entries[key];
 
-    // Only handle this if the state actually changed.
-    if (state_ptr && state_ptr->keyboard_current.keys[key] != pressed) {
-        // Update internal state_ptr->
+    // Only handle this if the state actually changed, or if repeats are allowed.
+    b8 is_repeat = pressed && state_ptr->keyboard_current.keys[key];
+    b8 changed = state_ptr->keyboard_current.keys[key] != pressed;
+    if (state_ptr->allow_key_repeats || changed) {
+        // Update internal state.
         state_ptr->keyboard_current.keys[key] = pressed;
 
         // if (key == KEY_LALT) {
@@ -176,6 +184,7 @@ void input_process_key(keys key, b8 pressed) {
         // Fire off an event for immediate processing.
         event_context context;
         context.data.u16[0] = key;
+        context.data.u16[1] = is_repeat ? 1 : 0;
         event_fire(pressed ? EVENT_CODE_KEY_PRESSED : EVENT_CODE_KEY_RELEASED, 0, context);
     }
 }
@@ -194,17 +203,28 @@ void input_process_button(buttons button, b8 pressed) {
     }
 
     // Check for drag releases.
-    if (!pressed && state_ptr->mouse_current.dragging[button]) {
-        // Issue a drag end event.
+    if (!pressed) {
+        if (state_ptr->mouse_current.dragging[button]) {
+            // Issue a drag end event.
 
-        state_ptr->mouse_current.dragging[button] = false;
-        // KTRACE("mouse drag ended at: x:%hi, y:%hi, button: %hu", state_ptr->mouse_current.x, state_ptr->mouse_current.y, button);
+            state_ptr->mouse_current.dragging[button] = false;
+            // KTRACE("mouse drag ended at: x:%hi, y:%hi, button: %hu", state_ptr->mouse_current.x, state_ptr->mouse_current.y, button);
 
-        event_context context;
-        context.data.i16[0] = state_ptr->mouse_current.x;
-        context.data.i16[1] = state_ptr->mouse_current.y;
-        context.data.u16[2] = button;
-        event_fire(EVENT_CODE_MOUSE_DRAG_END, 0, context);
+            event_context context;
+            context.data.i16[0] = state_ptr->mouse_current.x;
+            context.data.i16[1] = state_ptr->mouse_current.y;
+            context.data.u16[2] = button;
+            event_fire(EVENT_CODE_MOUSE_DRAG_END, 0, context);
+        } else {
+            // If not a drag release, then it is a click.
+
+            // Fire the event.
+            event_context context;
+            context.data.u16[0] = button;
+            context.data.i16[1] = state_ptr->mouse_current.x;
+            context.data.i16[2] = state_ptr->mouse_current.y;
+            event_fire(EVENT_CODE_BUTTON_CLICKED, 0, context);
+        }
     }
 }
 
@@ -259,6 +279,12 @@ void input_process_mouse_wheel(i8 z_delta) {
     event_context context;
     context.data.i8[0] = z_delta;
     event_fire(EVENT_CODE_MOUSE_WHEEL, 0, context);
+}
+
+void input_key_repeats_enable(b8 enable) {
+    if (state_ptr) {
+        state_ptr->allow_key_repeats = enable;
+    }
 }
 
 b8 input_is_key_down(keys key) {

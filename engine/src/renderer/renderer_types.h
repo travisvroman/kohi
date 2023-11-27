@@ -11,12 +11,30 @@ struct frame_data;
 struct terrain;
 struct viewport;
 struct camera;
+struct material;
 
 typedef struct geometry_render_data {
     mat4 model;
-    geometry* geometry;
+    // TODO: keep material id/handle instead.
+    struct material* material;
+    // geometry* geometry;
     u64 unique_id;
     b8 winding_inverted;
+    vec4 diffuse_colour;
+
+    /** @brief The vertex count. */
+    u32 vertex_count;
+    /** @brief The size of each vertex. */
+    u32 vertex_element_size;
+    /** @brief The offset from the beginning of the vertex buffer. */
+    u64 vertex_buffer_offset;
+
+    /** @brief The index count. */
+    u32 index_count;
+    /** @brief The size of each index. */
+    u32 index_element_size;
+    /** @brief The offset from the beginning of the index buffer. */
+    u64 index_buffer_offset;
 } geometry_render_data;
 
 typedef enum renderer_debug_view_mode {
@@ -53,6 +71,44 @@ typedef enum renderer_projection_matrix_type {
     /** @brief An orthographic matrix that is centered around width/height instead of zero-based. Uses fov as a "zoom". */
     RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC_CENTERED = 0x2
 } renderer_projection_matrix_type;
+
+typedef enum renderer_stencil_op {
+    /** @brief Keeps the current value. */
+    RENDERER_STENCIL_OP_KEEP = 0,
+    /** @brief Sets the stencil buffer value to 0. */
+    RENDERER_STENCIL_OP_ZERO = 1,
+    /** @brief Sets the stencil buffer value to _ref_, as specified in the function. */
+    RENDERER_STENCIL_OP_REPLACE = 2,
+    /** @brief Increments the current stencil buffer value. Clamps to the maximum representable unsigned value. */
+    RENDERER_STENCIL_OP_INCREMENT_AND_CLAMP = 3,
+    /** @brief Decrements the current stencil buffer value. Clamps to 0. */
+    RENDERER_STENCIL_OP_DECREMENT_AND_CLAMP = 4,
+    /** @brief Bitwise inverts the current stencil buffer value. */
+    RENDERER_STENCIL_OP_INVERT = 5,
+    /** @brief Increments the current stencil buffer value. Wraps stencil buffer value to zero when incrementing the maximum representable unsigned value. */
+    RENDERER_STENCIL_OP_INCREMENT_AND_WRAP = 6,
+    /** @brief Decrements the current stencil buffer value. Wraps stencil buffer value to the maximum representable unsigned value when decrementing a stencil buffer value of zero. */
+    RENDERER_STENCIL_OP_DECREMENT_AND_WRAP = 7
+} renderer_stencil_op;
+
+typedef enum renderer_compare_op {
+    /** @brief Specifies that the comparison always evaluates false. */
+    RENDERER_COMPARE_OP_NEVER = 0,
+    /** @brief Specifies that the comparison evaluates reference < test. */
+    RENDERER_COMPARE_OP_LESS = 1,
+    /** @brief Specifies that the comparison evaluates reference = test. */
+    RENDERER_COMPARE_OP_EQUAL = 2,
+    /** @brief Specifies that the comparison evaluates reference <= test. */
+    RENDERER_COMPARE_OP_LESS_OR_EQUAL = 3,
+    /** @brief Specifies that the comparison evaluates reference > test. */
+    RENDERER_COMPARE_OP_GREATER = 4,
+    /** @brief Specifies that the comparison evaluates reference != test.*/
+    RENDERER_COMPARE_OP_NOT_EQUAL = 5,
+    /** @brief Specifies that the comparison evaluates reference >= test. */
+    RENDERER_COMPARE_OP_GREATER_OR_EQUAL = 6,
+    /** @brief Specifies that the comparison is always true. */
+    RENDERER_COMPARE_OP_ALWAYS = 7
+} renderer_compare_op;
 
 typedef struct render_target_attachment_config {
     render_target_attachment_type type;
@@ -339,10 +395,61 @@ typedef struct renderer_plugin {
     /**
      * @brief Set the renderer to use the given winding direction.
      *
-     * @param A pointer to the renderer plugin interface.
+     * @param plugin A pointer to the renderer plugin interface.
      * @param winding The winding direction.
      */
     void (*winding_set)(struct renderer_plugin* plugin, renderer_winding winding);
+
+    /**
+     * @brief Set stencil testing enabled/disabled.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param enabled Indicates if stencil testing should be enabled/disabled for subsequent draws.
+     */
+    void (*set_stencil_test_enabled)(struct renderer_plugin* plugin, b8 enabled);
+
+    /**
+     * @brief Set depth testing enabled/disabled.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param enabled Indicates if depth testing should be enabled/disabled for subsequent draws.
+     */
+    void (*set_depth_test_enabled)(struct renderer_plugin* plugin, b8 enabled);
+
+    /**
+     * @brief Set the stencil reference for testing.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param reference The reference to use when stencil testing/writing.
+     */
+    void (*set_stencil_reference)(struct renderer_plugin* plugin, u32 reference);
+
+    /**
+     * @brief Set stencil operation.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param fail_op Specifys the action performed on samples that fail the stencil test.
+     * @param pass_op Specifys the action performed on samples that pass both the depth and stencil tests.
+     * @param depth_fail_op Specifys the action performed on samples that pass the stencil test and fail the depth test.
+     * @param compare_op Specifys the comparison operator used in the stencil test.
+     */
+    void (*set_stencil_op)(struct renderer_plugin* plugin, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
+
+    /**
+     * @brief Set stencil compare mask.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param compare_mask The new value to use as the stencil compare mask.
+     */
+    void (*set_stencil_compare_mask)(struct renderer_plugin* plugin, u32 compare_mask);
+
+    /**
+     * @brief Set stencil write mask.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param write_mask The new value to use as the stencil write mask.
+     */
+    void (*set_stencil_write_mask)(struct renderer_plugin* plugin, u32 write_mask);
 
     /**
      * @brief Begins a renderpass with the given id.

@@ -15,7 +15,7 @@
 #include <core/clock.h>
 #include <core/keymap.h>
 #include <resources/skybox.h>
-#include <resources/ui_text.h>
+#include <standard_ui_system.h>
 #include <systems/light_system.h>
 
 #include "debug_console.h"
@@ -54,8 +54,8 @@ typedef struct testbed_game_state {
     point_light* p_light_1;
 
     mesh ui_meshes[10];
-    ui_text test_text;
-    ui_text test_sys_text;
+    sui_control test_text;
+    sui_control test_sys_text;
 
     debug_console_state debug_console;
 
@@ -91,6 +91,9 @@ typedef struct testbed_game_state {
     b8 using_gizmo;
 
     u32 render_mode;
+
+    struct sui_control test_panel;
+    struct sui_control test_button;
 
     struct audio_file* test_audio_file;
     struct audio_file* test_loop_audio_file;

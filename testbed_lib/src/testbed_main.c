@@ -18,6 +18,7 @@
 #include <renderer/renderer_types.h>
 #include <resources/terrain.h>
 
+#include "core/engine.h"
 #include "defines.h"
 #include "game_state.h"
 #include "math/math_types.h"
@@ -26,11 +27,17 @@
 #include "systems/camera_system.h"
 #include "testbed_types.h"
 
+// Standard UI.
+#include <controls/sui_button.h>
+#include <controls/sui_label.h>
+#include <controls/sui_panel.h>
+#include <passes/ui_pass.h>
+#include <standard_ui_system.h>
+
 // Rendergraph and passes.
 #include "passes/editor_pass.h"
 #include "passes/scene_pass.h"
 #include "passes/skybox_pass.h"
-#include "passes/ui_pass.h"
 #include "renderer/rendergraph.h"
 
 // Views
@@ -53,14 +60,17 @@
 #include <resources/mesh.h>
 #include <resources/simple_scene.h>
 #include <resources/skybox.h>
-#include <resources/ui_text.h>
 #include <systems/audio_system.h>
 #include <systems/geometry_system.h>
 #include <systems/light_system.h>
 #include <systems/material_system.h>
 #include <systems/resource_system.h>
+// Standard ui
+#include <core/systems_manager.h>
+#include <standard_ui_system.h>
 
 #include "debug_console.h"
+// Game code.
 #include "game_commands.h"
 #include "game_keybinds.h"
 // TODO: end temp
@@ -396,6 +406,12 @@ static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_
     return false;  // Allow other event handlers to recieve this event.
 }
 
+static void sui_test_button_on_click(struct sui_control* self, struct sui_mouse_event event) {
+    if (self) {
+        KDEBUG("Clicked '%s'!", self->name);
+    }
+}
+
 u64 application_state_size(void) {
     return sizeof(testbed_game_state);
 }
@@ -459,6 +475,14 @@ b8 application_boot(struct application* game_inst) {
 b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
 
+    systems_manager_state* sys_mgr_state = engine_systems_manager_state_get(game_inst);
+    standard_ui_system_config standard_ui_cfg = {0};
+    standard_ui_cfg.max_control_count = 1024;
+    if (!systems_manager_register(sys_mgr_state, K_SYSTEM_TYPE_STANDARD_UI_EXT, standard_ui_system_initialize, standard_ui_system_shutdown, standard_ui_system_update, &standard_ui_cfg)) {
+        KERROR("Failed to register standard ui system.");
+        return false;
+    }
+
     application_register_events(game_inst);
 
     // Register resource loaders.
@@ -521,69 +545,109 @@ b8 application_initialize(struct application* game_inst) {
     }
 
     // Create test ui text objects
-    if (!ui_text_create("testbed_mono_test_text", UI_TEXT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "test text 123,\n\tyo!", &state->test_text)) {
+    if (!sui_label_control_create("testbed_mono_test_text", FONT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "test text 123,\n\tyo!", &state->test_text)) {
         KERROR("Failed to load basic ui bitmap text.");
         return false;
+    } else {
+        if (!sui_label_control_load(&state->test_text)) {
+            KERROR("Failed to load test text.");
+        } else {
+            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+            if (!standard_ui_system_register_control(sui_state, &state->test_text)) {
+                KERROR("Unable to register control.");
+            } else {
+                if (!standard_ui_system_control_add_child(sui_state, 0, &state->test_text)) {
+                    KERROR("Failed to parent test text.");
+                } else {
+                    state->test_text.is_active = true;
+                    if (!standard_ui_system_update_active(sui_state, &state->test_text)) {
+                        KERROR("Unable to update active state.");
+                    }
+                }
+            }
+        }
     }
     // Move debug text to new bottom of screen.
-    ui_text_position_set(&state->test_text, vec3_create(20, game_inst->app_config.start_height - 75, 0));
+    sui_control_position_set(&state->test_text, vec3_create(20, game_inst->app_config.start_height - 75, 0));
 
-    if (!ui_text_create("testbed_UTF_test_text", UI_TEXT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Press 'L' to load a scene, \n\tyo!\n\n\tこんにちは 한", &state->test_sys_text)) {
+        
+
+    // Standard ui stuff.
+    if (!sui_panel_control_create("test_panel", (vec2){300.0f, 300.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.5f}, &state->test_panel)) {
+        KERROR("Failed to create test panel.");
+    } else {
+        if (!sui_panel_control_load(&state->test_panel)) {
+            KERROR("Failed to load test panel.");
+        } else {
+            transform_translate(&state->test_panel.xform, (vec3){950, 350});
+            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+            if (!standard_ui_system_register_control(sui_state, &state->test_panel)) {
+                KERROR("Unable to register control.");
+            } else {
+                if (!standard_ui_system_control_add_child(sui_state, 0, &state->test_panel)) {
+                    KERROR("Failed to parent test panel.");
+                } else {
+                    state->test_panel.is_active = true;
+                    if (!standard_ui_system_update_active(sui_state, &state->test_panel)) {
+                        KERROR("Unable to update active state.");
+                    }
+                }
+            }
+        }
+    }
+
+    if (!sui_button_control_create("test_button", &state->test_button)) {
+        KERROR("Failed to create test button.");
+    } else {
+        // Assign a click handler.
+        state->test_button.on_click = sui_test_button_on_click;
+
+        // Move and rotate it some.
+        // quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
+        // transform_translate_rotate(&state->test_button.xform, (vec3){50, 50, 0}, rotation);
+
+        if (!sui_button_control_load(&state->test_button)) {
+            KERROR("Failed to load test button.");
+        } else {
+            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+            if (!standard_ui_system_register_control(sui_state, &state->test_button)) {
+                KERROR("Unable to register control.");
+            } else {
+                if (!standard_ui_system_control_add_child(sui_state, &state->test_panel, &state->test_button)) {
+                    KERROR("Failed to parent test button.");
+                } else {
+                    state->test_button.is_active = true;
+                    if (!standard_ui_system_update_active(sui_state, &state->test_button)) {
+                        KERROR("Unable to update active state.");
+                    }
+                }
+            }
+        }
+    }
+
+    if (!sui_label_control_create("testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Press 'L' to load a \n\tscene!\n\n\tこんにちは 한", &state->test_sys_text)) {
         KERROR("Failed to load basic ui system text.");
         return false;
+    } else {
+        if (!sui_label_control_load(&state->test_sys_text)) {
+            KERROR("Failed to load test system text.");
+        } else {
+            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+            if (!standard_ui_system_register_control(sui_state, &state->test_sys_text)) {
+                KERROR("Unable to register control.");
+            } else {
+                if (!standard_ui_system_control_add_child(sui_state, 0, &state->test_sys_text)) {
+                    KERROR("Failed to parent test system text.");
+                } else {
+                    state->test_sys_text.is_active = true;
+                    if (!standard_ui_system_update_active(sui_state, &state->test_sys_text)) {
+                        KERROR("Unable to update active state.");
+                    }
+                }
+            }
+        }
     }
-    ui_text_position_set(&state->test_sys_text, vec3_create(500, 550, 0));
-
-    // Load up some test UI geometry.
-    geometry_config ui_config;
-    ui_config.vertex_size = sizeof(vertex_2d);
-    ui_config.vertex_count = 4;
-    ui_config.index_size = sizeof(u32);
-    ui_config.index_count = 6;
-    string_ncopy(ui_config.material_name, "test_ui_material", MATERIAL_NAME_MAX_LENGTH);
-    string_ncopy(ui_config.name, "test_ui_geometry", GEOMETRY_NAME_MAX_LENGTH);
-
-    const f32 w = 128.0f;
-    const f32 h = 32.0f;
-    vertex_2d uiverts[4];
-    uiverts[0].position.x = 0.0f;  // 0    3
-    uiverts[0].position.y = 0.0f;  //
-    uiverts[0].texcoord.x = 0.0f;  //
-    uiverts[0].texcoord.y = 0.0f;  // 2    1
-
-    uiverts[1].position.y = h;
-    uiverts[1].position.x = w;
-    uiverts[1].texcoord.x = 1.0f;
-    uiverts[1].texcoord.y = 1.0f;
-
-    uiverts[2].position.x = 0.0f;
-    uiverts[2].position.y = h;
-    uiverts[2].texcoord.x = 0.0f;
-    uiverts[2].texcoord.y = 1.0f;
-
-    uiverts[3].position.x = w;
-    uiverts[3].position.y = 0.0;
-    uiverts[3].texcoord.x = 1.0f;
-    uiverts[3].texcoord.y = 0.0f;
-    ui_config.vertices = uiverts;
-
-    // Indices - counter-clockwise
-    u32 uiindices[6] = {2, 1, 0, 3, 0, 1};
-    ui_config.indices = uiindices;
-
-    // Get UI geometry from config.
-    state->ui_meshes[0].id = identifier_create();
-    state->ui_meshes[0].geometry_count = 1;
-    state->ui_meshes[0].geometries = kallocate(sizeof(geometry*), MEMORY_TAG_ARRAY);
-    state->ui_meshes[0].geometries[0] = geometry_system_acquire_from_config(ui_config, true);
-    state->ui_meshes[0].transform = transform_create();
-    state->ui_meshes[0].generation = 0;
-
-    // Move and rotate it some.
-    // quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
-    // transform_translate_rotate(&state->ui_meshes[0].transform, (vec3){5, 5, 0}, rotation);
-    transform_translate(&state->ui_meshes[0].transform, (vec3){650, 5, 0});
-
+    sui_control_position_set(&state->test_sys_text, vec3_create(950, 450, 0));
     // TODO: end temp load/prepare stuff
 
     state->world_camera = camera_system_acquire("world");
@@ -623,20 +687,20 @@ b8 application_initialize(struct application* game_inst) {
     state->test_emitter.position = vec3_create(10.0f, 0.8f, 20.0f);
 
     // Set some channel volumes.
-    audio_system_master_volume_set(0.7f);
+    audio_system_master_volume_set(0.9f);
     audio_system_channel_volume_set(0, 1.0f);
     audio_system_channel_volume_set(1, 0.75f);
     audio_system_channel_volume_set(2, 0.50f);
     audio_system_channel_volume_set(3, 0.25);
     audio_system_channel_volume_set(4, 0.0f);
 
-    audio_system_channel_volume_set(7, 0.4f);
+    audio_system_channel_volume_set(7, 0.9f);
 
     // Try playing the emitter.
-    if (!audio_system_channel_emitter_play(6, &state->test_emitter)) {
+    /* if (!audio_system_channel_emitter_play(6, &state->test_emitter)) {
         KERROR("Failed to play test emitter.");
     }
-    audio_system_channel_play(7, state->test_music, true);
+    audio_system_channel_play(7, state->test_music, true); */
 
     state->running = true;
 
@@ -655,6 +719,11 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     }
 
     clock_start(&state->update_clock);
+
+    // TODO: testing resize
+    static f32 button_height = 50.0f;
+    button_height = 50.0f + (ksin(p_frame_data->total_time) * 20.0f);
+    sui_button_control_height_set(&state->test_button, (i32)button_height);
 
     if (state->main_scene.state >= SIMPLE_SCENE_STATE_LOADED) {
         if (!simple_scene_update(&state->main_scene, p_frame_data)) {
@@ -767,7 +836,7 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
         state->hovered_object_id == INVALID_ID ? "none" : "",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
     if (state->running) {
-        ui_text_text_set(&state->test_text, text_buffer);
+        sui_label_text_set(&state->test_text, text_buffer);
     }
 
     debug_console_update(&((testbed_game_state*)game_inst->state)->debug_console);
@@ -833,12 +902,12 @@ static i32 geometry_partition(geometry_render_data arr[], i32 low_index, i32 hig
 
     for (i32 j = low_index; j <= high_index - 1; ++j) {
         if (ascending) {
-            if (arr[j].geometry->material->internal_id < pivot.geometry->material->internal_id) {
+            if (arr[j].material->internal_id < pivot.material->internal_id) {
                 ++i;
                 geometry_swap(&arr[i], &arr[j]);
             }
         } else {
-            if (arr[j].geometry->material->internal_id > pivot.geometry->material->internal_id) {
+            if (arr[j].material->internal_id > pivot.material->internal_id) {
                 ++i;
                 geometry_swap(&arr[i], &arr[j]);
             }
@@ -967,7 +1036,11 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                                 // Add it to the list to be rendered.
                                 geometry_render_data data = {0};
                                 data.model = model;
-                                data.geometry = g;
+                                data.material = g->material;
+                                data.vertex_count = g->vertex_count;
+                                data.vertex_buffer_offset = g->vertex_buffer_offset;
+                                data.index_count = g->index_count;
+                                data.index_buffer_offset = g->index_buffer_offset;
                                 data.unique_id = m->id.uniqueid;
                                 data.winding_inverted = winding_inverted;
 
@@ -1021,7 +1094,12 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 // TODO: Frustum culling
                 geometry_render_data data = {0};
                 data.model = transform_world_get(&scene->terrains[i].xform);
-                data.geometry = &scene->terrains[i].geo;
+                geometry* g = &scene->terrains[i].geo;
+                data.material = g->material;
+                data.vertex_count = g->vertex_count;
+                data.vertex_buffer_offset = g->vertex_buffer_offset;
+                data.index_count = g->index_count;
+                data.index_buffer_offset = g->index_buffer_offset;
                 data.unique_id = scene->terrains[i].id.uniqueid;
 
                 darray_push(ext_data->terrain_geometries, data);
@@ -1051,7 +1129,12 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 for (u32 i = 0; i < line_count; ++i) {
                     geometry_render_data rd = {0};
                     rd.model = transform_world_get(&state->test_lines[i].xform);
-                    rd.geometry = &state->test_lines[i].geo;
+                    geometry* g = &state->test_lines[i].geo;
+                    rd.material = g->material;
+                    rd.vertex_count = g->vertex_count;
+                    rd.vertex_buffer_offset = g->vertex_buffer_offset;
+                    rd.index_count = g->index_count;
+                    rd.index_buffer_offset = g->index_buffer_offset;
                     rd.unique_id = INVALID_ID_U16;
                     darray_push(ext_data->debug_geometries, rd);
                     ext_data->debug_geometry_count++;
@@ -1060,7 +1143,12 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 for (u32 i = 0; i < box_count; ++i) {
                     geometry_render_data rd = {0};
                     rd.model = transform_world_get(&state->test_boxes[i].xform);
-                    rd.geometry = &state->test_boxes[i].geo;
+                    geometry* g = &state->test_boxes[i].geo;
+                    rd.material = g->material;
+                    rd.vertex_count = g->vertex_count;
+                    rd.vertex_buffer_offset = g->vertex_buffer_offset;
+                    rd.index_count = g->index_count;
+                    rd.index_buffer_offset = g->index_buffer_offset;
                     rd.unique_id = INVALID_ID_U16;
                     darray_push(ext_data->debug_geometries, rd);
                     ext_data->debug_geometry_count++;
@@ -1096,18 +1184,30 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
             geometry_render_data render_data = {0};
             render_data.model = model;
-            render_data.geometry = g;
+            render_data.material = g->material;
+            render_data.vertex_count = g->vertex_count;
+            render_data.vertex_buffer_offset = g->vertex_buffer_offset;
+            render_data.index_count = g->index_count;
+            render_data.index_buffer_offset = g->index_buffer_offset;
             render_data.unique_id = INVALID_ID;
 
             ext_data->debug_geometries = darray_create_with_allocator(geometry_render_data, &p_frame_data->allocator);
             darray_push(ext_data->debug_geometries, render_data);
 
 #ifdef _DEBUG
-            geometry_render_data plane_normal_render_data = {0};
-            plane_normal_render_data.model = transform_world_get(&state->gizmo.plane_normal_line.xform);
-            plane_normal_render_data.geometry = &state->gizmo.plane_normal_line.geo;
-            plane_normal_render_data.unique_id = INVALID_ID;
-            darray_push(ext_data->debug_geometries, plane_normal_render_data);
+            {
+                geometry_render_data plane_normal_render_data = {0};
+                plane_normal_render_data.model = transform_world_get(&state->gizmo.plane_normal_line.xform);
+                geometry* g = &state->gizmo.plane_normal_line.geo;
+                plane_normal_render_data.material = 0;
+                plane_normal_render_data.material = g->material;
+                plane_normal_render_data.vertex_count = g->vertex_count;
+                plane_normal_render_data.vertex_buffer_offset = g->vertex_buffer_offset;
+                plane_normal_render_data.index_count = g->index_count;
+                plane_normal_render_data.index_buffer_offset = g->index_buffer_offset;
+                plane_normal_render_data.unique_id = INVALID_ID;
+                darray_push(ext_data->debug_geometries, plane_normal_render_data);
+            }
 #endif
             ext_data->debug_geometry_count = darray_length(ext_data->debug_geometries);
         }
@@ -1142,42 +1242,12 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
         state->ui_pass.pass_data.projection_matrix = state->ui_viewport.projection;
         state->ui_pass.pass_data.do_execute = true;
 
-        ext_data->geometries = darray_reserve_with_allocator(geometry_render_data, 10, &p_frame_data->allocator);
-        for (u32 i = 0; i < 10; ++i) {
-            if (state->ui_meshes[i].generation != INVALID_ID_U8) {
-                mesh* m = &state->ui_meshes[i];
-                u32 geometry_count = m->geometry_count;
-                for (u32 j = 0; j < geometry_count; ++j) {
-                    geometry_render_data render_data;
-                    render_data.geometry = m->geometries[j];
-                    render_data.model = transform_world_get(&m->transform);
-                    darray_push(ext_data->geometries, render_data);
-                }
-            }
+        // Renderables.
+        ext_data->sui_render_data.renderables = darray_create_with_allocator(standard_ui_renderable, &p_frame_data->allocator);
+        void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
+        if (!standard_ui_system_render(sui_state, 0, p_frame_data, &ext_data->sui_render_data)) {
+            KERROR("The standard ui system failed to render.");
         }
-        ext_data->geometry_count = darray_length(ext_data->geometries);
-
-        ext_data->texts = 0;
-        ext_data->texts = darray_reserve_with_allocator(ui_text*, 2, &p_frame_data->allocator);
-        if (state->test_text.text) {
-            darray_push(ext_data->texts, &state->test_text);
-        }
-        if (state->test_sys_text.text) {
-            darray_push(ext_data->texts, &state->test_sys_text);
-        }
-
-        ui_text* debug_console_text = debug_console_get_text(&state->debug_console);
-        b8 render_debug_conole = debug_console_text && debug_console_visible(&state->debug_console);
-        if (render_debug_conole) {
-            if (debug_console_text->text) {
-                darray_push(ext_data->texts, debug_console_text);
-            }
-            ui_text* debug_console_entry_text = debug_console_get_entry_text(&state->debug_console);
-            if (debug_console_entry_text->text) {
-                darray_push(ext_data->texts, debug_console_entry_text);
-            }
-        }
-        ext_data->ui_text_count = darray_length(ext_data->texts);
     }
 
     // Pick
@@ -1266,7 +1336,7 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
 
     // TODO: temp
     // Move debug text to new bottom of screen.
-    ui_text_position_set(&state->test_text, vec3_create(20, state->height - 95, 0));
+    sui_control_position_set(&state->test_text, vec3_create(20, state->height - 95, 0));
 
     // Pass the resize onto the rendergraph.
     rendergraph_on_resize(&state->frame_graph, state->width, state->height);
@@ -1290,9 +1360,6 @@ void application_shutdown(struct application* game_inst) {
     // TODO: Temp
 
     // Destroy ui texts
-    ui_text_destroy(&state->test_text);
-    ui_text_destroy(&state->test_sys_text);
-
     debug_console_unload(&state->debug_console);
 
     // Destroy rendergraph(s)
@@ -1444,8 +1511,11 @@ static b8 configure_rendergraph(application* app) {
     // UI pass
     RG_CHECK(rendergraph_pass_create(&state->frame_graph, "ui", ui_pass_create, &state->ui_pass));
     RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "ui", "colourbuffer"));
+    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "ui", "depthbuffer"));
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "ui", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "ui", "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_GLOBAL));
     RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "ui", "colourbuffer", "editor", "colourbuffer"));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "ui", "depthbuffer", 0, "depthbuffer"));
 
     refresh_rendergraph_pfns(app);
 
