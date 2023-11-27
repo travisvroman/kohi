@@ -3,21 +3,19 @@
 // Windows platform layer.
 #if KPLATFORM_WINDOWS
 
-#include "core/logger.h"
-#include "core/input.h"
+#include "containers/darray.h"
 #include "core/event.h"
-#include "core/kthread.h"
-#include "core/kmutex.h"
+#include "core/input.h"
 #include "core/kmemory.h"
+#include "core/kmutex.h"
 #include "core/kstring.h"
-#include "containers/darray.h"
-
-#include "containers/darray.h"
+#include "core/kthread.h"
+#include "core/logger.h"
 
 #define WIN32_LEAN_AND_MEAN
+#include <stdlib.h>
 #include <windows.h>
 #include <windowsx.h>  // param input extraction
-#include <stdlib.h>
 
 typedef struct win32_handle_info {
     HINSTANCE h_instance;
@@ -192,6 +190,14 @@ void *platform_set_memory(void *dest, i32 value, u64 size) {
 
 void platform_console_write(const char *message, u8 colour) {
     HANDLE console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (state_ptr) {
+        csbi = state_ptr->std_output_csbi;
+    } else {
+        GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    }
+
     // FATAL,ERROR,WARN,INFO,DEBUG,TRACE
     static u8 levels[6] = {64, 4, 6, 2, 1, 8};
     SetConsoleTextAttribute(console_handle, levels[colour]);
@@ -200,17 +206,18 @@ void platform_console_write(const char *message, u8 colour) {
     DWORD number_written = 0;
     WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), message, (DWORD)length, &number_written, 0);
 
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    if (state_ptr) {
-        csbi = state_ptr->std_output_csbi;
-    } else {
-        GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-    }
     SetConsoleTextAttribute(console_handle, csbi.wAttributes);
 }
 
 void platform_console_write_error(const char *message, u8 colour) {
     HANDLE console_handle = GetStdHandle(STD_ERROR_HANDLE);
+
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (state_ptr) {
+        csbi = state_ptr->err_output_csbi;
+    } else {
+        GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &csbi);
+    }
 
     // FATAL,ERROR,WARN,INFO,DEBUG,TRACE
     static u8 levels[6] = {64, 4, 6, 2, 1, 8};
@@ -220,12 +227,6 @@ void platform_console_write_error(const char *message, u8 colour) {
     DWORD number_written = 0;
     WriteConsoleA(GetStdHandle(STD_ERROR_HANDLE), message, (DWORD)length, &number_written, 0);
 
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    if (state_ptr) {
-        csbi = state_ptr->err_output_csbi;
-    } else {
-        GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &csbi);
-    }
     SetConsoleTextAttribute(console_handle, csbi.wAttributes);
 }
 
