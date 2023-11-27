@@ -98,15 +98,7 @@ This structure breakdown is based on the root folder of the repository. Some fil
 - `.vscode` A folder containing VS Code-specific project setup.
 
 ## Roadmap
- - Fully 3D engine with various lighting models and material types available (Basic 3d lighting, Physically-Based Rendering, etc.)
- - Multiple rendering backends:
-   - Vulkan first (uses MoltenVK on macOS)
-   - Eventually adding OpenGL and DirectX and potentially Metal
- - Suite of editor tools
- - Asset/Game Code hot-reload support
- - Physics
- - Full-fledged UI system
- - GamePad input
+See [here](TODO.md).
 
 ## Goal
 The goal here is simple, to provide a resource that I wish I had when learning game development; a complete guide on building a game engine from scratch, including not only design decisions, but _why_ those decisions were made. It should also be noted that, while this is _a_ way of building a game engine, it is not _the only_ way to build one.
