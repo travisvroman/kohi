@@ -1900,7 +1900,10 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
     pool_info.pPoolSizes = internal_shader->config.pool_sizes;
     pool_info.maxSets = internal_shader->config.max_descriptor_set_count;
     pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-
+#if defined(VK_USE_PLATFORM_MACOS_MVK)
+    // NOTE: increase the per-stage descriptor samplers limit on macOS (maxPerStageDescriptorUpdateAfterBindSamplers > maxPerStageDescriptorSamplers)
+    pool_info.flags |= VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+#endif
     // Create descriptor pool.
     VkResult result =
         vkCreateDescriptorPool(logical_device, &pool_info, vk_allocator,
@@ -1915,17 +1918,27 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
     kzero_memory(internal_shader->descriptor_set_layouts,
                  internal_shader->config.descriptor_set_count);
     for (u32 i = 0; i < internal_shader->config.descriptor_set_count; ++i) {
-        VkDescriptorSetLayoutCreateInfo layout_info = {
-            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-        layout_info.bindingCount =
-            internal_shader->config.descriptor_sets[i].binding_count;
+        VkDescriptorSetLayoutCreateInfo layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+        layout_info.bindingCount = internal_shader->config.descriptor_sets[i].binding_count;
         layout_info.pBindings = internal_shader->config.descriptor_sets[i].bindings;
-        result = vkCreateDescriptorSetLayout(
-            logical_device, &layout_info, vk_allocator,
-            &internal_shader->descriptor_set_layouts[i]);
+
+        // VkDescriptorSetLayoutBindingFlagsCreateInfoEXT set_layout_binding_flags = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT};
+        // set_layout_binding_flags.bindingCount = internal_shader->config.descriptor_sets[i].binding_count;
+        // // Max of 2, global and instance.
+        // VkDescriptorBindingFlagsEXT descriptor_binding_flags[2] = {
+        //     0,
+        //     VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT};
+        // set_layout_binding_flags.pBindingFlags = descriptor_binding_flags;
+        // layout_info.pNext = &set_layout_binding_flags;
+
+#if defined(VK_USE_PLATFORM_MACOS_MVK)
+        // NOTE: Increase the per-stage descriptor samplers limit on macOS (maxPerStageDescriptorUpdateAfterBindSamplers > maxPerStageDescriptorSamplers)
+        layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+#endif
+
+        result = vkCreateDescriptorSetLayout(logical_device, &layout_info, vk_allocator, &internal_shader->descriptor_set_layouts[i]);
         if (!vulkan_result_is_success(result)) {
-            KERROR("vulkan_shader_initialize failed creating descriptor pool: '%s'",
-                   vulkan_result_string(result, true));
+            KERROR("vulkan_shader_initialize failed creating descriptor pool: '%s'", vulkan_result_string(result, true));
             return false;
         }
     }
@@ -2295,8 +2308,14 @@ b8 vulkan_renderer_shader_apply_instance(renderer_plugin *plugin, shader *s,
 
                 // Ensure the texture is valid.
                 if (t->generation == INVALID_ID) {
+                    // Texture generations are always invalid for default textures, so
+                    // check first if already using one.
+                    if (!texture_system_is_default_texture(t)) {
+                        // If not using one, grab the default. This is only here as a failsafe
+                        // and to be used while assets are loading.
+                        t = texture_system_get_default_texture();
+                    }
                     // If using the default texture, invalidate the map's generation so it's updated next run.
-                    t = texture_system_get_default_texture();
                     map->generation = INVALID_ID;
                 } else {
                     // If valid, ensure the texture map's generation matches the texture's.
@@ -3247,6 +3266,10 @@ b8 vulkan_buffer_create_internal(renderer_plugin *plugin, renderbuffer *buffer) 
     // Allocate the memory.
     VkResult result = vkAllocateMemory(context->device.logical_device, &allocate_info,
                                        context->allocator, &internal_buffer.memory);
+    if (!vulkan_result_is_success(result)) {
+        KERROR("Failed to allocate memory for buffer with error: %s", vulkan_result_string(result, true));
+        return false;
+    }
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE_MEMORY, internal_buffer.memory, buffer->name);
 
     // Determine if memory is on a device heap.

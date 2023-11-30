@@ -351,9 +351,10 @@ static b8 material_loader_load(struct resource_loader *self, const char *name,
                         resource_data->type = MATERIAL_TYPE_PHONG;
                     } else if (strings_equali(trimmed_value, "pbr")) {
                         resource_data->type = MATERIAL_TYPE_PBR;
+                        resource_data->shader_name = string_duplicate("Shader.PBRMaterial");
                     } else if (strings_equali(trimmed_value, "ui")) {
                         resource_data->type = MATERIAL_TYPE_UI;
-                    } else if (strings_equali(trimmed_value, "terrain")){
+                    } else if (strings_equali(trimmed_value, "terrain")) {
                         resource_data->type = MATERIAL_TYPE_TERRAIN;
                     } else if (strings_equali(trimmed_value, "custom")) {
                         resource_data->type = MATERIAL_TYPE_CUSTOM;

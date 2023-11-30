@@ -801,7 +801,7 @@ void renderer_active_viewport_set(viewport* v) {
     state_ptr->plugin.scissor_set(&state_ptr->plugin, scissor_rect);
 }
 
-viewport* renderer_active_viewport_get() {
+viewport* renderer_active_viewport_get(void) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->active_viewport;
 }

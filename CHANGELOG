@@ -1,5 +1,9 @@
 Changelog
 
+- 0.5x
+  - Added Physically-Based Rendering (PBR) material type support.
+  - Fixed an issue with pulling the default checkerboard texture when already using a default texture (i.e normal, spec, ao, etc.).
+
 - 0.4x
   - Added first pass of Standard UI system, including panel, button, label, and textbox controls.
   - Removed ui_text and replaced with sui_label_control as part of the Standard UI system.

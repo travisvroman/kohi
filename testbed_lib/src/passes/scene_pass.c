@@ -5,6 +5,7 @@
 #include "defines.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
+#include "resources/resource_types.h"
 #include "systems/material_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
@@ -17,6 +18,7 @@ typedef struct debug_shader_locations {
 
 typedef struct scene_pass_internal_data {
     shader* material_shader;
+    shader* pbr_shader;
     shader* terrain_shader;
     shader* colour_shader;
     debug_shader_locations debug_locations;
@@ -87,6 +89,22 @@ b8 scene_pass_initialize(struct rendergraph_pass* self) {
     resource_system_unload(&material_config_resource);
     // Save off a pointer to the material shader.
     internal_data->material_shader = shader_system_get(material_shader_name);
+
+    // Load PBR shader
+    const char* pbr_shader_name = "Shader.PBRMaterial";
+    resource pbr_config_resource;
+    if (!resource_system_load(pbr_shader_name, RESOURCE_TYPE_SHADER, 0, &pbr_config_resource)) {
+        KERROR("Failed to load PBR shader resource.");
+        return false;
+    }
+    shader_config* pbr_config = (shader_config*)pbr_config_resource.data;
+    if (!shader_system_create(&self->pass, pbr_config)) {
+        KERROR("Failed to create PBR shader.");
+        return false;
+    }
+    resource_system_unload(&pbr_config_resource);
+    // Save off a pointer to the PBR shader.
+    internal_data->pbr_shader = shader_system_get(pbr_shader_name);
 
     // Load terrain shader.
     const char* terrain_shader_name = "Shader.Builtin.Terrain";
@@ -188,6 +206,20 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
     // Static geometries.
     u32 geometry_count = ext_data->geometry_count;
     if (geometry_count > 0) {
+        // Update globals for material and PBR shaders.
+        if (!shader_system_use_by_id(internal_data->pbr_shader->id)) {
+            KERROR("Failed to use PBR shader. Render frame failed.");
+            return false;
+        }
+
+        // Apply globals
+        // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
+        // and mode (from the renderer)
+        if (!material_system_apply_global(internal_data->pbr_shader->id, p_frame_data, &self->pass_data.projection_matrix, &self->pass_data.view_matrix, &ext_data->ambient_colour, &self->pass_data.view_position, ext_data->render_mode)) {
+            KERROR("Failed to use apply globals for PBR shader. Render frame failed.");
+            return false;
+        }
+
         if (!shader_system_use_by_id(internal_data->material_shader->id)) {
             KERROR("Failed to use material shader. Render frame failed.");
             return false;
@@ -202,6 +234,7 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
         }
 
         u32 current_material_id = INVALID_ID - 1;
+        material_type current_material_type = MATERIAL_TYPE_PHONG;
         // Draw geometries.
         u32 count = ext_data->geometry_count;
         for (u32 i = 0; i < count; ++i) {
@@ -210,6 +243,15 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
                 m = ext_data->geometries[i].material;
             } else {
                 m = material_system_get_default();
+            }
+
+            // If the material type is different, change shaders.
+            if (m->type != current_material_type) {
+                if (!shader_system_use_by_id(m->type == MATERIAL_TYPE_PBR ? internal_data->pbr_shader->id : internal_data->material_shader->id)) {
+                    KERROR("Failed to use PBR shader. Render frame failed.");
+                    return false;
+                }
+                current_material_type = m->type;
             }
 
             // Only rebind/update the material if it's a new material. Duplicates can reuse the already-bound material.

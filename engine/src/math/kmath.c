@@ -49,6 +49,18 @@ f32 kfrandom_in_range(f32 min, f32 max) {
     return min + ((float)krandom() / ((f32)RAND_MAX / (max - min)));
 }
 
+f32 kattenuation_min_max(f32 min, f32 max, f32 x) {
+    // TODO: Maybe a good function here would be one with a min/max and falloff value...
+    // so if the range was 0.4 to 0.8 with a falloff of 1.0, weight for x between
+    // 0.5 and 0.7 would be 1.0, with it dwindling to 0 as it approaches 0.4 or 0.8.
+    f32 half_range = kabs(max - min) * 0.5;
+    f32 mid = min + half_range;    // midpoint
+    f32 distance = kabs(x - mid);  // dist from mid
+    // scale dist from midpoint to halfrange
+    f32 att = KCLAMP((half_range - distance) / half_range, 0, 1);
+    return att;
+}
+
 plane_3d plane_3d_create(vec3 p1, vec3 norm) {
     plane_3d p;
     p.normal = vec3_normalized(norm);

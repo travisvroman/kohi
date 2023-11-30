@@ -224,6 +224,16 @@ KINLINE f32 ksmoothstep(f32 edge_0, f32 edge_1, f32 x) {
 }
 
 /**
+ * @brief Returns the attenuation of x based off distance from the midpoint of min and max.
+ *
+ * @param min The minimum value.
+ * @param max The maximum value.
+ * @param x The value to attenuate.
+ * @return The attenuation of x based on distance of the midpoint of min and max.
+ */
+KAPI f32 kattenuation_min_max(f32 min, f32 max, f32 x);
+
+/**
  * @brief Compares the two floats and returns true if both are less
  * than K_FLOAT_EPSILON apart; otherwise false.
  */
@@ -1834,7 +1844,7 @@ KINLINE void rgbu_to_u32(u32 r, u32 g, u32 b, u32 *out_u32) {
 KINLINE void u32_to_rgb(u32 rgbu, u32 *out_r, u32 *out_g, u32 *out_b) {
     *out_r = (rgbu >> 16) & 0x0FF;
     *out_g = (rgbu >> 8) & 0x0FF;
-    *out_b = (rgbu)&0x0FF;
+    *out_b = (rgbu) & 0x0FF;
 }
 
 /**
@@ -1952,7 +1962,6 @@ KAPI b8 plane_intersects_aabb(const plane_3d *p, const vec3 *center,
  */
 KAPI b8 frustum_intersects_aabb(const frustum *f, const vec3 *center,
                                 const vec3 *extents);
-
 
 KINLINE b8 rect_2d_contains_point(rect_2d rect, vec2 point) {
     return (point.x >= rect.x && point.x <= rect.x + rect.width) && (point.y >= rect.y && point.y <= rect.y + rect.height);

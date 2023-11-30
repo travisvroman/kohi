@@ -1,0 +1,34 @@
+# Kohi shader config file
+version=1.0
+name=Shader.PBRMaterial
+stages=vertex,fragment
+stagefiles=shaders/PBRShader.vert.glsl,shaders/PBRShader.frag.glsl
+depth_test=1
+depth_write=1
+
+# Attributes: type,name
+attribute=vec3,in_position
+attribute=vec3,in_normal
+attribute=vec2,in_texcoord
+attribute=vec4,in_colour
+attribute=vec3,in_tangent
+
+# Uniforms: type,scope,name
+# NOTE: For scope: 0=global, 1=instance, 2=local
+uniform=mat4,0,projection
+uniform=mat4,0,view
+uniform=vec4,0,ambient_colour
+uniform=vec3,0,view_position
+uniform=u32,0,mode
+uniform=samp,1,albedo_texture
+uniform=samp,1,normal_texture
+uniform=samp,1,metallic_texture
+uniform=samp,1,roughness_texture
+uniform=samp,1,ao_texture
+# TODO: IBL
+#uniform=samp,1,cube_texture
+uniform=struct32,1,dir_light
+uniform=struct480,1,p_lights
+uniform=struct32,1,properties
+uniform=i32,1,num_p_lights
+uniform=mat4,2,model

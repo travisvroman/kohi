@@ -14,7 +14,7 @@ cubemap_name=skybox
 
 [DirectionalLight]
 name=sun
-colour=0.4 0.4 0.4 1.0
+colour=1.0 1.0 0.9 1.0
 direction=-0.57735 -0.57735 -0.57735 0.0
 [/DirectionalLight]
 
@@ -60,6 +60,6 @@ quadratic=0.44
 [Terrain]
 name=test_terrain
 resource_name=test_terrain
-transform=-50.0 -5.0 -50.0 0.0 0.0 0.0 1.0 1.0 1.0 1.0
+transform=-50.0 -3.9 -50.0 0.0 0.0 0.0 1.0 1.0 1.0 1.0
 [/Terrain]
 

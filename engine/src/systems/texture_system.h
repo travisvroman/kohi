@@ -34,6 +34,15 @@ typedef struct texture_system_config {
 /** @brief The default normal texture name. */
 #define DEFAULT_NORMAL_TEXTURE_NAME "default_NORM"
 
+/** @brief The default metallic texture name. */
+#define DEFAULT_METALLIC_TEXTURE_NAME "default_METALLIC"
+
+/** @brief The default roughness texture name. */
+#define DEFAULT_ROUGHNESS_TEXTURE_NAME "default_ROUGHNESS"
+
+/** @brief The default AO texture name. */
+#define DEFAULT_AO_TEXTURE_NAME "default_AO"
+
 /**
  * @brief Initializes the texture system.
  * Should be called twice; once to get the memory requirement (passing state=0), and a second
@@ -163,6 +172,15 @@ KAPI b8 texture_system_resize(texture* t, u32 width, u32 height, b8 regenerate_i
 KAPI b8 texture_system_write_data(texture* t, u32 offset, u32 size, void* data);
 
 /**
+ * @brief Indicates if the passed-in texture is a default texture.
+ * Will return false if texture system is not yet initialized.
+ *
+ * @param t A pointer to the texture to be checked.
+ * @returns True if t is a default texture; otherwise false.
+ */
+KAPI b8 texture_system_is_default_texture(texture* t);
+
+/**
  * @brief Gets a pointer to the default texture. No reference counting is
  * done for default textures.
  */
@@ -185,3 +203,21 @@ KAPI texture* texture_system_get_default_specular_texture(void);
  * done for default textures.
  */
 KAPI texture* texture_system_get_default_normal_texture(void);
+
+/**
+ * @brief Gets a pointer to the default metallic texture. No reference counting is
+ * done for default textures.
+ */
+KAPI texture* texture_system_get_default_metallic_texture(void);
+
+/**
+ * @brief Gets a pointer to the default roughness texture. No reference counting is
+ * done for default textures.
+ */
+KAPI texture* texture_system_get_default_roughness_texture(void);
+
+/**
+ * @brief Gets a pointer to the default AO (ambient occlusion) texture. No reference counting is
+ * done for default textures.
+ */
+KAPI texture* texture_system_get_default_ao_texture(void);

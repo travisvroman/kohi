@@ -157,12 +157,15 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
         resource_data->tile_count_x = image_data->width;
         resource_data->tile_count_z = image_data->height;
 
-        // LEFTOFF: Terrains are only loading as a single triangle now...
         for (u32 i = 0; i < pixel_count; ++i) {
             u8 r = image_data->pixels[(i * 4) + 0];
             u8 g = image_data->pixels[(i * 4) + 1];
             u8 b = image_data->pixels[(i * 4) + 2];
-            f32 height = ((r + g + b)) / 255.0f;
+            // Need to base height off combined RGB value.
+            u32 colour_int = 0;
+            rgbu_to_u32(r, g, b, &colour_int);
+            f32 height = (f32)colour_int / 16777215;
+
             resource_data->vertex_datas[i].height = height;
         }
 

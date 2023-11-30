@@ -18,6 +18,9 @@
 /** @brief The name of the default material. */
 #define DEFAULT_MATERIAL_NAME "default"
 
+/** @brief The name of the default PBR material. */
+#define DEFAULT_PBR_MATERIAL_NAME "default_pbr"
+
 /** @brief The name of the default terrain material. */
 #define DEFAULT_TERRAIN_MATERIAL_NAME "default_terrain"
 
@@ -94,6 +97,11 @@ KAPI void material_system_release(const char* name);
  * @brief Gets a pointer to the default material. Does not reference count.
  */
 KAPI material* material_system_get_default(void);
+
+/**
+ * @brief Gets a pointer to the default PBR material. Does not reference count.
+ */
+KAPI material* material_system_get_default_pbr(void);
 
 /**
  * @brief Gets a pointer to the default terrain material. Does not reference count.
