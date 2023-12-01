@@ -1899,7 +1899,7 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
     pool_info.poolSizeCount = 2;
     pool_info.pPoolSizes = internal_shader->config.pool_sizes;
     pool_info.maxSets = internal_shader->config.max_descriptor_set_count;
-    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;  // | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 #if defined(VK_USE_PLATFORM_MACOS_MVK)
     // NOTE: increase the per-stage descriptor samplers limit on macOS (maxPerStageDescriptorUpdateAfterBindSamplers > maxPerStageDescriptorSamplers)
     pool_info.flags |= VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
@@ -1922,14 +1922,16 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
         layout_info.bindingCount = internal_shader->config.descriptor_sets[i].binding_count;
         layout_info.pBindings = internal_shader->config.descriptor_sets[i].bindings;
 
-        // VkDescriptorSetLayoutBindingFlagsCreateInfoEXT set_layout_binding_flags = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT};
-        // set_layout_binding_flags.bindingCount = internal_shader->config.descriptor_sets[i].binding_count;
-        // // Max of 2, global and instance.
-        // VkDescriptorBindingFlagsEXT descriptor_binding_flags[2] = {
-        //     0,
-        //     VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT};
-        // set_layout_binding_flags.pBindingFlags = descriptor_binding_flags;
-        // layout_info.pNext = &set_layout_binding_flags;
+        // Partial binding is required for descriptor aliasing (i.e using different types on the same set/binding)
+        VkDescriptorBindingFlags binding_flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT;
+        VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extended_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT};
+        extended_info.bindingCount = internal_shader->config.descriptor_sets[i].binding_count;
+        // Max of 2, UBO and samplers.
+        VkDescriptorBindingFlagsEXT descriptor_binding_flags[2] = {
+            0,
+            binding_flags};
+        extended_info.pBindingFlags = descriptor_binding_flags;
+        layout_info.pNext = &extended_info;
 
 #if defined(VK_USE_PLATFORM_MACOS_MVK)
         // NOTE: Increase the per-stage descriptor samplers limit on macOS (maxPerStageDescriptorUpdateAfterBindSamplers > maxPerStageDescriptorSamplers)

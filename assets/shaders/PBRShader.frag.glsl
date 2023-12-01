@@ -40,12 +40,14 @@ const int SAMP_NORMAL = 1;
 const int SAMP_METALLIC = 2;
 const int SAMP_ROUGHNESS = 3;
 const int SAMP_AO = 4;
+const int SAMP_IBL_CUBE = 5;
 
 const float PI = 3.14159265359;
 // Samplers. albedo, normal, metallic, roughness, ao
-layout(set = 1, binding = 1) uniform sampler2D samplers[5];
-// TODO: IBL
-/* layout(set = 1, binding = 1) uniform samplerCube cube_samplers[6]; // Alias to get cube samplers */
+// Environment map is at the last index.
+layout(set = 1, binding = 1) uniform sampler2D samplers[6];
+// IBL - Alias to get cube samplers
+layout(set = 1, binding = 1) uniform samplerCube cube_samplers[6];
 
 layout(location = 0) flat in int in_mode;
 // Data Transfer Object
@@ -81,8 +83,6 @@ void main() {
     vec3 bitangent = cross(in_dto.normal, in_dto.tangent);
     TBN = mat3(tangent, bitangent, normal);
 
-    // TODO: IBL
-    /* vec4 ibl_sample = texture(cube_samplers[SAMP_IBL_CUBE], vec3(0)); */
 
     // Update the normal to use a sample from the normal map.
     vec3 local_normal = 2.0 * texture(samplers[SAMP_NORMAL], in_dto.tex_coord).rgb - 1.0;
@@ -136,8 +136,11 @@ void main() {
             total_reflectance += calculate_reflectance(albedo, normal, view_direction, light_direction, metallic, roughness, base_reflectivity, radiance);
         }
 
-        // Add in albedo and ambient occlusion.
-        vec3 ambient = vec3(0.03) * albedo * ao; // will be replaced by IBL
+        // Irradiance holds all the scene's indirect diffuse light. Use the surface normal to sample from it.
+        vec3 irradiance = texture(cube_samplers[SAMP_IBL_CUBE], normal).rgb;
+
+        // Combine irradiance with albedo and ambient occlusion. Also add in total accumulated reflectance.
+        vec3 ambient = irradiance * albedo * ao;
         vec3 colour = ambient + total_reflectance;
 
         // HDR tonemapping

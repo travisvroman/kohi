@@ -47,8 +47,8 @@ uniform=samp,1,metallic_texture_3
 uniform=samp,1,roughness_texture_3
 uniform=samp,1,ao_texture_3
 
-# TODO: IBL
-# uniform=samp,1,cube_texture
+# Irradience
+uniform=samp,1,ibl_cube_texture
 
 uniform=struct160,1,properties
 uniform=struct480,1,p_lights

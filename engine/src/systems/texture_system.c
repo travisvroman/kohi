@@ -17,6 +17,7 @@ typedef struct texture_system_state {
     texture default_metallic_texture;
     texture default_roughness_texture;
     texture default_ao_texture;
+    texture default_cube_texture;
 
     // Array of registered textures.
     texture* registered_textures;
@@ -294,7 +295,8 @@ b8 texture_system_is_default_texture(texture* t) {
            (t == &state_ptr->default_specular_texture) ||
            (t == &state_ptr->default_metallic_texture) ||
            (t == &state_ptr->default_roughness_texture) ||
-           (t == &state_ptr->default_ao_texture);
+           (t == &state_ptr->default_ao_texture) ||
+           (t == &state_ptr->default_cube_texture);
 }
 
 texture* texture_system_get_default_texture(void) {
@@ -325,6 +327,10 @@ texture* texture_system_get_default_ao_texture(void) {
     RETURN_TEXT_PTR_OR_NULL(state_ptr->default_ao_texture, "texture_system_get_default_ao_texture");
 }
 
+texture* texture_system_get_default_cube_texture(void) {
+    RETURN_TEXT_PTR_OR_NULL(state_ptr->default_cube_texture, "texture_system_get_default_cube_texture");
+}
+
 static void create_default_texture(texture* t, u8* pixels, u32 tex_dimension, const char* name) {
     string_ncopy(t->name, name, TEXTURE_NAME_MAX_LENGTH);
     t->width = tex_dimension;
@@ -339,6 +345,65 @@ static void create_default_texture(texture* t, u8* pixels, u32 tex_dimension, co
     t->generation = INVALID_ID;
 }
 
+static b8 create_default_cube_texture(texture* t, const char* name) {
+    const u32 tex_dimension = 16;
+    const u32 channels = 4;
+    const u32 pixel_count = tex_dimension * tex_dimension;
+    u8 cube_side_pixels[16 * 16 * 4];
+    kset_memory(cube_side_pixels, 255, sizeof(u8) * pixel_count * channels);
+
+    // Each pixel.
+    for (u64 row = 0; row < tex_dimension; ++row) {
+        for (u64 col = 0; col < tex_dimension; ++col) {
+            u64 index = (row * tex_dimension) + col;
+            u64 index_bpp = index * channels;
+            if (row % 2) {
+                if (col % 2) {
+                    cube_side_pixels[index_bpp + 1] = 0;
+                    cube_side_pixels[index_bpp + 2] = 0;
+                }
+            } else {
+                if (!(col % 2)) {
+                    cube_side_pixels[index_bpp + 1] = 0;
+                    cube_side_pixels[index_bpp + 2] = 0;
+                }
+            }
+        }
+    }
+
+    u8* pixels = 0;
+    u64 image_size = 0;
+    for (u8 i = 0; i < 6; ++i) {
+        if (!pixels) {
+            t->width = tex_dimension;
+            t->height = tex_dimension;
+            t->channel_count = 4;
+            t->flags = 0;
+            t->generation = 0;
+            t->mip_levels = 1;
+            t->type = TEXTURE_TYPE_CUBE;
+            // Take a copy of the name.
+            string_ncopy(t->name, name, TEXTURE_NAME_MAX_LENGTH);
+
+            image_size = t->width * t->height * t->channel_count;
+            // NOTE: no need for transparency in cube maps, so not checking for it.
+
+            pixels = kallocate(sizeof(u8) * image_size * 6, MEMORY_TAG_ARRAY);
+        }
+
+        // Copy to the relevant portion of the array.
+        kcopy_memory(pixels + image_size * i, cube_side_pixels, image_size);
+    }
+
+    // Acquire internal texture resources and upload to GPU.
+    renderer_texture_create(pixels, t);
+
+    kfree(pixels, sizeof(u8) * image_size * 6, MEMORY_TAG_ARRAY);
+    pixels = 0;
+
+    return true;
+}
+
 static b8 create_default_textures(texture_system_state* state) {
     // NOTE: Create default texture, a 256x256 blue/white checkerboard pattern.
     // This is done in code to eliminate asset dependencies.
@@ -346,7 +411,7 @@ static b8 create_default_textures(texture_system_state* state) {
     const u32 tex_dimension = 16;
     const u32 channels = 4;
     const u32 pixel_count = tex_dimension * tex_dimension;
-    u8 pixels[262144] = {255};  // pixel_count * channels
+    u8 pixels[16 * 16 * 4];
     kset_memory(pixels, 255, sizeof(u8) * pixel_count * channels);
 
     // Each pixel.
@@ -431,6 +496,10 @@ static b8 create_default_textures(texture_system_state* state) {
     kset_memory(ao_pixels, 255, sizeof(u8) * 16 * 16 * 4);
     create_default_texture(&state->default_ao_texture, ao_pixels, 16, DEFAULT_AO_TEXTURE_NAME);
 
+    // Cube texture.
+    KTRACE("Creating default cube texture...");
+    create_default_cube_texture(&state->default_cube_texture, DEFAULT_CUBE_TEXTURE_NAME);
+
     return true;
 }
 
@@ -443,6 +512,7 @@ static void destroy_default_textures(texture_system_state* state) {
         destroy_texture(&state->default_metallic_texture);
         destroy_texture(&state->default_roughness_texture);
         destroy_texture(&state->default_ao_texture);
+        destroy_texture(&state->default_cube_texture);
     }
 }
 

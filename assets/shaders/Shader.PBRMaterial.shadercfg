@@ -25,8 +25,9 @@ uniform=samp,1,normal_texture
 uniform=samp,1,metallic_texture
 uniform=samp,1,roughness_texture
 uniform=samp,1,ao_texture
-# TODO: IBL
-#uniform=samp,1,cube_texture
+# IBL
+uniform=samp,1,ibl_cube_texture
+
 uniform=struct32,1,dir_light
 uniform=struct480,1,p_lights
 uniform=struct32,1,properties

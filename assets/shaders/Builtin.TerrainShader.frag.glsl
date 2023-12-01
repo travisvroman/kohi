@@ -58,13 +58,16 @@ const int SAMP_NORMAL_OFFSET = 1;
 const int SAMP_METALLIC_OFFSET = 2;
 const int SAMP_ROUGHNESS_OFFSET = 3;
 const int SAMP_AO_OFFSET = 4;
+// Irradience cube comes after all material textures.
+const int SAMP_IRRADIENCE_CUBE = 5 * MAX_TERRAIN_MATERIALS;
 
 const float PI = 3.14159265359;
 
 // Samplers. albedo, normal, metallic, roughness, ao, etc...
-layout(set = 1, binding = 1) uniform sampler2D samplers[(5 * MAX_TERRAIN_MATERIALS)];
-// TODO: IBL
-/* layout(set = 1, binding = 1) uniform samplerCube cube_sampler;//[1 + (5 * MAX_TERRAIN_MATERIALS)];  */
+// Environment map is at the last index.
+layout(set = 1, binding = 1) uniform sampler2D samplers[1 + (5 * MAX_TERRAIN_MATERIALS)];
+// IBL - Alias to get cube samplers
+layout(set = 1, binding = 1) uniform samplerCube cube_samplers[1 + (5 * MAX_TERRAIN_MATERIALS)];
 
 layout(location = 0) flat in int in_mode;
 // Data Transfer Object
@@ -99,9 +102,6 @@ void main() {
     tangent = (tangent - dot(tangent, normal) *  normal);
     vec3 bitangent = cross(in_dto.normal, in_dto.tangent);
     TBN = mat3(tangent, bitangent, normal);
-
-    // TODO: IBL
-    /* vec4 ibl_sample = texture(cube_sampler, vec3(0)); */
 
     // Update the normal to use a sample from the normal map.
     vec3 normals[MAX_TERRAIN_MATERIALS];
@@ -194,8 +194,11 @@ void main() {
             total_reflectance += calculate_reflectance(albedo.xyz, normal, view_direction, light_direction, metallic, roughness, base_reflectivity, radiance);
         }
 
-        // Add in albedo and ambient occlusion.
-        vec3 ambient = vec3(0.03) * albedo.xyz * ao; // will be replaced by IBL
+        // Irradiance holds all the scene's indirect diffuse light. Use the surface normal to sample from it.
+        vec3 irradiance = texture(cube_samplers[SAMP_IRRADIENCE_CUBE], normal).rgb;
+
+        // Combine irradiance with albedo and ambient occlusion. Also add in total accumulated reflectance.
+        vec3 ambient = irradiance * albedo.xyz * ao;
         vec3 colour = ambient + total_reflectance;
 
         // HDR tonemapping

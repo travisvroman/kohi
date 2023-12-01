@@ -96,12 +96,6 @@ b8 vulkan_device_create(vulkan_context* context) {
         queue_create_infos[i].pQueuePriorities = queue_priorities;
     }
 
-    // Request device features.
-    // TODO: should be config driven
-    VkPhysicalDeviceFeatures device_features = {};
-    device_features.samplerAnisotropy = VK_TRUE;  // Request anistrophy
-    device_features.fillModeNonSolid = VK_TRUE;   // TODO: Check if supported?
-
     b8 portability_required = false;
     u32 available_extension_count = 0;
     VkExtensionProperties* available_extensions = 0;
@@ -125,9 +119,9 @@ b8 vulkan_device_create(vulkan_context* context) {
     extension_names[ext_idx] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
     ext_idx++;
 
-    // Dynamic indexing.
-    extension_names[ext_idx] = VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;
-    ext_idx++;
+    // Dynamic indexing. NOTE: not needed for 1.2+
+    /* extension_names[ext_idx] = VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;
+    ext_idx++; */
 
     // If portability is required (i.e. mac), add it.
     if (portability_required) {
@@ -149,23 +143,16 @@ b8 vulkan_device_create(vulkan_context* context) {
         ext_idx++;
     }
 
-    VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
-    device_create_info.queueCreateInfoCount = index_count;
-    device_create_info.pQueueCreateInfos = queue_create_infos;
-    device_create_info.pEnabledFeatures = &device_features;
-    device_create_info.enabledExtensionCount = ext_idx;
-    device_create_info.ppEnabledExtensionNames = extension_names;
-
-    // Deprecated and ignored, so pass nothing.
-    device_create_info.enabledLayerCount = 0;
-    device_create_info.ppEnabledLayerNames = 0;
+    // Request device features.
+    // TODO: should be config driven
+    VkPhysicalDeviceFeatures device_features = {};
+    device_features.samplerAnisotropy = VK_TRUE;  // Request anistrophy
+    device_features.fillModeNonSolid = VK_TRUE;   // TODO: Check if supported?
 
     // VK_EXT_descriptor_indexing
     VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT};
-    descriptor_indexing_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-    descriptor_indexing_features.runtimeDescriptorArray = VK_TRUE;
-    descriptor_indexing_features.descriptorBindingVariableDescriptorCount = VK_TRUE;
-    device_create_info.pNext = &descriptor_indexing_features;
+    // Partial binding is required for descriptor aliasing.
+    descriptor_indexing_features.descriptorBindingPartiallyBound = VK_TRUE;  // TODO: Check if supported?
 
 #if defined(VK_USE_PLATFORM_MACOS_MVK)
     // NOTE: On macOS set environment variable to configure MoltenVK for using Metal argument buffers (needed for descriptor indexing).
@@ -185,6 +172,18 @@ b8 vulkan_device_create(vulkan_context* context) {
         line_rasterization_ext.smoothLines = VK_TRUE;
         extended_dynamic_state.pNext = &line_rasterization_ext;
     }
+
+    VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    device_create_info.queueCreateInfoCount = index_count;
+    device_create_info.pQueueCreateInfos = queue_create_infos;
+    device_create_info.pEnabledFeatures = &device_features;
+    device_create_info.enabledExtensionCount = ext_idx;
+    device_create_info.ppEnabledExtensionNames = extension_names;
+
+    // Deprecated and ignored, so pass nothing.
+    device_create_info.enabledLayerCount = 0;
+    device_create_info.ppEnabledLayerNames = 0;
+    device_create_info.pNext = &descriptor_indexing_features;
 
     // Create the device.
     VK_CHECK(vkCreateDevice(
