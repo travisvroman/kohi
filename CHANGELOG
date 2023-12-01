@@ -3,6 +3,11 @@ Changelog
 - 0.5x
   - Added Physically-Based Rendering (PBR) material type support.
   - Fixed an issue with pulling the default checkerboard texture when already using a default texture (i.e normal, spec, ao, etc.).
+  - Added in partial descriptor binding support in Vulkan backend to allow for uniform descriptor aliasing.
+  - Modified material system to handle PBR properties.
+  - PBR materials are now required on terrains. Phong will not work.
+  - Added default cubemap, metallic, roughness and AO textures to texture system.
+  - Added query to texture system to indicate if a given texture is a one of the default textures.
 
 - 0.4x
   - Added first pass of Standard UI system, including panel, button, label, and textbox controls.
