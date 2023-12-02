@@ -570,8 +570,6 @@ b8 application_initialize(struct application* game_inst) {
     // Move debug text to new bottom of screen.
     sui_control_position_set(&state->test_text, vec3_create(20, game_inst->app_config.start_height - 75, 0));
 
-        
-
     // Standard ui stuff.
     if (!sui_panel_control_create("test_panel", (vec2){300.0f, 300.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.5f}, &state->test_panel)) {
         KERROR("Failed to create test panel.");
@@ -960,9 +958,9 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             state->scene_pass.pass_data.projection_matrix = state->world_viewport.projection;
 
             scene_pass_extended_data* ext_data = state->scene_pass.pass_data.ext_data;
-            // TODO: Get from scene.
-            ext_data->ambient_colour = (vec4){0.25f, 0.25f, 0.25f, 1.0f};
             ext_data->render_mode = state->render_mode;
+            // HACK: use the skybox cubemap as the irradiance texture for now.
+            ext_data->irradiance_cube_texture = state->main_scene.sb->cubemap.texture;
 
             // Populate scene pass data.
             viewport* v = &state->world_viewport;

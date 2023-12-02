@@ -35,6 +35,14 @@ typedef struct material_shader_uniform_locations {
 #define PBR_MAP_COUNT 6
 #endif
 
+// Samplers
+const u32 SAMP_ALBEDO = 0;
+const u32 SAMP_NORMAL = 1;
+const u32 SAMP_METALLIC = 2;
+const u32 SAMP_ROUGHNESS = 3;
+const u32 SAMP_AO = 4;
+const u32 SAMP_IBL_CUBE = 5;
+
 typedef struct pbr_shader_uniform_locations {
     u16 projection;
     u16 view;
@@ -103,6 +111,9 @@ typedef struct material_system_state {
     // Known locations for the PBR shader.
     pbr_shader_uniform_locations pbr_locations;
     u32 pbr_shader_id;
+
+    // The current irradiance cubemap texture to be used.
+    texture* irradiance_cube_texture;
 } material_system_state;
 
 typedef struct material_reference {
@@ -304,6 +315,9 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->terrain_locations.samplers[(mat_index * 5) + 3] = shader_system_uniform_index(s, "roughness_texture_3");
     state_ptr->terrain_locations.samplers[(mat_index * 5) + 4] = shader_system_uniform_index(s, "ao_texture_3");
     mat_index++;
+
+    // Grab the default cubemap texture as the irradiance texture.
+    state_ptr->irradiance_cube_texture = texture_system_get_default_cube_texture();
 
     return true;
 }
@@ -708,13 +722,15 @@ b8 material_system_apply_instance(material* m, struct frame_data* p_frame_data, 
         } else if (m->shader_id == state_ptr->pbr_shader_id) {
             // PBR shader
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.properties, m->properties));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.albedo_texture, &m->maps[0]));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.normal_texture, &m->maps[1]));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.metallic_texture, &m->maps[2]));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.roughness_texture, &m->maps[3]));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.ao_texture, &m->maps[4]));
-            // IBL
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.ibl_cube_texture, &m->maps[5]));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.albedo_texture, &m->maps[SAMP_ALBEDO]));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.normal_texture, &m->maps[SAMP_NORMAL]));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.metallic_texture, &m->maps[SAMP_METALLIC]));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.roughness_texture, &m->maps[SAMP_ROUGHNESS]));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.ao_texture, &m->maps[SAMP_AO]));
+
+            // Irradience map
+            m->maps[SAMP_IBL_CUBE].texture = m->irradiance_texture ? m->irradiance_texture : state_ptr->irradiance_cube_texture;
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.ibl_cube_texture, &m->maps[SAMP_IBL_CUBE]));
 
             // Directional light.
             directional_light* dir_light = light_system_directional_light_get();
@@ -748,6 +764,7 @@ b8 material_system_apply_instance(material* m, struct frame_data* p_frame_data, 
             }
 
             // Irradience map
+            m->maps[TERRAIN_MAX_MATERIAL_COUNT * 5].texture = m->irradiance_texture ? m->irradiance_texture : state_ptr->irradiance_cube_texture;
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.ibl_cube_texture, &m->maps[TERRAIN_MAX_MATERIAL_COUNT * 5]));
 
             // Apply properties.
@@ -798,6 +815,21 @@ b8 material_system_apply_local(material* m, const mat4* model) {
 
     KERROR("Unrecognized shader id '%d'", m->shader_id);
     return false;
+}
+
+b8 material_system_irradiance_set(texture* irradiance_cube_texture) {
+    if (irradiance_cube_texture) {
+        if (irradiance_cube_texture->type != TEXTURE_TYPE_CUBE) {
+            KWARN("material_system_irradiance_set requires parameter irradiance_cube_texture to be a cubemap type texture. Nothing was done.");
+            return false;
+        }
+
+        state_ptr->irradiance_cube_texture = irradiance_cube_texture;
+    } else {
+        // Null sets us back to default state.
+        state_ptr->irradiance_cube_texture = texture_system_get_default_cube_texture();
+    }
+    return true;
 }
 
 void material_system_dump(void) {

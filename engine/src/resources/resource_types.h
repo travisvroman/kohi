@@ -590,6 +590,12 @@ typedef struct material {
     /** @brief array of material property structures, which varies based on material type. e.g. material_phong_properties */
     void *properties;
 
+    /**
+     * @brief An explicitly-set irradiance texture for this material. Should only be set
+     * in limited circumstances. Ideally a scene should set it through material manager.
+     */
+    texture *irradiance_texture;
+
     // /** @brief The diffuse colour. */
     // vec4 diffuse_colour;
 

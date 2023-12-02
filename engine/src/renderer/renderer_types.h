@@ -1013,8 +1013,6 @@ typedef struct render_view_packet {
     mat4 projection_matrix;
     /** @brief The current view position, if applicable. */
     vec3 view_position;
-    /** @brief The current scene ambient colour, if applicable. */
-    vec4 ambient_colour;
     /** @brief The data for the current skybox. */
     skybox_packet_data skybox_data;
     /** @brief The number of geometries to be drawn. */

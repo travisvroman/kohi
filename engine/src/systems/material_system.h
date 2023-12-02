@@ -142,6 +142,15 @@ KAPI b8 material_system_apply_instance(material* m, struct frame_data* p_frame_d
 KAPI b8 material_system_apply_local(material* m, const mat4* model);
 
 /**
+ * @brief Sets the provided cubemap texture to be used for future binding/draw calls until changed.
+ *  NOTE: Provided texture must be a cubemap texture or this function will fail.
+ *
+ * @param irradiance_cube_texture A pointer to the irradiance cubemap texture to be used. If null, system falls back on default cubemap texuture.
+ * @returns True on success; otherwise false.
+ */
+KAPI b8 material_system_irradiance_set(texture* irradiance_cube_texture);
+
+/**
  * @brief Dumps all of the registered materials and their reference counts/handles.
  */
 KAPI void material_system_dump(void);

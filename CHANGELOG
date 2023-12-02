@@ -8,6 +8,7 @@ Changelog
   - PBR materials are now required on terrains. Phong will not work.
   - Added default cubemap, metallic, roughness and AO textures to texture system.
   - Added query to texture system to indicate if a given texture is a one of the default textures.
+  - Adjusted material system to globally track an irradiance cubemap for IBL.
 
 - 0.4x
   - Added first pass of Standard UI system, including panel, button, label, and textbox controls.
