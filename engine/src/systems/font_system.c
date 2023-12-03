@@ -12,6 +12,8 @@
 
 // For system fonts.
 #define STB_TRUETYPE_IMPLEMENTATION
+// To prevent warning errors on unused variables.
+#define UNUSED(x) (void) x
 #include "vendor/stb_truetype.h"
 
 typedef struct bitmap_font_internal_data {
@@ -417,6 +419,7 @@ vec2 font_system_measure_string(font_data* font, const char* text) {
 
     // Take the length in chars and get the correct codepoint from it.
     for (u32 c = 0, uc = 0; c < char_length; ++c) {
+        UNUSED(uc);
         i32 codepoint = text[c];
 
         // Continue to next line for newline.
