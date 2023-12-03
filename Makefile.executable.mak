@@ -48,7 +48,7 @@ else
 		# These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
 		# here that would not on other platforms from not being exported (i.e. Windows)
 		# Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
-		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Wl,-rpath,. -Xlinker /INCREMENTAL
+		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Wl,-rpath,.
 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
 		# directories with .h files
