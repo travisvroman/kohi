@@ -157,5 +157,8 @@ The items in this list are not in any particular order. This list will be update
 ## Other items:
 - [x] Auto-Generated API documentation
 - [ ] Documentation
+- [ ] Continuous Integration
+- [ ] Add git tags to mark version releases (https://github.com/travisvroman/kohi/issues/174)
+- [ ] Nix build compatability (https://github.com/travisvroman/kohi/issues/175)
 
 Back to [readme](readme.md) 
