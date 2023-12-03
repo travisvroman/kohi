@@ -12,7 +12,7 @@
 #include "resources/simple_scene.h"
 
 // TODO: temp
-#include <core/clock.h>
+#include <core/kclock.h>
 #include <core/keymap.h>
 #include <resources/skybox.h>
 #include <standard_ui_system.h>
@@ -39,10 +39,10 @@ typedef struct testbed_game_state {
 
     frustum camera_frustum;
 
-    clock update_clock;
-    clock prepare_clock;
-    clock render_clock;
-    clock present_clock;
+    kclock update_clock;
+    kclock prepare_clock;
+    kclock render_clock;
+    kclock present_clock;
     f64 last_update_elapsed;
 
     // TODO: temp

@@ -1,7 +1,7 @@
 #include "testbed_main.h"
 
 #include <containers/darray.h>
-#include <core/clock.h>
+#include <core/kclock.h>
 #include <core/console.h>
 #include <core/event.h>
 #include <core/frame_data.h>
@@ -659,10 +659,10 @@ b8 application_initialize(struct application* game_inst) {
 
     // kzero_memory(&game_inst->frame_data, sizeof(app_frame_data));
 
-    kzero_memory(&state->update_clock, sizeof(clock));
-    kzero_memory(&state->prepare_clock, sizeof(clock));
-    kzero_memory(&state->render_clock, sizeof(clock));
-    kzero_memory(&state->present_clock, sizeof(clock));
+    kzero_memory(&state->update_clock, sizeof(kclock));
+    kzero_memory(&state->prepare_clock, sizeof(kclock));
+    kzero_memory(&state->render_clock, sizeof(kclock));
+    kzero_memory(&state->present_clock, sizeof(kclock));
 
     // Load up a test audio file.
     state->test_audio_file = audio_system_chunk_load("Test.ogg");
@@ -716,7 +716,7 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
         return true;
     }
 
-    clock_start(&state->update_clock);
+    kclock_start(&state->update_clock);
 
     // TODO: testing resize
     static f32 button_height = 50.0f;
@@ -843,7 +843,7 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
     vec3 up = camera_up(state->world_camera);
     audio_system_listener_orientation_set(pos, forward, up);
 
-    clock_update(&state->update_clock);
+    kclock_update(&state->update_clock);
     state->last_update_elapsed = state->update_clock.elapsed;
 
     return true;
@@ -931,7 +931,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
         return false;
     }
 
-    clock_start(&state->prepare_clock);
+    kclock_start(&state->prepare_clock);
 
     // Skybox pass. This pass must always run, as it is what clears the screen.
     skybox_pass_extended_data* skybox_pass_ext_data = state->skybox_pass.pass_data.ext_data;
@@ -1268,7 +1268,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
     }*/
     // TODO: end temp
 
-    clock_update(&state->prepare_clock);
+    kclock_update(&state->prepare_clock);
     return true;
 }
 
@@ -1279,7 +1279,7 @@ b8 application_render_frame(struct application* game_inst, struct frame_data* p_
         return true;
     }
 
-    clock_start(&state->render_clock);
+    kclock_start(&state->render_clock);
     if (!renderer_begin(p_frame_data)) {
         //
     }
@@ -1292,14 +1292,14 @@ b8 application_render_frame(struct application* game_inst, struct frame_data* p_
     renderer_end(p_frame_data);
 
     // NOTE: Stopping the timer before presentation since that can greatly impact this timing.
-    clock_update(&state->render_clock);
+    kclock_update(&state->render_clock);
 
-    clock_start(&state->present_clock);
+    kclock_start(&state->present_clock);
     if (!renderer_present(p_frame_data)) {
         KERROR("The call to renderer_present failed. This is likely unrecoverable. Shutting down.");
         return false;
     }
-    clock_update(&state->present_clock);
+    kclock_update(&state->present_clock);
 
     return true;
 }
