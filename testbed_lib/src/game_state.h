@@ -83,9 +83,12 @@ typedef struct testbed_game_state {
 
     rendergraph frame_graph;
     rendergraph_pass skybox_pass;
+    rendergraph_pass shadowmap_pass;
     rendergraph_pass scene_pass;
     rendergraph_pass editor_pass;
     rendergraph_pass ui_pass;
+
+    u16 shadowmap_resolution;
 
     selected_object selection;
     b8 using_gizmo;

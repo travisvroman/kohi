@@ -19,7 +19,7 @@ typedef struct editor_pass_internal_data {
     debug_shader_locations debug_locations;
 } editor_pass_internal_data;
 
-b8 editor_pass_create(struct rendergraph_pass* self) {
+b8 editor_pass_create(struct rendergraph_pass* self, void* config) {
     if (!self) {
         return false;
     }

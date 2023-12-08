@@ -51,7 +51,7 @@ typedef enum render_target_attachment_type {
 
 typedef enum render_target_attachment_source {
     RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT = 0x1,
-    RENDER_TARGET_ATTACHMENT_SOURCE_VIEW = 0x2
+    RENDER_TARGET_ATTACHMENT_SOURCE_SELF = 0x2
 } render_target_attachment_source;
 
 typedef enum render_target_attachment_load_operation {

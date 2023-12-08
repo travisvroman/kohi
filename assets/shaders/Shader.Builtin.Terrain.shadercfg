@@ -18,10 +18,15 @@ attribute=vec4,in_mat_weights
 # NOTE: For scope: 0=global, 1=instance, 2=local
 uniform=mat4,0,projection
 uniform=mat4,0,view
+uniform=mat4,0,light_space
 uniform=vec4,0,ambient_colour
+uniform=struct32,0,dir_light
 uniform=vec3,0,view_position
 uniform=u32,0,mode
-uniform=struct32,0,dir_light
+uniform=u32,0,use_pcf
+uniform=f32,0,bias
+uniform=vec2,0,padding_global
+
 
 uniform=samp,1,albedo_texture_0
 uniform=samp,1,normal_texture_0
@@ -47,6 +52,8 @@ uniform=samp,1,metallic_texture_3
 uniform=samp,1,roughness_texture_3
 uniform=samp,1,ao_texture_3
 
+# Shadow map
+uniform=samp,1,shadow_texture
 # Irradience
 uniform=samp,1,ibl_cube_texture
 

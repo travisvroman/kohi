@@ -40,18 +40,22 @@ const int SAMP_NORMAL = 1;
 const int SAMP_METALLIC = 2;
 const int SAMP_ROUGHNESS = 3;
 const int SAMP_AO = 4;
-const int SAMP_IBL_CUBE = 5;
+const int SAMP_SHADOW_MAP = 5;
+const int SAMP_IBL_CUBE = 6;
 
 const float PI = 3.14159265359;
 // Samplers. albedo, normal, metallic, roughness, ao
+// Shadow map comes after.
+layout(set = 1, binding = 1) uniform sampler2D samplers[7];
 // Environment map is at the last index.
-layout(set = 1, binding = 1) uniform sampler2D samplers[6];
 // IBL - Alias to get cube samplers
-layout(set = 1, binding = 1) uniform samplerCube cube_samplers[6];
+layout(set = 1, binding = 1) uniform samplerCube cube_samplers[7];
 
 layout(location = 0) flat in int in_mode;
+layout(location = 1) flat in int use_pcf;
 // Data Transfer Object
-layout(location = 1) in struct dto {
+layout(location = 2) in struct dto {
+    vec4 light_space_frag_pos;
     vec4 ambient;
 	vec2 tex_coord;
 	vec3 normal;
@@ -59,10 +63,54 @@ layout(location = 1) in struct dto {
 	vec3 frag_position;
     vec4 colour;
 	vec3 tangent;
+    float bias;
+    vec3 padding;
 } in_dto;
+
 
 mat3 TBN;
 
+// Percentage-Closer Filtering
+float calculate_pcf(vec3 projected) {
+    float shadow = 0.0;
+    vec2 texel_size = 1.0 / textureSize(samplers[SAMP_SHADOW_MAP], 0);
+    for(int x = -1; x <= 1; ++x) {
+        for(int y = -1; y <= 1; ++y) {
+            float pcf_depth = texture(samplers[SAMP_SHADOW_MAP], projected.xy + vec2(x, y) * texel_size).r;
+            shadow += projected.z - in_dto.bias > pcf_depth ? 1.0 : 0.0;
+        }
+    }
+    shadow /= 9;
+    return 1.0 - shadow;
+}
+
+float calculate_unfiltered(vec3 projected) {
+    // Sample the shadow map.
+    float map_depth = texture(samplers[SAMP_SHADOW_MAP], projected.xy).r;
+
+    // TODO: cast/get rid of branch.
+    float shadow = projected.z - in_dto.bias > map_depth ? 0.0 : 1.0;
+    return shadow;
+}
+
+// Compare the fragment position against the depth buffer, and if it is further 
+// back than the shadow map, it's in shadow. 0.0 = in shadow, 1.0 = not
+float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, directional_light light) {
+    // Perspective divide - note that while this is pointless for ortho projection,
+    // perspective will require this.
+    vec3 projected = light_space_frag_pos.xyz / light_space_frag_pos.w;
+    // Need to reverse y
+    projected.y = 1.0-projected.y;
+
+    // NOTE: Transform to NDC not needed for Vulkan, but would be for OpenGL.
+    // projected.xy = projected.xy * 0.5 + 0.5;
+
+    if(use_pcf == 1) {
+        return calculate_pcf(projected);
+    } 
+
+    return calculate_unfiltered(projected);
+}
 
 // Based on a combination of GGX and Schlick-Beckmann approximation to calculate probability
 // of overshadowing micro-facets.
@@ -82,7 +130,6 @@ void main() {
     tangent = (tangent - dot(tangent, normal) *  normal);
     vec3 bitangent = cross(in_dto.normal, in_dto.tangent);
     TBN = mat3(tangent, bitangent, normal);
-
 
     // Update the normal to use a sample from the normal map.
     vec3 local_normal = 2.0 * texture(samplers[SAMP_NORMAL], in_dto.tex_coord).rgb - 1.0;
@@ -139,9 +186,16 @@ void main() {
         // Irradiance holds all the scene's indirect diffuse light. Use the surface normal to sample from it.
         vec3 irradiance = texture(cube_samplers[SAMP_IBL_CUBE], normal).rgb;
 
-        // Combine irradiance with albedo and ambient occlusion. Also add in total accumulated reflectance.
+        // Generate shadow value based on current fragment position vs shadow map.
+        // Light and normal are also taken in the case that a bias is to be used.
+        // TODO: take point lights into account in shadows.
+        float shadow = calculate_shadow(in_dto.light_space_frag_pos, normal, instance_ubo.dir_light);
+
+        // Combine irradiance with albedo and ambient occlusion. 
+        // Also add in total accumulated reflectance.
         vec3 ambient = irradiance * albedo * ao;
-        vec3 colour = ambient + total_reflectance;
+        // Modify total reflectance by the generated shadow value.
+        vec3 colour = ambient + total_reflectance * shadow;
 
         // HDR tonemapping
         colour = colour / (colour + vec3(1.0));

@@ -34,7 +34,7 @@ typedef struct ui_pass_internal_data {
     sui_shader_locations sui_locations;
 } ui_pass_internal_data;
 
-b8 ui_pass_create(struct rendergraph_pass* self) {
+b8 ui_pass_create(struct rendergraph_pass* self, void* config) {
     if (!self) {
         return false;
     }

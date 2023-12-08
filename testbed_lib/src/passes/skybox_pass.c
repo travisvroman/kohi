@@ -19,7 +19,7 @@ typedef struct skybox_pass_internal_data {
     skybox_shader_locations locations;
 } skybox_pass_internal_data;
 
-b8 skybox_pass_create(struct rendergraph_pass* self) {
+b8 skybox_pass_create(struct rendergraph_pass* self, void* config) {
     if (!self) {
         return false;
     }

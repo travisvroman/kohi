@@ -1,11 +1,11 @@
 #include "testbed_main.h"
 
 #include <containers/darray.h>
-#include <core/kclock.h>
 #include <core/console.h>
 #include <core/event.h>
 #include <core/frame_data.h>
 #include <core/input.h>
+#include <core/kclock.h>
 #include <core/kmemory.h>
 #include <core/kstring.h>
 #include <core/logger.h>
@@ -39,6 +39,8 @@
 #include "passes/scene_pass.h"
 #include "passes/skybox_pass.h"
 #include "renderer/rendergraph.h"
+// Core shadow map pass.
+#include <renderer/passes/shadow_map_pass.h>
 
 // Views
 /* #include "editor/render_view_wireframe.h"
@@ -454,13 +456,14 @@ b8 application_boot(struct application* game_inst) {
     config->font_config.max_bitmap_font_count = 101;
     config->font_config.max_system_font_count = 101;
 
-    /* // Configure render views. TODO: read from file?
-    if (!configure_render_views(config)) {
-        KERROR("Failed to configure renderer views. Aborting application.");
-        return false;
-    } */
     if (!configure_rendergraph(game_inst)) {
         KERROR("Failed to setup render graph. Aboring application.");
+        return false;
+    }
+
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    if (!rendergraph_finalize(&state->frame_graph)) {
+        KERROR("Failed to finalize rendergraph. See log for details.");
         return false;
     }
 
@@ -474,6 +477,12 @@ b8 application_boot(struct application* game_inst) {
 
 b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
+
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    if (!rendergraph_load_resources(&state->frame_graph)) {
+        KERROR("Failed to load rendergraph resources.");
+        return false;
+    }
 
     systems_manager_state* sys_mgr_state = engine_systems_manager_state_get(game_inst);
     standard_ui_system_config standard_ui_cfg = {0};
@@ -489,7 +498,6 @@ b8 application_initialize(struct application* game_inst) {
     resource_system_loader_register(simple_scene_resource_loader_create());
     resource_system_loader_register(audio_resource_loader_create());
 
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
     state->selection.unique_id = INVALID_ID;
     state->selection.xform = 0;
 
@@ -741,9 +749,9 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
         // transform_rotate(&state->meshes[2].transform, rotation);
         if (state->p_light_1) {
             state->p_light_1->data.colour = (vec4){
-                KCLAMP(ksin(p_frame_data->total_time) * 0.75f + 0.5f, 0.0f, 1.0f),
-                KCLAMP(ksin(p_frame_data->total_time - (K_2PI / 3)) * 0.75f + 0.5f, 0.0f, 1.0f),
-                KCLAMP(ksin(p_frame_data->total_time - (K_4PI / 3)) * 0.75f + 0.5f, 0.0f, 1.0f),
+                KCLAMP(ksin(p_frame_data->total_time) * 75.0f + 50.0f, 0.0f, 100.0f),
+                KCLAMP(ksin(p_frame_data->total_time - (K_2PI / 3)) * 75.0f + 50.0f, 0.0f, 100.0f),
+                KCLAMP(ksin(p_frame_data->total_time - (K_4PI / 3)) * 75.0f + 50.0f, 0.0f, 100.0f),
                 1.0f};
             state->p_light_1->data.position.z = 20.0f + ksin(p_frame_data->total_time);
 
@@ -948,6 +956,155 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
         {
             skybox_pass_ext_data->sb = state->main_scene.sb;
         }
+
+        mat4 shadow_camera_lookat = mat4_identity();
+        mat4 shadow_camera_projection = mat4_identity();
+        // Shadowmap pass - only runs if there is a directional light.
+        if (state->main_scene.dir_light) {
+            // TODO: This should be synced to the camera's position/rotation so that the
+            // frustums line up.
+            vec3 light_dir = vec3_normalized(vec3_from_vec4(state->main_scene.dir_light->data.direction));
+            // NOTE: each pass for cascades will need to do this
+            // Light direction is down (negative) so we need to go up
+            vec3 shadow_cam_pos = vec3_mul_scalar(light_dir, -100.0f);
+            shadow_camera_lookat = mat4_look_at(shadow_cam_pos, vec3_zero(), vec3_up());
+
+            state->shadowmap_pass.pass_data.do_execute = true;
+
+            // NOTE: this pass will use its own viewport.
+            /* state->shadowmap_pass.pass_data.vp = &state->world_viewport; */
+            // HACK: TODO: View matrix needs to be inverse.
+            state->shadowmap_pass.pass_data.view_matrix = (shadow_camera_lookat);
+            // Extract the projection matrix.
+
+            // NOTE: this pass will use its own projection matrix.
+            // state->shadowmap_pass.pass_data.projection_matrix = dont set
+            //
+            // Instead of setting the viewport, get it. This is because the pass itself
+            // maintains the viewport instead of it being passed in.
+
+            // viewport* v = state->shadowmap_pass.pass_data.vp;
+
+            shadow_map_pass_extended_data* ext_data = state->shadowmap_pass.pass_data.ext_data;
+            ext_data->light = state->main_scene.dir_light;
+            // Read internal projection matrix.
+            shadow_camera_projection = (ext_data->projection);
+            // shadow_camera_projection = mat4_mul(ext_data->projection, mat4_scale((vec3){1.0f, -1.0f, 1.0f}));
+
+            // vec3 forward = mat4_forward(shadow_camera_lookat);
+            // vec3 right = mat4_right(shadow_camera_lookat);
+            // vec3 up = mat4_up(shadow_camera_lookat);
+            // frustum f = frustum_create(&shadow_cam_pos, &forward, &right,
+            //                            &up, v->rect.width / v->rect.height, v->fov, v->near_clip, v->far_clip);
+
+            simple_scene* scene = &state->main_scene;
+
+            // Iterate the scene and get a list of all geometries within the view of the light.
+            ext_data->geometries = darray_reserve_with_allocator(geometry_render_data, 512, &p_frame_data->allocator);
+            geometry_distance* transparent_geometries = darray_create_with_allocator(geometry_distance, &p_frame_data->allocator);
+
+            u32 mesh_count = darray_length(scene->meshes);
+            for (u32 i = 0; i < mesh_count; ++i) {
+                mesh* m = &scene->meshes[i];
+                if (m->generation != INVALID_ID_U8) {
+                    mat4 model = transform_world_get(&m->transform);
+                    b8 winding_inverted = m->transform.determinant < 0;
+
+                    for (u32 j = 0; j < m->geometry_count; ++j) {
+                        geometry* g = m->geometries[j];
+                        // AABB calculation
+                        {
+                            // // Translate/scale the extents.
+                            // // vec3 extents_min = vec3_mul_mat4(g->extents.min, model);
+                            // vec3 extents_max = vec3_mul_mat4(g->extents.max, model);
+
+                            // // Translate/scale the center.
+                            // vec3 center = vec3_mul_mat4(g->center, model);
+                            // vec3 half_extents = {
+                            //     kabs(extents_max.x - center.x),
+                            //     kabs(extents_max.y - center.y),
+                            //     kabs(extents_max.z - center.z),
+                            // };
+
+                            // if (frustum_intersects_aabb(&f, &center, &half_extents)) {
+                            // Add it to the list to be rendered.
+                            geometry_render_data data = {0};
+                            data.model = model;
+                            data.material = g->material;
+                            data.vertex_count = g->vertex_count;
+                            data.vertex_buffer_offset = g->vertex_buffer_offset;
+                            data.index_count = g->index_count;
+                            data.index_buffer_offset = g->index_buffer_offset;
+                            data.unique_id = m->id.uniqueid;
+                            data.winding_inverted = winding_inverted;
+
+                            // Check if transparent. If so, put into a separate, temp array to be
+                            // sorted by distance from the camera. Otherwise, put into the
+                            // ext_data->geometries array directly.
+                            b8 has_transparency = false;
+                            if (g->material->type == MATERIAL_TYPE_PHONG) {
+                                // Check diffuse map (slot 0).
+                                has_transparency = ((g->material->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) != 0);
+                            }
+
+                            if (has_transparency) {
+                                // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
+                                // Get the center, extract the global position from the model matrix and add it to the center,
+                                // then calculate the distance between it and the camera, and finally save it to a list to be sorted.
+                                // NOTE: This isn't perfect for translucent meshes that intersect, but is enough for our purposes now.
+                                vec3 center = vec3_transform(g->center, 1.0f, model);
+                                f32 distance = vec3_distance(center, current_camera->position);
+
+                                geometry_distance gdist;
+                                gdist.distance = kabs(distance);
+                                gdist.g = data;
+                                darray_push(transparent_geometries, gdist);
+                            } else {
+                                darray_push(ext_data->geometries, data);
+                            }
+                            // }
+                        }
+                    }
+                }
+            }
+            // Sort opaque geometries by material.
+            geometry_quick_sort_by_material(ext_data->geometries, 0, darray_length(ext_data->geometries) - 1, true);
+
+            // Sort transparent geometries, then add them to the ext_data->geometries array.
+            u32 geometry_count = darray_length(transparent_geometries);
+            gdistance_quick_sort(transparent_geometries, 0, geometry_count - 1, false);
+            for (u32 i = 0; i < geometry_count; ++i) {
+                darray_push(ext_data->geometries, transparent_geometries[i].g);
+            }
+            ext_data->geometry_count = darray_length(ext_data->geometries);
+
+            // Add terrain(s)
+            u32 terrain_count = darray_length(scene->terrains);
+            ext_data->terrain_geometries = darray_reserve_with_allocator(geometry_render_data, 16, &p_frame_data->allocator);
+            ext_data->terrain_geometry_count = 0;
+            for (u32 i = 0; i < terrain_count; ++i) {
+                // TODO: Frustum culling
+                geometry_render_data data = {0};
+                data.model = transform_world_get(&scene->terrains[i].xform);
+                geometry* g = &scene->terrains[i].geo;
+                data.material = g->material;
+                data.vertex_count = g->vertex_count;
+                data.vertex_buffer_offset = g->vertex_buffer_offset;
+                data.index_count = g->index_count;
+                data.index_buffer_offset = g->index_buffer_offset;
+                data.unique_id = scene->terrains[i].id.uniqueid;
+
+                darray_push(ext_data->terrain_geometries, data);
+
+                // TODO: Counter for terrain geometries.
+                p_frame_data->drawn_mesh_count++;
+            }
+            ext_data->terrain_geometry_count = darray_length(ext_data->terrain_geometries);
+
+            // end shadowmap pass
+        }
+
+        // Scene pass.
         {
             // Enable this pass for this frame.
             state->scene_pass.pass_data.do_execute = true;
@@ -958,6 +1115,9 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             state->scene_pass.pass_data.projection_matrix = state->world_viewport.projection;
 
             scene_pass_extended_data* ext_data = state->scene_pass.pass_data.ext_data;
+            // Pass over shadow map "camera" view and projection.
+            ext_data->directional_light_view = shadow_camera_lookat;
+            ext_data->directional_light_projection = shadow_camera_projection;
             ext_data->render_mode = state->render_mode;
             // HACK: use the skybox cubemap as the irradiance texture for now.
             ext_data->irradiance_cube_texture = state->main_scene.sb->cubemap.texture;
@@ -1451,9 +1611,16 @@ static void refresh_rendergraph_pfns(application* app) {
     state->skybox_pass.execute = skybox_pass_execute;
     state->skybox_pass.destroy = skybox_pass_destroy;
 
+    state->shadowmap_pass.initialize = shadow_map_pass_initialize;
+    state->shadowmap_pass.execute = shadow_map_pass_execute;
+    state->shadowmap_pass.destroy = shadow_map_pass_destroy;
+    state->shadowmap_pass.load_resources = shadow_map_pass_load_resources;
+    state->shadowmap_pass.attachment_texture_get = shadow_map_pass_attachment_texture_get;
+
     state->scene_pass.initialize = scene_pass_initialize;
     state->scene_pass.execute = scene_pass_execute;
     state->scene_pass.destroy = scene_pass_destroy;
+    state->scene_pass.load_resources = scene_pass_load_resources;
 
     state->editor_pass.initialize = editor_pass_initialize;
     state->editor_pass.execute = editor_pass_execute;
@@ -1483,22 +1650,37 @@ static b8 configure_rendergraph(application* app) {
     }
 
     // Skybox pass
-    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "skybox", skybox_pass_create, &state->skybox_pass));
+    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "skybox", skybox_pass_create, 0, &state->skybox_pass));
     RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "skybox", "colourbuffer"));
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "skybox", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
     RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "skybox", "colourbuffer", 0, "colourbuffer"));
 
+    // Shadowmap pass
+    shadow_map_pass_config shadow_pass_config = {0};
+    shadow_pass_config.resolution = 2048;
+    shadow_pass_config.fov = 0;
+    f32 area = 20;
+    shadow_pass_config.bounds = (rect_2d){-area, area, -area, area};
+    shadow_pass_config.near_clip = 1.0f;
+    shadow_pass_config.far_clip = 150;
+    shadow_pass_config.matrix_type = RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC;
+    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "shadowmap_pass", shadow_map_pass_create, &shadow_pass_config, &state->shadowmap_pass));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "shadowmap_pass", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_SELF));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "shadowmap_pass", "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
+
     // Scene pass
-    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "scene", scene_pass_create, &state->scene_pass));
+    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "scene", scene_pass_create, 0, &state->scene_pass));
     RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "colourbuffer"));
     RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "depthbuffer"));
+    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "shadowmap"));
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "scene", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "scene", "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_GLOBAL));
     RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "colourbuffer", "skybox", "colourbuffer"));
     RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "depthbuffer", 0, "depthbuffer"));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap", "shadowmap_pass", "depthbuffer"));
 
     // Editor pass
-    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "editor", editor_pass_create, &state->editor_pass));
+    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "editor", editor_pass_create, 0, &state->editor_pass));
     RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "editor", "colourbuffer"));
     RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "editor", "depthbuffer"));
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "editor", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
@@ -1507,7 +1689,7 @@ static b8 configure_rendergraph(application* app) {
     RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "editor", "depthbuffer", "scene", "depthbuffer"));
 
     // UI pass
-    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "ui", ui_pass_create, &state->ui_pass));
+    RG_CHECK(rendergraph_pass_create(&state->frame_graph, "ui", ui_pass_create, 0, &state->ui_pass));
     RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "ui", "colourbuffer"));
     RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "ui", "depthbuffer"));
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "ui", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
@@ -1517,10 +1699,10 @@ static b8 configure_rendergraph(application* app) {
 
     refresh_rendergraph_pfns(app);
 
-    if (!rendergraph_finalize(&state->frame_graph)) {
-        KERROR("Failed to finalize rendergraph. See log for details.");
-        return false;
-    }
+    // if (!rendergraph_finalize(&state->frame_graph)) {
+    //     KERROR("Failed to finalize rendergraph. See log for details.");
+    //     return false;
+    // }
 
     return true;
 }

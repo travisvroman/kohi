@@ -1072,6 +1072,31 @@ KINLINE mat4 mat4_orthographic(f32 left, f32 right, f32 bottom, f32 top,
     out_matrix.data[12] = (left + right) * lr;
     out_matrix.data[13] = (top + bottom) * bt;
     out_matrix.data[14] = (far_clip + near_clip) * nf;
+
+    // // HACK: test - regular glm
+    // out_matrix.data[0] = 2.0f / (right - left);
+    // out_matrix.data[5] = 2.0f / (top - bottom);
+    // out_matrix.data[10] = -1.0f;//-2.0f / (far_clip - near_clip);
+    // out_matrix.data[12] = -(right + left) / (right - left);
+    // out_matrix.data[13] = -(top + bottom) / (top - bottom);
+    // // out_matrix.data[14] = -(far_clip + near_clip) / (far_clip - near_clip);
+
+    // // HACK: RH_ZO glm
+    // out_matrix.data[0] = 2.0f / (right - left);
+    // out_matrix.data[5] = 2.0f / (top - bottom);
+    // out_matrix.data[10] = - 1.0f / (far_clip - near_clip);
+    // out_matrix.data[12] = - (right + left) / (right - left);
+    // out_matrix.data[13] = - (top + bottom) / (top - bottom);
+    // out_matrix.data[14] = - near_clip / (far_clip - near_clip);
+
+    // // HACK: RH_NO glm
+    // out_matrix.data[0] = 2.0f / (right - left);
+    // out_matrix.data[5] = 2.0f / (top - bottom);
+    // out_matrix.data[10] = - 2.0f / (far_clip - near_clip);
+    // out_matrix.data[12] = - (right + left) / (right - left);
+    // out_matrix.data[13] = - (top + bottom) / (top - bottom);
+    // out_matrix.data[14] = - (far_clip + near_clip) / (far_clip - near_clip);
+
     return out_matrix;
 }
 
@@ -1109,6 +1134,7 @@ KINLINE mat4 mat4_perspective(f32 fov_radians, f32 aspect_ratio, f32 near_clip,
  * @return A matrix looking at target from the perspective of position.
  */
 KINLINE mat4 mat4_look_at(vec3 position, vec3 target, vec3 up) {
+    // RH
     mat4 out_matrix;
     vec3 z_axis;
     z_axis.x = target.x - position.x;
@@ -1135,6 +1161,26 @@ KINLINE mat4 mat4_look_at(vec3 position, vec3 target, vec3 up) {
     out_matrix.data[13] = -vec3_dot(y_axis, position);
     out_matrix.data[14] = vec3_dot(z_axis, position);
     out_matrix.data[15] = 1.0f;
+
+    // LH
+    // vec3 f = vec3_normalized(vec3_sub(target, position));
+    // vec3 s = vec3_normalized(vec3_cross(f, up));
+    // vec3 u = vec3_cross(s, f);
+
+    // mat4 Result = mat4_identity();
+    // Result.data[0] = s.x;
+    // Result.data[4] = s.y;
+    // Result.data[8] = s.z;
+    // Result.data[1] = u.x;
+    // Result.data[5] = u.y;
+    // Result.data[9] = u.z;
+    // Result.data[2] =-f.x;
+    // Result.data[6] =-f.y;
+    // Result.data[10] =-f.z;
+    // Result.data[12] =-vec3_dot(s, position);
+    // Result.data[13] =-vec3_dot(u, position);
+    // Result.data[14] = vec3_dot(f, position);
+    // return Result;
 
     return out_matrix;
 }

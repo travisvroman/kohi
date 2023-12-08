@@ -10,6 +10,8 @@ Changelog
   - Added query to texture system to indicate if a given texture is a one of the default textures.
   - Adjusted material system to globally track an irradiance cubemap for IBL.
   - Renamed clock to kclock to avoid collisions with standard library types.
+  - Added function pointers to rendergraph_passes to get attachment textures and regenerate textures for self-owned attachments.
+  - Added shadow maps with optional PCF filtering. A KVAR called "use_pcf" can be toggled 1/0 to turn this on/off.
 
 - 0.4x
   - Added first pass of Standard UI system, including panel, button, label, and textbox controls.

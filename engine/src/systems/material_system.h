@@ -142,6 +142,13 @@ KAPI b8 material_system_apply_instance(material* m, struct frame_data* p_frame_d
 KAPI b8 material_system_apply_local(material* m, const mat4* model);
 
 /**
+ * @ brief Sets the provided shadowmap texture to be used for future binding/draw calls until changed.
+ *
+ * @param shadow_texture A pointer to the shadowmap texture to be used.
+ * @returns True on success; otherwise false;
+ */
+KAPI b8 material_system_shadow_map_set(texture* shadow_texture, u8 index);
+/**
  * @brief Sets the provided cubemap texture to be used for future binding/draw calls until changed.
  *  NOTE: Provided texture must be a cubemap texture or this function will fail.
  *
@@ -149,6 +156,13 @@ KAPI b8 material_system_apply_local(material* m, const mat4* model);
  * @returns True on success; otherwise false.
  */
 KAPI b8 material_system_irradiance_set(texture* irradiance_cube_texture);
+
+/**
+ * @brief Sets the current directional light-space matrix to be used for future binding calls that require it.
+ * 
+ * @param directional_light_space The directional light-space matrix.
+ */
+KAPI void material_system_directional_light_space_set(mat4 directional_light_space);
 
 /**
  * @brief Dumps all of the registered materials and their reference counts/handles.
