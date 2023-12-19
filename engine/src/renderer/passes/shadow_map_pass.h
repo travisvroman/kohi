@@ -21,12 +21,6 @@ typedef struct shadow_map_pass_extended_data {
 
 typedef struct shadow_map_pass_config {
     u16 resolution;
-    f32 near_clip;
-    f32 far_clip;
-    renderer_projection_matrix_type matrix_type;
-    rect_2d bounds;
-    // Used for non-orthographic projections.
-    f32 fov;
 } shadow_map_pass_config;
 
 KAPI b8 shadow_map_pass_create(struct rendergraph_pass* self, void* config);

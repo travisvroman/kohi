@@ -247,6 +247,9 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
             // either way, so this check result gets passed to the backend which either
             // updates the internal shader bindings and binds them, or only binds them.
             // Also need to check against the renderer draw index.
+            // TODO: At least for now, the entire terrain shares one material, so a lot of this
+            // should probably be moved to global (i.e. texture maps and surface properties), but
+            // leave lighting at the instance level.
             b8 needs_update = m->render_frame_number != p_frame_data->renderer_frame_number || m->render_draw_index != p_frame_data->draw_index;
             if (!material_system_apply_instance(m, p_frame_data, needs_update)) {
                 KWARN("Failed to apply terrain material '%s'. Skipping draw.", m->name);

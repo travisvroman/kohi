@@ -5,6 +5,7 @@
 #include "core/logger.h"
 #include "defines.h"
 #include "math/kmath.h"
+#include "math/math_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "renderer/rendergraph.h"
@@ -28,7 +29,6 @@ typedef struct shadow_map_pass_internal_data {
     shadow_map_shader_locations locations;
 
     // Custom projection matrix for shadow pass.
-    mat4 projection_matrix;
     viewport camera_viewport;
 
     texture* depth_textures;
@@ -226,32 +226,14 @@ b8 shadow_map_pass_load_resources(struct rendergraph_pass* self) {
     texture_map* terrain_maps[1] = {&internal_data->default_terrain_colour_map};
     renderer_shader_instance_resources_acquire(internal_data->ts, 1, terrain_maps, &internal_data->terrain_instance_id);
 
-    // Calculate viewport.
-    // HACK: Defaulting to ortho viewport. Point lights need perspective and a FOV.
-    shadow_map_pass_config* config = &internal_data->config;
+    // NOTE: Setup a default viewport. The only component that is used for this is the underlying
+    // viewport rect, but is required to be set by the renderer before beginning a renderpass.
+    // The projection matrix within this is not used, therefore the fov and clip planes do not matter.
     vec4 viewport_rect = {0, 0, internal_data->config.resolution, internal_data->config.resolution};
-    if (!viewport_create(viewport_rect, config->fov, config->near_clip, config->far_clip, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC, &internal_data->camera_viewport)) {
+    if (!viewport_create(viewport_rect, 0.0f, 0.0f, 0.0f, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC, &internal_data->camera_viewport)) {
         KERROR("Failed to create viewport for shadow map pass.");
         return false;
     }
-
-    // NOTE: for cascading, might need several.
-    // NOTE: Don't use the viewport projection matrix, as this will result in really small objects.
-    // TODO: Create the projection matrix based on the extents of all visible shadow-casting/recieving objects.
-    if (config->matrix_type == RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC) {
-        internal_data->projection_matrix = mat4_orthographic(config->bounds.x, config->bounds.y, config->bounds.width, config->bounds.height, config->near_clip, config->far_clip);
-    } else {
-        internal_data->projection_matrix = mat4_perspective(config->fov, (config->bounds.width / config->bounds.height), config->near_clip, config->far_clip);
-    }
-    internal_data->camera_viewport.projection = internal_data->projection_matrix;
-    // f32 mod = 0.015f;//fov
-    // internal_data->projection_matrix = mat4_orthographic(-area * mod, area * mod, -area * mod, area * mod, near_clip, far_clip);
-    // Save off the viewport rect to the pass data to be read by the app.
-    self->pass_data.vp = &internal_data->camera_viewport;
-
-    // Save off the projection matrix to extended data to be read by the app.
-    shadow_map_pass_extended_data* ext_data = self->pass_data.ext_data;
-    ext_data->projection = internal_data->projection_matrix;
 
     return true;
 }
@@ -264,20 +246,20 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
     shadow_map_pass_internal_data* internal_data = self->internal_data;
     shadow_map_pass_extended_data* ext_data = self->pass_data.ext_data;
 
-    // Bind the viewport
-    renderer_active_viewport_set(self->pass_data.vp);
+    // Bind the internal viewport - do not use one provided in pass data.
+    renderer_active_viewport_set(&internal_data->camera_viewport);
 
     if (!renderer_renderpass_begin(&self->pass, &self->pass.targets[p_frame_data->render_target_index])) {
         KERROR("Shadowmap pass failed to start.");
         return false;
     }
 
+    // Use the standard shadowmap shader.
     shader_system_use_by_id(internal_data->s->id);
 
     // Apply globals
     renderer_shader_bind_globals(internal_data->s);
-    // NOTE: using the internal projection matrix, not one passed in.
-    if (!shader_system_uniform_set_by_index(internal_data->locations.projection_location, &internal_data->projection_matrix)) {
+    if (!shader_system_uniform_set_by_index(internal_data->locations.projection_location, &self->pass_data.projection_matrix)) {
         KERROR("Failed to apply shadowmap projection uniform.");
         return false;
     }
@@ -380,13 +362,13 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
         }
     }
 
-    // Terrain
+    // Terrain - use the special terrain shadowmap shader.
     shader_system_use_by_id(internal_data->ts->id);
 
     // Apply globals
     renderer_shader_bind_globals(internal_data->ts);
     // NOTE: using the internal projection matrix, not one passed in.
-    if (!shader_system_uniform_set_by_index(internal_data->terrain_locations.projection_location, &internal_data->projection_matrix)) {
+    if (!shader_system_uniform_set_by_index(internal_data->terrain_locations.projection_location, &self->pass_data.projection_matrix)) {
         KERROR("Failed to apply terrain shadowmap projection uniform.");
         return false;
     }

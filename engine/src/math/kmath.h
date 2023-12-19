@@ -70,6 +70,10 @@
 /** @brief Smallest positive number where 1.0 + FLOAT_EPSILON != 0 */
 #define K_FLOAT_EPSILON 1.192092896e-07f
 
+#define K_FLOAT_MIN -3.40282e+38F
+
+#define K_FLOAT_MAX 3.40282e+38F
+
 // ------------------------------------------
 // General math functions
 // ------------------------------------------
@@ -158,6 +162,14 @@ KAPI f32 kabs(f32 x);
  * @return the largest integer value less than or equal to x.
  */
 KAPI f32 kfloor(f32 x);
+
+/**
+ * @brief Returns the smallest integer value greater than or equal to x.
+ *
+ * @param x The value to be examined.
+ * @return the smallest integer value greater than or equal to x.
+ */
+KAPI f32 kceil(f32 x);
 
 /**
  * @brief Computes the base-2 logarithm of x (i.e. how many times x can be divided by 2).
@@ -604,6 +616,14 @@ KINLINE vec3 vec3_div(vec3 vector_0, vec3 vector_1) {
                   vector_0.z / vector_1.z};
 }
 
+KINLINE vec3 vec3_div_scalar(vec3 vector_0, f32 scalar) {
+    vec3 result;
+    for (u64 i = 0; i < 3; ++i) {
+        result.elements[i] = vector_0.elements[i] / scalar;
+    }
+    return result;
+}
+
 /**
  * @brief Returns the squared length of the provided vector.
  *
@@ -902,6 +922,14 @@ KINLINE vec4 vec4_div(vec4 vector_0, vec4 vector_1) {
     return result;
 }
 
+KINLINE vec4 vec4_div_scalar(vec4 vector_0, f32 scalar) {
+    vec4 result;
+    for (u64 i = 0; i < 4; ++i) {
+        result.elements[i] = vector_0.elements[i] / scalar;
+    }
+    return result;
+}
+
 /**
  * @brief Returns the squared length of the provided vector.
  *
@@ -1072,30 +1100,6 @@ KINLINE mat4 mat4_orthographic(f32 left, f32 right, f32 bottom, f32 top,
     out_matrix.data[12] = (left + right) * lr;
     out_matrix.data[13] = (top + bottom) * bt;
     out_matrix.data[14] = (far_clip + near_clip) * nf;
-
-    // // HACK: test - regular glm
-    // out_matrix.data[0] = 2.0f / (right - left);
-    // out_matrix.data[5] = 2.0f / (top - bottom);
-    // out_matrix.data[10] = -1.0f;//-2.0f / (far_clip - near_clip);
-    // out_matrix.data[12] = -(right + left) / (right - left);
-    // out_matrix.data[13] = -(top + bottom) / (top - bottom);
-    // // out_matrix.data[14] = -(far_clip + near_clip) / (far_clip - near_clip);
-
-    // // HACK: RH_ZO glm
-    // out_matrix.data[0] = 2.0f / (right - left);
-    // out_matrix.data[5] = 2.0f / (top - bottom);
-    // out_matrix.data[10] = - 1.0f / (far_clip - near_clip);
-    // out_matrix.data[12] = - (right + left) / (right - left);
-    // out_matrix.data[13] = - (top + bottom) / (top - bottom);
-    // out_matrix.data[14] = - near_clip / (far_clip - near_clip);
-
-    // // HACK: RH_NO glm
-    // out_matrix.data[0] = 2.0f / (right - left);
-    // out_matrix.data[5] = 2.0f / (top - bottom);
-    // out_matrix.data[10] = - 2.0f / (far_clip - near_clip);
-    // out_matrix.data[12] = - (right + left) / (right - left);
-    // out_matrix.data[13] = - (top + bottom) / (top - bottom);
-    // out_matrix.data[14] = - (far_clip + near_clip) / (far_clip - near_clip);
 
     return out_matrix;
 }
@@ -1521,6 +1525,21 @@ KINLINE vec3 mat4_right(mat4 matrix) {
 }
 
 /**
+ * @brief Returns the position relative to the provided matrix.
+ *
+ * @param matrix The matrix from which to base the vector.
+ * @return A 3-component positional vector.
+ */
+KINLINE vec3 mat4_position(mat4 matrix) {
+    vec3 pos;
+    pos.x = matrix.data[12];
+    pos.y = matrix.data[13];
+    pos.z = matrix.data[14];
+    vec3_normalize(&pos);
+    return pos;
+}
+
+/**
  * @brief Performs m * v
  *
  * @param m The matrix to be multiplied.
@@ -1560,8 +1579,7 @@ KINLINE vec4 mat4_mul_vec4(mat4 m, vec4 v) {
         v.x * m.data[0] + v.y * m.data[1] + v.z * m.data[2] + v.w * m.data[3],
         v.x * m.data[4] + v.y * m.data[5] + v.z * m.data[6] + v.w * m.data[7],
         v.x * m.data[8] + v.y * m.data[9] + v.z * m.data[10] + v.w * m.data[11],
-        v.x * m.data[12] + v.y * m.data[13] + v.z * m.data[14] +
-            v.w * m.data[15]};
+        v.x * m.data[12] + v.y * m.data[13] + v.z * m.data[14] + v.w * m.data[15]};
 }
 
 /**
@@ -1890,7 +1908,7 @@ KINLINE void rgbu_to_u32(u32 r, u32 g, u32 b, u32 *out_u32) {
 KINLINE void u32_to_rgb(u32 rgbu, u32 *out_r, u32 *out_g, u32 *out_b) {
     *out_r = (rgbu >> 16) & 0x0FF;
     *out_g = (rgbu >> 8) & 0x0FF;
-    *out_b = (rgbu) & 0x0FF;
+    *out_b = (rgbu)&0x0FF;
 }
 
 /**
@@ -1943,6 +1961,15 @@ KAPI plane_3d plane_3d_create(vec3 p1, vec3 norm);
 KAPI frustum frustum_create(const vec3 *position, const vec3 *forward,
                             const vec3 *right, const vec3 *up, f32 aspect,
                             f32 fov, f32 near, f32 far);
+
+/**
+ * Calculate the corner points of the provided frustum in world space, using
+ * the given projection and view matrices.
+ *
+ * @param projection_view The combined projection/view matrix from the active camera.
+ * @param corners An array of 8 vec4s to hold the caluclated points.
+ */
+KAPI void frustum_corner_points_world_space(mat4 projection_view, vec4 *corners);
 
 /**
  * @brief Obtains the signed distance between the plane p and the provided

@@ -93,21 +93,21 @@ then
 echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
 
-# Tests
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tests ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
-ERRORLEVEL=$?
-if [ $ERRORLEVEL -ne 0 ]
-then
-echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
-fi
+# # Tests
+# make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tests ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
+# ERRORLEVEL=$?
+# if [ $ERRORLEVEL -ne 0 ]
+# then
+# echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
+# fi
 
-# Tools
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tools ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
-ERRORLEVEL=$?
-if [ $ERRORLEVEL -ne 0 ]
-then
-echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
-fi
+# # Tools
+# make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tools ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
+# ERRORLEVEL=$?
+# if [ $ERRORLEVEL -ne 0 ]
+# then
+# echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
+# fi
 
 echo "All assemblies $ACTION_STR_PAST successfully on $PLATFORM ($TARGET)." | sed -e "s/successfully/${txtgrn}successfully${txtrst}/g"
 

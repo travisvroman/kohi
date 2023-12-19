@@ -25,6 +25,8 @@ f32 kabs(f32 x) { return fabsf(x); }
 
 f32 kfloor(f32 x) { return floorf(x); }
 
+f32 kceil(f32 x) { return ceilf(x); }
+
 f32 klog2(f32 x) { return log2f(x); }
 
 i32 krandom(void) {
@@ -133,3 +135,23 @@ b8 frustum_intersects_aabb(const frustum *f, const vec3 *center,
     }
     return true;
 }
+
+void frustum_corner_points_world_space(mat4 projection_view, vec4 *corners) {
+    mat4 inverse_view_proj = mat4_inverse(projection_view);
+
+    corners[0] = (vec4){-1.0f, -1.0f, 0.0f, 1.0f};
+    corners[1] = (vec4){1.0f, -1.0f, 0.0f, 1.0f};
+    corners[2] = (vec4){1.0f, 1.0f, 0.0f, 1.0f};
+    corners[3] = (vec4){-1.0f, 1.0f, 0.0f, 1.0f};
+
+    corners[4] = (vec4){-1.0f, -1.0f, 1.0f, 1.0f};
+    corners[5] = (vec4){1.0f, -1.0f, 1.0f, 1.0f};
+    corners[6] = (vec4){1.0f, 1.0f, 1.0f, 1.0f};
+    corners[7] = (vec4){-1.0f, 1.0f, 1.0f, 1.0f};
+
+    for (u32 i = 0; i < 8; ++i) {
+        vec4 point = mat4_mul_vec4(inverse_view_proj, corners[i]);
+        corners[i] = vec4_div_scalar(point, point.w);
+    }
+}
+
