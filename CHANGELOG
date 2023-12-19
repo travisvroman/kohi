@@ -12,6 +12,11 @@ Changelog
   - Renamed clock to kclock to avoid collisions with standard library types.
   - Added function pointers to rendergraph_passes to get attachment textures and regenerate textures for self-owned attachments.
   - Added shadow maps with optional PCF filtering. A KVAR called "use_pcf" can be toggled 1/0 to turn this on/off.
+  - Added dynamic shadow frustum generation.
+  - Implemented generic quick-sort (see ksort.h).
+  - Added queries to simple scene for getting mesh and terrain geometries using frustums.
+  - Fixed various math bugs as they relate to frustum generation and use.
+  - Added per-frame tracking of shadow map draw calls.
 
 - 0.4x
   - Added first pass of Standard UI system, including panel, button, label, and textbox controls.

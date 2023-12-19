@@ -5,7 +5,7 @@ stages=vertex,fragment
 stagefiles=shaders/Shader.Shadowmap.vert.glsl,shaders/Shader.Shadowmap.frag.glsl
 depth_test=1
 depth_write=1
-cull_mode=front
+cull_mode=none
 
 # Attributes: type,name
 attribute=vec3,in_position

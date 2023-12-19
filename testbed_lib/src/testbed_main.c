@@ -865,7 +865,7 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
 FPS: %5.1f(%4.1fms)        Pos=[%7.3f %7.3f %7.3f] Rot=[%7.3f, %7.3f, %7.3f]\n\
 Upd: %8.3fus, Prep: %8.3fus, Rend: %8.3fus, Pres: %8.3fus, Tot: %8.3fus \n\
 Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
-VSync: %s Drawn: %-5u Hovered: %s%u",
+VSync: %s Drawn: %-5u (%-5u shadow pass) Hovered: %s%u",
         fps,
         frame_time,
         pos.x, pos.y, pos.z,
@@ -882,6 +882,7 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
         mouse_y_ndc,
         vsync_text,
         p_frame_data->drawn_mesh_count,
+        p_frame_data->drawn_shadow_mesh_count,
         state->hovered_object_id == INVALID_ID ? "none" : "",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
     if (state->running) {
@@ -898,82 +899,6 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
     state->last_update_elapsed = state->update_clock.elapsed;
 
     return true;
-}
-
-// TODO: Make this more generic and move it the heck out of here.
-// Quicksort for geometry_distance
-
-static void gdistance_swap(geometry_distance* a, geometry_distance* b) {
-    geometry_distance temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-static i32 gdistance_partition(geometry_distance arr[], i32 low_index, i32 high_index, b8 ascending) {
-    geometry_distance pivot = arr[high_index];
-    i32 i = (low_index - 1);
-
-    for (i32 j = low_index; j <= high_index - 1; ++j) {
-        if (ascending) {
-            if (arr[j].distance < pivot.distance) {
-                ++i;
-                gdistance_swap(&arr[i], &arr[j]);
-            }
-        } else {
-            if (arr[j].distance > pivot.distance) {
-                ++i;
-                gdistance_swap(&arr[i], &arr[j]);
-            }
-        }
-    }
-    gdistance_swap(&arr[i + 1], &arr[high_index]);
-    return i + 1;
-}
-
-static void gdistance_quick_sort(geometry_distance arr[], i32 low_index, i32 high_index, b8 ascending) {
-    if (low_index < high_index) {
-        i32 partition_index = gdistance_partition(arr, low_index, high_index, ascending);
-
-        // Independently sort elements before and after the partition index.
-        gdistance_quick_sort(arr, low_index, partition_index - 1, ascending);
-        gdistance_quick_sort(arr, partition_index + 1, high_index, ascending);
-    }
-}
-static void geometry_swap(geometry_render_data* a, geometry_render_data* b) {
-    geometry_render_data temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-static i32 geometry_partition(geometry_render_data arr[], i32 low_index, i32 high_index, b8 ascending) {
-    geometry_render_data pivot = arr[high_index];
-    i32 i = (low_index - 1);
-
-    for (i32 j = low_index; j <= high_index - 1; ++j) {
-        if (ascending) {
-            if (arr[j].material->internal_id < pivot.material->internal_id) {
-                ++i;
-                geometry_swap(&arr[i], &arr[j]);
-            }
-        } else {
-            if (arr[j].material->internal_id > pivot.material->internal_id) {
-                ++i;
-                geometry_swap(&arr[i], &arr[j]);
-            }
-        }
-    }
-    geometry_swap(&arr[i + 1], &arr[high_index]);
-    return i + 1;
-}
-
-static void geometry_quick_sort_by_material(geometry_render_data arr[], i32 low_index, i32 high_index, b8 ascending) {
-    if (low_index < high_index) {
-        i32 partition_index = geometry_partition(arr, low_index, high_index, ascending);
-
-        // Independently sort elements before and after the partition index.
-        geometry_quick_sort_by_material(arr, low_index, partition_index - 1, ascending);
-        geometry_quick_sort_by_material(arr, partition_index + 1, high_index, ascending);
-    }
 }
 
 b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_frame_data) {
@@ -1022,14 +947,14 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
             // Get the view-projection matrix
             // HACK: change back to viewport 1/camera 1
-            b8 hack_enabled = true;
+            b8 hack_enabled = false;
             camera* view_camera = hack_enabled ? state->world_camera_2 : state->world_camera;
             viewport* view_viewport = hack_enabled ? &state->world_viewport2 : &state->world_viewport;
             mat4 cam_view_proj = mat4_transposed(mat4_mul(camera_view_get(view_camera), view_viewport->projection));
 
             // HACK: Rotate the test view camera.
             if (hack_enabled) {
-                camera_yaw(view_camera, 0.1f * p_frame_data->delta_time);
+                camera_yaw(view_camera, 0.5f * p_frame_data->delta_time);
             }
 
             // Get the world-space corners of the view frustum.
@@ -1075,7 +1000,8 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             // Generate lookat by moving along the opposite direction of the directional light by the
             // minimum extents. This is negated because the directional light points "down" and the camera
             // needs to be "up".
-            shadow_camera_lookat = mat4_look_at(vec3_sub(center, vec3_mul_scalar(light_dir, -extents.min.z)), center, vec3_up());
+            vec3 shadow_camera_position = vec3_sub(center, vec3_mul_scalar(light_dir, -extents.min.z));
+            shadow_camera_lookat = mat4_look_at(shadow_camera_position, center, vec3_up());
 
             // Generate ortho projection based on extents.
             shadow_camera_projection = mat4_orthographic(extents.min.x, extents.max.x, extents.min.y, extents.max.y, extents.min.z, extents.max.z - extents.min.z);
@@ -1126,111 +1052,43 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             }
             // HACK: End frustum visualization.
 
-            simple_scene* scene = &state->main_scene;
+            // Shadow frustum culling and count
+            mat4 shadow_view = mat4_mul(shadow_camera_lookat, shadow_camera_projection);
+            frustum shadow_frustum = frustum_from_view_projection(shadow_view);
 
-            // LEFTOFF: TODO: Shadow frustum culling (and count?).
+            simple_scene* scene = &state->main_scene;
 
             // Iterate the scene and get a list of all geometries within the view of the light.
             ext_data->geometries = darray_reserve_with_allocator(geometry_render_data, 512, &p_frame_data->allocator);
-            geometry_distance* transparent_geometries = darray_create_with_allocator(geometry_distance, &p_frame_data->allocator);
 
-            u32 mesh_count = darray_length(scene->meshes);
-            for (u32 i = 0; i < mesh_count; ++i) {
-                mesh* m = &scene->meshes[i];
-                if (m->generation != INVALID_ID_U8) {
-                    mat4 model = transform_world_get(&m->transform);
-                    b8 winding_inverted = m->transform.determinant < 0;
-
-                    for (u32 j = 0; j < m->geometry_count; ++j) {
-                        geometry* g = m->geometries[j];
-                        // AABB calculation
-                        {
-                            // Translate/scale the extents.
-                            // vec3 extents_min = vec3_mul_mat4(g->extents.min, model);
-                            /* vec3 extents_max = vec3_mul_mat4(g->extents.max, model); */
-
-                            // Translate/scale the center.
-                            /* vec3 center = vec3_mul_mat4(g->center, model);
-                            vec3 half_extents = {
-                                kabs(extents_max.x - center.x),
-                                kabs(extents_max.y - center.y),
-                                kabs(extents_max.z - center.z),
-                            }; */
-
-                            /* if (frustum_intersects_aabb(&f, &center, &half_extents)) { */
-                            // Add it to the list to be rendered.
-                            geometry_render_data data = {0};
-                            data.model = model;
-                            data.material = g->material;
-                            data.vertex_count = g->vertex_count;
-                            data.vertex_buffer_offset = g->vertex_buffer_offset;
-                            data.index_count = g->index_count;
-                            data.index_buffer_offset = g->index_buffer_offset;
-                            data.unique_id = m->id.uniqueid;
-                            data.winding_inverted = winding_inverted;
-
-                            // Check if transparent. If so, put into a separate, temp array to be
-                            // sorted by distance from the camera. Otherwise, put into the
-                            // ext_data->geometries array directly.
-                            b8 has_transparency = false;
-                            if (g->material->type == MATERIAL_TYPE_PHONG) {
-                                // Check diffuse map (slot 0).
-                                has_transparency = ((g->material->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) != 0);
-                            }
-
-                            if (has_transparency) {
-                                // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
-                                // Get the center, extract the global position from the model matrix and add it to the center,
-                                // then calculate the distance between it and the camera, and finally save it to a list to be sorted.
-                                // NOTE: This isn't perfect for translucent meshes that intersect, but is enough for our purposes now.
-                                vec3 center = vec3_transform(g->center, 1.0f, model);
-                                f32 distance = vec3_distance(center, current_camera->position);
-
-                                geometry_distance gdist;
-                                gdist.distance = kabs(distance);
-                                gdist.g = data;
-                                darray_push(transparent_geometries, gdist);
-                            } else {
-                                darray_push(ext_data->geometries, data);
-                            }
-                            /* } */
-                        }
-                    }
-                }
+            // Query the scene for static meshes using the shadow frustum.
+            if (!simple_scene_mesh_render_data_query(
+                    scene,
+                    &shadow_frustum,
+                    shadow_camera_position,
+                    p_frame_data,
+                    &ext_data->geometry_count, ext_data->geometries)) {
+                KERROR("Failed to query shadow map pass meshes.");
             }
-            // Sort opaque geometries by material.
-            geometry_quick_sort_by_material(ext_data->geometries, 0, darray_length(ext_data->geometries) - 1, true);
 
-            // Sort transparent geometries, then add them to the ext_data->geometries array.
-            u32 geometry_count = darray_length(transparent_geometries);
-            gdistance_quick_sort(transparent_geometries, 0, geometry_count - 1, false);
-            for (u32 i = 0; i < geometry_count; ++i) {
-                darray_push(ext_data->geometries, transparent_geometries[i].g);
-            }
-            ext_data->geometry_count = darray_length(ext_data->geometries);
+            // Track the number of meshes drawn in the shadow pass.
+            p_frame_data->drawn_shadow_mesh_count = ext_data->geometry_count;
 
             // Add terrain(s)
-            u32 terrain_count = darray_length(scene->terrains);
             ext_data->terrain_geometries = darray_reserve_with_allocator(geometry_render_data, 16, &p_frame_data->allocator);
-            ext_data->terrain_geometry_count = 0;
-            for (u32 i = 0; i < terrain_count; ++i) {
-                // TODO: Frustum culling
-                geometry_render_data data = {0};
-                data.model = transform_world_get(&scene->terrains[i].xform);
-                geometry* g = &scene->terrains[i].geo;
-                data.material = g->material;
-                data.vertex_count = g->vertex_count;
-                data.vertex_buffer_offset = g->vertex_buffer_offset;
-                data.index_count = g->index_count;
-                data.index_buffer_offset = g->index_buffer_offset;
-                data.unique_id = scene->terrains[i].id.uniqueid;
 
-                darray_push(ext_data->terrain_geometries, data);
-
-                // TODO: Counter for terrain geometries.
-                p_frame_data->drawn_mesh_count++;
+            // Query the scene for terrain meshes using the camera frustum.
+            if (!simple_scene_terrain_render_data_query(
+                    scene,
+                    &shadow_frustum,
+                    shadow_camera_position,
+                    p_frame_data,
+                    &ext_data->terrain_geometry_count, ext_data->terrain_geometries)) {
+                KERROR("Failed to query shadow map pass terrain geometries.");
             }
-            ext_data->terrain_geometry_count = darray_length(ext_data->terrain_geometries);
+
+            // TODO: Counter for terrain geometries.
+            p_frame_data->drawn_shadow_mesh_count += ext_data->terrain_geometry_count;
 
             // end shadowmap pass
         }
@@ -1241,9 +1099,12 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             state->scene_pass.pass_data.do_execute = true;
             state->scene_pass.pass_data.vp = &state->world_viewport;
             camera* current_camera = state->world_camera;
-            state->scene_pass.pass_data.view_matrix = camera_view_get(current_camera);
+            mat4 camera_view = camera_view_get(current_camera);
+            mat4 camera_projection = state->world_viewport.projection;
+
+            state->scene_pass.pass_data.view_matrix = camera_view;
             state->scene_pass.pass_data.view_position = camera_position_get(current_camera);
-            state->scene_pass.pass_data.projection_matrix = state->world_viewport.projection;
+            state->scene_pass.pass_data.projection_matrix = camera_projection;
 
             scene_pass_extended_data* ext_data = state->scene_pass.pass_data.ext_data;
             // Pass over shadow map "camera" view and projection.
@@ -1254,149 +1115,48 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             ext_data->irradiance_cube_texture = state->main_scene.sb->cubemap.texture;
 
             // Populate scene pass data.
-            viewport* v = &state->world_viewport;
             simple_scene* scene = &state->main_scene;
 
-            // Update the frustum
+            // Camera frustum culling and count
+            viewport* v = &state->world_viewport;
             vec3 forward = camera_forward(current_camera);
             vec3 right = camera_right(current_camera);
             vec3 up = camera_up(current_camera);
-            frustum f = frustum_create(&current_camera->position, &forward, &right,
-                                       &up, v->rect.width / v->rect.height, v->fov, v->near_clip, v->far_clip);
+            frustum camera_frustum = frustum_create(&current_camera->position, &forward, &right,
+                                                    &up, v->rect.width / v->rect.height, v->fov, v->near_clip, v->far_clip);
 
             p_frame_data->drawn_mesh_count = 0;
 
             ext_data->geometries = darray_reserve_with_allocator(geometry_render_data, 512, &p_frame_data->allocator);
-            geometry_distance* transparent_geometries = darray_create_with_allocator(geometry_distance, &p_frame_data->allocator);
 
-            u32 mesh_count = darray_length(scene->meshes);
-            for (u32 i = 0; i < mesh_count; ++i) {
-                mesh* m = &scene->meshes[i];
-                if (m->generation != INVALID_ID_U8) {
-                    mat4 model = transform_world_get(&m->transform);
-                    b8 winding_inverted = m->transform.determinant < 0;
-
-                    for (u32 j = 0; j < m->geometry_count; ++j) {
-                        geometry* g = m->geometries[j];
-
-                        // // Bounding sphere calculation.
-                        // {
-                        //     // Translate/scale the extents.
-                        //     vec3 extents_min = vec3_mul_mat4(g->extents.min, model);
-                        //     vec3 extents_max = vec3_mul_mat4(g->extents.max, model);
-
-                        //     f32 min = KMIN(KMIN(extents_min.x, extents_min.y),
-                        //     extents_min.z); f32 max = KMAX(KMAX(extents_max.x,
-                        //     extents_max.y), extents_max.z); f32 diff = kabs(max - min);
-                        //     f32 radius = diff * 0.5f;
-
-                        //     // Translate/scale the center.
-                        //     vec3 center = vec3_mul_mat4(g->center, model);
-
-                        //     if (frustum_intersects_sphere(&state->camera_frustum,
-                        //     &center, radius)) {
-                        //         // Add it to the list to be rendered.
-                        //         geometry_render_data data = {0};
-                        //         data.model = model;
-                        //         data.geometry = g;
-                        //         data.unique_id = m->unique_id;
-                        //         darray_push(game_inst->frame_data.world_geometries,
-                        //         data);
-
-                        //         draw_count++;
-                        //     }
-                        // }
-
-                        // AABB calculation
-                        {
-                            // Translate/scale the extents.
-                            // vec3 extents_min = vec3_mul_mat4(g->extents.min, model);
-                            vec3 extents_max = vec3_mul_mat4(g->extents.max, model);
-
-                            // Translate/scale the center.
-                            vec3 center = vec3_mul_mat4(g->center, model);
-                            vec3 half_extents = {
-                                kabs(extents_max.x - center.x),
-                                kabs(extents_max.y - center.y),
-                                kabs(extents_max.z - center.z),
-                            };
-
-                            if (frustum_intersects_aabb(&f, &center, &half_extents)) {
-                                // Add it to the list to be rendered.
-                                geometry_render_data data = {0};
-                                data.model = model;
-                                data.material = g->material;
-                                data.vertex_count = g->vertex_count;
-                                data.vertex_buffer_offset = g->vertex_buffer_offset;
-                                data.index_count = g->index_count;
-                                data.index_buffer_offset = g->index_buffer_offset;
-                                data.unique_id = m->id.uniqueid;
-                                data.winding_inverted = winding_inverted;
-
-                                // Check if transparent. If so, put into a separate, temp array to be
-                                // sorted by distance from the camera. Otherwise, put into the
-                                // ext_data->geometries array directly.
-                                b8 has_transparency = false;
-                                if (g->material->type == MATERIAL_TYPE_PHONG) {
-                                    // Check diffuse map (slot 0).
-                                    has_transparency = ((g->material->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) != 0);
-                                }
-
-                                if (has_transparency) {
-                                    // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
-                                    // Get the center, extract the global position from the model matrix and add it to the center,
-                                    // then calculate the distance between it and the camera, and finally save it to a list to be sorted.
-                                    // NOTE: This isn't perfect for translucent meshes that intersect, but is enough for our purposes now.
-                                    vec3 center = vec3_transform(g->center, 1.0f, model);
-                                    f32 distance = vec3_distance(center, current_camera->position);
-
-                                    geometry_distance gdist;
-                                    gdist.distance = kabs(distance);
-                                    gdist.g = data;
-                                    darray_push(transparent_geometries, gdist);
-                                } else {
-                                    darray_push(ext_data->geometries, data);
-                                }
-                                p_frame_data->drawn_mesh_count++;
-                            }
-                        }
-                    }
-                }
+            // Query the scene for static meshes using the camera frustum.
+            if (!simple_scene_mesh_render_data_query(
+                    scene,
+                    &camera_frustum,
+                    current_camera->position,
+                    p_frame_data,
+                    &ext_data->geometry_count, ext_data->geometries)) {
+                KERROR("Failed to query scene pass meshes.");
             }
 
-            // Sort opaque geometries by material.
-            geometry_quick_sort_by_material(ext_data->geometries, 0, darray_length(ext_data->geometries) - 1, true);
-
-            // Sort transparent geometries, then add them to the ext_data->geometries array.
-            u32 geometry_count = darray_length(transparent_geometries);
-            gdistance_quick_sort(transparent_geometries, 0, geometry_count - 1, false);
-            for (u32 i = 0; i < geometry_count; ++i) {
-                darray_push(ext_data->geometries, transparent_geometries[i].g);
-            }
-            ext_data->geometry_count = darray_length(ext_data->geometries);
+            // Track the number of meshes drawn in the shadow pass.
+            p_frame_data->drawn_mesh_count = ext_data->geometry_count;
 
             // Add terrain(s)
-            u32 terrain_count = darray_length(scene->terrains);
             ext_data->terrain_geometries = darray_reserve_with_allocator(geometry_render_data, 16, &p_frame_data->allocator);
-            ext_data->terrain_geometry_count = 0;
-            for (u32 i = 0; i < terrain_count; ++i) {
-                // TODO: Frustum culling
-                geometry_render_data data = {0};
-                data.model = transform_world_get(&scene->terrains[i].xform);
-                geometry* g = &scene->terrains[i].geo;
-                data.material = g->material;
-                data.vertex_count = g->vertex_count;
-                data.vertex_buffer_offset = g->vertex_buffer_offset;
-                data.index_count = g->index_count;
-                data.index_buffer_offset = g->index_buffer_offset;
-                data.unique_id = scene->terrains[i].id.uniqueid;
 
-                darray_push(ext_data->terrain_geometries, data);
-
-                // TODO: Counter for terrain geometries.
-                p_frame_data->drawn_mesh_count++;
+            // Query the scene for terrain meshes using the camera frustum.
+            if (!simple_scene_terrain_render_data_query(
+                    scene,
+                    &camera_frustum,
+                    current_camera->position,
+                    p_frame_data,
+                    &ext_data->terrain_geometry_count, ext_data->terrain_geometries)) {
+                KERROR("Failed to query scene pass terrain geometries.");
             }
-            ext_data->terrain_geometry_count = darray_length(ext_data->terrain_geometries);
+
+            // TODO: Counter for terrain geometries.
+            p_frame_data->drawn_mesh_count += ext_data->terrain_geometry_count;
 
             // Debug geometry
             if (!simple_scene_debug_render_data_query(scene, &ext_data->debug_geometry_count, 0)) {

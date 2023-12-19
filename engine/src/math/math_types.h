@@ -241,9 +241,20 @@ typedef struct plane_3d {
     f32 distance;
 } plane_3d;
 
+#define FRUSTUM_SIDE_COUNT 6
+
+typedef enum frustum_side {
+    FRUSTUM_SIDE_TOP = 0,
+    FRUSTUM_SIDE_BOTTOM = 1,
+    FRUSTUM_SIDE_RIGHT = 2,
+    FRUSTUM_SIDE_LEFT = 3,
+    FRUSTUM_SIDE_FAR = 4,
+    FRUSTUM_SIDE_NEAR = 5,
+} frustum_side;
+
 typedef struct frustum {
     // Top, bottom, right, left, far, near
-    plane_3d sides[6];
+    plane_3d sides[FRUSTUM_SIDE_COUNT];
 } frustum;
 
 /**

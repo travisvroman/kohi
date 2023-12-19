@@ -97,9 +97,11 @@ The items in this list are not in any particular order. This list will be update
 ## Renderer:
 - [ ] geometry generation (2d and 3d, e.g. cube, cylinder, etc.)
 - [ ] advanced materials (WIP)
-- [ ] PBR
+- [x] PBR
 - [ ] batch rendering (2d and 3d)
-- [ ] shadow maps
+- [x] shadow maps
+  - [x] PCF
+  - [ ] cascading shadow maps
 - [x] texture mipmapping
 - [x] Specular maps 
 - [x] Normal maps 

@@ -132,6 +132,14 @@ KAPI f32 kcos(f32 x);
 KAPI f32 ktan(f32 x);
 
 /**
+ * @brief Calculates the arctangent of x.
+ *
+ * @param x The number to calculate the arctangent of.
+ * @return The arctangent of x.
+ */
+KAPI f32 katan(f32 x);
+
+/**
  * @brief Calculates the arc cosine of x.
  *
  * @param x The number to calculate the arc cosine of.
@@ -1961,6 +1969,8 @@ KAPI plane_3d plane_3d_create(vec3 p1, vec3 norm);
 KAPI frustum frustum_create(const vec3 *position, const vec3 *forward,
                             const vec3 *right, const vec3 *up, f32 aspect,
                             f32 fov, f32 near, f32 far);
+
+KAPI frustum frustum_from_view_projection(mat4 view_projection);
 
 /**
  * Calculate the corner points of the provided frustum in world space, using

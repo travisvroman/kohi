@@ -173,3 +173,7 @@ KAPI struct terrain* simple_scene_terrain_get(simple_scene* scene, const char* n
 KAPI struct transform* simple_scene_transform_get_by_id(simple_scene* scene, u64 unique_id);
 
 KAPI b8 simple_scene_debug_render_data_query(simple_scene* scene, u32* data_count, struct geometry_render_data** debug_geometries);
+
+KAPI b8 simple_scene_mesh_render_data_query(const simple_scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data* out_geometries);
+
+KAPI b8 simple_scene_terrain_render_data_query(const simple_scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data* out_terrain_geometries);
