@@ -34,7 +34,7 @@ typedef struct material_shader_uniform_locations {
 } material_shader_uniform_locations;
 
 #ifndef PBR_MAP_COUNT
-#define PBR_MAP_COUNT 7
+#define PBR_MAP_COUNT 10
 #endif
 
 // Samplers
@@ -44,18 +44,23 @@ const u32 SAMP_METALLIC = 2;
 const u32 SAMP_ROUGHNESS = 3;
 const u32 SAMP_AO = 4;
 const u32 SAMP_SHADOW_MAP = 5;
-const u32 SAMP_IBL_CUBE = 6;
+const u32 SAMP_SHADOW_MAP_0 = 6;
+const u32 SAMP_SHADOW_MAP_1 = 7;
+const u32 SAMP_SHADOW_MAP_2 = 8;
+const u32 SAMP_IBL_CUBE = 9;
+
+#define MAX_SHADOW_CASCADE_COUNT 4
 
 #define TERRAIN_PER_MATERIAL_SAMP_COUNT 5
 // 5 maps per material for PBR. Allocate enough slots for all materials. Also one more for irradiance map.
-const u32 TERRAIN_SAMP_COUNT = 2 + (TERRAIN_PER_MATERIAL_SAMP_COUNT * TERRAIN_MAX_MATERIAL_COUNT);
+const u32 TERRAIN_SAMP_COUNT = 5 + (TERRAIN_PER_MATERIAL_SAMP_COUNT * TERRAIN_MAX_MATERIAL_COUNT);
 const u32 SAMP_TERRAIN_SHADOW_MAP = TERRAIN_PER_MATERIAL_SAMP_COUNT * TERRAIN_MAX_MATERIAL_COUNT;
-const u32 SAMP_TERRAIN_IRRADIANCE_MAP = 1 + (TERRAIN_PER_MATERIAL_SAMP_COUNT * TERRAIN_MAX_MATERIAL_COUNT);
+const u32 SAMP_TERRAIN_IRRADIANCE_MAP = 4 + (TERRAIN_PER_MATERIAL_SAMP_COUNT * TERRAIN_MAX_MATERIAL_COUNT);
 
 typedef struct pbr_shader_uniform_locations {
     u16 projection;
     u16 view;
-    u16 ambient_colour;
+    u16 cascade_splits;
     u16 view_position;
     u16 properties;
     u16 ibl_cube_texture;
@@ -64,8 +69,14 @@ typedef struct pbr_shader_uniform_locations {
     u16 metallic_texture;
     u16 roughness_texture;
     u16 ao_texture;
-    u16 shadow_texture;
-    u16 light_space;
+    u16 shadow_texture_0;
+    u16 shadow_texture_1;
+    u16 shadow_texture_2;
+    u16 shadow_texture_3;
+    u16 light_space_0;
+    u16 light_space_1;
+    u16 light_space_2;
+    u16 light_space_3;
     u16 model;
     u16 render_mode;
     u16 use_pcf;
@@ -87,7 +98,7 @@ typedef struct terrain_shader_locations {
     b8 loaded;
     u16 projection;
     u16 view;
-    u16 ambient_colour;
+    u16 cascade_splits;
     u16 view_position;
     u16 model;
     u16 render_mode;
@@ -97,8 +108,14 @@ typedef struct terrain_shader_locations {
 
     u16 properties;
     u16 ibl_cube_texture;
-    u16 shadow_texture;
-    u16 light_space;
+    u16 shadow_texture_0;
+    u16 shadow_texture_1;
+    u16 shadow_texture_2;
+    u16 shadow_texture_3;
+    u16 light_space_0;
+    u16 light_space_1;
+    u16 light_space_2;
+    u16 light_space_3;
     u16 samplers[TERRAIN_MAX_MATERIAL_COUNT * 5];  // albedo, normal, metallic, roughness, ao
     u16 use_pcf;
     u16 bias;
@@ -132,10 +149,10 @@ typedef struct material_system_state {
     // The current irradiance cubemap texture to be used.
     texture* irradiance_cube_texture;
 
-    // The current shadow texture to be used for the next draw.
-    texture* shadow_texture;
+    // The current shadow textures to be used for the next draw.
+    texture* shadow_textures[MAX_SHADOW_CASCADE_COUNT];
 
-    mat4 directional_light_space;
+    mat4 directional_light_space[MAX_SHADOW_CASCADE_COUNT];
 
     i32 use_pcf;
 } material_system_state;
@@ -209,18 +226,24 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->pbr_locations.metallic_texture = INVALID_ID_U16;
     state_ptr->pbr_locations.roughness_texture = INVALID_ID_U16;
     state_ptr->pbr_locations.ao_texture = INVALID_ID_U16;
-    state_ptr->pbr_locations.shadow_texture = INVALID_ID_U16;
-    state_ptr->pbr_locations.ambient_colour = INVALID_ID_U16;
+    state_ptr->pbr_locations.shadow_texture_0 = INVALID_ID_U16;
+    state_ptr->pbr_locations.shadow_texture_1 = INVALID_ID_U16;
+    state_ptr->pbr_locations.shadow_texture_2 = INVALID_ID_U16;
+    state_ptr->pbr_locations.shadow_texture_3 = INVALID_ID_U16;
+    state_ptr->pbr_locations.cascade_splits = INVALID_ID_U16;
     state_ptr->pbr_locations.model = INVALID_ID_U16;
     state_ptr->pbr_locations.render_mode = INVALID_ID_U16;
     state_ptr->pbr_locations.properties = INVALID_ID_U16;
-    state_ptr->pbr_locations.light_space = INVALID_ID_U16;
+    state_ptr->pbr_locations.light_space_0 = INVALID_ID_U16;
+    state_ptr->pbr_locations.light_space_1 = INVALID_ID_U16;
+    state_ptr->pbr_locations.light_space_2 = INVALID_ID_U16;
+    state_ptr->pbr_locations.light_space_3 = INVALID_ID_U16;
     state_ptr->pbr_locations.use_pcf = INVALID_ID_U16;
     state_ptr->pbr_locations.bias = INVALID_ID_U16;
 
     state_ptr->terrain_locations.projection = INVALID_ID_U16;
     state_ptr->terrain_locations.view = INVALID_ID_U16;
-    state_ptr->terrain_locations.ambient_colour = INVALID_ID_U16;
+    state_ptr->terrain_locations.cascade_splits = INVALID_ID_U16;
     state_ptr->terrain_locations.view_position = INVALID_ID_U16;
     state_ptr->terrain_locations.model = INVALID_ID_U16;
     state_ptr->terrain_locations.render_mode = INVALID_ID_U16;
@@ -229,8 +252,14 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->terrain_locations.num_p_lights = INVALID_ID_U16;
     state_ptr->terrain_locations.properties = INVALID_ID_U16;
     state_ptr->terrain_locations.ibl_cube_texture = INVALID_ID_U16;
-    state_ptr->terrain_locations.shadow_texture = INVALID_ID_U16;
-    state_ptr->terrain_locations.light_space = INVALID_ID_U16;
+    state_ptr->terrain_locations.shadow_texture_0 = INVALID_ID_U16;
+    state_ptr->terrain_locations.shadow_texture_1 = INVALID_ID_U16;
+    state_ptr->terrain_locations.shadow_texture_2 = INVALID_ID_U16;
+    state_ptr->terrain_locations.shadow_texture_3 = INVALID_ID_U16;
+    state_ptr->terrain_locations.light_space_0 = INVALID_ID_U16;
+    state_ptr->terrain_locations.light_space_1 = INVALID_ID_U16;
+    state_ptr->terrain_locations.light_space_2 = INVALID_ID_U16;
+    state_ptr->terrain_locations.light_space_3 = INVALID_ID_U16;
     state_ptr->terrain_locations.use_pcf = INVALID_ID_U16;
     state_ptr->terrain_locations.bias = INVALID_ID_U16;
     for (u32 i = 0; i < 5 * TERRAIN_MAX_MATERIAL_COUNT; ++i) {
@@ -300,8 +329,11 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->pbr_shader_id = s->id;
     state_ptr->pbr_locations.projection = shader_system_uniform_index(s, "projection");
     state_ptr->pbr_locations.view = shader_system_uniform_index(s, "view");
-    state_ptr->pbr_locations.light_space = shader_system_uniform_index(s, "light_space");
-    state_ptr->pbr_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
+    state_ptr->pbr_locations.light_space_0 = shader_system_uniform_index(s, "light_space_0");
+    state_ptr->pbr_locations.light_space_1 = shader_system_uniform_index(s, "light_space_1");
+    state_ptr->pbr_locations.light_space_2 = shader_system_uniform_index(s, "light_space_2");
+    state_ptr->pbr_locations.light_space_3 = shader_system_uniform_index(s, "light_space_3");
+    state_ptr->pbr_locations.cascade_splits = shader_system_uniform_index(s, "cascade_splits");
     state_ptr->pbr_locations.view_position = shader_system_uniform_index(s, "view_position");
     state_ptr->pbr_locations.properties = shader_system_uniform_index(s, "properties");
     state_ptr->pbr_locations.ibl_cube_texture = shader_system_uniform_index(s, "ibl_cube_texture");
@@ -310,7 +342,10 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->pbr_locations.metallic_texture = shader_system_uniform_index(s, "metallic_texture");
     state_ptr->pbr_locations.roughness_texture = shader_system_uniform_index(s, "roughness_texture");
     state_ptr->pbr_locations.ao_texture = shader_system_uniform_index(s, "ao_texture");
-    state_ptr->pbr_locations.shadow_texture = shader_system_uniform_index(s, "shadow_texture");
+    state_ptr->pbr_locations.shadow_texture_0 = shader_system_uniform_index(s, "shadow_texture_0");
+    state_ptr->pbr_locations.shadow_texture_1 = shader_system_uniform_index(s, "shadow_texture_1");
+    state_ptr->pbr_locations.shadow_texture_2 = shader_system_uniform_index(s, "shadow_texture_2");
+    state_ptr->pbr_locations.shadow_texture_3 = shader_system_uniform_index(s, "shadow_texture_3");
     state_ptr->pbr_locations.model = shader_system_uniform_index(s, "model");
     state_ptr->pbr_locations.render_mode = shader_system_uniform_index(s, "mode");
     state_ptr->pbr_locations.dir_light = shader_system_uniform_index(s, "dir_light");
@@ -323,8 +358,11 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     state_ptr->terrain_shader_id = s->id;
     state_ptr->terrain_locations.projection = shader_system_uniform_index(s, "projection");
     state_ptr->terrain_locations.view = shader_system_uniform_index(s, "view");
-    state_ptr->terrain_locations.light_space = shader_system_uniform_index(s, "light_space");
-    state_ptr->terrain_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
+    state_ptr->terrain_locations.light_space_0 = shader_system_uniform_index(s, "light_space_0");
+    state_ptr->terrain_locations.light_space_1 = shader_system_uniform_index(s, "light_space_1");
+    state_ptr->terrain_locations.light_space_2 = shader_system_uniform_index(s, "light_space_2");
+    state_ptr->terrain_locations.light_space_3 = shader_system_uniform_index(s, "light_space_3");
+    state_ptr->terrain_locations.cascade_splits = shader_system_uniform_index(s, "cascade_splits");
     state_ptr->terrain_locations.view_position = shader_system_uniform_index(s, "view_position");
     state_ptr->terrain_locations.model = shader_system_uniform_index(s, "model");
     state_ptr->terrain_locations.render_mode = shader_system_uniform_index(s, "mode");
@@ -334,7 +372,10 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
 
     state_ptr->terrain_locations.properties = shader_system_uniform_index(s, "properties");
     state_ptr->terrain_locations.ibl_cube_texture = shader_system_uniform_index(s, "ibl_cube_texture");
-    state_ptr->terrain_locations.shadow_texture = shader_system_uniform_index(s, "shadow_texture");
+    state_ptr->terrain_locations.shadow_texture_0 = shader_system_uniform_index(s, "shadow_texture_0");
+    state_ptr->terrain_locations.shadow_texture_1 = shader_system_uniform_index(s, "shadow_texture_1");
+    state_ptr->terrain_locations.shadow_texture_2 = shader_system_uniform_index(s, "shadow_texture_2");
+    state_ptr->terrain_locations.shadow_texture_3 = shader_system_uniform_index(s, "shadow_texture_3");
     state_ptr->terrain_locations.use_pcf = shader_system_uniform_index(s, "use_pcf");
     state_ptr->terrain_locations.bias = shader_system_uniform_index(s, "bias");
 
@@ -370,7 +411,10 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     // Grab the default cubemap texture as the irradiance texture.
     state_ptr->irradiance_cube_texture = texture_system_get_default_cube_texture();
 
-    state_ptr->directional_light_space = mat4_identity();
+    // Assign some defualts.
+    for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+        state_ptr->directional_light_space[i] = mat4_identity();
+    }
 
     // Add a kvar to track PCF filtering enabled/disabled.
     kvar_int_create("use_pcf", 1);  // On by default.
@@ -561,14 +605,14 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
             }
         }
 
-        // Shadow maps can't be configured, so set one up here.
-        {
+        // Shadow maps can't be configured, so set them up here.
+        for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
             material_map map_config = {0};
             map_config.filter_mag = map_config.filter_min = TEXTURE_FILTER_MODE_LINEAR;
             map_config.repeat_u = map_config.repeat_v = map_config.repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
             map_config.name = "shadow_map";
             map_config.texture_name = "";
-            if (!assign_map(&m->maps[SAMP_TERRAIN_SHADOW_MAP], &map_config, m->name, texture_system_get_default_diffuse_texture())) {
+            if (!assign_map(&m->maps[SAMP_TERRAIN_SHADOW_MAP + i], &map_config, m->name, texture_system_get_default_diffuse_texture())) {
                 KERROR("Failed to assign '%s' texture map for terrain shadow map.", map_config.name);
                 return false;
             }
@@ -744,11 +788,14 @@ b8 material_system_apply_global(u32 shader_id, const struct frame_data* p_frame_
     } else if (shader_id == state_ptr->terrain_shader_id) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.projection, projection));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.view, view));
-        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.ambient_colour, ambient_colour));
+        // TODO: set cascade splits like dir lights and shadow map, etc.
+        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.cascade_splits, ambient_colour));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.view_position, view_position));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.render_mode, &render_mode));
-        // Light space for shadow mapping.
-        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.light_space, &state_ptr->directional_light_space));
+        // Light space for shadow mapping. Per cascade
+        for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.light_space_0 + i, &state_ptr->directional_light_space[i]));
+        }
         // Directional light - global for this shader..
         directional_light* dir_light = light_system_directional_light_get();
         if (dir_light) {
@@ -761,21 +808,24 @@ b8 material_system_apply_global(u32 shader_id, const struct frame_data* p_frame_
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.use_pcf, &state_ptr->use_pcf));
 
         // HACK: Read this in from somewhere (or have global setter?);
-        f32 bias = 0;
+        f32 bias = 0.00005f;
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.bias, &bias));
     } else if (shader_id == state_ptr->pbr_shader_id) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.projection, projection));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.view, view));
-        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.ambient_colour, ambient_colour));
+        // TODO: set cascade splits like dir lights and shadow map, etc.
+        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.cascade_splits, ambient_colour));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.view_position, view_position));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.render_mode, &render_mode));
-        // Light space for shadow mapping.
-        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.light_space, &state_ptr->directional_light_space));
+        // Light space for shadow mapping. Per cascade
+        for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.light_space_0 + i, &state_ptr->directional_light_space[i]));
+        }
         // Global shader options.
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.use_pcf, &state_ptr->use_pcf));
 
         // HACK: Read this in from somewhere (or have global setter?);
-        f32 bias = 0;
+        f32 bias = 0.00005f;
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.bias, &bias));
     } else {
         KERROR("material_system_apply_global(): Unrecognized shader id '%d' ", shader_id);
@@ -832,9 +882,11 @@ b8 material_system_apply_instance(material* m, struct frame_data* p_frame_data, 
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.roughness_texture, &m->maps[SAMP_ROUGHNESS]));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.ao_texture, &m->maps[SAMP_AO]));
 
-            // Shadow map
-            m->maps[SAMP_SHADOW_MAP].texture = state_ptr->shadow_texture ? state_ptr->shadow_texture : texture_system_get_default_diffuse_texture();
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.shadow_texture, &m->maps[SAMP_SHADOW_MAP]));
+            // Shadow Maps
+            for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+                m->maps[SAMP_SHADOW_MAP + i].texture = state_ptr->shadow_textures[i] ? state_ptr->shadow_textures[i] : texture_system_get_default_diffuse_texture();
+                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->pbr_locations.shadow_texture_0 + i, &m->maps[SAMP_SHADOW_MAP + i]));
+            }
 
             // Irradience map
             m->maps[SAMP_IBL_CUBE].texture = m->irradiance_texture ? m->irradiance_texture : state_ptr->irradiance_cube_texture;
@@ -873,9 +925,11 @@ b8 material_system_apply_instance(material* m, struct frame_data* p_frame_data, 
 
             // NOTE: apply other maps separately.
 
-            // Shadow map
-            m->maps[SAMP_TERRAIN_SHADOW_MAP].texture = state_ptr->shadow_texture ? state_ptr->shadow_texture : texture_system_get_default_diffuse_texture();
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.shadow_texture, &m->maps[SAMP_TERRAIN_SHADOW_MAP]));
+            // Shadow Maps
+            for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+                m->maps[SAMP_TERRAIN_SHADOW_MAP + i].texture = state_ptr->shadow_textures[i] ? state_ptr->shadow_textures[i] : texture_system_get_default_diffuse_texture();
+                MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->terrain_locations.shadow_texture_0 + i, &m->maps[SAMP_TERRAIN_SHADOW_MAP + i]));
+            }
 
             // Irradience map
             m->maps[SAMP_TERRAIN_IRRADIANCE_MAP].texture = m->irradiance_texture ? m->irradiance_texture : state_ptr->irradiance_cube_texture;
@@ -925,9 +979,8 @@ b8 material_system_apply_local(material* m, const mat4* model) {
 }
 
 b8 material_system_shadow_map_set(texture* shadow_texture, u8 index) {
-    // TODO: index is for cascading.
     if (shadow_texture) {
-        state_ptr->shadow_texture = shadow_texture;
+        state_ptr->shadow_textures[index] = shadow_texture;
     }
 
     return true;
@@ -948,8 +1001,8 @@ b8 material_system_irradiance_set(texture* irradiance_cube_texture) {
     return true;
 }
 
-void material_system_directional_light_space_set(mat4 directional_light_space) {
-    state_ptr->directional_light_space = directional_light_space;
+void material_system_directional_light_space_set(mat4 directional_light_space, u8 index) {
+    state_ptr->directional_light_space[index] = directional_light_space;
 }
 
 void material_system_dump(void) {
@@ -1219,14 +1272,14 @@ static b8 load_material(material_config* config, material* m) {
             }
         }
 
-        // Shadow maps can't be configured, so set one up here.
-        {
+        // Shadow maps can't be configured, so set them up here.
+        for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
             material_map map_config = {0};
             map_config.filter_mag = map_config.filter_min = TEXTURE_FILTER_MODE_LINEAR;
             map_config.repeat_u = map_config.repeat_v = map_config.repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
             map_config.name = "shadow_map";
             map_config.texture_name = "";
-            if (!assign_map(&m->maps[SAMP_SHADOW_MAP], &map_config, m->name, texture_system_get_default_diffuse_texture())) {
+            if (!assign_map(&m->maps[SAMP_SHADOW_MAP + i], &map_config, m->name, texture_system_get_default_diffuse_texture())) {
                 return false;
             }
         }
@@ -1470,15 +1523,19 @@ static b8 create_default_pbr_material(material_system_state* state) {
     }
 
     // Change the clamp mode on the default shadow map to border.
-    texture_map* ssm = &state->default_pbr_material.maps[SAMP_SHADOW_MAP];
-    ssm->repeat_u = ssm->repeat_v = ssm->repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
+    for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+        texture_map* ssm = &state->default_pbr_material.maps[SAMP_SHADOW_MAP + i];
+        ssm->repeat_u = ssm->repeat_v = ssm->repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
+    }
 
     state->default_pbr_material.maps[SAMP_ALBEDO].texture = texture_system_get_default_texture();
     state->default_pbr_material.maps[SAMP_NORMAL].texture = texture_system_get_default_normal_texture();
     state->default_pbr_material.maps[SAMP_METALLIC].texture = texture_system_get_default_metallic_texture();
     state->default_pbr_material.maps[SAMP_ROUGHNESS].texture = texture_system_get_default_roughness_texture();
     state->default_pbr_material.maps[SAMP_AO].texture = texture_system_get_default_ao_texture();
-    state->default_pbr_material.maps[SAMP_SHADOW_MAP].texture = texture_system_get_default_diffuse_texture();
+    for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+        state->default_pbr_material.maps[SAMP_SHADOW_MAP + i].texture = texture_system_get_default_diffuse_texture();
+    }
     state->default_pbr_material.maps[SAMP_IBL_CUBE].texture = texture_system_get_default_cube_texture();
 
     // NOTE: PBR material is default.
@@ -1488,7 +1545,10 @@ static b8 create_default_pbr_material(material_system_state* state) {
         &state->default_pbr_material.maps[SAMP_METALLIC],
         &state->default_pbr_material.maps[SAMP_ROUGHNESS],
         &state->default_pbr_material.maps[SAMP_AO],
-        &state->default_pbr_material.maps[SAMP_SHADOW_MAP],
+        &state->default_pbr_material.maps[SAMP_SHADOW_MAP + 0],
+        &state->default_pbr_material.maps[SAMP_SHADOW_MAP + 1],
+        &state->default_pbr_material.maps[SAMP_SHADOW_MAP + 2],
+        &state->default_pbr_material.maps[SAMP_SHADOW_MAP + 3],
         &state->default_pbr_material.maps[SAMP_IBL_CUBE]};
 
     shader* s = shader_system_get("Shader.PBRMaterial");
@@ -1524,24 +1584,31 @@ static b8 create_default_terrain_material(material_system_state* state) {
     state->default_terrain_material.maps[SAMP_METALLIC].texture = texture_system_get_default_metallic_texture();
     state->default_terrain_material.maps[SAMP_ROUGHNESS].texture = texture_system_get_default_roughness_texture();
     state->default_terrain_material.maps[SAMP_AO].texture = texture_system_get_default_ao_texture();
-    state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP].texture = texture_system_get_default_diffuse_texture();
+    for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+        state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP + i].texture = texture_system_get_default_diffuse_texture();
+    }
 
     // Change the clamp mode on the default shadow map to border.
-    texture_map* ssm = &state->default_terrain_material.maps[SAMP_SHADOW_MAP];
-    ssm->repeat_u = ssm->repeat_v = ssm->repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
+    for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+        texture_map* ssm = &state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP + i];
+        ssm->repeat_u = ssm->repeat_v = ssm->repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
+    }
 
     // NOTE: PBR materials are required for terrains.
-    texture_map* maps[6] = {
+    texture_map* maps[9] = {
         &state->default_terrain_material.maps[SAMP_ALBEDO],
         &state->default_terrain_material.maps[SAMP_NORMAL],
         &state->default_terrain_material.maps[SAMP_METALLIC],
         &state->default_terrain_material.maps[SAMP_ROUGHNESS],
         &state->default_terrain_material.maps[SAMP_AO],
-        &state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP],
+        &state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP + 0],
+        &state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP + 1],
+        &state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP + 2],
+        &state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP + 3],
     };
 
     shader* s = shader_system_get("Shader.Builtin.Terrain");
-    if (!renderer_shader_instance_resources_acquire(s, 6, maps, &state->default_terrain_material.internal_id)) {
+    if (!renderer_shader_instance_resources_acquire(s, 9, maps, &state->default_terrain_material.internal_id)) {
         KFATAL("Failed to acquire renderer resources for default terrain material. Application cannot continue.");
         return false;
     }

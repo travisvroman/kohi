@@ -162,7 +162,7 @@ KAPI b8 material_system_irradiance_set(texture* irradiance_cube_texture);
  * 
  * @param directional_light_space The directional light-space matrix.
  */
-KAPI void material_system_directional_light_space_set(mat4 directional_light_space);
+KAPI void material_system_directional_light_space_set(mat4 directional_light_space, u8 index);
 
 /**
  * @brief Dumps all of the registered materials and their reference counts/handles.

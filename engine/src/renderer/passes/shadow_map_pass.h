@@ -10,8 +10,11 @@ struct rendergraph_pass;
 struct frame_data;
 struct texture;
 
+#define MAX_CASCADE_COUNT 4
+
 typedef struct shadow_map_pass_extended_data {
-    mat4 projection;
+    f32 split_depth;
+    i32 cascade_index;
     struct directional_light* light;
     u32 terrain_geometry_count;
     struct geometry_render_data* terrain_geometries;

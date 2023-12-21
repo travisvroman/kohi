@@ -32,6 +32,8 @@ f32 kceil(f32 x) { return ceilf(x); }
 
 f32 klog2(f32 x) { return log2f(x); }
 
+f32 kpow(f32 x, f32 y) { return powf(x, y); }
+
 i32 krandom(void) {
     if (!rand_seeded) {
         srand((u32)platform_get_absolute_time());
