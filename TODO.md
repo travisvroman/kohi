@@ -8,6 +8,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] testing framework
 - [x] math library (vector math, etc)
 - [x] Memory system 
+- [x] Generic sorting function/library.
 - [ ] Allocators:
   - [x] linear allocator
   - [x] dynamic allocator (variable-size allocations)
@@ -101,7 +102,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] batch rendering (2d and 3d)
 - [x] shadow maps
   - [x] PCF
-  - [ ] cascading shadow maps
+  - [x] cascading shadow maps
 - [x] texture mipmapping
 - [x] Specular maps 
 - [x] Normal maps 
