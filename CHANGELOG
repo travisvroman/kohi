@@ -17,6 +17,7 @@ Changelog
   - Added queries to simple scene for getting mesh and terrain geometries using frustums.
   - Fixed various math bugs as they relate to frustum generation and use.
   - Added per-frame tracking of shadow map draw calls.
+  - Added cascading shadow maps (right now limited to 4 cascades).
 
 - 0.4x
   - Added first pass of Standard UI system, including panel, button, label, and textbox controls.

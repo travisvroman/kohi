@@ -187,6 +187,7 @@ KAPI f32 kceil(f32 x);
  */
 KAPI f32 klog2(f32 x);
 
+KAPI f32 kpow(f32 x, f32 y);
 /**
  * @brief Indicates if the value is a power of 2. 0 is considered _not_ a power
  * of 2.

@@ -6,6 +6,7 @@
 #include "core/logger.h"
 #include "defines.h"
 #include "math/kmath.h"
+#include "renderer/passes/shadow_map_pass.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
 #include "resources/resource_types.h"
@@ -19,16 +20,21 @@ typedef struct debug_shader_locations {
     u16 model;
 } debug_shader_locations;
 
+typedef struct cascade_resources {
+    texture_map* shadowmaps;
+} cascade_resources;
 typedef struct scene_pass_internal_data {
     shader* material_shader;
     shader* pbr_shader;
     shader* terrain_shader;
     shader* colour_shader;
     debug_shader_locations debug_locations;
-    rendergraph_source* shadowmap_source;
+    rendergraph_source* shadowmap_sources[MAX_CASCADE_COUNT];
     // One per frame.
     u32 frame_count;
-    texture_map* shadowmaps;
+
+    // One per cascade.
+    cascade_resources* cascades;
 } scene_pass_internal_data;
 
 b8 scene_pass_create(struct rendergraph_pass* self, void* config) {
@@ -161,33 +167,43 @@ b8 scene_pass_load_resources(struct rendergraph_pass* self) {
     }
     scene_pass_internal_data* internal_data = self->internal_data;
 
-    // Ensure a source is hooked up to the shadowmap sink.
+    internal_data->cascades = kallocate(sizeof(cascade_resources) * MAX_SHADOW_CASCADE_COUNT, MEMORY_TAG_ARRAY);
+
+    // Ensure a source is hooked up to the shadowmap sinks.
     u32 sink_count = darray_length(self->sinks);
-    for (u32 i = 0; i < sink_count; ++i) {
-        rendergraph_sink* sink = &self->sinks[i];
-        if (strings_equali(sink->name, "shadowmap")) {
-            internal_data->shadowmap_source = sink->bound_source;
-            break;
+    for (u32 s = 0; s < MAX_CASCADE_COUNT; ++s) {
+        cascade_resources* cascade = &internal_data->cascades[s];
+
+        // Make sure the current sink has a source hooked up to it.
+        char sink_name[256] = {0};
+        string_format(sink_name, "shadowmap_%u", s);
+
+        for (u32 i = 0; i < sink_count; ++i) {
+            rendergraph_sink* sink = &self->sinks[i];
+            if (strings_equali(sink->name, sink_name)) {
+                internal_data->shadowmap_sources[s] = sink->bound_source;
+                break;
+            }
         }
-    }
-    if (!internal_data->shadowmap_source) {
-        KERROR("Required shadowmap source not hooked up to scene pass. Creation fails.");
-        return false;
-    }
-
-    // Need a texture map (i.e. sampler) to use the shadowmap source textures. One per frame.
-    internal_data->frame_count = renderer_window_attachment_count_get();
-    internal_data->shadowmaps = kallocate(sizeof(texture_map) * internal_data->frame_count, MEMORY_TAG_ARRAY);
-    for (u32 i = 0; i < internal_data->frame_count; ++i) {
-        texture_map* sm = &internal_data->shadowmaps[i];
-        sm->repeat_u = sm->repeat_v = sm->repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
-        sm->filter_minify = sm->filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-        sm->texture = internal_data->shadowmap_source->textures[i];
-        sm->generation = INVALID_ID;
-
-        if (!renderer_texture_map_resources_acquire(sm)) {
-            KERROR("Failed to acquire texture map resources for shadow map in scene pass. Initialize failed.");
+        if (!internal_data->shadowmap_sources[s]) {
+            KERROR("Required '%s' source not hooked up to scene pass. Creation fails.", sink_name);
             return false;
+        }
+
+        // Need a texture map (i.e. sampler) to use the shadowmap source textures. One per frame.
+        internal_data->frame_count = renderer_window_attachment_count_get();
+        cascade->shadowmaps = kallocate(sizeof(texture_map) * internal_data->frame_count, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < internal_data->frame_count; ++i) {
+            texture_map* sm = &cascade->shadowmaps[i];
+            sm->repeat_u = sm->repeat_v = sm->repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
+            sm->filter_minify = sm->filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
+            sm->texture = internal_data->shadowmap_sources[s]->textures[i];
+            sm->generation = INVALID_ID;
+
+            if (!renderer_texture_map_resources_acquire(sm)) {
+                KERROR("Failed to acquire texture map resources for shadow map in scene pass. Initialize failed.");
+                return false;
+            }
         }
     }
 
@@ -214,12 +230,11 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
         KERROR("Failed to set irradiance texture, check the properties of said texture.");
     }
 
-    // HACK: here until ambient colour is removed.
-    vec4 ambient_colour = (vec4){0.25, 0.5, 0.75, 0.99};
-
-    mat4 light_space = mat4_mul(ext_data->directional_light_view, ext_data->directional_light_projection);
-    material_system_directional_light_space_set(light_space);
-    material_system_shadow_map_set(internal_data->shadowmap_source->textures[p_frame_data->render_target_index], 0);  // TODO: index on cascade
+    for (u8 i = 0; i < MAX_CASCADE_COUNT; ++i) {
+        mat4 light_space = mat4_mul(ext_data->directional_light_views[i], ext_data->directional_light_projections[i]);
+        material_system_directional_light_space_set(light_space, i);
+        material_system_shadow_map_set(internal_data->shadowmap_sources[i]->textures[p_frame_data->render_target_index], i);
+    }
 
     // Use the appropriate shader and apply the global uniforms.
     u32 terrain_count = ext_data->terrain_geometry_count;
@@ -227,7 +242,7 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
         shader_system_use_by_id(internal_data->terrain_shader->id);
 
         // Apply globals
-        if (!material_system_apply_global(internal_data->terrain_shader->id, p_frame_data, &self->pass_data.projection_matrix, &self->pass_data.view_matrix, &ambient_colour, &self->pass_data.view_position, ext_data->render_mode)) {
+        if (!material_system_apply_global(internal_data->terrain_shader->id, p_frame_data, &self->pass_data.projection_matrix, &self->pass_data.view_matrix, &ext_data->cascade_splits, &self->pass_data.view_position, ext_data->render_mode)) {
             KERROR("Failed to use apply globals for terrain shader. Render frame failed.");
             return false;
         }
@@ -277,7 +292,7 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
         // Apply globals
         // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
         // and mode (from the renderer)
-        if (!material_system_apply_global(internal_data->material_shader->id, p_frame_data, &self->pass_data.projection_matrix, &self->pass_data.view_matrix, &ambient_colour, &self->pass_data.view_position, ext_data->render_mode)) {
+        if (!material_system_apply_global(internal_data->material_shader->id, p_frame_data, &self->pass_data.projection_matrix, &self->pass_data.view_matrix, &ext_data->cascade_splits, &self->pass_data.view_position, ext_data->render_mode)) {
             KERROR("Failed to use apply globals for material shader. Render frame failed.");
             return false;
         }
@@ -289,7 +304,7 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
         }
 
         // Apply globals
-        if (!material_system_apply_global(internal_data->pbr_shader->id, p_frame_data, &self->pass_data.projection_matrix, &self->pass_data.view_matrix, &ambient_colour, &self->pass_data.view_position, ext_data->render_mode)) {
+        if (!material_system_apply_global(internal_data->pbr_shader->id, p_frame_data, &self->pass_data.projection_matrix, &self->pass_data.view_matrix, &ext_data->cascade_splits, &self->pass_data.view_position, ext_data->render_mode)) {
             KERROR("Failed to use apply globals for PBR shader. Render frame failed.");
             return false;
         }
@@ -393,8 +408,11 @@ void scene_pass_destroy(struct rendergraph_pass* self) {
             scene_pass_internal_data* internal_data = self->internal_data;
 
             // Destroy the texture maps/samplers.
-            for (u32 i = 0; i < internal_data->frame_count; ++i) {
-                renderer_texture_map_resources_release(&internal_data->shadowmaps[i]);
+            for (u32 s = 0; s < MAX_SHADOW_CASCADE_COUNT; ++s) {
+                cascade_resources* cascade = &internal_data->cascades[s];
+                for (u32 i = 0; i < internal_data->frame_count; ++i) {
+                    renderer_texture_map_resources_release(&cascade->shadowmaps[i]);
+                }
             }
 
             // Destroy the pass.

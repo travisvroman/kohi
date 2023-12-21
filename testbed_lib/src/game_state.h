@@ -24,6 +24,8 @@ struct debug_line3d;
 struct debug_box3d;
 struct transform;
 
+#define MAX_SHADOW_CASCADE_COUNT 4
+
 typedef struct selected_object {
     u32 unique_id;
     struct transform* xform;
@@ -84,7 +86,7 @@ typedef struct testbed_game_state {
 
     rendergraph frame_graph;
     rendergraph_pass skybox_pass;
-    rendergraph_pass shadowmap_pass;
+    rendergraph_pass shadowmap_passes[MAX_SHADOW_CASCADE_COUNT];
     rendergraph_pass scene_pass;
     rendergraph_pass editor_pass;
     rendergraph_pass ui_pass;
