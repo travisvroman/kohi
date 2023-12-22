@@ -41,6 +41,8 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
     resource_data->stage_count = 0;
     resource_data->stage_names = darray_create(char*);
     resource_data->stage_filenames = darray_create(char*);
+    // NOTE: This directly influences how much resources are available.
+    resource_data->max_instances = 1;
 
     resource_data->name = 0;
 
@@ -90,6 +92,10 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
         } else if (strings_equali(trimmed_var_name, "renderpass")) {
             // resource_data->renderpass_name = string_duplicate(trimmed_value);
             // Ignore this now.
+        } else if (strings_equali(trimmed_var_name, "max_instances")) {
+            if (!string_to_u32(trimmed_value, &resource_data->max_instances)) {
+                KERROR("Invalid value for max_instances. Cannot be parsed to u32. Defaulting to &u", resource_data->max_instances);
+            }
         } else if (strings_equali(trimmed_var_name, "stages")) {
             // Parse the stages
             char** stage_names = darray_create(char*);
@@ -285,9 +291,48 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
                 } else if (strings_equali(fields[0], "mat4")) {
                     uniform.type = SHADER_UNIFORM_TYPE_MATRIX_4;
                     uniform.size = 64;
-                } else if (strings_equali(fields[0], "samp") || strings_equali(fields[0], "sampler")) {
-                    uniform.type = SHADER_UNIFORM_TYPE_SAMPLER;
+                } else if (string_starts_with(fields[0], "samp")) {
+                    // Sampler uniforms are handled entirely different from other uniforms, but
+                    // share a lot of logic among each other.
+
+                    // Check if it's an array type.
+                    u32 array_length = 0;
+                    b8 is_array = string_parse_array_length(fields[0], &array_length);
+                    char sampler_type[100];
+                    if (is_array) {
+                        string_mid(sampler_type, fields[0], 0, string_index_of(fields[0], '[') - 1);
+                    } else {
+                        string_copy(sampler_type, fields[0]);
+                    }
+
                     uniform.size = 0;  // Samplers don't have a size.
+                    uniform.array_length = array_length;
+
+                    // No shorthand for new sampler types.
+                    if (strings_equali(sampler_type, "sampler1d")) {
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_1D;
+                    } else if (strings_equali(sampler_type, "sampler2d") || strings_equali(sampler_type, "samp") || strings_equali(sampler_type, "sampler")) {
+                        // NOTE: Auto-converting samp/sampler to sampler2D for backward compatability.
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_2D;
+                    } else if (strings_equali(sampler_type, "sampler3d")) {
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_3D;
+                    } else if (strings_equali(sampler_type, "samplercube")) {
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_CUBE;
+                    } else if (strings_equali(sampler_type, "sampler1darray")) {
+                        // NOTE: array textures are different from _an array __of__ textures_
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_1D_ARRAY;
+                    } else if (strings_equali(sampler_type, "sampler2darray")) {
+                        // NOTE: array textures are different from _an array __of__ textures_
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_2D_ARRAY;
+                    } else if (strings_equali(sampler_type, "samplercubearray")) {
+                        // NOTE: array textures are different from _an array __of__ textures_
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_CUBE_ARRAY;
+                    } else {
+                        // List out the entire unparsed field to make the error more useful.
+                        KERROR("Error in shader file: Unsupported sampler type '%s' found. %s:%u", fields[0], full_file_path, line_number);
+                        return false;
+                    }
+
                 } else if (strings_nequali(fields[0], "struct", 6)) {
                     u32 len = string_length(fields[0]);
                     if (len <= 6) {

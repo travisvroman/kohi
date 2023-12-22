@@ -62,6 +62,8 @@ typedef struct shader_uniform {
     shader_scope scope;
     /** @brief The type of uniform. */
     shader_uniform_type type;
+    /** @brief The length of the array if it is one; otherwise 0 */
+    u32 array_length;
 } shader_uniform;
 
 /**

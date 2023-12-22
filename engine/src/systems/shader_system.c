@@ -5,6 +5,7 @@
 #include "core/kstring.h"
 #include "core/logger.h"
 #include "renderer/renderer_frontend.h"
+#include "renderer/renderer_utils.h"
 #include "systems/texture_system.h"
 
 // The internal shader system state.
@@ -29,7 +30,7 @@ b8 add_sampler(shader* shader, shader_uniform_config* config);
 b8 add_uniform(shader* shader, shader_uniform_config* config);
 u32 get_shader_id(const char* shader_name);
 u32 new_shader_id(void);
-b8 uniform_add(shader* shader, const char* uniform_name, u32 size, shader_uniform_type type, shader_scope scope, u32 set_location, b8 is_sampler);
+b8 uniform_add(shader* shader, const char* uniform_name, u32 size, shader_uniform_type type, shader_scope scope, u32 set_location, u32 array_length);
 b8 uniform_name_valid(shader* shader, const char* uniform_name);
 b8 shader_uniform_add_state_valid(shader* shader);
 void shader_destroy(shader* s);
@@ -167,7 +168,7 @@ b8 shader_system_create(renderpass* pass, const shader_config* config) {
 
     // Process uniforms
     for (u32 i = 0; i < config->uniform_count; ++i) {
-        if (config->uniforms[i].type == SHADER_UNIFORM_TYPE_SAMPLER) {
+        if (uniform_type_is_sampler(config->uniforms[i].type)) {
             add_sampler(out_shader, &config->uniforms[i]);
         } else {
             add_uniform(out_shader, &config->uniforms[i]);
@@ -459,16 +460,18 @@ u32 new_shader_id(void) {
     return INVALID_ID;
 }
 
-b8 uniform_add(shader* shader, const char* uniform_name, u32 size, shader_uniform_type type, shader_scope scope, u32 set_location, b8 is_sampler) {
+b8 uniform_add(shader* shader, const char* uniform_name, u32 size, shader_uniform_type type, shader_scope scope, u32 set_location, u32 array_length) {
     u32 uniform_count = darray_length(shader->uniforms);
     if (uniform_count + 1 > state_ptr->config.max_uniform_count) {
         KERROR("A shader can only accept a combined maximum of %d uniforms and samplers at global, instance and local scopes.", state_ptr->config.max_uniform_count);
         return false;
     }
+    b8 is_sampler = uniform_type_is_sampler(type);
     shader_uniform entry;
     entry.index = uniform_count;  // Index is saved to the hashtable for lookups.
     entry.scope = scope;
     entry.type = type;
+    entry.array_length = array_length;
     b8 is_global = (scope == SHADER_SCOPE_GLOBAL);
     if (is_sampler) {
         // Just use the passed in location

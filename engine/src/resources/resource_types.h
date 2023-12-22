@@ -401,7 +401,13 @@ typedef enum shader_uniform_type {
     SHADER_UNIFORM_TYPE_INT32 = 8U,
     SHADER_UNIFORM_TYPE_UINT32 = 9U,
     SHADER_UNIFORM_TYPE_MATRIX_4 = 10U,
-    SHADER_UNIFORM_TYPE_SAMPLER = 11U,
+    SHADER_UNIFORM_TYPE_SAMPLER_1D = 11U,
+    SHADER_UNIFORM_TYPE_SAMPLER_2D = 12U,
+    SHADER_UNIFORM_TYPE_SAMPLER_3D = 13U,
+    SHADER_UNIFORM_TYPE_SAMPLER_CUBE = 14U,
+    SHADER_UNIFORM_TYPE_SAMPLER_1D_ARRAY = 15U,
+    SHADER_UNIFORM_TYPE_SAMPLER_2D_ARRAY = 16U,
+    SHADER_UNIFORM_TYPE_SAMPLER_CUBE_ARRAY = 17U,
     SHADER_UNIFORM_TYPE_CUSTOM = 255U
 } shader_uniform_type;
 
@@ -443,6 +449,8 @@ typedef struct shader_uniform_config {
     u32 location;
     /** @brief The type of the uniform. */
     shader_uniform_type type;
+    /** @brief The array length, if uniform is an array. */
+    u32 array_length;
     /** @brief The scope of the uniform. */
     shader_scope scope;
 } shader_uniform_config;
@@ -482,6 +490,9 @@ typedef struct shader_config {
     /** @brief The collection of stage file names to be loaded (one per stage).
      * Must align with stages array. Darray. */
     char **stage_filenames;
+
+    /** @brief The maximum number of instances allowed. */
+    u32 max_instances;
 
     /** @brief The flags set for this shader. */
     u32 flags;
