@@ -136,9 +136,9 @@ b8 scene_pass_initialize(struct rendergraph_pass* self) {
     internal_data->colour_shader = shader_system_get(colour3d_shader_name);
     // Get colour3d shader uniform locations.
     {
-        internal_data->debug_locations.projection = shader_system_uniform_index(internal_data->colour_shader, "projection");
-        internal_data->debug_locations.view = shader_system_uniform_index(internal_data->colour_shader, "view");
-        internal_data->debug_locations.model = shader_system_uniform_index(internal_data->colour_shader, "model");
+        internal_data->debug_locations.projection = shader_system_uniform_location(internal_data->colour_shader, "projection");
+        internal_data->debug_locations.view = shader_system_uniform_location(internal_data->colour_shader, "view");
+        internal_data->debug_locations.model = shader_system_uniform_location(internal_data->colour_shader, "model");
     }
 
     return true;
@@ -334,8 +334,8 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
         shader_system_use_by_id(internal_data->colour_shader->id);
 
         // Globals
-        shader_system_uniform_set_by_index(internal_data->debug_locations.projection, &self->pass_data.projection_matrix);
-        shader_system_uniform_set_by_index(internal_data->debug_locations.view, &self->pass_data.view_matrix);
+        shader_system_uniform_set_by_location(internal_data->debug_locations.projection, &self->pass_data.projection_matrix);
+        shader_system_uniform_set_by_location(internal_data->debug_locations.view, &self->pass_data.view_matrix);
 
         shader_system_apply_global(true);
 
@@ -344,7 +344,7 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
             // NOTE: No instance-level uniforms to be set.
 
             // Local
-            shader_system_uniform_set_by_index(internal_data->debug_locations.model, &ext_data->debug_geometries[i].model);
+            shader_system_uniform_set_by_location(internal_data->debug_locations.model, &ext_data->debug_geometries[i].model);
 
             // Draw it.
             renderer_geometry_draw(&ext_data->debug_geometries[i]);

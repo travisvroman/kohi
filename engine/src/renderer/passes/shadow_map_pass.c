@@ -153,10 +153,10 @@ b8 shadow_map_pass_initialize(struct rendergraph_pass* self) {
     resource_system_unload(&shadowmap_shader_config_resource);
     // Get a pointer to the shader.
     internal_data->s = shader_system_get(shadowmap_shader_name);
-    internal_data->locations.projection_location = shader_system_uniform_index(internal_data->s, "projection");
-    internal_data->locations.view_location = shader_system_uniform_index(internal_data->s, "view");
-    internal_data->locations.model_location = shader_system_uniform_index(internal_data->s, "model");
-    internal_data->locations.colour_map_location = shader_system_uniform_index(internal_data->s, "colour_map");
+    internal_data->locations.projection_location = shader_system_uniform_location(internal_data->s, "projection");
+    internal_data->locations.view_location = shader_system_uniform_location(internal_data->s, "view");
+    internal_data->locations.model_location = shader_system_uniform_location(internal_data->s, "model");
+    internal_data->locations.colour_map_location = shader_system_uniform_location(internal_data->s, "colour_map");
 
     // Terrain shadowmap shader.
     const char* terrain_shadowmap_shader_name = "Shader.ShadowmapTerrain";
@@ -174,10 +174,10 @@ b8 shadow_map_pass_initialize(struct rendergraph_pass* self) {
     resource_system_unload(&terrain_shadowmap_shader_config_resource);
     // Get a pointer to the shader.
     internal_data->ts = shader_system_get(terrain_shadowmap_shader_name);
-    internal_data->terrain_locations.projection_location = shader_system_uniform_index(internal_data->ts, "projection");
-    internal_data->terrain_locations.view_location = shader_system_uniform_index(internal_data->ts, "view");
-    internal_data->terrain_locations.model_location = shader_system_uniform_index(internal_data->ts, "model");
-    internal_data->terrain_locations.colour_map_location = shader_system_uniform_index(internal_data->ts, "colour_map");
+    internal_data->terrain_locations.projection_location = shader_system_uniform_location(internal_data->ts, "projection");
+    internal_data->terrain_locations.view_location = shader_system_uniform_location(internal_data->ts, "view");
+    internal_data->terrain_locations.model_location = shader_system_uniform_location(internal_data->ts, "model");
+    internal_data->terrain_locations.colour_map_location = shader_system_uniform_location(internal_data->ts, "colour_map");
 
     return true;
 }
@@ -219,12 +219,39 @@ b8 shadow_map_pass_load_resources(struct rendergraph_pass* self) {
     }
 
     // Reserve an instance id for the default "material" to render to.
-    texture_map* maps[1] = {&internal_data->default_colour_map};
-    renderer_shader_instance_resources_acquire(internal_data->s, 1, maps, &internal_data->default_instance_id);
+    {
+        texture_map* maps[1] = {&internal_data->default_colour_map};
+        shader* s = internal_data->s;
+        u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index;
+        shader_instance_resource_config instance_resource_config = {0};
+        // Map count for this type is known.
+        shader_instance_uniform_texture_config colour_texture = {0};
+        colour_texture.uniform_location = atlas_location;
+        colour_texture.texture_map_count = 1;
+        colour_texture.texture_maps = maps;
+
+        instance_resource_config.uniform_config_count = 1;
+        instance_resource_config.uniform_configs = &colour_texture;
+        renderer_shader_instance_resources_acquire(internal_data->s, &instance_resource_config, &internal_data->default_instance_id);
+    }
 
     // Reserve an instance id for the default "material" to render to.
-    texture_map* terrain_maps[1] = {&internal_data->default_terrain_colour_map};
-    renderer_shader_instance_resources_acquire(internal_data->ts, 1, terrain_maps, &internal_data->terrain_instance_id);
+    {
+        texture_map* terrain_maps[1] = {&internal_data->default_terrain_colour_map};
+        shader* s = internal_data->ts;
+        u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index;
+        shader_instance_resource_config instance_resource_config = {0};
+        // Map count for this type is known.
+        shader_instance_uniform_texture_config colour_texture = {0};
+        colour_texture.uniform_location = atlas_location;
+        colour_texture.texture_map_count = 1;
+        colour_texture.texture_maps = terrain_maps;
+
+        instance_resource_config.uniform_config_count = 1;
+        instance_resource_config.uniform_configs = &colour_texture;
+
+        renderer_shader_instance_resources_acquire(internal_data->ts, &instance_resource_config, &internal_data->terrain_instance_id);
+    }
 
     // NOTE: Setup a default viewport. The only component that is used for this is the underlying
     // viewport rect, but is required to be set by the renderer before beginning a renderpass.
@@ -259,11 +286,11 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
 
     // Apply globals
     renderer_shader_bind_globals(internal_data->s);
-    if (!shader_system_uniform_set_by_index(internal_data->locations.projection_location, &self->pass_data.projection_matrix)) {
+    if (!shader_system_uniform_set_by_location(internal_data->locations.projection_location, &self->pass_data.projection_matrix)) {
         KERROR("Failed to apply shadowmap projection uniform.");
         return false;
     }
-    if (!shader_system_uniform_set_by_index(internal_data->locations.view_location, &self->pass_data.view_matrix)) {
+    if (!shader_system_uniform_set_by_location(internal_data->locations.view_location, &self->pass_data.view_matrix)) {
         KERROR("Failed to apply shadowmap view uniform.");
         return false;
     }
@@ -299,7 +326,18 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
 
             // Use the same map for all.
             texture_map* maps[1] = {&internal_data->default_colour_map};
-            renderer_shader_instance_resources_acquire(internal_data->s, 1, maps, &instance_id);
+            shader* s = internal_data->s;
+            u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index;
+            shader_instance_resource_config instance_resource_config = {0};
+            // Map count for this type is known.
+            shader_instance_uniform_texture_config colour_texture = {0};
+            colour_texture.uniform_location = atlas_location;
+            colour_texture.texture_map_count = 1;
+            colour_texture.texture_maps = maps;
+
+            instance_resource_config.uniform_config_count = 1;
+            instance_resource_config.uniform_configs = &colour_texture;
+            renderer_shader_instance_resources_acquire(internal_data->s, &instance_resource_config, &instance_id);
         }
         internal_data->instance_count = highest_id;
     }
@@ -335,7 +373,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
 
         // Use the bindings.
         shader_system_bind_instance(bind_id);
-        if (!shader_system_uniform_set_by_index(internal_data->locations.colour_map_location, bind_map)) {
+        if (!shader_system_uniform_set_by_location(internal_data->locations.colour_map_location, bind_map)) {
             KERROR("Failed to apply shadowmap color_map uniform to static geometry.");
             return false;
         }
@@ -346,7 +384,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
         *draw_index = p_frame_data->draw_index;
 
         // Apply the locals
-        shader_system_uniform_set_by_index(internal_data->locations.model_location, &g->model);
+        shader_system_uniform_set_by_location(internal_data->locations.model_location, &g->model);
 
         // Invert if needed
         if (ext_data->geometries[i].winding_inverted) {
@@ -368,11 +406,11 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
     // Apply globals
     renderer_shader_bind_globals(internal_data->ts);
     // NOTE: using the internal projection matrix, not one passed in.
-    if (!shader_system_uniform_set_by_index(internal_data->terrain_locations.projection_location, &self->pass_data.projection_matrix)) {
+    if (!shader_system_uniform_set_by_location(internal_data->terrain_locations.projection_location, &self->pass_data.projection_matrix)) {
         KERROR("Failed to apply terrain shadowmap projection uniform.");
         return false;
     }
-    if (!shader_system_uniform_set_by_index(internal_data->terrain_locations.view_location, &self->pass_data.view_matrix)) {
+    if (!shader_system_uniform_set_by_location(internal_data->terrain_locations.view_location, &self->pass_data.view_matrix)) {
         KERROR("Failed to apply terrain shadowmap view uniform.");
         return false;
     }
@@ -389,7 +427,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
         b8 needs_update = *render_number != p_frame_data->renderer_frame_number || *draw_index != p_frame_data->draw_index;
 
         shader_system_bind_instance(internal_data->terrain_instance_id);
-        if (!shader_system_uniform_set_by_index(internal_data->locations.colour_map_location, bind_map)) {
+        if (!shader_system_uniform_set_by_location(internal_data->locations.colour_map_location, bind_map)) {
             KERROR("Failed to apply shadowmap color_map uniform to terrain geometry.");
             return false;
         }
@@ -400,7 +438,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
         *draw_index = p_frame_data->draw_index;
 
         // Apply the locals
-        shader_system_uniform_set_by_index(internal_data->terrain_locations.model_location, &terrain->model);
+        shader_system_uniform_set_by_location(internal_data->terrain_locations.model_location, &terrain->model);
 
         // Draw it.
         renderer_geometry_draw(terrain);

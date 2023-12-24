@@ -261,16 +261,26 @@ KAPI b8 shader_system_use(const char* shader_name);
 KAPI b8 shader_system_use_by_id(u32 shader_id);
 
 /**
- * @brief Returns the uniform index for a uniform with the given name, if found.
+ * @brief Returns the uniform location for a uniform with the given name, if found.
  *
- * @param s A pointer to the shader to obtain the index from.
+ * @param s A pointer to the shader to obtain the location from.
  * @param uniform_name The name of the uniform to search for.
- * @return The uniform index, if found; otherwise INVALID_ID_U16.
+ * @return The uniform location, if found; otherwise INVALID_ID_U16.
  */
-KAPI u16 shader_system_uniform_index(shader* s, const char* uniform_name);
+KAPI u16 shader_system_uniform_location(shader* s, const char* uniform_name);
 
 /**
  * @brief Sets the value of a uniform with the given name to the supplied value.
+ * NOTE: Operates against the currently-used shader.
+ *
+ * @param uniform_name The name of the uniform to be set.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_uniform_set(const char* uniform_name, const void* value);
+
+/**
+ * @brief Sets the value of an arrayed uniform with the given name to the supplied value.
  * NOTE: Operates against the currently-used shader.
  *
  * @param uniform_name The name of the uniform to be set.
@@ -278,10 +288,20 @@ KAPI u16 shader_system_uniform_index(shader* s, const char* uniform_name);
  * @param value The value to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set(const char* uniform_name, u32 array_index, const void* value);
+KAPI b8 shader_system_uniform_set_arrayed(const char* uniform_name, u32 array_index, const void* value);
 
 /**
  * @brief Sets the texture of a sampler with the given name to the supplied texture.
+ * NOTE: Operates against the currently-used shader.
+ *
+ * @param uniform_name The name of the uniform to be set.
+ * @param t A pointer to the texture to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_sampler_set(const char* sampler_name, const texture* t);
+
+/**
+ * @brief Sets the texture of an arrayed sampler with the given name to the supplied texture.
  * NOTE: Operates against the currently-used shader.
  *
  * @param uniform_name The name of the uniform to be set.
@@ -289,29 +309,49 @@ KAPI b8 shader_system_uniform_set(const char* uniform_name, u32 array_index, con
  * @param t A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set(const char* sampler_name, u32 array_index, const texture* t);
+KAPI b8 shader_system_sampler_set_arrayed(const char* sampler_name, u32 array_index, const texture* t);
 
 /**
- * @brief Sets a uniform value by index.
+ * @brief Sets a uniform value by location.
  * NOTE: Operates against the currently-used shader.
  *
- * @param index The index of the uniform.
+ * @param index The location of the uniform.
+ * @param value The value of the uniform.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_uniform_set_by_location(u16 location, const void* value);
+
+/**
+ * @brief Sets a uniform value by location.
+ * NOTE: Operates against the currently-used shader.
+ *
+ * @param location The location of the uniform.
  * @param array_index The index into the uniform array, if the uniform is in fact an array. Otherwise ignored.
  * @param value The value of the uniform.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set_by_index(u16 index, u32 array_index, const void* value);
+KAPI b8 shader_system_uniform_set_by_location_arrayed(u16 location, u32 array_index, const void* value);
 
 /**
- * @brief Sets a sampler value by index.
+ * @brief Sets a sampler value by location.
  * NOTE: Operates against the currently-used shader.
  *
- * @param index The index of the uniform.
+ * @param location The location of the uniform.
+ * @param value A pointer to the texture to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_sampler_set_by_location(u16 location, const struct texture* t);
+
+/**
+ * @brief Sets a sampler value by location.
+ * NOTE: Operates against the currently-used shader.
+ *
+ * @param index The location of the uniform.
  * @param array_index The index into the uniform array, if the uniform is in fact an array. Otherwise ignored.
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set_by_index(u16 index, u32 array_index, const struct texture* t);
+KAPI b8 shader_system_sampler_set_by_location_arrayed(u16 location, u32 array_index, const struct texture* t);
 
 /**
  * @brief Applies global-scoped uniforms.

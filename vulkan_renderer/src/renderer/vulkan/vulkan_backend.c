@@ -2156,7 +2156,6 @@ b8 vulkan_renderer_shader_apply_globals(renderer_plugin *plugin, shader *s, b8 n
         // Iterate samplers.
         if (s->global_uniform_sampler_count > 0) {
             vulkan_descriptor_set_config set_config = internal->config.descriptor_sets[DESC_SET_INDEX_GLOBAL];
-            u8 sampler_binding_start_index = set_config.sampler_binding_index_start;
 
             // Iterate each sampler binding.
             for (u32 sb = 0; sb < s->global_uniform_sampler_count; ++sb) {
@@ -2297,7 +2296,6 @@ b8 vulkan_renderer_shader_apply_instance(renderer_plugin *plugin, shader *s, b8 
         // Iterate samplers.
         if (s->instance_uniform_sampler_count > 0) {
             vulkan_descriptor_set_config set_config = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE];
-            u8 sampler_binding_start_index = set_config.sampler_binding_index_start;
 
             // Iterate each sampler binding.
             for (u32 sb = 0; sb < s->instance_uniform_sampler_count; ++sb) {
@@ -2591,7 +2589,6 @@ b8 vulkan_renderer_shader_instance_resources_acquire(renderer_plugin *plugin, st
     }
 
     // Each sampler binding in the set. Each sampler is a binding. // TODO: -1 for UBO, potentially?
-    u32 binding_count = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].binding_count;
     for (u32 a = 0; a < s->instance_uniform_sampler_count; ++a) {
         vulkan_uniform_sampler_state *sampler_state = &instance_state->sampler_uniforms[a];
         u32 array_length = KMAX(sampler_state->uniform->array_length, 1);
@@ -2647,7 +2644,6 @@ b8 vulkan_renderer_shader_instance_resources_release(renderer_plugin *plugin, sh
     }
 
     // Destroy bindings and their descriptor states/uniforms.
-    u32 binding_count = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].binding_count;
     for (u32 a = 0; a < s->instance_uniform_sampler_count; ++a) {
         vulkan_uniform_sampler_state *sampler_state = &instance_state->sampler_uniforms[a];
         u32 array_length = KMAX(sampler_state->uniform->array_length, 1);

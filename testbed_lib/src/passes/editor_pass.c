@@ -76,9 +76,9 @@ b8 editor_pass_initialize(struct rendergraph_pass* self) {
         KERROR("Unable to get colour3d shader!");
         return false;
     }
-    internal_data->debug_locations.projection = shader_system_uniform_index(internal_data->colour_shader, "projection");
-    internal_data->debug_locations.view = shader_system_uniform_index(internal_data->colour_shader, "view");
-    internal_data->debug_locations.model = shader_system_uniform_index(internal_data->colour_shader, "model");
+    internal_data->debug_locations.projection = shader_system_uniform_location(internal_data->colour_shader, "projection");
+    internal_data->debug_locations.view = shader_system_uniform_location(internal_data->colour_shader, "view");
+    internal_data->debug_locations.model = shader_system_uniform_location(internal_data->colour_shader, "model");
 
     return true;
 }
@@ -105,8 +105,8 @@ b8 editor_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame
     // Globals
     b8 needs_update = p_frame_data->renderer_frame_number != internal_data->colour_shader->render_frame_number || internal_data->colour_shader->draw_index != p_frame_data->draw_index;
     if (needs_update) {
-        shader_system_uniform_set_by_index(internal_data->debug_locations.projection, &self->pass_data.projection_matrix);
-        shader_system_uniform_set_by_index(internal_data->debug_locations.view, &self->pass_data.view_matrix);
+        shader_system_uniform_set_by_location(internal_data->debug_locations.projection, &self->pass_data.projection_matrix);
+        shader_system_uniform_set_by_location(internal_data->debug_locations.view, &self->pass_data.view_matrix);
     }
     shader_system_apply_global(needs_update);
 
@@ -119,7 +119,7 @@ b8 editor_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame
         geometry_render_data* render_data = &ext_data->debug_geometries[i];
 
         // Set model matrix.
-        shader_system_uniform_set_by_index(internal_data->debug_locations.model, &render_data->model);
+        shader_system_uniform_set_by_location(internal_data->debug_locations.model, &render_data->model);
 
         // Draw it.
         renderer_geometry_draw(render_data);

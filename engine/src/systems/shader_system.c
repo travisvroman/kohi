@@ -269,7 +269,7 @@ b8 shader_system_use_by_id(u32 shader_id) {
     return true;
 }
 
-u16 shader_system_uniform_index(shader* s, const char* uniform_name) {
+u16 shader_system_uniform_location(shader* s, const char* uniform_name) {
     if (!s || s->id == INVALID_ID) {
         KERROR("shader_system_uniform_location called with invalid shader.");
         return INVALID_ID_U16;
@@ -283,23 +283,39 @@ u16 shader_system_uniform_index(shader* s, const char* uniform_name) {
     return s->uniforms[index].index;
 }
 
-b8 shader_system_uniform_set(const char* uniform_name, u32 array_index, const void* value) {
+b8 shader_system_uniform_set(const char* uniform_name, const void* value) {
+    return shader_system_uniform_set_arrayed(uniform_name, 0, value);
+}
+
+b8 shader_system_uniform_set_arrayed(const char* uniform_name, u32 array_index, const void* value) {
     if (state_ptr->current_shader_id == INVALID_ID) {
         KERROR("shader_system_uniform_set called without a shader in use.");
         return false;
     }
     shader* s = &state_ptr->shaders[state_ptr->current_shader_id];
-    u16 index = shader_system_uniform_index(s, uniform_name);
-    return shader_system_uniform_set_by_index(index, array_index, value);
+    u16 index = shader_system_uniform_location(s, uniform_name);
+    return shader_system_uniform_set_by_location_arrayed(index, array_index, value);
 }
 
-b8 shader_system_sampler_set(const char* sampler_name, u32 array_index, const texture* t) {
-    return shader_system_uniform_set(sampler_name, array_index, t);
+b8 shader_system_sampler_set(const char* sampler_name, const texture* t) {
+    return shader_system_sampler_set_arrayed(sampler_name, 0, t);
 }
 
-b8 shader_system_uniform_set_by_index(u16 index, u32 array_index, const void* value) {
+b8 shader_system_sampler_set_arrayed(const char* sampler_name, u32 array_index, const texture* t) {
+    return shader_system_uniform_set_arrayed(sampler_name, array_index, t);
+}
+
+b8 shader_system_sampler_set_by_location(u16 location, const texture* t) {
+    return shader_system_uniform_set_by_location_arrayed(location, 0, t);
+}
+
+b8 shader_system_uniform_set_by_location(u16 location, const void* value) {
+    return shader_system_uniform_set_by_location_arrayed(location, 0, value);
+}
+
+b8 shader_system_uniform_set_by_location_arrayed(u16 location, u32 array_index, const void* value) {
     shader* shader = &state_ptr->shaders[state_ptr->current_shader_id];
-    shader_uniform* uniform = &shader->uniforms[index];
+    shader_uniform* uniform = &shader->uniforms[location];
     if (shader->bound_scope != uniform->scope) {
         if (uniform->scope == SHADER_SCOPE_GLOBAL) {
             renderer_shader_bind_globals(shader);
@@ -312,9 +328,7 @@ b8 shader_system_uniform_set_by_index(u16 index, u32 array_index, const void* va
     }
     return renderer_shader_uniform_set(shader, uniform, array_index, value);
 }
-b8 shader_system_sampler_set_by_index(u16 index, u32 array_index, const texture* t) {
-    return shader_system_uniform_set_by_index(index, array_index, t);
-}
+
 
 b8 shader_system_apply_global(b8 needs_update) {
     return renderer_shader_apply_globals(&state_ptr->shaders[state_ptr->current_shader_id], needs_update);

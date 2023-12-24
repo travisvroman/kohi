@@ -1304,7 +1304,7 @@ b8 simple_scene_mesh_render_data_query(const simple_scene *scene, const frustum 
                         // sorted by distance from the camera. Otherwise, put into the
                         // ext_data->geometries array directly.
                         b8 has_transparency = false;
-                        if (g->material->type == MATERIAL_TYPE_PHONG) {
+                        if (g->material->type == MATERIAL_TYPE_PBR) {
                             // Check diffuse map (slot 0).
                             has_transparency = ((g->material->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) != 0);
                         }

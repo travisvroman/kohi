@@ -26,6 +26,7 @@ Changelog
     - Shader config now requires specification of sampler type (sampler2D, samplerCube, sampler2DArray, etc.)
     - Shader config now allows for arrays of uniform types (NOTE: samplers only for now). Ex: sampler2D[4] specifies an array of 4 sampler2Ds.
   - Added array_index argument to shader uniform-setting functions to allow for setting arrayed uniforms (NOTE: samplers only for now). array_index is ignored for non-arrayed uniforms.
+  - Changed nomenclature of "uniform index" to "uniform location".
 
 - 0.4x
   - Added first pass of Standard UI system, including panel, button, label, and textbox controls.

@@ -101,9 +101,9 @@ b8 ui_pass_initialize(struct rendergraph_pass* self) {
 
     // Get either the custom shader override or the defined default.
     internal_data->s = shader_system_get(shader_name);
-    internal_data->locations.diffuse_map = shader_system_uniform_index(internal_data->s, "diffuse_texture");
-    internal_data->locations.properties = shader_system_uniform_index(internal_data->s, "properties");
-    internal_data->locations.model = shader_system_uniform_index(internal_data->s, "model");
+    internal_data->locations.diffuse_map = shader_system_uniform_location(internal_data->s, "diffuse_texture");
+    internal_data->locations.properties = shader_system_uniform_location(internal_data->s, "properties");
+    internal_data->locations.model = shader_system_uniform_location(internal_data->s, "model");
 
     // Load the StandardUI shader.
     const char* sui_shader_name = "Shader.StandardUI";
@@ -122,11 +122,11 @@ b8 ui_pass_initialize(struct rendergraph_pass* self) {
 
     // Get either the custom shader override or the defined default.
     internal_data->sui_shader = shader_system_get(sui_shader_name);
-    internal_data->sui_locations.projection = shader_system_uniform_index(internal_data->sui_shader, "projection");
-    internal_data->sui_locations.view = shader_system_uniform_index(internal_data->sui_shader, "view");
-    internal_data->sui_locations.properties = shader_system_uniform_index(internal_data->sui_shader, "properties");
-    internal_data->sui_locations.model = shader_system_uniform_index(internal_data->sui_shader, "model");
-    internal_data->sui_locations.diffuse_map = shader_system_uniform_index(internal_data->sui_shader, "diffuse_texture");
+    internal_data->sui_locations.projection = shader_system_uniform_location(internal_data->sui_shader, "projection");
+    internal_data->sui_locations.view = shader_system_uniform_location(internal_data->sui_shader, "view");
+    internal_data->sui_locations.properties = shader_system_uniform_location(internal_data->sui_shader, "properties");
+    internal_data->sui_locations.model = shader_system_uniform_location(internal_data->sui_shader, "model");
+    internal_data->sui_locations.diffuse_map = shader_system_uniform_location(internal_data->sui_shader, "diffuse_texture");
 
     return true;
 }
@@ -156,8 +156,8 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
     }
 
     // Apply globals.
-    shader_system_uniform_set_by_index(internal_data->sui_locations.projection, &self->pass_data.projection_matrix);
-    shader_system_uniform_set_by_index(internal_data->sui_locations.view, &self->pass_data.view_matrix);
+    shader_system_uniform_set_by_location(internal_data->sui_locations.projection, &self->pass_data.projection_matrix);
+    shader_system_uniform_set_by_location(internal_data->sui_locations.view, &self->pass_data.view_matrix);
     shader_system_apply_global(true);
 
     // Sync the frame number.
@@ -180,7 +180,7 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
                 RENDERER_STENCIL_OP_REPLACE,
                 RENDERER_COMPARE_OP_ALWAYS);
 
-            shader_system_uniform_set_by_index(internal_data->sui_locations.model, &renderable->clip_mask_render_data->model);
+            shader_system_uniform_set_by_location(internal_data->sui_locations.model, &renderable->clip_mask_render_data->model);
             // Draw the clip mask geometry.
             renderer_geometry_draw(renderable->clip_mask_render_data);
 
@@ -202,13 +202,13 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
         b8 needs_update = *renderable->frame_number != p_frame_data->renderer_frame_number || *renderable->draw_index != p_frame_data->draw_index;
         shader_system_bind_instance(*renderable->instance_id);
         // NOTE: Expand this to a structure if more data is needed.
-        shader_system_uniform_set_by_index(internal_data->sui_locations.properties, &renderable->render_data.diffuse_colour);
+        shader_system_uniform_set_by_location(internal_data->sui_locations.properties, &renderable->render_data.diffuse_colour);
         texture_map* atlas = renderable->atlas_override ? renderable->atlas_override : ext_data->sui_render_data.ui_atlas;
-        shader_system_uniform_set_by_index(internal_data->sui_locations.diffuse_map, atlas);
+        shader_system_uniform_set_by_location(internal_data->sui_locations.diffuse_map, atlas);
         shader_system_apply_instance(needs_update);
 
         // Apply local
-        shader_system_uniform_set_by_index(internal_data->sui_locations.model, &renderable->render_data.model);
+        shader_system_uniform_set_by_location(internal_data->sui_locations.model, &renderable->render_data.model);
 
         // Draw
         renderer_geometry_draw(&renderable->render_data);
