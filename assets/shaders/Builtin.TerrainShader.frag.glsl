@@ -57,28 +57,21 @@ layout(set = 1, binding = 0) uniform instance_uniform_object {
 } instance_ubo;
 
 
-// Samplers
+// Material texture indices.
 const int SAMP_ALBEDO_OFFSET = 0;
 const int SAMP_NORMAL_OFFSET = 1;
 const int SAMP_METALLIC_OFFSET = 2;
 const int SAMP_ROUGHNESS_OFFSET = 3;
 const int SAMP_AO_OFFSET = 4;
-// Shadow map comes after all materials.
-const int SAMP_SHADOW_MAP = 20;//5 * MAX_TERRAIN_MATERIALS;
-const int SAMP_SHADOW_MAP_1 = 21;
-const int SAMP_SHADOW_MAP_2 = 22;
-const int SAMP_SHADOW_MAP_3 = 23;
-// Irradience cube comes after the shadow map.
-const int SAMP_IRRADIENCE_CUBE = 24;//SAMP_SHADOW_MAP + 4;
 
 const float PI = 3.14159265359;
 
-// Samplers. albedo, normal, metallic, roughness, ao, etc...
-// One more sampler2D is at the end, which is the shadow map.
-layout(set = 1, binding = 1) uniform sampler2D samplers[5 + (5 * MAX_TERRAIN_MATERIALS)];
-// Environment map is at the last index.
-// IBL - Alias to get cube samplers
-layout(set = 1, binding = 1) uniform samplerCube cube_samplers[5 + (5 * MAX_TERRAIN_MATERIALS)];
+// Material textures: albedo, normal, metallic, roughness, ao, etc...
+layout(set = 1, binding = 1) uniform sampler2D material_textures[5 * MAX_TERRAIN_MATERIALS];
+// Shadow maps
+layout(set = 1, binding = 2) uniform sampler2D shadow_textures[4];
+// IBL irradiance
+layout(set = 1, binding = 3) uniform samplerCube irradiance_texture;
 
 layout(location = 0) flat in int in_mode;
 layout(location = 1) flat in int use_pcf;
@@ -102,10 +95,10 @@ mat3 TBN;
 // Percentage-Closer Filtering
 float calculate_pcf(vec3 projected, int cascade_index) {
     float shadow = 0.0;
-    vec2 texel_size = 1.0 / textureSize(samplers[SAMP_SHADOW_MAP + cascade_index], 0);
+    vec2 texel_size = 1.0 / textureSize(shadow_textures[cascade_index], 0);
     for(int x = -1; x <= 1; ++x) {
         for(int y = -1; y <= 1; ++y) {
-            float pcf_depth = texture(samplers[SAMP_SHADOW_MAP + cascade_index], projected.xy + vec2(x, y) * texel_size).r;
+            float pcf_depth = texture(shadow_textures[cascade_index], projected.xy + vec2(x, y) * texel_size).r;
             shadow += projected.z - in_dto.bias > pcf_depth ? 1.0 : 0.0;
         }
     }
@@ -115,7 +108,7 @@ float calculate_pcf(vec3 projected, int cascade_index) {
 
 float calculate_unfiltered(vec3 projected, int cascade_index) {
     // Sample the shadow map.
-    float map_depth = texture(samplers[SAMP_SHADOW_MAP + cascade_index], projected.xy).r;
+    float map_depth = texture(shadow_textures[cascade_index], projected.xy).r;
 
     // TODO: cast/get rid of branch.
     float shadow = projected.z - in_dto.bias > map_depth ? 0.0 : 1.0;
@@ -170,15 +163,13 @@ void main() {
     // Sample each material.
     for(int m = 0; m < instance_ubo.properties.num_materials; ++m) {
         int m_element = (m * 5);
-        albedos[m] = texture(samplers[m_element + SAMP_ALBEDO_OFFSET], in_dto.tex_coord);
+        albedos[m] = texture(material_textures[m_element + SAMP_ALBEDO_OFFSET], in_dto.tex_coord);
         albedos[m] = vec4(pow(albedos[m].rgb, vec3(2.2)), albedos[m].a);
-        // vec3 local_normal = 2.0 * texture(samplers[m_element + SAMP_NORMAL_OFFSET], in_dto.tex_coord).rgb - 1.0;
-        // normals[m] = normalize(TBN * local_normal);
         // Just sample these for now, will blend and apply surface normal later.
-        normals[m] = texture(samplers[m_element + SAMP_NORMAL_OFFSET], in_dto.tex_coord).rgb;
-        metallics[m] = texture(samplers[m_element + SAMP_METALLIC_OFFSET], in_dto.tex_coord);
-        roughnesses[m] = texture(samplers[m_element + SAMP_ROUGHNESS_OFFSET], in_dto.tex_coord);
-        aos[m] = texture(samplers[m_element + SAMP_AO_OFFSET], in_dto.tex_coord);
+        normals[m] = texture(material_textures[m_element + SAMP_NORMAL_OFFSET], in_dto.tex_coord).rgb;
+        metallics[m] = texture(material_textures[m_element + SAMP_METALLIC_OFFSET], in_dto.tex_coord);
+        roughnesses[m] = texture(material_textures[m_element + SAMP_ROUGHNESS_OFFSET], in_dto.tex_coord);
+        aos[m] = texture(material_textures[m_element + SAMP_AO_OFFSET], in_dto.tex_coord);
     }
 
     // Mix the materials by samp[0] * w[0] + samp[1] * w[1]...
@@ -265,7 +256,7 @@ void main() {
         }
 
         // Irradiance holds all the scene's indirect diffuse light. Use the surface normal to sample from it.
-        vec3 irradiance = texture(cube_samplers[SAMP_IRRADIENCE_CUBE], normal).rgb;
+        vec3 irradiance = texture(irradiance_texture, normal).rgb;
 
         // Generate shadow value based on current fragment position vs shadow map.
         // Light and normal are also taken in the case that a bias is to be used.

@@ -300,7 +300,7 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
                     b8 is_array = string_parse_array_length(fields[0], &array_length);
                     char sampler_type[100];
                     if (is_array) {
-                        string_mid(sampler_type, fields[0], 0, string_index_of(fields[0], '[') - 1);
+                        string_mid(sampler_type, fields[0], 0, string_index_of(fields[0], '['));
                     } else {
                         string_copy(sampler_type, fields[0]);
                     }

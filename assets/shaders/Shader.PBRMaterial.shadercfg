@@ -1,5 +1,5 @@
 # Kohi shader config file
-version=1.0
+version=1
 name=Shader.PBRMaterial
 stages=vertex,fragment
 stagefiles=shaders/PBRShader.vert.glsl,shaders/PBRShader.frag.glsl

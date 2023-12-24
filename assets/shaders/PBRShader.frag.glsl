@@ -47,25 +47,20 @@ layout(set = 1, binding = 0) uniform instance_uniform_object {
     int num_p_lights;
 } instance_ubo;
 
-// Samplers
+// Material texture indices
 const int SAMP_ALBEDO = 0;
 const int SAMP_NORMAL = 1;
 const int SAMP_METALLIC = 2;
 const int SAMP_ROUGHNESS = 3;
 const int SAMP_AO = 4;
-const int SAMP_SHADOW_MAP = 5;
-const int SAMP_SHADOW_MAP_1 = 6;
-const int SAMP_SHADOW_MAP_2 = 7;
-const int SAMP_SHADOW_MAP_3 = 8;
-const int SAMP_IBL_CUBE = 9;
 
 const float PI = 3.14159265359;
-// Samplers. albedo, normal, metallic, roughness, ao
-// Shadow map comes after.
-layout(set = 1, binding = 1) uniform sampler2D samplers[10];
+// Material textures: albedo, normal, metallic, roughness, ao
+layout(set = 1, binding = 1) uniform sampler2D material_textures[5];
+// Shadow maps
+layout(set = 1, binding = 2) uniform sampler2D shadow_textures[4];
 // Environment map is at the last index.
-// IBL - Alias to get cube samplers
-layout(set = 1, binding = 1) uniform samplerCube cube_samplers[10];
+layout(set = 1, binding = 3) uniform samplerCube irradiance_texture;
 
 layout(location = 0) flat in int in_mode;
 layout(location = 1) flat in int use_pcf;
@@ -89,10 +84,10 @@ mat3 TBN;
 // Percentage-Closer Filtering
 float calculate_pcf(vec3 projected, int cascade_index) {
     float shadow = 0.0;
-    vec2 texel_size = 1.0 / textureSize(samplers[SAMP_SHADOW_MAP + cascade_index], 0);
+    vec2 texel_size = 1.0 / textureSize(shadow_textures[cascade_index], 0);
     for(int x = -1; x <= 1; ++x) {
         for(int y = -1; y <= 1; ++y) {
-            float pcf_depth = texture(samplers[SAMP_SHADOW_MAP + cascade_index], projected.xy + vec2(x, y) * texel_size).r;
+            float pcf_depth = texture(shadow_textures[cascade_index], projected.xy + vec2(x, y) * texel_size).r;
             shadow += projected.z - in_dto.bias > pcf_depth ? 1.0 : 0.0;
         }
     }
@@ -102,7 +97,7 @@ float calculate_pcf(vec3 projected, int cascade_index) {
 
 float calculate_unfiltered(vec3 projected, int cascade_index) {
     // Sample the shadow map.
-    float map_depth = texture(samplers[SAMP_SHADOW_MAP + cascade_index], projected.xy).r;
+    float map_depth = texture(shadow_textures[cascade_index], projected.xy).r;
 
     // TODO: cast/get rid of branch.
     float shadow = projected.z - in_dto.bias > map_depth ? 0.0 : 1.0;
@@ -148,15 +143,15 @@ void main() {
     TBN = mat3(tangent, bitangent, normal);
 
     // Update the normal to use a sample from the normal map.
-    vec3 local_normal = 2.0 * texture(samplers[SAMP_NORMAL], in_dto.tex_coord).rgb - 1.0;
+    vec3 local_normal = 2.0 * texture(material_textures[SAMP_NORMAL], in_dto.tex_coord).rgb - 1.0;
     normal = normalize(TBN * local_normal);
 
-    vec4 albedo_samp = texture(samplers[SAMP_ALBEDO], in_dto.tex_coord);
+    vec4 albedo_samp = texture(material_textures[SAMP_ALBEDO], in_dto.tex_coord);
     vec3 albedo = pow(albedo_samp.rgb, vec3(2.2));
 
-    float metallic = texture(samplers[SAMP_METALLIC], in_dto.tex_coord).r;
-    float roughness = texture(samplers[SAMP_ROUGHNESS], in_dto.tex_coord).r;
-    float ao = texture(samplers[SAMP_AO], in_dto.tex_coord).r;
+    float metallic = texture(material_textures[SAMP_METALLIC], in_dto.tex_coord).r;
+    float roughness = texture(material_textures[SAMP_ROUGHNESS], in_dto.tex_coord).r;
+    float ao = texture(material_textures[SAMP_AO], in_dto.tex_coord).r;
 
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use base_reflectivity 
     // of 0.04 and if it's a metal, use the albedo color as base_reflectivity (metallic workflow)    
@@ -200,7 +195,7 @@ void main() {
         }
 
         // Irradiance holds all the scene's indirect diffuse light. Use the surface normal to sample from it.
-        vec3 irradiance = texture(cube_samplers[SAMP_IBL_CUBE], normal).rgb;
+        vec3 irradiance = texture(irradiance_texture, normal).rgb;
 
         // Generate shadow value based on current fragment position vs shadow map.
         // Light and normal are also taken in the case that a bias is to be used.
