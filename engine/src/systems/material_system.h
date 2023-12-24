@@ -15,9 +15,6 @@
 #include "defines.h"
 #include "resources/resource_types.h"
 
-/** @brief The name of the default material. */
-#define DEFAULT_MATERIAL_NAME "default"
-
 /** @brief The name of the default PBR material. */
 #define DEFAULT_PBR_MATERIAL_NAME "default_pbr"
 
@@ -159,7 +156,7 @@ KAPI b8 material_system_irradiance_set(texture* irradiance_cube_texture);
 
 /**
  * @brief Sets the current directional light-space matrix to be used for future binding calls that require it.
- * 
+ *
  * @param directional_light_space The directional light-space matrix.
  */
 KAPI void material_system_directional_light_space_set(mat4 directional_light_space, u8 index);

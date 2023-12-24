@@ -1,6 +1,8 @@
 #include "renderer_frontend.h"
 
+#include "containers/darray.h"
 #include "containers/freelist.h"
+#include "containers/hashtable.h"
 #include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
@@ -12,6 +14,7 @@
 #include "math/math_types.h"
 #include "platform/platform.h"
 #include "renderer/renderer_types.h"
+#include "renderer/renderer_utils.h"
 #include "renderer/viewport.h"
 #include "resources/resource_types.h"
 #include "systems/camera_system.h"
@@ -423,6 +426,43 @@ b8 renderer_renderpass_end(renderpass* pass) {
 
 b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pass, u8 stage_count, const char** stage_filenames, shader_stage* stages) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+
+    // Get the uniform counts.
+    s->global_uniform_count = 0;
+    // Number of samplers in the shader, per frame. NOT the number of descriptors needed (i.e could be an array).
+    s->global_uniform_sampler_count = 0;
+    s->global_sampler_indices = darray_create(u32);
+    s->instance_uniform_count = 0;
+    // Number of samplers in the shader, per instance, per frame. NOT the number of descriptors needed (i.e could be an array).
+    s->instance_uniform_sampler_count = 0;
+    s->instance_sampler_indices = darray_create(u32);
+    s->local_uniform_count = 0;
+
+    u32 total_count = darray_length(config->uniforms);
+    for (u32 i = 0; i < total_count; ++i) {
+        switch (config->uniforms[i].scope) {
+            case SHADER_SCOPE_GLOBAL:
+                if (uniform_type_is_sampler(config->uniforms[i].type)) {
+                    s->global_uniform_sampler_count++;
+                    darray_push(s->global_sampler_indices, i);
+                } else {
+                    s->global_uniform_count++;
+                }
+                break;
+            case SHADER_SCOPE_INSTANCE:
+                if (uniform_type_is_sampler(config->uniforms[i].type)) {
+                    s->instance_uniform_sampler_count++;
+                    darray_push(s->instance_sampler_indices, i);
+                } else {
+                    s->instance_uniform_count++;
+                }
+                break;
+            case SHADER_SCOPE_LOCAL:
+                s->local_uniform_count++;
+                break;
+        }
+    }
+
     return state_ptr->plugin.shader_create(&state_ptr->plugin, s, config, pass, stage_count, stage_filenames, stages);
 }
 
@@ -461,9 +501,9 @@ b8 renderer_shader_apply_instance(shader* s, b8 needs_update) {
     return state_ptr->plugin.shader_apply_instance(&state_ptr->plugin, s, needs_update);
 }
 
-b8 renderer_shader_instance_resources_acquire(shader* s, u32 texture_map_count, texture_map** maps, u32* out_instance_id) {
+b8 renderer_shader_instance_resources_acquire(struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.shader_instance_resources_acquire(&state_ptr->plugin, s, texture_map_count, maps, out_instance_id);
+    return state_ptr->plugin.shader_instance_resources_acquire(&state_ptr->plugin, s, config, out_instance_id);
 }
 
 b8 renderer_shader_instance_resources_release(shader* s, u32 instance_id) {
@@ -471,9 +511,30 @@ b8 renderer_shader_instance_resources_release(shader* s, u32 instance_id) {
     return state_ptr->plugin.shader_instance_resources_release(&state_ptr->plugin, s, instance_id);
 }
 
-b8 renderer_shader_uniform_set(shader* s, shader_uniform* uniform, const void* value) {
+shader_uniform* renderer_shader_uniform_get_by_location(shader* s, u16 location) {
+    if (!s) {
+        return 0;
+    }
+    return &s->uniforms[location];
+}
+
+shader_uniform* renderer_shader_uniform_get(shader* s, const char* name) {
+    if (!s || !name) {
+        return 0;
+    }
+
+    u16 uniform_index;
+    if (!hashtable_get(&s->uniform_lookup, name, &uniform_index)) {
+        KERROR("Shader '%s' does not contain a uniform named '%s'.", s->name, name);
+        return false;
+    }
+
+    return &s->uniforms[uniform_index];
+}
+
+b8 renderer_shader_uniform_set(shader* s, shader_uniform* uniform, u32 array_index, const void* value) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.shader_uniform_set(&state_ptr->plugin, s, uniform, value);
+    return state_ptr->plugin.shader_uniform_set(&state_ptr->plugin, s, uniform, array_index, value);
 }
 
 b8 renderer_texture_map_resources_acquire(struct texture_map* map) {

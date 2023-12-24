@@ -273,6 +273,29 @@ typedef enum renderer_winding {
 } renderer_winding;
 
 /**
+ * @brief Maps a uniform to a texture map/maps when acquiring instance resources.
+ */
+typedef struct shader_instance_uniform_texture_config {
+    /** @brief The locaton of the uniform to map to. */
+    u16 uniform_location;
+    /** @brief The number of texture maps bound to the uniform. */
+    u32 texture_map_count;
+    /** @brief An array of pointers to texture maps to be mapped to the uniform. */
+    texture_map** texture_maps;
+} shader_instance_uniform_texture_config;
+
+/**
+ * @brief Represents the configuration of texture map resources and mappings to uniforms
+ * required for instance-level shader data.
+ */
+typedef struct shader_instance_resource_config {
+    /** @brief The number of uniform configurations */
+    u32 uniform_config_count;
+    /** @brief An array of uniform configurations. */
+    shader_instance_uniform_texture_config* uniform_configs;
+} shader_instance_resource_config;
+
+/**
  * @brief A generic "interface" for the renderer plugin. The renderer backend
  * is what is responsible for making calls to the graphics API such as
  * Vulkan, OpenGL or DirectX. Each of these should implement this interface.
@@ -635,7 +658,7 @@ typedef struct renderer_plugin {
      * @param out_instance_id A pointer to hold the new instance identifier.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_instance_resources_acquire)(struct renderer_plugin* plugin, struct shader* s, u32 texture_map_count, texture_map** maps, u32* out_instance_id);
+    b8 (*shader_instance_resources_acquire)(struct renderer_plugin* plugin, struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id);
 
     /**
      * @brief Releases internal instance-level resources for the given instance id.
@@ -653,10 +676,11 @@ typedef struct renderer_plugin {
      * @param plugin A pointer to the renderer plugin interface.
      * @param s A ponter to the shader.
      * @param uniform A constant pointer to the uniform.
+     * @param array_index The array index to set, if the uniform is an array. Ignored otherwise.
      * @param value A pointer to the value to be set.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_uniform_set)(struct renderer_plugin* plugin, struct shader* frontend_shader, struct shader_uniform* uniform, const void* value);
+    b8 (*shader_uniform_set)(struct renderer_plugin* plugin, struct shader* frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
 
     /**
      * @brief Acquires internal resources for the given texture map.

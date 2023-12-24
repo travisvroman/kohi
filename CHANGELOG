@@ -19,6 +19,13 @@ Changelog
   - Added per-frame tracking of shadow map draw calls.
   - Added cascading shadow maps (right now limited to 4 cascades).
   - Fixed a bug in the Vulkan allocator where memory was not properly freed from a call to vulkan_alloc_reallocation if the reported size was 0, as per the spec.
+  - Moved uniform sampler counts logic to renderer frontend to facilitate queries.
+  - Removed all traces of defunct UI material type.
+  - Removed Phong material type, shaders, etc. Entire material pipeline is now PBR.
+  - Changed the way samplers work on the frontend and backend to allow for arrayed uniforms (NOTE: samplers only for now).
+    - Shader config now requires specification of sampler type (sampler2D, samplerCube, sampler2DArray, etc.)
+    - Shader config now allows for arrays of uniform types (NOTE: samplers only for now). Ex: sampler2D[4] specifies an array of 4 sampler2Ds.
+  - Added array_index argument to shader uniform-setting functions to allow for setting arrayed uniforms (NOTE: samplers only for now). array_index is ignored for non-arrayed uniforms.
 
 - 0.4x
   - Added first pass of Standard UI system, including panel, button, label, and textbox controls.

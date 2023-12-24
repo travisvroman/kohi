@@ -7,4 +7,3 @@ shininess=32.0
 diffuse_map_name=paving
 specular_map_name=paving_SPEC
 normal_map_name=paving_NRM
-shader=Shader.Builtin.Material

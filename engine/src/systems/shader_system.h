@@ -155,6 +155,21 @@ typedef struct shader {
     /** @brief An array of uniforms in this shader. Darray. */
     shader_uniform* uniforms;
 
+    /** @brief The number of global non-sampler uniforms. */
+    u8 global_uniform_count;
+    /** @brief The number of global sampler uniforms. */
+    u8 global_uniform_sampler_count;
+    // darray Keeps the uniform indices of global samplers for fast lookups.
+    u32* global_sampler_indices;
+    /** @brief The number of instance non-sampler uniforms. */
+    u8 instance_uniform_count;
+    /** @brief The number of instance sampler uniforms. */
+    u8 instance_uniform_sampler_count;
+    // darray Keeps the uniform indices of instance samplers for fast lookups.
+    u32* instance_sampler_indices;
+    /** @brief The number of local non-sampler uniforms. */
+    u8 local_uniform_count;
+
     /** @brief An array of attributes. Darray. */
     shader_attribute* attributes;
 
@@ -259,40 +274,44 @@ KAPI u16 shader_system_uniform_index(shader* s, const char* uniform_name);
  * NOTE: Operates against the currently-used shader.
  *
  * @param uniform_name The name of the uniform to be set.
+ * @param array_index The index into the uniform array, if the uniform is in fact an array. Otherwise ignored.
  * @param value The value to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set(const char* uniform_name, const void* value);
+KAPI b8 shader_system_uniform_set(const char* uniform_name, u32 array_index, const void* value);
 
 /**
  * @brief Sets the texture of a sampler with the given name to the supplied texture.
  * NOTE: Operates against the currently-used shader.
  *
  * @param uniform_name The name of the uniform to be set.
+ * @param array_index The index into the uniform array, if the uniform is in fact an array. Otherwise ignored.
  * @param t A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set(const char* sampler_name, const texture* t);
+KAPI b8 shader_system_sampler_set(const char* sampler_name, u32 array_index, const texture* t);
 
 /**
  * @brief Sets a uniform value by index.
  * NOTE: Operates against the currently-used shader.
  *
  * @param index The index of the uniform.
+ * @param array_index The index into the uniform array, if the uniform is in fact an array. Otherwise ignored.
  * @param value The value of the uniform.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set_by_index(u16 index, const void* value);
+KAPI b8 shader_system_uniform_set_by_index(u16 index, u32 array_index, const void* value);
 
 /**
  * @brief Sets a sampler value by index.
  * NOTE: Operates against the currently-used shader.
  *
  * @param index The index of the uniform.
+ * @param array_index The index into the uniform array, if the uniform is in fact an array. Otherwise ignored.
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set_by_index(u16 index, const struct texture* t);
+KAPI b8 shader_system_sampler_set_by_index(u16 index, u32 array_index, const struct texture* t);
 
 /**
  * @brief Applies global-scoped uniforms.

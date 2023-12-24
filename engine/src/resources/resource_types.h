@@ -501,10 +501,8 @@ typedef struct shader_config {
 typedef enum material_type {
     // Invalid.
     MATERIAL_TYPE_UNKNOWN = 0,
-    MATERIAL_TYPE_PHONG = 1,
-    MATERIAL_TYPE_PBR = 2,
-    MATERIAL_TYPE_UI = 3,
-    MATERIAL_TYPE_TERRAIN = 4,
+    MATERIAL_TYPE_PBR = 1,
+    MATERIAL_TYPE_TERRAIN = 2,
     MATERIAL_TYPE_CUSTOM = 99
 } material_type;
 
@@ -560,11 +558,6 @@ typedef struct material_phong_properties {
      * lighting is. */
     f32 shininess;
 } material_phong_properties;
-
-typedef struct material_ui_properties {
-    /** @brief The diffuse colour. */
-    vec4 diffuse_colour;
-} material_ui_properties;
 
 typedef struct material_terrain_properties {
     material_phong_properties materials[4];

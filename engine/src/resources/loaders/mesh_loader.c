@@ -800,7 +800,7 @@ static b8 import_obj_material_library_file(const char *mtl_file_path) {
 
                     // NOTE: Hardcoding default material shader name because all objects
                     // imported this way will be treated the same.
-                    current_config.shader_name = "Shader.Builtin.Material";
+                    current_config.shader_name = "Shader.PBRMaterial";
                     if (hit_name) {
                         //  Write out a kmt file and move on.
                         if (!write_kmt_file(mtl_file_path, &current_config)) {
@@ -832,7 +832,7 @@ static b8 import_obj_material_library_file(const char *mtl_file_path) {
     // Write out the remaining kmt file.
     // NOTE: Hardcoding default material shader name because all objects imported
     // this way will be treated the same.
-    current_config.shader_name = "Shader.Builtin.Material";
+    current_config.shader_name = "Shader.PBRMaterial";
     if (!write_kmt_file(mtl_file_path, &current_config)) {
         KERROR("Unable to write kmt file.");
         return false;

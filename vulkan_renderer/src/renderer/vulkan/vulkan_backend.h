@@ -61,9 +61,9 @@ b8 vulkan_renderer_shader_bind_globals(renderer_plugin* backend, struct shader* 
 b8 vulkan_renderer_shader_bind_instance(renderer_plugin* backend, struct shader* s, u32 instance_id);
 b8 vulkan_renderer_shader_apply_globals(renderer_plugin* backend, struct shader* s, b8 needs_update);
 b8 vulkan_renderer_shader_apply_instance(renderer_plugin* backend, struct shader* s, b8 needs_update);
-b8 vulkan_renderer_shader_instance_resources_acquire(renderer_plugin* backend, struct shader* s, u32 texture_map_count, texture_map** maps, u32* out_instance_id);
+b8 vulkan_renderer_shader_instance_resources_acquire(renderer_plugin* backend, struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id);
 b8 vulkan_renderer_shader_instance_resources_release(renderer_plugin* backend, struct shader* s, u32 instance_id);
-b8 vulkan_renderer_uniform_set(renderer_plugin* backend, struct shader* frontend_shader, struct shader_uniform* uniform, const void* value);
+b8 vulkan_renderer_uniform_set(renderer_plugin* backend, struct shader* frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
 
 b8 vulkan_renderer_texture_map_resources_acquire(renderer_plugin* backend, texture_map* map);
 void vulkan_renderer_texture_map_resources_release(renderer_plugin* backend, texture_map* map);

@@ -373,12 +373,11 @@ KAPI b8 renderer_shader_apply_instance(struct shader* s, b8 needs_update);
  * @brief Acquires internal instance-level resources and provides an instance id.
  *
  * @param s A pointer to the shader to acquire resources from.
- * @param texture_map_count The number of texture maps used.
- * @param maps An array of texture map pointers. Must be one per texture in the instance.
+ * @param config A constant pointer to the configuration of the instance to be used while acquiring resources.
  * @param out_instance_id A pointer to hold the new instance identifier.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_instance_resources_acquire(struct shader* s, u32 texture_map_count, texture_map** maps, u32* out_instance_id);
+KAPI b8 renderer_shader_instance_resources_acquire(struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id);
 
 /**
  * @brief Releases internal instance-level resources for the given instance id.
@@ -390,14 +389,31 @@ KAPI b8 renderer_shader_instance_resources_acquire(struct shader* s, u32 texture
 KAPI b8 renderer_shader_instance_resources_release(struct shader* s, u32 instance_id);
 
 /**
+ * Attempts to get a pointer to a uniform from the given shader at the given location.
+ * @param s A pointer to the shader to get the uniform for.
+ * @param name The location of the uniform to obtain.
+ * @returns A pointer to a uniform if found; otherwise null/0.
+ */
+KAPI struct shader_uniform* renderer_shader_uniform_get_by_location(struct shader* s, u16 location);
+
+/**
+ * Attempts to get a pointer to a uniform from the given shader of the provided name.
+ * @param s A pointer to the shader to get the uniform for.
+ * @param name The name of the uniform to obtain.
+ * @returns A pointer to a uniform if found; otherwise null/0.
+ */
+KAPI struct shader_uniform* renderer_shader_uniform_get(struct shader* s, const char* name);
+
+/**
  * @brief Sets the uniform of the given shader to the provided value.
  *
  * @param s A ponter to the shader.
  * @param uniform A constant pointer to the uniform.
+ * @param array_index The index of the uniform array to be set, if it is an array. For non-array types, this value is ignored.
  * @param value A pointer to the value to be set.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 renderer_shader_uniform_set(struct shader* s, struct shader_uniform* uniform, const void* value);
+KAPI b8 renderer_shader_uniform_set(struct shader* s, struct shader_uniform* uniform, u32 array_index, const void* value);
 
 /**
  * @brief Acquires internal resources for the given texture map.

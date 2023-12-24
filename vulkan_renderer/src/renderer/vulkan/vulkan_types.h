@@ -512,21 +512,6 @@ typedef struct vulkan_shader {
     u32 instance_count;
     vulkan_shader_instance_state* instance_states;
 
-    /** @brief The number of global non-sampler uniforms. */
-    u8 global_uniform_count;
-    /** @brief The number of global sampler uniforms. */
-    u8 global_uniform_sampler_count;
-    // darray Keeps the uniform indices of global samplers for fast lookups.
-    u32* global_sampler_indices;
-    /** @brief The number of instance non-sampler uniforms. */
-    u8 instance_uniform_count;
-    /** @brief The number of instance sampler uniforms. */
-    u8 instance_uniform_sampler_count;
-    // darray Keeps the uniform indices of instance samplers for fast lookups.
-    u32* instance_sampler_indices;
-    /** @brief The number of local non-sampler uniforms. */
-    u8 local_uniform_count;
-
 } vulkan_shader;
 
 // Forward declare shaderc compiler.
