@@ -1631,6 +1631,7 @@ b8 vulkan_renderer_shader_create(renderer_plugin *plugin, shader *s,
     }
 
     // Need 2 descriptor sets, one for global and one for instance.
+    internal_shader->config.descriptor_set_count = 0;
     kzero_memory(internal_shader->config.descriptor_sets, sizeof(vulkan_descriptor_set_config) * 2);
     internal_shader->config.descriptor_sets[DESC_SET_INDEX_GLOBAL].sampler_binding_index_start = INVALID_ID_U8;
     internal_shader->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].sampler_binding_index_start = INVALID_ID_U8;
@@ -1657,23 +1658,22 @@ b8 vulkan_renderer_shader_create(renderer_plugin *plugin, shader *s,
     // Global descriptor set config.
     if (s->global_uniform_count > 0 || s->global_uniform_sampler_count > 0) {
         // Global descriptor set config.
-        vulkan_descriptor_set_config *set_config =
-            &internal_shader->config
-                 .descriptor_sets[internal_shader->config.descriptor_set_count];
+        vulkan_descriptor_set_config *set_config = &internal_shader->config.descriptor_sets[internal_shader->config.descriptor_set_count];
 
-        // Total bindings are 1 UBO for global, plus global sampler count.
+        // Total bindings are 1 UBO for global (if needed), plus global sampler count.
         // This is dynamically allocated now.
-        set_config->binding_count = 1 + s->global_uniform_sampler_count;
+        u32 ubo_count = s->global_uniform_count ? 1 : 0;
+        set_config->binding_count = ubo_count + s->global_uniform_sampler_count;
         set_config->bindings = kallocate(sizeof(VkDescriptorSetLayoutBinding) * set_config->binding_count, MEMORY_TAG_ARRAY);
 
         // Global UBO binding is first, if present.
-        u8 binding_index = 0;
+        u8 global_binding_index = 0;
         if (s->global_uniform_count > 0) {
-            set_config->bindings[binding_index].binding = binding_index;
-            set_config->bindings[binding_index].descriptorCount = 1;  // NOTE: the whole UBO is one binding.
-            set_config->bindings[binding_index].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            set_config->bindings[binding_index].stageFlags = VK_SHADER_STAGE_ALL;
-            binding_index++;
+            set_config->bindings[global_binding_index].binding = global_binding_index;
+            set_config->bindings[global_binding_index].descriptorCount = 1;  // NOTE: the whole UBO is one binding.
+            set_config->bindings[global_binding_index].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            set_config->bindings[global_binding_index].stageFlags = VK_SHADER_STAGE_ALL;
+            global_binding_index++;
         }
 
         // Set the index where the sampler bindings start. This will be used later to figure out what
@@ -1685,11 +1685,11 @@ b8 vulkan_renderer_shader_create(renderer_plugin *plugin, shader *s,
             for (u32 i = 0; i < s->global_uniform_sampler_count; ++i) {
                 // Look up by the sampler indices collected above.
                 shader_uniform *u = &s->uniforms[s->global_sampler_indices[i]];
-                set_config->bindings[binding_index].binding = binding_index;
-                set_config->bindings[binding_index].descriptorCount = KMAX(u->array_length, 1);  // Either treat as an array or a single texture, depending on what is passed in.
-                set_config->bindings[binding_index].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                set_config->bindings[binding_index].stageFlags = VK_SHADER_STAGE_ALL;
-                binding_index++;
+                set_config->bindings[global_binding_index].binding = global_binding_index;
+                set_config->bindings[global_binding_index].descriptorCount = KMAX(u->array_length, 1);  // Either treat as an array or a single texture, depending on what is passed in.
+                set_config->bindings[global_binding_index].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                set_config->bindings[global_binding_index].stageFlags = VK_SHADER_STAGE_ALL;
+                global_binding_index++;
             }
         }
 
@@ -1700,23 +1700,22 @@ b8 vulkan_renderer_shader_create(renderer_plugin *plugin, shader *s,
     // If using instance uniforms, add a UBO descriptor set.
     if (s->instance_uniform_count > 0 || s->instance_uniform_sampler_count > 0) {
         // In that set, add a binding for UBO if used.
-        vulkan_descriptor_set_config *set_config =
-            &internal_shader->config
-                 .descriptor_sets[internal_shader->config.descriptor_set_count];
+        vulkan_descriptor_set_config *set_config = &internal_shader->config.descriptor_sets[internal_shader->config.descriptor_set_count];
 
-        // Total bindings are 1 UBO for global, plus global sampler count.
+        // Total bindings are 1 UBO for instance (if needed), plus instance sampler count.
         // This is dynamically allocated now.
-        set_config->binding_count = 1 + s->instance_uniform_sampler_count;
+        u32 ubo_count = s->instance_uniform_count ? 1 : 0;
+        set_config->binding_count = ubo_count + s->instance_uniform_sampler_count;
         set_config->bindings = kallocate(sizeof(VkDescriptorSetLayoutBinding) * set_config->binding_count, MEMORY_TAG_ARRAY);
 
         // Instance UBO binding is first, if present.
-        u8 binding_index = 0;
+        u8 instance_binding_index = 0;
         if (s->instance_uniform_count > 0) {
-            u8 binding_index = set_config->binding_count;
-            set_config->bindings[binding_index].binding = binding_index;
-            set_config->bindings[binding_index].descriptorCount = 1;
-            set_config->bindings[binding_index].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            set_config->bindings[binding_index].stageFlags = VK_SHADER_STAGE_ALL;
+            set_config->bindings[instance_binding_index].binding = instance_binding_index;
+            set_config->bindings[instance_binding_index].descriptorCount = 1;
+            set_config->bindings[instance_binding_index].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            set_config->bindings[instance_binding_index].stageFlags = VK_SHADER_STAGE_ALL;
+            instance_binding_index++;
         }
 
         // Set the index where the sampler bindings start. This will be used later to figure out what
@@ -1728,11 +1727,11 @@ b8 vulkan_renderer_shader_create(renderer_plugin *plugin, shader *s,
             for (u32 i = 0; i < s->instance_uniform_sampler_count; ++i) {
                 // Look up by the sampler indices collected above.
                 shader_uniform *u = &s->uniforms[s->instance_sampler_indices[i]];
-                set_config->bindings[binding_index].binding = binding_index;
-                set_config->bindings[binding_index].descriptorCount = KMAX(u->array_length, 1);  // Either treat as an array or a single texture, depending on what is passed in.
-                set_config->bindings[binding_index].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                set_config->bindings[binding_index].stageFlags = VK_SHADER_STAGE_ALL;
-                binding_index++;
+                set_config->bindings[instance_binding_index].binding = instance_binding_index;
+                set_config->bindings[instance_binding_index].descriptorCount = KMAX(u->array_length, 1);  // Either treat as an array or a single texture, depending on what is passed in.
+                set_config->bindings[instance_binding_index].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                set_config->bindings[instance_binding_index].stageFlags = VK_SHADER_STAGE_ALL;
+                instance_binding_index++;
             }
         }
 
