@@ -77,7 +77,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Raycasting
 - [x] Object picking 
   - [x] Pixel-perfect picking 
-  - [x] Racast picking
+  - [x] Raycast picking
 - [x] Gizmo (in-world object manipulation)
 - [x] Viewports
 - [ ] terrain
