@@ -17,7 +17,8 @@ attribute=vec3,in_tangent
 
 # Uniforms: type,scope,name
 # NOTE: For scope: 0=global, 1=instance, 2=local
-uniform=mat4,1,projection
-uniform=mat4,1,view
+uniform=mat4[4],0,projections
+uniform=mat4[4],0,views
 uniform=mat4,2,model
+uniform=u32,2,cascade_index
 uniform=samp,1,colour_map

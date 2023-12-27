@@ -2684,11 +2684,11 @@ b8 vulkan_renderer_uniform_set(renderer_plugin *plugin, shader *s, shader_unifor
                 command_buffer,
                 internal->pipelines[internal->bound_pipeline_index]->pipeline_layout,
                 VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                uniform->offset, uniform->size, value);
+                uniform->offset + (uniform->size * array_index), uniform->size, value);
         } else {
             // Map the appropriate memory location and copy the data over.
             u64 addr = (u64)internal->mapped_uniform_buffer_block;
-            addr += s->bound_ubo_offset + uniform->offset;
+            addr += s->bound_ubo_offset + uniform->offset + (uniform->size * array_index);
             kcopy_memory((void *)addr, value, uniform->size);
         }
     }

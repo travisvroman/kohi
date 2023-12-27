@@ -266,74 +266,78 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
                 KERROR("shader_loader_load: Invalid file layout. Uniform fields must be 'type,scope,name'. Skipping.");
             } else {
                 shader_uniform_config uniform;
+
+                // Check if it's an array type.
+                u32 array_length = 1;  // An array length of 1 is just a single.
+                b8 is_array = string_parse_array_length(fields[0], &array_length);
+                if (array_length < 1) {
+                    KWARN("Cannot have an array with a length < 1. Defaulting to 1.");
+                    array_length = 1;
+                }
+                char base_type[100];
+                if (is_array) {
+                    string_mid(base_type, fields[0], 0, string_index_of(fields[0], '['));
+                } else {
+                    string_copy(base_type, fields[0]);
+                }
+
+                uniform.size = 0;
+                uniform.array_length = array_length;
                 // Parse field type
-                if (strings_equali(fields[0], "f32")) {
+                if (strings_equali(base_type, "f32")) {
                     uniform.type = SHADER_UNIFORM_TYPE_FLOAT32;
                     uniform.size = 4;
-                } else if (strings_equali(fields[0], "vec2")) {
+                } else if (strings_equali(base_type, "vec2")) {
                     uniform.type = SHADER_UNIFORM_TYPE_FLOAT32_2;
                     uniform.size = 8;
-                } else if (strings_equali(fields[0], "vec3")) {
+                } else if (strings_equali(base_type, "vec3")) {
                     uniform.type = SHADER_UNIFORM_TYPE_FLOAT32_3;
                     uniform.size = 12;
-                } else if (strings_equali(fields[0], "vec4")) {
+                } else if (strings_equali(base_type, "vec4")) {
                     uniform.type = SHADER_UNIFORM_TYPE_FLOAT32_4;
                     uniform.size = 16;
-                } else if (strings_equali(fields[0], "u8")) {
+                } else if (strings_equali(base_type, "u8")) {
                     uniform.type = SHADER_UNIFORM_TYPE_UINT8;
                     uniform.size = 1;
-                } else if (strings_equali(fields[0], "u16")) {
+                } else if (strings_equali(base_type, "u16")) {
                     uniform.type = SHADER_UNIFORM_TYPE_UINT16;
                     uniform.size = 2;
-                } else if (strings_equali(fields[0], "u32")) {
+                } else if (strings_equali(base_type, "u32")) {
                     uniform.type = SHADER_UNIFORM_TYPE_UINT32;
                     uniform.size = 4;
-                } else if (strings_equali(fields[0], "i8")) {
+                } else if (strings_equali(base_type, "i8")) {
                     uniform.type = SHADER_UNIFORM_TYPE_INT8;
                     uniform.size = 1;
-                } else if (strings_equali(fields[0], "i16")) {
+                } else if (strings_equali(base_type, "i16")) {
                     uniform.type = SHADER_UNIFORM_TYPE_INT16;
                     uniform.size = 2;
-                } else if (strings_equali(fields[0], "i32")) {
+                } else if (strings_equali(base_type, "i32")) {
                     uniform.type = SHADER_UNIFORM_TYPE_INT32;
                     uniform.size = 4;
-                } else if (strings_equali(fields[0], "mat4")) {
+                } else if (strings_equali(base_type, "mat4")) {
                     uniform.type = SHADER_UNIFORM_TYPE_MATRIX_4;
                     uniform.size = 64;
                 } else if (string_starts_with(fields[0], "samp")) {
                     // Sampler uniforms are handled entirely different from other uniforms, but
                     // share a lot of logic among each other.
 
-                    // Check if it's an array type.
-                    u32 array_length = 0;
-                    b8 is_array = string_parse_array_length(fields[0], &array_length);
-                    char sampler_type[100];
-                    if (is_array) {
-                        string_mid(sampler_type, fields[0], 0, string_index_of(fields[0], '['));
-                    } else {
-                        string_copy(sampler_type, fields[0]);
-                    }
-
-                    uniform.size = 0;  // Samplers don't have a size.
-                    uniform.array_length = array_length;
-
                     // No shorthand for new sampler types.
-                    if (strings_equali(sampler_type, "sampler1d")) {
+                    if (strings_equali(base_type, "sampler1d")) {
                         uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_1D;
-                    } else if (strings_equali(sampler_type, "sampler2d") || strings_equali(sampler_type, "samp") || strings_equali(sampler_type, "sampler")) {
+                    } else if (strings_equali(base_type, "sampler2d") || strings_equali(base_type, "samp") || strings_equali(base_type, "sampler")) {
                         // NOTE: Auto-converting samp/sampler to sampler2D for backward compatability.
                         uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_2D;
-                    } else if (strings_equali(sampler_type, "sampler3d")) {
+                    } else if (strings_equali(base_type, "sampler3d")) {
                         uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_3D;
-                    } else if (strings_equali(sampler_type, "samplercube")) {
+                    } else if (strings_equali(base_type, "samplercube")) {
                         uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_CUBE;
-                    } else if (strings_equali(sampler_type, "sampler1darray")) {
+                    } else if (strings_equali(base_type, "sampler1darray")) {
                         // NOTE: array textures are different from _an array __of__ textures_
                         uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_1D_ARRAY;
-                    } else if (strings_equali(sampler_type, "sampler2darray")) {
+                    } else if (strings_equali(base_type, "sampler2darray")) {
                         // NOTE: array textures are different from _an array __of__ textures_
                         uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_2D_ARRAY;
-                    } else if (strings_equali(sampler_type, "samplercubearray")) {
+                    } else if (strings_equali(base_type, "samplercubearray")) {
                         // NOTE: array textures are different from _an array __of__ textures_
                         uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_CUBE_ARRAY;
                     } else {

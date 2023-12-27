@@ -451,7 +451,7 @@ typedef struct shader_uniform_config {
     u8 name_length;
     /** @brief The name of the uniform. */
     char *name;
-    /** @brief The size of the uniform. */
+    /** @brief The size of the uniform. If arrayed, this is the per-element size */
     u16 size;
     /** @brief The location of the uniform. */
     u32 location;

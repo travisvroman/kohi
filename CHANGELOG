@@ -22,10 +22,10 @@ Changelog
   - Moved uniform sampler counts logic to renderer frontend to facilitate queries.
   - Removed all traces of defunct UI material type.
   - Removed Phong material type, shaders, etc. Entire material pipeline is now PBR.
-  - Changed the way samplers work on the frontend and backend to allow for arrayed uniforms (NOTE: samplers only for now).
+  - Changed the way samplers work on the frontend and backend to allow for arrayed uniforms.
     - Shader config now requires specification of sampler type (sampler2D, samplerCube, sampler2DArray, etc.)
-    - Shader config now allows for arrays of uniform types (NOTE: samplers only for now). Ex: sampler2D[4] specifies an array of 4 sampler2Ds.
-  - Added array_index argument to shader uniform-setting functions to allow for setting arrayed uniforms (NOTE: samplers only for now). array_index is ignored for non-arrayed uniforms.
+    - Shader config now allows for arrays of uniform types. Ex: sampler2D[4] specifies an array of 4 sampler2Ds.
+  - Added array_index argument to shader uniform-setting functions to allow for setting arrayed uniforms. array_index is ignored for non-arrayed uniforms.
   - Changed nomenclature of "uniform index" to "uniform location".
   - Moved shader file parsing logic to frontend in preparation for #include directive logic.
   - Vulkan backend changes to allow not having any global/instance (one or the other) UBO and/or samplers.

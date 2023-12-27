@@ -522,7 +522,7 @@ static b8 internal_uniform_add(shader* shader, const shader_uniform_config* conf
         shader->push_constant_range_count++;
 
         // Increase the push constant's size by the total value.
-        shader->push_constant_size += r.size;
+        shader->push_constant_size += (entry.size * entry.array_length);
     }
 
     if (!hashtable_set(&shader->uniform_lookup, config->name, &entry.index)) {
@@ -533,9 +533,9 @@ static b8 internal_uniform_add(shader* shader, const shader_uniform_config* conf
 
     if (!is_sampler) {
         if (entry.scope == SHADER_SCOPE_GLOBAL) {
-            shader->global_ubo_size += entry.size;
+            shader->global_ubo_size += (entry.size * entry.array_length);
         } else if (entry.scope == SHADER_SCOPE_INSTANCE) {
-            shader->ubo_size += entry.size;
+            shader->ubo_size += (entry.size * entry.array_length);
         }
     }
 
