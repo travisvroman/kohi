@@ -7,15 +7,21 @@ layout(location = 3) in vec4 in_colour;
 layout(location = 4) in vec4 in_tangent; 
 layout(location = 5) in vec4 in_mat_weights; // Supports 4 materials.
 
-layout(set = 0, binding = 0) uniform global_uniform_object {
+// TODO: re-enable this instead of the below once single pass is achieved.
+/* layout(set = 0, binding = 0) uniform global_uniform_object {
     mat4 projection;
 	mat4 view;
 } global_ubo;
 
 layout(set = 1, binding = 0) uniform instance_uniform_object {
     vec4 rubbish;
-} instance_ubo;
+} instance_ubo; */
 
+layout(set = 0, binding = 0) uniform instance_uniform_object {
+    mat4 projection;
+	mat4 view;
+    vec4 rubbish;
+} instance_ubo;
 
 layout(push_constant) uniform push_constants {
 	
@@ -30,5 +36,5 @@ layout(location = 1) out struct dto {
 
 void main() {
     out_dto.tex_coord = in_texcoord;
-    gl_Position = global_ubo.projection * global_ubo.view * local_ubo.model * vec4(in_position, 1.0);
+    gl_Position = instance_ubo.projection * instance_ubo.view * local_ubo.model * vec4(in_position, 1.0);
 }

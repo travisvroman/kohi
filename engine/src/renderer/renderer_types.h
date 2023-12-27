@@ -574,12 +574,9 @@ typedef struct renderer_plugin {
      * @param s A pointer to the shader.
      * @param config A constant pointer to the shader config.
      * @param pass A pointer to the renderpass to be associated with the shader.
-     * @param stage_count The total number of stages.
-     * @param stage_filenames An array of shader stage filenames to be loaded. Should align with stages array.
-     * @param stages A array of shader_stages indicating what render stages (vertex, fragment, etc.) used in this shader.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct renderer_plugin* plugin, struct shader* shader, const shader_config* config, renderpass* pass, u8 stage_count, const char** stage_filenames, shader_stage* stages);
+    b8 (*shader_create)(struct renderer_plugin* plugin, struct shader* shader, const shader_config* config, renderpass* pass);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.

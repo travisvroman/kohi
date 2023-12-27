@@ -373,6 +373,14 @@ typedef enum shader_stage {
     SHADER_STAGE_COMPUTE = 0x0000008
 } shader_stage;
 
+typedef struct shader_stage_config {
+    shader_stage stage;
+    const char *name;
+    const char *filename;
+    u32 source_length;
+    char *source;
+} shader_stage_config;
+
 /** @brief Available attribute types. */
 typedef enum shader_attribute_type {
     SHADER_ATTRIB_TYPE_FLOAT32 = 0U,
@@ -482,14 +490,9 @@ typedef struct shader_config {
 
     /** @brief The number of stages present in the shader. */
     u8 stage_count;
-    /** @brief The collection of stages. Darray. */
-    shader_stage *stages;
-    /** @brief The collection of stage names. Must align with stages array.
-     * Darray. */
-    char **stage_names;
-    /** @brief The collection of stage file names to be loaded (one per stage).
-     * Must align with stages array. Darray. */
-    char **stage_filenames;
+
+    /** @brief The collection of stage configs. */
+    shader_stage_config *stage_configs;
 
     /** @brief The maximum number of instances allowed. */
     u32 max_instances;

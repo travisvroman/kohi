@@ -5,7 +5,7 @@ stages=vertex,fragment
 stagefiles=shaders/Builtin.TerrainShader.vert.glsl,shaders/Builtin.TerrainShader.frag.glsl
 depth_test=1
 depth_write=1
-max_instances=1
+max_instances=5
 
 # Attributes: type,name
 attribute=vec3,in_position

@@ -137,22 +137,28 @@ b8 shadow_map_pass_initialize(struct rendergraph_pass* self) {
         return false;
     }
 
-    // Load shadowmap shader.
+    // Load shadowmap shader. Attempt to to get the already-loaded shader if it doesn't exist.
     const char* shadowmap_shader_name = "Shader.Shadowmap";
-    resource shadowmap_shader_config_resource;
-    if (!resource_system_load(shadowmap_shader_name, RESOURCE_TYPE_SHADER, 0, &shadowmap_shader_config_resource)) {
-        KERROR("Failed to load shadowmap shader resource.");
-        return false;
-    }
-    shader_config* shadowmap_shader_config = (shader_config*)shadowmap_shader_config_resource.data;
-    if (!shader_system_create(&self->pass, shadowmap_shader_config)) {
-        KERROR("Failed to create shadowmap shader.");
-        return false;
-    }
-
-    resource_system_unload(&shadowmap_shader_config_resource);
-    // Get a pointer to the shader.
     internal_data->s = shader_system_get(shadowmap_shader_name);
+    if (!internal_data->s) {
+        KTRACE("Shader '%s' doesn't exist. Attempting to load it...", shadowmap_shader_name);
+        resource shadowmap_shader_config_resource;
+        if (!resource_system_load(shadowmap_shader_name, RESOURCE_TYPE_SHADER, 0, &shadowmap_shader_config_resource)) {
+            KERROR("Failed to load shadowmap shader resource.");
+            return false;
+        }
+        shader_config* shadowmap_shader_config = (shader_config*)shadowmap_shader_config_resource.data;
+        if (!shader_system_create(&self->pass, shadowmap_shader_config)) {
+            KERROR("Failed to create shadowmap shader.");
+            return false;
+        }
+
+        resource_system_unload(&shadowmap_shader_config_resource);
+        // Get a pointer to the shader.
+        internal_data->s = shader_system_get(shadowmap_shader_name);
+    } else {
+        KTRACE("Shader '%s' already exists, using it.", shadowmap_shader_name);
+    }
     internal_data->locations.projection_location = shader_system_uniform_location(internal_data->s, "projection");
     internal_data->locations.view_location = shader_system_uniform_location(internal_data->s, "view");
     internal_data->locations.model_location = shader_system_uniform_location(internal_data->s, "model");
@@ -160,20 +166,27 @@ b8 shadow_map_pass_initialize(struct rendergraph_pass* self) {
 
     // Terrain shadowmap shader.
     const char* terrain_shadowmap_shader_name = "Shader.ShadowmapTerrain";
-    resource terrain_shadowmap_shader_config_resource;
-    if (!resource_system_load(terrain_shadowmap_shader_name, RESOURCE_TYPE_SHADER, 0, &terrain_shadowmap_shader_config_resource)) {
-        KERROR("Failed to load terrain shadowmap shader resource.");
-        return false;
-    }
-    shader_config* terrain_shadowmap_shader_config = (shader_config*)terrain_shadowmap_shader_config_resource.data;
-    if (!shader_system_create(&self->pass, terrain_shadowmap_shader_config)) {
-        KERROR("Failed to create terrain shadowmap shader.");
-        return false;
+    internal_data->ts = shader_system_get(terrain_shadowmap_shader_name);
+    if (!internal_data->ts) {
+        KTRACE("Shader '%s' doesn't exist. Attempting to load it...", terrain_shadowmap_shader_name);
+        resource terrain_shadowmap_shader_config_resource;
+        if (!resource_system_load(terrain_shadowmap_shader_name, RESOURCE_TYPE_SHADER, 0, &terrain_shadowmap_shader_config_resource)) {
+            KERROR("Failed to load terrain shadowmap shader resource.");
+            return false;
+        }
+        shader_config* terrain_shadowmap_shader_config = (shader_config*)terrain_shadowmap_shader_config_resource.data;
+        if (!shader_system_create(&self->pass, terrain_shadowmap_shader_config)) {
+            KERROR("Failed to create terrain shadowmap shader.");
+            return false;
+        }
+
+        resource_system_unload(&terrain_shadowmap_shader_config_resource);
+        // Get a pointer to the shader.
+        internal_data->ts = shader_system_get(terrain_shadowmap_shader_name);
+    } else {
+        KTRACE("Shader '%s' already exists, using it.", terrain_shadowmap_shader_name);
     }
 
-    resource_system_unload(&terrain_shadowmap_shader_config_resource);
-    // Get a pointer to the shader.
-    internal_data->ts = shader_system_get(terrain_shadowmap_shader_name);
     internal_data->terrain_locations.projection_location = shader_system_uniform_location(internal_data->ts, "projection");
     internal_data->terrain_locations.view_location = shader_system_uniform_location(internal_data->ts, "view");
     internal_data->terrain_locations.model_location = shader_system_uniform_location(internal_data->ts, "model");
@@ -284,8 +297,8 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
     // Use the standard shadowmap shader.
     shader_system_use_by_id(internal_data->s->id);
 
-    // Apply globals
-    renderer_shader_bind_globals(internal_data->s);
+    // Apply globals NOTE: Moved these to instance for now until a single pass is achieved
+    /* renderer_shader_bind_globals(internal_data->s);
     if (!shader_system_uniform_set_by_location(internal_data->locations.projection_location, &self->pass_data.projection_matrix)) {
         KERROR("Failed to apply shadowmap projection uniform.");
         return false;
@@ -294,7 +307,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
         KERROR("Failed to apply shadowmap view uniform.");
         return false;
     }
-    shader_system_apply_global(true);
+    shader_system_apply_global(true); */
 
     u32 geometry_count = ext_data->geometry_count;
     u32 terrain_geometry_count = ext_data->terrain_geometry_count;
@@ -369,10 +382,28 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
             draw_index = &internal_data->default_instance_draw_index;
         }
 
+        // LEFTOFF: This shader is used 4 times per frame, which means this needs to be updated 4 times,
+        // which it can't be, because the descriptors will have already been updated.
+        // This means doing this in a single pass is now a requirement, unless I can somehow figure out a
+        // way to make this work without duplicating descriptors.
+        // This will also be needed to move the globals below back to where they should be.
+        // A short-term solution could be to array the matrices and index them by pass number, which may be
+        // the way to go before refactoring all of this. Then these could be updated once at the beginning.
+        // Bollocks.
         b8 needs_update = *render_number != p_frame_data->renderer_frame_number || *draw_index != p_frame_data->draw_index;
 
         // Use the bindings.
         shader_system_bind_instance(bind_id);
+        // TODO: move these back to global once a single pass is achieved.
+        if (!shader_system_uniform_set_by_location(internal_data->locations.projection_location, &self->pass_data.projection_matrix)) {
+            KERROR("Failed to apply shadowmap projection uniform.");
+            return false;
+        }
+        if (!shader_system_uniform_set_by_location(internal_data->locations.view_location, &self->pass_data.view_matrix)) {
+            KERROR("Failed to apply shadowmap view uniform.");
+            return false;
+        }
+        // Instance
         if (!shader_system_uniform_set_by_location(internal_data->locations.colour_map_location, bind_map)) {
             KERROR("Failed to apply shadowmap color_map uniform to static geometry.");
             return false;
@@ -404,7 +435,8 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
     shader_system_use_by_id(internal_data->ts->id);
 
     // Apply globals
-    renderer_shader_bind_globals(internal_data->ts);
+    // Apply globals NOTE: Moved these to instance for now until a single pass is achieved
+    /* renderer_shader_bind_globals(internal_data->ts);
     // NOTE: using the internal projection matrix, not one passed in.
     if (!shader_system_uniform_set_by_location(internal_data->terrain_locations.projection_location, &self->pass_data.projection_matrix)) {
         KERROR("Failed to apply terrain shadowmap projection uniform.");
@@ -414,7 +446,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
         KERROR("Failed to apply terrain shadowmap view uniform.");
         return false;
     }
-    shader_system_apply_global(true);
+    shader_system_apply_global(true); */
 
     for (u32 i = 0; i < terrain_geometry_count; ++i) {
         geometry_render_data* terrain = &ext_data->terrain_geometries[i];
@@ -427,7 +459,17 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
         b8 needs_update = *render_number != p_frame_data->renderer_frame_number || *draw_index != p_frame_data->draw_index;
 
         shader_system_bind_instance(internal_data->terrain_instance_id);
-        if (!shader_system_uniform_set_by_location(internal_data->locations.colour_map_location, bind_map)) {
+        // TODO: move these back to global once a single pass is achieved.
+        // NOTE: using the internal projection matrix, not one passed in.
+        if (!shader_system_uniform_set_by_location(internal_data->terrain_locations.projection_location, &self->pass_data.projection_matrix)) {
+            KERROR("Failed to apply terrain shadowmap projection uniform.");
+            return false;
+        }
+        if (!shader_system_uniform_set_by_location(internal_data->terrain_locations.view_location, &self->pass_data.view_matrix)) {
+            KERROR("Failed to apply terrain shadowmap view uniform.");
+            return false;
+        }
+        if (!shader_system_uniform_set_by_location(internal_data->terrain_locations.colour_map_location, bind_map)) {
             KERROR("Failed to apply shadowmap color_map uniform to terrain geometry.");
             return false;
         }

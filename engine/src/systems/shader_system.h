@@ -16,6 +16,7 @@
 #include "containers/hashtable.h"
 #include "defines.h"
 #include "renderer/renderer_types.h"
+#include "resources/resource_types.h"
 
 /** @brief Configuration for the shader system. */
 typedef struct shader_system_config {
@@ -187,6 +188,9 @@ typedef struct shader {
     u64 render_frame_number;
     /** @brief Used to ensure the shader's globals are only updated once per draw. */
     u8 draw_index;
+
+    u8 shader_stage_count;
+    shader_stage_config* stage_configs;
 
     /** @brief An opaque pointer to hold renderer API specific data. Renderer is responsible for creation and destruction of this.  */
     void* internal_data;

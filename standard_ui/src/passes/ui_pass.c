@@ -156,6 +156,7 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
     }
 
     // Apply globals.
+
     shader_system_uniform_set_by_location(internal_data->sui_locations.projection, &self->pass_data.projection_matrix);
     shader_system_uniform_set_by_location(internal_data->sui_locations.view, &self->pass_data.view_matrix);
     shader_system_apply_global(true);
