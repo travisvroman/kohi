@@ -965,18 +965,20 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
         // Shadowmap pass - only runs if there is a directional light.
         if (state->main_scene.dir_light) {
             f32 last_split_dist = 0.0f;
+            rendergraph_pass* pass = &state->shadowmap_pass;
+            // Mark this pass as executable.
+            pass->pass_data.do_execute = true;
+
+            // Obtain the light direction.
+            vec3 light_dir = vec3_normalized(vec3_from_vec4(state->main_scene.dir_light->data.direction));
+
+            // Setup the extended data for the pass.
+            shadow_map_pass_extended_data* ext_data = pass->pass_data.ext_data;
+            ext_data->light = state->main_scene.dir_light;
+
             for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
-                rendergraph_pass* cascade = &state->shadowmap_passes[c];
-                // Mark this pass as executable.
-                cascade->pass_data.do_execute = true;
-
-                // Obtain the light direction.
-                vec3 light_dir = vec3_normalized(vec3_from_vec4(state->main_scene.dir_light->data.direction));
-
-                // Setup the extended data for the pass.
-                shadow_map_pass_extended_data* ext_data = cascade->pass_data.ext_data;
-                ext_data->light = state->main_scene.dir_light;
-                ext_data->cascade_index = c;
+                shadow_map_cascade_data* cascade = &ext_data->cascades[c];
+                cascade->cascade_index = c;
 
                 // NOTE: Each pass for cascades will need to do the following process.
                 // The only real difference will be that the near/far clips will be adjusted for each.
@@ -1043,11 +1045,11 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 shadow_camera_projections[c] = mat4_orthographic(extents.min.x, extents.max.x, extents.min.y, extents.max.y, extents.min.z, extents.max.z - extents.min.z);
 
                 // Save these off to the pass data.
-                cascade->pass_data.view_matrix = shadow_camera_lookats[c];
-                cascade->pass_data.projection_matrix = shadow_camera_projections[c];
+                cascade->view = shadow_camera_lookats[c];
+                cascade->projection = shadow_camera_projections[c];
 
                 // Store the split depth on the pass.
-                ext_data->split_depth = (near + split_dist * clip_range) * 1.0f;
+                cascade->split_depth = (near + split_dist * clip_range) * 1.0f;
 
                 last_split_dist = split_dist;
 
@@ -1100,7 +1102,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 simple_scene* scene = &state->main_scene;
 
                 // Iterate the scene and get a list of all geometries within the view of the light.
-                ext_data->geometries = darray_reserve_with_allocator(geometry_render_data, 512, &p_frame_data->allocator);
+                cascade->geometries = darray_reserve_with_allocator(geometry_render_data, 512, &p_frame_data->allocator);
 
                 // Query the scene for static meshes using the shadow frustum.
                 b8 shadow_clipping_enabled = false;
@@ -1109,15 +1111,15 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                         shadow_clipping_enabled ? &shadow_frustum : 0,
                         shadow_camera_position,
                         p_frame_data,
-                        &ext_data->geometry_count, ext_data->geometries)) {
+                        &cascade->geometry_count, cascade->geometries)) {
                     KERROR("Failed to query shadow map pass meshes.");
                 }
 
                 // Track the number of meshes drawn in the shadow pass.
-                p_frame_data->drawn_shadow_mesh_count = ext_data->geometry_count;
+                p_frame_data->drawn_shadow_mesh_count = cascade->geometry_count;
 
                 // Add terrain(s)
-                ext_data->terrain_geometries = darray_reserve_with_allocator(geometry_render_data, 16, &p_frame_data->allocator);
+                cascade->terrain_geometries = darray_reserve_with_allocator(geometry_render_data, 16, &p_frame_data->allocator);
 
                 // Query the scene for terrain meshes using the camera frustum.
                 if (!simple_scene_terrain_render_data_query(
@@ -1125,12 +1127,12 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                         &shadow_frustum,
                         shadow_camera_position,
                         p_frame_data,
-                        &ext_data->terrain_geometry_count, ext_data->terrain_geometries)) {
+                        &cascade->terrain_geometry_count, cascade->terrain_geometries)) {
                     KERROR("Failed to query shadow map pass terrain geometries.");
                 }
 
                 // TODO: Counter for terrain geometries.
-                p_frame_data->drawn_shadow_mesh_count += ext_data->terrain_geometry_count;
+                p_frame_data->drawn_shadow_mesh_count += cascade->terrain_geometry_count;
 
                 // end shadowmap pass
             }  // end cascade
@@ -1155,8 +1157,8 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 ext_data->directional_light_views[c] = shadow_camera_lookats[c];
                 ext_data->directional_light_projections[c] = shadow_camera_projections[c];
 
-                shadow_map_pass_extended_data* sp_ext_data = state->shadowmap_passes[c].pass_data.ext_data;
-                ext_data->cascade_splits.elements[c] = sp_ext_data->split_depth;
+                shadow_map_pass_extended_data* sp_ext_data = state->shadowmap_pass.pass_data.ext_data;
+                ext_data->cascade_splits.elements[c] = sp_ext_data->cascades[c].split_depth;
             }
             ext_data->render_mode = state->render_mode;
             // HACK: use the skybox cubemap as the irradiance texture for now.
@@ -1328,9 +1330,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
     } else {
         // Do not run these passes if the scene is not loaded.
         state->scene_pass.pass_data.do_execute = false;
-        for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
-            state->shadowmap_passes[i].pass_data.do_execute = false;
-        }
+        state->shadowmap_pass.pass_data.do_execute = false;
         state->editor_pass.pass_data.do_execute = false;
     }
 
@@ -1554,13 +1554,11 @@ static void refresh_rendergraph_pfns(application* app) {
     state->skybox_pass.execute = skybox_pass_execute;
     state->skybox_pass.destroy = skybox_pass_destroy;
 
-    for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
-        state->shadowmap_passes[i].initialize = shadow_map_pass_initialize;
-        state->shadowmap_passes[i].execute = shadow_map_pass_execute;
-        state->shadowmap_passes[i].destroy = shadow_map_pass_destroy;
-        state->shadowmap_passes[i].load_resources = shadow_map_pass_load_resources;
-        state->shadowmap_passes[i].attachment_texture_get = shadow_map_pass_attachment_texture_get;
-    }
+    state->shadowmap_pass.initialize = shadow_map_pass_initialize;
+    state->shadowmap_pass.execute = shadow_map_pass_execute;
+    state->shadowmap_pass.destroy = shadow_map_pass_destroy;
+    state->shadowmap_pass.load_resources = shadow_map_pass_load_resources;
+    state->shadowmap_pass.source_populate = shadow_map_pass_source_populate;
 
     state->scene_pass.initialize = scene_pass_initialize;
     state->scene_pass.execute = scene_pass_execute;
@@ -1600,16 +1598,16 @@ static b8 configure_rendergraph(application* app) {
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "skybox", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
     RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "skybox", "colourbuffer", 0, "colourbuffer"));
 
-    // Shadowmap passes - one per cascade.
-    for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
-        char name_buffer[256] = {0};
-        string_format(name_buffer, "shadowmap_pass_%u", i);
-        shadow_map_pass_config shadow_pass_config = {0};
-        shadow_pass_config.resolution = 2048;
-        RG_CHECK(rendergraph_pass_create(&state->frame_graph, name_buffer, shadow_map_pass_create, &shadow_pass_config, &state->shadowmap_passes[i]));
-        RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, name_buffer, "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_SELF));
-        RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, name_buffer, "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
-    }
+    // Shadowmap pass
+    const char* shadowmap_pass_name = "shadowmap_pass";
+    shadow_map_pass_config shadow_pass_config = {0};
+    shadow_pass_config.resolution = 2048;
+    RG_CHECK(rendergraph_pass_create(&state->frame_graph, shadowmap_pass_name, shadow_map_pass_create, &shadow_pass_config, &state->shadowmap_pass));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_SELF));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "depthbuffer_0", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "depthbuffer_1", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "depthbuffer_2", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "depthbuffer_3", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
 
     // Scene pass
     RG_CHECK(rendergraph_pass_create(&state->frame_graph, "scene", scene_pass_create, 0, &state->scene_pass));
@@ -1623,10 +1621,10 @@ static b8 configure_rendergraph(application* app) {
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "scene", "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_GLOBAL));
     RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "colourbuffer", "skybox", "colourbuffer"));
     RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "depthbuffer", 0, "depthbuffer"));
-    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_0", "shadowmap_pass_0", "depthbuffer"));
-    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_1", "shadowmap_pass_1", "depthbuffer"));
-    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_2", "shadowmap_pass_2", "depthbuffer"));
-    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_3", "shadowmap_pass_3", "depthbuffer"));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_0", "shadowmap_pass", "depthbuffer_0"));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_1", "shadowmap_pass", "depthbuffer_1"));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_2", "shadowmap_pass", "depthbuffer_2"));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_3", "shadowmap_pass", "depthbuffer_3"));
 
     // Editor pass
     RG_CHECK(rendergraph_pass_create(&state->frame_graph, "editor", editor_pass_create, 0, &state->editor_pass));

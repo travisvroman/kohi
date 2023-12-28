@@ -521,6 +521,11 @@ b8 renderer_shader_bind_instance(shader* s, u32 instance_id) {
     return state_ptr->plugin.shader_bind_instance(&state_ptr->plugin, s, instance_id);
 }
 
+b8 renderer_shader_bind_local(shader* s) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_bind_local(&state_ptr->plugin, s);
+}
+
 b8 renderer_shader_apply_globals(shader* s, b8 needs_update) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->plugin.shader_apply_globals(&state_ptr->plugin, s, needs_update);
@@ -565,6 +570,11 @@ shader_uniform* renderer_shader_uniform_get(shader* s, const char* name) {
 b8 renderer_shader_uniform_set(shader* s, shader_uniform* uniform, u32 array_index, const void* value) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->plugin.shader_uniform_set(&state_ptr->plugin, s, uniform, array_index, value);
+}
+
+b8 renderer_shader_apply_local(shader* s) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_apply_local(&state_ptr->plugin, s);
 }
 
 b8 renderer_texture_map_resources_acquire(struct texture_map* map) {

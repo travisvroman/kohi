@@ -349,6 +349,14 @@ KAPI b8 renderer_shader_bind_globals(struct shader* s);
 KAPI b8 renderer_shader_bind_instance(struct shader* s, u32 instance_id);
 
 /**
+ * @brief Binds local resources for use and updating.
+ *
+ * @param s A pointer to the shader whose local resources are to be bound.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 renderer_shader_bind_local(struct shader* s);
+
+/**
  * @brief Applies global data to the uniform buffer.
  *
  * @param s A pointer to the shader to apply the global data for.
@@ -411,6 +419,12 @@ KAPI struct shader_uniform* renderer_shader_uniform_get(struct shader* s, const 
  * @return b8 True on success; otherwise false.
  */
 KAPI b8 renderer_shader_uniform_set(struct shader* s, struct shader_uniform* uniform, u32 array_index, const void* value);
+
+/**
+ * @brief Triggers the upload of local uniform data to the GPU.
+ * @param s A ponter to the shader.
+ */
+KAPI b8 renderer_shader_apply_local(struct shader* s);
 
 /**
  * @brief Acquires internal resources for the given texture map.

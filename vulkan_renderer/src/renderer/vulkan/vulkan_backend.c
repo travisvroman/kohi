@@ -1926,8 +1926,12 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
         pipeline_config.scissor = scissor;
         pipeline_config.cull_mode = internal_shader->cull_mode;
         pipeline_config.shader_flags = s->flags;
-        pipeline_config.push_constant_range_count = s->push_constant_range_count;
-        pipeline_config.push_constant_ranges = s->push_constant_ranges;
+        // NOTE: Always one block for the push constant.
+        pipeline_config.push_constant_range_count = 1;
+        range push_constant_range;
+        push_constant_range.offset = 0;
+        push_constant_range.size = s->local_ubo_stride;
+        pipeline_config.push_constant_ranges = &push_constant_range;
         pipeline_config.name = string_duplicate(s->name);
         pipeline_config.topology_types = s->topology_types;
 
@@ -2087,6 +2091,15 @@ b8 vulkan_renderer_shader_bind_instance(renderer_plugin *plugin, shader *s, u32 
     s->bound_instance_id = instance_id;
     vulkan_shader_instance_state *object_state = &internal->instance_states[instance_id];
     s->bound_ubo_offset = object_state->offset;
+    return true;
+}
+
+b8 vulkan_renderer_shader_bind_local(renderer_plugin *plugin, shader *s) {
+    if (!s) {
+        return false;
+    }
+
+    // NOTE: This is intentionally blank, and does nothing. Other APIs may need to act here.
     return true;
 }
 
@@ -2665,7 +2678,6 @@ static b8 sampler_state_try_set(vulkan_uniform_sampler_state *sampler_uniforms, 
 }
 
 b8 vulkan_renderer_uniform_set(renderer_plugin *plugin, shader *s, shader_uniform *uniform, u32 array_index, const void *value) {
-    vulkan_context *context = (vulkan_context *)plugin->internal_context;
     vulkan_shader *internal = s->internal_data;
     if (uniform_type_is_sampler(uniform->type)) {
         // Samplers can only be assigned at the instance or global level.
@@ -2678,13 +2690,9 @@ b8 vulkan_renderer_uniform_set(renderer_plugin *plugin, shader *s, shader_unifor
         }
     } else {
         if (uniform->scope == SHADER_SCOPE_LOCAL) {
-            // Is local, using push constants. Do this immediately.
-            VkCommandBuffer command_buffer = context->graphics_command_buffers[context->image_index].handle;
-            vkCmdPushConstants(
-                command_buffer,
-                internal->pipelines[internal->bound_pipeline_index]->pipeline_layout,
-                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                uniform->offset + (uniform->size * array_index), uniform->size, value);
+            u64 addr = (u64)internal->local_push_constant_block;
+            addr += uniform->offset + (uniform->size * array_index);
+            kcopy_memory((void *)addr, value, uniform->size);
         } else {
             // Map the appropriate memory location and copy the data over.
             u64 addr = (u64)internal->mapped_uniform_buffer_block;
@@ -2692,6 +2700,18 @@ b8 vulkan_renderer_uniform_set(renderer_plugin *plugin, shader *s, shader_unifor
             kcopy_memory((void *)addr, value, uniform->size);
         }
     }
+    return true;
+}
+
+b8 vulkan_renderer_shader_apply_local(renderer_plugin *plugin, shader *s) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    vulkan_shader *internal = s->internal_data;
+    VkCommandBuffer command_buffer = context->graphics_command_buffers[context->image_index].handle;
+    vkCmdPushConstants(
+        command_buffer,
+        internal->pipelines[internal->bound_pipeline_index]->pipeline_layout,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        0, 128, internal->local_push_constant_block);
     return true;
 }
 

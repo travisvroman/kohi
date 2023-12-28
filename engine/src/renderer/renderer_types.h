@@ -626,6 +626,15 @@ typedef struct renderer_plugin {
     b8 (*shader_bind_instance)(struct renderer_plugin* plugin, struct shader* s, u32 instance_id);
 
     /**
+     * @brief Binds local resources for use and updating.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param s A pointer to the shader whose local resources are to be bound.
+     * @return True on success; otherwise false.
+     */
+    b8 (*shader_bind_local)(struct renderer_plugin* plugin, struct shader* s);
+
+    /**
      * @brief Applies global data to the uniform buffer.
      *
      * @param plugin A pointer to the renderer plugin interface.
@@ -678,6 +687,8 @@ typedef struct renderer_plugin {
      * @return b8 True on success; otherwise false.
      */
     b8 (*shader_uniform_set)(struct renderer_plugin* plugin, struct shader* frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
+
+    b8 (*shader_apply_local)(struct renderer_plugin* plugin, struct shader* s);
 
     /**
      * @brief Acquires internal resources for the given texture map.

@@ -4,6 +4,7 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "defines.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_utils.h"
 #include "resources/resource_types.h"
@@ -116,8 +117,9 @@ b8 shader_system_create(renderpass* pass, const shader_config* config) {
     }
     out_shader->state = SHADER_STATE_NOT_CREATED;
     out_shader->name = string_duplicate(config->name);
-    out_shader->push_constant_range_count = 0;
-    kzero_memory(out_shader->push_constant_ranges, sizeof(range) * 32);
+    out_shader->local_ubo_offset = 0;
+    out_shader->local_ubo_size = 0;
+    out_shader->local_ubo_stride = 0;
     out_shader->bound_instance_id = INVALID_ID;
     out_shader->attribute_stride = 0;
 
@@ -146,8 +148,7 @@ b8 shader_system_create(renderpass* pass, const shader_config* config) {
     // This is hard-coded because the Vulkan spec only guarantees that a _minimum_ 128 bytes of space are available,
     // and it's up to the driver to determine how much is available. Therefore, to avoid complexity, only the
     // lowest common denominator of 128B will be used.
-    out_shader->push_constant_stride = 128;
-    out_shader->push_constant_size = 0;
+    out_shader->local_ubo_stride = 128;
 
     // Take a copy of the flags.
     out_shader->flags = config->flags;
@@ -367,6 +368,16 @@ b8 shader_system_bind_instance(u32 instance_id) {
     return renderer_shader_bind_instance(s, instance_id);
 }
 
+b8 shader_system_apply_local(void) {
+    shader* s = &state_ptr->shaders[state_ptr->current_shader_id];
+    return renderer_shader_apply_local(s);
+}
+
+b8 shader_system_bind_local(void) {
+    shader* s = &state_ptr->shaders[state_ptr->current_shader_id];
+    return renderer_shader_bind_local(s);
+}
+
 static b8 internal_attribute_add(shader* shader, const shader_attribute_config* config) {
     u32 size = 0;
     switch (config->type) {
@@ -504,25 +515,15 @@ static b8 internal_uniform_add(shader* shader, const shader_uniform_config* conf
         entry.location = entry.index;
     }
 
-    if (config->scope != SHADER_SCOPE_LOCAL) {
+    if (config->scope == SHADER_SCOPE_LOCAL) {
+        entry.set_index = 2;  // NOTE: set 2 doesn't exist in Vulkan, it's a push constant.
+        entry.offset = shader->local_ubo_size;
+        entry.size = config->size;
+    } else {
         entry.set_index = (u32)config->scope;
         entry.offset = is_sampler ? 0 : is_global ? shader->global_ubo_size
                                                   : shader->ubo_size;
         entry.size = is_sampler ? 0 : config->size;
-    } else {
-        // Push a new aligned range (align to 4, as required by Vulkan spec)
-        entry.set_index = INVALID_ID_U8;
-        range r = get_aligned_range(shader->push_constant_size, config->size, 4);
-        // utilize the aligned offset/range
-        entry.offset = r.offset;
-        entry.size = r.size;
-
-        // Track in configuration for use in initialization.
-        shader->push_constant_ranges[shader->push_constant_range_count] = r;
-        shader->push_constant_range_count++;
-
-        // Increase the push constant's size by the total value.
-        shader->push_constant_size += (entry.size * entry.array_length);
     }
 
     if (!hashtable_set(&shader->uniform_lookup, config->name, &entry.index)) {
@@ -536,6 +537,8 @@ static b8 internal_uniform_add(shader* shader, const shader_uniform_config* conf
             shader->global_ubo_size += (entry.size * entry.array_length);
         } else if (entry.scope == SHADER_SCOPE_INSTANCE) {
             shader->ubo_size += (entry.size * entry.array_length);
+        } else if (entry.scope == SHADER_SCOPE_LOCAL) {
+            shader->local_ubo_size += (entry.size * entry.array_length);
         }
     }
 

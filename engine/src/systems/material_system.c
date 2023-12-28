@@ -872,14 +872,19 @@ b8 material_system_apply_instance(material* m, struct frame_data* p_frame_data, 
 }
 
 b8 material_system_apply_local(material* m, const mat4* model) {
+    shader_system_bind_local();
+    b8 result = false;
     if (m->shader_id == state_ptr->pbr_shader_id) {
-        return shader_system_uniform_set_by_location(state_ptr->pbr_locations.model, model);
+        result = shader_system_uniform_set_by_location(state_ptr->pbr_locations.model, model);
     } else if (m->shader_id == state_ptr->terrain_shader_id) {
-        return shader_system_uniform_set_by_location(state_ptr->terrain_locations.model, model);
+        result = shader_system_uniform_set_by_location(state_ptr->terrain_locations.model, model);
     }
+    shader_system_apply_local();
 
-    KERROR("Unrecognized shader id '%d'", m->shader_id);
-    return false;
+    if (!result) {
+        KERROR("Unrecognized shader id '%d'", m->shader_id);
+    }
+    return result;
 }
 
 b8 material_system_shadow_map_set(texture* shadow_texture, u8 index) {

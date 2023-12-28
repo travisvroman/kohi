@@ -17,7 +17,7 @@ layout(push_constant) uniform push_constants {
 	
 	// Only guaranteed a total of 128 bytes.
 	mat4 model; // 64 bytes
-    u32 cascade_index;
+    uint cascade_index;
 } local_ubo;
 
 // Data Transfer Object
@@ -27,5 +27,5 @@ layout(location = 1) out struct dto {
 
 void main() {
     out_dto.tex_coord = in_texcoord;
-    gl_Position = (instance_ubo.projections[local_ubo.cascade_index] * instance_ubo.views[local_ubo.cascade_index]) * local_ubo.model * vec4(in_position, 1.0);
+    gl_Position = (global_ubo.projections[local_ubo.cascade_index] * global_ubo.views[local_ubo.cascade_index]) * local_ubo.model * vec4(in_position, 1.0);
 }

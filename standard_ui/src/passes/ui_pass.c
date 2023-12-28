@@ -181,7 +181,9 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
                 RENDERER_STENCIL_OP_REPLACE,
                 RENDERER_COMPARE_OP_ALWAYS);
 
+            shader_system_bind_local();
             shader_system_uniform_set_by_location(internal_data->sui_locations.model, &renderable->clip_mask_render_data->model);
+            shader_system_apply_local();
             // Draw the clip mask geometry.
             renderer_geometry_draw(renderable->clip_mask_render_data);
 
@@ -209,7 +211,9 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
         shader_system_apply_instance(needs_update);
 
         // Apply local
+        shader_system_bind_local();
         shader_system_uniform_set_by_location(internal_data->sui_locations.model, &renderable->render_data.model);
+        shader_system_apply_local();
 
         // Draw
         renderer_geometry_draw(&renderable->render_data);

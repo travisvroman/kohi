@@ -119,7 +119,9 @@ b8 editor_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame
         geometry_render_data* render_data = &ext_data->debug_geometries[i];
 
         // Set model matrix.
+        shader_system_bind_local();
         shader_system_uniform_set_by_location(internal_data->debug_locations.model, &render_data->model);
+        shader_system_apply_local();
 
         // Draw it.
         renderer_geometry_draw(render_data);

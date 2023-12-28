@@ -130,10 +130,9 @@ typedef struct shader {
     /** @brief The stride of the instance uniform buffer object. */
     u64 ubo_stride;
 
-    /** @brief The total size of all push constant ranges combined. */
-    u64 push_constant_size;
-    /** @brief The push constant stride, aligned to 4 bytes as required by Vulkan. */
-    u64 push_constant_stride;
+    u64 local_ubo_offset;
+    u64 local_ubo_size;
+    u64 local_ubo_stride;
 
     /** @brief An array of global texture map pointers. Darray */
     texture_map** global_texture_maps;
@@ -177,10 +176,6 @@ typedef struct shader {
     /** @brief The internal state of the shader. */
     shader_state state;
 
-    /** @brief The number of push constant ranges. */
-    u8 push_constant_range_count;
-    /** @brief An array of push constant ranges. */
-    range push_constant_ranges[32];
     /** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
     u16 attribute_stride;
 
@@ -385,3 +380,20 @@ KAPI b8 shader_system_apply_instance(b8 needs_update);
  * @return True on success; otherwise false.
  */
 KAPI b8 shader_system_bind_instance(u32 instance_id);
+
+/**
+ * @brief Applies local-scoped uniforms.
+ * NOTE: Operates against the currently-used shader.
+ *
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_apply_local(void);
+
+/**
+ * @brief Binds the instance with the given id for use. Must be done before setting
+ * local-scoped uniforms.
+ * NOTE: Operates against the currently-used shader.
+ *
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_bind_local(void);

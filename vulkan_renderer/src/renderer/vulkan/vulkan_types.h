@@ -425,6 +425,8 @@ typedef struct vulkan_shader_instance_state {
 typedef struct vulkan_shader {
     /** @brief The block of memory mapped to the uniform buffer. */
     void* mapped_uniform_buffer_block;
+    /** @brief The block of memory used for push constants, 128B. */
+    void* local_push_constant_block;
 
     /** @brief The shader identifier. */
     u32 id;

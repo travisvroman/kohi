@@ -257,6 +257,7 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
             }
 
             // Apply the locals
+
             material_system_apply_local(m, &ext_data->terrain_geometries[i].model);
 
             // Draw it.
