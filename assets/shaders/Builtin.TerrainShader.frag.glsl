@@ -69,7 +69,7 @@ const float PI = 3.14159265359;
 // Material textures: albedo, normal, metallic, roughness, ao, etc...
 layout(set = 1, binding = 1) uniform sampler2D material_textures[5 * MAX_TERRAIN_MATERIALS];
 // Shadow maps
-layout(set = 1, binding = 2) uniform sampler2D shadow_textures[4];
+layout(set = 1, binding = 2) uniform sampler2DArray shadow_texture;
 // IBL irradiance
 layout(set = 1, binding = 3) uniform samplerCube irradiance_texture;
 
@@ -95,10 +95,10 @@ mat3 TBN;
 // Percentage-Closer Filtering
 float calculate_pcf(vec3 projected, int cascade_index) {
     float shadow = 0.0;
-    vec2 texel_size = 1.0 / textureSize(shadow_textures[cascade_index], 0);
+    vec2 texel_size = 1.0 / textureSize(shadow_texture, 0).xy;
     for(int x = -1; x <= 1; ++x) {
         for(int y = -1; y <= 1; ++y) {
-            float pcf_depth = texture(shadow_textures[cascade_index], projected.xy + vec2(x, y) * texel_size).r;
+            float pcf_depth = texture(shadow_texture, vec3(projected.xy + vec2(x, y) * texel_size, cascade_index)).r;
             shadow += projected.z - in_dto.bias > pcf_depth ? 1.0 : 0.0;
         }
     }
@@ -108,7 +108,7 @@ float calculate_pcf(vec3 projected, int cascade_index) {
 
 float calculate_unfiltered(vec3 projected, int cascade_index) {
     // Sample the shadow map.
-    float map_depth = texture(shadow_textures[cascade_index], projected.xy).r;
+    float map_depth = texture(shadow_texture, vec3(projected.xy, cascade_index)).r;
 
     // TODO: cast/get rid of branch.
     float shadow = projected.z - in_dto.bias > map_depth ? 0.0 : 1.0;
