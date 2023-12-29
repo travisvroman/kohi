@@ -156,6 +156,8 @@ typedef u8 texture_flag_bits;
 typedef enum texture_type {
     /** @brief A standard two-dimensional texture. */
     TEXTURE_TYPE_2D,
+    /** @brief A 2d array texture. */
+    TEXTURE_TYPE_2D_ARRAY,
     /** @brief A cube texture, used for cubemaps. */
     TEXTURE_TYPE_CUBE
 } texture_type;
@@ -174,6 +176,8 @@ typedef struct texture {
     u32 height;
     /** @brief The number of channels in the texture. */
     u8 channel_count;
+    /** @brief For arrayed textures, how many "layers" there are. Otherwise this is 1. */
+    u16 array_size;
     /** @brief Holds various flags for this texture. */
     texture_flag_bits flags;
     /** @brief The texture generation. Incremented every time the data is

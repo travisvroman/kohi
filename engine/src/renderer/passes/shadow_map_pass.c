@@ -24,8 +24,8 @@ typedef struct shadow_map_shader_locations {
 } shadow_map_shader_locations;
 
 typedef struct cascade_resources {
-    texture* depth_textures;
-    texture* colour_textures;  // Rendering out to the colour pass.
+    // One target per frame.
+    render_target* targets;
 } cascade_resources;
 
 typedef struct shadow_map_pass_internal_data {
@@ -37,7 +37,10 @@ typedef struct shadow_map_pass_internal_data {
     // Custom projection matrix for shadow pass.
     viewport camera_viewport;
 
-    // Per-cascade resources.
+    texture* depth_textures;
+    texture* colour_textures;  // Rendering out to the colour pass.
+
+    // One per cascade.
     cascade_resources cascades[MAX_CASCADE_COUNT];
 
     // Track instance updates per frame
@@ -71,6 +74,7 @@ b8 shadow_map_pass_create(struct rendergraph_pass* self, void* config) {
     self->pass_data.ext_data = kallocate(sizeof(shadow_map_pass_extended_data), MEMORY_TAG_RENDERER);
 
     // Custom function pointers.
+    self->attachment_populate = shadow_map_pass_attachment_populate;
     self->source_populate = shadow_map_pass_source_populate;
 
     return true;
@@ -84,35 +88,37 @@ b8 shadow_map_pass_initialize(struct rendergraph_pass* self) {
     shadow_map_pass_internal_data* internal_data = self->internal_data;
 
     // Create the depth attachments, one per frame.
-    u8 attachment_count = renderer_window_attachment_count_get();
+    u8 frame_count = renderer_window_attachment_count_get();
 
-    for (u32 c = 0; c < MAX_CASCADE_COUNT; c++) {
-        cascade_resources* cascade = &internal_data->cascades[c];
-        cascade->depth_textures = kallocate(sizeof(texture) * attachment_count, MEMORY_TAG_RENDERER);
-        cascade->colour_textures = kallocate(sizeof(texture) * attachment_count, MEMORY_TAG_RENDERER);
-        for (u8 i = 0; i < attachment_count; ++i) {
-            // Colour
-            texture* t = &cascade->colour_textures[i];
-            t->flags |= TEXTURE_FLAG_IS_WRITEABLE;
-            t->width = internal_data->config.resolution;
-            t->height = internal_data->config.resolution;
-            string_format(t->name, "shadowmap_pass_res_%u_idx_%u_cas_%u_colour_texture", internal_data->config.resolution, i, c);
-            t->mip_levels = 1;
-            t->channel_count = 4;
-            t->generation = INVALID_ID;
-            renderer_texture_create_writeable(t);
+    internal_data->depth_textures = kallocate(sizeof(texture) * frame_count, MEMORY_TAG_RENDERER);
+    internal_data->colour_textures = kallocate(sizeof(texture) * frame_count, MEMORY_TAG_RENDERER);
 
-            // Depth
-            texture* dt = &cascade->depth_textures[i];
-            dt->flags |= TEXTURE_FLAG_DEPTH | TEXTURE_FLAG_IS_WRITEABLE;
-            dt->width = internal_data->config.resolution;
-            dt->height = internal_data->config.resolution;
-            string_format(dt->name, "shadowmap_pass_res_%u_idx_%u_cas_%u_depth_texture", internal_data->config.resolution, i, c);
-            dt->mip_levels = 1;
-            dt->channel_count = 4;
-            dt->generation = INVALID_ID;
-            renderer_texture_create_writeable(dt);
-        }
+    for (u8 i = 0; i < frame_count; ++i) {
+        // Colour
+        texture* t = &internal_data->colour_textures[i];
+        t->type = TEXTURE_TYPE_2D_ARRAY;
+        t->flags |= TEXTURE_FLAG_IS_WRITEABLE;
+        t->width = internal_data->config.resolution;
+        t->height = internal_data->config.resolution;
+        t->array_size = MAX_CASCADE_COUNT;
+        string_format(t->name, "shadowmap_pass_res_%u_idx_%u_colour_texture", internal_data->config.resolution, i);
+        t->mip_levels = 1;
+        t->channel_count = 4;
+        t->generation = INVALID_ID;
+        renderer_texture_create_writeable(t);
+
+        // Depth
+        texture* dt = &internal_data->depth_textures[i];
+        dt->type = TEXTURE_TYPE_2D_ARRAY;
+        dt->flags |= TEXTURE_FLAG_DEPTH | TEXTURE_FLAG_IS_WRITEABLE;
+        dt->width = internal_data->config.resolution;
+        dt->height = internal_data->config.resolution;
+        dt->array_size = MAX_CASCADE_COUNT;
+        string_format(dt->name, "shadowmap_pass_res_%u_idx_%u_depth_texture", internal_data->config.resolution, i);
+        dt->mip_levels = 1;
+        dt->channel_count = 4;
+        dt->generation = INVALID_ID;
+        renderer_texture_create_writeable(dt);
     }
 
     // Setup the renderpass.
@@ -124,7 +130,7 @@ b8 shadow_map_pass_initialize(struct rendergraph_pass* self) {
     shadowmap_pass_config.stencil = 0;
     shadowmap_pass_config.target.attachment_count = 2;
     shadowmap_pass_config.target.attachments = kallocate(sizeof(render_target_attachment_config) * shadowmap_pass_config.target.attachment_count, MEMORY_TAG_ARRAY);
-    shadowmap_pass_config.render_target_count = attachment_count;
+    shadowmap_pass_config.render_target_count = frame_count;
 
     // Color attachment.
     render_target_attachment_config* shadowpass_target_colour = &shadowmap_pass_config.target.attachments[0];
@@ -287,6 +293,45 @@ b8 shadow_map_pass_load_resources(struct rendergraph_pass* self) {
         return false;
     }
 
+    // Create the depth attachments, one per frame.
+    u8 frame_count = renderer_window_attachment_count_get();
+    // Renderpass attachments.
+    for (u32 i = 0; i < MAX_CASCADE_COUNT; ++i) {
+        cascade_resources* cascade = &internal_data->cascades[i];
+        // Targets per frame
+        cascade->targets = kallocate(sizeof(render_target) * frame_count, MEMORY_TAG_ARRAY);
+        for (u32 f = 0; f < frame_count; ++f) {
+            // One render target per pass
+            render_target* target = &cascade->targets[f];
+            target->attachment_count = 2;
+            // 2 attachments per target, (colour, depth)
+            target->attachments = kallocate(sizeof(render_target_attachment) * 2, MEMORY_TAG_ARRAY);
+            target->attachments[0].type = RENDER_TARGET_ATTACHMENT_TYPE_COLOUR;
+            target->attachments[0].source = RENDER_TARGET_ATTACHMENT_SOURCE_SELF;
+            target->attachments[0].texture = &internal_data->colour_textures[f];
+            target->attachments[0].present_after = false;
+            target->attachments[0].load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+            target->attachments[0].store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+
+            target->attachments[1].type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
+            target->attachments[1].source = RENDER_TARGET_ATTACHMENT_SOURCE_SELF;
+            target->attachments[1].texture = &internal_data->depth_textures[f];
+            target->attachments[1].present_after = true;
+            target->attachments[1].load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+            target->attachments[1].store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+
+            // Create the underlying render target.
+            renderer_render_target_create(
+                target->attachment_count,
+                target->attachments,
+                &self->pass,
+                internal_data->config.resolution,
+                internal_data->config.resolution,
+                i,
+                target);
+        }
+    }
+
     return true;
 }
 
@@ -303,7 +348,12 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
 
     for (u32 p = 0; p < MAX_CASCADE_COUNT; ++p) {
         shadow_map_cascade_data* cascade = &ext_data->cascades[p];
-        if (!renderer_renderpass_begin(&self->pass, &self->pass.targets[p_frame_data->render_target_index])) {
+        /* if (!renderer_renderpass_begin(&self->pass, &self->pass.targets[p_frame_data->render_target_index])) {
+            KERROR("Shadowmap pass failed to start.");
+            return false;
+        } */
+
+        if (!renderer_renderpass_begin(&self->pass, &internal_data->cascades[p].targets[p_frame_data->render_target_index])) {
             KERROR("Shadowmap pass failed to start.");
             return false;
         }
@@ -512,15 +562,12 @@ void shadow_map_pass_destroy(struct rendergraph_pass* self) {
             // Destroy the attachments, one per frame.
             u8 attachment_count = renderer_window_attachment_count_get();
 
-            for (u32 c = 0; c < MAX_CASCADE_COUNT; c++) {
-                cascade_resources* cascade = &internal_data->cascades[c];
-                for (u8 i = 0; i < attachment_count; ++i) {
-                    renderer_texture_destroy(&cascade->colour_textures[i]);
-                    renderer_texture_destroy(&cascade->depth_textures[i]);
-                }
-                kfree(cascade->colour_textures, sizeof(texture*) * attachment_count, MEMORY_TAG_ARRAY);
-                kfree(cascade->depth_textures, sizeof(texture*) * attachment_count, MEMORY_TAG_ARRAY);
+            for (u8 i = 0; i < attachment_count; ++i) {
+                renderer_texture_destroy(&internal_data->colour_textures[i]);
+                renderer_texture_destroy(&internal_data->depth_textures[i]);
             }
+            kfree(internal_data->colour_textures, sizeof(texture*) * attachment_count, MEMORY_TAG_ARRAY);
+            kfree(internal_data->depth_textures, sizeof(texture*) * attachment_count, MEMORY_TAG_ARRAY);
 
             renderer_texture_map_resources_release(&internal_data->default_colour_map);
             renderer_texture_map_resources_release(&internal_data->default_terrain_colour_map);
@@ -551,39 +598,28 @@ b8 shadow_map_pass_source_populate(struct rendergraph_pass* self, rendergraph_so
     if (!source->textures) {
         source->textures = kallocate(sizeof(texture*) * frame_count, MEMORY_TAG_ARRAY);
     }
-    // TODO: clean this up, dangit.
-    if (strings_equali(source->name, "depthbuffer_0")) {
+    if (strings_equali(source->name, "depthbuffer")) {
         for (u32 i = 0; i < frame_count; ++i) {
-            source->textures[i] = &internal_data->cascades[0].depth_textures[i];
+            source->textures[i] = &internal_data->depth_textures[i];
         }
         return true;
-    } else if (strings_equali(source->name, "depthbuffer_1")) {
+    } else if (strings_equali(source->name, "colourbuffer")) {
         for (u32 i = 0; i < frame_count; ++i) {
-            source->textures[i] = &internal_data->cascades[1].depth_textures[i];
-        }
-        return true;
-    } else if (strings_equali(source->name, "depthbuffer_2")) {
-        for (u32 i = 0; i < frame_count; ++i) {
-            source->textures[i] = &internal_data->cascades[2].depth_textures[i];
-        }
-        return true;
-    } else if (strings_equali(source->name, "depthbuffer_3")) {
-        for (u32 i = 0; i < frame_count; ++i) {
-            source->textures[i] = &internal_data->cascades[3].depth_textures[i];
+            source->textures[i] = &internal_data->colour_textures[i];
         }
         return true;
     }
-
     KERROR("shadow_map_pass_source_populate could not populate source '%s' as it is unrecognized.", source->name);
     return false;
 }
 
 b8 shadow_map_pass_attachment_populate(struct rendergraph_pass* self, render_target_attachment* attachment) {
+    shadow_map_pass_internal_data* internal_data = self->internal_data;
     if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_COLOUR) {
-        // TODO: What do we return here? The attachments for the current cascade index?
+        attachment->texture = &internal_data->colour_textures[0];
         return true;
     } else if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
-        // TODO: What do we return here? The attachments for the current cascade index?
+        attachment->texture = &internal_data->depth_textures[0];
         return true;
     }
 

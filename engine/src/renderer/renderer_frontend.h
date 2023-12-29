@@ -449,9 +449,10 @@ KAPI void renderer_texture_map_resources_release(struct texture_map* map);
  * @param renderpass A pointer to the renderpass the render target is associated with.
  * @param width The width of the render target in pixels.
  * @param height The height of the render target in pixels.
+ * @param layer_index The index of the layer to use if the texture is an arrayed texture. Otherwise ignored.
  * @param out_target A pointer to hold the newly created render target.
  */
-KAPI void renderer_render_target_create(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
+KAPI void renderer_render_target_create(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, u16 layer_index, render_target* out_target);
 
 /**
  * @brief Destroys the provided render target.

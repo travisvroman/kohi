@@ -1279,7 +1279,7 @@ void vulkan_renderer_texture_create(renderer_plugin *plugin, const u8 *pixels,
     // NOTE: Lots of assumptions here, different texture types will require
     // different options here.
     vulkan_image_create(
-        context, t->type, t->width, t->height, image_format,
+        context, t->type, t->width, t->height, t->array_size, image_format,
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
@@ -1323,12 +1323,10 @@ static VkFormat channel_count_to_format(u8 channel_count,
     }
 }
 
-void vulkan_renderer_texture_create_writeable(renderer_plugin *plugin,
-                                              texture *t) {
+void vulkan_renderer_texture_create_writeable(renderer_plugin *plugin, texture *t) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     // Internal data creation.
-    t->internal_data =
-        (vulkan_image *)kallocate(sizeof(vulkan_image), MEMORY_TAG_TEXTURE);
+    t->internal_data = (vulkan_image *)kallocate(sizeof(vulkan_image), MEMORY_TAG_TEXTURE);
     vulkan_image *image = (vulkan_image *)t->internal_data;
 
     VkImageUsageFlagBits usage;
@@ -1342,11 +1340,10 @@ void vulkan_renderer_texture_create_writeable(renderer_plugin *plugin,
         usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
                 VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-        image_format =
-            channel_count_to_format(t->channel_count, VK_FORMAT_R8G8B8A8_UNORM);
+        image_format = channel_count_to_format(t->channel_count, VK_FORMAT_R8G8B8A8_UNORM);
     }
 
-    vulkan_image_create(context, t->type, t->width, t->height, image_format,
+    vulkan_image_create(context, t->type, t->width, t->height, t->array_size, image_format,
                         VK_IMAGE_TILING_OPTIMAL, usage,
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, aspect,
                         t->name, t->mip_levels, image);
@@ -1380,7 +1377,7 @@ void vulkan_renderer_texture_resize(renderer_plugin *plugin, texture *t,
         // TODO: Lots of assumptions here, different texture types will require
         // different options here.
         vulkan_image_create(
-            context, t->type, new_width, new_height, image_format,
+            context, t->type, new_width, new_height, t->array_size, image_format,
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
                 VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
@@ -1574,6 +1571,7 @@ b8 vulkan_renderer_shader_create(renderer_plugin *plugin, shader *s, const shade
     // Setup the internal shader.
     vulkan_shader *internal_shader = (vulkan_shader *)s->internal_data;
     internal_shader->renderpass = pass->internal_data;
+    internal_shader->local_push_constant_block = kallocate(128, MEMORY_TAG_RENDERER);
 
     internal_shader->stage_count = config->stage_count;
 
@@ -3109,12 +3107,18 @@ b8 vulkan_renderer_render_target_create(renderer_plugin *plugin,
                                         u8 attachment_count,
                                         render_target_attachment *attachments,
                                         renderpass *pass, u32 width, u32 height,
+                                        u16 layer_index,
                                         render_target *out_target) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     // Max number of attachments
     VkImageView attachment_views[32] = {0};
     for (u32 i = 0; i < attachment_count; ++i) {
-        attachment_views[i] = ((vulkan_image *)attachments[i].texture->internal_data)->view;
+        vulkan_image *internal = (vulkan_image *)attachments[i].texture->internal_data;
+        if (internal->layer_views) {
+            attachment_views[i] = internal->layer_views[layer_index];
+        } else {
+            attachment_views[i] = internal->view;
+        }
     }
     kcopy_memory(out_target->attachments, attachments, sizeof(render_target_attachment) * attachment_count);
 

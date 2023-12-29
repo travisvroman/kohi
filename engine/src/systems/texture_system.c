@@ -5,6 +5,7 @@
 #include "core/kstring.h"
 #include "core/logger.h"
 #include "renderer/renderer_frontend.h"
+#include "resources/resource_types.h"
 #include "systems/job_system.h"
 #include "systems/resource_system.h"
 
@@ -48,7 +49,7 @@ static void destroy_default_textures(texture_system_state* state);
 static b8 load_texture(const char* texture_name, texture* t);
 static b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], texture* t);
 static void destroy_texture(texture* t);
-static b8 process_texture_reference(const char* name, texture_type type, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id);
+static b8 process_texture_reference(const char* name, texture_type type, u16 array_size, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id);
 
 b8 texture_system_initialize(u64* memory_requirement, void* state, void* config) {
     texture_system_config* typed_config = (texture_system_config*)config;
@@ -141,7 +142,7 @@ texture* texture_system_acquire(const char* name, b8 auto_release) {
 
     u32 id = INVALID_ID;
     // NOTE: Increments reference count, or creates new entry.
-    if (!process_texture_reference(name, TEXTURE_TYPE_2D, 1, auto_release, false, &id)) {
+    if (!process_texture_reference(name, TEXTURE_TYPE_2D, 1, 1, auto_release, false, &id)) {
         KERROR("texture_system_acquire failed to obtain a new texture id.");
         return 0;
     }
@@ -159,7 +160,7 @@ texture* texture_system_acquire_cube(const char* name, b8 auto_release) {
 
     u32 id = INVALID_ID;
     // NOTE: Increments reference count, or creates new entry.
-    if (!process_texture_reference(name, TEXTURE_TYPE_CUBE, 1, auto_release, false, &id)) {
+    if (!process_texture_reference(name, TEXTURE_TYPE_CUBE, 1, 1, auto_release, false, &id)) {
         KERROR("texture_system_acquire_cube failed to obtain a new texture id.");
         return 0;
     }
@@ -168,21 +169,26 @@ texture* texture_system_acquire_cube(const char* name, b8 auto_release) {
 }
 
 texture* texture_system_acquire_writeable(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency) {
+    return texture_system_acquire_writeable_arrayed(name, width, height, channel_count, has_transparency, TEXTURE_TYPE_2D, 1);
+}
+
+texture* texture_system_acquire_writeable_arrayed(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, texture_type type, u16 array_size) {
     u32 id = INVALID_ID;
     // NOTE: Wrapped textures are never auto-released because it means that thier
     // resources are created and managed somewhere within the renderer internals.
-    if (!process_texture_reference(name, TEXTURE_TYPE_2D, 1, false, true, &id)) {
-        KERROR("texture_system_acquire_writeable failed to obtain a new texture id.");
+    if (!process_texture_reference(name, type, 1, array_size, false, true, &id)) {
+        KERROR("texture_system_acquire_writeable_arrayed failed to obtain a new texture id.");
         return 0;
     }
 
     texture* t = &state_ptr->registered_textures[id];
     t->id = id;
-    t->type = TEXTURE_TYPE_2D;
+    t->type = type;
     string_ncopy(t->name, name, TEXTURE_NAME_MAX_LENGTH);
     t->width = width;
     t->height = height;
     t->channel_count = channel_count;
+    t->array_size = array_size;
     t->generation = INVALID_ID;
     t->mip_levels = 1;
     t->flags |= has_transparency ? TEXTURE_FLAG_HAS_TRANSPARENCY : 0;
@@ -200,7 +206,7 @@ void texture_system_release(const char* name) {
     }
     u32 id = INVALID_ID;
     // NOTE: Decrement the reference count.
-    if (!process_texture_reference(name, TEXTURE_TYPE_2D, -1, false, false, &id)) {
+    if (!process_texture_reference(name, TEXTURE_TYPE_2D, 1, -1, false, false, &id)) {
         KERROR("texture_system_release failed to release texture '%s' properly.", name);
     }
 }
@@ -211,7 +217,7 @@ void texture_system_wrap_internal(const char* name, u32 width, u32 height, u8 ch
     if (register_texture) {
         // NOTE: Wrapped textures are never auto-released because it means that thier
         // resources are created and managed somewhere within the renderer internals.
-        if (!process_texture_reference(name, TEXTURE_TYPE_2D, 1, false, true, &id)) {
+        if (!process_texture_reference(name, TEXTURE_TYPE_2D, 1, 1, false, true, &id)) {
             KERROR("texture_system_wrap_internal failed to obtain a new texture id.");
             return;
         }
@@ -681,7 +687,7 @@ static void destroy_texture(texture* t) {
     t->generation = INVALID_ID;
 }
 
-static b8 process_texture_reference(const char* name, texture_type type, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id) {
+static b8 process_texture_reference(const char* name, texture_type type, u16 array_size, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id) {
     *out_texture_id = INVALID_ID;
     if (state_ptr) {
         texture_reference ref;
@@ -752,6 +758,7 @@ static b8 process_texture_reference(const char* name, texture_type type, i8 refe
                     } else {
                         texture* t = &state_ptr->registered_textures[ref.handle];
                         t->type = type;
+                        t->array_size = array_size;
                         // Create new texture.
                         if (skip_load) {
                             // KTRACE("Load skipped for texture '%s'. This is expected behaviour.");
@@ -772,12 +779,15 @@ static b8 process_texture_reference(const char* name, texture_type type, i8 refe
                                     KERROR("Failed to load cube texture '%s'.", name);
                                     return false;
                                 }
-                            } else {
+                            } else if (type == TEXTURE_TYPE_2D) {
                                 if (!load_texture(name, t)) {
                                     *out_texture_id = INVALID_ID;
                                     KERROR("Failed to load texture '%s'.", name);
                                     return false;
                                 }
+                            } else if (type == TEXTURE_TYPE_2D_ARRAY) {
+                                // Acquire internal texture resources and upload to GPU. Can't be jobified until the renderer is multithreaded.
+                                renderer_texture_create(0, t);
                             }
                             t->id = ref.handle;
                         }

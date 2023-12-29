@@ -521,6 +521,7 @@ static b8 regenerate_render_targets(rendergraph* graph, rendergraph_pass* pass, 
             &pass->pass,
             use_custom_size ? target->attachments[0].texture->width : width,
             use_custom_size ? target->attachments[0].texture->height : height,
+            0,
             &pass->pass.targets[i]);
     }
 

@@ -31,6 +31,7 @@ Changelog
   - Vulkan backend changes to allow not having any global/instance (one or the other) UBO and/or samplers.
   - Updated the API around local uniforms to require a bind/set/apply flow similar to the other scopes. 
   - Refactored Vulkan push constant logic to handle the above.
+  - Added support for array textures. Converted shadow map pass to use them as attachments.
 
 - 0.4x
   - Added first pass of Standard UI system, including panel, button, label, and textbox controls.

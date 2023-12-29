@@ -587,9 +587,9 @@ void renderer_texture_map_resources_release(struct texture_map* map) {
     state_ptr->plugin.texture_map_resources_release(&state_ptr->plugin, map);
 }
 
-void renderer_render_target_create(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target) {
+void renderer_render_target_create(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, u16 layer_index, render_target* out_target) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    state_ptr->plugin.render_target_create(&state_ptr->plugin, attachment_count, attachments, pass, width, height, out_target);
+    state_ptr->plugin.render_target_create(&state_ptr->plugin, attachment_count, attachments, pass, width, height, layer_index, out_target);
 }
 
 void renderer_render_target_destroy(render_target* target, b8 free_internal_memory) {

@@ -716,9 +716,10 @@ typedef struct renderer_plugin {
      * @param renderpass A pointer to the renderpass the render target is associated with.
      * @param width The width of the render target in pixels.
      * @param height The height of the render target in pixels.
+     * @param layer_index The index of the layer to use for the attachment, if the image is a array texture.
      * @param out_target A pointer to hold the newly created render target.
      */
-    b8 (*render_target_create)(struct renderer_plugin* plugin, u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
+    b8 (*render_target_create)(struct renderer_plugin* plugin, u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, u16 layer_index, render_target* out_target);
 
     /**
      * @brief Destroys the provided render target.

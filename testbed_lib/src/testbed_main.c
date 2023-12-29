@@ -1558,7 +1558,7 @@ static void refresh_rendergraph_pfns(application* app) {
     state->shadowmap_pass.execute = shadow_map_pass_execute;
     state->shadowmap_pass.destroy = shadow_map_pass_destroy;
     state->shadowmap_pass.load_resources = shadow_map_pass_load_resources;
-    state->shadowmap_pass.source_populate = shadow_map_pass_source_populate;
+    /* state->shadowmap_pass.source_populate = shadow_map_pass_source_populate; */
 
     state->scene_pass.initialize = scene_pass_initialize;
     state->scene_pass.execute = scene_pass_execute;
@@ -1604,27 +1604,18 @@ static b8 configure_rendergraph(application* app) {
     shadow_pass_config.resolution = 2048;
     RG_CHECK(rendergraph_pass_create(&state->frame_graph, shadowmap_pass_name, shadow_map_pass_create, &shadow_pass_config, &state->shadowmap_pass));
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_SELF));
-    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "depthbuffer_0", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
-    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "depthbuffer_1", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
-    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "depthbuffer_2", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
-    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "depthbuffer_3", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
+    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
 
     // Scene pass
     RG_CHECK(rendergraph_pass_create(&state->frame_graph, "scene", scene_pass_create, 0, &state->scene_pass));
     RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "colourbuffer"));
     RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "depthbuffer"));
-    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "shadowmap_0"));
-    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "shadowmap_1"));
-    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "shadowmap_2"));
-    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "shadowmap_3"));
+    RG_CHECK(rendergraph_pass_sink_add(&state->frame_graph, "scene", "shadowmap"));
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "scene", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, "scene", "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_GLOBAL));
     RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "colourbuffer", "skybox", "colourbuffer"));
     RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "depthbuffer", 0, "depthbuffer"));
-    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_0", "shadowmap_pass", "depthbuffer_0"));
-    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_1", "shadowmap_pass", "depthbuffer_1"));
-    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_2", "shadowmap_pass", "depthbuffer_2"));
-    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap_3", "shadowmap_pass", "depthbuffer_3"));
+    RG_CHECK(rendergraph_pass_set_sink_linkage(&state->frame_graph, "scene", "shadowmap", "shadowmap_pass", "depthbuffer"));
 
     // Editor pass
     RG_CHECK(rendergraph_pass_create(&state->frame_graph, "editor", editor_pass_create, 0, &state->editor_pass));

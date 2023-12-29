@@ -150,6 +150,8 @@ typedef struct vulkan_image {
     VkDeviceMemory memory;
     /** @brief The view for the image, which is used to access the image. */
     VkImageView view;
+    /** @brief If there are multiple layers, one view per layer exists here. */
+    VkImageView* layer_views;
     /** @brief The GPU memory requirements for this image. */
     VkMemoryRequirements memory_requirements;
     /** @brief Memory property flags */
@@ -160,6 +162,8 @@ typedef struct vulkan_image {
     u32 width;
     /** @brief The image height. */
     u32 height;
+    /** @brief The number of layers in this image. */
+    u16 layer_count;
     /** @brief The name of the image. */
     char* name;
     /** The number of mipmaps to be generated for this image. Must always be at least 1. */
