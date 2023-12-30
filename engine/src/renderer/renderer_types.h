@@ -642,7 +642,7 @@ typedef struct renderer_plugin {
      * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_globals)(struct renderer_plugin* plugin, struct shader* s, b8 needs_update);
+    b8 (*shader_apply_globals)(struct renderer_plugin* plugin, struct shader* s, b8 needs_update, struct frame_data* p_frame_data);
 
     /**
      * @brief Applies data for the currently bound instance.
@@ -652,7 +652,7 @@ typedef struct renderer_plugin {
      * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_instance)(struct renderer_plugin* plugin, struct shader* s, b8 needs_update);
+    b8 (*shader_apply_instance)(struct renderer_plugin* plugin, struct shader* s, b8 needs_update, struct frame_data* p_frame_data);
 
     /**
      * @brief Acquires internal instance-level resources and provides an instance id.
@@ -688,7 +688,7 @@ typedef struct renderer_plugin {
      */
     b8 (*shader_uniform_set)(struct renderer_plugin* plugin, struct shader* frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
 
-    b8 (*shader_apply_local)(struct renderer_plugin* plugin, struct shader* s);
+    b8 (*shader_apply_local)(struct renderer_plugin* plugin, struct shader* s, struct frame_data* p_frame_data);
 
     /**
      * @brief Acquires internal resources for the given texture map.

@@ -5,6 +5,7 @@
 
 #include "containers/darray.h"
 #include "core/event.h"
+#include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
@@ -2101,7 +2102,7 @@ b8 vulkan_renderer_shader_bind_local(renderer_plugin *plugin, shader *s) {
     return true;
 }
 
-b8 vulkan_renderer_shader_apply_globals(renderer_plugin *plugin, shader *s, b8 needs_update) {
+b8 vulkan_renderer_shader_apply_globals(renderer_plugin *plugin, shader *s, b8 needs_update, struct frame_data *p_frame_data) {
     // Don't do anything if there are no updatable globals.
     b8 has_global = s->global_uniform_count > 0 || s->global_uniform_sampler_count > 0;
     if (!has_global) {
@@ -2231,7 +2232,7 @@ b8 vulkan_renderer_shader_apply_globals(renderer_plugin *plugin, shader *s, b8 n
     return true;
 }
 
-b8 vulkan_renderer_shader_apply_instance(renderer_plugin *plugin, shader *s, b8 needs_update) {
+b8 vulkan_renderer_shader_apply_instance(renderer_plugin *plugin, shader *s, b8 needs_update, frame_data *p_frame_data) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     vulkan_shader *internal = s->internal_data;
     if (s->instance_uniform_count < 1 && s->instance_uniform_sampler_count < 1) {
@@ -2292,7 +2293,7 @@ b8 vulkan_renderer_shader_apply_instance(renderer_plugin *plugin, shader *s, b8 
                 u32 binding_descriptor_count = set_config.bindings[binding_index].descriptorCount;
 
                 u32 update_sampler_count = 0;
-                VkDescriptorImageInfo image_infos[VULKAN_SHADER_MAX_INSTANCE_TEXTURES];
+                VkDescriptorImageInfo *image_infos = p_frame_data->allocator.allocate(sizeof(VkDescriptorImageInfo) * binding_descriptor_count);
                 // Each sampler descriptor within the binding.
                 for (u32 d = 0; d < binding_descriptor_count; ++d) {
                     // TODO: only update in the list if actually needing an update.
@@ -2701,7 +2702,7 @@ b8 vulkan_renderer_uniform_set(renderer_plugin *plugin, shader *s, shader_unifor
     return true;
 }
 
-b8 vulkan_renderer_shader_apply_local(renderer_plugin *plugin, shader *s) {
+b8 vulkan_renderer_shader_apply_local(renderer_plugin *plugin, shader *s, frame_data *p_frame_data) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     vulkan_shader *internal = s->internal_data;
     VkCommandBuffer command_buffer = context->graphics_command_buffers[context->image_index].handle;

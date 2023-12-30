@@ -30,7 +30,7 @@ typedef struct scene_pass_internal_data {
     // One per frame.
     u32 frame_count;
 
-    // One per cascade.
+    // One per frame.
     texture_map* shadow_maps;
 } scene_pass_internal_data;
 
@@ -248,7 +248,7 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
 
             // Apply the locals
 
-            material_system_apply_local(m, &ext_data->terrain_geometries[i].model);
+            material_system_apply_local(m, &ext_data->terrain_geometries[i].model, p_frame_data);
 
             // Draw it.
             renderer_geometry_draw(&ext_data->terrain_geometries[i]);
@@ -301,7 +301,7 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
             }
 
             // Apply the locals
-            material_system_apply_local(m, &ext_data->geometries[i].model);
+            material_system_apply_local(m, &ext_data->geometries[i].model, p_frame_data);
 
             // Invert if needed
             if (ext_data->geometries[i].winding_inverted) {
@@ -328,7 +328,7 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
         shader_system_uniform_set_by_location(internal_data->debug_locations.projection, &self->pass_data.projection_matrix);
         shader_system_uniform_set_by_location(internal_data->debug_locations.view, &self->pass_data.view_matrix);
 
-        shader_system_apply_global(true);
+        shader_system_apply_global(true, p_frame_data);
 
         // Each geometry.
         for (u32 i = 0; i < debug_geometry_count; ++i) {
@@ -359,10 +359,8 @@ void scene_pass_destroy(struct rendergraph_pass* self) {
             scene_pass_internal_data* internal_data = self->internal_data;
 
             // Destroy the texture maps/samplers.
-            for (u32 s = 0; s < MAX_SHADOW_CASCADE_COUNT; ++s) {
-                for (u32 i = 0; i < internal_data->frame_count; ++i) {
-                    renderer_texture_map_resources_release(&internal_data->shadow_maps[i]);
-                }
+            for (u32 i = 0; i < internal_data->frame_count; ++i) {
+                renderer_texture_map_resources_release(&internal_data->shadow_maps[i]);
             }
 
             // Destroy the pass.

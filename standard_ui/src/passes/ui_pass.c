@@ -28,9 +28,7 @@ typedef struct sui_shader_locations {
 } sui_shader_locations;
 
 typedef struct ui_pass_internal_data {
-    shader* s;
     shader* sui_shader;  // standard ui // TODO: different render pass?
-    ui_shader_locations locations;
     sui_shader_locations sui_locations;
 } ui_pass_internal_data;
 
@@ -83,27 +81,6 @@ b8 ui_pass_initialize(struct rendergraph_pass* self) {
         KERROR("Failed to create UI renderpass.");
         return false;
     }
-
-    // Load the shader.
-    const char* shader_name = "Shader.StandardUI";
-    resource config_resource;
-    if (!resource_system_load(shader_name, RESOURCE_TYPE_SHADER, 0, &config_resource)) {
-        KERROR("Failed to load UI shader resource.");
-        return false;
-    }
-    shader_config* config = (shader_config*)config_resource.data;
-    // NOTE: Assuming the first pass since that's all this view has.
-    if (!shader_system_create(&self->pass, config)) {
-        KERROR("Failed to create UI shader.");
-        return false;
-    }
-    resource_system_unload(&config_resource);
-
-    // Get either the custom shader override or the defined default.
-    internal_data->s = shader_system_get(shader_name);
-    internal_data->locations.diffuse_map = shader_system_uniform_location(internal_data->s, "diffuse_texture");
-    internal_data->locations.properties = shader_system_uniform_location(internal_data->s, "properties");
-    internal_data->locations.model = shader_system_uniform_location(internal_data->s, "model");
 
     // Load the StandardUI shader.
     const char* sui_shader_name = "Shader.StandardUI";
@@ -159,7 +136,7 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
 
     shader_system_uniform_set_by_location(internal_data->sui_locations.projection, &self->pass_data.projection_matrix);
     shader_system_uniform_set_by_location(internal_data->sui_locations.view, &self->pass_data.view_matrix);
-    shader_system_apply_global(true);
+    shader_system_apply_global(true, p_frame_data);
 
     // Sync the frame number.
     internal_data->sui_shader->render_frame_number = p_frame_data->renderer_frame_number;
@@ -183,7 +160,7 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
 
             shader_system_bind_local();
             shader_system_uniform_set_by_location(internal_data->sui_locations.model, &renderable->clip_mask_render_data->model);
-            shader_system_apply_local();
+            shader_system_apply_local(p_frame_data);
             // Draw the clip mask geometry.
             renderer_geometry_draw(renderable->clip_mask_render_data);
 
@@ -208,12 +185,12 @@ b8 ui_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_dat
         shader_system_uniform_set_by_location(internal_data->sui_locations.properties, &renderable->render_data.diffuse_colour);
         texture_map* atlas = renderable->atlas_override ? renderable->atlas_override : ext_data->sui_render_data.ui_atlas;
         shader_system_uniform_set_by_location(internal_data->sui_locations.diffuse_map, atlas);
-        shader_system_apply_instance(needs_update);
+        shader_system_apply_instance(needs_update, p_frame_data);
 
         // Apply local
         shader_system_bind_local();
         shader_system_uniform_set_by_location(internal_data->sui_locations.model, &renderable->render_data.model);
-        shader_system_apply_local();
+        shader_system_apply_local(p_frame_data);
 
         // Draw
         renderer_geometry_draw(&renderable->render_data);

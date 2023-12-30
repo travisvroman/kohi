@@ -32,7 +32,7 @@ uniform=vec2,0,padding
 # albedo,normal,metallic,roughness,ao
 uniform=sampler2D[5],1,material_textures
 # Shadow map
-uniform=sampler2D[4],1,shadow_textures
+uniform=sampler2DArray,1,shadow_textures
 # IBL
 uniform=samplerCube,1,ibl_cube_texture
 

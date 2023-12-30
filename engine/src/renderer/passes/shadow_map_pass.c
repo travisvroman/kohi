@@ -376,7 +376,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
                 }
             }
         }
-        shader_system_apply_global(needs_update);
+        shader_system_apply_global(needs_update, p_frame_data);
 
         u32 geometry_count = cascade->geometry_count;
         u32 terrain_geometry_count = cascade->terrain_geometry_count;
@@ -467,7 +467,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
                 KERROR("Failed to apply shadowmap color_map uniform to static geometry.");
                 return false;
             }
-            shader_system_apply_instance(needs_update);
+            shader_system_apply_instance(needs_update, p_frame_data);
 
             // Sync the frame number and draw index.
             *render_number = p_frame_data->renderer_frame_number;
@@ -477,7 +477,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
             shader_system_bind_local();
             shader_system_uniform_set_by_location(internal_data->locations.model_location, &g->model);
             shader_system_uniform_set_by_location(internal_data->locations.cascade_index_location, &p);
-            shader_system_apply_local();
+            shader_system_apply_local(p_frame_data);
 
             // Invert if needed
             if (cascade->geometries[i].winding_inverted) {
@@ -511,7 +511,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
                 }
             }
         }
-        shader_system_apply_global(needs_update);
+        shader_system_apply_global(needs_update, p_frame_data);
 
         for (u32 i = 0; i < terrain_geometry_count; ++i) {
             geometry_render_data* terrain = &cascade->terrain_geometries[i];
@@ -528,7 +528,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
                 KERROR("Failed to apply shadowmap color_map uniform to terrain geometry.");
                 return false;
             }
-            shader_system_apply_instance(needs_update);
+            shader_system_apply_instance(needs_update, p_frame_data);
 
             // Sync the frame number and draw index.
             *render_number = p_frame_data->renderer_frame_number;
@@ -538,7 +538,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
             shader_system_bind_local();
             shader_system_uniform_set_by_location(internal_data->terrain_locations.model_location, &terrain->model);
             shader_system_uniform_set_by_location(internal_data->terrain_locations.cascade_index_location, &p);
-            shader_system_apply_local();
+            shader_system_apply_local(p_frame_data);
 
             // Draw it.
             renderer_geometry_draw(terrain);

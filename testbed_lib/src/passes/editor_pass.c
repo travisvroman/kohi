@@ -108,7 +108,7 @@ b8 editor_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame
         shader_system_uniform_set_by_location(internal_data->debug_locations.projection, &self->pass_data.projection_matrix);
         shader_system_uniform_set_by_location(internal_data->debug_locations.view, &self->pass_data.view_matrix);
     }
-    shader_system_apply_global(needs_update);
+    shader_system_apply_global(needs_update, p_frame_data);
 
     // Sync frame number and draw index.
     internal_data->colour_shader->render_frame_number = p_frame_data->renderer_frame_number;
@@ -121,7 +121,7 @@ b8 editor_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame
         // Set model matrix.
         shader_system_bind_local();
         shader_system_uniform_set_by_location(internal_data->debug_locations.model, &render_data->model);
-        shader_system_apply_local();
+        shader_system_apply_local(p_frame_data);
 
         // Draw it.
         renderer_geometry_draw(render_data);

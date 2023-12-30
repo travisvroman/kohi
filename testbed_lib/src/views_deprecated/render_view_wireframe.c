@@ -256,7 +256,7 @@ b8 render_view_wireframe_on_render(const struct render_view* self, const struct 
                 KERROR("Failed to set view matrix uniform on wireframe shader.");
                 return false;
             }
-            shader_system_apply_global(true);
+            shader_system_apply_global(true, p_frame_data);
 
             if (array) {
                 for (u32 i = 0; i < counts[s]; ++i) {
@@ -280,7 +280,7 @@ b8 render_view_wireframe_on_render(const struct render_view* self, const struct 
                         }
                     }
 
-                    shader_system_apply_instance(needs_update);
+                    shader_system_apply_instance(needs_update, p_frame_data);
 
                     // Sync frame number and draw index.
                     inst->frame_number = p_frame_data->renderer_frame_number;

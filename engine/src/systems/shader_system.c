@@ -1,6 +1,7 @@
 #include "shader_system.h"
 
 #include "containers/darray.h"
+#include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
@@ -355,11 +356,11 @@ b8 shader_system_uniform_set_by_location_arrayed(u16 location, u32 array_index, 
     return renderer_shader_uniform_set(shader, uniform, array_index, value);
 }
 
-b8 shader_system_apply_global(b8 needs_update) {
-    return renderer_shader_apply_globals(&state_ptr->shaders[state_ptr->current_shader_id], needs_update);
+b8 shader_system_apply_global(b8 needs_update, frame_data* p_frame_data) {
+    return renderer_shader_apply_globals(&state_ptr->shaders[state_ptr->current_shader_id], needs_update, p_frame_data);
 }
-b8 shader_system_apply_instance(b8 needs_update) {
-    return renderer_shader_apply_instance(&state_ptr->shaders[state_ptr->current_shader_id], needs_update);
+b8 shader_system_apply_instance(b8 needs_update, frame_data* p_frame_data) {
+    return renderer_shader_apply_instance(&state_ptr->shaders[state_ptr->current_shader_id], needs_update, p_frame_data);
 }
 
 b8 shader_system_bind_instance(u32 instance_id) {
@@ -368,9 +369,9 @@ b8 shader_system_bind_instance(u32 instance_id) {
     return renderer_shader_bind_instance(s, instance_id);
 }
 
-b8 shader_system_apply_local(void) {
+b8 shader_system_apply_local(struct frame_data* p_frame_data) {
     shader* s = &state_ptr->shaders[state_ptr->current_shader_id];
-    return renderer_shader_apply_local(s);
+    return renderer_shader_apply_local(s, p_frame_data);
 }
 
 b8 shader_system_bind_local(void) {

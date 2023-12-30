@@ -121,7 +121,7 @@ b8 skybox_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame
             KERROR("Failed to apply skybox view uniform.");
             return false;
         }
-        shader_system_apply_global(true);
+        shader_system_apply_global(true, p_frame_data);
 
         // Instance
         shader_system_bind_instance(ext_data->sb->instance_id);
@@ -130,7 +130,7 @@ b8 skybox_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame
             return false;
         }
         b8 needs_update = ext_data->sb->render_frame_number != p_frame_data->renderer_frame_number || ext_data->sb->draw_index != p_frame_data->draw_index;
-        shader_system_apply_instance(needs_update);
+        shader_system_apply_instance(needs_update, p_frame_data);
 
         // Sync the frame number and draw index.
         ext_data->sb->render_frame_number = p_frame_data->renderer_frame_number;

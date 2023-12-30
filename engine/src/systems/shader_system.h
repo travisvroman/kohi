@@ -18,6 +18,8 @@
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
 
+struct frame_data;
+
 /** @brief Configuration for the shader system. */
 typedef struct shader_system_config {
     /** @brief The maximum number of shaders held in the system. NOTE: Should be at least 512. */
@@ -359,7 +361,7 @@ KAPI b8 shader_system_sampler_set_by_location_arrayed(u16 location, u32 array_in
  * @param needs_update Indicates if shader internals need to be updated, or just to be bound.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_global(b8 needs_update);
+KAPI b8 shader_system_apply_global(b8 needs_update, struct frame_data* p_frame_data);
 
 /**
  * @brief Applies instance-scoped uniforms.
@@ -369,7 +371,7 @@ KAPI b8 shader_system_apply_global(b8 needs_update);
  * @param needs_update Indicates if shader internals need to be updated, or just to be bound.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_instance(b8 needs_update);
+KAPI b8 shader_system_apply_instance(b8 needs_update, struct frame_data* p_frame_data);
 
 /**
  * @brief Binds the instance with the given id for use. Must be done before setting
@@ -387,7 +389,7 @@ KAPI b8 shader_system_bind_instance(u32 instance_id);
  *
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_local(void);
+KAPI b8 shader_system_apply_local(struct frame_data* p_frame_data);
 
 /**
  * @brief Binds the instance with the given id for use. Must be done before setting

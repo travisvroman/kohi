@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "core/frame_data.h"
 #include "renderer_types.h"
 
 struct shader;
@@ -363,7 +364,7 @@ KAPI b8 renderer_shader_bind_local(struct shader* s);
  * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_globals(struct shader* s, b8 needs_update);
+KAPI b8 renderer_shader_apply_globals(struct shader* s, b8 needs_update, frame_data* p_frame_data);
 
 /**
  * @brief Applies data for the currently bound instance.
@@ -372,7 +373,7 @@ KAPI b8 renderer_shader_apply_globals(struct shader* s, b8 needs_update);
  * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_instance(struct shader* s, b8 needs_update);
+KAPI b8 renderer_shader_apply_instance(struct shader* s, b8 needs_update, frame_data* p_frame_data);
 
 /**
  * @brief Acquires internal instance-level resources and provides an instance id.
@@ -424,7 +425,7 @@ KAPI b8 renderer_shader_uniform_set(struct shader* s, struct shader_uniform* uni
  * @brief Triggers the upload of local uniform data to the GPU.
  * @param s A ponter to the shader.
  */
-KAPI b8 renderer_shader_apply_local(struct shader* s);
+KAPI b8 renderer_shader_apply_local(struct shader* s, frame_data* p_frame_data);
 
 /**
  * @brief Acquires internal resources for the given texture map.

@@ -80,7 +80,7 @@ static void acquire_shader_instances(const struct render_view* self) {
     // Not saving the instance id because it doesn't matter.
     u32 instance;
     shader_instance_resource_config instance_resource_config = {0};
-    instance_resource_config.uniform_config_count = 0; //NOTE: no textures, so this doesn't matter.
+    instance_resource_config.uniform_config_count = 0;  // NOTE: no textures, so this doesn't matter.
     instance_resource_config.uniform_configs = 0;
     // UI shader
     if (!renderer_shader_instance_resources_acquire(data->ui_shader_info.s, &instance_resource_config, &instance)) {
@@ -394,7 +394,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
         if (!shader_system_uniform_set_by_location(data->world_shader_info.view_location, &data->world_shader_info.view)) {
             KERROR("Failed to apply view matrix");
         }
-        shader_system_apply_global(true);
+        shader_system_apply_global(true, p_frame_data);
 
         // Draw geometries. Start from 0 since world geometries are added first, and stop at the world geometry count.
         u32 world_geometry_count = !packet_data->world_mesh_data ? 0 : darray_length(packet_data->world_mesh_data);
@@ -415,7 +415,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
             }
 
             b8 needs_update = !data->instance_updated[current_instance_id];
-            shader_system_apply_instance(needs_update);
+            shader_system_apply_instance(needs_update, p_frame_data);
             data->instance_updated[current_instance_id] = true;
 
             // Apply the locals
@@ -441,7 +441,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
         if (!shader_system_uniform_set_by_location(data->terrain_shader_info.view_location, &data->terrain_shader_info.view)) {
             KERROR("Failed to apply view matrix");
         }
-        shader_system_apply_global(true);
+        shader_system_apply_global(true, p_frame_data);
 
         // Draw geometries. Start from 0 since terrain geometries are added first, and stop at the terrain geometry count.
         u32 terrain_geometry_count = !packet_data->terrain_mesh_data ? 0 : darray_length(packet_data->terrain_mesh_data);
@@ -462,7 +462,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
             }
 
             b8 needs_update = !data->instance_updated[current_instance_id];
-            shader_system_apply_instance(needs_update);
+            shader_system_apply_instance(needs_update, p_frame_data);
             data->instance_updated[current_instance_id] = true;
 
             // Apply the locals
@@ -505,7 +505,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
         if (!shader_system_uniform_set_by_location(data->ui_shader_info.view_location, &data->ui_shader_info.view)) {
             KERROR("Failed to apply view matrix");
         }
-        shader_system_apply_global(true);
+        shader_system_apply_global(true, p_frame_data);
 
         // Draw geometries. Start off where world geometries left off.
         for (u32 i = world_geometry_count; i < packet->geometry_count; ++i) {
@@ -525,7 +525,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
             }
 
             b8 needs_update = !data->instance_updated[current_instance_id];
-            shader_system_apply_instance(needs_update);
+            shader_system_apply_instance(needs_update, p_frame_data);
             data->instance_updated[current_instance_id] = true;
 
             // Apply the locals
