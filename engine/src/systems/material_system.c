@@ -35,7 +35,7 @@ typedef struct material_shader_uniform_locations {
 } material_shader_uniform_locations;
 
 #ifndef PBR_MAP_COUNT
-#define PBR_MAP_COUNT 10
+#define PBR_MAP_COUNT 7
 #endif
 
 #define MAX_SHADOW_CASCADE_COUNT 4
