@@ -35,6 +35,7 @@ void vulkan_image_create(
     texture_type type,
     u32 width,
     u32 height,
+    u16 layer_count,
     VkFormat format,
     VkImageTiling tiling,
     VkImageUsageFlags usage,
@@ -50,16 +51,22 @@ void vulkan_image_create(
  *
  * @param context A pointer to the Vulkan context.
  * @param type The type of texture. Provides hints to creation.
+ * @param layer_count The total number of layers in the image.
+ * @param layer_index The layer index this view refers to.
  * @param format The image format.
  * @param image A pointer to the image to associate the view with.
+ * @param out_view A pointer to hold the created view.
  * @param aspect_flags Aspect flags to be used when creating the view, if applicable.
  */
 void vulkan_image_view_create(
     vulkan_context* context,
     texture_type type,
+    u16 layer_count,
+    i32 layer_index,
     VkFormat format,
     vulkan_image* image,
-    VkImageAspectFlags aspect_flags);
+    VkImageAspectFlags aspect_flags,
+    VkImageView* out_view);
 
 /**
  * @brief Transitions the provided image from old_layout to new_layout.

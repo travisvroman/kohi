@@ -1,6 +1,8 @@
 #include "renderer_frontend.h"
 
+#include "containers/darray.h"
 #include "containers/freelist.h"
+#include "containers/hashtable.h"
 #include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
@@ -12,6 +14,7 @@
 #include "math/math_types.h"
 #include "platform/platform.h"
 #include "renderer/renderer_types.h"
+#include "renderer/renderer_utils.h"
 #include "renderer/viewport.h"
 #include "resources/resource_types.h"
 #include "systems/camera_system.h"
@@ -421,9 +424,76 @@ b8 renderer_renderpass_end(renderpass* pass) {
     return state_ptr->plugin.renderpass_end(&state_ptr->plugin, pass);
 }
 
-b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pass, u8 stage_count, const char** stage_filenames, shader_stage* stages) {
+b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pass) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.shader_create(&state_ptr->plugin, s, config, pass, stage_count, stage_filenames, stages);
+
+    // Get the uniform counts.
+    s->global_uniform_count = 0;
+    // Number of samplers in the shader, per frame. NOT the number of descriptors needed (i.e could be an array).
+    s->global_uniform_sampler_count = 0;
+    s->global_sampler_indices = darray_create(u32);
+    s->instance_uniform_count = 0;
+    // Number of samplers in the shader, per instance, per frame. NOT the number of descriptors needed (i.e could be an array).
+    s->instance_uniform_sampler_count = 0;
+    s->instance_sampler_indices = darray_create(u32);
+    s->local_uniform_count = 0;
+
+    // Examine the uniforms and determine scope as well as a count of samplers.
+    u32 total_count = darray_length(config->uniforms);
+    for (u32 i = 0; i < total_count; ++i) {
+        switch (config->uniforms[i].scope) {
+            case SHADER_SCOPE_GLOBAL:
+                if (uniform_type_is_sampler(config->uniforms[i].type)) {
+                    s->global_uniform_sampler_count++;
+                    darray_push(s->global_sampler_indices, i);
+                } else {
+                    s->global_uniform_count++;
+                }
+                break;
+            case SHADER_SCOPE_INSTANCE:
+                if (uniform_type_is_sampler(config->uniforms[i].type)) {
+                    s->instance_uniform_sampler_count++;
+                    darray_push(s->instance_sampler_indices, i);
+                } else {
+                    s->instance_uniform_count++;
+                }
+                break;
+            case SHADER_SCOPE_LOCAL:
+                s->local_uniform_count++;
+                break;
+        }
+    }
+
+    // Examine shader stages and load shader source as required. This source is
+    // then fed to the backend renderer, which stands up any shader program resources
+    // as required.
+    // TODO: Implement #include directives here at this level so it's handled the same
+    // regardless of what backend is being used.
+
+    s->stage_configs = kallocate(sizeof(shader_stage_config) * config->stage_count, MEMORY_TAG_ARRAY);
+    // Each stage.
+    for (u8 i = 0; i < config->stage_count; ++i) {
+        s->stage_configs[i].stage = config->stage_configs[i].stage;
+        s->stage_configs[i].filename = string_duplicate(config->stage_configs[i].filename);
+        // Read the resource.
+        resource text_resource;
+        if (!resource_system_load(s->stage_configs[i].filename, RESOURCE_TYPE_TEXT, 0, &text_resource)) {
+            KERROR("Unable to read shader file: %s.", s->stage_configs[i].filename);
+            return false;
+        }
+        // Take a copy of the source and length, then release the resource.
+        s->stage_configs[i].source_length = text_resource.data_size;
+        s->stage_configs[i].source = string_duplicate(text_resource.data);
+        // TODO: Implement recursive #include directives here at this level so it's handled the same
+        // regardless of what backend is being used.
+        // This should recursively replace #includes with the file content in-place and adjust the source
+        // length along the way.
+
+        // Release the resource as it isn't needed anymore at this point.
+        resource_system_unload(&text_resource);
+    }
+
+    return state_ptr->plugin.shader_create(&state_ptr->plugin, s, config, pass);
 }
 
 void renderer_shader_destroy(shader* s) {
@@ -451,19 +521,24 @@ b8 renderer_shader_bind_instance(shader* s, u32 instance_id) {
     return state_ptr->plugin.shader_bind_instance(&state_ptr->plugin, s, instance_id);
 }
 
-b8 renderer_shader_apply_globals(shader* s, b8 needs_update) {
+b8 renderer_shader_bind_local(shader* s) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.shader_apply_globals(&state_ptr->plugin, s, needs_update);
+    return state_ptr->plugin.shader_bind_local(&state_ptr->plugin, s);
 }
 
-b8 renderer_shader_apply_instance(shader* s, b8 needs_update) {
+b8 renderer_shader_apply_globals(shader* s, b8 needs_update, frame_data* p_frame_data) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.shader_apply_instance(&state_ptr->plugin, s, needs_update);
+    return state_ptr->plugin.shader_apply_globals(&state_ptr->plugin, s, needs_update, p_frame_data);
 }
 
-b8 renderer_shader_instance_resources_acquire(shader* s, u32 texture_map_count, texture_map** maps, u32* out_instance_id) {
+b8 renderer_shader_apply_instance(shader* s, b8 needs_update, frame_data* p_frame_data) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.shader_instance_resources_acquire(&state_ptr->plugin, s, texture_map_count, maps, out_instance_id);
+    return state_ptr->plugin.shader_apply_instance(&state_ptr->plugin, s, needs_update, p_frame_data);
+}
+
+b8 renderer_shader_instance_resources_acquire(struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_instance_resources_acquire(&state_ptr->plugin, s, config, out_instance_id);
 }
 
 b8 renderer_shader_instance_resources_release(shader* s, u32 instance_id) {
@@ -471,9 +546,35 @@ b8 renderer_shader_instance_resources_release(shader* s, u32 instance_id) {
     return state_ptr->plugin.shader_instance_resources_release(&state_ptr->plugin, s, instance_id);
 }
 
-b8 renderer_shader_uniform_set(shader* s, shader_uniform* uniform, const void* value) {
+shader_uniform* renderer_shader_uniform_get_by_location(shader* s, u16 location) {
+    if (!s) {
+        return 0;
+    }
+    return &s->uniforms[location];
+}
+
+shader_uniform* renderer_shader_uniform_get(shader* s, const char* name) {
+    if (!s || !name) {
+        return 0;
+    }
+
+    u16 uniform_index;
+    if (!hashtable_get(&s->uniform_lookup, name, &uniform_index)) {
+        KERROR("Shader '%s' does not contain a uniform named '%s'.", s->name, name);
+        return false;
+    }
+
+    return &s->uniforms[uniform_index];
+}
+
+b8 renderer_shader_uniform_set(shader* s, shader_uniform* uniform, u32 array_index, const void* value) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.shader_uniform_set(&state_ptr->plugin, s, uniform, value);
+    return state_ptr->plugin.shader_uniform_set(&state_ptr->plugin, s, uniform, array_index, value);
+}
+
+b8 renderer_shader_apply_local(shader* s, frame_data* p_frame_data) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_apply_local(&state_ptr->plugin, s, p_frame_data);
 }
 
 b8 renderer_texture_map_resources_acquire(struct texture_map* map) {
@@ -486,9 +587,9 @@ void renderer_texture_map_resources_release(struct texture_map* map) {
     state_ptr->plugin.texture_map_resources_release(&state_ptr->plugin, map);
 }
 
-void renderer_render_target_create(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target) {
+void renderer_render_target_create(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, u16 layer_index, render_target* out_target) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    state_ptr->plugin.render_target_create(&state_ptr->plugin, attachment_count, attachments, pass, width, height, out_target);
+    state_ptr->plugin.render_target_create(&state_ptr->plugin, attachment_count, attachments, pass, width, height, layer_index, out_target);
 }
 
 void renderer_render_target_destroy(render_target* target, b8 free_internal_memory) {

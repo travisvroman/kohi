@@ -1,10 +1,11 @@
 # Kohi shader config file
-version=1.0
+version=1
 name=Shader.Builtin.Terrain
 stages=vertex,fragment
 stagefiles=shaders/Builtin.TerrainShader.vert.glsl,shaders/Builtin.TerrainShader.frag.glsl
 depth_test=1
 depth_write=1
+max_instances=5
 
 # Attributes: type,name
 attribute=vec3,in_position
@@ -31,37 +32,13 @@ uniform=f32,0,bias
 uniform=vec2,0,padding_global
 
 
-uniform=samp,1,albedo_texture_0
-uniform=samp,1,normal_texture_0
-uniform=samp,1,metallic_texture_0
-uniform=samp,1,roughness_texture_0
-uniform=samp,1,ao_texture_0
-
-uniform=samp,1,albedo_texture_1
-uniform=samp,1,normal_texture_1
-uniform=samp,1,metallic_texture_1
-uniform=samp,1,roughness_texture_1
-uniform=samp,1,ao_texture_1
-
-uniform=samp,1,albedo_texture_2
-uniform=samp,1,normal_texture_2
-uniform=samp,1,metallic_texture_2
-uniform=samp,1,roughness_texture_2
-uniform=samp,1,ao_texture_2
-
-uniform=samp,1,albedo_texture_3
-uniform=samp,1,normal_texture_3
-uniform=samp,1,metallic_texture_3
-uniform=samp,1,roughness_texture_3
-uniform=samp,1,ao_texture_3
-
+# NOTE: samplers are bound in the order they are configured.
+# albedo,normal,metallic,roughness,ao - per material
+uniform=sampler2D[20],1,material_textures
 # Shadow map
-uniform=samp,1,shadow_texture_0
-uniform=samp,1,shadow_texture_1
-uniform=samp,1,shadow_texture_2
-uniform=samp,1,shadow_texture_3
-# Irradience
-uniform=samp,1,ibl_cube_texture
+uniform=sampler2DArray,1,shadow_textures
+# IBL
+uniform=samplerCube,1,ibl_cube_texture
 
 uniform=struct160,1,properties
 uniform=struct480,1,p_lights

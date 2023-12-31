@@ -1,11 +1,12 @@
 # Kohi shader config file
-version=1.0
+version=1
 name=Shader.ShadowmapTerrain
 stages=vertex,fragment
 stagefiles=shaders/Shader.ShadowmapTerrain.vert.glsl,shaders/Shader.ShadowmapTerrain.frag.glsl
 depth_test=1
 depth_write=1
 cull_mode=none
+max_instances=256
 
 # Attributes: type,name
 attribute=vec3,in_position
@@ -17,8 +18,8 @@ attribute=vec4,in_mat_weights
 
 # Uniforms: type,scope,name
 # NOTE: For scope: 0=global, 1=instance, 2=local
-uniform=mat4,0,projection
-uniform=mat4,0,view
+uniform=mat4[4],0,projections
+uniform=mat4[4],0,views
 uniform=mat4,2,model
-uniform=vec4,1,rubbish
-uniform=samp,1,colour_map
+uniform=u32,2,cascade_index
+uniform=sampler2D,1,colour_map

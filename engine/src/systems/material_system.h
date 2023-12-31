@@ -15,9 +15,6 @@
 #include "defines.h"
 #include "resources/resource_types.h"
 
-/** @brief The name of the default material. */
-#define DEFAULT_MATERIAL_NAME "default"
-
 /** @brief The name of the default PBR material. */
 #define DEFAULT_PBR_MATERIAL_NAME "default_pbr"
 
@@ -120,7 +117,7 @@ KAPI material* material_system_get_default_terrain(void);
  * @param render_mode The render mode.
  * @return True on success; otherwise false.
  */
-KAPI b8 material_system_apply_global(u32 shader_id, const struct frame_data* p_frame_data, const mat4* projection, const mat4* view, const vec4* ambient_colour, const vec3* view_position, u32 render_mode);
+KAPI b8 material_system_apply_global(u32 shader_id, struct frame_data* p_frame_data, const mat4* projection, const mat4* view, const vec4* ambient_colour, const vec3* view_position, u32 render_mode);
 
 /**
  * @brief Applies instance-level material data for the given material.
@@ -139,7 +136,7 @@ KAPI b8 material_system_apply_instance(material* m, struct frame_data* p_frame_d
  * @param model A constant pointer to the model matrix to be applied.
  * @return True on success; otherwise false.
  */
-KAPI b8 material_system_apply_local(material* m, const mat4* model);
+KAPI b8 material_system_apply_local(material* m, const mat4* model, struct frame_data* p_frame_data);
 
 /**
  * @ brief Sets the provided shadowmap texture to be used for future binding/draw calls until changed.
@@ -159,7 +156,7 @@ KAPI b8 material_system_irradiance_set(texture* irradiance_cube_texture);
 
 /**
  * @brief Sets the current directional light-space matrix to be used for future binding calls that require it.
- * 
+ *
  * @param directional_light_space The directional light-space matrix.
  */
 KAPI void material_system_directional_light_space_set(mat4 directional_light_space, u8 index);

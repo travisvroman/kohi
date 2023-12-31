@@ -94,22 +94,27 @@ b8 render_view_wireframe_on_registered(struct render_view* self) {
         resource_system_unload(&wireframe_shader_config_resource);
 
         info->s = shader_system_get(shader_names[s]);
-        info->locations.projection = shader_system_uniform_index(info->s, "projection");
-        info->locations.view = shader_system_uniform_index(info->s, "view");
-        info->locations.model = shader_system_uniform_index(info->s, "model");
-        info->locations.colour = shader_system_uniform_index(info->s, "colour");
+        info->locations.projection = shader_system_uniform_location(info->s, "projection");
+        info->locations.view = shader_system_uniform_location(info->s, "view");
+        info->locations.model = shader_system_uniform_location(info->s, "model");
+        info->locations.colour = shader_system_uniform_location(info->s, "colour");
 
         // Acquire shader instance resources.
         info->normal_instance = (wireframe_colour_instance){0};
         info->normal_instance.colour = normal_colours[s];
-        if (!renderer_shader_instance_resources_acquire(info->s, 0, 0, &info->normal_instance.id)) {
+
+        shader_instance_resource_config instance_resource_config = {0};
+        instance_resource_config.uniform_config_count = 0;  // NOTE: no textures, so this doesn't matter.
+        instance_resource_config.uniform_configs = 0;
+
+        if (!renderer_shader_instance_resources_acquire(info->s, &instance_resource_config, &info->normal_instance.id)) {
             KERROR("Unable to acquire geometry shader instance resources from wireframe shader.");
             return false;
         }
 
         info->selected_instance = (wireframe_colour_instance){0};
         info->selected_instance.colour = vec4_create(0.0f, 1.0f, 0.0f, 1.0f);
-        if (!renderer_shader_instance_resources_acquire(info->s, 0, 0, &info->selected_instance.id)) {
+        if (!renderer_shader_instance_resources_acquire(info->s, &instance_resource_config, &info->selected_instance.id)) {
             KERROR("Unable to acquire selected shader instance resources from wireframe shader.");
             return false;
         }
@@ -243,15 +248,15 @@ b8 render_view_wireframe_on_render(const struct render_view* self, const struct 
 
             // Set global uniforms
             renderer_shader_bind_globals(info->s);
-            if (!shader_system_uniform_set_by_index(info->locations.projection, &packet->projection_matrix)) {
+            if (!shader_system_uniform_set_by_location(info->locations.projection, &packet->projection_matrix)) {
                 KERROR("Failed to set projection matrix uniform on wireframe shader.");
                 return false;
             }
-            if (!shader_system_uniform_set_by_index(info->locations.view, &packet->view_matrix)) {
+            if (!shader_system_uniform_set_by_location(info->locations.view, &packet->view_matrix)) {
                 KERROR("Failed to set view matrix uniform on wireframe shader.");
                 return false;
             }
-            shader_system_apply_global(true);
+            shader_system_apply_global(true, p_frame_data);
 
             if (array) {
                 for (u32 i = 0; i < counts[s]; ++i) {
@@ -269,20 +274,20 @@ b8 render_view_wireframe_on_render(const struct render_view* self, const struct 
 
                     b8 needs_update = inst->frame_number != p_frame_data->renderer_frame_number || inst->draw_index != p_frame_data->draw_index;
                     if (needs_update) {
-                        if (!shader_system_uniform_set_by_index(info->locations.colour, &inst->colour)) {
+                        if (!shader_system_uniform_set_by_location(info->locations.colour, &inst->colour)) {
                             KERROR("Unable to set uniform colour for wireframe shader.");
                             return false;
                         }
                     }
 
-                    shader_system_apply_instance(needs_update);
+                    shader_system_apply_instance(needs_update, p_frame_data);
 
                     // Sync frame number and draw index.
                     inst->frame_number = p_frame_data->renderer_frame_number;
                     inst->draw_index = p_frame_data->draw_index;
 
                     // Locals.
-                    if (!shader_system_uniform_set_by_index(info->locations.model, &array[i].model)) {
+                    if (!shader_system_uniform_set_by_location(info->locations.model, &array[i].model)) {
                         KERROR("Failed to apply model matrix uniform for wireframe shader.");
                         return false;
                     }

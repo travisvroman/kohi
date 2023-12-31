@@ -113,6 +113,21 @@ KAPI texture* texture_system_acquire_cube(const char* name, b8 auto_release);
 KAPI texture* texture_system_acquire_writeable(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency);
 
 /**
+ * @brief Attempts to acquire a writeable array texture with the given name. This does not point to
+ * nor attempt to load a texture file. Does also increment the reference counter.
+ * NOTE: Writeable textures are not auto-released.
+ *
+ * @param name The name of the texture to acquire.
+ * @param width The texture width in pixels.
+ * @param height The texture height in pixels.
+ * @param channel_count The number of channels in the texture (typically 4 for RGBA)
+ * @param has_transparency Indicates if the texture will have transparency.
+ * @param type The texture type.
+ * @param array_size The number of "layers" in the texture.
+ * @return A pointer to the generated texture.
+ */
+KAPI texture* texture_system_acquire_writeable_arrayed(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, texture_type type, u16 array_size);
+/**
  * @brief Releases a texture with the given name. Ignores non-existant textures.
  * Decreases the reference counter by 1. If the reference counter reaches 0 and
  * auto_release was set to true, the texture is unloaded, releasing internal resources.

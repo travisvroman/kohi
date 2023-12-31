@@ -3,6 +3,7 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "resources/resource_types.h"
 #include "vulkan/vulkan_core.h"
 #include "vulkan_device.h"
 #include "vulkan_utils.h"
@@ -12,6 +13,7 @@ void vulkan_image_create(
     texture_type type,
     u32 width,
     u32 height,
+    u16 layer_count,
     VkFormat format,
     VkImageTiling tiling,
     VkImageUsageFlags usage,
@@ -32,12 +34,18 @@ void vulkan_image_create(
     out_image->name = string_duplicate(name);
     out_image->mip_levels = mip_levels;
     out_image->format = format;
+    out_image->layer_count = layer_count;
+    out_image->layer_views = 0;
+    if (layer_count < 1) {
+        layer_count = 1;
+    }
     // Creation info.
     VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     switch (type) {
         default:
         case TEXTURE_TYPE_2D:
-        case TEXTURE_TYPE_CUBE:  // Intentional, there is no cube image type.
+        case TEXTURE_TYPE_CUBE:      // Intentional, there is no cube image type.
+        case TEXTURE_TYPE_2D_ARRAY:  // Intentional, there is no 2d_array image type.
             image_create_info.imageType = VK_IMAGE_TYPE_2D;
             break;
     }
@@ -46,7 +54,7 @@ void vulkan_image_create(
     image_create_info.extent.height = height;
     image_create_info.extent.depth = 1;  // TODO: Support configurable depth.
     image_create_info.mipLevels = out_image->mip_levels;
-    image_create_info.arrayLayers = type == TEXTURE_TYPE_CUBE ? 6 : 1;
+    image_create_info.arrayLayers = type == TEXTURE_TYPE_CUBE ? 6 : layer_count;
     image_create_info.format = format;
     image_create_info.tiling = tiling;
     image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -87,42 +95,58 @@ void vulkan_image_create(
 
     // Create view
     if (create_view) {
+        // Single view, encapsulating all layers.
         out_image->view = 0;
-        vulkan_image_view_create(context, type, format, out_image, view_aspect_flags);
+        vulkan_image_view_create(context, type, layer_count, -1, format, out_image, view_aspect_flags, &out_image->view);
+
+        if (layer_count > 1) {
+            // Multiple views, one per layer
+            out_image->layer_views = kallocate(sizeof(VkImageView) * layer_count, MEMORY_TAG_ARRAY);
+            for (u32 i = 0; i < layer_count; ++i) {
+                vulkan_image_view_create(context, type, 1, i, format, out_image, view_aspect_flags, &out_image->layer_views[i]);
+            }
+        }
     }
 }
 
 void vulkan_image_view_create(
     vulkan_context* context,
     texture_type type,
+    u16 layer_count,
+    i32 layer_index,
     VkFormat format,
     vulkan_image* image,
-    VkImageAspectFlags aspect_flags) {
+    VkImageAspectFlags aspect_flags,
+    VkImageView* out_view) {
     VkImageViewCreateInfo view_create_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     view_create_info.image = image->handle;
     switch (type) {
         case TEXTURE_TYPE_CUBE:
             view_create_info.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+            view_create_info.subresourceRange.layerCount = 6;
+            break;
+        case TEXTURE_TYPE_2D_ARRAY:
+            view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+            view_create_info.subresourceRange.layerCount = layer_count;
             break;
         default:
         case TEXTURE_TYPE_2D:
             view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            view_create_info.subresourceRange.layerCount = 1;
             break;
     }
     view_create_info.format = format;
     view_create_info.subresourceRange.aspectMask = aspect_flags;
 
-    // TODO: Make configurable
     view_create_info.subresourceRange.baseMipLevel = 0;
     view_create_info.subresourceRange.levelCount = image->mip_levels;
-    view_create_info.subresourceRange.baseArrayLayer = 0;
-    view_create_info.subresourceRange.layerCount = type == TEXTURE_TYPE_CUBE ? 6 : 1;
+    view_create_info.subresourceRange.baseArrayLayer = layer_index < 0 ? 0 : layer_index;
 
-    VK_CHECK(vkCreateImageView(context->device.logical_device, &view_create_info, context->allocator, &image->view));
+    VK_CHECK(vkCreateImageView(context->device.logical_device, &view_create_info, context->allocator, out_view));
 
     char formatted_name[TEXTURE_NAME_MAX_LENGTH] = {0};
-    string_format(formatted_name, "%s_view", image->name);
-    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, image->view, formatted_name);
+    string_format(formatted_name, "%s_view_idx_%u", image->name, layer_index);
+    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, *out_view, formatted_name);
 }
 
 void vulkan_image_transition_layout(
@@ -422,6 +446,14 @@ void vulkan_image_destroy(vulkan_context* context, vulkan_image* image) {
     if (image->view) {
         vkDestroyImageView(context->device.logical_device, image->view, context->allocator);
         image->view = 0;
+    }
+    if (image->layer_views) {
+        for (u32 i = 0; i < image->layer_count; ++i) {
+            vkDestroyImageView(context->device.logical_device, image->layer_views[i], context->allocator);
+        }
+        kfree(image->layer_views, sizeof(VkImageView) * image->layer_count, MEMORY_TAG_ARRAY);
+        image->layer_views = 0;
+        image->layer_count = 0;
     }
     if (image->memory) {
         vkFreeMemory(context->device.logical_device, image->memory, context->allocator);

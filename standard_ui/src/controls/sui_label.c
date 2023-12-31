@@ -54,9 +54,20 @@ b8 sui_label_control_create(const char* name, font_type type, const char* font_n
 
     // Acquire resources for font texture map.
     // TODO: Should there be an override option for the shader?
-    shader* ui_shader = shader_system_get("Shader.StandardUI");  // TODO: text shader.
-    texture_map* font_maps[1] = {&typed_data->data->atlas};
-    if (!renderer_shader_instance_resources_acquire(ui_shader, 1, font_maps, &typed_data->instance_id)) {
+    texture_map* maps[1] = {&typed_data->data->atlas};
+    shader* s = shader_system_get("Shader.StandardUI");
+    u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index;
+    shader_instance_resource_config instance_resource_config = {0};
+    // Map count for this type is known.
+    shader_instance_uniform_texture_config atlas_texture = {0};
+    atlas_texture.uniform_location = atlas_location;
+    atlas_texture.texture_map_count = 1;
+    atlas_texture.texture_maps = maps;
+
+    instance_resource_config.uniform_config_count = 1;
+    instance_resource_config.uniform_configs = &atlas_texture;
+
+    if(!renderer_shader_instance_resources_acquire(s, &instance_resource_config, &typed_data->instance_id)) {
         KFATAL("Unable to acquire shader resources for font texture map.");
         return false;
     }

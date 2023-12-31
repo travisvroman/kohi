@@ -62,7 +62,8 @@ typedef struct rendergraph_pass {
     b8 (*execute)(struct rendergraph_pass* self, struct frame_data* p_frame_data);
     void (*destroy)(struct rendergraph_pass* self);
     b8 (*attachment_textures_regenerate)(struct rendergraph_pass* self, u16 width, u16 height);
-    struct texture* (*attachment_texture_get)(struct rendergraph_pass* self, enum render_target_attachment_type attachment_type, u8 frame_number);
+    b8 (*source_populate)(struct rendergraph_pass* self, rendergraph_source* source);
+    b8 (*attachment_populate)(struct rendergraph_pass* self, render_target_attachment* attachment);
 } rendergraph_pass;
 
 typedef struct rendergraph {

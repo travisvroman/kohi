@@ -181,3 +181,8 @@ void frustum_corner_points_world_space(mat4 projection_view, vec4 *corners) {
         corners[i] = vec4_div_scalar(point, point.w);
     }
 }
+
+f32 vec3_distance_to_line(vec3 point, vec3 line_start, vec3 line_direction) {
+    f32 magnitude = vec3_length(vec3_cross(vec3_sub(point, line_start), line_direction));
+    return magnitude / vec3_length(line_direction);
+}

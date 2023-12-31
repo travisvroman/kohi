@@ -1,5 +1,5 @@
 # Kohi shader config file
-version=1.0
+version=1
 name=Shader.StandardUI
 cull_mode=none
 renderpass=Renderpass.Builtin.UI
@@ -9,6 +9,7 @@ depth_test=0
 depth_write=0
 stencil_test=1
 stencil_write=1
+max_instances=512
 
 # Attributes: type,name
 attribute=vec2,in_position
@@ -19,5 +20,5 @@ attribute=vec2,in_texcoord
 uniform=mat4,0,projection
 uniform=mat4,0,view
 uniform=struct16,1,properties
-uniform=samp,1,diffuse_texture
+uniform=sampler2D,1,diffuse_texture
 uniform=mat4,2,model

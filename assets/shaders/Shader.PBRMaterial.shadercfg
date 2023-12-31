@@ -1,10 +1,11 @@
 # Kohi shader config file
-version=1.0
+version=1
 name=Shader.PBRMaterial
 stages=vertex,fragment
 stagefiles=shaders/PBRShader.vert.glsl,shaders/PBRShader.frag.glsl
 depth_test=1
 depth_write=1
+max_instances=256
 
 # Attributes: type,name
 attribute=vec3,in_position
@@ -27,18 +28,13 @@ uniform=u32,0,mode
 uniform=u32,0,use_pcf
 uniform=f32,0,bias
 uniform=vec2,0,padding
-uniform=samp,1,albedo_texture
-uniform=samp,1,normal_texture
-uniform=samp,1,metallic_texture
-uniform=samp,1,roughness_texture
-uniform=samp,1,ao_texture
+# NOTE: samplers are bound in the order they are configured.
+# albedo,normal,metallic,roughness,ao
+uniform=sampler2D[5],1,material_textures
 # Shadow map
-uniform=samp,1,shadow_texture_0
-uniform=samp,1,shadow_texture_1
-uniform=samp,1,shadow_texture_2
-uniform=samp,1,shadow_texture_3
+uniform=sampler2DArray,1,shadow_textures
 # IBL
-uniform=samp,1,ibl_cube_texture
+uniform=samplerCube,1,ibl_cube_texture
 
 uniform=struct32,1,dir_light
 uniform=struct480,1,p_lights

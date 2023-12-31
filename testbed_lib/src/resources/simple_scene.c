@@ -1229,6 +1229,94 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
     return true;
 }
 
+b8 simple_scene_mesh_render_data_query_from_line(const simple_scene *scene, vec3 direction, vec3 center, f32 radius, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data *out_geometries) {
+    if (!scene) {
+        return false;
+    }
+
+    geometry_distance *transparent_geometries = darray_create_with_allocator(geometry_distance, &p_frame_data->allocator);
+
+    u32 mesh_count = darray_length(scene->meshes);
+    for (u32 i = 0; i < mesh_count; ++i) {
+        mesh *m = &scene->meshes[i];
+        if (m->generation != INVALID_ID_U8) {
+            mat4 model = transform_world_get(&m->transform);
+            b8 winding_inverted = m->transform.determinant < 0;
+
+            for (u32 j = 0; j < m->geometry_count; ++j) {
+                geometry *g = m->geometries[j];
+
+                // TODO: cache this somewhere...
+                //
+                // Translate/scale the extents.
+                vec3 extents_min = vec3_mul_mat4(g->extents.min, model);
+                vec3 extents_max = vec3_mul_mat4(g->extents.max, model);
+                // Translate/scale the center.
+                vec3 transformed_center = vec3_mul_mat4(g->center, model);
+                // Find the one furthest from the center.
+                f32 mesh_radius = KMAX(vec3_distance(extents_min, transformed_center), vec3_distance(extents_max, transformed_center));
+
+                f32 dist_to_line = vec3_distance_to_line(transformed_center, center, direction);
+
+                // Is within distance, so include it
+                if ((dist_to_line - mesh_radius) <= radius) {
+                    // Add it to the list to be rendered.
+                    geometry_render_data data = {0};
+                    data.model = model;
+                    data.material = g->material;
+                    data.vertex_count = g->vertex_count;
+                    data.vertex_buffer_offset = g->vertex_buffer_offset;
+                    data.index_count = g->index_count;
+                    data.index_buffer_offset = g->index_buffer_offset;
+                    data.unique_id = m->id.uniqueid;
+                    data.winding_inverted = winding_inverted;
+
+                    // Check if transparent. If so, put into a separate, temp array to be
+                    // sorted by distance from the camera. Otherwise, put into the
+                    // ext_data->geometries array directly.
+                    b8 has_transparency = false;
+                    if (g->material->type == MATERIAL_TYPE_PBR) {
+                        // Check diffuse map (slot 0).
+                        has_transparency = ((g->material->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) != 0);
+                    }
+
+                    if (has_transparency) {
+                        // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
+                        // Get the center, extract the global position from the model matrix and add it to the center,
+                        // then calculate the distance between it and the camera, and finally save it to a list to be sorted.
+                        // NOTE: This isn't perfect for translucent meshes that intersect, but is enough for our purposes now.
+                        vec3 geometry_center = vec3_transform(g->center, 1.0f, model);
+                        f32 distance = vec3_distance(geometry_center, center);
+
+                        geometry_distance gdist;
+                        gdist.distance = kabs(distance);
+                        gdist.g = data;
+                        darray_push(transparent_geometries, gdist);
+                    } else {
+                        darray_push(out_geometries, data);
+                    }
+                    p_frame_data->drawn_mesh_count++;
+                }
+            }
+        }
+    }
+
+    // Sort opaque geometries by material.
+    kquick_sort(sizeof(geometry_render_data), out_geometries, 0, darray_length(out_geometries) - 1, geometry_render_data_compare);
+
+    // Sort transparent geometries, then add them to the ext_data->geometries array.
+    u32 transparent_geometry_count = darray_length(transparent_geometries);
+    // TODO: Why does this segfault?
+    /* kquick_sort(sizeof(geometry_distance), transparent_geometries, 0, transparent_geometry_count - 1, geometry_distance_compare); */
+    for (u32 i = 0; i < transparent_geometry_count; ++i) {
+        darray_push(out_geometries, transparent_geometries[i].g);
+    }
+
+    *out_count = darray_length(out_geometries);
+
+    return true;
+}
+
 b8 simple_scene_mesh_render_data_query(const simple_scene *scene, const frustum *f, vec3 center, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data *out_geometries) {
     if (!scene) {
         return false;
@@ -1246,6 +1334,8 @@ b8 simple_scene_mesh_render_data_query(const simple_scene *scene, const frustum 
             for (u32 j = 0; j < m->geometry_count; ++j) {
                 geometry *g = m->geometries[j];
 
+                // TODO: Distance-from-line detection per object (e.g. light direction and center pos, then distance check from that line.)
+                //
                 // // Bounding sphere calculation.
                 // {
                 //     // Translate/scale the extents.
@@ -1304,7 +1394,7 @@ b8 simple_scene_mesh_render_data_query(const simple_scene *scene, const frustum 
                         // sorted by distance from the camera. Otherwise, put into the
                         // ext_data->geometries array directly.
                         b8 has_transparency = false;
-                        if (g->material->type == MATERIAL_TYPE_PHONG) {
+                        if (g->material->type == MATERIAL_TYPE_PBR) {
                             // Check diffuse map (slot 0).
                             has_transparency = ((g->material->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) != 0);
                         }
