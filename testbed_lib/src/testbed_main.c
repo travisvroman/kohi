@@ -1603,7 +1603,6 @@ static b8 configure_rendergraph(application* app) {
     shadow_map_pass_config shadow_pass_config = {0};
     shadow_pass_config.resolution = 2048;
     RG_CHECK(rendergraph_pass_create(&state->frame_graph, shadowmap_pass_name, shadow_map_pass_create, &shadow_pass_config, &state->shadowmap_pass));
-    RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_SELF));
     RG_CHECK(rendergraph_pass_source_add(&state->frame_graph, shadowmap_pass_name, "depthbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_DEPTH_STENCIL, RENDERGRAPH_SOURCE_ORIGIN_SELF));
 
     // Scene pass

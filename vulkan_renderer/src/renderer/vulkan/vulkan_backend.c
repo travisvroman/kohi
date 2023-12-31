@@ -1093,9 +1093,11 @@ b8 vulkan_renderer_renderpass_begin(renderer_plugin *plugin, renderpass *pass, r
         kcopy_memory(clear_values[begin_info.clearValueCount].color.float32, pass->clear_colour.elements, sizeof(f32) * 4);
         begin_info.clearValueCount++;
     } else {
-        // Still add it anyway, but don't bother copying data since it will be
-        // ignored.
-        begin_info.clearValueCount++;
+        // If the first attachment is colour, add a clear value anyway, but don't bother copying data since it will be ignored.
+        // This must be done because each attachment must have a clear value, even if it isn't used.
+        if (target->attachments[0].type == RENDER_TARGET_ATTACHMENT_TYPE_COLOUR) {
+            begin_info.clearValueCount++;
+        }
     }
 
     b8 do_clear_depth = (pass->clear_flags & RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG) != 0;
