@@ -532,6 +532,20 @@ void shadow_map_pass_destroy(struct rendergraph_pass* self) {
             // Destroy the attachments, one per frame.
             u8 attachment_count = renderer_window_attachment_count_get();
 
+            // Renderpass attachments.
+            for (u32 i = 0; i < MAX_CASCADE_COUNT; ++i) {
+                cascade_resources* cascade = &internal_data->cascades[i];
+                // Targets per frame
+                for (u32 f = 0; f < attachment_count; ++f) {
+                    // One render target per pass
+                    render_target* target = &cascade->targets[f];
+
+                    // Create the underlying render target.
+                    renderer_render_target_destroy(target, true);
+                }
+                kfree(cascade->targets, sizeof(render_target) * attachment_count, MEMORY_TAG_ARRAY);
+            }
+
             for (u8 i = 0; i < attachment_count; ++i) {
                 renderer_texture_destroy(&internal_data->depth_textures[i]);
             }

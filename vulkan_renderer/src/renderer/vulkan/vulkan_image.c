@@ -99,10 +99,12 @@ void vulkan_image_create(
         out_image->view = 0;
         vulkan_image_view_create(context, type, layer_count, -1, format, out_image, view_aspect_flags, &out_image->view);
 
-        // Multiple views, one per layer
-        out_image->layer_views = kallocate(sizeof(VkImageView) * layer_count, MEMORY_TAG_ARRAY);
-        for (u32 i = 0; i < layer_count; ++i) {
-            vulkan_image_view_create(context, type, 1, i, format, out_image, view_aspect_flags, &out_image->layer_views[i]);
+        if (layer_count > 1) {
+            // Multiple views, one per layer
+            out_image->layer_views = kallocate(sizeof(VkImageView) * layer_count, MEMORY_TAG_ARRAY);
+            for (u32 i = 0; i < layer_count; ++i) {
+                vulkan_image_view_create(context, type, 1, i, format, out_image, view_aspect_flags, &out_image->layer_views[i]);
+            }
         }
     }
 }
