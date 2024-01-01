@@ -679,6 +679,8 @@ static b8 rebuild_system_font_variant_atlas(system_font_lookup* lookup, font_dat
             k->codepoint_1 = kerning_table[i].glyph2;
             k->amount = kerning_table[i].advance;
         }
+
+        kfree(kerning_table, sizeof(stbtt_kerningentry) * variant->kerning_count, MEMORY_TAG_ARRAY);
     } else {
         variant->kernings = 0;
     }

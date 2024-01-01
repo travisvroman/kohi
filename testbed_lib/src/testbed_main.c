@@ -513,7 +513,7 @@ b8 application_initialize(struct application* game_inst) {
     // Viewport setup.
     // World Viewport
     rect_2d world_vp_rect = vec4_create(20.0f, 20.0f, 1280.0f - 40.0f, 720.0f - 40.0f);
-    if (!viewport_create(world_vp_rect, deg_to_rad(45.0f), 0.1f, 40.0f, RENDERER_PROJECTION_MATRIX_TYPE_PERSPECTIVE, &state->world_viewport)) {
+    if (!viewport_create(world_vp_rect, deg_to_rad(45.0f), 0.1f, 400.0f, RENDERER_PROJECTION_MATRIX_TYPE_PERSPECTIVE, &state->world_viewport)) {
         KERROR("Failed to create world viewport. Cannot start application.");
         return false;
     }
