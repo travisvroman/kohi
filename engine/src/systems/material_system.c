@@ -18,22 +18,6 @@
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
 
-typedef struct material_shader_uniform_locations {
-    u16 projection;
-    u16 view;
-    u16 ambient_colour;
-    u16 view_position;
-    u16 properties;
-    u16 diffuse_texture;
-    u16 specular_texture;
-    u16 normal_texture;
-    u16 model;
-    u16 render_mode;
-    u16 dir_light;
-    u16 p_lights;
-    u16 num_p_lights;
-} material_shader_uniform_locations;
-
 #ifndef PBR_MAP_COUNT
 #define PBR_MAP_COUNT 7
 #endif
@@ -43,16 +27,14 @@ typedef struct material_shader_uniform_locations {
 // Samplers
 const u32 SAMP_ALBEDO = 0;
 const u32 SAMP_NORMAL = 1;
-const u32 SAMP_METALLIC = 2;
-const u32 SAMP_ROUGHNESS = 3;
-const u32 SAMP_AO = 4;
-const u32 SAMP_SHADOW_MAP = 5;
-const u32 SAMP_IRRADIANCE_MAP = 6;
+const u32 SAMP_COMBINED = 2;
+const u32 SAMP_SHADOW_MAP = 3;
+const u32 SAMP_IRRADIANCE_MAP = 4;
 
 // The number of textures for a PBR material
-#define PBR_MATERIAL_TEXTURE_COUNT 5
+#define PBR_MATERIAL_TEXTURE_COUNT 3
 
-#define TERRAIN_PER_MATERIAL_SAMP_COUNT 5
+#define TERRAIN_PER_MATERIAL_SAMP_COUNT 3
 // 5 maps per material for PBR. Allocate enough slots for all materials. Also one more for irradiance map.
 const u32 TERRAIN_SAMP_COUNT = 2 + (TERRAIN_PER_MATERIAL_SAMP_COUNT * TERRAIN_MAX_MATERIAL_COUNT);
 const u32 SAMP_TERRAIN_SHADOW_MAP = TERRAIN_PER_MATERIAL_SAMP_COUNT * TERRAIN_MAX_MATERIAL_COUNT;
@@ -462,14 +444,11 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
         darray_length_set(m->maps, TERRAIN_SAMP_COUNT);
 
         // Map names and default fallback textures.
-        const char* map_names[TERRAIN_PER_MATERIAL_SAMP_COUNT] = {"diffuse", "normal", "metallic", "roughness", "ao"};
+        const char* map_names[TERRAIN_PER_MATERIAL_SAMP_COUNT] = {"diffuse", "normal", "combined"};
         texture* default_textures[TERRAIN_PER_MATERIAL_SAMP_COUNT] = {
             texture_system_get_default_diffuse_texture(),
             texture_system_get_default_normal_texture(),
-            texture_system_get_default_metallic_texture(),
-            texture_system_get_default_roughness_texture(),
-            texture_system_get_default_ao_texture(),
-        };
+            texture_system_get_default_combined_texture()};
         // Use the default material for unassigned slots.
         material* default_material = material_system_get_default_pbr();
 
@@ -488,7 +467,7 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
             mat_props->shininess = props->shininess;
             mat_props->padding = vec3_zero();
 
-            // Maps, 5 for PBR. Diffuse, spec, normal.
+            // Maps, 3 for PBR. Diffuse, spec, normal.
             for (u32 map_idx = 0; map_idx < TERRAIN_PER_MATERIAL_SAMP_COUNT; ++map_idx) {
                 material_map map_config = {0};
                 char buf[MATERIAL_NAME_MAX_LENGTH] = {0};
@@ -538,7 +517,7 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
         }
         kfree(materials, sizeof(material*) * material_count, MEMORY_TAG_ARRAY);
 
-        // NOTE: 4 materials * 5 maps per will still be loaded in order (albedo/norm/met/rough/ao per mat)
+        // NOTE: 4 materials * 3 maps per will still be loaded in order (albedo/norm/combined(met/rough/ao) per mat)
         // Next group will be shadow mappings
         // Last irradiance map
 
@@ -558,9 +537,7 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
             u32 element = (i * TERRAIN_PER_MATERIAL_SAMP_COUNT);
             mat_textures->texture_maps[element + SAMP_ALBEDO] = &m->maps[element + SAMP_ALBEDO];
             mat_textures->texture_maps[element + SAMP_NORMAL] = &m->maps[element + SAMP_NORMAL];
-            mat_textures->texture_maps[element + SAMP_METALLIC] = &m->maps[element + SAMP_METALLIC];
-            mat_textures->texture_maps[element + SAMP_ROUGHNESS] = &m->maps[element + SAMP_ROUGHNESS];
-            mat_textures->texture_maps[element + SAMP_AO] = &m->maps[element + SAMP_AO];
+            mat_textures->texture_maps[element + SAMP_COMBINED] = &m->maps[element + SAMP_COMBINED];
         }
 
         // Shadow textures
@@ -774,9 +751,7 @@ b8 material_system_apply_instance(material* m, struct frame_data* p_frame_data, 
             // Maps
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(state_ptr->pbr_locations.material_texures, SAMP_ALBEDO, &m->maps[SAMP_ALBEDO]));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(state_ptr->pbr_locations.material_texures, SAMP_NORMAL, &m->maps[SAMP_NORMAL]));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(state_ptr->pbr_locations.material_texures, SAMP_METALLIC, &m->maps[SAMP_METALLIC]));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(state_ptr->pbr_locations.material_texures, SAMP_ROUGHNESS, &m->maps[SAMP_ROUGHNESS]));
-            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(state_ptr->pbr_locations.material_texures, SAMP_AO, &m->maps[SAMP_AO]));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(state_ptr->pbr_locations.material_texures, SAMP_COMBINED, &m->maps[SAMP_COMBINED]));
 
             // Shadow Maps
             m->maps[SAMP_SHADOW_MAP].texture = state_ptr->shadow_texture ? state_ptr->shadow_texture : texture_system_get_default_diffuse_texture();
@@ -976,9 +951,7 @@ static b8 load_material(material_config* config, material* m) {
 
         b8 albedo_assigned = false;
         b8 norm_assigned = false;
-        b8 metallic_assigned = false;
-        b8 roughness_assigned = false;
-        b8 ao_assigned = false;
+        b8 combined_assigned = false;
         b8 ibl_cube_assigned = false;
         for (u32 i = 0; i < configure_map_count; ++i) {
             if (strings_equali(config->maps[i].name, "albedo")) {
@@ -991,21 +964,11 @@ static b8 load_material(material_config* config, material* m) {
                     return false;
                 }
                 norm_assigned = true;
-            } else if (strings_equali(config->maps[i].name, "metallic")) {
-                if (!assign_map(&m->maps[SAMP_METALLIC], &config->maps[i], m->name, texture_system_get_default_metallic_texture())) {
+            } else if (strings_equali(config->maps[i].name, "combined")) {
+                if (!assign_map(&m->maps[SAMP_COMBINED], &config->maps[i], m->name, texture_system_get_default_combined_texture())) {
                     return false;
                 }
-                metallic_assigned = true;
-            } else if (strings_equali(config->maps[i].name, "roughness")) {
-                if (!assign_map(&m->maps[SAMP_ROUGHNESS], &config->maps[i], m->name, texture_system_get_default_roughness_texture())) {
-                    return false;
-                }
-                roughness_assigned = true;
-            } else if (strings_equali(config->maps[i].name, "ao")) {
-                if (!assign_map(&m->maps[SAMP_AO], &config->maps[i], m->name, texture_system_get_default_ao_texture())) {
-                    return false;
-                }
-                ao_assigned = true;
+                combined_assigned = true;
             } else if (strings_equali(config->maps[i].name, "ibl_cube")) {
                 // TODO: just loading a default cube map for now. Need to get this from the probe instead.
                 if (!assign_map(&m->maps[SAMP_IRRADIANCE_MAP], &config->maps[i], m->name, texture_system_get_default_cube_texture())) {
@@ -1039,36 +1002,14 @@ static b8 load_material(material_config* config, material* m) {
             }
         }
 
-        if (!metallic_assigned) {
+        if (!combined_assigned) {
             // Make sure the metallic map is always assigned.
             material_map map_config = {0};
             map_config.filter_mag = map_config.filter_min = TEXTURE_FILTER_MODE_LINEAR;
             map_config.repeat_u = map_config.repeat_v = map_config.repeat_w = TEXTURE_REPEAT_REPEAT;
-            map_config.name = "metallic";
+            map_config.name = "combined";
             map_config.texture_name = "";
-            if (!assign_map(&m->maps[SAMP_METALLIC], &map_config, m->name, texture_system_get_default_metallic_texture())) {
-                return false;
-            }
-        }
-        if (!roughness_assigned) {
-            // Make sure the roughness map is always assigned.
-            material_map map_config = {0};
-            map_config.filter_mag = map_config.filter_min = TEXTURE_FILTER_MODE_LINEAR;
-            map_config.repeat_u = map_config.repeat_v = map_config.repeat_w = TEXTURE_REPEAT_REPEAT;
-            map_config.name = "roughness";
-            map_config.texture_name = "";
-            if (!assign_map(&m->maps[SAMP_ROUGHNESS], &map_config, m->name, texture_system_get_default_roughness_texture())) {
-                return false;
-            }
-        }
-        if (!ao_assigned) {
-            // Make sure the AO map is always assigned.
-            material_map map_config = {0};
-            map_config.filter_mag = map_config.filter_min = TEXTURE_FILTER_MODE_LINEAR;
-            map_config.repeat_u = map_config.repeat_v = map_config.repeat_w = TEXTURE_REPEAT_REPEAT;
-            map_config.name = "ao";
-            map_config.texture_name = "";
-            if (!assign_map(&m->maps[SAMP_AO], &map_config, m->name, texture_system_get_default_ao_texture())) {
+            if (!assign_map(&m->maps[SAMP_COMBINED], &map_config, m->name, texture_system_get_default_combined_texture())) {
                 return false;
             }
         }
@@ -1188,9 +1129,7 @@ static b8 load_material(material_config* config, material* m) {
         mat_textures->texture_maps = kallocate(sizeof(texture_map*) * mat_textures->texture_map_count, MEMORY_TAG_ARRAY);
         mat_textures->texture_maps[SAMP_ALBEDO] = &m->maps[SAMP_ALBEDO];
         mat_textures->texture_maps[SAMP_NORMAL] = &m->maps[SAMP_NORMAL];
-        mat_textures->texture_maps[SAMP_METALLIC] = &m->maps[SAMP_METALLIC];
-        mat_textures->texture_maps[SAMP_ROUGHNESS] = &m->maps[SAMP_ROUGHNESS];
-        mat_textures->texture_maps[SAMP_AO] = &m->maps[SAMP_AO];
+        mat_textures->texture_maps[SAMP_COMBINED] = &m->maps[SAMP_COMBINED];
 
         // Shadow textures
         shader_instance_uniform_texture_config* shadow_textures = &instance_resource_config.uniform_configs[1];
@@ -1315,9 +1254,7 @@ static b8 create_default_pbr_material(material_system_state* state) {
 
     state->default_pbr_material.maps[SAMP_ALBEDO].texture = texture_system_get_default_texture();
     state->default_pbr_material.maps[SAMP_NORMAL].texture = texture_system_get_default_normal_texture();
-    state->default_pbr_material.maps[SAMP_METALLIC].texture = texture_system_get_default_metallic_texture();
-    state->default_pbr_material.maps[SAMP_ROUGHNESS].texture = texture_system_get_default_roughness_texture();
-    state->default_pbr_material.maps[SAMP_AO].texture = texture_system_get_default_ao_texture();
+    state->default_pbr_material.maps[SAMP_COMBINED].texture = texture_system_get_default_combined_texture();
     state->default_pbr_material.maps[SAMP_SHADOW_MAP].texture = texture_system_get_default_diffuse_texture();
     state->default_pbr_material.maps[SAMP_IRRADIANCE_MAP].texture = texture_system_get_default_cube_texture();
 
@@ -1335,9 +1272,7 @@ static b8 create_default_pbr_material(material_system_state* state) {
     mat_textures->texture_maps = kallocate(sizeof(texture_map*) * mat_textures->texture_map_count, MEMORY_TAG_ARRAY);
     mat_textures->texture_maps[SAMP_ALBEDO] = &m->maps[SAMP_ALBEDO];
     mat_textures->texture_maps[SAMP_NORMAL] = &m->maps[SAMP_NORMAL];
-    mat_textures->texture_maps[SAMP_METALLIC] = &m->maps[SAMP_METALLIC];
-    mat_textures->texture_maps[SAMP_ROUGHNESS] = &m->maps[SAMP_ROUGHNESS];
-    mat_textures->texture_maps[SAMP_AO] = &m->maps[SAMP_AO];
+    mat_textures->texture_maps[SAMP_COMBINED] = &m->maps[SAMP_COMBINED];
 
     // Shadow textures
     shader_instance_uniform_texture_config* shadow_textures = &instance_resource_config.uniform_configs[1];
@@ -1391,9 +1326,7 @@ static b8 create_default_terrain_material(material_system_state* state) {
     darray_length_set(state->default_terrain_material.maps, TERRAIN_SAMP_COUNT);
     state->default_terrain_material.maps[SAMP_ALBEDO].texture = texture_system_get_default_texture();
     state->default_terrain_material.maps[SAMP_NORMAL].texture = texture_system_get_default_normal_texture();
-    state->default_terrain_material.maps[SAMP_METALLIC].texture = texture_system_get_default_metallic_texture();
-    state->default_terrain_material.maps[SAMP_ROUGHNESS].texture = texture_system_get_default_roughness_texture();
-    state->default_terrain_material.maps[SAMP_AO].texture = texture_system_get_default_ao_texture();
+    state->default_terrain_material.maps[SAMP_COMBINED].texture = texture_system_get_default_combined_texture();
     state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP].texture = texture_system_get_default_diffuse_texture();
 
     // Change the clamp mode on the default shadow map to border.
@@ -1422,9 +1355,7 @@ static b8 create_default_terrain_material(material_system_state* state) {
         u32 element = (i * TERRAIN_PER_MATERIAL_SAMP_COUNT);
         mat_textures->texture_maps[element + SAMP_ALBEDO] = &m->maps[element + SAMP_ALBEDO];
         mat_textures->texture_maps[element + SAMP_NORMAL] = &m->maps[element + SAMP_NORMAL];
-        mat_textures->texture_maps[element + SAMP_METALLIC] = &m->maps[element + SAMP_METALLIC];
-        mat_textures->texture_maps[element + SAMP_ROUGHNESS] = &m->maps[element + SAMP_ROUGHNESS];
-        mat_textures->texture_maps[element + SAMP_AO] = &m->maps[element + SAMP_AO];
+        mat_textures->texture_maps[element + SAMP_COMBINED] = &m->maps[element + SAMP_COMBINED];
     }
 
     // Shadow textures
