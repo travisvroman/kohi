@@ -16,23 +16,13 @@ texture_name=falc_wreck_low_DefaultMaterial_AlbedoTransparency
 [/map]
 
 [map]
-name=metallic
+name=combined
 filter_min=linear
 filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=falc_wreck_low_DefaultMaterial_Metallic
-[/map]
-
-[map]
-name=roughness
-filter_min=linear
-filter_mag=linear
-repeat_u=repeat
-repeat_v=repeat
-repeat_w=repeat
-texture_name=falc_wreck_low_DefaultMaterial_Roughness
+texture_name=falc_wreck_low_DefaultMaterial_combined
 [/map]
 
 [map]

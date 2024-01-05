@@ -841,7 +841,8 @@ b8 vulkan_renderer_end(renderer_plugin *plugin, struct frame_data *p_frame_data)
     // For timing purposes, wait for the queue to complete.
     // This gives an accurate picture of how long the render takes, including the
     // work submitted to the actual queue.
-    vkWaitForFences(context->device.logical_device, 1, &context->in_flight_fences[context->current_frame], true, UINT64_MAX);
+    // TODO: may want a semaphore here instead to monitor this.
+    // vkWaitForFences(context->device.logical_device, 1, &context->in_flight_fences[context->current_frame], true, UINT64_MAX);
 
     return true;
 }
@@ -864,7 +865,7 @@ b8 vulkan_renderer_present(renderer_plugin *plugin, struct frame_data *p_frame_d
     // signaled by the queue's completion after submission. And strangely, it's specifically the
     // _transfer_ queue, even though the one being used for presentation here is the present queue.
     // TODO: Need to dive a bit deeper on this to figure it out.
-    vkQueueWaitIdle(context->device.transfer_queue);
+    /* vkQueueWaitIdle(context->device.transfer_queue); */
     VkResult result = vkQueuePresentKHR(context->device.present_queue, &present_info);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         // Swapchain is out of date, suboptimal or a framebuffer resize has occurred. Trigger swapchain recreation.

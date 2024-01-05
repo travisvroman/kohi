@@ -34,14 +34,8 @@ typedef struct texture_system_config {
 /** @brief The default normal texture name. */
 #define DEFAULT_NORMAL_TEXTURE_NAME "default_NORM"
 
-/** @brief The default metallic texture name. */
-#define DEFAULT_METALLIC_TEXTURE_NAME "default_METALLIC"
-
-/** @brief The default roughness texture name. */
-#define DEFAULT_ROUGHNESS_TEXTURE_NAME "default_ROUGHNESS"
-
-/** @brief The default AO texture name. */
-#define DEFAULT_AO_TEXTURE_NAME "default_AO"
+/** @brief The default combined (metallic, roughness, AO) texture name. */
+#define DEFAULT_COMBINED_TEXTURE_NAME "default_COMBINED"
 
 /** @brief The default AO texture name. */
 #define DEFAULT_CUBE_TEXTURE_NAME "default_cube"
@@ -223,22 +217,10 @@ KAPI texture* texture_system_get_default_specular_texture(void);
 KAPI texture* texture_system_get_default_normal_texture(void);
 
 /**
- * @brief Gets a pointer to the default metallic texture. No reference counting is
+ * @brief Gets a pointer to the default combined (metallic, roughness, AO) texture. No reference counting is
  * done for default textures.
  */
-KAPI texture* texture_system_get_default_metallic_texture(void);
-
-/**
- * @brief Gets a pointer to the default roughness texture. No reference counting is
- * done for default textures.
- */
-KAPI texture* texture_system_get_default_roughness_texture(void);
-
-/**
- * @brief Gets a pointer to the default AO (ambient occlusion) texture. No reference counting is
- * done for default textures.
- */
-KAPI texture* texture_system_get_default_ao_texture(void);
+KAPI texture* texture_system_get_default_combined_texture(void);
 
 /**
  * @brief Gets a pointer to the default cube texture. No reference counting is

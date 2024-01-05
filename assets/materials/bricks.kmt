@@ -11,17 +11,17 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=spnza_bricks_a_diff
+texture_name=sponza_bricks_a_diff
 [/map]
 
 [map]
-name=roughness
+name=combined
 filter_min=linear
 filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=spnza_bricks_a_roughness
+texture_name=sponza_bricks_a_combined
 [/map]
 
 [map]
@@ -31,7 +31,7 @@ filter_mag=linear
 repeat_v=repeat
 repeat_u=repeat
 repeat_w=repeat
-texture_name=spnza_bricks_a_ddn
+texture_name=sponza_bricks_a_ddn
 [/map]
 
 [prop]
