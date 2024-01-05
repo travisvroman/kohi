@@ -15,13 +15,13 @@ texture_name=sponza_roof_diff
 [/map]
 
 [map]
-name=roughness
+name=combined
 filter_min=linear
 filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=sponza_roof_roughness
+texture_name=sponza_roof_combined
 [/map]
 
 [map]

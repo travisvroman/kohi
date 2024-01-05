@@ -29,8 +29,8 @@ uniform=u32,0,use_pcf
 uniform=f32,0,bias
 uniform=vec2,0,padding
 # NOTE: samplers are bound in the order they are configured.
-# albedo,normal,metallic,roughness,ao
-uniform=sampler2D[5],1,material_textures
+# albedo,normal,combined (metallic,roughness,ao)
+uniform=sampler2D[3],1,material_textures
 # Shadow map
 uniform=sampler2DArray,1,shadow_textures
 # IBL

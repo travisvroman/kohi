@@ -15,23 +15,13 @@ texture_name=sponza_flagpole_diff
 [/map]
 
 [map]
-name=metallic
+name=combined
 filter_min=linear
 filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=sponza_flagpole_metallic
-[/map]
-
-[map]
-name=roughness
-filter_min=linear
-filter_mag=linear
-repeat_u=repeat
-repeat_v=repeat
-repeat_w=repeat
-texture_name=sponza_flagpole_roughness
+texture_name=sponza_flagpole_combined
 [/map]
 
 [map]

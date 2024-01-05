@@ -32,6 +32,8 @@ Changelog
   - Updated the API around local uniforms to require a bind/set/apply flow similar to the other scopes. 
   - Refactored Vulkan push constant logic to handle the above.
   - Added support for array textures. Converted shadow map pass to use them as attachments.
+  - Changed PBR and terrain materials to use a "combined" map containing metallic in R, roughness in G and AO in B. Also wrote a conversion utility in tools for this.
+    - As a result, explicit metallic, roughness and AO maps have been removed.
 
 - 0.4x
   - Added first pass of Standard UI system, including panel, button, label, and textbox controls.

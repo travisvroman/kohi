@@ -15,23 +15,13 @@ texture_name=chain_texture
 [/map]
 
 [map]
-name=metallic
+name=combined
 filter_min=linear
 filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=chain_texture_metallic
-[/map]
-
-[map]
-name=roughness
-filter_min=linear
-filter_mag=linear
-repeat_u=repeat
-repeat_v=repeat
-repeat_w=repeat
-texture_name=chain_texture_roughness
+texture_name=chain_texture_combined
 [/map]
 
 [map]

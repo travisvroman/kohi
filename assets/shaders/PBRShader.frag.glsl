@@ -47,16 +47,16 @@ layout(set = 1, binding = 0) uniform instance_uniform_object {
     int num_p_lights;
 } instance_ubo;
 
+const int PBR_MATERIAL_TEXTURE_COUNT = 3;
+
 // Material texture indices
 const int SAMP_ALBEDO = 0;
 const int SAMP_NORMAL = 1;
-const int SAMP_METALLIC = 2;
-const int SAMP_ROUGHNESS = 3;
-const int SAMP_AO = 4;
+const int SAMP_COMBINED = 2;
 
 const float PI = 3.14159265359;
-// Material textures: albedo, normal, metallic, roughness, ao
-layout(set = 1, binding = 1) uniform sampler2D material_textures[5];
+// Material textures: albedo, normal, combined (metallic, roughness, ao)
+layout(set = 1, binding = 1) uniform sampler2D material_textures[3];
 // Shadow maps
 layout(set = 1, binding = 2) uniform sampler2DArray shadow_texture;
 // Environment map is at the last index.
@@ -149,9 +149,10 @@ void main() {
     vec4 albedo_samp = texture(material_textures[SAMP_ALBEDO], in_dto.tex_coord);
     vec3 albedo = pow(albedo_samp.rgb, vec3(2.2));
 
-    float metallic = texture(material_textures[SAMP_METALLIC], in_dto.tex_coord).r;
-    float roughness = texture(material_textures[SAMP_ROUGHNESS], in_dto.tex_coord).r;
-    float ao = texture(material_textures[SAMP_AO], in_dto.tex_coord).r;
+    vec4 combined = texture(material_textures[SAMP_COMBINED], in_dto.tex_coord);
+    float metallic = combined.r;
+    float roughness = combined.g;
+    float ao = combined.b;
 
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use base_reflectivity 
     // of 0.04 and if it's a metal, use the albedo color as base_reflectivity (metallic workflow)    

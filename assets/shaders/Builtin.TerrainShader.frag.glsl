@@ -22,6 +22,7 @@ struct point_light {
 const int POINT_LIGHT_MAX = 10;
 const int MAX_TERRAIN_MATERIALS = 4;
 const int MAX_SHADOW_CASCADES = 4;
+const int TERRAIN_PER_MATERIAL_SAMP_COUNT = 3;
 
 layout(set = 0, binding = 0) uniform global_uniform_object {
     mat4 projection;
@@ -60,14 +61,12 @@ layout(set = 1, binding = 0) uniform instance_uniform_object {
 // Material texture indices.
 const int SAMP_ALBEDO_OFFSET = 0;
 const int SAMP_NORMAL_OFFSET = 1;
-const int SAMP_METALLIC_OFFSET = 2;
-const int SAMP_ROUGHNESS_OFFSET = 3;
-const int SAMP_AO_OFFSET = 4;
+const int SAMP_COMBINED_OFFSET = 2;
 
 const float PI = 3.14159265359;
 
-// Material textures: albedo, normal, metallic, roughness, ao, etc...
-layout(set = 1, binding = 1) uniform sampler2D material_textures[5 * MAX_TERRAIN_MATERIALS];
+// Material textures: albedo, normal, combined (metallic, roughness, ao)
+layout(set = 1, binding = 1) uniform sampler2D material_textures[3 * MAX_TERRAIN_MATERIALS];
 // Shadow maps
 layout(set = 1, binding = 2) uniform sampler2DArray shadow_texture;
 // IBL irradiance
@@ -156,20 +155,22 @@ void main() {
     // Update the normal to use a sample from the normal map.
     vec3 normals[MAX_TERRAIN_MATERIALS];
     vec4 albedos[MAX_TERRAIN_MATERIALS];
-    vec4 metallics[MAX_TERRAIN_MATERIALS];
-    vec4 roughnesses[MAX_TERRAIN_MATERIALS];
-    vec4 aos[MAX_TERRAIN_MATERIALS];
+    float metallics[MAX_TERRAIN_MATERIALS];
+    float roughnesses[MAX_TERRAIN_MATERIALS];
+    float aos[MAX_TERRAIN_MATERIALS];
 
     // Sample each material.
     for(int m = 0; m < instance_ubo.properties.num_materials; ++m) {
-        int m_element = (m * 5);
+        int m_element = (m * TERRAIN_PER_MATERIAL_SAMP_COUNT);
         albedos[m] = texture(material_textures[m_element + SAMP_ALBEDO_OFFSET], in_dto.tex_coord);
         albedos[m] = vec4(pow(albedos[m].rgb, vec3(2.2)), albedos[m].a);
         // Just sample these for now, will blend and apply surface normal later.
         normals[m] = texture(material_textures[m_element + SAMP_NORMAL_OFFSET], in_dto.tex_coord).rgb;
-        metallics[m] = texture(material_textures[m_element + SAMP_METALLIC_OFFSET], in_dto.tex_coord);
-        roughnesses[m] = texture(material_textures[m_element + SAMP_ROUGHNESS_OFFSET], in_dto.tex_coord);
-        aos[m] = texture(material_textures[m_element + SAMP_AO_OFFSET], in_dto.tex_coord);
+
+        vec4 combined = texture(material_textures[m_element + SAMP_COMBINED_OFFSET], in_dto.tex_coord);
+        metallics[m] = combined.r;
+        roughnesses[m] = combined.g;
+        aos[m] = combined.b;
     }
 
     // Mix the materials by samp[0] * w[0] + samp[1] * w[1]...
@@ -199,20 +200,20 @@ void main() {
     vec3 local_normal = 2.0 * normal - 1.0;
     normal = normalize(TBN * local_normal);
 
-    float metallic = metallics[0].r * in_dto.mat_weights[0] +
-        metallics[1].r * in_dto.mat_weights[1] +
-        metallics[2].r * in_dto.mat_weights[2] +
-        metallics[3].r * in_dto.mat_weights[3];
+    float metallic = metallics[0] * in_dto.mat_weights[0] +
+        metallics[1] * in_dto.mat_weights[1] +
+        metallics[2] * in_dto.mat_weights[2] +
+        metallics[3] * in_dto.mat_weights[3];
 
-    float roughness = roughnesses[0].r * in_dto.mat_weights[0] +
-        roughnesses[1].r * in_dto.mat_weights[1] +
-        roughnesses[2].r * in_dto.mat_weights[2] +
-        roughnesses[3].r * in_dto.mat_weights[3];
+    float roughness = roughnesses[0] * in_dto.mat_weights[0] +
+        roughnesses[1] * in_dto.mat_weights[1] +
+        roughnesses[2] * in_dto.mat_weights[2] +
+        roughnesses[3] * in_dto.mat_weights[3];
     
-    float ao = aos[0].r * in_dto.mat_weights[0] +
-        aos[1].r * in_dto.mat_weights[1] +
-        aos[2].r * in_dto.mat_weights[2] +
-        aos[3].r * in_dto.mat_weights[3];
+    float ao = aos[0] * in_dto.mat_weights[0] +
+        aos[1] * in_dto.mat_weights[1] +
+        aos[2] * in_dto.mat_weights[2] +
+        aos[3] * in_dto.mat_weights[3];
 
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use base_reflectivity 
     // of 0.04 and if it's a metal, use the albedo color as base_reflectivity (metallic workflow)    

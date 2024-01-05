@@ -56,13 +56,11 @@
             "request": "launch",
             "program": "${workspaceFolder}/bin/tools",
             "args": [
-                "buildshaders",
-                "${workspaceFolder}/assets/shaders/Builtin.MaterialShader.vert.glsl",
-                "${workspaceFolder}/assets/shaders/Builtin.MaterialShader.frag.glsl",
-                "${workspaceFolder}/assets/shaders/Builtin.UIShader.vert.glsl",
-                "${workspaceFolder}/assets/shaders/Builtin.UIShader.frag.glsl",
-                "${workspaceFolder}/assets/shaders/Builtin.SkyboxShader.vert.glsl",
-                "${workspaceFolder}/assets/shaders/Builtin.SkyboxShader.frag.glsl"
+                "combine",
+                "outfile=${workspaceFolder}/assets/textures/wavy-sand_combined.png",
+                "metallic=${workspaceFolder}/assets/textures/wavy-sand_metallic.png",
+                "roughness=${workspaceFolder}/assets/textures/wavy-sand_roughness.png", 
+                "ao=${workspaceFolder}/assets/textures/wavy-sand_ao.png"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/bin/",

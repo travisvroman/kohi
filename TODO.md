@@ -3,6 +3,7 @@ The items in this list are not in any particular order. This list will be update
 
 ## Engine general:
 - [x] platform layer (Windows, Linux, macOS)
+  - [x] UTF-8/Wide character handling for Win32 windowing.
 - [x] event system
 - [x] clock
 - [x] testing framework
@@ -98,22 +99,22 @@ The items in this list are not in any particular order. This list will be update
 ## Renderer:
 - [ ] geometry generation (2d and 3d, e.g. cube, cylinder, etc.)
 - [ ] advanced materials (WIP)
-- [x] PBR
+- [x] PBR Lighting model
 - [ ] batch rendering (2d and 3d)
 - [x] shadow maps
   - [x] PCF
   - [x] cascading shadow maps
 - [x] texture mipmapping
-- [x] Specular maps 
+- [x] Specular maps (NOTE: removed in favour of PBR)
 - [x] Normal maps 
-- [x] Phong Lighting model 
+- [x] Phong Lighting model (NOTE: removed in favour of PBR)
 - [x] Multiple/configurable renderpass support.
 - [x] Rendergraph
 
 ## Plugins:
  - [ ] ECS (Entity Component System)
  - [x] Audio (OpenAL plugin)
- - [ ] Vulkan Renderer Plugin
+ - [ ] Vulkan Renderer Plugin (WIP)
    - [ ] multithreading
  - [ ] Direct3D Renderer Plugin 
    - [ ] multithreading
