@@ -6,9 +6,9 @@
  * loaders in the engine.
  * @version 1.0
  * @date 2022-01-11
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
- * 
+ *
  */
 
 #pragma once
@@ -55,7 +55,7 @@ typedef struct resource_loader {
  * @brief Initializes this system.
  * Should be called twice; once to get the memory requirement (passing state=0), and a second
  * time passing an allocated block of memory to actually initialize the system.
- * 
+ *
  * @param memory_requirement A pointer to hold the memory requirement as it is calculated.
  * @param state A block of memory to hold the state or, if gathering the memory requirement, 0.
  * @param config The configuration (resource_system_config) for this system.
@@ -65,14 +65,14 @@ b8 resource_system_initialize(u64* memory_requirement, void* state, void* config
 
 /**
  * @brief Shuts down the resource system.
- * 
+ *
  * @param state The state block of memory for this system.
  */
 void resource_system_shutdown(void* state);
 
 /**
  * @brief Registers the given resource loader with the system.
- * 
+ *
  * @param loader The loader to be registered.
  * @return True on success; otherwise false.
  */
@@ -80,7 +80,7 @@ KAPI b8 resource_system_loader_register(resource_loader loader);
 
 /**
  * @brief Loads a resource of the given name.
- * 
+ *
  * @param name The name of the resource to load.
  * @param type The type of resource to load.
  * @param params Parameters to be passed to the loader, or 0.
@@ -91,7 +91,7 @@ KAPI b8 resource_system_load(const char* name, resource_type type, void* params,
 
 /**
  * @brief Loads a resource of the given name and of a custom type.
- * 
+ *
  * @param name The name of the resource to load.
  * @param custom_type The custom resource type.
  * @param params Parameters to be passed to the loader, or 0.
@@ -101,8 +101,15 @@ KAPI b8 resource_system_load(const char* name, resource_type type, void* params,
 KAPI b8 resource_system_load_custom(const char* name, const char* custom_type, void* params, resource* out_resource);
 
 /**
+ * @brief Attempts to obtain the base asset path for the given type. Returns 0 if not found.
+ * @param type The resource type to search for.
+ * @return A string containing the base asset path for the given type; otherwise 0.
+ */
+KAPI const char* resource_system_base_path_for_type(resource_type type);
+
+/**
  * @brief Unloads the given resource.
- * 
+ *
  * @param resource A pointer to the resource to be unloaded.
  */
 KAPI void resource_system_unload(resource* resource);

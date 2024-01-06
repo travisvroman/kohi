@@ -66,7 +66,7 @@ const int SAMP_COMBINED_OFFSET = 2;
 const float PI = 3.14159265359;
 
 // Material textures: albedo, normal, combined (metallic, roughness, ao)
-layout(set = 1, binding = 1) uniform sampler2D material_textures[3 * MAX_TERRAIN_MATERIALS];
+layout(set = 1, binding = 1) uniform sampler2DArray material_textures;
 // Shadow maps
 layout(set = 1, binding = 2) uniform sampler2DArray shadow_texture;
 // IBL irradiance
@@ -162,12 +162,12 @@ void main() {
     // Sample each material.
     for(int m = 0; m < instance_ubo.properties.num_materials; ++m) {
         int m_element = (m * TERRAIN_PER_MATERIAL_SAMP_COUNT);
-        albedos[m] = texture(material_textures[m_element + SAMP_ALBEDO_OFFSET], in_dto.tex_coord);
+        albedos[m] = texture(material_textures, vec3(in_dto.tex_coord, m_element + SAMP_ALBEDO_OFFSET));
         albedos[m] = vec4(pow(albedos[m].rgb, vec3(2.2)), albedos[m].a);
         // Just sample these for now, will blend and apply surface normal later.
-        normals[m] = texture(material_textures[m_element + SAMP_NORMAL_OFFSET], in_dto.tex_coord).rgb;
+        normals[m] = texture(material_textures, vec3(in_dto.tex_coord, m_element + SAMP_NORMAL_OFFSET)).rgb;
 
-        vec4 combined = texture(material_textures[m_element + SAMP_COMBINED_OFFSET], in_dto.tex_coord);
+        vec4 combined = texture(material_textures, vec3(in_dto.tex_coord, m_element + SAMP_COMBINED_OFFSET));
         metallics[m] = combined.r;
         roughnesses[m] = combined.g;
         aos[m] = combined.b;

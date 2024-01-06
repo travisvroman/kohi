@@ -34,7 +34,7 @@ uniform=vec2,0,padding_global
 
 # NOTE: samplers are bound in the order they are configured.
 # albedo,normal,combined(metallic,roughness,ao) - per material
-uniform=sampler2D[12],1,material_textures
+uniform=sampler2DArray,1,material_textures
 # Shadow map
 uniform=sampler2DArray,1,shadow_textures
 # IBL
