@@ -3,6 +3,7 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "defines.h"
 #include "resources/resource_types.h"
 #include "vulkan/vulkan_core.h"
 #include "vulkan_device.h"
@@ -54,7 +55,7 @@ void vulkan_image_create(
     image_create_info.extent.height = height;
     image_create_info.extent.depth = 1;  // TODO: Support configurable depth.
     image_create_info.mipLevels = out_image->mip_levels;
-    image_create_info.arrayLayers = type == TEXTURE_TYPE_CUBE ? 6 : layer_count;
+    image_create_info.arrayLayers = layer_count;
     image_create_info.format = format;
     image_create_info.tiling = tiling;
     image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -99,7 +100,8 @@ void vulkan_image_create(
         out_image->view = 0;
         vulkan_image_view_create(context, type, layer_count, -1, format, out_image, view_aspect_flags, &out_image->view);
 
-        if (layer_count > 1) {
+        // Only create views per layer if not a cube map.
+        if (layer_count > 1 && type != TEXTURE_TYPE_CUBE) {
             // Multiple views, one per layer
             out_image->layer_views = kallocate(sizeof(VkImageView) * layer_count, MEMORY_TAG_ARRAY);
             for (u32 i = 0; i < layer_count; ++i) {
@@ -108,6 +110,15 @@ void vulkan_image_create(
         }
     }
 }
+
+// A lookup table of vulkan image view types indexed Kohi's texture types.
+static VkImageViewType vulkan_view_types[3] = {
+    VK_IMAGE_VIEW_TYPE_2D,
+    VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+    VK_IMAGE_VIEW_TYPE_CUBE};
+
+// Ensure changes to texture types break this if it isn't also updated.
+STATIC_ASSERT(TEXTURE_TYPE_COUNT == (sizeof(vulkan_view_types) / sizeof(*vulkan_view_types)), "Texture type count does not match Vulkan image view lookup table count.");
 
 void vulkan_image_view_create(
     vulkan_context* context,
@@ -120,26 +131,12 @@ void vulkan_image_view_create(
     VkImageView* out_view) {
     VkImageViewCreateInfo view_create_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     view_create_info.image = image->handle;
-    switch (type) {
-        case TEXTURE_TYPE_CUBE:
-            view_create_info.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-            view_create_info.subresourceRange.layerCount = 6;
-            break;
-        case TEXTURE_TYPE_2D_ARRAY:
-            view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-            view_create_info.subresourceRange.layerCount = layer_count;
-            break;
-        default:
-        case TEXTURE_TYPE_2D:
-            view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            view_create_info.subresourceRange.layerCount = 1;
-            break;
-    }
+    view_create_info.viewType = vulkan_view_types[type];
     view_create_info.format = format;
     view_create_info.subresourceRange.aspectMask = aspect_flags;
-
     view_create_info.subresourceRange.baseMipLevel = 0;
     view_create_info.subresourceRange.levelCount = image->mip_levels;
+    view_create_info.subresourceRange.layerCount = layer_index < 0 ? layer_count : 1;
     view_create_info.subresourceRange.baseArrayLayer = layer_index < 0 ? 0 : layer_index;
 
     VK_CHECK(vkCreateImageView(context->device.logical_device, &view_create_info, context->allocator, out_view));
@@ -151,27 +148,33 @@ void vulkan_image_view_create(
 
 void vulkan_image_transition_layout(
     vulkan_context* context,
-    texture_type type,
     vulkan_command_buffer* command_buffer,
     vulkan_image* image,
     VkFormat format,
     VkImageLayout old_layout,
     VkImageLayout new_layout) {
-    VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    //
+    VkPipelineStageFlags source_stage;
+    VkPipelineStageFlags dest_stage;
+    VkImageMemoryBarrier barrier = {0};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = old_layout;
     barrier.newLayout = new_layout;
     barrier.srcQueueFamilyIndex = context->device.graphics_queue_index;
     barrier.dstQueueFamilyIndex = context->device.graphics_queue_index;
     barrier.image = image->handle;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    // Mips
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = image->mip_levels;
+
+    // Transition all layers at once.
+    barrier.subresourceRange.layerCount = image->layer_count;
+
+    // Start at the first layer.
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = type == TEXTURE_TYPE_CUBE ? 6 : 1;
 
-    VkPipelineStageFlags source_stage;
-    VkPipelineStageFlags dest_stage;
-
+    // TODO: only set source/dest stage once... split into functions.
     // Don't care about the old layout - transition to optimal layout (for the underlying implementation).
     if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
         barrier.srcAccessMask = 0;
@@ -248,8 +251,12 @@ b8 vulkan_image_mipmaps_generate(vulkan_context* context, vulkan_image* image, v
     barrier.dstQueueFamilyIndex = context->device.graphics_queue_index;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+
+    // One mip level at a time.
     barrier.subresourceRange.levelCount = 1;
+
+    // Generate for all layers.
+    barrier.subresourceRange.layerCount = image->layer_count;
 
     i32 mip_width = (i32)image->width;
     i32 mip_height = (i32)image->height;
@@ -283,7 +290,7 @@ b8 vulkan_image_mipmaps_generate(vulkan_context* context, vulkan_image* image, v
         // Source is the previous level.
         blit.srcSubresource.mipLevel = i - 1;
         blit.srcSubresource.baseArrayLayer = 0;
-        blit.srcSubresource.layerCount = 1;
+        blit.srcSubresource.layerCount = image->layer_count;
         // Destination offset is also always in the upper-left corner.
         blit.dstOffsets[0] = (VkOffset3D){0, 0, 0};
         // The destination extents are now half the width/height of the
@@ -293,7 +300,7 @@ b8 vulkan_image_mipmaps_generate(vulkan_context* context, vulkan_image* image, v
         // The destination is the current mip level.
         blit.dstSubresource.mipLevel = i;
         blit.dstSubresource.baseArrayLayer = 0;
-        blit.dstSubresource.layerCount = 1;
+        blit.dstSubresource.layerCount = image->layer_count;
 
         // Perform the blit for this layer.
         vkCmdBlitImage(
@@ -350,12 +357,10 @@ b8 vulkan_image_mipmaps_generate(vulkan_context* context, vulkan_image* image, v
 
 void vulkan_image_copy_from_buffer(
     vulkan_context* context,
-    texture_type type,
     vulkan_image* image,
     VkBuffer buffer,
     u64 offset,
     vulkan_command_buffer* command_buffer) {
-    // Region to copy
     VkBufferImageCopy region;
     kzero_memory(&region, sizeof(VkBufferImageCopy));
     region.bufferOffset = offset;
@@ -365,7 +370,7 @@ void vulkan_image_copy_from_buffer(
     region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     region.imageSubresource.mipLevel = 0;
     region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = type == TEXTURE_TYPE_CUBE ? 6 : 1;
+    region.imageSubresource.layerCount = image->layer_count;
 
     region.imageExtent.width = image->width;
     region.imageExtent.height = image->height;
@@ -382,7 +387,6 @@ void vulkan_image_copy_from_buffer(
 
 void vulkan_image_copy_to_buffer(
     vulkan_context* context,
-    texture_type type,
     vulkan_image* image,
     VkBuffer buffer,
     vulkan_command_buffer* command_buffer) {
@@ -394,7 +398,7 @@ void vulkan_image_copy_to_buffer(
     region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     region.imageSubresource.mipLevel = 0;
     region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = type == TEXTURE_TYPE_CUBE ? 6 : 1;
+    region.imageSubresource.layerCount = image->layer_count;
 
     region.imageExtent.width = image->width;
     region.imageExtent.height = image->height;
@@ -411,7 +415,6 @@ void vulkan_image_copy_to_buffer(
 
 void vulkan_image_copy_pixel_to_buffer(
     vulkan_context* context,
-    texture_type type,
     vulkan_image* image,
     VkBuffer buffer,
     u32 x,
@@ -425,7 +428,7 @@ void vulkan_image_copy_pixel_to_buffer(
     region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     region.imageSubresource.mipLevel = 0;
     region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = type == TEXTURE_TYPE_CUBE ? 6 : 1;
+    region.imageSubresource.layerCount = image->layer_count;
 
     region.imageOffset.x = x;
     region.imageOffset.y = y;

@@ -1275,7 +1275,7 @@ void vulkan_renderer_texture_create(renderer_plugin *plugin, const u8 *pixels,
         (vulkan_image *)kallocate(sizeof(vulkan_image), MEMORY_TAG_TEXTURE);
     vulkan_image *image = (vulkan_image *)t->internal_data;
     u32 size = t->width * t->height * t->channel_count *
-               (t->type == TEXTURE_TYPE_CUBE ? 6 : 1);
+               (t->type == TEXTURE_TYPE_CUBE ? 6 : t->array_size);
 
     // NOTE: Assumes 8 bits per channel.
     VkFormat image_format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -1413,17 +1413,17 @@ void vulkan_renderer_texture_write_data(renderer_plugin *plugin, texture *t,
 
     // Transition the layout from whatever it is currently to optimal for
     // recieving data.
-    vulkan_image_transition_layout(context, t->type, &temp_command_buffer, image,
+    vulkan_image_transition_layout(context, &temp_command_buffer, image,
                                    image_format, VK_IMAGE_LAYOUT_UNDEFINED,
                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     // Copy the data from the buffer.
-    vulkan_image_copy_from_buffer(context, t->type, image, ((vulkan_buffer *)context->staging.internal_data)->handle, staging_offset, &temp_command_buffer);
+    vulkan_image_copy_from_buffer(context, image, ((vulkan_buffer *)context->staging.internal_data)->handle, staging_offset, &temp_command_buffer);
 
     if (t->mip_levels <= 1 || !vulkan_image_mipmaps_generate(context, image, &temp_command_buffer)) {
         // If mip generation isn't needed or fails, fall back to ordinary transition.
         // Transition from optimal for data reciept to shader-read-only optimal layout.
-        vulkan_image_transition_layout(context, t->type, &temp_command_buffer, image,
+        vulkan_image_transition_layout(context, &temp_command_buffer, image,
                                        image_format,
                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -1464,21 +1464,23 @@ void vulkan_renderer_texture_read_data(renderer_plugin *plugin, texture *t,
     // NOTE: transition to VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
     // Transition the layout from whatever it is currently to optimal for handing
     // out data.
-    vulkan_image_transition_layout(context, t->type, &temp_buffer, image,
+    vulkan_image_transition_layout(context, &temp_buffer, image,
                                    image_format, VK_IMAGE_LAYOUT_UNDEFINED,
                                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
     // Copy the data to the buffer.
-    vulkan_image_copy_to_buffer(context, t->type, image,
+    vulkan_image_copy_to_buffer(context, image,
                                 ((vulkan_buffer *)staging.internal_data)->handle,
                                 &temp_buffer);
 
-    // Transition from optimal for data reading to shader-read-only optimal
-    // layout.
-    vulkan_image_transition_layout(context, t->type, &temp_buffer, image,
-                                   image_format,
-                                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                   VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    if (t->mip_levels <= 1 || !vulkan_image_mipmaps_generate(context, image, &temp_buffer)) {
+        // If mip generation isn't needed or fails, fall back to ordinary transition.
+        // Transition from optimal for data reciept to shader-read-only optimal layout.
+        vulkan_image_transition_layout(context, &temp_buffer, image,
+                                       image_format,
+                                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
 
     vulkan_command_buffer_end_single_use(context, pool, &temp_buffer, queue);
 
@@ -1521,20 +1523,18 @@ void vulkan_renderer_texture_read_pixel(renderer_plugin *plugin, texture *t,
     // NOTE: transition to VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
     // Transition the layout from whatever it is currently to optimal for handing
     // out data.
-    vulkan_image_transition_layout(context, t->type, &temp_buffer, image,
+    vulkan_image_transition_layout(context, &temp_buffer, image,
                                    image_format, VK_IMAGE_LAYOUT_UNDEFINED,
                                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
     // Copy the data to the buffer.
-    // vulkan_image_copy_to_buffer(context, t->type, image,
-    // ((vulkan_buffer*)staging.internal_data)->handle, &temp_buffer);
     vulkan_image_copy_pixel_to_buffer(
-        context, t->type, image, ((vulkan_buffer *)staging.internal_data)->handle,
+        context, image, ((vulkan_buffer *)staging.internal_data)->handle,
         x, y, &temp_buffer);
 
     // Transition from optimal for data reading to shader-read-only optimal
     // layout.
-    vulkan_image_transition_layout(context, t->type, &temp_buffer, image,
+    vulkan_image_transition_layout(context, &temp_buffer, image,
                                    image_format,
                                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -2317,7 +2317,19 @@ b8 vulkan_renderer_shader_apply_instance(renderer_plugin *plugin, shader *s, b8 
                         if (!texture_system_is_default_texture(t)) {
                             // If not using one, grab the default. This is only here as a failsafe
                             // and to be used while assets are loading.
-                            t = texture_system_get_default_texture();
+                            if (t->type == TEXTURE_TYPE_2D) {
+                                t = texture_system_get_default_texture();
+                            } else if (t->type == TEXTURE_TYPE_2D_ARRAY) {
+                                // TODO: Making the assumption this is a terrain.
+                                // Should probably acquire a new default texture with the
+                                // corresponding number of layers instead.
+                                t = texture_system_get_default_terrain_texture();
+                            } else if (t->type == TEXTURE_TYPE_CUBE) {
+                                t = texture_system_get_default_cube_texture();
+                            } else {
+                                KERROR("Vulkan renderer failed to determine texture type while applying instance. Falling back to 2D.");
+                                t = texture_system_get_default_texture();
+                            }
                         }
                         // If using the default texture, invalidate the map's generation so it's updated next run.
                         map->generation = INVALID_ID;
