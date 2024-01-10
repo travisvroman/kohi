@@ -159,7 +159,8 @@ typedef enum texture_type {
     /** @brief A 2d array texture. */
     TEXTURE_TYPE_2D_ARRAY,
     /** @brief A cube texture, used for cubemaps. */
-    TEXTURE_TYPE_CUBE
+    TEXTURE_TYPE_CUBE,
+    TEXTURE_TYPE_COUNT
 } texture_type;
 
 /**

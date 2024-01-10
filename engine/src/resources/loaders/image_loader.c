@@ -175,12 +175,13 @@ b8 image_loader_query_properties(const char *image_name, i32 *out_width, i32 *ou
     }
 
     // The final result of all operations from here down.
-    b8 final_result = false;
+    b8 final_result = true;
 
     u8 *raw_data = kallocate(file_size, MEMORY_TAG_TEXTURE);
     if (!raw_data) {
         KERROR("Unable to read file '%s'.", full_file_path);
         filesystem_close(&f);
+        final_result = false;
         goto image_loader_query_return;
     }
 
@@ -190,12 +191,14 @@ b8 image_loader_query_properties(const char *image_name, i32 *out_width, i32 *ou
 
     if (!read_result) {
         KERROR("Unable to read file: '%s'", full_file_path);
+        final_result = false;
         goto image_loader_query_return;
     }
 
     i32 result = stbi_info_from_memory(raw_data, bytes_read, out_width, out_height, out_channels);
     if (result == 0) {
         KERROR("Failed to query image data from memory.");
+        final_result = false;
         goto image_loader_query_return;
     }
 
