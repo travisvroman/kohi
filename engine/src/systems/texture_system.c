@@ -5,6 +5,7 @@
 #include "core/kstring.h"
 #include "core/logger.h"
 #include "renderer/renderer_frontend.h"
+#include "resources/loaders/image_loader.h"
 #include "resources/resource_types.h"
 #include "systems/job_system.h"
 #include "systems/resource_system.h"
@@ -17,6 +18,7 @@ typedef struct texture_system_state {
     texture default_normal_texture;
     texture default_combined_texture;
     texture default_cube_texture;
+    texture default_terrain_texture;
 
     // Array of registered textures.
     texture* registered_textures;
@@ -40,14 +42,40 @@ typedef struct texture_load_params {
     resource image_resource;
 } texture_load_params;
 
+typedef struct texture_load_layered_params {
+    char* name;
+    u32 layer_count;
+    char** layer_names;
+    texture* out_texture;
+    u32 current_generation;
+} texture_load_layered_params;
+
+typedef enum texture_load_job_code {
+    TEXTURE_LOAD_JOB_CODE_FIRST_QUERY_FAILED,
+    TEXTURE_LOAD_JOB_CODE_RESOURCE_LOAD_FAILED,
+    TEXTURE_LOAD_JOB_CODE_RESOURCE_DIMENSION_MISMATCH,
+} texture_load_job_code;
+
+typedef struct texture_load_layered_result {
+    char* name;
+    u32 layer_count;
+    texture* out_texture;
+    u64 data_block_size;
+    u8* data_block;
+    u32 current_generation;
+    texture temp_texture;
+    texture_load_job_code result_code;
+} texture_load_layered_result;
+
 static texture_system_state* state_ptr = 0;
 
 static b8 create_default_textures(texture_system_state* state);
 static void destroy_default_textures(texture_system_state* state);
-static b8 load_texture(const char* texture_name, texture* t);
-static b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], texture* t);
+static b8 load_texture(const char* texture_name, texture* t, const char** layer_names);
+static b8 load_cube_textures(const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], texture* t);
 static void destroy_texture(texture* t);
-static b8 process_texture_reference(const char* name, texture_type type, u16 array_size, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id);
+static b8 process_texture_reference(const char* name, i8 reference_diff, b8 auto_release, u32* out_texture_id, b8* needs_creation);
+static b8 create_texture(texture* t, texture_type type, u32 width, u32 height, u8 channel_count, u16 array_size, const char** layer_texture_names, b8 is_writeable, b8 skip_load);
 
 b8 texture_system_initialize(u64* memory_requirement, void* state, void* config) {
     texture_system_config* typed_config = (texture_system_config*)config;
@@ -139,13 +167,24 @@ texture* texture_system_acquire(const char* name, b8 auto_release) {
     }
 
     u32 id = INVALID_ID;
+    b8 needs_creation = false;
     // NOTE: Increments reference count, or creates new entry.
-    if (!process_texture_reference(name, TEXTURE_TYPE_2D, 1, 1, auto_release, false, &id)) {
+    if (!process_texture_reference(name, 1, auto_release, &id, &needs_creation)) {
         KERROR("texture_system_acquire failed to obtain a new texture id.");
         return 0;
     }
 
-    return &state_ptr->registered_textures[id];
+    texture* t = &state_ptr->registered_textures[id];
+
+    // Create it, if needed.
+    if (needs_creation) {
+        if (!create_texture(t, TEXTURE_TYPE_2D, 0, 0, 0, 1, 0, false, false)) {
+            KERROR("texture_system_acquire failed to create new texture.");
+            return 0;
+        }
+    }
+
+    return t;
 }
 
 texture* texture_system_acquire_cube(const char* name, b8 auto_release) {
@@ -157,13 +196,24 @@ texture* texture_system_acquire_cube(const char* name, b8 auto_release) {
     }
 
     u32 id = INVALID_ID;
+    b8 needs_creation = false;
     // NOTE: Increments reference count, or creates new entry.
-    if (!process_texture_reference(name, TEXTURE_TYPE_CUBE, 1, 1, auto_release, false, &id)) {
+    if (!process_texture_reference(name, 1, auto_release, &id, &needs_creation)) {
         KERROR("texture_system_acquire_cube failed to obtain a new texture id.");
         return 0;
     }
 
-    return &state_ptr->registered_textures[id];
+    texture* t = &state_ptr->registered_textures[id];
+
+    // Create it, if needed.
+    if (needs_creation) {
+        if (!create_texture(t, TEXTURE_TYPE_CUBE, 0, 0, 0, 6, 0, false, false)) {
+            KERROR("texture_system_acquire failed to create new texture.");
+            return 0;
+        }
+    }
+
+    return t;
 }
 
 texture* texture_system_acquire_writeable(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency) {
@@ -172,27 +222,49 @@ texture* texture_system_acquire_writeable(const char* name, u32 width, u32 heigh
 
 texture* texture_system_acquire_writeable_arrayed(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, texture_type type, u16 array_size) {
     u32 id = INVALID_ID;
-    // NOTE: Wrapped textures are never auto-released because it means that thier
-    // resources are created and managed somewhere within the renderer internals.
-    if (!process_texture_reference(name, type, 1, array_size, false, true, &id)) {
+    b8 needs_creation = false;
+    if (!process_texture_reference(name, 1, false, &id, &needs_creation)) {
         KERROR("texture_system_acquire_writeable_arrayed failed to obtain a new texture id.");
         return 0;
     }
 
     texture* t = &state_ptr->registered_textures[id];
-    t->id = id;
-    t->type = type;
-    string_ncopy(t->name, name, TEXTURE_NAME_MAX_LENGTH);
-    t->width = width;
-    t->height = height;
-    t->channel_count = channel_count;
-    t->array_size = array_size;
-    t->generation = INVALID_ID;
-    t->mip_levels = 1;
+
+    // Create it, if needed.
+    if (needs_creation) {
+        if (!create_texture(t, type, width, height, channel_count, array_size, 0, true, true)) {
+            KERROR("texture_system_acquire failed to create new texture.");
+            return 0;
+        }
+    }
+
     t->flags |= has_transparency ? TEXTURE_FLAG_HAS_TRANSPARENCY : 0;
-    t->flags |= TEXTURE_FLAG_IS_WRITEABLE;
-    t->internal_data = 0;
-    renderer_texture_create_writeable(t);
+    return t;
+}
+
+texture* texture_system_acquire_textures_as_arrayed(const char* name, u32 layer_count, const char** layer_texture_names, b8 auto_release) {
+    if (layer_count < 1) {
+        KERROR("Must contain at least one layer.");
+        return 0;
+    }
+
+    b8 needs_creation = false;
+    u32 id = INVALID_ID;
+    if (!process_texture_reference(name, 1, auto_release, &id, &needs_creation)) {
+        KERROR("texture_system_acquire_textures_as_arrayed failed to obtain a new texture id.");
+        return 0;
+    }
+
+    texture* t = &state_ptr->registered_textures[id];
+
+    // Create it, if needed.
+    if (needs_creation) {
+        if (!create_texture(t, TEXTURE_TYPE_2D_ARRAY, 0, 0, 0, layer_count, layer_texture_names, false, false)) {
+            KERROR("texture_system_acquire_textures_as_arrayed failed to create new texture.");
+            return 0;
+        }
+    }
+
     return t;
 }
 
@@ -203,19 +275,21 @@ void texture_system_release(const char* name) {
         return;
     }
     u32 id = INVALID_ID;
+    b8 needs_creation;
     // NOTE: Decrement the reference count.
-    if (!process_texture_reference(name, TEXTURE_TYPE_2D, 1, -1, false, false, &id)) {
+    if (!process_texture_reference(name, -1, false, &id, &needs_creation)) {
         KERROR("texture_system_release failed to release texture '%s' properly.", name);
     }
 }
 
 void texture_system_wrap_internal(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, b8 is_writeable, b8 register_texture, void* internal_data, texture* out_texture) {
     u32 id = INVALID_ID;
+    b8 needs_creation;
     texture* t = 0;
     if (register_texture) {
         // NOTE: Wrapped textures are never auto-released because it means that thier
         // resources are created and managed somewhere within the renderer internals.
-        if (!process_texture_reference(name, TEXTURE_TYPE_2D, 1, 1, false, true, &id)) {
+        if (!process_texture_reference(name, 1, false, &id, &needs_creation)) {
             KERROR("texture_system_wrap_internal failed to obtain a new texture id.");
             return;
         }
@@ -298,6 +372,7 @@ b8 texture_system_is_default_texture(texture* t) {
            (t == &state_ptr->default_normal_texture) ||
            (t == &state_ptr->default_specular_texture) ||
            (t == &state_ptr->default_combined_texture) ||
+           (t == &state_ptr->default_terrain_texture) ||
            (t == &state_ptr->default_cube_texture);
 }
 
@@ -325,6 +400,10 @@ texture* texture_system_get_default_cube_texture(void) {
     RETURN_TEXT_PTR_OR_NULL(state_ptr->default_cube_texture, "texture_system_get_default_cube_texture");
 }
 
+texture* texture_system_get_default_terrain_texture(void) {
+    RETURN_TEXT_PTR_OR_NULL(state_ptr->default_terrain_texture, "texture_system_get_default_terrain_texture");
+}
+
 static void create_default_texture(texture* t, u8* pixels, u32 tex_dimension, const char* name) {
     string_ncopy(t->name, name, TEXTURE_NAME_MAX_LENGTH);
     t->width = tex_dimension;
@@ -334,6 +413,7 @@ static void create_default_texture(texture* t, u8* pixels, u32 tex_dimension, co
     t->flags = 0;
     t->type = TEXTURE_TYPE_2D;
     t->mip_levels = 1;
+    t->array_size = 1;
     renderer_texture_create(pixels, t);
     // Manually set the texture generation to invalid since this is a default texture.
     t->generation = INVALID_ID;
@@ -376,6 +456,7 @@ static b8 create_default_cube_texture(texture* t, const char* name) {
             t->generation = 0;
             t->mip_levels = 1;
             t->type = TEXTURE_TYPE_CUBE;
+            t->array_size = 6;
             // Take a copy of the name.
             string_ncopy(t->name, name, TEXTURE_NAME_MAX_LENGTH);
 
@@ -396,6 +477,21 @@ static b8 create_default_cube_texture(texture* t, const char* name) {
     pixels = 0;
 
     return true;
+}
+
+static void create_default_layered_texture(texture* t, u32 layer_count, u8* all_layer_pixels, u32 tex_dimension, const char* name) {
+    string_ncopy(t->name, name, TEXTURE_NAME_MAX_LENGTH);
+    t->width = tex_dimension;
+    t->height = tex_dimension;
+    t->channel_count = 4;
+    t->generation = INVALID_ID;
+    t->flags = 0;
+    t->type = TEXTURE_TYPE_2D_ARRAY;
+    t->mip_levels = 1;
+    t->array_size = layer_count;
+    renderer_texture_create(all_layer_pixels, t);
+    // Manually set the texture generation to invalid since this is a default texture.
+    t->generation = INVALID_ID;
 }
 
 static b8 create_default_textures(texture_system_state* state) {
@@ -480,6 +576,24 @@ static b8 create_default_textures(texture_system_state* state) {
     KTRACE("Creating default cube texture...");
     create_default_cube_texture(&state->default_cube_texture, DEFAULT_CUBE_TEXTURE_NAME);
 
+    // Default terrain textures. 4 materials, 3 maps per, for 12 layers.
+    u32 layer_size = sizeof(u8) * 16 * 16 * 4;
+    u32 terrain_material_count = 4;
+    u32 terrain_per_material_map_count = 3;
+    u32 layer_count = terrain_per_material_map_count * terrain_material_count;
+    u8* terrain_pixels = kallocate(layer_size * layer_count, MEMORY_TAG_ARRAY);
+    u32 material_size = layer_size * terrain_per_material_map_count;
+    for (u32 i = 0; i < terrain_material_count; ++i) {
+        // Albedo NOTE: purposefully using checkerboard here instead of default diffuse white;
+        kcopy_memory(terrain_pixels + (material_size * i) + (layer_size * 0), pixels, layer_size);
+        // Normal
+        kcopy_memory(terrain_pixels + (material_size * i) + (layer_size * 1), normal_pixels, layer_size);
+        // Combined
+        kcopy_memory(terrain_pixels + (material_size * i) + (layer_size * 2), combined_pixels, layer_size);
+    }
+    create_default_layered_texture(&state->default_terrain_texture, layer_count, terrain_pixels, 16, DEFAULT_TERRAIN_TEXTURE_NAME);
+    kfree(terrain_pixels, layer_size * layer_count, MEMORY_TAG_ARRAY);
+
     return true;
 }
 
@@ -491,10 +605,11 @@ static void destroy_default_textures(texture_system_state* state) {
         destroy_texture(&state->default_normal_texture);
         destroy_texture(&state->default_combined_texture);
         destroy_texture(&state->default_cube_texture);
+        destroy_texture(&state->default_terrain_texture);
     }
 }
 
-static b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], texture* t) {
+static b8 load_cube_textures(const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], texture* t) {
     u8* pixels = 0;
     u64 image_size = 0;
     for (u8 i = 0; i < 6; ++i) {
@@ -515,8 +630,6 @@ static b8 load_cube_textures(const char* name, const char texture_names[6][TEXTU
             t->flags = 0;
             t->generation = 0;
             t->mip_levels = 1;
-            // Take a copy of the name.
-            string_ncopy(t->name, name, TEXTURE_NAME_MAX_LENGTH);
 
             image_size = t->width * t->height * t->channel_count;
             // NOTE: no need for transparency in cube maps, so not checking for it.
@@ -634,18 +747,202 @@ static b8 texture_load_job_start(void* params, void* result_data) {
     return result;
 }
 
-static b8 load_texture(const char* texture_name, texture* t) {
-    // Kick off a texture loading job. Only handles loading from disk
-    // to CPU. GPU upload is handled after completion of this job.
-    texture_load_params params;
-    params.resource_name = string_duplicate(texture_name);
-    params.out_texture = t;
-    params.image_resource = (resource){};
-    params.current_generation = t->generation;
-    params.temp_texture = (texture){};
+// Layered texture job callbacks.
+static void texture_load_layered_job_success(void* result) {
+    texture_load_layered_result* typed_result = (texture_load_layered_result*)result;
 
-    job_info job = job_create(texture_load_job_start, texture_load_job_success, texture_load_job_fail, &params, sizeof(texture_load_params), sizeof(texture_load_params));
-    job_system_submit(job);
+    // Acquire internal texture resources and upload to GPU. Can't be jobified until the renderer is multithreaded.
+    renderer_texture_create(typed_result->data_block, &typed_result->temp_texture);
+
+    typed_result->out_texture->generation = INVALID_ID;
+
+    // Take a copy of the old texture.
+    texture old = *typed_result->out_texture;
+
+    // Assign the temp texture to the pointer.
+    *typed_result->out_texture = typed_result->temp_texture;
+
+    // Destroy the old texture.
+    renderer_texture_destroy(&old);
+    kzero_memory(&old, sizeof(texture));
+
+    if (typed_result->current_generation == INVALID_ID) {
+        typed_result->out_texture->generation = 0;
+    } else {
+        typed_result->out_texture->generation = typed_result->current_generation + 1;
+    }
+
+    if (typed_result->name) {
+        KTRACE("Successfully loaded layered texture '%s'.", typed_result->name);
+        string_free(typed_result->name);
+        typed_result->name = 0;
+    } else {
+        KTRACE("Successfully loaded layered texture.");
+    }
+    kfree(typed_result->data_block, typed_result->data_block_size, MEMORY_TAG_ARRAY);
+}
+
+static void texture_load_layered_job_fail(void* result_data) {
+    texture_load_layered_result* typed_result = result_data;
+
+    switch (typed_result->result_code) {
+        case TEXTURE_LOAD_JOB_CODE_RESOURCE_LOAD_FAILED:
+            KERROR("Layered texture load failed to load one or more resources.");
+            break;
+        case TEXTURE_LOAD_JOB_CODE_FIRST_QUERY_FAILED:
+            KERROR("Failed to query properties for first layer image. Unable to create arrayed texture.");
+            break;
+        case TEXTURE_LOAD_JOB_CODE_RESOURCE_DIMENSION_MISMATCH:
+            KERROR("Failed to load the layered image because at least one layer's texture is the wrong size.");
+            break;
+        default:
+            KERROR("Layered texture load failed for an unknown reason.");
+            break;
+    }
+}
+
+static b8 texture_load_layered_job_start(void* params, void* result_data) {
+    texture_load_layered_params* load_params = (texture_load_layered_params*)params;
+    texture_load_layered_result* typed_result = result_data;
+
+    // Query the dimensions of the first image. All subsequent images must match dimensions.
+    // Channel count from the image is ignored.
+    i32 first_width, first_height, channel_count;
+    u32 mip_levels;
+    if (!image_loader_query_properties(load_params->layer_names[0], &first_width, &first_height, &channel_count, &mip_levels)) {
+        typed_result->result_code = TEXTURE_LOAD_JOB_CODE_FIRST_QUERY_FAILED;
+        return false;
+    }
+
+    // Once the first image size is acquired, allocate enough memory for
+    // it's dimensions * channels * layer count. Note that 4 channels are always required here.
+    const u32 layer_channel_count = 4;
+    u32 layer_size = sizeof(u8) * (u32)first_width * (u32)first_height * layer_channel_count;
+    typed_result->data_block_size = layer_size * load_params->layer_count;
+    typed_result->data_block = kallocate(typed_result->data_block_size, MEMORY_TAG_ARRAY);
+    typed_result->out_texture = load_params->out_texture;
+
+    b8 has_transparency = false;
+
+    // Create a temporary texture to load into, so that if an existing texture is being used, we don't trash memory
+    // that's currently in use for a draw, etc.
+    typed_result->temp_texture = (texture){};
+    typed_result->temp_texture.generation = INVALID_ID;
+    // Use a temporary texture to load into.
+    typed_result->temp_texture.width = first_width;
+    typed_result->temp_texture.height = first_height;
+    typed_result->temp_texture.channel_count = layer_channel_count;
+    typed_result->temp_texture.mip_levels = mip_levels;
+    typed_result->temp_texture.array_size = load_params->layer_count;
+    // Copy relevant properties from the original texture.
+    typed_result->temp_texture.type = load_params->out_texture->type;
+    typed_result->temp_texture.id = load_params->out_texture->id;
+    typed_result->temp_texture.flags = load_params->out_texture->flags;
+
+    image_resource_params resource_params;
+    resource_params.flip_y = true;
+
+    u32 layer = 0;
+    for (; layer < load_params->layer_count; ++layer) {
+        resource image_resource;
+        if (!resource_system_load(load_params->layer_names[layer], RESOURCE_TYPE_IMAGE, &resource_params, &image_resource)) {
+            typed_result->result_code = TEXTURE_LOAD_JOB_CODE_RESOURCE_LOAD_FAILED;
+            goto texture_load_layered_failed;
+        }
+
+        image_resource_data* resource_data = image_resource.data;
+
+        // Verify the dimensions match that of the first layer's texture.
+        if (resource_data->width != (u32)first_width || resource_data->height != (u32)first_height) {
+            typed_result->result_code = TEXTURE_LOAD_JOB_CODE_RESOURCE_DIMENSION_MISMATCH;
+            resource_system_unload(&image_resource);
+            goto texture_load_layered_failed;
+        }
+
+        // Check for transparency
+        if (!has_transparency) {
+            for (u64 i = 0; i < layer_size; i += typed_result->temp_texture.channel_count) {
+                u8 a = resource_data->pixels[i + 3];
+                if (a < 255) {
+                    has_transparency = true;
+                    break;
+                }
+            }
+        }
+
+        // Insert the pixels into the corresponding "layer".
+        u8* data_location = typed_result->data_block + (layer * layer_size);
+        kcopy_memory(data_location, resource_data->pixels, layer_size);
+
+        resource_system_unload(&image_resource);
+    }
+
+    typed_result->temp_texture.flags |= has_transparency ? TEXTURE_FLAG_HAS_TRANSPARENCY : 0;
+    typed_result->name = string_duplicate(load_params->name);
+    typed_result->current_generation = load_params->out_texture->generation;
+    typed_result->layer_count = load_params->layer_count;
+
+    for (u32 i = 0; i < typed_result->layer_count; ++i) {
+        string_free(load_params->layer_names[i]);
+    }
+    kfree(load_params->layer_names, sizeof(char*) * load_params->layer_count, MEMORY_TAG_ARRAY);
+    load_params->layer_names = 0;
+
+    return true;
+
+texture_load_layered_failed:
+    // HACK: DRY
+    for (u32 i = 0; i < typed_result->layer_count; ++i) {
+        string_free(load_params->layer_names[i]);
+    }
+    kfree(load_params->layer_names, sizeof(char*) * load_params->layer_count, MEMORY_TAG_ARRAY);
+    load_params->layer_names = 0;
+
+    if (typed_result->data_block) {
+        kfree(typed_result->data_block, layer_size * load_params->layer_count, MEMORY_TAG_ARRAY);
+        typed_result->data_block = 0;
+    }
+    return false;
+}
+
+static b8 load_texture(const char* texture_name, texture* t, const char** layer_names) {
+    if (t->type == TEXTURE_TYPE_2D) {
+        // Kick off a texture loading job. Only handles loading from disk
+        // to CPU. GPU upload is handled after completion of this job.
+        texture_load_params params = {0};
+        params.resource_name = string_duplicate(texture_name);
+        params.out_texture = t;
+        params.image_resource = (resource){};
+        params.current_generation = t->generation;
+        params.temp_texture = (texture){};
+        params.temp_texture.array_size = t->array_size;
+
+        job_info job = job_create(texture_load_job_start, texture_load_job_success, texture_load_job_fail, &params, sizeof(texture_load_params), sizeof(texture_load_params));
+        job_system_submit(job);
+    } else if (t->type == TEXTURE_TYPE_2D_ARRAY) {
+        texture_load_layered_params params = {0};
+        params.layer_count = t->array_size;
+        params.name = string_duplicate(texture_name);
+        params.layer_names = kallocate(sizeof(char*) * t->array_size, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < t->array_size; ++i) {
+            params.layer_names[i] = string_duplicate(layer_names[i]);
+        }
+        params.current_generation = t->generation;
+        params.out_texture = t;
+
+        job_info job = job_create(
+            texture_load_layered_job_start,
+            texture_load_layered_job_success,
+            texture_load_layered_job_fail,
+            &params,
+            sizeof(texture_load_layered_params),
+            sizeof(texture_load_layered_result));
+
+        job_system_submit(job);
+    } else {
+        KERROR("Texture system attempted to load unknown texture type: %u", t->type);
+        return false;
+    }
     return true;
 }
 
@@ -659,8 +956,64 @@ static void destroy_texture(texture* t) {
     t->generation = INVALID_ID;
 }
 
-static b8 process_texture_reference(const char* name, texture_type type, u16 array_size, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id) {
+static b8 create_texture(texture* t, texture_type type, u32 width, u32 height, u8 channel_count, u16 array_size, const char** layer_texture_names, b8 is_writeable, b8 skip_load) {
+    // Set some values regardless of texture type.
+    t->type = type;
+    t->array_size = array_size;
+    if (is_writeable) {
+        t->flags |= TEXTURE_FLAG_IS_WRITEABLE;
+    }
+
+    // Create new texture.
+    if (skip_load) {
+        // For non-loaded textures, dimensions, and channel count.
+        t->width = width;
+        t->height = height;
+        t->channel_count = channel_count;
+        if (is_writeable) {
+            t->mip_levels = 1;
+            renderer_texture_create_writeable(t);
+        } else {
+            renderer_texture_create(0, t);
+        }
+        // KTRACE("Load skipped for texture '%s'. This is expected behaviour.");
+    } else {
+        switch (t->type) {
+            case TEXTURE_TYPE_CUBE:
+                char texture_names[6][TEXTURE_NAME_MAX_LENGTH];
+
+                // +X,-X,+Y,-Y,+Z,-Z in _cubemap_ space, which is LH y-down
+                string_format(texture_names[0], "%s_r", t->name);  // Right texture
+                string_format(texture_names[1], "%s_l", t->name);  // Left texture
+                string_format(texture_names[2], "%s_u", t->name);  // Up texture
+                string_format(texture_names[3], "%s_d", t->name);  // Down texture
+                string_format(texture_names[4], "%s_f", t->name);  // Front texture
+                string_format(texture_names[5], "%s_b", t->name);  // Back texture
+
+                if (!load_cube_textures(texture_names, t)) {
+                    KERROR("Failed to load cube texture '%s'.", t->name);
+                    return false;
+                }
+                break;
+            case TEXTURE_TYPE_2D:
+            case TEXTURE_TYPE_2D_ARRAY:
+                if (!load_texture(t->name, t, layer_texture_names)) {
+                    KERROR("Failed to load texture '%s'.", t->name);
+                    return false;
+                }
+                break;
+            default:
+                KERROR("Unrecognized texture type %u. Cannot process texture reference.", t->type);
+                return false;
+        }
+    }
+
+    return true;
+}
+
+static b8 process_texture_reference(const char* name, i8 reference_diff, b8 auto_release, u32* out_texture_id, b8* needs_creation) {
     *out_texture_id = INVALID_ID;
+    *needs_creation = false;
     if (state_ptr) {
         texture_reference ref;
         if (hashtable_get(&state_ptr->registered_texture_table, name, &ref)) {
@@ -728,45 +1081,15 @@ static b8 process_texture_reference(const char* name, texture_type type, u16 arr
                         KFATAL("process_texture_reference - Texture system cannot hold anymore textures. Adjust configuration to allow more.");
                         return false;
                     } else {
+                        // Setup some basic properties on the texture.
                         texture* t = &state_ptr->registered_textures[ref.handle];
-                        t->type = type;
-                        t->array_size = array_size;
-                        // Create new texture.
-                        if (skip_load) {
-                            // KTRACE("Load skipped for texture '%s'. This is expected behaviour.");
-                        } else {
-                            if (type == TEXTURE_TYPE_CUBE) {
-                                char texture_names[6][TEXTURE_NAME_MAX_LENGTH];
-
-                                // +X,-X,+Y,-Y,+Z,-Z in _cubemap_ space, which is LH y-down
-                                string_format(texture_names[0], "%s_r", name);  // Right texture
-                                string_format(texture_names[1], "%s_l", name);  // Left texture
-                                string_format(texture_names[2], "%s_u", name);  // Up texture
-                                string_format(texture_names[3], "%s_d", name);  // Down texture
-                                string_format(texture_names[4], "%s_f", name);  // Front texture
-                                string_format(texture_names[5], "%s_b", name);  // Back texture
-
-                                if (!load_cube_textures(name, texture_names, t)) {
-                                    *out_texture_id = INVALID_ID;
-                                    KERROR("Failed to load cube texture '%s'.", name);
-                                    return false;
-                                }
-                            } else if (type == TEXTURE_TYPE_2D) {
-                                if (!load_texture(name, t)) {
-                                    *out_texture_id = INVALID_ID;
-                                    KERROR("Failed to load texture '%s'.", name);
-                                    return false;
-                                }
-                            } else if (type == TEXTURE_TYPE_2D_ARRAY) {
-                                // Acquire internal texture resources and upload to GPU. Can't be jobified until the renderer is multithreaded.
-                                renderer_texture_create(0, t);
-                            }
-                            t->id = ref.handle;
-                        }
-
+                        t->id = ref.handle;
+                        t->generation = INVALID_ID;
+                        t->internal_data = 0;
                         // Make sure to hold onto the texture name.
                         string_ncopy(t->name, name, TEXTURE_NAME_MAX_LENGTH);
                         // KTRACE("Texture '%s' does not yet exist. Created, and ref_count is now %i.", name, ref.reference_count);
+                        *needs_creation = true;
                     }
                 } else {
                     *out_texture_id = ref.handle;

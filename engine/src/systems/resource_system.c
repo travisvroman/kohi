@@ -1,5 +1,6 @@
 #include "resource_system.h"
 
+#include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
 
@@ -13,6 +14,7 @@
 #include "resources/loaders/system_font_loader.h"
 #include "resources/loaders/terrain_loader.h"
 #include "resources/loaders/text_loader.h"
+#include "resources/resource_types.h"
 
 typedef struct resource_system_state {
     resource_system_config config;
@@ -130,6 +132,27 @@ b8 resource_system_load(const char *name, resource_type type, void *params,
     out_resource->loader_id = INVALID_ID;
     KERROR("resource_system_load - No loader for type %d was found.", type);
     return false;
+}
+
+const char *resource_system_base_path_for_type(resource_type type) {
+    if (state_ptr && type != RESOURCE_TYPE_CUSTOM) {
+        // Select loader.
+        u32 count = state_ptr->config.max_loader_count;
+        for (u32 i = 0; i < count; ++i) {
+            resource_loader *l = &state_ptr->registered_loaders[i];
+            if (l->id != INVALID_ID && l->type == type) {
+                u32 type_length = string_length(l->type_path);
+                u32 base_length = string_length(state_ptr->config.asset_base_path);
+                u32 total_length = type_length + base_length + 3;
+                char *combined_path = kallocate(sizeof(char) * total_length, MEMORY_TAG_STRING);
+                string_format(combined_path, "%s/%s/", state_ptr->config.asset_base_path, l->type_path);
+                return combined_path;
+            }
+        }
+        KERROR("Attempted to query for base asset path for unrecognized type. Null will be returned.");
+        return 0;
+    }
+    return 0;
 }
 
 b8 resource_system_load_custom(const char *name, const char *custom_type,

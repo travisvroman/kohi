@@ -66,7 +66,7 @@ const int SAMP_COMBINED_OFFSET = 2;
 const float PI = 3.14159265359;
 
 // Material textures: albedo, normal, combined (metallic, roughness, ao)
-layout(set = 1, binding = 1) uniform sampler2D material_textures[3 * MAX_TERRAIN_MATERIALS];
+layout(set = 1, binding = 1) uniform sampler2DArray material_textures;
 // Shadow maps
 layout(set = 1, binding = 2) uniform sampler2DArray shadow_texture;
 // IBL irradiance
@@ -162,12 +162,12 @@ void main() {
     // Sample each material.
     for(int m = 0; m < instance_ubo.properties.num_materials; ++m) {
         int m_element = (m * TERRAIN_PER_MATERIAL_SAMP_COUNT);
-        albedos[m] = texture(material_textures[m_element + SAMP_ALBEDO_OFFSET], in_dto.tex_coord);
+        albedos[m] = texture(material_textures, vec3(in_dto.tex_coord, m_element + SAMP_ALBEDO_OFFSET));
         albedos[m] = vec4(pow(albedos[m].rgb, vec3(2.2)), albedos[m].a);
         // Just sample these for now, will blend and apply surface normal later.
-        normals[m] = texture(material_textures[m_element + SAMP_NORMAL_OFFSET], in_dto.tex_coord).rgb;
+        normals[m] = texture(material_textures, vec3(in_dto.tex_coord, m_element + SAMP_NORMAL_OFFSET)).rgb;
 
-        vec4 combined = texture(material_textures[m_element + SAMP_COMBINED_OFFSET], in_dto.tex_coord);
+        vec4 combined = texture(material_textures, vec3(in_dto.tex_coord, m_element + SAMP_COMBINED_OFFSET));
         metallics[m] = combined.r;
         roughnesses[m] = combined.g;
         aos[m] = combined.b;
@@ -215,6 +215,24 @@ void main() {
         aos[2] * in_dto.mat_weights[2] +
         aos[3] * in_dto.mat_weights[3];
 
+
+    // Generate shadow value based on current fragment position vs shadow map.
+    // Light and normal are also taken in the case that a bias is to be used.
+    vec4 frag_position_view_space = global_ubo.view * vec4(in_dto.frag_position, 1.0f);
+    float depth = abs(frag_position_view_space).z;
+    // Get the cascade index from the current fragment's position.
+    int cascade_index = -1;
+    for(int i = 0; i < MAX_SHADOW_CASCADES; ++i) {
+        if(depth < in_dto.cascade_splits[i]) {
+            cascade_index = i;
+            break;
+        }
+    }
+    if(cascade_index == -1) {
+        cascade_index = MAX_SHADOW_CASCADES;
+    }
+    float shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, global_ubo.dir_light, cascade_index);
+
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use base_reflectivity 
     // of 0.04 and if it's a metal, use the albedo color as base_reflectivity (metallic workflow)    
     vec3 base_reflectivity = vec3(0.04); 
@@ -244,7 +262,8 @@ void main() {
             vec3 light_direction = normalize(-light.direction.xyz);
             vec3 radiance = calculate_directional_light_radiance(light, view_direction);
 
-            total_reflectance += calculate_reflectance(albedo.xyz, normal, view_direction, light_direction, metallic, roughness, base_reflectivity, radiance);
+            // Only the directional light should be affected by shadow.
+            total_reflectance += (shadow * calculate_reflectance(albedo.xyz, normal, view_direction, light_direction, metallic, roughness, base_reflectivity, radiance));
         }
 
         // Point light radiance
@@ -259,29 +278,11 @@ void main() {
         // Irradiance holds all the scene's indirect diffuse light. Use the surface normal to sample from it.
         vec3 irradiance = texture(irradiance_texture, normal).rgb;
 
-        // Generate shadow value based on current fragment position vs shadow map.
-        // Light and normal are also taken in the case that a bias is to be used.
-        // TODO: take point lights into account in shadows.
-        vec4 frag_position_view_space = global_ubo.view * vec4(in_dto.frag_position, 1.0f);
-        float depth = abs(frag_position_view_space).z;
-        // Get the cascade index from the current fragment's position.
-        int cascade_index = -1;
-        for(int i = 0; i < MAX_SHADOW_CASCADES; ++i) {
-            if(depth < in_dto.cascade_splits[i]) {
-                cascade_index = i;
-                break;
-            }
-        }
-        if(cascade_index == -1) {
-            cascade_index = MAX_SHADOW_CASCADES;
-        }
-        float shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, global_ubo.dir_light, cascade_index);
-
         // Combine irradiance with albedo and ambient occlusion. 
         // Also add in total accumulated reflectance.
         vec3 ambient = irradiance * albedo.xyz * ao;
-        // Modify total reflectance by the generated shadow value.
-        vec3 colour = ambient + total_reflectance * shadow;
+        // Modify total reflectance by the ambient colour.
+        vec3 colour = ambient + total_reflectance;
 
         // HDR tonemapping
         colour = colour / (colour + vec3(1.0));

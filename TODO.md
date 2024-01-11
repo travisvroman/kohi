@@ -4,6 +4,7 @@ The items in this list are not in any particular order. This list will be update
 ## Engine general:
 - [x] platform layer (Windows, Linux, macOS)
   - [x] UTF-8/Wide character handling for Win32 windowing.
+  - [x] Wayland support
 - [x] event system
 - [x] clock
 - [x] testing framework
@@ -38,6 +39,9 @@ The items in this list are not in any particular order. This list will be update
 - [ ] quadtrees/octrees
 - [x] Threads 
 - [x] Job system
+  - [ ] Job dependencies
+  - [ ] Job semaphores/signaling
+- [ ] ThreadPools
 - [ ] Multi-threaded logger
 - [x] Textures 
   - [ ] binary file format (.kbt)
@@ -61,7 +65,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] high-level string structure library (not c-strings)
 - [ ] resource hot reloading
 - [ ] prefabs
-- [ ] Simple Scenes
+- [x] Simple Scenes
   - [x] Base implementation
   - [x] Load from file 
   - [ ] Save to file
@@ -78,10 +82,10 @@ The items in this list are not in any particular order. This list will be update
 - [x] Raycasting
 - [x] Object picking 
   - [x] Pixel-perfect picking 
-  - [x] Racast picking
+  - [x] Raycast picking
 - [x] Gizmo (in-world object manipulation)
 - [x] Viewports
-- [ ] terrain
+- [x] terrain
   - [x] heightmap-based
   - [x] pixel picking
   - [x] raycast picking 
@@ -101,6 +105,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] advanced materials (WIP)
 - [x] PBR Lighting model
 - [ ] batch rendering (2d and 3d)
+- [ ] instanced rendering
 - [x] shadow maps
   - [x] PCF
   - [x] cascading shadow maps
@@ -110,12 +115,23 @@ The items in this list are not in any particular order. This list will be update
 - [x] Phong Lighting model (NOTE: removed in favour of PBR)
 - [x] Multiple/configurable renderpass support.
 - [x] Rendergraph
+  - [x] Linear processing
+  - [ ] Rendergraph Pass Dependencies/auto-resolution
+  - [ ] Multithreading/waiting/signaling
+- [x] Forward rendering 
+- [ ] Deferred rendering 
+- [ ] Forward+ rendering
+- [ ] Compute Shader support (frontend)
 
 ## Plugins:
  - [ ] ECS (Entity Component System)
  - [x] Audio (OpenAL plugin)
  - [ ] Vulkan Renderer Plugin (WIP)
    - [ ] multithreading
+     - [ ] texture data upload
+     - [ ] mesh data upload
+   - [ ] pipeline statistic querying
+   - [ ] compute support
  - [ ] Direct3D Renderer Plugin 
    - [ ] multithreading
  - [ ] Metal Renderer Plugin 

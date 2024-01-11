@@ -499,6 +499,7 @@ static b8 import_obj_file(file_handle *obj_file, const char *out_ksm_filename,
         char full_mtl_path[512];
         kzero_memory(full_mtl_path, sizeof(char) * 512);
         string_directory_from_path(full_mtl_path, out_ksm_filename);
+        string_trim(full_mtl_path);
         string_append_string(full_mtl_path, full_mtl_path, material_file_name);
 
         // Process material library file.
@@ -755,10 +756,17 @@ static b8 import_obj_material_library_file(const char *mtl_file_path) {
                 // map name/type
                 if (strings_nequali(substr, "map_Kd", 6)) {
                     // Is a diffuse texture map
-                    map.name = "diffuse";
-                } else if (strings_nequali(substr, "map_Ks", 6)) {
-                    // Is a specular texture map
-                    map.name = "specular";
+                    map.name = "albedo";
+                } else if (strings_nequali(substr, "map_Pm", 6)) {
+                    // TODO: Combine these maps on import.
+                    // Is a metallic texture map
+                    map.name = "metallic";
+                } else if (strings_nequali(substr, "map_Pr", 6)) {
+                    // Is a roughness texture map
+                    map.name = "rougness";
+                } else if (strings_nequali(substr, "map_Ke", 6)) {
+                    // Is a emissive texture map
+                    map.name = "emissive";
                 } else if (strings_nequali(substr, "map_bump", 8)) {
                     // Is a bump texture map
                     map.name = "normal";
@@ -816,6 +824,10 @@ static b8 import_obj_material_library_file(const char *mtl_file_path) {
                             kfree(current_config.name, len + 1, MEMORY_TAG_STRING);
                         }
                         kzero_memory(&current_config, sizeof(current_config));
+
+                        // Recreate.
+                        current_config.properties = darray_create(material_config_prop);
+                        current_config.maps = darray_create(material_map);
                     }
 
                     hit_name = true;
@@ -899,13 +911,11 @@ static b8 write_kmt_file(const char *mtl_file_path, material_config *config) {
     // NOTE: The .obj file this came from (and resulting .mtl file) sit in the
     // models directory. This moves up a level and back into the materials folder.
     // TODO: Read from config and get an absolute path for output.
-    char *format_str = "%s../materials/%s%s";
+    char *format_str = "%s%s%s";
     file_handle f;
-    char directory[320];
-    string_directory_from_path(directory, mtl_file_path);
 
     char full_file_path[512];
-    string_format(full_file_path, format_str, directory, config->name, ".kmt");
+    string_format(full_file_path, format_str, resource_system_base_path_for_type(RESOURCE_TYPE_MATERIAL), config->name, ".kmt");
     if (!filesystem_open(full_file_path, FILE_MODE_WRITE, false, &f)) {
         KERROR("Error opening material file for writing: '%s'", full_file_path);
         return false;
@@ -919,7 +929,7 @@ static b8 write_kmt_file(const char *mtl_file_path, material_config *config) {
     filesystem_write_line(&f, "version=2");
 
     filesystem_write_line(&f, "# Types can be phong,pbr,custom");
-    filesystem_write_line(&f, "type=phong");  // TODO: Other material types
+    filesystem_write_line(&f, "type=pbr");  // TODO: Other material types
 
     string_format(line_buffer, "name=%s", config->name);
     filesystem_write_line(&f, line_buffer);
