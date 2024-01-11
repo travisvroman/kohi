@@ -160,6 +160,8 @@ typedef enum texture_type {
     TEXTURE_TYPE_2D_ARRAY,
     /** @brief A cube texture, used for cubemaps. */
     TEXTURE_TYPE_CUBE,
+    /** @brief A cube array texture, used for arrays of cubemaps. */
+    TEXTURE_TYPE_CUBE_ARRAY,
     TEXTURE_TYPE_COUNT
 } texture_type;
 
@@ -620,7 +622,7 @@ typedef struct material {
     /** @brief Synced to the renderer's current frame number when the material has
      * been applied that frame. */
     u64 render_frame_number;
-    u64 render_draw_index;
+    u8 render_draw_index;
 } material;
 
 typedef struct skybox_simple_scene_config {

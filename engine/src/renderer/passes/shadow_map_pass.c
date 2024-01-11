@@ -1,5 +1,6 @@
 #include "shadow_map_pass.h"
 
+#include "containers/darray.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
@@ -28,6 +29,11 @@ typedef struct cascade_resources {
     render_target* targets;
 } cascade_resources;
 
+typedef struct shadow_shader_instance_data {
+    u64 render_frame_number;
+    u8 render_draw_index;
+} shadow_shader_instance_data;
+
 typedef struct shadow_map_pass_internal_data {
     shadow_map_pass_config config;
 
@@ -50,6 +56,9 @@ typedef struct shadow_map_pass_internal_data {
     u32 default_instance_id;
     u64 default_instance_frame_number;
     u8 default_instance_draw_index;
+
+    // Track instance data per instance. darray
+    shadow_shader_instance_data* instances;
 
     // Separate shader/instance info for terrains.
     shader* ts;
@@ -372,6 +381,10 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
         highest_id++;
 
         if (highest_id > internal_data->instance_count) {
+            if (internal_data->instances) {
+                darray_destroy(internal_data->instances);
+            }
+            internal_data->instances = darray_reserve(shadow_shader_instance_data, highest_id + 1);
             // Get more resources if needed, starting at the previous high point.
             for (u32 i = internal_data->instance_count; i < highest_id; i++) {
                 u32 instance_id;
@@ -390,6 +403,10 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
                 instance_resource_config.uniform_config_count = 1;
                 instance_resource_config.uniform_configs = &colour_texture;
                 renderer_shader_instance_resources_acquire(internal_data->s, &instance_resource_config, &instance_id);
+
+                shadow_shader_instance_data* instance = &internal_data->instances[instance_id];
+                instance->render_frame_number = INVALID_ID_U64;
+                instance->render_draw_index = INVALID_ID_U8;
             }
             internal_data->instance_count = highest_id;
         }
@@ -410,8 +427,11 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
                 bind_id = g->material->internal_id + 1;
                 // Use the current material's diffuse/albedo map.
                 bind_map = &g->material->maps[0];
-                render_number = &internal_data->s->render_frame_number;
-                draw_index = &internal_data->s->draw_index;
+                // NOTE: can't update the _material's_ frame number/draw index because it still needs to be
+                // used for the actual scene render.
+                shadow_shader_instance_data* instance = &internal_data->instances[g->material->internal_id + 1];
+                render_number = &instance->render_frame_number;
+                draw_index = &instance->render_draw_index;
             } else {
                 // Use the default instance.
                 bind_id = internal_data->default_instance_id;

@@ -154,6 +154,23 @@ void main() {
     float roughness = combined.g;
     float ao = combined.b;
 
+    // Generate shadow value based on current fragment position vs shadow map.
+    // Light and normal are also taken in the case that a bias is to be used.
+    vec4 frag_position_view_space = global_ubo.view * vec4(in_dto.frag_position, 1.0f);
+    float depth = abs(frag_position_view_space).z;
+    // Get the cascade index from the current fragment's position.
+    int cascade_index = -1;
+    for(int i = 0; i < MAX_SHADOW_CASCADES; ++i) {
+        if(depth < in_dto.cascade_splits[i]) {
+            cascade_index = i;
+            break;
+        }
+    }
+    if(cascade_index == -1) {
+        cascade_index = MAX_SHADOW_CASCADES;
+    }
+    float shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, instance_ubo.dir_light, cascade_index);
+
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use base_reflectivity 
     // of 0.04 and if it's a metal, use the albedo color as base_reflectivity (metallic workflow)    
     vec3 base_reflectivity = vec3(0.04); 
@@ -183,7 +200,8 @@ void main() {
             vec3 light_direction = normalize(-light.direction.xyz);
             vec3 radiance = calculate_directional_light_radiance(light, view_direction);
 
-            total_reflectance += calculate_reflectance(albedo, normal, view_direction, light_direction, metallic, roughness, base_reflectivity, radiance);
+            // Only directional light should be affected by shadow map.
+            total_reflectance += (shadow * calculate_reflectance(albedo, normal, view_direction, light_direction, metallic, roughness, base_reflectivity, radiance));
         }
 
         // Point light radiance
@@ -198,29 +216,11 @@ void main() {
         // Irradiance holds all the scene's indirect diffuse light. Use the surface normal to sample from it.
         vec3 irradiance = texture(irradiance_texture, normal).rgb;
 
-        // Generate shadow value based on current fragment position vs shadow map.
-        // Light and normal are also taken in the case that a bias is to be used.
-        // TODO: take point lights into account in shadows.
-        vec4 frag_position_view_space = global_ubo.view * vec4(in_dto.frag_position, 1.0f);
-        float depth = abs(frag_position_view_space).z;
-        // Get the cascade index from the current fragment's position.
-        int cascade_index = -1;
-        for(int i = 0; i < MAX_SHADOW_CASCADES; ++i) {
-            if(depth < in_dto.cascade_splits[i]) {
-                cascade_index = i;
-                break;
-            }
-        }
-        if(cascade_index == -1) {
-            cascade_index = MAX_SHADOW_CASCADES;
-        }
-        float shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, instance_ubo.dir_light, cascade_index);
-
         // Combine irradiance with albedo and ambient occlusion. 
         // Also add in total accumulated reflectance.
         vec3 ambient = irradiance * albedo * ao;
-        // Modify total reflectance by the generated shadow value.
-        vec3 colour = ambient + total_reflectance * shadow;
+        // Modify total reflectance by the ambient colour.
+        vec3 colour = ambient + total_reflectance;
 
         // HDR tonemapping
         colour = colour / (colour + vec3(1.0));

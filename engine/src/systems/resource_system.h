@@ -101,7 +101,7 @@ KAPI b8 resource_system_load(const char* name, resource_type type, void* params,
 KAPI b8 resource_system_load_custom(const char* name, const char* custom_type, void* params, resource* out_resource);
 
 /**
- * @brief Attempts to obtain the base asset path for the given type. Returns 0 if not found.
+ * @brief Attempts to obtain the base asset path for the given type. Includes trailing slash '/'. Returns 0 if not found.
  * @param type The resource type to search for.
  * @return A string containing the base asset path for the given type; otherwise 0.
  */

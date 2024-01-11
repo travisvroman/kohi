@@ -100,22 +100,28 @@ void vulkan_image_create(
         out_image->view = 0;
         vulkan_image_view_create(context, type, layer_count, -1, format, out_image, view_aspect_flags, &out_image->view);
 
-        // Only create views per layer if not a cube map.
-        if (layer_count > 1 && type != TEXTURE_TYPE_CUBE) {
+        // Create views per layer.
+        if (layer_count > 1) {
             // Multiple views, one per layer
             out_image->layer_views = kallocate(sizeof(VkImageView) * layer_count, MEMORY_TAG_ARRAY);
+            texture_type view_type = type;
+            if (type == TEXTURE_TYPE_CUBE || type == TEXTURE_TYPE_CUBE_ARRAY) {
+                // NOTE: for individual sampling of cubemap/cubemap array layers, the view type needs to be 2d.
+                view_type = TEXTURE_TYPE_2D;
+            }
             for (u32 i = 0; i < layer_count; ++i) {
-                vulkan_image_view_create(context, type, 1, i, format, out_image, view_aspect_flags, &out_image->layer_views[i]);
+                vulkan_image_view_create(context, view_type, 1, i, format, out_image, view_aspect_flags, &out_image->layer_views[i]);
             }
         }
     }
 }
 
 // A lookup table of vulkan image view types indexed Kohi's texture types.
-static VkImageViewType vulkan_view_types[3] = {
+static VkImageViewType vulkan_view_types[4] = {
     VK_IMAGE_VIEW_TYPE_2D,
     VK_IMAGE_VIEW_TYPE_2D_ARRAY,
-    VK_IMAGE_VIEW_TYPE_CUBE};
+    VK_IMAGE_VIEW_TYPE_CUBE,
+    VK_IMAGE_VIEW_TYPE_CUBE_ARRAY};
 
 // Ensure changes to texture types break this if it isn't also updated.
 STATIC_ASSERT(TEXTURE_TYPE_COUNT == (sizeof(vulkan_view_types) / sizeof(*vulkan_view_types)), "Texture type count does not match Vulkan image view lookup table count.");

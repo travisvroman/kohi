@@ -37,6 +37,11 @@ Changelog
   - Terrains now combine maps from materials into a single array texture. This comes with the requirement that all terrain material maps be of the same size.
   - Refactored various Vulkan image loading logic to properly handle layered images.
   - Added ability to load layered textures in the texture system by passing a series of texture names and a layer count to a new function.
+  - Fixed an issue with parsing directory from string where the resulting string was not zero terminated.
+  - Fixed various obj/mtl loading issues and added conversions for new PBR map types.
+  - Fixed an issue in the shadow map shader/pass where albedo textures were not being sampled (thus transparent materials weren't being taken into account).
+  - Added a test tree model resource.
+  - Point lights are now unaffected by directional shadow maps.
 
 - 0.4x
   - Added first pass of Standard UI system, including panel, button, label, and textbox controls.
