@@ -3,11 +3,14 @@ The items in this list are not in any particular order. This list will be update
 
 ## Engine general:
 - [x] platform layer (Windows, Linux, macOS)
+  - [x] UTF-8/Wide character handling for Win32 windowing.
+  - [x] Wayland support
 - [x] event system
 - [x] clock
 - [x] testing framework
 - [x] math library (vector math, etc)
 - [x] Memory system 
+- [x] Generic sorting function/library.
 - [ ] Allocators:
   - [x] linear allocator
   - [x] dynamic allocator (variable-size allocations)
@@ -36,6 +39,9 @@ The items in this list are not in any particular order. This list will be update
 - [ ] quadtrees/octrees
 - [x] Threads 
 - [x] Job system
+  - [ ] Job dependencies
+  - [ ] Job semaphores/signaling
+- [ ] ThreadPools
 - [ ] Multi-threaded logger
 - [x] Textures 
   - [ ] binary file format (.kbt)
@@ -59,7 +65,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] high-level string structure library (not c-strings)
 - [ ] resource hot reloading
 - [ ] prefabs
-- [ ] Simple Scenes
+- [x] Simple Scenes
   - [x] Base implementation
   - [x] Load from file 
   - [ ] Save to file
@@ -76,10 +82,10 @@ The items in this list are not in any particular order. This list will be update
 - [x] Raycasting
 - [x] Object picking 
   - [x] Pixel-perfect picking 
-  - [x] Racast picking
+  - [x] Raycast picking
 - [x] Gizmo (in-world object manipulation)
 - [x] Viewports
-- [ ] terrain
+- [x] terrain
   - [x] heightmap-based
   - [x] pixel picking
   - [x] raycast picking 
@@ -97,21 +103,35 @@ The items in this list are not in any particular order. This list will be update
 ## Renderer:
 - [ ] geometry generation (2d and 3d, e.g. cube, cylinder, etc.)
 - [ ] advanced materials (WIP)
-- [ ] PBR
+- [x] PBR Lighting model
 - [ ] batch rendering (2d and 3d)
-- [ ] shadow maps
+- [ ] instanced rendering
+- [x] shadow maps
+  - [x] PCF
+  - [x] cascading shadow maps
 - [x] texture mipmapping
-- [x] Specular maps 
+- [x] Specular maps (NOTE: removed in favour of PBR)
 - [x] Normal maps 
-- [x] Phong Lighting model 
+- [x] Phong Lighting model (NOTE: removed in favour of PBR)
 - [x] Multiple/configurable renderpass support.
 - [x] Rendergraph
+  - [x] Linear processing
+  - [ ] Rendergraph Pass Dependencies/auto-resolution
+  - [ ] Multithreading/waiting/signaling
+- [x] Forward rendering 
+- [ ] Deferred rendering 
+- [ ] Forward+ rendering
+- [ ] Compute Shader support (frontend)
 
 ## Plugins:
  - [ ] ECS (Entity Component System)
  - [x] Audio (OpenAL plugin)
- - [ ] Vulkan Renderer Plugin
+ - [ ] Vulkan Renderer Plugin (WIP)
    - [ ] multithreading
+     - [ ] texture data upload
+     - [ ] mesh data upload
+   - [ ] pipeline statistic querying
+   - [ ] compute support
  - [ ] Direct3D Renderer Plugin 
    - [ ] multithreading
  - [ ] Metal Renderer Plugin 
@@ -157,5 +177,8 @@ The items in this list are not in any particular order. This list will be update
 ## Other items:
 - [x] Auto-Generated API documentation
 - [ ] Documentation
+- [ ] Continuous Integration
+- [ ] Add git tags to mark version releases (https://github.com/travisvroman/kohi/issues/174)
+- [ ] Nix build compatability (https://github.com/travisvroman/kohi/issues/175)
 
 Back to [readme](readme.md) 

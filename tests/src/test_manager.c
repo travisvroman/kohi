@@ -3,7 +3,7 @@
 #include <containers/darray.h>
 #include <core/logger.h>
 #include <core/kstring.h>
-#include <core/clock.h>
+#include <core/kclock.h>
 
 typedef struct test_entry {
     PFN_test func;
@@ -30,14 +30,14 @@ void test_manager_run_tests(void) {
 
     u32 count = darray_length(tests);
 
-    clock total_time;
-    clock_start(&total_time);
+    kclock total_time;
+    kclock_start(&total_time);
 
     for (u32 i = 0; i < count; ++i) {
-        clock test_time;
-        clock_start(&test_time);
+        kclock test_time;
+        kclock_start(&test_time);
         u8 result = tests[i].func();
-        clock_update(&test_time);
+        kclock_update(&test_time);
 
         if (result == true) {
             ++passed;
@@ -50,11 +50,11 @@ void test_manager_run_tests(void) {
         }
         char status[20];
         string_format(status, failed ? "*** %d FAILED ***" : "SUCCESS", failed);
-        clock_update(&total_time);
+        kclock_update(&total_time);
         KINFO("Executed %d of %d (skipped %d) %s (%.6f sec / %.6f sec total", i + 1, count, skipped, status, test_time.elapsed, total_time.elapsed);
     }
 
-    clock_stop(&total_time);
+    kclock_stop(&total_time);
 
     KINFO("Results: %d passed, %d failed, %d skipped.", passed, failed, skipped);
 }

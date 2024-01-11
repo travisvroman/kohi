@@ -12,7 +12,7 @@ ifeq ($(OS),Windows_NT)
 	EXTENSION := .exe
 	COMPILER_FLAGS := -Wall -Werror -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -Wstrict-prototypes
 	INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
-	LINKER_FLAGS := -L$(BUILD_DIR) $(ADDL_LINK_FLAGS)
+	LINKER_FLAGS := -L$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Xlinker /INCREMENTAL
 	DEFINES += -D_CRT_SECURE_NO_WARNINGS
 
 # Make does not offer a recursive wildcard function, and Windows needs one, so here it is:
@@ -48,7 +48,7 @@ else
 		# These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
 		# here that would not on other platforms from not being exported (i.e. Windows)
 		# Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
-		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Wl,-rpath,. -Xlinker /INCREMENTAL
+		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Wl,-rpath,. -lm -ldl
 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
 		# directories with .h files

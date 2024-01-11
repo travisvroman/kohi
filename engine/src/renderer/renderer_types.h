@@ -40,7 +40,8 @@ typedef struct geometry_render_data {
 typedef enum renderer_debug_view_mode {
     RENDERER_VIEW_MODE_DEFAULT = 0,
     RENDERER_VIEW_MODE_LIGHTING = 1,
-    RENDERER_VIEW_MODE_NORMALS = 2
+    RENDERER_VIEW_MODE_NORMALS = 2,
+    RENDERER_VIEW_MODE_CASCADES = 3,
 } renderer_debug_view_mode;
 
 typedef enum render_target_attachment_type {
@@ -51,7 +52,7 @@ typedef enum render_target_attachment_type {
 
 typedef enum render_target_attachment_source {
     RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT = 0x1,
-    RENDER_TARGET_ATTACHMENT_SOURCE_VIEW = 0x2
+    RENDER_TARGET_ATTACHMENT_SOURCE_SELF = 0x2
 } render_target_attachment_source;
 
 typedef enum render_target_attachment_load_operation {
@@ -270,6 +271,29 @@ typedef enum renderer_winding {
     /** @brief Counter-clockwise vertex winding. */
     RENDERER_WINDING_CLOCKWISE = 1
 } renderer_winding;
+
+/**
+ * @brief Maps a uniform to a texture map/maps when acquiring instance resources.
+ */
+typedef struct shader_instance_uniform_texture_config {
+    /** @brief The locaton of the uniform to map to. */
+    u16 uniform_location;
+    /** @brief The number of texture maps bound to the uniform. */
+    u32 texture_map_count;
+    /** @brief An array of pointers to texture maps to be mapped to the uniform. */
+    texture_map** texture_maps;
+} shader_instance_uniform_texture_config;
+
+/**
+ * @brief Represents the configuration of texture map resources and mappings to uniforms
+ * required for instance-level shader data.
+ */
+typedef struct shader_instance_resource_config {
+    /** @brief The number of uniform configurations */
+    u32 uniform_config_count;
+    /** @brief An array of uniform configurations. */
+    shader_instance_uniform_texture_config* uniform_configs;
+} shader_instance_resource_config;
 
 /**
  * @brief A generic "interface" for the renderer plugin. The renderer backend
@@ -550,12 +574,9 @@ typedef struct renderer_plugin {
      * @param s A pointer to the shader.
      * @param config A constant pointer to the shader config.
      * @param pass A pointer to the renderpass to be associated with the shader.
-     * @param stage_count The total number of stages.
-     * @param stage_filenames An array of shader stage filenames to be loaded. Should align with stages array.
-     * @param stages A array of shader_stages indicating what render stages (vertex, fragment, etc.) used in this shader.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct renderer_plugin* plugin, struct shader* shader, const shader_config* config, renderpass* pass, u8 stage_count, const char** stage_filenames, shader_stage* stages);
+    b8 (*shader_create)(struct renderer_plugin* plugin, struct shader* shader, const shader_config* config, renderpass* pass);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
@@ -605,6 +626,15 @@ typedef struct renderer_plugin {
     b8 (*shader_bind_instance)(struct renderer_plugin* plugin, struct shader* s, u32 instance_id);
 
     /**
+     * @brief Binds local resources for use and updating.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param s A pointer to the shader whose local resources are to be bound.
+     * @return True on success; otherwise false.
+     */
+    b8 (*shader_bind_local)(struct renderer_plugin* plugin, struct shader* s);
+
+    /**
      * @brief Applies global data to the uniform buffer.
      *
      * @param plugin A pointer to the renderer plugin interface.
@@ -612,7 +642,7 @@ typedef struct renderer_plugin {
      * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_globals)(struct renderer_plugin* plugin, struct shader* s, b8 needs_update);
+    b8 (*shader_apply_globals)(struct renderer_plugin* plugin, struct shader* s, b8 needs_update, struct frame_data* p_frame_data);
 
     /**
      * @brief Applies data for the currently bound instance.
@@ -622,7 +652,7 @@ typedef struct renderer_plugin {
      * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_instance)(struct renderer_plugin* plugin, struct shader* s, b8 needs_update);
+    b8 (*shader_apply_instance)(struct renderer_plugin* plugin, struct shader* s, b8 needs_update, struct frame_data* p_frame_data);
 
     /**
      * @brief Acquires internal instance-level resources and provides an instance id.
@@ -634,7 +664,7 @@ typedef struct renderer_plugin {
      * @param out_instance_id A pointer to hold the new instance identifier.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_instance_resources_acquire)(struct renderer_plugin* plugin, struct shader* s, u32 texture_map_count, texture_map** maps, u32* out_instance_id);
+    b8 (*shader_instance_resources_acquire)(struct renderer_plugin* plugin, struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id);
 
     /**
      * @brief Releases internal instance-level resources for the given instance id.
@@ -652,10 +682,13 @@ typedef struct renderer_plugin {
      * @param plugin A pointer to the renderer plugin interface.
      * @param s A ponter to the shader.
      * @param uniform A constant pointer to the uniform.
+     * @param array_index The array index to set, if the uniform is an array. Ignored otherwise.
      * @param value A pointer to the value to be set.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_uniform_set)(struct renderer_plugin* plugin, struct shader* frontend_shader, struct shader_uniform* uniform, const void* value);
+    b8 (*shader_uniform_set)(struct renderer_plugin* plugin, struct shader* frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
+
+    b8 (*shader_apply_local)(struct renderer_plugin* plugin, struct shader* s, struct frame_data* p_frame_data);
 
     /**
      * @brief Acquires internal resources for the given texture map.
@@ -683,9 +716,10 @@ typedef struct renderer_plugin {
      * @param renderpass A pointer to the renderpass the render target is associated with.
      * @param width The width of the render target in pixels.
      * @param height The height of the render target in pixels.
+     * @param layer_index The index of the layer to use for the attachment, if the image is a array texture.
      * @param out_target A pointer to hold the newly created render target.
      */
-    b8 (*render_target_create)(struct renderer_plugin* plugin, u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, render_target* out_target);
+    b8 (*render_target_create)(struct renderer_plugin* plugin, u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, u16 layer_index, render_target* out_target);
 
     /**
      * @brief Destroys the provided render target.
@@ -1013,8 +1047,6 @@ typedef struct render_view_packet {
     mat4 projection_matrix;
     /** @brief The current view position, if applicable. */
     vec3 view_position;
-    /** @brief The current scene ambient colour, if applicable. */
-    vec4 ambient_colour;
     /** @brief The data for the current skybox. */
     skybox_packet_data skybox_data;
     /** @brief The number of geometries to be drawn. */

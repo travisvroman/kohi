@@ -2,13 +2,11 @@
 
 version=2
 # types can be phong,pbr,custom
-type=custom
+type=pbr
 name=falc_wreck
-# If custom, shader is required.
-shader=Shader.Builtin.Material
 
 [map]
-name=diffuse
+name=albedo
 filter_min=linear
 filter_mag=linear
 repeat_u=repeat
@@ -18,13 +16,13 @@ texture_name=falc_wreck_low_DefaultMaterial_AlbedoTransparency
 [/map]
 
 [map]
-name=specular
+name=combined
 filter_min=linear
 filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=falc_wreck_low_DefaultMaterial_MetallicSmoothness
+texture_name=falc_wreck_low_DefaultMaterial_combined
 [/map]
 
 [map]

@@ -131,12 +131,30 @@ b8 terrain_initialize(terrain *t) {
             v->texcoord.x = (f32)x;
             v->texcoord.y = (f32)z;
 
+            // -3 <- 1lo
+            // -2 
+            // -1
+            // 0 <- 2lo
+            // 1 
+            // 2 
+            // 3 <- 1hi/3lo
+            // 4 
+            // 5
+            // 6 <- 2hi/4lo
+            // 7 
+            // 8 
+            // 9 <-3hi
+            // 1 
+            // 11
+            // 12 <- 4hi
+            // 13 
             // NOTE: Assigning default weights based on overall height. Lower indices are
             // lower in altitude.
-            v->material_weights[0] = ksmoothstep(0.00f, 0.25f, t->vertex_datas[i].height);
-            v->material_weights[1] = ksmoothstep(0.25f, 0.50f, t->vertex_datas[i].height);
-            v->material_weights[2] = ksmoothstep(0.50f, 0.75f, t->vertex_datas[i].height);
-            v->material_weights[3] = ksmoothstep(0.75f, 1.00f, t->vertex_datas[i].height);
+            // NOTE: These must overlap the min/max to blend properly.
+            v->material_weights[0] = kattenuation_min_max(-0.2f, 0.2f, t->vertex_datas[i].height); // mid 0
+            v->material_weights[1] = kattenuation_min_max(0.0f, 0.3f, t->vertex_datas[i].height); // mid .15
+            v->material_weights[2] = kattenuation_min_max(0.15f, 0.9f, t->vertex_datas[i].height); // mid 5
+            v->material_weights[3] = kattenuation_min_max(0.5f, 1.2f, t->vertex_datas[i].height); // mid 9
         }
     }
 

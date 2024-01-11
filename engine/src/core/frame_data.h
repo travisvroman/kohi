@@ -23,6 +23,9 @@ typedef struct frame_data {
     /** @brief The number of meshes drawn in the last frame. */
     u32 drawn_mesh_count;
 
+    /** @brief The number of meshes drawn in the shadow pass in the last frame. */
+    u32 drawn_shadow_mesh_count;
+
     /** @brief An allocator designed and used for per-frame allocations. */
     frame_allocator_int allocator;
 

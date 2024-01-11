@@ -54,7 +54,18 @@ b8 skybox_load(skybox* sb) {
 
     shader* skybox_shader = shader_system_get("Shader.Builtin.Skybox");  // TODO: allow configurable shader.
     texture_map* maps[1] = {&sb->cubemap};
-    if (!renderer_shader_instance_resources_acquire(skybox_shader, 1, maps, &sb->instance_id)) {
+    shader* s = skybox_shader;
+    u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index;
+    shader_instance_resource_config instance_resource_config = {0};
+    // Map count for this type is known.
+    shader_instance_uniform_texture_config colour_texture = {0};
+    colour_texture.uniform_location = atlas_location;
+    colour_texture.texture_map_count = 1;
+    colour_texture.texture_maps = maps;
+
+    instance_resource_config.uniform_config_count = 1;
+    instance_resource_config.uniform_configs = &colour_texture;
+    if (!renderer_shader_instance_resources_acquire(skybox_shader, &instance_resource_config, &sb->instance_id)) {
         KFATAL("Unable to acquire shader resources for skybox texture.");
         return false;
     }

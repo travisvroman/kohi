@@ -35,12 +35,12 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
     resource_data->uniform_count = 0;
     resource_data->uniforms = darray_create(shader_uniform_config);
     resource_data->stage_count = 0;
-    resource_data->stages = darray_create(shader_stage);
+    resource_data->stage_configs = 0;  // NOTE: initialized once count is known.
     resource_data->cull_mode = FACE_CULL_MODE_BACK;
     resource_data->topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST;
     resource_data->stage_count = 0;
-    resource_data->stage_names = darray_create(char*);
-    resource_data->stage_filenames = darray_create(char*);
+    // NOTE: This directly influences how much resources are available.
+    resource_data->max_instances = 1;
 
     resource_data->name = 0;
 
@@ -90,41 +90,56 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
         } else if (strings_equali(trimmed_var_name, "renderpass")) {
             // resource_data->renderpass_name = string_duplicate(trimmed_value);
             // Ignore this now.
+        } else if (strings_equali(trimmed_var_name, "max_instances")) {
+            if (!string_to_u32(trimmed_value, &resource_data->max_instances)) {
+                KERROR("Invalid value for max_instances. Cannot be parsed to u32. Defaulting to &u", resource_data->max_instances);
+            }
         } else if (strings_equali(trimmed_var_name, "stages")) {
             // Parse the stages
             char** stage_names = darray_create(char*);
             u32 count = string_split(trimmed_value, ',', &stage_names, true, true);
-            resource_data->stage_names = stage_names;
             // Ensure stage name and stage file name count are the same, as they should align.
             if (resource_data->stage_count == 0) {
                 resource_data->stage_count = count;
+                resource_data->stage_configs = kallocate(sizeof(shader_stage_config) * count, MEMORY_TAG_ARRAY);
             } else if (resource_data->stage_count != count) {
                 KERROR("shader_loader_load: Invalid file layout. Count mismatch between stage names and stage filenames.");
+                return false;
             }
-            // Parse each stage and add the right type to the array.
-            for (u8 i = 0; i < resource_data->stage_count; ++i) {
-                if (strings_equali(stage_names[i], "frag") || strings_equali(stage_names[i], "fragment")) {
-                    darray_push(resource_data->stages, SHADER_STAGE_FRAGMENT);
-                } else if (strings_equali(stage_names[i], "vert") || strings_equali(stage_names[i], "vertex")) {
-                    darray_push(resource_data->stages, SHADER_STAGE_VERTEX);
-                } else if (strings_equali(stage_names[i], "geom") || strings_equali(stage_names[i], "geometry")) {
-                    darray_push(resource_data->stages, SHADER_STAGE_GEOMETRY);
-                } else if (strings_equali(stage_names[i], "comp") || strings_equali(stage_names[i], "compute")) {
-                    darray_push(resource_data->stages, SHADER_STAGE_COMPUTE);
+            // Parse the stage names.
+            for (u32 sn_idx = 0; sn_idx < count; ++sn_idx) {
+                resource_data->stage_configs[sn_idx].name = string_duplicate(stage_names[sn_idx]);
+                // Parse the stage name and determine the actual configured stage.
+                if (strings_equali(stage_names[sn_idx], "frag") || strings_equali(stage_names[sn_idx], "fragment")) {
+                    resource_data->stage_configs[sn_idx].stage = SHADER_STAGE_FRAGMENT;
+                } else if (strings_equali(stage_names[sn_idx], "vert") || strings_equali(stage_names[sn_idx], "vertex")) {
+                    resource_data->stage_configs[sn_idx].stage = SHADER_STAGE_VERTEX;
+                } else if (strings_equali(stage_names[sn_idx], "geom") || strings_equali(stage_names[sn_idx], "geometry")) {
+                    resource_data->stage_configs[sn_idx].stage = SHADER_STAGE_GEOMETRY;
+                } else if (strings_equali(stage_names[sn_idx], "comp") || strings_equali(stage_names[sn_idx], "compute")) {
+                    resource_data->stage_configs[sn_idx].stage = SHADER_STAGE_COMPUTE;
                 } else {
-                    KERROR("shader_loader_load: Invalid file layout. Unrecognized stage '%s'", stage_names[i]);
+                    KERROR("shader_loader_load: Invalid file layout. Unrecognized stage '%s'", stage_names[sn_idx]);
                 }
             }
+            string_cleanup_split_array(stage_names);
         } else if (strings_equali(trimmed_var_name, "stagefiles")) {
             // Parse the stage file names
-            resource_data->stage_filenames = darray_create(char*);
-            u32 count = string_split(trimmed_value, ',', &resource_data->stage_filenames, true, true);
+            char** stage_filenames = darray_create(char*);
+            u32 count = string_split(trimmed_value, ',', &stage_filenames, true, true);
             // Ensure stage name and stage file name count are the same, as they should align.
             if (resource_data->stage_count == 0) {
                 resource_data->stage_count = count;
+                resource_data->stage_configs = kallocate(sizeof(shader_stage_config) * count, MEMORY_TAG_ARRAY);
             } else if (resource_data->stage_count != count) {
                 KERROR("shader_loader_load: Invalid file layout. Count mismatch between stage names and stage filenames.");
+                return false;
             }
+            // Take a copy of each stage file name.
+            for (u32 sn_idx = 0; sn_idx < count; ++sn_idx) {
+                resource_data->stage_configs[sn_idx].filename = string_duplicate(stage_filenames[sn_idx]);
+            }
+            string_cleanup_split_array(stage_filenames);
         } else if (strings_equali(trimmed_var_name, "cull_mode")) {
             if (strings_equali(trimmed_value, "front")) {
                 resource_data->cull_mode = FACE_CULL_MODE_FRONT;
@@ -251,43 +266,86 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
                 KERROR("shader_loader_load: Invalid file layout. Uniform fields must be 'type,scope,name'. Skipping.");
             } else {
                 shader_uniform_config uniform;
+
+                // Check if it's an array type.
+                u32 array_length = 1;  // An array length of 1 is just a single.
+                b8 is_array = string_parse_array_length(fields[0], &array_length);
+                if (array_length < 1) {
+                    KWARN("Cannot have an array with a length < 1. Defaulting to 1.");
+                    array_length = 1;
+                }
+                char base_type[100];
+                if (is_array) {
+                    string_mid(base_type, fields[0], 0, string_index_of(fields[0], '['));
+                } else {
+                    string_copy(base_type, fields[0]);
+                }
+
+                uniform.size = 0;
+                uniform.array_length = array_length;
                 // Parse field type
-                if (strings_equali(fields[0], "f32")) {
+                if (strings_equali(base_type, "f32")) {
                     uniform.type = SHADER_UNIFORM_TYPE_FLOAT32;
                     uniform.size = 4;
-                } else if (strings_equali(fields[0], "vec2")) {
+                } else if (strings_equali(base_type, "vec2")) {
                     uniform.type = SHADER_UNIFORM_TYPE_FLOAT32_2;
                     uniform.size = 8;
-                } else if (strings_equali(fields[0], "vec3")) {
+                } else if (strings_equali(base_type, "vec3")) {
                     uniform.type = SHADER_UNIFORM_TYPE_FLOAT32_3;
                     uniform.size = 12;
-                } else if (strings_equali(fields[0], "vec4")) {
+                } else if (strings_equali(base_type, "vec4")) {
                     uniform.type = SHADER_UNIFORM_TYPE_FLOAT32_4;
                     uniform.size = 16;
-                } else if (strings_equali(fields[0], "u8")) {
+                } else if (strings_equali(base_type, "u8")) {
                     uniform.type = SHADER_UNIFORM_TYPE_UINT8;
                     uniform.size = 1;
-                } else if (strings_equali(fields[0], "u16")) {
+                } else if (strings_equali(base_type, "u16")) {
                     uniform.type = SHADER_UNIFORM_TYPE_UINT16;
                     uniform.size = 2;
-                } else if (strings_equali(fields[0], "u32")) {
+                } else if (strings_equali(base_type, "u32")) {
                     uniform.type = SHADER_UNIFORM_TYPE_UINT32;
                     uniform.size = 4;
-                } else if (strings_equali(fields[0], "i8")) {
+                } else if (strings_equali(base_type, "i8")) {
                     uniform.type = SHADER_UNIFORM_TYPE_INT8;
                     uniform.size = 1;
-                } else if (strings_equali(fields[0], "i16")) {
+                } else if (strings_equali(base_type, "i16")) {
                     uniform.type = SHADER_UNIFORM_TYPE_INT16;
                     uniform.size = 2;
-                } else if (strings_equali(fields[0], "i32")) {
+                } else if (strings_equali(base_type, "i32")) {
                     uniform.type = SHADER_UNIFORM_TYPE_INT32;
                     uniform.size = 4;
-                } else if (strings_equali(fields[0], "mat4")) {
+                } else if (strings_equali(base_type, "mat4")) {
                     uniform.type = SHADER_UNIFORM_TYPE_MATRIX_4;
                     uniform.size = 64;
-                } else if (strings_equali(fields[0], "samp") || strings_equali(fields[0], "sampler")) {
-                    uniform.type = SHADER_UNIFORM_TYPE_SAMPLER;
-                    uniform.size = 0;  // Samplers don't have a size.
+                } else if (string_starts_with(fields[0], "samp")) {
+                    // Sampler uniforms are handled entirely different from other uniforms, but
+                    // share a lot of logic among each other.
+
+                    // No shorthand for new sampler types.
+                    if (strings_equali(base_type, "sampler1d")) {
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_1D;
+                    } else if (strings_equali(base_type, "sampler2d") || strings_equali(base_type, "samp") || strings_equali(base_type, "sampler")) {
+                        // NOTE: Auto-converting samp/sampler to sampler2D for backward compatability.
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_2D;
+                    } else if (strings_equali(base_type, "sampler3d")) {
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_3D;
+                    } else if (strings_equali(base_type, "samplercube")) {
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_CUBE;
+                    } else if (strings_equali(base_type, "sampler1darray")) {
+                        // NOTE: array textures are different from _an array __of__ textures_
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_1D_ARRAY;
+                    } else if (strings_equali(base_type, "sampler2darray")) {
+                        // NOTE: array textures are different from _an array __of__ textures_
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_2D_ARRAY;
+                    } else if (strings_equali(base_type, "samplercubearray")) {
+                        // NOTE: array textures are different from _an array __of__ textures_
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_CUBE_ARRAY;
+                    } else {
+                        // List out the entire unparsed field to make the error more useful.
+                        KERROR("Error in shader file: Unsupported sampler type '%s' found. %s:%u", fields[0], full_file_path, line_number);
+                        return false;
+                    }
+
                 } else if (strings_nequali(fields[0], "struct", 6)) {
                     u32 len = string_length(fields[0]);
                     if (len <= 6) {
@@ -358,13 +416,10 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
 static void shader_loader_unload(struct resource_loader* self, resource* resource) {
     shader_config* data = (shader_config*)resource->data;
 
-    string_cleanup_split_array(data->stage_filenames);
-    darray_destroy(data->stage_filenames);
-
-    string_cleanup_split_array(data->stage_names);
-    darray_destroy(data->stage_names);
-
-    darray_destroy(data->stages);
+    if (data->stage_configs && data->stage_count > 0) {
+        kfree(data->stage_configs, sizeof(shader_stage_config) * data->stage_count, MEMORY_TAG_ARRAY);
+        data->stage_count = 0;
+    }
 
     // Clean up attributes.
     u32 count = darray_length(data->attributes);

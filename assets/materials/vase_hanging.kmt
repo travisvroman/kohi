@@ -1,10 +1,55 @@
 #material file
 
-version=1
+version=2
+type=pbr
 name=vase_hanging
-diffuse_colour=0.588000 0.588000 0.588000 1.000000
-shininess=10.000000
-diffuse_map_name=vase_hanging
-specular_map_name=vase_hanging_spec
-normal_map_name=vase_hanging_ddn
-shader=Shader.Builtin.Material
+
+[map]
+name=albedo
+filter_min=linear
+filter_mag=linear
+repeat_u=repeat
+repeat_v=repeat
+repeat_w=repeat
+texture_name=vase_hanging
+[/map]
+
+[map]
+name=combined
+filter_min=linear
+filter_mag=linear
+repeat_u=repeat
+repeat_v=repeat
+repeat_w=repeat
+texture_name=vase_hanging_combined
+[/map]
+
+[map]
+name=normal
+filter_min=linear
+filter_mag=linear
+repeat_v=repeat
+repeat_u=repeat
+repeat_w=repeat
+texture_name=vase_hanging_ddn
+[/map]
+
+[prop]
+name=diffuse_colour
+type=vec4
+value=0.588000 0.588000 0.588000 1.000000
+[/prop]
+
+# The material shader requires this padding to be in place.
+[prop]
+name=padding
+type=vec3
+value=0.000000 0.000000 0.000000
+[/prop]
+
+[prop]
+name=shininess
+type=f32
+value=10.0
+[/prop]
+

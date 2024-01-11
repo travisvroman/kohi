@@ -72,7 +72,7 @@
         "kmemory.h": "c",
         "defines.h": "c",
         "vulkan_types.h": "c",
-        "clock.h": "c",
+        "kclock.h": "c",
         "kstring.h": "c",
         "logger.h": "c",
         "stb_image.h": "c",

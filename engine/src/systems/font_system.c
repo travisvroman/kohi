@@ -416,7 +416,7 @@ vec2 font_system_measure_string(font_data* font, const char* text) {
     f32 y = 0;
 
     // Take the length in chars and get the correct codepoint from it.
-    for (u32 c = 0, uc = 0; c < char_length; ++c) {
+    for (u32 c = 0; c < char_length; ++c) {
         i32 codepoint = text[c];
 
         // Continue to next line for newline.
@@ -426,14 +426,11 @@ vec2 font_system_measure_string(font_data* font, const char* text) {
             }
             x = 0;
             y += font->line_height;
-            // Increment utf-8 character count.
-            uc++;
             continue;
         }
 
         if (codepoint == '\t') {
             x += font->tab_x_advance;
-            uc++;
             continue;
         }
 
@@ -491,15 +488,11 @@ vec2 font_system_measure_string(font_data* font, const char* text) {
             x += g->x_advance + kerning;
         } else {
             KERROR("Unable to find unknown codepoint. Skipping.");
-            // Increment utf-8 character count.
-            uc++;
             continue;
         }
 
         // Now advance c
         c += advance - 1;  // Subtracting 1 because the loop always increments once for single-byte anyway.
-        // Increment utf-8 character count.
-        uc++;
     }
 
     // One last check in case of no more newlines.
@@ -686,6 +679,8 @@ static b8 rebuild_system_font_variant_atlas(system_font_lookup* lookup, font_dat
             k->codepoint_1 = kerning_table[i].glyph2;
             k->amount = kerning_table[i].advance;
         }
+
+        kfree(kerning_table, sizeof(stbtt_kerningentry) * variant->kerning_count, MEMORY_TAG_ARRAY);
     } else {
         variant->kernings = 0;
     }

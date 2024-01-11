@@ -82,6 +82,76 @@ void debug_box3d_extents_set(debug_box3d *box, extents_3d extents) {
     }
 }
 
+void debug_box3d_points_set(debug_box3d *box, vec4 *points) {
+    if (box && points) {
+        if (box->geo.generation != INVALID_ID_U16 && box->vertex_count && box->vertices) {
+            // for (u32 i = 0; i < 8; ++i) {
+            //     box->vertices[i].position = points[i];
+            // }
+
+            // Front lines
+            {
+                // top
+                box->vertices[0].position = points[2];
+                box->vertices[1].position = points[3];
+                // right
+                box->vertices[2].position = points[1];
+                box->vertices[3].position = points[2];
+                // bottom
+                box->vertices[4].position = points[0];
+                box->vertices[5].position = points[1];
+                // left
+                box->vertices[6].position = points[3];
+                box->vertices[7].position = points[0];
+            }
+            // back lines
+            {
+                // top
+                box->vertices[8].position = points[6];
+                box->vertices[9].position = points[7];
+                // right
+                box->vertices[10].position = points[5];
+                box->vertices[11].position = points[6];
+                // bottom
+                box->vertices[12].position = points[4];
+                box->vertices[13].position = points[5];
+                // left
+                box->vertices[14].position = points[7];
+                box->vertices[15].position = points[4];
+            }
+
+            // top connecting lines
+            {
+                // left
+                box->vertices[16].position = points[3];
+                box->vertices[17].position = points[7];
+                // right
+                box->vertices[18].position = points[2];
+                box->vertices[19].position = points[6];
+            }
+            // bottom connecting lines
+            {
+                // left
+                box->vertices[20].position = points[0];
+                box->vertices[21].position = points[4];
+                // right
+                box->vertices[22].position = points[1];
+                box->vertices[23].position = points[5];
+            }
+
+            // Upload the new vertex data.
+            renderer_geometry_vertex_update(&box->geo, 0, box->vertex_count, box->vertices);
+
+            box->geo.generation++;
+
+            // Roll this over to zero so we don't lock ourselves out of updating.
+            if (box->geo.generation == INVALID_ID_U16) {
+                box->geo.generation = 0;
+            }
+        }
+    }
+}
+
 b8 debug_box3d_initialize(debug_box3d *box) {
     if (!box) {
         return false;

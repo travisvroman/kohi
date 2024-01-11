@@ -35,6 +35,7 @@ void vulkan_image_create(
     texture_type type,
     u32 width,
     u32 height,
+    u16 layer_count,
     VkFormat format,
     VkImageTiling tiling,
     VkImageUsageFlags usage,
@@ -50,22 +51,27 @@ void vulkan_image_create(
  *
  * @param context A pointer to the Vulkan context.
  * @param type The type of texture. Provides hints to creation.
+ * @param layer_count The total number of layers in the image.
+ * @param layer_index The layer index this view refers to.
  * @param format The image format.
  * @param image A pointer to the image to associate the view with.
+ * @param out_view A pointer to hold the created view.
  * @param aspect_flags Aspect flags to be used when creating the view, if applicable.
  */
 void vulkan_image_view_create(
     vulkan_context* context,
     texture_type type,
+    u16 layer_count,
+    i32 layer_index,
     VkFormat format,
     vulkan_image* image,
-    VkImageAspectFlags aspect_flags);
+    VkImageAspectFlags aspect_flags,
+    VkImageView* out_view);
 
 /**
  * @brief Transitions the provided image from old_layout to new_layout.
  *
  * @param context A pointer to the Vulkan context.
- * @param type The type of texture. Provides hints to creation.
  * @param command_buffer A pointer to the command buffer to be used.
  * @param image A pointer to the image whose layout will be transitioned.
  * @param format The image format.
@@ -74,7 +80,6 @@ void vulkan_image_view_create(
  */
 void vulkan_image_transition_layout(
     vulkan_context* context,
-    texture_type type,
     vulkan_command_buffer* command_buffer,
     vulkan_image* image,
     VkFormat format,
@@ -98,7 +103,6 @@ b8 vulkan_image_mipmaps_generate(
 /**
  * @brief Copies data in buffer to provided image.
  * @param context The Vulkan context.
- * @param type The type of texture. Provides hints to creation.
  * @param image The image to copy the buffer's data to.
  * @param buffer The buffer whose data will be copied.
  * @param offset The offset in bytes from the beginning of the buffer.
@@ -106,7 +110,6 @@ b8 vulkan_image_mipmaps_generate(
  */
 void vulkan_image_copy_from_buffer(
     vulkan_context* context,
-    texture_type type,
     vulkan_image* image,
     VkBuffer buffer,
     u64 offset,
@@ -116,14 +119,12 @@ void vulkan_image_copy_from_buffer(
  * @brief Copies data in the provided image to the given buffer.
  *
  * @param context The Vulkan context.
- * @param type The type of texture. Provides hints to layer count.
  * @param image The image to copy the image's data from.
  * @param buffer The buffer to copy to.
  * @param command_buffer The command buffer to be used for the copy.
  */
 void vulkan_image_copy_to_buffer(
     vulkan_context* context,
-    texture_type type,
     vulkan_image* image,
     VkBuffer buffer,
     vulkan_command_buffer* command_buffer);
@@ -132,7 +133,6 @@ void vulkan_image_copy_to_buffer(
  * @brief Copies a single pixel's data from the given image to the provided buffer.
  *
  * @param context The Vulkan context.
- * @param type The type of texture. Provides hints to layer count.
  * @param image The image to copy the image's data from.
  * @param buffer The buffer to copy to.
  * @param x The x-coordinate of the pixel to copy.
@@ -141,7 +141,6 @@ void vulkan_image_copy_to_buffer(
  */
 void vulkan_image_copy_pixel_to_buffer(
     vulkan_context* context,
-    texture_type type,
     vulkan_image* image,
     VkBuffer buffer,
     u32 x,

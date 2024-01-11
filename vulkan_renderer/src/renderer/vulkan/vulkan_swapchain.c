@@ -218,6 +218,7 @@ static void create(vulkan_context* context, u32 width, u32 height, renderer_conf
             TEXTURE_TYPE_2D,
             swapchain_extent.width,
             swapchain_extent.height,
+            1,
             context->device.depth_format,
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,

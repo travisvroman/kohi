@@ -12,8 +12,9 @@
 #include "resources/simple_scene.h"
 
 // TODO: temp
-#include <core/clock.h>
+#include <core/kclock.h>
 #include <core/keymap.h>
+#include <resources/debug/debug_box3d.h>
 #include <resources/skybox.h>
 #include <standard_ui_system.h>
 #include <systems/light_system.h>
@@ -22,6 +23,8 @@
 struct debug_line3d;
 struct debug_box3d;
 struct transform;
+
+#define MAX_SHADOW_CASCADE_COUNT 4
 
 typedef struct selected_object {
     u32 unique_id;
@@ -39,10 +42,10 @@ typedef struct testbed_game_state {
 
     frustum camera_frustum;
 
-    clock update_clock;
-    clock prepare_clock;
-    clock render_clock;
-    clock present_clock;
+    kclock update_clock;
+    kclock prepare_clock;
+    kclock render_clock;
+    kclock present_clock;
     f64 last_update_elapsed;
 
     // TODO: temp
@@ -83,9 +86,12 @@ typedef struct testbed_game_state {
 
     rendergraph frame_graph;
     rendergraph_pass skybox_pass;
+    rendergraph_pass shadowmap_pass;
     rendergraph_pass scene_pass;
     rendergraph_pass editor_pass;
     rendergraph_pass ui_pass;
+
+    u16 shadowmap_resolution;
 
     selected_object selection;
     b8 using_gizmo;
@@ -99,6 +105,9 @@ typedef struct testbed_game_state {
     struct audio_file* test_loop_audio_file;
     struct audio_file* test_music;
     audio_emitter test_emitter;
+
+    u32 proj_box_index;
+    u32 cam_proj_line_indices[24];
 
     // TODO: end temp
 } testbed_game_state;

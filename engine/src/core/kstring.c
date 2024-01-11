@@ -269,6 +269,33 @@ i32 string_index_of_str(const char* str_0, const char* str_1) {
 
     return -1;
 }
+
+b8 string_starts_with(const char* str_0, const char* str_1) {
+    if (!str_0 || !str_1) {
+        return false;
+    }
+    u32 length_0 = string_length(str_0);
+    u32 length_1 = string_length(str_1);
+    if (length_0 < length_1) {
+        return false;
+    }
+
+    return strings_nequal(str_0, str_1, length_1);
+}
+
+b8 string_starts_withi(const char* str_0, const char* str_1) {
+    if (!str_0 || !str_1) {
+        return false;
+    }
+    u32 length_0 = string_length(str_0);
+    u32 length_1 = string_length(str_1);
+    if (length_0 < length_1) {
+        return false;
+    }
+
+    return strings_nequali(str_0, str_1, length_1);
+}
+
 void string_insert_char_at(char* dest, const char* src, u32 pos, char c) {
     u32 len = string_length(src);
     u32 remaining = len - pos;
@@ -637,6 +664,7 @@ void string_directory_from_path(char* dest, const char* path) {
         char c = path[i];
         if (c == '/' || c == '\\') {
             strncpy(dest, path, i + 1);
+            dest[i + 2] = 0;
             return;
         }
     }
@@ -669,6 +697,24 @@ void string_filename_no_extension_from_path(char* dest, const char* path) {
     }
 
     string_mid(dest, path, start, end - start);
+}
+
+b8 string_parse_array_length(const char* str, u32* out_length) {
+    if (!str || !out_length) {
+        return false;
+    }
+
+    i32 open_index = string_index_of(str, '[');
+    i32 close_index = string_index_of(str, ']');
+    if (open_index == -1 || close_index == -1) {
+        return false;
+    }
+
+    // Extract text from between the brackets.
+    char num_string[20] = {0};
+    string_mid(num_string, str, open_index + 1, close_index - open_index);
+
+    return string_to_u32(num_string, out_length);
 }
 
 // ----------------------

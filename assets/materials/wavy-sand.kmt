@@ -1,10 +1,56 @@
 #material file
 
-version=1
+version=2
+type=pbr
 name=wavy-sand
-diffuse_colour=1.000000 1.000000 1.000000 1.000000
-shininess=10.000000
-diffuse_map_name=wavy-sand
-specular_map_name=wavy-sand_SPEC
-normal_map_name=wavy-sand_NRM
-shader=Shader.Builtin.Material
+
+[map]
+name=albedo
+filter_min=linear
+filter_mag=linear
+repeat_u=repeat
+repeat_v=repeat
+repeat_w=repeat
+texture_name=wavy-sand_albedo
+[/map]
+
+[map]
+name=normal
+filter_min=linear
+filter_mag=linear
+repeat_v=repeat
+repeat_u=repeat
+repeat_w=repeat
+texture_name=wavy-sand_normal
+[/map]
+
+[map]
+name=combined
+filter_min=linear
+filter_mag=linear
+repeat_u=repeat
+repeat_v=repeat
+repeat_w=repeat
+texture_name=wavy-sand_combined
+[/map]
+
+[prop]
+name=diffuse_colour
+type=vec4
+value=0.588000 0.588000 0.588000 1.000000
+[/prop]
+
+# The material shader requires this padding to be in place.
+[prop]
+name=padding
+type=vec3
+value=0.000000 0.000000 0.000000
+[/prop]
+
+[prop]
+name=shininess
+type=f32
+value=10.0
+[/prop]
+
+

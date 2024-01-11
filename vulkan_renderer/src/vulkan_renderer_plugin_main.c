@@ -42,9 +42,11 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->shader_use = vulkan_renderer_shader_use;
     out_plugin->shader_bind_globals = vulkan_renderer_shader_bind_globals;
     out_plugin->shader_bind_instance = vulkan_renderer_shader_bind_instance;
+    out_plugin->shader_bind_local = vulkan_renderer_shader_bind_local;
 
     out_plugin->shader_apply_globals = vulkan_renderer_shader_apply_globals;
     out_plugin->shader_apply_instance = vulkan_renderer_shader_apply_instance;
+    out_plugin->shader_apply_local = vulkan_renderer_shader_apply_local;
     out_plugin->shader_instance_resources_acquire = vulkan_renderer_shader_instance_resources_acquire;
     out_plugin->shader_instance_resources_release = vulkan_renderer_shader_instance_resources_release;
 

@@ -19,7 +19,7 @@ typedef struct skybox_pass_internal_data {
     skybox_shader_locations locations;
 } skybox_pass_internal_data;
 
-b8 skybox_pass_create(struct rendergraph_pass* self) {
+b8 skybox_pass_create(struct rendergraph_pass* self, void* config) {
     if (!self) {
         return false;
     }
@@ -79,9 +79,9 @@ b8 skybox_pass_initialize(struct rendergraph_pass* self) {
     resource_system_unload(&skybox_shader_config_resource);
     // Get a pointer to the shader.
     internal_data->s = shader_system_get(skybox_shader_name);
-    internal_data->locations.projection_location = shader_system_uniform_index(internal_data->s, "projection");
-    internal_data->locations.view_location = shader_system_uniform_index(internal_data->s, "view");
-    internal_data->locations.cube_map_location = shader_system_uniform_index(internal_data->s, "cube_texture");
+    internal_data->locations.projection_location = shader_system_uniform_location(internal_data->s, "projection");
+    internal_data->locations.view_location = shader_system_uniform_location(internal_data->s, "view");
+    internal_data->locations.cube_map_location = shader_system_uniform_location(internal_data->s, "cube_texture");
 
     return true;
 }
@@ -113,24 +113,24 @@ b8 skybox_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame
 
         // Apply globals
         renderer_shader_bind_globals(internal_data->s);
-        if (!shader_system_uniform_set_by_index(internal_data->locations.projection_location, &self->pass_data.projection_matrix)) {
+        if (!shader_system_uniform_set_by_location(internal_data->locations.projection_location, &self->pass_data.projection_matrix)) {
             KERROR("Failed to apply skybox projection uniform.");
             return false;
         }
-        if (!shader_system_uniform_set_by_index(internal_data->locations.view_location, &view_matrix)) {
+        if (!shader_system_uniform_set_by_location(internal_data->locations.view_location, &view_matrix)) {
             KERROR("Failed to apply skybox view uniform.");
             return false;
         }
-        shader_system_apply_global(true);
+        shader_system_apply_global(true, p_frame_data);
 
         // Instance
         shader_system_bind_instance(ext_data->sb->instance_id);
-        if (!shader_system_uniform_set_by_index(internal_data->locations.cube_map_location, &ext_data->sb->cubemap)) {
+        if (!shader_system_uniform_set_by_location(internal_data->locations.cube_map_location, &ext_data->sb->cubemap)) {
             KERROR("Failed to apply skybox cube map uniform.");
             return false;
         }
         b8 needs_update = ext_data->sb->render_frame_number != p_frame_data->renderer_frame_number || ext_data->sb->draw_index != p_frame_data->draw_index;
-        shader_system_apply_instance(needs_update);
+        shader_system_apply_instance(needs_update, p_frame_data);
 
         // Sync the frame number and draw index.
         ext_data->sb->render_frame_number = p_frame_data->renderer_frame_number;

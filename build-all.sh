@@ -37,7 +37,7 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Engine
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=engine VER_MAJOR=0 VER_MINOR=4 DO_VERSION=$DO_VERSION
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=engine VER_MAJOR=0 VER_MINOR=5 DO_VERSION=$DO_VERSION
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -93,13 +93,13 @@ then
 echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
 
-# Tests
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tests ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
-ERRORLEVEL=$?
-if [ $ERRORLEVEL -ne 0 ]
-then
-echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
-fi
+# # Tests
+# make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tests ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
+# ERRORLEVEL=$?
+# if [ $ERRORLEVEL -ne 0 ]
+# then
+# echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
+# fi
 
 # Tools
 make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=tools ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"

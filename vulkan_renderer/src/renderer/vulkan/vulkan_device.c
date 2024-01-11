@@ -96,12 +96,6 @@ b8 vulkan_device_create(vulkan_context* context) {
         queue_create_infos[i].pQueuePriorities = queue_priorities;
     }
 
-    // Request device features.
-    // TODO: should be config driven
-    VkPhysicalDeviceFeatures device_features = {};
-    device_features.samplerAnisotropy = VK_TRUE;  // Request anistrophy
-    device_features.fillModeNonSolid = VK_TRUE;   // TODO: Check if supported?
-
     b8 portability_required = false;
     u32 available_extension_count = 0;
     VkExtensionProperties* available_extensions = 0;
@@ -119,11 +113,16 @@ b8 vulkan_device_create(vulkan_context* context) {
     }
     kfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
 
-    // Setup an array of 3, even if we don't use them all.
-    const char* extension_names[4];
+    // Setup an array large enough to hold all, even if we don't use them all.
+    const char* extension_names[5];
     u32 ext_idx = 0;
     extension_names[ext_idx] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
     ext_idx++;
+
+    // Dynamic indexing. NOTE: not needed for 1.2+
+    /* extension_names[ext_idx] = VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;
+    ext_idx++; */
+
     // If portability is required (i.e. mac), add it.
     if (portability_required) {
         extension_names[ext_idx] = "VK_KHR_portability_subset";
@@ -143,7 +142,37 @@ b8 vulkan_device_create(vulkan_context* context) {
         extension_names[ext_idx] = VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME;
         ext_idx++;
     }
-    
+
+    // Request device features.
+    // TODO: should be config driven
+    VkPhysicalDeviceFeatures device_features = {};
+    device_features.samplerAnisotropy = VK_TRUE;  // Request anistrophy
+    device_features.fillModeNonSolid = VK_TRUE;   // TODO: Check if supported?
+
+    // VK_EXT_descriptor_indexing
+    VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT};
+    // Partial binding is required for descriptor aliasing.
+    descriptor_indexing_features.descriptorBindingPartiallyBound = VK_TRUE;  // TODO: Check if supported?
+
+#if defined(VK_USE_PLATFORM_MACOS_MVK)
+    // NOTE: On macOS set environment variable to configure MoltenVK for using Metal argument buffers (needed for descriptor indexing).
+    //     - MoltenVK supports Metal argument buffers on macOS, iOS possible in future (see https://github.com/KhronosGroup/MoltenVK/issues/1651)
+    setenv("MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS", "1", 1);
+#endif
+
+    // VK_EXT_extended_dynamic_state
+    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT};
+    extended_dynamic_state.extendedDynamicState = VK_TRUE;
+    descriptor_indexing_features.pNext = &extended_dynamic_state;
+
+    // Smooth line rasterisation, if supported.
+    VkPhysicalDeviceLineRasterizationFeaturesEXT line_rasterization_ext = {0};
+    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT) {
+        line_rasterization_ext.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
+        line_rasterization_ext.smoothLines = VK_TRUE;
+        extended_dynamic_state.pNext = &line_rasterization_ext;
+    }
+
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     device_create_info.queueCreateInfoCount = index_count;
     device_create_info.pQueueCreateInfos = queue_create_infos;
@@ -154,19 +183,7 @@ b8 vulkan_device_create(vulkan_context* context) {
     // Deprecated and ignored, so pass nothing.
     device_create_info.enabledLayerCount = 0;
     device_create_info.ppEnabledLayerNames = 0;
-
-    // VK_EXT_extended_dynamic_state
-    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT};
-    extended_dynamic_state.extendedDynamicState = VK_TRUE;
-    device_create_info.pNext = &extended_dynamic_state;
-
-    // Smooth line rasterisation, if supported.
-    VkPhysicalDeviceLineRasterizationFeaturesEXT line_rasterization_ext = {0};
-    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT) {
-        line_rasterization_ext.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
-        line_rasterization_ext.smoothLines = VK_TRUE;
-        extended_dynamic_state.pNext = &line_rasterization_ext;
-    }
+    device_create_info.pNext = &descriptor_indexing_features;
 
     // Create the device.
     VK_CHECK(vkCreateDevice(
@@ -202,10 +219,6 @@ b8 vulkan_device_create(vulkan_context* context) {
             KWARN("Vulkan device does not support native or extension dynamic state. This may cause issues with the renderer.");
         }
     }
-
-    
-
-    
 
     // Get queues.
     vkGetDeviceQueue(

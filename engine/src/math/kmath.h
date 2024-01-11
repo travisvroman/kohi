@@ -70,6 +70,10 @@
 /** @brief Smallest positive number where 1.0 + FLOAT_EPSILON != 0 */
 #define K_FLOAT_EPSILON 1.192092896e-07f
 
+#define K_FLOAT_MIN -3.40282e+38F
+
+#define K_FLOAT_MAX 3.40282e+38F
+
 // ------------------------------------------
 // General math functions
 // ------------------------------------------
@@ -128,6 +132,14 @@ KAPI f32 kcos(f32 x);
 KAPI f32 ktan(f32 x);
 
 /**
+ * @brief Calculates the arctangent of x.
+ *
+ * @param x The number to calculate the arctangent of.
+ * @return The arctangent of x.
+ */
+KAPI f32 katan(f32 x);
+
+/**
  * @brief Calculates the arc cosine of x.
  *
  * @param x The number to calculate the arc cosine of.
@@ -160,6 +172,14 @@ KAPI f32 kabs(f32 x);
 KAPI f32 kfloor(f32 x);
 
 /**
+ * @brief Returns the smallest integer value greater than or equal to x.
+ *
+ * @param x The value to be examined.
+ * @return the smallest integer value greater than or equal to x.
+ */
+KAPI f32 kceil(f32 x);
+
+/**
  * @brief Computes the base-2 logarithm of x (i.e. how many times x can be divided by 2).
  *
  * @param x The value to be examined.
@@ -167,6 +187,7 @@ KAPI f32 kfloor(f32 x);
  */
 KAPI f32 klog2(f32 x);
 
+KAPI f32 kpow(f32 x, f32 y);
 /**
  * @brief Indicates if the value is a power of 2. 0 is considered _not_ a power
  * of 2.
@@ -222,6 +243,16 @@ KINLINE f32 ksmoothstep(f32 edge_0, f32 edge_1, f32 x) {
     f32 t = KCLAMP((x - edge_0) / (edge_1 - edge_0), 0.0f, 1.0f);
     return t * t * (3.0 - 2.0 * t);
 }
+
+/**
+ * @brief Returns the attenuation of x based off distance from the midpoint of min and max.
+ *
+ * @param min The minimum value.
+ * @param max The maximum value.
+ * @param x The value to attenuate.
+ * @return The attenuation of x based on distance of the midpoint of min and max.
+ */
+KAPI f32 kattenuation_min_max(f32 min, f32 max, f32 x);
 
 /**
  * @brief Compares the two floats and returns true if both are less
@@ -594,6 +625,14 @@ KINLINE vec3 vec3_div(vec3 vector_0, vec3 vector_1) {
                   vector_0.z / vector_1.z};
 }
 
+KINLINE vec3 vec3_div_scalar(vec3 vector_0, f32 scalar) {
+    vec3 result;
+    for (u64 i = 0; i < 3; ++i) {
+        result.elements[i] = vector_0.elements[i] / scalar;
+    }
+    return result;
+}
+
 /**
  * @brief Returns the squared length of the provided vector.
  *
@@ -892,6 +931,14 @@ KINLINE vec4 vec4_div(vec4 vector_0, vec4 vector_1) {
     return result;
 }
 
+KINLINE vec4 vec4_div_scalar(vec4 vector_0, f32 scalar) {
+    vec4 result;
+    for (u64 i = 0; i < 4; ++i) {
+        result.elements[i] = vector_0.elements[i] / scalar;
+    }
+    return result;
+}
+
 /**
  * @brief Returns the squared length of the provided vector.
  *
@@ -1062,6 +1109,7 @@ KINLINE mat4 mat4_orthographic(f32 left, f32 right, f32 bottom, f32 top,
     out_matrix.data[12] = (left + right) * lr;
     out_matrix.data[13] = (top + bottom) * bt;
     out_matrix.data[14] = (far_clip + near_clip) * nf;
+
     return out_matrix;
 }
 
@@ -1099,6 +1147,7 @@ KINLINE mat4 mat4_perspective(f32 fov_radians, f32 aspect_ratio, f32 near_clip,
  * @return A matrix looking at target from the perspective of position.
  */
 KINLINE mat4 mat4_look_at(vec3 position, vec3 target, vec3 up) {
+    // RH
     mat4 out_matrix;
     vec3 z_axis;
     z_axis.x = target.x - position.x;
@@ -1125,6 +1174,26 @@ KINLINE mat4 mat4_look_at(vec3 position, vec3 target, vec3 up) {
     out_matrix.data[13] = -vec3_dot(y_axis, position);
     out_matrix.data[14] = vec3_dot(z_axis, position);
     out_matrix.data[15] = 1.0f;
+
+    // LH
+    // vec3 f = vec3_normalized(vec3_sub(target, position));
+    // vec3 s = vec3_normalized(vec3_cross(f, up));
+    // vec3 u = vec3_cross(s, f);
+
+    // mat4 Result = mat4_identity();
+    // Result.data[0] = s.x;
+    // Result.data[4] = s.y;
+    // Result.data[8] = s.z;
+    // Result.data[1] = u.x;
+    // Result.data[5] = u.y;
+    // Result.data[9] = u.z;
+    // Result.data[2] =-f.x;
+    // Result.data[6] =-f.y;
+    // Result.data[10] =-f.z;
+    // Result.data[12] =-vec3_dot(s, position);
+    // Result.data[13] =-vec3_dot(u, position);
+    // Result.data[14] = vec3_dot(f, position);
+    // return Result;
 
     return out_matrix;
 }
@@ -1465,6 +1534,21 @@ KINLINE vec3 mat4_right(mat4 matrix) {
 }
 
 /**
+ * @brief Returns the position relative to the provided matrix.
+ *
+ * @param matrix The matrix from which to base the vector.
+ * @return A 3-component positional vector.
+ */
+KINLINE vec3 mat4_position(mat4 matrix) {
+    vec3 pos;
+    pos.x = matrix.data[12];
+    pos.y = matrix.data[13];
+    pos.z = matrix.data[14];
+    vec3_normalize(&pos);
+    return pos;
+}
+
+/**
  * @brief Performs m * v
  *
  * @param m The matrix to be multiplied.
@@ -1504,8 +1588,7 @@ KINLINE vec4 mat4_mul_vec4(mat4 m, vec4 v) {
         v.x * m.data[0] + v.y * m.data[1] + v.z * m.data[2] + v.w * m.data[3],
         v.x * m.data[4] + v.y * m.data[5] + v.z * m.data[6] + v.w * m.data[7],
         v.x * m.data[8] + v.y * m.data[9] + v.z * m.data[10] + v.w * m.data[11],
-        v.x * m.data[12] + v.y * m.data[13] + v.z * m.data[14] +
-            v.w * m.data[15]};
+        v.x * m.data[12] + v.y * m.data[13] + v.z * m.data[14] + v.w * m.data[15]};
 }
 
 /**
@@ -1888,6 +1971,17 @@ KAPI frustum frustum_create(const vec3 *position, const vec3 *forward,
                             const vec3 *right, const vec3 *up, f32 aspect,
                             f32 fov, f32 near, f32 far);
 
+KAPI frustum frustum_from_view_projection(mat4 view_projection);
+
+/**
+ * Calculate the corner points of the provided frustum in world space, using
+ * the given projection and view matrices.
+ *
+ * @param projection_view The combined projection/view matrix from the active camera.
+ * @param corners An array of 8 vec4s to hold the caluclated points.
+ */
+KAPI void frustum_corner_points_world_space(mat4 projection_view, vec4 *corners);
+
 /**
  * @brief Obtains the signed distance between the plane p and the provided
  * postion.
@@ -1953,7 +2047,8 @@ KAPI b8 plane_intersects_aabb(const plane_3d *p, const vec3 *center,
 KAPI b8 frustum_intersects_aabb(const frustum *f, const vec3 *center,
                                 const vec3 *extents);
 
-
 KINLINE b8 rect_2d_contains_point(rect_2d rect, vec2 point) {
     return (point.x >= rect.x && point.x <= rect.x + rect.width) && (point.y >= rect.y && point.y <= rect.y + rect.height);
 }
+
+KAPI f32 vec3_distance_to_line(vec3 point, vec3 line_start, vec3 line_direction);

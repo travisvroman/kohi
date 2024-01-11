@@ -82,6 +82,8 @@ const char* vulkan_result_string(VkResult result, b8 get_extended) {
             return !get_extended ? "VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT" : "VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT An operation on a swapchain created with VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT failed as it did not have exlusive full-screen access. This may occur due to implementation-dependent reasons, outside of the application’s control.";
         case VK_ERROR_UNKNOWN:
             return !get_extended ? "VK_ERROR_UNKNOWN" : "VK_ERROR_UNKNOWN An unknown error has occurred; either the application has provided invalid input, or an implementation failure has occurred.";
+        case VK_ERROR_VALIDATION_FAILED_EXT:
+            return !get_extended ? "VK_ERROR_VALIDATION_FAILED_EXT" : "A command failed because invalid usage was detected by the implementation or a validation-layer.";
     }
 }
 
@@ -89,7 +91,6 @@ b8 vulkan_result_is_success(VkResult result) {
     // From: https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkResult.html
     switch (result) {
             // Success Codes
-        default:
         case VK_SUCCESS:
         case VK_NOT_READY:
         case VK_TIMEOUT:
@@ -130,6 +131,7 @@ b8 vulkan_result_is_success(VkResult result) {
         // case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS:
         case VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT:
         case VK_ERROR_UNKNOWN:
+        default:
             return false;
     }
 }
