@@ -86,6 +86,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Gizmo (in-world object manipulation)
 - [x] Viewports
 - [x] terrain
+  - [ ] binary format
   - [x] heightmap-based
   - [x] pixel picking
   - [x] raycast picking 
@@ -109,6 +110,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] shadow maps
   - [x] PCF
   - [x] cascading shadow maps
+  - [ ] Point light shadows
 - [x] texture mipmapping
 - [x] Specular maps (NOTE: removed in favour of PBR)
 - [x] Normal maps 

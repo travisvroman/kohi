@@ -33,6 +33,11 @@ b8 terrain_create(const terrain_config *config, terrain *out_terrain) {
         return false;
     }
 
+    if (!config->chunk_size) {
+        KERROR("Chunk size cannot be less than one.");
+        return false;
+    }
+
     out_terrain->xform = config->xform;
 
     // TODO: calculate based on actual terrain dimensions.
@@ -46,15 +51,36 @@ b8 terrain_create(const terrain_config *config, terrain *out_terrain) {
 
     out_terrain->scale_y = config->scale_y;
 
-    out_terrain->vertex_count = out_terrain->tile_count_x * out_terrain->tile_count_z;
-    out_terrain->vertices = kallocate(sizeof(terrain_vertex) * out_terrain->vertex_count, MEMORY_TAG_ARRAY);
+    out_terrain->chunk_size = config->chunk_size;
 
-    out_terrain->vertex_data_length = out_terrain->vertex_count;
+    // Setup memory for the chunks.
+    out_terrain->chunk_count = (config->tile_count_x / config->chunk_size) * (config->tile_count_z / config->chunk_size);
+    out_terrain->chunks = kallocate(sizeof(terrain_chunk) * out_terrain->chunk_count, MEMORY_TAG_ARRAY);
+    for (u32 i = 0; i < out_terrain->chunk_count; ++i) {
+        terrain_chunk *chunk = &out_terrain->chunks[i];
+
+        u32 chunk_size_sq = out_terrain->chunk_size * out_terrain->chunk_size;
+        chunk->vertex_count = chunk_size_sq * 4;
+        chunk->vertices = kallocate(sizeof(terrain_vertex) * chunk->vertex_count, MEMORY_TAG_ARRAY);
+
+        chunk->index_count = chunk_size_sq * 6;
+        chunk->indices = kallocate(sizeof(u32) * chunk->index_count, MEMORY_TAG_ARRAY);
+
+        // Invalidate the geometry.
+        chunk->geo.id = INVALID_ID;
+        chunk->geo.generation = INVALID_ID_U16;
+    }
+
+    /* out_terrain->vertex_count = out_terrain->tile_count_x * out_terrain->tile_count_z;
+    out_terrain->vertices = kallocate(sizeof(terrain_vertex) * out_terrain->vertex_count, MEMORY_TAG_ARRAY); */
+
+    // Height data.
+    out_terrain->vertex_data_length = config->tile_count_x * config->tile_count_z * 4;
     out_terrain->vertex_datas = kallocate(sizeof(terrain_vertex_data) * out_terrain->vertex_data_length, MEMORY_TAG_ARRAY);
     kcopy_memory(out_terrain->vertex_datas, config->vertex_datas, config->vertex_data_length * sizeof(terrain_vertex_data));
 
-    out_terrain->index_count = out_terrain->vertex_count * 6;
-    out_terrain->indices = kallocate(sizeof(u32) * out_terrain->index_count, MEMORY_TAG_ARRAY);
+    /* out_terrain->index_count = out_terrain->vertex_count * 6;
+    out_terrain->indices = kallocate(sizeof(u32) * out_terrain->index_count, MEMORY_TAG_ARRAY); */
 
     out_terrain->material_count = config->material_count;
     if (out_terrain->material_count) {
@@ -64,29 +90,30 @@ b8 terrain_create(const terrain_config *config, terrain *out_terrain) {
         out_terrain->material_names = 0;
     }
 
-    // Invalidate the geometry.
-    out_terrain->geo.id = INVALID_ID;
-    out_terrain->geo.generation = INVALID_ID_U16;
-
     return true;
 }
 void terrain_destroy(terrain *t) {
-    // TODO: Fill me out!
-
     if (t->name) {
         u32 length = string_length(t->name);
         kfree(t->name, length + 1, MEMORY_TAG_STRING);
         t->name = 0;
     }
 
-    if (t->vertices) {
-        kfree(t->vertices, sizeof(terrain_vertex) * t->vertex_count, MEMORY_TAG_ARRAY);
-        t->vertices = 0;
-    }
+    if (t->chunks) {
+        for (u32 i = 0; i < t->chunk_count; ++i) {
+            terrain_chunk *chunk = &t->chunks[i];
+            if (chunk->vertices) {
+                kfree(chunk->vertices, sizeof(terrain_vertex) * chunk->vertex_count, MEMORY_TAG_ARRAY);
+                chunk->vertices = 0;
+                chunk->vertex_count = 0;
+            }
 
-    if (t->indices) {
-        kfree(t->indices, sizeof(u32) * t->index_count, MEMORY_TAG_ARRAY);
-        t->indices = 0;
+            if (chunk->indices) {
+                kfree(chunk->indices, sizeof(u32) * chunk->index_count, MEMORY_TAG_ARRAY);
+                chunk->indices = 0;
+                chunk->index_count = 0;
+            }
+        }
     }
 
     if (t->material_names) {
@@ -100,8 +127,6 @@ void terrain_destroy(terrain *t) {
     }
 
     // NOTE: Don't just zero the memory, because some structs like geometry should have invalid ids.
-    t->index_count = 0;
-    t->vertex_count = 0;
     t->scale_y = 0;
     t->tile_scale_x = 0;
     t->tile_scale_z = 0;
@@ -118,6 +143,7 @@ b8 terrain_initialize(terrain *t) {
         return false;
     }
 
+    // LEFTOFF: Redo this for chunks
     // Generate vertices.
     for (u32 z = 0, i = 0; z < t->tile_count_z; z++) {
         for (u32 x = 0; x < t->tile_count_x; ++x, ++i) {
@@ -132,29 +158,29 @@ b8 terrain_initialize(terrain *t) {
             v->texcoord.y = (f32)z;
 
             // -3 <- 1lo
-            // -2 
+            // -2
             // -1
             // 0 <- 2lo
-            // 1 
-            // 2 
+            // 1
+            // 2
             // 3 <- 1hi/3lo
-            // 4 
+            // 4
             // 5
             // 6 <- 2hi/4lo
-            // 7 
-            // 8 
+            // 7
+            // 8
             // 9 <-3hi
-            // 1 
+            // 1
             // 11
             // 12 <- 4hi
-            // 13 
+            // 13
             // NOTE: Assigning default weights based on overall height. Lower indices are
             // lower in altitude.
             // NOTE: These must overlap the min/max to blend properly.
-            v->material_weights[0] = kattenuation_min_max(-0.2f, 0.2f, t->vertex_datas[i].height); // mid 0
-            v->material_weights[1] = kattenuation_min_max(0.0f, 0.3f, t->vertex_datas[i].height); // mid .15
-            v->material_weights[2] = kattenuation_min_max(0.15f, 0.9f, t->vertex_datas[i].height); // mid 5
-            v->material_weights[3] = kattenuation_min_max(0.5f, 1.2f, t->vertex_datas[i].height); // mid 9
+            v->material_weights[0] = kattenuation_min_max(-0.2f, 0.2f, t->vertex_datas[i].height);  // mid 0
+            v->material_weights[1] = kattenuation_min_max(0.0f, 0.3f, t->vertex_datas[i].height);   // mid .15
+            v->material_weights[2] = kattenuation_min_max(0.15f, 0.9f, t->vertex_datas[i].height);  // mid 5
+            v->material_weights[3] = kattenuation_min_max(0.5f, 1.2f, t->vertex_datas[i].height);   // mid 9
         }
     }
 

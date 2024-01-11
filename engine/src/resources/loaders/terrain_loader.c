@@ -119,6 +119,11 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
 
             resource_data->material_names[material_index] = string_duplicate(trimmed_value);
             resource_data->material_count++;
+        } else if (strings_equali(trimmed_var_name, "chunk_size")) {
+            if (!string_to_u32(trimmed_value, &resource_data->chunk_size)) {
+                KWARN("Format error - invalid chunk size. Defaulting to 16.");
+                resource_data->chunk_size = 16;
+            }
         } else {
             // TODO: capture anything else
         }
@@ -147,15 +152,21 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
                 terrain_vertex_data, resource_data->vertex_data_length);
         }
 
-        image_resource_data *image_data =
-            (image_resource_data *)heightmap_image_resource.data;
+        image_resource_data *image_data = (image_resource_data *)heightmap_image_resource.data;
         u32 pixel_count = image_data->width * image_data->height;
         resource_data->vertex_data_length = pixel_count;
-        resource_data->vertex_datas =
-            darray_reserve(terrain_vertex_data, resource_data->vertex_data_length);
+        resource_data->vertex_datas = darray_reserve(terrain_vertex_data, resource_data->vertex_data_length);
 
         resource_data->tile_count_x = image_data->width;
         resource_data->tile_count_z = image_data->height;
+        if (resource_data->tile_count_x % resource_data->chunk_size != 0 || resource_data->tile_count_z % resource_data->chunk_size != 0) {
+            KERROR(
+                "Heightmap dimensions must be a multiple of chunk size. (map w='%u', h='%u', chunk_size='%u')",
+                resource_data->tile_count_x,
+                resource_data->tile_count_z,
+                resource_data->chunk_size);
+            return false;
+        }
 
         for (u32 i = 0; i < pixel_count; ++i) {
             u8 r = image_data->pixels[(i * 4) + 0];
@@ -175,10 +186,10 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
         KWARN(
             "No heightmap was included, using reasonable defaults for terrain "
             "generation.");
-        resource_data->tile_count_x = resource_data->tile_count_z = 100;
-        resource_data->vertex_data_length = 100 * 100;
-        resource_data->vertex_datas =
-            darray_reserve(terrain_vertex_data, resource_data->vertex_data_length);
+        resource_data->tile_count_x = resource_data->tile_count_z = 128;
+        resource_data->chunk_size = 16;
+        resource_data->vertex_data_length = 128 * 128;
+        resource_data->vertex_datas = darray_reserve(terrain_vertex_data, resource_data->vertex_data_length);
     }
     out_resource->data = resource_data;
     out_resource->data_size = sizeof(shader_config);
@@ -192,8 +203,7 @@ static void terrain_loader_unload(struct resource_loader *self,
 
     darray_destroy(data->vertex_datas);
     if (data->name) {
-        kfree(data->name, sizeof(char) * (string_length(data->name) + 1),
-              MEMORY_TAG_STRING);
+        kfree(data->name, sizeof(char) * (string_length(data->name) + 1), MEMORY_TAG_STRING);
     }
     kzero_memory(data, sizeof(shader_config));
 
