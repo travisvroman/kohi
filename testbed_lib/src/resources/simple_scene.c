@@ -1443,18 +1443,23 @@ b8 simple_scene_terrain_render_data_query(const simple_scene *scene, const frust
 
     u32 terrain_count = darray_length(scene->terrains);
     for (u32 i = 0; i < terrain_count; ++i) {
+        terrain *t = &scene->terrains[i];
         // TODO: Frustum culling
-        geometry_render_data data = {0};
-        data.model = transform_world_get(&scene->terrains[i].xform);
-        geometry *g = &scene->terrains[i].geo;
-        data.material = g->material;
-        data.vertex_count = g->vertex_count;
-        data.vertex_buffer_offset = g->vertex_buffer_offset;
-        data.index_count = g->index_count;
-        data.index_buffer_offset = g->index_buffer_offset;
-        data.unique_id = scene->terrains[i].id.uniqueid;
+        for (u32 c = 0; c < t->chunk_count; c++) {
+            geometry_render_data data = {0};
+            data.model = transform_world_get(&scene->terrains[i].xform);
+            geometry *g = &scene->terrains[i].chunks[c].geo;
+            data.material = g->material;
+            data.vertex_count = g->vertex_count;
+            data.vertex_buffer_offset = g->vertex_buffer_offset;
+            data.vertex_element_size = sizeof(terrain_vertex);
+            data.index_count = g->index_count;
+            data.index_buffer_offset = g->index_buffer_offset;
+            data.index_element_size = sizeof(u32);
+            data.unique_id = scene->terrains[i].id.uniqueid;
 
-        darray_push(out_terrain_geometries, data);
+            darray_push(out_terrain_geometries, data);
+        }
     }
 
     *out_count = darray_length(out_terrain_geometries);

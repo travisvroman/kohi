@@ -86,7 +86,7 @@ b8 renderer_system_initialize(u64* memory_requirement, void* state, void* config
     // TODO: Make this configurable.
     kzero_memory(bufname, 256);
     string_format(bufname, "renderbuffer_indexbuffer_globalgeometry");
-    const u64 index_buffer_size = sizeof(u32) * 100 * 1024 * 1024;
+    const u64 index_buffer_size = sizeof(u32) * 200 * 1024 * 1024;
     if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_INDEX, index_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, &state_ptr->geometry_index_buffer)) {
         KERROR("Error creating index buffer.");
         return false;
@@ -317,10 +317,10 @@ b8 renderer_geometry_upload(geometry* g) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
 
     b8 is_reupload = g->generation != INVALID_ID_U16;
-    u32 vertex_size = g->vertex_element_size * g->vertex_count;
-    u32 vertex_offset = 0;
-    u32 index_size = g->index_element_size * g->index_count;
-    u32 index_offset = 0;
+    u64 vertex_size = (u64)(g->vertex_element_size * g->vertex_count);
+    u64 vertex_offset = 0;
+    u64 index_size = (u64)(g->index_element_size * g->index_count);
+    u64 index_offset = 0;
     // Vertex data.
     if (!is_reupload) {
         // Allocate space in the buffer.
@@ -838,6 +838,7 @@ b8 renderer_renderbuffer_allocate(renderbuffer* buffer, u64 size, u64* out_offse
         buffer->offset += size;
         return true;
     }
+
     return freelist_allocate_block(&buffer->buffer_freelist, size, out_offset);
 }
 
