@@ -77,6 +77,8 @@
 #include "game_keybinds.h"
 // TODO: end temp
 
+#include "testbed_lib_version.h"
+
 /** @brief A private structure used to sort geometry by distance from the camera. */
 typedef struct geometry_distance {
     /** @brief The geometry render data. */
@@ -423,7 +425,7 @@ u64 application_state_size(void) {
 }
 
 b8 application_boot(struct application* game_inst) {
-    KINFO("Booting testbed...");
+    KINFO("Booting testbed (%s)...", KVERSION);
 
     // Allocate the game state.
     game_inst->state = kallocate(sizeof(testbed_game_state), MEMORY_TAG_GAME);
