@@ -144,7 +144,7 @@ void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
         kmutex_unlock(&state_ptr->allocation_mutex);
     } else {
         // If the system is not up yet, warn about it but give memory for now.
-        KTRACE("Warning: kallocate_aligned called before the memory system is initialized.");
+        /* KTRACE("Warning: kallocate_aligned called before the memory system is initialized."); */
         // TODO: Memory alignment
         block = platform_allocate(size, false);
     }

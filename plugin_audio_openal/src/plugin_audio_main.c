@@ -5,6 +5,7 @@
 #include <defines.h>
 
 #include "oal_plugin.h"
+#include "plugin_audio_openal_version.h"
 
 // Plugin entry point.
 b8 plugin_create(struct audio_plugin* out_plugin) {
@@ -41,6 +42,6 @@ b8 plugin_create(struct audio_plugin* out_plugin) {
     out_plugin->source_pause = oal_plugin_source_pause;
     out_plugin->source_resume = oal_plugin_source_resume;
 
-    KINFO("OpenAL Plugin Creation successful.");
+    KINFO("OpenAL Plugin Creation successful (%s).", KVERSION);
     return true;
 }

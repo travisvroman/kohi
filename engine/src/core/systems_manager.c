@@ -23,7 +23,7 @@
 #include "systems/texture_system.h"
 
 // Version reporting.
-#include "version.h"
+#include "engine_version.h"
 
 static b8 register_known_systems_pre_boot(systems_manager_state* state, application_config* app_config);
 static b8 register_known_systems_post_boot(systems_manager_state* state, application_config* app_config);

@@ -1,5 +1,26 @@
 Changelog
 
+- 0.6.0
+  - Updated versioning system and build process. Each library now maintains its own version (and potentially changelog at some point).
+    - New version format is MAJOR.MINOR.PATCH.BUILD-REVISION. This will allow for greater versioning control and patching to minor versions.
+    - Only 0.6+ will follow this, older versioning will stay as it is.
+  - Removed a trace warning about early memory allocations.
+  - Branching strategy is changing. 
+    - Branch names will be based on version using the format "vMAJOR.MINOR.PATCH". Ex: v0.6.0
+    - Development will continue to happen in feature branches, but those will be branched from version branches. 
+    - When complete, feature branches will merge into version branches.
+      - Ex: feature/terrain_chunking is branched from v0.6.0. When complete, feature/terrain_chunking is merged into v0.6.0. feature/terrain_chunking is then deleted.
+    - Version branches will be merged into main as they are completed. A tag is then created on the main branch. 
+      - Release cycles (when they happen) will follow this.
+    - Changelog will list all changes under a minor version (i.e. 0.6.0) unless a later patch is made.
+      - If a patch update is made, new notes would appear under that patch version (i.e. 0.6.1, 0.6.2, etc.).
+  - All libraries (as of now, engine, plugin_audio_openal, standard_ui, testbed_lib and vulkan_renderer) now maintain their own versions.
+    - NOTE: The engine version is the one used to denote primary releases, this changelog, etc. since plugins, etc. may not have updates between versions.
+    - The build process now generates a file for each library: <assembly-folder>/src/<assembly-name>_version.h. Ex: engine/src/engine_version.h.
+    - Each library includes its version file and now reports version to the console during its initialization.
+  - versiongen utility has been updated to accept a filename parameter instead of major/minor versions. The build process passes "<assembly-folder>/version.txt".
+    - version.txt is read in its entirety (up to 10 characters) and is used to define the major, minor, and patch. Ex: "0.6.0". This is then prepended to the generated build-revision to complete the format listed above.
+
 - 0.5x
   - Added Physically-Based Rendering (PBR) material type support.
   - Fixed an issue with pulling the default checkerboard texture when already using a default texture (i.e normal, spec, ao, etc.).

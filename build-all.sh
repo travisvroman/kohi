@@ -28,7 +28,7 @@ fi
 
 echo "$ACTION_STR everything on $PLATFORM ($TARGET)..."
 
-# Version Generator
+# Version Generator - Build this first so it can be used later in the build process.
 make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=versiongen
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
@@ -37,7 +37,7 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Engine
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=engine VER_MAJOR=0 VER_MINOR=5 DO_VERSION=$DO_VERSION
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=engine DO_VERSION=$DO_VERSION
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -49,7 +49,7 @@ if [ $PLATFORM = 'macos' ]
 then
    VULKAN_SDK=/usr/local/
 fi
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=vulkan_renderer VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="-lengine -lvulkan -lshaderc_shared -L$VULKAN_SDK/lib"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=vulkan_renderer DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="-I./engine/src -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="-lengine -lvulkan -lshaderc_shared -L$VULKAN_SDK/lib"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -57,7 +57,7 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Standard UI Lib
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=standard_ui VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=standard_ui DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -70,7 +70,7 @@ then
     OPENAL_INC=-I/opt/homebrew/opt/openal-soft/include/
     OPENAL_LIB=-L/opt/homebrew/opt/openal-soft/lib/
 fi
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=plugin_audio_openal VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src $OPENAL_INC" ADDL_LINK_FLAGS="-lengine -lopenal $OPENAL_LIB"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=plugin_audio_openal DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="-I./engine/src $OPENAL_INC" ADDL_LINK_FLAGS="-lengine -lopenal $OPENAL_LIB"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -78,12 +78,16 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Testbed Lib
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed_lib VER_MAJOR=0 VER_MINOR=1 DO_VERSION=no ADDL_INC_FLAGS="-I./engine/src -I./standard_ui/src -I./plugin_audio_openal/src" ADDL_LINK_FLAGS="-lengine -lstandard_ui -lplugin_audio_openal"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed_lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="-I./engine/src -I./standard_ui/src -I./plugin_audio_openal/src" ADDL_LINK_FLAGS="-lengine -lstandard_ui -lplugin_audio_openal"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
 echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
+
+# ---------------------------------------------------
+# Executables
+# ---------------------------------------------------
 
 # Testbed
 make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed ADDL_INC_FLAGS="-I./engine/src" ADDL_LINK_FLAGS="-lengine -lstandard_ui -lplugin_audio_openal"
