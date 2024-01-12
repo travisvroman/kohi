@@ -90,7 +90,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] heightmap-based
   - [x] pixel picking
   - [x] raycast picking 
-  - [ ] chunking/culling
+  - [x] chunking/culling
   - [ ] LOD/tessellation
   - [ ] holes
   - [ ] collision

@@ -1052,7 +1052,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                         culling_center,
                         culling_radius,
                         p_frame_data,
-                        &cascade->geometry_count, cascade->geometries)) {
+                        &cascade->geometry_count, &cascade->geometries)) {
                     KERROR("Failed to query shadow map pass meshes.");
                 }
 
@@ -1068,7 +1068,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                         &shadow_frustum,
                         shadow_camera_positions[c],
                         p_frame_data,
-                        &cascade->terrain_geometry_count, cascade->terrain_geometries)) {
+                        &cascade->terrain_geometry_count, &cascade->terrain_geometries)) {
                     KERROR("Failed to query shadow map pass terrain geometries.");
                 }
 
@@ -1126,7 +1126,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                     &camera_frustum,
                     current_camera->position,
                     p_frame_data,
-                    &ext_data->geometry_count, ext_data->geometries)) {
+                    &ext_data->geometry_count, &ext_data->geometries)) {
                 KERROR("Failed to query scene pass meshes.");
             }
 
@@ -1142,7 +1142,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                     &camera_frustum,
                     current_camera->position,
                     p_frame_data,
-                    &ext_data->terrain_geometry_count, ext_data->terrain_geometries)) {
+                    &ext_data->terrain_geometry_count, &ext_data->terrain_geometries)) {
                 KERROR("Failed to query scene pass terrain geometries.");
             }
 

@@ -86,7 +86,7 @@ b8 renderer_system_initialize(u64* memory_requirement, void* state, void* config
     // TODO: Make this configurable.
     kzero_memory(bufname, 256);
     string_format(bufname, "renderbuffer_indexbuffer_globalgeometry");
-    const u64 index_buffer_size = sizeof(u32) * 200 * 1024 * 1024;
+    const u64 index_buffer_size = sizeof(u32) * 100 * 1024 * 1024;
     if (!renderer_renderbuffer_create(bufname, RENDERBUFFER_TYPE_INDEX, index_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, &state_ptr->geometry_index_buffer)) {
         KERROR("Error creating index buffer.");
         return false;

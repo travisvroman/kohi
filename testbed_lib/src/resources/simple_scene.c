@@ -1229,7 +1229,7 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
     return true;
 }
 
-b8 simple_scene_mesh_render_data_query_from_line(const simple_scene *scene, vec3 direction, vec3 center, f32 radius, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data *out_geometries) {
+b8 simple_scene_mesh_render_data_query_from_line(const simple_scene *scene, vec3 direction, vec3 center, f32 radius, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data **out_geometries) {
     if (!scene) {
         return false;
     }
@@ -1293,7 +1293,7 @@ b8 simple_scene_mesh_render_data_query_from_line(const simple_scene *scene, vec3
                         gdist.g = data;
                         darray_push(transparent_geometries, gdist);
                     } else {
-                        darray_push(out_geometries, data);
+                        darray_push(*out_geometries, data);
                     }
                     p_frame_data->drawn_mesh_count++;
                 }
@@ -1302,22 +1302,22 @@ b8 simple_scene_mesh_render_data_query_from_line(const simple_scene *scene, vec3
     }
 
     // Sort opaque geometries by material.
-    kquick_sort(sizeof(geometry_render_data), out_geometries, 0, darray_length(out_geometries) - 1, geometry_render_data_compare);
+    kquick_sort(sizeof(geometry_render_data), *out_geometries, 0, darray_length(*out_geometries) - 1, geometry_render_data_compare);
 
     // Sort transparent geometries, then add them to the ext_data->geometries array.
     u32 transparent_geometry_count = darray_length(transparent_geometries);
     // TODO: Why does this segfault?
     /* kquick_sort(sizeof(geometry_distance), transparent_geometries, 0, transparent_geometry_count - 1, geometry_distance_compare); */
     for (u32 i = 0; i < transparent_geometry_count; ++i) {
-        darray_push(out_geometries, transparent_geometries[i].g);
+        darray_push(*out_geometries, transparent_geometries[i].g);
     }
 
-    *out_count = darray_length(out_geometries);
+    *out_count = darray_length(*out_geometries);
 
     return true;
 }
 
-b8 simple_scene_mesh_render_data_query(const simple_scene *scene, const frustum *f, vec3 center, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data *out_geometries) {
+b8 simple_scene_mesh_render_data_query(const simple_scene *scene, const frustum *f, vec3 center, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data **out_geometries) {
     if (!scene) {
         return false;
     }
@@ -1412,7 +1412,7 @@ b8 simple_scene_mesh_render_data_query(const simple_scene *scene, const frustum 
                             gdist.g = data;
                             darray_push(transparent_geometries, gdist);
                         } else {
-                            darray_push(out_geometries, data);
+                            darray_push(*out_geometries, data);
                         }
                         p_frame_data->drawn_mesh_count++;
                     }
@@ -1422,21 +1422,21 @@ b8 simple_scene_mesh_render_data_query(const simple_scene *scene, const frustum 
     }
 
     // Sort opaque geometries by material.
-    kquick_sort(sizeof(geometry_render_data), out_geometries, 0, darray_length(out_geometries) - 1, geometry_render_data_compare);
+    kquick_sort(sizeof(geometry_render_data), *out_geometries, 0, darray_length(*out_geometries) - 1, geometry_render_data_compare);
 
     // Sort transparent geometries, then add them to the ext_data->geometries array.
     u32 transparent_geometry_count = darray_length(transparent_geometries);
     kquick_sort(sizeof(geometry_distance), transparent_geometries, 0, transparent_geometry_count - 1, geometry_distance_compare);
     for (u32 i = 0; i < transparent_geometry_count; ++i) {
-        darray_push(out_geometries, transparent_geometries[i].g);
+        darray_push(*out_geometries, transparent_geometries[i].g);
     }
 
-    *out_count = darray_length(out_geometries);
+    *out_count = darray_length(*out_geometries);
 
     return true;
 }
 
-b8 simple_scene_terrain_render_data_query(const simple_scene *scene, const frustum *f, vec3 center, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data *out_terrain_geometries) {
+b8 simple_scene_terrain_render_data_query(const simple_scene *scene, const frustum *f, vec3 center, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data **out_terrain_geometries) {
     if (!scene) {
         return false;
     }
@@ -1444,25 +1444,49 @@ b8 simple_scene_terrain_render_data_query(const simple_scene *scene, const frust
     u32 terrain_count = darray_length(scene->terrains);
     for (u32 i = 0; i < terrain_count; ++i) {
         terrain *t = &scene->terrains[i];
-        // TODO: Frustum culling
-        for (u32 c = 0; c < t->chunk_count; c++) {
-            geometry_render_data data = {0};
-            data.model = transform_world_get(&scene->terrains[i].xform);
-            geometry *g = &scene->terrains[i].chunks[c].geo;
-            data.material = g->material;
-            data.vertex_count = g->vertex_count;
-            data.vertex_buffer_offset = g->vertex_buffer_offset;
-            data.vertex_element_size = sizeof(terrain_vertex);
-            data.index_count = g->index_count;
-            data.index_buffer_offset = g->index_buffer_offset;
-            data.index_element_size = sizeof(u32);
-            data.unique_id = scene->terrains[i].id.uniqueid;
+        mat4 model = transform_world_get(&scene->terrains[i].xform);
 
-            darray_push(out_terrain_geometries, data);
+        // Check each chunk to see if it is in view.
+        for (u32 c = 0; c < t->chunk_count; c++) {
+            terrain_chunk *chunk = &t->chunks[c];
+
+            geometry *g = &chunk->geo;
+
+            // AABB calculation
+            vec3 center, half_extents;
+
+            if (f) {
+                // Translate/scale the extents.
+                // vec3 extents_min = vec3_mul_mat4(g->extents.min, model);
+                vec3 extents_max = vec3_mul_mat4(g->extents.max, model);
+
+                // Translate/scale the center.
+                center = vec3_mul_mat4(g->center, model);
+                half_extents = (vec3){
+                    kabs(extents_max.x - center.x),
+                    kabs(extents_max.y - center.y),
+                    kabs(extents_max.z - center.z),
+                };
+            }
+
+            if (!f || frustum_intersects_aabb(f, &center, &half_extents)) {
+                geometry_render_data data = {0};
+                data.model = model;
+                data.material = g->material;
+                data.vertex_count = g->vertex_count;
+                data.vertex_buffer_offset = g->vertex_buffer_offset;
+                data.vertex_element_size = sizeof(terrain_vertex);
+                data.index_count = g->index_count;
+                data.index_buffer_offset = g->index_buffer_offset;
+                data.index_element_size = sizeof(u32);
+                data.unique_id = scene->terrains[i].id.uniqueid;
+
+                darray_push(*out_terrain_geometries, data);
+            }
         }
     }
 
-    *out_count = darray_length(out_terrain_geometries);
+    *out_count = darray_length(*out_terrain_geometries);
 
     return true;
 }

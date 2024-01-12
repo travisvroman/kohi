@@ -20,6 +20,9 @@ Changelog
     - Each library includes its version file and now reports version to the console during its initialization.
   - versiongen utility has been updated to accept a filename parameter instead of major/minor versions. The build process passes "<assembly-folder>/version.txt".
     - version.txt is read in its entirety (up to 10 characters) and is used to define the major, minor, and patch. Ex: "0.6.0". This is then prepended to the generated build-revision to complete the format listed above.
+  - Added terrain chunking support.
+  - Fixed an issue with darrays that could cause invalid header data in certain scenarios.
+  - Updated simple scene query functions to take pointers to arrays of geometry render data to account for array resizes if needed.
 
 - 0.5x
   - Added Physically-Based Rendering (PBR) material type support.
