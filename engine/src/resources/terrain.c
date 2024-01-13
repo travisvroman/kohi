@@ -135,6 +135,9 @@ static void terrain_chunk_initialize(terrain *t, terrain_chunk *chunk, u32 chunk
     f32 chunk_base_pos_x = chunk_offset_x * t->chunk_size * t->tile_scale_x;
     f32 chunk_base_pos_z = chunk_offset_z * t->chunk_size * t->tile_scale_z;
 
+    f32 y_min = 99999.0f;
+    f32 y_max = -99999.0f;
+
     u32 chunk_dimension = t->chunk_size + 1;
     for (u32 z = 0, i = 0; z < chunk_dimension; ++z) {
         for (u32 x = 0; x < chunk_dimension; ++x, ++i) {
@@ -151,6 +154,8 @@ static void terrain_chunk_initialize(terrain *t, terrain_chunk *chunk, u32 chunk
             f32 point_height = vert_data->height;
 
             v->position.y = point_height * t->scale_y;
+            y_min = KMIN(y_min, v->position.y);
+            y_max = KMIN(y_max, v->position.y);
 
             v->colour = vec4_one();  // white;
             v->normal = (vec3){0, 1, 0};
@@ -166,6 +171,16 @@ static void terrain_chunk_initialize(terrain *t, terrain_chunk *chunk, u32 chunk
             v->material_weights[3] = kattenuation_min_max(0.5f, 1.2f, point_height);   // mid 9
         }
     }
+
+    // Calculate extents for this chunk.
+    vec3 min = chunk->vertices[0].position;
+    min.y = y_min;
+    vec3 max = chunk->vertices[chunk->vertex_count - 1].position;
+    max.y = y_max;
+    vec3 center = vec3_add(min, vec3_mul_scalar(vec3_sub(max, min), 0.5f));
+    chunk->geo.center = (vec3){center.x, t->origin.y, center.z};
+    chunk->geo.extents.min = min;
+    chunk->geo.extents.max = max;
 
     // Generate indices.
     for (u32 row = 0, i = 0; row < t->chunk_size; row++) {
@@ -224,13 +239,6 @@ static b8 terrain_chunk_load(terrain *t, terrain_chunk *chunk) {
         return false;
     }
 
-    // Calculate extents for this chunk.
-    vec3 min = chunk->vertices[0].position;
-    vec3 max = chunk->vertices[chunk->vertex_count - 1].position;
-    vec3 center = vec3_add(min, vec3_mul_scalar(vec3_sub(max, min), 0.5f));
-    g->center = (vec3){center.x, t->origin.y, center.z};
-    g->extents.min = (vec3){min.x, t->extents.min.y, min.z};
-    g->extents.max = (vec3){max.x, t->extents.max.y, max.z};
     // TODO: offload generation increments to frontend. Also do this in geometry_system_create.
     g->generation++;
 

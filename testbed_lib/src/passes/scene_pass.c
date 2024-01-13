@@ -325,6 +325,7 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
         shader_system_use_by_id(internal_data->colour_shader->id);
 
         // Globals
+        renderer_shader_bind_globals(internal_data->colour_shader);
         shader_system_uniform_set_by_location(internal_data->debug_locations.projection, &self->pass_data.projection_matrix);
         shader_system_uniform_set_by_location(internal_data->debug_locations.view, &self->pass_data.view_matrix);
 
@@ -335,7 +336,9 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
             // NOTE: No instance-level uniforms to be set.
 
             // Local
+            shader_system_bind_local();
             shader_system_uniform_set_by_location(internal_data->debug_locations.model, &ext_data->debug_geometries[i].model);
+            shader_system_apply_local(p_frame_data);
 
             // Draw it.
             renderer_geometry_draw(&ext_data->debug_geometries[i]);

@@ -126,18 +126,6 @@ KAPI b8 simple_scene_unload(simple_scene* scene, b8 immediate);
  */
 KAPI b8 simple_scene_update(simple_scene* scene, const struct frame_data* p_frame_data);
 
-/**
- * @brief Populate the given render packet with data from the provided scene.
- *
- * @param scene A pointer to the scene to be updated.
- * @param current_camera The current camera to use while rendering the scene.
- * @param viewport A pointer to the viewport to be used when populating the render packets.
- * @param p_frame_data A constant pointer to the current frame's data.
- * @param packet A pointer to the packet to populate.
- * @return True on success; otherwise false.
- */
-KAPI b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* current_camera, struct viewport* v, struct frame_data* p_frame_data, struct render_packet* packet);
-
 KAPI b8 simple_scene_raycast(simple_scene* scene, const struct ray* r, struct raycast_result* out_result);
 
 KAPI b8 simple_scene_directional_light_add(simple_scene* scene, const char* name, struct directional_light* light);

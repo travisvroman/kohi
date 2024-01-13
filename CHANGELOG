@@ -23,6 +23,8 @@ Changelog
   - Added terrain chunking support.
   - Fixed an issue with darrays that could cause invalid header data in certain scenarios.
   - Updated simple scene query functions to take pointers to arrays of geometry render data to account for array resizes if needed.
+  - Fixed extents generation for terrain chunks, which fixes improper frustum culling issue.
+  - Fixed a bug where shader scopes weren't being bound properly in the scene pass, causing debug objects to render all over the place.
 
 - 0.5x
   - Added Physically-Based Rendering (PBR) material type support.

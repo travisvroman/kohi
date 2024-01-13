@@ -65,8 +65,6 @@ typedef struct terrain_chunk {
     u32 *indices;
 
     geometry geo;
-
-    extents_3d extents;
 } terrain_chunk;
 
 typedef struct terrain {
