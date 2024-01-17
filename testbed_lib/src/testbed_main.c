@@ -25,7 +25,6 @@
 #include "renderer/viewport.h"
 #include "resources/loaders/simple_scene_loader.h"
 #include "systems/camera_system.h"
-#include "testbed_types.h"
 
 // Standard UI.
 #include <controls/sui_button.h>
@@ -1028,52 +1027,44 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             }
 
             // Gather the geometries to be rendered.
+            // Note that this only needs to happen once, since all geometries visible by the furthest-out cascase
+            // must also be drawn on the nearest cascade to ensure objects outside the view cast shadows into the
+            // view properly.
+            simple_scene* scene = &state->main_scene;
+            ext_data->geometries = darray_reserve_with_allocator(geometry_render_data, 512, &p_frame_data->allocator);
+            if (!simple_scene_mesh_render_data_query_from_line(
+                    scene,
+                    light_dir,
+                    culling_center,
+                    culling_radius,
+                    p_frame_data,
+                    &ext_data->geometry_count, &ext_data->geometries)) {
+                KERROR("Failed to query shadow map pass meshes.");
+            }
+            // Track the number of meshes drawn in the shadow pass.
+            p_frame_data->drawn_shadow_mesh_count = ext_data->geometry_count;
+
+            // Gather terrain geometries.
+            ext_data->terrain_geometries = darray_reserve_with_allocator(geometry_render_data, 16, &p_frame_data->allocator);
+            if (!simple_scene_terrain_render_data_query_from_line(
+                    scene,
+                    light_dir,
+                    culling_center,
+                    culling_radius,
+                    p_frame_data,
+                    &ext_data->terrain_geometry_count, &ext_data->terrain_geometries)) {
+                KERROR("Failed to query shadow map pass terrain geometries.");
+            }
+
+            // TODO: Counter for terrain geometries.
+            p_frame_data->drawn_shadow_mesh_count += ext_data->terrain_geometry_count;
+
             for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
-                shadow_map_cascade_data* cascade = &ext_data->cascades[c];
+                // shadow_map_cascade_data* cascade = &ext_data->cascades[c];
 
                 // Shadow frustum culling and count
-                mat4 shadow_view = mat4_mul(shadow_camera_lookats[c], shadow_camera_projections[c]);
-                frustum shadow_frustum = frustum_from_view_projection(shadow_view);
-                /* if (c == MAX_CASCADE_COUNT - 1) {
-                    culling_frustum = shadow_frustum;
-                } */
-
-                simple_scene* scene = &state->main_scene;
-
-                // Iterate the scene and get a list of all geometries within the view of the light.
-                cascade->geometries = darray_reserve_with_allocator(geometry_render_data, 512, &p_frame_data->allocator);
-
-                // Query the scene for static meshes using the shadow frustum.
-                /* b8 shadow_clipping_enabled = false; */
-
-                if (!simple_scene_mesh_render_data_query_from_line(
-                        scene,
-                        light_dir,
-                        culling_center,
-                        culling_radius,
-                        p_frame_data,
-                        &cascade->geometry_count, &cascade->geometries)) {
-                    KERROR("Failed to query shadow map pass meshes.");
-                }
-
-                // Track the number of meshes drawn in the shadow pass.
-                p_frame_data->drawn_shadow_mesh_count = cascade->geometry_count;
-
-                // Add terrain(s)
-                cascade->terrain_geometries = darray_reserve_with_allocator(geometry_render_data, 16, &p_frame_data->allocator);
-
-                // Query the scene for terrain meshes using the camera frustum.
-                if (!simple_scene_terrain_render_data_query(
-                        scene,
-                        &shadow_frustum,
-                        shadow_camera_positions[c],
-                        p_frame_data,
-                        &cascade->terrain_geometry_count, &cascade->terrain_geometries)) {
-                    KERROR("Failed to query shadow map pass terrain geometries.");
-                }
-
-                // TODO: Counter for terrain geometries.
-                p_frame_data->drawn_shadow_mesh_count += cascade->terrain_geometry_count;
+                // mat4 shadow_view = mat4_mul(shadow_camera_lookats[c], shadow_camera_projections[c]);
+                // frustum shadow_frustum = frustum_from_view_projection(shadow_view);
 
                 // end shadowmap pass
             }  // end cascade

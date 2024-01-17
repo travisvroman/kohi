@@ -166,3 +166,4 @@ KAPI b8 simple_scene_mesh_render_data_query(const simple_scene* scene, const fru
 KAPI b8 simple_scene_mesh_render_data_query_from_line(const simple_scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
 
 KAPI b8 simple_scene_terrain_render_data_query(const simple_scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries);
+KAPI b8 simple_scene_terrain_render_data_query_from_line(const simple_scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);

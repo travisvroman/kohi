@@ -18,16 +18,17 @@ typedef struct shadow_map_cascade_data {
     mat4 view;
     f32 split_depth;
     i32 cascade_index;
-    u32 terrain_geometry_count;
-    struct geometry_render_data* terrain_geometries;
-    u32 geometry_count;
-    struct geometry_render_data* geometries;
 } shadow_map_cascade_data;
 
 typedef struct shadow_map_pass_extended_data {
     struct directional_light* light;
     // Per-cascade data.
     shadow_map_cascade_data cascades[MAX_CASCADE_COUNT];
+
+    u32 terrain_geometry_count;
+    struct geometry_render_data* terrain_geometries;
+    u32 geometry_count;
+    struct geometry_render_data* geometries;
 } shadow_map_pass_extended_data;
 
 typedef struct shadow_map_pass_config {
