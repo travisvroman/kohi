@@ -511,6 +511,18 @@ b8 renderer_shader_use(shader* s) {
     return state_ptr->plugin.shader_use(&state_ptr->plugin, s);
 }
 
+b8 renderer_shader_set_wireframe(shader* s, b8 wireframe_enabled) {
+    // Ensure that this shader has the ability to go wireframe before changing.
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    if (!state_ptr->plugin.shader_supports_wireframe(&state_ptr->plugin, s)) {
+        // Not supported, don't enable. Bleat about it.
+        KWARN("Shader does not support wireframe mode: '%s'.", s->name);
+        return false;
+    }
+    s->is_wireframe = wireframe_enabled;
+    return true;
+}
+
 b8 renderer_shader_bind_globals(shader* s) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->plugin.shader_bind_globals(&state_ptr->plugin, s);

@@ -57,14 +57,28 @@ typedef struct terrain_config {
     char **material_names;
 } terrain_config;
 
+typedef struct terrain_chunk_lod {
+    /** @brief The index count for the chunk surface. */
+    u32 surface_index_count;
+
+    /** @brief The total index count, including those for side skirts. */
+    u32 total_index_count;
+    /** @brief The index data. */
+    u32 *indices;
+    /** @brief The offset from the beginning of the index buffer. */
+    u64 index_buffer_offset;
+} terrain_chunk_lod;
+
 typedef struct terrain_chunk {
-    u32 vertex_count;
+    u32 surface_vertex_count;
+    u32 total_vertex_count;
     terrain_vertex *vertices;
 
-    u32 index_count;
-    u32 *indices;
+    terrain_chunk_lod *lods;
 
     geometry geo;
+
+    u8 current_lod;
 } terrain_chunk;
 
 typedef struct terrain {
@@ -94,6 +108,8 @@ typedef struct terrain {
     // 4, 5, 6, 7
     // 8, 9, ...
     terrain_chunk *chunks;
+
+    u8 lod_count;
 
     u32 material_count;
     char **material_names;

@@ -189,6 +189,9 @@ typedef struct shader {
     u8 shader_stage_count;
     shader_stage_config* stage_configs;
 
+    /** @brief Indicates if the shader is currently flagged to use wireframe. */
+    b8 is_wireframe;
+
     /** @brief An opaque pointer to hold renderer API specific data. Renderer is responsible for creation and destruction of this.  */
     void* internal_data;
 } shader;
@@ -252,6 +255,16 @@ KAPI shader* shader_system_get(const char* shader_name);
  * @return True on success; otherwise false.
  */
 KAPI b8 shader_system_use(const char* shader_name);
+
+/**
+ * @brief Attempts to set wireframe mode on the given shader. If the renderer backend, or the shader
+ * does not support this , it will fail when attempting to enable. Disabling will always succeed.
+ *
+ * @param s A pointer to the shader to be used.
+ * @param wireframe_enabled Indicates if wireframe mode should be enabled.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_set_wireframe(shader* s, b8 wireframe_enabled);
 
 /**
  * @brief Uses the shader with the given identifier.

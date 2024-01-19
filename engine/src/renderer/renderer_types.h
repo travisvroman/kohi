@@ -42,6 +42,7 @@ typedef enum renderer_debug_view_mode {
     RENDERER_VIEW_MODE_LIGHTING = 1,
     RENDERER_VIEW_MODE_NORMALS = 2,
     RENDERER_VIEW_MODE_CASCADES = 3,
+    RENDERER_VIEW_MODE_WIREFRAME = 4
 } renderer_debug_view_mode;
 
 typedef enum render_target_attachment_type {
@@ -605,6 +606,15 @@ typedef struct renderer_plugin {
      * @return True on success; otherwise false.
      */
     b8 (*shader_use)(struct renderer_plugin* plugin, struct shader* shader);
+
+    /**
+     * @brief Indicates if the supplied shader supports wireframe mode.
+     *
+     * @param plugin A constant pointer to the renderer plugin interface.
+     * @param s A constant pointer to the shader to be used.
+     * @return True if supported; otherwise false.
+     */
+    b8 (*shader_supports_wireframe)(const struct renderer_plugin* plugin, const struct shader* s);
 
     /**
      * @brief Binds global resources for use and updating.

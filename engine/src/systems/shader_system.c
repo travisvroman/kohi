@@ -279,6 +279,16 @@ b8 shader_system_use(const char* shader_name) {
     return shader_system_use_by_id(next_shader_id);
 }
 
+b8 shader_system_set_wireframe(shader* s, b8 wireframe_enabled) {
+    // Disabling is always supported because it's basically a no-op.
+    if (!wireframe_enabled) {
+        s->is_wireframe = false;
+        return true;
+    }
+
+    return renderer_shader_set_wireframe(s, wireframe_enabled);
+}
+
 b8 shader_system_use_by_id(u32 shader_id) {
     // Only perform the use if the shader id is different.
     // if (state_ptr->current_shader_id != shader_id) {

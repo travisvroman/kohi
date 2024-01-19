@@ -333,6 +333,16 @@ KAPI b8 renderer_shader_initialize(struct shader* s);
 KAPI b8 renderer_shader_use(struct shader* s);
 
 /**
+ * @brief Attempts to set wireframe mode on the given shader. If the backend, or the shader
+ * does not support this , it will fail when attempting to enable. Disabling will always succeed.
+ *
+ * @param s A pointer to the shader to be used.
+ * @param wireframe_enabled Indicates if wireframe mode should be enabled.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 renderer_shader_set_wireframe(struct shader* s, b8 wireframe_enabled);
+
+/**
  * @brief Binds global resources for use and updating.
  *
  * @param s A pointer to the shader whose globals are to be bound.

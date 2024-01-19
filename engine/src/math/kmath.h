@@ -2052,3 +2052,18 @@ KINLINE b8 rect_2d_contains_point(rect_2d rect, vec2 point) {
 }
 
 KAPI f32 vec3_distance_to_line(vec3 point, vec3 line_start, vec3 line_direction);
+
+KINLINE vec3 extents_2d_half(extents_2d extents) {
+    return (vec3){
+        (extents.min.x + extents.max.x) * 0.5f,
+        (extents.min.y + extents.max.y) * 0.5f,
+    };
+}
+
+KINLINE vec3 extents_3d_half(extents_3d extents) {
+    return (vec3){
+        (extents.min.x + extents.max.x) * 0.5f,
+        (extents.min.y + extents.max.y) * 0.5f,
+        (extents.min.z + extents.max.z) * 0.5f,
+    };
+}
