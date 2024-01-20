@@ -70,19 +70,29 @@ typedef struct terrain_chunk_lod {
 } terrain_chunk_lod;
 
 typedef struct terrain_chunk {
+    /** @brief The chunk generation. Incremented every time the geometry changes. */
+    u16 generation;
     u32 surface_vertex_count;
     u32 total_vertex_count;
     terrain_vertex *vertices;
+    u64 vertex_buffer_offset;
 
     terrain_chunk_lod *lods;
 
-    geometry geo;
+    /** @brief The center of the geometry in local coordinates. */
+    vec3 center;
+    /** @brief The extents of the geometry in local coordinates. */
+    extents_3d extents;
+
+    /** @brief A pointer to the material associated with this geometry.. */
+    struct material *material;
 
     u8 current_lod;
 } terrain_chunk;
 
 typedef struct terrain {
     identifier id;
+    u32 generation;
     char *name;
     transform xform;
     u32 tile_count_x;
@@ -120,6 +130,8 @@ KAPI void terrain_destroy(terrain *t);
 
 KAPI b8 terrain_initialize(terrain *t);
 KAPI b8 terrain_load(terrain *t);
+KAPI b8 terrain_chunk_load(terrain *t, terrain_chunk *chunk);
 KAPI b8 terrain_unload(terrain *t);
+KAPI b8 terrain_chunk_unload(terrain *t, terrain_chunk *chunk);
 
 KAPI b8 terrain_update(terrain *t);
