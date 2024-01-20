@@ -26,6 +26,12 @@ Changelog
   - Fixed extents generation for terrain chunks, which fixes improper frustum culling issue.
   - Fixed a bug where shader scopes weren't being bound properly in the scene pass, causing debug objects to render all over the place.
   - The scene is now only queried once for geometry to be used with all shadow map cascades, as opposed to once per cascade.
+  - Removed "wireframe" shader config property and replaced it with "supports_wireframe". See next entry for details.
+  - Added the ability to have a wireframe mode, if supported, in a shader. This creates a separate set of pipelines that are used when this 
+    mode is selected.
+  - Added a RENDERER_MODE_WIREFRAME, which will enable wireframe for certain shaders when swapped to.
+  - Fixed an issue where ksort would segfault while trying to access a negative array index.
+  - Added "skirt" geometry to terrain sides in an effort to plug holes in transitions between chunks.
 
 - 0.5x
   - Added Physically-Based Rendering (PBR) material type support.

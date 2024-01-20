@@ -213,6 +213,11 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
     u32 terrain_count = ext_data->terrain_geometry_count;
     if (terrain_count > 0) {
         shader_system_use_by_id(internal_data->terrain_shader->id);
+        if (ext_data->render_mode == RENDERER_VIEW_MODE_WIREFRAME) {
+            shader_system_set_wireframe(internal_data->terrain_shader, true);
+        } else {
+            shader_system_set_wireframe(internal_data->terrain_shader, false);
+        }
 
         // Apply globals
         if (!material_system_apply_global(internal_data->terrain_shader->id, p_frame_data, &self->pass_data.projection_matrix, &self->pass_data.view_matrix, &ext_data->cascade_splits, &self->pass_data.view_position, ext_data->render_mode)) {
@@ -262,6 +267,12 @@ b8 scene_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_
         if (!shader_system_use_by_id(internal_data->pbr_shader->id)) {
             KERROR("Failed to use PBR shader. Render frame failed.");
             return false;
+        }
+
+        if (ext_data->render_mode == RENDERER_VIEW_MODE_WIREFRAME) {
+            shader_system_set_wireframe(internal_data->pbr_shader, true);
+        } else {
+            shader_system_set_wireframe(internal_data->pbr_shader, false);
         }
 
         // Apply globals

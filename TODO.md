@@ -91,7 +91,10 @@ The items in this list are not in any particular order. This list will be update
   - [x] pixel picking
   - [x] raycast picking 
   - [x] chunking/culling
-  - [ ] LOD/tessellation
+    - [x] BUG: culling is currently passing all chunks always.
+  - [x] LOD
+    - [ ] Blending between LOD levels (geometry skirts vs gap-filling, etc.)
+  - [ ] tessellation
   - [ ] holes
   - [ ] collision
 - [ ] volumes 

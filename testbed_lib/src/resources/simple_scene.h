@@ -126,6 +126,17 @@ KAPI b8 simple_scene_unload(simple_scene* scene, b8 immediate);
  */
 KAPI b8 simple_scene_update(simple_scene* scene, const struct frame_data* p_frame_data);
 
+/**
+ * @brief Updates LODs of items in the scene based on the given position and clipping distances.
+ *
+ * @param scene A pointer to the scene to be updated.
+ * @param p_frame_data A constant pointer to the current frame's data.
+ * @param view_position The view position to use for LOD calculation.
+ * @param near_clip The near clipping distance from the view position.
+ * @param far_clip The far clipping distance from the view position.
+ */
+KAPI void simple_scene_update_lod_from_view_position(simple_scene* scene, const struct frame_data* p_frame_data, vec3 view_position, f32 near_clip, f32 far_clip);
+
 KAPI b8 simple_scene_raycast(simple_scene* scene, const struct ray* r, struct raycast_result* out_result);
 
 KAPI b8 simple_scene_directional_light_add(simple_scene* scene, const char* name, struct directional_light* light);

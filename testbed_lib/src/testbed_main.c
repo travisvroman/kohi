@@ -145,6 +145,10 @@ b8 game_on_event(u16 code, void* sender, void* listener_inst, event_context cont
                     KDEBUG("Renderer mode set to cascades.");
                     state->render_mode = RENDERER_VIEW_MODE_CASCADES;
                     break;
+                case RENDERER_VIEW_MODE_WIREFRAME:
+                    KDEBUG("Renderer mode set to wireframe.");
+                    state->render_mode = RENDERER_VIEW_MODE_WIREFRAME;
+                    break;
             }
             return true;
         }
@@ -533,8 +537,8 @@ b8 application_initialize(struct application* game_inst) {
         return false;
     }
 
-    state->forward_move_speed = 5.0f;
-    state->backward_move_speed = 2.5f;
+    state->forward_move_speed = 5.0f * 5.0f;
+    state->backward_move_speed = 2.5f * 5.0f;
 
     // Setup editor gizmo.
     if (!editor_gizmo_create(&state->gizmo)) {
@@ -738,10 +742,22 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     button_height = 50.0f + (ksin(p_frame_data->total_time) * 20.0f);
     sui_button_control_height_set(&state->test_button, (i32)button_height);
 
+    // Update the bitmap text with camera position. NOTE: just using the default camera for now.
+    vec3 pos = camera_position_get(state->world_camera);
+    vec3 rot = camera_rotation_euler_get(state->world_camera);
+
+    viewport* view_viewport = &state->world_viewport;
+
+    f32 near_clip = view_viewport->near_clip;
+    f32 far_clip = view_viewport->far_clip;
+
     if (state->main_scene.state >= SIMPLE_SCENE_STATE_LOADED) {
         if (!simple_scene_update(&state->main_scene, p_frame_data)) {
             KWARN("Failed to update main scene.");
         }
+
+        // Update LODs for the scene based on distance from the camera.
+        simple_scene_update_lod_from_view_position(&state->main_scene, p_frame_data, pos, near_clip, far_clip);
 
         editor_gizmo_update(&state->gizmo);
 
@@ -770,10 +786,6 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     // Track allocation differences.
     state->prev_alloc_count = state->alloc_count;
     state->alloc_count = get_memory_alloc_count();
-
-    // Update the bitmap text with camera position. NOTE: just using the default camera for now.
-    vec3 pos = camera_position_get(state->world_camera);
-    vec3 rot = camera_rotation_euler_get(state->world_camera);
 
     // Also tack on current mouse state.
     b8 left_down = input_is_button_down(BUTTON_LEFT);
@@ -1058,16 +1070,6 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
             // TODO: Counter for terrain geometries.
             p_frame_data->drawn_shadow_mesh_count += ext_data->terrain_geometry_count;
-
-            for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
-                // shadow_map_cascade_data* cascade = &ext_data->cascades[c];
-
-                // Shadow frustum culling and count
-                // mat4 shadow_view = mat4_mul(shadow_camera_lookats[c], shadow_camera_projections[c]);
-                // frustum shadow_frustum = frustum_from_view_projection(shadow_view);
-
-                // end shadowmap pass
-            }  // end cascade
         }
 
         // Scene pass.
