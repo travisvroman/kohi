@@ -30,8 +30,21 @@ Changelog
   - Added the ability to have a wireframe mode, if supported, in a shader. This creates a separate set of pipelines that are used when this 
     mode is selected.
   - Added a RENDERER_MODE_WIREFRAME, which will enable wireframe for certain shaders when swapped to.
+    - macOS: Note that, in order to support wireframe mode in macOS the newest (at the time) Vulkan SDK 
+      must be used (1.3.275).
   - Fixed an issue where ksort would segfault while trying to access a negative array index.
   - Added "skirt" geometry to terrain sides in an effort to plug holes in transitions between chunks.
+  - Vulkan Renderer performance updates (see Vulkan Plugin Changelog).
+  - To facilitate the above, several areas of logic that previously required a separate command buffer and queue wait have had thier work offloaded
+    to the beginning of the next frame. This reduces waits and more efficiently batches workload to the GPU.
+  - The core engine frame lifecycle now has a slightly altered sequence of events. The new cycle is as follows (only changed section is listed):
+    - After resize detection, renderer_prepare is called, which can cause the renderer to wait for resource regeneration if needed. Otherwise:
+    - renderer_begin is now called in the main engine loop instead of by the application. This makes the renderer begin its current command buffer.
+    - systems_manager_renderer_frame_prepare is called. All systems can now have a "frame_prepare" phase, which is optional. Only standard_ui uses this for now. This is to allow updates which need GPU uploads to occur before the rest of the frame workload begins.
+    - The application instance recieves a call to its prepare_frame.
+      - In testbed, this calls a new function in simple_scene for prepare_frame, which handles any GPU uploads before the rest of the frame workload begins.
+    - renderer_end ends the renderer's current command buffer. This is now called from the main engine loop instead of the application.
+    - renderer_present presents the current drawn-to attachment to the screen. This is now called from the main engine loop instead of the application.
 
 - 0.5x
   - Added Physically-Based Rendering (PBR) material type support.

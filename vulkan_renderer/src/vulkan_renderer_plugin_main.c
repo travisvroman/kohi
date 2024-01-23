@@ -9,6 +9,8 @@
 b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->initialize = vulkan_renderer_backend_initialize;
     out_plugin->shutdown = vulkan_renderer_backend_shutdown;
+    out_plugin->begin_debug_label = vulkan_renderer_begin_debug_label;
+    out_plugin->end_debug_label = vulkan_renderer_end_debug_label;
     out_plugin->frame_prepare = vulkan_renderer_frame_prepare;
     out_plugin->begin = vulkan_renderer_begin;
     out_plugin->end = vulkan_renderer_end;

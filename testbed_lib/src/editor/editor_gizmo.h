@@ -10,6 +10,7 @@
 
 struct ray;
 struct camera;
+struct frame_data;
 
 typedef enum editor_gizmo_mode {
     EDITOR_GIZMO_MODE_NONE = 0,
@@ -77,6 +78,8 @@ typedef struct editor_gizmo {
 
     editor_gizmo_interaction_type interaction;
 
+    b8 is_dirty;
+
 #ifdef _DEBUG
     debug_line3d plane_normal_line;
 #endif
@@ -95,6 +98,7 @@ KAPI void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orienta
 KAPI void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, transform* xform);
 
 KAPI void editor_gizmo_update(editor_gizmo* gizmo);
+KAPI void editor_gizmo_render_frame_prepare(editor_gizmo* gizmo, const struct frame_data* p_frame_data);
 
 KAPI void editor_gizmo_mode_set(editor_gizmo* gizmo, editor_gizmo_mode mode);
 

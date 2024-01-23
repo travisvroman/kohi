@@ -126,6 +126,8 @@ KAPI b8 simple_scene_unload(simple_scene* scene, b8 immediate);
  */
 KAPI b8 simple_scene_update(simple_scene* scene, const struct frame_data* p_frame_data);
 
+KAPI void simple_scene_render_frame_prepare(simple_scene* scene, const struct frame_data* p_frame_data);
+
 /**
  * @brief Updates LODs of items in the scene based on the given position and clipping distances.
  *

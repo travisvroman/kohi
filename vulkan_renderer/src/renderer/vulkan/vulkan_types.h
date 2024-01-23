@@ -592,6 +592,8 @@ typedef struct vulkan_context {
 
     b8 render_flag_changed;
 
+    b8 validation_enabled;
+
     /** @brief Render targets used for world rendering. @note One per frame. */
     render_target world_render_targets[3];
 

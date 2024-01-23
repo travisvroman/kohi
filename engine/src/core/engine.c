@@ -224,8 +224,22 @@ b8 engine_run(application* game_inst) {
                 break;
             }
 
+            if (!renderer_begin(&engine_state->p_frame_data)) {
+                KFATAL("Failed to begin renderer. Shutting down.");
+                engine_state->is_running = false;
+                break;
+            }
+
+            // Begin "prepare_frame" render event grouping.
+            renderer_begin_debug_label("prepare_frame", (vec3){1.0f, 1.0f, 0.0f});
+
+            systems_manager_renderer_frame_prepare(&engine_state->sys_manager_state, &engine_state->p_frame_data);
+
             // Have the application generate the render packet.
             b8 prepare_result = engine_state->game_inst->prepare_frame(engine_state->game_inst, &engine_state->p_frame_data);
+            // End "prepare_frame" render event grouping.
+            renderer_end_debug_label();
+
             if (!prepare_result) {
                 continue;
             }
@@ -233,6 +247,16 @@ b8 engine_run(application* game_inst) {
             // Call the game's render routine.
             if (!engine_state->game_inst->render_frame(engine_state->game_inst, &engine_state->p_frame_data)) {
                 KFATAL("Game render failed, shutting down.");
+                engine_state->is_running = false;
+                break;
+            }
+
+            // End the frame.
+            renderer_end(&engine_state->p_frame_data);
+
+            // Present the frame.
+            if (!renderer_present(&engine_state->p_frame_data)) {
+                KERROR("The call to renderer_present failed. This is likely unrecoverable. Shutting down.");
                 engine_state->is_running = false;
                 break;
             }

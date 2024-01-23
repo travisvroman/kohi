@@ -424,8 +424,7 @@ b8 simple_scene_unload(simple_scene *scene, b8 immediate) {
     return true;
 }
 
-b8 simple_scene_update(simple_scene *scene,
-                       const struct frame_data *p_frame_data) {
+b8 simple_scene_update(simple_scene *scene, const struct frame_data *p_frame_data) {
     if (!scene) {
         return false;
     }
@@ -502,6 +501,41 @@ b8 simple_scene_update(simple_scene *scene,
     }
 
     return true;
+}
+
+void simple_scene_render_frame_prepare(simple_scene *scene, const struct frame_data *p_frame_data) {
+    if (!scene) {
+        return;
+    }
+
+    if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
+        if (scene->dir_light && scene->dir_light->debug_data) {
+            simple_scene_debug_data *debug = scene->dir_light->debug_data;
+            debug_line3d_render_frame_prepare(&debug->line, p_frame_data);
+        }
+
+        // Update point light debug boxes.
+        u32 point_light_count = darray_length(scene->point_lights);
+        for (u32 i = 0; i < point_light_count; ++i) {
+            if (scene->point_lights[i].debug_data) {
+                simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->point_lights[i].debug_data;
+                debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
+            }
+        }
+
+        // Check meshes to see if they have debug data.
+        u32 mesh_count = darray_length(scene->meshes);
+        for (u32 i = 0; i < mesh_count; ++i) {
+            mesh *m = &scene->meshes[i];
+            if (m->generation == INVALID_ID_U8) {
+                continue;
+            }
+            if (m->debug_data) {
+                simple_scene_debug_data *debug = m->debug_data;
+                debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
+            }
+        }
+    }
 }
 
 void simple_scene_update_lod_from_view_position(simple_scene *scene, const frame_data *p_frame_data, vec3 view_position, f32 near_clip, f32 far_clip) {

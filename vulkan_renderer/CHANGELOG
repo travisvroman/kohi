@@ -1,0 +1,22 @@
+Kohi Vulkan Renderer Plugin Changelog
+
+
+- 0.4.0
+  - Vulkan-specific plugin changelog file created. Updates specific to this backend are now listed here.
+  - Overhauled wireframe mode. Shader configs will now pass "supports_wireframe", which indicates that 
+    the shader will need an extra set of pipelines created that use the VK_POLYGON_MODE_LINE instead of 
+    VK_POLYGON_MODE_FILL if, and only if, the current device's VkPhysicalDeviceFeatures.fillModeNonSolid 
+    is flagged as true (supported).
+    - macOS: This feature requires Vulkan SDK 1.3.275.0 or later to work. If not supported, wireframe 
+      mode will fall back to rendering filled geometry.
+  - Changed renderbuffer upload to optionally take a "include_in_frame_workload" parameter, which affects how the upload happens.
+    - Setting this to true inserts the command into the actively recording command buffer. This should only be done after a call to "renderer_begin", which now begins the command buffer.
+    - Setting this to false executes the previous behaviour of creating a one-time-use command buffer, waiting on an available queue and executing it, then waiting on it to complete.
+  - Added a new debug utility to mark sections of code with a name and colour, to facilitate grouping in debuggers like RenderDoc.
+    - Note this is based on functionality that was directly written into beginning/ending renderpasses, but is now accessible from the renderer frontend.
+  
+
+- 0.3.0 and before
+  - This changelog doesn't list any changes from here back, but includes everything from the creation
+    of the plugin up until 0.4.0.
+

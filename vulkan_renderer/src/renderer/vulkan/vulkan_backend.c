@@ -57,7 +57,7 @@ static b8 create_shader_module(vulkan_context *context, shader *s, shader_stage_
 static b8 vulkan_buffer_copy_range_internal(vulkan_context *context,
                                             VkBuffer source, u64 source_offset,
                                             VkBuffer dest, u64 dest_offset,
-                                            u64 size);
+                                            u64 size, b8 queue_wait);
 
 #if KVULKAN_USE_CUSTOM_ALLOCATOR == 1
 /**
@@ -269,6 +269,9 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
         kallocate(plugin->internal_context_size, MEMORY_TAG_RENDERER);
     // Cold-cast the context
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    if (config->flags & RENDERER_CONFIG_FLAG_ENABLE_VALIDATION) {
+        context->validation_enabled = true;
+    }
 
     // Function pointers
     context->find_memory_index = find_memory_index;
@@ -366,54 +369,56 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     const char **required_validation_layer_names = 0;
     u32 required_validation_layer_count = 0;
 
-// If validation should be done, get a list of the required validation layert
-// names and make sure they exist. Validation layers should only be enabled on
-// non-release builds.
-#if defined(_DEBUG)
-    KINFO("Validation layers enabled. Enumerating...");
+    // If validation should be done, get a list of the required validation layert
+    // names and make sure they exist. Validation layers should only be enabled on
+    // non-release builds.
+    if (context->validation_enabled) {
+        KINFO("Validation layers enabled. Enumerating...");
 
-    // The list of validation layers required.
-    required_validation_layer_names = darray_create(const char *);
-    darray_push(required_validation_layer_names, &"VK_LAYER_KHRONOS_validation");
-    // NOTE: enable this when needed for debugging.
-    // darray_push(required_validation_layer_names, &"VK_LAYER_LUNARG_api_dump");
-    required_validation_layer_count =
-        darray_length(required_validation_layer_names);
+        // The list of validation layers required.
+        required_validation_layer_names = darray_create(const char *);
+        darray_push(required_validation_layer_names, &"VK_LAYER_KHRONOS_validation");
+        // NOTE: enable this when needed for debugging.
+        // darray_push(required_validation_layer_names, &"VK_LAYER_LUNARG_api_dump");
+        required_validation_layer_count =
+            darray_length(required_validation_layer_names);
 
-    // Obtain a list of available validation layers
-    u32 available_layer_count = 0;
-    VK_CHECK(vkEnumerateInstanceLayerProperties(&available_layer_count, 0));
-    VkLayerProperties *available_layers =
-        darray_reserve(VkLayerProperties, available_layer_count);
-    VK_CHECK(vkEnumerateInstanceLayerProperties(&available_layer_count,
-                                                available_layers));
+        // Obtain a list of available validation layers
+        u32 available_layer_count = 0;
+        VK_CHECK(vkEnumerateInstanceLayerProperties(&available_layer_count, 0));
+        VkLayerProperties *available_layers =
+            darray_reserve(VkLayerProperties, available_layer_count);
+        VK_CHECK(vkEnumerateInstanceLayerProperties(&available_layer_count,
+                                                    available_layers));
 
-    // Verify all required layers are available.
-    for (u32 i = 0; i < required_validation_layer_count; ++i) {
-        b8 found = false;
-        for (u32 j = 0; j < available_layer_count; ++j) {
-            if (strings_equal(required_validation_layer_names[i],
-                              available_layers[j].layerName)) {
-                found = true;
-                KINFO("Found validation layer: %s...",
-                      required_validation_layer_names[i]);
-                break;
+        // Verify all required layers are available.
+        for (u32 i = 0; i < required_validation_layer_count; ++i) {
+            b8 found = false;
+            for (u32 j = 0; j < available_layer_count; ++j) {
+                if (strings_equal(required_validation_layer_names[i],
+                                  available_layers[j].layerName)) {
+                    found = true;
+                    KINFO("Found validation layer: %s...",
+                          required_validation_layer_names[i]);
+                    break;
+                }
+            }
+
+            if (!found) {
+                KFATAL("Required validation layer is missing: %s",
+                       required_validation_layer_names[i]);
+                return false;
             }
         }
 
-        if (!found) {
-            KFATAL("Required validation layer is missing: %s",
-                   required_validation_layer_names[i]);
-            return false;
-        }
+        // Clean up.
+        darray_destroy(available_extensions);
+        darray_destroy(available_layers);
+
+        KINFO("All required validation layers are present.");
+    } else {
+        KINFO("Vulkan validation layers are not enabled.");
     }
-
-    // Clean up.
-    darray_destroy(available_extensions);
-    darray_destroy(available_layers);
-
-    KINFO("All required validation layers are present.");
-#endif
 
     create_info.enabledLayerCount = required_validation_layer_count;
     create_info.ppEnabledLayerNames = required_validation_layer_names;
@@ -677,6 +682,23 @@ void vulkan_renderer_backend_on_resized(renderer_plugin *plugin, u16 width,
 
     KINFO("Vulkan renderer plugin->resized: w/h/gen: %i/%i/%llu", width, height,
           context->framebuffer_size_generation);
+}
+
+void vulkan_renderer_begin_debug_label(renderer_plugin *plugin, const char *label_text, vec3 colour) {
+#ifdef _DEBUG
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
+    vec4 rgba = (vec4){colour.r, colour.g, colour.b, 1.0f};
+#endif
+    VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, label_text, rgba);
+}
+
+void vulkan_renderer_end_debug_label(renderer_plugin *plugin) {
+#ifdef _DEBUG
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    vulkan_command_buffer *command_buffer = &context->graphics_command_buffers[context->image_index];
+#endif
+    VK_END_DEBUG_LABEL(context, command_buffer->handle);
 }
 
 b8 vulkan_renderer_frame_prepare(renderer_plugin *plugin, struct frame_data *p_frame_data) {
@@ -1125,12 +1147,9 @@ b8 vulkan_renderer_renderpass_begin(renderer_plugin *plugin, renderpass *pass, r
     command_buffer->state = COMMAND_BUFFER_STATE_IN_RENDER_PASS;
 
 #ifdef _DEBUG
-    f32 r = kfrandom_in_range(0.0f, 1.0f);
-    f32 g = kfrandom_in_range(0.0f, 1.0f);
-    f32 b = kfrandom_in_range(0.0f, 1.0f);
-    vec4 colour = (vec4){r, g, b, 1.0f};
+    vec3 rgba = (vec3){kfrandom_in_range(0.0f, 1.0f), kfrandom_in_range(0.0f, 1.0f), kfrandom_in_range(0.0f, 1.0f)};
 #endif
-    VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, pass->name, colour);
+    vulkan_renderer_begin_debug_label(plugin, pass->name, rgba);
     return true;
 }
 
@@ -1140,7 +1159,7 @@ b8 vulkan_renderer_renderpass_end(renderer_plugin *plugin, renderpass *pass) {
         &context->graphics_command_buffers[context->image_index];
     // End the renderpass.
     vkCmdEndRenderPass(command_buffer->handle);
-    VK_END_DEBUG_LABEL(context, command_buffer->handle);
+    vulkan_renderer_end_debug_label(plugin);
 
     command_buffer->state = COMMAND_BUFFER_STATE_RECORDING;
     return true;
@@ -1291,7 +1310,7 @@ void vulkan_renderer_texture_create(renderer_plugin *plugin, const u8 *pixels,
         t->name, t->mip_levels, image);
 
     // Load the data.
-    vulkan_renderer_texture_write_data(plugin, t, 0, size, pixels);
+    vulkan_renderer_texture_write_data(plugin, t, 0, size, pixels, false);
 
     t->generation++;
 }
@@ -1394,7 +1413,7 @@ void vulkan_renderer_texture_resize(renderer_plugin *plugin, texture *t,
 
 void vulkan_renderer_texture_write_data(renderer_plugin *plugin, texture *t,
                                         u32 offset, u32 size,
-                                        const u8 *pixels) {
+                                        const u8 *pixels, b8 include_in_frame_workload) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     vulkan_image *image = (vulkan_image *)t->internal_data;
 
@@ -1404,7 +1423,7 @@ void vulkan_renderer_texture_write_data(renderer_plugin *plugin, texture *t,
     // Staging buffer.
     u64 staging_offset = 0;
     renderer_renderbuffer_allocate(&context->staging, size, &staging_offset);
-    vulkan_buffer_load_range(plugin, &context->staging, staging_offset, size, pixels);
+    vulkan_buffer_load_range(plugin, &context->staging, staging_offset, size, pixels, include_in_frame_workload);
 
     vulkan_command_buffer temp_command_buffer;
     VkCommandPool pool = context->device.graphics_command_pool;
@@ -3532,7 +3551,7 @@ b8 vulkan_buffer_resize(renderer_plugin *plugin, renderbuffer *buffer,
 
     // Copy over the data.
     vulkan_buffer_copy_range_internal(context, internal_buffer->handle, 0,
-                                      new_buffer, 0, buffer->total_size);
+                                      new_buffer, 0, buffer->total_size, false);
 
     // Make sure anything potentially using these is finished.
     // NOTE: We could use vkQueueWaitIdle here if we knew what queue this buffer
@@ -3670,7 +3689,7 @@ b8 vulkan_buffer_read(renderer_plugin *plugin, renderbuffer *buffer, u64 offset,
         vulkan_buffer *read_internal = (vulkan_buffer *)read.internal_data;
 
         // Perform the copy from device local to the read buffer.
-        vulkan_buffer_copy_range(plugin, buffer, offset, &read, 0, size);
+        vulkan_buffer_copy_range(plugin, buffer, offset, &read, 0, size, true);
 
         // Map/copy/unmap
         void *mapped_data;
@@ -3695,7 +3714,7 @@ b8 vulkan_buffer_read(renderer_plugin *plugin, renderbuffer *buffer, u64 offset,
 }
 
 b8 vulkan_buffer_load_range(renderer_plugin *plugin, renderbuffer *buffer,
-                            u64 offset, u64 size, const void *data) {
+                            u64 offset, u64 size, const void *data, b8 include_in_frame_workload) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     if (!buffer || !buffer->internal_data || !size || !data) {
         KERROR(
@@ -3714,10 +3733,10 @@ b8 vulkan_buffer_load_range(renderer_plugin *plugin, renderbuffer *buffer,
         // Load the data into the staging buffer.
         u64 staging_offset = 0;
         renderer_renderbuffer_allocate(&context->staging, size, &staging_offset);
-        vulkan_buffer_load_range(plugin, &context->staging, staging_offset, size, data);
+        vulkan_buffer_load_range(plugin, &context->staging, staging_offset, size, data, include_in_frame_workload);
 
         // Perform the copy from staging to the device local buffer.
-        vulkan_buffer_copy_range(plugin, &context->staging, staging_offset, buffer, offset, size);
+        vulkan_buffer_copy_range(plugin, &context->staging, staging_offset, buffer, offset, size, include_in_frame_workload);
     } else {
         // If no staging buffer is needed, map/copy/unmap.
         void *data_ptr;
@@ -3733,33 +3752,41 @@ b8 vulkan_buffer_load_range(renderer_plugin *plugin, renderbuffer *buffer,
 static b8 vulkan_buffer_copy_range_internal(vulkan_context *context,
                                             VkBuffer source, u64 source_offset,
                                             VkBuffer dest, u64 dest_offset,
-                                            u64 size) {
-    // TODO: Assuming queue and pool usage here. Might want dedicated queue.
+                                            u64 size, b8 include_in_frame_workload) {
     VkQueue queue = context->device.graphics_queue;
-    vkQueueWaitIdle(queue);
-    // Create a one-time-use command buffer.
     vulkan_command_buffer temp_command_buffer;
-    vulkan_command_buffer_allocate_and_begin_single_use(
-        context, context->device.graphics_command_pool, &temp_command_buffer);
+    vulkan_command_buffer *command_buffer = 0;
+
+    // If not including in frame workload, then utilize a new temp command buffer as well. Otherwise this should be done
+    // as part of the current frame's work.
+    if (!include_in_frame_workload) {
+        vkQueueWaitIdle(queue);
+        // Create a one-time-use command buffer.
+        vulkan_command_buffer_allocate_and_begin_single_use(context, context->device.graphics_command_pool, &temp_command_buffer);
+        command_buffer = &temp_command_buffer;
+    } else {
+        command_buffer = &context->graphics_command_buffers[context->image_index];
+    }
 
     // Prepare the copy command and add it to the command buffer.
     VkBufferCopy copy_region;
     copy_region.srcOffset = source_offset;
     copy_region.dstOffset = dest_offset;
     copy_region.size = size;
-    vkCmdCopyBuffer(temp_command_buffer.handle, source, dest, 1, &copy_region);
+    vkCmdCopyBuffer(command_buffer->handle, source, dest, 1, &copy_region);
 
-    // Submit the buffer for execution and wait for it to complete.
-    vulkan_command_buffer_end_single_use(context,
-                                         context->device.graphics_command_pool,
-                                         &temp_command_buffer, queue);
+    if (!include_in_frame_workload) {
+        // Submit the buffer for execution and wait for it to complete.
+        vulkan_command_buffer_end_single_use(context, context->device.graphics_command_pool, &temp_command_buffer, queue);
+    }
+    // NOTE: if not waiting, submission will be handled later.
 
     return true;
 }
 
 b8 vulkan_buffer_copy_range(renderer_plugin *plugin, renderbuffer *source,
                             u64 source_offset, renderbuffer *dest,
-                            u64 dest_offset, u64 size) {
+                            u64 dest_offset, u64 size, b8 include_in_frame_workload) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     if (!source || !source->internal_data || !dest || !dest->internal_data ||
         !size) {
@@ -3771,7 +3798,7 @@ b8 vulkan_buffer_copy_range(renderer_plugin *plugin, renderbuffer *source,
 
     return vulkan_buffer_copy_range_internal(
         context, ((vulkan_buffer *)source->internal_data)->handle, source_offset,
-        ((vulkan_buffer *)dest->internal_data)->handle, dest_offset, size);
+        ((vulkan_buffer *)dest->internal_data)->handle, dest_offset, size, include_in_frame_workload);
     return true;
 }
 

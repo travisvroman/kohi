@@ -23,6 +23,8 @@ typedef b8 (*PFN_system_initialize)(u64* memory_requirement, void* memory, void*
 typedef void (*PFN_system_shutdown)(void* state);
 /** @brief Typedef for a update function pointer. */
 typedef b8 (*PFN_system_update)(void* state, struct frame_data* p_frame_data);
+/** @brief Typedef for a render prepare frame function pointer. */
+typedef void (*PFN_system_render_prepare_frame)(void* state, const struct frame_data* p_frame_data);
 
 /**
  * @brief Represents a registered system. Function pointers
@@ -40,6 +42,8 @@ typedef struct k_system {
     PFN_system_shutdown shutdown;
     /** @brief A function pointer for the system's update routine, called every frame. Optional. */
     PFN_system_update update;
+    /** @brief A function pointer for the system's "prepare frame" routine, called every frame. Optional. */
+    PFN_system_render_prepare_frame render_prepare_frame;
 } k_system;
 
 #define K_SYSTEM_TYPE_MAX_COUNT 512
@@ -134,6 +138,16 @@ void systems_manager_shutdown(systems_manager_state* state);
 b8 systems_manager_update(systems_manager_state* state, struct frame_data* p_frame_data);
 
 /**
+ * @brief Calls "frame prepare" routines on all systems that opt in to it. This is generally for systems
+ * that need to inject pre-draw phase render logic into a frame (i.e. updating vertex data).
+ * Performed during the main engine loop.
+ *
+ * @param state A pointer to the systems manager state.
+ * @param p_frame_data A constant pointer to the data for this frame.
+ */
+void systems_manager_renderer_frame_prepare(systems_manager_state* state, const struct frame_data* p_frame_data);
+
+/**
  * @brief Registers a system to be managed.
  *
  * @param state A pointer to the system manager state.
@@ -141,6 +155,7 @@ b8 systems_manager_update(systems_manager_state* state, struct frame_data* p_fra
  * @param initialize A function pointer for the initialize routine. Required.
  * @param shutdown A function pointer for the shutdown routine. Required.
  * @param update A function pointer for the update routine. Optional.
+ * @param prepare_frame A function pointer for the pre-render prepare routine. Optional.
  * @param config A pointer to the configuration for the system, passed to initialize.
  * @return True on successful registration; otherwise false.
  */
@@ -150,6 +165,7 @@ KAPI b8 systems_manager_register(
     PFN_system_initialize initialize,
     PFN_system_shutdown shutdown,
     PFN_system_update update,
+    PFN_system_render_prepare_frame prepare_frame,
     void* config);
 
 KAPI void* systems_manager_get_state(u16 type);

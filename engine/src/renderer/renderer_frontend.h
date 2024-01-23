@@ -54,6 +54,22 @@ KAPI void renderer_system_shutdown(void* state);
 KAPI void renderer_on_resized(u16 width, u16 height);
 
 /**
+ * @brief Begins the marking of a section of commands, listed under a given name and
+ * colour. Becomes a no-op in non-debug builds.
+ * NOTE: Each renderer backend will have different or possibly non-existant implementations of this.
+ * 
+ * @param label_text The text to be used for the label.
+ * @param colour The colour to be used for the label.
+ */
+KAPI void renderer_begin_debug_label(const char *label_text, vec3 colour);
+
+/**
+ * @brief Ends the last debug section of commands. Becomes a no-op in non-debug builds.
+ * NOTE: Each renderer backend will have different or possibly non-existant implementations of this.
+ */
+KAPI void renderer_end_debug_label(void);
+
+/**
  * @brief Performs setup routines required at the start of a frame.
  * @note A false result does not necessarily indicate failure. It can also specify that
  * the backend is simply not in a state capable of drawing a frame at the moment, and
@@ -265,7 +281,7 @@ KAPI b8 renderer_geometry_upload(geometry* geometry);
  * @param vertex_count The number of vertices which will be updated.
  * @param vertices The vertex data.
  */
-KAPI void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, void* vertices);
+KAPI void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, void* vertices, b8 include_in_frame_workload);
 
 /**
  * @brief Destroys the given geometry, releasing GPU resources.
@@ -661,7 +677,7 @@ KAPI b8 renderer_renderbuffer_clear(renderbuffer* buffer, b8 zero_memory);
  * @param data The data to be loaded.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data);
+KAPI b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload);
 
 /**
  * @brief Copies data in the specified rage fron the source to the destination buffer.
@@ -673,7 +689,7 @@ KAPI b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 s
  * @param size The size of the data in bytes to be copied.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size);
+KAPI b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size, b8 include_in_frame_workload);
 
 /**
  * @brief Attempts to draw the contents of the provided buffer at the given offset

@@ -255,6 +255,20 @@ b8 standard_ui_system_update(void* state, struct frame_data* p_frame_data) {
     return true;
 }
 
+void standard_ui_system_render_prepare_frame(void* state, const struct frame_data* p_frame_data) {
+    if (!state) {
+        return;
+    }
+
+    standard_ui_state* typed_state = (standard_ui_state*)state;
+    for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+        sui_control* c = typed_state->active_controls[i];
+        if (c->render_prepare) {
+            c->render_prepare(c, p_frame_data);
+        }
+    }
+}
+
 b8 standard_ui_system_render(void* state, sui_control* root, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
     if (!state) {
         return false;

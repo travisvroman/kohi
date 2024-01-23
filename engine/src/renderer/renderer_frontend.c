@@ -60,6 +60,8 @@ b8 renderer_system_initialize(u64* memory_requirement, void* state, void* config
     renderer_config.application_name = typed_config->application_name;
     // TODO: expose this to the application to configure.
     renderer_config.flags = RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT | RENDERER_CONFIG_FLAG_POWER_SAVING_BIT;
+    // NOTE: To enable validation, uncomment this line.
+    renderer_config.flags |= RENDERER_CONFIG_FLAG_ENABLE_VALIDATION;
 
     // Create the vsync kvar
     kvar_int_create("vsync", (renderer_config.flags & RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? 1 : 0);
@@ -119,6 +121,24 @@ void renderer_on_resized(u16 width, u16 height) {
     } else {
         KWARN("renderer backend does not exist to accept resize: %i %i", width, height);
     }
+}
+
+void renderer_begin_debug_label(const char* label_text, vec3 colour) {
+#ifdef _DEBUG
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    if (state_ptr) {
+        state_ptr->plugin.begin_debug_label(&state_ptr->plugin, label_text, colour);
+    }
+#endif
+}
+
+void renderer_end_debug_label(void) {
+#ifdef _DEBUG
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    if (state_ptr) {
+        state_ptr->plugin.end_debug_label(&state_ptr->plugin);
+    }
+#endif
 }
 
 b8 renderer_frame_prepare(struct frame_data* p_frame_data) {
@@ -242,7 +262,7 @@ void renderer_texture_create_writeable(texture* t) {
 
 void renderer_texture_write_data(texture* t, u32 offset, u32 size, const u8* pixels) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    state_ptr->plugin.texture_write_data(&state_ptr->plugin, t, offset, size, pixels);
+    state_ptr->plugin.texture_write_data(&state_ptr->plugin, t, offset, size, pixels, true);
 }
 
 void renderer_texture_read_data(texture* t, u32 offset, u32 size, void** out_memory) {
@@ -331,7 +351,8 @@ b8 renderer_geometry_upload(geometry* g) {
     }
 
     // Load the data.
-    if (!renderer_renderbuffer_load_range(&state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + vertex_offset, vertex_size, g->vertices + vertex_offset)) {
+    // TODO: Passing false here produces a queue wait and should be offloaded to another queue.
+    if (!renderer_renderbuffer_load_range(&state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + vertex_offset, vertex_size, g->vertices + vertex_offset, false)) {
         KERROR("vulkan_renderer_geometry_upload failed to upload to the vertex buffer!");
         return false;
     }
@@ -347,7 +368,8 @@ b8 renderer_geometry_upload(geometry* g) {
         }
 
         // Load the data.
-        if (!renderer_renderbuffer_load_range(&state_ptr->geometry_index_buffer, g->index_buffer_offset + index_offset, index_size, g->indices + index_offset)) {
+        // TODO: Passing false here produces a queue wait and should be offloaded to another queue.
+        if (!renderer_renderbuffer_load_range(&state_ptr->geometry_index_buffer, g->index_buffer_offset + index_offset, index_size, g->indices + index_offset, false)) {
             KERROR("vulkan_renderer_geometry_upload failed to upload to the index buffer!");
             return false;
         }
@@ -358,11 +380,11 @@ b8 renderer_geometry_upload(geometry* g) {
     return true;
 }
 
-void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, void* vertices) {
+void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, void* vertices, b8 include_in_frame_workload) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     // Load the data.
     u32 size = g->vertex_element_size * vertex_count;
-    if (!renderer_renderbuffer_load_range(&state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + offset, size, vertices + offset)) {
+    if (!renderer_renderbuffer_load_range(&state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + offset, size, vertices + offset, include_in_frame_workload)) {
         KERROR("vulkan_renderer_geometry_vertex_update failed to upload to the vertex buffer!");
     }
 }
@@ -888,14 +910,14 @@ b8 renderer_renderbuffer_clear(renderbuffer* buffer, b8 zero_memory) {
     return true;
 }
 
-b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data) {
+b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.renderbuffer_load_range(&state_ptr->plugin, buffer, offset, size, data);
+    return state_ptr->plugin.renderbuffer_load_range(&state_ptr->plugin, buffer, offset, size, data, include_in_frame_workload);
 }
 
-b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size) {
+b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size, b8 include_in_frame_workload) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.renderbuffer_copy_range(&state_ptr->plugin, source, source_offset, dest, dest_offset, size);
+    return state_ptr->plugin.renderbuffer_copy_range(&state_ptr->plugin, source, source_offset, dest, dest_offset, size, include_in_frame_workload);
 }
 
 b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only) {
