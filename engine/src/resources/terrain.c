@@ -18,6 +18,14 @@
 static void terrain_chunk_destroy(terrain *t, terrain_chunk *chunk);
 static void terrain_chunk_calculate_geometry(terrain *t, terrain_chunk *chunk, u32 chunk_offset_x, u32 chunk_offset_z);
 
+typedef enum terrain_skirt_side {
+    TSS_LEFT = 0,
+    TSS_RIGHT = 1,
+    TSS_TOP = 2,
+    TSS_BOTTOM = 3,
+    TSS_COUNT = 4
+} terrain_skirt_side;
+
 b8 terrain_create(const terrain_config *config, terrain *out_terrain) {
     if (!out_terrain) {
         KERROR("terrain_create requires a valid pointer to out_terrain.");
@@ -415,47 +423,30 @@ static void terrain_chunk_calculate_geometry(terrain *t, terrain_chunk *chunk, u
     }
 
     // Generate skirt data for each side.
-    // Left, top, right, bottom
-    u32 vi = chunk->surface_vertex_count;
-    // Left
-    for (u32 i = 0; i < vertex_stride; ++i, ++vi) {
-        // Source vertex
-        terrain_vertex *sv = &chunk->vertices[i * vertex_stride];
-        // Target vertex
-        terrain_vertex *v = &chunk->vertices[vi];
+    u32 vvi = chunk->surface_vertex_count;
+    // Order is important here: Left, right, top, then bottom.
+    for (u8 s = 0; s < TSS_COUNT; ++s) {
+        // Left
+        for (u32 i = 0; i < vertex_stride; ++i, ++vvi) {
+            // Source vertex
+            terrain_vertex *sv;
+            if (s == TSS_LEFT) {
+                sv = &chunk->vertices[i * vertex_stride];
+            } else if (s == TSS_RIGHT) {
+                sv = &chunk->vertices[(i * vertex_stride) + t->chunk_size];
+            } else if (s == TSS_TOP) {
+                sv = &chunk->vertices[i];
+            } else {  // TSS_BOTTOM
+                sv = &chunk->vertices[i + (vertex_stride * t->chunk_size)];
+            }
 
-        kcopy_memory(v, sv, sizeof(terrain_vertex));
-        v->position.y -= 0.5f * t->scale_y;
-    }
-    // right
-    for (u32 i = 0; i < vertex_stride; ++i, ++vi) {
-        // Source vertex
-        terrain_vertex *sv = &chunk->vertices[(i * vertex_stride) + (t->chunk_size)];
-        // Target vertex
-        terrain_vertex *v = &chunk->vertices[vi];
+            // Target vertex
+            terrain_vertex *v = &chunk->vertices[vvi];
 
-        kcopy_memory(v, sv, sizeof(terrain_vertex));
-        v->position.y -= 0.5f * t->scale_y;
-    }
-    // top
-    for (u32 i = 0; i < vertex_stride; ++i, ++vi) {
-        // Source vertex
-        terrain_vertex *sv = &chunk->vertices[i];
-        // Target vertex
-        terrain_vertex *v = &chunk->vertices[vi];
-
-        kcopy_memory(v, sv, sizeof(terrain_vertex));
-        v->position.y -= 0.5f * t->scale_y;
-    }
-    // bottom
-    for (u32 i = 0; i < vertex_stride; ++i, ++vi) {
-        // Source vertex
-        terrain_vertex *sv = &chunk->vertices[i + (vertex_stride * (t->chunk_size))];
-        // Target vertex
-        terrain_vertex *v = &chunk->vertices[vi];
-
-        kcopy_memory(v, sv, sizeof(terrain_vertex));
-        v->position.y -= 0.5f * t->scale_y;
+            // Copy the source vertex data to the target, then change the height.
+            kcopy_memory(v, sv, sizeof(terrain_vertex));
+            v->position.y -= 0.1f * t->scale_y;
+        }
     }
 
     // Calculate extents for this chunk.
@@ -468,21 +459,23 @@ static void terrain_chunk_calculate_geometry(terrain *t, terrain_chunk *chunk, u
 
     chunk->center = extents_3d_half(chunk->extents);
 
-    // Generate indices.
+    // Generate indices for each LOD.
     for (u32 j = 0; j < t->lod_count; ++j) {
         terrain_chunk_lod *lod = &chunk->lods[j];
 
-        // Surface indices. Generate 1 set of 6 per tile.
-        for (u32 row = 0, i = 0; row < t->chunk_size; row += (1 << j)) {
-            for (u32 col = 0; col < t->chunk_size; col += (1 << j), i += 6) {
-                u32 next_row = row + (1 << j);
-                u32 next_col = col + (1 << j);
-                u32 v0 = (row * (vertex_stride)) + col;
-                u32 v1 = (row * (vertex_stride)) + next_col;
-                u32 v2 = (next_row * (vertex_stride)) + col;
-                u32 v3 = (next_row * (vertex_stride)) + next_col;
+        // The number of vertices that loops move forward per loop for this LOD.
+        u32 lod_skip_rate = (1 << j);
 
-                // v0, v1, v2, v2, v1, v3
+        // Surface indices. Generate 1 set of 6 per tile.
+        for (u32 row = 0, i = 0; row < t->chunk_size; row += lod_skip_rate) {
+            for (u32 col = 0; col < t->chunk_size; col += lod_skip_rate, i += 6) {
+                u32 next_row = row + lod_skip_rate;
+                u32 next_col = col + lod_skip_rate;
+                u32 v0 = (row * vertex_stride) + col;
+                u32 v1 = (row * vertex_stride) + next_col;
+                u32 v2 = (next_row * vertex_stride) + col;
+                u32 v3 = (next_row * vertex_stride) + next_col;
+
                 lod->indices[i + 0] = v2;
                 lod->indices[i + 1] = v1;
                 lod->indices[i + 2] = v0;
@@ -492,78 +485,55 @@ static void terrain_chunk_calculate_geometry(terrain *t, terrain_chunk *chunk, u
             }
         }
 
-        // Generate skirt indices.
+        // Generate skirt indices starting at the end of the vertex and index arrays.
         u32 ii = lod->surface_index_count;
         u32 vi = chunk->surface_vertex_count;
 
-        // left
-        for (u32 i = 0; i < t->chunk_size; i += (1 << j), ii += 6, vi += (1 << j)) {
-            // existing along the left edge
-            u32 v0 = i * vertex_stride;
-            u32 v1 = (i + (1 << j)) * vertex_stride;
-            // new - these need to be based on lod as well.
-            u32 v2 = vi;
-            u32 v3 = vi + (1 << j);
+        // Order is important here: Left, right, top, then bottom.
+        for (u8 s = 0; s < TSS_COUNT; ++s) {
+            // Iterate vertices at the lod skip rate.
+            for (u32 i = 0; i < t->chunk_size; i += lod_skip_rate, ii += 6, vi += lod_skip_rate) {
+                // Find the 2 verts along the surface's edge.
+                u32 v0, v1;
+                if (s == TSS_LEFT) {
+                    v0 = i * vertex_stride;
+                    v1 = (i + lod_skip_rate) * vertex_stride;
+                } else if (s == TSS_RIGHT) {
+                    v0 = (i * vertex_stride) + (vertex_stride - 1);
+                    v1 = ((i + lod_skip_rate) * vertex_stride) + (vertex_stride - 1);
+                } else if (s == TSS_TOP) {
+                    v0 = i;
+                    v1 = i + lod_skip_rate;
+                } else {  // Bottom
+                    v0 = i + (vertex_stride * t->chunk_size);
+                    v1 = (i + lod_skip_rate) + (vertex_stride * t->chunk_size);
+                }
 
-            // Counter-clockwise.
-            lod->indices[ii + 0] = v0;
-            lod->indices[ii + 1] = v3;
-            lod->indices[ii + 2] = v1;
-            lod->indices[ii + 3] = v0;
-            lod->indices[ii + 4] = v2;
-            lod->indices[ii + 5] = v3;
-        }
+                // The other 2 are the verts directly below that.
+                u32 v2 = vi;
+                u32 v3 = vi + lod_skip_rate;
 
-        vi++;
+                if (s == TSS_LEFT || s == TSS_BOTTOM) {
+                    // Counter-clockwise for left and bottom.
+                    lod->indices[ii + 0] = v0;
+                    lod->indices[ii + 1] = v3;
+                    lod->indices[ii + 2] = v1;
+                    lod->indices[ii + 3] = v0;
+                    lod->indices[ii + 4] = v2;
+                    lod->indices[ii + 5] = v3;
+                } else {  // Right, top
+                    // Clockwise for right and top.
+                    lod->indices[ii + 0] = v0;
+                    lod->indices[ii + 1] = v1;
+                    lod->indices[ii + 2] = v2;
+                    lod->indices[ii + 3] = v1;
+                    lod->indices[ii + 4] = v3;
+                    lod->indices[ii + 5] = v2;
+                }
+            }
 
-        // right
-        for (u32 i = 0; i < t->chunk_size; i += (1 << j), ii += 6, vi += (1 << j)) {
-            u32 v0 = (i * (vertex_stride)) + (vertex_stride - 1);
-            u32 v1 = ((i + (1 << j)) * (vertex_stride)) + (vertex_stride - 1);
-            u32 v2 = vi;
-            u32 v3 = vi + (1 << j);
-
-            // Clockwise.
-            lod->indices[ii + 0] = v0;
-            lod->indices[ii + 1] = v1;
-            lod->indices[ii + 2] = v2;
-            lod->indices[ii + 3] = v1;
-            lod->indices[ii + 4] = v3;
-            lod->indices[ii + 5] = v2;
-        }
-        vi++;
-
-        // top
-        for (u32 i = 0; i < t->chunk_size; i += (1 << j), ii += 6, vi += (1 << j)) {
-            u32 v0 = i;
-            u32 v1 = (i + (1 << j));
-            u32 v2 = vi;
-            u32 v3 = vi + (1 << j);
-
-            // Clockwise.
-            lod->indices[ii + 0] = v0;
-            lod->indices[ii + 1] = v1;
-            lod->indices[ii + 2] = v2;
-            lod->indices[ii + 3] = v1;
-            lod->indices[ii + 4] = v3;
-            lod->indices[ii + 5] = v2;
-        }
-        vi++;
-
-        // bottom
-        for (u32 i = 0; i < t->chunk_size; i += (1 << j), ii += 6, vi += (1 << j)) {
-            u32 v0 = i + (vertex_stride * (t->chunk_size));
-            u32 v1 = (i + (1 << j)) + (vertex_stride * (t->chunk_size));
-            u32 v2 = vi;
-            u32 v3 = vi + (1 << j);
-
-            // Counter-clockwise.
-            lod->indices[ii + 0] = v0;
-            lod->indices[ii + 1] = v3;
-            lod->indices[ii + 2] = v1;
-            lod->indices[ii + 3] = v0;
-            lod->indices[ii + 4] = v2;
-            lod->indices[ii + 5] = v3;
+            // Skip the last vertex since the loop above takes i and i + 1.
+            vi++;
         }
     }
 
