@@ -1,6 +1,7 @@
 #include "shader_system.h"
 
 #include "containers/darray.h"
+#include "core/event.h"
 #include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
@@ -36,6 +37,32 @@ static b8 uniform_name_valid(shader* shader, const char* uniform_name);
 static b8 shader_uniform_add_state_valid(shader* shader);
 static void internal_shader_destroy(shader* s);
 ///////////////////////
+
+#ifdef _DEBUG
+static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_context context) {
+    shader_system_state* typed_state = (shader_system_state*)listener_inst;
+    if (code == EVENT_CODE_WATCHED_FILE_WRITTEN) {
+        u32 file_watch_id = context.data.u32[0];
+
+        // Search shaders for the one with the changed file watch id.
+        for (u32 i = 0; i < typed_state->config.max_shader_count; ++i) {
+            shader* s = &typed_state->shaders[i];
+            for (u32 w = 0; w < s->shader_stage_count; ++w) {
+                if (s->module_watch_ids[w] == file_watch_id) {
+                    if (!shader_system_reload(s)) {
+                        KWARN("Shader hot-reload failed for shader '%s'. See logs for details.", s->name);
+                        // Allow other systems to pick this up.
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    // Return as unhandled to allow other systems to pick it up.
+    return false;
+}
+#endif
 
 b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config) {
     shader_system_config* typed_config = (shader_system_config*)config;
@@ -86,6 +113,11 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config)
     for (u32 i = 0; i < state_ptr->config.max_shader_count; ++i) {
         state_ptr->shaders[i].id = INVALID_ID;
     }
+
+    // Watch for file hot reloads in debug builds.
+#ifdef _DEBUG
+    event_register(EVENT_CODE_WATCHED_FILE_WRITTEN, state_ptr, file_watch_event);
+#endif
 
     return true;
 }
@@ -203,6 +235,14 @@ b8 shader_system_create(renderpass* pass, const shader_config* config) {
     }
 
     return true;
+}
+
+b8 shader_system_reload(shader* s) {
+    if (!s) {
+        return false;
+    }
+
+    return renderer_shader_reload(s);
 }
 
 u32 shader_system_get_id(const char* shader_name) {

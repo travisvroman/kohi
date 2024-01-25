@@ -43,6 +43,7 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->shader_destroy = vulkan_renderer_shader_destroy;
     out_plugin->shader_uniform_set = vulkan_renderer_uniform_set;
     out_plugin->shader_initialize = vulkan_renderer_shader_initialize;
+    out_plugin->shader_reload = vulkan_renderer_shader_reload;
     out_plugin->shader_use = vulkan_renderer_shader_use;
     out_plugin->shader_supports_wireframe = vulkan_renderer_shader_supports_wireframe;
     out_plugin->shader_bind_globals = vulkan_renderer_shader_bind_globals;

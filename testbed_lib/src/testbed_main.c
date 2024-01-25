@@ -66,6 +66,7 @@
 #include <systems/light_system.h>
 #include <systems/material_system.h>
 #include <systems/resource_system.h>
+#include <systems/shader_system.h>
 // Standard ui
 #include <core/systems_manager.h>
 #include <standard_ui_system.h>
@@ -215,7 +216,11 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
             audio_system_channel_play(channel_id, state->test_audio_file, false);
         }
     } else if (code == EVENT_CODE_DEBUG4) {
-        if (state->test_loop_audio_file) {
+        shader* s = shader_system_get("Shader.Builtin.Terrain");
+        if (!shader_system_reload(s)) {
+            KERROR("Failed to reload terrain shader.");
+        }
+        /* if (state->test_loop_audio_file) {
             static b8 playing = true;
             playing = !playing;
             if (playing) {
@@ -227,7 +232,7 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
                 // Stop channel 6.
                 audio_system_channel_stop(6);
             }
-        }
+        } */
     }
 
     return false;
@@ -901,7 +906,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
         viewport* view_viewport = &state->world_viewport;
 
         f32 near = view_viewport->near_clip;
-        f32 far = view_viewport->far_clip;
+        f32 far = state->main_scene.dir_light ? state->main_scene.dir_light->data.shadow_distance + state->main_scene.dir_light->data.shadow_fade_distance : 0;
         f32 clip_range = far - near;
 
         f32 min_z = near;
@@ -909,7 +914,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
         f32 range = max_z - min_z;
         f32 ratio = max_z / min_z;
 
-        f32 cascade_split_multiplier = 0.95f;
+        f32 cascade_split_multiplier = state->main_scene.dir_light ? state->main_scene.dir_light->data.shadow_split_mult : 0.95f;
 
         // Calculate splits based on view camera frustum.
         vec4 splits;
@@ -950,15 +955,21 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             vec3 culling_center;
             f32 culling_radius;
 
+            // Get the view-projection matrix
+            // TODO: pull max shadow dist + fade dist for far clip from light.
+            mat4 shadow_dist_projection = mat4_perspective(
+                view_viewport->fov,
+                view_viewport->rect.width / view_viewport->rect.height,
+                view_viewport->near_clip,
+                200.0f + 25.0f);
+            mat4 cam_view_proj = mat4_transposed(mat4_mul(camera_view_get(view_camera), shadow_dist_projection));
+
             for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
                 shadow_map_cascade_data* cascade = &ext_data->cascades[c];
                 cascade->cascade_index = c;
 
                 // NOTE: Each pass for cascades will need to do the following process.
                 // The only real difference will be that the near/far clips will be adjusted for each.
-
-                // Get the view-projection matrix
-                mat4 cam_view_proj = mat4_transposed(mat4_mul(camera_view_get(view_camera), view_viewport->projection));
 
                 // Get the world-space corners of the view frustum.
                 vec4 corners[8] = {0};

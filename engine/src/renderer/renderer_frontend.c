@@ -3,6 +3,7 @@
 #include "containers/darray.h"
 #include "containers/freelist.h"
 #include "containers/hashtable.h"
+#include "core/event.h"
 #include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
@@ -460,6 +461,8 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
     s->instance_sampler_indices = darray_create(u32);
     s->local_uniform_count = 0;
 
+    s->shader_stage_count = config->stage_count;
+
     // Examine the uniforms and determine scope as well as a count of samplers.
     u32 total_count = darray_length(config->uniforms);
     for (u32 i = 0; i < total_count; ++i) {
@@ -493,6 +496,7 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
     // regardless of what backend is being used.
 
     s->stage_configs = kallocate(sizeof(shader_stage_config) * config->stage_count, MEMORY_TAG_ARRAY);
+    s->module_watch_ids = kallocate(sizeof(u32) * config->stage_count, MEMORY_TAG_ARRAY);
     // Each stage.
     for (u8 i = 0; i < config->stage_count; ++i) {
         s->stage_configs[i].stage = config->stage_configs[i].stage;
@@ -511,6 +515,14 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
         // This should recursively replace #includes with the file content in-place and adjust the source
         // length along the way.
 
+#ifdef _DEBUG
+        // Allow shader hot-reloading in debug builds.
+        if (!platform_watch_file(text_resource.full_path, &s->module_watch_ids[i])) {
+            // If this fails, warn about it but there's no need to crash over it.
+            KWARN("Failed to watch shader source file '%s'.", text_resource.full_path);
+        }
+
+#endif
         // Release the resource as it isn't needed anymore at this point.
         resource_system_unload(&text_resource);
     }
@@ -519,13 +531,78 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
 }
 
 void renderer_shader_destroy(shader* s) {
-    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    state_ptr->plugin.shader_destroy(&state_ptr->plugin, s);
+#ifdef _DEBUG
+    if (s->module_watch_ids) {
+        // Unwatch the shader files.
+        for (u8 i = 0; i < s->shader_stage_count; ++i) {
+            platform_unwatch_file(s->module_watch_ids[i]);
+        }
+
+        renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+        state_ptr->plugin.shader_destroy(&state_ptr->plugin, s);
+    }
+#endif
 }
 
 b8 renderer_shader_initialize(shader* s) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->plugin.shader_initialize(&state_ptr->plugin, s);
+}
+
+b8 renderer_shader_reload(struct shader* s) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+
+    // Examine shader stages and load shader source as required. This source is
+    // then fed to the backend renderer, which stands up any shader program resources
+    // as required.
+    // TODO: Implement #include directives here at this level so it's handled the same
+    // regardless of what backend is being used.
+
+    // Make a copy of the stage configs in case a file fails to load.
+    b8 has_error = false;
+    shader_stage_config* new_stage_configs = kallocate(sizeof(shader_stage_config) * s->shader_stage_count, MEMORY_TAG_ARRAY);
+    for (u8 i = 0; i < s->shader_stage_count; ++i) {
+        // Read the resource.
+        resource text_resource;
+        if (!resource_system_load(s->stage_configs[i].filename, RESOURCE_TYPE_TEXT, 0, &text_resource)) {
+            KERROR("Unable to read shader file: %s.", s->stage_configs[i].filename);
+            has_error = true;
+            break;
+        }
+
+        // Free the old source.
+        if (s->stage_configs[i].source) {
+            string_free(s->stage_configs[i].source);
+        }
+
+        // Take a copy of the source and length, then release the resource.
+        new_stage_configs[i].source_length = text_resource.data_size;
+        new_stage_configs[i].source = string_duplicate(text_resource.data);
+        // TODO: Implement recursive #include directives here at this level so it's handled the same
+        // regardless of what backend is being used.
+        // This should recursively replace #includes with the file content in-place and adjust the source
+        // length along the way.
+
+        // Release the resource as it isn't needed anymore at this point.
+        resource_system_unload(&text_resource);
+    }
+
+    for (u8 i = 0; i < s->shader_stage_count; ++i) {
+        if (has_error) {
+            if (new_stage_configs[i].source) {
+                string_free(new_stage_configs[i].source);
+            }
+        } else {
+            s->stage_configs[i].source = new_stage_configs[i].source;
+            s->stage_configs[i].source_length = new_stage_configs[i].source_length;
+        }
+    }
+    kfree(new_stage_configs, sizeof(shader_stage_config) * s->shader_stage_count, MEMORY_TAG_ARRAY);
+    if (has_error) {
+        return false;
+    }
+
+    return state_ptr->plugin.shader_reload(&state_ptr->plugin, s);
 }
 
 b8 renderer_shader_use(shader* s) {

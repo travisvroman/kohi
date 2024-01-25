@@ -194,6 +194,10 @@ typedef struct shader {
 
     /** @brief An opaque pointer to hold renderer API specific data. Renderer is responsible for creation and destruction of this.  */
     void* internal_data;
+
+#ifdef _DEBUG
+    u32* module_watch_ids;
+#endif
 } shader;
 
 /**
@@ -223,6 +227,12 @@ void shader_system_shutdown(void* state);
  * @return True on success; otherwise false.
  */
 KAPI b8 shader_system_create(renderpass* pass, const shader_config* config);
+
+/**
+ * @brief Reloads the given shader.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_reload(shader* s);
 
 /**
  * @brief Gets the identifier of a shader by name.

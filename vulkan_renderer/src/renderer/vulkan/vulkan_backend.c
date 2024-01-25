@@ -1796,6 +1796,159 @@ void vulkan_renderer_shader_destroy(renderer_plugin *plugin, shader *s) {
     }
 }
 
+static b8 shader_create_modules_and_pipelines(renderer_plugin *plugin, shader *s) {
+    vulkan_context *context = (vulkan_context *)plugin->internal_context;
+    vulkan_shader *internal_shader = (vulkan_shader *)s->internal_data;
+
+    b8 has_error = false;
+
+    // Only dynamic topology is supported. Create one pipeline per topology class.
+    // If this isn't supported, perhaps a different backend should be used.
+    u32 pipeline_count = 3;
+
+    // Create a temporary array for the pipelines to sit in. These will sit here until all loading is
+    // complete, in the event this is called during a reload. This will ensure the current pipelines continue to
+    // function as they should until this load is complete and ready to go successfully.
+    vulkan_pipeline *new_pipelines = kallocate(sizeof(vulkan_pipeline) * pipeline_count, MEMORY_TAG_ARRAY);
+    // Same for wireframe_pipelines, if needed.
+    vulkan_pipeline *new_wireframe_pipelines = 0;
+    if (internal_shader->wireframe_pipelines) {
+        new_wireframe_pipelines = kallocate(sizeof(vulkan_pipeline) * pipeline_count, MEMORY_TAG_ARRAY);
+    }
+
+    // Create a module for each stage.
+    vulkan_shader_stage *new_stages = kallocate(sizeof(vulkan_shader_stage) * VULKAN_SHADER_MAX_STAGES, MEMORY_TAG_ARRAY);
+    for (u32 i = 0; i < internal_shader->stage_count; ++i) {
+        if (!create_shader_module(context, s, &s->stage_configs[i], &new_stages[i])) {
+            KERROR("Unable to create %s shader module for '%s'. Shader will be destroyed.", s->stage_configs[i].filename, s->name);
+            has_error = true;
+            goto shader_module_pipeline_cleanup;
+        }
+    }
+
+    // Default viewport/scissor, can be dynamically overidden.
+    VkViewport viewport;
+    viewport.x = 0.0f;
+    viewport.y = (f32)context->framebuffer_height;
+    viewport.width = (f32)context->framebuffer_width;
+    viewport.height = -(f32)context->framebuffer_height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    // Scissor
+    VkRect2D scissor;
+    scissor.offset.x = scissor.offset.y = 0;
+    scissor.extent.width = context->framebuffer_width;
+    scissor.extent.height = context->framebuffer_height;
+
+    VkPipelineShaderStageCreateInfo stage_create_infos[VULKAN_SHADER_MAX_STAGES];
+    kzero_memory(stage_create_infos, sizeof(VkPipelineShaderStageCreateInfo) * VULKAN_SHADER_MAX_STAGES);
+    for (u32 i = 0; i < internal_shader->stage_count; ++i) {
+        stage_create_infos[i] = new_stages[i].shader_stage_create_info;
+    }
+
+    // Loop through and config/create one pipeline per class. Null entries are skipped.
+    for (u32 i = 0; i < pipeline_count; ++i) {
+        if (!internal_shader->pipelines[i]) {
+            continue;
+        }
+
+        // Make sure the supported types are noted in the temp array pipelines.
+        new_pipelines[i].supported_topology_types = internal_shader->pipelines[i]->supported_topology_types;
+        if (internal_shader->wireframe_pipelines) {
+            new_wireframe_pipelines[i].supported_topology_types = internal_shader->wireframe_pipelines[i]->supported_topology_types;
+        }
+
+        vulkan_pipeline_config pipeline_config = {0};
+        pipeline_config.renderpass = internal_shader->renderpass;
+        pipeline_config.stride = s->attribute_stride;
+        pipeline_config.attribute_count = darray_length(s->attributes);
+        pipeline_config.attributes = internal_shader->attributes;
+        pipeline_config.descriptor_set_layout_count = internal_shader->descriptor_set_count;
+        pipeline_config.descriptor_set_layouts = internal_shader->descriptor_set_layouts;
+        pipeline_config.stage_count = internal_shader->stage_count;
+        pipeline_config.stages = stage_create_infos;
+        pipeline_config.viewport = viewport;
+        pipeline_config.scissor = scissor;
+        pipeline_config.cull_mode = internal_shader->cull_mode;
+
+        // Strip the wireframe flag if it's there.
+        shader_flag_bits flags = s->flags;
+        flags &= ~(SHADER_FLAG_WIREFRAME);
+        pipeline_config.shader_flags = flags;
+        // NOTE: Always one block for the push constant.
+        pipeline_config.push_constant_range_count = 1;
+        range push_constant_range;
+        push_constant_range.offset = 0;
+        push_constant_range.size = s->local_ubo_stride;
+        pipeline_config.push_constant_ranges = &push_constant_range;
+        pipeline_config.name = string_duplicate(s->name);
+        pipeline_config.topology_types = s->topology_types;
+
+        b8 pipeline_result = vulkan_graphics_pipeline_create(context, &pipeline_config, &new_pipelines[i]);
+
+        // Create the wireframe version.
+        if (pipeline_result && new_wireframe_pipelines) {
+            // Use the same config, but make sure the wireframe flag is set.
+            pipeline_config.shader_flags |= SHADER_FLAG_WIREFRAME;
+            pipeline_result = vulkan_graphics_pipeline_create(context, &pipeline_config, &new_wireframe_pipelines[i]);
+        }
+
+        kfree(pipeline_config.name, string_length(pipeline_config.name) + 1, MEMORY_TAG_STRING);
+
+        if (!pipeline_result) {
+            KERROR("Failed to load graphics pipeline for shader: '%s'.", s->name);
+            has_error = true;
+            break;
+        }
+    }
+
+    // If failed, cleanup.
+    if (has_error) {
+        for (u32 i = 0; i < pipeline_count; ++i) {
+            vulkan_pipeline_destroy(context, &new_pipelines[i]);
+            if (new_wireframe_pipelines) {
+                vulkan_pipeline_destroy(context, &new_wireframe_pipelines[i]);
+            }
+        }
+        for (u32 i = 0; i < internal_shader->stage_count; ++i) {
+            vkDestroyShaderModule(context->device.logical_device, new_stages[i].handle, context->allocator);
+        }
+        goto shader_module_pipeline_cleanup;
+    }
+
+    // In success, destroy the old pipelines and move the new pipelines over.
+    vkDeviceWaitIdle(context->device.logical_device);
+    for (u32 i = 0; i < pipeline_count; ++i) {
+        if (internal_shader->pipelines[i]) {
+            vulkan_pipeline_destroy(context, internal_shader->pipelines[i]);
+            kcopy_memory(internal_shader->pipelines[i], &new_pipelines[i], sizeof(vulkan_pipeline));
+        }
+        if (new_wireframe_pipelines) {
+            if (internal_shader->wireframe_pipelines[i]) {
+                vulkan_pipeline_destroy(context, internal_shader->wireframe_pipelines[i]);
+                kcopy_memory(internal_shader->wireframe_pipelines[i], &new_wireframe_pipelines[i], sizeof(vulkan_pipeline));
+            }
+        }
+    }
+
+    // Destroy the old shader modules and copy over the new ones.
+    for (u32 i = 0; i < internal_shader->stage_count; ++i) {
+        vkDestroyShaderModule(context->device.logical_device, internal_shader->stages[i].handle, context->allocator);
+        kcopy_memory(&internal_shader->stages[i], &new_stages[i], sizeof(vulkan_shader_stage));
+    }
+
+shader_module_pipeline_cleanup:
+    kfree(new_pipelines, sizeof(vulkan_pipeline) * pipeline_count, MEMORY_TAG_ARRAY);
+    if (new_wireframe_pipelines) {
+        kfree(new_wireframe_pipelines, sizeof(vulkan_pipeline) * pipeline_count, MEMORY_TAG_ARRAY);
+    }
+
+    kfree(new_stages, sizeof(vulkan_shader_stage) * VULKAN_SHADER_MAX_STAGES, MEMORY_TAG_ARRAY);
+
+    return !has_error;
+}
+
 b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
     vulkan_context *context = (vulkan_context *)plugin->internal_context;
     VkDevice logical_device = context->device.logical_device;
@@ -1807,15 +1960,6 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
     if (!context->device.features.fillModeNonSolid) {
         KINFO("Renderer backend does not support fillModeNonSolid. Wireframe mode is not possible, but was requested for the shader '%s'.", s->name);
         needs_wireframe = false;
-    }
-
-    // Create a module for each stage.
-    kzero_memory(internal_shader->stages, sizeof(vulkan_shader_stage) * VULKAN_SHADER_MAX_STAGES);
-    for (u32 i = 0; i < internal_shader->stage_count; ++i) {
-        if (!create_shader_module(context, s, &s->stage_configs[i], &internal_shader->stages[i])) {
-            KERROR("Unable to create %s shader module for '%s'. Shader will be destroyed.", s->stage_configs[i].filename, s->name);
-            return false;
-        }
     }
 
     // Static lookup table for our types->Vulkan ones.
@@ -1883,27 +2027,6 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
         }
     }
 
-    // Default viewport/scissor, can be dynamically overidden.
-    VkViewport viewport;
-    viewport.x = 0.0f;
-    viewport.y = (f32)context->framebuffer_height;
-    viewport.width = (f32)context->framebuffer_width;
-    viewport.height = -(f32)context->framebuffer_height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    // Scissor
-    VkRect2D scissor;
-    scissor.offset.x = scissor.offset.y = 0;
-    scissor.extent.width = context->framebuffer_width;
-    scissor.extent.height = context->framebuffer_height;
-
-    VkPipelineShaderStageCreateInfo stage_create_infos[VULKAN_SHADER_MAX_STAGES];
-    kzero_memory(stage_create_infos, sizeof(VkPipelineShaderStageCreateInfo) * VULKAN_SHADER_MAX_STAGES);
-    for (u32 i = 0; i < internal_shader->stage_count; ++i) {
-        stage_create_infos[i] = internal_shader->stages[i].shader_stage_create_info;
-    }
-
     // Only dynamic topology is supported. Create one pipeline per topology class.
     // If this isn't supported, perhaps a different backend should be used.
     u32 pipeline_count = 3;
@@ -1969,53 +2092,9 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
         }
     }
 
-    // Loop through and config/create one pipeline per class. Null entries are skipped.
-    for (u32 i = 0; i < pipeline_count; ++i) {
-        if (!internal_shader->pipelines[i]) {
-            continue;
-        }
-
-        vulkan_pipeline_config pipeline_config = {0};
-        pipeline_config.renderpass = internal_shader->renderpass;
-        pipeline_config.stride = s->attribute_stride;
-        pipeline_config.attribute_count = darray_length(s->attributes);
-        pipeline_config.attributes = internal_shader->attributes;
-        pipeline_config.descriptor_set_layout_count = internal_shader->descriptor_set_count;
-        pipeline_config.descriptor_set_layouts = internal_shader->descriptor_set_layouts;
-        pipeline_config.stage_count = internal_shader->stage_count;
-        pipeline_config.stages = stage_create_infos;
-        pipeline_config.viewport = viewport;
-        pipeline_config.scissor = scissor;
-        pipeline_config.cull_mode = internal_shader->cull_mode;
-
-        // Strip the wireframe flag if it's there.
-        shader_flag_bits flags = s->flags;
-        flags &= ~(SHADER_FLAG_WIREFRAME);
-        pipeline_config.shader_flags = flags;
-        // NOTE: Always one block for the push constant.
-        pipeline_config.push_constant_range_count = 1;
-        range push_constant_range;
-        push_constant_range.offset = 0;
-        push_constant_range.size = s->local_ubo_stride;
-        pipeline_config.push_constant_ranges = &push_constant_range;
-        pipeline_config.name = string_duplicate(s->name);
-        pipeline_config.topology_types = s->topology_types;
-
-        b8 pipeline_result = vulkan_graphics_pipeline_create(context, &pipeline_config, internal_shader->pipelines[i]);
-
-        // Create the wireframe version.
-        if (needs_wireframe && pipeline_result && internal_shader->wireframe_pipelines[i]) {
-            // Use the same config, but make sure the wireframe flag is set.
-            pipeline_config.shader_flags |= SHADER_FLAG_WIREFRAME;
-            pipeline_result = vulkan_graphics_pipeline_create(context, &pipeline_config, internal_shader->wireframe_pipelines[i]);
-        }
-
-        kfree(pipeline_config.name, string_length(pipeline_config.name) + 1, MEMORY_TAG_STRING);
-
-        if (!pipeline_result) {
-            KERROR("Failed to load graphics pipeline for shader: '%s'.", s->name);
-            return false;
-        }
+    if (!shader_create_modules_and_pipelines(plugin, s)) {
+        KERROR("Failed initial load on shader '%s'. See logs for details.", s->name);
+        return false;
     }
 
     // TODO: Figure out what the default should be here.
@@ -2122,6 +2201,10 @@ b8 vulkan_renderer_shader_initialize(renderer_plugin *plugin, shader *s) {
     }
 
     return true;
+}
+
+b8 vulkan_renderer_shader_reload(renderer_plugin *plugin, shader *s) {
+    return shader_create_modules_and_pipelines(plugin, s);
 }
 
 b8 vulkan_renderer_shader_use(renderer_plugin *plugin, shader *s) {

@@ -57,11 +57,11 @@ KAPI void renderer_on_resized(u16 width, u16 height);
  * @brief Begins the marking of a section of commands, listed under a given name and
  * colour. Becomes a no-op in non-debug builds.
  * NOTE: Each renderer backend will have different or possibly non-existant implementations of this.
- * 
+ *
  * @param label_text The text to be used for the label.
  * @param colour The colour to be used for the label.
  */
-KAPI void renderer_begin_debug_label(const char *label_text, vec3 colour);
+KAPI void renderer_begin_debug_label(const char* label_text, vec3 colour);
 
 /**
  * @brief Ends the last debug section of commands. Becomes a no-op in non-debug builds.
@@ -338,6 +338,14 @@ KAPI void renderer_shader_destroy(struct shader* s);
  * @return True on success; otherwise false.
  */
 KAPI b8 renderer_shader_initialize(struct shader* s);
+
+/**
+ * @brief Reloads the internals of the given shader.
+ *
+ * @param s A pointer to the shader to be reloaded.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 renderer_shader_reload(struct shader* s);
 
 /**
  * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,

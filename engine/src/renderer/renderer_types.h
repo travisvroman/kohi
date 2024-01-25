@@ -340,8 +340,8 @@ typedef struct renderer_plugin {
      */
     void (*shutdown)(struct renderer_plugin* plugin);
 
-    void (*begin_debug_label)(struct renderer_plugin *plugin, const char *label_text, vec3 colour);
-    void (*end_debug_label)(struct renderer_plugin *plugin);
+    void (*begin_debug_label)(struct renderer_plugin* plugin, const char* label_text, vec3 colour);
+    void (*end_debug_label)(struct renderer_plugin* plugin);
 
     /**
      * @brief Handles window resizes.
@@ -601,6 +601,15 @@ typedef struct renderer_plugin {
      * @return True on success; otherwise false.
      */
     b8 (*shader_initialize)(struct renderer_plugin* plugin, struct shader* shader);
+
+    /**
+     * @brief Reloads the internals of the given shader.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param s A pointer to the shader to be reloaded.
+     * @return True on success; otherwise false.
+     */
+    b8 (*shader_reload)(struct renderer_plugin* plugin, struct shader* s);
 
     /**
      * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
