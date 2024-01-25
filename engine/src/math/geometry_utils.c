@@ -460,11 +460,22 @@ b8 update_nine_slice(nine_slice *nslice, vertex_2d *vertices) {
     }
 
     if (using_geo_verts) {
-        // Upload the new vertex data.
-        renderer_geometry_vertex_update(nslice->g, 0, nslice->g->vertex_count, nslice->g->vertices);
+        nslice->is_dirty = true;
     }
 
     return true;
+}
+
+void nine_slice_render_frame_prepare(nine_slice *nslice, const struct frame_data *p_frame_data) {
+    if (!nslice) {
+        return;
+    }
+
+    if (nslice->is_dirty) {
+        // Upload the new vertex data.
+        renderer_geometry_vertex_update(nslice->g, 0, nslice->g->vertex_count, nslice->g->vertices, true);
+        nslice->is_dirty = false;
+    }
 }
 
 b8 generate_nine_slice(const char *name, vec2i size, vec2i atlas_px_size, vec2i atlas_px_min, vec2i atlas_px_max, vec2i corner_px_size, vec2i corner_size, nine_slice *out_nine_slice) {

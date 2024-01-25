@@ -5,7 +5,9 @@ stages=vertex,fragment
 stagefiles=shaders/Builtin.TerrainShader.vert.glsl,shaders/Builtin.TerrainShader.frag.glsl
 depth_test=1
 depth_write=1
+supports_wireframe=1
 max_instances=5
+cull_mode=back
 
 # Attributes: type,name
 attribute=vec3,in_position
@@ -24,7 +26,7 @@ uniform=mat4,0,light_space_1
 uniform=mat4,0,light_space_2
 uniform=mat4,0,light_space_3
 uniform=vec4,0,cascade_splits
-uniform=struct32,0,dir_light
+uniform=struct48,0,dir_light
 uniform=vec3,0,view_position
 uniform=u32,0,mode
 uniform=u32,0,use_pcf

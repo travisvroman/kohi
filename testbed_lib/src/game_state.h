@@ -45,7 +45,6 @@ typedef struct testbed_game_state {
     kclock update_clock;
     kclock prepare_clock;
     kclock render_clock;
-    kclock present_clock;
     f64 last_update_elapsed;
 
     // TODO: temp

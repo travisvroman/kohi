@@ -119,6 +119,11 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
 
             resource_data->material_names[material_index] = string_duplicate(trimmed_value);
             resource_data->material_count++;
+        } else if (strings_equali(trimmed_var_name, "chunk_size")) {
+            if (!string_to_u32(trimmed_value, &resource_data->chunk_size)) {
+                KWARN("Format error - invalid chunk size. Defaulting to 16.");
+                resource_data->chunk_size = 16;
+            }
         } else {
             // TODO: capture anything else
         }
@@ -138,26 +143,47 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
         resource heightmap_image_resource;
         if (!resource_system_load(heightmap_file, RESOURCE_TYPE_IMAGE, &params,
                                   &heightmap_image_resource)) {
-            KERROR(
-                "Unable to load heightmap file for terrain. Setting some "
-                "reasonable defaults.");
-            resource_data->tile_count_x = resource_data->tile_count_z = 100;
-            resource_data->vertex_data_length = 100 * 100;
-            resource_data->vertex_datas = darray_reserve(
-                terrain_vertex_data, resource_data->vertex_data_length);
+            KERROR("Unable to load heightmap file for terrain. Setting some reasonable defaults.");
+            resource_data->tile_count_x = resource_data->tile_count_z = 128;
+            resource_data->chunk_size = 16;
+            resource_data->vertex_data_length = resource_data->tile_count_x * resource_data->tile_count_z;
+            resource_data->vertex_datas = darray_reserve(terrain_vertex_data, resource_data->vertex_data_length);
         }
 
-        image_resource_data *image_data =
-            (image_resource_data *)heightmap_image_resource.data;
-        u32 pixel_count = image_data->width * image_data->height;
-        resource_data->vertex_data_length = pixel_count;
-        resource_data->vertex_datas =
-            darray_reserve(terrain_vertex_data, resource_data->vertex_data_length);
+        image_resource_data *image_data = (image_resource_data *)heightmap_image_resource.data;
+        resource_data->vertex_data_length = (image_data->width + 1) * (image_data->height + 1);
+        resource_data->vertex_datas = darray_reserve(terrain_vertex_data, resource_data->vertex_data_length);
 
         resource_data->tile_count_x = image_data->width;
         resource_data->tile_count_z = image_data->height;
+        if (resource_data->tile_count_x % resource_data->chunk_size != 0 || resource_data->tile_count_z % resource_data->chunk_size != 0) {
+            KERROR(
+                "Heightmap dimensions must be a multiple of chunk size. (map w='%u', h='%u', chunk_size='%u')",
+                resource_data->tile_count_x,
+                resource_data->tile_count_z,
+                resource_data->chunk_size);
+            return false;
+        }
 
-        for (u32 i = 0; i < pixel_count; ++i) {
+        u32 j = 0;
+        for (u32 y = 0, i = 0; y < image_data->height; ++y) {
+            for (u32 x = 0; x < image_data->width; ++x, ++i, ++j) {
+                u8 r = image_data->pixels[(i * 4) + 0];
+                u8 g = image_data->pixels[(i * 4) + 1];
+                u8 b = image_data->pixels[(i * 4) + 2];
+                // Need to base height off combined RGB value.
+                u32 colour_int = 0;
+                rgbu_to_u32(r, g, b, &colour_int);
+                f32 height = (f32)colour_int / 16777215;
+
+                resource_data->vertex_datas[j].height = height;
+            }
+            // Use the previous pixel's height again for the last row.
+            resource_data->vertex_datas[j].height = resource_data->vertex_datas[j - 1].height;
+            ++j;
+        }
+        // Iterate the last row of the image and sample the height from there again for the last row of the terrain.
+        for (u32 i = image_data->width * (image_data->height - 1); i < (image_data->width * image_data->height); ++i, ++j) {
             u8 r = image_data->pixels[(i * 4) + 0];
             u8 g = image_data->pixels[(i * 4) + 1];
             u8 b = image_data->pixels[(i * 4) + 2];
@@ -166,19 +192,19 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
             rgbu_to_u32(r, g, b, &colour_int);
             f32 height = (f32)colour_int / 16777215;
 
-            resource_data->vertex_datas[i].height = height;
+            resource_data->vertex_datas[j].height = height;
         }
+        // The final vertex also needs a copy of the previous height.
+        resource_data->vertex_datas[j].height = resource_data->vertex_datas[j - 1].height;
 
         resource_system_unload(&heightmap_image_resource);
     } else {
         // For now, heightmaps are the only way to import terrains.
-        KWARN(
-            "No heightmap was included, using reasonable defaults for terrain "
-            "generation.");
-        resource_data->tile_count_x = resource_data->tile_count_z = 100;
-        resource_data->vertex_data_length = 100 * 100;
-        resource_data->vertex_datas =
-            darray_reserve(terrain_vertex_data, resource_data->vertex_data_length);
+        KWARN("No heightmap was included, using reasonable defaults for terrain generation.");
+        resource_data->tile_count_x = resource_data->tile_count_z = 128;
+        resource_data->chunk_size = 16;
+        resource_data->vertex_data_length = resource_data->tile_count_x * resource_data->tile_count_z;
+        resource_data->vertex_datas = darray_reserve(terrain_vertex_data, resource_data->vertex_data_length);
     }
     out_resource->data = resource_data;
     out_resource->data_size = sizeof(shader_config);
@@ -192,8 +218,7 @@ static void terrain_loader_unload(struct resource_loader *self,
 
     darray_destroy(data->vertex_datas);
     if (data->name) {
-        kfree(data->name, sizeof(char) * (string_length(data->name) + 1),
-              MEMORY_TAG_STRING);
+        kfree(data->name, sizeof(char) * (string_length(data->name) + 1), MEMORY_TAG_STRING);
     }
     kzero_memory(data, sizeof(shader_config));
 

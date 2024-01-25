@@ -108,7 +108,8 @@
         "xmemory": "c",
         "geometry_utils.h": "c",
         "shader_system.h": "c",
-        "renderer_types.h": "c"
+        "renderer_types.h": "c",
+        "transform.h": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [

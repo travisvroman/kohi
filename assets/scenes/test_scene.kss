@@ -16,6 +16,9 @@ cubemap_name=skybox
 name=sun
 colour=80.0 80.0 70.0 1.0
 direction=0.1 -1.0 0.1 1.0 
+shadow_distance=100
+shadow_fade_distance=5
+shadow_split_mult=0.95
 #direction=-0.57735 -0.57735 -0.57735 0.0
 [/DirectionalLight]
 

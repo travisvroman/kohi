@@ -3,6 +3,7 @@
 #include "containers/darray.h"
 #include "containers/freelist.h"
 #include "containers/hashtable.h"
+#include "core/event.h"
 #include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
@@ -60,6 +61,8 @@ b8 renderer_system_initialize(u64* memory_requirement, void* state, void* config
     renderer_config.application_name = typed_config->application_name;
     // TODO: expose this to the application to configure.
     renderer_config.flags = RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT | RENDERER_CONFIG_FLAG_POWER_SAVING_BIT;
+    // NOTE: To enable validation, uncomment this line.
+    renderer_config.flags |= RENDERER_CONFIG_FLAG_ENABLE_VALIDATION;
 
     // Create the vsync kvar
     kvar_int_create("vsync", (renderer_config.flags & RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? 1 : 0);
@@ -119,6 +122,24 @@ void renderer_on_resized(u16 width, u16 height) {
     } else {
         KWARN("renderer backend does not exist to accept resize: %i %i", width, height);
     }
+}
+
+void renderer_begin_debug_label(const char* label_text, vec3 colour) {
+#ifdef _DEBUG
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    if (state_ptr) {
+        state_ptr->plugin.begin_debug_label(&state_ptr->plugin, label_text, colour);
+    }
+#endif
+}
+
+void renderer_end_debug_label(void) {
+#ifdef _DEBUG
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    if (state_ptr) {
+        state_ptr->plugin.end_debug_label(&state_ptr->plugin);
+    }
+#endif
 }
 
 b8 renderer_frame_prepare(struct frame_data* p_frame_data) {
@@ -242,7 +263,7 @@ void renderer_texture_create_writeable(texture* t) {
 
 void renderer_texture_write_data(texture* t, u32 offset, u32 size, const u8* pixels) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    state_ptr->plugin.texture_write_data(&state_ptr->plugin, t, offset, size, pixels);
+    state_ptr->plugin.texture_write_data(&state_ptr->plugin, t, offset, size, pixels, true);
 }
 
 void renderer_texture_read_data(texture* t, u32 offset, u32 size, void** out_memory) {
@@ -317,10 +338,10 @@ b8 renderer_geometry_upload(geometry* g) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
 
     b8 is_reupload = g->generation != INVALID_ID_U16;
-    u32 vertex_size = g->vertex_element_size * g->vertex_count;
-    u32 vertex_offset = 0;
-    u32 index_size = g->index_element_size * g->index_count;
-    u32 index_offset = 0;
+    u64 vertex_size = (u64)(g->vertex_element_size * g->vertex_count);
+    u64 vertex_offset = 0;
+    u64 index_size = (u64)(g->index_element_size * g->index_count);
+    u64 index_offset = 0;
     // Vertex data.
     if (!is_reupload) {
         // Allocate space in the buffer.
@@ -331,7 +352,8 @@ b8 renderer_geometry_upload(geometry* g) {
     }
 
     // Load the data.
-    if (!renderer_renderbuffer_load_range(&state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + vertex_offset, vertex_size, g->vertices + vertex_offset)) {
+    // TODO: Passing false here produces a queue wait and should be offloaded to another queue.
+    if (!renderer_renderbuffer_load_range(&state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + vertex_offset, vertex_size, g->vertices + vertex_offset, false)) {
         KERROR("vulkan_renderer_geometry_upload failed to upload to the vertex buffer!");
         return false;
     }
@@ -347,7 +369,8 @@ b8 renderer_geometry_upload(geometry* g) {
         }
 
         // Load the data.
-        if (!renderer_renderbuffer_load_range(&state_ptr->geometry_index_buffer, g->index_buffer_offset + index_offset, index_size, g->indices + index_offset)) {
+        // TODO: Passing false here produces a queue wait and should be offloaded to another queue.
+        if (!renderer_renderbuffer_load_range(&state_ptr->geometry_index_buffer, g->index_buffer_offset + index_offset, index_size, g->indices + index_offset, false)) {
             KERROR("vulkan_renderer_geometry_upload failed to upload to the index buffer!");
             return false;
         }
@@ -358,11 +381,11 @@ b8 renderer_geometry_upload(geometry* g) {
     return true;
 }
 
-void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, void* vertices) {
+void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, void* vertices, b8 include_in_frame_workload) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     // Load the data.
     u32 size = g->vertex_element_size * vertex_count;
-    if (!renderer_renderbuffer_load_range(&state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + offset, size, vertices + offset)) {
+    if (!renderer_renderbuffer_load_range(&state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + offset, size, vertices + offset, include_in_frame_workload)) {
         KERROR("vulkan_renderer_geometry_vertex_update failed to upload to the vertex buffer!");
     }
 }
@@ -438,6 +461,8 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
     s->instance_sampler_indices = darray_create(u32);
     s->local_uniform_count = 0;
 
+    s->shader_stage_count = config->stage_count;
+
     // Examine the uniforms and determine scope as well as a count of samplers.
     u32 total_count = darray_length(config->uniforms);
     for (u32 i = 0; i < total_count; ++i) {
@@ -471,6 +496,7 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
     // regardless of what backend is being used.
 
     s->stage_configs = kallocate(sizeof(shader_stage_config) * config->stage_count, MEMORY_TAG_ARRAY);
+    s->module_watch_ids = kallocate(sizeof(u32) * config->stage_count, MEMORY_TAG_ARRAY);
     // Each stage.
     for (u8 i = 0; i < config->stage_count; ++i) {
         s->stage_configs[i].stage = config->stage_configs[i].stage;
@@ -489,6 +515,14 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
         // This should recursively replace #includes with the file content in-place and adjust the source
         // length along the way.
 
+#ifdef _DEBUG
+        // Allow shader hot-reloading in debug builds.
+        if (!platform_watch_file(text_resource.full_path, &s->module_watch_ids[i])) {
+            // If this fails, warn about it but there's no need to crash over it.
+            KWARN("Failed to watch shader source file '%s'.", text_resource.full_path);
+        }
+
+#endif
         // Release the resource as it isn't needed anymore at this point.
         resource_system_unload(&text_resource);
     }
@@ -497,8 +531,17 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
 }
 
 void renderer_shader_destroy(shader* s) {
-    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    state_ptr->plugin.shader_destroy(&state_ptr->plugin, s);
+#ifdef _DEBUG
+    if (s->module_watch_ids) {
+        // Unwatch the shader files.
+        for (u8 i = 0; i < s->shader_stage_count; ++i) {
+            platform_unwatch_file(s->module_watch_ids[i]);
+        }
+
+        renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+        state_ptr->plugin.shader_destroy(&state_ptr->plugin, s);
+    }
+#endif
 }
 
 b8 renderer_shader_initialize(shader* s) {
@@ -506,9 +549,77 @@ b8 renderer_shader_initialize(shader* s) {
     return state_ptr->plugin.shader_initialize(&state_ptr->plugin, s);
 }
 
+b8 renderer_shader_reload(struct shader* s) {
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+
+    // Examine shader stages and load shader source as required. This source is
+    // then fed to the backend renderer, which stands up any shader program resources
+    // as required.
+    // TODO: Implement #include directives here at this level so it's handled the same
+    // regardless of what backend is being used.
+
+    // Make a copy of the stage configs in case a file fails to load.
+    b8 has_error = false;
+    shader_stage_config* new_stage_configs = kallocate(sizeof(shader_stage_config) * s->shader_stage_count, MEMORY_TAG_ARRAY);
+    for (u8 i = 0; i < s->shader_stage_count; ++i) {
+        // Read the resource.
+        resource text_resource;
+        if (!resource_system_load(s->stage_configs[i].filename, RESOURCE_TYPE_TEXT, 0, &text_resource)) {
+            KERROR("Unable to read shader file: %s.", s->stage_configs[i].filename);
+            has_error = true;
+            break;
+        }
+
+        // Free the old source.
+        if (s->stage_configs[i].source) {
+            string_free(s->stage_configs[i].source);
+        }
+
+        // Take a copy of the source and length, then release the resource.
+        new_stage_configs[i].source_length = text_resource.data_size;
+        new_stage_configs[i].source = string_duplicate(text_resource.data);
+        // TODO: Implement recursive #include directives here at this level so it's handled the same
+        // regardless of what backend is being used.
+        // This should recursively replace #includes with the file content in-place and adjust the source
+        // length along the way.
+
+        // Release the resource as it isn't needed anymore at this point.
+        resource_system_unload(&text_resource);
+    }
+
+    for (u8 i = 0; i < s->shader_stage_count; ++i) {
+        if (has_error) {
+            if (new_stage_configs[i].source) {
+                string_free(new_stage_configs[i].source);
+            }
+        } else {
+            s->stage_configs[i].source = new_stage_configs[i].source;
+            s->stage_configs[i].source_length = new_stage_configs[i].source_length;
+        }
+    }
+    kfree(new_stage_configs, sizeof(shader_stage_config) * s->shader_stage_count, MEMORY_TAG_ARRAY);
+    if (has_error) {
+        return false;
+    }
+
+    return state_ptr->plugin.shader_reload(&state_ptr->plugin, s);
+}
+
 b8 renderer_shader_use(shader* s) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     return state_ptr->plugin.shader_use(&state_ptr->plugin, s);
+}
+
+b8 renderer_shader_set_wireframe(shader* s, b8 wireframe_enabled) {
+    // Ensure that this shader has the ability to go wireframe before changing.
+    renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
+    if (!state_ptr->plugin.shader_supports_wireframe(&state_ptr->plugin, s)) {
+        // Not supported, don't enable. Bleat about it.
+        KWARN("Shader does not support wireframe mode: '%s'.", s->name);
+        return false;
+    }
+    s->is_wireframe = wireframe_enabled;
+    return true;
 }
 
 b8 renderer_shader_bind_globals(shader* s) {
@@ -838,6 +949,7 @@ b8 renderer_renderbuffer_allocate(renderbuffer* buffer, u64 size, u64* out_offse
         buffer->offset += size;
         return true;
     }
+
     return freelist_allocate_block(&buffer->buffer_freelist, size, out_offset);
 }
 
@@ -875,14 +987,14 @@ b8 renderer_renderbuffer_clear(renderbuffer* buffer, b8 zero_memory) {
     return true;
 }
 
-b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data) {
+b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.renderbuffer_load_range(&state_ptr->plugin, buffer, offset, size, data);
+    return state_ptr->plugin.renderbuffer_load_range(&state_ptr->plugin, buffer, offset, size, data, include_in_frame_workload);
 }
 
-b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size) {
+b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size, b8 include_in_frame_workload) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
-    return state_ptr->plugin.renderbuffer_copy_range(&state_ptr->plugin, source, source_offset, dest, dest_offset, size);
+    return state_ptr->plugin.renderbuffer_copy_range(&state_ptr->plugin, source, source_offset, dest, dest_offset, size, include_in_frame_workload);
 }
 
 b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only) {

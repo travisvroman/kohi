@@ -16,6 +16,7 @@
 
 #include "debug_console.h"
 #include "game_state.h"
+#include "renderer/renderer_types.h"
 
 void game_on_escape_callback(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     KDEBUG("game_on_escape_callback");
@@ -136,6 +137,12 @@ void game_on_set_render_mode_normals(keys key, keymap_entry_bind_type type, keym
 void game_on_set_render_mode_cascades(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     event_context data = {};
     data.data.i32[0] = RENDERER_VIEW_MODE_CASCADES;
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (application*)user_data, data);
+}
+
+void game_on_set_render_mode_wireframe(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_context data = {};
+    data.data.i32[0] = RENDERER_VIEW_MODE_WIREFRAME;
     event_fire(EVENT_CODE_SET_RENDER_MODE, (application*)user_data, data);
 }
 
@@ -285,6 +292,7 @@ void game_setup_keymaps(application* game_inst) {
     keymap_binding_add(&testbed_keymap, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, game_inst, game_on_set_render_mode_lighting);
     keymap_binding_add(&testbed_keymap, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, game_inst, game_on_set_render_mode_normals);
     keymap_binding_add(&testbed_keymap, KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, game_inst, game_on_set_render_mode_cascades);
+    keymap_binding_add(&testbed_keymap, KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, game_inst, game_on_set_render_mode_wireframe);
 
     keymap_binding_add(&testbed_keymap, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_set_gizmo_mode);
     keymap_binding_add(&testbed_keymap, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_set_gizmo_mode);

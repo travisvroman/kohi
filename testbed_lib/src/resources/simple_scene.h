@@ -126,17 +126,18 @@ KAPI b8 simple_scene_unload(simple_scene* scene, b8 immediate);
  */
 KAPI b8 simple_scene_update(simple_scene* scene, const struct frame_data* p_frame_data);
 
+KAPI void simple_scene_render_frame_prepare(simple_scene* scene, const struct frame_data* p_frame_data);
+
 /**
- * @brief Populate the given render packet with data from the provided scene.
+ * @brief Updates LODs of items in the scene based on the given position and clipping distances.
  *
  * @param scene A pointer to the scene to be updated.
- * @param current_camera The current camera to use while rendering the scene.
- * @param viewport A pointer to the viewport to be used when populating the render packets.
  * @param p_frame_data A constant pointer to the current frame's data.
- * @param packet A pointer to the packet to populate.
- * @return True on success; otherwise false.
+ * @param view_position The view position to use for LOD calculation.
+ * @param near_clip The near clipping distance from the view position.
+ * @param far_clip The far clipping distance from the view position.
  */
-KAPI b8 simple_scene_populate_render_packet(simple_scene* scene, struct camera* current_camera, struct viewport* v, struct frame_data* p_frame_data, struct render_packet* packet);
+KAPI void simple_scene_update_lod_from_view_position(simple_scene* scene, const struct frame_data* p_frame_data, vec3 view_position, f32 near_clip, f32 far_clip);
 
 KAPI b8 simple_scene_raycast(simple_scene* scene, const struct ray* r, struct raycast_result* out_result);
 
@@ -174,7 +175,8 @@ KAPI struct transform* simple_scene_transform_get_by_id(simple_scene* scene, u64
 
 KAPI b8 simple_scene_debug_render_data_query(simple_scene* scene, u32* data_count, struct geometry_render_data** debug_geometries);
 
-KAPI b8 simple_scene_mesh_render_data_query(const simple_scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data* out_geometries);
-KAPI b8 simple_scene_mesh_render_data_query_from_line(const simple_scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data* out_geometries);
+KAPI b8 simple_scene_mesh_render_data_query(const simple_scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
+KAPI b8 simple_scene_mesh_render_data_query_from_line(const simple_scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
 
-KAPI b8 simple_scene_terrain_render_data_query(const simple_scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data* out_terrain_geometries);
+KAPI b8 simple_scene_terrain_render_data_query(const simple_scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries);
+KAPI b8 simple_scene_terrain_render_data_query_from_line(const simple_scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);

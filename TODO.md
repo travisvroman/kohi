@@ -68,6 +68,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Simple Scenes
   - [x] Base implementation
   - [x] Load from file 
+  - [ ] Adjustable global scene properties
   - [ ] Save to file
 - [x] Renderer System (front-end/backend plugin architecture)
 - [x] Audio System (front-end)
@@ -86,11 +87,15 @@ The items in this list are not in any particular order. This list will be update
 - [x] Gizmo (in-world object manipulation)
 - [x] Viewports
 - [x] terrain
+  - [ ] binary format
   - [x] heightmap-based
   - [x] pixel picking
   - [x] raycast picking 
-  - [ ] chunking/culling
-  - [ ] LOD/tessellation
+  - [x] chunking/culling
+    - [x] BUG: culling is currently passing all chunks always.
+  - [x] LOD
+    - [ ] Blending between LOD levels (geometry skirts vs gap-filling, etc.)
+  - [ ] tessellation
   - [ ] holes
   - [ ] collision
 - [ ] volumes 
@@ -106,9 +111,30 @@ The items in this list are not in any particular order. This list will be update
 - [x] PBR Lighting model
 - [ ] batch rendering (2d and 3d)
 - [ ] instanced rendering
+- [ ] Per-scene vertex/index buffers
+- [ ] Queue-up of data uploads during scene load:
+  - Notes/ steps involved: 
+    - Setup a queue in the scene to hold pending mesh data.
+    - For each mesh:
+      - Make sure mesh is invalidated so it doesn't attempt to render. 
+      - Assign a unique id for it and add it to the queue
+      - Load it from disk (multithreaded, currently done but needs some changes). Save off id, size, data, offsets, etc.
+      - Reserve space in buffer freelist but _don't_ upload to GPU. Save the offset in the queue as well.
+      - NOTE: that this could be used to figure out how large the buffer needs to be.
+    - Repeat this for all meshes.
+    - In one swoop, upload all vertex and index data to GPU at once, perhaps on a separate (transfer) queue to avoid frame drops.
+      - Probably the easiest way is a single vkCmdCopyBuffer call with multiple regions (1 per object), to a STAGING buffer.
+      - Once this completes, perform a copy from staging to the appropriate vertex/index buffer at the beginning of the next available frame.
+    - After the above completes (may need to setup a fence), validate meshes all at once, enabling rendering.
 - [x] shadow maps
   - [x] PCF
   - [x] cascading shadow maps
+  - [ ] Adjustable Directional Light properties
+    - [ ] max shadow distance/fade (200/25)
+    - [ ] cascade split multiplier (0.91)
+    - [ ] shadow mode (soft/hard shadows/none)
+  - [ ] Percentage Closer Soft Shadows (PCSS)
+  - [ ] Point light shadows
 - [x] texture mipmapping
 - [x] Specular maps (NOTE: removed in favour of PBR)
 - [x] Normal maps 
@@ -175,6 +201,8 @@ The items in this list are not in any particular order. This list will be update
 - [ ] FBX model imports 
 
 ## Other items:
+- [ ] Split off "core" items (defines, memory, strings, containers, etc.) into a "core" or "foundation" library so they may be used without having to pull in all of the engine.
+- [ ] Split off platform layers into separate libraries outside the engine.
 - [x] Auto-Generated API documentation
 - [ ] Documentation
 - [ ] Continuous Integration
