@@ -37,7 +37,7 @@ uniform=sampler2DArray,1,shadow_textures
 # IBL
 uniform=samplerCube,1,ibl_cube_texture
 
-uniform=struct32,1,dir_light
+uniform=struct48,1,dir_light
 uniform=struct480,1,p_lights
 uniform=struct32,1,properties
 uniform=i32,1,num_p_lights

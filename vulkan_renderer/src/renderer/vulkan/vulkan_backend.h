@@ -103,3 +103,5 @@ b8 vulkan_buffer_read(renderer_plugin* backend, renderbuffer* buffer, u64 offset
 b8 vulkan_buffer_load_range(renderer_plugin* backend, renderbuffer* buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload);
 b8 vulkan_buffer_copy_range(renderer_plugin* backend, renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size, b8 include_in_frame_workload);
 b8 vulkan_buffer_draw(renderer_plugin* backend, renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
+
+void vulkan_renderer_wait_for_idle(renderer_plugin* plugin);

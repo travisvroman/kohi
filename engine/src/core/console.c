@@ -1,9 +1,10 @@
 #include "console.h"
-#include "kmemory.h"
-#include "asserts.h"
 
-#include "core/kstring.h"
+#include "asserts.h"
 #include "containers/darray.h"
+#include "core/kstring.h"
+#include "core/logger.h"
+#include "kmemory.h"
 
 typedef struct console_consumer {
     PFN_console_consumer_write callback;
@@ -16,12 +17,23 @@ typedef struct console_command {
     PFN_console_command func;
 } console_command;
 
+typedef struct console_object {
+    const char* name;
+    console_object_type type;
+    void* block;
+    // darray
+    struct console_object* properties;
+} console_object;
+
 typedef struct console_state {
     u8 consumer_count;
     console_consumer* consumers;
 
     // darray of registered commands.
     console_command* registered_commands;
+
+    // darray of registered console objects.
+    console_object* registered_objects;
 } console_state;
 
 const u32 MAX_CONSUMER_COUNT = 10;
@@ -40,6 +52,7 @@ b8 console_initialize(u64* memory_requirement, void* memory, void* config) {
     state_ptr->consumers = (console_consumer*)((u64)memory + sizeof(console_state));
 
     state_ptr->registered_commands = darray_create(console_command);
+    state_ptr->registered_objects = darray_create(console_object);
 
     return true;
 }
@@ -47,6 +60,7 @@ b8 console_initialize(u64* memory_requirement, void* memory, void* config) {
 void console_shutdown(void* state) {
     if (state_ptr) {
         darray_destroy(state_ptr->registered_commands);
+        darray_destroy(state_ptr->registered_objects);
 
         kzero_memory(state, sizeof(console_state) + (sizeof(console_consumer) * MAX_CONSUMER_COUNT));
     }
@@ -138,6 +152,16 @@ b8 console_command_execute(const char* command) {
         darray_destroy(parts);
         return false;
     }
+    // LEFTOFF: Need to refactor this to have 2 types of processing, a "process_command",
+    // which takes command_name(arg1, arg2+arg3), etc. and passes each argument through
+    // a "process_expression", which either retrieves the value of an object/property, or
+    // retrieves the value as-is and passes it as an argument to the command.
+    // Example command:
+    // command(thing_1 + thing2, "arg")
+    // Example expression:
+    // the_thing = thing_2
+    // Expressions can also just be parsed inline.
+    // TODO: Add objects/properties to simple_scene during load.
 
     // Write the line back out to the console for reference.
     char temp[512] = {0};
@@ -188,4 +212,135 @@ b8 console_command_execute(const char* command) {
     darray_destroy(parts);
 
     return !has_error;
+}
+
+b8 console_object_register(const char* object_name, void* object, console_object_type type) {
+    if (!object || !object_name) {
+        KERROR("console_object_register requires a valid pointer to object and object_name");
+        return false;
+    }
+
+    // Make sure it doesn't already exist.
+    u32 object_count = darray_length(state_ptr->registered_objects);
+    for (u32 i = 0; i < object_count; ++i) {
+        if (strings_equali(state_ptr->registered_objects[i].name, object_name)) {
+            KERROR("Console object already registered: '%s'.", object_name);
+            return false;
+        }
+    }
+
+    console_object new_object = {};
+    new_object.name = string_duplicate(object_name);
+    new_object.type = type;
+    new_object.block = object;
+    new_object.properties = 0;
+    darray_push(state_ptr->registered_objects, new_object);
+
+    return true;
+}
+
+b8 console_object_unregister(const char* object_name) {
+    if (!object_name) {
+        KERROR("console_object_register requires a valid pointer object_name");
+        return false;
+    }
+
+    // Make sure it exists.
+    u32 object_count = darray_length(state_ptr->registered_objects);
+    for (u32 i = 0; i < object_count; ++i) {
+        if (strings_equali(state_ptr->registered_objects[i].name, object_name)) {
+            // Object found, remove it.
+            console_object popped_object;
+            darray_pop_at(state_ptr->registered_objects, i, &popped_object);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+b8 console_object_add_property(const char* object_name, const char* property_name, void* property, console_object_type type) {
+    if (!property || !object_name || !property_name) {
+        KERROR("console_object_add_property requires a valid pointer to property, property_name and object_name");
+        return false;
+    }
+
+    // Make sure the object exists first.
+    u32 object_count = darray_length(state_ptr->registered_objects);
+    for (u32 i = 0; i < object_count; ++i) {
+        if (strings_equali(state_ptr->registered_objects[i].name, object_name)) {
+            console_object* obj = &state_ptr->registered_objects[i];
+            // Found the object, now make sure a property with that name does not exist.
+            if (obj->properties) {
+                u32 property_count = darray_length(obj->properties);
+                for (u32 j = 0; j < property_count; ++j) {
+                    if (strings_equali(obj->properties[j].name, property_name)) {
+                        KERROR("Object '%s' already has a property named '%s'.", object_name, property_name);
+                        return false;
+                    }
+                }
+            } else {
+                obj->properties = darray_create(console_object);
+            }
+
+            // Create the new property, which is just another object.
+            console_object new_object = {};
+            new_object.name = string_duplicate(property_name);
+            new_object.type = type;
+            new_object.block = property;
+            new_object.properties = 0;
+            darray_push(obj->properties, new_object);
+
+            return true;
+        }
+    }
+
+    KERROR("Console object not found: '%s'.", object_name);
+    return false;
+}
+
+static void console_object_destroy(console_object* obj) {
+    string_free((char*)obj->name);
+    obj->block = 0;
+    if (obj->properties) {
+        u32 len = darray_length(obj->properties);
+        for (u32 i = 0; i < len; ++i) {
+            console_object_destroy(&obj->properties[i]);
+        }
+        darray_destroy(obj->properties);
+        obj->properties = 0;
+    }
+}
+
+b8 console_object_remove_property(const char* object_name, const char* property_name) {
+    if (!object_name || !property_name) {
+        KERROR("console_object_remove_property requires a valid pointer to property, property_name and object_name");
+        return false;
+    }
+
+    // Make sure the object exists first.
+    u32 object_count = darray_length(state_ptr->registered_objects);
+    for (u32 i = 0; i < object_count; ++i) {
+        if (strings_equali(state_ptr->registered_objects[i].name, object_name)) {
+            console_object* obj = &state_ptr->registered_objects[i];
+            // Found the object, now make sure a property with that name does not exist.
+            if (obj->properties) {
+                u32 property_count = darray_length(obj->properties);
+                for (u32 j = 0; j < property_count; ++j) {
+                    if (strings_equali(obj->properties[j].name, property_name)) {
+                        console_object popped_property;
+                        darray_pop_at(obj->properties, j, &popped_property);
+                        console_object_destroy(&popped_property);
+                        return true;
+                    }
+                }
+            }
+
+            KERROR("Property '%s' not found on console object '%s'.", object_name, property_name);
+            return false;
+        }
+    }
+
+    KERROR("Console object not found: '%s'.", object_name);
+    return false;
 }

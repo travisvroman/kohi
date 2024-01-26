@@ -55,6 +55,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] touch
   - [ ] gamepad
   - [x] keymaps/keybindings
+    - [ ] I18n / keyboard layouts
 - [x] Conosole
   - [x] Console consumer interface
   - [x] Logger as consumer
@@ -63,6 +64,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] Console commands
 - [x] Application-level configuration
 - [ ] high-level string structure library (not c-strings)
+- [ ] I18n strings
 - [ ] resource hot reloading
 - [ ] prefabs
 - [x] Simple Scenes

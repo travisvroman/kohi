@@ -722,3 +722,9 @@ KAPI struct viewport* renderer_active_viewport_get(void);
  * @param viewport A pointer to the viewport to be set.
  */
 KAPI void renderer_active_viewport_set(struct viewport* v);
+
+/**
+ * Waits for the renderer backend to be completely idle of work before returning.
+ * NOTE: This incurs a lot of overhead/waits, and should be used sparingly.
+ */
+KAPI void renderer_wait_for_idle(void);

@@ -120,3 +120,18 @@ KAPI b8 console_command_unregister(const char* command);
  * @return True on success; otherwise false.
  */
 KAPI b8 console_command_execute(const char* command);
+
+typedef enum console_object_type {
+    CONSOLE_OBJECT_TYPE_INT32,
+    CONSOLE_OBJECT_TYPE_UINT32,
+    CONSOLE_OBJECT_TYPE_F32,
+    CONSOLE_OBJECT_TYPE_STRUCT
+} console_object_type;
+
+KAPI b8 console_object_register(const char* object_name, void* object, console_object_type type);
+
+KAPI b8 console_object_unregister(const char* object_name);
+
+KAPI b8 console_object_add_property(const char* object_name, const char* property_name, void* property, console_object_type type);
+
+KAPI b8 console_object_remove_property(const char* object_name, const char* property_name);
