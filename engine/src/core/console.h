@@ -125,6 +125,7 @@ typedef enum console_object_type {
     CONSOLE_OBJECT_TYPE_INT32,
     CONSOLE_OBJECT_TYPE_UINT32,
     CONSOLE_OBJECT_TYPE_F32,
+    CONSOLE_OBJECT_TYPE_BOOL,
     CONSOLE_OBJECT_TYPE_STRUCT
 } console_object_type;
 

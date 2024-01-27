@@ -1,5 +1,7 @@
 #include "console.h"
 
+#include <math.h>
+
 #include "asserts.h"
 #include "containers/darray.h"
 #include "core/kstring.h"
@@ -140,17 +142,143 @@ b8 console_command_unregister(const char* command) {
     return false;
 }
 
+static console_object* console_object_get(console_object* parent, const char* name) {
+    if (parent) {
+        u32 property_count = darray_length(parent->properties);
+        for (u32 i = 0; i < property_count; ++i) {
+            console_object* obj = &parent->properties[i];
+            if (strings_equali(obj->name, name)) {
+                return obj;
+            }
+        }
+    } else {
+        u32 registered_object_len = darray_length(state_ptr->registered_objects);
+        for (u32 i = 0; i < registered_object_len; ++i) {
+            console_object* obj = &state_ptr->registered_objects[i];
+            if (strings_equali(obj->name, name)) {
+                return obj;
+            }
+        }
+    }
+    return 0;
+}
+
+static void console_object_print(u8 indent, console_object* obj) {
+    char indent_buffer[513] = {0};
+    u16 idx = 0;
+    for (; idx < (indent * 2); idx += 2) {
+        indent_buffer[idx + 0] = ' ';
+        indent_buffer[idx + 1] = ' ';
+    }
+    indent_buffer[idx] = 0;
+
+    switch (obj->type) {
+        case CONSOLE_OBJECT_TYPE_INT32:
+            KINFO("%s%i", indent_buffer, *((i32*)obj->block));
+            break;
+        case CONSOLE_OBJECT_TYPE_UINT32:
+            KINFO("%s%u", indent_buffer, *((u32*)obj->block));
+            break;
+        case CONSOLE_OBJECT_TYPE_F32:
+            KINFO("%s%f", indent_buffer, *((f32*)obj->block));
+            break;
+        case CONSOLE_OBJECT_TYPE_BOOL:
+            b8 val = *((b8*)obj->block);
+            KINFO("%s%s", indent_buffer, val ? "true" : "false");
+            break;
+        case CONSOLE_OBJECT_TYPE_STRUCT:
+            if (obj->properties) {
+                KINFO("%s", obj->name);
+                indent++;
+                u32 len = darray_length(obj->properties);
+                for (u32 i = 0; i < len; ++i) {
+                    console_object_print(indent, &obj->properties[i]);
+                }
+            }
+            break;
+    }
+}
+
+static b8 console_expression_parse(const char* expression, console_object_type* out_type, void* out_value) {
+    b8 result = true;
+    char* expression_copy = string_duplicate(expression);
+    char* expression_copy_original = expression_copy;
+    string_trim(expression_copy);
+
+    // Operators supported are: =, ==, !=, /, *, +, -, %
+
+    b8 operator_found = false;
+
+    if (!operator_found) {
+        i32 space_index = string_index_of(expression_copy, ' ');
+        if (space_index != -1) {
+            KERROR("Unexpected token at position %i", space_index);
+            result = false;
+            goto console_expression_parse_cleanup;
+        }
+
+        // Check for a dot operator which indicates a property of a struct.
+        b8 identifier_found = false;
+        i32 dot_index = string_index_of(expression_copy, '.');
+        if (dot_index != -1) {
+            // Parse each portion and figure out the struct/property hierarchy.
+            char** parts = darray_create(char*);
+            u32 split_count = string_split(expression_copy, '.', &parts, true, false);
+
+            console_object* parent = console_object_get(0, parts[0]);
+            for (u32 s = 1; s < split_count; ++s) {
+                console_object* obj = console_object_get(parent, parts[s]);
+                if (obj) {
+                    parent = obj;
+                }
+            }
+            if (parent) {
+                console_object_print(0, parent);
+                identifier_found = true;
+                result = true;
+            }
+        } else {
+            console_object* obj = console_object_get(0, expression_copy);
+            if (obj) {
+                console_object_print(0, obj);
+                identifier_found = true;
+                result = true;
+            }
+        }
+
+        if (!identifier_found) {
+            KERROR("Identifier is undefined: '%s'.", expression_copy);
+            result = false;
+            goto console_expression_parse_cleanup;
+        }
+    }
+
+    // TODO:
+    // Example expression:
+    // the_thing = thing_2
+    // or:
+    // the_thing
+    // Just entering a object name on its own would print the value of said object to the console.
+    // Expressions can also just be parsed inline.
+
+console_expression_parse_cleanup:
+    // Cleanup
+    string_free(expression_copy_original);
+
+    return result;
+}
+
 b8 console_command_execute(const char* command) {
     if (!command) {
         return false;
     }
+    b8 has_error = true;
     char** parts = darray_create(char*);
     // TODO: If strings are ever used as arguments, this will split improperly.
     u32 part_count = string_split(command, ' ', &parts, true, false);
     if (part_count < 1) {
-        string_cleanup_split_array(parts);
-        darray_destroy(parts);
-        return false;
+        has_error = true;
+        goto console_command_execute_cleanup;
     }
     // LEFTOFF: Need to refactor this to have 2 types of processing, a "process_command",
     // which takes command_name(arg1, arg2+arg3), etc. and passes each argument through
@@ -160,8 +288,19 @@ b8 console_command_execute(const char* command) {
     // command(thing_1 + thing2, "arg")
     // Example expression:
     // the_thing = thing_2
+    // or:
+    // the_thing
+    // Just entering a object name on its own would print the value of said object to the console.
     // Expressions can also just be parsed inline.
     // TODO: Add objects/properties to simple_scene during load.
+    console_object_type parsed_type;
+    void* block = kallocate(sizeof(void*), MEMORY_TAG_ARRAY);
+    if (console_expression_parse(command, &parsed_type, block)) {
+        // TODO: cast to appropriate type and use somehow..
+
+        has_error = false;
+        goto console_command_execute_cleanup;
+    }
 
     // Write the line back out to the console for reference.
     char temp[512] = {0};
@@ -169,7 +308,6 @@ b8 console_command_execute(const char* command) {
     console_write_line(LOG_LEVEL_INFO, temp);
 
     // Yep, strings are slow. But it's a console. It doesn't need to be lightning fast...
-    b8 has_error = false;
     b8 command_found = false;
     u32 command_count = darray_length(state_ptr->registered_commands);
     // Look through registered commands for a match.
@@ -208,6 +346,7 @@ b8 console_command_execute(const char* command) {
         has_error = true;
     }
 
+console_command_execute_cleanup:
     string_cleanup_split_array(parts);
     darray_destroy(parts);
 
