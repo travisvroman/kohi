@@ -45,6 +45,7 @@ Changelog
       - In testbed, this calls a new function in simple_scene for prepare_frame, which handles any GPU uploads before the rest of the frame workload begins.
     - renderer_end ends the renderer's current command buffer. This is now called from the main engine loop instead of the application.
     - renderer_present presents the current drawn-to attachment to the screen. This is now called from the main engine loop instead of the application.
+  - Added missing "peek" function to stack container.
 
 - 0.5x
   - Added Physically-Based Rendering (PBR) material type support.
