@@ -1,11 +1,11 @@
 #include "console.h"
 
-#include <math.h>
-
 #include "asserts.h"
 #include "containers/darray.h"
+#include "containers/stack.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "defines.h"
 #include "kmemory.h"
 
 typedef struct console_consumer {
@@ -163,6 +163,19 @@ static console_object* console_object_get(console_object* parent, const char* na
     return 0;
 }
 
+static u32 console_object_to_u32(const console_object* obj) {
+    return *((u32*)obj->block);
+}
+static i32 console_object_to_i32(const console_object* obj) {
+    return *((i32*)obj->block);
+}
+static f32 console_object_to_f32(const console_object* obj) {
+    return *((f32*)obj->block);
+}
+static b8 console_object_to_b8(const console_object* obj) {
+    return *((b8*)obj->block);
+}
+
 static void console_object_print(u8 indent, console_object* obj) {
     char indent_buffer[513] = {0};
     u16 idx = 0;
@@ -197,6 +210,777 @@ static void console_object_print(u8 indent, console_object* obj) {
             }
             break;
     }
+}
+
+typedef enum console_token_type {
+    CONSOLE_TOKEN_TYPE_UNKNOWN,
+    CONSOLE_TOKEN_TYPE_EOF,
+    CONSOLE_TOKEN_TYPE_WHITESPACE,
+    CONSOLE_TOKEN_TYPE_NEWLINE,
+    CONSOLE_TOKEN_TYPE_OPEN_PAREN,
+    CONSOLE_TOKEN_TYPE_CLOSE_PAREN,
+    CONSOLE_TOKEN_TYPE_IDENTIFIER,
+    CONSOLE_TOKEN_TYPE_OPERATOR,
+    CONSOLE_TOKEN_TYPE_STRING_LITERAL,
+    CONSOLE_TOKEN_TYPE_NUMERIC_LITERAL,
+    CONSOLE_TOKEN_TYPE_DOT,
+    CONSOLE_TOKEN_TYPE_COMMA,
+    CONSOLE_TOKEN_TYPE_END_STATEMENT
+} console_token_type;
+
+typedef enum console_operator_type {
+    // Unrecognized operator.
+    CONSOLE_OPERATOR_TYPE_UNKNOWN,
+    // =
+    CONSOLE_OPERATOR_TYPE_ASSIGN,
+    // ==
+    CONSOLE_OPERATOR_TYPE_EQUALITY,
+    // !=
+    CONSOLE_OPERATOR_TYPE_INEQUALITY,
+    // !
+    CONSOLE_OPERATOR_TYPE_NOT,
+    // <
+    CONSOLE_OPERATOR_TYPE_LESSTHAN,
+    // <=
+    CONSOLE_OPERATOR_TYPE_LESSTHAN_OR_EQUAL,
+    // >
+    CONSOLE_OPERATOR_TYPE_GREATERTHAN,
+    // >=
+    CONSOLE_OPERATOR_TYPE_GREATERTHAN_OR_EQUAL,
+    // +
+    CONSOLE_OPERATOR_TYPE_ADD,
+    // +=
+    CONSOLE_OPERATOR_TYPE_ADD_ASSIGN,
+    // -
+    CONSOLE_OPERATOR_TYPE_SUBTRACT,
+    // -=
+    CONSOLE_OPERATOR_TYPE_SUBTRACT_ASSIGN,
+    // *
+    CONSOLE_OPERATOR_TYPE_MULTIPLY,
+    // *=
+    CONSOLE_OPERATOR_TYPE_MULTIPLY_ASSIGN,
+    // /
+    CONSOLE_OPERATOR_TYPE_DIVIDE,
+    // /=
+    CONSOLE_OPERATOR_TYPE_DIVIDE_ASSIGN,
+    // %
+    CONSOLE_OPERATOR_TYPE_MODULUS,
+    // %=
+    CONSOLE_OPERATOR_TYPE_MODULUS_ASSIGN,
+    // ++
+    CONSOLE_OPERATOR_TYPE_INCREMENT,
+    // --
+    CONSOLE_OPERATOR_TYPE_DECREMENT,
+} console_operator_type;
+
+typedef struct console_token {
+    console_token_type type;
+    u32 start_index;
+    u32 length;
+} console_token;
+
+static b8 console_operator_type_from_token(const console_token token, const char* source, console_operator_type* out_type) {
+    if (!source || token.type != CONSOLE_TOKEN_TYPE_OPERATOR) {
+        KERROR("console_operator_type_from_token requires a valid pointer to source and an operator type token");
+        return false;
+    }
+
+    // NOTE: Ensure token length here so it doesn't have to be verified anywhere below.
+    if (token.length < 1 || token.length > 2) {
+        KERROR("operators are always either 1 or 2 characters.");
+        return false;
+    }
+
+    char c = source[token.start_index];
+    char next = source[token.start_index + 1];
+    *out_type = CONSOLE_OPERATOR_TYPE_UNKNOWN;
+    u8 error_offset = 0;
+    switch (c) {
+        case '=':
+            if (token.length == 1) {
+                *out_type = CONSOLE_OPERATOR_TYPE_ASSIGN;
+            } else if (next == '=') {
+                *out_type = CONSOLE_OPERATOR_TYPE_EQUALITY;
+            } else {
+                error_offset = 1;
+            }
+            break;
+        case '!': {
+            if (token.length == 1) {
+                *out_type = CONSOLE_OPERATOR_TYPE_NOT;
+            } else if (next == '=') {
+                *out_type = CONSOLE_OPERATOR_TYPE_INEQUALITY;
+            } else {
+                error_offset = 1;
+            }
+            break;
+        }
+        case '<': {
+            if (token.length == 1) {
+                *out_type = CONSOLE_OPERATOR_TYPE_LESSTHAN;
+            } else if (next == '=') {
+                *out_type = CONSOLE_OPERATOR_TYPE_LESSTHAN_OR_EQUAL;
+            } else {
+                error_offset = 1;
+            }
+            break;
+        }
+        case '>': {
+            if (token.length == 1) {
+                *out_type = CONSOLE_OPERATOR_TYPE_GREATERTHAN;
+            } else if (next == '=') {
+                *out_type = CONSOLE_OPERATOR_TYPE_GREATERTHAN_OR_EQUAL;
+            } else {
+                error_offset = 1;
+            }
+            break;
+        }
+        case '+': {
+            if (token.length == 1) {
+                *out_type = CONSOLE_OPERATOR_TYPE_ADD;
+            } else if (next == '=') {
+                *out_type = CONSOLE_OPERATOR_TYPE_ADD_ASSIGN;
+            } else if (next == '+') {
+                *out_type = CONSOLE_OPERATOR_TYPE_INCREMENT;
+            } else {
+                error_offset = 1;
+            }
+            break;
+        }
+        case '-': {
+            if (token.length == 1) {
+                *out_type = CONSOLE_OPERATOR_TYPE_SUBTRACT;
+            } else if (next == '=') {
+                *out_type = CONSOLE_OPERATOR_TYPE_SUBTRACT_ASSIGN;
+            } else if (next == '-') {
+                *out_type = CONSOLE_OPERATOR_TYPE_DECREMENT;
+            } else {
+                error_offset = 1;
+            }
+            break;
+        }
+        case '*': {
+            if (token.length == 1) {
+                *out_type = CONSOLE_OPERATOR_TYPE_MULTIPLY;
+            } else if (next == '=') {
+                *out_type = CONSOLE_OPERATOR_TYPE_MULTIPLY_ASSIGN;
+            } else {
+                error_offset = 1;
+            }
+            break;
+        }
+        case '/': {
+            if (token.length == 1) {
+                *out_type = CONSOLE_OPERATOR_TYPE_DIVIDE;
+            } else if (next == '=') {
+                *out_type = CONSOLE_OPERATOR_TYPE_DIVIDE_ASSIGN;
+            } else {
+                error_offset = 1;
+            }
+            break;
+        }
+        case '%': {
+            if (token.length == 1) {
+                *out_type = CONSOLE_OPERATOR_TYPE_MODULUS;
+            } else if (next == '=') {
+                *out_type = CONSOLE_OPERATOR_TYPE_MODULUS_ASSIGN;
+            } else {
+                error_offset = 1;
+            }
+            break;
+        }
+        default:
+            error_offset = 0;
+            break;
+    }
+
+    b8 result = (*out_type != CONSOLE_OPERATOR_TYPE_UNKNOWN);
+    if (!result) {
+        KERROR("Unexpected character '%c' at position %u.", source[token.start_index + error_offset], token.start_index + error_offset);
+    }
+    return result;
+}
+
+static b8 tokenize_source(const char* source, stack* out_tokens) {
+    if (!source || !out_tokens) {
+        KERROR("tokenize_source requires valid pointers to source and out_tokens.");
+        return false;
+    }
+
+    u32 char_length = string_length(source);
+
+    console_token current_token = {0};
+    for (u32 i = 0; i < char_length; ++i) {
+        i32 codepoint;
+        u8 advance;
+        if (!bytes_to_codepoint(source, i, &codepoint, &advance)) {
+            // If this fails, don't attempt parsing any further since the characters aren't recognized,
+            // it might lead to some sort of undefined behaviour.
+            KERROR("Error processing expression - unable to decode codepoint at position: %u", i);
+            return false;
+        }
+
+        switch (codepoint) {
+            case ' ':
+            case '\t': {
+                if (current_token.type == CONSOLE_TOKEN_TYPE_WHITESPACE) {
+                    current_token.length++;
+                } else {
+                    // If unknown, start a whitespace token.
+                    if (current_token.type == CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                        current_token.length = 1;
+                        current_token.start_index = i;
+                        current_token.type = CONSOLE_TOKEN_TYPE_WHITESPACE;
+                    } else if (current_token.type == CONSOLE_TOKEN_TYPE_STRING_LITERAL) {
+                        // For strings, just extend the length.
+                        current_token.length++;
+                    } else {
+                        // Push the current token if not unknown type.
+                        if (current_token.type != CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                            stack_push(out_tokens, &current_token);
+                        }
+
+                        // Then start a new whitespace token.
+                        current_token.length = 1;
+                        current_token.start_index = i;
+                        current_token.type = CONSOLE_TOKEN_TYPE_WHITESPACE;
+                    }
+                }
+            } break;
+            case '{': {
+                // Push the current token if not unknown type.
+                if (current_token.type != CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                    stack_push(out_tokens, &current_token);
+                }
+
+                // Push a new open paren token.
+                current_token.length = 1;
+                current_token.start_index = i;
+                current_token.type = CONSOLE_TOKEN_TYPE_OPEN_PAREN;
+                stack_push(out_tokens, &current_token);
+
+                // Set back to unknown
+                current_token.type = CONSOLE_TOKEN_TYPE_UNKNOWN;
+                current_token.length = 0;
+                current_token.start_index = 0;
+            } break;
+            case '}': {
+                // Push the current token if not unknown type.
+                if (current_token.type != CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                    stack_push(out_tokens, &current_token);
+                }
+
+                // Push a new close paren token.
+                current_token.length = 1;
+                current_token.start_index = i;
+                current_token.type = CONSOLE_TOKEN_TYPE_CLOSE_PAREN;
+                stack_push(out_tokens, &current_token);
+
+                // Set back to unknown
+                current_token.type = CONSOLE_TOKEN_TYPE_UNKNOWN;
+                current_token.length = 0;
+                current_token.start_index = 0;
+            } break;
+            case '\n': {
+                // Push the current token if not unknown type.
+                if (current_token.type != CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                    stack_push(out_tokens, &current_token);
+                }
+
+                // Push a new newline token.
+                current_token.length = 1;
+                current_token.start_index = i;
+                current_token.type = CONSOLE_TOKEN_TYPE_NEWLINE;
+                stack_push(out_tokens, &current_token);
+
+                // Set back to unknown
+                current_token.type = CONSOLE_TOKEN_TYPE_UNKNOWN;
+                current_token.length = 0;
+                current_token.start_index = 0;
+            } break;
+            case '"': {
+                // TODO: handle escape sequences like '\"'.
+                //
+                // If not in a string, push the old token and start a new string one.
+                if (current_token.type != CONSOLE_TOKEN_TYPE_STRING_LITERAL && current_token.type != CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                    stack_push(out_tokens, &current_token);
+
+                    current_token.length = 1;
+                    current_token.start_index = i;
+                    current_token.type = CONSOLE_TOKEN_TYPE_STRING_LITERAL;
+                } else if (current_token.type == CONSOLE_TOKEN_TYPE_STRING_LITERAL) {
+                    // If currently in a string, close it and push the token.
+                    current_token.length++;
+                    stack_push(out_tokens, &current_token);
+
+                    // Set back to unknown
+                    current_token.type = CONSOLE_TOKEN_TYPE_UNKNOWN;
+                    current_token.length = 0;
+                    current_token.start_index = 0;
+                }
+            } break;
+            case '=':
+            case '!':
+            case '<':
+            case '>':
+            case '+':
+            case '-':
+            case '*':
+            case '/':
+            case '%': {
+                // Operators.
+
+                if (current_token.type != CONSOLE_TOKEN_TYPE_OPERATOR) {
+                    // Push the current token if not unknown type.
+                    if (current_token.type != CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                        stack_push(out_tokens, &current_token);
+                    }
+
+                    // Start a new operator token.
+                    current_token.start_index = i;
+                    current_token.length = 1;
+                    current_token.type = CONSOLE_TOKEN_TYPE_OPERATOR;
+                    // The operator will be closed and added on the next iteration if it is a different codepoint type.
+                } else {
+                    // Already within an operator token.
+                    // Ensure the length isn't going to go over 2 - then it's invalid.
+                    if (current_token.length >= 2) {
+                        KERROR("Invalid character at position %u.", i);
+                        return false;
+                    }
+
+                    // Only some of these are valid.
+                    switch (codepoint) {
+                        case '=': {
+                            // Valid if the previous char was !,=,+,-,/,*, or %
+                            char prev = source[current_token.start_index];
+                            switch (prev) {
+                                case '!':
+                                case '=':
+                                case '+':
+                                case '-':
+                                case '/':
+                                case '*':
+                                case '%':
+                                    current_token.length++;
+                                    break;
+                                default:
+                                    KERROR("Unexpected character at position %u", i);
+                                    return false;
+                            }
+                        }
+                        case '+':
+                        case '-': {
+                            // Only valid if the previous character matches.
+                            char prev = source[current_token.start_index];
+                            if (((char)codepoint) == prev) {
+                                current_token.length++;
+                            } else {
+                                KERROR("Unexpected character at position %u", i);
+                                return false;
+                            }
+                        } break;
+                        case '!':
+                        case '%':
+                        case '/':
+                        case '*':
+                        case '<':
+                        case '>': {
+                            // invalid as a second character.
+                            KERROR("Unexpected character at position %u", i);
+                            return false;
+                        }
+                    }
+                }
+            } break;
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9': {
+                if (current_token.type != CONSOLE_TOKEN_TYPE_NUMERIC_LITERAL) {
+                    // Push the current token if not unknown type.
+                    if (current_token.type != CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                        stack_push(out_tokens, &current_token);
+                    }
+
+                    // Start a new numeric literal token.
+                    current_token.length = 1;
+                    current_token.start_index = i;
+                    current_token.type = CONSOLE_TOKEN_TYPE_NUMERIC_LITERAL;
+
+                } else {
+                    // Add onto the current numeric literal. Safe to move one char here.
+                    current_token.length++;
+                }
+            } break;
+            case '.': {
+                if (current_token.type == CONSOLE_TOKEN_TYPE_NUMERIC_LITERAL || current_token.type == CONSOLE_TOKEN_TYPE_STRING_LITERAL) {
+                    // Add onto the current token. Save to move one char here.
+                    current_token.length++;
+                } else {
+                    // Push the current token if not unknown type.
+                    if (current_token.type != CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                        stack_push(out_tokens, &current_token);
+                    }
+
+                    // Create a new dot token and push it.
+                    current_token.length = 1;
+                    current_token.start_index = i;
+                    current_token.type = CONSOLE_TOKEN_TYPE_DOT;
+                    stack_push(out_tokens, &current_token);
+
+                    // Set back to unknown
+                    current_token.type = CONSOLE_TOKEN_TYPE_UNKNOWN;
+                    current_token.length = 0;
+                    current_token.start_index = 0;
+                }
+            } break;
+            case ',': {
+                if (current_token.type == CONSOLE_TOKEN_TYPE_STRING_LITERAL) {
+                    // Add onto the current token. Save to move one char here.
+                    current_token.length++;
+                } else {
+                    // Push the current token if not unknown type.
+                    if (current_token.type != CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                        stack_push(out_tokens, &current_token);
+                    }
+
+                    // Create a new comma token and push it.
+                    current_token.length = 1;
+                    current_token.start_index = i;
+                    current_token.type = CONSOLE_TOKEN_TYPE_COMMA;
+                    stack_push(out_tokens, &current_token);
+
+                    // Set back to unknown
+                    current_token.type = CONSOLE_TOKEN_TYPE_UNKNOWN;
+                    current_token.length = 0;
+                    current_token.start_index = 0;
+                }
+            } break;
+            case ';': {
+                if (current_token.type == CONSOLE_TOKEN_TYPE_STRING_LITERAL) {
+                    // Add onto the current token. Save to move one char here.
+                    current_token.length++;
+                } else {
+                    // Push the current token if not unknown type.
+                    if (current_token.type != CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                        stack_push(out_tokens, &current_token);
+                    }
+
+                    // Create a new statement-end token and push it.
+                    current_token.length = 1;
+                    current_token.start_index = i;
+                    current_token.type = CONSOLE_TOKEN_TYPE_END_STATEMENT;
+                    stack_push(out_tokens, &current_token);
+
+                    // Set back to unknown
+                    current_token.type = CONSOLE_TOKEN_TYPE_UNKNOWN;
+                    current_token.length = 0;
+                    current_token.start_index = 0;
+                }
+            } break;
+            default: {
+                // Any other character should be treated as part of a string or an identifier, depending on
+                // what kind of token we are currently in.
+                // NOTE: Use the advance here to increase length to handle utf8 identifiers/strings.
+                if (current_token.type == CONSOLE_TOKEN_TYPE_STRING_LITERAL) {
+                    current_token.length += advance;
+                } else if (current_token.type == CONSOLE_TOKEN_TYPE_IDENTIFIER) {
+                    current_token.length += advance;
+                } else if (current_token.type == CONSOLE_TOKEN_TYPE_UNKNOWN) {
+                    // If unknown and we got here, treat it as an identifier.
+                    current_token.type = CONSOLE_TOKEN_TYPE_IDENTIFIER;
+                    current_token.start_index = i;
+                    current_token.length = advance;
+                } else {
+                    // If in the middle of some other type of token, this won't be valid.
+                    KERROR("Unexpected character at position %u", i);
+                    return false;
+                }
+            } break;
+        }
+        // Bump the iterator forward by the advance.
+        i += advance;
+    }
+
+    // If the final token is not unknown, also push it.
+    if (current_token.type != CONSOLE_TOKEN_TYPE_UNKNOWN) {
+        stack_push(out_tokens, &current_token);
+    }
+
+    // Finally, push a EOF token.
+    current_token.type = CONSOLE_TOKEN_TYPE_EOF;
+    current_token.start_index += current_token.length;
+    current_token.length = 0;
+    stack_push(out_tokens, &current_token);
+
+    return true;
+}
+
+static b8 look_ahead_token(const stack* tokens, console_token* out_token, b8 skip_whitespace, b8 skip_newlines) {
+    if (!tokens || !out_token) {
+        return 0;
+    }
+
+    if (!stack_peek(tokens, out_token)) {
+        return false;
+    }
+
+    if (skip_whitespace) {
+        while (out_token->type == CONSOLE_TOKEN_TYPE_WHITESPACE) {
+            if (!stack_peek(tokens, out_token)) {
+                return false;
+            }
+        }
+    }
+
+    if (skip_newlines) {
+        while (out_token->type == CONSOLE_TOKEN_TYPE_NEWLINE) {
+            if (!stack_peek(tokens, out_token)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+typedef struct console_expression {
+    console_object_type result_type;
+    u32 token_count;
+    console_token* tokens;
+} console_expression;
+
+typedef union console_numeric {
+    i32 i;
+    u32 u;
+    f32 f;
+} console_numeric;
+
+static b8 numeric_token_parse(const char* source, const console_token* token, console_object_type* out_type, console_numeric* out_result) {
+    if (!token || !out_type || !out_result) {
+        return false;
+    }
+
+    b8 result = false;
+    if (token->type == CONSOLE_TOKEN_TYPE_NUMERIC_LITERAL) {
+        // Extract the value to a string to determine its type. When parsing numeric literals,
+        // they are always parsed as either floats if there is a '.', otherwise an i32.
+        char* value = kallocate(sizeof(char) * token->length + 1, MEMORY_TAG_STRING);
+        if (string_index_of(value, '.')) {
+            if (!string_to_f32(value, &out_result->f)) {
+                KERROR("Failed to parse token as float at position %i.", token->start_index);
+                result = false;
+            }
+            *out_type = CONSOLE_OBJECT_TYPE_F32;
+            result = true;
+        } else {
+            if (!string_to_i32(value, &out_result->i)) {
+                KERROR("Failed to parse token as integer at position %i.", token->start_index);
+                result = false;
+            }
+            *out_type = CONSOLE_OBJECT_TYPE_INT32;
+            result = true;
+        }
+        kfree(value, sizeof(char) * token->length + 1, MEMORY_TAG_STRING);
+
+    } else if (token->type == CONSOLE_TOKEN_TYPE_IDENTIFIER) {
+        // Extract the name and attempt to find the console object.
+        char* name = kallocate(sizeof(char) * token->length + 1, MEMORY_TAG_STRING);
+        string_mid(name, source, token->start_index, token->length);
+        console_object* obj = console_object_get(0, name);
+        if (!obj) {
+            KERROR("Identifier '%s' is undefined.", name);
+            result = false;
+        } else {
+            switch (obj->type) {
+                case CONSOLE_OBJECT_TYPE_INT32:
+                    out_result->i = console_object_to_i32(obj);
+                    *out_type = obj->type;
+                    result = true;
+                    break;
+                case CONSOLE_OBJECT_TYPE_UINT32:
+                    out_result->u = console_object_to_u32(obj);
+                    *out_type = obj->type;
+                    result = true;
+                    break;
+                case CONSOLE_OBJECT_TYPE_F32:
+                    out_result->f = console_object_to_f32(obj);
+                    *out_type = obj->type;
+                    result = true;
+                    break;
+                default:
+                    // Wrong type of token.
+                    KERROR("Expected numeric token (i32, u32 or f32) at position %i", token->start_index);
+                    result = false;
+                    break;
+            }
+        }
+        kfree(name, sizeof(char) * token->length + 1, MEMORY_TAG_STRING);
+    }
+
+    return result;
+}
+
+static b8 evaluate_numerical_expression(const char* source, const console_token* a, const console_token* operator, const console_token* b, console_object_type* out_type, console_numeric* out_result) {
+    console_numeric numeric_a, numeric_b;
+    console_object_type type_a, type_b;
+    console_operator_type operator_type;
+
+    b8 is_unary = true;
+
+    // Get operator type
+    if (!console_operator_type_from_token(*operator, source, &operator_type)) {
+        KERROR("Failed to evaluate numerical expression due to invalid operator token.");
+        return false;
+    }
+
+    // Obtain token values.
+    if (numeric_token_parse(source, a, &type_a, &numeric_a)) {
+        KERROR("Failed to evaluate numerical expression. See logs for details.");
+        return false;
+    }
+
+    // Is not unary if b exists.
+    if (b) {
+        if (numeric_token_parse(source, b, &type_b, &numeric_b)) {
+            KERROR("Failed to evaluate numerical expression. See logs for details.");
+            return false;
+        }
+        is_unary = false;
+    }
+
+    if (is_unary) {
+        if (type_a == CONSOLE_OBJECT_TYPE_F32) {
+            if (operator_type == CONSOLE_OPERATOR_TYPE_INCREMENT) {
+                KWARN("Incrementing on float at position %i. May yield unexpected results.", a->start_index);
+                out_result->f = numeric_a.f + 1;
+            } else if (operator_type == CONSOLE_OPERATOR_TYPE_DECREMENT) {
+                KWARN("Decrementing on float at position %i. May yield unexpected results.", a->start_index);
+                out_result->f = numeric_a.f - 1;
+            } else {
+                KERROR("Unexpected unary operator at position %i", a->start_index);
+                return false;
+            }
+        } else {
+            // Treat as int.
+            if (operator_type == CONSOLE_OPERATOR_TYPE_INCREMENT) {
+                out_result->i = numeric_a.i + 1;
+            } else if (operator_type == CONSOLE_OPERATOR_TYPE_DECREMENT) {
+                out_result->i = numeric_a.i - 1;
+            } else {
+                KERROR("Unexpected unary operator at position %i", a->start_index);
+                return false;
+            }
+        }
+    } else {
+        // Binary operator.
+
+        // If either is a float, treat the entire thing like a float.
+        if (type_a == CONSOLE_OBJECT_TYPE_F32 || type_b == CONSOLE_OBJECT_TYPE_F32) {
+            *out_type = CONSOLE_OBJECT_TYPE_F32;
+            // Ensure both sides are converted to floats if they aren't already.
+            f32 f_a, f_b;
+            if (type_a == CONSOLE_OBJECT_TYPE_F32) {
+                f_a = numeric_a.f;
+            } else if (type_a == CONSOLE_OBJECT_TYPE_INT32) {
+                f_a = (f32)numeric_a.i;
+            } else if (type_a == CONSOLE_OBJECT_TYPE_UINT32) {
+                f_a = (f32)numeric_a.u;
+            } else {
+                KERROR("Unsupported object type at position %i.", a->start_index);
+                return false;
+            }
+            if (type_b == CONSOLE_OBJECT_TYPE_F32) {
+                f_b = numeric_b.f;
+            } else if (type_b == CONSOLE_OBJECT_TYPE_INT32) {
+                f_b = (f32)numeric_b.i;
+            } else if (type_b == CONSOLE_OBJECT_TYPE_UINT32) {
+                f_b = (f32)numeric_b.u;
+            } else {
+                KERROR("Unsupported object type at position %i.", b->start_index);
+                return false;
+            }
+
+            switch (operator_type) {
+                case CONSOLE_OPERATOR_TYPE_ADD:
+                case CONSOLE_OPERATOR_TYPE_ADD_ASSIGN:
+                    out_result->f = f_a + f_b;
+                    break;
+                case CONSOLE_OPERATOR_TYPE_SUBTRACT:
+                case CONSOLE_OPERATOR_TYPE_SUBTRACT_ASSIGN:
+                    out_result->f = f_a - f_b;
+                    break;
+                    // TODO: others
+            }
+
+        } else {
+            // Otherwise, treat it as an i32.
+            *out_type = CONSOLE_OBJECT_TYPE_INT32;
+        }
+    }
+}
+
+static b8 parse_expression(const char* source, const stack* tokens, console_object_type* out_result_type) {
+    // Determine what kind of expression it is.
+}
+
+static b8 evaluate_expression(const char* source) {
+}
+
+static b8 console_source_tokens_evaluate(const char* source, stack* tokens, console_object_type* out_type, void* out_value) {
+    b8 result = false;
+
+    u32 token_count = darray_length(tokens);
+    // TODO: Iterate the tokens to obtain a result.
+    for (u32 i = 0; i < token_count; ++i) {
+        console_token* token = &tokens[i];
+
+        // Skip whitespace
+        if (token->type == CONSOLE_TOKEN_TYPE_WHITESPACE) {
+            continue;
+        }
+    }
+    //
+
+    return result;
+}
+
+static b8 console_expression_parse2(const char* expression_str, console_object_type* out_type, void* out_value) {
+    b8 result = false;
+    // Take a copy of the string and trim it.
+    char* expression_copy = string_duplicate(expression_str);
+    // NOTE: keep track of the original pointer address since string_trim
+    // works by moving the pointer forward on the left side.
+    char* expression_copy_original = expression_copy;
+    string_trim(expression_copy);
+
+    u32 char_length = string_length(expression_str);
+    for (u32 i = 0; i < char_length; ++i) {
+        i32 codepoint;
+        u8 advance;
+        if (!bytes_to_codepoint(expression_str, i, &codepoint, &advance)) {
+            // If this fails, don't attempt parsing any further since the characters aren't recognized,
+            // it might lead to some sort of undefined behaviour.
+            KERROR("Error processing expression - unable to decode codepoint at position: %u", i);
+            goto console_expression_parse_cleanup2;
+        } else {
+            // Bump the iterator forward by the advance.
+            i += advance;
+        }
+    }
+
+console_expression_parse_cleanup2:
+    // Cleanup
+    string_free(expression_copy_original);
+
+    return result;
 }
 
 static b8 console_expression_parse(const char* expression, console_object_type* out_type, void* out_value) {
