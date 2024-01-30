@@ -2,6 +2,7 @@
 
 #include "../testbed_types.h"
 #include "containers/darray.h"
+#include "core/console.h"
 #include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
@@ -340,6 +341,10 @@ b8 simple_scene_load(simple_scene *scene) {
 
     // Update the state to show the scene is currently loading.
     scene->state = SIMPLE_SCENE_STATE_LOADING;
+
+    // Register with the console.
+    console_object_register("scene", scene, CONSOLE_OBJECT_TYPE_STRUCT);
+    console_object_add_property("scene", "id", &scene->id, CONSOLE_OBJECT_TYPE_UINT32);
 
     if (scene->sb) {
         if (scene->sb->instance_id == INVALID_ID) {

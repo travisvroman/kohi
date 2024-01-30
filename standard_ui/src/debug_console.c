@@ -95,7 +95,7 @@ b8 debug_console_load(debug_console_state* state) {
     }
 
     u16 font_size = 31;
-    f32 height = 50.0f + (font_size * state->line_display_count + 1); // Account for padding and textbox at the bottom
+    f32 height = 50.0f + (font_size * state->line_display_count + 1);  // Account for padding and textbox at the bottom
 
     if (!sui_panel_control_create("debug_console_bg_panel", (vec2){1280.0f, height}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->bg_panel)) {
         KERROR("Failed to create background panel.");
@@ -150,7 +150,7 @@ b8 debug_console_load(debug_console_state* state) {
     // Create another ui text control for rendering typed text.
 
     // new one
-    if (!sui_textbox_control_create("debug_console_entry_textbox", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "Some really long test text in the textbox.", &state->entry_textbox)) {
+    if (!sui_textbox_control_create("debug_console_entry_textbox", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->entry_textbox)) {
         KFATAL("Unable to create entry textbox control for debug console.");
         return false;
     } else {

@@ -252,7 +252,7 @@ b8 sui_textbox_control_load(struct sui_control* self) {
     instance_resource_config.uniform_config_count = 1;
     instance_resource_config.uniform_configs = &atlas_texture;
 
-    if(!renderer_shader_instance_resources_acquire(s, &instance_resource_config, &typed_data->instance_id)) {
+    if (!renderer_shader_instance_resources_acquire(s, &instance_resource_config, &typed_data->instance_id)) {
         KFATAL("Unable to acquire shader resources for textbox texture map.");
         return false;
     }
@@ -673,6 +673,22 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
                     case KEY_EQUAL:
                         char_code = shift_held ? '+' : '=';
                         break;
+                    case KEY_PERIOD:
+                        char_code = shift_held ? '>' : '.';
+                        break;
+                    case KEY_COMMA:
+                        char_code = shift_held ? '<' : ',';
+                        break;
+                    case KEY_SLASH:
+                        char_code = shift_held ? '?' : '/';
+                        break;
+                    case KEY_QUOTE:
+                        char_code = shift_held ? '"' : '\'';
+                        break;
+                    case KEY_SEMICOLON:
+                        char_code = shift_held ? ':' : ';';
+                        break;
+
                     default:
                         // Not valid for entry, use 0
                         char_code = 0;

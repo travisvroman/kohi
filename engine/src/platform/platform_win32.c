@@ -1,3 +1,4 @@
+
 #include "platform/platform.h"
 
 // Windows platform layer.
@@ -688,6 +689,11 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
                 key = scancode == left_shift ? KEY_LSHIFT : KEY_RSHIFT;
             } else if (w_param == VK_CONTROL) {
                 key = is_extended ? KEY_RCONTROL : KEY_LCONTROL;
+            }
+
+            // HACK: This is gross windows keybind crap.
+            if (key == VK_OEM_1) {
+                key = KEY_SEMICOLON;
             }
 
             // Pass to the input subsystem for processing.

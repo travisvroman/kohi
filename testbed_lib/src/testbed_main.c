@@ -216,11 +216,7 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
             audio_system_channel_play(channel_id, state->test_audio_file, false);
         }
     } else if (code == EVENT_CODE_DEBUG4) {
-        shader* s = shader_system_get("Shader.Builtin.Terrain");
-        if (!shader_system_reload(s)) {
-            KERROR("Failed to reload terrain shader.");
-        }
-        /* if (state->test_loop_audio_file) {
+        if (state->test_loop_audio_file) {
             static b8 playing = true;
             playing = !playing;
             if (playing) {
@@ -232,27 +228,9 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
                 // Stop channel 6.
                 audio_system_channel_stop(6);
             }
-        } */
-    }
-
-    return false;
-}
-
-b8 game_on_key(u16 code, void* sender, void* listener_inst, event_context context) {
-    application* game_inst = (application*)listener_inst;
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
-    if (code == EVENT_CODE_KEY_RELEASED) {
-        u16 key_code = context.data.u16[0];
-        // Change gizmo orientation.
-        if (key_code == KEY_G) {
-            editor_gizmo_orientation orientation = editor_gizmo_orientation_get(&state->gizmo);
-            orientation++;
-            if (orientation > EDITOR_GIZMO_ORIENTATION_MAX) {
-                orientation = 0;
-            }
-            editor_gizmo_orientation_set(&state->gizmo, orientation);
         }
     }
+
     return false;
 }
 
@@ -1441,9 +1419,6 @@ void application_register_events(struct application* game_inst) {
         event_register(EVENT_CODE_MOUSE_DRAGGED, game_inst->state, game_on_drag);
         // TODO: end temp
 
-        event_register(EVENT_CODE_KEY_PRESSED, game_inst, game_on_key);
-        event_register(EVENT_CODE_KEY_RELEASED, game_inst, game_on_key);
-
         event_register(EVENT_CODE_KVAR_CHANGED, 0, game_on_kvar_changed);
     }
 }
@@ -1462,9 +1437,6 @@ void application_unregister_events(struct application* game_inst) {
     event_unregister(EVENT_CODE_MOUSE_DRAG_END, game_inst->state, game_on_drag);
     event_unregister(EVENT_CODE_MOUSE_DRAGGED, game_inst->state, game_on_drag);
     // TODO: end temp
-
-    event_unregister(EVENT_CODE_KEY_PRESSED, game_inst, game_on_key);
-    event_unregister(EVENT_CODE_KEY_RELEASED, game_inst, game_on_key);
 
     event_unregister(EVENT_CODE_KVAR_CHANGED, 0, game_on_kvar_changed);
 }

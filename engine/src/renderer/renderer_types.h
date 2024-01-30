@@ -959,6 +959,11 @@ typedef struct renderer_plugin {
      */
     b8 (*renderbuffer_draw)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
 
+    /**
+     * Waits for the renderer backend to be completely idle of work before returning.
+     * NOTE: This incurs a lot of overhead/waits, and should be used sparingly.
+     */
+    void (*wait_for_idle)(struct renderer_plugin* plugin);
 } renderer_plugin;
 
 struct render_view_packet;
