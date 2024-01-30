@@ -10,6 +10,8 @@
 #include <systems/font_system.h>
 #include <systems/shader_system.h>
 
+#include "defines.h"
+
 static void regenerate_label_geometry(sui_control* self);
 static void sui_label_control_render_frame_prepare(struct sui_control* self, const struct frame_data* p_frame_data);
 
@@ -129,28 +131,29 @@ void sui_label_control_unload(struct sui_control* self) {
 
     // Free from the vertex buffer.
     renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
-    if (typed_data->max_text_length > 0) {
-        renderer_renderbuffer_free(vertex_buffer, sizeof(vertex_2d) * 4 * typed_data->max_text_length, typed_data->vertex_buffer_offset);
-    }
-
-    // Free from the index buffer.
     if (typed_data->vertex_buffer_offset != INVALID_ID_U64) {
-        static const u64 quad_index_size = (sizeof(u32) * 6);
-        renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
         if (typed_data->max_text_length > 0) {
-            renderer_renderbuffer_free(index_buffer, quad_index_size * typed_data->max_text_length, typed_data->index_buffer_offset);
+            renderer_renderbuffer_free(vertex_buffer, sizeof(vertex_2d) * 4 * typed_data->max_text_length, typed_data->vertex_buffer_offset);
         }
         typed_data->vertex_buffer_offset = INVALID_ID_U64;
     }
 
-    // Release resources for font texture map.
+    // Free from the index buffer.
     if (typed_data->index_buffer_offset != INVALID_ID_U64) {
-        shader* ui_shader = shader_system_get("Shader.StandardUI");  // TODO: text shader.
-        if (!renderer_shader_instance_resources_release(ui_shader, typed_data->instance_id)) {
-            KFATAL("Unable to release shader resources for font texture map.");
+        static const u64 quad_index_size = (sizeof(u32) * 6);
+        renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
+        if (typed_data->max_text_length > 0 || typed_data->index_buffer_offset != INVALID_ID_U64) {
+            renderer_renderbuffer_free(index_buffer, quad_index_size * typed_data->max_text_length, typed_data->index_buffer_offset);
         }
         typed_data->index_buffer_offset = INVALID_ID_U64;
     }
+
+    // Release resources for font texture map.
+    shader* ui_shader = shader_system_get("Shader.StandardUI");  // TODO: text shader.
+    if (!renderer_shader_instance_resources_release(ui_shader, typed_data->instance_id)) {
+        KFATAL("Unable to release shader resources for font texture map.");
+    }
+    typed_data->instance_id = INVALID_ID;
 }
 
 b8 sui_label_control_update(struct sui_control* self, struct frame_data* p_frame_data) {
@@ -170,7 +173,7 @@ b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame
 
     sui_label_internal_data* typed_data = self->internal_data;
 
-    if (typed_data->cached_ut8_length) {
+    if (typed_data->cached_ut8_length && typed_data->vertex_buffer_offset != INVALID_ID_U64) {
         standard_ui_renderable renderable = {0};
         renderable.render_data.unique_id = self->id.uniqueid;
         renderable.render_data.material = 0;
@@ -265,13 +268,13 @@ static void regenerate_label_geometry(sui_control* self) {
 
     if (needs_realloc) {
         // Allocate new space in the buffer, but don't upload it yet.
-        if (!renderer_renderbuffer_allocate(vertex_buffer, typed_data->pending_data.vertex_buffer_size, &typed_data->vertex_buffer_offset)) {
+        if (!renderer_renderbuffer_allocate(vertex_buffer, typed_data->pending_data.vertex_buffer_size, &typed_data->pending_data.vertex_buffer_offset)) {
             KERROR("regenerate_label_geometry failed to allocate from the renderer's vertex buffer!");
             return;
         }
 
         // Allocate new space in the buffer, but don't upload it yet.
-        if (!renderer_renderbuffer_allocate(index_buffer, typed_data->pending_data.index_buffer_size, &typed_data->index_buffer_offset)) {
+        if (!renderer_renderbuffer_allocate(index_buffer, typed_data->pending_data.index_buffer_size, &typed_data->pending_data.index_buffer_offset)) {
             KERROR("regenerate_label_geometry failed to allocate from the renderer's index buffer!");
             return;
         }
@@ -405,17 +408,17 @@ static void regenerate_label_geometry(sui_control* self) {
 static void sui_label_control_render_frame_prepare(struct sui_control* self, const struct frame_data* p_frame_data) {
     if (self) {
         sui_label_internal_data* typed_data = self->internal_data;
-        if (typed_data->is_dirty) {
+        if (typed_data->is_dirty && typed_data->vertex_buffer_offset != INVALID_ID_U64 && typed_data->index_buffer_offset != INVALID_ID_U64) {
             b8 needs_realloc = typed_data->pending_data.new_utf8_length > typed_data->max_text_length;
 
             renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
             renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
 
             // Load up the data.
-            b8 vertex_load_result = renderer_renderbuffer_load_range(vertex_buffer, typed_data->vertex_buffer_offset, typed_data->pending_data.vertex_buffer_size, typed_data->pending_data.vertex_buffer_data, true);
-            b8 index_load_result = renderer_renderbuffer_load_range(index_buffer, typed_data->index_buffer_offset, typed_data->pending_data.index_buffer_size, typed_data->pending_data.index_buffer_data, true);
+            b8 vertex_load_result = renderer_renderbuffer_load_range(vertex_buffer, typed_data->pending_data.vertex_buffer_offset, typed_data->pending_data.vertex_buffer_size, typed_data->pending_data.vertex_buffer_data, true);
+            b8 index_load_result = renderer_renderbuffer_load_range(index_buffer, typed_data->pending_data.index_buffer_offset, typed_data->pending_data.index_buffer_size, typed_data->pending_data.index_buffer_data, true);
 
-            // Clean up new data.
+            // Clean up pending data.
             if (typed_data->pending_data.vertex_buffer_data) {
                 kfree(typed_data->pending_data.vertex_buffer_data, typed_data->pending_data.vertex_buffer_size, MEMORY_TAG_ARRAY);
             }
@@ -439,6 +442,10 @@ static void sui_label_control_render_frame_prepare(struct sui_control* self, con
                     }
                 }
             }
+
+            // Update the buffer offsets with the pending values.
+            typed_data->vertex_buffer_offset = typed_data->pending_data.vertex_buffer_offset;
+            typed_data->index_buffer_offset = typed_data->pending_data.index_buffer_offset;
 
             // Verify results.
             if (!vertex_load_result) {

@@ -4,9 +4,11 @@
 
 typedef struct sui_label_pending_data {
     u64 vertex_buffer_size;
+    u64 vertex_buffer_offset;
     u64 index_buffer_size;
-    vertex_2d *vertex_buffer_data;
-    u32 *index_buffer_data;
+    u64 index_buffer_offset;
+    vertex_2d* vertex_buffer_data;
+    u32* index_buffer_data;
     u32 new_utf8_length;
     u32 new_length;
     u32 prev_vertex_buffer_size;
