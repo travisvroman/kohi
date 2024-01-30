@@ -53,6 +53,17 @@ KAPI void stack_destroy(stack* s);
 KAPI b8 stack_push(stack* s, void* element_data);
 
 /**
+ * @brief Attempts to peek an element (writing out a copy of the
+ * element data on success) from the stack. If the stack is empty,
+ * nothing is done and false is returned. The stack memory is not modified.
+ *
+ * @param s A pointer to the stack to peek from.
+ * @param element_data A pointer to write the element data to. Required.
+ * @return True on succcess; otherwise false.
+ */
+KAPI b8 stack_peek(const stack* s, void* out_element_data);
+
+/**
  * @brief Attempts to pop an element (writing out a copy of the
  * element data on success) from the stack. If the stack is empty,
  * nothing is done and false is returned.
