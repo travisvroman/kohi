@@ -46,6 +46,7 @@ Changelog
     - renderer_end ends the renderer's current command buffer. This is now called from the main engine loop instead of the application.
     - renderer_present presents the current drawn-to attachment to the screen. This is now called from the main engine loop instead of the application.
   - Added missing "peek" function to stack container.
+  - Fixed an issue with the sui_label_control where pending data didn't include new vertex/index buffer offsets during an update.
 
 - 0.5x
   - Added Physically-Based Rendering (PBR) material type support.
