@@ -163,7 +163,7 @@ static console_object* console_object_get(console_object* parent, const char* na
     return 0;
 }
 
-static u32 console_object_to_u32(const console_object* obj) {
+/* static u32 console_object_to_u32(const console_object* obj) {
     return *((u32*)obj->block);
 }
 static i32 console_object_to_i32(const console_object* obj) {
@@ -174,7 +174,7 @@ static f32 console_object_to_f32(const console_object* obj) {
 }
 static b8 console_object_to_b8(const console_object* obj) {
     return *((b8*)obj->block);
-}
+} */
 
 static void console_object_print(u8 indent, console_object* obj) {
     char indent_buffer[513] = {0};
@@ -211,7 +211,7 @@ static void console_object_print(u8 indent, console_object* obj) {
             break;
     }
 }
-
+/*
 typedef enum console_token_type {
     CONSOLE_TOKEN_TYPE_UNKNOWN,
     CONSOLE_TOKEN_TYPE_EOF,
@@ -925,13 +925,20 @@ static b8 evaluate_numerical_expression(const char* source, const console_token*
             *out_type = CONSOLE_OBJECT_TYPE_INT32;
         }
     }
+
+    // TODO: Pick this back up later.
+    return false;
 }
 
 static b8 parse_expression(const char* source, const stack* tokens, console_object_type* out_result_type) {
     // Determine what kind of expression it is.
+    // TODO: Pick this back up later.
+    return false;
 }
 
 static b8 evaluate_expression(const char* source) {
+    // TODO: Pick this back up later.
+    return false;
 }
 
 static b8 console_source_tokens_evaluate(const char* source, stack* tokens, console_object_type* out_type, void* out_value) {
@@ -981,7 +988,7 @@ console_expression_parse_cleanup2:
     string_free(expression_copy_original);
 
     return result;
-}
+}*/
 
 static b8 console_expression_parse(const char* expression, console_object_type* out_type, void* out_value) {
     b8 result = true;

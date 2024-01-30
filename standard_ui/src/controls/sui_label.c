@@ -220,7 +220,7 @@ void sui_label_text_set(struct sui_control* self, const char* text) {
             KERROR("Font atlas verification failed.");
         }
 
-        regenerate_label_geometry(self);
+        typed_data->is_dirty = true;
     }
 }
 
@@ -401,7 +401,7 @@ static void regenerate_label_geometry(sui_control* self) {
         uc++;
     }
 
-    // Mark the label as dirty.
+    // Mark the label as dirty. The work should be offloaded until the next prepare.
     typed_data->is_dirty = true;
 }
 
@@ -409,6 +409,8 @@ static void sui_label_control_render_frame_prepare(struct sui_control* self, con
     if (self) {
         sui_label_internal_data* typed_data = self->internal_data;
         if (typed_data->is_dirty && typed_data->vertex_buffer_offset != INVALID_ID_U64 && typed_data->index_buffer_offset != INVALID_ID_U64) {
+            regenerate_label_geometry(self);
+
             b8 needs_realloc = typed_data->pending_data.new_utf8_length > typed_data->max_text_length;
 
             renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
