@@ -934,12 +934,11 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             f32 culling_radius;
 
             // Get the view-projection matrix
-            // TODO: pull max shadow dist + fade dist for far clip from light.
             mat4 shadow_dist_projection = mat4_perspective(
                 view_viewport->fov,
                 view_viewport->rect.width / view_viewport->rect.height,
-                view_viewport->near_clip,
-                200.0f + 25.0f);
+                near,
+                far);
             mat4 cam_view_proj = mat4_transposed(mat4_mul(camera_view_get(view_camera), shadow_dist_projection));
 
             for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
