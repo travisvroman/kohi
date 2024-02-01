@@ -131,9 +131,9 @@ The items in this list are not in any particular order. This list will be update
 - [x] shadow maps
   - [x] PCF
   - [x] cascading shadow maps
-  - [ ] Adjustable Directional Light properties
-    - [ ] max shadow distance/fade (200/25)
-    - [ ] cascade split multiplier (0.91)
+  - [x] Adjustable Directional Light properties
+    - [x] max shadow distance/fade (200/25)
+    - [x] cascade split multiplier (0.91)
     - [ ] shadow mode (soft/hard shadows/none)
   - [ ] Percentage Closer Soft Shadows (PCSS)
   - [ ] Point light shadows
@@ -146,6 +146,9 @@ The items in this list are not in any particular order. This list will be update
   - [x] Linear processing
   - [ ] Rendergraph Pass Dependencies/auto-resolution
   - [ ] Multithreading/waiting/signaling
+  - [ ] Forward rendering specialized rendergraph
+  - [ ] Deferred rendering specialized rendergraph
+  - [ ] Forward+ rendering specialized rendergraph
 - [x] Forward rendering 
 - [ ] Deferred rendering 
 - [ ] Forward+ rendering
