@@ -2,8 +2,8 @@
 #define _SCENE_PASS_H_
 
 #include "defines.h"
-#include "game_state.h"
 #include "math/math_types.h"
+#include "renderer/passes/shadow_map_pass.h"
 
 struct rendergraph_pass;
 struct frame_data;
@@ -26,8 +26,8 @@ typedef struct scene_pass_extended_data {
 
     struct texture* irradiance_cube_texture;
 
-    mat4 directional_light_views[MAX_SHADOW_CASCADE_COUNT];
-    mat4 directional_light_projections[MAX_SHADOW_CASCADE_COUNT];
+    mat4 directional_light_views[MAX_CASCADE_COUNT];
+    mat4 directional_light_projections[MAX_CASCADE_COUNT];
 } scene_pass_extended_data;
 
 b8 scene_pass_create(struct rendergraph_pass* self, void* config);

@@ -3,11 +3,14 @@
 #include <application_types.h>
 #include <defines.h>
 #include <math/math_types.h>
+#include <renderer/graphs/forward_rendergraph.h>
 #include <renderer/rendergraph.h>
 #include <systems/camera_system.h>
 
 #include "audio/audio_types.h"
 #include "editor/editor_gizmo.h"
+#include "graphs/editor_rendergraph.h"
+#include "graphs/standard_ui_rendergraph.h"
 #include "renderer/viewport.h"
 #include "resources/simple_scene.h"
 
@@ -23,8 +26,6 @@
 struct debug_line3d;
 struct debug_box3d;
 struct transform;
-
-#define MAX_SHADOW_CASCADE_COUNT 4
 
 typedef struct selected_object {
     u32 unique_id;
@@ -83,14 +84,12 @@ typedef struct testbed_game_state {
 
     viewport world_viewport2;
 
-    rendergraph frame_graph;
-    rendergraph_pass skybox_pass;
-    rendergraph_pass shadowmap_pass;
-    rendergraph_pass scene_pass;
     rendergraph_pass editor_pass;
     rendergraph_pass ui_pass;
 
-    u16 shadowmap_resolution;
+    forward_rendergraph forward_graph;
+    editor_rendergraph editor_graph;
+    standard_ui_rendergraph standard_ui_graph;
 
     selected_object selection;
     b8 using_gizmo;
