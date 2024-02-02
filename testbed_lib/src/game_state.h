@@ -9,6 +9,8 @@
 
 #include "audio/audio_types.h"
 #include "editor/editor_gizmo.h"
+#include "graphs/editor_rendergraph.h"
+#include "graphs/standard_ui_rendergraph.h"
 #include "renderer/viewport.h"
 #include "resources/simple_scene.h"
 
@@ -86,6 +88,8 @@ typedef struct testbed_game_state {
     rendergraph_pass ui_pass;
 
     forward_rendergraph forward_graph;
+    editor_rendergraph editor_graph;
+    standard_ui_rendergraph standard_ui_graph;
 
     selected_object selection;
     b8 using_gizmo;

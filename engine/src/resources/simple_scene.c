@@ -1,6 +1,5 @@
 #include "simple_scene.h"
 
-#include "../testbed_types.h"
 #include "containers/darray.h"
 #include "core/console.h"
 #include "core/frame_data.h"

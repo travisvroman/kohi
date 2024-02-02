@@ -1,11 +1,14 @@
 #include "forward_rendergraph.h"
 
+#include "containers/darray.h"
 #include "core/logger.h"
+#include "math/kmath.h"
 #include "renderer/camera.h"
 #include "renderer/renderer_types.h"
 #include "renderer/rendergraph.h"
 #include "renderer/viewport.h"
 #include "resources/simple_scene.h"
+#include "resources/skybox.h"
 #include "systems/light_system.h"
 
 // Supported passes.
@@ -14,7 +17,7 @@
 #include "renderer/passes/skybox_pass.h"
 
 b8 forward_rendergraph_create(const forward_rendergraph_config* config, forward_rendergraph* out_graph) {
-    if (!rendergraph_create("testbed_frame_rendergraph", &out_graph->internal_graph)) {
+    if (!rendergraph_create("forward_rendergraph", &out_graph->internal_graph)) {
         KERROR("Failed to create rendergraph.");
         return false;
     }
@@ -93,8 +96,8 @@ b8 forward_rendergraph_update(forward_rendergraph* graph, struct frame_data* p_f
     return true;
 }
 
-b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_data* p_frame_data, struct camera* current_camera, struct viewport* current_viewport, struct simple_scene* scene) {
-    // Skybox pass. This pass must always run, as it is what clears the screen.
+b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_data* p_frame_data, struct camera* current_camera, struct viewport* current_viewport, struct simple_scene* scene, u32 render_mode) {
+    // Skybox pass. NOTE: This pass must always run, as it is what clears the screen.
     skybox_pass_extended_data* skybox_pass_ext_data = graph->skybox_pass.pass_data.ext_data;
     graph->skybox_pass.pass_data.vp = current_viewport;
     graph->skybox_pass.pass_data.view_matrix = camera_view_get(current_camera);
@@ -119,12 +122,12 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
         f32 range = max_z - min_z;
         f32 ratio = max_z / min_z;
 
-        f32 cascade_split_multiplier = state->main_scene.dir_light ? state->main_scene.dir_light->data.shadow_split_mult : 0.95f;
+        f32 cascade_split_multiplier = dir_light ? dir_light->data.shadow_split_mult : 0.95f;
 
         // Calculate splits based on view camera frustum.
         vec4 splits;
-        for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
-            f32 p = (c + 1) / (f32)MAX_SHADOW_CASCADE_COUNT;
+        for (u32 c = 0; c < MAX_CASCADE_COUNT; c++) {
+            f32 p = (c + 1) / (f32)MAX_CASCADE_COUNT;
             f32 log = min_z * kpow(ratio, p);
             f32 uniform = min_z + range * p;
             f32 d = cascade_split_multiplier * (log - uniform) + uniform;
@@ -133,10 +136,10 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
 
         // Default values to use in the event there is no directional light.
         // These are required because the scene pass needs them.
-        mat4 shadow_camera_lookats[MAX_SHADOW_CASCADE_COUNT];
-        mat4 shadow_camera_projections[MAX_SHADOW_CASCADE_COUNT];
-        vec3 shadow_camera_positions[MAX_SHADOW_CASCADE_COUNT];
-        for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+        mat4 shadow_camera_lookats[MAX_CASCADE_COUNT];
+        mat4 shadow_camera_projections[MAX_CASCADE_COUNT];
+        vec3 shadow_camera_positions[MAX_CASCADE_COUNT];
+        for (u32 i = 0; i < MAX_CASCADE_COUNT; ++i) {
             shadow_camera_lookats[i] = mat4_identity();
             shadow_camera_projections[i] = mat4_identity();
             shadow_camera_positions[i] = vec3_zero();
@@ -148,18 +151,18 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
         }
 
         // Shadowmap pass - only runs if there is a directional light.
-        if (state->main_scene.dir_light) {
+        if (dir_light) {
             f32 last_split_dist = 0.0f;
-            rendergraph_pass* pass = &state->shadowmap_pass;
+            rendergraph_pass* pass = &graph->shadowmap_pass;
             // Mark this pass as executable.
             pass->pass_data.do_execute = true;
 
             // Obtain the light direction.
-            vec3 light_dir = vec3_normalized(vec3_from_vec4(state->main_scene.dir_light->data.direction));
+            vec3 light_dir = vec3_normalized(vec3_from_vec4(dir_light->data.direction));
 
             // Setup the extended data for the pass.
             shadow_map_pass_extended_data* ext_data = pass->pass_data.ext_data;
-            ext_data->light = state->main_scene.dir_light;
+            ext_data->light = dir_light;
 
             /* frustum culling_frustum; */
             vec3 culling_center;
@@ -167,13 +170,13 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
 
             // Get the view-projection matrix
             mat4 shadow_dist_projection = mat4_perspective(
-                view_viewport->fov,
-                view_viewport->rect.width / view_viewport->rect.height,
+                current_viewport->fov,
+                current_viewport->rect.width / current_viewport->rect.height,
                 near,
                 far);
-            mat4 cam_view_proj = mat4_transposed(mat4_mul(camera_view_get(view_camera), shadow_dist_projection));
+            mat4 cam_view_proj = mat4_transposed(mat4_mul(camera_view_get(current_camera), shadow_dist_projection));
 
-            for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
+            for (u32 c = 0; c < MAX_CASCADE_COUNT; c++) {
                 shadow_map_cascade_data* cascade = &ext_data->cascades[c];
                 cascade->cascade_index = c;
 
@@ -258,7 +261,6 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
             // Note that this only needs to happen once, since all geometries visible by the furthest-out cascase
             // must also be drawn on the nearest cascade to ensure objects outside the view cast shadows into the
             // view properly.
-            simple_scene* scene = &state->main_scene;
             ext_data->geometries = darray_reserve_with_allocator(geometry_render_data, 512, &p_frame_data->allocator);
             if (!simple_scene_mesh_render_data_query_from_line(
                     scene,
@@ -291,34 +293,30 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
         // Scene pass.
         {
             // Enable this pass for this frame.
-            state->scene_pass.pass_data.do_execute = true;
-            state->scene_pass.pass_data.vp = &state->world_viewport;
-            camera* current_camera = state->world_camera;
+            graph->scene_pass.pass_data.do_execute = true;
+            graph->scene_pass.pass_data.vp = current_viewport;
             mat4 camera_view = camera_view_get(current_camera);
-            mat4 camera_projection = state->world_viewport.projection;
+            mat4 camera_projection = current_viewport->projection;
 
-            state->scene_pass.pass_data.view_matrix = camera_view;
-            state->scene_pass.pass_data.view_position = camera_position_get(current_camera);
-            state->scene_pass.pass_data.projection_matrix = camera_projection;
+            graph->scene_pass.pass_data.view_matrix = camera_view;
+            graph->scene_pass.pass_data.view_position = camera_position_get(current_camera);
+            graph->scene_pass.pass_data.projection_matrix = camera_projection;
 
-            scene_pass_extended_data* ext_data = state->scene_pass.pass_data.ext_data;
+            scene_pass_extended_data* ext_data = graph->scene_pass.pass_data.ext_data;
             // Pass over shadow map "camera" view and projection matrices (one per cascade).
-            for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
+            for (u32 c = 0; c < MAX_CASCADE_COUNT; c++) {
                 ext_data->directional_light_views[c] = shadow_camera_lookats[c];
                 ext_data->directional_light_projections[c] = shadow_camera_projections[c];
 
-                shadow_map_pass_extended_data* sp_ext_data = state->shadowmap_pass.pass_data.ext_data;
+                shadow_map_pass_extended_data* sp_ext_data = graph->shadowmap_pass.pass_data.ext_data;
                 ext_data->cascade_splits.elements[c] = sp_ext_data->cascades[c].split_depth;
             }
-            ext_data->render_mode = state->render_mode;
+            ext_data->render_mode = render_mode;
             // HACK: use the skybox cubemap as the irradiance texture for now.
-            ext_data->irradiance_cube_texture = state->main_scene.sb->cubemap.texture;
-
-            // Populate scene pass data.
-            simple_scene* scene = &state->main_scene;
+            ext_data->irradiance_cube_texture = scene->sb->cubemap.texture;
 
             // Camera frustum culling and count
-            viewport* v = &state->world_viewport;
+            viewport* v = current_viewport;
             vec3 forward = camera_forward(current_camera);
             vec3 right = camera_right(current_camera);
             vec3 up = camera_up(current_camera);
@@ -372,43 +370,53 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
             // Make sure the count is correct before pushing.
             darray_length_set(ext_data->debug_geometries, ext_data->debug_geometry_count);
 
-            // HACK: Inject raycast debug geometries into scene pass data.
-            if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
-                u32 line_count = darray_length(state->test_lines);
-                for (u32 i = 0; i < line_count; ++i) {
-                    geometry_render_data rd = {0};
-                    rd.model = transform_world_get(&state->test_lines[i].xform);
-                    geometry* g = &state->test_lines[i].geo;
-                    rd.material = g->material;
-                    rd.vertex_count = g->vertex_count;
-                    rd.vertex_buffer_offset = g->vertex_buffer_offset;
-                    rd.index_count = g->index_count;
-                    rd.index_buffer_offset = g->index_buffer_offset;
-                    rd.unique_id = INVALID_ID_U16;
-                    darray_push(ext_data->debug_geometries, rd);
-                    ext_data->debug_geometry_count++;
-                }
-                u32 box_count = darray_length(state->test_boxes);
-                for (u32 i = 0; i < box_count; ++i) {
-                    geometry_render_data rd = {0};
-                    rd.model = transform_world_get(&state->test_boxes[i].xform);
-                    geometry* g = &state->test_boxes[i].geo;
-                    rd.material = g->material;
-                    rd.vertex_count = g->vertex_count;
-                    rd.vertex_buffer_offset = g->vertex_buffer_offset;
-                    rd.index_count = g->index_count;
-                    rd.index_buffer_offset = g->index_buffer_offset;
-                    rd.unique_id = INVALID_ID_U16;
-                    darray_push(ext_data->debug_geometries, rd);
-                    ext_data->debug_geometry_count++;
-                }
+            // TODO: Move this to the scene.
+            /* // HACK: Inject raycast debug geometries into scene pass data.
+             *
+            u32 line_count = darray_length(state->test_lines);
+            for (u32 i = 0; i < line_count; ++i) {
+                geometry_render_data rd = {0};
+                rd.model = transform_world_get(&state->test_lines[i].xform);
+                geometry* g = &state->test_lines[i].geo;
+                rd.material = g->material;
+                rd.vertex_count = g->vertex_count;
+                rd.vertex_buffer_offset = g->vertex_buffer_offset;
+                rd.index_count = g->index_count;
+                rd.index_buffer_offset = g->index_buffer_offset;
+                rd.unique_id = INVALID_ID_U16;
+                darray_push(ext_data->debug_geometries, rd);
+                ext_data->debug_geometry_count++;
             }
-        }  // scene loaded.
+            u32 box_count = darray_length(state->test_boxes);
+            for (u32 i = 0; i < box_count; ++i) {
+                geometry_render_data rd = {0};
+                rd.model = transform_world_get(&state->test_boxes[i].xform);
+                geometry* g = &state->test_boxes[i].geo;
+                rd.material = g->material;
+                rd.vertex_count = g->vertex_count;
+                rd.vertex_buffer_offset = g->vertex_buffer_offset;
+                rd.index_count = g->index_count;
+                rd.index_buffer_offset = g->index_buffer_offset;
+                rd.unique_id = INVALID_ID_U16;
+                darray_push(ext_data->debug_geometries, rd);
+                ext_data->debug_geometry_count++;
+            } */
+        }
+    } else {
+        // Scene not loaded.
+
+        // Do not run these passes if the scene is not loaded.
+        graph->scene_pass.pass_data.do_execute = false;
+        graph->shadowmap_pass.pass_data.do_execute = false;
     }
 
-    b8 forward_rendergraph_execute(forward_rendergraph * graph, struct frame_data * p_frame_data) {
-    }
+    return true;
+}
 
-    b8 forward_rendergraph_on_resize(forward_rendergraph * graph, u32 width, u32 height) {
-        return rendergraph_on_resize(&graph->internal_graph, width, height);
-    }
+b8 forward_rendergraph_execute(forward_rendergraph* graph, struct frame_data* p_frame_data) {
+    return rendergraph_execute_frame(&graph->internal_graph, p_frame_data);
+}
+
+b8 forward_rendergraph_on_resize(forward_rendergraph* graph, u32 width, u32 height) {
+    return rendergraph_on_resize(&graph->internal_graph, width, height);
+}
