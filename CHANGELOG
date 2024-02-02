@@ -48,6 +48,7 @@ Changelog
   - Added missing "peek" function to stack container.
   - Fixed an issue with the sui_label_control where pending data didn't include new vertex/index buffer offsets during an update.
   - Created specialized rendergraphs for Forward rendering, one for the Editor (currently lives in TestBed) and one for Standard UI.
+  - Added job ids, and job dependencies that can be used to link jobs one after another.
 
 - 0.5x
   - Added Physically-Based Rendering (PBR) material type support.
