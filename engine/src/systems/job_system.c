@@ -1,11 +1,13 @@
 #include "job_system.h"
 
 #include "containers/ring_queue.h"
+#include "core/asserts.h"
 #include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kmutex.h"
 #include "core/kthread.h"
 #include "core/logger.h"
+#include "defines.h"
 
 typedef struct job_thread {
     u8 index;
@@ -32,6 +34,11 @@ typedef struct job_system_state {
     b8 running;
     u8 thread_count;
     job_thread job_threads[32];
+
+    u16 current_job_id;
+    // TODO: This is a massive waste of memory - combine 8 at a time into each bool.
+    b8* job_statuses;
+    kmutex job_status_mutex;
 
     ring_queue low_priority_queue;
     ring_queue normal_priority_queue;
@@ -125,9 +132,21 @@ static u32 job_thread_run(void* params) {
                 kfree(info.result_data, info.result_data_size, MEMORY_TAG_JOB);
             }
 
+            // Update the job status for this job.
+            if (!kmutex_lock(&state_ptr->job_status_mutex)) {
+                KERROR("Failed to lock job status mutex!");
+            }
+            state_ptr->job_statuses[thread->info.id] = true;
+            if (!kmutex_unlock(&state_ptr->job_status_mutex)) {
+                KERROR("Failed to unlock job status mutex!");
+            }
+
             // Lock and reset the thread's info object
             if (!kmutex_lock(&thread->info_mutex)) {
                 KERROR("Failed to obtain lock on job thread mutex!");
+            }
+            if (thread->info.dependency_ids) {
+                kfree(thread->info.dependency_ids, sizeof(u16) * thread->info.dependency_count, MEMORY_TAG_ARRAY);
             }
             kzero_memory(&thread->info, sizeof(job_info));
             if (!kmutex_unlock(&thread->info_mutex)) {
@@ -151,7 +170,7 @@ static u32 job_thread_run(void* params) {
 
 b8 job_system_initialize(u64* job_system_memory_requirement, void* state, void* config) {
     job_system_config* typed_config = (job_system_config*)config;
-    *job_system_memory_requirement = sizeof(job_system_state);
+    *job_system_memory_requirement = sizeof(job_system_state) + (sizeof(u8) * (INVALID_ID_U16 - 1));
     if (state == 0) {
         return true;
     }
@@ -160,6 +179,7 @@ b8 job_system_initialize(u64* job_system_memory_requirement, void* state, void* 
 
     state_ptr = state;
     state_ptr->running = true;
+    state_ptr->job_statuses = (void*)((u64)state_ptr + sizeof(job_system_state));
 
     ring_queue_create(sizeof(job_info), 1024, 0, &state_ptr->low_priority_queue);
     ring_queue_create(sizeof(job_info), 1024, 0, &state_ptr->normal_priority_queue);
@@ -187,19 +207,23 @@ b8 job_system_initialize(u64* job_system_memory_requirement, void* state, void* 
 
     // Create needed mutexes
     if (!kmutex_create(&state_ptr->result_mutex)) {
-        KERROR("Failed to create result mutex!.");
+        KERROR("Failed to create result mutex!");
         return false;
     }
     if (!kmutex_create(&state_ptr->low_pri_queue_mutex)) {
-        KERROR("Failed to create low priority queue mutex!.");
+        KERROR("Failed to create low priority queue mutex!");
         return false;
     }
     if (!kmutex_create(&state_ptr->normal_pri_queue_mutex)) {
-        KERROR("Failed to create normal priority queue mutex!.");
+        KERROR("Failed to create normal priority queue mutex!");
         return false;
     }
     if (!kmutex_create(&state_ptr->high_pri_queue_mutex)) {
-        KERROR("Failed to create high priority queue mutex!.");
+        KERROR("Failed to create high priority queue mutex!");
+        return false;
+    }
+    if (!kmutex_create(&state_ptr->job_status_mutex)) {
+        KERROR("Failed to create job status mutex!");
         return false;
     }
 
@@ -225,6 +249,7 @@ void job_system_shutdown(void* state) {
         kmutex_destroy(&state_ptr->low_pri_queue_mutex);
         kmutex_destroy(&state_ptr->normal_pri_queue_mutex);
         kmutex_destroy(&state_ptr->high_pri_queue_mutex);
+        kmutex_destroy(&state_ptr->job_status_mutex);
 
         state_ptr = 0;
     }
@@ -238,6 +263,22 @@ static void process_queue(ring_queue* queue, kmutex* queue_mutex) {
         job_info info;
         if (!ring_queue_peek(queue, &info)) {
             break;
+        }
+
+        // Verify dependencies are complete.
+        b8 awaiting_dependency = false;
+        if (info.dependency_count) {
+            for (u32 i = 0; i < info.dependency_count; ++i) {
+                if (!job_system_query_job_complete(info.dependency_ids[i])) {
+                    KTRACE("Note: Not starting job id %u because it's dependency (job id=%u) is still running.", info.id, info.dependency_ids[i]);
+                    awaiting_dependency = true;
+                    break;
+                }
+            }
+        }
+
+        if (awaiting_dependency) {
+            continue;
         }
 
         b8 thread_found = false;
@@ -385,12 +426,41 @@ job_info job_create_type(pfn_job_start entry_point, pfn_job_on_complete on_succe
 }
 
 job_info job_create_priority(pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void* param_data, u32 param_data_size, u32 result_data_size, job_type type, job_priority priority) {
+    return job_create_with_dependencies(entry_point, on_success, on_fail, param_data, param_data_size, result_data_size, type, priority, 0, 0);
+}
+
+job_info job_create_with_dependencies(
+    pfn_job_start entry_point,
+    pfn_job_on_complete on_success,
+    pfn_job_on_complete on_fail,
+    void* param_data,
+    u32 param_data_size,
+    u32 result_data_size,
+    job_type type,
+    job_priority priority,
+    u8 dependency_count,
+    u16* dependencies) {
     job_info job;
     job.entry_point = entry_point;
     job.on_success = on_success;
     job.on_fail = on_fail;
     job.type = type;
     job.priority = priority;
+
+    // Technically jobs can be created in the middle of other jobs (i.e. on a different thread)
+    // so make sure to lock around these updates.
+    if (!kmutex_lock(&state_ptr->job_status_mutex)) {
+        KERROR("Failed to lock job status mutex!");
+    }
+
+    // TODO: Pack booleans.
+    KASSERT_MSG(state_ptr->current_job_id < INVALID_ID_U16, "Job system identifier overflow - need to pack booleans.");
+    job.id = state_ptr->current_job_id;
+    state_ptr->current_job_id++;
+    state_ptr->job_statuses[job.id] = false;
+    if (!kmutex_unlock(&state_ptr->job_status_mutex)) {
+        KERROR("Failed to unlock job status mutex!");
+    }
 
     job.param_data_size = param_data_size;
     if (param_data_size) {
@@ -407,5 +477,25 @@ job_info job_create_priority(pfn_job_start entry_point, pfn_job_on_complete on_s
         job.result_data = 0;
     }
 
+    job.dependency_count = dependency_count;
+    if (dependency_count) {
+        job.dependency_ids = kallocate(sizeof(u16) * dependency_count, MEMORY_TAG_ARRAY);
+        kcopy_memory(job.dependency_ids, dependencies, sizeof(u16) * dependency_count);
+    } else {
+        job.dependency_ids = 0;
+    }
+
     return job;
+}
+
+b8 job_system_query_job_complete(u16 job_id) {
+    b8 status = INVALID_ID;
+    if (!kmutex_lock(&state_ptr->job_status_mutex)) {
+        KERROR("Failed to lock job status mutex!");
+    }
+    status = state_ptr->job_statuses[job_id];
+    if (!kmutex_unlock(&state_ptr->job_status_mutex)) {
+        KERROR("Failed to unlock job status mutex!");
+    }
+    return status;
 }
