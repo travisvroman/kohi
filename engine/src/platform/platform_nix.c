@@ -9,16 +9,102 @@
  *
  */
 
+#include <sys/semaphore.h>
+
+#include "core/ksemaphore.h"
 #include "platform.h"
 
 #if defined(KPLATFORM_LINUX) || defined(KPLATFORM_APPLE)
 
+#include <dlfcn.h>
+#include <semaphore.h>
+#include <sys/shm.h>
+
+#include "containers/darray.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
-#include "containers/darray.h"
 
-#include <dlfcn.h>
+typedef struct nix_semaphore_internal {
+    sem_t *semaphore;
+    char *name;
+} nix_semaphore_internal;
+
+static u32 semaphore_id = 0;
+
+b8 ksemaphore_create(ksemaphore *out_semaphore, u32 max_count, u32 start_count) {
+    if (!out_semaphore) {
+        return false;
+    }
+
+    char name_buf[20] = {0};
+    string_format(name_buf, "/kohi_job_sem_%u", semaphore_id);
+    semaphore_id++;
+
+    out_semaphore->internal_data = kallocate(sizeof(nix_semaphore_internal), MEMORY_TAG_ENGINE);
+    nix_semaphore_internal *internal = out_semaphore->internal_data;
+
+    if ((internal->semaphore = sem_open(name_buf, O_CREAT, 0664, 1)) == SEM_FAILED) {
+        KERROR("Failed to open semaphore");
+        return false;
+    }
+    internal->name = string_duplicate(name_buf);
+
+    return true;
+}
+
+void ksemaphore_destroy(ksemaphore *semaphore) {
+    if (!semaphore) {
+        return;
+    }
+
+    nix_semaphore_internal *internal = semaphore->internal_data;
+    if (sem_close(internal->semaphore) == -1) {
+        KERROR("Failed to close semaphore.");
+    }
+
+    if (sem_unlink(internal->name) == -1) {
+        KERROR("Failed to unlink semaphore");
+    }
+
+    string_free(internal->name);
+    kfree(semaphore->internal_data, sizeof(nix_semaphore_internal), MEMORY_TAG_ENGINE);
+    semaphore->internal_data = 0;
+}
+
+b8 ksemaphore_signal(ksemaphore *semaphore) {
+    if (!semaphore || !semaphore->internal_data) {
+        return false;
+    }
+
+    nix_semaphore_internal *internal = semaphore->internal_data;
+    if (sem_post(internal->semaphore) != 0) {
+        KERROR("Semaphore failed to post!");
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Decreases the semaphore count by 1. If the count reaches 0, the
+ * semaphore is considered unsignaled and this call blocks until the
+ * semaphore is signaled by ksemaphore_signal.
+ */
+b8 ksemaphore_wait(ksemaphore *semaphore, u64 timeout_ms) {
+    if (!semaphore || !semaphore->internal_data) {
+        return false;
+    }
+
+    nix_semaphore_internal *internal = semaphore->internal_data;
+    // TODO: handle timeout value using sem_timedwait()
+    if (sem_wait(internal->semaphore) != 0) {
+        KERROR("Semaphore failed to wait!");
+        return false;
+    }
+
+    return true;
+}
 
 b8 platform_dynamic_library_load(const char *name, dynamic_library *out_library) {
     if (!out_library) {
