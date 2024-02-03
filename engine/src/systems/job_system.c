@@ -5,6 +5,7 @@
 #include "core/frame_data.h"
 #include "core/kmemory.h"
 #include "core/kmutex.h"
+#include "core/ksemaphore.h"
 #include "core/kthread.h"
 #include "core/logger.h"
 #include "defines.h"
@@ -15,6 +16,9 @@ typedef struct job_thread {
     job_info info;
     // A mutex to guard access to this thread's info.
     kmutex info_mutex;
+
+    // Used to cause a thread to block until work is available.
+    ksemaphore semaphore;
 
     // The types of jobs this thread can handle.
     u32 type_mask;
@@ -97,11 +101,20 @@ static u32 job_thread_run(void* params) {
         return 0;
     }
 
+    // Create a semaphore for the thread which will block until there is work to do.
+    if (!ksemaphore_create(&thread->semaphore, 1, 1)) {
+        KERROR("Failed to create job thread semaphore! Aborting thread.");
+        return 0;
+    }
+
     // Run forever, waiting for jobs.
     while (true) {
         if (!state_ptr || !state_ptr->running || !thread) {
             break;
         }
+
+        // Wait for the semaphore to be signaled.
+        ksemaphore_wait(&thread->semaphore, 0xFFFFFFFF);
 
         // Lock and grab a copy of the info
         if (!kmutex_lock(&thread->info_mutex)) {
@@ -154,17 +167,18 @@ static u32 job_thread_run(void* params) {
             }
         }
 
-        if (state_ptr->running) {
-            // TODO: Should probably find a better way to do this, such as sleeping until
-            // a request comes through for a new job.
-            kthread_sleep(&thread->thread, 10);
-        } else {
+        // If no longer running, shut down the thread.
+        if (!state_ptr->running) {
             break;
         }
     }
 
     // Destroy the mutex for this thread.
     kmutex_destroy(&thread->info_mutex);
+
+    // Destroy the semaphore.
+    ksemaphore_destroy(&thread->semaphore);
+
     return 1;
 }
 
@@ -304,6 +318,8 @@ static void process_queue(ring_queue* queue, kmutex* queue_mutex) {
                 thread->info = info;
                 KTRACE("Assigning job to thread: %u", thread->index);
                 thread_found = true;
+                // Signal the thread's semaphore since there is work to be done.
+                ksemaphore_signal(&thread->semaphore);
             }
             if (!kmutex_unlock(&thread->info_mutex)) {
                 KERROR("Failed to release lock on job thread mutex!");
@@ -498,4 +514,8 @@ b8 job_system_query_job_complete(u16 job_id) {
         KERROR("Failed to unlock job status mutex!");
     }
     return status;
+}
+
+b8 job_system_wait_for_jobs(u8 job_count, u16 job_ids) {
+    return true;
 }

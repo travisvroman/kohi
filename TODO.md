@@ -38,9 +38,10 @@ The items in this list are not in any particular order. This list will be update
   - [ ] bst
 - [ ] quadtrees/octrees
 - [x] Threads 
+- [x] Semaphores
 - [x] Job system
   - [x] Job dependencies
-  - [ ] Job semaphores/signaling
+  - [x] Job semaphores/signaling
 - [ ] ThreadPools
 - [ ] Multi-threaded logger
 - [x] Textures 

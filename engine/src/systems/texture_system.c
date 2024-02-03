@@ -805,6 +805,10 @@ static b8 texture_load_layered_job_start(void* params, void* result_data) {
     texture_load_layered_params* load_params = (texture_load_layered_params*)params;
     texture_load_layered_result* typed_result = result_data;
 
+    // LEFTOFF: Split this into 3 jobs - The first job performs the query, then sets up all of the layered texture jobs, then sets
+    // up a final job to move all that memory into the contiguous block in a final job, which has the layer jobs as a dependency.
+    // THEN submit all jobs.
+
     // Query the dimensions of the first image. All subsequent images must match dimensions.
     // Channel count from the image is ignored.
     i32 first_width, first_height, channel_count;
@@ -842,6 +846,7 @@ static b8 texture_load_layered_job_start(void* params, void* result_data) {
     image_resource_params resource_params;
     resource_params.flip_y = true;
 
+    // Create a job for each layer, but don't submit it yet.
     u32 layer = 0;
     for (; layer < load_params->layer_count; ++layer) {
         resource image_resource;
@@ -876,6 +881,10 @@ static b8 texture_load_layered_job_start(void* params, void* result_data) {
 
         resource_system_unload(&image_resource);
     }
+
+    // TODO: Create a third job
+
+    // TODO: Submit jobs.
 
     typed_result->temp_texture.flags |= has_transparency ? TEXTURE_FLAG_HAS_TRANSPARENCY : 0;
     typed_result->name = string_duplicate(load_params->name);
