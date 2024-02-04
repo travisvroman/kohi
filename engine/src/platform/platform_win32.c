@@ -315,6 +315,28 @@ void kthread_cancel(kthread *thread) {
     }
 }
 
+b8 kthread_wait(kthread *thread) {
+    if (thread && thread->internal_data) {
+        DWORD exit_code = WaitForSingleObject(thread->internal_data, INFINITE);
+        if (exit_code == WAIT_OBJECT_0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+b8 kthread_wait_timeout(kthread *thread, u64 wait_ms) {
+    if (thread && thread->internal_data) {
+        DWORD exit_code = WaitForSingleObject(thread->internal_data, wait_ms);
+        if (exit_code == WAIT_OBJECT_0) {
+            return true;
+        } else if (exit_code == WAIT_TIMEOUT) {
+            return false;
+        }
+    }
+    return false;
+}
+
 b8 kthread_is_active(kthread *thread) {
     if (thread && thread->internal_data) {
         DWORD exit_code = WaitForSingleObject(thread->internal_data, 0);

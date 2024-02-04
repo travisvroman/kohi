@@ -33,7 +33,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] freelist
   - [x] dynamic arrays  
   - [x] ring buffer
-  - [ ] queue 
+  - [x] queue 
   - [ ] pool 
   - [ ] bst
 - [ ] quadtrees/octrees
