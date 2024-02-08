@@ -1,6 +1,5 @@
 #include "rendergraph.h"
 
-#include "application_types.h"
 #include "containers/darray.h"
 #include "core/frame_data.h"
 #include "core/kmemory.h"
@@ -12,13 +11,12 @@
 
 static b8 regenerate_render_targets(rendergraph* graph, rendergraph_pass* pass, u16 width, u16 height);
 
-b8 rendergraph_create(const char* name, struct application* app, rendergraph* out_graph) {
+b8 rendergraph_create(const char* name, rendergraph* out_graph) {
     if (!out_graph) {
         return false;
     }
 
     out_graph->name = string_duplicate(name);
-    out_graph->app = app;
     out_graph->passes = darray_create(rendergraph_pass*);
     out_graph->global_sources = darray_create(rendergraph_source);
 
@@ -27,7 +25,7 @@ b8 rendergraph_create(const char* name, struct application* app, rendergraph* ou
 
 void rendergraph_destroy(rendergraph* graph) {
     if (graph) {
-        graph->app = 0;
+        renderer_wait_for_idle();
 
         if (graph->name) {
             string_free(graph->name);

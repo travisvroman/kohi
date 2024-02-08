@@ -53,6 +53,9 @@ typedef struct job_info {
     /** @brief The type of job. Used to determine which thread the job executes on. */
     job_type type;
 
+    /** @brief The uniquie identifier of this job. */
+    u16 id;
+
     /** @brief The priority of this job. Higher priority jobs obviously run sooner. */
     job_priority priority;
 
@@ -76,6 +79,12 @@ typedef struct job_info {
 
     /** @brief The size of the data passed to the success/fail function. */
     u32 result_data_size;
+
+    /** @brief A count of job identifiers that must be complete before this job starts. */
+    u8 dependency_count;
+
+    /** @brief An array of job identifiers that must be complete before this job starts. */
+    u16* dependency_ids;
 } job_info;
 
 typedef struct job_system_config {
@@ -152,3 +161,34 @@ KAPI job_info job_create_type(pfn_job_start entry_point, pfn_job_on_complete on_
  * @returns The newly created job information to be submitted for execution.
  */
 KAPI job_info job_create_priority(pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void* param_data, u32 param_data_size, u32 result_data_size, job_type type, job_priority priority);
+
+/**
+ * @brief Creates a new job with the provided type, priority, and dependencies.
+ * @param entry_point A pointer to a function to be invoked when the job starts. Required.
+ * @param on_success A pointer to a function to be invoked when the job completes successfully. Optional.
+ * @param on_fail A pointer to a function to be invoked when the job fails. Optional.
+ * @param param_data Data to be passed to the entry point upon execution.
+ * @param param_data_size The data to be passed on to entry_point callback. Pass 0 if not used.
+ * @param result_data_size The size of result data to be passed on to success callback. Pass 0 if not used.
+ * @param type The type of job. Used to determine which thread the job executes on.
+ * @param priority The priority of this job. Higher priority jobs obviously run sooner.
+ * @param dependency_count The number of job identifiers which must be complete before this job runs.
+ * @param dependencies An array of job identifiers which must be complete before this job runs.
+ * @returns The newly created job information to be submitted for execution.
+ */
+KAPI job_info job_create_with_dependencies(
+    pfn_job_start entry_point,
+    pfn_job_on_complete on_success,
+    pfn_job_on_complete on_fail,
+    void* param_data,
+    u32 param_data_size,
+    u32 result_data_size,
+    job_type type,
+    job_priority priority,
+    u8 dependency_count,
+    u16* dependencies);
+
+/**
+ * @brief Returns whether or not the job with the given identifier has completed.
+ */
+KAPI b8 job_system_query_job_complete(u16 job_id);

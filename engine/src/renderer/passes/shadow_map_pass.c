@@ -5,7 +5,6 @@
 #include "core/kstring.h"
 #include "core/logger.h"
 #include "defines.h"
-#include "math/kmath.h"
 #include "math/math_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
@@ -326,7 +325,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
     renderer_active_viewport_set(&internal_data->camera_viewport);
 
     for (u32 p = 0; p < MAX_CASCADE_COUNT; ++p) {
-        shadow_map_cascade_data* cascade = &ext_data->cascades[p];
+        // shadow_map_cascade_data* cascade = &ext_data->cascades[p];
         /* if (!renderer_renderpass_begin(&self->pass, &self->pass.targets[p_frame_data->render_target_index])) {
             KERROR("Shadowmap pass failed to start.");
             return false;
@@ -357,8 +356,8 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
         }
         shader_system_apply_global(needs_update, p_frame_data);
 
-        u32 geometry_count = cascade->geometry_count;
-        u32 terrain_geometry_count = cascade->terrain_geometry_count;
+        u32 geometry_count = ext_data->geometry_count;
+        u32 terrain_geometry_count = ext_data->terrain_geometry_count;
 
         // Verify enough instance resources for this frame.
         // This is done by taking the highest material instance id
@@ -368,7 +367,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
         // of instance updates per frame.
         u32 highest_id = 0;
         for (u32 i = 0; i < geometry_count; ++i) {
-            material* m = cascade->geometries[i].material;
+            material* m = ext_data->geometries[i].material;
             if (m->internal_id > highest_id) {
                 // NOTE: +1 to account for the first id being taken by the default instance.
                 highest_id = m->internal_id + 1;
@@ -413,7 +412,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
 
         // Static geometries.
         for (u32 i = 0; i < geometry_count; ++i) {
-            geometry_render_data* g = &cascade->geometries[i];
+            geometry_render_data* g = &ext_data->geometries[i];
 
             u32 bind_id = INVALID_ID;
             texture_map* bind_map = 0;
@@ -470,7 +469,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
             shader_system_apply_local(p_frame_data);
 
             // Invert if needed
-            if (cascade->geometries[i].winding_inverted) {
+            if (ext_data->geometries[i].winding_inverted) {
                 renderer_winding_set(RENDERER_WINDING_CLOCKWISE);
             }
 
@@ -478,7 +477,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
             renderer_geometry_draw(g);
 
             // Change back if needed
-            if (cascade->geometries[i].winding_inverted) {
+            if (ext_data->geometries[i].winding_inverted) {
                 renderer_winding_set(RENDERER_WINDING_COUNTER_CLOCKWISE);
             }
         }
@@ -504,7 +503,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
         shader_system_apply_global(needs_update, p_frame_data);
 
         for (u32 i = 0; i < terrain_geometry_count; ++i) {
-            geometry_render_data* terrain = &cascade->terrain_geometries[i];
+            geometry_render_data* terrain = &ext_data->terrain_geometries[i];
 
             // Just draw these using the default instance and texture map.
             texture_map* bind_map = &internal_data->default_terrain_colour_map;

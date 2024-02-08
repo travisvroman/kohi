@@ -11,6 +11,8 @@
 #include <systems/geometry_system.h>
 #include <systems/shader_system.h>
 
+static void sui_panel_control_render_frame_prepare(struct sui_control* self, const struct frame_data* p_frame_data);
+
 b8 sui_panel_control_create(const char* name, vec2 size, vec4 colour, struct sui_control* out_control) {
     if (!sui_base_control_create(name, out_control)) {
         return false;
@@ -23,12 +25,14 @@ b8 sui_panel_control_create(const char* name, vec2 size, vec4 colour, struct sui
     // Reasonable defaults.
     typed_data->rect = vec4_create(0, 0, size.x, size.y);
     typed_data->colour = colour;
+    typed_data->is_dirty = true;
 
     // Assign function pointers.
     out_control->destroy = sui_panel_control_destroy;
     out_control->load = sui_panel_control_load;
     out_control->unload = sui_panel_control_unload;
     out_control->update = sui_panel_control_update;
+    out_control->render_prepare = sui_panel_control_render_frame_prepare;
     out_control->render = sui_panel_control_render;
 
     out_control->name = string_duplicate(name);
@@ -142,7 +146,15 @@ b8 sui_panel_control_resize(struct sui_control* self, vec2 new_size) {
     vertices[1].position.x = new_size.x;
     vertices[2].position.y = new_size.y;
     vertices[3].position.x = new_size.x;
-    renderer_geometry_vertex_update(typed_data->g, 0, typed_data->g->vertex_count, vertices);
+    typed_data->is_dirty = true;
 
     return true;
+}
+
+static void sui_panel_control_render_frame_prepare(struct sui_control* self, const struct frame_data* p_frame_data) {
+    if (self) {
+        sui_panel_internal_data* typed_data = self->internal_data;
+        renderer_geometry_vertex_update(typed_data->g, 0, typed_data->g->vertex_count, typed_data->g->vertices, true);
+        typed_data->is_dirty = false;
+    }
 }

@@ -1,12 +1,16 @@
 #include "vulkan_renderer_plugin_main.h"
 
 #include <core/kmemory.h>
+#include <core/logger.h>
 
 #include "renderer/vulkan/vulkan_backend.h"
+#include "vulkan_renderer_version.h"
 
 b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->initialize = vulkan_renderer_backend_initialize;
     out_plugin->shutdown = vulkan_renderer_backend_shutdown;
+    out_plugin->begin_debug_label = vulkan_renderer_begin_debug_label;
+    out_plugin->end_debug_label = vulkan_renderer_end_debug_label;
     out_plugin->frame_prepare = vulkan_renderer_frame_prepare;
     out_plugin->begin = vulkan_renderer_begin;
     out_plugin->end = vulkan_renderer_end;
@@ -39,7 +43,9 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->shader_destroy = vulkan_renderer_shader_destroy;
     out_plugin->shader_uniform_set = vulkan_renderer_uniform_set;
     out_plugin->shader_initialize = vulkan_renderer_shader_initialize;
+    out_plugin->shader_reload = vulkan_renderer_shader_reload;
     out_plugin->shader_use = vulkan_renderer_shader_use;
+    out_plugin->shader_supports_wireframe = vulkan_renderer_shader_supports_wireframe;
     out_plugin->shader_bind_globals = vulkan_renderer_shader_bind_globals;
     out_plugin->shader_bind_instance = vulkan_renderer_shader_bind_instance;
     out_plugin->shader_bind_local = vulkan_renderer_shader_bind_local;
@@ -78,6 +84,9 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->renderbuffer_load_range = vulkan_buffer_load_range;
     out_plugin->renderbuffer_copy_range = vulkan_buffer_copy_range;
     out_plugin->renderbuffer_draw = vulkan_buffer_draw;
+    out_plugin->wait_for_idle = vulkan_renderer_wait_for_idle;
+
+    KINFO("Vulkan Renderer Plugin Creation successful (%s).", KVERSION);
 
     return true;
 }

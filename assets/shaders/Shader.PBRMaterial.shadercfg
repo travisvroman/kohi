@@ -5,6 +5,7 @@ stages=vertex,fragment
 stagefiles=shaders/PBRShader.vert.glsl,shaders/PBRShader.frag.glsl
 depth_test=1
 depth_write=1
+supports_wireframe=1
 max_instances=256
 
 # Attributes: type,name
@@ -36,7 +37,7 @@ uniform=sampler2DArray,1,shadow_textures
 # IBL
 uniform=samplerCube,1,ibl_cube_texture
 
-uniform=struct32,1,dir_light
+uniform=struct48,1,dir_light
 uniform=struct480,1,p_lights
 uniform=struct32,1,properties
 uniform=i32,1,num_p_lights

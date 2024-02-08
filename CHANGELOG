@@ -1,5 +1,58 @@
 Changelog
 
+- 0.6.0
+  - Updated versioning system and build process. Each library now maintains its own version (and potentially changelog at some point).
+    - New version format is MAJOR.MINOR.PATCH.BUILD-REVISION. This will allow for greater versioning control and patching to minor versions.
+    - Only 0.6+ will follow this, older versioning will stay as it is.
+  - Removed a trace warning about early memory allocations.
+  - Branching strategy is changing. 
+    - Branch names will be based on version using the format "vMAJOR.MINOR.PATCH". Ex: v0.6.0
+    - Development will continue to happen in feature branches, but those will be branched from version branches. 
+    - When complete, feature branches will merge into version branches.
+      - Ex: feature/terrain_chunking is branched from v0.6.0. When complete, feature/terrain_chunking is merged into v0.6.0. feature/terrain_chunking is then deleted.
+    - Version branches will be merged into main as they are completed. A tag is then created on the main branch. 
+      - Release cycles (when they happen) will follow this.
+    - Changelog will list all changes under a minor version (i.e. 0.6.0) unless a later patch is made.
+      - If a patch update is made, new notes would appear under that patch version (i.e. 0.6.1, 0.6.2, etc.).
+  - All libraries (as of now, engine, plugin_audio_openal, standard_ui, testbed_lib and vulkan_renderer) now maintain their own versions.
+    - NOTE: The engine version is the one used to denote primary releases, this changelog, etc. since plugins, etc. may not have updates between versions.
+    - The build process now generates a file for each library: <assembly-folder>/src/<assembly-name>_version.h. Ex: engine/src/engine_version.h.
+    - Each library includes its version file and now reports version to the console during its initialization.
+  - versiongen utility has been updated to accept a filename parameter instead of major/minor versions. The build process passes "<assembly-folder>/version.txt".
+    - version.txt is read in its entirety (up to 10 characters) and is used to define the major, minor, and patch. Ex: "0.6.0". This is then prepended to the generated build-revision to complete the format listed above.
+  - Added terrain chunking support.
+  - Fixed an issue with darrays that could cause invalid header data in certain scenarios.
+  - Updated simple scene query functions to take pointers to arrays of geometry render data to account for array resizes if needed.
+  - Fixed extents generation for terrain chunks, which fixes improper frustum culling issue.
+  - Fixed a bug where shader scopes weren't being bound properly in the scene pass, causing debug objects to render all over the place.
+  - The scene is now only queried once for geometry to be used with all shadow map cascades, as opposed to once per cascade.
+  - Removed "wireframe" shader config property and replaced it with "supports_wireframe". See next entry for details.
+  - Added the ability to have a wireframe mode, if supported, in a shader. This creates a separate set of pipelines that are used when this 
+    mode is selected.
+  - Added a RENDERER_MODE_WIREFRAME, which will enable wireframe for certain shaders when swapped to.
+    - macOS: Note that, in order to support wireframe mode in macOS the newest (at the time) Vulkan SDK 
+      must be used (1.3.275).
+  - Fixed an issue where ksort would segfault while trying to access a negative array index.
+  - Added "skirt" geometry to terrain sides in an effort to plug holes in transitions between chunks.
+  - Vulkan Renderer performance updates (see Vulkan Plugin Changelog).
+  - To facilitate the above, several areas of logic that previously required a separate command buffer and queue wait have had thier work offloaded
+    to the beginning of the next frame. This reduces waits and more efficiently batches workload to the GPU.
+  - The core engine frame lifecycle now has a slightly altered sequence of events. The new cycle is as follows (only changed section is listed):
+    - After resize detection, renderer_prepare is called, which can cause the renderer to wait for resource regeneration if needed. Otherwise:
+    - renderer_begin is now called in the main engine loop instead of by the application. This makes the renderer begin its current command buffer.
+    - systems_manager_renderer_frame_prepare is called. All systems can now have a "frame_prepare" phase, which is optional. Only standard_ui uses this for now. This is to allow updates which need GPU uploads to occur before the rest of the frame workload begins.
+    - The application instance recieves a call to its prepare_frame.
+      - In testbed, this calls a new function in simple_scene for prepare_frame, which handles any GPU uploads before the rest of the frame workload begins.
+    - renderer_end ends the renderer's current command buffer. This is now called from the main engine loop instead of the application.
+    - renderer_present presents the current drawn-to attachment to the screen. This is now called from the main engine loop instead of the application.
+  - Added missing "peek" function to stack container.
+  - Fixed an issue with the sui_label_control where pending data didn't include new vertex/index buffer offsets during an update.
+  - Created specialized rendergraphs for Forward rendering, one for the Editor (currently lives in TestBed) and one for Standard UI.
+  - Added job ids, and job dependencies that can be used to link jobs one after another.
+  - Added semaphores.
+  - Updated job system to use semaphores to block worker threads until there is work to be done. Semaphores are signaled when work is deployed to a job thread.
+  - Added threadpool, worker threads and setup layered texture loading to use them.
+
 - 0.5x
   - Added Physically-Based Rendering (PBR) material type support.
   - Fixed an issue with pulling the default checkerboard texture when already using a default texture (i.e normal, spec, ao, etc.).

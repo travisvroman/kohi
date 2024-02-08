@@ -195,7 +195,7 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
             if (stencil_test) {
                 resource_data->flags |= SHADER_FLAG_STENCIL_TEST;
             }
-        } else if (strings_equali(trimmed_var_name, "wireframe")) {
+        } else if (strings_equali(trimmed_var_name, "supports_wireframe")) {
             b8 wireframe;
             string_to_bool(trimmed_value, &wireframe);
             if (wireframe) {

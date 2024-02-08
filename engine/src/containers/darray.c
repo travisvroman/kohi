@@ -55,10 +55,11 @@ void* _darray_resize(void* array) {
     }
     void* temp = _darray_create((DARRAY_RESIZE_FACTOR * header->capacity), header->stride, header->allocator);
 
-    header = (darray_header*)((u8*)array - header_size);
+    darray_header* new_header = (darray_header*)((u8*)temp - header_size);
+    new_header->length = header->length;
+
     kcopy_memory(temp, array, header->length * header->stride);
 
-    darray_length_set(temp, header->length);
     darray_destroy(array);
     return temp;
 }

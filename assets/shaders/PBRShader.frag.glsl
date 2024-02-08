@@ -5,6 +5,10 @@ layout(location = 0) out vec4 out_colour;
 struct directional_light {
     vec4 colour;
     vec4 direction;
+    float shadow_distance;
+    float shadow_fade_distance;
+    float shadow_split_mult;
+    float padding;
 };
 
 struct point_light {
@@ -171,6 +175,18 @@ void main() {
     }
     float shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, instance_ubo.dir_light, cascade_index);
 
+    // Fade out the shadow map past a certain distance.
+    float fade_start = instance_ubo.dir_light.shadow_distance;
+    float fade_distance = instance_ubo.dir_light.shadow_fade_distance;
+
+    // The end of the fade-out range.
+    float fade_end = fade_start + fade_distance;
+
+    float zclamp = clamp(length(in_dto.view_position - in_dto.frag_position), fade_start, fade_end);
+    float fade_factor = (fade_end - zclamp) / (fade_end - fade_start + 0.00001); // Avoid divide by 0
+
+    shadow = clamp(shadow + (1.0 - fade_factor), 0.0, 1.0);
+
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use base_reflectivity 
     // of 0.04 and if it's a metal, use the albedo color as base_reflectivity (metallic workflow)    
     vec3 base_reflectivity = vec3(0.04); 
@@ -248,7 +264,11 @@ void main() {
         out_colour = vec4(colour, albedo_samp.a);
     } else if(in_mode == 2) {
         out_colour = vec4(abs(normal), 1.0);
+    } else if(in_mode == 4) {
+        // wireframe, just render a solid colour.
+        out_colour = vec4(0.0, 1.0, 1.0, 1.0); // cyan
     }
+
 }
 
 vec3 calculate_reflectance(vec3 albedo, vec3 normal, vec3 view_direction, vec3 light_direction, float metallic, float roughness, vec3 base_reflectivity, vec3 radiance) {

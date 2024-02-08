@@ -143,11 +143,10 @@ b8 vulkan_device_create(vulkan_context* context) {
         ext_idx++;
     }
 
-    // Request device features.
-    // TODO: should be config driven
+    // Request supported device features.
     VkPhysicalDeviceFeatures device_features = {};
-    device_features.samplerAnisotropy = VK_TRUE;  // Request anistrophy
-    device_features.fillModeNonSolid = VK_TRUE;   // TODO: Check if supported?
+    device_features.samplerAnisotropy = context->device.features.samplerAnisotropy;  // Request anistrophy
+    device_features.fillModeNonSolid = context->device.features.fillModeNonSolid;
 
     // VK_EXT_descriptor_indexing
     VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT};

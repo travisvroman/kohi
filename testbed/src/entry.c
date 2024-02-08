@@ -67,42 +67,42 @@ b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_conte
         application* app = (application*)listener_inst;
         if (context.data.u32[0] == app->game_library.watch_id) {
             KINFO("Hot-Reloading game library.");
-        }
 
-        // Tell the app it is about to be unloaded.
-        app->lib_on_unload(app);
+            // Tell the app it is about to be unloaded.
+            app->lib_on_unload(app);
 
-        // Actually unload the app's lib.
-        if (!platform_dynamic_library_unload(&app->game_library)) {
-            KERROR("Failed to unload game library");
-            return false;
-        }
-
-        // Wait a bit before trying to copy the file.
-        platform_sleep(100);
-
-        const char* prefix = platform_dynamic_library_prefix();
-        const char* extension = platform_dynamic_library_extension();
-        char source_file[260];
-        char target_file[260];
-        string_format(source_file, "%stestbed_lib%s", prefix, extension);
-        string_format(target_file, "%stestbed_lib_loaded%s", prefix, extension);
-
-        platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
-        while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
-            err_code = platform_copy_file(source_file, target_file, true);
-            if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
-                platform_sleep(100);
+            // Actually unload the app's lib.
+            if (!platform_dynamic_library_unload(&app->game_library)) {
+                KERROR("Failed to unload game library");
+                return false;
             }
-        }
-        if (err_code != PLATFORM_ERROR_SUCCESS) {
-            KERROR("File copy failed!");
-            return false;
-        }
 
-        if (!load_game_lib(app)) {
-            KERROR("Game lib reload failed.");
-            return false;
+            // Wait a bit before trying to copy the file.
+            platform_sleep(100);
+
+            const char* prefix = platform_dynamic_library_prefix();
+            const char* extension = platform_dynamic_library_extension();
+            char source_file[260];
+            char target_file[260];
+            string_format(source_file, "%stestbed_lib%s", prefix, extension);
+            string_format(target_file, "%stestbed_lib_loaded%s", prefix, extension);
+
+            platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
+            while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+                err_code = platform_copy_file(source_file, target_file, true);
+                if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+                    platform_sleep(100);
+                }
+            }
+            if (err_code != PLATFORM_ERROR_SUCCESS) {
+                KERROR("File copy failed!");
+                return false;
+            }
+
+            if (!load_game_lib(app)) {
+                KERROR("Game lib reload failed.");
+                return false;
+            }
         }
     }
     return false;

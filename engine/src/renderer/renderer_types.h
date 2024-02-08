@@ -42,6 +42,7 @@ typedef enum renderer_debug_view_mode {
     RENDERER_VIEW_MODE_LIGHTING = 1,
     RENDERER_VIEW_MODE_NORMALS = 2,
     RENDERER_VIEW_MODE_CASCADES = 3,
+    RENDERER_VIEW_MODE_WIREFRAME = 4
 } renderer_debug_view_mode;
 
 typedef enum render_target_attachment_type {
@@ -252,6 +253,8 @@ typedef enum renderer_config_flag_bits {
     RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT = 0x1,
     /** @brief Configures the renderer backend in a way that conserves power where possible. */
     RENDERER_CONFIG_FLAG_POWER_SAVING_BIT = 0x2,
+    /** @brief Enables advanced validation in the renderer backend, if supported. */
+    RENDERER_CONFIG_FLAG_ENABLE_VALIDATION = 0x4,
 } renderer_config_flag_bits;
 
 typedef u32 renderer_config_flags;
@@ -336,6 +339,9 @@ typedef struct renderer_plugin {
      * @param plugin A pointer to the renderer plugin interface.
      */
     void (*shutdown)(struct renderer_plugin* plugin);
+
+    void (*begin_debug_label)(struct renderer_plugin* plugin, const char* label_text, vec3 colour);
+    void (*end_debug_label)(struct renderer_plugin* plugin);
 
     /**
      * @brief Handles window resizes.
@@ -543,7 +549,7 @@ typedef struct renderer_plugin {
      * @param size The number of bytes to be written.
      * @param pixels The raw image data to be written.
      */
-    void (*texture_write_data)(struct renderer_plugin* plugin, texture* t, u32 offset, u32 size, const u8* pixels);
+    void (*texture_write_data)(struct renderer_plugin* plugin, texture* t, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
 
     /**
      * @brief Reads the given data from the provided texture.
@@ -597,6 +603,15 @@ typedef struct renderer_plugin {
     b8 (*shader_initialize)(struct renderer_plugin* plugin, struct shader* shader);
 
     /**
+     * @brief Reloads the internals of the given shader.
+     *
+     * @param plugin A pointer to the renderer plugin interface.
+     * @param s A pointer to the shader to be reloaded.
+     * @return True on success; otherwise false.
+     */
+    b8 (*shader_reload)(struct renderer_plugin* plugin, struct shader* s);
+
+    /**
      * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
      * and for use in draw calls.
      *
@@ -605,6 +620,15 @@ typedef struct renderer_plugin {
      * @return True on success; otherwise false.
      */
     b8 (*shader_use)(struct renderer_plugin* plugin, struct shader* shader);
+
+    /**
+     * @brief Indicates if the supplied shader supports wireframe mode.
+     *
+     * @param plugin A constant pointer to the renderer plugin interface.
+     * @param s A constant pointer to the shader to be used.
+     * @return True if supported; otherwise false.
+     */
+    b8 (*shader_supports_wireframe)(const struct renderer_plugin* plugin, const struct shader* s);
 
     /**
      * @brief Binds global resources for use and updating.
@@ -907,7 +931,7 @@ typedef struct renderer_plugin {
      * @param data The data to be loaded.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_load_range)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 offset, u64 size, const void* data);
+    b8 (*renderbuffer_load_range)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload);
 
     /**
      * @brief Copies data in the specified rage fron the source to the destination buffer.
@@ -920,7 +944,7 @@ typedef struct renderer_plugin {
      * @param size The size of the data in bytes to be copied.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_copy_range)(struct renderer_plugin* plugin, renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size);
+    b8 (*renderbuffer_copy_range)(struct renderer_plugin* plugin, renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size, b8 include_in_frame_workload);
 
     /**
      * @brief Attempts to draw the contents of the provided buffer at the given offset
@@ -935,6 +959,11 @@ typedef struct renderer_plugin {
      */
     b8 (*renderbuffer_draw)(struct renderer_plugin* plugin, renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
 
+    /**
+     * Waits for the renderer backend to be completely idle of work before returning.
+     * NOTE: This incurs a lot of overhead/waits, and should be used sparingly.
+     */
+    void (*wait_for_idle)(struct renderer_plugin* plugin);
 } renderer_plugin;
 
 struct render_view_packet;

@@ -16,6 +16,7 @@
 
 #include "debug_console.h"
 #include "game_state.h"
+#include "renderer/renderer_types.h"
 
 void game_on_escape_callback(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     KDEBUG("game_on_escape_callback");
@@ -139,6 +140,12 @@ void game_on_set_render_mode_cascades(keys key, keymap_entry_bind_type type, key
     event_fire(EVENT_CODE_SET_RENDER_MODE, (application*)user_data, data);
 }
 
+void game_on_set_render_mode_wireframe(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_context data = {};
+    data.data.i32[0] = RENDERER_VIEW_MODE_WIREFRAME;
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (application*)user_data, data);
+}
+
 void game_on_set_gizmo_mode(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     application* game_inst = (application*)user_data;
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
@@ -159,6 +166,18 @@ void game_on_set_gizmo_mode(keys key, keymap_entry_bind_type type, keymap_modifi
         default:
             break;
     }
+}
+
+void game_on_gizmo_orientation_set(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+
+    editor_gizmo_orientation orientation = editor_gizmo_orientation_get(&state->gizmo);
+    orientation++;
+    if (orientation > EDITOR_GIZMO_ORIENTATION_MAX) {
+        orientation = 0;
+    }
+    editor_gizmo_orientation_set(&state->gizmo, orientation);
 }
 
 void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
@@ -285,11 +304,13 @@ void game_setup_keymaps(application* game_inst) {
     keymap_binding_add(&testbed_keymap, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, game_inst, game_on_set_render_mode_lighting);
     keymap_binding_add(&testbed_keymap, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, game_inst, game_on_set_render_mode_normals);
     keymap_binding_add(&testbed_keymap, KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, game_inst, game_on_set_render_mode_cascades);
+    keymap_binding_add(&testbed_keymap, KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, game_inst, game_on_set_render_mode_wireframe);
 
     keymap_binding_add(&testbed_keymap, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_set_gizmo_mode);
     keymap_binding_add(&testbed_keymap, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_set_gizmo_mode);
     keymap_binding_add(&testbed_keymap, KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_set_gizmo_mode);
     keymap_binding_add(&testbed_keymap, KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_set_gizmo_mode);
+    keymap_binding_add(&testbed_keymap, KEY_G, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_gizmo_orientation_set);
 
     keymap_binding_add(&testbed_keymap, KEY_L, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_load_scene);
     keymap_binding_add(&testbed_keymap, KEY_U, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_unload_scene);

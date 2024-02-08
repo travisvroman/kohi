@@ -20,6 +20,7 @@
 
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"
+#include "standard_ui_version.h"
 #include "systems/font_system.h"
 
 static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
@@ -203,7 +204,7 @@ b8 standard_ui_system_initialize(u64* memory_requirement, void* state, void* con
 
     typed_state->focused_id = INVALID_ID_U64;
 
-    KTRACE("Initialized standard UI system.");
+    KTRACE("Initialized standard UI system (%s).", KVERSION);
 
     return true;
 }
@@ -252,6 +253,20 @@ b8 standard_ui_system_update(void* state, struct frame_data* p_frame_data) {
     }
 
     return true;
+}
+
+void standard_ui_system_render_prepare_frame(void* state, const struct frame_data* p_frame_data) {
+    if (!state) {
+        return;
+    }
+
+    standard_ui_state* typed_state = (standard_ui_state*)state;
+    for (u32 i = 0; i < typed_state->active_control_count; ++i) {
+        sui_control* c = typed_state->active_controls[i];
+        if (c->render_prepare) {
+            c->render_prepare(c, p_frame_data);
+        }
+    }
 }
 
 b8 standard_ui_system_render(void* state, sui_control* root, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
