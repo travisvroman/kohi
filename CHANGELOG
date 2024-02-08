@@ -51,6 +51,7 @@ Changelog
   - Added job ids, and job dependencies that can be used to link jobs one after another.
   - Added semaphores.
   - Updated job system to use semaphores to block worker threads until there is work to be done. Semaphores are signaled when work is deployed to a job thread.
+  - Added threadpool, worker threads and setup layered texture loading to use them.
 
 - 0.5x
   - Added Physically-Based Rendering (PBR) material type support.

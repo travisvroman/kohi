@@ -9,8 +9,6 @@
  *
  */
 
-#include <sys/semaphore.h>
-
 #include "core/ksemaphore.h"
 #include "platform.h"
 
@@ -18,6 +16,7 @@
 
 #include <dlfcn.h>
 #include <semaphore.h>
+#include <sys/semaphore.h>
 #include <sys/shm.h>
 
 #include "containers/darray.h"

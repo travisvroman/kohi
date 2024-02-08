@@ -1,6 +1,7 @@
 #include "worker_thread.h"
 
 #include "containers/queue.h"
+#include "core/kmemory.h"
 #include "core/kmutex.h"
 #include "core/kthread.h"
 #include "core/logger.h"
@@ -29,6 +30,8 @@ static u32 worker_thread_loop(void* params) {
         w.work_fn(w.params);
     }
 
+    KTRACE("Worker thread work complete.");
+
     return 1;
 }
 
@@ -56,6 +59,8 @@ void worker_thread_destroy(worker_thread* thread) {
 
     queue_destroy(&thread->work_queue);
     kmutex_destroy(&thread->queue_mutex);
+    kthread_destroy(&thread->thread);
+    kzero_memory(thread, sizeof(worker_thread));
 }
 
 b8 worker_thread_add(worker_thread* thread, pfn_thread_start work_fn, void* work_params) {
@@ -78,12 +83,20 @@ b8 worker_thread_add(worker_thread* thread, pfn_thread_start work_fn, void* work
     return true;
 }
 
-b8 worker_thread_wait(worker_thread* thread) {
+b8 worker_thread_start(worker_thread* thread) {
+    if (!thread) {
+        return false;
+    }
+
     // Create the internal thread if need be.
     if (!kthread_create(worker_thread_loop, thread, false, &thread->thread)) {
         KERROR("Worker thread internal thread creation failed.");
         return false;
     }
 
+    return true;
+}
+
+b8 worker_thread_wait(worker_thread* thread) {
     return kthread_wait(&thread->thread);
 }
