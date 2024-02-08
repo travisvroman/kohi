@@ -1,4 +1,4 @@
-#include "simple_scene_loader.h"
+#include "scene_loader.h"
 
 #include "containers/darray.h"
 #include "core/kmemory.h"
@@ -11,23 +11,23 @@
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
 
-typedef enum simple_scene_parse_mode {
-    SIMPLE_SCENE_PARSE_MODE_ROOT,
-    SIMPLE_SCENE_PARSE_MODE_SCENE,
-    SIMPLE_SCENE_PARSE_MODE_SKYBOX,
-    SIMPLE_SCENE_PARSE_MODE_DIRECTIONAL_LIGHT,
-    SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT,
-    SIMPLE_SCENE_PARSE_MODE_MESH,
-    SIMPLE_SCENE_PARSE_MODE_TERRAIN,
-} simple_scene_parse_mode;
+typedef enum scene_parse_mode {
+    scene_PARSE_MODE_ROOT,
+    scene_PARSE_MODE_SCENE,
+    scene_PARSE_MODE_SKYBOX,
+    scene_PARSE_MODE_DIRECTIONAL_LIGHT,
+    scene_PARSE_MODE_POINT_LIGHT,
+    scene_PARSE_MODE_MESH,
+    scene_PARSE_MODE_TERRAIN,
+} scene_parse_mode;
 
 #define SHADOW_DISTANCE_DEFAULT 200.0f
 #define SHADOW_FADE_DISTANCE_DEFAULT 25.0f
 #define SHADOW_SPLIT_MULT_DEFAULT 0.95f;
 
-static b8 try_change_mode(const char* value, simple_scene_parse_mode* current, simple_scene_parse_mode expected_current, simple_scene_parse_mode target);
+static b8 try_change_mode(const char* value, scene_parse_mode* current, scene_parse_mode expected_current, scene_parse_mode target);
 
-static b8 simple_scene_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
+static b8 scene_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -38,14 +38,14 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
 
     file_handle f;
     if (!filesystem_open(full_file_path, FILE_MODE_READ, false, &f)) {
-        KERROR("simple_scene_loader_load - unable to open simple scene file for reading: '%s'.", full_file_path);
+        KERROR("scene_loader_load - unable to open simple scene file for reading: '%s'.", full_file_path);
         return false;
     }
 
     out_resource->full_path = string_duplicate(full_file_path);
 
-    simple_scene_config* resource_data = kallocate(sizeof(simple_scene_config), MEMORY_TAG_RESOURCE);
-    kzero_memory(resource_data, sizeof(simple_scene_config));
+    scene_config* resource_data = kallocate(sizeof(scene_config), MEMORY_TAG_RESOURCE);
+    kzero_memory(resource_data, sizeof(scene_config));
 
     // Set some defaults, create arrays.
     resource_data->directional_light_config.shadow_fade_distance = SHADOW_FADE_DISTANCE_DEFAULT;
@@ -53,18 +53,18 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
     resource_data->directional_light_config.shadow_split_mult = SHADOW_SPLIT_MULT_DEFAULT;
     resource_data->description = 0;
     resource_data->name = string_duplicate(name);
-    resource_data->point_lights = darray_create(point_light_simple_scene_config);
-    resource_data->meshes = darray_create(mesh_simple_scene_config);
-    resource_data->terrains = darray_create(terrain_simple_scene_config);
+    resource_data->point_lights = darray_create(point_light_scene_config);
+    resource_data->meshes = darray_create(mesh_scene_config);
+    resource_data->terrains = darray_create(terrain_scene_config);
 
     u32 version = 0;
-    simple_scene_parse_mode mode = SIMPLE_SCENE_PARSE_MODE_ROOT;
+    scene_parse_mode mode = scene_PARSE_MODE_ROOT;
 
     // Buffer objects that get populated when in corresponding mode, and pushed to list when
     // leaving said mode.
-    point_light_simple_scene_config current_point_light_config = {0};
-    mesh_simple_scene_config current_mesh_config = {0};
-    terrain_simple_scene_config current_terrain_config = {0};
+    point_light_scene_config current_point_light_config = {0};
+    mesh_scene_config current_mesh_config = {0};
+    terrain_scene_config current_terrain_config = {0};
 
     // Read each line of the file.
     char line_buf[512] = "";
@@ -92,50 +92,50 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
 
             // Change modes
             if (strings_equali(trimmed, "[Scene]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_ROOT, SIMPLE_SCENE_PARSE_MODE_SCENE)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_ROOT, scene_PARSE_MODE_SCENE)) {
                     return false;
                 }
             } else if (strings_equali(trimmed, "[/Scene]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_SCENE, SIMPLE_SCENE_PARSE_MODE_ROOT)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_SCENE, scene_PARSE_MODE_ROOT)) {
                     return false;
                 }
             } else if (strings_equali(trimmed, "[Skybox]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_ROOT, SIMPLE_SCENE_PARSE_MODE_SKYBOX)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_ROOT, scene_PARSE_MODE_SKYBOX)) {
                     return false;
                 }
             } else if (strings_equali(trimmed, "[/Skybox]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_SKYBOX, SIMPLE_SCENE_PARSE_MODE_ROOT)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_SKYBOX, scene_PARSE_MODE_ROOT)) {
                     return false;
                 }
             } else if (strings_equali(trimmed, "[DirectionalLight]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_ROOT, SIMPLE_SCENE_PARSE_MODE_DIRECTIONAL_LIGHT)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_ROOT, scene_PARSE_MODE_DIRECTIONAL_LIGHT)) {
                     return false;
                 }
             } else if (strings_equali(trimmed, "[/DirectionalLight]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_DIRECTIONAL_LIGHT, SIMPLE_SCENE_PARSE_MODE_ROOT)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_DIRECTIONAL_LIGHT, scene_PARSE_MODE_ROOT)) {
                     return false;
                 }
             } else if (strings_equali(trimmed, "[PointLight]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_ROOT, SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_ROOT, scene_PARSE_MODE_POINT_LIGHT)) {
                     return false;
                 }
-                kzero_memory(&current_point_light_config, sizeof(point_light_simple_scene_config));
+                kzero_memory(&current_point_light_config, sizeof(point_light_scene_config));
             } else if (strings_equali(trimmed, "[/PointLight]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT, SIMPLE_SCENE_PARSE_MODE_ROOT)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_POINT_LIGHT, scene_PARSE_MODE_ROOT)) {
                     return false;
                 }
                 // Push into the array, then cleanup.
                 darray_push(resource_data->point_lights, current_point_light_config);
-                kzero_memory(&current_point_light_config, sizeof(point_light_simple_scene_config));
+                kzero_memory(&current_point_light_config, sizeof(point_light_scene_config));
             } else if (strings_equali(trimmed, "[Mesh]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_ROOT, SIMPLE_SCENE_PARSE_MODE_MESH)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_ROOT, scene_PARSE_MODE_MESH)) {
                     return false;
                 }
-                kzero_memory(&current_mesh_config, sizeof(mesh_simple_scene_config));
+                kzero_memory(&current_mesh_config, sizeof(mesh_scene_config));
                 // Also setup a default transform.
                 current_mesh_config.transform = transform_create();
             } else if (strings_equali(trimmed, "[/Mesh]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_MESH, SIMPLE_SCENE_PARSE_MODE_ROOT)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_MESH, scene_PARSE_MODE_ROOT)) {
                     return false;
                 }
                 if (!current_mesh_config.name || !current_mesh_config.resource_name) {
@@ -144,16 +144,16 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                 }
                 // Push into the array, then cleanup.
                 darray_push(resource_data->meshes, current_mesh_config);
-                kzero_memory(&current_mesh_config, sizeof(mesh_simple_scene_config));
+                kzero_memory(&current_mesh_config, sizeof(mesh_scene_config));
             } else if (strings_equali(trimmed, "[Terrain]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_ROOT, SIMPLE_SCENE_PARSE_MODE_TERRAIN)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_ROOT, scene_PARSE_MODE_TERRAIN)) {
                     return false;
                 }
-                kzero_memory(&current_terrain_config, sizeof(terrain_simple_scene_config));
+                kzero_memory(&current_terrain_config, sizeof(terrain_scene_config));
                 // Also setup a default transform.
                 current_terrain_config.xform = transform_create();
             } else if (strings_equali(trimmed, "[/Terrain]")) {
-                if (!try_change_mode(trimmed, &mode, SIMPLE_SCENE_PARSE_MODE_TERRAIN, SIMPLE_SCENE_PARSE_MODE_ROOT)) {
+                if (!try_change_mode(trimmed, &mode, scene_PARSE_MODE_TERRAIN, scene_PARSE_MODE_ROOT)) {
                     return false;
                 }
                 if (!current_terrain_config.name || !current_terrain_config.resource_name) {
@@ -162,7 +162,7 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                 }
                 // Push into the array, then cleanup.
                 darray_push(resource_data->terrains, current_terrain_config);
-                kzero_memory(&current_mesh_config, sizeof(terrain_simple_scene_config));
+                kzero_memory(&current_mesh_config, sizeof(terrain_scene_config));
             } else {
                 KERROR("Error loading simple scene file: format error. Unexpected object type '%s'", trimmed);
                 return false;
@@ -190,7 +190,7 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
 
             // Process the variable.
             if (strings_equali(trimmed_var_name, "!version")) {
-                if (mode != SIMPLE_SCENE_PARSE_MODE_ROOT) {
+                if (mode != scene_PARSE_MODE_ROOT) {
                     KERROR("Attempting to set version inside of non-root mode.");
                     return false;
                 }
@@ -202,25 +202,25 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
             } else if (strings_equali(trimmed_var_name, "name")) {
                 switch (mode) {
                     default:
-                    case SIMPLE_SCENE_PARSE_MODE_ROOT:
+                    case scene_PARSE_MODE_ROOT:
                         KWARN("Format warning: Cannot process name in root mode.");
                         break;
-                    case SIMPLE_SCENE_PARSE_MODE_SCENE:
+                    case scene_PARSE_MODE_SCENE:
                         resource_data->name = string_duplicate(trimmed_value);
                         break;
-                    case SIMPLE_SCENE_PARSE_MODE_DIRECTIONAL_LIGHT:
+                    case scene_PARSE_MODE_DIRECTIONAL_LIGHT:
                         resource_data->directional_light_config.name = string_duplicate(trimmed_value);
                         break;
-                    case SIMPLE_SCENE_PARSE_MODE_SKYBOX:
+                    case scene_PARSE_MODE_SKYBOX:
                         resource_data->skybox_config.name = string_duplicate(trimmed_value);
                         break;
-                    case SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT: {
+                    case scene_PARSE_MODE_POINT_LIGHT: {
                         current_point_light_config.name = string_duplicate(trimmed_value);
                     } break;
-                    case SIMPLE_SCENE_PARSE_MODE_MESH:
+                    case scene_PARSE_MODE_MESH:
                         current_mesh_config.name = string_duplicate(trimmed_value);
                         break;
-                    case SIMPLE_SCENE_PARSE_MODE_TERRAIN:
+                    case scene_PARSE_MODE_TERRAIN:
                         current_terrain_config.name = string_duplicate(trimmed_value);
                         break;
                 }
@@ -229,13 +229,13 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                     default:
                         KWARN("Format warning: Cannot process colour in the current mode.");
                         break;
-                    case SIMPLE_SCENE_PARSE_MODE_DIRECTIONAL_LIGHT:
+                    case scene_PARSE_MODE_DIRECTIONAL_LIGHT:
                         if (!string_to_vec4(trimmed_value, &resource_data->directional_light_config.colour)) {
                             KWARN("Format error parsing colour. Default value used.");
                             resource_data->directional_light_config.colour = vec4_one();
                         }
                         break;
-                    case SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT:
+                    case scene_PARSE_MODE_POINT_LIGHT:
                         if (!string_to_vec4(trimmed_value, &current_point_light_config.colour)) {
                             KWARN("Format error parsing colour. Default value used.");
                             current_point_light_config.colour = vec4_one();
@@ -243,33 +243,33 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                         break;
                 }
             } else if (strings_equali(trimmed_var_name, "description")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_SCENE) {
+                if (mode == scene_PARSE_MODE_SCENE) {
                     resource_data->description = string_duplicate(trimmed_value);
                 } else {
                     KWARN("Format warning: Cannot process description in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "cubemap_name")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_SKYBOX) {
+                if (mode == scene_PARSE_MODE_SKYBOX) {
                     resource_data->skybox_config.cubemap_name = string_duplicate(trimmed_value);
                 } else {
                     KWARN("Format warning: Cannot process cubemap_name in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "resource_name")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_MESH) {
+                if (mode == scene_PARSE_MODE_MESH) {
                     current_mesh_config.resource_name = string_duplicate(trimmed_value);
-                } else if (mode == SIMPLE_SCENE_PARSE_MODE_TERRAIN) {
+                } else if (mode == scene_PARSE_MODE_TERRAIN) {
                     current_terrain_config.resource_name = string_duplicate(trimmed_value);
                 } else {
                     KWARN("Format warning: Cannot process resource_name in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "parent")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_MESH) {
+                if (mode == scene_PARSE_MODE_MESH) {
                     current_mesh_config.parent_name = string_duplicate(trimmed_value);
                 } else {
                     KWARN("Format warning: Cannot process parent in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "direction")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_DIRECTIONAL_LIGHT) {
+                if (mode == scene_PARSE_MODE_DIRECTIONAL_LIGHT) {
                     if (!string_to_vec4(trimmed_value, &resource_data->directional_light_config.direction)) {
                         KWARN("Error parsing directional light direction as vec4. Using default value");
                         resource_data->directional_light_config.direction = (vec4){-0.57735f, -0.57735f, -0.57735f, 0.0f};
@@ -278,7 +278,7 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                     KWARN("Format warning: Cannot process direction in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "position")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT) {
+                if (mode == scene_PARSE_MODE_POINT_LIGHT) {
                     if (!string_to_vec4(trimmed_value, &current_point_light_config.position)) {
                         KWARN("Error parsing point light position as vec4. Using default value");
                         current_point_light_config.position = vec4_zero();
@@ -287,12 +287,12 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                     KWARN("Format warning: Cannot process position in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "shadow_distance")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_DIRECTIONAL_LIGHT) {
+                if (mode == scene_PARSE_MODE_DIRECTIONAL_LIGHT) {
                     if (!string_to_f32(trimmed_value, &resource_data->directional_light_config.shadow_distance)) {
                         KWARN("Error parsing directional light shadow_distance as f32. Using default value");
                         resource_data->directional_light_config.shadow_distance = SHADOW_DISTANCE_DEFAULT;
                     }
-                } else if (mode == SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT) {
+                } else if (mode == scene_PARSE_MODE_POINT_LIGHT) {
                     KWARN("Format warning: Cannot process shadow_distance in the current mode (point light).");
                     /* if (!string_to_vec4(trimmed_value, &current_point_light_config.position)) {
                         KWARN("Error parsing point light position as vec4. Using default value");
@@ -302,12 +302,12 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                     KWARN("Format warning: Cannot process shadow_distance in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "shadow_fade_distance")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_DIRECTIONAL_LIGHT) {
+                if (mode == scene_PARSE_MODE_DIRECTIONAL_LIGHT) {
                     if (!string_to_f32(trimmed_value, &resource_data->directional_light_config.shadow_fade_distance)) {
                         KWARN("Error parsing directional light shadow_fade_distance as f32. Using default value");
                         resource_data->directional_light_config.shadow_fade_distance = SHADOW_FADE_DISTANCE_DEFAULT;
                     }
-                } else if (mode == SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT) {
+                } else if (mode == scene_PARSE_MODE_POINT_LIGHT) {
                     KWARN("Format warning: Cannot process shadow_fade_distance in the current mode (point light).");
                     /* if (!string_to_vec4(trimmed_value, &current_point_light_config.position)) {
                         KWARN("Error parsing point light position as vec4. Using default value");
@@ -317,7 +317,7 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                     KWARN("Format warning: Cannot process shadow_fade_distance in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "shadow_split_mult")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_DIRECTIONAL_LIGHT) {
+                if (mode == scene_PARSE_MODE_DIRECTIONAL_LIGHT) {
                     if (!string_to_f32(trimmed_value, &resource_data->directional_light_config.shadow_split_mult)) {
                         KWARN("Error parsing directional light shadow_split_mult as f32. Using default value");
                         resource_data->directional_light_config.shadow_split_mult = SHADOW_SPLIT_MULT_DEFAULT;
@@ -326,11 +326,11 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                     KWARN("Format warning: Cannot process shadow_fade_distance in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "transform")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_MESH) {
+                if (mode == scene_PARSE_MODE_MESH) {
                     if (!string_to_transform(trimmed_value, &current_mesh_config.transform)) {
                         KWARN("Error parsing mesh transform. Using default value.");
                     }
-                } else if (mode == SIMPLE_SCENE_PARSE_MODE_TERRAIN) {
+                } else if (mode == scene_PARSE_MODE_TERRAIN) {
                     if (!string_to_transform(trimmed_value, &current_terrain_config.xform)) {
                         KWARN("Error parsing terrain transform. Using default value.");
                     }
@@ -338,7 +338,7 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                     KWARN("Format warning: Cannot process transform in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "constant_f")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT) {
+                if (mode == scene_PARSE_MODE_POINT_LIGHT) {
                     if (!string_to_f32(trimmed_value, &current_point_light_config.constant_f)) {
                         KWARN("Error parsing point light constant_f. Using default value.");
                         current_point_light_config.constant_f = 1.0f;
@@ -347,7 +347,7 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                     KWARN("Format warning: Cannot process constant in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "linear")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT) {
+                if (mode == scene_PARSE_MODE_POINT_LIGHT) {
                     if (!string_to_f32(trimmed_value, &current_point_light_config.linear)) {
                         KWARN("Error parsing point light linear. Using default value.");
                         current_point_light_config.linear = 0.35f;
@@ -356,7 +356,7 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
                     KWARN("Format warning: Cannot process linear in the current mode.");
                 }
             } else if (strings_equali(trimmed_var_name, "quadratic")) {
-                if (mode == SIMPLE_SCENE_PARSE_MODE_POINT_LIGHT) {
+                if (mode == scene_PARSE_MODE_POINT_LIGHT) {
                     if (!string_to_f32(trimmed_value, &current_point_light_config.quadratic)) {
                         KWARN("Error parsing point light quadratic. Using default value.");
                         current_point_light_config.quadratic = 0.44f;
@@ -377,13 +377,13 @@ static b8 simple_scene_loader_load(struct resource_loader* self, const char* nam
     filesystem_close(&f);
 
     out_resource->data = resource_data;
-    out_resource->data_size = sizeof(simple_scene_config);
+    out_resource->data_size = sizeof(scene_config);
 
     return true;
 }
 
-static void simple_scene_loader_unload(struct resource_loader* self, resource* resource) {
-    simple_scene_config* data = (simple_scene_config*)resource->data;
+static void scene_loader_unload(struct resource_loader* self, resource* resource) {
+    scene_config* data = (scene_config*)resource->data;
 
     if (data->meshes) {
         u32 length = darray_length(data->meshes);
@@ -430,22 +430,261 @@ static void simple_scene_loader_unload(struct resource_loader* self, resource* r
     }
 
     if (!resource_unload(self, resource, MEMORY_TAG_RESOURCE)) {
-        KWARN("simple_scene_loader_unload called with nullptr for self or resource.");
+        KWARN("scene_loader_unload called with nullptr for self or resource.");
     }
 }
 
-resource_loader simple_scene_resource_loader_create(void) {
+static b8 scene_loader_write(struct resource_loader* self, resource* r) {
+    if (!self || !r) {
+        return false;
+    }
+
+    char* format_str = "%s/%s/%s%s";
+    char full_file_path[512];
+    string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, r->name, ".kss");
+
+    file_handle f;
+    if (!filesystem_open(full_file_path, FILE_MODE_WRITE, false, &f)) {
+        KERROR("scene_loader_write - unable to open simple scene file for writing: '%s'.", full_file_path);
+        return false;
+    }
+
+    scene_config* resource_data = r->data;
+    b8 result = true;
+
+    char line_buffer[1024] = {0};
+    // Version.
+    string_format(line_buffer, "!version=%u", 1);
+    if (!filesystem_write_line(&f, line_buffer)) {
+        result = false;
+        goto scene_loader_write_return;
+    }
+
+    // Scene header
+    if (!filesystem_write_line(&f, "[Scene]")) {
+        result = false;
+        goto scene_loader_write_return;
+    }
+    string_format(line_buffer, "name=%s", resource_data->name);
+    if (!filesystem_write_line(&f, line_buffer)) {
+        result = false;
+        goto scene_loader_write_return;
+    }
+    string_format(line_buffer, "description=%s", resource_data->description);
+    if (!filesystem_write_line(&f, line_buffer)) {
+        result = false;
+        goto scene_loader_write_return;
+    }
+    if (!filesystem_write_line(&f, "[/Scene]")) {
+        result = false;
+        goto scene_loader_write_return;
+    }
+
+    // Skybox, if there is one.
+    if (resource_data->skybox_config.name && resource_data->skybox_config.cubemap_name) {
+        if (!filesystem_write_line(&f, "[Skybox]")) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "name=%s", resource_data->skybox_config.name);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "cubemap_name=%s", resource_data->skybox_config.cubemap_name);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        if (!filesystem_write_line(&f, "[/Skybox]")) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+    }
+
+    // TODO: Determine if there is a directional light at all....
+    {
+        if (!filesystem_write_line(&f, "[DirectionalLight]")) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "name=%s", resource_data->directional_light_config.name);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        vec4 c = resource_data->directional_light_config.colour;
+        string_format(line_buffer, "colour=%f %f %f %f", c.r, c.g, c.b, c.a);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        vec4 d = resource_data->directional_light_config.direction;
+        string_format(line_buffer, "direction=%f %f %f %f", d.r, d.g, d.b, d.a);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "shadow_distance=%u", resource_data->directional_light_config.shadow_distance);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "shadow_fade_distance=%u", resource_data->directional_light_config.shadow_fade_distance);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "shadow_split_mult=%u", resource_data->directional_light_config.shadow_split_mult);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        if (!filesystem_write_line(&f, "[/DirectionalLight]")) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+    }
+
+    // Meshes
+    u32 mesh_count = darray_length(resource_data->meshes);
+    for (u32 i = 0; i < mesh_count; ++i) {
+        mesh_scene_config* mesh = &resource_data->meshes[i];
+
+        if (!filesystem_write_line(&f, "[Mesh]")) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "name=%s", mesh->name);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "resource_name=%s", mesh->resource_name);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        transform t = mesh->transform;
+        string_format(
+            line_buffer,
+            "transform=%f %f %f %f %f %f %f %f %f %f",
+            t.position.x, t.position.y, t.position.z,
+            t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w,
+            t.scale.x, t.scale.y, t.scale.z);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        if (!filesystem_write_line(&f, "[/Mesh]")) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+    }
+
+    // Point lights
+    u32 point_light_count = darray_length(resource_data->point_lights);
+    for (u32 i = 0; i < point_light_count; ++i) {
+        point_light_scene_config* light = &resource_data->point_lights[i];
+
+        if (!filesystem_write_line(&f, "[PointLight]")) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "name=%s", light->name);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        vec4 c = light->colour;
+        string_format(line_buffer, "colour=%f %f %f %f", c.r, c.g, c.b, c.a);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        vec4 p = light->position;
+        string_format(line_buffer, "position=%f %f %f %f", p.r, p.g, p.b, p.a);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "constant_f=%f", light->constant_f);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "linear=%f", light->linear);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "quadratic=%f", light->quadratic);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        if (!filesystem_write_line(&f, "[/PointLight]")) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+    }
+
+    // Terrains
+    u32 terrain_count = darray_length(resource_data->terrains);
+    for (u32 i = 0; i < terrain_count; ++i) {
+        terrain_scene_config* terrain = &resource_data->terrains[i];
+
+        if (!filesystem_write_line(&f, "[Terrain]")) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "name=%s", terrain->name);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        string_format(line_buffer, "resource_name=%s", terrain->resource_name);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        transform t = terrain->xform;
+        string_format(
+            line_buffer,
+            "transform=%f %f %f %f %f %f %f %f %f %f",
+            t.position.x, t.position.y, t.position.z,
+            t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w,
+            t.scale.x, t.scale.y, t.scale.z);
+        if (!filesystem_write_line(&f, line_buffer)) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+        if (!filesystem_write_line(&f, "[/Terrain]")) {
+            result = false;
+            goto scene_loader_write_return;
+        }
+    }
+
+scene_loader_write_return:
+    if (!result) {
+        KERROR("Failed to write scene file.");
+    }
+    return result;
+}
+
+resource_loader scene_resource_loader_create(void) {
     resource_loader loader;
-    loader.type = RESOURCE_TYPE_SIMPLE_SCENE;
+    loader.type = RESOURCE_TYPE_scene;
     loader.custom_type = 0;
-    loader.load = simple_scene_loader_load;
-    loader.unload = simple_scene_loader_unload;
+    loader.load = scene_loader_load;
+    loader.unload = scene_loader_unload;
+    loader.write = scene_loader_write;
     loader.type_path = "scenes";
 
     return loader;
 }
 
-static b8 try_change_mode(const char* value, simple_scene_parse_mode* current, simple_scene_parse_mode expected_current, simple_scene_parse_mode target) {
+static b8 try_change_mode(const char* value, scene_parse_mode* current, scene_parse_mode expected_current, scene_parse_mode target) {
     if (*current != expected_current) {
         KERROR("Error loading simple scene: format error. Unexpected token '%'", value);
         return false;

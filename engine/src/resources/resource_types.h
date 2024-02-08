@@ -35,7 +35,7 @@ typedef enum resource_type {
     /** @brief System font resource type. */
     RESOURCE_TYPE_SYSTEM_FONT,
     /** @brief Simple scene resource type. */
-    RESOURCE_TYPE_SIMPLE_SCENE,
+    RESOURCE_TYPE_scene,
     /** @brief Terrain resource type. */
     RESOURCE_TYPE_TERRAIN,
     /** @brief Audio resource type. */
@@ -625,54 +625,54 @@ typedef struct material {
     u8 render_draw_index;
 } material;
 
-typedef struct skybox_simple_scene_config {
+typedef struct skybox_scene_config {
     char *name;
     char *cubemap_name;
-} skybox_simple_scene_config;
+} skybox_scene_config;
 
-typedef struct directional_light_simple_scene_config {
+typedef struct directional_light_scene_config {
     char *name;
     vec4 colour;
     vec4 direction;
     f32 shadow_distance;
     f32 shadow_fade_distance;
     f32 shadow_split_mult;
-} directional_light_simple_scene_config;
+} directional_light_scene_config;
 
-typedef struct point_light_simple_scene_config {
+typedef struct point_light_scene_config {
     char *name;
     vec4 colour;
     vec4 position;
     f32 constant_f;
     f32 linear;
     f32 quadratic;
-} point_light_simple_scene_config;
+} point_light_scene_config;
 
-typedef struct mesh_simple_scene_config {
+typedef struct mesh_scene_config {
     char *name;
     char *resource_name;
     transform transform;
     char *parent_name;  // optional
-} mesh_simple_scene_config;
+} mesh_scene_config;
 
-typedef struct terrain_simple_scene_config {
+typedef struct terrain_scene_config {
     char *name;
     char *resource_name;
     transform xform;
-} terrain_simple_scene_config;
+} terrain_scene_config;
 
-typedef struct simple_scene_config {
+typedef struct scene_config {
     char *name;
     char *description;
-    skybox_simple_scene_config skybox_config;
-    directional_light_simple_scene_config directional_light_config;
+    skybox_scene_config skybox_config;
+    directional_light_scene_config directional_light_config;
 
     // darray
-    point_light_simple_scene_config *point_lights;
+    point_light_scene_config *point_lights;
 
     // darray
-    mesh_simple_scene_config *meshes;
+    mesh_scene_config *meshes;
 
     // darray
-    terrain_simple_scene_config *terrains;
-} simple_scene_config;
+    terrain_scene_config *terrains;
+} scene_config;

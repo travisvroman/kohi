@@ -1,9 +1,9 @@
-#include "simple_scene.h"
+#include "scene.h"
 
-#include "../testbed_types.h"
 #include "containers/darray.h"
 #include "core/console.h"
 #include "core/frame_data.h"
+#include "core/identifier.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
@@ -26,14 +26,14 @@
 #include "utils/ksort.h"
 
 static void
-simple_scene_actual_unload(simple_scene *scene);
+scene_actual_unload(scene *scene);
 
 static u32 global_scene_id = 0;
 
-typedef struct simple_scene_debug_data {
+typedef struct scene_debug_data {
     debug_box3d box;
     debug_line3d line;
-} simple_scene_debug_data;
+} scene_debug_data;
 
 /** @brief A private structure used to sort geometry by distance from the camera. */
 typedef struct geometry_distance {
@@ -63,16 +63,34 @@ static i32 geometry_distance_compare(void *a, void *b) {
     return 0;
 }
 
-b8 simple_scene_create(void *config, simple_scene *out_scene) {
+typedef enum scene_node_known_type {
+    SCENE_NODE_TYPE_UNDEFINED,
+    SCENE_NODE_TYPE_MESH,
+    SCENE_NODE_TYPE_SKYBOX,
+    SCENE_NODE_TYPE_DIRECTIONAL_LIGHT,
+    SCENE_NODE_TYPE_POINT_LIGHT,
+    SCENE_NODE_TYPE_TERRAIN,
+
+    SCENE_NODE_TYPE_USER_DEFINED = 0xFF
+} scene_node_known_type;
+
+typedef struct scene_node {
+    scene_node_known_type type;
+    char *name;
+    identifier id;
+
+} scene_node;
+
+b8 scene_create(void *config, scene *out_scene) {
     if (!out_scene) {
-        KERROR("simple_scene_create(): A valid pointer to out_scene is required.");
+        KERROR("scene_create(): A valid pointer to out_scene is required.");
         return false;
     }
 
-    kzero_memory(out_scene, sizeof(simple_scene));
+    kzero_memory(out_scene, sizeof(scene));
 
     out_scene->enabled = false;
-    out_scene->state = SIMPLE_SCENE_STATE_UNINITIALIZED;
+    out_scene->state = SCENE_STATE_UNINITIALIZED;
     out_scene->scene_transform = transform_create();
     global_scene_id++;
     out_scene->id = global_scene_id;
@@ -85,8 +103,8 @@ b8 simple_scene_create(void *config, simple_scene *out_scene) {
     out_scene->sb = 0;
 
     if (config) {
-        out_scene->config = kallocate(sizeof(simple_scene_config), MEMORY_TAG_SCENE);
-        kcopy_memory(out_scene->config, config, sizeof(simple_scene_config));
+        out_scene->config = kallocate(sizeof(scene_config), MEMORY_TAG_SCENE);
+        kcopy_memory(out_scene->config, config, sizeof(scene_config));
     }
 
     debug_grid_config grid_config = {0};
@@ -104,9 +122,9 @@ b8 simple_scene_create(void *config, simple_scene *out_scene) {
     return true;
 }
 
-b8 simple_scene_initialize(simple_scene *scene) {
+b8 scene_initialize(scene *scene) {
     if (!scene) {
-        KERROR("simple_scene_initialize requires a valid pointer to a scene.");
+        KERROR("scene_initialize requires a valid pointer to a scene.");
         return false;
     }
 
@@ -144,8 +162,8 @@ b8 simple_scene_initialize(simple_scene *scene) {
             scene->dir_light->data.shadow_split_mult = scene->config->directional_light_config.shadow_split_mult;
 
             // Add debug data and initialize it.
-            scene->dir_light->debug_data = kallocate(sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
-            simple_scene_debug_data *debug = scene->dir_light->debug_data;
+            scene->dir_light->debug_data = kallocate(sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+            scene_debug_data *debug = scene->dir_light->debug_data;
 
             // Generate the line points based on the light direction.
             // The first point will always be at the scene's origin.
@@ -169,8 +187,8 @@ b8 simple_scene_initialize(simple_scene *scene) {
             new_light.data.quadratic = scene->config->point_lights[i].quadratic;
 
             // Add debug data and initialize it.
-            new_light.debug_data = kallocate(sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
-            simple_scene_debug_data *debug = new_light.debug_data;
+            new_light.debug_data = kallocate(sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+            scene_debug_data *debug = new_light.debug_data;
 
             if (!debug_box3d_create((vec3){0.2f, 0.2f, 0.2f}, 0, &debug->box)) {
                 KERROR("Failed to create debug box for directional light.");
@@ -261,10 +279,10 @@ b8 simple_scene_initialize(simple_scene *scene) {
 
         // Handle directional light debug lines
         if (scene->dir_light && scene->dir_light->debug_data) {
-            simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->dir_light->debug_data;
+            scene_debug_data *debug = (scene_debug_data *)scene->dir_light->debug_data;
             if (!debug_line3d_initialize(&debug->line)) {
                 KERROR("debug box failed to initialize.");
-                kfree(scene->dir_light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                kfree(scene->dir_light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                 scene->dir_light->debug_data = 0;
                 return false;
             }
@@ -274,10 +292,10 @@ b8 simple_scene_initialize(simple_scene *scene) {
         u32 point_light_count = darray_length(scene->point_lights);
         for (u32 i = 0; i < point_light_count; ++i) {
             if (scene->point_lights[i].debug_data) {
-                simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->point_lights[i].debug_data;
+                scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
                 if (!debug_box3d_initialize(&debug->box)) {
                     KERROR("debug box failed to initialize.");
-                    kfree(scene->point_lights[i].debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                    kfree(scene->point_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                     scene->point_lights[i].debug_data = 0;
                     return false;
                 }
@@ -291,7 +309,7 @@ b8 simple_scene_initialize(simple_scene *scene) {
     for (u32 i = 0; i < mesh_count; ++i) {
         if (scene->meshes[i].config.parent_name) {
             mesh *parent =
-                simple_scene_mesh_get(scene, scene->meshes[i].config.parent_name);
+                scene_mesh_get(scene, scene->meshes[i].config.parent_name);
             if (!parent) {
                 KWARN(
                     "Mesh '%s' is configured to have a parent called '%s', but the "
@@ -329,18 +347,18 @@ b8 simple_scene_initialize(simple_scene *scene) {
     }
 
     // Update the state to show the scene is initialized.
-    scene->state = SIMPLE_SCENE_STATE_INITIALIZED;
+    scene->state = SCENE_STATE_INITIALIZED;
 
     return true;
 }
 
-b8 simple_scene_load(simple_scene *scene) {
+b8 scene_load(scene *scene) {
     if (!scene) {
         return false;
     }
 
     // Update the state to show the scene is currently loading.
-    scene->state = SIMPLE_SCENE_STATE_LOADING;
+    scene->state = SCENE_STATE_LOADING;
 
     // Register with the console.
     console_object_register("scene", scene, CONSOLE_OBJECT_TYPE_STRUCT);
@@ -382,10 +400,10 @@ b8 simple_scene_load(simple_scene *scene) {
             KWARN("Failed to add directional light to lighting system.");
         } else {
             if (scene->dir_light->debug_data) {
-                simple_scene_debug_data *debug = scene->dir_light->debug_data;
+                scene_debug_data *debug = scene->dir_light->debug_data;
                 if (!debug_line3d_load(&debug->line)) {
                     KERROR("debug line failed to load.");
-                    kfree(scene->dir_light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                    kfree(scene->dir_light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                     scene->dir_light->debug_data = 0;
                 }
             }
@@ -398,51 +416,51 @@ b8 simple_scene_load(simple_scene *scene) {
             KWARN("Failed to add point light to lighting system.");
         } else {
             // Load debug data if it was setup.
-            simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->point_lights[i].debug_data;
+            scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
             if (!debug_box3d_load(&debug->box)) {
                 KERROR("debug box failed to load.");
-                kfree(scene->point_lights[i].debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                kfree(scene->point_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                 scene->point_lights[i].debug_data = 0;
             }
         }
     }
 
     // Update the state to show the scene is fully loaded.
-    scene->state = SIMPLE_SCENE_STATE_LOADED;
+    scene->state = SCENE_STATE_LOADED;
 
     return true;
 }
 
-b8 simple_scene_unload(simple_scene *scene, b8 immediate) {
+b8 scene_unload(scene *scene, b8 immediate) {
     if (!scene) {
         return false;
     }
 
     if (immediate) {
-        scene->state = SIMPLE_SCENE_STATE_UNLOADING;
-        simple_scene_actual_unload(scene);
+        scene->state = SCENE_STATE_UNLOADING;
+        scene_actual_unload(scene);
         return true;
     }
 
     // Update the state to show the scene is currently unloading.
-    scene->state = SIMPLE_SCENE_STATE_UNLOADING;
+    scene->state = SCENE_STATE_UNLOADING;
     return true;
 }
 
-b8 simple_scene_update(simple_scene *scene, const struct frame_data *p_frame_data) {
+b8 scene_update(scene *scene, const struct frame_data *p_frame_data) {
     if (!scene) {
         return false;
     }
 
-    if (scene->state == SIMPLE_SCENE_STATE_UNLOADING) {
-        simple_scene_actual_unload(scene);
+    if (scene->state == SCENE_STATE_UNLOADING) {
+        scene_actual_unload(scene);
         return true;
     }
 
-    if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
+    if (scene->state >= SCENE_STATE_LOADED) {
         // TODO: Update directional light, if changed.
         if (scene->dir_light && scene->dir_light->debug_data) {
-            simple_scene_debug_data *debug = scene->dir_light->debug_data;
+            scene_debug_data *debug = scene->dir_light->debug_data;
             if (debug->line.geo.generation != INVALID_ID_U16) {
                 // Update colour. NOTE: doing this every frame might be expensive if we have to reload the geometry all the time.
                 // TODO: Perhaps there is another way to accomplish this, like a shader that uses a uniform for colour?
@@ -454,7 +472,7 @@ b8 simple_scene_update(simple_scene *scene, const struct frame_data *p_frame_dat
         u32 point_light_count = darray_length(scene->point_lights);
         for (u32 i = 0; i < point_light_count; ++i) {
             if (scene->point_lights[i].debug_data) {
-                simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->point_lights[i].debug_data;
+                scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
                 if (debug->box.geo.generation != INVALID_ID_U16) {
                     // Update transform.
                     transform_position_set(&debug->box.xform, vec3_from_vec4(scene->point_lights[i].data.position));
@@ -476,8 +494,8 @@ b8 simple_scene_update(simple_scene *scene, const struct frame_data *p_frame_dat
                 continue;
             }
             if (!m->debug_data) {
-                m->debug_data = kallocate(sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
-                simple_scene_debug_data *debug = m->debug_data;
+                m->debug_data = kallocate(sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+                scene_debug_data *debug = m->debug_data;
 
                 if (!debug_box3d_create((vec3){0.2f, 0.2f, 0.2f}, 0, &debug->box)) {
                     KERROR("Failed to create debug box for mesh '%s'.", m->name);
@@ -486,14 +504,14 @@ b8 simple_scene_update(simple_scene *scene, const struct frame_data *p_frame_dat
 
                     if (!debug_box3d_initialize(&debug->box)) {
                         KERROR("debug box failed to initialize.");
-                        kfree(m->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                        kfree(m->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                         m->debug_data = 0;
                         continue;
                     }
 
                     if (!debug_box3d_load(&debug->box)) {
                         KERROR("debug box failed to load.");
-                        kfree(m->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                        kfree(m->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                         m->debug_data = 0;
                     }
 
@@ -508,14 +526,14 @@ b8 simple_scene_update(simple_scene *scene, const struct frame_data *p_frame_dat
     return true;
 }
 
-void simple_scene_render_frame_prepare(simple_scene *scene, const struct frame_data *p_frame_data) {
+void scene_render_frame_prepare(scene *scene, const struct frame_data *p_frame_data) {
     if (!scene) {
         return;
     }
 
-    if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
+    if (scene->state >= SCENE_STATE_LOADED) {
         if (scene->dir_light && scene->dir_light->debug_data) {
-            simple_scene_debug_data *debug = scene->dir_light->debug_data;
+            scene_debug_data *debug = scene->dir_light->debug_data;
             debug_line3d_render_frame_prepare(&debug->line, p_frame_data);
         }
 
@@ -523,7 +541,7 @@ void simple_scene_render_frame_prepare(simple_scene *scene, const struct frame_d
         u32 point_light_count = darray_length(scene->point_lights);
         for (u32 i = 0; i < point_light_count; ++i) {
             if (scene->point_lights[i].debug_data) {
-                simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->point_lights[i].debug_data;
+                scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
                 debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
             }
         }
@@ -536,19 +554,19 @@ void simple_scene_render_frame_prepare(simple_scene *scene, const struct frame_d
                 continue;
             }
             if (m->debug_data) {
-                simple_scene_debug_data *debug = m->debug_data;
+                scene_debug_data *debug = m->debug_data;
                 debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
             }
         }
     }
 }
 
-void simple_scene_update_lod_from_view_position(simple_scene *scene, const frame_data *p_frame_data, vec3 view_position, f32 near_clip, f32 far_clip) {
+void scene_update_lod_from_view_position(scene *scene, const frame_data *p_frame_data, vec3 view_position, f32 near_clip, f32 far_clip) {
     if (!scene) {
         return;
     }
 
-    if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
+    if (scene->state >= SCENE_STATE_LOADED) {
         // Update terrain chunk LODs
         u32 terrain_count = darray_length(scene->terrains);
         for (u32 i = 0; i < terrain_count; ++i) {
@@ -596,8 +614,8 @@ void simple_scene_update_lod_from_view_position(simple_scene *scene, const frame
     }
 }
 
-b8 simple_scene_raycast(simple_scene *scene, const struct ray *r, struct raycast_result *out_result) {
-    if (!scene || !r || !out_result || scene->state < SIMPLE_SCENE_STATE_LOADED) {
+b8 scene_raycast(scene *scene, const struct ray *r, struct raycast_result *out_result) {
+    if (!scene || !r || !out_result || scene->state < SCENE_STATE_LOADED) {
         return false;
     }
 
@@ -650,8 +668,8 @@ b8 simple_scene_raycast(simple_scene *scene, const struct ray *r, struct raycast
     return out_result->hits != 0;
 }
 
-b8 simple_scene_directional_light_add(simple_scene *scene, const char *name,
-                                      struct directional_light *light) {
+b8 scene_directional_light_add(scene *scene, const char *name,
+                               struct directional_light *light) {
     if (!scene) {
         return false;
     }
@@ -659,14 +677,14 @@ b8 simple_scene_directional_light_add(simple_scene *scene, const char *name,
     if (scene->dir_light) {
         light_system_directional_remove(scene->dir_light);
         if (scene->dir_light->debug_data) {
-            simple_scene_debug_data *debug = scene->dir_light->debug_data;
+            scene_debug_data *debug = scene->dir_light->debug_data;
 
             debug_line3d_unload(&debug->line);
             debug_line3d_destroy(&debug->line);
 
             // NOTE: not freeing here unless there is a light since it will be used again below.
             if (!light) {
-                kfree(scene->dir_light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                kfree(scene->dir_light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                 scene->dir_light->debug_data = 0;
             }
         }
@@ -676,12 +694,12 @@ b8 simple_scene_directional_light_add(simple_scene *scene, const char *name,
 
     if (scene->dir_light) {
         if (!light_system_directional_add(light)) {
-            KERROR("simple_scene_add_directional_light - failed to add directional light to light system.");
+            KERROR("scene_add_directional_light - failed to add directional light to light system.");
             return false;
         }
 
         // Add lines indicating light direction.
-        simple_scene_debug_data *debug = scene->dir_light->debug_data;
+        scene_debug_data *debug = scene->dir_light->debug_data;
 
         // Generate the line points based on the light direction.
         // The first point will always be at the scene's origin.
@@ -691,19 +709,19 @@ b8 simple_scene_directional_light_add(simple_scene *scene, const char *name,
         if (!debug_line3d_create(point_0, point_1, 0, &debug->line)) {
             KERROR("Failed to create debug line for directional light.");
         } else {
-            if (scene->state > SIMPLE_SCENE_STATE_INITIALIZED) {
+            if (scene->state > SCENE_STATE_INITIALIZED) {
                 if (!debug_line3d_initialize(&debug->line)) {
                     KERROR("debug line failed to initialize.");
-                    kfree(light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                    kfree(light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                     light->debug_data = 0;
                     return false;
                 }
             }
 
-            if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
+            if (scene->state >= SCENE_STATE_LOADED) {
                 if (!debug_line3d_load(&debug->line)) {
                     KERROR("debug line failed to load.");
-                    kfree(light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                    kfree(light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                     light->debug_data = 0;
                 }
             }
@@ -713,8 +731,8 @@ b8 simple_scene_directional_light_add(simple_scene *scene, const char *name,
     return true;
 }
 
-b8 simple_scene_point_light_add(simple_scene *scene, const char *name,
-                                struct point_light *light) {
+b8 scene_point_light_add(scene *scene, const char *name,
+                         struct point_light *light) {
     if (!scene || !light) {
         return false;
     }
@@ -724,27 +742,27 @@ b8 simple_scene_point_light_add(simple_scene *scene, const char *name,
         return false;
     }
 
-    light->debug_data = kallocate(sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
-    simple_scene_debug_data *debug = light->debug_data;
+    light->debug_data = kallocate(sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+    scene_debug_data *debug = light->debug_data;
 
     if (!debug_box3d_create((vec3){0.2f, 0.2f, 0.2f}, 0, &debug->box)) {
         KERROR("Failed to create debug box for directional light.");
     } else {
         transform_position_set(&debug->box.xform, vec3_from_vec4(light->data.position));
 
-        if (scene->state > SIMPLE_SCENE_STATE_INITIALIZED) {
+        if (scene->state > SCENE_STATE_INITIALIZED) {
             if (!debug_box3d_initialize(&debug->box)) {
                 KERROR("debug box failed to initialize.");
-                kfree(light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                kfree(light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                 light->debug_data = 0;
                 return false;
             }
         }
 
-        if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
+        if (scene->state >= SCENE_STATE_LOADED) {
             if (!debug_box3d_load(&debug->box)) {
                 KERROR("debug box failed to load.");
-                kfree(light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                kfree(light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                 light->debug_data = 0;
             }
         }
@@ -755,20 +773,20 @@ b8 simple_scene_point_light_add(simple_scene *scene, const char *name,
     return true;
 }
 
-b8 simple_scene_mesh_add(simple_scene *scene, const char *name,
-                         struct mesh *m) {
+b8 scene_mesh_add(scene *scene, const char *name,
+                  struct mesh *m) {
     if (!scene || !m) {
         return false;
     }
 
-    if (scene->state > SIMPLE_SCENE_STATE_INITIALIZED) {
+    if (scene->state > SCENE_STATE_INITIALIZED) {
         if (!mesh_initialize(m)) {
             KERROR("Mesh failed to initialize.");
             return false;
         }
     }
 
-    if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
+    if (scene->state >= SCENE_STATE_LOADED) {
         if (!mesh_load(m)) {
             KERROR("Mesh failed to load.");
             return false;
@@ -780,15 +798,15 @@ b8 simple_scene_mesh_add(simple_scene *scene, const char *name,
     return true;
 }
 
-b8 simple_scene_skybox_add(simple_scene *scene, const char *name,
-                           struct skybox *sb) {
+b8 scene_skybox_add(scene *scene, const char *name,
+                    struct skybox *sb) {
     if (!scene) {
         return false;
     }
 
     // TODO: if one already exists, do we do anything with it?
     scene->sb = sb;
-    if (scene->state > SIMPLE_SCENE_STATE_INITIALIZED) {
+    if (scene->state > SCENE_STATE_INITIALIZED) {
         if (!skybox_initialize(sb)) {
             KERROR("Skybox failed to initialize.");
             scene->sb = 0;
@@ -796,7 +814,7 @@ b8 simple_scene_skybox_add(simple_scene *scene, const char *name,
         }
     }
 
-    if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
+    if (scene->state >= SCENE_STATE_LOADED) {
         if (!skybox_load(sb)) {
             KERROR("Skybox failed to load.");
             scene->sb = 0;
@@ -807,20 +825,20 @@ b8 simple_scene_skybox_add(simple_scene *scene, const char *name,
     return true;
 }
 
-b8 simple_scene_terrain_add(simple_scene *scene, const char *name,
-                            struct terrain *t) {
+b8 scene_terrain_add(scene *scene, const char *name,
+                     struct terrain *t) {
     if (!scene || !t) {
         return false;
     }
 
-    if (scene->state > SIMPLE_SCENE_STATE_INITIALIZED) {
+    if (scene->state > SCENE_STATE_INITIALIZED) {
         if (!terrain_initialize(t)) {
             KERROR("Terrain failed to initialize.");
             return false;
         }
     }
 
-    if (scene->state >= SIMPLE_SCENE_STATE_LOADED) {
+    if (scene->state >= SCENE_STATE_LOADED) {
         if (!terrain_load(t)) {
             KERROR("Terrain failed to load.");
             return false;
@@ -832,8 +850,8 @@ b8 simple_scene_terrain_add(simple_scene *scene, const char *name,
     return true;
 }
 
-b8 simple_scene_directional_light_remove(simple_scene *scene,
-                                         const char *name) {
+b8 scene_directional_light_remove(scene *scene,
+                                  const char *name) {
     if (!scene || !name) {
         return false;
     }
@@ -851,12 +869,12 @@ b8 simple_scene_directional_light_remove(simple_scene *scene,
     } else {
         // Unload directional light debug if it exists.
         if (scene->dir_light->debug_data) {
-            simple_scene_debug_data *debug = scene->dir_light->debug_data;
+            scene_debug_data *debug = scene->dir_light->debug_data;
 
             debug_line3d_unload(&debug->line);
             debug_line3d_destroy(&debug->line);
 
-            kfree(scene->dir_light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+            kfree(scene->dir_light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
             scene->dir_light->debug_data = 0;
         }
     }
@@ -867,7 +885,7 @@ b8 simple_scene_directional_light_remove(simple_scene *scene,
     return true;
 }
 
-b8 simple_scene_point_light_remove(simple_scene *scene, const char *name) {
+b8 scene_point_light_remove(scene *scene, const char *name) {
     if (!scene || !name) {
         return false;
     }
@@ -881,10 +899,10 @@ b8 simple_scene_point_light_remove(simple_scene *scene, const char *name) {
             } else {
                 // Destroy debug data if it exists.
                 if (scene->point_lights[i].debug_data) {
-                    simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->point_lights[i].debug_data;
+                    scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
                     debug_box3d_unload(&debug->box);
                     debug_box3d_destroy(&debug->box);
-                    kfree(scene->point_lights[i].debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                    kfree(scene->point_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                     scene->point_lights[i].debug_data = 0;
                 }
             }
@@ -900,7 +918,7 @@ b8 simple_scene_point_light_remove(simple_scene *scene, const char *name) {
     return false;
 }
 
-b8 simple_scene_mesh_remove(simple_scene *scene, const char *name) {
+b8 scene_mesh_remove(scene *scene, const char *name) {
     if (!scene || !name) {
         return false;
     }
@@ -910,12 +928,12 @@ b8 simple_scene_mesh_remove(simple_scene *scene, const char *name) {
         if (strings_equal(scene->meshes[i].name, name)) {
             // Unload any debug data.
             if (scene->meshes[i].debug_data) {
-                simple_scene_debug_data *debug = scene->meshes[i].debug_data;
+                scene_debug_data *debug = scene->meshes[i].debug_data;
 
                 debug_box3d_unload(&debug->box);
                 debug_box3d_destroy(&debug->box);
 
-                kfree(scene->meshes[i].debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                kfree(scene->meshes[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                 scene->meshes[i].debug_data = 0;
             }
             // Unload the mesh itself.
@@ -935,7 +953,7 @@ b8 simple_scene_mesh_remove(simple_scene *scene, const char *name) {
     return false;
 }
 
-b8 simple_scene_skybox_remove(simple_scene *scene, const char *name) {
+b8 scene_skybox_remove(scene *scene, const char *name) {
     if (!scene || !name) {
         return false;
     }
@@ -951,7 +969,7 @@ b8 simple_scene_skybox_remove(simple_scene *scene, const char *name) {
     return true;
 }
 
-b8 simple_scene_terrain_remove(simple_scene *scene, const char *name) {
+b8 scene_terrain_remove(scene *scene, const char *name) {
     if (!scene || !name) {
         return false;
     }
@@ -976,7 +994,7 @@ b8 simple_scene_terrain_remove(simple_scene *scene, const char *name) {
 }
 
 struct directional_light *
-simple_scene_directional_light_get(simple_scene *scene, const char *name) {
+scene_directional_light_get(scene *scene, const char *name) {
     if (!scene) {
         return 0;
     }
@@ -984,8 +1002,8 @@ simple_scene_directional_light_get(simple_scene *scene, const char *name) {
     return scene->dir_light;
 }
 
-struct point_light *simple_scene_point_light_get(simple_scene *scene,
-                                                 const char *name) {
+struct point_light *scene_point_light_get(scene *scene,
+                                          const char *name) {
     if (!scene) {
         return 0;
     }
@@ -1001,7 +1019,7 @@ struct point_light *simple_scene_point_light_get(simple_scene *scene,
     return 0;
 }
 
-struct mesh *simple_scene_mesh_get(simple_scene *scene, const char *name) {
+struct mesh *scene_mesh_get(scene *scene, const char *name) {
     if (!scene) {
         return 0;
     }
@@ -1017,7 +1035,7 @@ struct mesh *simple_scene_mesh_get(simple_scene *scene, const char *name) {
     return 0;
 }
 
-struct skybox *simple_scene_skybox_get(simple_scene *scene, const char *name) {
+struct skybox *scene_skybox_get(scene *scene, const char *name) {
     if (!scene) {
         return 0;
     }
@@ -1025,8 +1043,8 @@ struct skybox *simple_scene_skybox_get(simple_scene *scene, const char *name) {
     return scene->sb;
 }
 
-struct terrain *simple_scene_terrain_get(simple_scene *scene,
-                                         const char *name) {
+struct terrain *scene_terrain_get(scene *scene,
+                                  const char *name) {
     if (!scene || !name) {
         return 0;
     }
@@ -1042,7 +1060,7 @@ struct terrain *simple_scene_terrain_get(simple_scene *scene,
     return 0;
 }
 
-b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, geometry_render_data **debug_geometries) {
+b8 scene_debug_render_data_query(scene *scene, u32 *data_count, geometry_render_data **debug_geometries) {
     if (!scene || !data_count) {
         return false;
     }
@@ -1072,7 +1090,7 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
     {
         if (scene->dir_light && scene->dir_light->debug_data) {
             if (debug_geometries) {
-                simple_scene_debug_data *debug = scene->dir_light->debug_data;
+                scene_debug_data *debug = scene->dir_light->debug_data;
 
                 // Debug line 3d
                 geometry_render_data data = {0};
@@ -1097,7 +1115,7 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
         for (u32 i = 0; i < point_light_count; ++i) {
             if (scene->point_lights[i].debug_data) {
                 if (debug_geometries) {
-                    simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->point_lights[i].debug_data;
+                    scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
 
                     // Debug box 3d
                     geometry_render_data data = {0};
@@ -1123,7 +1141,7 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
         for (u32 i = 0; i < mesh_count; ++i) {
             if (scene->meshes[i].debug_data) {
                 if (debug_geometries) {
-                    simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->meshes[i].debug_data;
+                    scene_debug_data *debug = (scene_debug_data *)scene->meshes[i].debug_data;
 
                     // Debug box 3d
                     geometry_render_data data = {0};
@@ -1146,7 +1164,7 @@ b8 simple_scene_debug_render_data_query(simple_scene *scene, u32 *data_count, ge
     return true;
 }
 
-b8 simple_scene_mesh_render_data_query_from_line(const simple_scene *scene, vec3 direction, vec3 center, f32 radius, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data **out_geometries) {
+b8 scene_mesh_render_data_query_from_line(const scene *scene, vec3 direction, vec3 center, f32 radius, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data **out_geometries) {
     if (!scene) {
         return false;
     }
@@ -1233,7 +1251,7 @@ b8 simple_scene_mesh_render_data_query_from_line(const simple_scene *scene, vec3
     return true;
 }
 
-b8 simple_scene_terrain_render_data_query_from_line(const simple_scene *scene, vec3 direction, vec3 center, f32 radius, struct frame_data *p_frame_data, u32 *out_count, struct geometry_render_data **out_geometries) {
+b8 scene_terrain_render_data_query_from_line(const scene *scene, vec3 direction, vec3 center, f32 radius, struct frame_data *p_frame_data, u32 *out_count, struct geometry_render_data **out_geometries) {
     if (!scene) {
         return false;
     }
@@ -1288,7 +1306,7 @@ b8 simple_scene_terrain_render_data_query_from_line(const simple_scene *scene, v
     return true;
 }
 
-b8 simple_scene_mesh_render_data_query(const simple_scene *scene, const frustum *f, vec3 center, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data **out_geometries) {
+b8 scene_mesh_render_data_query(const scene *scene, const frustum *f, vec3 center, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data **out_geometries) {
     if (!scene) {
         return false;
     }
@@ -1406,7 +1424,7 @@ b8 simple_scene_mesh_render_data_query(const simple_scene *scene, const frustum 
     return true;
 }
 
-b8 simple_scene_terrain_render_data_query(const simple_scene *scene, const frustum *f, vec3 center, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data **out_terrain_geometries) {
+b8 scene_terrain_render_data_query(const scene *scene, const frustum *f, vec3 center, frame_data *p_frame_data, u32 *out_count, struct geometry_render_data **out_terrain_geometries) {
     if (!scene) {
         return false;
     }
@@ -1467,7 +1485,7 @@ b8 simple_scene_terrain_render_data_query(const simple_scene *scene, const frust
     return true;
 }
 
-static void simple_scene_actual_unload(simple_scene *scene) {
+static void scene_actual_unload(scene *scene) {
     if (scene->sb) {
         if (!skybox_unload(scene->sb)) {
             KERROR("Failed to unload skybox");
@@ -1481,12 +1499,12 @@ static void simple_scene_actual_unload(simple_scene *scene) {
         if (scene->meshes[i].generation != INVALID_ID_U8) {
             // Unload any debug data.
             if (scene->meshes[i].debug_data) {
-                simple_scene_debug_data *debug = scene->meshes[i].debug_data;
+                scene_debug_data *debug = scene->meshes[i].debug_data;
 
                 debug_box3d_unload(&debug->box);
                 debug_box3d_destroy(&debug->box);
 
-                kfree(scene->meshes[i].debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+                kfree(scene->meshes[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                 scene->meshes[i].debug_data = 0;
             }
 
@@ -1512,16 +1530,16 @@ static void simple_scene_actual_unload(simple_scene *scene) {
     }
 
     if (scene->dir_light) {
-        if (!simple_scene_directional_light_remove(scene, scene->dir_light->name)) {
+        if (!scene_directional_light_remove(scene, scene->dir_light->name)) {
             KERROR("Failed to unload/remove directional light.");
         }
 
         if (scene->dir_light && scene->dir_light->debug_data) {
-            simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->dir_light->debug_data;
+            scene_debug_data *debug = (scene_debug_data *)scene->dir_light->debug_data;
             // Unload directional light line data.
             debug_line3d_unload(&debug->line);
             debug_line3d_destroy(&debug->line);
-            kfree(scene->dir_light->debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+            kfree(scene->dir_light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
             scene->dir_light->debug_data = 0;
         }
     }
@@ -1534,16 +1552,16 @@ static void simple_scene_actual_unload(simple_scene *scene) {
 
         // Destroy debug data if it exists.
         if (scene->point_lights[i].debug_data) {
-            simple_scene_debug_data *debug = (simple_scene_debug_data *)scene->point_lights[i].debug_data;
+            scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
             debug_box3d_unload(&debug->box);
             debug_box3d_destroy(&debug->box);
-            kfree(scene->point_lights[i].debug_data, sizeof(simple_scene_debug_data), MEMORY_TAG_RESOURCE);
+            kfree(scene->point_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
             scene->point_lights[i].debug_data = 0;
         }
     }
 
     // Update the state to show the scene is initialized.
-    scene->state = SIMPLE_SCENE_STATE_UNLOADED;
+    scene->state = SCENE_STATE_UNLOADED;
 
     // Also destroy the scene.
     scene->dir_light = 0;
@@ -1561,10 +1579,10 @@ static void simple_scene_actual_unload(simple_scene *scene) {
         darray_destroy(scene->terrains);
     }
 
-    kzero_memory(scene, sizeof(simple_scene));
+    kzero_memory(scene, sizeof(scene));
 }
 
-struct transform *simple_scene_transform_get_by_id(simple_scene *scene, u64 unique_id) {
+struct transform *scene_transform_get_by_id(scene *scene, u64 unique_id) {
     if (!scene) {
         return 0;
     }
@@ -1584,4 +1602,58 @@ struct transform *simple_scene_transform_get_by_id(simple_scene *scene, u64 uniq
     }
 
     return 0;
+}
+
+b8 scene_save(scene *scene) {
+    if (!scene) {
+        KERROR("scene_save requires a valid pointer to a scene.");
+        return false;
+    }
+
+    // Create a simple scene config based on the objects currently in the scene.
+    scene_config config = {0};
+    config.name = string_duplicate(scene->name);
+    config.description = string_duplicate(scene->description);
+    if (scene->sb) {
+        config.skybox_config.name = string_duplicate(scene->config->skybox_config.name);
+        config.skybox_config.cubemap_name = string_duplicate(scene->config->skybox_config.cubemap_name);
+    }
+    if (scene->dir_light) {
+        config.directional_light_config.name = string_duplicate(scene->config->directional_light_config.name);
+        config.directional_light_config.colour = scene->dir_light->data.colour;
+        config.directional_light_config.direction = scene->dir_light->data.direction;
+        config.directional_light_config.shadow_split_mult = scene->dir_light->data.shadow_split_mult;
+        config.directional_light_config.shadow_fade_distance = scene->dir_light->data.shadow_fade_distance;
+        config.directional_light_config.shadow_distance = scene->dir_light->data.shadow_distance;
+    }
+
+    u32 mesh_count = darray_length(scene->meshes);
+    config.meshes = darray_create(mesh_scene_config);
+    for (u32 i = 0; i < mesh_count; ++i) {
+        mesh_scene_config mesh = {0};
+        mesh.name = string_duplicate(scene->meshes[i].name);
+        mesh.transform = scene->meshes[i].transform;
+        mesh.resource_name = scene->meshes[i].config.resource_name;
+        // TODO: Parent could have changed... Re-walk the tree and see what the parent name is
+        // But, the parent info isn't saved at that time, only transform parenting is done on load.
+        // Rethink parenting and how that is stored.
+        mesh.parent_name = scene->meshes[i].config.parent_name;
+        darray_push(config.meshes, mesh);
+    }
+    u32 terrain_count = darray_length(scene->terrains);
+    config.terrains = darray_create(terrain_scene_config);
+    for (u32 i = 0; i < terrain_count; ++i) {
+        terrain_scene_config terrain = {0};
+        terrain.name = string_duplicate(scene->terrains[i].name);
+        terrain.xform = scene->terrains[i].xform;
+        // TODO: same issue as above.
+        /* terrain.resource_name = scene->terrains[i].terrain.parent_name = scene->meshes[i].config.parent_name; */
+        darray_push(config.meshes, terrain);
+    }
+
+    // Call the resource system to write that config.
+
+    // Destroy the config.
+
+    return true;
 }

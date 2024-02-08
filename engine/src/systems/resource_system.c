@@ -10,6 +10,7 @@
 #include "resources/loaders/image_loader.h"
 #include "resources/loaders/material_loader.h"
 #include "resources/loaders/mesh_loader.h"
+#include "resources/loaders/scene_loader.h"
 #include "resources/loaders/shader_loader.h"
 #include "resources/loaders/system_font_loader.h"
 #include "resources/loaders/terrain_loader.h"
@@ -66,6 +67,7 @@ b8 resource_system_initialize(u64 *memory_requirement, void *state,
     resource_system_loader_register(bitmap_font_resource_loader_create());
     resource_system_loader_register(system_font_resource_loader_create());
     resource_system_loader_register(terrain_resource_loader_create());
+    resource_system_loader_register(scene_resource_loader_create());
 
     KINFO("Resource system initialized with base path '%s'.",
           typed_config->asset_base_path);
@@ -172,6 +174,25 @@ b8 resource_system_load_custom(const char *name, const char *custom_type,
     out_resource->loader_id = INVALID_ID;
     KERROR("resource_system_load_custom - No loader for type %s was found.",
            custom_type);
+    return false;
+}
+
+b8 resource_system_write(resource_type type, resource *r) {
+    if (!state_ptr || !r) {
+        KERROR("resource_system_write requires state to be initialized and a valid pointer to a resource to be written.");
+        return false;
+    }
+
+    // Select loader.
+    u32 count = state_ptr->config.max_loader_count;
+    for (u32 i = 0; i < count; ++i) {
+        resource_loader *l = &state_ptr->registered_loaders[i];
+        if (l->id != INVALID_ID && l->type == type && l->write) {
+            return l->write(l, r);
+        }
+    }
+
+    KERROR("No resource writer available for type %u", type);
     return false;
 }
 

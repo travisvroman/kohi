@@ -107,6 +107,38 @@ The items in this list are not in any particular order. This list will be update
   - [ ] physics volumes 
   - [ ] weather
 - [ ] Multi-window applications
+- [ ] 0.7 Scene refactor (see notes below):
+  - [x] Rename simple scene to just "scene" and move to engine core.
+  - [ ] Create a global handle system which issues globally-unique handles. These handles would be linked to both a
+        resource array of some sort and an index element within that array via a structure that holds both.
+  - [ ] Create new "xform" structure and system that uses handles and can manage dependencies in updates internally.
+  - [ ] Remove transform from mesh.
+  - [ ] Refactor simple scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
+  - [ ] Write "(de)serialization" routines for savable resources and use those in the above loader.
+          Scene Refactor notes: Refactor into node-based system using handles for various types.
+          A node should contain 3 (maybe 4) things: a unique identifier, a handle id (which is a
+          link into a scene-wide handle table, which itself points to an index into an array of resources),
+          a potential parent handle id (which can be INVALID_ID if unused), and potentially a name.
+          There would then be lists of resource types (think mesh, terrain, lights, skybox, etc) which would
+          each have lookup tables of handle ids to indices into these arrays. Additionally there would be a set
+          of a lookup table and transforms that would be used. Separating these would allow updates on these objects
+          in cache-coherent loops as well as any sorting/dependency lookup that would need to be done.
+         
+          The above will require that meshes have transforms removed from them. The transform would then be
+          also referenced by the _node_ instead of the mesh. This would also facilitate batching of like meshes for
+          rendering in the future. Transforms would also have the parent pointer removed, and instead also use
+          handles. This would eliminate issues with invalid pointers when an array of a resource (i.e. transform) is
+          expanded and realloced. This should be done in a phased approach, and thus perhaps a new "xform" should be
+          created, and the "transform" structure could be deprecated. Note that the resource lookup for this would
+          likely be global, not just within a scene.
+         
+          We could then have a few different "graphs" in the scene: one for transforms, one for visibility (i.e a flat
+          array of currently-visible objects would likely suffice here), and others.
+         
+          We might also think about, at this point, reworking the scene parser to better handle object heirarchy in a more
+          expressive language fasion (perhaps using some sort of scoping syntax like "{}" to surround objects).
+     
+ 
 
 ## Renderer:
 - [ ] geometry generation (2d and 3d, e.g. cube, cylinder, etc.)

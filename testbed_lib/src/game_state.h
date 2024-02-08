@@ -12,7 +12,7 @@
 #include "graphs/editor_rendergraph.h"
 #include "graphs/standard_ui_rendergraph.h"
 #include "renderer/viewport.h"
-#include "resources/simple_scene.h"
+#include "resources/scene.h"
 
 // TODO: temp
 #include <core/kclock.h>
@@ -49,7 +49,7 @@ typedef struct testbed_game_state {
     f64 last_update_elapsed;
 
     // TODO: temp
-    simple_scene main_scene;
+    scene main_scene;
     b8 main_scene_unload_triggered;
 
     mesh meshes[10];
