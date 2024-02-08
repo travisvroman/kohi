@@ -1,5 +1,8 @@
 Changelog
 
+- 0.7.0
+  -
+
 - 0.6.0
   - Updated versioning system and build process. Each library now maintains its own version (and potentially changelog at some point).
     - New version format is MAJOR.MINOR.PATCH.BUILD-REVISION. This will allow for greater versioning control and patching to minor versions.
