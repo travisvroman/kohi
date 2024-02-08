@@ -33,15 +33,16 @@ The items in this list are not in any particular order. This list will be update
   - [x] freelist
   - [x] dynamic arrays  
   - [x] ring buffer
-  - [ ] queue 
+  - [x] queue 
   - [ ] pool 
   - [ ] bst
 - [ ] quadtrees/octrees
 - [x] Threads 
+- [x] Semaphores
 - [x] Job system
-  - [ ] Job dependencies
-  - [ ] Job semaphores/signaling
-- [ ] ThreadPools
+  - [x] Job dependencies
+  - [x] Job semaphores/signaling
+- [x] ThreadPools
 - [ ] Multi-threaded logger
 - [x] Textures 
   - [ ] binary file format (.kbt)
@@ -96,7 +97,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] chunking/culling
     - [x] BUG: culling is currently passing all chunks always.
   - [x] LOD
-    - [ ] Blending between LOD levels (geometry skirts vs gap-filling, etc.)
+    - [x] Blending between LOD levels (geometry skirts vs gap-filling, etc.)
   - [ ] tessellation
   - [ ] holes
   - [ ] collision

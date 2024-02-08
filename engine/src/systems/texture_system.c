@@ -4,6 +4,8 @@
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
+#include "core/threadpool.h"
+#include "core/worker_thread.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/loaders/image_loader.h"
 #include "resources/resource_types.h"
@@ -801,9 +803,68 @@ static void texture_load_layered_job_fail(void* result_data) {
     }
 }
 
+typedef struct layer_work_info {
+    u32 layer;
+    u64 layer_size;
+    u32 first_width;
+    u32 first_height;
+    u8** data_block;
+    b8 result;
+    texture_load_job_code result_code;
+    char* layer_name;
+    b8 has_transparency;
+} layer_work_info;
+
+static u32 layered_texture_do_work(void* param) {
+    layer_work_info* info = param;
+    info->result = true;
+
+    image_resource_params resource_params;
+    resource_params.flip_y = true;
+
+    resource image_resource;
+    if (!resource_system_load(info->layer_name, RESOURCE_TYPE_IMAGE, &resource_params, &image_resource)) {
+        info->result_code = TEXTURE_LOAD_JOB_CODE_RESOURCE_LOAD_FAILED;
+        info->result = false;
+        return false;
+    }
+
+    image_resource_data* resource_data = image_resource.data;
+
+    // Verify the dimensions match that of the first layer's texture.
+    if (resource_data->width != info->first_width || resource_data->height != info->first_height) {
+        info->result_code = TEXTURE_LOAD_JOB_CODE_RESOURCE_DIMENSION_MISMATCH;
+        resource_system_unload(&image_resource);
+        info->result = false;
+        return false;
+    }
+
+    // Check for transparency
+    info->has_transparency = false;
+    for (u64 i = 0; i < info->layer_size; i += resource_data->channel_count) {
+        u8 a = resource_data->pixels[i + 3];
+        if (a < 255) {
+            info->has_transparency = true;
+            break;
+        }
+    }
+
+    // Insert the pixels into the corresponding "layer".
+    u8* data_location = *info->data_block + (info->layer * info->layer_size);
+    kcopy_memory(data_location, resource_data->pixels, info->layer_size);
+
+    resource_system_unload(&image_resource);
+
+    return info->result;
+}
+
 static b8 texture_load_layered_job_start(void* params, void* result_data) {
     texture_load_layered_params* load_params = (texture_load_layered_params*)params;
     texture_load_layered_result* typed_result = result_data;
+
+    // LEFTOFF: Split this into 3 jobs - The first job performs the query, then sets up all of the layered texture jobs, then sets
+    // up a final job to move all that memory into the contiguous block in a final job, which has the layer jobs as a dependency.
+    // THEN submit all jobs.
 
     // Query the dimensions of the first image. All subsequent images must match dimensions.
     // Channel count from the image is ignored.
@@ -842,45 +903,54 @@ static b8 texture_load_layered_job_start(void* params, void* result_data) {
     image_resource_params resource_params;
     resource_params.flip_y = true;
 
+    // Create a threadpool to load layers simultaneously.
+    threadpool pool = {0};
+    if (!threadpool_create(load_params->layer_count, &pool)) {
+        KERROR("Failed to create threadpool. See logs for details.");
+        return false;
+    }
+
+    // Create a job for each layer, but don't submit it yet.
+    layer_work_info* infos = kallocate(sizeof(layer_work_info) * load_params->layer_count, MEMORY_TAG_ARRAY);
     u32 layer = 0;
     for (; layer < load_params->layer_count; ++layer) {
-        resource image_resource;
-        if (!resource_system_load(load_params->layer_names[layer], RESOURCE_TYPE_IMAGE, &resource_params, &image_resource)) {
-            typed_result->result_code = TEXTURE_LOAD_JOB_CODE_RESOURCE_LOAD_FAILED;
-            goto texture_load_layered_failed;
+        layer_work_info* info = &infos[layer];
+        info->layer = layer;
+        info->layer_size = layer_size;
+        info->first_width = first_width;
+        info->first_height = first_height;
+        info->data_block = &typed_result->data_block;
+        info->result = false;
+        info->layer_name = load_params->layer_names[layer];
+
+        if (!worker_thread_add(&pool.threads[layer], layered_texture_do_work, info)) {
+            KERROR("Failed to add work to worker thread.");
+            return false;
         }
-
-        image_resource_data* resource_data = image_resource.data;
-
-        // Verify the dimensions match that of the first layer's texture.
-        if (resource_data->width != (u32)first_width || resource_data->height != (u32)first_height) {
-            typed_result->result_code = TEXTURE_LOAD_JOB_CODE_RESOURCE_DIMENSION_MISMATCH;
-            resource_system_unload(&image_resource);
-            goto texture_load_layered_failed;
-        }
-
-        // Check for transparency
-        if (!has_transparency) {
-            for (u64 i = 0; i < layer_size; i += typed_result->temp_texture.channel_count) {
-                u8 a = resource_data->pixels[i + 3];
-                if (a < 255) {
-                    has_transparency = true;
-                    break;
-                }
-            }
-        }
-
-        // Insert the pixels into the corresponding "layer".
-        u8* data_location = typed_result->data_block + (layer * layer_size);
-        kcopy_memory(data_location, resource_data->pixels, layer_size);
-
-        resource_system_unload(&image_resource);
     }
 
-    typed_result->temp_texture.flags |= has_transparency ? TEXTURE_FLAG_HAS_TRANSPARENCY : 0;
-    typed_result->name = string_duplicate(load_params->name);
-    typed_result->current_generation = load_params->out_texture->generation;
-    typed_result->layer_count = load_params->layer_count;
+    // Start the work.
+    for (u32 i = 0; i < load_params->layer_count; ++i) {
+        worker_thread_start(&pool.threads[i]);
+    }
+
+    // Wait on the threads.
+    if (!threadpool_wait(&pool)) {
+        KERROR("Threadpool wait failed.");
+        return false;
+    }
+
+    threadpool_destroy(&pool);
+
+    // Verify results.
+    b8 load_result = true;
+    for (u32 i = 0; i < load_params->layer_count; ++i) {
+        if (!infos[i].result) {
+            load_result = false;
+        }
+    }
+
+    kfree(infos, sizeof(layer_work_info), MEMORY_TAG_ARRAY);
 
     for (u32 i = 0; i < typed_result->layer_count; ++i) {
         string_free(load_params->layer_names[i]);
@@ -888,21 +958,21 @@ static b8 texture_load_layered_job_start(void* params, void* result_data) {
     kfree(load_params->layer_names, sizeof(char*) * load_params->layer_count, MEMORY_TAG_ARRAY);
     load_params->layer_names = 0;
 
-    return true;
+    if (load_result) {
+        typed_result->temp_texture.flags |= has_transparency ? TEXTURE_FLAG_HAS_TRANSPARENCY : 0;
+        typed_result->name = string_duplicate(load_params->name);
+        typed_result->current_generation = load_params->out_texture->generation;
+        typed_result->layer_count = load_params->layer_count;
 
-texture_load_layered_failed:
-    // HACK: DRY
-    for (u32 i = 0; i < typed_result->layer_count; ++i) {
-        string_free(load_params->layer_names[i]);
-    }
-    kfree(load_params->layer_names, sizeof(char*) * load_params->layer_count, MEMORY_TAG_ARRAY);
-    load_params->layer_names = 0;
+    } else {
+        KERROR("At least one texture layer failed to load. See logs for details.");
 
-    if (typed_result->data_block) {
-        kfree(typed_result->data_block, layer_size * load_params->layer_count, MEMORY_TAG_ARRAY);
-        typed_result->data_block = 0;
+        if (typed_result->data_block) {
+            kfree(typed_result->data_block, layer_size * load_params->layer_count, MEMORY_TAG_ARRAY);
+            typed_result->data_block = 0;
+        }
     }
-    return false;
+    return load_result;
 }
 
 static b8 load_texture(const char* texture_name, texture* t, const char** layer_names) {

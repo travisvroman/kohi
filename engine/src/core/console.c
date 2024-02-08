@@ -195,10 +195,10 @@ static void console_object_print(u8 indent, console_object* obj) {
         case CONSOLE_OBJECT_TYPE_F32:
             KINFO("%s%f", indent_buffer, *((f32*)obj->block));
             break;
-        case CONSOLE_OBJECT_TYPE_BOOL:
+        case CONSOLE_OBJECT_TYPE_BOOL: {
             b8 val = *((b8*)obj->block);
             KINFO("%s%s", indent_buffer, val ? "true" : "false");
-            break;
+        } break;
         case CONSOLE_OBJECT_TYPE_STRUCT:
             if (obj->properties) {
                 KINFO("%s", obj->name);

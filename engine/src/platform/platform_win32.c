@@ -1,4 +1,4 @@
-
+#include "core/ksemaphore.h"
 #include "platform/platform.h"
 
 // Windows platform layer.
@@ -315,6 +315,28 @@ void kthread_cancel(kthread *thread) {
     }
 }
 
+b8 kthread_wait(kthread *thread) {
+    if (thread && thread->internal_data) {
+        DWORD exit_code = WaitForSingleObject(thread->internal_data, INFINITE);
+        if (exit_code == WAIT_OBJECT_0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+b8 kthread_wait_timeout(kthread *thread, u64 wait_ms) {
+    if (thread && thread->internal_data) {
+        DWORD exit_code = WaitForSingleObject(thread->internal_data, wait_ms);
+        if (exit_code == WAIT_OBJECT_0) {
+            return true;
+        } else if (exit_code == WAIT_TIMEOUT) {
+            return false;
+        }
+    }
+    return false;
+}
+
 b8 kthread_is_active(kthread *thread) {
     if (thread && thread->internal_data) {
         DWORD exit_code = WaitForSingleObject(thread->internal_data, 0);
@@ -389,6 +411,69 @@ b8 kmutex_unlock(kmutex *mutex) {
 }
 
 // NOTE: End mutexes.
+
+b8 ksemaphore_create(ksemaphore *out_semaphore, u32 max_count, u32 start_count) {
+    if (!out_semaphore) {
+        return false;
+    }
+
+    out_semaphore->internal_data = CreateSemaphore(0, start_count, max_count, "semaphore");
+
+    return true;
+}
+
+void ksemaphore_destroy(ksemaphore *semaphore) {
+    if (semaphore && semaphore->internal_data) {
+        CloseHandle(semaphore->internal_data);
+        KTRACE("Destroyed semaphore handle.");
+        semaphore->internal_data = 0;
+    }
+}
+
+b8 ksemaphore_signal(ksemaphore *semaphore) {
+    if (!semaphore || !semaphore->internal_data) {
+        return false;
+    }
+    // W: release/Increment
+    LONG previous_count = 0;
+    // NOTE: release 1 at a time.
+    if (!ReleaseSemaphore(semaphore->internal_data, 1, &previous_count)) {
+        KERROR("Failed to release semaphore.");
+        return false;
+    }
+    return true;
+    // L: post/Increment
+}
+
+b8 ksemaphore_wait(ksemaphore *semaphore, u64 timeout_ms) {
+    if (!semaphore || !semaphore->internal_data) {
+        return false;
+    }
+
+    DWORD result = WaitForSingleObject(semaphore->internal_data, timeout_ms);
+    switch (result) {
+        case WAIT_ABANDONED:
+            KERROR("The specified object is a mutex object that was not released by the thread that owned the mutex object before the owning thread terminated. Ownership of the mutex object is granted to the calling thread and the mutex state is set to nonsignaled. If the mutex was protecting persistent state information, you should check it for consistency.");
+            return false;
+        case WAIT_OBJECT_0:
+            // The state is signaled.
+            return true;
+        case WAIT_TIMEOUT:
+            KERROR("Semaphore wait timeout occurred.");
+            return false;
+        case WAIT_FAILED:
+            KERROR("WaitForSingleObject failed.");
+            // TODO: GetLastError and print message.
+            return false;
+        default:
+            KERROR("An unknown error occurred while waiting on a semaphore.");
+            // TODO: GetLastError and print message.
+            return false;
+    }
+    // W: wait/decrement, blocks when 0
+    // L: wait/decrement, blocks when 0
+    return true;
+}
 
 b8 platform_dynamic_library_load(const char *name, dynamic_library *out_library) {
     if (!out_library) {

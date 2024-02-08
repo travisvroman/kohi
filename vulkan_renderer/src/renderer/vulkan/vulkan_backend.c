@@ -567,7 +567,7 @@ b8 vulkan_renderer_backend_initialize(renderer_plugin *plugin,
     context->samplers = darray_create(VkSampler);
 
     // Staging buffer.
-    const u64 staging_buffer_size = 256 * 1000 * 1000;
+    const u64 staging_buffer_size = 512 * 1000 * 1000;
     if (!renderer_renderbuffer_create("staging", RENDERBUFFER_TYPE_STAGING, staging_buffer_size, RENDERBUFFER_TRACK_TYPE_LINEAR, &context->staging)) {
         KERROR("Failed to create staging buffer.");
         return false;
