@@ -35,6 +35,9 @@ typedef struct xform {
     f32 determinant;
 
     /** @brief A handle to a parent xform if one is assigned. */
+    // TODO: Possibly make this handled by something else, such as a graph.
+    // This would eliminate the xform from having to care whether it has a parent,
+    // as well as prevent this data from having to be stored here.
     k_handle parent;
 
     /** @brief A globally unique id used to validate the handle against the object it was created for. */
