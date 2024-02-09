@@ -109,11 +109,21 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Multi-window applications
 - [ ] 0.7 Scene refactor (see notes below):
   - [x] Rename simple scene to just "scene" and move to engine core.
-  - [ ] Create a global handle system which issues globally-unique handles. These handles would be linked to both a
-        resource array of some sort and an index element within that array via a structure that holds both.
+  - [x] Create a unique-per-system handle for each system to identify a resource. These handles would be linked to 
+        a resource array of some sort and an index element within that array via a structure that holds both.
   - [ ] Create new "xform" structure and system that uses handles and can manage dependencies in updates internally.
   - [ ] Remove transform from mesh.
-  - [ ] Refactor simple scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
+  - [ ] Replace any and all transforms with xform handles.
+  - [ ] Update systems (and create some) that use handles:
+    - [x] Create xform system that uses handles
+    - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
+    - [ ] Convert material system to use handles
+    - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
+    - [ ] Convert shader system to use handles (everything that _isn't_ the renderer should use handles).
+    - [ ] Convert lighting system to use handles.
+    - [ ] Create skybox system that uses handles.
+    - [ ] Create scene system that uses handles.
+  - [ ] Refactor scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
   - [ ] Write "(de)serialization" routines for savable resources and use those in the above loader.
           Scene Refactor notes: Refactor into node-based system using handles for various types.
           A node should contain 3 (maybe 4) things: a unique identifier, a handle id (which is a

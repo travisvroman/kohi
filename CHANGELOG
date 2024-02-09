@@ -2,6 +2,8 @@ Changelog
 
 - 0.7.0
   - Renamed "simple_scene" to just "scene". Moved it and loader to engine core, removed references from testbed application.
+  - Added handles to be used in place of raw pointers. Resource systems (i.e. materials, textures, meshes, etc.) need to be converted to use this.
+  - Created xform and xform system to replace transforms.
 
 - 0.6.0
   - Updated versioning system and build process. Each library now maintains its own version (and potentially changelog at some point).
