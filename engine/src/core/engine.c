@@ -325,7 +325,7 @@ systems_manager_state* engine_systems_manager_state_get(struct application* game
 static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
     switch (code) {
         case EVENT_CODE_APPLICATION_QUIT: {
-            KINFO("EVENT_CODE_APPLICATION_QUIT recieved, shutting down.\n");
+            KINFO("EVENT_CODE_APPLICATION_QUIT received, shutting down.\n");
             engine_state->is_running = false;
             return true;
         }
