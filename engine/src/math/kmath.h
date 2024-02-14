@@ -1372,6 +1372,37 @@ KINLINE mat4 mat4_scale(vec3 scale) {
 }
 
 /**
+ * @brief Returns a matrix created from the provided translation, rotation and scale (TRS).
+ *
+ * @param position The position to be used to create the matrix.
+ * @param rotation The quaternion rotation to be used to create the matrix.
+ * @param scale The 3-component scale to be used to create the matrix.
+ * @return A matrix created in TRS order.
+ */
+KINLINE mat4 mat4_from_translation_rotation_scale(vec3 t, quat r, vec3 s) {
+    mat4 out_matrix;
+
+    out_matrix.data[0] = (1.0f - 2.0f * (r.y * r.y + r.z * r.z)) * s.x;
+    out_matrix.data[1] = (r.x * r.y + r.z * r.w) * s.x * 2.0f;
+    out_matrix.data[2] = (r.x * r.z - r.y * r.w) * s.x * 2.0f;
+    out_matrix.data[3] = 0.0f;
+    out_matrix.data[4] = (r.x * r.y - r.z * r.w) * s.y * 2.0f;
+    out_matrix.data[5] = (1.0f - 2.0f * (r.x * r.x + r.z * r.z)) * s.y;
+    out_matrix.data[6] = (r.y * r.z + r.x * r.w) * s.y * 2.0f;
+    out_matrix.data[7] = 0.0f;
+    out_matrix.data[8] = (r.x * r.z + r.y * r.w) * s.z * 2.0f;
+    out_matrix.data[9] = (r.y * r.z - r.x * r.w) * s.z * 2.0f;
+    out_matrix.data[10] = (1.0f - 2.0f * (r.x * r.x + r.y * r.y)) * s.z;
+    out_matrix.data[11] = 0.0f;
+    out_matrix.data[12] = t.x;
+    out_matrix.data[13] = t.y;
+    out_matrix.data[14] = t.z;
+    out_matrix.data[15] = 1.0f;
+
+    return out_matrix;
+}
+
+/**
  * @brief Creates a rotation matrix from the provided x angle.
  *
  * @param angle_radians The x angle in radians.
@@ -1544,7 +1575,6 @@ KINLINE vec3 mat4_position(mat4 matrix) {
     pos.x = matrix.data[12];
     pos.y = matrix.data[13];
     pos.z = matrix.data[14];
-    vec3_normalize(&pos);
     return pos;
 }
 

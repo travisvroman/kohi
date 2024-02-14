@@ -34,12 +34,6 @@ typedef struct xform {
 
     f32 determinant;
 
-    /** @brief A handle to a parent xform if one is assigned. */
-    // TODO: Possibly make this handled by something else, such as a graph.
-    // This would eliminate the xform from having to care whether it has a parent,
-    // as well as prevent this data from having to be stored here.
-    k_handle parent;
-
     /** @brief A globally unique id used to validate the handle against the object it was created for. */
     identifier unique_id;
 } xform;
@@ -101,6 +95,14 @@ KAPI k_handle xform_from_position_rotation(vec3 position, quat rotation);
  * @return A handle to the new xform.
  */
 KAPI k_handle xform_from_position_rotation_scale(vec3 position, quat rotation, vec3 scale);
+
+/**
+ * @brief Creates a xform from the provided matrix.
+ *
+ * @param m The matrix to decompose and extract a transform from.
+ * @return A handle to the new xform.
+ */
+KAPI k_handle xform_from_matrix(mat4 m);
 
 /**
  * @brief Destroys the xform with the given handle, and frees the handle.
@@ -237,6 +239,11 @@ KAPI void xform_position_rotation_scale_set(k_handle t, vec3 position, quat rota
 KAPI void xform_translate_rotate(k_handle t, vec3 translation, quat rotation);
 
 /**
+ * Recalculates the local matrix for the transform with the given handle.
+ */
+KAPI void xform_calculate_local(k_handle t);
+
+/**
  * @brief Retrieves the local xformation matrix from the provided xform.
  * Automatically recalculates the matrix if it is dirty. Otherwise, the already
  * calculated one is returned.
@@ -246,10 +253,10 @@ KAPI void xform_translate_rotate(k_handle t, vec3 translation, quat rotation);
  */
 KAPI mat4 xform_local_get(k_handle t);
 
+KAPI void xform_world_set(k_handle t, mat4 world);
+
 /**
- * @brief Obtains the world matrix of the given xform
- * by examining its parent (if there is one) and multiplying it
- * against the local matrix.
+ * @brief Obtains the world matrix of the given xform.
  *
  * @param t A handle to the xform whose world matrix to retrieve.
  * @return A copy of the world matrix.

@@ -111,7 +111,9 @@ The items in this list are not in any particular order. This list will be update
   - [x] Rename simple scene to just "scene" and move to engine core.
   - [x] Create a unique-per-system handle for each system to identify a resource. These handles would be linked to 
         a resource array of some sort and an index element within that array via a structure that holds both.
-  - [ ] Create new "xform" structure and system that uses handles and can manage dependencies in updates internally.
+  - [x] Create new "xform" structure and system that uses handles and can manage dependencies in updates internally.
+        NOTE: This system should be laid out in a data-oriented way.
+  - [x] Create hierarchy graph that handles transform hierarchy and can provide a view of it. Also generating world matrices.
   - [ ] Remove transform from mesh.
   - [ ] Replace any and all transforms with xform handles.
   - [ ] Update systems (and create some) that use handles:
