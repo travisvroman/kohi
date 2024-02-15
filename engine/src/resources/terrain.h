@@ -94,7 +94,6 @@ typedef struct terrain {
     identifier id;
     u32 generation;
     char *name;
-    transform xform;
     u32 tile_count_x;
     u32 tile_count_z;
     // How large each tile is on the x axis.

@@ -4,10 +4,12 @@
 #include "core/console.h"
 #include "core/frame_data.h"
 #include "core/identifier.h"
+#include "core/khandle.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
 #include "defines.h"
+#include "graphs/hierarchy_graph.h"
 #include "math/geometry_3d.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
@@ -23,6 +25,7 @@
 #include "resources/terrain.h"
 #include "systems/light_system.h"
 #include "systems/resource_system.h"
+#include "systems/xform_system.h"
 #include "utils/ksort.h"
 
 static void
@@ -63,24 +66,6 @@ static i32 geometry_distance_compare(void *a, void *b) {
     return 0;
 }
 
-typedef enum scene_node_known_type {
-    SCENE_NODE_TYPE_UNDEFINED,
-    SCENE_NODE_TYPE_MESH,
-    SCENE_NODE_TYPE_SKYBOX,
-    SCENE_NODE_TYPE_DIRECTIONAL_LIGHT,
-    SCENE_NODE_TYPE_POINT_LIGHT,
-    SCENE_NODE_TYPE_TERRAIN,
-
-    SCENE_NODE_TYPE_USER_DEFINED = 0xFF
-} scene_node_known_type;
-
-typedef struct scene_node {
-    scene_node_known_type type;
-    char *name;
-    identifier id;
-
-} scene_node;
-
 b8 scene_create(void *config, scene *out_scene) {
     if (!out_scene) {
         KERROR("scene_create(): A valid pointer to out_scene is required.");
@@ -91,16 +76,24 @@ b8 scene_create(void *config, scene *out_scene) {
 
     out_scene->enabled = false;
     out_scene->state = SCENE_STATE_UNINITIALIZED;
-    out_scene->scene_transform = transform_create();
     global_scene_id++;
     out_scene->id = global_scene_id;
 
     // Internal "lists" of renderable objects.
-    out_scene->dir_light = 0;
+    out_scene->dir_lights = darray_create(directional_light);
     out_scene->point_lights = darray_create(point_light);
     out_scene->meshes = darray_create(mesh);
     out_scene->terrains = darray_create(terrain);
-    out_scene->sb = 0;
+    out_scene->skyboxes = darray_create(skybox);
+
+    // Internal lists of attachments.
+    out_scene->mesh_attachments = darray_create(scene_attachment);
+    out_scene->terrain_attachments = darray_create(scene_attachment);
+
+    if (!hierarchy_graph_create(&out_scene->hierarchy)) {
+        KERROR("Failed to create hierarchy graph");
+        return false;
+    }
 
     if (config) {
         out_scene->config = kallocate(sizeof(scene_config), MEMORY_TAG_SCENE);
@@ -122,6 +115,73 @@ b8 scene_create(void *config, scene *out_scene) {
     return true;
 }
 
+void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *node) {
+    if (node) {
+        if (node->name) {
+            char *name = string_duplicate(node->name);
+        }
+
+        // Obtain the xform if one is configured.
+        k_handle xform_handle;
+        if (node->xform) {
+            xform_handle = xform_from_position_rotation_scale(node->xform->position, node->xform->rotation, node->xform->scale);
+        } else {
+            xform_handle = k_handle_invalid();
+        }
+
+        // Add a node in the heirarchy.
+        k_handle node_handle = hierarchy_graph_child_add_with_xform(&s->hierarchy, parent_handle, xform_handle);
+
+        // Process attachments.
+        if (node->attachments) {
+            u32 attachment_count = darray_length(node->attachments);
+            for (u32 i = 0; i < attachment_count; ++i) {
+                void *attachment = &node->attachments[i];
+                scene_node_attachment_type attachment_type = *((scene_node_attachment_type *)attachment);
+                switch (attachment_type) {
+                    default:
+                    case SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN:
+                        KERROR("An unknown attachment type was found in config. This attachment will be ignored.");
+                        continue;
+                    case SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH:
+                        // TODO: process this
+                        break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_TERRAIN:
+                        // TODO: process this
+                        break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_SKYBOX: {
+                        scene_node_attachment_skybox *typed_attachment = attachment;
+                        skybox_config sb_config = {0};
+                        sb_config.cubemap_name = string_duplicate(typed_attachment->cubemap_name);
+
+                        skybox sb;
+                        if (!skybox_create(sb_config, &sb)) {
+                            KWARN("Failed to create skybox.");
+                        }
+                        darray_push(s->skyboxes, sb);
+
+                        // TODO: use a scene node attachment.
+                    } break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT:
+                        // TODO: process this
+                        break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT:
+                        // TODO: process this
+                        break;
+                }
+            }
+        }
+
+        // Process children.
+        if (node->children) {
+            u32 child_count = darray_length(node->children);
+            for (u32 i = 0; i < child_count; ++i) {
+                scene_node_initialize(s, node_handle, &node->children[i]);
+            }
+        }
+    }
+}
+
 b8 scene_initialize(scene *scene) {
     if (!scene) {
         KERROR("scene_initialize requires a valid pointer to a scene.");
@@ -130,6 +190,7 @@ b8 scene_initialize(scene *scene) {
 
     // Process configuration and setup hierarchy.
     if (scene->config) {
+        scene_config *config = scene->config;
         if (scene->config->name) {
             scene->name = string_duplicate(scene->config->name);
         }
@@ -137,17 +198,13 @@ b8 scene_initialize(scene *scene) {
             scene->description = string_duplicate(scene->config->description);
         }
 
-        // Only setup a skybox if name and cubemap name are populated. Otherwise
-        // there isn't one.
-        if (scene->config->skybox_config.name &&
-            scene->config->skybox_config.cubemap_name) {
-            skybox_config sb_config = {0};
-            sb_config.cubemap_name = scene->config->skybox_config.cubemap_name;
-            scene->sb = kallocate(sizeof(skybox), MEMORY_TAG_SCENE);
-            if (!skybox_create(sb_config, scene->sb)) {
-                KWARN("Failed to create skybox.");
-                kfree(scene->sb, sizeof(skybox), MEMORY_TAG_SCENE);
-                scene->sb = 0;
+        // Process root nodes.
+        if (config->nodes) {
+            u32 node_count = darray_length(config->nodes);
+            // An invalid handle means there is no parent, which is true for root nodes.
+            k_handle invalid_handle = k_handle_invalid();
+            for (u32 i = 0; i < node_count; ++i) {
+                scene_node_initialize(scene, invalid_handle, &config->nodes[i]);
             }
         }
 

@@ -1,8 +1,11 @@
 #pragma once
 
+#include "core/khandle.h"
 #include "defines.h"
+#include "graphs/hierarchy_graph.h"
 #include "math/math_types.h"
 #include "resources/debug/debug_grid.h"
+#include "resources/resource_types.h"
 
 struct frame_data;
 struct render_packet;
@@ -35,14 +38,11 @@ typedef enum scene_state {
     SCENE_STATE_UNLOADED
 } scene_state;
 
-typedef struct pending_mesh {
-    struct mesh* m;
-
-    const char* mesh_resource_name;
-
-    u32 geometry_config_count;
-    struct geometry_config** g_configs;
-} pending_mesh;
+typedef struct scene_attachment {
+    scene_node_attachment_type attachment_type;
+    k_handle hierarchy_node_handle;
+    k_handle resource_handle;
+} scene_attachment;
 
 typedef struct scene {
     u32 id;
@@ -52,10 +52,11 @@ typedef struct scene {
     char* name;
     char* description;
 
-    transform scene_transform;
+    scene_attachment* mesh_attachments;
+    scene_attachment* terrain_attachments;
 
-    // Singlular pointer to a directional light.
-    struct directional_light* dir_light;
+    // darray of directional lights.
+    struct directional_light* dir_lights;
 
     // darray of point lights.
     struct point_light* point_lights;
@@ -66,17 +67,29 @@ typedef struct scene {
     // darray of terrains.
     struct terrain* terrains;
 
-    // darray of meshes to be loaded.`
-    pending_mesh* pending_meshes;
+    // darray of skyboxes.
+    struct skybox* skyboxes;
+    // Indices into the attachment array for xform lookups.
+    u32* skybox_attachment_indices;
 
-    // Singlular pointer to a skybox.
-    struct skybox* sb;
+    // Attachment data for the scene. Assists in lookups for
+    // xforms and hierarchy.
+    scene_attachment* attachments;
+
+    // LEFTOFF: Each resource (i.e terrains, meshes, skyboxes, etc.) has
+    // a list of accompanying attachment indices, which lookup into
+    // the attachments array. This array is then used to lookup into
+    // the hierarchy_graph, which then provides an xform. So each type
+    // can be iterated along with attachment indices in a cache-friendly
+    // way.
 
     // A grid for the scene.
     debug_grid grid;
 
     // A pointer to the scene configuration, if provided.
     struct scene_config* config;
+
+    hierarchy_graph hierarchy;
 
 } scene;
 

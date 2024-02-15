@@ -366,8 +366,6 @@ typedef struct mesh {
     u8 generation;
     u16 geometry_count;
     geometry **geometries;
-    // TODO: rename to xform
-    transform transform;
     extents_3d extents;
     void *debug_data;
 } mesh;
@@ -652,7 +650,6 @@ typedef struct mesh_scene_config {
     char *name;
     char *resource_name;
     transform transform;
-    char *parent_name;  // optional
 } mesh_scene_config;
 
 typedef struct terrain_scene_config {
@@ -661,7 +658,7 @@ typedef struct terrain_scene_config {
     transform xform;
 } terrain_scene_config;
 
-typedef struct scene_config {
+typedef struct scene_config_remove {
     char *name;
     char *description;
     skybox_scene_config skybox_config;
@@ -675,4 +672,81 @@ typedef struct scene_config {
 
     // darray
     terrain_scene_config *terrains;
+} scene_config_remove;
+
+typedef enum scene_node_attachment_type {
+    SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN,
+    SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH,
+    SCENE_NODE_ATTACHMENT_TYPE_TERRAIN,
+    SCENE_NODE_ATTACHMENT_TYPE_SKYBOX,
+    SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT,
+    SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT
+} scene_node_attachment_type;
+
+// Static mesh attachment.
+typedef struct scene_node_attachment_static_mesh {
+    scene_node_attachment_type attachment_type;
+    char *resource_name;
+} scene_node_attachment_static_mesh;
+
+// Terrain attachment.
+typedef struct scene_node_attachment_terrain {
+    scene_node_attachment_type attachment_type;
+    char *resource_name;
+} scene_node_attachment_terrain;
+
+// Skybox attachment
+typedef struct scene_node_attachment_skybox {
+    scene_node_attachment_type attachment_type;
+    char *cubemap_name;
+} scene_node_attachment_skybox;
+
+// Directional light attachment
+typedef struct scene_node_attachment_directional_light {
+    scene_node_attachment_type attachment_type;
+    vec4 colour;
+    vec4 direction;
+    f32 shadow_distance;
+    f32 shadow_fade_distance;
+    f32 shadow_split_mult;
+} scene_node_attachment_directional_light;
+
+typedef struct scene_node_attachment_point_light {
+    scene_node_attachment_type attachment_type;
+    vec4 colour;
+    vec4 position;
+    f32 constant_f;
+    f32 linear;
+    f32 quadratic;
+} scene_node_attachment_point_light;
+
+typedef struct scene_node_attachment_config {
+    char *name;
+    void *attachment;
+} scene_node_attachment_config;
+
+typedef struct scene_xform_config {
+    vec3 position;
+    quat rotation;
+    vec3 scale;
+} scene_xform_config;
+
+typedef struct scene_node_config {
+    char *name;
+
+    // Pointer to a config if one exists, otherwise 0
+    scene_xform_config *xform;
+    // darray
+    scene_node_attachment_config *attachments;
+    // darray
+    struct scene_node_config *children;
+} scene_node_config;
+
+typedef struct scene_config {
+    u32 version;
+    char *name;
+    char *description;
+
+    // darray
+    scene_node_config *nodes;
 } scene_config;
