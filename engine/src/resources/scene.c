@@ -28,8 +28,9 @@
 #include "systems/xform_system.h"
 #include "utils/ksort.h"
 
-static void
-scene_actual_unload(scene *scene);
+static void scene_actual_unload(scene *scene);
+static scene_attachment *scene_attachment_acquire(scene *s);
+static void scene_attachment_release(scene *s, scene_attachment *attachment);
 
 static u32 global_scene_id = 0;
 
@@ -115,16 +116,16 @@ b8 scene_create(void *config, scene *out_scene) {
     return true;
 }
 
-void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *node) {
-    if (node) {
-        if (node->name) {
-            char *name = string_duplicate(node->name);
+void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *node_config) {
+    if (node_config) {
+        if (node_config->name) {
+            char *name = string_duplicate(node_config->name);
         }
 
         // Obtain the xform if one is configured.
         k_handle xform_handle;
-        if (node->xform) {
-            xform_handle = xform_from_position_rotation_scale(node->xform->position, node->xform->rotation, node->xform->scale);
+        if (node_config->xform) {
+            xform_handle = xform_from_position_rotation_scale(node_config->xform->position, node_config->xform->rotation, node_config->xform->scale);
         } else {
             xform_handle = k_handle_invalid();
         }
@@ -132,51 +133,280 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
         // Add a node in the heirarchy.
         k_handle node_handle = hierarchy_graph_child_add_with_xform(&s->hierarchy, parent_handle, xform_handle);
 
-        // Process attachments.
-        if (node->attachments) {
-            u32 attachment_count = darray_length(node->attachments);
+        // Process attachment configs.
+        if (node_config->attachments) {
+            u32 attachment_count = darray_length(node_config->attachments);
             for (u32 i = 0; i < attachment_count; ++i) {
-                void *attachment = &node->attachments[i];
+                void *attachment = &node_config->attachments[i];
                 scene_node_attachment_type attachment_type = *((scene_node_attachment_type *)attachment);
                 switch (attachment_type) {
                     default:
                     case SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN:
                         KERROR("An unknown attachment type was found in config. This attachment will be ignored.");
                         continue;
-                    case SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH:
-                        // TODO: process this
-                        break;
-                    case SCENE_NODE_ATTACHMENT_TYPE_TERRAIN:
-                        // TODO: process this
-                        break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH: {
+                        scene_node_attachment_static_mesh *typed_attachment = attachment;
+
+                        if (typed_attachment->resource_name) {
+                            KWARN("Invalid mesh config, resource_name is required.");
+                            return;
+                        }
+
+                        // Create mesh config, then create the mesh.
+                        mesh_config new_mesh_config = {0};
+                        new_mesh_config.resource_name = string_duplicate(typed_attachment->resource_name);
+                        mesh new_mesh = {0};
+                        if (!mesh_create(new_mesh_config, &new_mesh)) {
+                            KERROR("Failed to create new mesh in scene.");
+                            kfree(new_mesh_config.resource_name, string_length(new_mesh_config.resource_name), MEMORY_TAG_STRING);
+                            return;
+                        }
+
+                        // Destroy the config.
+                        kfree(new_mesh_config.resource_name, string_length(new_mesh_config.resource_name), MEMORY_TAG_STRING);
+
+                        if (!mesh_initialize(&new_mesh)) {
+                            KERROR("Failed to initialize static mesh.");
+                            return;
+                        } else {
+                            // Find a free static mesh slot and take it, or push a new one.
+                            u32 index = INVALID_ID;
+                            u32 count = darray_length(s->meshes);
+                            for (u32 i = 0; i < count; ++i) {
+                                if (s->meshes[i].state == MESH_STATE_UNDEFINED) {
+                                    // Found a slot, use it.
+                                    index = i;
+                                    s->meshes[i] = new_mesh;
+                                    break;
+                                }
+                            }
+                            if (index == INVALID_ID) {
+                                darray_push(s->meshes, new_mesh);
+                                index = count;
+                            }
+
+                            // Acquire a scene node attachment and set its resource handle.
+                            scene_attachment *mesh_attachment = scene_attachment_acquire(s);
+                            if (!mesh_attachment) {
+                                KERROR("Failed to acquire scene attachment.");
+                                return;
+                            }
+                            mesh_attachment->resource_handle = k_handle_create(index);
+                            mesh_attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
+                            mesh_attachment->hierarchy_node_handle = node_handle;
+                        }
+                    } break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_TERRAIN: {
+                        scene_node_attachment_terrain *typed_attachment = attachment;
+
+                        if (typed_attachment->resource_name) {
+                            KWARN("Invalid terrain config, resource_name is required.");
+                            return;
+                        }
+
+                        terrain_config new_terrain_config = {0};
+                        new_terrain_config.resource_name = typed_attachment->resource_name;
+                        terrain new_terrain = {0};
+                        if (!terrain_create(&new_terrain_config, &new_terrain)) {
+                            KWARN("Failed to load terrain.");
+                            return;
+                        }
+
+                        // Destroy the config.
+                        kfree(new_terrain_config.resource_name, string_length(new_terrain_config.resource_name), MEMORY_TAG_STRING);
+
+                        if (!terrain_initialize(&new_terrain)) {
+                            KERROR("Failed to initialize terrain.");
+                            return;
+                        } else {
+                            // Find a free static terrain slot and take it, or push a new one.
+                            u32 index = INVALID_ID;
+                            u32 count = darray_length(s->terrains);
+                            for (u32 i = 0; i < count; ++i) {
+                                if (s->terrains[i].state == TERRAIN_STATE_UNDEFINED) {
+                                    // Found a slot, use it.
+                                    index = i;
+                                    s->terrains[i] = new_terrain;
+                                    break;
+                                }
+                            }
+                            if (index == INVALID_ID) {
+                                darray_push(s->terrains, new_terrain);
+                                index = count;
+                            }
+
+                            // Acquire a scene node attachment and set its resource handle.
+                            scene_attachment *mesh_attachment = scene_attachment_acquire(s);
+                            if (!mesh_attachment) {
+                                KERROR("Failed to acquire scene attachment.");
+                                return;
+                            }
+                            mesh_attachment->resource_handle = k_handle_create(index);
+                            mesh_attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_TERRAIN;
+                            mesh_attachment->hierarchy_node_handle = node_handle;
+                        }
+                    } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_SKYBOX: {
                         scene_node_attachment_skybox *typed_attachment = attachment;
+
+                        // Create a skybox config and use it to create the skybox.
                         skybox_config sb_config = {0};
                         sb_config.cubemap_name = string_duplicate(typed_attachment->cubemap_name);
-
                         skybox sb;
                         if (!skybox_create(sb_config, &sb)) {
                             KWARN("Failed to create skybox.");
                         }
-                        darray_push(s->skyboxes, sb);
 
-                        // TODO: use a scene node attachment.
+                        // Destroy the skybox config.
+                        string_free((char *)sb_config.cubemap_name);
+                        sb_config.cubemap_name = 0;
+
+                        // Initialize the skybox.
+                        if (!skybox_initialize(&sb)) {
+                            KERROR("Failed to initialize skybox. See logs for details.");
+                        } else {
+                            // Find a free skybox slot and take it, or push a new one.
+                            u32 index = INVALID_ID;
+                            u32 skybox_count = darray_length(s->skyboxes);
+                            for (u32 i = 0; i < skybox_count; ++i) {
+                                if (s->skyboxes[i].state == SKYBOX_STATE_UNDEFINED) {
+                                    // Found a slot, use it.
+                                    index = i;
+                                    s->skyboxes[i] = sb;
+                                    break;
+                                }
+                            }
+                            if (index == INVALID_ID) {
+                                darray_push(s->skyboxes, sb);
+                                index = skybox_count;
+                            }
+
+                            // Acquire a scene node attachment and set its resource handle.
+                            scene_attachment *sb_attachment = scene_attachment_acquire(s);
+                            if (!sb_attachment) {
+                                KERROR("Failed to acquire scene attachment.");
+                                return;
+                            }
+                            sb_attachment->resource_handle = k_handle_create(index);
+                            sb_attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_SKYBOX;
+                            sb_attachment->hierarchy_node_handle = node_handle;
+                        }
                     } break;
-                    case SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT:
-                        // TODO: process this
-                        break;
-                    case SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT:
-                        // TODO: process this
-                        break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT: {
+                        scene_node_attachment_directional_light *typed_attachment = attachment;
+
+                        directional_light new_dir_light = {0};
+                        // TODO: name?
+                        /* new_dir_light.name = string_duplicate(typed_attachment.name); */
+                        new_dir_light.data.colour = typed_attachment->colour;
+                        new_dir_light.data.direction = typed_attachment->direction;
+                        new_dir_light.data.shadow_distance = typed_attachment->shadow_distance;
+                        new_dir_light.data.shadow_fade_distance = typed_attachment->shadow_fade_distance;
+                        new_dir_light.data.shadow_split_mult = typed_attachment->shadow_split_mult;
+                        new_dir_light.generation = 0;
+
+                        // Add debug data and initialize it.
+                        new_dir_light.debug_data = kallocate(sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+                        scene_debug_data *debug = new_dir_light.debug_data;
+
+                        // Generate the line points based on the light direction.
+                        // The first point will always be at the scene's origin.
+                        vec3 point_0 = vec3_zero();
+                        vec3 point_1 = vec3_mul_scalar(vec3_normalized(vec3_from_vec4(scene->dir_light->data.direction)), -1.0f);
+
+                        if (!debug_line3d_create(point_0, point_1, 0, &debug->line)) {
+                            KERROR("Failed to create debug line for directional light.");
+                        }
+                        if (!debug_line3d_initialize(&debug->line)) {
+                            KERROR("Failed to create debug line for directional light.");
+                        } else {
+                            // Find a free skybox slot and take it, or push a new one.
+                            u32 index = INVALID_ID;
+                            u32 directional_light_count = darray_length(s->dir_lights);
+                            for (u32 i = 0; i < directional_light_count; ++i) {
+                                if (s->dir_lights[i].generation == INVALID_ID) {
+                                    // Found a slot, use it.
+                                    index = i;
+                                    s->dir_lights[i] = new_dir_light;
+                                    break;
+                                }
+                            }
+                            if (index == INVALID_ID) {
+                                darray_push(s->dir_lights, new_dir_light);
+                                index = directional_light_count;
+                            }
+
+                            // Acquire a scene node attachment and set its resource handle.
+                            scene_attachment *sb_attachment = scene_attachment_acquire(s);
+                            if (!sb_attachment) {
+                                KERROR("Failed to acquire scene attachment.");
+                                return;
+                            }
+                            sb_attachment->resource_handle = k_handle_create(index);
+                            sb_attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT;
+                            sb_attachment->hierarchy_node_handle = node_handle;
+                        }
+                    } break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT: {
+                        scene_node_attachment_point_light *typed_attachment = attachment;
+
+                        point_light new_light = {0};
+                        // TODO: name?
+                        /* new_light.name = string_duplicate(typed_attachment->name); */
+                        new_light.data.colour = typed_attachment->colour;
+                        new_light.data.constant_f = typed_attachment->constant_f;
+                        new_light.data.linear = typed_attachment->linear;
+                        new_light.data.position = typed_attachment->position;
+                        new_light.data.quadratic = typed_attachment->quadratic;
+
+                        // Add debug data and initialize it.
+                        new_light.debug_data = kallocate(sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+                        scene_debug_data *debug = new_light.debug_data;
+
+                        if (!debug_box3d_create((vec3){0.2f, 0.2f, 0.2f}, 0, &debug->box)) {
+                            KERROR("Failed to create debug box for directional light.");
+                        } else {
+                            transform_position_set(&debug->box.xform, vec3_from_vec4(new_light.data.position));
+                        }
+                        if (!debug_box3d_initialize(&debug->box)) {
+                            KERROR("Failed to create debug box for point light.");
+                        } else {
+                            // Find a free skybox slot and take it, or push a new one.
+                            u32 index = INVALID_ID;
+                            u32 point_light_count = darray_length(s->point_lights);
+                            for (u32 i = 0; i < point_light_count; ++i) {
+                                if (s->point_lights[i].generation == INVALID_ID) {
+                                    // Found a slot, use it.
+                                    index = i;
+                                    s->point_lights[i] = new_light;
+                                    break;
+                                }
+                            }
+                            if (index == INVALID_ID) {
+                                darray_push(s->point_lights, new_light);
+                                index = point_light_count;
+                            }
+
+                            // Acquire a scene node attachment and set its resource handle.
+                            scene_attachment *sb_attachment = scene_attachment_acquire(s);
+                            if (!sb_attachment) {
+                                KERROR("Failed to acquire scene attachment.");
+                                return;
+                            }
+                            sb_attachment->resource_handle = k_handle_create(index);
+                            sb_attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT;
+                            sb_attachment->hierarchy_node_handle = node_handle;
+                        }
+                    } break;
                 }
             }
         }
 
         // Process children.
-        if (node->children) {
-            u32 child_count = darray_length(node->children);
+        if (node_config->children) {
+            u32 child_count = darray_length(node_config->children);
             for (u32 i = 0; i < child_count; ++i) {
-                scene_node_initialize(s, node_handle, &node->children[i]);
+                scene_node_initialize(s, node_handle, &node_config->children[i]);
             }
         }
     }
@@ -208,198 +438,9 @@ b8 scene_initialize(scene *scene) {
             }
         }
 
-        // If no name is assigned, assume no directional light.
-        if (scene->config->directional_light_config.name) {
-            scene->dir_light = kallocate(sizeof(directional_light), MEMORY_TAG_SCENE);
-            scene->dir_light->name = string_duplicate(scene->config->directional_light_config.name);
-            scene->dir_light->data.colour = scene->config->directional_light_config.colour;
-            scene->dir_light->data.direction = scene->config->directional_light_config.direction;
-            scene->dir_light->data.shadow_distance = scene->config->directional_light_config.shadow_distance;
-            scene->dir_light->data.shadow_fade_distance = scene->config->directional_light_config.shadow_fade_distance;
-            scene->dir_light->data.shadow_split_mult = scene->config->directional_light_config.shadow_split_mult;
-
-            // Add debug data and initialize it.
-            scene->dir_light->debug_data = kallocate(sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-            scene_debug_data *debug = scene->dir_light->debug_data;
-
-            // Generate the line points based on the light direction.
-            // The first point will always be at the scene's origin.
-            vec3 point_0 = vec3_zero();
-            vec3 point_1 = vec3_mul_scalar(vec3_normalized(vec3_from_vec4(scene->dir_light->data.direction)), -1.0f);
-
-            if (!debug_line3d_create(point_0, point_1, 0, &debug->line)) {
-                KERROR("Failed to create debug line for directional light.");
-            }
-        }
-
-        // Point lights.
-        u32 p_light_count = darray_length(scene->config->point_lights);
-        for (u32 i = 0; i < p_light_count; ++i) {
-            point_light new_light = {0};
-            new_light.name = string_duplicate(scene->config->point_lights[i].name);
-            new_light.data.colour = scene->config->point_lights[i].colour;
-            new_light.data.constant_f = scene->config->point_lights[i].constant_f;
-            new_light.data.linear = scene->config->point_lights[i].linear;
-            new_light.data.position = scene->config->point_lights[i].position;
-            new_light.data.quadratic = scene->config->point_lights[i].quadratic;
-
-            // Add debug data and initialize it.
-            new_light.debug_data = kallocate(sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-            scene_debug_data *debug = new_light.debug_data;
-
-            if (!debug_box3d_create((vec3){0.2f, 0.2f, 0.2f}, 0, &debug->box)) {
-                KERROR("Failed to create debug box for directional light.");
-            } else {
-                transform_position_set(&debug->box.xform, vec3_from_vec4(new_light.data.position));
-            }
-
-            darray_push(scene->point_lights, new_light);
-        }
-
-        // Meshes
-        u32 mesh_config_count = darray_length(scene->config->meshes);
-        for (u32 i = 0; i < mesh_config_count; ++i) {
-            if (!scene->config->meshes[i].name ||
-                !scene->config->meshes[i].resource_name) {
-                KWARN("Invalid mesh config, name and resource_name are required.");
-                continue;
-            }
-            mesh_config new_mesh_config = {0};
-            new_mesh_config.name = string_duplicate(scene->config->meshes[i].name);
-            new_mesh_config.resource_name =
-                string_duplicate(scene->config->meshes[i].resource_name);
-            if (scene->config->meshes[i].parent_name) {
-                new_mesh_config.parent_name =
-                    string_duplicate(scene->config->meshes[i].parent_name);
-            }
-            mesh new_mesh = {0};
-            if (!mesh_create(new_mesh_config, &new_mesh)) {
-                KERROR("Failed to new mesh in simple scene.");
-                kfree(new_mesh_config.name, string_length(new_mesh_config.name),
-                      MEMORY_TAG_STRING);
-                kfree(new_mesh_config.resource_name,
-                      string_length(new_mesh_config.resource_name), MEMORY_TAG_STRING);
-                if (new_mesh_config.parent_name) {
-                    kfree(new_mesh_config.parent_name,
-                          string_length(new_mesh_config.parent_name), MEMORY_TAG_STRING);
-                }
-                continue;
-            }
-            new_mesh.transform = scene->config->meshes[i].transform;
-
-            darray_push(scene->meshes, new_mesh);
-        }
-
-        // Terrains
-        u32 terrain_config_count = darray_length(scene->config->terrains);
-        for (u32 i = 0; i < terrain_config_count; ++i) {
-            if (!scene->config->terrains[i].name ||
-                !scene->config->terrains[i].resource_name) {
-                KWARN("Invalid terrain config, name and resource_name are required.");
-                continue;
-            }
-            /*terrain_config new_terrain_config = {0};
-            new_terrain_config.name =
-            string_duplicate(scene->config->terrains[i].name);
-            // TODO: Copy resource name, load from resource.
-            new_terrain_config.tile_count_x = 100;
-            new_terrain_config.tile_count_z = 100;
-            new_terrain_config.tile_scale_x = 1.0f;
-            new_terrain_config.tile_scale_z = 1.0f;
-            new_terrain_config.material_count = 0;
-            new_terrain_config.material_names = 0;*/
-            resource terrain_resource;
-            if (!resource_system_load(scene->config->terrains[i].resource_name,
-                                      RESOURCE_TYPE_TERRAIN, 0, &terrain_resource)) {
-                KWARN("Failed to load terrain resource.");
-                continue;
-            }
-
-            terrain_config *parsed_config = (terrain_config *)terrain_resource.data;
-            parsed_config->xform = scene->config->terrains[i].xform;
-
-            terrain new_terrain = {0};
-            // TODO: Do we really want to copy this?
-            if (!terrain_create(parsed_config, &new_terrain)) {
-                KWARN("Failed to load terrain.");
-                continue;
-            }
-
-            resource_system_unload(&terrain_resource);
-
-            darray_push(scene->terrains, new_terrain);
-        }
-
+        // TODO: Convert grid to use the new node/attachment configs/logic
         if (!debug_grid_initialize(&scene->grid)) {
             return false;
-        }
-
-        // Handle directional light debug lines
-        if (scene->dir_light && scene->dir_light->debug_data) {
-            scene_debug_data *debug = (scene_debug_data *)scene->dir_light->debug_data;
-            if (!debug_line3d_initialize(&debug->line)) {
-                KERROR("debug box failed to initialize.");
-                kfree(scene->dir_light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                scene->dir_light->debug_data = 0;
-                return false;
-            }
-        }
-
-        // Handle point light debug boxes
-        u32 point_light_count = darray_length(scene->point_lights);
-        for (u32 i = 0; i < point_light_count; ++i) {
-            if (scene->point_lights[i].debug_data) {
-                scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
-                if (!debug_box3d_initialize(&debug->box)) {
-                    KERROR("debug box failed to initialize.");
-                    kfree(scene->point_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                    scene->point_lights[i].debug_data = 0;
-                    return false;
-                }
-            }
-        }
-    }
-
-    // Now handle hierarchy.
-    // NOTE: This only currently supports heirarchy of meshes.
-    u32 mesh_count = darray_length(scene->meshes);
-    for (u32 i = 0; i < mesh_count; ++i) {
-        if (scene->meshes[i].config.parent_name) {
-            mesh *parent =
-                scene_mesh_get(scene, scene->meshes[i].config.parent_name);
-            if (!parent) {
-                KWARN(
-                    "Mesh '%s' is configured to have a parent called '%s', but the "
-                    "parent does not exist.",
-                    scene->meshes[i].config.name,
-                    scene->meshes[i].config.parent_name);
-                continue;
-            }
-
-            transform_parent_set(&scene->meshes[i].transform, &parent->transform);
-        }
-    }
-
-    if (scene->sb) {
-        if (!skybox_initialize(scene->sb)) {
-            KERROR("Skybox failed to initialize.");
-            scene->sb = 0;
-            // return false;
-        }
-    }
-
-    for (u32 i = 0; i < mesh_count; ++i) {
-        if (!mesh_initialize(&scene->meshes[i])) {
-            KERROR("Mesh failed to initialize.");
-            // return false;
-        }
-    }
-
-    u32 terrain_count = darray_length(scene->terrains);
-    for (u32 i = 0; i < terrain_count; ++i) {
-        if (!terrain_initialize(&scene->terrains[i])) {
-            KERROR("Terrain failed to initialize.");
-            // return false;
         }
     }
 
@@ -421,29 +462,33 @@ b8 scene_load(scene *scene) {
     console_object_register("scene", scene, CONSOLE_OBJECT_TYPE_STRUCT);
     console_object_add_property("scene", "id", &scene->id, CONSOLE_OBJECT_TYPE_UINT32);
 
-    if (scene->sb) {
-        if (scene->sb->instance_id == INVALID_ID) {
-            if (!skybox_load(scene->sb)) {
-                KERROR("Skybox failed to load.");
-                scene->sb = 0;
-                return false;
+    // Load skyboxes
+    if (scene->skyboxes) {
+        u32 skybox_count = darray_length(scene->skyboxes);
+        for (u32 i = 0; i < skybox_count; ++i) {
+            if (!skybox_load(&scene->skyboxes[i])) {
+                KERROR("Failed to load skybox. See logs for details.");
             }
         }
     }
 
-    u32 mesh_count = darray_length(scene->meshes);
-    for (u32 i = 0; i < mesh_count; ++i) {
-        if (!mesh_load(&scene->meshes[i])) {
-            KERROR("Mesh failed to load.");
-            return false;
+    // Load static meshes
+    if (scene->meshes) {
+        u32 mesh_count = darray_length(scene->meshes);
+        for (u32 i = 0; i < mesh_count; ++i) {
+            if (!mesh_load(&scene->meshes[i])) {
+                KERROR("Mesh failed to load.");
+            }
         }
     }
 
-    u32 terrain_count = darray_length(scene->terrains);
-    for (u32 i = 0; i < terrain_count; ++i) {
-        if (!terrain_load(&scene->terrains[i])) {
-            KERROR("Terrain failed to load.");
-            // return false; // Return false on fail?
+    // Load terrains
+    if (scene->terrains) {
+        u32 terrain_count = darray_length(scene->terrains);
+        for (u32 i = 0; i < terrain_count; ++i) {
+            if (!terrain_load(&scene->terrains[i])) {
+                KERROR("Terrain failed to load.");
+            }
         }
     }
 
@@ -452,32 +497,37 @@ b8 scene_load(scene *scene) {
         return false;
     }
 
-    if (scene->dir_light) {
-        if (!light_system_directional_add(scene->dir_light)) {
-            KWARN("Failed to add directional light to lighting system.");
-        } else {
-            if (scene->dir_light->debug_data) {
-                scene_debug_data *debug = scene->dir_light->debug_data;
-                if (!debug_line3d_load(&debug->line)) {
-                    KERROR("debug line failed to load.");
-                    kfree(scene->dir_light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                    scene->dir_light->debug_data = 0;
+    if (scene->dir_lights) {
+        u32 directional_light_count = darray_length(scene->dir_lights);
+        for (u32 i = 0; i < directional_light_count; ++i) {
+            if (!light_system_directional_add(&scene->dir_lights[i])) {
+                KWARN("Failed to add directional light to lighting system.");
+            } else {
+                if (scene->dir_lights[i].debug_data) {
+                    scene_debug_data *debug = scene->dir_lights[i].debug_data;
+                    if (!debug_line3d_load(&debug->line)) {
+                        KERROR("debug line failed to load.");
+                        kfree(scene->dir_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+                        scene->dir_lights[i].debug_data = 0;
+                    }
                 }
             }
         }
     }
 
-    u32 point_light_count = darray_length(scene->point_lights);
-    for (u32 i = 0; i < point_light_count; ++i) {
-        if (!light_system_point_add(&scene->point_lights[i])) {
-            KWARN("Failed to add point light to lighting system.");
-        } else {
-            // Load debug data if it was setup.
-            scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
-            if (!debug_box3d_load(&debug->box)) {
-                KERROR("debug box failed to load.");
-                kfree(scene->point_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                scene->point_lights[i].debug_data = 0;
+    if (scene->point_lights) {
+        u32 point_light_count = darray_length(scene->point_lights);
+        for (u32 i = 0; i < point_light_count; ++i) {
+            if (!light_system_point_add(&scene->point_lights[i])) {
+                KWARN("Failed to add point light to lighting system.");
+            } else {
+                // Load debug data if it was setup.
+                scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
+                if (!debug_box3d_load(&debug->box)) {
+                    KERROR("debug box failed to load.");
+                    kfree(scene->point_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+                    scene->point_lights[i].debug_data = 0;
+                }
             }
         }
     }
@@ -515,28 +565,36 @@ b8 scene_update(scene *scene, const struct frame_data *p_frame_data) {
     }
 
     if (scene->state >= SCENE_STATE_LOADED) {
-        // TODO: Update directional light, if changed.
-        if (scene->dir_light && scene->dir_light->debug_data) {
-            scene_debug_data *debug = scene->dir_light->debug_data;
-            if (debug->line.geo.generation != INVALID_ID_U16) {
-                // Update colour. NOTE: doing this every frame might be expensive if we have to reload the geometry all the time.
-                // TODO: Perhaps there is another way to accomplish this, like a shader that uses a uniform for colour?
-                debug_line3d_colour_set(&debug->line, scene->dir_light->data.colour);
+        if (scene->dir_lights) {
+            u32 directional_light_count = darray_length(scene->dir_lights);
+            for (u32 i = 0; i < directional_light_count; ++i) {
+                // TODO: Only update directional light if changed.
+                if (scene->dir_lights[i].generation != INVALID_ID && scene->dir_lights[i].debug_data) {
+                    scene_debug_data *debug = scene->dir_lights[i].debug_data;
+                    if (debug->line.geo.generation != INVALID_ID_U16) {
+                        // Update colour. NOTE: doing this every frame might be expensive if we have to reload the geometry all the time.
+                        // TODO: Perhaps there is another way to accomplish this, like a shader that uses a uniform for colour?
+                        debug_line3d_colour_set(&debug->line, scene->dir_lights[i].data.colour);
+                    }
+                }
             }
         }
 
         // Update point light debug boxes.
-        u32 point_light_count = darray_length(scene->point_lights);
-        for (u32 i = 0; i < point_light_count; ++i) {
-            if (scene->point_lights[i].debug_data) {
-                scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
-                if (debug->box.geo.generation != INVALID_ID_U16) {
-                    // Update transform.
-                    transform_position_set(&debug->box.xform, vec3_from_vec4(scene->point_lights[i].data.position));
+        if (scene->point_lights) {
+            u32 point_light_count = darray_length(scene->point_lights);
+            for (u32 i = 0; i < point_light_count; ++i) {
+                if (scene->point_lights[i].debug_data) {
+                    // TODO: Only update point light if changed.
+                    scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
+                    if (debug->box.geo.generation != INVALID_ID_U16) {
+                        // Update transform.
+                        transform_position_set(&debug->box.xform, vec3_from_vec4(scene->point_lights[i].data.position));
 
-                    // Update colour. NOTE: doing this every frame might be expensive if we have to reload the geometry all the time.
-                    // TODO: Perhaps there is another way to accomplish this, like a shader that uses a uniform for colour?
-                    debug_box3d_colour_set(&debug->box, scene->point_lights[i].data.colour);
+                        // Update colour. NOTE: doing this every frame might be expensive if we have to reload the geometry all the time.
+                        // TODO: Perhaps there is another way to accomplish this, like a shader that uses a uniform for colour?
+                        debug_box3d_colour_set(&debug->box, scene->point_lights[i].data.colour);
+                    }
                 }
             }
         }
@@ -557,7 +615,9 @@ b8 scene_update(scene *scene, const struct frame_data *p_frame_data) {
                 if (!debug_box3d_create((vec3){0.2f, 0.2f, 0.2f}, 0, &debug->box)) {
                     KERROR("Failed to create debug box for mesh '%s'.", m->name);
                 } else {
-                    transform_parent_set(&debug->box.xform, &m->transform);
+                    // TODO: Need to update debug box/lines to use xforms instead of transforms.
+                    // This is broken until that is fixed.
+                    /* transform_parent_set(&debug->box.xform, &m->transform); */
 
                     if (!debug_box3d_initialize(&debug->box)) {
                         KERROR("debug box failed to initialize.");
@@ -589,30 +649,39 @@ void scene_render_frame_prepare(scene *scene, const struct frame_data *p_frame_d
     }
 
     if (scene->state >= SCENE_STATE_LOADED) {
-        if (scene->dir_light && scene->dir_light->debug_data) {
-            scene_debug_data *debug = scene->dir_light->debug_data;
-            debug_line3d_render_frame_prepare(&debug->line, p_frame_data);
+        if (scene->dir_lights) {
+            u32 directional_light_count = darray_length(scene->dir_lights);
+            for (u32 i = 0; i < directional_light_count; ++i) {
+                if (scene->dir_lights[i].generation != INVALID_ID && scene->dir_lights[i].debug_data) {
+                    scene_debug_data *debug = scene->dir_lights[i].debug_data;
+                    debug_line3d_render_frame_prepare(&debug->line, p_frame_data);
+                }
+            }
         }
 
         // Update point light debug boxes.
-        u32 point_light_count = darray_length(scene->point_lights);
-        for (u32 i = 0; i < point_light_count; ++i) {
-            if (scene->point_lights[i].debug_data) {
-                scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
-                debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
+        if (scene->point_lights) {
+            u32 point_light_count = darray_length(scene->point_lights);
+            for (u32 i = 0; i < point_light_count; ++i) {
+                if (scene->point_lights[i].debug_data) {
+                    scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
+                    debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
+                }
             }
         }
 
         // Check meshes to see if they have debug data.
-        u32 mesh_count = darray_length(scene->meshes);
-        for (u32 i = 0; i < mesh_count; ++i) {
-            mesh *m = &scene->meshes[i];
-            if (m->generation == INVALID_ID_U8) {
-                continue;
-            }
-            if (m->debug_data) {
-                scene_debug_data *debug = m->debug_data;
-                debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
+        if (scene->meshes) {
+            u32 mesh_count = darray_length(scene->meshes);
+            for (u32 i = 0; i < mesh_count; ++i) {
+                mesh *m = &scene->meshes[i];
+                if (m->generation == INVALID_ID_U8) {
+                    continue;
+                }
+                if (m->debug_data) {
+                    scene_debug_data *debug = m->debug_data;
+                    debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
+                }
             }
         }
     }
@@ -629,7 +698,11 @@ void scene_update_lod_from_view_position(scene *scene, const frame_data *p_frame
         for (u32 i = 0; i < terrain_count; ++i) {
             terrain *t = &scene->terrains[i];
 
-            mat4 model = transform_world_get(&t->xform);
+            // Perform a lookup into the attachments array to get the hierarchy node.
+            // TODO: simplify the lookup process.
+            scene_attachment *attachment = &scene->terrain_attachments[scene->terrain_attachment_indices[i]];
+            k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
+            mat4 model = xform_world_get(xform_handle);
 
             // Calculate LOD splits based on clip range.
             f32 range = far_clip - near_clip;
@@ -685,7 +758,11 @@ b8 scene_raycast(scene *scene, const struct ray *r, struct raycast_result *out_r
     u32 mesh_count = darray_length(scene->meshes);
     for (u32 i = 0; i < mesh_count; ++i) {
         mesh *m = &scene->meshes[i];
-        mat4 model = transform_world_get(&m->transform);
+        // Perform a lookup into the attachments array to get the hierarchy node.
+        // TODO: simplify the lookup process.
+        scene_attachment *attachment = &scene->mesh_attachments[scene->mesh_attachment_indices[i]];
+        k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
+        mat4 model = xform_world_get(xform_handle);
         f32 dist;
         if (raycast_oriented_extents(m->extents, model, r, &dist)) {
             // Hit
@@ -727,10 +804,12 @@ b8 scene_raycast(scene *scene, const struct ray *r, struct raycast_result *out_r
 
 b8 scene_directional_light_add(scene *scene, const char *name,
                                struct directional_light *light) {
+    // TODO: This needs to be added via a node w/ attachment(s).
     if (!scene) {
         return false;
     }
 
+    // TODO: Refactor for multiple lights.
     if (scene->dir_light) {
         light_system_directional_remove(scene->dir_light);
         if (scene->dir_light->debug_data) {
@@ -790,6 +869,7 @@ b8 scene_directional_light_add(scene *scene, const char *name,
 
 b8 scene_point_light_add(scene *scene, const char *name,
                          struct point_light *light) {
+    // TODO: This needs to be added via a node w/ attachment(s).
     if (!scene || !light) {
         return false;
     }
@@ -830,8 +910,8 @@ b8 scene_point_light_add(scene *scene, const char *name,
     return true;
 }
 
-b8 scene_mesh_add(scene *scene, const char *name,
-                  struct mesh *m) {
+b8 scene_mesh_add(scene *scene, const char *name, struct mesh *m) {
+    // TODO: This needs to be added via a node w/ attachment(s).
     if (!scene || !m) {
         return false;
     }
@@ -850,6 +930,7 @@ b8 scene_mesh_add(scene *scene, const char *name,
         }
     }
 
+    // TODO: Generate handles/nodes, etc.
     darray_push(scene->meshes, m);
 
     return true;
@@ -857,6 +938,7 @@ b8 scene_mesh_add(scene *scene, const char *name,
 
 b8 scene_skybox_add(scene *scene, const char *name,
                     struct skybox *sb) {
+    // TODO: This needs to be added via a node w/ attachment(s).
     if (!scene) {
         return false;
     }
@@ -884,6 +966,7 @@ b8 scene_skybox_add(scene *scene, const char *name,
 
 b8 scene_terrain_add(scene *scene, const char *name,
                      struct terrain *t) {
+    // TODO: This needs to be added via a node w/ attachment(s).
     if (!scene || !t) {
         return false;
     }
@@ -909,6 +992,7 @@ b8 scene_terrain_add(scene *scene, const char *name,
 
 b8 scene_directional_light_remove(scene *scene,
                                   const char *name) {
+    // TODO: This needs to be added via a node w/ attachment(s).
     if (!scene || !name) {
         return false;
     }
@@ -1676,7 +1760,7 @@ b8 scene_save(scene *scene) {
         config.skybox_config.cubemap_name = string_duplicate(scene->config->skybox_config.cubemap_name);
     }
     if (scene->dir_light) {
-        config.directional_light_config.name = string_duplicate(scene->config->directional_light_config.name);
+        config.directional_light_config.name = string_duplicate(typed_attachment->name);
         config.directional_light_config.colour = scene->dir_light->data.colour;
         config.directional_light_config.direction = scene->dir_light->data.direction;
         config.directional_light_config.shadow_split_mult = scene->dir_light->data.shadow_split_mult;
@@ -1714,3 +1798,43 @@ b8 scene_save(scene *scene) {
 
     return true;
 }
+
+static scene_attachment *scene_attachment_acquire(scene *s) {
+    if (s) {
+        u32 attachment_count = darray_length(s->attachments);
+        for (u32 i = 0; i < attachment_count; ++i) {
+            if (!k_handle_is_invalid(s->attachments[i].hierarchy_node_handle)) {
+                // Found one.
+                return &s->attachments[i];
+            }
+        }
+
+        // No more space, push a new one and return it.
+        scene_attachment new_attachment = {0};
+        darray_push(s->attachments, new_attachment);
+        return &s->attachments[attachment_count];
+    }
+    KERROR("scene_attachment_acquire requires a valid pointer to a scene.");
+    return 0;
+}
+
+static void scene_attachment_release(scene *s, scene_attachment *attachment) {
+    if (s && attachment) {
+        // Look up the attachment type and release the attachment itself.
+        switch (attachment->attachment_type) {
+            case SCENE_NODE_ATTACHMENT_TYPE_SKYBOX:
+                skybox_destroy(&s->skyboxes[attachment->resource_handle.handle_index]);
+                break;
+            case SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH:
+                // TODO: destroy this
+                break;
+            case SCENE_NODE_ATTACHMENT_TYPE_TERRAIN:
+                // TODO: destroy this
+                break;
+            case SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT:
+                // TODO: destroy this
+                break;
+            case SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT:
+                // TODO: destroy this
+                break;
+            case SCENE_NODE_ATTACHMENT_TYPE_

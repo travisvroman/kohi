@@ -38,6 +38,11 @@ typedef struct terrain_vertex_data {
 
 typedef struct terrain_config {
     char *name;
+    char *resource_name;
+} terrain_config;
+
+typedef struct terrain_resource {
+    char *name;
     u32 chunk_size;
     u32 tile_count_x;
     u32 tile_count_z;
@@ -48,14 +53,12 @@ typedef struct terrain_config {
     // The max height of the generated terrain.
     f32 scale_y;
 
-    transform xform;
-
     u32 vertex_data_length;
     terrain_vertex_data *vertex_datas;
 
     u32 material_count;
     char **material_names;
-} terrain_config;
+} terrain_resource;
 
 typedef struct terrain_chunk_lod {
     /** @brief The index count for the chunk surface. */
@@ -90,10 +93,20 @@ typedef struct terrain_chunk {
     u8 current_lod;
 } terrain_chunk;
 
+typedef enum terrain_state {
+    TERRAIN_STATE_UNDEFINED,
+    TERRAIN_STATE_CREATED,
+    TERRAIN_STATE_INITIALIZED,
+    TERRAIN_STATE_LOADING,
+    TERRAIN_STATE_LOADED
+} terrain_state;
+
 typedef struct terrain {
     identifier id;
     u32 generation;
+    terrain_state state;
     char *name;
+    char *resource_name;
     u32 tile_count_x;
     u32 tile_count_z;
     // How large each tile is on the x axis.

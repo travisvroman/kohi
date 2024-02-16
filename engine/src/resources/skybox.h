@@ -8,12 +8,23 @@
 typedef struct skybox_config {
     /** @brief The name of the cubemap to be used for the skybox. */
     const char* cubemap_name;
-    geometry_config g_config;
 } skybox_config;
 
+typedef enum skybox_state {
+    SKYBOX_STATE_UNDEFINED,
+    SKYBOX_STATE_CREATED,
+    SKYBOX_STATE_INITIALIZED,
+    SKYBOX_STATE_LOADING,
+    SKYBOX_STATE_LOADED
+} skybox_state;
+
 typedef struct skybox {
-    skybox_config config;
+    skybox_state state;
+
+    const char* cubemap_name;
     texture_map cubemap;
+
+    geometry_config g_config;
     geometry* g;
     u32 instance_id;
     /** @brief Synced to the renderer's current frame number when the material has been applied that frame. */

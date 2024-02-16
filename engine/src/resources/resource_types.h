@@ -352,16 +352,23 @@ typedef struct geometry {
 
 struct geometry_config;
 typedef struct mesh_config {
-    char *name;
-    char *parent_name;
     char *resource_name;
     u16 geometry_count;
     struct geometry_config *g_configs;
 } mesh_config;
 
+typedef enum mesh_state {
+    MESH_STATE_UNDEFINED,
+    MESH_STATE_CREATED,
+    MESH_STATE_INITIALIZED,
+    MESH_STATE_LOADING,
+    MESH_STATE_LOADED
+} mesh_state;
+
 typedef struct mesh {
     char *name;
-    mesh_config config;
+    char *resource_name;
+    mesh_state state;
     identifier id;
     u8 generation;
     u16 geometry_count;

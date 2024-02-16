@@ -57,15 +57,23 @@ typedef struct scene {
 
     // darray of directional lights.
     struct directional_light* dir_lights;
+    // Indices into the attachment array for xform lookups.
+    u32* directional_light_attachment_indices;
 
     // darray of point lights.
     struct point_light* point_lights;
+    // Indices into the attachment array for xform lookups.
+    u32* point_light_attachment_indices;
 
     // darray of meshes.
     struct mesh* meshes;
+    // Indices into the attachment array for xform lookups.
+    u32* mesh_attachment_indices;
 
     // darray of terrains.
     struct terrain* terrains;
+    // Indices into the attachment array for xform lookups.
+    u32* terrain_attachment_indices;
 
     // darray of skyboxes.
     struct skybox* skyboxes;
@@ -73,7 +81,7 @@ typedef struct scene {
     u32* skybox_attachment_indices;
 
     // Attachment data for the scene. Assists in lookups for
-    // xforms and hierarchy.
+    // xforms and hierarchy. darray
     scene_attachment* attachments;
 
     // LEFTOFF: Each resource (i.e terrains, meshes, skyboxes, etc.) has

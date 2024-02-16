@@ -92,6 +92,8 @@ The items in this list are not in any particular order. This list will be update
 - [x] terrain
   - [ ] binary format
   - [x] heightmap-based
+  - [ ] voxel-based
+    - [ ] smooth voxels
   - [x] pixel picking
   - [x] raycast picking 
   - [x] chunking/culling
