@@ -1,0 +1,25 @@
+// Comments
+properties = {
+    // in-block comments
+    name = "test_scene" // comments at the end of the line.
+    description = "A simple test scene, yo."
+}
+nodes = [
+    {
+        name = "sponza"
+        attachments = [
+            {
+                type="static_mesh"
+                resource_name = "sponza"
+            }
+        ]
+        children = [
+            {
+                name="tree"
+            }
+        ]
+        xform=0.0 -1.0 0.0 0.0 0.0 0.0 1.0 0.01 0.01 0.01
+    }
+]
+
+
