@@ -330,7 +330,8 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
                             // Object selection
                             if (i == 0) {
                                 state->selection.unique_id = hit->unique_id;
-                                state->selection.xform = scene_transform_get_by_id(&state->main_scene, hit->unique_id);
+                                // TODO: Object selection is broken until this is changed to use proper xforms.
+                                state->selection.xform = 0;  //  scene_transform_get_by_id(&state->main_scene, hit->unique_id);
                                 if (state->selection.xform) {
                                     KINFO("Selected object id %u", hit->unique_id);
                                     // state->gizmo.selected_xform = state->selection.xform;

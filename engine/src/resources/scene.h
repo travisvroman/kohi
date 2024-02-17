@@ -162,38 +162,6 @@ KAPI void scene_update_lod_from_view_position(scene* scene, const struct frame_d
 
 KAPI b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_result);
 
-KAPI b8 scene_directional_light_add(scene* scene, const char* name, struct directional_light* light);
-
-KAPI b8 scene_point_light_add(scene* scene, const char* name, struct point_light* light);
-
-KAPI b8 scene_mesh_add(scene* scene, const char* name, struct mesh* m);
-
-KAPI b8 scene_skybox_add(scene* scene, const char* name, struct skybox* sb);
-
-KAPI b8 scene_terrain_add(scene* scene, const char* name, struct terrain* t);
-
-KAPI b8 scene_directional_light_remove(scene* scene, const char* name);
-
-KAPI b8 scene_point_light_remove(scene* scene, const char* name);
-
-KAPI b8 scene_mesh_remove(scene* scene, const char* name);
-
-KAPI b8 scene_skybox_remove(scene* scene, const char* name);
-
-KAPI b8 scene_terrain_remove(scene* scene, const char* name);
-
-KAPI struct directional_light* scene_directional_light_get(scene* scene, const char* name);
-
-KAPI struct point_light* scene_point_light_get(scene* scene, const char* name);
-
-KAPI struct mesh* scene_mesh_get(scene* scene, const char* name);
-
-KAPI struct skybox* scene_skybox_get(scene* scene, const char* name);
-
-KAPI struct terrain* scene_terrain_get(scene* scene, const char* name);
-
-KAPI struct transform* scene_transform_get_by_id(scene* scene, u64 unique_id);
-
 KAPI b8 scene_debug_render_data_query(scene* scene, u32* data_count, struct geometry_render_data** debug_geometries);
 
 KAPI b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);

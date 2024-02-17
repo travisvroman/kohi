@@ -7,37 +7,6 @@
 
 struct frame_data;
 
-/**
- * @brief Represents the xform of an object in the world.
- * xforms can have a parent whose own xform is then
- * taken into account. NOTE: The properties of this should not
- * be edited directly, but done via the functions in xform.h
- * to ensure proper matrix generation.
- */
-typedef struct xform {
-    /** @brief The position in the world. */
-    vec3 position;
-    /** @brief The rotation in the world. */
-    quat rotation;
-    /** @brief The scale in the world. */
-    vec3 scale;
-    /**
-     * @brief Indicates if the position, rotation or scale have changed,
-     * indicating that the local matrix needs to be recalculated.
-     */
-    b8 is_dirty;
-    /**
-     * @brief The local xformation matrix, updated whenever
-     * the position, rotation or scale have changed.
-     */
-    mat4 local;
-
-    f32 determinant;
-
-    /** @brief A globally unique id used to validate the handle against the object it was created for. */
-    identifier unique_id;
-} xform;
-
 typedef struct xform_system_config {
     // The initial number of slots to allocate for xforms on startup.
     u32 initial_slot_count;
@@ -109,14 +78,6 @@ KAPI k_handle xform_from_matrix(mat4 m);
  * @param t A pointer to a handle to the transform to be destroyed. The handle itself is also invalidated.
  */
 KAPI void xform_destroy(k_handle* t);
-
-/**
- * @brief Returns a constant pointer to a xform if one exists for the given handle.
- * @param t A handle to the xform.
- *
- * @returns A constant pointer to an xform if the handle is valid; otherwise null.
- */
-KAPI const xform* xform_from_handle(k_handle t);
 
 /**
  * @brief Returns a handle to the provided xform's parent.

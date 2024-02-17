@@ -116,11 +116,17 @@ b8 scene_create(void *config, scene *out_scene) {
     return true;
 }
 
+void scene_destroy(scene *s) {
+    // TODO: actually destroy the thing.
+    // TODO: remove this
+    scene_attachment_release(s, 0);
+}
+
 void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *node_config) {
     if (node_config) {
-        if (node_config->name) {
+        /* if (node_config->name) {
             char *name = string_duplicate(node_config->name);
-        }
+        } */
 
         // Obtain the xform if one is configured.
         k_handle xform_handle;
@@ -312,7 +318,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         // Generate the line points based on the light direction.
                         // The first point will always be at the scene's origin.
                         vec3 point_0 = vec3_zero();
-                        vec3 point_1 = vec3_mul_scalar(vec3_normalized(vec3_from_vec4(scene->dir_light->data.direction)), -1.0f);
+                        vec3 point_1 = vec3_mul_scalar(vec3_normalized(vec3_from_vec4(new_dir_light.data.direction)), -1.0f);
 
                         if (!debug_line3d_create(point_0, point_1, 0, &debug->line)) {
                             KERROR("Failed to create debug line for directional light.");
@@ -802,405 +808,6 @@ b8 scene_raycast(scene *scene, const struct ray *r, struct raycast_result *out_r
     return out_result->hits != 0;
 }
 
-b8 scene_directional_light_add(scene *scene, const char *name,
-                               struct directional_light *light) {
-    // TODO: This needs to be added via a node w/ attachment(s).
-    if (!scene) {
-        return false;
-    }
-
-    // TODO: Refactor for multiple lights.
-    if (scene->dir_light) {
-        light_system_directional_remove(scene->dir_light);
-        if (scene->dir_light->debug_data) {
-            scene_debug_data *debug = scene->dir_light->debug_data;
-
-            debug_line3d_unload(&debug->line);
-            debug_line3d_destroy(&debug->line);
-
-            // NOTE: not freeing here unless there is a light since it will be used again below.
-            if (!light) {
-                kfree(scene->dir_light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                scene->dir_light->debug_data = 0;
-            }
-        }
-    }
-
-    scene->dir_light = light;
-
-    if (scene->dir_light) {
-        if (!light_system_directional_add(light)) {
-            KERROR("scene_add_directional_light - failed to add directional light to light system.");
-            return false;
-        }
-
-        // Add lines indicating light direction.
-        scene_debug_data *debug = scene->dir_light->debug_data;
-
-        // Generate the line points based on the light direction.
-        // The first point will always be at the scene's origin.
-        vec3 point_0 = vec3_zero();
-        vec3 point_1 = vec3_mul_scalar(vec3_normalized(vec3_from_vec4(scene->dir_light->data.direction)), -1.0f);
-
-        if (!debug_line3d_create(point_0, point_1, 0, &debug->line)) {
-            KERROR("Failed to create debug line for directional light.");
-        } else {
-            if (scene->state > SCENE_STATE_INITIALIZED) {
-                if (!debug_line3d_initialize(&debug->line)) {
-                    KERROR("debug line failed to initialize.");
-                    kfree(light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                    light->debug_data = 0;
-                    return false;
-                }
-            }
-
-            if (scene->state >= SCENE_STATE_LOADED) {
-                if (!debug_line3d_load(&debug->line)) {
-                    KERROR("debug line failed to load.");
-                    kfree(light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                    light->debug_data = 0;
-                }
-            }
-        }
-    }
-
-    return true;
-}
-
-b8 scene_point_light_add(scene *scene, const char *name,
-                         struct point_light *light) {
-    // TODO: This needs to be added via a node w/ attachment(s).
-    if (!scene || !light) {
-        return false;
-    }
-
-    if (!light_system_point_add(light)) {
-        KERROR("Failed to add point light to scene (light system add failure, check logs).");
-        return false;
-    }
-
-    light->debug_data = kallocate(sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-    scene_debug_data *debug = light->debug_data;
-
-    if (!debug_box3d_create((vec3){0.2f, 0.2f, 0.2f}, 0, &debug->box)) {
-        KERROR("Failed to create debug box for directional light.");
-    } else {
-        transform_position_set(&debug->box.xform, vec3_from_vec4(light->data.position));
-
-        if (scene->state > SCENE_STATE_INITIALIZED) {
-            if (!debug_box3d_initialize(&debug->box)) {
-                KERROR("debug box failed to initialize.");
-                kfree(light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                light->debug_data = 0;
-                return false;
-            }
-        }
-
-        if (scene->state >= SCENE_STATE_LOADED) {
-            if (!debug_box3d_load(&debug->box)) {
-                KERROR("debug box failed to load.");
-                kfree(light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                light->debug_data = 0;
-            }
-        }
-    }
-
-    darray_push(scene->point_lights, light);
-
-    return true;
-}
-
-b8 scene_mesh_add(scene *scene, const char *name, struct mesh *m) {
-    // TODO: This needs to be added via a node w/ attachment(s).
-    if (!scene || !m) {
-        return false;
-    }
-
-    if (scene->state > SCENE_STATE_INITIALIZED) {
-        if (!mesh_initialize(m)) {
-            KERROR("Mesh failed to initialize.");
-            return false;
-        }
-    }
-
-    if (scene->state >= SCENE_STATE_LOADED) {
-        if (!mesh_load(m)) {
-            KERROR("Mesh failed to load.");
-            return false;
-        }
-    }
-
-    // TODO: Generate handles/nodes, etc.
-    darray_push(scene->meshes, m);
-
-    return true;
-}
-
-b8 scene_skybox_add(scene *scene, const char *name,
-                    struct skybox *sb) {
-    // TODO: This needs to be added via a node w/ attachment(s).
-    if (!scene) {
-        return false;
-    }
-
-    // TODO: if one already exists, do we do anything with it?
-    scene->sb = sb;
-    if (scene->state > SCENE_STATE_INITIALIZED) {
-        if (!skybox_initialize(sb)) {
-            KERROR("Skybox failed to initialize.");
-            scene->sb = 0;
-            return false;
-        }
-    }
-
-    if (scene->state >= SCENE_STATE_LOADED) {
-        if (!skybox_load(sb)) {
-            KERROR("Skybox failed to load.");
-            scene->sb = 0;
-            return false;
-        }
-    }
-
-    return true;
-}
-
-b8 scene_terrain_add(scene *scene, const char *name,
-                     struct terrain *t) {
-    // TODO: This needs to be added via a node w/ attachment(s).
-    if (!scene || !t) {
-        return false;
-    }
-
-    if (scene->state > SCENE_STATE_INITIALIZED) {
-        if (!terrain_initialize(t)) {
-            KERROR("Terrain failed to initialize.");
-            return false;
-        }
-    }
-
-    if (scene->state >= SCENE_STATE_LOADED) {
-        if (!terrain_load(t)) {
-            KERROR("Terrain failed to load.");
-            return false;
-        }
-    }
-
-    darray_push(scene->terrains, t);
-
-    return true;
-}
-
-b8 scene_directional_light_remove(scene *scene,
-                                  const char *name) {
-    // TODO: This needs to be added via a node w/ attachment(s).
-    if (!scene || !name) {
-        return false;
-    }
-
-    if (!scene->dir_light || !strings_equal(scene->dir_light->name, name)) {
-        KWARN(
-            "Cannot remove directional light from scene that is not part of the "
-            "scene.");
-        return false;
-    }
-
-    if (!light_system_directional_remove(scene->dir_light)) {
-        KERROR("Failed to remove directional light from light system.");
-        return false;
-    } else {
-        // Unload directional light debug if it exists.
-        if (scene->dir_light->debug_data) {
-            scene_debug_data *debug = scene->dir_light->debug_data;
-
-            debug_line3d_unload(&debug->line);
-            debug_line3d_destroy(&debug->line);
-
-            kfree(scene->dir_light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-            scene->dir_light->debug_data = 0;
-        }
-    }
-
-    kfree(scene->dir_light, sizeof(directional_light), MEMORY_TAG_SCENE);
-    scene->dir_light = 0;
-
-    return true;
-}
-
-b8 scene_point_light_remove(scene *scene, const char *name) {
-    if (!scene || !name) {
-        return false;
-    }
-
-    u32 light_count = darray_length(scene->point_lights);
-    for (u32 i = 0; i < light_count; ++i) {
-        if (strings_equal(scene->point_lights[i].name, name)) {
-            if (!light_system_point_remove(&scene->point_lights[i])) {
-                KERROR("Failed to remove point light from light system.");
-                return false;
-            } else {
-                // Destroy debug data if it exists.
-                if (scene->point_lights[i].debug_data) {
-                    scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
-                    debug_box3d_unload(&debug->box);
-                    debug_box3d_destroy(&debug->box);
-                    kfree(scene->point_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                    scene->point_lights[i].debug_data = 0;
-                }
-            }
-
-            point_light rubbish = {0};
-            darray_pop_at(scene->point_lights, i, &rubbish);
-
-            return true;
-        }
-    }
-
-    KERROR("Cannot remove a point light from a scene of which it is not a part.");
-    return false;
-}
-
-b8 scene_mesh_remove(scene *scene, const char *name) {
-    if (!scene || !name) {
-        return false;
-    }
-
-    u32 mesh_count = darray_length(scene->meshes);
-    for (u32 i = 0; i < mesh_count; ++i) {
-        if (strings_equal(scene->meshes[i].name, name)) {
-            // Unload any debug data.
-            if (scene->meshes[i].debug_data) {
-                scene_debug_data *debug = scene->meshes[i].debug_data;
-
-                debug_box3d_unload(&debug->box);
-                debug_box3d_destroy(&debug->box);
-
-                kfree(scene->meshes[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                scene->meshes[i].debug_data = 0;
-            }
-            // Unload the mesh itself.
-            if (!mesh_unload(&scene->meshes[i])) {
-                KERROR("Failed to unload mesh");
-                return false;
-            }
-
-            mesh rubbish = {0};
-            darray_pop_at(scene->meshes, i, &rubbish);
-
-            return true;
-        }
-    }
-
-    KERROR("Cannot remove a mesh from a scene of which it is not a part.");
-    return false;
-}
-
-b8 scene_skybox_remove(scene *scene, const char *name) {
-    if (!scene || !name) {
-        return false;
-    }
-
-    // TODO: name?
-    if (!scene->sb) {
-        KWARN("Cannot remove skybox from a scene of which it is not a part.");
-        return false;
-    }
-
-    scene->sb = 0;
-
-    return true;
-}
-
-b8 scene_terrain_remove(scene *scene, const char *name) {
-    if (!scene || !name) {
-        return false;
-    }
-
-    u32 terrain_count = darray_length(scene->terrains);
-    for (u32 i = 0; i < terrain_count; ++i) {
-        if (strings_equal(scene->terrains[i].name, name)) {
-            if (!terrain_unload(&scene->terrains[i])) {
-                KERROR("Failed to unload terrain");
-                return false;
-            }
-
-            terrain rubbish = {0};
-            darray_pop_at(scene->terrains, i, &rubbish);
-
-            return true;
-        }
-    }
-
-    KERROR("Cannot remove a terrain from a scene of which it is not a part.");
-    return false;
-}
-
-struct directional_light *
-scene_directional_light_get(scene *scene, const char *name) {
-    if (!scene) {
-        return 0;
-    }
-
-    return scene->dir_light;
-}
-
-struct point_light *scene_point_light_get(scene *scene,
-                                          const char *name) {
-    if (!scene) {
-        return 0;
-    }
-
-    u32 length = darray_length(scene->point_lights);
-    for (u32 i = 0; i < length; ++i) {
-        if (strings_nequal(name, scene->point_lights[i].name, 256)) {
-            return &scene->point_lights[i];
-        }
-    }
-
-    KWARN("Simple scene does not contain a point light called '%s'.", name);
-    return 0;
-}
-
-struct mesh *scene_mesh_get(scene *scene, const char *name) {
-    if (!scene) {
-        return 0;
-    }
-
-    u32 length = darray_length(scene->meshes);
-    for (u32 i = 0; i < length; ++i) {
-        if (strings_nequal(name, scene->meshes[i].name, 256)) {
-            return &scene->meshes[i];
-        }
-    }
-
-    KWARN("Simple scene does not contain a mesh called '%s'.", name);
-    return 0;
-}
-
-struct skybox *scene_skybox_get(scene *scene, const char *name) {
-    if (!scene) {
-        return 0;
-    }
-
-    return scene->sb;
-}
-
-struct terrain *scene_terrain_get(scene *scene,
-                                  const char *name) {
-    if (!scene || !name) {
-        return 0;
-    }
-
-    u32 length = darray_length(scene->terrains);
-    for (u32 i = 0; i < length; ++i) {
-        if (strings_nequal(name, scene->terrains[i].name, 256)) {
-            return &scene->terrains[i];
-        }
-    }
-
-    KWARN("Simple scene does not contain a terrain called '%s'.", name);
-    return 0;
-}
-
 b8 scene_debug_render_data_query(scene *scene, u32 *data_count, geometry_render_data **debug_geometries) {
     if (!scene || !data_count) {
         return false;
@@ -1229,24 +836,27 @@ b8 scene_debug_render_data_query(scene *scene, u32 *data_count, geometry_render_
 
     // Directional light.
     {
-        if (scene->dir_light && scene->dir_light->debug_data) {
-            if (debug_geometries) {
-                scene_debug_data *debug = scene->dir_light->debug_data;
+        if (debug_geometries && scene->dir_lights) {
+            u32 directional_light_count = darray_length(scene->dir_lights);
+            for (u32 i = 0; i < directional_light_count; ++i) {
+                if (scene->dir_lights[i].debug_data) {
+                    scene_debug_data *debug = scene->dir_lights[i].debug_data;
 
-                // Debug line 3d
-                geometry_render_data data = {0};
-                data.model = transform_world_get(&debug->line.xform);
-                geometry *g = &debug->line.geo;
-                data.material = g->material;
-                data.vertex_count = g->vertex_count;
-                data.vertex_buffer_offset = g->vertex_buffer_offset;
-                data.index_count = g->index_count;
-                data.index_buffer_offset = g->index_buffer_offset;
-                data.unique_id = debug->line.id.uniqueid;
+                    // Debug line 3d
+                    geometry_render_data data = {0};
+                    data.model = transform_world_get(&debug->line.xform);
+                    geometry *g = &debug->line.geo;
+                    data.material = g->material;
+                    data.vertex_count = g->vertex_count;
+                    data.vertex_buffer_offset = g->vertex_buffer_offset;
+                    data.index_count = g->index_count;
+                    data.index_buffer_offset = g->index_buffer_offset;
+                    data.unique_id = debug->line.id.uniqueid;
 
-                (*debug_geometries)[(*data_count)] = data;
+                    (*debug_geometries)[(*data_count)] = data;
+                }
+                (*data_count)++;
             }
-            (*data_count)++;
         }
     }
 
@@ -1316,8 +926,13 @@ b8 scene_mesh_render_data_query_from_line(const scene *scene, vec3 direction, ve
     for (u32 i = 0; i < mesh_count; ++i) {
         mesh *m = &scene->meshes[i];
         if (m->generation != INVALID_ID_U8) {
-            mat4 model = transform_world_get(&m->transform);
-            b8 winding_inverted = m->transform.determinant < 0;
+            scene_attachment *attachment = &scene->mesh_attachments[scene->mesh_attachment_indices[i]];
+            k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
+            mat4 model = xform_world_get(xform_handle);
+
+            // TODO: Cache this somewhere instead of calculating all the time.
+            f32 determinant = mat4_determinant(model);
+            b8 winding_inverted = determinant < 0;
 
             for (u32 j = 0; j < m->geometry_count; ++j) {
                 geometry *g = m->geometries[j];
@@ -1400,8 +1015,13 @@ b8 scene_terrain_render_data_query_from_line(const scene *scene, vec3 direction,
     u32 terrain_count = darray_length(scene->terrains);
     for (u32 i = 0; i < terrain_count; ++i) {
         terrain *t = &scene->terrains[i];
-        mat4 model = transform_world_get(&t->xform);
-        b8 winding_inverted = t->xform.determinant < 0;
+        scene_attachment *attachment = &scene->terrain_attachments[scene->terrain_attachment_indices[i]];
+        k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
+        mat4 model = xform_world_get(xform_handle);
+
+        // TODO: Cache this somewhere instead of calculating all the time.
+        f32 determinant = mat4_determinant(model);
+        b8 winding_inverted = determinant < 0;
 
         // Check each chunk to see if it is in view.
         for (u32 c = 0; c < t->chunk_count; ++c) {
@@ -1458,8 +1078,13 @@ b8 scene_mesh_render_data_query(const scene *scene, const frustum *f, vec3 cente
     for (u32 i = 0; i < mesh_count; ++i) {
         mesh *m = &scene->meshes[i];
         if (m->generation != INVALID_ID_U8) {
-            mat4 model = transform_world_get(&m->transform);
-            b8 winding_inverted = m->transform.determinant < 0;
+            scene_attachment *attachment = &scene->mesh_attachments[scene->mesh_attachment_indices[i]];
+            k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
+            mat4 model = xform_world_get(xform_handle);
+
+            // TODO: Cache this somewhere instead of calculating all the time.
+            f32 determinant = mat4_determinant(model);
+            b8 winding_inverted = determinant < 0;
 
             for (u32 j = 0; j < m->geometry_count; ++j) {
                 geometry *g = m->geometries[j];
@@ -1573,8 +1198,13 @@ b8 scene_terrain_render_data_query(const scene *scene, const frustum *f, vec3 ce
     u32 terrain_count = darray_length(scene->terrains);
     for (u32 i = 0; i < terrain_count; ++i) {
         terrain *t = &scene->terrains[i];
-        mat4 model = transform_world_get(&t->xform);
-        b8 winding_inverted = t->xform.determinant < 0;
+        scene_attachment *attachment = &scene->terrain_attachments[scene->terrain_attachment_indices[i]];
+        k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
+        mat4 model = xform_world_get(xform_handle);
+
+        // TODO: Cache this somewhere instead of calculating all the time.
+        f32 determinant = mat4_determinant(model);
+        b8 winding_inverted = determinant < 0;
 
         // Check each chunk to see if it is in view.
         for (u32 c = 0; c < t->chunk_count; c++) {
@@ -1626,123 +1256,112 @@ b8 scene_terrain_render_data_query(const scene *scene, const frustum *f, vec3 ce
     return true;
 }
 
-static void scene_actual_unload(scene *scene) {
-    if (scene->sb) {
-        if (!skybox_unload(scene->sb)) {
+static void scene_actual_unload(scene *s) {
+    u32 skybox_count = darray_length(s->skyboxes);
+    for (u32 i = 0; i < skybox_count; ++i) {
+        if (!skybox_unload(&s->skyboxes[i])) {
             KERROR("Failed to unload skybox");
         }
-        skybox_destroy(scene->sb);
-        scene->sb = 0;
+        skybox_destroy(&s->skyboxes[i]);
+        s->skyboxes[i].state = SKYBOX_STATE_UNDEFINED;
     }
 
-    u32 mesh_count = darray_length(scene->meshes);
+    u32 mesh_count = darray_length(s->meshes);
     for (u32 i = 0; i < mesh_count; ++i) {
-        if (scene->meshes[i].generation != INVALID_ID_U8) {
+        if (s->meshes[i].generation != INVALID_ID_U8) {
             // Unload any debug data.
-            if (scene->meshes[i].debug_data) {
-                scene_debug_data *debug = scene->meshes[i].debug_data;
+            if (s->meshes[i].debug_data) {
+                scene_debug_data *debug = s->meshes[i].debug_data;
 
                 debug_box3d_unload(&debug->box);
                 debug_box3d_destroy(&debug->box);
 
-                kfree(scene->meshes[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-                scene->meshes[i].debug_data = 0;
+                kfree(s->meshes[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+                s->meshes[i].debug_data = 0;
             }
 
             // Unload the mesh itself
-            if (!mesh_unload(&scene->meshes[i])) {
+            if (!mesh_unload(&s->meshes[i])) {
                 KERROR("Failed to unload mesh.");
             }
-            mesh_destroy(&scene->meshes[i]);
+            mesh_destroy(&s->meshes[i]);
         }
     }
 
-    u32 terrain_count = darray_length(scene->terrains);
+    u32 terrain_count = darray_length(s->terrains);
     for (u32 i = 0; i < terrain_count; ++i) {
-        if (!terrain_unload(&scene->terrains[i])) {
+        if (!terrain_unload(&s->terrains[i])) {
             KERROR("Failed to unload terrain.");
         }
-        terrain_destroy(&scene->terrains[i]);
+        terrain_destroy(&s->terrains[i]);
     }
 
     // Debug grid.
-    if (!debug_grid_unload(&scene->grid)) {
+    if (!debug_grid_unload(&s->grid)) {
         KWARN("Debug grid unload failed.");
     }
 
-    if (scene->dir_light) {
-        if (!scene_directional_light_remove(scene, scene->dir_light->name)) {
+    u32 directional_light_count = darray_length(s->dir_lights);
+    for (u32 i = 0; i < directional_light_count; ++i) {
+        if (!light_system_directional_remove(&s->dir_lights[i])) {
             KERROR("Failed to unload/remove directional light.");
         }
+        s->dir_lights[i].generation = INVALID_ID;
 
-        if (scene->dir_light && scene->dir_light->debug_data) {
-            scene_debug_data *debug = (scene_debug_data *)scene->dir_light->debug_data;
+        if (s->dir_lights[i].debug_data) {
+            scene_debug_data *debug = (scene_debug_data *)s->dir_lights[i].debug_data;
             // Unload directional light line data.
             debug_line3d_unload(&debug->line);
             debug_line3d_destroy(&debug->line);
-            kfree(scene->dir_light->debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-            scene->dir_light->debug_data = 0;
+            kfree(s->dir_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+            s->dir_lights[i].debug_data = 0;
         }
     }
 
-    u32 p_light_count = darray_length(scene->point_lights);
+    u32 p_light_count = darray_length(s->point_lights);
     for (u32 i = 0; i < p_light_count; ++i) {
-        if (!light_system_point_remove(&scene->point_lights[i])) {
+        if (!light_system_point_remove(&s->point_lights[i])) {
             KWARN("Failed to remove point light from light system.");
         }
 
         // Destroy debug data if it exists.
-        if (scene->point_lights[i].debug_data) {
-            scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;
+        if (s->point_lights[i].debug_data) {
+            scene_debug_data *debug = (scene_debug_data *)s->point_lights[i].debug_data;
             debug_box3d_unload(&debug->box);
             debug_box3d_destroy(&debug->box);
-            kfree(scene->point_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
-            scene->point_lights[i].debug_data = 0;
+            kfree(s->point_lights[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+            s->point_lights[i].debug_data = 0;
         }
     }
+
+    // Destroy the hierarchy graph.
+    hierarchy_graph_destroy(&s->hierarchy);
 
     // Update the state to show the scene is initialized.
-    scene->state = SCENE_STATE_UNLOADED;
+    s->state = SCENE_STATE_UNLOADED;
 
     // Also destroy the scene.
-    scene->dir_light = 0;
-    scene->sb = 0;
-
-    if (scene->point_lights) {
-        darray_destroy(scene->point_lights);
+    if (s->skyboxes) {
+        darray_destroy(s->skyboxes);
     }
 
-    if (scene->meshes) {
-        darray_destroy(scene->meshes);
+    if (s->dir_lights) {
+        darray_destroy(s->dir_lights);
     }
 
-    if (scene->terrains) {
-        darray_destroy(scene->terrains);
+    if (s->point_lights) {
+        darray_destroy(s->point_lights);
     }
 
-    kzero_memory(scene, sizeof(scene));
-}
-
-struct transform *scene_transform_get_by_id(scene *scene, u64 unique_id) {
-    if (!scene) {
-        return 0;
+    if (s->meshes) {
+        darray_destroy(s->meshes);
     }
 
-    u32 mesh_count = darray_length(scene->meshes);
-    for (u32 i = 0; i < mesh_count; ++i) {
-        if (scene->meshes[i].id.uniqueid == unique_id) {
-            return &scene->meshes[i].transform;
-        }
+    if (s->terrains) {
+        darray_destroy(s->terrains);
     }
 
-    u32 terrain_count = darray_length(scene->terrains);
-    for (u32 i = 0; i < terrain_count; ++i) {
-        if (scene->terrains[i].id.uniqueid == unique_id) {
-            return &scene->terrains[i].xform;
-        }
-    }
-
-    return 0;
+    kzero_memory(s, sizeof(scene));
 }
 
 b8 scene_save(scene *scene) {
@@ -1751,50 +1370,7 @@ b8 scene_save(scene *scene) {
         return false;
     }
 
-    // Create a simple scene config based on the objects currently in the scene.
-    scene_config config = {0};
-    config.name = string_duplicate(scene->name);
-    config.description = string_duplicate(scene->description);
-    if (scene->sb) {
-        config.skybox_config.name = string_duplicate(scene->config->skybox_config.name);
-        config.skybox_config.cubemap_name = string_duplicate(scene->config->skybox_config.cubemap_name);
-    }
-    if (scene->dir_light) {
-        config.directional_light_config.name = string_duplicate(typed_attachment->name);
-        config.directional_light_config.colour = scene->dir_light->data.colour;
-        config.directional_light_config.direction = scene->dir_light->data.direction;
-        config.directional_light_config.shadow_split_mult = scene->dir_light->data.shadow_split_mult;
-        config.directional_light_config.shadow_fade_distance = scene->dir_light->data.shadow_fade_distance;
-        config.directional_light_config.shadow_distance = scene->dir_light->data.shadow_distance;
-    }
-
-    u32 mesh_count = darray_length(scene->meshes);
-    config.meshes = darray_create(mesh_scene_config);
-    for (u32 i = 0; i < mesh_count; ++i) {
-        mesh_scene_config mesh = {0};
-        mesh.name = string_duplicate(scene->meshes[i].name);
-        mesh.transform = scene->meshes[i].transform;
-        mesh.resource_name = scene->meshes[i].config.resource_name;
-        // TODO: Parent could have changed... Re-walk the tree and see what the parent name is
-        // But, the parent info isn't saved at that time, only transform parenting is done on load.
-        // Rethink parenting and how that is stored.
-        mesh.parent_name = scene->meshes[i].config.parent_name;
-        darray_push(config.meshes, mesh);
-    }
-    u32 terrain_count = darray_length(scene->terrains);
-    config.terrains = darray_create(terrain_scene_config);
-    for (u32 i = 0; i < terrain_count; ++i) {
-        terrain_scene_config terrain = {0};
-        terrain.name = string_duplicate(scene->terrains[i].name);
-        terrain.xform = scene->terrains[i].xform;
-        // TODO: same issue as above.
-        /* terrain.resource_name = scene->terrains[i].terrain.parent_name = scene->meshes[i].config.parent_name; */
-        darray_push(config.meshes, terrain);
-    }
-
-    // Call the resource system to write that config.
-
-    // Destroy the config.
+    KERROR("Not implemented");
 
     return true;
 }
@@ -1837,4 +1413,10 @@ static void scene_attachment_release(scene *s, scene_attachment *attachment) {
             case SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT:
                 // TODO: destroy this
                 break;
-            case SCENE_NODE_ATTACHMENT_TYPE_
+            case SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN:
+            default:
+                // TODO: destroy this
+                break;
+        }
+    }
+}
