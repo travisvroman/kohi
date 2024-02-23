@@ -1,6 +1,8 @@
 #include "kson_parser.h"
 
 #include "containers/darray.h"
+#include "containers/stack.h"
+#include "core/asserts.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
@@ -73,7 +75,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
     darray_clear(parser->tokens);
 
     u32 char_length = string_length(source);
-    u32 text_length_utf8 = string_utf8_length(source);
+    /* u32 text_length_utf8 = string_utf8_length(source); */
 
     kson_tokenize_mode mode = KSON_TOKENIZE_MODE_DEFINING_IDENTIFIER;
     kson_token current_token = {0};
@@ -129,13 +131,14 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                 darray_push(parser->tokens, newline_token);
             } break;
             case '\t':
+            case '\r':
             case ' ': {
                 if (mode == KSON_TOKENIZE_MODE_WHITESPACE) {
                     // Tack it onto the whitespace.
                     current_token.end++;
                 } else {
                     // Before switching to whitespace mode, push the current token.
-                    darray_push(parser->tokens, current_token);
+                    PUSH_CURRENT_TOKEN();
                     mode = KSON_TOKENIZE_MODE_WHITESPACE;
                     current_token.type = KSON_TOKEN_TYPE_WHITESPACE;
                     current_token.start = c;
@@ -179,8 +182,15 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                 RESET_CURRENT_TOKEN_AND_MODE();
             } break;
             case '"': {
+                PUSH_CURRENT_TOKEN();
+
+                RESET_CURRENT_TOKEN_AND_MODE();
+
                 // Change to string parsing mode.
                 mode = KSON_TOKENIZE_MODE_STRING_LITERAL;
+                current_token.type = KSON_TOKEN_TYPE_STRING_LITERAL;
+                current_token.start = c + advance;
+                current_token.end = c + advance;
             } break;
             case '0':
             case '1':
@@ -196,7 +206,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                     current_token.end++;
                 } else {
                     // Push the existing token.
-                    darray_push(parser->tokens, current_token);
+                    PUSH_CURRENT_TOKEN();
 
                     // Switch to numeric parsing mode.
                     mode = KSON_TOKENIZE_MODE_NUMERIC_LITERAL;
@@ -335,9 +345,9 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                         } else {
                             // Treat as the start of an identifier definition.
                             // Push the existing token.
-                            darray_push(parser->tokens, current_token);
+                            PUSH_CURRENT_TOKEN();
 
-                            // Switch to numeric parsing mode.
+                            // Switch to identifier parsing mode.
                             mode = KSON_TOKENIZE_MODE_DEFINING_IDENTIFIER;
                             current_token.type = KSON_TOKEN_TYPE_IDENTIFIER;
                             current_token.start = c;
@@ -364,6 +374,47 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
     return true;
 }
 
+#define NEXT_TOKEN()                            \
+    {                                           \
+        index++;                                \
+        current_token = &parser->tokens[index]; \
+    }
+
+#define ENSURE_IDENTIFIER(token_string)                                                                          \
+    {                                                                                                            \
+        if (expect_identifier) {                                                                                 \
+            KERROR("Expected identifier, instead found '%s'. Position: %u", token_string, current_token->start); \
+            return false;                                                                                        \
+        }                                                                                                        \
+    }
+
+static kson_token* get_last_non_whitespace_token(kson_parser* parser, u32 current_index) {
+    kson_token* t = &parser->tokens[current_index];
+    while (current_index > 0 && t && t->type == KSON_TOKEN_TYPE_WHITESPACE) {
+        current_index--;
+        t = &parser->tokens[current_index];
+    }
+
+    // This means that the last token available in the file is whitespace.
+    // Impossible to return non-whitespace token.
+    if (t->type == KSON_TOKEN_TYPE_WHITESPACE) {
+        return 0;
+    }
+
+    return t;
+}
+
+#define NUMERIC_LITERAL_STR_MAX_LENGTH 25
+
+static char* string_from_kson_token(const char* file_content, const kson_token* token) {
+    u32 length = token->end - token->start;
+    char* mid = kallocate(sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+    string_mid(mid, file_content, token->start, length);
+    mid[length] = 0;
+
+    return mid;
+}
+
 b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
     if (!parser) {
         KERROR("kson_parser_parse requires a valid pointer to a parser.");
@@ -374,11 +425,290 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
         return false;
     }
 
-    // LEFTOFF: Iterate the tokens and build out a tree.
+    if (!parser->tokens) {
+        KERROR("Cannot parse an empty set of tokens, ya dingus!");
+        return false;
+    }
+
+    kson_token* current_token = 0;
+
+    stack scope;
+    stack_create(&scope, sizeof(kson_object*));
+
+    // The first thing expected is an identifier.
+    b8 expect_identifier = true;
+    b8 expect_value = false;
+    b8 expect_operator = false;
+    b8 expect_numeric = false;
+
+    char numeric_literal_str[NUMERIC_LITERAL_STR_MAX_LENGTH] = {0};
+    u32 numeric_literal_str_pos = 0;
+    i32 numeric_decimal_pos = -1;
+
+    u32 index = 0;
+    current_token = &parser->tokens[index];
+
+    // Setup the tree.
+    out_tree->roots = darray_create(kson_object);
+
+    // TODO: do we need a base object?
+    kson_object base_object = {0};
+    base_object.type = KSON_OBJECT_TYPE_OBJECT;
+    base_object.properties = darray_create(kson_property);
+    darray_push(out_tree->roots, base_object);
+
+    // Set it as the current object.
+    kson_object* current_object = &out_tree->roots[0];
+    kson_property* current_property = 0;
+
+    while (current_token && current_token->type != KSON_TOKEN_TYPE_EOF) {
+        switch (current_token->type) {
+            case KSON_TOKEN_TYPE_CURLY_BRACE_OPEN: {
+                ENSURE_IDENTIFIER("{")
+                // starting a block.
+                kson_object obj = {0};
+                obj.type = KSON_OBJECT_TYPE_OBJECT;
+                obj.properties = darray_create(kson_property);
+                // Push to current property
+                darray_push(current_property->value.o, obj);
+                // Set the object as current and push to the stack.
+                u32 prop_count = darray_length(current_property->value.o);
+                current_object = &current_property->value.o[prop_count - 1];
+
+                // Add the object to the stack.
+                stack_push(&scope, current_object);
+            } break;
+            case KSON_TOKEN_TYPE_CURLY_BRACE_CLOSE: {
+                ENSURE_IDENTIFIER("}")
+                // Ending a block.
+                if (!stack_pop(&scope, &current_object)) {
+                    KERROR("Failed to pop from scope stack.");
+                    return false;
+                }
+            } break;
+            case KSON_TOKEN_TYPE_BRACKET_OPEN: {
+                ENSURE_IDENTIFIER("[")
+                // starting an array.
+                kson_object obj = {0};
+                obj.type = KSON_OBJECT_TYPE_ARRAY;
+                obj.properties = darray_create(kson_property);
+
+                // Push to current property
+                darray_push(current_property->value.o, obj);
+                // Set the object as current and push to the stack.
+                u32 prop_count = darray_length(current_property->value.o);
+                current_object = &current_property->value.o[prop_count - 1];
+
+                // Add the object to the stack.
+                stack_push(&scope, current_object);
+            } break;
+            case KSON_TOKEN_TYPE_BRACKET_CLOSE: {
+                ENSURE_IDENTIFIER("]")
+                // Ending an array.
+                if (!stack_pop(&scope, &current_object)) {
+                    KERROR("Failed to pop from scope stack.");
+                    return false;
+                }
+            } break;
+            case KSON_TOKEN_TYPE_IDENTIFIER:
+                char buf[512] = {0};
+                string_mid(buf, parser->file_content, current_token->start, current_token->end - current_token->start);
+                if (!expect_identifier) {
+                    KERROR("Unexpected identifier '%s' at position %u.", buf, current_token->start);
+                    return false;
+                }
+                // Start a new property.
+                kson_property prop = {0};
+                prop.type = KSON_PROPERTY_TYPE_UNKNOWN;
+                prop.name = string_duplicate(buf);
+
+                // Push the new property and set the current property to it.
+                darray_push(current_object->properties, prop);
+                u32 prop_count = darray_length(current_object->properties);
+                current_property = &current_object->properties[prop_count - 1];
+
+                // No longer expecting an identifier
+                expect_identifier = false;
+                expect_operator = true;
+                break;
+            case KSON_TOKEN_TYPE_WHITESPACE:
+            case KSON_TOKEN_TYPE_COMMENT:
+                NEXT_TOKEN();
+                continue;
+            case KSON_TOKEN_TYPE_UNKNOWN:
+            default:
+                KERROR("Unexpected and unknown token found. Parse failed.");
+                return false;
+            case KSON_TOKEN_TYPE_OPERATOR_EQUAL: {
+                ENSURE_IDENTIFIER("=")
+                // Previous token must be an identifier.
+                kson_token* t = get_last_non_whitespace_token(parser, index);
+                if (!t) {
+                    KERROR("Unexpected token before assignment operator. Position: %u", current_token->start);
+                    return false;
+                } else if (t->type != KSON_TOKEN_TYPE_IDENTIFIER) {
+                    KERROR("Expected identifier before assignment operator. Position: %u", current_token->start);
+                    return false;
+                }
+
+                expect_operator = false;
+
+                // The next non-whitespace token should be a value of some kind.
+                expect_value = true;
+            } break;
+            case KSON_TOKEN_TYPE_OPERATOR_MINUS: {
+                if (expect_numeric) {
+                    KERROR("Already parsing a numeric, negatives are invalid within a numeric. Position: %u", current_token->start);
+                    return false;
+                }
+
+                // If the next token is a numeric literal, process this as a numeric.
+                // Note that a negative is only valid for the first character of a numeric literal.
+                if (parser->tokens[index + 1].type == KSON_TOKEN_TYPE_NUMERIC_LITERAL ||
+                    (parser->tokens[index + 1].type == KSON_TOKEN_TYPE_OPERATOR_DOT && parser->tokens[index + 2].type == KSON_TOKEN_TYPE_NUMERIC_LITERAL)) {
+                    // Start of a numeric process.
+                    expect_numeric = true;
+                    current_property->type = KSON_PROPERTY_TYPE_NUMBER;
+                    kzero_memory(numeric_literal_str, sizeof(char) * NUMERIC_LITERAL_STR_MAX_LENGTH);
+
+                    numeric_literal_str[0] = '-';
+                    numeric_literal_str_pos++;
+                } else {
+                    // TODO: This should be treated as a subtraction operator. Ensure previous token
+                    // is valid, etc.
+                    KERROR("subtraction is not supported at this time.");
+                    return false;
+                }
+            } break;
+            case KSON_TOKEN_TYPE_OPERATOR_PLUS:
+                KERROR("Addition is not supported at this time.");
+                return false;
+                break;
+            case KSON_TOKEN_TYPE_OPERATOR_DOT:
+                // This could be the first in a string of tokens of a numeric literal.
+                if (!expect_numeric) {
+                    // Check the next token to see if it is a numeric. It must be in order for this to be part of it.
+                    // Whitespace in between is not supported.
+                    if (parser->tokens[index + 1].type == KSON_TOKEN_TYPE_NUMERIC_LITERAL) {
+                        // Start a numeric literal.
+                        numeric_literal_str[0] = '.';
+                        expect_numeric = true;
+                        current_property->type = KSON_PROPERTY_TYPE_NUMBER;
+                        kzero_memory(numeric_literal_str, sizeof(char) * NUMERIC_LITERAL_STR_MAX_LENGTH);
+                        numeric_decimal_pos = 0;
+                        numeric_literal_str_pos++;
+                    } else {
+                        // TODO: Support named object properties such as "sponza.name".
+                        KERROR("Dot property operator not supported. Position: %u", current_token->start);
+                        return false;
+                    }
+                } else {
+                    // Just verify that a decimal doesn't already exist.
+                    if (numeric_decimal_pos != -1) {
+                        KERROR("Cannot include more than once decimal in a numeric literal. First occurrance: %i, Position: %u", numeric_decimal_pos, current_token->start);
+                        return false;
+                    }
+
+                    // Append it to the string.
+                    numeric_literal_str[numeric_literal_str_pos] = '.';
+                    numeric_decimal_pos = numeric_literal_str_pos;
+                    numeric_literal_str_pos++;
+                }
+                break;
+            case KSON_TOKEN_TYPE_OPERATOR_ASTERISK:
+            case KSON_TOKEN_TYPE_OPERATOR_SLASH:
+                KERROR("Unexpected token at position %u. Parse failed.", current_token->start);
+                return false;
+            case KSON_TOKEN_TYPE_NUMERIC_LITERAL: {
+                if (!expect_numeric) {
+                    expect_numeric = true;
+                    current_property->type = KSON_PROPERTY_TYPE_NUMBER;
+                    kzero_memory(numeric_literal_str, sizeof(char) * NUMERIC_LITERAL_STR_MAX_LENGTH);
+                }
+                u32 length = current_token->end - current_token->start;
+                string_ncopy(numeric_literal_str + numeric_literal_str_pos, parser->file_content + current_token->start, length);
+                numeric_literal_str_pos += length;
+            } break;
+            case KSON_TOKEN_TYPE_STRING_LITERAL:
+                if (!expect_value) {
+                    KERROR("Unexpected string token at position: %u", current_token->start);
+                    return false;
+                }
+
+                current_property->value.s = string_from_kson_token(parser->file_content, current_token);
+
+                expect_value = false;
+                break;
+            case KSON_TOKEN_TYPE_BOOLEAN: {
+                if (!expect_value) {
+                    KERROR("Unexpected boolean token at position: %u", current_token->start);
+                    return false;
+                }
+
+                char* token_string = string_from_kson_token(parser->file_content, current_token);
+                b8 result = string_to_bool(token_string, &current_property->value.b);
+                if (!result) {
+                    KERROR("Failed to parse boolean from token. Position: %u", current_token->start);
+                }
+
+                string_free(token_string);
+            } break;
+            case KSON_TOKEN_TYPE_NEWLINE:
+                if (expect_numeric) {
+                    // Terminate the numeric and set the current property's value to it.
+                    // Determine whether it is a float or a int.
+                    if (string_index_of(numeric_literal_str, '.')) {
+                        if (!string_to_f32(numeric_literal_str, &current_property->value.f)) {
+                            KERROR("Failed to parse string to float: '%s', Position: %u", numeric_literal_str, current_token->start);
+                            return false;
+                        }
+                    } else {
+                        if (!string_to_i64(numeric_literal_str, &current_property->value.i)) {
+                            KERROR("Failed to parse string to signed int: '%s', Position: %u", numeric_literal_str, current_token->start);
+                            return false;
+                        }
+                    }
+
+                    expect_numeric = false;
+
+                    // Current value is set, so now expect another identifier or array element.
+                }
+
+                // Don't expect a value after a newline.
+                // TODO: What about arrays of values?
+                expect_value = false;
+                break;
+            case KSON_TOKEN_TYPE_EOF: {
+                b8 valid = true;
+                // Verify that we are not in the middle of assignment.
+                if (expect_value || expect_operator || expect_numeric) {
+                    valid = false;
+                }
+                // Verify that the current depth is now 1 (to account for the base object).
+                if (scope.element_count > 1) {
+                    valid = false;
+                }
+
+                if (!valid) {
+                    KERROR("Unexpected end of file at position: %u", current_token->start);
+                    return false;
+                }
+
+            } break;
+        }
+    }
+
+    return true;
 }
 
 b8 kson_tree_from_string(const char* source, kson_tree* out_tree) {
+    // TODO: combined Tokenization and parsing into a single call here.
+    KASSERT_MSG(false, "Not implemented");
+    return false;
 }
 
 const char* kson_tree_to_string(kson_tree* tree) {
+    // TODO: write a string based on the provided tree.
+    KASSERT_MSG(false, "Not implemented");
+    return false;
 }

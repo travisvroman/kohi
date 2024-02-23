@@ -37,6 +37,7 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
         kallocate(sizeof(terrain_config), MEMORY_TAG_RESOURCE);
     // Set some defaults, create arrays.
 
+    // TODO: Move this to use the terrain_resource instead of terrain_config.
     resource_data->material_count = 0;
     resource_data->material_names = kallocate(sizeof(char *) * TERRAIN_MAX_MATERIAL_COUNT, MEMORY_TAG_ARRAY);
 

@@ -13,6 +13,7 @@ nodes = [
                 resource_name = "sponza"
             }
         ]
+        start_position_x = 2.
         children = [
             {
                 name="tree"
@@ -21,5 +22,4 @@ nodes = [
         xform="0.0 -1.0 0.0 0.0 0.0 0.0 1.0 0.01 0.01 0.01"
     }
 ]
-
-
+foo = 32

@@ -40,6 +40,8 @@ typedef struct kson_parser {
 } kson_parser;
 
 typedef enum kson_property_type {
+    // TODO: Do we want to support undefined/null types. If so, pick one and just use that, no defining both.
+    KSON_PROPERTY_TYPE_UNKNOWN,
     KSON_PROPERTY_TYPE_NUMBER,
     KSON_PROPERTY_TYPE_STRING,
     KSON_PROPERTY_TYPE_OBJECT,
@@ -49,10 +51,11 @@ typedef enum kson_property_type {
 
 struct kson_object;
 typedef struct kson_property {
-    char* name;
     kson_property_type type;
+    char* name;
     union {
         i64 i;
+        f32 f;
         const char* s;
         struct kson_object* o;
         b8 b;
