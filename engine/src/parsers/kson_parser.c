@@ -126,9 +126,13 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
         // Not part of a string, identifier, numeric, etc., so try to figure out what to do next.
         switch (codepoint) {
             case '\n': {
+                PUSH_CURRENT_TOKEN();
+
                 // Just create a new token and insert it.
                 kson_token newline_token = {KSON_TOKEN_TYPE_NEWLINE, c, c + advance};
                 darray_push(parser->tokens, newline_token);
+
+                RESET_CURRENT_TOKEN_AND_MODE();
             } break;
             case '\t':
             case '\r':
@@ -243,22 +247,24 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
             } break;
             case '/': {
                 PUSH_CURRENT_TOKEN();
+                RESET_CURRENT_TOKEN_AND_MODE();
 
                 // Look ahead and see if another slash follows. If so, the rest of the
                 // line is a comment. Skip forward until a newline is found.
                 if (source[c + 1] == '/') {
                     i32 cm = c + 2;
                     char ch = source[cm];
-                    while (ch != '\n' || '\0') {
+                    while (ch != '\n' && ch != '\0') {
                         cm++;
+                        ch = source[cm];
                     }
-                    cm = -1;
                     if (cm > 0) {
                         // Skip to one char before the newline so the newline gets processed.
                         // This is done because the comment shouldn't be tokenized, but should
                         // instead be ignored.
-                        c += cm;
+                        c = cm;
                     }
+                    continue;
                 } else {
                     // Otherwise it should be treated as a slash operator.
                     // Create and push a new token for this.
@@ -370,6 +376,10 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
         // Now advance c
         c += advance;
     }
+    PUSH_CURRENT_TOKEN();
+    // Create and push a new token for this.
+    kson_token eof_token = {KSON_TOKEN_TYPE_EOF, char_length, char_length + 1};
+    darray_push(parser->tokens, eof_token);
 
     return true;
 }

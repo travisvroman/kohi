@@ -311,7 +311,8 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct frame
             render_data.vertex_buffer_offset = g->vertex_buffer_offset;
             render_data.index_count = g->index_count;
             render_data.index_buffer_offset = g->index_buffer_offset;
-            render_data.model = transform_world_get(&m->transform);
+            // TODO: get xform from hierarchy.
+            /* render_data.model = transform_world_get(&m->transform); */
             render_data.unique_id = m->id.uniqueid;
             darray_push(out_packet->geometries, render_data);
             out_packet->geometry_count++;

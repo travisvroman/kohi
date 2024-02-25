@@ -1145,7 +1145,8 @@ static b8 load_main_scene(struct application* game_inst) {
         return false;
     }
 
-    state->p_light_1 = scene_point_light_get(&state->main_scene, "point_light_1");
+    // TODO: fix once scene loading works again.
+    state->p_light_1 = 0;  // scene_point_light_get(&state->main_scene, "point_light_1");
 
     // Actually load the scene.
     return scene_load(&state->main_scene);

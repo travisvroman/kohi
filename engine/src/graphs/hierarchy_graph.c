@@ -18,8 +18,14 @@ static void ensure_allocated(hierarchy_graph* graph, u32 new_node_count);
 static void build_view_tree(hierarchy_graph* graph, hierarchy_graph_view* out_view);
 static void destroy_view_tree(hierarchy_graph* graph, hierarchy_graph_view* out_view);
 
-b8 hierarchy_graph_create(hierarchy_graph* out_graph);
-void hierarchy_graph_destroy(hierarchy_graph* graph);
+b8 hierarchy_graph_create(hierarchy_graph* out_graph) {
+    // TODO: Initialize, etc.
+    KASSERT("not implemented");
+    return false;
+}
+void hierarchy_graph_destroy(hierarchy_graph* graph) {
+    KASSERT("not implemented");
+}
 
 void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, mat4* parent_world, hierarchy_graph_view_node* node) {
     // Update the local matrix.
