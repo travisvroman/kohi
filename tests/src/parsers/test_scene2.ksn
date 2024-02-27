@@ -1,4 +1,5 @@
 // Comments - UNIT TEST VERSION
+test_prop=-.2
 properties = {
     // in-block comments
     name = "test_scene" // comments at the end of the line.

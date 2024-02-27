@@ -71,6 +71,11 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
         return false;
     }
 
+    if (parser->file_content) {
+        string_free((char*)parser->file_content);
+    }
+    parser->file_content = string_duplicate(source);
+
     // Ensure the parser's tokens array is empty.
     darray_clear(parser->tokens);
 
@@ -399,7 +404,10 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
     }
 
 static kson_token* get_last_non_whitespace_token(kson_parser* parser, u32 current_index) {
-    kson_token* t = &parser->tokens[current_index];
+    if (current_index == 0) {
+        return 0;
+    }
+    kson_token* t = &parser->tokens[current_index - 1];
     while (current_index > 0 && t && t->type == KSON_TOKEN_TYPE_WHITESPACE) {
         current_index--;
         t = &parser->tokens[current_index];
@@ -474,22 +482,27 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
     while (current_token && current_token->type != KSON_TOKEN_TYPE_EOF) {
         switch (current_token->type) {
             case KSON_TOKEN_TYPE_CURLY_BRACE_OPEN: {
-                ENSURE_IDENTIFIER("{")
+                // TODO: may be needed to verify object starts at correct place.
+                /* ENSURE_IDENTIFIER("{") */
                 // starting a block.
                 kson_object obj = {0};
                 obj.type = KSON_OBJECT_TYPE_OBJECT;
                 obj.properties = darray_create(kson_property);
                 // Push to current property
+                if (!current_property->value.o) {
+                    current_property->value.o = darray_create(kson_object);
+                }
                 darray_push(current_property->value.o, obj);
                 // Set the object as current and push to the stack.
                 u32 prop_count = darray_length(current_property->value.o);
                 current_object = &current_property->value.o[prop_count - 1];
 
                 // Add the object to the stack.
-                stack_push(&scope, current_object);
+                stack_push(&scope, &current_object);
             } break;
             case KSON_TOKEN_TYPE_CURLY_BRACE_CLOSE: {
-                ENSURE_IDENTIFIER("}")
+                // TODO: may be needed to verify object ends at correct place.
+                /* ENSURE_IDENTIFIER("}") */
                 // Ending a block.
                 if (!stack_pop(&scope, &current_object)) {
                     KERROR("Failed to pop from scope stack.");
@@ -497,23 +510,30 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                 }
             } break;
             case KSON_TOKEN_TYPE_BRACKET_OPEN: {
-                ENSURE_IDENTIFIER("[")
+                // TODO: may be needed to verify array starts at correct place.
+                /* ENSURE_IDENTIFIER("[") */
+
                 // starting an array.
                 kson_object obj = {0};
                 obj.type = KSON_OBJECT_TYPE_ARRAY;
                 obj.properties = darray_create(kson_property);
 
                 // Push to current property
+                if (!current_property->value.o) {
+                    current_property->value.o = darray_create(kson_object);
+                }
                 darray_push(current_property->value.o, obj);
                 // Set the object as current and push to the stack.
                 u32 prop_count = darray_length(current_property->value.o);
                 current_object = &current_property->value.o[prop_count - 1];
 
                 // Add the object to the stack.
-                stack_push(&scope, current_object);
+                stack_push(&scope, &current_object);
             } break;
             case KSON_TOKEN_TYPE_BRACKET_CLOSE: {
-                ENSURE_IDENTIFIER("]")
+                // TODO: may be needed to verify array ends at correct place.
+                /* ENSURE_IDENTIFIER("]") */
+
                 // Ending an array.
                 if (!stack_pop(&scope, &current_object)) {
                     KERROR("Failed to pop from scope stack.");
@@ -533,6 +553,9 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                 prop.name = string_duplicate(buf);
 
                 // Push the new property and set the current property to it.
+                if (!current_object->properties) {
+                    current_object->properties = darray_create(kson_property);
+                }
                 darray_push(current_object->properties, prop);
                 u32 prop_count = darray_length(current_object->properties);
                 current_property = &current_object->properties[prop_count - 1];
@@ -679,7 +702,11 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                         }
                     }
 
+                    u32 num_lit_len = string_length(numeric_literal_str);
+                    kzero_memory(numeric_literal_str, sizeof(char*) * num_lit_len);
                     expect_numeric = false;
+                    numeric_decimal_pos = -1;
+                    numeric_literal_str_pos = 0;
 
                     // Current value is set, so now expect another identifier or array element.
                 }
@@ -687,6 +714,7 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                 // Don't expect a value after a newline.
                 // TODO: What about arrays of values?
                 expect_value = false;
+                expect_identifier = true;
                 break;
             case KSON_TOKEN_TYPE_EOF: {
                 b8 valid = true;
@@ -706,6 +734,8 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
 
             } break;
         }
+        index++;
+        current_token = &parser->tokens[index];
     }
 
     return true;
