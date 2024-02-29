@@ -53,13 +53,29 @@ typedef enum kson_tokenize_mode {
         mode = KSON_TOKENIZE_MODE_UNKNOWN;            \
     }
 
-// Pushes the current token, if not of unknown type.
-#define PUSH_CURRENT_TOKEN()                                 \
-    {                                                        \
-        if (current_token.type != KSON_TOKEN_TYPE_UNKNOWN) { \
-            darray_push(parser->tokens, current_token);      \
-        }                                                    \
+#ifdef KOHI_DEBUG
+#define POPULATE_TOKEN_CONTENT(t)                             \
+    {                                                         \
+        char buffer[512] = {0};                               \
+        string_mid(buffer, source, t.start, t.end - t.start); \
+        t.content = string_duplicate(buffer);                 \
     }
+#else
+// No-op
+#define POPULATE_CURRENT_TOKEN_CONTENT()
+#endif
+
+// Pushes the current token, if not of unknown type.
+#define PUSH_TOKEN(t)                            \
+    {                                            \
+        if (t.type != KSON_TOKEN_TYPE_UNKNOWN) { \
+            POPULATE_TOKEN_CONTENT(t);           \
+            darray_push(parser->tokens, t);      \
+        }                                        \
+    }
+
+// Pushes the current token, if not of unknown type.
+#define PUSH_CURRENT_TOKEN() PUSH_TOKEN(current_token)
 
 b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
     if (!parser) {
@@ -135,7 +151,8 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                 // Just create a new token and insert it.
                 kson_token newline_token = {KSON_TOKEN_TYPE_NEWLINE, c, c + advance};
-                darray_push(parser->tokens, newline_token);
+
+                PUSH_TOKEN(newline_token);
 
                 RESET_CURRENT_TOKEN_AND_MODE();
             } break;
@@ -159,7 +176,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                 // Create and push a new token for this.
                 kson_token open_brace_token = {KSON_TOKEN_TYPE_CURLY_BRACE_OPEN, c, c + advance};
-                darray_push(parser->tokens, open_brace_token);
+                PUSH_TOKEN(open_brace_token);
 
                 RESET_CURRENT_TOKEN_AND_MODE();
             } break;
@@ -168,7 +185,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                 // Create and push a new token for this.
                 kson_token close_brace_token = {KSON_TOKEN_TYPE_CURLY_BRACE_CLOSE, c, c + advance};
-                darray_push(parser->tokens, close_brace_token);
+                PUSH_TOKEN(close_brace_token);
 
                 RESET_CURRENT_TOKEN_AND_MODE();
             } break;
@@ -177,7 +194,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                 // Create and push a new token for this.
                 kson_token open_bracket_token = {KSON_TOKEN_TYPE_BRACKET_OPEN, c, c + advance};
-                darray_push(parser->tokens, open_bracket_token);
+                PUSH_TOKEN(open_bracket_token);
 
                 RESET_CURRENT_TOKEN_AND_MODE();
             } break;
@@ -186,7 +203,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                 // Create and push a new token for this.
                 kson_token close_bracket_token = {KSON_TOKEN_TYPE_BRACKET_CLOSE, c, c + advance};
-                darray_push(parser->tokens, close_bracket_token);
+                PUSH_TOKEN(close_bracket_token);
 
                 RESET_CURRENT_TOKEN_AND_MODE();
             } break;
@@ -233,7 +250,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                 // Create and push a new token for this.
                 kson_token minus_token = {KSON_TOKEN_TYPE_OPERATOR_MINUS, c, c + advance};
-                darray_push(parser->tokens, minus_token);
+                PUSH_TOKEN(minus_token);
 
                 RESET_CURRENT_TOKEN_AND_MODE();
             } break;
@@ -246,7 +263,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                 // Create and push a new token for this.
                 kson_token plus_token = {KSON_TOKEN_TYPE_OPERATOR_PLUS, c, c + advance};
-                darray_push(parser->tokens, plus_token);
+                PUSH_TOKEN(plus_token);
 
                 RESET_CURRENT_TOKEN_AND_MODE();
             } break;
@@ -274,7 +291,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                     // Otherwise it should be treated as a slash operator.
                     // Create and push a new token for this.
                     kson_token slash_token = {KSON_TOKEN_TYPE_OPERATOR_SLASH, c, c + advance};
-                    darray_push(parser->tokens, slash_token);
+                    PUSH_TOKEN(slash_token);
                 }
 
                 RESET_CURRENT_TOKEN_AND_MODE();
@@ -284,7 +301,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                 // Create and push a new token for this.
                 kson_token asterisk_token = {KSON_TOKEN_TYPE_OPERATOR_ASTERISK, c, c + advance};
-                darray_push(parser->tokens, asterisk_token);
+                PUSH_TOKEN(asterisk_token);
 
                 RESET_CURRENT_TOKEN_AND_MODE();
             } break;
@@ -293,7 +310,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                 // Create and push a new token for this.
                 kson_token equal_token = {KSON_TOKEN_TYPE_OPERATOR_EQUAL, c, c + advance};
-                darray_push(parser->tokens, equal_token);
+                PUSH_TOKEN(equal_token);
 
                 RESET_CURRENT_TOKEN_AND_MODE();
             } break;
@@ -306,7 +323,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                 // Create and push a new token for this.
                 kson_token dot_token = {KSON_TOKEN_TYPE_OPERATOR_DOT, c, c + advance};
-                darray_push(parser->tokens, dot_token);
+                PUSH_TOKEN(dot_token);
 
                 RESET_CURRENT_TOKEN_AND_MODE();
             } break;
@@ -316,7 +333,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                 // Create and push a new token for this.
                 kson_token eof_token = {KSON_TOKEN_TYPE_EOF, c, c + advance};
-                darray_push(parser->tokens, eof_token);
+                PUSH_TOKEN(eof_token);
 
                 RESET_CURRENT_TOKEN_AND_MODE();
 
@@ -347,7 +364,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
 
                             // Create and push boolean token.
                             kson_token bool_token = {KSON_TOKEN_TYPE_BOOLEAN, c, c + bool_advance};
-                            darray_push(parser->tokens, bool_token);
+                            PUSH_TOKEN(bool_token);
 
                             RESET_CURRENT_TOKEN_AND_MODE();
 
@@ -384,7 +401,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
     PUSH_CURRENT_TOKEN();
     // Create and push a new token for this.
     kson_token eof_token = {KSON_TOKEN_TYPE_EOF, char_length, char_length + 1};
-    darray_push(parser->tokens, eof_token);
+    PUSH_TOKEN(eof_token);
 
     return true;
 }
@@ -467,16 +484,16 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
     current_token = &parser->tokens[index];
 
     // Setup the tree.
-    out_tree->roots = darray_create(kson_object);
-
-    // TODO: do we need a base object?
-    kson_object base_object = {0};
-    base_object.type = KSON_OBJECT_TYPE_OBJECT;
-    base_object.properties = darray_create(kson_property);
-    darray_push(out_tree->roots, base_object);
+    out_tree->root = (kson_object){0};
+    out_tree->root.type = KSON_OBJECT_TYPE_OBJECT;
+    out_tree->root.properties = darray_create(kson_property);
 
     // Set it as the current object.
-    kson_object* current_object = &out_tree->roots[0];
+    kson_object* current_object = &out_tree->root;
+    if (!stack_push(&scope, &current_object)) {
+        KERROR("Failed to push base object onto stack.");
+        return false;
+    }
     kson_property* current_property = 0;
 
     while (current_token && current_token->type != KSON_TOKEN_TYPE_EOF) {
@@ -488,11 +505,25 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                 kson_object obj = {0};
                 obj.type = KSON_OBJECT_TYPE_OBJECT;
                 obj.properties = darray_create(kson_property);
-                // Push to current property
-                if (!current_property->value.o) {
-                    current_property->value.o = darray_create(kson_object);
+
+                if (current_object->type == KSON_OBJECT_TYPE_ARRAY) {
+                    // Apply the value directly to a newly-created, non-named property that gets added to current_object.
+                    kson_property p = {0};
+                    p.type = KSON_PROPERTY_TYPE_OBJECT;
+                    p.value.o = darray_create(kson_object);
+                    p.name = 0;
+                    // Push the object to the new property's object array.
+                    darray_push(p.value.o, obj);
+                    // Add the property to the current object.
+                    darray_push(current_object->properties, p);
+                } else {
+                    // Push to current property
+                    if (!current_property->value.o) {
+                        current_property->value.o = darray_create(kson_object);
+                    }
+                    darray_push(current_property->value.o, obj);
                 }
-                darray_push(current_property->value.o, obj);
+
                 // Set the object as current and push to the stack.
                 u32 prop_count = darray_length(current_property->value.o);
                 current_object = &current_property->value.o[prop_count - 1];
@@ -504,10 +535,20 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                 // TODO: may be needed to verify object ends at correct place.
                 /* ENSURE_IDENTIFIER("}") */
                 // Ending a block.
-                if (!stack_pop(&scope, &current_object)) {
+
+                kson_object* popped_obj = 0;
+                if (!stack_pop(&scope, &popped_obj)) {
                     KERROR("Failed to pop from scope stack.");
                     return false;
                 }
+
+                // Peek the next object on the stack and make it the current object.
+                if (!stack_peek(&scope, &current_object)) {
+                    KERROR("Failed to peek scope stack.");
+                    return false;
+                }
+
+                expect_value = current_object->type == KSON_OBJECT_TYPE_ARRAY;
             } break;
             case KSON_TOKEN_TYPE_BRACKET_OPEN: {
                 // TODO: may be needed to verify array starts at correct place.
@@ -518,27 +559,52 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                 obj.type = KSON_OBJECT_TYPE_ARRAY;
                 obj.properties = darray_create(kson_property);
 
-                // Push to current property
-                if (!current_property->value.o) {
-                    current_property->value.o = darray_create(kson_object);
+                if (current_object->type == KSON_OBJECT_TYPE_ARRAY) {
+                    // Apply the value directly to a newly-created, non-named property that gets added to current_object.
+                    kson_property p = {0};
+                    p.type = KSON_PROPERTY_TYPE_ARRAY;
+                    p.value.o = darray_create(kson_object);
+                    p.name = 0;
+                    // Push the object to the new property's object array.
+                    darray_push(p.value.o, obj);
+                    // Add the property to the current object.
+                    darray_push(current_object->properties, p);
+                } else {
+                    // Push to current property
+                    if (!current_property->value.o) {
+                        current_property->value.o = darray_create(kson_object);
+                    }
+                    darray_push(current_property->value.o, obj);
                 }
-                darray_push(current_property->value.o, obj);
+
                 // Set the object as current and push to the stack.
                 u32 prop_count = darray_length(current_property->value.o);
                 current_object = &current_property->value.o[prop_count - 1];
 
                 // Add the object to the stack.
                 stack_push(&scope, &current_object);
+
+                expect_value = true;
+
             } break;
             case KSON_TOKEN_TYPE_BRACKET_CLOSE: {
                 // TODO: may be needed to verify array ends at correct place.
                 /* ENSURE_IDENTIFIER("]") */
 
                 // Ending an array.
-                if (!stack_pop(&scope, &current_object)) {
+                kson_object* popped_obj = 0;
+                if (!stack_pop(&scope, &popped_obj)) {
                     KERROR("Failed to pop from scope stack.");
                     return false;
                 }
+
+                // Peek the next object on the stack and make it the current object.
+                if (!stack_peek(&scope, &current_object)) {
+                    KERROR("Failed to peek scope stack.");
+                    return false;
+                }
+
+                expect_value = current_object->type == KSON_OBJECT_TYPE_ARRAY;
             } break;
             case KSON_TOKEN_TYPE_IDENTIFIER:
                 char buf[512] = {0};
@@ -668,9 +734,18 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                     return false;
                 }
 
-                current_property->value.s = string_from_kson_token(parser->file_content, current_token);
+                if (current_object->type == KSON_OBJECT_TYPE_ARRAY) {
+                    // Apply the value directly to a newly-created, non-named property that gets added to current_object.
+                    kson_property p = {0};
+                    p.type = KSON_PROPERTY_TYPE_STRING;
+                    p.value.s = string_from_kson_token(parser->file_content, current_token);
+                    p.name = 0;
+                    darray_push(current_object->properties, p);
+                } else {
+                    current_property->value.s = string_from_kson_token(parser->file_content, current_token);
+                }
 
-                expect_value = false;
+                expect_value = current_object->type == KSON_OBJECT_TYPE_ARRAY;
                 break;
             case KSON_TOKEN_TYPE_BOOLEAN: {
                 if (!expect_value) {
@@ -679,29 +754,57 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                 }
 
                 char* token_string = string_from_kson_token(parser->file_content, current_token);
-                b8 result = string_to_bool(token_string, &current_property->value.b);
-                if (!result) {
+                b8 bool_value = false;
+                if (!string_to_bool(token_string, &bool_value)) {
                     KERROR("Failed to parse boolean from token. Position: %u", current_token->start);
                 }
-
+                // LEFTOFF: Something is causing a segfault here. Memory getting trampled?
                 string_free(token_string);
+
+                if (current_object->type == KSON_OBJECT_TYPE_ARRAY) {
+                    // Apply the value directly to a newly-created, non-named property that gets added to current_object.
+                    kson_property p = {0};
+                    p.type = KSON_PROPERTY_TYPE_BOOLEAN;
+                    p.value.b = bool_value;
+                    p.name = 0;
+                    darray_push(current_object->properties, p);
+                } else {
+                    current_property->value.b = bool_value;
+                }
+
+                expect_value = current_object->type == KSON_OBJECT_TYPE_ARRAY;
             } break;
             case KSON_TOKEN_TYPE_NEWLINE:
                 if (expect_numeric) {
                     // Terminate the numeric and set the current property's value to it.
+                    kson_property p = {0};
+                    p.type = KSON_PROPERTY_TYPE_NUMBER;
+                    p.name = 0;
                     // Determine whether it is a float or a int.
                     if (string_index_of(numeric_literal_str, '.')) {
-                        if (!string_to_f32(numeric_literal_str, &current_property->value.f)) {
+                        f32 f_value = 0;
+                        if (!string_to_f32(numeric_literal_str, &f_value)) {
                             KERROR("Failed to parse string to float: '%s', Position: %u", numeric_literal_str, current_token->start);
                             return false;
                         }
+                        p.value.f = f_value;
                     } else {
-                        if (!string_to_i64(numeric_literal_str, &current_property->value.i)) {
+                        i64 i_value = 0;
+                        if (!string_to_i64(numeric_literal_str, &i_value)) {
                             KERROR("Failed to parse string to signed int: '%s', Position: %u", numeric_literal_str, current_token->start);
                             return false;
                         }
+                        p.value.i = i_value;
                     }
 
+                    if (current_object->type == KSON_OBJECT_TYPE_ARRAY) {
+                        // Apply the value directly to a newly-created, non-named property that gets added to current_object.
+                        darray_push(current_object->properties, p);
+                    } else {
+                        current_property->value = p.value;
+                    }
+
+                    // Reset the numeric parse string state.
                     u32 num_lit_len = string_length(numeric_literal_str);
                     kzero_memory(numeric_literal_str, sizeof(char*) * num_lit_len);
                     expect_numeric = false;
@@ -712,9 +815,8 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                 }
 
                 // Don't expect a value after a newline.
-                // TODO: What about arrays of values?
-                expect_value = false;
-                expect_identifier = true;
+                expect_value = current_object->type == KSON_OBJECT_TYPE_ARRAY;
+                expect_identifier = !expect_value;
                 break;
             case KSON_TOKEN_TYPE_EOF: {
                 b8 valid = true;

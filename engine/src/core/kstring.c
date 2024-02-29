@@ -545,7 +545,7 @@ b8 string_to_bool(const char* str, b8* b) {
     }
 
     *b = strings_equal(str, "1") || strings_equali(str, "true");
-    return *b;
+    return true;
 }
 
 u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_entries, b8 include_empty) {

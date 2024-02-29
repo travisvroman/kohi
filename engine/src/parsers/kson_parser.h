@@ -29,6 +29,9 @@ typedef struct kson_token {
     kson_token_type type;
     u32 start;
     u32 end;
+#ifdef KOHI_DEBUG
+    const char* content;
+#endif
 } kson_token;
 
 typedef struct kson_parser {
@@ -74,8 +77,7 @@ typedef struct kson_object {
 } kson_object;
 
 typedef struct kson_tree {
-    // darray
-    kson_object* roots;
+    kson_object root;
 } kson_tree;
 
 KAPI b8 kson_parser_create(kson_parser* out_parser);

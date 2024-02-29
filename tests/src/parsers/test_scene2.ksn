@@ -1,4 +1,12 @@
 // Comments - UNIT TEST VERSION
+mixed_array = [
+    1
+    "string"
+    true
+    {
+        name = "rubbish"
+    }
+]
 test_prop=-.2
 properties = {
     // in-block comments
@@ -6,6 +14,8 @@ properties = {
     description = "A simple test scene, yo."
 }
 nodes = [
+    1
+    "string"
     {
         name = "sponza"
         attachments = [
