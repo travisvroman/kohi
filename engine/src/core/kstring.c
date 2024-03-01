@@ -98,13 +98,10 @@ char* string_duplicate(const char* str) {
 
 void string_free(char* str) {
     if (str) {
-        u64 size = 0;
-        u16 alignment = 0;
-        if (kmemory_get_size_alignment(str, &size, &alignment)) {
-            kfree_aligned(str, size, alignment, MEMORY_TAG_STRING);
-        } else {
-            // TODO: report failure?
-        }
+        // NOTE: Using kfree instead of aligned version because this might be
+        // called without the memory system being initialized (i.e. unit tests).
+        u64 length = string_length(str);
+        kfree(str, length + 1, MEMORY_TAG_STRING);
     } else {
         // TODO: report null ptr?
     }

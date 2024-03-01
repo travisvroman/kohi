@@ -34,3 +34,5 @@ nodes = [
     }
 ]
 foo = 32
+bar = true
+bollocks="rubbish"
