@@ -794,7 +794,6 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                 if (expect_numeric) {
                     // Terminate the numeric and set the current property's value to it.
                     kson_property p = {0};
-                    p.type = KSON_PROPERTY_TYPE_NUMBER;
                     p.name = 0;
                     // Determine whether it is a float or a int.
                     if (string_index_of(numeric_literal_str, '.') != -1) {
@@ -804,6 +803,7 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                             return false;
                         }
                         p.value.f = f_value;
+                        p.type = KSON_PROPERTY_TYPE_FLOAT;
                     } else {
                         i64 i_value = 0;
                         if (!string_to_i64(numeric_literal_str, &i_value)) {
@@ -811,13 +811,14 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                             return false;
                         }
                         p.value.i = i_value;
+                        p.type = KSON_PROPERTY_TYPE_INT;
                     }
 
                     if (current_object->type == KSON_OBJECT_TYPE_ARRAY) {
                         // Apply the value directly to a newly-created, non-named property that gets added to current_object.
                         darray_push(current_object->properties, p);
                     } else {
-                        current_property->type = KSON_PROPERTY_TYPE_NUMBER;
+                        current_property->type = p.type;
                         current_property->value = p.value;
                     }
 
@@ -861,13 +862,223 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
 }
 
 b8 kson_tree_from_string(const char* source, kson_tree* out_tree) {
-    // TODO: combined Tokenization and parsing into a single call here.
-    KASSERT_MSG(false, "Not implemented");
-    return false;
+    if (!source) {
+        KERROR("kson_tree_from_string requires valid source.");
+        return false;
+    }
+    if (!out_tree) {
+        KERROR("kson_tree_from_string requires a valid pointer to out_tree.");
+        return false;
+    }
+
+    // String is empty, return empty tree.
+    if (string_length(source) < 1) {
+        out_tree->root.type = KSON_OBJECT_TYPE_OBJECT;
+        out_tree->root.properties = 0;
+        return true;
+    }
+
+    // Create a parser to use.
+    kson_parser parser;
+    if (!kson_parser_create(&parser)) {
+        KERROR("Failed to create KSON parser.");
+        return false;
+    }
+
+    b8 result = true;
+
+    // Start tokenizing
+    if (!kson_parser_tokenize(&parser, source)) {
+        KERROR("Tokenization failed. See logs for details.");
+        result = false;
+        goto kson_tree_from_string_parser_cleanup;
+    }
+
+    // Parse the tokens.
+    if (!kson_parser_parse(&parser, out_tree)) {
+        KERROR("Parsing failed. See logs for details.");
+        result = false;
+        goto kson_tree_from_string_parser_cleanup;
+    }
+
+kson_tree_from_string_parser_cleanup:
+    kson_parser_destroy(&parser);
+    if (!result && out_tree->root.properties) {
+        kson_tree_cleanup(out_tree);
+    }
+    return result;
+}
+
+static void write_spaces(char* out_source, u32* position, u16 count) {
+    if (out_source) {
+        for (u32 s = 0; s < count; ++s) {
+            out_source[(*position)] = ' ';
+            (*position)++;
+        }
+    } else {
+        (*position) += count;
+    }
+}
+
+static void write_string(char* out_source, u32* position, const char* str) {
+    u32 len = string_length(str);
+    if (out_source) {
+        for (u32 s = 0; s < len; ++s) {
+            out_source[(*position)] = str[s];
+            (*position)++;
+        }
+    } else {
+        (*position) += len;
+    }
+}
+
+static void kson_tree_object_to_string(const kson_object* obj, char* out_source, u32* position, i16 indent_level, u8 indent_spaces) {
+    indent_level++;
+
+    if (obj && obj->properties) {
+        u32 prop_count = darray_length(obj->properties);
+        for (u32 i = 0; i < prop_count; ++i) {
+            kson_property* p = &obj->properties[i];
+            // Write indent.
+            write_spaces(out_source, position, indent_level * indent_spaces);
+            b8 obj_needs_indent = true;
+            if (p->name) {
+                // write the name, then a space, then =, then another space.
+                write_string(out_source, position, p->name);
+                write_spaces(out_source, position, 1);
+                write_string(out_source, position, "=");
+                write_spaces(out_source, position, 1);
+                obj_needs_indent = false;
+            }
+
+            // Write the value
+            switch (p->type) {
+                case KSON_PROPERTY_TYPE_OBJECT: {
+                    if (obj_needs_indent) {
+                        write_spaces(out_source, position, (indent_level - 1) * indent_spaces);
+                    }
+                    // Write an object "opener" and a newline.
+                    write_string(out_source, position, "{\n");
+                    u32 obj_prop_count = darray_length(p->value.o);
+                    for (u32 j = 0; j < obj_prop_count; ++j) {
+                        kson_tree_object_to_string(&p->value.o[j], out_source, position, indent_level, indent_spaces);
+                    }
+                    write_spaces(out_source, position, indent_level * indent_spaces);
+                    // Write an object "closer" and a newline.
+                    write_string(out_source, position, "}\n");
+                } break;
+                case KSON_PROPERTY_TYPE_ARRAY: {
+                    if (obj_needs_indent) {
+                        write_spaces(out_source, position, (indent_level - 1) * indent_spaces);
+                    }
+                    // Write an object "opener" and a newline.
+                    write_string(out_source, position, "[\n");
+                    u32 obj_prop_count = darray_length(p->value.o);
+                    for (u32 j = 0; j < obj_prop_count; ++j) {
+                        kson_tree_object_to_string(&p->value.o[j], out_source, position, indent_level, indent_spaces);
+                    }
+
+                    write_spaces(out_source, position, indent_level * indent_spaces);
+                    // Write an object "closer" and a newline.
+                    write_string(out_source, position, "]\n");
+                } break;
+                case KSON_PROPERTY_TYPE_STRING: {
+                    if (p->value.s) {
+                        // Surround the string with quotes and put a newline after.
+                        write_string(out_source, position, "\"");
+                        write_string(out_source, position, p->value.s);
+                        write_string(out_source, position, "\"\n");
+                    } else {
+                        // Write an empty string.
+                        write_string(out_source, position, "\"\"\n");
+                    }
+                } break;
+                case KSON_PROPERTY_TYPE_BOOLEAN: {
+                    write_string(out_source, position, p->value.b ? "true" : "false");
+                    write_string(out_source, position, "\n");
+                } break;
+                case KSON_PROPERTY_TYPE_INT: {
+                    char buffer[30] = {0};
+                    string_append_int(buffer, "", p->value.i);
+                    write_string(out_source, position, buffer);
+                    write_string(out_source, position, "\n");
+                } break;
+                case KSON_PROPERTY_TYPE_FLOAT: {
+                    char buffer[30] = {0};
+                    string_append_float(buffer, "", p->value.f);
+                    write_string(out_source, position, buffer);
+                    write_string(out_source, position, "\n");
+                } break;
+                default:
+                case KSON_PROPERTY_TYPE_UNKNOWN: {
+                    KWARN("kson_tree_object_cleanup encountered an unknown property type.");
+                } break;
+            }
+        }
+    }
 }
 
 const char* kson_tree_to_string(kson_tree* tree) {
-    // TODO: write a string based on the provided tree.
-    KASSERT_MSG(false, "Not implemented");
-    return false;
+    if (!tree || !tree->root.properties) {
+        return 0;
+    }
+
+    u32 length = 0;
+    kson_tree_object_to_string(&tree->root, 0, &length, -1, 4);
+    char* out_string = kallocate(sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+
+    length = 0;
+    kson_tree_object_to_string(&tree->root, out_string, &length, -1, 4);
+
+    return out_string;
+}
+
+static void kson_tree_object_cleanup(kson_object* obj) {
+    if (obj && obj->properties) {
+        u32 prop_count = darray_length(obj->properties);
+        for (u32 i = 0; i < prop_count; ++i) {
+            kson_property* p = &obj->properties[i];
+            switch (p->type) {
+                case KSON_PROPERTY_TYPE_OBJECT: {
+                    u32 obj_prop_count = darray_length(p->value.o);
+                    for (u32 j = 0; j < obj_prop_count; ++j) {
+                        kson_tree_object_cleanup(&p->value.o[j]);
+                    }
+                    darray_destroy(p->value.o);
+                    p->value.o = 0;
+                } break;
+                case KSON_PROPERTY_TYPE_ARRAY: {
+                    u32 obj_prop_count = darray_length(p->value.o);
+                    for (u32 j = 0; j < obj_prop_count; ++j) {
+                        kson_tree_object_cleanup(&p->value.o[j]);
+                    }
+                    darray_destroy(p->value.o);
+                    p->value.o = 0;
+                } break;
+                case KSON_PROPERTY_TYPE_STRING: {
+                    if (p->value.s) {
+                        string_free((char*)p->value.s);
+                        p->value.s = 0;
+                    }
+                } break;
+                case KSON_PROPERTY_TYPE_BOOLEAN:
+                case KSON_PROPERTY_TYPE_FLOAT:
+                case KSON_PROPERTY_TYPE_INT: {
+                    // no-op
+                } break;
+                default:
+                case KSON_PROPERTY_TYPE_UNKNOWN: {
+                    KWARN("kson_tree_object_cleanup encountered an unknown property type.");
+                } break;
+            }
+        }
+        darray_destroy(obj->properties);
+        obj->properties = 0;
+    }
+}
+
+void kson_tree_cleanup(kson_tree* tree) {
+    if (tree && tree->root.properties) {
+        kson_tree_object_cleanup(&tree->root);
+    }
 }

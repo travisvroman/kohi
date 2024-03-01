@@ -45,7 +45,8 @@ typedef struct kson_parser {
 typedef enum kson_property_type {
     // TODO: Do we want to support undefined/null types. If so, pick one and just use that, no defining both.
     KSON_PROPERTY_TYPE_UNKNOWN,
-    KSON_PROPERTY_TYPE_NUMBER,
+    KSON_PROPERTY_TYPE_INT,
+    KSON_PROPERTY_TYPE_FLOAT,
     KSON_PROPERTY_TYPE_STRING,
     KSON_PROPERTY_TYPE_OBJECT,
     KSON_PROPERTY_TYPE_ARRAY,
@@ -88,5 +89,7 @@ KAPI b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree);
 KAPI b8 kson_tree_from_string(const char* source, kson_tree* out_tree);
 
 KAPI const char* kson_tree_to_string(kson_tree* tree);
+
+KAPI void kson_tree_cleanup(kson_tree* tree);
 
 #endif

@@ -53,11 +53,11 @@ u8 kson_parser_should_tokenize_file_content(void) {
 
     filesystem_close(&f);
 
-    // Start tokenizing
     kson_parser parser;
     kson_parser_create(&parser);
 
     b8 tokenize_result = kson_parser_tokenize(&parser, test_file_content);
+    // Start tokenizing
     expect_to_be_true(tokenize_result);
 
     u32 token_count = darray_length(parser.tokens);
@@ -69,6 +69,9 @@ u8 kson_parser_should_tokenize_file_content(void) {
     expect_to_be_true(parse_result);
 
     kson_parser_destroy(&parser);
+
+    const char* str = kson_tree_to_string(&tree);
+    KINFO(str);
 
     return true;
 }
