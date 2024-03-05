@@ -1,10 +1,12 @@
 
+#include <bits/time.h>
+
 #include "platform.h"
 
 // Linux platform layer.
 #if KPLATFORM_LINUX
-#include <X11/extensions/Xrender.h>
-#include <xcb/xproto.h>
+// #include <X11/extensions/Xrender.h>
+// #include <xcb/xproto.h>
 
 #include "math/kmath.h"
 
@@ -19,7 +21,7 @@
 #include <X11/Xlib-xcb.h>  // sudo apt-get install libxkbcommon-x11-dev libx11-xcb-dev
 #include <X11/Xlib.h>
 #include <X11/Xresource.h>
-#include <X11/extensions/Xrandr.h>
+// #include <X11/extensions/Xrandr.h>
 #include <X11/keysym.h>
 #include <sys/time.h>
 #include <xcb/xcb.h>
@@ -576,6 +578,28 @@ b8 kthread_is_active(kthread* thread) {
 
 void kthread_sleep(kthread* thread, u64 ms) {
     platform_sleep(ms);
+}
+
+b8 kthread_wait(kthread* thread) {
+    if (thread && thread->internal_data) {
+        i32 result = pthread_join(*(pthread_t*)thread->internal_data, 0);
+        if (result == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+b8 kthread_wait_timeout(kthread* thread, u64 wait_ms) {
+    if (thread && thread->internal_data) {
+        KWARN("kthread_wait_timeout - timeout not supported on this platform.");
+        // LEFTOFF: Need a wait/notify loop to support timeout.
+        i32 result = pthread_join(*(pthread_t*)thread->internal_data, 0);
+        if (result == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 u64 platform_current_thread_id(void) {

@@ -15,8 +15,19 @@
 #if defined(KPLATFORM_LINUX) || defined(KPLATFORM_APPLE)
 
 #include <dlfcn.h>
-#include <semaphore.h>
+
+// NOTE: Apple's include is on a different path.
+#if defined(KPLATFORM_APPLE)
 #include <sys/semaphore.h>
+#endif
+
+// NOTE: Linux has its own path, plus needs a few more headers.
+#if defined(KPLATFORM_LINUX)
+#include <fcntl.h>      // For O_* constants
+#include <semaphore.h>  // sudo apt install linux-headers
+/* #include <sys/stat.h>   // For mode constants */
+#endif
+
 #include <sys/shm.h>
 
 #include "containers/darray.h"
