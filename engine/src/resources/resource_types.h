@@ -729,7 +729,7 @@ typedef struct scene_node_attachment_point_light {
 } scene_node_attachment_point_light;
 
 typedef struct scene_node_attachment_config {
-    char *name;
+    scene_node_attachment_type type;
     void *attachment;
 } scene_node_attachment_config;
 

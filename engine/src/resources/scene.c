@@ -88,6 +88,7 @@ b8 scene_create(void *config, scene *out_scene) {
     out_scene->skyboxes = darray_create(skybox);
 
     // Internal lists of attachments.
+    out_scene->attachments = darray_create(scene_attachment);
     out_scene->mesh_attachments = darray_create(scene_attachment);
     out_scene->terrain_attachments = darray_create(scene_attachment);
 
@@ -143,7 +144,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
         if (node_config->attachments) {
             u32 attachment_count = darray_length(node_config->attachments);
             for (u32 i = 0; i < attachment_count; ++i) {
-                void *attachment = &node_config->attachments[i];
+                scene_node_attachment_config *attachment = &node_config->attachments[i];
                 scene_node_attachment_type attachment_type = *((scene_node_attachment_type *)attachment);
                 switch (attachment_type) {
                     default:
@@ -151,9 +152,9 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         KERROR("An unknown attachment type was found in config. This attachment will be ignored.");
                         continue;
                     case SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH: {
-                        scene_node_attachment_static_mesh *typed_attachment = attachment;
+                        scene_node_attachment_static_mesh *typed_attachment = attachment->attachment;
 
-                        if (typed_attachment->resource_name) {
+                        if (!typed_attachment->resource_name) {
                             KWARN("Invalid mesh config, resource_name is required.");
                             return;
                         }
@@ -203,7 +204,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_TERRAIN: {
-                        scene_node_attachment_terrain *typed_attachment = attachment;
+                        scene_node_attachment_terrain *typed_attachment = attachment->attachment;
 
                         if (typed_attachment->resource_name) {
                             KWARN("Invalid terrain config, resource_name is required.");
@@ -253,7 +254,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_SKYBOX: {
-                        scene_node_attachment_skybox *typed_attachment = attachment;
+                        scene_node_attachment_skybox *typed_attachment = attachment->attachment;
 
                         // Create a skybox config and use it to create the skybox.
                         skybox_config sb_config = {0};
@@ -299,7 +300,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT: {
-                        scene_node_attachment_directional_light *typed_attachment = attachment;
+                        scene_node_attachment_directional_light *typed_attachment = attachment->attachment;
 
                         directional_light new_dir_light = {0};
                         // TODO: name?
@@ -354,7 +355,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT: {
-                        scene_node_attachment_point_light *typed_attachment = attachment;
+                        scene_node_attachment_point_light *typed_attachment = attachment->attachment;
 
                         point_light new_light = {0};
                         // TODO: name?

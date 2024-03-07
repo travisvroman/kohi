@@ -10,6 +10,7 @@
 #include "resources/loaders/loader_utils.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
+#include "systems/xform_system.h"
 
 #define SHADOW_DISTANCE_DEFAULT 200.0f
 #define SHADOW_FADE_DISTANCE_DEFAULT 25.0f
@@ -34,6 +35,33 @@ static b8 scene_loader_load(struct resource_loader* self, const char* name, void
 
     scene_config* resource_data = kallocate(sizeof(scene_config), MEMORY_TAG_RESOURCE);
     kzero_memory(resource_data, sizeof(scene_config));
+
+    // HACK: temporarily construct a scene hierarchy, will read from file later.
+
+    resource_data->name = "test_scene2";
+    resource_data->description = "A hardcoded test scene.";
+
+    resource_data->nodes = darray_create(scene_node_config);
+
+    // sponza
+    scene_node_config sponza = {0};
+    sponza.name = "sponza";
+
+    sponza.xform = kallocate(sizeof(xform_system_config), MEMORY_TAG_SCENE);
+    sponza.xform->scale = vec3_create(0.01f, 0.01f, 0.01f);
+    sponza.xform->position = vec3_create(0, -1, 0);
+    sponza.xform->rotation = quat_identity();
+
+    sponza.attachments = darray_create(scene_node_attachment_config);
+    scene_node_attachment_config sponza_mesh_attachment = {0};
+    sponza_mesh_attachment.type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
+    sponza_mesh_attachment.attachment = kallocate(sizeof(scene_node_attachment_static_mesh), MEMORY_TAG_SCENE);
+    scene_node_attachment_static_mesh* typed_mesh_attachment = sponza_mesh_attachment.attachment;
+    typed_mesh_attachment->resource_name = "sponza";
+    darray_push(sponza.attachments, sponza_mesh_attachment);
+
+    // Add to global nodes array.
+    darray_push(resource_data->nodes, sponza);
 
     /*
     // Set some defaults, create arrays.

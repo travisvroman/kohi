@@ -412,7 +412,7 @@ static void ensure_allocated(xform_system_state* state, u32 slot_count) {
             kcopy_memory(new_world_matrices, state->world_matrices, sizeof(mat4) * state->allocated);
             kfree_aligned(state->world_matrices, sizeof(mat4) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
         }
-        state->local_matrices = new_world_matrices;
+        state->world_matrices = new_world_matrices;
 
         // Also align positions, rotations and scales for future SIMD purposes.
         vec3* new_positions = kallocate_aligned(sizeof(vec3) * slot_count, 16, MEMORY_TAG_TRANSFORM);

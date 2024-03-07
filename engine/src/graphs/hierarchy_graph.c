@@ -19,12 +19,46 @@ static void build_view_tree(hierarchy_graph* graph, hierarchy_graph_view* out_vi
 static void destroy_view_tree(hierarchy_graph* graph, hierarchy_graph_view* out_view);
 
 b8 hierarchy_graph_create(hierarchy_graph* out_graph) {
-    // TODO: Initialize, etc.
-    KASSERT("not implemented");
-    return false;
+    if (!out_graph) {
+        KERROR("hierarchy_graph_create requires a valid pointer to hold the created graph.");
+        return false;
+    }
+
+    return true;
 }
+
 void hierarchy_graph_destroy(hierarchy_graph* graph) {
-    KASSERT("not implemented");
+    if (graph) {
+        // Realloc all the arrays.
+        if (graph->node_handles) {
+            kfree(graph->node_handles, sizeof(k_handle) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
+            graph->node_handles = 0;
+        }
+
+        if (graph->parent_indices) {
+            kfree(graph->parent_indices, sizeof(u32) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
+            graph->parent_indices = 0;
+        }
+
+        if (graph->levels) {
+            kfree(graph->levels, sizeof(u8) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
+            graph->levels = 0;
+        }
+
+        if (graph->dirty_flags) {
+            kfree(graph->dirty_flags, sizeof(b8) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
+            graph->dirty_flags = 0;
+        }
+
+        if (graph->xform_handles) {
+            kfree(graph->xform_handles, sizeof(k_handle) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
+            graph->xform_handles = 0;
+        }
+
+        graph->nodes_allocated = 0;
+
+        destroy_view_tree(graph, &graph->view);
+    }
 }
 
 void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, mat4* parent_world, hierarchy_graph_view_node* node) {
@@ -202,7 +236,7 @@ static k_handle node_acquire(hierarchy_graph* graph, u32 parent_index, k_handle 
     // Reaching this point means there is no more space in the table. Realloc everything,
     // and move to a larger list. Doubling the size should be sufficient.
     u32 new_index = graph->nodes_allocated;
-    ensure_allocated(graph, graph->nodes_allocated * 2);
+    ensure_allocated(graph, graph->nodes_allocated ? (graph->nodes_allocated * 2) : 1);
 
     // The first free slot will be in the newly allocated block, at the end of the existing block.
     graph->node_handles[new_index] = k_handle_create(new_index);
@@ -268,36 +302,36 @@ static void ensure_allocated(hierarchy_graph* graph, u32 new_node_count) {
         if (graph->node_handles) {
             kcopy_memory(new_node_handles, graph->node_handles, sizeof(k_handle) * graph->nodes_allocated);
             kfree(graph->node_handles, sizeof(k_handle) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
-            graph->node_handles = new_node_handles;
         }
+        graph->node_handles = new_node_handles;
 
         u32* new_parent_indices = kallocate(sizeof(u32) * new_node_count, MEMORY_TAG_ARRAY);
         if (graph->parent_indices) {
             kcopy_memory(new_parent_indices, graph->parent_indices, sizeof(u32) * graph->nodes_allocated);
             kfree(graph->parent_indices, sizeof(u32) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
-            graph->parent_indices = new_parent_indices;
         }
+        graph->parent_indices = new_parent_indices;
 
         u8* new_levels = kallocate(sizeof(u8) * new_node_count, MEMORY_TAG_ARRAY);
         if (graph->levels) {
             kcopy_memory(new_levels, graph->levels, sizeof(u8) * graph->nodes_allocated);
             kfree(graph->levels, sizeof(u8) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
-            graph->levels = new_levels;
         }
+        graph->levels = new_levels;
 
         b8* new_dirty_flags = kallocate(sizeof(b8) * new_node_count, MEMORY_TAG_ARRAY);
         if (graph->dirty_flags) {
             kcopy_memory(new_dirty_flags, graph->levels, sizeof(b8) * graph->nodes_allocated);
             kfree(graph->dirty_flags, sizeof(b8) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
-            graph->dirty_flags = new_dirty_flags;
         }
+        graph->dirty_flags = new_dirty_flags;
 
         k_handle* new_xform_handles = kallocate(sizeof(k_handle) * new_node_count, MEMORY_TAG_ARRAY);
         if (graph->xform_handles) {
             kcopy_memory(new_xform_handles, graph->node_handles, sizeof(k_handle) * graph->nodes_allocated);
             kfree(graph->xform_handles, sizeof(k_handle) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
-            graph->xform_handles = new_xform_handles;
         }
+        graph->xform_handles = new_xform_handles;
 
         graph->nodes_allocated = new_node_count;
     }
@@ -358,12 +392,18 @@ static void destroy_view_tree_node(hierarchy_graph_view* view, hierarchy_graph_v
 }
 
 static void destroy_view_tree(hierarchy_graph* graph, hierarchy_graph_view* view) {
-    u32 root_count = darray_length(view->roots);
-
-    for (u32 i = 0; i < root_count; ++i) {
-        destroy_view_tree_node(view, &view->roots[i]);
+    if (!graph || !view) {
+        return;
     }
 
-    darray_destroy(view->roots);
-    view->roots = 0;
+    if (view->roots) {
+        u32 root_count = darray_length(view->roots);
+
+        for (u32 i = 0; i < root_count; ++i) {
+            destroy_view_tree_node(view, &view->roots[i]);
+        }
+
+        darray_destroy(view->roots);
+        view->roots = 0;
+    }
 }

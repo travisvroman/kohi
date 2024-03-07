@@ -152,7 +152,10 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
         {
             // HACK: Just use the first one for now.
             // TODO: Support for multiple skyboxes, possibly transition between them.
-            skybox_pass_ext_data->sb = scene->skyboxes ? &scene->skyboxes[0] : 0;
+            if (scene->skyboxes) {
+                u32 skybox_count = darray_length(scene->skyboxes);
+                skybox_pass_ext_data->sb = skybox_count ? &scene->skyboxes[0] : 0;
+            }
         }
 
         // Shadowmap pass - only runs if there is a directional light.
