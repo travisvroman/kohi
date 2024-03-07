@@ -94,9 +94,6 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
     // Connect to X
     state_ptr->display = XOpenDisplay(NULL);
 
-    // Turn off key repeats.
-    XAutoRepeatOff(state_ptr->display);
-
     // Retrieve the connection from the display.
     state_ptr->handle.connection = XGetXCBConnection(state_ptr->display);
 
@@ -311,9 +308,6 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
 
 void platform_system_shutdown(void* plat_state) {
     if (state_ptr) {
-        // Turn key repeats back on since this is global for the OS... just... wow.
-        XAutoRepeatOn(state_ptr->display);
-
         xcb_destroy_window(state_ptr->handle.connection, state_ptr->handle.window);
     }
 }

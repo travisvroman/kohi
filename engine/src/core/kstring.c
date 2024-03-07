@@ -88,6 +88,61 @@ b8 bytes_to_codepoint(const char* bytes, u32 offset, i32* out_codepoint, u8* out
     }
 }
 
+b8 char_is_whitespace(char c) {
+    // Source of whitespace characters:
+    switch (c) {
+        case 0x0009:  //  character tabulation (\t)
+        case 0x000A:  // line feed (\n)
+        case 0x000B:  // line tabulation/vertical tab (\v)
+        case 0x000C:  // form feed (\f)
+        case 0x000D:  // carriage return (\r)
+        case 0x0020:  // space (' ')
+            return true;
+        default:
+            return false;
+    }
+}
+
+b8 codepoint_is_whitespace(i32 codepoint) {
+    // Source of whitespace characters:
+    switch (codepoint) {
+        case 0x0009:  //  character tabulation (\t)
+        case 0x000A:  // line feed (\n)
+        case 0x000B:  // line tabulation/vertical tab (\v)
+        case 0x000C:  // form feed (\f)
+        case 0x000D:  // carriage return (\r)
+        case 0x0020:  // space (' ')
+        case 0x0085:  // next line
+        case 0x00A0:  // no-break space
+        case 0x1680:  // ogham space mark
+        case 0x180E:  // mongolian vowel separator
+        case 0x2000:  // en quad
+        case 0x2001:  // em quad
+        case 0x2002:  // en space
+        case 0x2003:  // em space
+        case 0x2004:  // three-per-em space
+        case 0x2005:  // four-per-em space
+        case 0x2006:  // six-per-em space
+        case 0x2007:  // figure space
+        case 0x2008:  // punctuation space
+        case 0x2009:  // thin space
+        case 0x200A:  // hair space
+        case 0x200B:  // zero width space
+        case 0x200C:  // zero width non-joiner
+        case 0x200D:  // zero width joiner
+        case 0x2028:  // line separator
+        case 0x2029:  // paragraph separator
+        case 0x202F:  // narrow no-break space
+        case 0x205F:  // medium mathematical space
+        case 0x2060:  // word joiner
+        case 0x3000:  // ideographic space
+        case 0xFEFF:  // zero width non-breaking space
+            return true;
+        default:
+            return false;
+    }
+}
+
 char* string_duplicate(const char* str) {
     u64 length = string_length(str);
     char* copy = kallocate(length + 1, MEMORY_TAG_STRING);

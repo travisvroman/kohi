@@ -2,17 +2,6 @@
 
 #include "standard_ui_system.h"
 
-typedef struct sui_label_pending_data {
-    u64 vertex_buffer_size;
-    u64 vertex_buffer_offset;
-    u64 index_buffer_size;
-    u64 index_buffer_offset;
-    vertex_2d* vertex_buffer_data;
-    u32* index_buffer_data;
-    u32 new_utf8_length;
-    u32 new_length;
-} sui_label_pending_data;
-
 typedef struct sui_label_internal_data {
     vec2i size;
     vec4 colour;
@@ -28,10 +17,10 @@ typedef struct sui_label_internal_data {
     u64 index_buffer_size;
     char* text;
     u32 max_text_length;
-    u32 cached_ut8_length;
+    u32 quad_count;
+    u32 max_quad_count;
 
     b8 is_dirty;
-    sui_label_pending_data pending_data;
 } sui_label_internal_data;
 
 KAPI b8 sui_label_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control);

@@ -42,6 +42,22 @@ KAPI u32 string_utf8_length(const char* str);
 KAPI b8 bytes_to_codepoint(const char* bytes, u32 offset, i32* out_codepoint, u8* out_advance);
 
 /**
+ * @brief Indicates if the provided character is considered whitespace.
+ *
+ * @param c The character to examine.
+ * @return True if whitespace; otherwise false.
+ */
+KAPI b8 char_is_whitespace(char c);
+
+/**
+ * @brief Indicates if the provided codepoint is considered whitespace.
+ *
+ * @param codepoint The codepoint to examine.
+ * @return True if whitespace; otherwise false.
+ */
+KAPI b8 codepoint_is_whitespace(i32 codepoint);
+
+/**
  * @brief Duplicates the provided string. Note that this allocates new memory,
  * which should be freed by the caller.
  * @param str The string to be duplicated.

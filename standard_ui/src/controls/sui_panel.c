@@ -154,7 +154,9 @@ b8 sui_panel_control_resize(struct sui_control* self, vec2 new_size) {
 static void sui_panel_control_render_frame_prepare(struct sui_control* self, const struct frame_data* p_frame_data) {
     if (self) {
         sui_panel_internal_data* typed_data = self->internal_data;
-        renderer_geometry_vertex_update(typed_data->g, 0, typed_data->g->vertex_count, typed_data->g->vertices, true);
-        typed_data->is_dirty = false;
+        if (typed_data->is_dirty) {
+            renderer_geometry_vertex_update(typed_data->g, 0, typed_data->g->vertex_count, typed_data->g->vertices, true);
+            typed_data->is_dirty = false;
+        }
     }
 }

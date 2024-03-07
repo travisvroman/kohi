@@ -1,14 +1,12 @@
 #include "text_loader.h"
 
-#include "core/logger.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
+#include "core/logger.h"
+#include "loader_utils.h"
+#include "platform/filesystem.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
-#include "math/kmath.h"
-#include "loader_utils.h"
-
-#include "platform/filesystem.h"
 
 static b8 text_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
     if (!self || !name || !out_resource) {
@@ -36,7 +34,7 @@ static b8 text_loader_load(struct resource_loader* self, const char* name, void*
     }
 
     // TODO: Should be using an allocator here.
-    char* resource_data = kallocate(sizeof(char) * file_size, MEMORY_TAG_ARRAY);
+    char* resource_data = kallocate(sizeof(char) * file_size, MEMORY_TAG_RESOURCE);
     u64 read_size = 0;
     if (!filesystem_read_all_text(&f, resource_data, &read_size)) {
         KERROR("Unable to text read file: %s.", full_file_path);
@@ -54,7 +52,7 @@ static b8 text_loader_load(struct resource_loader* self, const char* name, void*
 }
 
 static void text_loader_unload(struct resource_loader* self, resource* resource) {
-    if (!resource_unload(self, resource, MEMORY_TAG_TEXTURE)) {
+    if (!resource_unload(self, resource, MEMORY_TAG_RESOURCE)) {
         KWARN("text_loader_unload called with nullptr for self or resource.");
     }
 }

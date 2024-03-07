@@ -759,75 +759,78 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     state->prev_alloc_count = state->alloc_count;
     state->alloc_count = get_memory_alloc_count();
 
-    // Also tack on current mouse state.
-    b8 left_down = input_is_button_down(BUTTON_LEFT);
-    b8 right_down = input_is_button_down(BUTTON_RIGHT);
-    i32 mouse_x, mouse_y;
-    input_get_mouse_position(&mouse_x, &mouse_y);
+    // Only track these things once actually running.
+    if (state->running) {
+        // Also tack on current mouse state.
+        b8 left_down = input_is_button_down(BUTTON_LEFT);
+        b8 right_down = input_is_button_down(BUTTON_RIGHT);
+        i32 mouse_x, mouse_y;
+        input_get_mouse_position(&mouse_x, &mouse_y);
 
-    // Convert to NDC
-    f32 mouse_x_ndc = range_convert_f32((f32)mouse_x, 0.0f, (f32)state->width, -1.0f, 1.0f);
-    f32 mouse_y_ndc = range_convert_f32((f32)mouse_y, 0.0f, (f32)state->height, -1.0f, 1.0f);
+        // Convert to NDC
+        f32 mouse_x_ndc = range_convert_f32((f32)mouse_x, 0.0f, (f32)state->width, -1.0f, 1.0f);
+        f32 mouse_y_ndc = range_convert_f32((f32)mouse_y, 0.0f, (f32)state->height, -1.0f, 1.0f);
 
-    f64 fps, frame_time;
-    metrics_frame(&fps, &frame_time);
+        f64 fps, frame_time;
+        metrics_frame(&fps, &frame_time);
 
-    // Keep a running average of update and render timers over the last ~1 second.
-    static f64 accumulated_ms = 0;
-    static f32 total_update_seconds = 0;
-    static f32 total_prepare_seconds = 0;
-    static f32 total_render_seconds = 0;
+        // Keep a running average of update and render timers over the last ~1 second.
+        static f64 accumulated_ms = 0;
+        static f32 total_update_seconds = 0;
+        static f32 total_prepare_seconds = 0;
+        static f32 total_render_seconds = 0;
 
-    static f32 total_update_avg_us = 0;
-    static f32 total_prepare_avg_us = 0;
-    static f32 total_render_avg_us = 0;
-    static f32 total_avg = 0;  // total average across the frame
+        static f32 total_update_avg_us = 0;
+        static f32 total_prepare_avg_us = 0;
+        static f32 total_render_avg_us = 0;
+        static f32 total_avg = 0;  // total average across the frame
 
-    total_update_seconds += state->last_update_elapsed;
-    total_prepare_seconds += state->prepare_clock.elapsed;
-    total_render_seconds += state->render_clock.elapsed;
-    accumulated_ms += frame_time;
+        total_update_seconds += state->last_update_elapsed;
+        total_prepare_seconds += state->prepare_clock.elapsed;
+        total_render_seconds += state->render_clock.elapsed;
+        accumulated_ms += frame_time;
 
-    // Once ~1 second has gone by, calculate the average and wipe the accumulators.
-    if (accumulated_ms >= 1000.0f) {
-        total_update_avg_us = (total_update_seconds / accumulated_ms) * K_SEC_TO_US_MULTIPLIER;
-        total_prepare_avg_us = (total_prepare_seconds / accumulated_ms) * K_SEC_TO_US_MULTIPLIER;
-        total_render_avg_us = (total_render_seconds / accumulated_ms) * K_SEC_TO_US_MULTIPLIER;
-        total_avg = total_update_avg_us + total_prepare_avg_us + total_render_avg_us;
-        total_render_seconds = 0;
-        total_prepare_seconds = 0;
-        total_update_seconds = 0;
-        accumulated_ms = 0;
-    }
+        // Once ~1 second has gone by, calculate the average and wipe the accumulators.
+        if (accumulated_ms >= 1000.0f) {
+            total_update_avg_us = (total_update_seconds / accumulated_ms) * K_SEC_TO_US_MULTIPLIER;
+            total_prepare_avg_us = (total_prepare_seconds / accumulated_ms) * K_SEC_TO_US_MULTIPLIER;
+            total_render_avg_us = (total_render_seconds / accumulated_ms) * K_SEC_TO_US_MULTIPLIER;
+            total_avg = total_update_avg_us + total_prepare_avg_us + total_render_avg_us;
+            total_render_seconds = 0;
+            total_prepare_seconds = 0;
+            total_update_seconds = 0;
+            accumulated_ms = 0;
+        }
 
-    char* vsync_text = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
-    char text_buffer[2048];
-    string_format(
-        text_buffer,
-        "\
+        char* vsync_text = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
+        char text_buffer[2048] = {0};
+        string_format(
+            text_buffer,
+            "\
 FPS: %5.1f(%4.1fms)        Pos=[%7.3f %7.3f %7.3f] Rot=[%7.3f, %7.3f, %7.3f]\n\
 Upd: %8.3fus, Prep: %8.3fus, Rend: %8.3fus, Tot: %8.3fus \n\
 Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
 VSync: %s Drawn: %-5u (%-5u shadow pass) Hovered: %s%u",
-        fps,
-        frame_time,
-        pos.x, pos.y, pos.z,
-        rad_to_deg(rot.x), rad_to_deg(rot.y), rad_to_deg(rot.z),
-        total_update_avg_us,
-        total_prepare_avg_us,
-        total_render_avg_us,
-        total_avg,
-        mouse_x, mouse_y,
-        left_down ? "Y" : "N",
-        right_down ? "Y" : "N",
-        mouse_x_ndc,
-        mouse_y_ndc,
-        vsync_text,
-        p_frame_data->drawn_mesh_count,
-        p_frame_data->drawn_shadow_mesh_count,
-        state->hovered_object_id == INVALID_ID ? "none" : "",
-        state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
-    if (state->running) {
+            fps,
+            frame_time,
+            pos.x, pos.y, pos.z,
+            rad_to_deg(rot.x), rad_to_deg(rot.y), rad_to_deg(rot.z),
+            total_update_avg_us,
+            total_prepare_avg_us,
+            total_render_avg_us,
+            total_avg,
+            mouse_x, mouse_y,
+            left_down ? "Y" : "N",
+            right_down ? "Y" : "N",
+            mouse_x_ndc,
+            mouse_y_ndc,
+            vsync_text,
+            p_frame_data->drawn_mesh_count,
+            p_frame_data->drawn_shadow_mesh_count,
+            state->hovered_object_id == INVALID_ID ? "none" : "",
+            state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
+
+        // Update the text control.
         sui_label_text_set(&state->test_text, text_buffer);
     }
 
