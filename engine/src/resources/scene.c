@@ -29,8 +29,8 @@
 #include "utils/ksort.h"
 
 static void scene_actual_unload(scene *scene);
-static scene_attachment *scene_attachment_acquire(scene *s);
-static void scene_attachment_release(scene *s, scene_attachment *attachment);
+/* static scene_attachment *scene_attachment_acquire(scene *s); */
+/* static void scene_attachment_release(scene *s, scene_attachment *attachment); */
 
 static u32 global_scene_id = 0;
 
@@ -88,9 +88,17 @@ b8 scene_create(void *config, scene *out_scene) {
     out_scene->skyboxes = darray_create(skybox);
 
     // Internal lists of attachments.
-    out_scene->attachments = darray_create(scene_attachment);
+    /* out_scene->attachments = darray_create(scene_attachment); */
     out_scene->mesh_attachments = darray_create(scene_attachment);
+    out_scene->mesh_attachment_indices = darray_create(u32);
     out_scene->terrain_attachments = darray_create(scene_attachment);
+    out_scene->terrain_attachment_indices = darray_create(u32);
+    out_scene->skybox_attachments = darray_create(scene_attachment);
+    out_scene->skybox_attachment_indices = darray_create(u32);
+    out_scene->directional_light_attachments = darray_create(scene_attachment);
+    out_scene->directional_light_attachment_indices = darray_create(u32);
+    out_scene->point_light_attachments = darray_create(scene_attachment);
+    out_scene->point_light_attachment_indices = darray_create(u32);
 
     if (!hierarchy_graph_create(&out_scene->hierarchy)) {
         KERROR("Failed to create hierarchy graph");
@@ -120,7 +128,7 @@ b8 scene_create(void *config, scene *out_scene) {
 void scene_destroy(scene *s) {
     // TODO: actually destroy the thing.
     // TODO: remove this
-    scene_attachment_release(s, 0);
+    /* scene_attachment_release(s, 0); */
 }
 
 void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *node_config) {
@@ -152,7 +160,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         KERROR("An unknown attachment type was found in config. This attachment will be ignored.");
                         continue;
                     case SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH: {
-                        scene_node_attachment_static_mesh *typed_attachment = attachment->attachment;
+                        scene_node_attachment_static_mesh *typed_attachment = attachment->attachment_data;
 
                         if (!typed_attachment->resource_name) {
                             KWARN("Invalid mesh config, resource_name is required.");
@@ -184,27 +192,27 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                                     // Found a slot, use it.
                                     index = i;
                                     s->meshes[i] = new_mesh;
+                                    s->mesh_attachments[i].resource_handle = k_handle_create(index);
+                                    s->mesh_attachments[i].hierarchy_node_handle = node_handle;
+                                    s->mesh_attachments[i].attachment_type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
+                                    s->mesh_attachment_indices[i] = index;
                                     break;
                                 }
                             }
                             if (index == INVALID_ID) {
                                 darray_push(s->meshes, new_mesh);
                                 index = count;
+                                darray_push(s->mesh_attachment_indices, index);
+                                scene_attachment mesh_attachment = {0};
+                                mesh_attachment.resource_handle = k_handle_create(index);
+                                mesh_attachment.hierarchy_node_handle = node_handle;
+                                mesh_attachment.attachment_type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
+                                darray_push(s->mesh_attachments, mesh_attachment);
                             }
-
-                            // Acquire a scene node attachment and set its resource handle.
-                            scene_attachment *mesh_attachment = scene_attachment_acquire(s);
-                            if (!mesh_attachment) {
-                                KERROR("Failed to acquire scene attachment.");
-                                return;
-                            }
-                            mesh_attachment->resource_handle = k_handle_create(index);
-                            mesh_attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
-                            mesh_attachment->hierarchy_node_handle = node_handle;
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_TERRAIN: {
-                        scene_node_attachment_terrain *typed_attachment = attachment->attachment;
+                        scene_node_attachment_terrain *typed_attachment = attachment->attachment_data;
 
                         if (typed_attachment->resource_name) {
                             KWARN("Invalid terrain config, resource_name is required.");
@@ -234,27 +242,27 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                                     // Found a slot, use it.
                                     index = i;
                                     s->terrains[i] = new_terrain;
+                                    s->terrain_attachments[i].resource_handle = k_handle_create(index);
+                                    s->terrain_attachments[i].hierarchy_node_handle = node_handle;
+                                    s->terrain_attachments[i].attachment_type = SCENE_NODE_ATTACHMENT_TYPE_TERRAIN;
+                                    s->terrain_attachment_indices[i] = index;
                                     break;
                                 }
                             }
                             if (index == INVALID_ID) {
                                 darray_push(s->terrains, new_terrain);
                                 index = count;
+                                darray_push(s->terrain_attachment_indices, index);
+                                scene_attachment terrain_attachment = {0};
+                                terrain_attachment.resource_handle = k_handle_create(index);
+                                terrain_attachment.hierarchy_node_handle = node_handle;
+                                terrain_attachment.attachment_type = SCENE_NODE_ATTACHMENT_TYPE_TERRAIN;
+                                darray_push(s->terrain_attachments, terrain_attachment);
                             }
-
-                            // Acquire a scene node attachment and set its resource handle.
-                            scene_attachment *mesh_attachment = scene_attachment_acquire(s);
-                            if (!mesh_attachment) {
-                                KERROR("Failed to acquire scene attachment.");
-                                return;
-                            }
-                            mesh_attachment->resource_handle = k_handle_create(index);
-                            mesh_attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_TERRAIN;
-                            mesh_attachment->hierarchy_node_handle = node_handle;
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_SKYBOX: {
-                        scene_node_attachment_skybox *typed_attachment = attachment->attachment;
+                        scene_node_attachment_skybox *typed_attachment = attachment->attachment_data;
 
                         // Create a skybox config and use it to create the skybox.
                         skybox_config sb_config = {0};
@@ -280,27 +288,27 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                                     // Found a slot, use it.
                                     index = i;
                                     s->skyboxes[i] = sb;
+                                    s->skybox_attachments[i].resource_handle = k_handle_create(index);
+                                    s->skybox_attachments[i].hierarchy_node_handle = node_handle;
+                                    s->skybox_attachments[i].attachment_type = SCENE_NODE_ATTACHMENT_TYPE_SKYBOX;
+                                    s->skybox_attachment_indices[i] = index;
                                     break;
                                 }
                             }
                             if (index == INVALID_ID) {
                                 darray_push(s->skyboxes, sb);
                                 index = skybox_count;
+                                darray_push(s->skybox_attachment_indices, index);
+                                scene_attachment skybox_attachment = {0};
+                                skybox_attachment.resource_handle = k_handle_create(index);
+                                skybox_attachment.hierarchy_node_handle = node_handle;
+                                skybox_attachment.attachment_type = SCENE_NODE_ATTACHMENT_TYPE_SKYBOX;
+                                darray_push(s->skybox_attachments, skybox_attachment);
                             }
-
-                            // Acquire a scene node attachment and set its resource handle.
-                            scene_attachment *sb_attachment = scene_attachment_acquire(s);
-                            if (!sb_attachment) {
-                                KERROR("Failed to acquire scene attachment.");
-                                return;
-                            }
-                            sb_attachment->resource_handle = k_handle_create(index);
-                            sb_attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_SKYBOX;
-                            sb_attachment->hierarchy_node_handle = node_handle;
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT: {
-                        scene_node_attachment_directional_light *typed_attachment = attachment->attachment;
+                        scene_node_attachment_directional_light *typed_attachment = attachment->attachment_data;
 
                         directional_light new_dir_light = {0};
                         // TODO: name?
@@ -335,27 +343,27 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                                     // Found a slot, use it.
                                     index = i;
                                     s->dir_lights[i] = new_dir_light;
+                                    s->directional_light_attachments[i].resource_handle = k_handle_create(index);
+                                    s->directional_light_attachments[i].hierarchy_node_handle = node_handle;
+                                    s->directional_light_attachments[i].attachment_type = SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT;
+                                    s->directional_light_attachment_indices[i] = index;
                                     break;
                                 }
                             }
                             if (index == INVALID_ID) {
                                 darray_push(s->dir_lights, new_dir_light);
                                 index = directional_light_count;
+                                darray_push(s->directional_light_attachment_indices, index);
+                                scene_attachment directional_light_attachment = {0};
+                                directional_light_attachment.resource_handle = k_handle_create(index);
+                                directional_light_attachment.hierarchy_node_handle = node_handle;
+                                directional_light_attachment.attachment_type = SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT;
+                                darray_push(s->directional_light_attachments, directional_light_attachment);
                             }
-
-                            // Acquire a scene node attachment and set its resource handle.
-                            scene_attachment *sb_attachment = scene_attachment_acquire(s);
-                            if (!sb_attachment) {
-                                KERROR("Failed to acquire scene attachment.");
-                                return;
-                            }
-                            sb_attachment->resource_handle = k_handle_create(index);
-                            sb_attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT;
-                            sb_attachment->hierarchy_node_handle = node_handle;
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT: {
-                        scene_node_attachment_point_light *typed_attachment = attachment->attachment;
+                        scene_node_attachment_point_light *typed_attachment = attachment->attachment_data;
 
                         point_light new_light = {0};
                         // TODO: name?
@@ -386,23 +394,23 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                                     // Found a slot, use it.
                                     index = i;
                                     s->point_lights[i] = new_light;
+                                    s->point_light_attachments[i].resource_handle = k_handle_create(index);
+                                    s->point_light_attachments[i].hierarchy_node_handle = node_handle;
+                                    s->point_light_attachments[i].attachment_type = SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT;
+                                    s->point_light_attachment_indices[i] = index;
                                     break;
                                 }
                             }
                             if (index == INVALID_ID) {
                                 darray_push(s->point_lights, new_light);
                                 index = point_light_count;
+                                darray_push(s->point_light_attachment_indices, index);
+                                scene_attachment point_light_attachment = {0};
+                                point_light_attachment.resource_handle = k_handle_create(index);
+                                point_light_attachment.hierarchy_node_handle = node_handle;
+                                point_light_attachment.attachment_type = SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT;
+                                darray_push(s->point_light_attachments, point_light_attachment);
                             }
-
-                            // Acquire a scene node attachment and set its resource handle.
-                            scene_attachment *sb_attachment = scene_attachment_acquire(s);
-                            if (!sb_attachment) {
-                                KERROR("Failed to acquire scene attachment.");
-                                return;
-                            }
-                            sb_attachment->resource_handle = k_handle_create(index);
-                            sb_attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT;
-                            sb_attachment->hierarchy_node_handle = node_handle;
                         }
                     } break;
                 }
@@ -572,6 +580,8 @@ b8 scene_update(scene *scene, const struct frame_data *p_frame_data) {
     }
 
     if (scene->state >= SCENE_STATE_LOADED) {
+        hierarchy_graph_update(&scene->hierarchy, p_frame_data);
+
         if (scene->dir_lights) {
             u32 directional_light_count = darray_length(scene->dir_lights);
             for (u32 i = 0; i < directional_light_count; ++i) {
@@ -1376,11 +1386,11 @@ b8 scene_save(scene *scene) {
     return true;
 }
 
-static scene_attachment *scene_attachment_acquire(scene *s) {
+/* static scene_attachment *scene_attachment_acquire(scene *s) {
     if (s) {
         u32 attachment_count = darray_length(s->attachments);
         for (u32 i = 0; i < attachment_count; ++i) {
-            if (!k_handle_is_invalid(s->attachments[i].hierarchy_node_handle)) {
+            if (k_handle_is_invalid(s->attachments[i].hierarchy_node_handle)) {
                 // Found one.
                 return &s->attachments[i];
             }
@@ -1393,9 +1403,9 @@ static scene_attachment *scene_attachment_acquire(scene *s) {
     }
     KERROR("scene_attachment_acquire requires a valid pointer to a scene.");
     return 0;
-}
+} */
 
-static void scene_attachment_release(scene *s, scene_attachment *attachment) {
+/* static void scene_attachment_release(scene *s, scene_attachment *attachment) {
     if (s && attachment) {
         // Look up the attachment type and release the attachment itself.
         switch (attachment->attachment_type) {
@@ -1420,4 +1430,4 @@ static void scene_attachment_release(scene *s, scene_attachment *attachment) {
                 break;
         }
     }
-}
+} */

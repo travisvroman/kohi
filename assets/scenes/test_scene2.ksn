@@ -6,6 +6,24 @@ properties = {
 }
 nodes = [
     {
+        name = "environment"
+        attachments = [
+            {
+                type = "skybox"
+                cubemap_name = "skybox"
+            }
+            {
+                type = "directional_light"
+                colour=80.0 80.0 70.0 1.0
+                direction=0.1 -1.0 0.1 1.0 
+                shadow_distance=100
+                shadow_fade_distance=5
+                shadow_split_mult=0.75
+                // direction=-0.57735 -0.57735 -0.57735 0.0
+            }
+        ]
+    }
+    {
         name = "sponza"
         attachments = [
             {
@@ -13,13 +31,38 @@ nodes = [
                 resource_name = "sponza"
             }
         ]
-        start_position_x = 2.
         children = [
             {
                 name="tree"
+                attachments = [
+                    {
+                        type="static_mesh"
+                        resource_name="Tree"
+                    }
+                ]
+                xform="7.4 0.8 14.0 0.0 0.0 0.0 1.0 200.0 200.0 200.0"
             }
         ]
         xform="0.0 -1.0 0.0 0.0 0.0 0.0 1.0 0.01 0.01 0.01"
     }
+    {
+        name = "falcon"
+        attachments = [
+            {
+                type="static_mesh"
+                resource_name = "falcon"
+            }
+        ]
+        xform="9.4 0.8 14.0 0.0 0.0 0.0 1.0 0.35 0.35 0.35"
+    }
+    {
+        name = "terrain"
+        attachments = [
+            {
+                type="terrain"
+                resource_name = "test_terrain"
+            }
+        ]
+        xform="-50.0 -3.9 -50.0 0.0 0.0 0.0 1.0 1.0 1.0 1.0"
+    }
 ]
-foo = 32

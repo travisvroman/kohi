@@ -6,6 +6,7 @@
 #include "core/logger.h"
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"
+#include "resources/resource_types.h"
 #include "systems/geometry_system.h"
 #include "systems/job_system.h"
 #include "systems/resource_system.h"
@@ -85,6 +86,7 @@ static void mesh_load_job_success(void* params) {
         }
     }
     mesh_params->out_mesh->generation++;
+    mesh_params->out_mesh->state = MESH_STATE_LOADED;
 
     KTRACE("Successfully loaded mesh '%s'.", mesh_params->resource_name);
 
@@ -151,6 +153,7 @@ b8 mesh_create(mesh_config config, mesh* out_mesh) {
         kcopy_memory(out_mesh->g_configs, config.g_configs, sizeof(geometry_config) * out_mesh->geometry_count);
     }
     out_mesh->generation = INVALID_ID_U8;
+    out_mesh->state = MESH_STATE_CREATED;
 
     return true;
 }
@@ -169,6 +172,8 @@ b8 mesh_initialize(mesh* m) {
             return false;
         }
     }
+
+    m->state = MESH_STATE_INITIALIZED;
     return true;
 }
 
@@ -176,6 +181,8 @@ b8 mesh_load(mesh* m) {
     if (!m) {
         return false;
     }
+
+    m->state = MESH_STATE_LOADING;
 
     m->id = identifier_create();
 
@@ -195,6 +202,8 @@ b8 mesh_load(mesh* m) {
             // TODO: Do this during unload/destroy
             geometry_system_config_dispose(&m->g_configs[i]);
         }
+
+        m->state = MESH_STATE_LOADED;
     }
 
     return true;
@@ -211,6 +220,7 @@ b8 mesh_unload(mesh* m) {
 
         // For good measure, invalidate the geometry so it doesn't attempt to be rendered.
         m->generation = INVALID_ID_U8;
+        m->state = MESH_STATE_UNDEFINED;
 
         return true;
     }

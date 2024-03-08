@@ -70,7 +70,7 @@ KAPI void hierarchy_graph_destroy(hierarchy_graph* graph);
 
 KAPI void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, mat4* parent_world, hierarchy_graph_view_node* node);
 
-KAPI void hierarchy_graph_update(hierarchy_graph* graph, struct frame_data* p_frame_data);
+KAPI void hierarchy_graph_update(hierarchy_graph* graph, const struct frame_data* p_frame_data);
 
 KAPI k_handle hierarchy_graph_root_add(hierarchy_graph* graph);
 KAPI k_handle hierarchy_graph_root_add_with_xform(hierarchy_graph* graph, k_handle xform_handle);

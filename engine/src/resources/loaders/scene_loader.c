@@ -47,7 +47,7 @@ static b8 scene_loader_load(struct resource_loader* self, const char* name, void
     scene_node_config sponza = {0};
     sponza.name = "sponza";
 
-    sponza.xform = kallocate(sizeof(xform_system_config), MEMORY_TAG_SCENE);
+    sponza.xform = kallocate(sizeof(scene_xform_config), MEMORY_TAG_SCENE);
     sponza.xform->scale = vec3_create(0.01f, 0.01f, 0.01f);
     sponza.xform->position = vec3_create(0, -1, 0);
     sponza.xform->rotation = quat_identity();
@@ -55,10 +55,32 @@ static b8 scene_loader_load(struct resource_loader* self, const char* name, void
     sponza.attachments = darray_create(scene_node_attachment_config);
     scene_node_attachment_config sponza_mesh_attachment = {0};
     sponza_mesh_attachment.type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
-    sponza_mesh_attachment.attachment = kallocate(sizeof(scene_node_attachment_static_mesh), MEMORY_TAG_SCENE);
-    scene_node_attachment_static_mesh* typed_mesh_attachment = sponza_mesh_attachment.attachment;
+    sponza_mesh_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_static_mesh), MEMORY_TAG_SCENE);
+    scene_node_attachment_static_mesh* typed_mesh_attachment = sponza_mesh_attachment.attachment_data;
     typed_mesh_attachment->resource_name = "sponza";
     darray_push(sponza.attachments, sponza_mesh_attachment);
+
+    // Create children.
+    sponza.children = darray_create(scene_node_config);
+
+    // Tree, a child of sponza
+    scene_node_config tree = {0};
+    tree.name = "tree";
+
+    tree.xform = kallocate(sizeof(scene_xform_config), MEMORY_TAG_SCENE);
+    tree.xform->scale = vec3_create(200.0f, 200.0f, 200.0f);
+    tree.xform->position = vec3_create(7.4f, 0.8f, 14.0f);
+    tree.xform->rotation = quat_identity();
+
+    tree.attachments = darray_create(scene_node_attachment_config);
+    scene_node_attachment_config tree_mesh_attachment = {0};
+    tree_mesh_attachment.type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
+    tree_mesh_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_static_mesh), MEMORY_TAG_SCENE);
+    scene_node_attachment_static_mesh* typed_tree_mesh_attachment = tree_mesh_attachment.attachment_data;
+    typed_tree_mesh_attachment->resource_name = "Tree";
+    darray_push(tree.attachments, tree_mesh_attachment);
+
+    darray_push(sponza.children, tree);
 
     // Add to global nodes array.
     darray_push(resource_data->nodes, sponza);

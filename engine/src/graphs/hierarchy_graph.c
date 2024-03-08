@@ -85,7 +85,7 @@ void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, mat4* parent_
     }
 }
 
-void hierarchy_graph_update(hierarchy_graph* graph, struct frame_data* p_frame_data) {
+void hierarchy_graph_update(hierarchy_graph* graph, const struct frame_data* p_frame_data) {
     // Destroy the old tree
     destroy_view_tree(graph, &graph->view);
 

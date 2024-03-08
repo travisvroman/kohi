@@ -693,25 +693,21 @@ typedef enum scene_node_attachment_type {
 
 // Static mesh attachment.
 typedef struct scene_node_attachment_static_mesh {
-    scene_node_attachment_type attachment_type;
     char *resource_name;
 } scene_node_attachment_static_mesh;
 
 // Terrain attachment.
 typedef struct scene_node_attachment_terrain {
-    scene_node_attachment_type attachment_type;
     char *resource_name;
 } scene_node_attachment_terrain;
 
 // Skybox attachment
 typedef struct scene_node_attachment_skybox {
-    scene_node_attachment_type attachment_type;
     char *cubemap_name;
 } scene_node_attachment_skybox;
 
 // Directional light attachment
 typedef struct scene_node_attachment_directional_light {
-    scene_node_attachment_type attachment_type;
     vec4 colour;
     vec4 direction;
     f32 shadow_distance;
@@ -720,7 +716,6 @@ typedef struct scene_node_attachment_directional_light {
 } scene_node_attachment_directional_light;
 
 typedef struct scene_node_attachment_point_light {
-    scene_node_attachment_type attachment_type;
     vec4 colour;
     vec4 position;
     f32 constant_f;
@@ -730,7 +725,7 @@ typedef struct scene_node_attachment_point_light {
 
 typedef struct scene_node_attachment_config {
     scene_node_attachment_type type;
-    void *attachment;
+    void *attachment_data;
 } scene_node_attachment_config;
 
 typedef struct scene_xform_config {
