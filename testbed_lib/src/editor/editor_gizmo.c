@@ -12,10 +12,11 @@
 #include <defines.h>
 #include <math/geometry_3d.h>
 #include <math/kmath.h>
-#include <math/transform.h>
 #include <renderer/camera.h>
 #include <renderer/renderer_frontend.h>
+#include <systems/xform_system.h>
 
+#include "core/khandle.h"
 #include "core/kmemory.h"
 #include "math/math_types.h"
 #include "renderer/camera.h"
@@ -35,8 +36,8 @@ b8 editor_gizmo_create(editor_gizmo* out_gizmo) {
     }
 
     out_gizmo->mode = EDITOR_GIZMO_MODE_NONE;
-    out_gizmo->xform = transform_create();
-    out_gizmo->selected_xform = 0;
+    out_gizmo->xform_handle = xform_create();
+    out_gizmo->selected_xform_handle = k_handle_invalid();
     // Default orientation.
     out_gizmo->orientation = EDITOR_GIZMO_ORIENTATION_LOCAL;
     // out_gizmo->orientation = EDITOR_GIZMO_ORIENTATION_GLOBAL;
@@ -116,19 +117,19 @@ b8 editor_gizmo_unload(editor_gizmo* gizmo) {
 
 void editor_gizmo_refresh(editor_gizmo* gizmo) {
     if (gizmo) {
-        if (gizmo->selected_xform) {
+        if (!k_handle_is_invalid(gizmo->selected_xform_handle)) {
             // Set the position.
-            transform_position_set(&gizmo->xform, transform_position_get(gizmo->selected_xform));
+            xform_position_set(gizmo->xform_handle, xform_position_get(gizmo->selected_xform_handle));
             // If local, set rotation.
             if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_LOCAL) {
-                transform_rotation_set(&gizmo->xform, transform_rotation_get(gizmo->selected_xform));
+                xform_rotation_set(gizmo->xform_handle, xform_rotation_get(gizmo->selected_xform_handle));
             } else {
-                transform_rotation_set(&gizmo->xform, quat_identity());
+                xform_rotation_set(gizmo->xform_handle, quat_identity());
             }
         } else {
             // For now, reset.
-            transform_position_set(&gizmo->xform, vec3_zero());
-            transform_rotation_set(&gizmo->xform, quat_identity());
+            xform_position_set(gizmo->xform_handle, vec3_zero());
+            xform_rotation_set(gizmo->xform_handle, quat_identity());
         }
     }
 }
@@ -158,9 +159,9 @@ void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orientation 
         editor_gizmo_refresh(gizmo);
     }
 }
-void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, transform* xform) {
+void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, k_handle xform_handle) {
     if (gizmo) {
-        gizmo->selected_xform = xform;
+        gizmo->xform_handle = xform_handle;
         editor_gizmo_refresh(gizmo);
     }
 }
@@ -484,8 +485,8 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, camera* c, struct ray* 
     if (gizmo->interaction == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG) {
         editor_gizmo_mode_data* data = &gizmo->mode_data[gizmo->mode];
 
-        mat4 gizmo_world = transform_world_get(&gizmo->xform);
-        vec3 origin = transform_position_get(&gizmo->xform);
+        mat4 gizmo_world = xform_world_get(gizmo->xform_handle);
+        vec3 origin = xform_position_get(gizmo->xform_handle);
         vec3 plane_dir;
         if (gizmo->mode == EDITOR_GIZMO_MODE_MOVE || gizmo->mode == EDITOR_GIZMO_MODE_SCALE) {
             // Create the plane.
@@ -538,8 +539,8 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, camera* c, struct ray* 
             }
             KINFO("starting rotate interaction");
             // Create the plane.
-            mat4 gizmo_world = transform_world_get(&gizmo->xform);
-            vec3 origin = transform_position_get(&gizmo->xform);
+            mat4 gizmo_world = xform_world_get(gizmo->xform_handle);
+            vec3 origin = xform_position_get(gizmo->xform_handle);
             vec3 plane_dir;
             switch (data->current_axis_index) {
                 case 0:  // x
@@ -585,7 +586,7 @@ void editor_gizmo_interaction_end(editor_gizmo* gizmo) {
             KINFO("Ending rotate interaction.");
             if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_GLOBAL) {
                 // Reset rotation. Will be applied to selection already.
-                transform_rotation_set(&gizmo->xform, quat_identity());
+                xform_rotation_set(gizmo->xform_handle, quat_identity());
             }
         }
     }
@@ -605,7 +606,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
             if (data->current_axis_index == INVALID_ID_U8) {
                 return;
             }
-            mat4 gizmo_world = transform_world_get(&gizmo->xform);
+            mat4 gizmo_world = xform_world_get(gizmo->xform_handle);
 
             vec3 intersection = {0};
             f32 distance;
@@ -651,21 +652,22 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
                 // TODO: Other orientations.
                 return;
             }
-            transform_translate(&gizmo->xform, translation);
+            xform_translate(gizmo->xform_handle, translation);
             data->last_interaction_pos = intersection;
 
             // Apply translation to selection.
-            if (gizmo->selected_xform) {
-                transform_translate(gizmo->selected_xform, translation);
+            if (!k_handle_is_invalid(gizmo->selected_xform_handle)) {
+                xform_translate(gizmo->xform_handle, translation);
+                xform_translate(gizmo->selected_xform_handle, translation);
             }
         } else if (interaction_type == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER) {
             f32 dist;
-            gizmo->xform.is_dirty = true;
+            xform_calculate_local(gizmo->xform_handle);
             u8 hit_axis = INVALID_ID_U8;
 
             // Loop through each axis/axis combo. Loop backwards to give priority to combos since
             // those hit boxes are much smaller.
-            mat4 gizmo_world = transform_world_get(&gizmo->xform);
+            mat4 gizmo_world = xform_world_get(gizmo->xform_handle);
             for (i32 i = 6; i > -1; --i) {
                 if (raycast_oriented_extents(data->mode_extents[i], gizmo_world, r, &dist)) {
                     hit_axis = i;
@@ -754,7 +756,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
             if (data->current_axis_index == INVALID_ID_U8) {
                 return;
             }
-            mat4 gizmo_world = transform_world_get(&gizmo->xform);
+            mat4 gizmo_world = xform_world_get(gizmo->xform_handle);
 
             vec3 intersection = {0};
             f32 distance;
@@ -766,7 +768,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
             }
             vec3 direction;
             vec3 scale;
-            vec3 origin = transform_position_get(&gizmo->xform);
+            vec3 origin = xform_position_get(gizmo->xform_handle);
 
             // Scale along the current axis' line in local space.
             // This will be transformed to global later if need be.
@@ -836,16 +838,16 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
             // For global transforms, get the inverse of the rotation and apply that
             // to the scale to scale on absolute (global) axes instead of local.
             if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_GLOBAL) {
-                if (gizmo->selected_xform) {
-                    quat q = quat_inverse(transform_rotation_get(gizmo->selected_xform));
+                if (!k_handle_is_invalid(gizmo->selected_xform_handle)) {
+                    quat q = quat_inverse(xform_rotation_get(gizmo->selected_xform_handle));
                     scale = vec3_rotate(scale, q);
                 }
             }
 
             KTRACE("scale (diff): [%.4f,%.4f,%.4f]", scale.x, scale.y, scale.z);
             // Apply scale to selected object.
-            if (gizmo->selected_xform) {
-                vec3 current_scale = transform_scale_get(gizmo->selected_xform);
+            if (!k_handle_is_invalid(gizmo->selected_xform_handle)) {
+                vec3 current_scale = xform_scale_get(gizmo->selected_xform_handle);
 
                 // Apply scale, but only on axes that have changed.
                 for (u8 i = 0; i < 3; ++i) {
@@ -854,17 +856,17 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
                     }
                 }
                 KTRACE("Applying scale: [%.4f,%.4f,%.4f]", current_scale.x, current_scale.y, current_scale.z);
-                transform_scale_set(gizmo->selected_xform, current_scale);
+                xform_scale_set(gizmo->selected_xform_handle, current_scale);
             }
             data->last_interaction_pos = intersection;
         } else if (interaction_type == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER) {
             f32 dist;
-            gizmo->xform.is_dirty = true;
+            xform_calculate_local(gizmo->xform_handle);
             u8 hit_axis = INVALID_ID_U8;
 
             // Loop through each axis/axis combo. Loop backwards to give priority to combos since
             // those hit boxes are much smaller.
-            mat4 gizmo_world = transform_world_get(&gizmo->xform);
+            mat4 gizmo_world = xform_world_get(gizmo->xform_handle);
             for (i32 i = 6; i > -1; --i) {
                 if (raycast_oriented_extents(data->mode_extents[i], gizmo_world, r, &dist)) {
                     hit_axis = i;
@@ -940,7 +942,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
             }
 
             // mat4 gizmo_world = transform_world_get(&gizmo->xform);
-            vec3 origin = transform_position_get(&gizmo->xform);
+            vec3 origin = xform_position_get(gizmo->xform_handle);
             vec3 interaction_pos = {0};
             f32 distance;
             if (!raycast_plane_3d(r, &data->interaction_plane, &interaction_pos, &distance)) {
@@ -967,7 +969,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
                 angle = -angle;
             }
 
-            mat4 gizmo_world = transform_world_get(&gizmo->xform);
+            mat4 gizmo_world = xform_world_get(gizmo->xform_handle);
             switch (data->current_axis_index) {
                 case 0:  // x
                     direction = vec3_transform(vec3_right(), 0.0f, gizmo_world);
@@ -984,18 +986,18 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
 
             quat rotation = quat_from_axis_angle(direction, angle, true);
             // Apply rotation to gizmo here so it's visible.
-            transform_rotate(&gizmo->xform, rotation);
+            xform_rotate(gizmo->xform_handle, rotation);
             data->last_interaction_pos = interaction_pos;
 
             // Apply rotation.
-            if (gizmo->selected_xform) {
-                transform_rotate(gizmo->selected_xform, rotation);
+            if (!k_handle_is_invalid(gizmo->selected_xform_handle)) {
+                xform_rotate(gizmo->selected_xform_handle, rotation);
             }
 
         } else if (interaction_type == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER) {
             f32 dist;
             vec3 point;
-            mat4 model = transform_world_get(&gizmo->xform);
+            mat4 model = xform_world_get(gizmo->xform_handle);
             u8 hit_axis = INVALID_ID_U8;
 
             // Loop through each axis.
@@ -1004,7 +1006,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
                 vec3 aa_normal = vec3_zero();
                 aa_normal.elements[i] = 1.0f;
                 aa_normal = vec3_transform(aa_normal, 0.0f, model);
-                vec3 center = transform_position_get(&gizmo->xform);
+                vec3 center = xform_position_get(gizmo->xform_handle);
                 if (raycast_disc_3d(r, center, aa_normal, radius + 0.05f, radius - 0.05f, &point, &dist)) {
                     hit_axis = i;
                     break;

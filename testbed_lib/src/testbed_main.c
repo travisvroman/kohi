@@ -19,6 +19,7 @@
 #include <resources/terrain.h>
 
 #include "core/engine.h"
+#include "core/khandle.h"
 #include "defines.h"
 #include "game_state.h"
 #include "math/math_types.h"
@@ -301,7 +302,8 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
                         u32 hit_count = darray_length(r_result.hits);
                         for (u32 i = 0; i < hit_count; ++i) {
                             raycast_hit* hit = &r_result.hits[i];
-                            KINFO("Hit! id: %u, dist: %f", hit->unique_id, hit->distance);
+                            // TODO: Use handle index to identify?
+                            KINFO("Hit! id: %u, dist: %f", hit->node_handle.handle_index, hit->distance);
 
                             // Create a debug line where the ray cast starts and ends (at the intersection).
                             debug_line3d test_line;
@@ -329,13 +331,13 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
 
                             // Object selection
                             if (i == 0) {
-                                state->selection.unique_id = hit->unique_id;
-                                // TODO: Object selection is broken until this is changed to use proper xforms.
-                                state->selection.xform = 0;  //  scene_transform_get_by_id(&state->main_scene, hit->unique_id);
-                                if (state->selection.xform) {
-                                    KINFO("Selected object id %u", hit->unique_id);
+                                state->selection.node_handle = hit->node_handle;
+                                state->selection.xform_handle = hit->xform_handle;  //  scene_transform_get_by_id(&state->main_scene, hit->unique_id);
+                                if (!k_handle_is_invalid(state->selection.xform_handle)) {
+                                    // NOTE: is handle index what we should identify by?
+                                    KINFO("Selected object id %u", hit->node_handle.handle_index);
                                     // state->gizmo.selected_xform = state->selection.xform;
-                                    editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform);
+                                    editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle);
                                     // transform_parent_set(&state->gizmo.xform, state->selection.xform);
                                 }
                             }
@@ -353,12 +355,12 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
 
                         darray_push(state->test_lines, test_line);
 
-                        if (state->selection.xform) {
+                        if (!k_handle_is_invalid(state->selection.xform_handle)) {
                             KINFO("Object deselected.");
-                            state->selection.xform = 0;
-                            state->selection.unique_id = INVALID_ID;
+                            state->selection.xform_handle = k_handle_invalid();
+                            state->selection.node_handle = k_handle_invalid();
 
-                            editor_gizmo_selected_transform_set(&state->gizmo, 0);
+                            editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle);
                         }
 
                         // TODO: hide gizmo, disable input, etc.
@@ -479,8 +481,8 @@ b8 application_initialize(struct application* game_inst) {
     // Register resource loaders.
     resource_system_loader_register(audio_resource_loader_create());
 
-    state->selection.unique_id = INVALID_ID;
-    state->selection.xform = 0;
+    // Invalid handle = no selection.
+    state->selection.xform_handle = k_handle_invalid();
 
     debug_console_load(&state->debug_console);
 

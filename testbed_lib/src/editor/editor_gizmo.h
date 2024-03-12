@@ -4,6 +4,8 @@
 #include <math/math_types.h>
 #include <resources/resource_types.h>
 
+#include "core/khandle.h"
+
 #ifdef _DEBUG
 #include <resources/debug/debug_line3d.h>
 #endif
@@ -61,9 +63,9 @@ typedef enum editor_gizmo_orientation {
 
 typedef struct editor_gizmo {
     /** @brief The transform of the gizmo. */
-    transform xform;
-    /** @brief A pointer to the currently selected object's transform. Null if nothing is selected. */
-    transform* selected_xform;
+    k_handle xform_handle;
+    /** @brief A handle to the currently selected object's transform. Invalid handle if nothing is selected. */
+    k_handle selected_xform_handle;
     /** @brief The current mode of the gizmo. */
     editor_gizmo_mode mode;
 
@@ -95,7 +97,7 @@ KAPI b8 editor_gizmo_unload(editor_gizmo* gizmo);
 KAPI void editor_gizmo_refresh(editor_gizmo* gizmo);
 KAPI editor_gizmo_orientation editor_gizmo_orientation_get(editor_gizmo* gizmo);
 KAPI void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orientation orientation);
-KAPI void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, transform* xform);
+KAPI void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, k_handle xform_handle);
 
 KAPI void editor_gizmo_update(editor_gizmo* gizmo);
 KAPI void editor_gizmo_render_frame_prepare(editor_gizmo* gizmo, const struct frame_data* p_frame_data);

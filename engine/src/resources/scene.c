@@ -791,7 +791,10 @@ b8 scene_raycast(scene *scene, const struct ray *r, struct raycast_result *out_r
             hit.distance = dist;
             hit.type = RAYCAST_HIT_TYPE_OBB;
             hit.position = vec3_add(r->origin, vec3_mul_scalar(r->direction, hit.distance));
-            hit.unique_id = m->id.uniqueid;
+
+            hit.xform_handle = xform_handle;
+            hit.node_handle = attachment->hierarchy_node_handle;
+            // TODO: Indicate selection node attachment type somehow?
 
             darray_push(out_result->hits, hit);
         }
