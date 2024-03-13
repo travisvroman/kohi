@@ -64,8 +64,8 @@ void hierarchy_graph_destroy(hierarchy_graph* graph) {
 void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, mat4* parent_world, hierarchy_graph_view_node* node) {
     // Update the local matrix.
     // TODO: check if dirty
-    xform_calculate_local(node->node_handle);
-    mat4 node_local = xform_local_get(node->node_handle);
+    xform_calculate_local(node->xform_handle);
+    mat4 node_local = xform_local_get(node->xform_handle);
 
     // Calculate and assign world matrix.
     mat4 world;
@@ -74,7 +74,7 @@ void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, mat4* parent_
     } else {
         world = node_local;
     }
-    xform_world_set(node->node_handle, world);
+    xform_world_set(node->xform_handle, world);
 
     if (node->children) {
         u32 child_count = darray_length(node->children);
@@ -321,14 +321,14 @@ static void ensure_allocated(hierarchy_graph* graph, u32 new_node_count) {
 
         b8* new_dirty_flags = kallocate(sizeof(b8) * new_node_count, MEMORY_TAG_ARRAY);
         if (graph->dirty_flags) {
-            kcopy_memory(new_dirty_flags, graph->levels, sizeof(b8) * graph->nodes_allocated);
+            kcopy_memory(new_dirty_flags, graph->dirty_flags, sizeof(b8) * graph->nodes_allocated);
             kfree(graph->dirty_flags, sizeof(b8) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
         }
         graph->dirty_flags = new_dirty_flags;
 
         k_handle* new_xform_handles = kallocate(sizeof(k_handle) * new_node_count, MEMORY_TAG_ARRAY);
         if (graph->xform_handles) {
-            kcopy_memory(new_xform_handles, graph->node_handles, sizeof(k_handle) * graph->nodes_allocated);
+            kcopy_memory(new_xform_handles, graph->xform_handles, sizeof(k_handle) * graph->nodes_allocated);
             kfree(graph->xform_handles, sizeof(k_handle) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
         }
         graph->xform_handles = new_xform_handles;

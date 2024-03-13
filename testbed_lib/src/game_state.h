@@ -31,6 +31,7 @@ struct transform;
 typedef struct selected_object {
     k_handle xform_handle;
     k_handle node_handle;
+    k_handle xform_parent_handle;
 } selected_object;
 
 typedef struct testbed_game_state {

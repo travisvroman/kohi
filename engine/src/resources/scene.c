@@ -152,24 +152,24 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
         if (node_config->attachments) {
             u32 attachment_count = darray_length(node_config->attachments);
             for (u32 i = 0; i < attachment_count; ++i) {
-                scene_node_attachment_config *attachment = &node_config->attachments[i];
-                scene_node_attachment_type attachment_type = *((scene_node_attachment_type *)attachment);
+                scene_node_attachment_config *attachment_config = &node_config->attachments[i];
+                scene_node_attachment_type attachment_type = *((scene_node_attachment_type *)attachment_config);
                 switch (attachment_type) {
                     default:
                     case SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN:
                         KERROR("An unknown attachment type was found in config. This attachment will be ignored.");
                         continue;
                     case SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH: {
-                        scene_node_attachment_static_mesh *typed_attachment = attachment->attachment_data;
+                        scene_node_attachment_static_mesh *typed_attachment_config = attachment_config->attachment_data;
 
-                        if (!typed_attachment->resource_name) {
+                        if (!typed_attachment_config->resource_name) {
                             KWARN("Invalid mesh config, resource_name is required.");
                             return;
                         }
 
                         // Create mesh config, then create the mesh.
                         mesh_config new_mesh_config = {0};
-                        new_mesh_config.resource_name = string_duplicate(typed_attachment->resource_name);
+                        new_mesh_config.resource_name = string_duplicate(typed_attachment_config->resource_name);
                         mesh new_mesh = {0};
                         if (!mesh_create(new_mesh_config, &new_mesh)) {
                             KERROR("Failed to create new mesh in scene.");
@@ -185,26 +185,26 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                             return;
                         } else {
                             // Find a free static mesh slot and take it, or push a new one.
-                            u32 index = INVALID_ID;
+                            u32 resource_index = INVALID_ID;
                             u32 count = darray_length(s->meshes);
                             for (u32 i = 0; i < count; ++i) {
                                 if (s->meshes[i].state == MESH_STATE_UNDEFINED) {
                                     // Found a slot, use it.
-                                    index = i;
+                                    resource_index = i;
                                     s->meshes[i] = new_mesh;
-                                    s->mesh_attachments[i].resource_handle = k_handle_create(index);
+                                    s->mesh_attachments[i].resource_handle = k_handle_create(resource_index);
                                     s->mesh_attachments[i].hierarchy_node_handle = node_handle;
                                     s->mesh_attachments[i].attachment_type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
-                                    s->mesh_attachment_indices[i] = index;
+                                    s->mesh_attachment_indices[i] = resource_index;
                                     break;
                                 }
                             }
-                            if (index == INVALID_ID) {
+                            if (resource_index == INVALID_ID) {
                                 darray_push(s->meshes, new_mesh);
-                                index = count;
-                                darray_push(s->mesh_attachment_indices, index);
+                                resource_index = count;
+                                darray_push(s->mesh_attachment_indices, resource_index);
                                 scene_attachment mesh_attachment = {0};
-                                mesh_attachment.resource_handle = k_handle_create(index);
+                                mesh_attachment.resource_handle = k_handle_create(resource_index);
                                 mesh_attachment.hierarchy_node_handle = node_handle;
                                 mesh_attachment.attachment_type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
                                 darray_push(s->mesh_attachments, mesh_attachment);
@@ -212,7 +212,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_TERRAIN: {
-                        scene_node_attachment_terrain *typed_attachment = attachment->attachment_data;
+                        scene_node_attachment_terrain *typed_attachment = attachment_config->attachment_data;
 
                         if (typed_attachment->resource_name) {
                             KWARN("Invalid terrain config, resource_name is required.");
@@ -262,7 +262,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_SKYBOX: {
-                        scene_node_attachment_skybox *typed_attachment = attachment->attachment_data;
+                        scene_node_attachment_skybox *typed_attachment = attachment_config->attachment_data;
 
                         // Create a skybox config and use it to create the skybox.
                         skybox_config sb_config = {0};
@@ -308,7 +308,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT: {
-                        scene_node_attachment_directional_light *typed_attachment = attachment->attachment_data;
+                        scene_node_attachment_directional_light *typed_attachment = attachment_config->attachment_data;
 
                         directional_light new_dir_light = {0};
                         // TODO: name?
@@ -363,7 +363,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         }
                     } break;
                     case SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT: {
-                        scene_node_attachment_point_light *typed_attachment = attachment->attachment_data;
+                        scene_node_attachment_point_light *typed_attachment = attachment_config->attachment_data;
 
                         point_light new_light = {0};
                         // TODO: name?
@@ -777,7 +777,7 @@ b8 scene_raycast(scene *scene, const struct ray *r, struct raycast_result *out_r
         mesh *m = &scene->meshes[i];
         // Perform a lookup into the attachments array to get the hierarchy node.
         // TODO: simplify the lookup process.
-        scene_attachment *attachment = &scene->mesh_attachments[scene->mesh_attachment_indices[i]];
+        scene_attachment *attachment = &scene->mesh_attachments[i];
         k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
         mat4 model = xform_world_get(xform_handle);
         f32 dist;
@@ -794,6 +794,14 @@ b8 scene_raycast(scene *scene, const struct ray *r, struct raycast_result *out_r
 
             hit.xform_handle = xform_handle;
             hit.node_handle = attachment->hierarchy_node_handle;
+
+            // Get parent handle if one exists.
+            u32 parent_index = scene->hierarchy.parent_indices[attachment->hierarchy_node_handle.handle_index];
+            if (parent_index != INVALID_ID) {
+                hit.xform_parent_handle = scene->hierarchy.xform_handles[parent_index];
+            } else {
+                hit.xform_parent_handle = k_handle_invalid();
+            }
             // TODO: Indicate selection node attachment type somehow?
 
             darray_push(out_result->hits, hit);
@@ -940,7 +948,7 @@ b8 scene_mesh_render_data_query_from_line(const scene *scene, vec3 direction, ve
     for (u32 i = 0; i < mesh_count; ++i) {
         mesh *m = &scene->meshes[i];
         if (m->generation != INVALID_ID_U8) {
-            scene_attachment *attachment = &scene->mesh_attachments[scene->mesh_attachment_indices[i]];
+            scene_attachment *attachment = &scene->mesh_attachments[i];
             k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
             mat4 model = xform_world_get(xform_handle);
 
@@ -1088,11 +1096,13 @@ b8 scene_mesh_render_data_query(const scene *scene, const frustum *f, vec3 cente
 
     geometry_distance *transparent_geometries = darray_create_with_allocator(geometry_distance, &p_frame_data->allocator);
 
+    // Iterate all meshes in the scene.
     u32 mesh_count = darray_length(scene->meshes);
-    for (u32 i = 0; i < mesh_count; ++i) {
-        mesh *m = &scene->meshes[i];
+    for (u32 resource_index = 0; resource_index < mesh_count; ++resource_index) {
+        mesh *m = &scene->meshes[resource_index];
         if (m->generation != INVALID_ID_U8) {
-            scene_attachment *attachment = &scene->mesh_attachments[scene->mesh_attachment_indices[i]];
+            // Attachment lookup - by resource index.
+            scene_attachment *attachment = &scene->mesh_attachments[resource_index];
             k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
             mat4 model = xform_world_get(xform_handle);
 

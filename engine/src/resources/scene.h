@@ -40,7 +40,9 @@ typedef enum scene_state {
 
 typedef struct scene_attachment {
     scene_node_attachment_type attachment_type;
+    // Handle into the hierarchy graph.
     k_handle hierarchy_node_handle;
+    // A handle indexing into the resource array of the given type (i.e. meshes).
     k_handle resource_handle;
 } scene_attachment;
 
@@ -52,7 +54,6 @@ typedef struct scene {
     char* name;
     char* description;
 
-    scene_attachment* mesh_attachments;
     scene_attachment* terrain_attachments;
     scene_attachment* point_light_attachments;
     scene_attachment* directional_light_attachments;
@@ -70,8 +71,10 @@ typedef struct scene {
 
     // darray of meshes.
     struct mesh* meshes;
-    // Indices into the attachment array for xform lookups.
+    // Indices into the attachment array for xform and resource lookups.
     u32* mesh_attachment_indices;
+    // Array of scene attachments for meshes.
+    scene_attachment* mesh_attachments;
 
     // darray of terrains.
     struct terrain* terrains;

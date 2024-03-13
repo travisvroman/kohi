@@ -85,7 +85,9 @@ b8 editor_rendergraph_frame_prepare(editor_rendergraph* graph, struct frame_data
             // f32 fov = deg_to_rad(45.0f);
             // f32 dist = vec3_distance(camera_pos, gizmo_pos);
 
-            mat4 model = xform_world_get(graph->gizmo->xform_handle);
+            // NOTE: Use the local transform of the gizmo since it won't ever be parented to anything.
+            xform_calculate_local(graph->gizmo->xform_handle);
+            mat4 model = xform_local_get(graph->gizmo->xform_handle);
             // f32 fixed_size = 0.1f;                            // TODO: Make this a configurable option for gizmo size.
             f32 scale_scalar = 1.0f;                    // ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
             graph->gizmo->scale_scalar = scale_scalar;  // Keep a copy of this for hit detection.

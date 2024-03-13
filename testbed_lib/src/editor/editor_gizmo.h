@@ -66,6 +66,8 @@ typedef struct editor_gizmo {
     k_handle xform_handle;
     /** @brief A handle to the currently selected object's transform. Invalid handle if nothing is selected. */
     k_handle selected_xform_handle;
+    /** @brief A handle to the parent of the currently selected object's transform, if one exists. Otherwise invalid handle. */
+    k_handle selected_xform_parent_handle;
     /** @brief The current mode of the gizmo. */
     editor_gizmo_mode mode;
 
@@ -97,7 +99,7 @@ KAPI b8 editor_gizmo_unload(editor_gizmo* gizmo);
 KAPI void editor_gizmo_refresh(editor_gizmo* gizmo);
 KAPI editor_gizmo_orientation editor_gizmo_orientation_get(editor_gizmo* gizmo);
 KAPI void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orientation orientation);
-KAPI void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, k_handle xform_handle);
+KAPI void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, k_handle xform_handle, k_handle parent_xform_handle);
 
 KAPI void editor_gizmo_update(editor_gizmo* gizmo);
 KAPI void editor_gizmo_render_frame_prepare(editor_gizmo* gizmo, const struct frame_data* p_frame_data);
@@ -107,3 +109,5 @@ KAPI void editor_gizmo_mode_set(editor_gizmo* gizmo, editor_gizmo_mode mode);
 KAPI void editor_gizmo_interaction_begin(editor_gizmo* gizmo, struct camera* c, struct ray* r, editor_gizmo_interaction_type interaction_type);
 KAPI void editor_gizmo_interaction_end(editor_gizmo* gizmo);
 KAPI void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, struct ray* r, editor_gizmo_interaction_type interaction_type);
+
+KAPI mat4 editor_gizmo_model_get(editor_gizmo* gizmo);

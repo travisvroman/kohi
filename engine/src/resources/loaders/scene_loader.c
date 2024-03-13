@@ -68,8 +68,9 @@ static b8 scene_loader_load(struct resource_loader* self, const char* name, void
     tree.name = "tree";
 
     tree.xform = kallocate(sizeof(scene_xform_config), MEMORY_TAG_SCENE);
+    // Large scale/position to compensate for small scale of parent.
     tree.xform->scale = vec3_create(200.0f, 200.0f, 200.0f);
-    tree.xform->position = vec3_create(7.4f, 0.8f, 14.0f);
+    tree.xform->position = vec3_create(700.4f, 80.0f, 1400.0f);
     tree.xform->rotation = quat_identity();
 
     tree.attachments = darray_create(scene_node_attachment_config);

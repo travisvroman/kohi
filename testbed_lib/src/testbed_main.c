@@ -333,11 +333,12 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
                             if (i == 0) {
                                 state->selection.node_handle = hit->node_handle;
                                 state->selection.xform_handle = hit->xform_handle;  //  scene_transform_get_by_id(&state->main_scene, hit->unique_id);
+                                state->selection.xform_parent_handle = hit->xform_parent_handle;
                                 if (!k_handle_is_invalid(state->selection.xform_handle)) {
                                     // NOTE: is handle index what we should identify by?
                                     KINFO("Selected object id %u", hit->node_handle.handle_index);
                                     // state->gizmo.selected_xform = state->selection.xform;
-                                    editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle);
+                                    editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle, state->selection.xform_parent_handle);
                                     // transform_parent_set(&state->gizmo.xform, state->selection.xform);
                                 }
                             }
@@ -355,12 +356,13 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
 
                         darray_push(state->test_lines, test_line);
 
-                        if (!k_handle_is_invalid(state->selection.xform_handle)) {
+                        if (k_handle_is_invalid(state->selection.xform_handle)) {
                             KINFO("Object deselected.");
                             state->selection.xform_handle = k_handle_invalid();
                             state->selection.node_handle = k_handle_invalid();
+                            state->selection.xform_parent_handle = k_handle_invalid();
 
-                            editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle);
+                            editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle, state->selection.xform_parent_handle);
                         }
 
                         // TODO: hide gizmo, disable input, etc.

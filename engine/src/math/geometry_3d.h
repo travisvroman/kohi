@@ -20,6 +20,7 @@ typedef struct raycast_hit {
     raycast_hit_type type;
     k_handle xform_handle;
     k_handle node_handle;
+    k_handle xform_parent_handle;
     vec3 position;
     f32 distance;
 } raycast_hit;
