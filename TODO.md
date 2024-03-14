@@ -116,7 +116,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] Create new "xform" structure and system that uses handles and can manage dependencies in updates internally.
         NOTE: This system should be laid out in a data-oriented way.
   - [x] Create hierarchy graph that handles transform hierarchy and can provide a view of it. Also generating world matrices.
-  - [ ] Remove transform from mesh.
+  - [x] Remove transform from mesh.
   - [ ] Replace any and all transforms with xform handles.
   - [ ] Update systems (and create some) that use handles:
     - [x] Create xform system that uses handles

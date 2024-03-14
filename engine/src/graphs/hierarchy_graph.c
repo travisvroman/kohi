@@ -61,7 +61,17 @@ void hierarchy_graph_destroy(hierarchy_graph* graph) {
     }
 }
 
-void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, mat4* parent_world, hierarchy_graph_view_node* node) {
+void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, u32 node_index) {
+    if (node_index == INVALID_ID) {
+        return;
+    }
+
+    hierarchy_graph_view_node* node = &graph->view.nodes[node_index];
+
+    if (k_handle_is_invalid(node->xform_handle)) {
+        return;
+    }
+
     // Update the local matrix.
     // TODO: check if dirty
     xform_calculate_local(node->xform_handle);
@@ -69,8 +79,26 @@ void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, mat4* parent_
 
     // Calculate and assign world matrix.
     mat4 world;
-    if (parent_world) {
-        world = mat4_mul(node_local, *parent_world);
+    if (node->parent_index != INVALID_ID) {
+        hierarchy_graph_view_node* parent = &graph->view.nodes[node->parent_index];
+        k_handle parent_xform_handle = parent->xform_handle;
+        while (k_handle_is_invalid(parent_xform_handle)) {
+            u32 parent_index = parent->parent_index;
+            parent = &graph->view.nodes[parent_index];
+            if (parent) {
+                parent_xform_handle = parent->xform_handle;
+            } else {
+                parent_xform_handle = k_handle_invalid();
+                break;
+            }
+        }
+        if (k_handle_is_invalid(parent_xform_handle)) {
+            // There is no parent with a transform anywhere up the tree. Just use local.
+            world = node_local;
+        } else {
+            mat4 parent_world = xform_world_get(parent_xform_handle);
+            world = mat4_mul(node_local, parent_world);
+        }
     } else {
         world = node_local;
     }
@@ -80,7 +108,7 @@ void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, mat4* parent_
         u32 child_count = darray_length(node->children);
         for (u32 i = 0; i < child_count; ++i) {
             // Proces children based off world matrix of this node.
-            hierarchy_graph_update_tree_view_node(graph, &world, &node->children[i]);
+            hierarchy_graph_update_tree_view_node(graph, node->children[i]);
         }
     }
 }
@@ -93,10 +121,10 @@ void hierarchy_graph_update(hierarchy_graph* graph, const struct frame_data* p_f
     build_view_tree(graph, &graph->view);
 
     // Traverse the tree and update the transforms.
-    u32 root_count = darray_length(graph->view.roots);
+    u32 root_count = darray_length(graph->view.root_indices);
     for (u32 i = 0; i < root_count; ++i) {
         // Roots have no parent, so no world matrix is passed.
-        hierarchy_graph_update_tree_view_node(graph, 0, &graph->view.roots[i]);
+        hierarchy_graph_update_tree_view_node(graph, graph->view.root_indices[i]);
     }
 }
 
@@ -304,6 +332,10 @@ static void ensure_allocated(hierarchy_graph* graph, u32 new_node_count) {
             kfree(graph->node_handles, sizeof(k_handle) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
         }
         graph->node_handles = new_node_handles;
+        // Invalidate all new entries in the array.
+        for (u32 node_handle_index = graph->nodes_allocated; node_handle_index < new_node_count; ++node_handle_index) {
+            graph->node_handles[node_handle_index] = k_handle_invalid();
+        }
 
         u32* new_parent_indices = kallocate(sizeof(u32) * new_node_count, MEMORY_TAG_ARRAY);
         if (graph->parent_indices) {
@@ -311,6 +343,10 @@ static void ensure_allocated(hierarchy_graph* graph, u32 new_node_count) {
             kfree(graph->parent_indices, sizeof(u32) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
         }
         graph->parent_indices = new_parent_indices;
+        // Invalidate all new entries in the array.
+        for (u32 parent_index = graph->nodes_allocated; parent_index < new_node_count; ++parent_index) {
+            graph->parent_indices[parent_index] = INVALID_ID;
+        }
 
         u8* new_levels = kallocate(sizeof(u8) * new_node_count, MEMORY_TAG_ARRAY);
         if (graph->levels) {
@@ -332,50 +368,62 @@ static void ensure_allocated(hierarchy_graph* graph, u32 new_node_count) {
             kfree(graph->xform_handles, sizeof(k_handle) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
         }
         graph->xform_handles = new_xform_handles;
+        // Invalidate all new entries in the array.
+        for (u32 xform_handle_index = graph->nodes_allocated; xform_handle_index < new_node_count; ++xform_handle_index) {
+            graph->xform_handles[xform_handle_index] = k_handle_invalid();
+        }
 
         graph->nodes_allocated = new_node_count;
     }
 }
 
-static void build_view_tree_node_children(hierarchy_graph* graph, hierarchy_graph_view_node* parent) {
+static u32 hierarchy_node_create(hierarchy_graph_view* view, k_handle node_handle, k_handle xform_handle, u32 parent_index) {
+    hierarchy_graph_view_node node = {0};
+    node.node_handle = node_handle;
+    node.xform_handle = xform_handle;
+    node.children = 0;
+    node.parent_index = parent_index;
+
+    darray_push(view->nodes, node);
+    u32 node_count = darray_length(view->nodes);
+
+    return node_count - 1;
+}
+
+static void build_view_tree_node_children(hierarchy_graph* graph, u32 parent_index) {
     for (u32 i = 0; i < graph->nodes_allocated; ++i) {
+        hierarchy_graph_view_node* parent = &graph->view.nodes[parent_index];
         if (graph->parent_indices[i] == parent->node_handle.handle_index) {
             // Found a child.
             if (!parent->children) {
-                parent->children = darray_create(hierarchy_graph_view_node);
+                parent->children = darray_create(u32);
             }
 
-            // Add it.
-            hierarchy_graph_view_node child = {0};
-            child.node_handle = graph->node_handles[i];
-            child.xform_handle = graph->xform_handles[i];
-            child.children = 0;
+            u32 node_index = hierarchy_node_create(&graph->view, graph->node_handles[i], graph->xform_handles[i], parent_index);
 
             // Recurse
-            build_view_tree_node_children(graph, &child);
+            build_view_tree_node_children(graph, node_index);
 
             // Add to children list.
-            darray_push(parent->children, child);
+            darray_push(parent->children, node_index);
         }
     }
 }
 
 static void build_view_tree(hierarchy_graph* graph, hierarchy_graph_view* out_view) {
-    out_view->roots = darray_create(hierarchy_graph_view_node);
+    out_view->nodes = darray_create(hierarchy_graph_view_node);
+    out_view->root_indices = darray_create(u32);
 
     for (u32 i = 0; i < graph->nodes_allocated; ++i) {
         // Only work on root nodes.
         if (!k_handle_is_invalid(graph->node_handles[i]) && graph->parent_indices[i] == INVALID_ID) {
-            hierarchy_graph_view_node root = {0};
-            root.node_handle = graph->node_handles[i];
-            root.xform_handle = graph->xform_handles[i];
-            root.children = 0;
+            u32 root_index = hierarchy_node_create(out_view, graph->node_handles[i], graph->xform_handles[i], INVALID_ID);
 
             // Recurse
-            build_view_tree_node_children(graph, &root);
+            build_view_tree_node_children(graph, root_index);
 
             // Add to roots list.
-            darray_push(out_view->roots, root);
+            darray_push(out_view->root_indices, root_index);
         }
     }
 }
@@ -385,7 +433,8 @@ static void destroy_view_tree_node(hierarchy_graph_view* view, hierarchy_graph_v
     if (node->children) {
         u32 child_count = darray_length(node->children);
         for (u32 i = 0; i < child_count; ++i) {
-            destroy_view_tree_node(view, &node->children[i]);
+            hierarchy_graph_view_node* child = &view->nodes[node->children[i]];
+            destroy_view_tree_node(view, child);
         }
         darray_destroy(node->children);
     }
@@ -396,14 +445,15 @@ static void destroy_view_tree(hierarchy_graph* graph, hierarchy_graph_view* view
         return;
     }
 
-    if (view->roots) {
-        u32 root_count = darray_length(view->roots);
+    if (view->root_indices) {
+        u32 root_count = darray_length(view->root_indices);
 
         for (u32 i = 0; i < root_count; ++i) {
-            destroy_view_tree_node(view, &view->roots[i]);
+            hierarchy_graph_view_node* root = &view->nodes[view->root_indices[i]];
+            destroy_view_tree_node(view, root);
         }
 
-        darray_destroy(view->roots);
-        view->roots = 0;
+        darray_destroy(view->root_indices);
+        view->root_indices = 0;
     }
 }

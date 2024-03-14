@@ -86,6 +86,85 @@ static b8 scene_loader_load(struct resource_loader* self, const char* name, void
     // Add to global nodes array.
     darray_push(resource_data->nodes, sponza);
 
+    // falcon
+    scene_node_config falcon = {0};
+    falcon.name = "falcon";
+
+    falcon.xform = kallocate(sizeof(scene_xform_config), MEMORY_TAG_SCENE);
+    falcon.xform->scale = vec3_create(0.35f, 0.35f, 0.35f);
+    falcon.xform->position = vec3_create(9.4f, 0.8f, 14.0f);
+    falcon.xform->rotation = quat_identity();
+
+    falcon.attachments = darray_create(scene_node_attachment_config);
+
+    scene_node_attachment_config falcon_mesh_attachment = {0};
+    falcon_mesh_attachment.type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
+    falcon_mesh_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_static_mesh), MEMORY_TAG_SCENE);
+    scene_node_attachment_static_mesh* falcon_typed_mesh_attachment = falcon_mesh_attachment.attachment_data;
+    falcon_typed_mesh_attachment->resource_name = "falcon";
+    darray_push(falcon.attachments, falcon_mesh_attachment);
+
+    scene_node_attachment_config falcon_red_light_attachment = {0};
+    falcon_red_light_attachment.type = SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT;
+    falcon_red_light_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_point_light), MEMORY_TAG_SCENE);
+    scene_node_attachment_point_light* falcon_red_light_typed_attachment = falcon_red_light_attachment.attachment_data;
+    falcon_red_light_typed_attachment->colour = vec4_create(100.0f, 0.0f, 0.0f, 1.0f);
+    falcon_red_light_typed_attachment->constant_f = 1.0f;
+    falcon_red_light_typed_attachment->linear = 0.35f;
+    falcon_red_light_typed_attachment->quadratic = 0.44f;
+    falcon_red_light_typed_attachment->position = vec4_create(7.0f, 1.25f, 20.0f, 0.0f);
+    darray_push(falcon.attachments, falcon_red_light_attachment);
+
+    // Add to global nodes array.
+    darray_push(resource_data->nodes, falcon);
+
+    // terrain
+    scene_node_config terrain = {0};
+    terrain.name = "falcon";
+
+    terrain.xform = kallocate(sizeof(scene_xform_config), MEMORY_TAG_SCENE);
+    terrain.xform->scale = vec3_one();
+    terrain.xform->position = vec3_create(-50.0f, -3.9f, -50.0f);
+    terrain.xform->rotation = quat_identity();
+
+    terrain.attachments = darray_create(scene_node_attachment_config);
+    scene_node_attachment_config terrain_attachment = {0};
+    terrain_attachment.type = SCENE_NODE_ATTACHMENT_TYPE_TERRAIN;
+    terrain_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_terrain), MEMORY_TAG_SCENE);
+    scene_node_attachment_terrain* terrain_typed_mesh_attachment = terrain_attachment.attachment_data;
+    terrain_typed_mesh_attachment->resource_name = "test_terrain";
+    terrain_typed_mesh_attachment->name = "test_terrain";
+    darray_push(terrain.attachments, terrain_attachment);
+
+    // Add to global nodes array.
+    darray_push(resource_data->nodes, terrain);
+
+    // Environment
+    scene_node_config environment = {0};
+    environment.name = "environment";
+
+    environment.attachments = darray_create(scene_node_attachment_config);
+
+    scene_node_attachment_config skybox_attachment = {0};
+    skybox_attachment.type = SCENE_NODE_ATTACHMENT_TYPE_SKYBOX;
+    skybox_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_skybox), MEMORY_TAG_SCENE);
+    scene_node_attachment_skybox* skybox_typed_mesh_attachment = skybox_attachment.attachment_data;
+    skybox_typed_mesh_attachment->cubemap_name = "skybox";
+    darray_push(environment.attachments, skybox_attachment);
+
+    scene_node_attachment_config dir_light_attachment = {0};
+    dir_light_attachment.type = SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT;
+    dir_light_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_directional_light), MEMORY_TAG_SCENE);
+    scene_node_attachment_directional_light* dir_light_typed_mesh_attachment = dir_light_attachment.attachment_data;
+    dir_light_typed_mesh_attachment->colour = vec4_create(80.0f, 80.0f, 70.0f, 1.0);
+    dir_light_typed_mesh_attachment->direction = vec4_create(0.1f, -1.0f, 0.1f, 1.0f);
+    dir_light_typed_mesh_attachment->shadow_distance = 100.0f;
+    dir_light_typed_mesh_attachment->shadow_fade_distance = 5.0f;
+    dir_light_typed_mesh_attachment->shadow_split_mult = 0.75f;
+    darray_push(environment.attachments, dir_light_attachment);
+
+    // Add to global nodes array.
+    darray_push(resource_data->nodes, environment);
     /*
     // Set some defaults, create arrays.
     resource_data->directional_light_config.shadow_fade_distance = SHADOW_FADE_DISTANCE_DEFAULT;

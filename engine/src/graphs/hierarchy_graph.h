@@ -27,13 +27,18 @@ typedef struct hierarchy_graph_view_node {
     k_handle node_handle;
     k_handle xform_handle;
 
-    // darray
-    struct hierarchy_graph_view_node* children;
+    // An index into the view's nodes array. INVALID_ID if no parent.
+    u32 parent_index;
+
+    // darray An array of indices into the view's nodes array.
+    u32* children;
 } hierarchy_graph_view_node;
 
 typedef struct hierarchy_graph_view {
-    // darray
-    hierarchy_graph_view_node* roots;
+    // darray A collective list of all view nodes.
+    hierarchy_graph_view_node* nodes;
+    // darray An array of indices into the nodes array.
+    u32* root_indices;
 } hierarchy_graph_view;
 
 // LEFTOFF: This node structure and the graph below should
@@ -68,7 +73,7 @@ typedef struct hierarchy_graph {
 KAPI b8 hierarchy_graph_create(hierarchy_graph* out_graph);
 KAPI void hierarchy_graph_destroy(hierarchy_graph* graph);
 
-KAPI void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, mat4* parent_world, hierarchy_graph_view_node* node);
+KAPI void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, u32 node_index);
 
 KAPI void hierarchy_graph_update(hierarchy_graph* graph, const struct frame_data* p_frame_data);
 

@@ -69,6 +69,9 @@ typedef struct point_light {
     point_light_data data;
     /** @brief Debug data assigned to the light. */
     void* debug_data;
+
+    // The positional offset from whatever this may be attached to.
+    vec4 position;
 } point_light;
 
 /**

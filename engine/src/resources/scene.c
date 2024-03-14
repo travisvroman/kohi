@@ -214,13 +214,14 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                     case SCENE_NODE_ATTACHMENT_TYPE_TERRAIN: {
                         scene_node_attachment_terrain *typed_attachment = attachment_config->attachment_data;
 
-                        if (typed_attachment->resource_name) {
+                        if (!typed_attachment->resource_name) {
                             KWARN("Invalid terrain config, resource_name is required.");
                             return;
                         }
 
                         terrain_config new_terrain_config = {0};
-                        new_terrain_config.resource_name = typed_attachment->resource_name;
+                        new_terrain_config.resource_name = string_duplicate(typed_attachment->resource_name);
+                        new_terrain_config.name = string_duplicate(typed_attachment->name);
                         terrain new_terrain = {0};
                         if (!terrain_create(&new_terrain_config, &new_terrain)) {
                             KWARN("Failed to load terrain.");
@@ -229,6 +230,7 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
 
                         // Destroy the config.
                         kfree(new_terrain_config.resource_name, string_length(new_terrain_config.resource_name), MEMORY_TAG_STRING);
+                        kfree(new_terrain_config.name, string_length(new_terrain_config.name), MEMORY_TAG_STRING);
 
                         if (!terrain_initialize(&new_terrain)) {
                             KERROR("Failed to initialize terrain.");
@@ -371,7 +373,8 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                         new_light.data.colour = typed_attachment->colour;
                         new_light.data.constant_f = typed_attachment->constant_f;
                         new_light.data.linear = typed_attachment->linear;
-                        new_light.data.position = typed_attachment->position;
+                        // Set the base position, not the world position, which will be calculated on update.
+                        new_light.position = typed_attachment->position;
                         new_light.data.quadratic = typed_attachment->quadratic;
 
                         // Add debug data and initialize it.
@@ -601,6 +604,26 @@ b8 scene_update(scene *scene, const struct frame_data *p_frame_data) {
         if (scene->point_lights) {
             u32 point_light_count = darray_length(scene->point_lights);
             for (u32 i = 0; i < point_light_count; ++i) {
+                // Update the point light's data position (world position) to take into account
+                // the owning node's transform.
+                scene_attachment *point_light_attachment = &scene->point_light_attachments[scene->point_light_attachment_indices[i]];
+                k_handle xform_handle = scene->hierarchy.xform_handles[point_light_attachment->hierarchy_node_handle.handle_index];
+
+                mat4 world;
+                if (!k_handle_is_invalid(xform_handle)) {
+                    world = xform_world_get(xform_handle);
+                } else {
+                    // TODO: traverse tree to try and find a ancestor node with a transform.
+                    world = mat4_identity();
+                }
+
+                // Calculate world position for the point light.
+                /* scene->point_lights[i].data.position = vec4_mul_mat4(scene->point_lights[i].position, world); */
+                // TODO: the below method works, the above does not. But hwhy?
+                vec3 pos = vec3_from_vec4(scene->point_lights[i].position);
+                scene->point_lights[i].data.position = vec4_from_vec3(vec3_transform(pos, 1.0f, world), 1.0f);
+
+                // Debug box info update.
                 if (scene->point_lights[i].debug_data) {
                     // TODO: Only update point light if changed.
                     scene_debug_data *debug = (scene_debug_data *)scene->point_lights[i].debug_data;

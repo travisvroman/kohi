@@ -40,7 +40,7 @@ nodes = [
                         resource_name="Tree"
                     }
                 ]
-                xform="17.4 10.8 114.0 0.0 0.0 0.0 1.0 20.0 20.0 20.0"
+                xform="700.4 80.0 140.0 0.0 0.0 0.0 1.0 220.0 220.0 220.0"
             }
         ]
         xform="0.0 -1.0 0.0 0.0 0.0 0.0 1.0 0.01 0.01 0.01"
@@ -52,6 +52,14 @@ nodes = [
                 type="static_mesh"
                 resource_name = "falcon"
             }
+            {
+                type="point_light"
+                colour="100.0 0.0 0.0 1.0"
+                constant_f=1.0
+                linear=0.35
+                quadratic=0.44
+                position="7.0 1.25 20.0 0.0"
+            }
         ]
         xform="9.4 0.8 14.0 0.0 0.0 0.0 1.0 0.35 0.35 0.35"
     }
@@ -60,6 +68,7 @@ nodes = [
         attachments = [
             {
                 type="terrain"
+                name="test_terrain"
                 resource_name = "test_terrain"
             }
         ]

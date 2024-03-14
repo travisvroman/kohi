@@ -698,6 +698,7 @@ typedef struct scene_node_attachment_static_mesh {
 
 // Terrain attachment.
 typedef struct scene_node_attachment_terrain {
+    char *name;
     char *resource_name;
 } scene_node_attachment_terrain;
 
