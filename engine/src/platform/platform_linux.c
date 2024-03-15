@@ -575,28 +575,6 @@ void kthread_sleep(kthread* thread, u64 ms) {
     platform_sleep(ms);
 }
 
-b8 kthread_wait(kthread* thread) {
-    if (thread && thread->internal_data) {
-        i32 result = pthread_join(*(pthread_t*)thread->internal_data, 0);
-        if (result == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-b8 kthread_wait_timeout(kthread* thread, u64 wait_ms) {
-    if (thread && thread->internal_data) {
-        KWARN("kthread_wait_timeout - timeout not supported on this platform.");
-        // LEFTOFF: Need a wait/notify loop to support timeout.
-        i32 result = pthread_join(*(pthread_t*)thread->internal_data, 0);
-        if (result == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
 u64 platform_current_thread_id(void) {
     return (u64)pthread_self();
 }

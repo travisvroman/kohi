@@ -222,17 +222,7 @@ void sui_label_text_set(struct sui_control* self, const char* text) {
         typed_data->text = string_duplicate(text);
 
         // NOTE: Only bother with verification and setting the dirty flag for non-empty strings.
-        u32 length = string_length(typed_data->text);
-        if (length > 0) {
-            // Verify atlas has the glyphs needed.
-            if (!font_system_verify_atlas(typed_data->data, text)) {
-                KERROR("Font atlas verification failed.");
-            }
-
-            typed_data->is_dirty = true;
-        } else {
-            typed_data->is_dirty = false;
-        }
+        typed_data->is_dirty = string_length(typed_data->text) > 0;
     }
 }
 
@@ -407,6 +397,13 @@ static void sui_label_control_render_frame_prepare(struct sui_control* self, con
     if (self) {
         sui_label_internal_data* typed_data = self->internal_data;
         if (typed_data->is_dirty) {
+            // Verify atlas has the glyphs needed.
+            if (!font_system_verify_atlas(typed_data->data, typed_data->text)) {
+                KERROR("Font atlas verification failed.");
+                typed_data->quad_count = 0;  // Keep it from drawing.
+                goto sui_label_frame_prepare_cleanup;
+            }
+
             sui_label_pending_data pending_data = {0};
             if (!regenerate_label_geometry(self, &pending_data)) {
                 KERROR("Error regenerating label geometry.");
