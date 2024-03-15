@@ -38,6 +38,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] bst
 - [ ] quadtrees/octrees
 - [x] Threads 
+- [ ] Flag to force single-threaded mode.
 - [x] Semaphores
 - [x] Job system
   - [x] Job dependencies

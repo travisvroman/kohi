@@ -44,38 +44,35 @@ typedef enum kson_tokenize_mode {
 } kson_tokenize_mode;
 
 // Resets both the current token type and the tokenize mode to unknown.
-#define RESET_CURRENT_TOKEN_AND_MODE()                \
-    {                                                 \
-        current_token.type = KSON_TOKEN_TYPE_UNKNOWN; \
-        current_token.start = 0;                      \
-        current_token.end = 0;                        \
-                                                      \
-        mode = KSON_TOKENIZE_MODE_UNKNOWN;            \
-    }
+static void RESET_CURRENT_TOKEN_AND_MODE(kson_token* current_token, kson_tokenize_mode* mode) {
+    current_token->type = KSON_TOKEN_TYPE_UNKNOWN;
+    current_token->start = 0;
+    current_token->end = 0;
+
+    *mode = KSON_TOKENIZE_MODE_UNKNOWN;
+}
 
 #ifdef KOHI_DEBUG
-#define POPULATE_TOKEN_CONTENT(t)                             \
-    {                                                         \
-        char buffer[512] = {0};                               \
-        string_mid(buffer, source, t.start, t.end - t.start); \
-        t.content = string_duplicate(buffer);                 \
-    }
+static void _populate_token_content(kson_token* t, const char* source) {
+    KASSERT_MSG(t->start <= t->end, "Token start comes after token end, ya dingus!");
+    char buffer[512] = {0};
+    KASSERT_MSG((t->end - t->start) < 512, "token won't fit in buffer.");
+    string_mid(buffer, source, t->start, t->end - t->start);
+    t->content = string_duplicate(buffer);
+}
+#define POPULATE_TOKEN_CONTENT(t, source) _populate_token_content(t, source)
 #else
 // No-op
-#define POPULATE_CURRENT_TOKEN_CONTENT()
+#define POPULATE_CURRENT_TOKEN_CONTENT(t, source)
 #endif
 
 // Pushes the current token, if not of unknown type.
-#define PUSH_TOKEN(t)                            \
-    {                                            \
-        if (t.type != KSON_TOKEN_TYPE_UNKNOWN) { \
-            POPULATE_TOKEN_CONTENT(t);           \
-            darray_push(parser->tokens, t);      \
-        }                                        \
+static void PUSH_TOKEN(kson_token* t, kson_parser* parser) {
+    if (t->type != KSON_TOKEN_TYPE_UNKNOWN) {
+        POPULATE_TOKEN_CONTENT(t, parser->file_content);
+        darray_push(parser->tokens, *t);
     }
-
-// Pushes the current token, if not of unknown type.
-#define PUSH_CURRENT_TOKEN() PUSH_TOKEN(current_token)
+}
 
 b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
     if (!parser) {
@@ -131,8 +128,8 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
             // also not escaped.
             if (codepoint == '"' && (prev_codepoint != '\\' || prev_codepoint2 == '\\')) {
                 // Terminate the string, push the token onto the array, and revert modes.
-                PUSH_CURRENT_TOKEN();
-                RESET_CURRENT_TOKEN_AND_MODE();
+                PUSH_TOKEN(&current_token, parser);
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } else {
                 // Handle other characters as part of the string.
                 current_token.end += advance;
@@ -147,14 +144,14 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
         // Not part of a string, identifier, numeric, etc., so try to figure out what to do next.
         switch (codepoint) {
             case '\n': {
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
                 // Just create a new token and insert it.
                 kson_token newline_token = {KSON_TOKEN_TYPE_NEWLINE, c, c + advance};
 
-                PUSH_TOKEN(newline_token);
+                PUSH_TOKEN(&newline_token, parser);  // old
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } break;
             case '\t':
             case '\r':
@@ -164,7 +161,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                     current_token.end++;
                 } else {
                     // Before switching to whitespace mode, push the current token.
-                    PUSH_CURRENT_TOKEN();
+                    PUSH_TOKEN(&current_token, parser);
                     mode = KSON_TOKENIZE_MODE_WHITESPACE;
                     current_token.type = KSON_TOKEN_TYPE_WHITESPACE;
                     current_token.start = c;
@@ -172,45 +169,45 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                 }
             } break;
             case '{': {
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
                 // Create and push a new token for this.
                 kson_token open_brace_token = {KSON_TOKEN_TYPE_CURLY_BRACE_OPEN, c, c + advance};
-                PUSH_TOKEN(open_brace_token);
+                PUSH_TOKEN(&open_brace_token, parser);
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } break;
             case '}': {
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
                 // Create and push a new token for this.
                 kson_token close_brace_token = {KSON_TOKEN_TYPE_CURLY_BRACE_CLOSE, c, c + advance};
-                PUSH_TOKEN(close_brace_token);
+                PUSH_TOKEN(&close_brace_token, parser);
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } break;
             case '[': {
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
                 // Create and push a new token for this.
                 kson_token open_bracket_token = {KSON_TOKEN_TYPE_BRACKET_OPEN, c, c + advance};
-                PUSH_TOKEN(open_bracket_token);
+                PUSH_TOKEN(&open_bracket_token, parser);
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } break;
             case ']': {
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
                 // Create and push a new token for this.
                 kson_token close_bracket_token = {KSON_TOKEN_TYPE_BRACKET_CLOSE, c, c + advance};
-                PUSH_TOKEN(close_bracket_token);
+                PUSH_TOKEN(&close_bracket_token, parser);
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } break;
             case '"': {
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
 
                 // Change to string parsing mode.
                 mode = KSON_TOKENIZE_MODE_STRING_LITERAL;
@@ -232,7 +229,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                     current_token.end++;
                 } else {
                     // Push the existing token.
-                    PUSH_CURRENT_TOKEN();
+                    PUSH_TOKEN(&current_token, parser);
 
                     // Switch to numeric parsing mode.
                     mode = KSON_TOKENIZE_MODE_NUMERIC_LITERAL;
@@ -246,30 +243,30 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                 // the string case above, which is already covered). It's then up to the grammar rules as to
                 // whether this then gets used to negate a numeric literal or if it is used for subtraction, etc.
 
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
                 // Create and push a new token for this.
                 kson_token minus_token = {KSON_TOKEN_TYPE_OPERATOR_MINUS, c, c + advance};
-                PUSH_TOKEN(minus_token);
+                PUSH_TOKEN(&minus_token, parser);
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } break;
             case '+': {
                 // NOTE: Always treat the plus as a plus operator regardless of how it is used (except in
                 // the string case above, which is already covered). It's then up to the grammar rules as to
                 // whether this then gets used to ensure positivity of a numeric literal or if it is used for addition, etc.
 
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
                 // Create and push a new token for this.
                 kson_token plus_token = {KSON_TOKEN_TYPE_OPERATOR_PLUS, c, c + advance};
-                PUSH_TOKEN(plus_token);
+                PUSH_TOKEN(&plus_token, parser);
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } break;
             case '/': {
-                PUSH_CURRENT_TOKEN();
-                RESET_CURRENT_TOKEN_AND_MODE();
+                PUSH_TOKEN(&current_token, parser);
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
 
                 // Look ahead and see if another slash follows. If so, the rest of the
                 // line is a comment. Skip forward until a newline is found.
@@ -291,51 +288,51 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                     // Otherwise it should be treated as a slash operator.
                     // Create and push a new token for this.
                     kson_token slash_token = {KSON_TOKEN_TYPE_OPERATOR_SLASH, c, c + advance};
-                    PUSH_TOKEN(slash_token);
+                    PUSH_TOKEN(&slash_token, parser);
                 }
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } break;
             case '*': {
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
                 // Create and push a new token for this.
                 kson_token asterisk_token = {KSON_TOKEN_TYPE_OPERATOR_ASTERISK, c, c + advance};
-                PUSH_TOKEN(asterisk_token);
+                PUSH_TOKEN(&asterisk_token, parser);
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } break;
             case '=': {
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
                 // Create and push a new token for this.
                 kson_token equal_token = {KSON_TOKEN_TYPE_OPERATOR_EQUAL, c, c + advance};
-                PUSH_TOKEN(equal_token);
+                PUSH_TOKEN(&equal_token, parser);
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } break;
             case '.': {
                 // NOTE: Always treat this as a dot token, regardless of use. It's up to the grammar
                 // rules in the parser as to whether or not it's to be used as part of a numeric literal
                 // or something else.
 
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
                 // Create and push a new token for this.
                 kson_token dot_token = {KSON_TOKEN_TYPE_OPERATOR_DOT, c, c + advance};
-                PUSH_TOKEN(dot_token);
+                PUSH_TOKEN(&dot_token, parser);
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
             } break;
             case '\0': {
                 // Reached the end of the file.
-                PUSH_CURRENT_TOKEN();
+                PUSH_TOKEN(&current_token, parser);
 
                 // Create and push a new token for this.
                 kson_token eof_token = {KSON_TOKEN_TYPE_EOF, c, c + advance};
-                PUSH_TOKEN(eof_token);
+                PUSH_TOKEN(&eof_token, parser);
 
-                RESET_CURRENT_TOKEN_AND_MODE();
+                RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
 
                 eof_reached = true;
             } break;
@@ -360,20 +357,20 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                         }
 
                         if (bool_advance) {
-                            PUSH_CURRENT_TOKEN();
+                            PUSH_TOKEN(&current_token, parser);
 
                             // Create and push boolean token.
                             kson_token bool_token = {KSON_TOKEN_TYPE_BOOLEAN, c, c + bool_advance};
-                            PUSH_TOKEN(bool_token);
+                            PUSH_TOKEN(&bool_token, parser);
 
-                            RESET_CURRENT_TOKEN_AND_MODE();
+                            RESET_CURRENT_TOKEN_AND_MODE(&current_token, &mode);
 
                             // Move forward by the size of the token.
                             advance = bool_advance;
                         } else {
                             // Treat as the start of an identifier definition.
                             // Push the existing token.
-                            PUSH_CURRENT_TOKEN();
+                            PUSH_TOKEN(&current_token, parser);
 
                             // Switch to identifier parsing mode.
                             mode = KSON_TOKENIZE_MODE_DEFINING_IDENTIFIER;
@@ -398,10 +395,10 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
         // Now advance c
         c += advance;
     }
-    PUSH_CURRENT_TOKEN();
+    PUSH_TOKEN(&current_token, parser);
     // Create and push a new token for this.
     kson_token eof_token = {KSON_TOKEN_TYPE_EOF, char_length, char_length + 1};
-    PUSH_TOKEN(eof_token);
+    PUSH_TOKEN(&eof_token, parser);
 
     return true;
 }
@@ -442,7 +439,8 @@ static kson_token* get_last_non_whitespace_token(kson_parser* parser, u32 curren
 #define NUMERIC_LITERAL_STR_MAX_LENGTH 25
 
 static char* string_from_kson_token(const char* file_content, const kson_token* token) {
-    u32 length = token->end - token->start;
+    i32 length = (i32)token->end - (i32)token->start;
+    KASSERT_MSG(length > 0, "Token length should be at one, ya dingus.");
     char* mid = kallocate(sizeof(char) * (length + 1), MEMORY_TAG_STRING);
     string_mid(mid, file_content, token->start, length);
     mid[length] = 0;

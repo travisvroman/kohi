@@ -22,6 +22,15 @@
 
 struct frame_allocator_int;
 
+typedef struct darray_header {
+    u64 capacity;
+    u64 length;
+    u64 stride;
+    struct frame_allocator_int* allocator;
+} darray_header;
+
+struct frame_allocator_int;
+
 /**
  * @brief Creates a new darray of the given length and stride.
  * Note that this performs a dynamic memory allocation.

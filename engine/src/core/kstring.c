@@ -247,7 +247,12 @@ char* string_trim(char* str) {
 }
 
 void string_mid(char* dest, const char* source, i32 start, i32 length) {
+    if (!source || !dest) {
+        return;
+    }
     if (length == 0) {
+        KTRACE("Tried to perform mid on zero-length string.");
+        dest[0] = 0;
         return;
     }
     i32 src_length = (i32)string_length(source);
@@ -256,17 +261,18 @@ void string_mid(char* dest, const char* source, i32 start, i32 length) {
         return;
     }
     if (length > 0) {
-        for (i32 i = start, j = 0; j < length && source[i]; ++i, ++j) {
+        i32 j = 0;
+        for (i32 i = start; j < length && source[i]; ++i, ++j) {
             dest[j] = source[i];
         }
-        dest[start + length] = 0;
+        dest[j] = 0;
     } else {
         // If a negative value is passed, proceed to the end of the string.
         u64 j = 0;
         for (u64 i = start; source[i]; ++i, ++j) {
             dest[j] = source[i];
         }
-        dest[start + j] = 0;
+        dest[j] = 0;
     }
 }
 

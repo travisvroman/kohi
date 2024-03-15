@@ -6,6 +6,7 @@
 #include "core/logger.h"
 #include "math/kmath.h"
 #include "math/transform.h"
+#include "parsers/kson_parser.h"
 #include "platform/filesystem.h"
 #include "resources/loaders/loader_utils.h"
 #include "resources/resource_types.h"
@@ -23,18 +24,55 @@ static b8 scene_loader_load(struct resource_loader* self, const char* name, void
 
     char* format_str = "%s/%s/%s%s";
     char full_file_path[512];
-    string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, ".kss");
+    string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, ".ksn");
 
     file_handle f;
     if (!filesystem_open(full_file_path, FILE_MODE_READ, false, &f)) {
-        KERROR("scene_loader_load - unable to open simple scene file for reading: '%s'.", full_file_path);
+        KERROR("scene_loader_load - unable to open scene file for reading: '%s'.", full_file_path);
         return false;
     }
 
     out_resource->full_path = string_duplicate(full_file_path);
 
+    u64 file_size = 0;
+    if (!filesystem_size(&f, &file_size)) {
+        KERROR("Failed to check size of scene file.");
+        return false;
+    }
+
+    u64 bytes_read = 0;
+    char* file_content = kallocate(file_size + 1, MEMORY_TAG_RESOURCE);
+    if (!filesystem_read_all_text(&f, file_content, &bytes_read)) {
+        KERROR("Failed to read all text of scene file.");
+        return false;
+    }
+
+    filesystem_close(&f);
+
+    // Verify that we read the whole file.
+    if (bytes_read != file_size) {
+        KWARN("File size/bytes read mismatch: %llu / %llu", file_size, bytes_read);
+    }
+
+    // Parse the file.
+    /* kson_parser parser;
+    if (!kson_parser_create(&parser)) {
+        KERROR("Failed to create scene parser. See logs for details.");
+        return false;
+    } */
+
+    kson_tree source_tree = {0};
+    if (!kson_tree_from_string(file_content, &source_tree)) {
+        KERROR("Failed to parse scene file. See logs for details.");
+        return false;
+    }
+
     scene_config* resource_data = kallocate(sizeof(scene_config), MEMORY_TAG_RESOURCE);
-    kzero_memory(resource_data, sizeof(scene_config));
+
+    // TODO: loop through objects/properties, etc.
+
+    // Destroy the tree and parser.
+    kson_tree_cleanup(&source_tree);
 
     // HACK: temporarily construct a scene hierarchy, will read from file later.
 
@@ -112,7 +150,7 @@ static b8 scene_loader_load(struct resource_loader* self, const char* name, void
     falcon_red_light_typed_attachment->constant_f = 1.0f;
     falcon_red_light_typed_attachment->linear = 0.35f;
     falcon_red_light_typed_attachment->quadratic = 0.44f;
-    falcon_red_light_typed_attachment->position = vec4_create(7.0f, 1.25f, 20.0f, 0.0f);
+    falcon_red_light_typed_attachment->position = vec4_create(2.5f, 1.25f, -8.0f, 0.0f);
     darray_push(falcon.attachments, falcon_red_light_attachment);
 
     // Add to global nodes array.
@@ -193,8 +231,6 @@ static b8 scene_loader_load(struct resource_loader* self, const char* name, void
     */
 
     // TODO: Pass to kson parser.
-
-    filesystem_close(&f);
 
     out_resource->data = resource_data;
     out_resource->data_size = sizeof(scene_config);
