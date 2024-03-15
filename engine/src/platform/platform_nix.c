@@ -96,7 +96,9 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void *params, b8 auto_det
 }
 
 void kthread_destroy(kthread *thread) {
-    kthread_cancel(thread);
+    if (thread->internal_data) {
+        kthread_cancel(thread);
+    }
 }
 
 void kthread_detach(kthread *thread) {
@@ -116,6 +118,7 @@ void kthread_detach(kthread *thread) {
             }
         }
         platform_free(thread->internal_data, false);
+        thread->thread_id = 0;
         thread->internal_data = 0;
     }
 }
@@ -146,6 +149,36 @@ b8 kthread_is_active(kthread *thread) {
 
 void kthread_sleep(kthread *thread, u64 ms) {
     platform_sleep(ms);
+}
+
+b8 kthread_wait(kthread *thread) {
+    if (thread && thread->internal_data) {
+        i32 result = pthread_join(*(pthread_t *)thread->internal_data, 0);
+        // When a thread is joined, its lifecycle ends.
+        platform_free(thread->internal_data, false);
+        thread->internal_data = 0;
+        thread->thread_id = 0;
+        if (result == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+b8 kthread_wait_timeout(kthread *thread, u64 wait_ms) {
+    if (thread && thread->internal_data) {
+        KWARN("kthread_wait_timeout - timeout not supported on this platform.");
+        // LEFTOFF: Need a wait/notify loop to support timeout.
+        i32 result = pthread_join(*(pthread_t *)thread->internal_data, 0);
+        // When a thread is joined, its lifecycle ends.
+        platform_free(thread->internal_data, false);
+        thread->internal_data = 0;
+        thread->thread_id = 0;
+        if (result == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 u64 platform_current_thread_id(void) {
@@ -427,28 +460,6 @@ b8 platform_dynamic_library_load_function(const char *name, dynamic_library *lib
     darray_push(library->functions, f);
 
     return true;
-}
-
-b8 kthread_wait(kthread *thread) {
-    if (thread && thread->internal_data) {
-        i32 result = pthread_join(*(pthread_t *)thread->internal_data, 0);
-        if (result == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-b8 kthread_wait_timeout(kthread *thread, u64 wait_ms) {
-    if (thread && thread->internal_data) {
-        KWARN("kthread_wait_timeout - timeout not supported on this platform.");
-        // LEFTOFF: Need a wait/notify loop to support timeout.
-        i32 result = pthread_join(*(pthread_t *)thread->internal_data, 0);
-        if (result == 0) {
-            return true;
-        }
-    }
-    return false;
 }
 
 #endif
