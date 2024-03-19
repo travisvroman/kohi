@@ -1360,7 +1360,7 @@ b8 kson_array_element_value_get_object(const kson_array* array, u32 index, kson_
     }
 
     KASSERT_MSG(
-        array->properties[index].type != KSON_PROPERTY_TYPE_OBJECT && array->properties[index].type != KSON_PROPERTY_TYPE_ARRAY,
+        array->properties[index].type == KSON_PROPERTY_TYPE_OBJECT || array->properties[index].type == KSON_PROPERTY_TYPE_ARRAY,
         "Array element is not an object or array.");
 
     *out_value = array->properties[index].value.o;
@@ -1435,7 +1435,17 @@ b8 kson_object_property_value_get_int(const kson_object* object, const char* nam
         return false;
     }
 
-    *out_value = object->properties[index].value.i;
+    kson_property* p = &object->properties[index];
+
+    // NOTE: Try some type conversions.
+    if (p->type == KSON_PROPERTY_TYPE_INT) {
+        *out_value = p->value.i;
+    } else if (p->type == KSON_PROPERTY_TYPE_BOOLEAN) {
+        *out_value = p->value.b ? 1 : 0;
+    } else {
+        *out_value = (i64)p->value.f;
+    }
+
     return true;
 }
 
@@ -1445,8 +1455,17 @@ b8 kson_object_property_value_get_float(const kson_object* object, const char* n
         *out_value = 0;
         return false;
     }
+    kson_property* p = &object->properties[index];
 
-    *out_value = object->properties[index].value.f;
+    // If the property is an int, cast to a float.
+    if (p->type == KSON_PROPERTY_TYPE_INT) {
+        *out_value = (f32)p->value.i;
+    } else if (p->type == KSON_PROPERTY_TYPE_BOOLEAN) {
+        *out_value = (f32)p->value.b;
+    } else {
+        *out_value = p->value.f;
+    }
+
     return true;
 }
 
@@ -1457,7 +1476,17 @@ b8 kson_object_property_value_get_bool(const kson_object* object, const char* na
         return false;
     }
 
-    *out_value = object->properties[index].value.b;
+    kson_property* p = &object->properties[index];
+
+    // NOTE: Try some type conversions.
+    if (p->type == KSON_PROPERTY_TYPE_INT) {
+        *out_value = p->value.i == 0 ? false : true;
+    } else if (p->type == KSON_PROPERTY_TYPE_FLOAT) {
+        *out_value = p->value.f == 0 ? false : true;
+    } else {
+        *out_value = p->value.b;
+    }
+
     return true;
 }
 
@@ -1468,7 +1497,33 @@ b8 kson_object_property_value_get_string(const kson_object* object, const char* 
         return false;
     }
 
-    *out_value = object->properties[index].value.s;
+    kson_property* p = &object->properties[index];
+
+    // NOTE: Try some type conversions.
+    if (p->type == KSON_PROPERTY_TYPE_INT) {
+        char buf[50] = {0};
+        string_format(buf, "%i", p->value.i);
+        *out_value = string_duplicate(buf);
+    } else if (p->type == KSON_PROPERTY_TYPE_FLOAT) {
+        char buf[50] = {0};
+        string_format(buf, "%f", p->value.f);
+        *out_value = string_duplicate(buf);
+    } else if (p->type == KSON_PROPERTY_TYPE_BOOLEAN) {
+        char buf[6] = {0};
+        string_format(buf, "%s", p->value.b ? "true" : "false");
+        *out_value = string_duplicate(buf);
+    } else if (p->type == KSON_PROPERTY_TYPE_OBJECT) {
+        *out_value = string_duplicate("[Object]");
+    } else if (p->type == KSON_PROPERTY_TYPE_ARRAY) {
+        *out_value = string_duplicate("[Array]");
+    } else if (p->type == KSON_PROPERTY_TYPE_STRING) {
+        *out_value = string_duplicate(p->value.s);
+    } else {
+        *out_value = string_duplicate("undefined_type");
+        KERROR("Unrecognized value type.")
+        return false;
+    }
+
     return true;
 }
 

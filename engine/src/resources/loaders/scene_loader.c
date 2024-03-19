@@ -10,79 +10,385 @@
 #include "platform/filesystem.h"
 #include "resources/loaders/loader_utils.h"
 #include "resources/resource_types.h"
+#include "resources/scene.h"
 #include "systems/resource_system.h"
-#include "systems/xform_system.h"
 
 #define SHADOW_DISTANCE_DEFAULT 200.0f
 #define SHADOW_FADE_DISTANCE_DEFAULT 25.0f
 #define SHADOW_SPLIT_MULT_DEFAULT 0.95f;
 
-static b8 scene_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
-    if (!self || !name || !out_resource) {
+static b8 deserialize_scene_directional_light_attachment(const kson_object* attachment_object, scene_node_attachment_directional_light* attachment) {
+    if (!attachment_object || !attachment) {
         return false;
     }
 
-    char* format_str = "%s/%s/%s%s";
-    char full_file_path[512];
-    string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, ".ksn");
+    // NOTE: all properties are optional, with defaults provided.
 
-    file_handle f;
-    if (!filesystem_open(full_file_path, FILE_MODE_READ, false, &f)) {
-        KERROR("scene_loader_load - unable to open scene file for reading: '%s'.", full_file_path);
+    // Colour
+    attachment->colour = vec4_create(50, 50, 50, 1);  // default to white.
+    const char* colour_string = 0;
+    if (kson_object_property_value_get_string(attachment_object, "colour", &colour_string)) {
+        string_to_vec4(colour_string, &attachment->colour);
+    }
+
+    // Direction
+    attachment->direction = vec4_create(0, -1, 0, 1);  // default to down.
+    const char* direction_string = 0;
+    if (kson_object_property_value_get_string(attachment_object, "direction", &direction_string)) {
+        string_to_vec4(direction_string, &attachment->direction);
+    }
+
+    // shadow distance
+    attachment->shadow_distance = 200.0f;
+    kson_object_property_value_get_float(attachment_object, "shadow_distance", &attachment->shadow_distance);
+
+    // shadow fade distance
+    attachment->shadow_fade_distance = 25.0f;
+    kson_object_property_value_get_float(attachment_object, "shadow_fade_distance", &attachment->shadow_fade_distance);
+
+    // shadow split multiplier
+    attachment->shadow_split_mult = 0.44f;
+    kson_object_property_value_get_float(attachment_object, "shadow_split_mult", &attachment->shadow_split_mult);
+
+    return true;
+}
+
+static b8 deserialize_scene_point_light_attachment(const kson_object* attachment_object, scene_node_attachment_point_light* attachment) {
+    if (!attachment_object || !attachment) {
         return false;
     }
 
-    out_resource->full_path = string_duplicate(full_file_path);
+    // NOTE: all properties are optional, with defaults provided.
 
-    u64 file_size = 0;
-    if (!filesystem_size(&f, &file_size)) {
-        KERROR("Failed to check size of scene file.");
+    // Colour
+    attachment->colour = vec4_create(50, 50, 50, 1);  // default to white.
+    const char* colour_string = 0;
+    if (kson_object_property_value_get_string(attachment_object, "colour", &colour_string)) {
+        string_to_vec4(colour_string, &attachment->colour);
+    }
+
+    // Position
+    attachment->position = vec4_zero();  // default to origin.
+    const char* position_string = 0;
+    if (kson_object_property_value_get_string(attachment_object, "position", &position_string)) {
+        string_to_vec4(position_string, &attachment->position);
+    }
+
+    // constant_f
+    attachment->constant_f = 1.0f;
+    kson_object_property_value_get_float(attachment_object, "constant_f", &attachment->constant_f);
+
+    // linear
+    attachment->linear = 0.35f;
+    kson_object_property_value_get_float(attachment_object, "linear", &attachment->linear);
+
+    // quadratic
+    attachment->quadratic = 0.44f;
+    kson_object_property_value_get_float(attachment_object, "quadratic", &attachment->quadratic);
+
+    return true;
+}
+
+static b8 deserialize_scene_static_mesh_attachment(const kson_object* attachment_object, scene_node_attachment_static_mesh* attachment) {
+    if (!attachment_object || !attachment) {
         return false;
     }
 
-    u64 bytes_read = 0;
-    char* file_content = kallocate(file_size + 1, MEMORY_TAG_RESOURCE);
-    if (!filesystem_read_all_text(&f, file_content, &bytes_read)) {
-        KERROR("Failed to read all text of scene file.");
+    const char* resource_name_str = 0;
+    if (!kson_object_property_value_get_string(attachment_object, "resource_name", &resource_name_str)) {
+        KERROR("Static mesh attachment config requires a valid 'resource_name'. Deserialization failed.");
+        return false;
+    }
+    attachment->resource_name = string_duplicate(resource_name_str);
+
+    return true;
+}
+
+static b8 deserialize_scene_terrain_attachment(const kson_object* attachment_object, scene_node_attachment_terrain* attachment) {
+    if (!attachment_object || !attachment) {
         return false;
     }
 
-    filesystem_close(&f);
-
-    // Verify that we read the whole file.
-    if (bytes_read != file_size) {
-        KWARN("File size/bytes read mismatch: %llu / %llu", file_size, bytes_read);
-    }
-
-    // Parse the file.
-    /* kson_parser parser;
-    if (!kson_parser_create(&parser)) {
-        KERROR("Failed to create scene parser. See logs for details.");
-        return false;
-    } */
-
-    kson_tree source_tree = {0};
-    if (!kson_tree_from_string(file_content, &source_tree)) {
-        KERROR("Failed to parse scene file. See logs for details.");
+    const char* name_str = 0;
+    if (!kson_object_property_value_get_string(attachment_object, "name", &name_str)) {
+        KERROR("Terrain attachment config requires a valid 'name'. Deserialization failed.");
         return false;
     }
+    attachment->name = string_duplicate(name_str);
 
-    scene_config* resource_data = kallocate(sizeof(scene_config), MEMORY_TAG_RESOURCE);
+    const char* resource_name_str = 0;
+    if (!kson_object_property_value_get_string(attachment_object, "resource_name", &resource_name_str)) {
+        KERROR("Terrain attachment config requires a valid 'resource_name'. Deserialization failed.");
+        return false;
+    }
+    attachment->resource_name = string_duplicate(resource_name_str);
 
-    // TODO: loop through objects/properties, etc.
+    return true;
+}
 
-    // Destroy the tree and parser.
-    kson_tree_cleanup(&source_tree);
+static b8 deserialize_scene_skybox_attachment(const kson_object* attachment_object, scene_node_attachment_skybox* attachment) {
+    if (!attachment_object || !attachment) {
+        return false;
+    }
 
+    const char* cubemap_name_str = 0;
+    if (!kson_object_property_value_get_string(attachment_object, "cubemap_name", &cubemap_name_str)) {
+        KERROR("Static mesh attachment config requires a valid 'cubemap_name'. Deserialization failed.");
+        return false;
+    }
+    attachment->cubemap_name = string_duplicate(cubemap_name_str);
+
+    return true;
+}
+
+static scene_node_attachment_type scene_attachment_type_from_string(const char* str) {
+    if (!str) {
+        return SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN;
+    }
+
+    if (strings_equali(str, "static_mesh")) {
+        return SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
+    } else if (strings_equali(str, "terrain")) {
+        return SCENE_NODE_ATTACHMENT_TYPE_TERRAIN;
+    } else if (strings_equali(str, "skybox")) {
+        return SCENE_NODE_ATTACHMENT_TYPE_SKYBOX;
+    } else if (strings_equali(str, "directional_light")) {
+        return SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT;
+    } else if (strings_equali(str, "point_light")) {
+        return SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT;
+    } else {
+        return SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN;
+    }
+}
+
+b8 scene_node_config_deserialize_kson(const kson_object* node_object, scene_node_config* out_node_config) {
+    if (!node_object) {
+        KERROR("scene_node_config_deserialize_kson requires a valid pointer to node_object.");
+        return false;
+    }
+
+    if (!out_node_config) {
+        KERROR("scene_node_config_deserialize_kson requires a valid pointer to out_node_config.");
+        return false;
+    }
+
+    if (node_object->type != KSON_OBJECT_TYPE_OBJECT) {
+        KERROR("Unexpected property type. Skipping.");
+        return false;
+    }
+
+    // Name
+    const char* node_name = 0;
+    if (!kson_object_property_value_get_string(node_object, "name", &node_name)) {
+        node_name = "";
+    }
+    out_node_config->name = string_duplicate(node_name);
+
+    // xform, if there is one.
+    const char* xform_string = 0;
+    if (kson_object_property_value_get_string(node_object, "xform", &xform_string)) {
+        // Found an xform, deserialize it into config.
+        out_node_config->xform = kallocate(sizeof(scene_xform_config), MEMORY_TAG_SCENE);
+        string_to_xform_config(xform_string, out_node_config->xform);
+    } else {
+        out_node_config->xform = 0;
+    }
+
+    // Process attachments, if any.
+    kson_object attachments_array = {0};
+    if (kson_object_property_value_get_object(node_object, "attachments", &attachments_array)) {
+        // Make sure it is actually an array.
+        if (attachments_array.type == KSON_OBJECT_TYPE_ARRAY) {
+            u32 attachment_count = 0;
+            kson_array_element_count_get(&attachments_array, &attachment_count);
+
+            // Each attachment
+            for (u32 attachment_index = 0; attachment_index < attachment_count; ++attachment_index) {
+                // Get the object.
+                kson_object attachment_object = {0};
+                if (!kson_array_element_value_get_object(&attachments_array, attachment_index, &attachment_object)) {
+                    KERROR("Unable to get attachment object at index %u.", attachment_index);
+                    continue;
+                }
+
+                // Confirm it is an object, not an array.
+                if (attachment_object.type != KSON_OBJECT_TYPE_OBJECT) {
+                    KERROR("Expected object type of object for attachment. Skipping.");
+                    continue;
+                }
+
+                // Attachment type.
+                const char* attachment_type_str = 0;
+                if (!kson_object_property_value_get_string(&attachment_object, "type", &attachment_type_str)) {
+                    KERROR("Unable to determine attachment type. Skipping.");
+                    continue;
+                }
+                scene_node_attachment_type attachment_type = scene_attachment_type_from_string(attachment_type_str);
+
+                scene_node_attachment_config new_attachment = {0};
+                new_attachment.type = attachment_type;
+
+                // Deserialize the attachment.
+                switch (attachment_type) {
+                    case SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH: {
+                        new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_static_mesh), MEMORY_TAG_SCENE);
+                        if (!deserialize_scene_static_mesh_attachment(&attachment_object, new_attachment.attachment_data)) {
+                            KERROR("Failed to deserialize attachment. Skipping.");
+                            kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_static_mesh), MEMORY_TAG_SCENE);
+                            continue;
+                        }
+                    } break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_TERRAIN: {
+                        new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_terrain), MEMORY_TAG_SCENE);
+                        if (!deserialize_scene_terrain_attachment(&attachment_object, new_attachment.attachment_data)) {
+                            KERROR("Failed to deserialize attachment. Skipping.");
+                            kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_terrain), MEMORY_TAG_SCENE);
+                            continue;
+                        }
+                    } break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_SKYBOX: {
+                        new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_skybox), MEMORY_TAG_SCENE);
+                        if (!deserialize_scene_skybox_attachment(&attachment_object, new_attachment.attachment_data)) {
+                            KERROR("Failed to deserialize attachment. Skipping.");
+                            kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_skybox), MEMORY_TAG_SCENE);
+                            continue;
+                        }
+                    } break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT: {
+                        new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_directional_light), MEMORY_TAG_SCENE);
+                        if (!deserialize_scene_directional_light_attachment(&attachment_object, new_attachment.attachment_data)) {
+                            KERROR("Failed to deserialize attachment. Skipping.");
+                            kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_directional_light), MEMORY_TAG_SCENE);
+                            continue;
+                        }
+                    } break;
+                    case SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT: {
+                        new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_point_light), MEMORY_TAG_SCENE);
+                        if (!deserialize_scene_point_light_attachment(&attachment_object, new_attachment.attachment_data)) {
+                            KERROR("Failed to deserialize attachment. Skipping.");
+                            kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_point_light), MEMORY_TAG_SCENE);
+                            continue;
+                        }
+                    }
+
+                    break;
+                    default:
+                    case SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN:
+                        KERROR("Attachment type is unknown. Skipping.");
+                        continue;
+                }
+
+                // Push the attachment to the node's config.
+                if (!out_node_config->attachments) {
+                    out_node_config->attachments = darray_create(scene_attachment);
+                }
+                darray_push(out_node_config->attachments, new_attachment);
+            }
+        }
+    }
+
+    // Process children, if any.
+    kson_object children_array = {0};
+    if (kson_object_property_value_get_object(node_object, "children", &children_array)) {
+        // Make sure it is actually an array.
+        if (children_array.type == KSON_OBJECT_TYPE_ARRAY) {
+            u32 child_count = 0;
+            kson_array_element_count_get(&children_array, &child_count);
+
+            // Each child
+            for (u32 child_index = 0; child_index < child_count; ++child_index) {
+                // Get the object.
+                kson_object child_object = {0};
+                if (!kson_array_element_value_get_object(&children_array, child_index, &child_object)) {
+                    KERROR("Unable to get child object at index %u.", child_index);
+                    continue;
+                }
+
+                scene_node_config new_child = {0};
+
+                // Deserialize the child node and push to the array if successful.
+                if (scene_node_config_deserialize_kson(&child_object, &new_child)) {
+                    // Push the child to the node's children.
+                    if (!out_node_config->children) {
+                        out_node_config->children = darray_create(scene_attachment);
+                    }
+                    darray_push(out_node_config->children, new_child);
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+b8 scene_config_deserialize_kson(const kson_tree* source_tree, scene_config* scene) {
+    // Extract scene properties.
+    kson_object scene_properties_obj;
+    if (!kson_object_property_value_get_object(&source_tree->root, "properties", &scene_properties_obj)) {
+        KERROR("Global scene properties missing. Using defaults.");
+        scene->name = "Untitled Scene";
+        scene->description = "Default description.";
+    } else {
+        // Extract name.
+        const char* name = 0;
+        if (kson_object_property_value_get_string(&scene_properties_obj, "name", &name)) {
+            scene->name = string_duplicate(name);
+        } else {
+            // Use default
+            scene->name = "Untitled Scene";
+        }
+
+        // Extract description.
+        const char* description = 0;
+        if (kson_object_property_value_get_string(&scene_properties_obj, "description", &description)) {
+            scene->description = string_duplicate(description);
+        } else {
+            // Use default
+            scene->description = "Default description.";
+        }
+    }
+
+    // Process nodes.
+    scene->nodes = darray_create(scene_node_config);
+
+    // Extract and process nodes.
+    kson_object scene_nodes_array;
+    if (kson_object_property_value_get_object(&source_tree->root, "nodes", &scene_nodes_array)) {
+        // Only process if array.
+        if (scene_nodes_array.type != KSON_OBJECT_TYPE_ARRAY) {
+            KERROR("Unexpected object named 'nodes' found. Expected array instead. Section will be skipped.");
+        } else {
+            u32 node_count = 0;
+            kson_array_element_count_get(&scene_nodes_array, &node_count);
+            for (u32 node_index = 0; node_index < node_count; ++node_index) {
+                // Setup a new node.
+                scene_node_config node_config = {0};
+
+                // Get the node object.
+                kson_object node_object = {0};
+                if (!kson_array_element_value_get_object(&scene_nodes_array, node_index, &node_object)) {
+                    KERROR("Failed to get node object at index %u.", node_index);
+                    continue;
+                }
+
+                // Deserialize the node and push to the array of root nodes if successful.
+                if (scene_node_config_deserialize_kson(&node_object, &node_config)) {
+                    darray_push(scene->nodes, node_config);
+                }
+            }
+        }
+    }
+
+    return true;
+
+    // LEFTOFF: convert the below to deserialization per type of node/attachment, etc.
     // HACK: temporarily construct a scene hierarchy, will read from file later.
 
-    resource_data->name = "test_scene2";
-    resource_data->description = "A hardcoded test scene.";
-
-    resource_data->nodes = darray_create(scene_node_config);
+    // scene->name = "test_scene2";
+    // scene->description = "A hardcoded test scene.";
 
     // sponza
-    scene_node_config sponza = {0};
+    /* scene_node_config sponza = {0};
     sponza.name = "sponza";
 
     sponza.xform = kallocate(sizeof(scene_xform_config), MEMORY_TAG_SCENE);
@@ -202,35 +508,64 @@ static b8 scene_loader_load(struct resource_loader* self, const char* name, void
     darray_push(environment.attachments, dir_light_attachment);
 
     // Add to global nodes array.
-    darray_push(resource_data->nodes, environment);
-    /*
-    // Set some defaults, create arrays.
-    resource_data->directional_light_config.shadow_fade_distance = SHADOW_FADE_DISTANCE_DEFAULT;
-    resource_data->directional_light_config.shadow_distance = SHADOW_DISTANCE_DEFAULT;
-    resource_data->directional_light_config.shadow_split_mult = SHADOW_SPLIT_MULT_DEFAULT;
-    resource_data->description = 0;
-    resource_data->name = string_duplicate(name);
-    resource_data->point_lights = darray_create(point_light_scene_config);
-    resource_data->meshes = darray_create(mesh_scene_config);
-    resource_data->terrains = darray_create(terrain_scene_config);
+    darray_push(resource_data->nodes, environment); */
+}
 
-    u32 version = 0;
-    scene_parse_mode mode = scene_PARSE_MODE_ROOT;
+static b8 scene_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
+    if (!self || !name || !out_resource) {
+        return false;
+    }
 
-    // Buffer objects that get populated when in corresponding mode, and pushed to list when
-    // leaving said mode.
-    point_light_scene_config current_point_light_config = {0};
-    mesh_scene_config current_mesh_config = {0};
-    terrain_scene_config current_terrain_config = {0};
+    char* format_str = "%s/%s/%s%s";
+    char full_file_path[512];
+    string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, ".ksn");
 
-    // Read each line of the file.
-    char line_buf[512] = "";
-    char* p = &line_buf[0];
-    u64 line_length = 0;
-    u32 line_number = 1;
-    */
+    file_handle f;
+    if (!filesystem_open(full_file_path, FILE_MODE_READ, false, &f)) {
+        KERROR("scene_loader_load - unable to open scene file for reading: '%s'.", full_file_path);
+        return false;
+    }
 
-    // TODO: Pass to kson parser.
+    out_resource->full_path = string_duplicate(full_file_path);
+
+    u64 file_size = 0;
+    if (!filesystem_size(&f, &file_size)) {
+        KERROR("Failed to check size of scene file.");
+        return false;
+    }
+
+    u64 bytes_read = 0;
+    char* file_content = kallocate(file_size + 1, MEMORY_TAG_RESOURCE);
+    if (!filesystem_read_all_text(&f, file_content, &bytes_read)) {
+        KERROR("Failed to read all text of scene file.");
+        return false;
+    }
+
+    filesystem_close(&f);
+
+    // Verify that we read the whole file.
+    if (bytes_read != file_size) {
+        KWARN("File size/bytes read mismatch: %llu / %llu", file_size, bytes_read);
+    }
+
+    // Parse the file.
+    kson_tree source_tree = {0};
+    if (!kson_tree_from_string(file_content, &source_tree)) {
+        KERROR("Failed to parse scene file. See logs for details.");
+        return false;
+    }
+
+    scene_config* resource_data = kallocate(sizeof(scene_config), MEMORY_TAG_RESOURCE);
+
+    // Deserialize the scene.
+    if (!scene_config_deserialize_kson(&source_tree, resource_data)) {
+        KERROR("Failed to deserialize kson to scene config");
+        kson_tree_cleanup(&source_tree);
+        return false;
+    }
+
+    // Destroy the tree.
+    kson_tree_cleanup(&source_tree);
 
     out_resource->data = resource_data;
     out_resource->data_size = sizeof(scene_config);

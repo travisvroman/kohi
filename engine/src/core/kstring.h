@@ -14,6 +14,8 @@
 #include "defines.h"
 #include "math/math_types.h"
 
+struct scene_xform_config;
+
 /**
  * @brief Gets the length of the given string.
  * @param str The string whose length to obtain.
@@ -221,6 +223,18 @@ KAPI void string_remove_at(char* dest, const char* src, u32 pos, u32 length);
  * @return True if parsed successfully, otherwise false.
  */
 KAPI b8 string_to_transform(const char* str, transform* out_transform);
+
+/**
+ * @brief Attempts to parse a xform config (_NOT_ an actual xform) from the provided string.
+ * If the string contains 10 elements, rotation is parsed as quaternion.
+ * If it contains 9 elements, rotation is parsed as euler angles and is
+ * converted to quaternion. Anything else is invalid.
+ *
+ * @param str The string to parse from.
+ * @param out_xform A pointer to the xform to write to.
+ * @return True if parsed successfully, otherwise false.
+ */
+KAPI b8 string_to_xform_config(const char* str, struct scene_xform_config* out_xform);
 
 /**
  * @brief Attempts to parse a 4x4 matrix from the provided string.

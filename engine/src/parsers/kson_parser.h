@@ -445,7 +445,7 @@ KAPI b8 kson_object_property_value_get_bool(const kson_object* object, const cha
 
 /**
  * @brief Attempts to retrieve the given object's property value by name as a string. Fails if not found
- * or on type mismatch.
+ * or on type mismatch. NOTE: This function always allocates new memory, so the string should be released afterward.
  *
  * @param A constant pointer to the object to search. Required.
  * @param name The property name to search for. Required.

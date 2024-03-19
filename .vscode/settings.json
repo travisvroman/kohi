@@ -1,4 +1,5 @@
 {
+    "debug.focusWindowOnBreak": false,
     "workbench.colorTheme": "Gruvbox Dark (Hard)",
     "xmlTools.enforcePrettySelfClosingTagOnFormat": true,
     "editor.minimap.enabled": false,
