@@ -1271,32 +1271,213 @@ b8 kson_array_element_count_get(kson_array* array, u32* out_count) {
     *out_count = darray_length(array->properties);
     return true;
 }
+
 b8 kson_array_element_type_at(kson_array* array, u32 index, kson_property_type* out_type) {
+    if (!array || array->type != KSON_OBJECT_TYPE_ARRAY || !out_type) {
+        KERROR("kson_array_element_count_get requires a valid pointer to an array object and out_type.");
+        return false;
+    }
+
+    if (!array->properties) {
+        KWARN("kson_array_element_type_at called on an empty array. Any index would be out of bounds.");
+        *out_type = KSON_PROPERTY_TYPE_UNKNOWN;
+        return false;
+    }
+
+    u32 count = darray_length(array->properties);
+    if (index >= count) {
+        KWARN("kson_array_element_type_at index %u is out of range [0-%u].", index, count);
+        *out_type = KSON_PROPERTY_TYPE_UNKNOWN;
+        return false;
+    }
+
+    *out_type = array->properties[index].type;
+    return true;
+}
+
+static b8 kson_array_index_in_range(const kson_array* array, u32 index) {
+    if (!array || array->type != KSON_OBJECT_TYPE_ARRAY) {
+        KERROR("kson_array_index_in_range requires a valid pointer to an array object.");
+        return false;
+    }
+
+    if (!array->properties) {
+        KWARN("kson_array_index_in_range called on an empty array. Any index would be out of bounds.");
+        return false;
+    }
+
+    u32 count = darray_length(array->properties);
+    return index < count;
 }
 
 b8 kson_array_element_value_get_int(const kson_array* array, u32 index, i64* out_value) {
+    if (!kson_array_index_in_range(array, index)) {
+        return false;
+    }
+
+    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_INT, "Array element is not an int.");
+
+    *out_value = array->properties[index].value.i;
+    return true;
 }
-b8 kson_array_element_value_get_float(const kson_array* array, u32 index, f64* out_value) {
+
+b8 kson_array_element_value_get_float(const kson_array* array, u32 index, f32* out_value) {
+    if (!kson_array_index_in_range(array, index)) {
+        return false;
+    }
+
+    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_FLOAT, "Array element is not a float.");
+
+    *out_value = array->properties[index].value.f;
+    return true;
 }
+
 b8 kson_array_element_value_get_bool(const kson_array* array, u32 index, b8* out_value) {
+    if (!kson_array_index_in_range(array, index)) {
+        return false;
+    }
+
+    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_BOOLEAN, "Array element is not a boolean.");
+
+    *out_value = array->properties[index].value.b;
+    return true;
 }
-b8 kson_array_element_value_get_string(const kson_array* array, u32 index, char** out_value) {
+
+b8 kson_array_element_value_get_string(const kson_array* array, u32 index, const char** out_value) {
+    if (!kson_array_index_in_range(array, index)) {
+        return false;
+    }
+
+    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_STRING, "Array element is not a string.");
+
+    *out_value = array->properties[index].value.s;
+    return true;
 }
+
 b8 kson_array_element_value_get_object(const kson_array* array, u32 index, kson_object* out_value) {
+    if (!kson_array_index_in_range(array, index)) {
+        return false;
+    }
+
+    KASSERT_MSG(
+        array->properties[index].type != KSON_PROPERTY_TYPE_OBJECT && array->properties[index].type != KSON_PROPERTY_TYPE_ARRAY,
+        "Array element is not an object or array.");
+
+    *out_value = array->properties[index].value.o;
+    return true;
 }
 
 b8 kson_object_property_type_get(const kson_object* object, const char* name, kson_property_type* out_type) {
+    if (!object) {
+        KERROR("kson_object_property_type_get requires a valid pointer to an object.");
+        *out_type = KSON_PROPERTY_TYPE_UNKNOWN;
+        return false;
+    }
+
+    if (!object->properties) {
+        KERROR("kson_object_property_type_get cannot get a property type for an object with no properties.");
+        *out_type = KSON_PROPERTY_TYPE_UNKNOWN;
+        return false;
+    }
+
+    u32 count = darray_length(object->properties);
+    for (u32 i = 0; i < count; ++i) {
+        if (strings_equal(object->properties[i].name, name)) {
+            *out_type = object->properties[i].type;
+            return true;
+        }
+    }
+
+    KERROR("Failed to find object property named '%s'.", name);
+    *out_type = KSON_PROPERTY_TYPE_UNKNOWN;
+    return false;
 }
+
 b8 kson_object_property_count_get(const kson_object* object, u32* out_count) {
+    if (!object) {
+        KERROR("kson_object_property_type_get requires a valid pointer to object.");
+        *out_count = 0;
+        return false;
+    }
+
+    if (!object->properties) {
+        *out_count = 0;
+        return true;
+    }
+
+    *out_count = darray_length(object->properties);
+    return true;
+}
+
+static i32 kson_object_property_index_get(const kson_object* object, const char* name) {
+    if (!object || !name) {
+        return -1;
+    }
+
+    if (!object->properties) {
+        return -1;
+    }
+
+    u32 count = darray_length(object->properties);
+    for (u32 i = 0; i < count; ++i) {
+        if (strings_equal(object->properties[i].name, name)) {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 b8 kson_object_property_value_get_int(const kson_object* object, const char* name, i64* out_value) {
+    i32 index = kson_object_property_index_get(object, name);
+    if (index == -1) {
+        *out_value = 0;
+        return false;
+    }
+
+    *out_value = object->properties[index].value.i;
+    return true;
 }
-b8 kson_object_property_value_get_float(const kson_object* object, const char* name, f64* out_value) {
+
+b8 kson_object_property_value_get_float(const kson_object* object, const char* name, f32* out_value) {
+    i32 index = kson_object_property_index_get(object, name);
+    if (index == -1) {
+        *out_value = 0;
+        return false;
+    }
+
+    *out_value = object->properties[index].value.f;
+    return true;
 }
+
 b8 kson_object_property_value_get_bool(const kson_object* object, const char* name, b8* out_value) {
+    i32 index = kson_object_property_index_get(object, name);
+    if (index == -1) {
+        *out_value = 0;
+        return false;
+    }
+
+    *out_value = object->properties[index].value.b;
+    return true;
 }
-b8 kson_object_property_value_get_string(const kson_object* object, const char* name, char** out_value) {
+
+b8 kson_object_property_value_get_string(const kson_object* object, const char* name, const char** out_value) {
+    i32 index = kson_object_property_index_get(object, name);
+    if (index == -1) {
+        *out_value = 0;
+        return false;
+    }
+
+    *out_value = object->properties[index].value.s;
+    return true;
 }
+
 b8 kson_object_property_value_get_object(const kson_object* object, const char* name, kson_object* out_value) {
+    i32 index = kson_object_property_index_get(object, name);
+    if (index == -1) {
+        return false;
+    }
+
+    *out_value = object->properties[index].value.o;
+    return true;
 }
