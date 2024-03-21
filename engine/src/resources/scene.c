@@ -67,7 +67,7 @@ static i32 geometry_distance_compare(void *a, void *b) {
     return 0;
 }
 
-b8 scene_create(void *config, scene *out_scene) {
+b8 scene_create(void *config, scene_flags flags, scene *out_scene) {
     if (!out_scene) {
         KERROR("scene_create(): A valid pointer to out_scene is required.");
         return false;
@@ -75,6 +75,7 @@ b8 scene_create(void *config, scene *out_scene) {
 
     kzero_memory(out_scene, sizeof(scene));
 
+    out_scene->flags = flags;
     out_scene->enabled = false;
     out_scene->state = SCENE_STATE_UNINITIALIZED;
     global_scene_id++;
@@ -105,6 +106,7 @@ b8 scene_create(void *config, scene *out_scene) {
         return false;
     }
 
+    // TODO: Don't save off config beyond the scene being loaded. Destroy the config once loading is complete.
     if (config) {
         out_scene->config = kallocate(sizeof(scene_config), MEMORY_TAG_SCENE);
         kcopy_memory(out_scene->config, config, sizeof(scene_config));
@@ -133,9 +135,7 @@ void scene_destroy(scene *s) {
 
 void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *node_config) {
     if (node_config) {
-        /* if (node_config->name) {
-            char *name = string_duplicate(node_config->name);
-        } */
+        b8 is_readonly = ((s->flags & SCENE_FLAG_READONLY) != 0);
 
         // Obtain the xform if one is configured.
         k_handle xform_handle;
@@ -147,6 +147,17 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
 
         // Add a node in the heirarchy.
         k_handle node_handle = hierarchy_graph_child_add_with_xform(&s->hierarchy, parent_handle, xform_handle);
+
+        if (is_readonly) {
+            // TODO: create metadata at the index of the node_handle's handle_index.
+            // Handle resize manually to ensure space.
+            // TODO: Also do this for attachments where needed.
+            if (node_config->name) {
+                scene_node_metadata *m = &s->node_metadata[node_handle.handle_index];
+                m->id = node_handle.handle_index;
+                m->name = string_duplicate(node_config->name);
+            }
+        }
 
         // Process attachment configs.
         if (node_config->attachments) {
@@ -1411,13 +1422,40 @@ static void scene_actual_unload(scene *s) {
     kzero_memory(s, sizeof(scene));
 }
 
-b8 scene_save(scene *scene) {
-    if (!scene) {
+b8 scene_save(scene *s) {
+    if (!s) {
         KERROR("scene_save requires a valid pointer to a scene.");
         return false;
     }
 
     KERROR("Not implemented");
+    if (s->flags & SCENE_FLAG_READONLY) {
+        KERROR("Cannot save scene that is marked as read-only.");
+        return false;
+    }
+
+    // TODO: serialize and send off to parser to create string, then write to file
+    /*    char* format_str = "%s/%s/%s%s";
+        char full_file_path[512];
+        string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, r->name, ".kss");
+
+        file_handle f;
+        if (!filesystem_open(full_file_path, FILE_MODE_WRITE, false, &f)) {
+            KERROR("scene_loader_write - unable to open simple scene file for writing: '%s'.", full_file_path);
+            return false;
+        }
+
+        scene_config* resource_data = r->data;
+        if (resource_data) {
+            // TODO: Send to kson parser to be written to string.
+        }
+        b8 result = true;
+
+        if (!result) {
+            KERROR("Failed to write scene file.");
+        }
+        return result;
+        */
 
     return true;
 }

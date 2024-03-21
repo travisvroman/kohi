@@ -46,8 +46,30 @@ typedef struct scene_attachment {
     k_handle resource_handle;
 } scene_attachment;
 
+typedef enum scene_flag {
+    SCENE_FLAG_NONE = 0,
+    /* @brief Indicates if the scene can be saved once modified
+     * (i.e. read-only would be used for runtime, writing would
+     * be used in editor, etc.)
+     */
+    SCENE_FLAG_READONLY = 1
+} scene_flag;
+
+// Bitwise flags to be used on scene load, etc.
+typedef u32 scene_flags;
+
+typedef struct scene_node_metadata {
+    // Metadata considered stale/non-existant if INVALID_ID
+    u32 id;
+
+    // The name of the node.
+    const char* name;
+} scene_node_metadata;
+
 typedef struct scene {
     u32 id;
+    scene_flags flags;
+
     scene_state state;
     b8 enabled;
 
@@ -94,6 +116,14 @@ typedef struct scene {
 
     hierarchy_graph hierarchy;
 
+    // An array of node metadata, indexed by hierarchy graph handle.
+    // Marked as unused by id == INVALID_ID
+    // Size of this array is always highest id+1. Does not shrink on node destruction.
+    scene_node_metadata* node_metadata;
+
+    // The number of node_metadatas currently allocated.
+    u32 node_metadata_count;
+
 } scene;
 
 /**
@@ -101,10 +131,11 @@ typedef struct scene {
  * No resources are allocated. Config is not yet processed.
  *
  * @param config A pointer to the configuration. Optional.
+ * @param flags Flags to be used during creation (i.e. read-only, etc.).
  * @param out_scene A pointer to hold the newly created scene. Required.
  * @return True on success; otherwise false.
  */
-KAPI b8 scene_create(void* config, scene* out_scene);
+KAPI b8 scene_create(void* config, scene_flags flags, scene* out_scene);
 
 /**
  * @brief Performs initialization routines on the scene, including processing

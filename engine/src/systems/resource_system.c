@@ -1,5 +1,6 @@
 #include "resource_system.h"
 
+#include "core/asserts.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
@@ -183,14 +184,16 @@ b8 resource_system_write(resource_type type, resource *r) {
         return false;
     }
 
-    // Select loader.
+    KASSERT_MSG(false, "resource_system_write not implemented.");
+    // TODO: handle this differently. Maybe a resource_writer?
+    /* // Select loader.
     u32 count = state_ptr->config.max_loader_count;
     for (u32 i = 0; i < count; ++i) {
         resource_loader *l = &state_ptr->registered_loaders[i];
         if (l->id != INVALID_ID && l->type == type && l->write) {
             return l->write(l, r);
         }
-    }
+    } */
 
     KERROR("No resource writer available for type %u", type);
     return false;

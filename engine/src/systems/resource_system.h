@@ -49,8 +49,6 @@ typedef struct resource_loader {
      * @param name The name of the resource to be unloaded.
      */
     void (*unload)(struct resource_loader* self, resource* resource);
-
-    b8 (*write)(struct resource_loader* self, resource* r);
 } resource_loader;
 
 /**

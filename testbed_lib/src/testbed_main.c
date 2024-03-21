@@ -1140,8 +1140,10 @@ static b8 load_main_scene(struct application* game_inst) {
 
     scene_config* scene_cfg = (scene_config*)scene_resource.data;
 
-    // TODO: temp load/prepare stuff
-    if (!scene_create(scene_cfg, &state->main_scene)) {
+    // Create the scene.
+    scene_flags scene_load_flags = 0;
+    scene_load_flags |= SCENE_FLAG_READONLY;  // NOTE: to disable "editor mode", turn this flag off.
+    if (!scene_create(scene_cfg, scene_load_flags, &state->main_scene)) {
         KERROR("Failed to create main scene");
         return false;
     }

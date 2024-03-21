@@ -83,7 +83,7 @@ KAPI void* _darray_insert_at(void* array, u64 index, void* value_ptr);
  * @returns A pointer to the array's memory block.
  */
 #define darray_create(type) \
-    _darray_create(DARRAY_DEFAULT_CAPACITY, sizeof(type), 0)
+    (type*)_darray_create(DARRAY_DEFAULT_CAPACITY, sizeof(type), 0)
 
 /**
  * @brief Creates a new darray of the given type with the default capacity.

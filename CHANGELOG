@@ -8,6 +8,10 @@ Changelog
   - Fixed an issue where resources were incorrectly reporting memory tags other than MEMORY_TAG_RESOURCE for load/unload. This was causing erroneous reports of some types (notably textures).
   - Fixed an issue that was causing text to flash/render incorrectly on some platforms. The underlying issue was usnga single staging buffer instead of a unique one per frame, which resulted in a race
   condition of data being used/updated in the staging buffer across frames.
+  - Fixed an issue where darrays could be initialized to a different type than what was actually being assigned.
+  - Added custom storage format (kson), complete with tokenizer/parser.
+  - Converted scenes to use new kson storage format.
+  - Added flags to scene load, can flag as read-only (vs. editor mode) etc.
 
 - 0.6.0
   - Updated versioning system and build process. Each library now maintains its own version (and potentially changelog at some point).
