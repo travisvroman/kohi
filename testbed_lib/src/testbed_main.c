@@ -81,6 +81,7 @@ typedef struct geometry_distance {
 void application_register_events(struct application* game_inst);
 void application_unregister_events(struct application* game_inst);
 static b8 load_main_scene(struct application* game_inst);
+static b8 save_main_scene(struct application* game_inst);
 static b8 create_rendergraphs(application* app);
 static b8 initialize_rendergraphs(application* app);
 static b8 prepare_rendergraphs(application* app, frame_data* p_frame_data);
@@ -189,6 +190,14 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
             KDEBUG("Loading main scene...");
             if (!load_main_scene(game_inst)) {
                 KERROR("Error loading main scene");
+            }
+        }
+        return true;
+    } else if (code == EVENT_CODE_DEBUG5) {
+        if (state->main_scene.state >= SCENE_STATE_LOADING) {
+            KDEBUG("Saving main scene...");
+            if (!save_main_scene(game_inst)) {
+                KERROR("Error saving main scene");
             }
         }
         return true;
@@ -993,6 +1002,7 @@ void application_register_events(struct application* game_inst) {
         event_register(EVENT_CODE_DEBUG2, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_DEBUG3, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_DEBUG4, game_inst, game_on_debug_event);
+        event_register(EVENT_CODE_DEBUG5, game_inst, game_on_debug_event);
         event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_inst, game_on_event);
         event_register(EVENT_CODE_SET_RENDER_MODE, game_inst, game_on_event);
         event_register(EVENT_CODE_BUTTON_RELEASED, game_inst->state, game_on_button);
@@ -1139,10 +1149,12 @@ static b8 load_main_scene(struct application* game_inst) {
     }
 
     scene_config* scene_cfg = (scene_config*)scene_resource.data;
+    scene_cfg->resource_name = string_duplicate(scene_resource.name);
+    scene_cfg->resource_full_path = string_duplicate(scene_resource.full_path);
 
     // Create the scene.
     scene_flags scene_load_flags = 0;
-    scene_load_flags |= SCENE_FLAG_READONLY;  // NOTE: to disable "editor mode", turn this flag off.
+    /* scene_load_flags |= SCENE_FLAG_READONLY;  // NOTE: to enable "editor mode", turn this flag off. */
     if (!scene_create(scene_cfg, scene_load_flags, &state->main_scene)) {
         KERROR("Failed to create main scene");
         return false;
@@ -1159,4 +1171,13 @@ static b8 load_main_scene(struct application* game_inst) {
 
     // Actually load the scene.
     return scene_load(&state->main_scene);
+}
+
+static b8 save_main_scene(struct application* game_inst) {
+    if (!game_inst) {
+        return false;
+    }
+    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+
+    return scene_save(&state->main_scene);
 }

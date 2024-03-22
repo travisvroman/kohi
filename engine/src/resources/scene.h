@@ -66,6 +66,19 @@ typedef struct scene_node_metadata {
     const char* name;
 } scene_node_metadata;
 
+typedef struct scene_static_mesh_metadata {
+    const char* resource_name;
+} scene_static_mesh_metadata;
+
+typedef struct scene_terrain_metadata {
+    const char* name;
+    const char* resource_name;
+} scene_terrain_metadata;
+
+typedef struct scene_skybox_metadata {
+    const char* cubemap_name;
+} scene_skybox_metadata;
+
 typedef struct scene {
     u32 id;
     scene_flags flags;
@@ -75,11 +88,11 @@ typedef struct scene {
 
     char* name;
     char* description;
+    char* resource_name;
+    char* resource_full_path;
 
-    scene_attachment* terrain_attachments;
     scene_attachment* point_light_attachments;
     scene_attachment* directional_light_attachments;
-    scene_attachment* skybox_attachments;
 
     // darray of directional lights.
     struct directional_light* dir_lights;
@@ -97,16 +110,26 @@ typedef struct scene {
     u32* mesh_attachment_indices;
     // Array of scene attachments for meshes.
     scene_attachment* mesh_attachments;
+    // Array of mesh metadata.
+    scene_static_mesh_metadata* mesh_metadata;
 
     // darray of terrains.
     struct terrain* terrains;
     // Indices into the attachment array for xform lookups.
     u32* terrain_attachment_indices;
+    // Array of scene attachments for terrains.
+    scene_attachment* terrain_attachments;
+    // Array of terrain metadata.
+    scene_terrain_metadata* terrain_metadata;
 
     // darray of skyboxes.
     struct skybox* skyboxes;
     // Indices into the attachment array for xform lookups.
     u32* skybox_attachment_indices;
+    // Array of scene attachments for skyboxes.
+    scene_attachment* skybox_attachments;
+    // Array of skybox metadata.
+    scene_skybox_metadata* skybox_metadata;
 
     // A grid for the scene.
     debug_grid grid;
@@ -135,7 +158,7 @@ typedef struct scene {
  * @param out_scene A pointer to hold the newly created scene. Required.
  * @return True on success; otherwise false.
  */
-KAPI b8 scene_create(void* config, scene_flags flags, scene* out_scene);
+KAPI b8 scene_create(scene_config* config, scene_flags flags, scene* out_scene);
 
 /**
  * @brief Performs initialization routines on the scene, including processing
@@ -195,3 +218,5 @@ KAPI b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 directio
 
 KAPI b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries);
 KAPI b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
+
+KAPI b8 scene_save(scene* s);

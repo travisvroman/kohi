@@ -224,4 +224,12 @@ KAPI void xform_world_set(k_handle t, mat4 world);
  */
 KAPI mat4 xform_world_get(k_handle t);
 
+/**
+ * @brief Returns a string representation of the xform pointed to by the given handle.
+ *
+ * @param t A handle to the xform to retrieve as a string.
+ * @return The xform in string format.
+ */
+KAPI const char* xform_to_string(k_handle t);
+
 #endif

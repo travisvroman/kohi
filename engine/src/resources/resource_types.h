@@ -750,6 +750,8 @@ typedef struct scene_config {
     u32 version;
     char *name;
     char *description;
+    char *resource_name;
+    char *resource_full_path;
 
     // darray
     scene_node_config *nodes;

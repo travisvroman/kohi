@@ -14,6 +14,7 @@
 #include "math/kmath.h"
 #include "math/math_types.h"
 #include "math/transform.h"
+#include "parsers/kson_parser.h"
 #include "renderer/camera.h"
 #include "renderer/renderer_types.h"
 #include "renderer/viewport.h"
@@ -29,8 +30,7 @@
 #include "utils/ksort.h"
 
 static void scene_actual_unload(scene *scene);
-/* static scene_attachment *scene_attachment_acquire(scene *s); */
-/* static void scene_attachment_release(scene *s, scene_attachment *attachment); */
+static void scene_node_metadata_ensure_allocated(scene *s, u64 handle_index);
 
 static u32 global_scene_id = 0;
 
@@ -67,7 +67,7 @@ static i32 geometry_distance_compare(void *a, void *b) {
     return 0;
 }
 
-b8 scene_create(void *config, scene_flags flags, scene *out_scene) {
+b8 scene_create(scene_config *config, scene_flags flags, scene *out_scene) {
     if (!out_scene) {
         KERROR("scene_create(): A valid pointer to out_scene is required.");
         return false;
@@ -101,6 +101,13 @@ b8 scene_create(void *config, scene_flags flags, scene *out_scene) {
     out_scene->point_light_attachments = darray_create(scene_attachment);
     out_scene->point_light_attachment_indices = darray_create(u32);
 
+    b8 is_readonly = ((out_scene->flags & SCENE_FLAG_READONLY) != 0);
+    if (!is_readonly) {
+        out_scene->mesh_metadata = darray_create(scene_static_mesh_metadata);
+        out_scene->terrain_metadata = darray_create(scene_terrain_metadata);
+        out_scene->skybox_metadata = darray_create(scene_skybox_metadata);
+    }
+
     if (!hierarchy_graph_create(&out_scene->hierarchy)) {
         KERROR("Failed to create hierarchy graph");
         return false;
@@ -110,6 +117,9 @@ b8 scene_create(void *config, scene_flags flags, scene *out_scene) {
     if (config) {
         out_scene->config = kallocate(sizeof(scene_config), MEMORY_TAG_SCENE);
         kcopy_memory(out_scene->config, config, sizeof(scene_config));
+
+        out_scene->resource_name = string_duplicate(config->resource_name);
+        out_scene->resource_full_path = string_duplicate(config->resource_full_path);
     }
 
     debug_grid_config grid_config = {0};
@@ -148,16 +158,15 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
         // Add a node in the heirarchy.
         k_handle node_handle = hierarchy_graph_child_add_with_xform(&s->hierarchy, parent_handle, xform_handle);
 
-        if (is_readonly) {
-            // TODO: create metadata at the index of the node_handle's handle_index.
-            // Handle resize manually to ensure space.
-            // TODO: Also do this for attachments where needed.
+        if (!is_readonly) {
+            scene_node_metadata_ensure_allocated(s, node_handle.handle_index);
             if (node_config->name) {
                 scene_node_metadata *m = &s->node_metadata[node_handle.handle_index];
                 m->id = node_handle.handle_index;
                 m->name = string_duplicate(node_config->name);
             }
         }
+        // TODO: Also do this for attachments where needed.
 
         // Process attachment configs.
         if (node_config->attachments) {
@@ -207,6 +216,10 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                                     s->mesh_attachments[i].hierarchy_node_handle = node_handle;
                                     s->mesh_attachments[i].attachment_type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
                                     s->mesh_attachment_indices[i] = resource_index;
+                                    // For "edit" mode, retain metadata.
+                                    if (!is_readonly) {
+                                        s->mesh_metadata[i].resource_name = string_duplicate(typed_attachment_config->resource_name);
+                                    }
                                     break;
                                 }
                             }
@@ -219,6 +232,12 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                                 mesh_attachment.hierarchy_node_handle = node_handle;
                                 mesh_attachment.attachment_type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
                                 darray_push(s->mesh_attachments, mesh_attachment);
+                                // For "edit" mode, retain metadata.
+                                if (!is_readonly) {
+                                    scene_static_mesh_metadata new_mesh_metadata = {0};
+                                    new_mesh_metadata.resource_name = string_duplicate(typed_attachment_config->resource_name);
+                                    darray_push(s->mesh_metadata, new_mesh_metadata);
+                                }
                             }
                         }
                     } break;
@@ -259,6 +278,11 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                                     s->terrain_attachments[i].hierarchy_node_handle = node_handle;
                                     s->terrain_attachments[i].attachment_type = SCENE_NODE_ATTACHMENT_TYPE_TERRAIN;
                                     s->terrain_attachment_indices[i] = index;
+                                    // For "edit" mode, retain metadata.
+                                    if (!is_readonly) {
+                                        s->terrain_metadata[i].resource_name = string_duplicate(typed_attachment->resource_name);
+                                        s->terrain_metadata[i].name = string_duplicate(typed_attachment->name);
+                                    }
                                     break;
                                 }
                             }
@@ -271,6 +295,13 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                                 terrain_attachment.hierarchy_node_handle = node_handle;
                                 terrain_attachment.attachment_type = SCENE_NODE_ATTACHMENT_TYPE_TERRAIN;
                                 darray_push(s->terrain_attachments, terrain_attachment);
+                                // For "edit" mode, retain metadata.
+                                if (!is_readonly) {
+                                    scene_terrain_metadata new_terrain_metadata = {0};
+                                    new_terrain_metadata.resource_name = string_duplicate(typed_attachment->resource_name);
+                                    new_terrain_metadata.name = string_duplicate(typed_attachment->name);
+                                    darray_push(s->terrain_metadata, new_terrain_metadata);
+                                }
                             }
                         }
                     } break;
@@ -305,6 +336,10 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                                     s->skybox_attachments[i].hierarchy_node_handle = node_handle;
                                     s->skybox_attachments[i].attachment_type = SCENE_NODE_ATTACHMENT_TYPE_SKYBOX;
                                     s->skybox_attachment_indices[i] = index;
+                                    // For "edit" mode, retain metadata.
+                                    if (!is_readonly) {
+                                        s->skybox_metadata[i].cubemap_name = string_duplicate(typed_attachment->cubemap_name);
+                                    }
                                     break;
                                 }
                             }
@@ -317,6 +352,12 @@ void scene_node_initialize(scene *s, k_handle parent_handle, scene_node_config *
                                 skybox_attachment.hierarchy_node_handle = node_handle;
                                 skybox_attachment.attachment_type = SCENE_NODE_ATTACHMENT_TYPE_SKYBOX;
                                 darray_push(s->skybox_attachments, skybox_attachment);
+                                // For "edit" mode, retain metadata.
+                                if (!is_readonly) {
+                                    scene_skybox_metadata new_skybox_metadata = {0};
+                                    new_skybox_metadata.cubemap_name = string_duplicate(typed_attachment->cubemap_name);
+                                    darray_push(s->skybox_metadata, new_skybox_metadata);
+                                }
                             }
                         }
                     } break;
@@ -1422,17 +1463,397 @@ static void scene_actual_unload(scene *s) {
     kzero_memory(s, sizeof(scene));
 }
 
+static b8 scene_serialize_node(const scene *s, const hierarchy_graph_view *view, const hierarchy_graph_view_node *view_node, kson_property *node) {
+    if (!s || !view || !view_node) {
+        return false;
+    }
+
+    // Serialize top-level node metadata, etc.
+    scene_node_metadata *node_meta = &s->node_metadata[view_node->node_handle.handle_index];
+
+    // Name
+    kson_property name_prop = {0};
+    name_prop.type = KSON_PROPERTY_TYPE_STRING;
+    name_prop.name = string_duplicate("name");
+    name_prop.value.s = string_duplicate(node_meta->name);
+    darray_push(node->value.o.properties, name_prop);
+
+    // xform is optional, so make sure there is a valid handle to one before serializing.
+    if (!k_handle_is_invalid(view_node->xform_handle)) {
+        kson_property xform_prop = {0};
+        xform_prop.type = KSON_PROPERTY_TYPE_STRING;
+        xform_prop.name = string_duplicate("xform");
+        xform_prop.value.s = xform_to_string(view_node->xform_handle);
+        darray_push(node->value.o.properties, xform_prop);
+    }
+
+    // Attachments
+    kson_property attachments_prop = {0};
+    attachments_prop.type = KSON_PROPERTY_TYPE_ARRAY;
+    attachments_prop.name = string_duplicate("attachments");
+    attachments_prop.value.o.type = KSON_OBJECT_TYPE_ARRAY;
+    attachments_prop.value.o.properties = darray_create(kson_property);
+
+    // Look through each attachment type and see if the hierarchy_node_handle matches the node
+    // handle of the current node being serialized. If it does, use the resource_handle to
+    // index into the resource and/or metadata arrays to obtain needed data.
+    // TODO: A relational view that allows for easy lookups of attachments for a particular node.
+
+    // Meshes
+    u32 mesh_count = darray_length(s->mesh_attachments);
+    for (u32 m = 0; m < mesh_count; ++m) {
+        if (s->mesh_attachments[m].hierarchy_node_handle.handle_index == view_node->node_handle.handle_index) {
+            // Found one!
+
+            // Create the object array entry.
+            kson_property attachment = {0};
+            attachment.type = KSON_PROPERTY_TYPE_OBJECT;
+            attachment.name = 0;
+            attachment.value.o.type = KSON_OBJECT_TYPE_OBJECT;
+            attachment.value.o.properties = darray_create(kson_property);
+
+            // Add properties to it.
+
+            // type
+            kson_property attachment_name = {0};
+            attachment_name.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_name.name = string_duplicate("type");
+            attachment_name.value.s = string_duplicate("static_mesh");
+            darray_push(attachment.value.o.properties, attachment_name);
+
+            // resource name
+            kson_property attachment_resource_name = {0};
+            attachment_resource_name.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_resource_name.name = string_duplicate("resource_name");
+            attachment_resource_name.value.s = string_duplicate(s->mesh_metadata[m].resource_name);
+            darray_push(attachment.value.o.properties, attachment_resource_name);
+
+            // Push it into the attachments array
+            darray_push(attachments_prop.value.o.properties, attachment);
+        }
+    }
+
+    // skyboxes
+    u32 skybox_count = darray_length(s->skybox_attachments);
+    for (u32 m = 0; m < skybox_count; ++m) {
+        if (s->skybox_attachments[m].hierarchy_node_handle.handle_index == view_node->node_handle.handle_index) {
+            // Found one!
+
+            // Create the object array entry.
+            kson_property attachment = {0};
+            attachment.type = KSON_PROPERTY_TYPE_OBJECT;
+            attachment.name = 0;
+            attachment.value.o.type = KSON_OBJECT_TYPE_OBJECT;
+            attachment.value.o.properties = darray_create(kson_property);
+
+            // Add properties to it.
+
+            // type
+            kson_property attachment_name = {0};
+            attachment_name.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_name.name = string_duplicate("type");
+            attachment_name.value.s = string_duplicate("skybox");
+            darray_push(attachment.value.o.properties, attachment_name);
+
+            // cubemap name
+            kson_property attachment_cubemap_name = {0};
+            attachment_cubemap_name.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_cubemap_name.name = string_duplicate("cubemap_name");
+            attachment_cubemap_name.value.s = string_duplicate(s->skybox_metadata[m].cubemap_name);
+            darray_push(attachment.value.o.properties, attachment_cubemap_name);
+
+            // Push it into the attachments array
+            darray_push(attachments_prop.value.o.properties, attachment);
+        }
+    }
+
+    // Terrains
+    u32 terrain_count = darray_length(s->terrain_attachments);
+    for (u32 m = 0; m < terrain_count; ++m) {
+        if (s->terrain_attachments[m].hierarchy_node_handle.handle_index == view_node->node_handle.handle_index) {
+            // Found one!
+
+            // Create the object array entry.
+            kson_property attachment = {0};
+            attachment.type = KSON_PROPERTY_TYPE_OBJECT;
+            attachment.name = 0;
+            attachment.value.o.type = KSON_OBJECT_TYPE_OBJECT;
+            attachment.value.o.properties = darray_create(kson_property);
+
+            // Add properties to it.
+
+            // type
+            kson_property attachment_name = {0};
+            attachment_name.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_name.name = string_duplicate("type");
+            attachment_name.value.s = string_duplicate("terrain");
+            darray_push(attachment.value.o.properties, attachment_name);
+
+            // name
+            kson_property attachment_name_prop = {0};
+            attachment_name_prop.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_name_prop.name = string_duplicate("name");
+            attachment_name_prop.value.s = string_duplicate(s->terrain_metadata[m].name);
+            darray_push(attachment.value.o.properties, attachment_name_prop);
+
+            // resource name
+            kson_property attachment_resource_name = {0};
+            attachment_resource_name.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_resource_name.name = string_duplicate("resource_name");
+            attachment_resource_name.value.s = string_duplicate(s->terrain_metadata[m].resource_name);
+            darray_push(attachment.value.o.properties, attachment_resource_name);
+
+            // Push it into the attachments array
+            darray_push(attachments_prop.value.o.properties, attachment);
+        }
+    }
+
+    // Point lights
+    u32 point_light_count = darray_length(s->point_light_attachments);
+    for (u32 m = 0; m < point_light_count; ++m) {
+        if (s->point_light_attachments[m].hierarchy_node_handle.handle_index == view_node->node_handle.handle_index) {
+            // Found one!
+
+            // Create the object array entry.
+            kson_property attachment = {0};
+            attachment.type = KSON_PROPERTY_TYPE_OBJECT;
+            attachment.name = 0;
+            attachment.value.o.type = KSON_OBJECT_TYPE_OBJECT;
+            attachment.value.o.properties = darray_create(kson_property);
+
+            // Add properties to it.
+
+            // type
+            kson_property attachment_type = {0};
+            attachment_type.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_type.name = string_duplicate("type");
+            attachment_type.value.s = string_duplicate("point_light");
+            darray_push(attachment.value.o.properties, attachment_type);
+
+            // colour
+            kson_property attachment_colour = {0};
+            attachment_colour.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_colour.name = string_duplicate("colour");
+            attachment_colour.value.s = vec4_to_string(s->point_lights[m].data.colour);
+            darray_push(attachment.value.o.properties, attachment_colour);
+
+            // position
+            kson_property attachment_position = {0};
+            attachment_position.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_position.name = string_duplicate("position");
+            attachment_position.value.s = vec4_to_string(s->point_lights[m].data.position);
+            darray_push(attachment.value.o.properties, attachment_position);
+
+            // constant_f
+            kson_property attachment_constant_f = {0};
+            attachment_constant_f.type = KSON_PROPERTY_TYPE_FLOAT;
+            attachment_constant_f.name = string_duplicate("constant_f");
+            attachment_constant_f.value.f = s->point_lights[m].data.constant_f;
+            darray_push(attachment.value.o.properties, attachment_constant_f);
+
+            // linear
+            kson_property attachment_linear = {0};
+            attachment_linear.type = KSON_PROPERTY_TYPE_FLOAT;
+            attachment_linear.name = string_duplicate("linear");
+            attachment_linear.value.f = s->point_lights[m].data.linear;
+            darray_push(attachment.value.o.properties, attachment_linear);
+
+            // quadratic
+            kson_property attachment_quadratic = {0};
+            attachment_quadratic.type = KSON_PROPERTY_TYPE_FLOAT;
+            attachment_quadratic.name = string_duplicate("quadratic");
+            attachment_quadratic.value.f = s->point_lights[m].data.quadratic;
+            darray_push(attachment.value.o.properties, attachment_quadratic);
+
+            // Push it into the attachments array
+            darray_push(attachments_prop.value.o.properties, attachment);
+        }
+    }
+
+    // Directional lights
+    u32 directional_light_count = darray_length(s->directional_light_attachments);
+    for (u32 m = 0; m < directional_light_count; ++m) {
+        if (s->directional_light_attachments[m].hierarchy_node_handle.handle_index == view_node->node_handle.handle_index) {
+            // Found one!
+
+            // Create the object array entry.
+            kson_property attachment = {0};
+            attachment.type = KSON_PROPERTY_TYPE_OBJECT;
+            attachment.name = 0;
+            attachment.value.o.type = KSON_OBJECT_TYPE_OBJECT;
+            attachment.value.o.properties = darray_create(kson_property);
+
+            // Add properties to it.
+
+            // type
+            kson_property attachment_type = {0};
+            attachment_type.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_type.name = string_duplicate("type");
+            attachment_type.value.s = string_duplicate("directional_light");
+            darray_push(attachment.value.o.properties, attachment_type);
+
+            // colour
+            kson_property attachment_colour = {0};
+            attachment_colour.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_colour.name = string_duplicate("colour");
+            attachment_colour.value.s = vec4_to_string(s->dir_lights[m].data.colour);
+            darray_push(attachment.value.o.properties, attachment_colour);
+
+            // direction
+            kson_property attachment_direction = {0};
+            attachment_direction.type = KSON_PROPERTY_TYPE_STRING;
+            attachment_direction.name = string_duplicate("direction");
+            attachment_direction.value.s = vec4_to_string(s->dir_lights[m].data.direction);
+            darray_push(attachment.value.o.properties, attachment_direction);
+
+            // shadow distance
+            kson_property attachment_shadow_dist = {0};
+            attachment_shadow_dist.type = KSON_PROPERTY_TYPE_FLOAT;
+            attachment_shadow_dist.name = string_duplicate("shadow_distance");
+            attachment_shadow_dist.value.f = s->dir_lights[m].data.shadow_distance;
+            darray_push(attachment.value.o.properties, attachment_shadow_dist);
+
+            // shadow fade distance
+            kson_property attachment_shadow_fade_dist = {0};
+            attachment_shadow_fade_dist.type = KSON_PROPERTY_TYPE_FLOAT;
+            attachment_shadow_fade_dist.name = string_duplicate("shadow_fade_distance");
+            attachment_shadow_fade_dist.value.f = s->dir_lights[m].data.shadow_fade_distance;
+            darray_push(attachment.value.o.properties, attachment_shadow_fade_dist);
+
+            // shadow fade distance
+            kson_property attachment_shadow_split_mult = {0};
+            attachment_shadow_split_mult.type = KSON_PROPERTY_TYPE_FLOAT;
+            attachment_shadow_split_mult.name = string_duplicate("shadow_split_mult");
+            attachment_shadow_split_mult.value.f = s->dir_lights[m].data.shadow_split_mult;
+            darray_push(attachment.value.o.properties, attachment_shadow_split_mult);
+
+            // Push it into the attachments array
+            darray_push(attachments_prop.value.o.properties, attachment);
+        }
+    }
+
+    darray_push(node->value.o.properties, attachments_prop);
+
+    // Serialize children
+    if (view_node->children) {
+        u32 child_count = darray_length(view_node->children);
+
+        if (child_count > 0) {
+            // Only create the children property if the node actually has them.
+            kson_property children_prop = {0};
+            children_prop.type = KSON_PROPERTY_TYPE_ARRAY;
+            children_prop.name = string_duplicate("children");
+            children_prop.value.o.type = KSON_OBJECT_TYPE_ARRAY;
+            children_prop.value.o.properties = darray_create(kson_property);
+            for (u32 i = 0; i < child_count; ++i) {
+                u32 index = view_node->children[i];
+                hierarchy_graph_view_node *view_node = &view->nodes[index];
+
+                kson_property child_node = {0};
+                child_node.type = KSON_PROPERTY_TYPE_OBJECT;
+                child_node.name = 0;  // No name for array elements.
+                child_node.value.o.type = KSON_OBJECT_TYPE_OBJECT;
+                child_node.value.o.properties = darray_create(kson_property);
+
+                if (!scene_serialize_node(s, view, view_node, &child_node)) {
+                    KERROR("Failed to serialize node, see logs for details.");
+                    return false;
+                }
+
+                // Add the node to the array.
+                darray_push(children_prop.value.o.properties, child_node);
+            }
+
+            darray_push(node->value.o.properties, children_prop);
+        }
+    }
+
+    return true;
+}
+
 b8 scene_save(scene *s) {
     if (!s) {
         KERROR("scene_save requires a valid pointer to a scene.");
         return false;
     }
 
-    KERROR("Not implemented");
     if (s->flags & SCENE_FLAG_READONLY) {
         KERROR("Cannot save scene that is marked as read-only.");
         return false;
     }
+
+    kson_tree tree = {0};
+    // The root of the tree.
+    tree.root.type = KSON_OBJECT_TYPE_OBJECT;
+    tree.root.properties = darray_create(kson_property);
+
+    // Properties
+    kson_property properties = {0};
+    properties.type = KSON_PROPERTY_TYPE_OBJECT;
+    properties.name = string_duplicate("properties");
+    properties.value.o.type = KSON_OBJECT_TYPE_ARRAY;
+    properties.value.o.properties = darray_create(kson_property);
+
+    // name
+    kson_property name_prop = {0};
+    name_prop.type = KSON_PROPERTY_TYPE_STRING;
+    name_prop.name = string_duplicate("name");
+    name_prop.value.s = string_duplicate(s->name);
+    darray_push(properties.value.o.properties, name_prop);
+
+    // description
+    kson_property desc_prop = {0};
+    desc_prop.type = KSON_PROPERTY_TYPE_STRING;
+    desc_prop.name = string_duplicate("description");
+    desc_prop.value.s = string_duplicate(s->description);
+    darray_push(properties.value.o.properties, desc_prop);
+
+    darray_push(tree.root.properties, properties);
+
+    // nodes
+    kson_property nodes_prop = {0};
+    nodes_prop.type = KSON_PROPERTY_TYPE_ARRAY;
+    nodes_prop.name = string_duplicate("nodes");
+    nodes_prop.value.o.type = KSON_OBJECT_TYPE_ARRAY;
+    nodes_prop.value.o.properties = darray_create(kson_property);
+
+    hierarchy_graph_view *view = &s->hierarchy.view;
+    if (view->root_indices) {
+        u32 root_count = darray_length(view->root_indices);
+        for (u32 i = 0; i < root_count; ++i) {
+            u32 index = view->root_indices[i];
+            hierarchy_graph_view_node *view_node = &view->nodes[index];
+
+            kson_property node = {0};
+            node.type = KSON_PROPERTY_TYPE_OBJECT;
+            node.name = 0;  // No name for array elements.
+            node.value.o.type = KSON_OBJECT_TYPE_OBJECT;
+            node.value.o.properties = darray_create(kson_property);
+
+            if (!scene_serialize_node(s, view, view_node, &node)) {
+                KERROR("Failed to serialize node, see logs for details.");
+                return false;
+            }
+
+            // Add the node to the array.
+            darray_push(nodes_prop.value.o.properties, node);
+        }
+    }
+
+    // Push the nodes array object into the root properties.
+    darray_push(tree.root.properties, nodes_prop);
+
+    // Write the contents of the tree to a string.
+    const char *file_content = kson_tree_to_string(&tree);
+    KTRACE("File content: %s", file_content);
+
+    // Cleanup the tree.
+    kson_tree_cleanup(&tree);
+
+    // Write to file
+
+    // TODO: Validate resource path and/or retrieve based on resource type and resource_name.
+    KINFO("Writing scene '%s' to file '%s'...", s->name, s->resource_full_path);
 
     // TODO: serialize and send off to parser to create string, then write to file
     /*    char* format_str = "%s/%s/%s%s";
@@ -1458,6 +1879,29 @@ b8 scene_save(scene *s) {
         */
 
     return true;
+}
+
+static void scene_node_metadata_ensure_allocated(scene *s, u64 handle_index) {
+    if (s && handle_index != INVALID_ID_U64) {
+        u64 new_count = handle_index + 1;
+        if (s->node_metadata_count < new_count) {
+            scene_node_metadata *new_array = kallocate(sizeof(scene_node_metadata) * new_count, MEMORY_TAG_SCENE);
+            if (s->node_metadata) {
+                kcopy_memory(new_array, s->node_metadata, sizeof(scene_node_metadata) * s->node_metadata_count);
+                kfree(s->node_metadata, sizeof(scene_node_metadata) * s->node_metadata_count, MEMORY_TAG_SCENE);
+            }
+            s->node_metadata = new_array;
+
+            // Invalidate all new entries.
+            for (u32 i = s->node_metadata_count; i < new_count; ++i) {
+                s->node_metadata[i].id = INVALID_ID;
+            }
+
+            s->node_metadata_count = new_count;
+        }
+    } else {
+        KWARN("scene_node_metadata_ensure_allocated requires a valid pointer to a scene, and a valid handle index.");
+    }
 }
 
 /* static scene_attachment *scene_attachment_acquire(scene *s) {

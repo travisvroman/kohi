@@ -4,6 +4,7 @@
 #include "core/identifier.h"
 #include "core/khandle.h"
 #include "core/kmemory.h"
+#include "core/kstring.h"
 #include "core/logger.h"
 #include "core/systems_manager.h"
 #include "defines.h"
@@ -392,6 +393,34 @@ mat4 xform_local_get(k_handle t) {
 
     KWARN("Invalid handle passed to xform_local_get. Returning identity matrix.");
     return mat4_identity();
+}
+
+const char* xform_to_string(k_handle t) {
+    xform_system_state* state = get_system_state();
+    if (!k_handle_is_invalid(t)) {
+        u32 index = t.handle_index;
+        vec3 position = state->positions[index];
+        vec3 scale = state->scales[index];
+        quat rotation = state->rotations[index];
+
+        char buffer[512] = {0};
+        kzero_memory(buffer, sizeof(char) * 512);
+        string_format(buffer, "%f %f %f %f %f %f %f %f %f %f",
+                      position.x,
+                      position.y,
+                      position.z,
+                      rotation.x,
+                      rotation.y,
+                      rotation.z,
+                      rotation.w,
+                      scale.x,
+                      scale.y,
+                      scale.z);
+        return string_duplicate(buffer);
+    }
+
+    KERROR("Invalid handle passed to xform_to_string. Returning null.");
+    return 0;
 }
 
 static void ensure_allocated(xform_system_state* state, u32 slot_count) {

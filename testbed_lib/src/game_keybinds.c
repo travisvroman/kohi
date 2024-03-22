@@ -184,6 +184,10 @@ void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_modifier m
     event_fire(EVENT_CODE_DEBUG1, (application*)user_data, (event_context){});
 }
 
+void game_on_save_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_fire(EVENT_CODE_DEBUG5, (application*)user_data, (event_context){});
+}
+
 void game_on_unload_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
     event_fire(EVENT_CODE_DEBUG2, (application*)user_data, (event_context){});
 }
@@ -314,6 +318,9 @@ void game_setup_keymaps(application* game_inst) {
 
     keymap_binding_add(&testbed_keymap, KEY_L, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_load_scene);
     keymap_binding_add(&testbed_keymap, KEY_U, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_unload_scene);
+    // ctrl s
+    keymap_binding_add(&testbed_keymap, KEY_S, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, game_inst, game_on_save_scene);
+
     keymap_binding_add(&testbed_keymap, KEY_F, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_play_sound);
     keymap_binding_add(&testbed_keymap, KEY_R, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_inst, game_on_toggle_sound);
 

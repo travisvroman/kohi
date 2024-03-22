@@ -514,6 +514,30 @@ b8 string_to_mat4(const char* str, mat4* out_mat) {
     return result != -1;
 }
 
+const char* mat4_to_string(mat4 m) {
+    char buffer[512];
+    kzero_memory(buffer, sizeof(char) * 512);
+    f32* d = m.data;
+    string_format(buffer, "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
+                  d[0],
+                  d[1],
+                  d[2],
+                  d[3],
+                  d[4],
+                  d[5],
+                  d[6],
+                  d[7],
+                  d[8],
+                  d[9],
+                  d[10],
+                  d[11],
+                  d[12],
+                  d[13],
+                  d[14],
+                  d[15]);
+    return string_duplicate(buffer);
+}
+
 b8 string_to_vec4(const char* str, vec4* out_vector) {
     if (!str || !out_vector) {
         return false;
@@ -522,6 +546,13 @@ b8 string_to_vec4(const char* str, vec4* out_vector) {
     kzero_memory(out_vector, sizeof(vec4));
     i32 result = sscanf(str, "%f %f %f %f", &out_vector->x, &out_vector->y, &out_vector->z, &out_vector->w);
     return result != -1;
+}
+
+const char* vec4_to_string(vec4 v) {
+    char buffer[100];
+    kzero_memory(buffer, sizeof(char) * 100);
+    string_format(buffer, "%f %f %f %f", v.x, v.y, v.z, v.w);
+    return string_duplicate(buffer);
 }
 
 b8 string_to_vec3(const char* str, vec3* out_vector) {
@@ -534,6 +565,13 @@ b8 string_to_vec3(const char* str, vec3* out_vector) {
     return result != -1;
 }
 
+const char* vec3_to_string(vec3 v) {
+    char buffer[75];
+    kzero_memory(buffer, sizeof(char) * 75);
+    string_format(buffer, "%f %f %f", v.x, v.y, v.z);
+    return string_duplicate(buffer);
+}
+
 b8 string_to_vec2(const char* str, vec2* out_vector) {
     if (!str || !out_vector) {
         return false;
@@ -542,6 +580,13 @@ b8 string_to_vec2(const char* str, vec2* out_vector) {
     kzero_memory(out_vector, sizeof(vec2));
     i32 result = sscanf(str, "%f %f", &out_vector->x, &out_vector->y);
     return result != -1;
+}
+
+const char* vec2_to_string(vec2 v) {
+    char buffer[50];
+    kzero_memory(buffer, sizeof(char) * 50);
+    string_format(buffer, "%f %f", v.x, v.y);
+    return string_duplicate(buffer);
 }
 
 b8 string_to_f32(const char* str, f32* f) {
@@ -554,6 +599,13 @@ b8 string_to_f32(const char* str, f32* f) {
     return result != -1;
 }
 
+const char* f32_to_string(f32 f) {
+    char buffer[20];
+    kzero_memory(buffer, sizeof(char) * 20);
+    string_format(buffer, "%f", f);
+    return string_duplicate(buffer);
+}
+
 b8 string_to_f64(const char* str, f64* f) {
     if (!str || !f) {
         return false;
@@ -562,6 +614,13 @@ b8 string_to_f64(const char* str, f64* f) {
     *f = 0;
     i32 result = sscanf(str, "%lf", f);
     return result != -1;
+}
+
+const char* f64_to_string(f64 f) {
+    char buffer[25];
+    kzero_memory(buffer, sizeof(char) * 25);
+    string_format(buffer, "%f", f);
+    return string_duplicate(buffer);
 }
 
 b8 string_to_i8(const char* str, i8* i) {
@@ -574,6 +633,13 @@ b8 string_to_i8(const char* str, i8* i) {
     return result != -1;
 }
 
+const char* i8_to_string(const char* str, i8 i) {
+    char buffer[25];
+    kzero_memory(buffer, sizeof(char) * 25);
+    string_format(buffer, "%hhi", i);
+    return string_duplicate(buffer);
+}
+
 b8 string_to_i16(const char* str, i16* i) {
     if (!str || !i) {
         return false;
@@ -582,6 +648,13 @@ b8 string_to_i16(const char* str, i16* i) {
     *i = 0;
     i32 result = sscanf(str, "%hi", i);
     return result != -1;
+}
+
+const char* i16_to_string(const char* str, i16 i) {
+    char buffer[25];
+    kzero_memory(buffer, sizeof(char) * 25);
+    string_format(buffer, "%hi", i);
+    return string_duplicate(buffer);
 }
 
 b8 string_to_i32(const char* str, i32* i) {
@@ -594,6 +667,13 @@ b8 string_to_i32(const char* str, i32* i) {
     return result != -1;
 }
 
+const char* i32_to_string(const char* str, i32 i) {
+    char buffer[25];
+    kzero_memory(buffer, sizeof(char) * 25);
+    string_format(buffer, "%i", i);
+    return string_duplicate(buffer);
+}
+
 b8 string_to_i64(const char* str, i64* i) {
     if (!str || !i) {
         return false;
@@ -602,6 +682,13 @@ b8 string_to_i64(const char* str, i64* i) {
     *i = 0;
     i32 result = sscanf(str, "%lli", i);
     return result != -1;
+}
+
+const char* i64_to_string(const char* str, i64 i) {
+    char buffer[25];
+    kzero_memory(buffer, sizeof(char) * 25);
+    string_format(buffer, "%lli", i);
+    return string_duplicate(buffer);
 }
 
 b8 string_to_u8(const char* str, u8* u) {
@@ -614,6 +701,13 @@ b8 string_to_u8(const char* str, u8* u) {
     return result != -1;
 }
 
+const char* u8_to_string(const char* str, u8 u) {
+    char buffer[25];
+    kzero_memory(buffer, sizeof(char) * 25);
+    string_format(buffer, "%hhu", u);
+    return string_duplicate(buffer);
+}
+
 b8 string_to_u16(const char* str, u16* u) {
     if (!str || !u) {
         return false;
@@ -622,6 +716,13 @@ b8 string_to_u16(const char* str, u16* u) {
     *u = 0;
     i32 result = sscanf(str, "%hu", u);
     return result != -1;
+}
+
+const char* u16_to_string(const char* str, u16 u) {
+    char buffer[25];
+    kzero_memory(buffer, sizeof(char) * 25);
+    string_format(buffer, "%hu", u);
+    return string_duplicate(buffer);
 }
 
 b8 string_to_u32(const char* str, u32* u) {
@@ -634,6 +735,13 @@ b8 string_to_u32(const char* str, u32* u) {
     return result != -1;
 }
 
+const char* u32_to_string(const char* str, u32 u) {
+    char buffer[25];
+    kzero_memory(buffer, sizeof(char) * 25);
+    string_format(buffer, "%u", u);
+    return string_duplicate(buffer);
+}
+
 b8 string_to_u64(const char* str, u64* u) {
     if (!str || !u) {
         return false;
@@ -644,6 +752,13 @@ b8 string_to_u64(const char* str, u64* u) {
     return result != -1;
 }
 
+const char* u64_to_string(const char* str, u64 u) {
+    char buffer[25];
+    kzero_memory(buffer, sizeof(char) * 25);
+    string_format(buffer, "%llu", u);
+    return string_duplicate(buffer);
+}
+
 b8 string_to_bool(const char* str, b8* b) {
     if (!str || !b) {
         return false;
@@ -651,6 +766,10 @@ b8 string_to_bool(const char* str, b8* b) {
 
     *b = strings_equal(str, "1") || strings_equali(str, "true");
     return true;
+}
+
+const char* bool_to_string(const char* str, b8 b) {
+    return string_duplicate(b == false ? "false" : "true");
 }
 
 u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_entries, b8 include_empty) {
