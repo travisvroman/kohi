@@ -344,6 +344,12 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                 // if there are identifiers without whitespace next to numerics.
                 if ((codepoint >= 'A' && codepoint <= 'z') || codepoint == '_') {
                     if (mode == KSON_TOKENIZE_MODE_DEFINING_IDENTIFIER) {
+                        // Start a new identifier token.
+                        if (current_token.type == KSON_TOKEN_TYPE_UNKNOWN) {
+                            current_token.type = KSON_TOKEN_TYPE_IDENTIFIER;
+                            current_token.start = c;
+                            current_token.end = c;
+                        }
                         // Tack onto the existing identifier.
                         current_token.end += advance;
                     } else {
@@ -809,7 +815,7 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
 
                     // Reset the numeric parse string state.
                     u32 num_lit_len = string_length(numeric_literal_str);
-                    kzero_memory(numeric_literal_str, sizeof(char*) * num_lit_len);
+                    kzero_memory(numeric_literal_str, sizeof(char) * num_lit_len);
                     expect_numeric = false;
                     numeric_decimal_pos = -1;
                     numeric_literal_str_pos = 0;
@@ -926,43 +932,30 @@ static void kson_tree_object_to_string(const kson_object* obj, char* out_source,
             kson_property* p = &obj->properties[i];
             // Write indent.
             write_spaces(out_source, position, indent_level * indent_spaces);
-            b8 obj_needs_indent = true;
+
+            // If named, it is a property being defined. Otherwise it is an array element.
             if (p->name) {
                 // write the name, then a space, then =, then another space.
                 write_string(out_source, position, p->name);
                 write_spaces(out_source, position, 1);
                 write_string(out_source, position, "=");
                 write_spaces(out_source, position, 1);
-                obj_needs_indent = false;
             }
 
             // Write the value
             switch (p->type) {
-                case KSON_PROPERTY_TYPE_OBJECT: {
-                    if (obj_needs_indent) {
-                        write_spaces(out_source, position, (indent_level - 1) * indent_spaces);
-                    }
-                    // Write an object "opener" and a newline.
-                    write_string(out_source, position, "{\n");
-
-                    kson_tree_object_to_string(&p->value.o, out_source, position, indent_level, indent_spaces);
-
-                    write_spaces(out_source, position, indent_level * indent_spaces);
-                    // Write an object "closer" and a newline.
-                    write_string(out_source, position, "}\n");
-                } break;
+                case KSON_PROPERTY_TYPE_OBJECT:
                 case KSON_PROPERTY_TYPE_ARRAY: {
-                    if (obj_needs_indent) {
-                        write_spaces(out_source, position, (indent_level - 1) * indent_spaces);
-                    }
-                    // Write an object "opener" and a newline.
-                    write_string(out_source, position, "[\n");
+                    // Opener/closer and newline based on type.
+                    const char* opener = p->type == KSON_PROPERTY_TYPE_OBJECT ? "{\n" : "[\n";
+                    const char* closer = p->type == KSON_PROPERTY_TYPE_OBJECT ? "}\n" : "]\n";
+                    write_string(out_source, position, opener);
 
                     kson_tree_object_to_string(&p->value.o, out_source, position, indent_level, indent_spaces);
 
+                    // Indent the closer.
                     write_spaces(out_source, position, indent_level * indent_spaces);
-                    // Write an object "closer" and a newline.
-                    write_string(out_source, position, "]\n");
+                    write_string(out_source, position, closer);
                 } break;
                 case KSON_PROPERTY_TYPE_STRING: {
                     if (p->value.s) {
@@ -1535,4 +1528,30 @@ b8 kson_object_property_value_get_object(const kson_object* object, const char* 
 
     *out_value = object->properties[index].value.o;
     return true;
+}
+
+kson_property kson_object_property_create(const char* name) {
+    kson_property obj = {0};
+    obj.type = KSON_PROPERTY_TYPE_OBJECT;
+    obj.name = 0;
+    if (name) {
+        obj.name = string_duplicate(name);
+    }
+    obj.value.o.type = KSON_OBJECT_TYPE_OBJECT;
+    obj.value.o.properties = darray_create(kson_property);
+
+    return obj;
+}
+
+kson_property kson_array_property_create(const char* name) {
+    kson_property arr = {0};
+    arr.type = KSON_PROPERTY_TYPE_ARRAY;
+    arr.name = 0;
+    if (name) {
+        arr.name = string_duplicate(name);
+    }
+    arr.value.o.type = KSON_OBJECT_TYPE_ARRAY;
+    arr.value.o.properties = darray_create(kson_property);
+
+    return arr;
 }

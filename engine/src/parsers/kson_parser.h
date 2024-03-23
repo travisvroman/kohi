@@ -465,4 +465,18 @@ KAPI b8 kson_object_property_value_get_string(const kson_object* object, const c
  */
 KAPI b8 kson_object_property_value_get_object(const kson_object* object, const char* name, kson_object* out_value);
 
+/**
+ * Creates and returns a new property of the object type.
+ * @param name The name of the property. Pass 0 if later adding to an array.
+ * @returns The newly created object property.
+ */
+KAPI kson_property kson_object_property_create(const char* name);
+
+/**
+ * Creates and returns a new property of the array type.
+ * @param name The name of the property. Pass 0 if later adding to an array.
+ * @returns The newly created array property.
+ */
+KAPI kson_property kson_array_property_create(const char* name);
+
 #endif

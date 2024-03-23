@@ -133,7 +133,7 @@ static b8 deserialize_scene_skybox_attachment(const kson_object* attachment_obje
 
     const char* cubemap_name_str = 0;
     if (!kson_object_property_value_get_string(attachment_object, "cubemap_name", &cubemap_name_str)) {
-        KERROR("Static mesh attachment config requires a valid 'cubemap_name'. Deserialization failed.");
+        KERROR("Skybox attachment config requires a valid 'cubemap_name'. Deserialization failed.");
         return false;
     }
     attachment->cubemap_name = string_duplicate(cubemap_name_str);

@@ -218,7 +218,7 @@ static void terrain_loader_unload(struct resource_loader *self,
     if (data->name) {
         kfree(data->name, sizeof(char) * (string_length(data->name) + 1), MEMORY_TAG_STRING);
     }
-    kzero_memory(data, sizeof(shader_config));
+    kzero_memory(data, sizeof(terrain_resource));
 
     if (data->material_names) {
         kfree(data->material_names, sizeof(char *) * TERRAIN_MAX_MATERIAL_COUNT, MEMORY_TAG_ARRAY);

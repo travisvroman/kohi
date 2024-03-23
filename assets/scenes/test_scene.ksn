@@ -1,7 +1,5 @@
-// Comments
 properties = {
-    // in-block comments
-    name = "test_scene" // comments at the end of the line.
+    name = "test_scene"
     description = "A simple test scene, yo."
 }
 nodes = [
@@ -14,64 +12,63 @@ nodes = [
             }
             {
                 type = "directional_light"
-                colour="80.0 80.0 70.0 1.0"
-                direction="0.1 -1.0 0.1 1.0" 
-                shadow_distance=100
-                shadow_fade_distance=5
-                shadow_split_mult=0.75
-                // direction=-0.57735 -0.57735 -0.57735 0.0
+                colour = "80.000000 80.000000 70.000000 1.000000"
+                direction = "0.100000 -1.000000 0.100000 1.000000"
+                shadow_distance = 100.000000
+                shadow_fade_distance = 5.000000
+                shadow_split_mult = 0.750000
             }
         ]
     }
     {
         name = "sponza"
+        xform = "0.000000 -1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.010000 0.010000 0.010000"
         attachments = [
             {
-                type="static_mesh"
+                type = "static_mesh"
                 resource_name = "sponza"
             }
         ]
         children = [
             {
-                name="tree"
+                name = "tree"
+                xform = "772.176514 79.999954 1361.973022 0.000000 0.817741 0.000000 0.575589 200.000000 200.000000 200.000000"
                 attachments = [
                     {
-                        type="static_mesh"
-                        resource_name="Tree"
+                        type = "static_mesh"
+                        resource_name = "Tree"
                     }
                 ]
-                xform="700.4 80.0 1400.0 0.0 0.0 0.0 1.0 200.0 200.0 200.0"
             }
         ]
-        xform="0.0 -1.0 0.0 0.0 0.0 0.0 1.0 0.01 0.01 0.01"
     }
     {
         name = "falcon"
+        xform = "9.724084 0.699502 14.714925 -0.032420 -0.207126 -0.032213 0.977247 0.350000 0.350000 0.350000"
         attachments = [
             {
-                type="static_mesh"
+                type = "static_mesh"
                 resource_name = "falcon"
             }
             {
-                type="point_light"
-                colour="100.0 0.0 0.0 1.0"
-                constant_f=1.0
-                linear=0.35
-                quadratic=0.44
-                position="2.5 1.25 -8.0 0.0"
+                type = "point_light"
+                colour = "100.000000 0.000000 0.000000 1.000000"
+                position = "2.500000 1.250000 -8.000000 0.000000"
+                constant_f = 1.000000
+                linear = 0.350000
+                quadratic = 0.440000
             }
         ]
-        xform="9.4 0.8 14.0 0.0 0.0 0.0 1.0 0.35 0.35 0.35"
     }
     {
         name = "terrain"
+        xform = "-50.000000 -3.900000 -50.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
         attachments = [
             {
-                type="terrain"
-                name="test_terrain"
+                type = "terrain"
+                name = "test_terrain"
                 resource_name = "test_terrain"
             }
         ]
-        xform="-50.0 -3.9 -50.0 0.0 0.0 0.0 1.0 1.0 1.0 1.0"
     }
 ]

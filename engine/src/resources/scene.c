@@ -15,6 +15,7 @@
 #include "math/math_types.h"
 #include "math/transform.h"
 #include "parsers/kson_parser.h"
+#include "platform/filesystem.h"
 #include "renderer/camera.h"
 #include "renderer/renderer_types.h"
 #include "renderer/viewport.h"
@@ -1471,20 +1472,12 @@ static b8 scene_serialize_node(const scene *s, const hierarchy_graph_view *view,
     // Serialize top-level node metadata, etc.
     scene_node_metadata *node_meta = &s->node_metadata[view_node->node_handle.handle_index];
 
-    // Name
-    kson_property name_prop = {0};
-    name_prop.type = KSON_PROPERTY_TYPE_STRING;
-    name_prop.name = string_duplicate("name");
-    name_prop.value.s = string_duplicate(node_meta->name);
-    darray_push(node->value.o.properties, name_prop);
+    // Node name
+    kson_object_value_add_string(&node->value.o, "name", node_meta->name);
 
     // xform is optional, so make sure there is a valid handle to one before serializing.
     if (!k_handle_is_invalid(view_node->xform_handle)) {
-        kson_property xform_prop = {0};
-        xform_prop.type = KSON_PROPERTY_TYPE_STRING;
-        xform_prop.name = string_duplicate("xform");
-        xform_prop.value.s = xform_to_string(view_node->xform_handle);
-        darray_push(node->value.o.properties, xform_prop);
+        kson_object_value_add_string(&node->value.o, "xform", xform_to_string(view_node->xform_handle));
     }
 
     // Attachments
@@ -1506,27 +1499,11 @@ static b8 scene_serialize_node(const scene *s, const hierarchy_graph_view *view,
             // Found one!
 
             // Create the object array entry.
-            kson_property attachment = {0};
-            attachment.type = KSON_PROPERTY_TYPE_OBJECT;
-            attachment.name = 0;
-            attachment.value.o.type = KSON_OBJECT_TYPE_OBJECT;
-            attachment.value.o.properties = darray_create(kson_property);
+            kson_property attachment = kson_object_property_create(0);
 
             // Add properties to it.
-
-            // type
-            kson_property attachment_name = {0};
-            attachment_name.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_name.name = string_duplicate("type");
-            attachment_name.value.s = string_duplicate("static_mesh");
-            darray_push(attachment.value.o.properties, attachment_name);
-
-            // resource name
-            kson_property attachment_resource_name = {0};
-            attachment_resource_name.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_resource_name.name = string_duplicate("resource_name");
-            attachment_resource_name.value.s = string_duplicate(s->mesh_metadata[m].resource_name);
-            darray_push(attachment.value.o.properties, attachment_resource_name);
+            kson_object_value_add_string(&attachment.value.o, "type", "static_mesh");
+            kson_object_value_add_string(&attachment.value.o, "resource_name", s->mesh_metadata[m].resource_name);
 
             // Push it into the attachments array
             darray_push(attachments_prop.value.o.properties, attachment);
@@ -1540,27 +1517,11 @@ static b8 scene_serialize_node(const scene *s, const hierarchy_graph_view *view,
             // Found one!
 
             // Create the object array entry.
-            kson_property attachment = {0};
-            attachment.type = KSON_PROPERTY_TYPE_OBJECT;
-            attachment.name = 0;
-            attachment.value.o.type = KSON_OBJECT_TYPE_OBJECT;
-            attachment.value.o.properties = darray_create(kson_property);
+            kson_property attachment = kson_object_property_create(0);
 
             // Add properties to it.
-
-            // type
-            kson_property attachment_name = {0};
-            attachment_name.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_name.name = string_duplicate("type");
-            attachment_name.value.s = string_duplicate("skybox");
-            darray_push(attachment.value.o.properties, attachment_name);
-
-            // cubemap name
-            kson_property attachment_cubemap_name = {0};
-            attachment_cubemap_name.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_cubemap_name.name = string_duplicate("cubemap_name");
-            attachment_cubemap_name.value.s = string_duplicate(s->skybox_metadata[m].cubemap_name);
-            darray_push(attachment.value.o.properties, attachment_cubemap_name);
+            kson_object_value_add_string(&attachment.value.o, "type", "skybox");
+            kson_object_value_add_string(&attachment.value.o, "cubemap_name", s->skybox_metadata[m].cubemap_name);
 
             // Push it into the attachments array
             darray_push(attachments_prop.value.o.properties, attachment);
@@ -1574,34 +1535,12 @@ static b8 scene_serialize_node(const scene *s, const hierarchy_graph_view *view,
             // Found one!
 
             // Create the object array entry.
-            kson_property attachment = {0};
-            attachment.type = KSON_PROPERTY_TYPE_OBJECT;
-            attachment.name = 0;
-            attachment.value.o.type = KSON_OBJECT_TYPE_OBJECT;
-            attachment.value.o.properties = darray_create(kson_property);
+            kson_property attachment = kson_object_property_create(0);
 
             // Add properties to it.
-
-            // type
-            kson_property attachment_name = {0};
-            attachment_name.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_name.name = string_duplicate("type");
-            attachment_name.value.s = string_duplicate("terrain");
-            darray_push(attachment.value.o.properties, attachment_name);
-
-            // name
-            kson_property attachment_name_prop = {0};
-            attachment_name_prop.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_name_prop.name = string_duplicate("name");
-            attachment_name_prop.value.s = string_duplicate(s->terrain_metadata[m].name);
-            darray_push(attachment.value.o.properties, attachment_name_prop);
-
-            // resource name
-            kson_property attachment_resource_name = {0};
-            attachment_resource_name.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_resource_name.name = string_duplicate("resource_name");
-            attachment_resource_name.value.s = string_duplicate(s->terrain_metadata[m].resource_name);
-            darray_push(attachment.value.o.properties, attachment_resource_name);
+            kson_object_value_add_string(&attachment.value.o, "type", "terrain");
+            kson_object_value_add_string(&attachment.value.o, "name", s->terrain_metadata[m].name);
+            kson_object_value_add_string(&attachment.value.o, "resource_name", s->terrain_metadata[m].resource_name);
 
             // Push it into the attachments array
             darray_push(attachments_prop.value.o.properties, attachment);
@@ -1615,55 +1554,18 @@ static b8 scene_serialize_node(const scene *s, const hierarchy_graph_view *view,
             // Found one!
 
             // Create the object array entry.
-            kson_property attachment = {0};
-            attachment.type = KSON_PROPERTY_TYPE_OBJECT;
-            attachment.name = 0;
-            attachment.value.o.type = KSON_OBJECT_TYPE_OBJECT;
-            attachment.value.o.properties = darray_create(kson_property);
+            kson_property attachment = kson_object_property_create(0);
 
             // Add properties to it.
+            kson_object_value_add_string(&attachment.value.o, "type", "point_light");
+            kson_object_value_add_string(&attachment.value.o, "colour", vec4_to_string(s->point_lights[m].data.colour));
 
-            // type
-            kson_property attachment_type = {0};
-            attachment_type.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_type.name = string_duplicate("type");
-            attachment_type.value.s = string_duplicate("point_light");
-            darray_push(attachment.value.o.properties, attachment_type);
-
-            // colour
-            kson_property attachment_colour = {0};
-            attachment_colour.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_colour.name = string_duplicate("colour");
-            attachment_colour.value.s = vec4_to_string(s->point_lights[m].data.colour);
-            darray_push(attachment.value.o.properties, attachment_colour);
-
-            // position
-            kson_property attachment_position = {0};
-            attachment_position.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_position.name = string_duplicate("position");
-            attachment_position.value.s = vec4_to_string(s->point_lights[m].data.position);
-            darray_push(attachment.value.o.properties, attachment_position);
-
-            // constant_f
-            kson_property attachment_constant_f = {0};
-            attachment_constant_f.type = KSON_PROPERTY_TYPE_FLOAT;
-            attachment_constant_f.name = string_duplicate("constant_f");
-            attachment_constant_f.value.f = s->point_lights[m].data.constant_f;
-            darray_push(attachment.value.o.properties, attachment_constant_f);
-
-            // linear
-            kson_property attachment_linear = {0};
-            attachment_linear.type = KSON_PROPERTY_TYPE_FLOAT;
-            attachment_linear.name = string_duplicate("linear");
-            attachment_linear.value.f = s->point_lights[m].data.linear;
-            darray_push(attachment.value.o.properties, attachment_linear);
-
-            // quadratic
-            kson_property attachment_quadratic = {0};
-            attachment_quadratic.type = KSON_PROPERTY_TYPE_FLOAT;
-            attachment_quadratic.name = string_duplicate("quadratic");
-            attachment_quadratic.value.f = s->point_lights[m].data.quadratic;
-            darray_push(attachment.value.o.properties, attachment_quadratic);
+            // NOTE: use the base light position, not the .data.positon since .data.position is the
+            // recalculated world position based on inherited transforms form parent node(s).
+            kson_object_value_add_string(&attachment.value.o, "position", vec4_to_string(s->point_lights[m].position));
+            kson_object_value_add_float(&attachment.value.o, "constant_f", s->point_lights[m].data.constant_f);
+            kson_object_value_add_float(&attachment.value.o, "linear", s->point_lights[m].data.linear);
+            kson_object_value_add_float(&attachment.value.o, "quadratic", s->point_lights[m].data.quadratic);
 
             // Push it into the attachments array
             darray_push(attachments_prop.value.o.properties, attachment);
@@ -1677,55 +1579,15 @@ static b8 scene_serialize_node(const scene *s, const hierarchy_graph_view *view,
             // Found one!
 
             // Create the object array entry.
-            kson_property attachment = {0};
-            attachment.type = KSON_PROPERTY_TYPE_OBJECT;
-            attachment.name = 0;
-            attachment.value.o.type = KSON_OBJECT_TYPE_OBJECT;
-            attachment.value.o.properties = darray_create(kson_property);
+            kson_property attachment = kson_object_property_create(0);
 
             // Add properties to it.
-
-            // type
-            kson_property attachment_type = {0};
-            attachment_type.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_type.name = string_duplicate("type");
-            attachment_type.value.s = string_duplicate("directional_light");
-            darray_push(attachment.value.o.properties, attachment_type);
-
-            // colour
-            kson_property attachment_colour = {0};
-            attachment_colour.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_colour.name = string_duplicate("colour");
-            attachment_colour.value.s = vec4_to_string(s->dir_lights[m].data.colour);
-            darray_push(attachment.value.o.properties, attachment_colour);
-
-            // direction
-            kson_property attachment_direction = {0};
-            attachment_direction.type = KSON_PROPERTY_TYPE_STRING;
-            attachment_direction.name = string_duplicate("direction");
-            attachment_direction.value.s = vec4_to_string(s->dir_lights[m].data.direction);
-            darray_push(attachment.value.o.properties, attachment_direction);
-
-            // shadow distance
-            kson_property attachment_shadow_dist = {0};
-            attachment_shadow_dist.type = KSON_PROPERTY_TYPE_FLOAT;
-            attachment_shadow_dist.name = string_duplicate("shadow_distance");
-            attachment_shadow_dist.value.f = s->dir_lights[m].data.shadow_distance;
-            darray_push(attachment.value.o.properties, attachment_shadow_dist);
-
-            // shadow fade distance
-            kson_property attachment_shadow_fade_dist = {0};
-            attachment_shadow_fade_dist.type = KSON_PROPERTY_TYPE_FLOAT;
-            attachment_shadow_fade_dist.name = string_duplicate("shadow_fade_distance");
-            attachment_shadow_fade_dist.value.f = s->dir_lights[m].data.shadow_fade_distance;
-            darray_push(attachment.value.o.properties, attachment_shadow_fade_dist);
-
-            // shadow fade distance
-            kson_property attachment_shadow_split_mult = {0};
-            attachment_shadow_split_mult.type = KSON_PROPERTY_TYPE_FLOAT;
-            attachment_shadow_split_mult.name = string_duplicate("shadow_split_mult");
-            attachment_shadow_split_mult.value.f = s->dir_lights[m].data.shadow_split_mult;
-            darray_push(attachment.value.o.properties, attachment_shadow_split_mult);
+            kson_object_value_add_string(&attachment.value.o, "type", "directional_light");
+            kson_object_value_add_string(&attachment.value.o, "colour", vec4_to_string(s->dir_lights[m].data.colour));
+            kson_object_value_add_string(&attachment.value.o, "direction", vec4_to_string(s->dir_lights[m].data.direction));
+            kson_object_value_add_float(&attachment.value.o, "shadow_distance", s->dir_lights[m].data.shadow_distance);
+            kson_object_value_add_float(&attachment.value.o, "shadow_fade_distance", s->dir_lights[m].data.shadow_fade_distance);
+            kson_object_value_add_float(&attachment.value.o, "shadow_split_mult", s->dir_lights[m].data.shadow_split_mult);
 
             // Push it into the attachments array
             darray_push(attachments_prop.value.o.properties, attachment);
@@ -1787,35 +1649,16 @@ b8 scene_save(scene *s) {
     tree.root.type = KSON_OBJECT_TYPE_OBJECT;
     tree.root.properties = darray_create(kson_property);
 
-    // Properties
-    kson_property properties = {0};
-    properties.type = KSON_PROPERTY_TYPE_OBJECT;
-    properties.name = string_duplicate("properties");
-    properties.value.o.type = KSON_OBJECT_TYPE_ARRAY;
-    properties.value.o.properties = darray_create(kson_property);
+    // Properties property
+    kson_property properties = kson_object_property_create("properties");
 
-    // name
-    kson_property name_prop = {0};
-    name_prop.type = KSON_PROPERTY_TYPE_STRING;
-    name_prop.name = string_duplicate("name");
-    name_prop.value.s = string_duplicate(s->name);
-    darray_push(properties.value.o.properties, name_prop);
-
-    // description
-    kson_property desc_prop = {0};
-    desc_prop.type = KSON_PROPERTY_TYPE_STRING;
-    desc_prop.name = string_duplicate("description");
-    desc_prop.value.s = string_duplicate(s->description);
-    darray_push(properties.value.o.properties, desc_prop);
+    kson_object_value_add_string(&properties.value.o, "name", s->name);
+    kson_object_value_add_string(&properties.value.o, "description", s->description);
 
     darray_push(tree.root.properties, properties);
 
     // nodes
-    kson_property nodes_prop = {0};
-    nodes_prop.type = KSON_PROPERTY_TYPE_ARRAY;
-    nodes_prop.name = string_duplicate("nodes");
-    nodes_prop.value.o.type = KSON_OBJECT_TYPE_ARRAY;
-    nodes_prop.value.o.properties = darray_create(kson_property);
+    kson_property nodes_prop = kson_array_property_create("nodes");
 
     hierarchy_graph_view *view = &s->hierarchy.view;
     if (view->root_indices) {
@@ -1845,7 +1688,7 @@ b8 scene_save(scene *s) {
 
     // Write the contents of the tree to a string.
     const char *file_content = kson_tree_to_string(&tree);
-    KTRACE("File content: %s", file_content);
+    KTRACE("File content: \n%s", file_content);
 
     // Cleanup the tree.
     kson_tree_cleanup(&tree);
@@ -1855,30 +1698,20 @@ b8 scene_save(scene *s) {
     // TODO: Validate resource path and/or retrieve based on resource type and resource_name.
     KINFO("Writing scene '%s' to file '%s'...", s->name, s->resource_full_path);
 
-    // TODO: serialize and send off to parser to create string, then write to file
-    /*    char* format_str = "%s/%s/%s%s";
-        char full_file_path[512];
-        string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, r->name, ".kss");
+    file_handle f;
+    if (!filesystem_open(s->resource_full_path, FILE_MODE_WRITE, false, &f)) {
+        KERROR("scene_save - unable to open scene file for writing: '%s'.", s->resource_full_path);
+        return false;
+    }
 
-        file_handle f;
-        if (!filesystem_open(full_file_path, FILE_MODE_WRITE, false, &f)) {
-            KERROR("scene_loader_write - unable to open simple scene file for writing: '%s'.", full_file_path);
-            return false;
-        }
-
-        scene_config* resource_data = r->data;
-        if (resource_data) {
-            // TODO: Send to kson parser to be written to string.
-        }
-        b8 result = true;
-
-        if (!result) {
-            KERROR("Failed to write scene file.");
-        }
-        return result;
-        */
-
-    return true;
+    u32 content_length = string_length(file_content);
+    u64 bytes_written = 0;
+    b8 result = filesystem_write(&f, sizeof(char) * content_length, file_content, &bytes_written);
+    if (!result) {
+        KERROR("Failed to write scene file.");
+    }
+    string_free((char *)file_content);
+    return result;
 }
 
 static void scene_node_metadata_ensure_allocated(scene *s, u64 handle_index) {
