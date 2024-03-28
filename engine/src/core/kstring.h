@@ -213,18 +213,6 @@ KAPI void string_insert_str_at(char* dest, const char* src, u32 pos, const char*
 KAPI void string_remove_at(char* dest, const char* src, u32 pos, u32 length);
 
 /**
- * @brief Attempts to parse a transform from the provided string.
- * If the string contains 10 elements, rotation is parsed as quaternion.
- * If it contains 9 elements, rotation is parsed as euler angles and is
- * converted to quaternion. Anything else is invalid.
- *
- * @param str The string to parse from.
- * @param out_transform A pointer to the transform to write to.
- * @return True if parsed successfully, otherwise false.
- */
-KAPI b8 string_to_transform(const char* str, transform* out_transform);
-
-/**
  * @brief Attempts to parse a xform config (_NOT_ an actual xform) from the provided string.
  * If the string contains 10 elements, rotation is parsed as quaternion.
  * If it contains 9 elements, rotation is parsed as euler angles and is

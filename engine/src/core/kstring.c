@@ -9,7 +9,6 @@
 #include "core/kmemory.h"
 #include "core/logger.h"
 #include "math/kmath.h"
-#include "math/transform.h"
 #include "resources/resource_types.h"
 
 #ifndef _MSC_VER
@@ -396,51 +395,6 @@ void string_remove_at(char* dest, const char* src, u32 pos, u32 length) {
     dest[original_length - length] = 0;
 }
 
-b8 string_to_transform(const char* str, transform* out_transform) {
-    if (!str || !out_transform) {
-        return false;
-    }
-
-    kzero_memory(out_transform, sizeof(transform));
-    f32 values[7] = {0};
-
-    i32 count = sscanf(
-        str,
-        "%f %f %f %f %f %f %f %f %f %f",
-        &out_transform->position.x, &out_transform->position.y, &out_transform->position.z,
-        &values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6]);
-
-    if (count == 10) {
-        // Treat as quat, load directly.
-        out_transform->rotation.x = values[0];
-        out_transform->rotation.y = values[1];
-        out_transform->rotation.z = values[2];
-        out_transform->rotation.w = values[3];
-
-        // Set scale
-        out_transform->scale.x = values[4];
-        out_transform->scale.y = values[5];
-        out_transform->scale.z = values[6];
-    } else if (count == 9) {
-        quat x_rot = quat_from_axis_angle((vec3){1.0f, 0, 0}, deg_to_rad(values[0]), true);
-        quat y_rot = quat_from_axis_angle((vec3){0, 1.0f, 0}, deg_to_rad(values[1]), true);
-        quat z_rot = quat_from_axis_angle((vec3){0, 0, 1.0f}, deg_to_rad(values[2]), true);
-        out_transform->rotation = quat_mul(x_rot, quat_mul(y_rot, z_rot));
-
-        // Set scale
-        out_transform->scale.x = values[3];
-        out_transform->scale.y = values[4];
-        out_transform->scale.z = values[5];
-    } else {
-        KWARN("Format error: invalid transform provided. Identity transform will be used.");
-        *out_transform = transform_create();
-        return false;
-    }
-
-    out_transform->is_dirty = true;
-
-    return true;
-}
 
 b8 string_to_xform_config(const char* str, scene_xform_config* out_xform) {
     if (!str || !out_xform) {

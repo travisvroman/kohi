@@ -69,13 +69,13 @@ typedef struct resource {
     /** @brief The identifier of the loader which handles this resource. */
     u32 loader_id;
     /** @brief The name of the resource. */
-    const char *name;
+    const char* name;
     /** @brief The full file path of the resource. */
-    char *full_path;
+    char* full_path;
     /** @brief The size of the resource data in bytes. */
     u64 data_size;
     /** @brief The resource data. */
-    void *data;
+    void* data;
 } resource;
 
 /**
@@ -89,7 +89,7 @@ typedef struct image_resource_data {
     /** @brief The height of the image. */
     u32 height;
     /** @brief The pixel data of the image. */
-    u8 *pixels;
+    u8* pixels;
     /**
      * @brief The number of mip levels to be generated for this
      * image resource. Should be passed on to the texture using it.
@@ -189,7 +189,7 @@ typedef struct texture {
     /** @brief The texture name. */
     char name[TEXTURE_NAME_MAX_LENGTH];
     /** @brief The raw texture data (pixels). */
-    void *internal_data;
+    void* internal_data;
     /** @brief The number of mip maps the internal texture has. Must always be at least 1. */
     u32 mip_levels;
 } texture;
@@ -227,7 +227,7 @@ typedef struct texture_map {
      */
     u32 mip_levels;
     /** @brief A pointer to a texture. */
-    texture *texture;
+    texture* texture;
     /** @brief Texture filtering mode for minification. */
     texture_filter filter_minify;
     /** @brief Texture filtering mode for magnification. */
@@ -273,12 +273,12 @@ typedef struct font_data {
     i32 atlas_size_y;
     texture_map atlas;
     u32 glyph_count;
-    font_glyph *glyphs;
+    font_glyph* glyphs;
     u32 kerning_count;
-    font_kerning *kernings;
+    font_kerning* kernings;
     f32 tab_x_advance;
     u32 internal_data_size;
-    void *internal_data;
+    void* internal_data;
 } font_data;
 
 typedef struct bitmap_font_page {
@@ -289,7 +289,7 @@ typedef struct bitmap_font_page {
 typedef struct bitmap_font_resource_data {
     font_data data;
     u32 page_count;
-    bitmap_font_page *pages;
+    bitmap_font_page* pages;
 } bitmap_font_resource_data;
 
 typedef struct system_font_face {
@@ -298,9 +298,9 @@ typedef struct system_font_face {
 
 typedef struct system_font_resource_data {
     // darray
-    system_font_face *fonts;
+    system_font_face* fonts;
     u64 binary_size;
-    void *font_binary;
+    void* font_binary;
 } system_font_resource_data;
 
 /** @brief The maximum length of a material name. */
@@ -331,7 +331,7 @@ typedef struct geometry {
     /** @brief The size of each vertex. */
     u32 vertex_element_size;
     /** @brief The vertex data. */
-    void *vertices;
+    void* vertices;
     /** @brief The offset from the beginning of the vertex buffer. */
     u64 vertex_buffer_offset;
 
@@ -340,21 +340,21 @@ typedef struct geometry {
     /** @brief The size of each index. */
     u32 index_element_size;
     /** @brief The index data. */
-    void *indices;
+    void* indices;
     /** @brief The offset from the beginning of the index buffer. */
     u64 index_buffer_offset;
 
     /** @brief The geometry name. */
     char name[GEOMETRY_NAME_MAX_LENGTH];
     /** @brief A pointer to the material associated with this geometry.. */
-    struct material *material;
+    struct material* material;
 } geometry;
 
 struct geometry_config;
 typedef struct mesh_config {
-    char *resource_name;
+    char* resource_name;
     u16 geometry_count;
-    struct geometry_config *g_configs;
+    struct geometry_config* g_configs;
 } mesh_config;
 
 typedef enum mesh_state {
@@ -366,16 +366,16 @@ typedef enum mesh_state {
 } mesh_state;
 
 typedef struct mesh {
-    char *name;
-    char *resource_name;
+    char* name;
+    char* resource_name;
     mesh_state state;
     identifier id;
     u8 generation;
     u16 geometry_count;
-    struct geometry_config *g_configs;
-    geometry **geometries;
+    struct geometry_config* g_configs;
+    geometry** geometries;
     extents_3d extents;
-    void *debug_data;
+    void* debug_data;
 } mesh;
 
 /** @brief Shader stages available in the system. */
@@ -388,10 +388,10 @@ typedef enum shader_stage {
 
 typedef struct shader_stage_config {
     shader_stage stage;
-    const char *name;
-    const char *filename;
+    const char* name;
+    const char* filename;
     u32 source_length;
-    char *source;
+    char* source;
 } shader_stage_config;
 
 /** @brief Available attribute types. */
@@ -451,7 +451,7 @@ typedef struct shader_attribute_config {
     /** @brief The length of the name. */
     u8 name_length;
     /** @brief The name of the attribute. */
-    char *name;
+    char* name;
     /** @brief The size of the attribute. */
     u8 size;
     /** @brief The type of the attribute. */
@@ -463,7 +463,7 @@ typedef struct shader_uniform_config {
     /** @brief The length of the name. */
     u8 name_length;
     /** @brief The name of the uniform. */
-    char *name;
+    char* name;
     /** @brief The size of the uniform. If arrayed, this is the per-element size */
     u16 size;
     /** @brief The location of the uniform. */
@@ -483,7 +483,7 @@ typedef struct shader_uniform_config {
  */
 typedef struct shader_config {
     /** @brief The name of the shader to be created. */
-    char *name;
+    char* name;
 
     /** @brief The face cull mode to be used. Default is BACK if not supplied. */
     face_cull_mode cull_mode;
@@ -494,18 +494,18 @@ typedef struct shader_config {
     /** @brief The count of attributes. */
     u8 attribute_count;
     /** @brief The collection of attributes. Darray. */
-    shader_attribute_config *attributes;
+    shader_attribute_config* attributes;
 
     /** @brief The count of uniforms. */
     u8 uniform_count;
     /** @brief The collection of uniforms. Darray. */
-    shader_uniform_config *uniforms;
+    shader_uniform_config* uniforms;
 
     /** @brief The number of stages present in the shader. */
     u8 stage_count;
 
     /** @brief The collection of stage configs. */
-    shader_stage_config *stage_configs;
+    shader_stage_config* stage_configs;
 
     /** @brief The maximum number of instances allowed. */
     u32 max_instances;
@@ -523,7 +523,7 @@ typedef enum material_type {
 } material_type;
 
 typedef struct material_config_prop {
-    char *name;
+    char* name;
     shader_uniform_type type;
     u32 size;
     // FIXME: This seems like a colossal waste of memory... perhaps a union or
@@ -542,8 +542,8 @@ typedef struct material_config_prop {
 } material_config_prop;
 
 typedef struct material_map {
-    char *name;
-    char *texture_name;
+    char* name;
+    char* texture_name;
     texture_filter filter_min;
     texture_filter filter_mag;
     texture_repeat repeat_u;
@@ -553,13 +553,13 @@ typedef struct material_map {
 
 typedef struct material_config {
     u8 version;
-    char *name;
+    char* name;
     material_type type;
-    char *shader_name;
+    char* shader_name;
     // darray
-    material_config_prop *properties;
+    material_config_prop* properties;
     // darray
-    material_map *maps;
+    material_map* maps;
     /** @brief Indicates if the material should be automatically released when no
      * references to it remain. */
     b8 auto_release;
@@ -602,19 +602,19 @@ typedef struct material {
     char name[MATERIAL_NAME_MAX_LENGTH];
 
     /** @brief An array of texture maps. */
-    texture_map *maps;
+    texture_map* maps;
 
     /** @brief property structure size. */
     u32 property_struct_size;
 
     /** @brief array of material property structures, which varies based on material type. e.g. material_phong_properties */
-    void *properties;
+    void* properties;
 
     /**
      * @brief An explicitly-set irradiance texture for this material. Should only be set
      * in limited circumstances. Ideally a scene should set it through material manager.
      */
-    texture *irradiance_texture;
+    texture* irradiance_texture;
 
     // /** @brief The diffuse colour. */
     // vec4 diffuse_colour;
@@ -631,57 +631,6 @@ typedef struct material {
     u8 render_draw_index;
 } material;
 
-typedef struct skybox_scene_config {
-    char *name;
-    char *cubemap_name;
-} skybox_scene_config;
-
-typedef struct directional_light_scene_config {
-    char *name;
-    vec4 colour;
-    vec4 direction;
-    f32 shadow_distance;
-    f32 shadow_fade_distance;
-    f32 shadow_split_mult;
-} directional_light_scene_config;
-
-typedef struct point_light_scene_config {
-    char *name;
-    vec4 colour;
-    vec4 position;
-    f32 constant_f;
-    f32 linear;
-    f32 quadratic;
-} point_light_scene_config;
-
-typedef struct mesh_scene_config {
-    char *name;
-    char *resource_name;
-    transform transform;
-} mesh_scene_config;
-
-typedef struct terrain_scene_config {
-    char *name;
-    char *resource_name;
-    transform xform;
-} terrain_scene_config;
-
-typedef struct scene_config_remove {
-    char *name;
-    char *description;
-    skybox_scene_config skybox_config;
-    directional_light_scene_config directional_light_config;
-
-    // darray
-    point_light_scene_config *point_lights;
-
-    // darray
-    mesh_scene_config *meshes;
-
-    // darray
-    terrain_scene_config *terrains;
-} scene_config_remove;
-
 typedef enum scene_node_attachment_type {
     SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN,
     SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH,
@@ -693,18 +642,18 @@ typedef enum scene_node_attachment_type {
 
 // Static mesh attachment.
 typedef struct scene_node_attachment_static_mesh {
-    char *resource_name;
+    char* resource_name;
 } scene_node_attachment_static_mesh;
 
 // Terrain attachment.
 typedef struct scene_node_attachment_terrain {
-    char *name;
-    char *resource_name;
+    char* name;
+    char* resource_name;
 } scene_node_attachment_terrain;
 
 // Skybox attachment
 typedef struct scene_node_attachment_skybox {
-    char *cubemap_name;
+    char* cubemap_name;
 } scene_node_attachment_skybox;
 
 // Directional light attachment
@@ -726,7 +675,7 @@ typedef struct scene_node_attachment_point_light {
 
 typedef struct scene_node_attachment_config {
     scene_node_attachment_type type;
-    void *attachment_data;
+    void* attachment_data;
 } scene_node_attachment_config;
 
 typedef struct scene_xform_config {
@@ -736,23 +685,23 @@ typedef struct scene_xform_config {
 } scene_xform_config;
 
 typedef struct scene_node_config {
-    char *name;
+    char* name;
 
     // Pointer to a config if one exists, otherwise 0
-    scene_xform_config *xform;
+    scene_xform_config* xform;
     // darray
-    scene_node_attachment_config *attachments;
+    scene_node_attachment_config* attachments;
     // darray
-    struct scene_node_config *children;
+    struct scene_node_config* children;
 } scene_node_config;
 
 typedef struct scene_config {
     u32 version;
-    char *name;
-    char *description;
-    char *resource_name;
-    char *resource_full_path;
+    char* name;
+    char* description;
+    char* resource_name;
+    char* resource_full_path;
 
     // darray
-    scene_node_config *nodes;
+    scene_node_config* nodes;
 } scene_config;

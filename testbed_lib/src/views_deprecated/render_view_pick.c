@@ -8,13 +8,13 @@
 #include "core/logger.h"
 #include "core/uuid.h"
 #include "math/kmath.h"
-#include "math/transform.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "renderer/viewport.h"
 #include "systems/camera_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
+#include "systems/xform_system.h"
 
 typedef struct render_view_pick_shader_info {
     shader* s;
@@ -55,7 +55,7 @@ static b8 on_mouse_moved(u16 code, void* sender, void* listener_inst, event_cont
         data->mouse_x = x;
         data->mouse_y = y;
     }
-    return false;  // Allow other handlers to pick up the event.
+    return false; // Allow other handlers to pick up the event.
 }
 
 static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
@@ -65,10 +65,10 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, even
     }
 
     switch (code) {
-        case EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED:
-            /* render_view_system_render_targets_regenerate(self); */
-            // This needs to be consumed by other views, so consider it _not_ handled.
-            return false;
+    case EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED:
+        /* render_view_system_render_targets_regenerate(self); */
+        // This needs to be consumed by other views, so consider it _not_ handled.
+        return false;
     }
 
     return false;
@@ -80,7 +80,7 @@ static void acquire_shader_instances(const struct render_view* self) {
     // Not saving the instance id because it doesn't matter.
     u32 instance;
     shader_instance_resource_config instance_resource_config = {0};
-    instance_resource_config.uniform_config_count = 0;  // NOTE: no textures, so this doesn't matter.
+    instance_resource_config.uniform_config_count = 0; // NOTE: no textures, so this doesn't matter.
     instance_resource_config.uniform_configs = 0;
     // UI shader
     if (!renderer_shader_instance_resources_acquire(data->ui_shader_info.s, &instance_resource_config, &instance)) {
@@ -311,8 +311,8 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct frame
             render_data.vertex_buffer_offset = g->vertex_buffer_offset;
             render_data.index_count = g->index_count;
             render_data.index_buffer_offset = g->index_buffer_offset;
-            // TODO: get xform from hierarchy.
-            /* render_data.model = transform_world_get(&m->transform); */
+            // TODO: Get from hierarchy.
+            /* render_data.model = xform_world_get(m->xform); */
             render_data.unique_id = m->id.uniqueid;
             darray_push(out_packet->geometries, render_data);
             out_packet->geometry_count++;
@@ -360,7 +360,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
     renderer_active_viewport_set(packet->vp);
 
     u32 p = 0;
-    renderpass* pass = &self->passes[p];  // First pass
+    renderpass* pass = &self->passes[p]; // First pass
 
     if (p_frame_data->render_target_index == 0) {
         pick_packet_data* packet_data = (pick_packet_data*)packet->extended_data;
@@ -481,7 +481,7 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
         }
 
         p++;
-        pass = &self->passes[p];  // Second pass
+        pass = &self->passes[p]; // Second pass
 
         if (!renderer_renderpass_begin(pass, &pass->targets[p_frame_data->render_target_index])) {
             KERROR("render_view_pick_on_render pass index %u failed to start.", p);
@@ -628,14 +628,14 @@ b8 render_view_pick_attachment_target_regenerate(struct render_view* self, u32 p
 
     u32 width = self->width;
     u32 height = self->height;
-    b8 has_transparency = false;  // TODO: configurable
+    b8 has_transparency = false; // TODO: configurable
 
     attachment->texture->id = INVALID_ID;
     attachment->texture->type = TEXTURE_TYPE_2D;
     string_ncopy(attachment->texture->name, texture_name_uuid.value, TEXTURE_NAME_MAX_LENGTH);
     attachment->texture->width = width;
     attachment->texture->height = height;
-    attachment->texture->channel_count = 4;  // TODO: configurable
+    attachment->texture->channel_count = 4; // TODO: configurable
     attachment->texture->generation = INVALID_ID;
     attachment->texture->flags |= has_transparency ? TEXTURE_FLAG_HAS_TRANSPARENCY : 0;
     attachment->texture->flags |= TEXTURE_FLAG_IS_WRITEABLE;

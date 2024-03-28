@@ -19,6 +19,7 @@
 #include "defines.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
+#include "systems/xform_system.h"
 
 // FIXME: Need to maintain a list of extension types somewhere and pull from there.
 #define K_SYSTEM_TYPE_STANDARD_UI_EXT 128
@@ -63,14 +64,14 @@ typedef struct sui_keyboard_event {
 
 typedef struct sui_clip_mask {
     u32 reference_id;
-    transform clip_xform;
+    k_handle clip_xform;
     struct geometry* clip_geometry;
     geometry_render_data render_data;
 } sui_clip_mask;
 
 typedef struct sui_control {
     identifier id;
-    transform xform;
+    k_handle xform;
     char* name;
     // TODO: Convert to flags.
     b8 is_active;

@@ -91,21 +91,25 @@ typedef struct scene {
     char* resource_name;
     char* resource_full_path;
 
-    scene_attachment* point_light_attachments;
-    scene_attachment* directional_light_attachments;
-
     // darray of directional lights.
     struct directional_light* dir_lights;
+    // TODO: Delete this
     // Indices into the attachment array for xform lookups.
     u32* directional_light_attachment_indices;
+    // Array of scene attachments for directional lights.
+    scene_attachment* directional_light_attachments;
 
     // darray of point lights.
     struct point_light* point_lights;
+    // TODO: Delete this
     // Indices into the attachment array for xform lookups.
     u32* point_light_attachment_indices;
+    // Array of scene attachments for point lights.
+    scene_attachment* point_light_attachments;
 
     // darray of meshes.
     struct mesh* meshes;
+    // TODO: Delete this
     // Indices into the attachment array for xform and resource lookups.
     u32* mesh_attachment_indices;
     // Array of scene attachments for meshes.
@@ -115,6 +119,7 @@ typedef struct scene {
 
     // darray of terrains.
     struct terrain* terrains;
+    // TODO: Delete this
     // Indices into the attachment array for xform lookups.
     u32* terrain_attachment_indices;
     // Array of scene attachments for terrains.
@@ -124,6 +129,7 @@ typedef struct scene {
 
     // darray of skyboxes.
     struct skybox* skyboxes;
+    // TODO: Delete this
     // Indices into the attachment array for xform lookups.
     u32* skybox_attachment_indices;
     // Array of scene attachments for skyboxes.

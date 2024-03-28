@@ -3,7 +3,6 @@
 #include "defines.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
-#include "math/transform.h"
 
 ray ray_create(vec3 position, vec3 direction) {
     ray r = {0};

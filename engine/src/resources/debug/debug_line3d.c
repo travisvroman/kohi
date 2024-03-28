@@ -1,29 +1,28 @@
 #include "debug_line3d.h"
 
 #include "core/identifier.h"
+#include "core/khandle.h"
 #include "core/kmemory.h"
 #include "math/kmath.h"
-#include "math/transform.h"
 #include "renderer/renderer_frontend.h"
+#include "systems/xform_system.h"
 
-static void recalculate_points(debug_line3d *line);
-static void update_vert_colour(debug_line3d *line);
+static void recalculate_points(debug_line3d* line);
+static void update_vert_colour(debug_line3d* line);
 
-b8 debug_line3d_create(vec3 point_0, vec3 point_1, transform *parent, debug_line3d *out_line) {
+b8 debug_line3d_create(vec3 point_0, vec3 point_1, k_handle parent_xform, debug_line3d* out_line) {
     if (!out_line) {
         return false;
     }
     out_line->vertex_count = 0;
     out_line->vertices = 0;
-    out_line->xform = transform_create();
-    if (parent) {
-        transform_parent_set(&out_line->xform, parent);
-    }
+    out_line->xform = xform_create();
+    out_line->xform_parent = parent_xform;
     // out_line->name // TODO: name?
     out_line->point_0 = point_0;
     out_line->point_1 = point_1;
     out_line->id = identifier_create();
-    out_line->colour = vec4_one();  // Default to white.
+    out_line->colour = vec4_one(); // Default to white.
 
     out_line->geo.id = INVALID_ID;
     out_line->geo.generation = INVALID_ID_U16;
@@ -32,18 +31,18 @@ b8 debug_line3d_create(vec3 point_0, vec3 point_1, transform *parent, debug_line
     return true;
 }
 
-void debug_line3d_destroy(debug_line3d *line) {
+void debug_line3d_destroy(debug_line3d* line) {
     // TODO: zero out, etc.
     line->id.uniqueid = INVALID_ID_U64;
 }
 
-void debug_line3d_parent_set(debug_line3d *line, transform *parent) {
+void debug_line3d_parent_set(debug_line3d* line, k_handle parent_xform) {
     if (line) {
-        transform_parent_set(&line->xform, parent);
+        line->xform_parent = parent_xform;
     }
 }
 
-void debug_line3d_colour_set(debug_line3d *line, vec4 colour) {
+void debug_line3d_colour_set(debug_line3d* line, vec4 colour) {
     if (line) {
         if (colour.a == 0) {
             colour.a = 1.0f;
@@ -56,7 +55,7 @@ void debug_line3d_colour_set(debug_line3d *line, vec4 colour) {
     }
 }
 
-void debug_line3d_points_set(debug_line3d *line, vec3 point_0, vec3 point_1) {
+void debug_line3d_points_set(debug_line3d* line, vec3 point_0, vec3 point_1) {
     if (line) {
         if (line->geo.generation != INVALID_ID_U16 && line->vertex_count && line->vertices) {
             line->point_0 = point_0;
@@ -67,7 +66,7 @@ void debug_line3d_points_set(debug_line3d *line, vec3 point_0, vec3 point_1) {
     }
 }
 
-void debug_line3d_render_frame_prepare(debug_line3d *line, const struct frame_data *p_frame_data) {
+void debug_line3d_render_frame_prepare(debug_line3d* line, const struct frame_data* p_frame_data) {
     if (!line || !line->is_dirty) {
         return;
     }
@@ -85,12 +84,12 @@ void debug_line3d_render_frame_prepare(debug_line3d *line, const struct frame_da
     line->is_dirty = false;
 }
 
-b8 debug_line3d_initialize(debug_line3d *line) {
+b8 debug_line3d_initialize(debug_line3d* line) {
     if (!line) {
         return false;
     }
 
-    line->vertex_count = 2;  // Just 2 points for a line.
+    line->vertex_count = 2; // Just 2 points for a line.
     line->vertices = kallocate(sizeof(colour_vertex_3d) * line->vertex_count, MEMORY_TAG_ARRAY);
 
     recalculate_points(line);
@@ -99,7 +98,7 @@ b8 debug_line3d_initialize(debug_line3d *line) {
     return true;
 }
 
-b8 debug_line3d_load(debug_line3d *line) {
+b8 debug_line3d_load(debug_line3d* line) {
     if (!renderer_geometry_create(&line->geo, sizeof(colour_vertex_3d), line->vertex_count, line->vertices, 0, 0, 0)) {
         return false;
     }
@@ -115,24 +114,24 @@ b8 debug_line3d_load(debug_line3d *line) {
     return true;
 }
 
-b8 debug_line3d_unload(debug_line3d *line) {
+b8 debug_line3d_unload(debug_line3d* line) {
     renderer_geometry_destroy(&line->geo);
 
     return true;
 }
 
-b8 debug_line3d_update(debug_line3d *line) {
+b8 debug_line3d_update(debug_line3d* line) {
     return true;
 }
 
-static void recalculate_points(debug_line3d *line) {
+static void recalculate_points(debug_line3d* line) {
     if (line) {
         line->vertices[0].position = (vec4){line->point_0.x, line->point_0.y, line->point_0.z, 1.0f};
         line->vertices[1].position = (vec4){line->point_1.x, line->point_1.y, line->point_1.z, 1.0f};
     }
 }
 
-static void update_vert_colour(debug_line3d *line) {
+static void update_vert_colour(debug_line3d* line) {
     if (line) {
         if (line->vertex_count && line->vertices) {
             for (u32 i = 0; i < line->vertex_count; ++i) {

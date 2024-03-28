@@ -47,7 +47,6 @@
 
 // TODO: temp
 #include <core/identifier.h>
-#include <math/transform.h>
 #include <resources/loaders/audio_loader.h>
 #include <resources/mesh.h>
 #include <resources/scene.h>
@@ -118,37 +117,37 @@ b8 game_on_event(u16 code, void* sender, void* listener_inst, event_context cont
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     switch (code) {
-        case EVENT_CODE_OBJECT_HOVER_ID_CHANGED: {
-            state->hovered_object_id = context.data.u32[0];
-            return true;
+    case EVENT_CODE_OBJECT_HOVER_ID_CHANGED: {
+        state->hovered_object_id = context.data.u32[0];
+        return true;
+    }
+    case EVENT_CODE_SET_RENDER_MODE: {
+        i32 mode = context.data.i32[0];
+        switch (mode) {
+        default:
+        case RENDERER_VIEW_MODE_DEFAULT:
+            KDEBUG("Renderer mode set to default.");
+            state->render_mode = RENDERER_VIEW_MODE_DEFAULT;
+            break;
+        case RENDERER_VIEW_MODE_LIGHTING:
+            KDEBUG("Renderer mode set to lighting.");
+            state->render_mode = RENDERER_VIEW_MODE_LIGHTING;
+            break;
+        case RENDERER_VIEW_MODE_NORMALS:
+            KDEBUG("Renderer mode set to normals.");
+            state->render_mode = RENDERER_VIEW_MODE_NORMALS;
+            break;
+        case RENDERER_VIEW_MODE_CASCADES:
+            KDEBUG("Renderer mode set to cascades.");
+            state->render_mode = RENDERER_VIEW_MODE_CASCADES;
+            break;
+        case RENDERER_VIEW_MODE_WIREFRAME:
+            KDEBUG("Renderer mode set to wireframe.");
+            state->render_mode = RENDERER_VIEW_MODE_WIREFRAME;
+            break;
         }
-        case EVENT_CODE_SET_RENDER_MODE: {
-            i32 mode = context.data.i32[0];
-            switch (mode) {
-                default:
-                case RENDERER_VIEW_MODE_DEFAULT:
-                    KDEBUG("Renderer mode set to default.");
-                    state->render_mode = RENDERER_VIEW_MODE_DEFAULT;
-                    break;
-                case RENDERER_VIEW_MODE_LIGHTING:
-                    KDEBUG("Renderer mode set to lighting.");
-                    state->render_mode = RENDERER_VIEW_MODE_LIGHTING;
-                    break;
-                case RENDERER_VIEW_MODE_NORMALS:
-                    KDEBUG("Renderer mode set to normals.");
-                    state->render_mode = RENDERER_VIEW_MODE_NORMALS;
-                    break;
-                case RENDERER_VIEW_MODE_CASCADES:
-                    KDEBUG("Renderer mode set to cascades.");
-                    state->render_mode = RENDERER_VIEW_MODE_CASCADES;
-                    break;
-                case RENDERER_VIEW_MODE_WIREFRAME:
-                    KDEBUG("Renderer mode set to wireframe.");
-                    state->render_mode = RENDERER_VIEW_MODE_WIREFRAME;
-                    break;
-            }
-            return true;
-        }
+        return true;
+    }
     }
 
     return false;
@@ -269,7 +268,7 @@ static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_contex
         }
     }
 
-    return false;  // Let other handlers handle.
+    return false; // Let other handlers handle.
 }
 
 b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context context) {
@@ -278,107 +277,107 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
     } else if (code == EVENT_CODE_BUTTON_RELEASED) {
         u16 button = context.data.u16[0];
         switch (button) {
-            case BUTTON_LEFT: {
-                i16 x = context.data.i16[1];
-                i16 y = context.data.i16[2];
-                testbed_game_state* state = (testbed_game_state*)listener_inst;
+        case BUTTON_LEFT: {
+            i16 x = context.data.i16[1];
+            i16 y = context.data.i16[2];
+            testbed_game_state* state = (testbed_game_state*)listener_inst;
 
-                // If the scene isn't loaded, don't do anything else.
-                if (state->main_scene.state < SCENE_STATE_LOADED) {
-                    return false;
-                }
+            // If the scene isn't loaded, don't do anything else.
+            if (state->main_scene.state < SCENE_STATE_LOADED) {
+                return false;
+            }
 
-                // If "manipulating gizmo", don't do below logic.
-                if (state->using_gizmo) {
-                    return false;
-                }
+            // If "manipulating gizmo", don't do below logic.
+            if (state->using_gizmo) {
+                return false;
+            }
 
-                mat4 view = camera_view_get(state->world_camera);
-                vec3 origin = camera_position_get(state->world_camera);
+            mat4 view = camera_view_get(state->world_camera);
+            vec3 origin = camera_position_get(state->world_camera);
 
-                viewport* v = &state->world_viewport;
-                // Only allow this action in the "primary" viewport.
-                if (point_in_rect_2d((vec2){(f32)x, (f32)y}, v->rect)) {
-                    ray r = ray_from_screen(
-                        vec2_create((f32)x, (f32)y),
-                        (v->rect),
-                        origin,
-                        view,
-                        v->projection);
+            viewport* v = &state->world_viewport;
+            // Only allow this action in the "primary" viewport.
+            if (point_in_rect_2d((vec2){(f32)x, (f32)y}, v->rect)) {
+                ray r = ray_from_screen(
+                    vec2_create((f32)x, (f32)y),
+                    (v->rect),
+                    origin,
+                    view,
+                    v->projection);
 
-                    raycast_result r_result;
-                    if (scene_raycast(&state->main_scene, &r, &r_result)) {
-                        u32 hit_count = darray_length(r_result.hits);
-                        for (u32 i = 0; i < hit_count; ++i) {
-                            raycast_hit* hit = &r_result.hits[i];
-                            // TODO: Use handle index to identify?
-                            KINFO("Hit! id: %u, dist: %f", hit->node_handle.handle_index, hit->distance);
+                raycast_result r_result;
+                if (scene_raycast(&state->main_scene, &r, &r_result)) {
+                    u32 hit_count = darray_length(r_result.hits);
+                    for (u32 i = 0; i < hit_count; ++i) {
+                        raycast_hit* hit = &r_result.hits[i];
+                        // TODO: Use handle index to identify?
+                        KINFO("Hit! id: %u, dist: %f", hit->node_handle.handle_index, hit->distance);
 
-                            // Create a debug line where the ray cast starts and ends (at the intersection).
-                            debug_line3d test_line;
-                            debug_line3d_create(r.origin, hit->position, 0, &test_line);
-                            debug_line3d_initialize(&test_line);
-                            debug_line3d_load(&test_line);
-                            // Yellow for hits.
-                            debug_line3d_colour_set(&test_line, (vec4){1.0f, 1.0f, 0.0f, 1.0f});
-
-                            darray_push(state->test_lines, test_line);
-
-                            // Create a debug box to show the intersection point.
-                            debug_box3d test_box;
-
-                            debug_box3d_create((vec3){0.1f, 0.1f, 0.1f}, 0, &test_box);
-                            debug_box3d_initialize(&test_box);
-                            debug_box3d_load(&test_box);
-
-                            extents_3d ext;
-                            ext.min = vec3_create(hit->position.x - 0.05f, hit->position.y - 0.05f, hit->position.z - 0.05f);
-                            ext.max = vec3_create(hit->position.x + 0.05f, hit->position.y + 0.05f, hit->position.z + 0.05f);
-                            debug_box3d_extents_set(&test_box, ext);
-
-                            darray_push(state->test_boxes, test_box);
-
-                            // Object selection
-                            if (i == 0) {
-                                state->selection.node_handle = hit->node_handle;
-                                state->selection.xform_handle = hit->xform_handle;  //  scene_transform_get_by_id(&state->main_scene, hit->unique_id);
-                                state->selection.xform_parent_handle = hit->xform_parent_handle;
-                                if (!k_handle_is_invalid(state->selection.xform_handle)) {
-                                    // NOTE: is handle index what we should identify by?
-                                    KINFO("Selected object id %u", hit->node_handle.handle_index);
-                                    // state->gizmo.selected_xform = state->selection.xform;
-                                    editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle, state->selection.xform_parent_handle);
-                                    // transform_parent_set(&state->gizmo.xform, state->selection.xform);
-                                }
-                            }
-                        }
-                    } else {
-                        KINFO("No hit");
-
-                        // Create a debug line where the ray cast starts and continues to.
+                        // Create a debug line where the ray cast starts and ends (at the intersection).
                         debug_line3d test_line;
-                        debug_line3d_create(r.origin, vec3_add(r.origin, vec3_mul_scalar(r.direction, 100.0f)), 0, &test_line);
+                        debug_line3d_create(r.origin, hit->position, k_handle_invalid(), &test_line);
                         debug_line3d_initialize(&test_line);
                         debug_line3d_load(&test_line);
-                        // Magenta for non-hits.
-                        debug_line3d_colour_set(&test_line, (vec4){1.0f, 0.0f, 1.0f, 1.0f});
+                        // Yellow for hits.
+                        debug_line3d_colour_set(&test_line, (vec4){1.0f, 1.0f, 0.0f, 1.0f});
 
                         darray_push(state->test_lines, test_line);
 
-                        if (k_handle_is_invalid(state->selection.xform_handle)) {
-                            KINFO("Object deselected.");
-                            state->selection.xform_handle = k_handle_invalid();
-                            state->selection.node_handle = k_handle_invalid();
-                            state->selection.xform_parent_handle = k_handle_invalid();
+                        // Create a debug box to show the intersection point.
+                        debug_box3d test_box;
 
-                            editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle, state->selection.xform_parent_handle);
+                        debug_box3d_create((vec3){0.1f, 0.1f, 0.1f}, k_handle_invalid(), &test_box);
+                        debug_box3d_initialize(&test_box);
+                        debug_box3d_load(&test_box);
+
+                        extents_3d ext;
+                        ext.min = vec3_create(hit->position.x - 0.05f, hit->position.y - 0.05f, hit->position.z - 0.05f);
+                        ext.max = vec3_create(hit->position.x + 0.05f, hit->position.y + 0.05f, hit->position.z + 0.05f);
+                        debug_box3d_extents_set(&test_box, ext);
+
+                        darray_push(state->test_boxes, test_box);
+
+                        // Object selection
+                        if (i == 0) {
+                            state->selection.node_handle = hit->node_handle;
+                            state->selection.xform_handle = hit->xform_handle; //  scene_transform_get_by_id(&state->main_scene, hit->unique_id);
+                            state->selection.xform_parent_handle = hit->xform_parent_handle;
+                            if (!k_handle_is_invalid(state->selection.xform_handle)) {
+                                // NOTE: is handle index what we should identify by?
+                                KINFO("Selected object id %u", hit->node_handle.handle_index);
+                                // state->gizmo.selected_xform = state->selection.xform;
+                                editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle, state->selection.xform_parent_handle);
+                                // transform_parent_set(&state->gizmo.xform, state->selection.xform);
+                            }
                         }
-
-                        // TODO: hide gizmo, disable input, etc.
                     }
-                }
+                } else {
+                    KINFO("No hit");
 
-            } break;
+                    // Create a debug line where the ray cast starts and continues to.
+                    debug_line3d test_line;
+                    debug_line3d_create(r.origin, vec3_add(r.origin, vec3_mul_scalar(r.direction, 100.0f)), k_handle_invalid(), &test_line);
+                    debug_line3d_initialize(&test_line);
+                    debug_line3d_load(&test_line);
+                    // Magenta for non-hits.
+                    debug_line3d_colour_set(&test_line, (vec4){1.0f, 0.0f, 1.0f, 1.0f});
+
+                    darray_push(state->test_lines, test_line);
+
+                    if (k_handle_is_invalid(state->selection.xform_handle)) {
+                        KINFO("Object deselected.");
+                        state->selection.xform_handle = k_handle_invalid();
+                        state->selection.node_handle = k_handle_invalid();
+                        state->selection.xform_parent_handle = k_handle_invalid();
+
+                        editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle, state->selection.xform_parent_handle);
+                    }
+
+                    // TODO: hide gizmo, disable input, etc.
+                }
+            }
+
+        } break;
         }
     }
 
@@ -405,7 +404,7 @@ static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_
 
         editor_gizmo_handle_interaction(&state->gizmo, state->world_camera, &r, EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER);
     }
-    return false;  // Allow other event handlers to recieve this event.
+    return false; // Allow other event handlers to recieve this event.
 }
 
 static void sui_test_button_on_click(struct sui_control* self, struct sui_mouse_event event) {
@@ -580,7 +579,7 @@ b8 application_initialize(struct application* game_inst) {
         if (!sui_panel_control_load(&state->test_panel)) {
             KERROR("Failed to load test panel.");
         } else {
-            transform_translate(&state->test_panel.xform, (vec3){950, 350});
+            xform_translate(state->test_panel.xform, (vec3){950, 350});
             void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
             if (!standard_ui_system_register_control(sui_state, &state->test_panel)) {
                 KERROR("Unable to register control.");
@@ -796,7 +795,7 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
         static f32 total_update_avg_us = 0;
         static f32 total_prepare_avg_us = 0;
         static f32 total_render_avg_us = 0;
-        static f32 total_avg = 0;  // total average across the frame
+        static f32 total_avg = 0; // total average across the frame
 
         total_update_seconds += state->last_update_elapsed;
         total_prepare_seconds += state->prepare_clock.elapsed;
@@ -912,7 +911,7 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
 
     // Resize viewports.
     // World Viewport - right side
-    rect_2d world_vp_rect = vec4_create(0.0f, 0.0f, state->width, state->height);  // vec4_create(half_width + 20.0f, 20.0f, half_width - 40.0f, state->height - 40.0f);
+    rect_2d world_vp_rect = vec4_create(0.0f, 0.0f, state->width, state->height); // vec4_create(half_width + 20.0f, 20.0f, half_width - 40.0f, state->height - 40.0f);
     viewport_resize(&state->world_viewport, world_vp_rect);
 
     // UI Viewport
@@ -921,7 +920,7 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
 
     // World viewport 2
     /* rect_2d world_vp_rect2 = vec4_create(20.0f, 20.0f, half_width - 40.0f, state->height - 40.0f); */
-    rect_2d world_vp_rect2 = vec4_create(0.0f, 0.0f, state->width, state->height);  // vec4_create(half_width + 20.0f, 20.0f, half_width - 40.0f, state->height - 40.0f);
+    rect_2d world_vp_rect2 = vec4_create(0.0f, 0.0f, state->width, state->height); // vec4_create(half_width + 20.0f, 20.0f, half_width - 40.0f, state->height - 40.0f);
     viewport_resize(&state->world_viewport2, world_vp_rect2);
 
     // TODO: temp
@@ -1167,7 +1166,7 @@ static b8 load_main_scene(struct application* game_inst) {
     }
 
     // TODO: fix once scene loading works again.
-    state->p_light_1 = 0;  // scene_point_light_get(&state->main_scene, "point_light_1");
+    state->p_light_1 = 0; // scene_point_light_get(&state->main_scene, "point_light_1");
 
     // Actually load the scene.
     return scene_load(&state->main_scene);

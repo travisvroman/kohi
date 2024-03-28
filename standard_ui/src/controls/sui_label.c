@@ -6,7 +6,6 @@
 #include <core/kstring.h>
 #include <core/logger.h>
 #include <math/kmath.h>
-#include <math/transform.h>
 #include <renderer/renderer_frontend.h>
 #include <systems/font_system.h>
 #include <systems/shader_system.h>
@@ -154,7 +153,7 @@ void sui_label_control_unload(struct sui_control* self) {
     }
 
     // Release resources for font texture map.
-    shader* ui_shader = shader_system_get("Shader.StandardUI");  // TODO: text shader.
+    shader* ui_shader = shader_system_get("Shader.StandardUI"); // TODO: text shader.
     if (!renderer_shader_instance_resources_release(ui_shader, typed_data->instance_id)) {
         KFATAL("Unable to release shader resources for font texture map.");
     }
@@ -192,7 +191,7 @@ b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame
         // NOTE: Override the default UI atlas and use that of the loaded font instead.
         renderable.atlas_override = &typed_data->data->atlas;
 
-        renderable.render_data.model = transform_world_get(&self->xform);
+        renderable.render_data.model = xform_world_get(self->xform);
         renderable.render_data.diffuse_colour = typed_data->colour;
 
         renderable.instance_id = &typed_data->instance_id;
@@ -364,10 +363,10 @@ static b8 regenerate_label_geometry(const sui_control* self, sui_label_pending_d
             vertex_2d p3 = (vertex_2d){vec2_create(minx, maxy), vec2_create(tminx, tmaxy)};
 
             // Vertex data
-            pending_data->vertex_buffer_data[(q_idx * 4) + 0] = p0;  // 0    3
-            pending_data->vertex_buffer_data[(q_idx * 4) + 1] = p2;  //
-            pending_data->vertex_buffer_data[(q_idx * 4) + 2] = p3;  //
-            pending_data->vertex_buffer_data[(q_idx * 4) + 3] = p1;  // 2    1
+            pending_data->vertex_buffer_data[(q_idx * 4) + 0] = p0; // 0    3
+            pending_data->vertex_buffer_data[(q_idx * 4) + 1] = p2; //
+            pending_data->vertex_buffer_data[(q_idx * 4) + 2] = p3; //
+            pending_data->vertex_buffer_data[(q_idx * 4) + 3] = p1; // 2    1
 
             // Index data 210301
             pending_data->index_buffer_data[(q_idx * 6) + 0] = (q_idx * 4) + 2;
@@ -400,14 +399,14 @@ static void sui_label_control_render_frame_prepare(struct sui_control* self, con
             // Verify atlas has the glyphs needed.
             if (!font_system_verify_atlas(typed_data->data, typed_data->text)) {
                 KERROR("Font atlas verification failed.");
-                typed_data->quad_count = 0;  // Keep it from drawing.
+                typed_data->quad_count = 0; // Keep it from drawing.
                 goto sui_label_frame_prepare_cleanup;
             }
 
             sui_label_pending_data pending_data = {0};
             if (!regenerate_label_geometry(self, &pending_data)) {
                 KERROR("Error regenerating label geometry.");
-                typed_data->quad_count = 0;  // Keep it from drawing.
+                typed_data->quad_count = 0; // Keep it from drawing.
                 goto sui_label_frame_prepare_cleanup;
             }
 
@@ -433,7 +432,7 @@ static void sui_label_control_render_frame_prepare(struct sui_control* self, con
                         "sui_label_control_render_frame_prepare failed to allocate from the renderer's vertex buffer: size=%u, offset=%u",
                         new_vertex_size,
                         pending_data.vertex_buffer_offset);
-                    typed_data->quad_count = 0;  // Keep it from drawing.
+                    typed_data->quad_count = 0; // Keep it from drawing.
                     goto sui_label_frame_prepare_cleanup;
                 }
                 new_vertex_offset = pending_data.vertex_buffer_offset;
@@ -443,7 +442,7 @@ static void sui_label_control_render_frame_prepare(struct sui_control* self, con
                         "sui_label_control_render_frame_prepare failed to allocate from the renderer's index buffer: size=%u, offset=%u",
                         new_index_size,
                         pending_data.index_buffer_offset);
-                    typed_data->quad_count = 0;  // Keep it from drawing.
+                    typed_data->quad_count = 0; // Keep it from drawing.
                     goto sui_label_frame_prepare_cleanup;
                 }
                 new_index_offset = pending_data.index_buffer_offset;

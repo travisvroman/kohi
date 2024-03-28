@@ -11,17 +11,18 @@
 #include <defines.h>
 #include <math/geometry_utils.h>
 #include <math/kmath.h>
-#include <math/transform.h>
 #include <renderer/renderer_frontend.h>
 #include <resources/resource_types.h>
 #include <systems/geometry_system.h>
 #include <systems/shader_system.h>
 #include <systems/texture_system.h>
 
+#include "core/khandle.h"
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"
 #include "standard_ui_version.h"
 #include "systems/font_system.h"
+#include "systems/xform_system.h"
 
 static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
     standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
@@ -33,7 +34,7 @@ static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_i
     for (u32 i = 0; i < typed_state->active_control_count; ++i) {
         sui_control* control = typed_state->active_controls[i];
         if (control->internal_mouse_down || control->on_mouse_down) {
-            mat4 model = transform_world_get(&control->xform);
+            mat4 model = xform_world_get(control->xform);
             mat4 inv = mat4_inverse(model);
             vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
             if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
@@ -61,7 +62,7 @@ static b8 standard_ui_system_mouse_up(u16 code, void* sender, void* listener_ins
         control->is_pressed = false;
 
         if (control->internal_mouse_up || control->on_mouse_up) {
-            mat4 model = transform_world_get(&control->xform);
+            mat4 model = xform_world_get(control->xform);
             mat4 inv = mat4_inverse(model);
             vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
             if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
@@ -86,7 +87,7 @@ static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, 
     for (u32 i = 0; i < typed_state->active_control_count; ++i) {
         sui_control* control = typed_state->active_controls[i];
         if (control->on_click || control->internal_click) {
-            mat4 model = transform_world_get(&control->xform);
+            mat4 model = xform_world_get(control->xform);
             mat4 inv = mat4_inverse(model);
             vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
             if (rect_2d_contains_point(control->bounds, (vec2){transformed_evt.x, transformed_evt.y})) {
@@ -111,7 +112,7 @@ static b8 standard_ui_system_move(u16 code, void* sender, void* listener_inst, e
     for (u32 i = 0; i < typed_state->active_control_count; ++i) {
         sui_control* control = typed_state->active_controls[i];
         if (control->on_mouse_over || control->on_mouse_out || control->internal_mouse_over || control->internal_mouse_out) {
-            mat4 model = transform_world_get(&control->xform);
+            mat4 model = xform_world_get(control->xform);
             mat4 inv = mat4_inverse(model);
             vec3 transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, inv);
             vec2 transformed_vec2 = (vec2){transformed_evt.x, transformed_evt.y};
@@ -374,8 +375,7 @@ b8 standard_ui_system_control_add_child(void* state, sui_control* parent, sui_co
     }
 
     darray_push(parent->children, child);
-
-    transform_parent_set(&child->xform, &parent->xform);
+    child->parent = parent;
 
     return true;
 }
@@ -395,8 +395,8 @@ b8 standard_ui_system_control_remove_child(void* state, sui_control* parent, sui
         if (parent->children[i] == child) {
             sui_control* popped;
             darray_pop_at(parent->children, i, &popped);
+            child->parent = 0;
 
-            transform_parent_set(&child->xform, 0);
             return true;
         }
     }
@@ -428,7 +428,7 @@ b8 sui_base_control_create(const char* name, struct sui_control* out_control) {
     out_control->name = string_duplicate(name);
     out_control->id = identifier_create();
 
-    out_control->xform = transform_create();
+    out_control->xform = xform_create();
 
     return true;
 }
@@ -459,10 +459,26 @@ void sui_base_control_unload(struct sui_control* self) {
     }
 }
 
+static void sui_recalculate_world_xform(struct sui_control* self) {
+    xform_calculate_local(self->xform);
+    mat4 local = xform_local_get(self->xform);
+
+    if (self->parent) {
+        sui_recalculate_world_xform(self->parent);
+        mat4 parent_world = xform_world_get(self->parent->xform);
+        mat4 self_world = mat4_mul(local, parent_world);
+        xform_world_set(self->xform, self_world);
+    } else {
+        xform_world_set(self->xform, local);
+    }
+}
+
 b8 sui_base_control_update(struct sui_control* self, struct frame_data* p_frame_data) {
     if (!self) {
         return false;
     }
+
+    sui_recalculate_world_xform(self);
 
     return true;
 }
@@ -475,9 +491,9 @@ b8 sui_base_control_render(struct sui_control* self, struct frame_data* p_frame_
 }
 
 void sui_control_position_set(struct sui_control* self, vec3 position) {
-    transform_position_set(&self->xform, position);
+    xform_position_set(self->xform, position);
 }
 
 vec3 sui_control_position_get(struct sui_control* self) {
-    return transform_position_get(&self->xform);
+    return xform_position_get(self->xform);
 }

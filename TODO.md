@@ -69,11 +69,13 @@ The items in this list are not in any particular order. This list will be update
 - [ ] I18n strings
 - [ ] resource hot reloading
 - [ ] prefabs
-- [x] Simple Scenes
+- [ ] Custom storage format (KSON - Kohi Storage Object Notation)
+  - [ ] 
+- [x] Scenes
   - [x] Base implementation
   - [x] Load from file 
   - [ ] Adjustable global scene properties
-  - [ ] Save to file
+  - [x] Save to file
 - [x] Renderer System (front-end/backend plugin architecture)
 - [x] Audio System (front-end)
 - [ ] Physics System (front-end)
@@ -118,7 +120,7 @@ The items in this list are not in any particular order. This list will be update
         NOTE: This system should be laid out in a data-oriented way.
   - [x] Create hierarchy graph that handles transform hierarchy and can provide a view of it. Also generating world matrices.
   - [x] Remove transform from mesh.
-  - [ ] Replace any and all transforms with xform handles.
+  - [x] Replace any and all transforms with xform handles.
   - [ ] Update systems (and create some) that use handles:
     - [x] Create xform system that uses handles
     - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
@@ -128,8 +130,8 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Convert lighting system to use handles.
     - [ ] Create skybox system that uses handles.
     - [ ] Create scene system that uses handles.
-  - [ ] Refactor scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
-  - [ ] Write "(de)serialization" routines for savable resources and use those in the above loader.
+  - [x] (See KSON) Refactor scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
+  - [x] Write "(de)serialization" routines for savable resources and use those in the above loader.
           Scene Refactor notes: Refactor into node-based system using handles for various types.
           A node should contain 3 (maybe 4) things: a unique identifier, a handle id (which is a
           link into a scene-wide handle table, which itself points to an index into an array of resources),

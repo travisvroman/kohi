@@ -80,22 +80,6 @@ KAPI k_handle xform_from_matrix(mat4 m);
 KAPI void xform_destroy(k_handle* t);
 
 /**
- * @brief Returns a handle to the provided xform's parent.
- *
- * @param t A handle to the xform whose parent to retrieve.
- * @return A handle to the parent xform. If not found, an invalid handle.
- */
-KAPI k_handle xform_parent_get(k_handle handle);
-
-/**
- * @brief Sets the parent of the provided xform.
- *
- * @param t A handle to the xform whose parent will be set.
- * @param parent A handle to the parent xform.
- */
-KAPI void xform_parent_set(k_handle t, k_handle parent);
-
-/**
  * @brief Returns the position of the given xform.
  *
  * @param t A handle whose position to get.

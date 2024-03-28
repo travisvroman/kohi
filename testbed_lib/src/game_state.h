@@ -26,7 +26,6 @@
 #include "debug_console.h"
 struct debug_line3d;
 struct debug_box3d;
-struct transform;
 
 typedef struct selected_object {
     k_handle xform_handle;

@@ -5,7 +5,6 @@
 #include "core/kstring.h"
 #include "core/logger.h"
 #include "math/kmath.h"
-#include "math/transform.h"
 #include "parsers/kson_parser.h"
 #include "platform/filesystem.h"
 #include "resources/loaders/loader_utils.h"
@@ -25,14 +24,14 @@ static b8 deserialize_scene_directional_light_attachment(const kson_object* atta
     // NOTE: all properties are optional, with defaults provided.
 
     // Colour
-    attachment->colour = vec4_create(50, 50, 50, 1);  // default to white.
+    attachment->colour = vec4_create(50, 50, 50, 1); // default to white.
     const char* colour_string = 0;
     if (kson_object_property_value_get_string(attachment_object, "colour", &colour_string)) {
         string_to_vec4(colour_string, &attachment->colour);
     }
 
     // Direction
-    attachment->direction = vec4_create(0, -1, 0, 1);  // default to down.
+    attachment->direction = vec4_create(0, -1, 0, 1); // default to down.
     const char* direction_string = 0;
     if (kson_object_property_value_get_string(attachment_object, "direction", &direction_string)) {
         string_to_vec4(direction_string, &attachment->direction);
@@ -61,14 +60,14 @@ static b8 deserialize_scene_point_light_attachment(const kson_object* attachment
     // NOTE: all properties are optional, with defaults provided.
 
     // Colour
-    attachment->colour = vec4_create(50, 50, 50, 1);  // default to white.
+    attachment->colour = vec4_create(50, 50, 50, 1); // default to white.
     const char* colour_string = 0;
     if (kson_object_property_value_get_string(attachment_object, "colour", &colour_string)) {
         string_to_vec4(colour_string, &attachment->colour);
     }
 
     // Position
-    attachment->position = vec4_zero();  // default to origin.
+    attachment->position = vec4_zero(); // default to origin.
     const char* position_string = 0;
     if (kson_object_property_value_get_string(attachment_object, "position", &position_string)) {
         string_to_vec4(position_string, &attachment->position);
@@ -230,52 +229,52 @@ b8 scene_node_config_deserialize_kson(const kson_object* node_object, scene_node
 
                 // Deserialize the attachment.
                 switch (attachment_type) {
-                    case SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH: {
-                        new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_static_mesh), MEMORY_TAG_SCENE);
-                        if (!deserialize_scene_static_mesh_attachment(&attachment_object, new_attachment.attachment_data)) {
-                            KERROR("Failed to deserialize attachment. Skipping.");
-                            kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_static_mesh), MEMORY_TAG_SCENE);
-                            continue;
-                        }
-                    } break;
-                    case SCENE_NODE_ATTACHMENT_TYPE_TERRAIN: {
-                        new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_terrain), MEMORY_TAG_SCENE);
-                        if (!deserialize_scene_terrain_attachment(&attachment_object, new_attachment.attachment_data)) {
-                            KERROR("Failed to deserialize attachment. Skipping.");
-                            kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_terrain), MEMORY_TAG_SCENE);
-                            continue;
-                        }
-                    } break;
-                    case SCENE_NODE_ATTACHMENT_TYPE_SKYBOX: {
-                        new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_skybox), MEMORY_TAG_SCENE);
-                        if (!deserialize_scene_skybox_attachment(&attachment_object, new_attachment.attachment_data)) {
-                            KERROR("Failed to deserialize attachment. Skipping.");
-                            kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_skybox), MEMORY_TAG_SCENE);
-                            continue;
-                        }
-                    } break;
-                    case SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT: {
-                        new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_directional_light), MEMORY_TAG_SCENE);
-                        if (!deserialize_scene_directional_light_attachment(&attachment_object, new_attachment.attachment_data)) {
-                            KERROR("Failed to deserialize attachment. Skipping.");
-                            kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_directional_light), MEMORY_TAG_SCENE);
-                            continue;
-                        }
-                    } break;
-                    case SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT: {
-                        new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_point_light), MEMORY_TAG_SCENE);
-                        if (!deserialize_scene_point_light_attachment(&attachment_object, new_attachment.attachment_data)) {
-                            KERROR("Failed to deserialize attachment. Skipping.");
-                            kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_point_light), MEMORY_TAG_SCENE);
-                            continue;
-                        }
-                    }
-
-                    break;
-                    default:
-                    case SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN:
-                        KERROR("Attachment type is unknown. Skipping.");
+                case SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH: {
+                    new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_static_mesh), MEMORY_TAG_SCENE);
+                    if (!deserialize_scene_static_mesh_attachment(&attachment_object, new_attachment.attachment_data)) {
+                        KERROR("Failed to deserialize attachment. Skipping.");
+                        kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_static_mesh), MEMORY_TAG_SCENE);
                         continue;
+                    }
+                } break;
+                case SCENE_NODE_ATTACHMENT_TYPE_TERRAIN: {
+                    new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_terrain), MEMORY_TAG_SCENE);
+                    if (!deserialize_scene_terrain_attachment(&attachment_object, new_attachment.attachment_data)) {
+                        KERROR("Failed to deserialize attachment. Skipping.");
+                        kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_terrain), MEMORY_TAG_SCENE);
+                        continue;
+                    }
+                } break;
+                case SCENE_NODE_ATTACHMENT_TYPE_SKYBOX: {
+                    new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_skybox), MEMORY_TAG_SCENE);
+                    if (!deserialize_scene_skybox_attachment(&attachment_object, new_attachment.attachment_data)) {
+                        KERROR("Failed to deserialize attachment. Skipping.");
+                        kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_skybox), MEMORY_TAG_SCENE);
+                        continue;
+                    }
+                } break;
+                case SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT: {
+                    new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_directional_light), MEMORY_TAG_SCENE);
+                    if (!deserialize_scene_directional_light_attachment(&attachment_object, new_attachment.attachment_data)) {
+                        KERROR("Failed to deserialize attachment. Skipping.");
+                        kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_directional_light), MEMORY_TAG_SCENE);
+                        continue;
+                    }
+                } break;
+                case SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT: {
+                    new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_point_light), MEMORY_TAG_SCENE);
+                    if (!deserialize_scene_point_light_attachment(&attachment_object, new_attachment.attachment_data)) {
+                        KERROR("Failed to deserialize attachment. Skipping.");
+                        kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_point_light), MEMORY_TAG_SCENE);
+                        continue;
+                    }
+                }
+
+                break;
+                default:
+                case SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN:
+                    KERROR("Attachment type is unknown. Skipping.");
+                    continue;
                 }
 
                 // Push the attachment to the node's config.

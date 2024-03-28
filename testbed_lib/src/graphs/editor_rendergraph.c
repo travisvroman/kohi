@@ -4,7 +4,6 @@
 #include "core/logger.h"
 #include "editor/editor_gizmo.h"
 #include "math/kmath.h"
-#include "math/transform.h"
 #include "passes/editor_pass.h"
 #include "renderer/camera.h"
 #include "renderer/viewport.h"
@@ -89,8 +88,8 @@ b8 editor_rendergraph_frame_prepare(editor_rendergraph* graph, struct frame_data
             xform_calculate_local(graph->gizmo->xform_handle);
             mat4 model = xform_local_get(graph->gizmo->xform_handle);
             // f32 fixed_size = 0.1f;                            // TODO: Make this a configurable option for gizmo size.
-            f32 scale_scalar = 1.0f;                    // ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
-            graph->gizmo->scale_scalar = scale_scalar;  // Keep a copy of this for hit detection.
+            f32 scale_scalar = 1.0f;                   // ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
+            graph->gizmo->scale_scalar = scale_scalar; // Keep a copy of this for hit detection.
             mat4 scale = mat4_scale((vec3){scale_scalar, scale_scalar, scale_scalar});
             model = mat4_mul(model, scale);
 
@@ -109,7 +108,7 @@ b8 editor_rendergraph_frame_prepare(editor_rendergraph* graph, struct frame_data
 #ifdef _DEBUG
             {
                 geometry_render_data plane_normal_render_data = {0};
-                plane_normal_render_data.model = transform_world_get(&graph->gizmo->plane_normal_line.xform);
+                plane_normal_render_data.model = xform_world_get(graph->gizmo->plane_normal_line.xform);
                 geometry* g = &graph->gizmo->plane_normal_line.geo;
                 plane_normal_render_data.material = 0;
                 plane_normal_render_data.material = g->material;

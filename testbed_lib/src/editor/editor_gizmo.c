@@ -96,7 +96,7 @@ b8 editor_gizmo_load(editor_gizmo* gizmo) {
     }
 
 #ifdef _DEBUG
-    debug_line3d_create(vec3_zero(), vec3_one(), 0, &gizmo->plane_normal_line);
+    debug_line3d_create(vec3_zero(), vec3_one(), k_handle_invalid(), &gizmo->plane_normal_line);
     debug_line3d_initialize(&gizmo->plane_normal_line);
     debug_line3d_load(&gizmo->plane_normal_line);
     // magenta
@@ -155,12 +155,12 @@ void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orientation 
         gizmo->orientation = orientation;
 #if _DEBUG
         switch (gizmo->orientation) {
-            case EDITOR_GIZMO_ORIENTATION_GLOBAL:
-                KTRACE("Setting editor gizmo to GLOBAL.");
-                break;
-            case EDITOR_GIZMO_ORIENTATION_LOCAL:
-                KTRACE("Setting editor gizmo to LOCAL.");
-                break;
+        case EDITOR_GIZMO_ORIENTATION_GLOBAL:
+            KTRACE("Setting editor gizmo to GLOBAL.");
+            break;
+        case EDITOR_GIZMO_ORIENTATION_LOCAL:
+            KTRACE("Setting editor gizmo to LOCAL.");
+            break;
         }
 #endif
         editor_gizmo_refresh(gizmo);
@@ -197,22 +197,22 @@ void editor_gizmo_mode_set(editor_gizmo* gizmo, editor_gizmo_mode mode) {
 static void create_gizmo_mode_none(editor_gizmo* gizmo) {
     editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_NONE];
 
-    data->vertex_count = 6;  // 2 per line, 3 lines
+    data->vertex_count = 6; // 2 per line, 3 lines
     data->vertices = kallocate(sizeof(colour_vertex_3d) * data->vertex_count, MEMORY_TAG_ARRAY);
     vec4 grey = (vec4){0.5f, 0.5f, 0.5f, 1.0f};
 
     // x
-    data->vertices[0].colour = grey;  // First vert is at origin, no pos needed.
+    data->vertices[0].colour = grey; // First vert is at origin, no pos needed.
     data->vertices[1].colour = grey;
     data->vertices[1].position.x = 1.0f;
 
     // y
-    data->vertices[2].colour = grey;  // First vert is at origin, no pos needed.
+    data->vertices[2].colour = grey; // First vert is at origin, no pos needed.
     data->vertices[3].colour = grey;
     data->vertices[3].position.y = 1.0f;
 
     // z
-    data->vertices[4].colour = grey;  // First vert is at origin, no pos needed.
+    data->vertices[4].colour = grey; // First vert is at origin, no pos needed.
     data->vertices[5].colour = grey;
     data->vertices[5].position.z = 1.0f;
 }
@@ -221,7 +221,7 @@ static void create_gizmo_mode_move(editor_gizmo* gizmo) {
     editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_MOVE];
 
     data->current_axis_index = INVALID_ID_U8;
-    data->vertex_count = 18;  // 2 per line, 3 lines + 6 lines
+    data->vertex_count = 18; // 2 per line, 3 lines + 6 lines
     data->vertices = kallocate(sizeof(colour_vertex_3d) * data->vertex_count, MEMORY_TAG_ARRAY);
 
     vec4 r = (vec4){1.0f, 0.0f, 0.0f, 1.0f};
@@ -329,7 +329,7 @@ static void create_gizmo_mode_scale(editor_gizmo* gizmo) {
     editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_SCALE];
 
     data->current_axis_index = INVALID_ID_U8;
-    data->vertex_count = 12;  // 2 per line, 3 lines + 3 lines
+    data->vertex_count = 12; // 2 per line, 3 lines + 3 lines
     data->vertices = kallocate(sizeof(colour_vertex_3d) * data->vertex_count, MEMORY_TAG_ARRAY);
 
     vec4 r = (vec4){1.0f, 0.0f, 0.0f, 1.0f};
@@ -337,17 +337,17 @@ static void create_gizmo_mode_scale(editor_gizmo* gizmo) {
     vec4 b = (vec4){0.0f, 0.0f, 1.0f, 1.0f};
 
     // x
-    data->vertices[0].colour = r;  // First vert is at origin, no pos needed.
+    data->vertices[0].colour = r; // First vert is at origin, no pos needed.
     data->vertices[1].colour = r;
     data->vertices[1].position.x = 2.0f;
 
     // y
-    data->vertices[2].colour = g;  // First vert is at origin, no pos needed.
+    data->vertices[2].colour = g; // First vert is at origin, no pos needed.
     data->vertices[3].colour = g;
     data->vertices[3].position.y = 2.0f;
 
     // z
-    data->vertices[4].colour = b;  // First vert is at origin, no pos needed.
+    data->vertices[4].colour = b; // First vert is at origin, no pos needed.
     data->vertices[5].colour = b;
     data->vertices[5].position.z = 2.0f;
 
@@ -413,7 +413,7 @@ static void create_gizmo_mode_scale(editor_gizmo* gizmo) {
 static void create_gizmo_mode_rotate(editor_gizmo* gizmo) {
     editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_ROTATE];
 
-    data->vertex_count = 12 + (segments * 2 * 3);  // 2 per line, 3 lines + 3 lines
+    data->vertex_count = 12 + (segments * 2 * 3); // 2 per line, 3 lines + 3 lines
     data->vertices = kallocate(sizeof(colour_vertex_3d) * data->vertex_count, MEMORY_TAG_ARRAY);
 
     vec4 r = (vec4){1.0f, 0.0f, 0.0f, 1.0f};
@@ -422,17 +422,17 @@ static void create_gizmo_mode_rotate(editor_gizmo* gizmo) {
 
     // Start with the center, draw small axes.
     // x
-    data->vertices[0].colour = r;  // First vert is at origin, no pos needed.
+    data->vertices[0].colour = r; // First vert is at origin, no pos needed.
     data->vertices[1].colour = r;
     data->vertices[1].position.x = 0.2f;
 
     // y
-    data->vertices[2].colour = g;  // First vert is at origin, no pos needed.
+    data->vertices[2].colour = g; // First vert is at origin, no pos needed.
     data->vertices[3].colour = g;
     data->vertices[3].position.y = 0.2f;
 
     // z
-    data->vertices[4].colour = b;  // First vert is at origin, no pos needed.
+    data->vertices[4].colour = b; // First vert is at origin, no pos needed.
     data->vertices[5].colour = b;
     data->vertices[5].position.z = 0.2f;
 
@@ -501,23 +501,23 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, camera* c, struct ray* 
             // Create the interaction plane.
             if (gizmo->orientation == EDITOR_GIZMO_ORIENTATION_LOCAL || gizmo->orientation == EDITOR_GIZMO_ORIENTATION_GLOBAL) {
                 switch (data->current_axis_index) {
-                    case 0:  // x axis
-                    case 3:  // xy axes
-                        plane_dir = vec3_transform(vec3_back(), 0.0f, gizmo_world);
-                        break;
-                    case 1:  // y axis
-                    case 6:  // xyz
-                        plane_dir = camera_backward(c);
-                        break;
-                    case 4:  // xz axes
-                        plane_dir = vec3_transform(vec3_up(), 0.0f, gizmo_world);
-                        break;
-                    case 2:  // z axis
-                    case 5:  // yz axes
-                        plane_dir = vec3_transform(vec3_right(), 0.0f, gizmo_world);
-                        break;
-                    default:
-                        return;
+                case 0: // x axis
+                case 3: // xy axes
+                    plane_dir = vec3_transform(vec3_back(), 0.0f, gizmo_world);
+                    break;
+                case 1: // y axis
+                case 6: // xyz
+                    plane_dir = camera_backward(c);
+                    break;
+                case 4: // xz axes
+                    plane_dir = vec3_transform(vec3_up(), 0.0f, gizmo_world);
+                    break;
+                case 2: // z axis
+                case 5: // yz axes
+                    plane_dir = vec3_transform(vec3_right(), 0.0f, gizmo_world);
+                    break;
+                default:
+                    return;
                 }
             } else {
                 // TODO: Other orientations.
@@ -549,15 +549,15 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, camera* c, struct ray* 
             KINFO("starting rotate interaction");
             // Create the interaction plane.
             switch (data->current_axis_index) {
-                case 0:  // x
-                    plane_dir = vec3_transform(vec3_left(), 0.0f, gizmo_world);
-                    break;
-                case 1:  // y
-                    plane_dir = vec3_transform(vec3_down(), 0.0f, gizmo_world);
-                    break;
-                case 2:  // z
-                    plane_dir = vec3_transform(vec3_forward(), 0.0f, gizmo_world);
-                    break;
+            case 0: // x
+                plane_dir = vec3_transform(vec3_left(), 0.0f, gizmo_world);
+                break;
+            case 1: // y
+                plane_dir = vec3_transform(vec3_down(), 0.0f, gizmo_world);
+                break;
+            case 2: // z
+                plane_dir = vec3_transform(vec3_forward(), 0.0f, gizmo_world);
+                break;
             }
 
             data->interaction_plane = plane_3d_create(origin, plane_dir);
@@ -632,29 +632,29 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
                 gizmo->orientation == EDITOR_GIZMO_ORIENTATION_GLOBAL) {
                 // move along the current axis' line
                 switch (data->current_axis_index) {
-                    case 0:  // x
-                        direction = vec3_transform(vec3_right(), 0.0f, gizmo_world);
-                        // Project diff onto direction.
-                        translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
-                        break;
-                    case 1:  // y
-                        direction = vec3_transform(vec3_up(), 0.0f, gizmo_world);
-                        // Project diff onto direction.
-                        translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
-                        break;
-                    case 2:  // z
-                        direction = vec3_transform(vec3_forward(), 0.0f, gizmo_world);
-                        // Project diff onto direction.
-                        translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
-                        break;
-                    case 3:  // xy
-                    case 4:  // xz
-                    case 5:  // yz
-                    case 6:  // xyz
-                        translation = diff;
-                        break;
-                    default:
-                        return;
+                case 0: // x
+                    direction = vec3_transform(vec3_right(), 0.0f, gizmo_world);
+                    // Project diff onto direction.
+                    translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
+                    break;
+                case 1: // y
+                    direction = vec3_transform(vec3_up(), 0.0f, gizmo_world);
+                    // Project diff onto direction.
+                    translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
+                    break;
+                case 2: // z
+                    direction = vec3_transform(vec3_forward(), 0.0f, gizmo_world);
+                    // Project diff onto direction.
+                    translation = vec3_mul_scalar(direction, vec3_dot(diff, direction));
+                    break;
+                case 3: // xy
+                case 4: // xz
+                case 5: // yz
+                case 6: // xyz
+                    translation = diff;
+                    break;
+                default:
+                    return;
                 }
             } else {
                 // TODO: Other orientations.
@@ -785,32 +785,32 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
             // Scale along the current axis' line in local space.
             // This will be transformed to global later if need be.
             switch (data->current_axis_index) {
-                case 0:  // x
-                    direction = vec3_right();
-                    break;
-                case 1:  // y
-                    direction = vec3_up();
-                    break;
-                case 2:  // z
-                    direction = vec3_forward();
-                    break;
-                case 3:  // xy
-                    // Combine the 2 axes, scale along both.
-                    direction = vec3_normalized(vec3_mul_scalar(vec3_add(vec3_right(), vec3_up()), 0.5f));
-                    break;
-                case 4:  // xz
-                    // Combine the 2 axes, scale along both.
-                    direction = vec3_normalized(vec3_mul_scalar(vec3_add(vec3_right(), vec3_back()), 0.5f));
-                    break;
-                case 5:  // yz
-                    // Combine the 2 axes, scale along both.
-                    direction = vec3_normalized(vec3_mul_scalar(vec3_add(vec3_back(), vec3_up()), 0.5f));
-                    break;
-                case 6:  // xyz
-                    direction = vec3_normalized(vec3_one());
-                    break;
-                default:
-                    return;
+            case 0: // x
+                direction = vec3_right();
+                break;
+            case 1: // y
+                direction = vec3_up();
+                break;
+            case 2: // z
+                direction = vec3_forward();
+                break;
+            case 3: // xy
+                // Combine the 2 axes, scale along both.
+                direction = vec3_normalized(vec3_mul_scalar(vec3_add(vec3_right(), vec3_up()), 0.5f));
+                break;
+            case 4: // xz
+                // Combine the 2 axes, scale along both.
+                direction = vec3_normalized(vec3_mul_scalar(vec3_add(vec3_right(), vec3_back()), 0.5f));
+                break;
+            case 5: // yz
+                // Combine the 2 axes, scale along both.
+                direction = vec3_normalized(vec3_mul_scalar(vec3_add(vec3_back(), vec3_up()), 0.5f));
+                break;
+            case 6: // xyz
+                direction = vec3_normalized(vec3_one());
+                break;
+            default:
+                return;
             }
             // The distance from the origin ultimately determines scale magnitude.
             f32 dist = vec3_distance(origin, intersection);
@@ -977,17 +977,17 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
             }
 
             switch (data->current_axis_index) {
-                case 0:  // x
-                    direction = vec3_transform(vec3_right(), 0.0f, gizmo_world);
-                    break;
-                case 1:  // y
-                    direction = vec3_transform(vec3_up(), 0.0f, gizmo_world);
-                    break;
-                case 2:  // z
-                    direction = vec3_transform(vec3_back(), 0.0f, gizmo_world);
-                    break;
-                default:
-                    return;
+            case 0: // x
+                direction = vec3_transform(vec3_right(), 0.0f, gizmo_world);
+                break;
+            case 1: // y
+                direction = vec3_transform(vec3_up(), 0.0f, gizmo_world);
+                break;
+            case 2: // z
+                direction = vec3_transform(vec3_back(), 0.0f, gizmo_world);
+                break;
+            default:
+                return;
             }
 
             quat rotation = quat_from_axis_angle(direction, angle, true);
