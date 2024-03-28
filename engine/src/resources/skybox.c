@@ -14,7 +14,8 @@ b8 skybox_create(skybox_config config, skybox* out_skybox) {
         return false;
     }
 
-    out_skybox->config = config;
+    out_skybox->cubemap_name = string_duplicate(config.cubemap_name);
+    out_skybox->state = SKYBOX_STATE_CREATED;
 
     return true;
 }
@@ -30,9 +31,10 @@ b8 skybox_initialize(skybox* sb) {
 
     sb->instance_id = INVALID_ID;
 
-    sb->config.g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, sb->config.cubemap_name, 0);
+    sb->g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, sb->cubemap_name, 0);
     // Clear out the material name.
-    sb->config.g_config.material_name[0] = 0;
+    sb->g_config.material_name[0] = 0;
+    sb->state = SKYBOX_STATE_INITIALIZED;
 
     return true;
 }
@@ -42,14 +44,15 @@ b8 skybox_load(skybox* sb) {
         KERROR("skybox_load requires a valid pointer to sb!");
         return false;
     }
+    sb->state = SKYBOX_STATE_LOADING;
 
-    sb->cubemap.texture = texture_system_acquire_cube(sb->config.cubemap_name, true);
+    sb->cubemap.texture = texture_system_acquire_cube(sb->cubemap_name, true);
     if (!renderer_texture_map_resources_acquire(&sb->cubemap)) {
         KFATAL("Unable to acquire resources for cube map texture.");
         return false;
     }
 
-    sb->g = geometry_system_acquire_from_config(sb->config.g_config, true);
+    sb->g = geometry_system_acquire_from_config(sb->g_config, true);
     sb->render_frame_number = INVALID_ID_U64;
 
     shader* skybox_shader = shader_system_get("Shader.Builtin.Skybox");  // TODO: allow configurable shader.
@@ -69,6 +72,7 @@ b8 skybox_load(skybox* sb) {
         KFATAL("Unable to acquire shader resources for skybox texture.");
         return false;
     }
+    sb->state = SKYBOX_STATE_LOADED;
 
     return true;
 }
@@ -78,6 +82,7 @@ b8 skybox_unload(skybox* sb) {
         KERROR("skybox_unload requires a valid pointer to sb!");
         return false;
     }
+    sb->state = SKYBOX_STATE_UNDEFINED;
 
     shader* skybox_shader = shader_system_get("Shader.Builtin.Skybox");  // TODO: allow configurable shader.
     renderer_shader_instance_resources_release(skybox_shader, sb->instance_id);
@@ -86,16 +91,16 @@ b8 skybox_unload(skybox* sb) {
 
     sb->render_frame_number = INVALID_ID_U64;
 
-    geometry_system_config_dispose(&sb->config.g_config);
-    if (sb->config.cubemap_name) {
+    geometry_system_config_dispose(&sb->g_config);
+    if (sb->cubemap_name) {
         if (sb->cubemap.texture) {
-            texture_system_release(sb->config.cubemap_name);
+            texture_system_release(sb->cubemap_name);
             sb->cubemap.texture = 0;
         }
 
         // u32 length = string_length(sb->config.cubemap_name);
         // kfree((void*)sb->config.cubemap_name, (length + 1) * sizeof(char), MEMORY_TAG_STRING);
-        sb->config.cubemap_name = 0;
+        sb->cubemap_name = 0;
     }
 
     geometry_system_release(sb->g);
@@ -113,6 +118,7 @@ void skybox_destroy(skybox* sb) {
         KERROR("skybox_destroy requires a valid pointer to sb!");
         return;
     }
+    sb->state = SKYBOX_STATE_UNDEFINED;
 
     // If loaded, unload first, then destroy.
     if (sb->instance_id != INVALID_ID) {

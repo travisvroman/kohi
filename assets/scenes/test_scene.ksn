@@ -1,0 +1,74 @@
+properties = {
+    name = "test_scene"
+    description = "A simple test scene, yo."
+}
+nodes = [
+    {
+        name = "environment"
+        attachments = [
+            {
+                type = "skybox"
+                cubemap_name = "skybox"
+            }
+            {
+                type = "directional_light"
+                colour = "80.000000 80.000000 70.000000 1.000000"
+                direction = "0.100000 -1.000000 0.100000 1.000000"
+                shadow_distance = 100.000000
+                shadow_fade_distance = 5.000000
+                shadow_split_mult = 0.750000
+            }
+        ]
+    }
+    {
+        name = "sponza"
+        xform = "0.000000 -1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.010000 0.010000 0.010000"
+        attachments = [
+            {
+                type = "static_mesh"
+                resource_name = "sponza"
+            }
+        ]
+        children = [
+            {
+                name = "tree"
+                xform = "481.726868 79.999954 1343.031372 0.000000 0.817741 0.000000 0.575589 200.000000 200.000000 200.000000"
+                attachments = [
+                    {
+                        type = "static_mesh"
+                        resource_name = "Tree"
+                    }
+                ]
+            }
+        ]
+    }
+    {
+        name = "falcon"
+        xform = "12.108844 0.777108 15.247260 -0.045601 0.596518 0.003041 0.801300 0.350000 0.350000 0.350000"
+        attachments = [
+            {
+                type = "static_mesh"
+                resource_name = "falcon"
+            }
+            {
+                type = "point_light"
+                colour = "100.000000 0.000000 0.000000 1.000000"
+                position = "2.500000 1.250000 -8.000000 0.000000"
+                constant_f = 1.000000
+                linear = 0.350000
+                quadratic = 0.440000
+            }
+        ]
+    }
+    {
+        name = "terrain"
+        xform = "-50.000000 -3.900000 -50.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
+        attachments = [
+            {
+                type = "terrain"
+                name = "test_terrain"
+                resource_name = "test_terrain"
+            }
+        ]
+    }
+]

@@ -38,6 +38,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] bst
 - [ ] quadtrees/octrees
 - [x] Threads 
+- [ ] Flag to force single-threaded mode.
 - [x] Semaphores
 - [x] Job system
   - [x] Job dependencies
@@ -68,11 +69,13 @@ The items in this list are not in any particular order. This list will be update
 - [ ] I18n strings
 - [ ] resource hot reloading
 - [ ] prefabs
-- [x] Simple Scenes
+- [ ] Custom storage format (KSON - Kohi Storage Object Notation)
+  - [ ] 
+- [x] Scenes
   - [x] Base implementation
   - [x] Load from file 
   - [ ] Adjustable global scene properties
-  - [ ] Save to file
+  - [x] Save to file
 - [x] Renderer System (front-end/backend plugin architecture)
 - [x] Audio System (front-end)
 - [ ] Physics System (front-end)
@@ -92,6 +95,8 @@ The items in this list are not in any particular order. This list will be update
 - [x] terrain
   - [ ] binary format
   - [x] heightmap-based
+  - [ ] voxel-based
+    - [ ] smooth voxels
   - [x] pixel picking
   - [x] raycast picking 
   - [x] chunking/culling
@@ -107,6 +112,50 @@ The items in this list are not in any particular order. This list will be update
   - [ ] physics volumes 
   - [ ] weather
 - [ ] Multi-window applications
+- [ ] 0.7 Scene refactor (see notes below):
+  - [x] Rename simple scene to just "scene" and move to engine core.
+  - [x] Create a unique-per-system handle for each system to identify a resource. These handles would be linked to 
+        a resource array of some sort and an index element within that array via a structure that holds both.
+  - [x] Create new "xform" structure and system that uses handles and can manage dependencies in updates internally.
+        NOTE: This system should be laid out in a data-oriented way.
+  - [x] Create hierarchy graph that handles transform hierarchy and can provide a view of it. Also generating world matrices.
+  - [x] Remove transform from mesh.
+  - [x] Replace any and all transforms with xform handles.
+  - [ ] Update systems (and create some) that use handles:
+    - [x] Create xform system that uses handles
+    - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
+    - [ ] Convert material system to use handles
+    - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
+    - [ ] Convert shader system to use handles (everything that _isn't_ the renderer should use handles).
+    - [ ] Convert lighting system to use handles.
+    - [ ] Create skybox system that uses handles.
+    - [ ] Create scene system that uses handles.
+  - [x] (See KSON) Refactor scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
+  - [x] Write "(de)serialization" routines for savable resources and use those in the above loader.
+          Scene Refactor notes: Refactor into node-based system using handles for various types.
+          A node should contain 3 (maybe 4) things: a unique identifier, a handle id (which is a
+          link into a scene-wide handle table, which itself points to an index into an array of resources),
+          a potential parent handle id (which can be INVALID_ID if unused), and potentially a name.
+          There would then be lists of resource types (think mesh, terrain, lights, skybox, etc) which would
+          each have lookup tables of handle ids to indices into these arrays. Additionally there would be a set
+          of a lookup table and transforms that would be used. Separating these would allow updates on these objects
+          in cache-coherent loops as well as any sorting/dependency lookup that would need to be done.
+         
+          The above will require that meshes have transforms removed from them. The transform would then be
+          also referenced by the _node_ instead of the mesh. This would also facilitate batching of like meshes for
+          rendering in the future. Transforms would also have the parent pointer removed, and instead also use
+          handles. This would eliminate issues with invalid pointers when an array of a resource (i.e. transform) is
+          expanded and realloced. This should be done in a phased approach, and thus perhaps a new "xform" should be
+          created, and the "transform" structure could be deprecated. Note that the resource lookup for this would
+          likely be global, not just within a scene.
+         
+          We could then have a few different "graphs" in the scene: one for transforms, one for visibility (i.e a flat
+          array of currently-visible objects would likely suffice here), and others.
+         
+          We might also think about, at this point, reworking the scene parser to better handle object heirarchy in a more
+          expressive language fasion (perhaps using some sort of scoping syntax like "{}" to surround objects).
+     
+ 
 
 ## Renderer:
 - [ ] geometry generation (2d and 3d, e.g. cube, cylinder, etc.)

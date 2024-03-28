@@ -30,11 +30,6 @@ type=vec4
 value=0.000000 0.000000 0.000000 0.000000
 [/prop]
 [prop]
-name=diffuse_colour
-type=vec4
-value=0.000000 0.000000 0.000000 0.000000
-[/prop]
-[prop]
 name=shininess
 type=f32
 value=5.890000

@@ -24,6 +24,7 @@
 
 // Version reporting.
 #include "engine_version.h"
+#include "systems/xform_system.h"
 
 static b8 register_known_systems_pre_boot(systems_manager_state* state, application_config* app_config);
 static b8 register_known_systems_post_boot(systems_manager_state* state, application_config* app_config);
@@ -176,6 +177,14 @@ static b8 register_known_systems_pre_boot(systems_manager_state* state, applicat
     plat_config.height = app_config->start_height;
     if (!systems_manager_register(state, K_SYSTEM_TYPE_PLATFORM, platform_system_startup, platform_system_shutdown, 0, 0, &plat_config)) {
         KERROR("Failed to register platform system.");
+        return false;
+    }
+
+    // Xform system.
+    xform_system_config xform_sys_config = {0};
+    xform_sys_config.initial_slot_count = 128;  // TODO: expose to app config.
+    if (!systems_manager_register(state, K_SYSTEM_TYPE_XFORM, xform_system_initialize, xform_system_shutdown, xform_system_update, 0, &xform_sys_config)) {
+        KERROR("Failed to register xform system.");
         return false;
     }
 

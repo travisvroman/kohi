@@ -7,7 +7,6 @@
 #include <core/logger.h>
 #include <core/systems_manager.h>
 #include <math/kmath.h>
-#include <math/transform.h>
 #include <renderer/renderer_frontend.h>
 #include <systems/geometry_system.h>
 #include <systems/shader_system.h>
@@ -20,6 +19,7 @@
 #include "standard_ui_system.h"
 #include "sui_label.h"
 #include "systems/font_system.h"
+#include "systems/xform_system.h"
 
 static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context);
 
@@ -58,10 +58,10 @@ static void sui_textbox_update_highlight_box(sui_control* self) {
     f32 width = offset_end - offset_start;
     /* f32 padding = typed_data->nslice.corner_size.x; */
 
-    vec3 initial_pos = transform_position_get(&typed_data->highlight_box.xform);
+    vec3 initial_pos = xform_position_get(typed_data->highlight_box.xform);
     initial_pos.y = -label_data->data->line_height + 10.0f;
-    transform_position_set(&typed_data->highlight_box.xform, (vec3){offset_start, initial_pos.y, initial_pos.z});
-    transform_scale_set(&typed_data->highlight_box.xform, (vec3){width, 1.0f, 1.0f});
+    xform_position_set(typed_data->highlight_box.xform, (vec3){offset_start, initial_pos.y, initial_pos.z});
+    xform_scale_set(typed_data->highlight_box.xform, (vec3){width, 1.0f, 1.0f});
 }
 
 static void sui_textbox_update_cursor_position(sui_control* self) {
@@ -75,7 +75,7 @@ static void sui_textbox_update_cursor_position(sui_control* self) {
     // The would-be cursor position, not yet taking padding into account.
     vec3 cursor_pos = {0};
     cursor_pos.x = offset + typed_data->text_view_offset;
-    cursor_pos.y = 6.0f;  // TODO: configurable
+    cursor_pos.y = 6.0f; // TODO: configurable
 
     // Ensure the cursor is within the bounds of the textbox.
     // Don't take the padding into account just yet.
@@ -98,11 +98,11 @@ static void sui_textbox_update_cursor_position(sui_control* self) {
     // Save the view offset.
     typed_data->text_view_offset += diff;
     // Translate the label forward/backward to line up with the cursor, taking padding into account.
-    vec3 label_pos = typed_data->content_label.xform.position;
-    transform_position_set(&typed_data->content_label.xform, (vec3){padding + typed_data->text_view_offset, label_pos.y, label_pos.z});
+    vec3 label_pos = xform_position_get(typed_data->content_label.xform);
+    xform_position_set(typed_data->content_label.xform, (vec3){padding + typed_data->text_view_offset, label_pos.y, label_pos.z});
 
     // Translate the cursor to it's new position.
-    transform_position_set(&typed_data->cursor.xform, cursor_pos);
+    xform_position_set(typed_data->cursor.xform, cursor_pos);
 }
 
 b8 sui_textbox_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control) {
@@ -115,7 +115,7 @@ b8 sui_textbox_control_create(const char* name, font_type type, const char* font
     sui_textbox_internal_data* typed_data = out_control->internal_data;
 
     // Reasonable defaults.
-    typed_data->size = (vec2i){200, font_size + 10};  // add padding
+    typed_data->size = (vec2i){200, font_size + 10}; // add padding
     typed_data->colour = vec4_one();
 
     // Assign function pointers.
@@ -215,7 +215,7 @@ b8 sui_textbox_control_load(struct sui_control* self) {
     self->bounds.height = typed_data->size.y;
 
     // Setup textbox clipping mask geometry.
-    typed_data->clip_mask.reference_id = 1;  // TODO: move creation/reference_id assignment.
+    typed_data->clip_mask.reference_id = 1; // TODO: move creation/reference_id assignment.
 
     geometry_config clip_config;
     generate_quad_2d("textbox_clipping_box", typed_data->size.x - (corner_size.x * 2), typed_data->size.y, 0, 0, 0, 0, &clip_config);
@@ -233,10 +233,9 @@ b8 sui_textbox_control_load(struct sui_control* self) {
     typed_data->clip_mask.render_data.index_element_size = typed_data->clip_mask.clip_geometry->index_element_size;
     typed_data->clip_mask.render_data.index_buffer_offset = typed_data->clip_mask.clip_geometry->index_buffer_offset;
 
-    typed_data->clip_mask.render_data.diffuse_colour = vec4_zero();  // transparent;
+    typed_data->clip_mask.render_data.diffuse_colour = vec4_zero(); // transparent;
 
-    typed_data->clip_mask.clip_xform = transform_from_position((vec3){corner_size.x, 0.0f, 0.0f});
-    transform_parent_set(&typed_data->clip_mask.clip_xform, &self->xform);
+    typed_data->clip_mask.clip_xform = xform_from_position((vec3){corner_size.x, 0.0f, 0.0f});
 
     // Acquire instance resources for this control.
     texture_map* maps[1] = {&typed_state->ui_atlas};
@@ -270,8 +269,8 @@ b8 sui_textbox_control_load(struct sui_control* self) {
         // clipping mask is attached and drawn. See the render function for the other half of this.
         sui_label_internal_data* label_data = typed_data->content_label.internal_data;
         // TODO: Adjustable padding
-        transform_position_set(&typed_data->content_label.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 5.0f, 0.0f});  // padding/2 for y
-        transform_parent_set(&typed_data->content_label.xform, &self->xform);
+        typed_data->content_label.parent = self;
+        xform_position_set(typed_data->content_label.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 5.0f, 0.0f}); // padding/2 for y
         typed_data->content_label.is_active = true;
         if (!standard_ui_system_update_active(typed_state, &typed_data->content_label)) {
             KERROR("Unable to update active state for textbox system text.");
@@ -293,7 +292,7 @@ b8 sui_textbox_control_load(struct sui_control* self) {
         } else {
             sui_label_internal_data* label_data = typed_data->content_label.internal_data;
             // Set an initial position.
-            transform_position_set(&typed_data->cursor.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 4.0f, 0.0f});
+            xform_position_set(typed_data->cursor.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 4.0f, 0.0f});
             typed_data->cursor.is_active = true;
             if (!standard_ui_system_update_active(typed_state, &typed_data->cursor)) {
                 KERROR("Unable to update active state for textbox cursor.");
@@ -318,10 +317,10 @@ b8 sui_textbox_control_load(struct sui_control* self) {
         // clipping mask is attached and drawn. See the render function for the other half of this.
         sui_label_internal_data* label_data = typed_data->content_label.internal_data;
         // Set an initial position.
-        transform_position_set(&typed_data->highlight_box.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 4.0f, 0.0f});
-        transform_parent_set(&typed_data->highlight_box.xform, &typed_data->content_label.xform);
+        xform_position_set(typed_data->highlight_box.xform, (vec3){typed_data->nslice.corner_size.x, label_data->data->line_height - 4.0f, 0.0f});
         typed_data->highlight_box.is_active = true;
         typed_data->highlight_box.is_visible = false;
+        /* typed_data->highlight_box.parent = self; */
         if (!standard_ui_system_update_active(typed_state, &typed_data->highlight_box)) {
             KERROR("Unable to update active state for textbox highlight box.");
         }
@@ -347,8 +346,21 @@ b8 sui_textbox_control_update(struct sui_control* self, struct frame_data* p_fra
         return false;
     }
 
-    //
+    sui_textbox_internal_data* typed_data = self->internal_data;
+    mat4 parent_world = xform_world_get(self->xform);
 
+    // Update clip mask xform
+    xform_calculate_local(typed_data->clip_mask.clip_xform);
+    mat4 local = xform_local_get(typed_data->clip_mask.clip_xform);
+    mat4 self_world = mat4_mul(local, parent_world);
+    xform_world_set(typed_data->clip_mask.clip_xform, self_world);
+
+    // Update highlight box xform
+    // FIXME: The transform of this highlight box is wrong.
+    xform_calculate_local(typed_data->highlight_box.xform);
+    mat4 hb_local = xform_local_get(typed_data->highlight_box.xform);
+    mat4 hb_world = mat4_mul(hb_local, parent_world);
+    xform_world_set(typed_data->highlight_box.xform, hb_world);
     return true;
 }
 
@@ -369,7 +381,7 @@ b8 sui_textbox_control_render(struct sui_control* self, struct frame_data* p_fra
         renderable.render_data.index_count = typed_data->nslice.g->index_count;
         renderable.render_data.index_element_size = typed_data->nslice.g->index_element_size;
         renderable.render_data.index_buffer_offset = typed_data->nslice.g->index_buffer_offset;
-        renderable.render_data.model = transform_world_get(&self->xform);
+        renderable.render_data.model = xform_world_get(self->xform);
         renderable.render_data.diffuse_colour = typed_data->colour;
 
         renderable.instance_id = &typed_data->instance_id;
@@ -391,7 +403,7 @@ b8 sui_textbox_control_render(struct sui_control* self, struct frame_data* p_fra
     if (string_utf8_length(sui_label_text_get(&typed_data->content_label))) {
         // Attach clipping mask to text, which would be the last element added.
         u32 renderable_count = darray_length(render_data->renderables);
-        typed_data->clip_mask.render_data.model = transform_world_get(&typed_data->clip_mask.clip_xform);
+        typed_data->clip_mask.render_data.model = xform_world_get(typed_data->clip_mask.clip_xform);
         render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data;
     }
 
@@ -406,9 +418,8 @@ b8 sui_textbox_control_render(struct sui_control* self, struct frame_data* p_fra
         }
 
         // Attach clipping mask to text, which would be the last element added.
-        u32 renderable_count = darray_length(render_data->renderables);
-        typed_data->clip_mask.render_data.model = transform_world_get(&typed_data->clip_mask.clip_xform);
-        render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data;
+        /* u32 renderable_count = darray_length(render_data->renderables);
+        render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data; */
     }
 
     return true;
@@ -630,69 +641,69 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
                     // NOTE: this handles US standard keyboard layouts.
                     // Will need to handle other layouts as well.
                     switch (key_code) {
-                        case KEY_0:
-                            char_code = ')';
-                            break;
-                        case KEY_1:
-                            char_code = '!';
-                            break;
-                        case KEY_2:
-                            char_code = '@';
-                            break;
-                        case KEY_3:
-                            char_code = '#';
-                            break;
-                        case KEY_4:
-                            char_code = '$';
-                            break;
-                        case KEY_5:
-                            char_code = '%';
-                            break;
-                        case KEY_6:
-                            char_code = '^';
-                            break;
-                        case KEY_7:
-                            char_code = '&';
-                            break;
-                        case KEY_8:
-                            char_code = '*';
-                            break;
-                        case KEY_9:
-                            char_code = '(';
-                            break;
+                    case KEY_0:
+                        char_code = ')';
+                        break;
+                    case KEY_1:
+                        char_code = '!';
+                        break;
+                    case KEY_2:
+                        char_code = '@';
+                        break;
+                    case KEY_3:
+                        char_code = '#';
+                        break;
+                    case KEY_4:
+                        char_code = '$';
+                        break;
+                    case KEY_5:
+                        char_code = '%';
+                        break;
+                    case KEY_6:
+                        char_code = '^';
+                        break;
+                    case KEY_7:
+                        char_code = '&';
+                        break;
+                    case KEY_8:
+                        char_code = '*';
+                        break;
+                    case KEY_9:
+                        char_code = '(';
+                        break;
                     }
                 }
             } else {
                 switch (key_code) {
-                    case KEY_SPACE:
-                        char_code = key_code;
-                        break;
-                    case KEY_MINUS:
-                        char_code = shift_held ? '_' : '-';
-                        break;
-                    case KEY_EQUAL:
-                        char_code = shift_held ? '+' : '=';
-                        break;
-                    case KEY_PERIOD:
-                        char_code = shift_held ? '>' : '.';
-                        break;
-                    case KEY_COMMA:
-                        char_code = shift_held ? '<' : ',';
-                        break;
-                    case KEY_SLASH:
-                        char_code = shift_held ? '?' : '/';
-                        break;
-                    case KEY_QUOTE:
-                        char_code = shift_held ? '"' : '\'';
-                        break;
-                    case KEY_SEMICOLON:
-                        char_code = shift_held ? ':' : ';';
-                        break;
+                case KEY_SPACE:
+                    char_code = key_code;
+                    break;
+                case KEY_MINUS:
+                    char_code = shift_held ? '_' : '-';
+                    break;
+                case KEY_EQUAL:
+                    char_code = shift_held ? '+' : '=';
+                    break;
+                case KEY_PERIOD:
+                    char_code = shift_held ? '>' : '.';
+                    break;
+                case KEY_COMMA:
+                    char_code = shift_held ? '<' : ',';
+                    break;
+                case KEY_SLASH:
+                    char_code = shift_held ? '?' : '/';
+                    break;
+                case KEY_QUOTE:
+                    char_code = shift_held ? '"' : '\'';
+                    break;
+                case KEY_SEMICOLON:
+                    char_code = shift_held ? ':' : ';';
+                    break;
 
-                    default:
-                        // Not valid for entry, use 0
-                        char_code = 0;
-                        break;
+                default:
+                    // Not valid for entry, use 0
+                    char_code = 0;
+                    break;
                 }
             }
 

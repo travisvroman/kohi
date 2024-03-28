@@ -20,8 +20,7 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
     // TODO: binary format
     char *format_str = "%s/%s/%s%s";
     char full_file_path[512];
-    string_format(full_file_path, format_str, resource_system_base_path(),
-                  self->type_path, name, ".kterrain");
+    string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, ".kterrain");
 
     file_handle f;
     if (!filesystem_open(full_file_path, FILE_MODE_READ, false, &f)) {
@@ -33,8 +32,7 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
 
     out_resource->full_path = string_duplicate(full_file_path);
 
-    terrain_config *resource_data =
-        kallocate(sizeof(terrain_config), MEMORY_TAG_RESOURCE);
+    terrain_resource *resource_data = kallocate(sizeof(terrain_resource), MEMORY_TAG_RESOURCE);
     // Set some defaults, create arrays.
 
     resource_data->material_count = 0;
@@ -214,13 +212,13 @@ static b8 terrain_loader_load(struct resource_loader *self, const char *name,
 
 static void terrain_loader_unload(struct resource_loader *self,
                                   resource *resource) {
-    terrain_config *data = (terrain_config *)resource->data;
+    terrain_resource *data = (terrain_resource *)resource->data;
 
     darray_destroy(data->vertex_datas);
     if (data->name) {
         kfree(data->name, sizeof(char) * (string_length(data->name) + 1), MEMORY_TAG_STRING);
     }
-    kzero_memory(data, sizeof(shader_config));
+    kzero_memory(data, sizeof(terrain_resource));
 
     if (data->material_names) {
         kfree(data->material_names, sizeof(char *) * TERRAIN_MAX_MATERIAL_COUNT, MEMORY_TAG_ARRAY);

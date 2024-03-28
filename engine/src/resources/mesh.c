@@ -6,6 +6,7 @@
 #include "core/logger.h"
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"
+#include "resources/resource_types.h"
 #include "systems/geometry_system.h"
 #include "systems/job_system.h"
 #include "systems/resource_system.h"
@@ -85,6 +86,7 @@ static void mesh_load_job_success(void* params) {
         }
     }
     mesh_params->out_mesh->generation++;
+    mesh_params->out_mesh->state = MESH_STATE_LOADED;
 
     KTRACE("Successfully loaded mesh '%s'.", mesh_params->resource_name);
 
@@ -142,11 +144,16 @@ b8 mesh_create(mesh_config config, mesh* out_mesh) {
 
     kzero_memory(out_mesh, sizeof(mesh));
 
-    out_mesh->config = config;
-    out_mesh->generation = INVALID_ID_U8;
-    if (config.name) {
-        out_mesh->name = string_duplicate(config.name);
+    if (config.resource_name) {
+        out_mesh->resource_name = string_duplicate(config.resource_name);
     }
+    if (config.g_configs && config.geometry_count > 0) {
+        out_mesh->geometry_count = config.geometry_count;
+        out_mesh->g_configs = kallocate(sizeof(geometry_config) * out_mesh->geometry_count, MEMORY_TAG_ARRAY);
+        kcopy_memory(out_mesh->g_configs, config.g_configs, sizeof(geometry_config) * out_mesh->geometry_count);
+    }
+    out_mesh->generation = INVALID_ID_U8;
+    out_mesh->state = MESH_STATE_CREATED;
 
     return true;
 }
@@ -156,17 +163,17 @@ b8 mesh_initialize(mesh* m) {
         return false;
     }
 
-    if (m->config.resource_name) {
+    if (m->resource_name) {
         return true;
     } else {
         // Just verifying config.
-        if (!m->config.g_configs) {
+        if (!m->g_configs) {
+            KERROR("Cannot initialize a mesh without either a resource name or at least one geometry configuration.");
             return false;
         }
-
-        m->geometry_count = m->config.geometry_count;
-        m->geometries = kallocate(sizeof(geometry*), MEMORY_TAG_ARRAY);
     }
+
+    m->state = MESH_STATE_INITIALIZED;
     return true;
 }
 
@@ -175,23 +182,28 @@ b8 mesh_load(mesh* m) {
         return false;
     }
 
+    m->state = MESH_STATE_LOADING;
+
     m->id = identifier_create();
 
-    if (m->config.resource_name) {
-        return mesh_load_from_resource(m->config.resource_name, m);
+    if (m->resource_name) {
+        return mesh_load_from_resource(m->resource_name, m);
     } else {
-        if (!m->config.g_configs) {
+        if (!m->g_configs) {
+            KERROR("Cannot load a mesh without either a resource name or at least one geometry configuration.");
             return false;
         }
 
-        for (u32 i = 0; i < m->config.geometry_count; ++i) {
-            m->geometries[i] = geometry_system_acquire_from_config(m->config.g_configs[i], true);
+        for (u32 i = 0; i < m->geometry_count; ++i) {
+            m->geometries[i] = geometry_system_acquire_from_config(m->g_configs[i], true);
             m->generation = 0;
 
             // Clean up the allocations for the geometry config.
             // TODO: Do this during unload/destroy
-            geometry_system_config_dispose(&m->config.g_configs[i]);
+            geometry_system_config_dispose(&m->g_configs[i]);
         }
+
+        m->state = MESH_STATE_LOADED;
     }
 
     return true;
@@ -208,6 +220,7 @@ b8 mesh_unload(mesh* m) {
 
         // For good measure, invalidate the geometry so it doesn't attempt to be rendered.
         m->generation = INVALID_ID_U8;
+        m->state = MESH_STATE_UNDEFINED;
 
         return true;
     }
@@ -231,17 +244,9 @@ b8 mesh_destroy(mesh* m) {
         m->name = 0;
     }
 
-    if (m->config.name) {
-        kfree(m->config.name, string_length(m->config.name) + 1, MEMORY_TAG_STRING);
-        m->config.name = 0;
-    }
-    if (m->config.resource_name) {
-        kfree(m->config.resource_name, string_length(m->config.resource_name) + 1, MEMORY_TAG_STRING);
-        m->config.resource_name = 0;
-    }
-    if (m->config.parent_name) {
-        kfree(m->config.parent_name, string_length(m->config.parent_name) + 1, MEMORY_TAG_STRING);
-        m->config.parent_name = 0;
+    if (m->resource_name) {
+        kfree(m->resource_name, string_length(m->resource_name) + 1, MEMORY_TAG_STRING);
+        m->resource_name = 0;
     }
 
     return true;

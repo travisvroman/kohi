@@ -7,7 +7,6 @@
 #include <core/kmemory.h>
 #include <core/kstring.h>
 #include <core/systems_manager.h>
-#include <math/transform.h>
 #include <resources/resource_types.h>
 
 #include "controls/sui_label.h"
@@ -95,7 +94,7 @@ b8 debug_console_load(debug_console_state* state) {
     }
 
     u16 font_size = 31;
-    f32 height = 50.0f + (font_size * state->line_display_count + 1);  // Account for padding and textbox at the bottom
+    f32 height = 50.0f + (font_size * state->line_display_count + 1); // Account for padding and textbox at the bottom
 
     if (!sui_panel_control_create("debug_console_bg_panel", (vec2){1280.0f, height}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->bg_panel)) {
         KERROR("Failed to create background panel.");

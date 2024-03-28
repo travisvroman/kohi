@@ -4,11 +4,11 @@
 #include "core/logger.h"
 #include "editor/editor_gizmo.h"
 #include "math/kmath.h"
-#include "math/transform.h"
 #include "passes/editor_pass.h"
 #include "renderer/camera.h"
 #include "renderer/viewport.h"
-#include "resources/simple_scene.h"
+#include "resources/scene.h"
+#include "systems/xform_system.h"
 
 b8 editor_rendergraph_create(const editor_rendergraph_config* config, editor_rendergraph* out_graph) {
     if (!rendergraph_create("editor_rendergraph", &out_graph->internal_graph)) {
@@ -59,8 +59,8 @@ b8 editor_rendergraph_initialize(editor_rendergraph* graph) {
 b8 editor_rendergraph_update(editor_rendergraph* graph, struct frame_data* p_frame_data) {
     return true;
 }
-b8 editor_rendergraph_frame_prepare(editor_rendergraph* graph, struct frame_data* p_frame_data, struct camera* current_camera, struct viewport* current_viewport, struct simple_scene* scene, u32 render_mode) {
-    if (scene->state == SIMPLE_SCENE_STATE_LOADED) {
+b8 editor_rendergraph_frame_prepare(editor_rendergraph* graph, struct frame_data* p_frame_data, struct camera* current_camera, struct viewport* current_viewport, struct scene* scene, u32 render_mode) {
+    if (scene->state == SCENE_STATE_LOADED) {
         if (graph->gizmo) {
             editor_gizmo_render_frame_prepare(graph->gizmo, p_frame_data);
         }
@@ -84,10 +84,12 @@ b8 editor_rendergraph_frame_prepare(editor_rendergraph* graph, struct frame_data
             // f32 fov = deg_to_rad(45.0f);
             // f32 dist = vec3_distance(camera_pos, gizmo_pos);
 
-            mat4 model = transform_world_get(&graph->gizmo->xform);
+            // NOTE: Use the local transform of the gizmo since it won't ever be parented to anything.
+            xform_calculate_local(graph->gizmo->xform_handle);
+            mat4 model = xform_local_get(graph->gizmo->xform_handle);
             // f32 fixed_size = 0.1f;                            // TODO: Make this a configurable option for gizmo size.
-            f32 scale_scalar = 1.0f;                    // ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
-            graph->gizmo->scale_scalar = scale_scalar;  // Keep a copy of this for hit detection.
+            f32 scale_scalar = 1.0f;                   // ((2.0f * ktan(fov * 0.5f)) * dist) * fixed_size;
+            graph->gizmo->scale_scalar = scale_scalar; // Keep a copy of this for hit detection.
             mat4 scale = mat4_scale((vec3){scale_scalar, scale_scalar, scale_scalar});
             model = mat4_mul(model, scale);
 
@@ -106,7 +108,7 @@ b8 editor_rendergraph_frame_prepare(editor_rendergraph* graph, struct frame_data
 #ifdef _DEBUG
             {
                 geometry_render_data plane_normal_render_data = {0};
-                plane_normal_render_data.model = transform_world_get(&graph->gizmo->plane_normal_line.xform);
+                plane_normal_render_data.model = xform_world_get(graph->gizmo->plane_normal_line.xform);
                 geometry* g = &graph->gizmo->plane_normal_line.geo;
                 plane_normal_render_data.material = 0;
                 plane_normal_render_data.material = g->material;

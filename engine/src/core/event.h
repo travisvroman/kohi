@@ -189,36 +189,48 @@ typedef enum system_event_code {
     /** @brief Special-purpose debugging event. Context will vary over time. */
     EVENT_CODE_DEBUG4 = 0x14,
 
+    EVENT_CODE_DEBUG5 = 0x15,
+    EVENT_CODE_DEBUG6 = 0x16,
+    EVENT_CODE_DEBUG7 = 0x17,
+    EVENT_CODE_DEBUG8 = 0x18,
+    EVENT_CODE_DEBUG9 = 0x19,
+    EVENT_CODE_DEBUG10 = 0x1A,
+    EVENT_CODE_DEBUG11 = 0x1B,
+    EVENT_CODE_DEBUG12 = 0x1C,
+    EVENT_CODE_DEBUG13 = 0x1D,
+    EVENT_CODE_DEBUG14 = 0x1E,
+    EVENT_CODE_DEBUG15 = 0x1F,
+
     /** @brief The hovered-over object id, if there is one.
      * Context usage:
      * i32 id = context.data.u32[0]; - will be INVALID ID if nothing is hovered over.
      */
-    EVENT_CODE_OBJECT_HOVER_ID_CHANGED = 0x15,
+    EVENT_CODE_OBJECT_HOVER_ID_CHANGED = 0x20,
 
     /**
      * @brief An event fired by the renderer backend to indicate when any render targets
      * associated with the default window resources need to be refreshed (i.e. a window resize)
      */
-    EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED = 0x16,
+    EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED = 0x21,
 
     /**
      * @brief An event fired by the kvar system when a kvar has been updated.
      */
-    EVENT_CODE_KVAR_CHANGED = 0x17,
+    EVENT_CODE_KVAR_CHANGED = 0x22,
 
     /**
      * @brief An event fired when a watched file has been written to.
      * Context usage:
      * u32 watch_id = context.data.u32[0];
      */
-    EVENT_CODE_WATCHED_FILE_WRITTEN = 0x18,
+    EVENT_CODE_WATCHED_FILE_WRITTEN = 0x23,
 
     /**
      * @brief An event fired when a watched file has been removed.
      * Context usage:
      * u32 watch_id = context.data.u32[0];
      */
-    EVENT_CODE_WATCHED_FILE_DELETED = 0x19,
+    EVENT_CODE_WATCHED_FILE_DELETED = 0x24,
 
     /**
      * @brief An event fired while a button is being held down and the
@@ -229,7 +241,7 @@ typedef enum system_event_code {
      * i16 y = context.data.i16[1]
      * u16 button = context.data.u16[2]
      */
-    EVENT_CODE_MOUSE_DRAGGED = 0x20,
+    EVENT_CODE_MOUSE_DRAGGED = 0x30,
 
     /**
      * @brief An event fired when a button is pressed and a mouse movement
@@ -240,7 +252,7 @@ typedef enum system_event_code {
      * i16 y = context.data.i16[1]
      * u16 button = context.data.u16[2]
      */
-    EVENT_CODE_MOUSE_DRAG_BEGIN = 0x21,
+    EVENT_CODE_MOUSE_DRAG_BEGIN = 0x31,
 
     /**
      * @brief An event fired when a button is released was previously dragging.
@@ -250,7 +262,7 @@ typedef enum system_event_code {
      * i16 y = context.data.i16[1]
      * u16 button = context.data.u16[2]
      */
-    EVENT_CODE_MOUSE_DRAG_END = 0x22,
+    EVENT_CODE_MOUSE_DRAG_END = 0x32,
 
     /** @brief The maximum event code that can be used internally. */
     MAX_EVENT_CODE = 0xFF

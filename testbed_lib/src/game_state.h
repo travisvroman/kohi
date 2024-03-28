@@ -8,11 +8,12 @@
 #include <systems/camera_system.h>
 
 #include "audio/audio_types.h"
+#include "core/khandle.h"
 #include "editor/editor_gizmo.h"
 #include "graphs/editor_rendergraph.h"
 #include "graphs/standard_ui_rendergraph.h"
 #include "renderer/viewport.h"
-#include "resources/simple_scene.h"
+#include "resources/scene.h"
 
 // TODO: temp
 #include <core/kclock.h>
@@ -25,11 +26,11 @@
 #include "debug_console.h"
 struct debug_line3d;
 struct debug_box3d;
-struct transform;
 
 typedef struct selected_object {
-    u32 unique_id;
-    struct transform* xform;
+    k_handle xform_handle;
+    k_handle node_handle;
+    k_handle xform_parent_handle;
 } selected_object;
 
 typedef struct testbed_game_state {
@@ -49,7 +50,7 @@ typedef struct testbed_game_state {
     f64 last_update_elapsed;
 
     // TODO: temp
-    simple_scene main_scene;
+    scene main_scene;
     b8 main_scene_unload_triggered;
 
     mesh meshes[10];

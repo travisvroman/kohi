@@ -3,7 +3,6 @@
 #include "containers/darray.h"
 #include "core/kmemory.h"
 #include "core/logger.h"
-#include "math/transform.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "renderer/rendergraph.h"
@@ -28,7 +27,7 @@ typedef struct sui_shader_locations {
 } sui_shader_locations;
 
 typedef struct ui_pass_internal_data {
-    shader* sui_shader;  // standard ui // TODO: different render pass?
+    shader* sui_shader; // standard ui // TODO: different render pass?
     sui_shader_locations sui_locations;
 } ui_pass_internal_data;
 
