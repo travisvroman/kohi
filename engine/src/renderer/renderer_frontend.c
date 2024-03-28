@@ -286,13 +286,13 @@ void renderer_texture_resize(texture* t, u32 new_width, u32 new_height) {
 renderbuffer* renderer_renderbuffer_get(renderbuffer_type type) {
     renderer_system_state* state_ptr = (renderer_system_state*)systems_manager_get_state(K_SYSTEM_TYPE_RENDERER);
     switch (type) {
-        case RENDERBUFFER_TYPE_VERTEX:
-            return &state_ptr->geometry_vertex_buffer;
-        case RENDERBUFFER_TYPE_INDEX:
-            return &state_ptr->geometry_index_buffer;
-        default:
-            KERROR("Unsupported buffer type %u", type);
-            return 0;
+    case RENDERBUFFER_TYPE_VERTEX:
+        return &state_ptr->geometry_vertex_buffer;
+    case RENDERBUFFER_TYPE_INDEX:
+        return &state_ptr->geometry_index_buffer;
+    default:
+        KERROR("Unsupported buffer type %u", type);
+        return 0;
     }
 }
 
@@ -469,25 +469,25 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
     u32 total_count = darray_length(config->uniforms);
     for (u32 i = 0; i < total_count; ++i) {
         switch (config->uniforms[i].scope) {
-            case SHADER_SCOPE_GLOBAL:
-                if (uniform_type_is_sampler(config->uniforms[i].type)) {
-                    s->global_uniform_sampler_count++;
-                    darray_push(s->global_sampler_indices, i);
-                } else {
-                    s->global_uniform_count++;
-                }
-                break;
-            case SHADER_SCOPE_INSTANCE:
-                if (uniform_type_is_sampler(config->uniforms[i].type)) {
-                    s->instance_uniform_sampler_count++;
-                    darray_push(s->instance_sampler_indices, i);
-                } else {
-                    s->instance_uniform_count++;
-                }
-                break;
-            case SHADER_SCOPE_LOCAL:
-                s->local_uniform_count++;
-                break;
+        case SHADER_SCOPE_GLOBAL:
+            if (uniform_type_is_sampler(config->uniforms[i].type)) {
+                s->global_uniform_sampler_count++;
+                darray_push(s->global_sampler_indices, i);
+            } else {
+                s->global_uniform_count++;
+            }
+            break;
+        case SHADER_SCOPE_INSTANCE:
+            if (uniform_type_is_sampler(config->uniforms[i].type)) {
+                s->instance_uniform_sampler_count++;
+                darray_push(s->instance_sampler_indices, i);
+            } else {
+                s->instance_uniform_count++;
+            }
+            break;
+        case SHADER_SCOPE_LOCAL:
+            s->local_uniform_count++;
+            break;
         }
     }
 
@@ -498,7 +498,7 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
     // regardless of what backend is being used.
 
     s->stage_configs = kallocate(sizeof(shader_stage_config) * config->stage_count, MEMORY_TAG_ARRAY);
-    s->module_watch_ids = kallocate(sizeof(u32) * config->stage_count, MEMORY_TAG_ARRAY);
+
     // Each stage.
     for (u8 i = 0; i < config->stage_count; ++i) {
         s->stage_configs[i].stage = config->stage_configs[i].stage;
@@ -518,6 +518,7 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
         // length along the way.
 
 #ifdef _DEBUG
+        s->module_watch_ids = kallocate(sizeof(u32) * config->stage_count, MEMORY_TAG_ARRAY);
         // Allow shader hot-reloading in debug builds.
         if (!platform_watch_file(text_resource.full_path, &s->module_watch_ids[i])) {
             // If this fails, warn about it but there's no need to crash over it.
