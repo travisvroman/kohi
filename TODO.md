@@ -69,8 +69,9 @@ The items in this list are not in any particular order. This list will be update
 - [ ] I18n strings
 - [ ] resource hot reloading
 - [ ] prefabs
-- [ ] Custom storage format (KSON - Kohi Storage Object Notation)
-  - [ ] 
+- [x] Custom storage format (KSON - Kohi Storage Object Notation)
+  - [x] Tokenizer/parser
+  - [x] ToString/FromString API
 - [x] Scenes
   - [x] Base implementation
   - [x] Load from file 

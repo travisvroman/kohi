@@ -21,6 +21,7 @@
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
+#include "systems/timeline_system.h"
 
 // Version reporting.
 #include "engine_version.h"
@@ -180,9 +181,17 @@ static b8 register_known_systems_pre_boot(systems_manager_state* state, applicat
         return false;
     }
 
+    // Timeline system.
+    timeline_system_config timeline_config = {0};
+    timeline_config.dummy = 1; // TODO: expose to app config.
+    if (!systems_manager_register(state, K_SYSTEM_TYPE_TIMELINE, timeline_system_initialize, timeline_system_shutdown, 0, 0, &timeline_config)) {
+        KERROR("Failed to register timeline system.");
+        return false;
+    }
+
     // Xform system.
     xform_system_config xform_sys_config = {0};
-    xform_sys_config.initial_slot_count = 128;  // TODO: expose to app config.
+    xform_sys_config.initial_slot_count = 128; // TODO: expose to app config.
     if (!systems_manager_register(state, K_SYSTEM_TYPE_XFORM, xform_system_initialize, xform_system_shutdown, xform_system_update, 0, &xform_sys_config)) {
         KERROR("Failed to register xform system.");
         return false;
@@ -190,7 +199,7 @@ static b8 register_known_systems_pre_boot(systems_manager_state* state, applicat
 
     // Resource system.
     resource_system_config resource_sys_config;
-    resource_sys_config.asset_base_path = "../assets";  // TODO: The application should probably configure this.
+    resource_sys_config.asset_base_path = "../assets"; // TODO: The application should probably configure this.
     resource_sys_config.max_loader_count = 32;
     if (!systems_manager_register(state, K_SYSTEM_TYPE_RESOURCE, resource_system_initialize, resource_system_shutdown, 0, 0, &resource_sys_config)) {
         KERROR("Failed to register resource system.");

@@ -14,11 +14,6 @@ typedef struct frame_allocator_int {
  * @brief Engine-level current frame-specific data.
  */
 typedef struct frame_data {
-    /** @brief The time in seconds since the last frame. */
-    f32 delta_time;
-
-    /** @brief The total amount of time in seconds the application has been running. */
-    f64 total_time;
 
     /** @brief The number of meshes drawn in the last frame. */
     u32 drawn_mesh_count;

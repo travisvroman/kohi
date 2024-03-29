@@ -74,6 +74,7 @@ typedef enum k_system_type {
     K_SYSTEM_TYPE_GEOMETRY,
     K_SYSTEM_TYPE_LIGHT,
     K_SYSTEM_TYPE_AUDIO,
+    K_SYSTEM_TYPE_TIMELINE,
 
     // NOTE: Anything between 127-254 is extension space.
     K_SYSTEM_TYPE_KNOWN_MAX = 127,

@@ -104,6 +104,42 @@ KAPI void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag);
 KAPI void kallocate_report(u64 size, memory_tag tag);
 
 /**
+ * @brief Performs a memory reallocation from the host of the given size, and also frees the
+ * block of memory given. The reallocation is tracked for the provided tag.
+ * @param block The block of memory to reallocate.
+ * @param old_size The size of the old allocation (that gets freed).
+ * @param new_size The size of the new allocation (that get allocated).
+ * @param tag Indicates the use of the allocated block.
+ * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
+ */
+KAPI void* kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag);
+
+/**
+ * @brief Performs a memory reallocation from the host of the given size and alignment, and also frees the
+ * block of memory given. The reallocation is tracked for the provided tag.
+ * NOTE: Memory allocated this way must be freed using kfree_aligned.
+
+ * @param block The block of memory to reallocate.
+ * @param old_size The size of the old allocation (that gets freed).
+ * @param new_size The size of the new allocation (that get allocated).
+ * @param alignment The byte alignment to be used for the reallocation.
+ * @param tag Indicates the use of the allocated block.
+ * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
+ */
+KAPI void* kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag);
+
+/**
+ * @brief Reports an allocation associated with the application, but made externally.
+ * This can be done for items allocated within 3rd party libraries, for example, to
+ * track allocations but not perform them.
+ *
+ * @param old_size The size of the old allocation.
+ * @param new_size The size of the new allocation.
+ * @param tag Indicates the use of the allocated block.
+ */
+KAPI void kreallocate_report(u64 old_size, u64 new_size, memory_tag tag);
+
+/**
  * @brief Frees the given block, and untracks its size from the given tag.
  * @param block A pointer to the block of memory to be freed.
  * @param size The size of the block to be freed.

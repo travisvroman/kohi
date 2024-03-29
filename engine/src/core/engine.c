@@ -2,10 +2,11 @@
 
 #include "application_types.h"
 #include "containers/darray.h"
-#include "core/kclock.h"
 #include "core/event.h"
 #include "core/frame_data.h"
 #include "core/input.h"
+#include "core/kclock.h"
+#include "core/khandle.h"
 #include "core/kmemory.h"
 #include "core/kstring.h"
 #include "core/logger.h"
@@ -17,6 +18,7 @@
 
 // systems
 #include "core/systems_manager.h"
+#include "systems/timeline_system.h"
 
 typedef struct engine_state_t {
     application* game_inst;
@@ -157,6 +159,7 @@ b8 engine_run(application* game_inst) {
 
     KINFO(get_memory_usage_str());
 
+    void* timeline_state = systems_manager_get_state(K_SYSTEM_TYPE_TIMELINE);
     while (engine_state->is_running) {
         if (!platform_pump_messages()) {
             engine_state->is_running = false;
@@ -169,14 +172,14 @@ b8 engine_run(application* game_inst) {
             f64 delta = (current_time - engine_state->last_time);
             f64 frame_start_time = platform_get_absolute_time();
 
-            engine_state->p_frame_data.total_time = current_time;
-            engine_state->p_frame_data.delta_time = (f32)delta;
-
             // Reset the frame allocator
             engine_state->p_frame_data.allocator.free_all();
 
             // Update systems.
             systems_manager_update(&engine_state->sys_manager_state, &engine_state->p_frame_data);
+            // Update timelines. Note that this is not done by the systems manager
+            // because we don't want or have timeline data in the frame_data struct any longer.
+            timeline_system_update(timeline_state, delta);
 
             // update metrics
             metrics_update(frame_elapsed_time);
@@ -324,11 +327,11 @@ systems_manager_state* engine_systems_manager_state_get(struct application* game
 
 static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
     switch (code) {
-        case EVENT_CODE_APPLICATION_QUIT: {
-            KINFO("EVENT_CODE_APPLICATION_QUIT recieved, shutting down.\n");
-            engine_state->is_running = false;
-            return true;
-        }
+    case EVENT_CODE_APPLICATION_QUIT: {
+        KINFO("EVENT_CODE_APPLICATION_QUIT recieved, shutting down.\n");
+        engine_state->is_running = false;
+        return true;
+    }
     }
 
     return false;

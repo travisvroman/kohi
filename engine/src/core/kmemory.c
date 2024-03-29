@@ -138,6 +138,7 @@ void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
             return 0;
         }
 
+        // FIXME: Track aligned alloc offset as part of size.
         state_ptr->stats.total_allocated += size;
         state_ptr->stats.tagged_allocations[tag] += size;
         state_ptr->stats.new_tagged_allocations[tag] += size;
@@ -172,6 +173,24 @@ void kallocate_report(u64 size, memory_tag tag) {
     state_ptr->stats.new_tagged_allocations[tag] += size;
     state_ptr->alloc_count++;
     kmutex_unlock(&state_ptr->allocation_mutex);
+}
+
+void* kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag) {
+    return kreallocate_aligned(block, old_size, new_size, 1, tag);
+}
+
+void* kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag) {
+    void* new_block = kallocate_aligned(new_size, alignment, tag);
+    if (block && new_block) {
+        kcopy_memory(new_block, block, old_size);
+        kfree_aligned(block, old_size, alignment, tag);
+    }
+    return new_block;
+}
+
+void kreallocate_report(u64 old_size, u64 new_size, memory_tag tag) {
+    kfree_report(old_size, tag);
+    kallocate_report(new_size, tag);
 }
 
 void kfree(void* block, u64 size, memory_tag tag) {
@@ -267,14 +286,14 @@ char* get_memory_usage_str(void) {
     u64 offset = strlen(buffer);
     for (u32 i = 0; i < MEMORY_TAG_MAX_TAGS; ++i) {
         f32 amounts[3] = {1.0f, 1.0f, 1.0f};
-        const char* units[3] = { 
+        const char* units[3] = {
             get_unit_for_size(state_ptr->stats.tagged_allocations[i], &amounts[0]),
             get_unit_for_size(state_ptr->stats.new_tagged_allocations[i], &amounts[1]),
-            get_unit_for_size(state_ptr->stats.new_tagged_deallocations[i], &amounts[2]) };
+            get_unit_for_size(state_ptr->stats.new_tagged_deallocations[i], &amounts[2])};
 
         i32 length = snprintf(buffer + offset, 8000, "  %s: %-7.2f %-3s [+ %-7.2f %-3s | - %-7.2f%-3s]\n",
-            memory_tag_strings[i],
-            amounts[0], units[0], amounts[1], units[1], amounts[2], units[2]);
+                              memory_tag_strings[i],
+                              amounts[0], units[0], amounts[1], units[1], amounts[2], units[2]);
         offset += length;
     }
     kzero_memory(&state_ptr->stats.new_tagged_allocations, sizeof(state_ptr->stats.new_tagged_allocations));

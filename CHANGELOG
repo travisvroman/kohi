@@ -13,6 +13,8 @@ Changelog
   - Converted scenes to use new kson storage format.
   - Added flags to scene load, can flag as read-only (vs. editor mode) etc.
   - Added "to_string" functions for basic types (int, bool, float, etc.) and vector types (vec2, vec3, etc.).
+  - Added kreallocate, kreallocate_aligned and kreallocate_report for easier handling of reallocs in user code.
+  - Added basic timeline system. Will likely be enhanced in the future.
 
 - 0.6.0
   - Updated versioning system and build process. Each library now maintains its own version (and potentially changelog at some point).
