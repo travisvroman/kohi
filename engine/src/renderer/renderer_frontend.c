@@ -499,6 +499,10 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
 
     s->stage_configs = kallocate(sizeof(shader_stage_config) * config->stage_count, MEMORY_TAG_ARRAY);
 
+#ifdef _DEBUG
+    // NOTE: Only watch module files for debug builds.
+    s->module_watch_ids = kallocate(sizeof(u32) * config->stage_count, MEMORY_TAG_ARRAY);
+#endif
     // Each stage.
     for (u8 i = 0; i < config->stage_count; ++i) {
         s->stage_configs[i].stage = config->stage_configs[i].stage;
@@ -518,7 +522,6 @@ b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pa
         // length along the way.
 
 #ifdef _DEBUG
-        s->module_watch_ids = kallocate(sizeof(u32) * config->stage_count, MEMORY_TAG_ARRAY);
         // Allow shader hot-reloading in debug builds.
         if (!platform_watch_file(text_resource.full_path, &s->module_watch_ids[i])) {
             // If this fails, warn about it but there's no need to crash over it.

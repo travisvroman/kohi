@@ -346,10 +346,8 @@ typedef struct vulkan_pipeline {
 
 /** @brief The maximum number of stages (such as vertex, fragment, compute, etc.) allowed. */
 #define VULKAN_SHADER_MAX_STAGES 8
-/** @brief The maximum number of textures allowed at the global level. */
-#define VULKAN_SHADER_MAX_GLOBAL_TEXTURES 31
-/** @brief The maximum number of textures allowed at the instance level. */
-#define VULKAN_SHADER_MAX_INSTANCE_TEXTURES 31
+/** @brief The maximum number of texture bindings allowed at once. */
+#define VULKAN_SHADER_MAX_TEXTURE_BINDINGS 31
 /** @brief The maximum number of vertex input attributes allowed. */
 #define VULKAN_SHADER_MAX_ATTRIBUTES 16
 /**
