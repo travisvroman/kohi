@@ -11,7 +11,7 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/bin/",
             "environment": [],
-            "program": "${workspaceFolder}/bin/testbed",
+            "program": "${workspaceFolder}/bin/testbed.app",
             "osx": {
                 "MIMode": "lldb",
                 "targetArchitecture": "arm64",
@@ -22,7 +22,7 @@
             },
             "windows": {
                 "type": "cppvsdbg",
-                "program": "${workspaceFolder}/bin/testbed.exe",
+                "program": "${workspaceFolder}/bin/testbed.app.exe",
                 // cppvsdbg requires this instead of externalConsole
                 "console": "integratedTerminal",
             }
@@ -31,7 +31,7 @@
             "name": "Launch Unit Tests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/tests",
+            "program": "${workspaceFolder}/bin/kohi.tests",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/bin/",
@@ -45,7 +45,7 @@
             },
             "windows": {
                 "type": "cppvsdbg",
-                "program": "${workspaceFolder}/bin/tests.exe",
+                "program": "${workspaceFolder}/bin/kohi.tests.exe",
                 // cppvsdbg requires this instead of externalConsole
                 "console": "integratedTerminal",
             }
@@ -54,7 +54,7 @@
             "name": "Launch Kohi Tools",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/tools",
+            "program": "${workspaceFolder}/bin/kohi.tools",
             "args": [
                 "combine",
                 "outfile=${workspaceFolder}/assets/textures/wavy-sand_combined.png",
@@ -75,7 +75,7 @@
             },
             "windows": {
                 "type": "cppvsdbg",
-                "program": "${workspaceFolder}/bin/tools.exe",
+                "program": "${workspaceFolder}/bin/kohi.tools.exe",
                 // cppvsdbg requires this instead of externalConsole
                 "console": "integratedTerminal"
             },

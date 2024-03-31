@@ -1,6 +1,14 @@
 Changelog
 
 - 0.7.0
+  - NOTE: Due to changes in structure, it is recommended that you perform a full clean build if you used prior versions previously. 
+    - It is also recommended to manually remove all files within `bin/` and `obj/` directories.
+  - Performed rename pass on all libraries and executables on the project for consistency. Build scripts have been updated to reflect this.
+    - Kohi-specific libraries now begin with `kohi.<library>`. For example, `kohi.engine`.
+    - Kohi plugins are now named in the format `kohi.plugin.<plugin_type>.<name>`. Examples are `kohi.plugin.renderer.vulkan` and `kohi.plugin.audio.openal`.
+    - Tests will be split by library. Ex: `kohi.engine.tests`.
+    - Tools will have a separate 'namespace' as well `kohi.tools.<name>`. Ex: `kohi.tools.versiongen`.
+    - Applications will use the application name as the namespace, followed by '.app' or '.lib' `<application_name>.[app|lib]`. Ex: `testbed.app` is the executable and `testbed.lib` is the code library.
   - Renamed "simple_scene" to just "scene". Moved it and loader to engine core, removed references from testbed application.
   - Added handles to be used in place of raw pointers. Resource systems (i.e. materials, textures, meshes, etc.) need to be converted to use this.
   - Created xform and xform system to replace transforms.
