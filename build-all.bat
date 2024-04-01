@@ -63,7 +63,7 @@ make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.plugin.ui.
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Testbed lib
-make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed.lib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="-Ikohi.engine\src -Ikohi.plugin.ui.standard\src -Ikohi.plugin.audio.openal\src" ADDL_LINK_FLAGS="-lkohi.engine -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal"
+make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed.klib DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="-Ikohi.engine\src -Ikohi.plugin.ui.standard\src -Ikohi.plugin.audio.openal\src" ADDL_LINK_FLAGS="-lkohi.engine -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal"
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 @REM ---------------------------------------------------
@@ -71,7 +71,7 @@ IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 @REM ---------------------------------------------------
 
 REM Testbed
-make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed.app ADDL_INC_FLAGS=-Ikohi.engine\src ADDL_LINK_FLAGS=-lkohi.engine
+make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed.kapp ADDL_INC_FLAGS=-Ikohi.engine\src ADDL_LINK_FLAGS=-lkohi.engine
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Tests

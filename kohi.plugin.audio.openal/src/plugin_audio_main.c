@@ -5,7 +5,7 @@
 #include <defines.h>
 
 #include "oal_plugin.h"
-#include "plugin_audio_openal_version.h"
+#include "kohi.plugin.audio.openal_version.h"
 
 // Plugin entry point.
 b8 plugin_create(struct audio_plugin* out_plugin) {

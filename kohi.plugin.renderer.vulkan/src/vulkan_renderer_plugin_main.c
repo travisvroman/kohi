@@ -4,7 +4,7 @@
 #include <core/logger.h>
 
 #include "renderer/vulkan/vulkan_backend.h"
-#include "vulkan_renderer_version.h"
+#include "kohi.plugin.renderer.vulkan_version.h"
 
 b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->initialize = vulkan_renderer_backend_initialize;

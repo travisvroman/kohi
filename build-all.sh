@@ -78,7 +78,7 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Testbed Lib
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.lib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="-I./kohi.engine/src -I./kohi.plugin.ui.standard/src -I./kohi.plugin.audio.openal/src" ADDL_LINK_FLAGS="-lkohi.engine -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.klib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="-I./kohi.engine/src -I./kohi.plugin.ui.standard/src -I./kohi.plugin.audio.openal/src" ADDL_LINK_FLAGS="-lkohi.engine -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -90,7 +90,7 @@ fi
 # ---------------------------------------------------
 
 # Testbed
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.app ADDL_INC_FLAGS="-I./kohi.engine/src" ADDL_LINK_FLAGS="-lkohi.engine -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal"
+make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.kapp ADDL_INC_FLAGS="-I./kohi.engine/src" ADDL_LINK_FLAGS="-lkohi.engine -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then

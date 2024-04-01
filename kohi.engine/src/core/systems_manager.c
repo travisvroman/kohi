@@ -24,7 +24,7 @@
 #include "systems/timeline_system.h"
 
 // Version reporting.
-#include "engine_version.h"
+#include "kohi.engine_version.h"
 #include "systems/xform_system.h"
 
 static b8 register_known_systems_pre_boot(systems_manager_state* state, application_config* app_config);

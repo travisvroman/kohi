@@ -68,7 +68,7 @@
 // TODO: end temp
 
 #include "systems/timeline_system.h"
-#include "testbed_lib_version.h"
+#include "testbed.lib_version.h"
 
 /** @brief A private structure used to sort geometry by distance from the camera. */
 typedef struct geometry_distance {

@@ -20,7 +20,7 @@
 #include "core/khandle.h"
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"
-#include "standard_ui_version.h"
+#include "kohi.plugin.ui.standard_version.h"
 #include "systems/font_system.h"
 #include "systems/xform_system.h"
 

@@ -11,7 +11,7 @@ typedef u64 (*PFN_application_state_size)(void);
 
 b8 load_game_lib(application* app) {
     // Dynamically load game library
-    if (!platform_dynamic_library_load("testbed_lib_loaded", &app->game_library)) {
+    if (!platform_dynamic_library_load("testbed.klib_loaded", &app->game_library)) {
         return false;
     }
 
@@ -84,8 +84,8 @@ b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_conte
             const char* extension = platform_dynamic_library_extension();
             char source_file[260];
             char target_file[260];
-            string_format(source_file, "%stestbed_lib%s", prefix, extension);
-            string_format(target_file, "%stestbed_lib_loaded%s", prefix, extension);
+            string_format(source_file, "%stestbed.klib%s", prefix, extension);
+            string_format(target_file, "%stestbed.klib_loaded%s", prefix, extension);
 
             platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
             while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
@@ -123,8 +123,8 @@ b8 create_application(application* out_application) {
         const char* extension = platform_dynamic_library_extension();
         char source_file[260];
         char target_file[260];
-        string_format(source_file, "%stestbed_lib%s", prefix, extension);
-        string_format(target_file, "%stestbed_lib_loaded%s", prefix, extension);
+        string_format(source_file, "%stestbed.klib%s", prefix, extension);
+        string_format(target_file, "%stestbed.klib_loaded%s", prefix, extension);
 
         err_code = platform_copy_file(source_file, target_file, true);
         if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
@@ -144,7 +144,7 @@ b8 create_application(application* out_application) {
     out_application->state = 0;
 
     // Load the Vulkan renderer plugin.
-    if (!platform_dynamic_library_load("vulkan_renderer", &out_application->renderer_library)) {
+    if (!platform_dynamic_library_load("kohi.plugin.renderer.vulkan", &out_application->renderer_library)) {
         return false;
     }
 
@@ -159,7 +159,7 @@ b8 create_application(application* out_application) {
     }
 
     // Load the OpenAL Audio plugin.
-    if (!platform_dynamic_library_load("plugin_audio_openal", &out_application->audio_library)) {
+    if (!platform_dynamic_library_load("kohi.plugin.audio.openal", &out_application->audio_library)) {
         return false;
     }
 
@@ -185,7 +185,7 @@ b8 initialize_application(application* app) {
     const char* extension = platform_dynamic_library_extension();
     char path[260];
     kzero_memory(path, sizeof(char) * 260);
-    string_format(path, "%s%s%s", prefix, "testbed_lib", extension);
+    string_format(path, "%s%s%s", prefix, "testbed.klib", extension);
 
     if (!platform_watch_file(path, &app->game_library.watch_id)) {
         KERROR("Failed to watch the testbed library!");
