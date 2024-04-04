@@ -1,7 +1,7 @@
 #include <containers/darray.h>
-#include <core/event.h>
-#include <core/kmemory.h>
-#include <core/kstring.h>
+#include <event.h>
+#include <kmemory.h>
+#include <kstring.h>
 #include <entry.h>
 #include <platform/platform.h>
 

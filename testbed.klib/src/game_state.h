@@ -8,7 +8,7 @@
 #include <systems/camera_system.h>
 
 #include "audio/audio_types.h"
-#include "core/khandle.h"
+#include "khandle.h"
 #include "editor/editor_gizmo.h"
 #include "graphs/editor_rendergraph.h"
 #include "graphs/standard_ui_rendergraph.h"

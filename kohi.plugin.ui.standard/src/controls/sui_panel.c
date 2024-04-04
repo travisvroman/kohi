@@ -1,7 +1,7 @@
 #include "sui_panel.h"
 
 #include <containers/darray.h>
-#include <core/kstring.h>
+#include <kstring.h>
 #include <core/systems_manager.h>
 #include <math/geometry_utils.h>
 #include <math/kmath.h>

@@ -1,6 +1,6 @@
 #include "vulkan_command_buffer.h"
 
-#include "core/kmemory.h"
+#include "kmemory.h"
 
 void vulkan_command_buffer_allocate(
     vulkan_context* context,

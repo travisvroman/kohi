@@ -6,16 +6,16 @@
 #else
 #include <alloca.h>
 #endif
-#include <core/kmutex.h>
-#include <core/kthread.h>
+#include <kmutex.h>
+#include <kthread.h>
 #include <math/kmath.h>
 #include <platform/platform.h>
 
 #include "audio/audio_types.h"
 #include "containers/darray.h"
-#include "core/kmemory.h"
-#include "core/kstring.h"
-#include "core/logger.h"
+#include "kmemory.h"
+#include "kstring.h"
+#include "logger.h"
 #include "defines.h"
 #include "resources/loaders/audio_loader.h"
 #include "resources/loaders/loader_utils.h"

@@ -1,7 +1,7 @@
 #include "vulkan_renderer_plugin_main.h"
 
-#include <core/kmemory.h>
-#include <core/logger.h>
+#include <kmemory.h>
+#include <logger.h>
 
 #include "renderer/vulkan/vulkan_backend.h"
 #include "kohi.plugin.renderer.vulkan_version.h"

@@ -4,12 +4,12 @@
 #include <vulkan/vulkan_core.h>
 
 #include "containers/darray.h"
-#include "core/asserts.h"
+#include "kassert.h"
 #include "core/event.h"
-#include "core/frame_data.h"
-#include "core/kmemory.h"
-#include "core/kstring.h"
-#include "core/logger.h"
+#include "frame_data.h"
+#include "kmemory.h"
+#include "kstring.h"
+#include "logger.h"
 #include "defines.h"
 #include "math/kmath.h"
 #include "math/math_types.h"

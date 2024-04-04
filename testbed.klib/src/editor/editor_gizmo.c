@@ -8,7 +8,7 @@
 
 #include "editor_gizmo.h"
 
-#include <core/logger.h>
+#include <logger.h>
 #include <defines.h>
 #include <math/geometry_3d.h>
 #include <math/kmath.h>
@@ -16,8 +16,8 @@
 #include <renderer/renderer_frontend.h>
 #include <systems/xform_system.h>
 
-#include "core/khandle.h"
-#include "core/kmemory.h"
+#include "khandle.h"
+#include "kmemory.h"
 #include "math/math_types.h"
 #include "renderer/camera.h"
 

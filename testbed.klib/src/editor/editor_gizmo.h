@@ -4,7 +4,7 @@
 #include <math/math_types.h>
 #include <resources/resource_types.h>
 
-#include "core/khandle.h"
+#include "khandle.h"
 
 #ifdef _DEBUG
 #include <resources/debug/debug_line3d.h>

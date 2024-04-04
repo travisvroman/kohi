@@ -3,9 +3,9 @@
 #include <containers/darray.h>
 #include <vulkan/vulkan_core.h>
 
-#include "core/kmemory.h"
-#include "core/kstring.h"
-#include "core/logger.h"
+#include "kmemory.h"
+#include "kstring.h"
+#include "logger.h"
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"
 #include "renderer/vulkan/vulkan_types.h"

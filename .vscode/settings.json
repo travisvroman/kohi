@@ -112,7 +112,12 @@
         "renderer_types.h": "c",
         "transform.h": "c",
         "windows.h": "c",
-        "light_system.h": "c"
+        "light_system.h": "c",
+        "texture_system.h": "c",
+        "job_system.h": "c",
+        "system_error": "c",
+        "xlocale": "c",
+        "stat.h": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [

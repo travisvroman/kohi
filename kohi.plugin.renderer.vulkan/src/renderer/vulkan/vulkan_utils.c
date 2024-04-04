@@ -1,6 +1,6 @@
 #include "vulkan_utils.h"
 
-#include "core/kmemory.h"
+#include "kmemory.h"
 
 const char* vulkan_result_string(VkResult result, b8 get_extended) {
     // From: https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkResult.html

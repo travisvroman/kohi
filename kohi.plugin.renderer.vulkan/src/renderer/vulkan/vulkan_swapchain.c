@@ -1,8 +1,8 @@
 #include "vulkan_swapchain.h"
 
-#include "core/kmemory.h"
-#include "core/kstring.h"
-#include "core/logger.h"
+#include "kmemory.h"
+#include "kstring.h"
+#include "logger.h"
 #include "systems/texture_system.h"
 #include "vulkan_device.h"
 #include "vulkan_image.h"

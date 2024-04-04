@@ -1,10 +1,10 @@
 #include "sui_label.h"
 
 #include <containers/darray.h>
-#include <core/asserts.h>
-#include <core/kmemory.h>
-#include <core/kstring.h>
-#include <core/logger.h>
+#include <kassert.h>
+#include <kmemory.h>
+#include <kstring.h>
+#include <logger.h>
 #include <math/kmath.h>
 #include <renderer/renderer_frontend.h>
 #include <systems/font_system.h>

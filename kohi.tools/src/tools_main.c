@@ -1,6 +1,6 @@
 #include <containers/darray.h>
-#include <core/kstring.h>
-#include <core/logger.h>
+#include <kstring.h>
+#include <logger.h>
 #include <defines.h>
 
 // For executing shell commands.

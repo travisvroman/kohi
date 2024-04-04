@@ -1,8 +1,8 @@
 #include "vulkan_image.h"
 
-#include "core/kmemory.h"
-#include "core/kstring.h"
-#include "core/logger.h"
+#include "kmemory.h"
+#include "kstring.h"
+#include "logger.h"
 #include "defines.h"
 #include "resources/resource_types.h"
 #include "vulkan/vulkan_core.h"

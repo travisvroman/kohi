@@ -1,7 +1,7 @@
 #include "standard_ui_rendergraph.h"
 
 #include "containers/darray.h"
-#include "core/logger.h"
+#include "logger.h"
 #include "core/systems_manager.h"
 #include "math/kmath.h"
 #include "passes/ui_pass.h"

@@ -1,10 +1,10 @@
 #include "render_view_wireframe.h"
 
 #include <containers/darray.h>
-#include <core/event.h>
-#include <core/frame_data.h>
-#include <core/kmemory.h>
-#include <core/logger.h>
+#include <event.h>
+#include <frame_data.h>
+#include <kmemory.h>
+#include <logger.h>
 #include <defines.h>
 #include <math/kmath.h>
 #include <renderer/camera.h>

@@ -5,9 +5,9 @@
 #include <platform/filesystem.h>
 #include <resources/loaders/loader_utils.h>
 
-#include "core/kmemory.h"
-#include "core/kstring.h"
-#include "core/logger.h"
+#include "kmemory.h"
+#include "kstring.h"
+#include "logger.h"
 #include "defines.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"

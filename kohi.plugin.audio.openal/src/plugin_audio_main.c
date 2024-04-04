@@ -1,7 +1,7 @@
 #include "plugin_audio_main.h"
 
 #include <audio/audio_types.h>
-#include <core/logger.h>
+#include <logger.h>
 #include <defines.h>
 
 #include "oal_plugin.h"

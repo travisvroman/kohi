@@ -1,9 +1,9 @@
 #include "sui_button.h"
 
 #include <containers/darray.h>
-#include <core/kmemory.h>
-#include <core/kstring.h>
-#include <core/logger.h>
+#include <kmemory.h>
+#include <kstring.h>
+#include <logger.h>
 #include <core/systems_manager.h>
 #include <math/kmath.h>
 #include <renderer/renderer_frontend.h>

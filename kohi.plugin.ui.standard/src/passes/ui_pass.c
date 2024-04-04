@@ -1,8 +1,8 @@
 #include "ui_pass.h"
 
 #include "containers/darray.h"
-#include "core/kmemory.h"
-#include "core/logger.h"
+#include "kmemory.h"
+#include "logger.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "renderer/rendergraph.h"

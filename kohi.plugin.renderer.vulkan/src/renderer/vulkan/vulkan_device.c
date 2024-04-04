@@ -1,9 +1,9 @@
 #include "vulkan_device.h"
 
 #include "containers/darray.h"
-#include "core/kmemory.h"
-#include "core/kstring.h"
-#include "core/logger.h"
+#include "kmemory.h"
+#include "kstring.h"
+#include "logger.h"
 #include "renderer/vulkan/vulkan_types.h"
 #include "vulkan/vulkan_core.h"
 #include "vulkan_utils.h"

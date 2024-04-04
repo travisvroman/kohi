@@ -2,13 +2,13 @@
 
 #include <containers/darray.h>
 #include <core/console.h>
-#include <core/event.h>
-#include <core/frame_data.h>
+#include <event.h>
+#include <frame_data.h>
 #include <core/input.h>
 #include <core/kclock.h>
-#include <core/kmemory.h>
-#include <core/kstring.h>
-#include <core/logger.h>
+#include <kmemory.h>
+#include <kstring.h>
+#include <logger.h>
 #include <core/metrics.h>
 #include <math/geometry_2d.h>
 #include <math/geometry_3d.h>
@@ -19,7 +19,7 @@
 #include <resources/terrain.h>
 
 #include "core/engine.h"
-#include "core/khandle.h"
+#include "khandle.h"
 #include "defines.h"
 #include "game_state.h"
 #include "math/math_types.h"
@@ -46,7 +46,7 @@
 #include "editor/editor_gizmo.h"
 
 // TODO: temp
-#include <core/identifier.h>
+#include <identifier.h>
 #include <resources/loaders/audio_loader.h>
 #include <resources/mesh.h>
 #include <resources/scene.h>
@@ -68,7 +68,7 @@
 // TODO: end temp
 
 #include "systems/timeline_system.h"
-#include "testbed.lib_version.h"
+#include "testbed.klib_version.h"
 
 /** @brief A private structure used to sort geometry by distance from the camera. */
 typedef struct geometry_distance {

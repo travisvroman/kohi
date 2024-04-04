@@ -2,10 +2,10 @@
 
 #include <containers/darray.h>
 #include <core/console.h>
-#include <core/event.h>
+#include <event.h>
 #include <core/input.h>
-#include <core/kmemory.h>
-#include <core/kstring.h>
+#include <kmemory.h>
+#include <kstring.h>
 #include <core/systems_manager.h>
 #include <resources/resource_types.h>
 

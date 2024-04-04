@@ -3,11 +3,12 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/engine/src/**",
-                "${workspaceFolder}/vulkan_renderer/src/**",
-                "${workspaceFolder}/standard_ui/src/**",
-                "${workspaceFolder}/testbed_lib/src/**",
-                "${workspaceFolder}/plugin_audio_openal/src/**",
+                "${workspaceFolder}/kohi.core/src/**",
+                "${workspaceFolder}/kohi.runtime/src/**",
+                "${workspaceFolder}/kohi.plugin.renderer.vulkan/src/**",
+                "${workspaceFolder}/kohi.plugin.ui.standard/src/**",
+                "${workspaceFolder}/kohi.plugin.audio.openal/src/**",
+                "${workspaceFolder}/testbed.klib/src/**",
                 "${VULKAN_SDK}/include"
             ],
             "defines": [
@@ -25,11 +26,12 @@
         {
             "name": "Mac",
             "includePath": [
-                "${workspaceFolder}/engine/src/**",
-                "${workspaceFolder}/vulkan_renderer/src/**",
-                "${workspaceFolder}/standard_ui/src/**",
-                "${workspaceFolder}/testbed_lib/src/**",
-                "${workspaceFolder}/plugin_audio_openal/src/**",
+                "${workspaceFolder}/kohi.core/src/**",
+                "${workspaceFolder}/kohi.runtime/src/**",
+                "${workspaceFolder}/kohi.plugin.renderer.vulkan/src/**",
+                "${workspaceFolder}/kohi.plugin.ui.standard/src/**",
+                "${workspaceFolder}/kohi.plugin.audio.openal/src/**",
+                "${workspaceFolder}/testbed.klib/src/**",
                 "${VULKAN_SDK}/include"
             ],
             "defines": [
@@ -46,11 +48,12 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/engine/src/**",
-                "${workspaceFolder}/vulkan_renderer/src/**",
-                "${workspaceFolder}/standard_ui/src/**",
-                "${workspaceFolder}/testbed_lib/src/**",
-                "${workspaceFolder}/plugin_audio_openal/src/**",
+                "${workspaceFolder}/kohi.core/src/**",
+                "${workspaceFolder}/kohi.runtime/src/**",
+                "${workspaceFolder}/kohi.plugin.renderer.vulkan/src/**",
+                "${workspaceFolder}/kohi.plugin.ui.standard/src/**",
+                "${workspaceFolder}/kohi.plugin.audio.openal/src/**",
+                "${workspaceFolder}/testbed.klib/src/**",
                 "${VULKAN_SDK}/include"
             ],
             "defines": [

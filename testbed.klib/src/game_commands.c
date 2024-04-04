@@ -1,6 +1,6 @@
 #include <core/console.h>
 #include <application_types.h>
-#include <core/event.h>
+#include <event.h>
 
 void game_command_exit(console_command_context context) {
     KDEBUG("game exit called!");

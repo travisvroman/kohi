@@ -1,7 +1,7 @@
 #include "editor_rendergraph.h"
 
 #include "containers/darray.h"
-#include "core/logger.h"
+#include "logger.h"
 #include "editor/editor_gizmo.h"
 #include "math/kmath.h"
 #include "passes/editor_pass.h"

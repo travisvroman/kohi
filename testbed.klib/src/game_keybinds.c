@@ -3,20 +3,20 @@
 #include <application_types.h>
 #include <core/console.h>
 #include <core/engine.h>
-#include <core/event.h>
-#include <core/frame_data.h>
+#include <event.h>
+#include <frame_data.h>
 #include <core/input.h>
 #include <core/keymap.h>
-#include <core/kmemory.h>
-#include <core/kstring.h>
+#include <kmemory.h>
+#include <kstring.h>
 #include <core/kvar.h>
-#include <core/logger.h>
+#include <logger.h>
 #include <core/systems_manager.h>
 #include <defines.h>
 #include <renderer/renderer_frontend.h>
 #include <systems/timeline_system.h>
 
-#include "core/khandle.h"
+#include "khandle.h"
 #include "debug_console.h"
 #include "game_state.h"
 #include "renderer/renderer_types.h"

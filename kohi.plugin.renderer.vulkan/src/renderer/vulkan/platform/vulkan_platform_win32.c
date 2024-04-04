@@ -9,8 +9,8 @@
 
 #include <containers/darray.h>
 #include <platform/platform.h>
-#include <core/kmemory.h>
-#include <core/logger.h>
+#include <kmemory.h>
+#include <logger.h>
 
 #include "renderer/vulkan/vulkan_types.h"
 #include "renderer/vulkan/platform/vulkan_platform.h"

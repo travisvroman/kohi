@@ -1,12 +1,12 @@
 #include "standard_ui_system.h"
 
 #include <containers/darray.h>
-#include <core/event.h>
-#include <core/identifier.h>
+#include <event.h>
+#include <identifier.h>
 #include <core/input.h>
-#include <core/kmemory.h>
-#include <core/kstring.h>
-#include <core/logger.h>
+#include <kmemory.h>
+#include <kstring.h>
+#include <logger.h>
 #include <core/systems_manager.h>
 #include <defines.h>
 #include <math/geometry_utils.h>
@@ -17,7 +17,7 @@
 #include <systems/shader_system.h>
 #include <systems/texture_system.h>
 
-#include "core/khandle.h"
+#include "khandle.h"
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"
 #include "kohi.plugin.ui.standard_version.h"
