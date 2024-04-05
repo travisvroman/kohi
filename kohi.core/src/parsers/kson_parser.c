@@ -2,9 +2,9 @@
 
 #include "containers/darray.h"
 #include "containers/stack.h"
-#include "kassert.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "debug/kassert.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
 
 b8 kson_parser_create(kson_parser* out_parser) {

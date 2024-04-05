@@ -1,8 +1,8 @@
 #include <containers/darray.h>
+#include <entry.h>
 #include <event.h>
 #include <kmemory.h>
 #include <kstring.h>
-#include <entry.h>
 #include <platform/platform.h>
 
 typedef b8 (*PFN_renderer_plugin_create)(renderer_plugin* out_plugin);
@@ -143,7 +143,39 @@ b8 create_application(application* out_application) {
     out_application->engine_state = 0;
     out_application->state = 0;
 
-    // Load the Vulkan renderer plugin.
+    /*
+     * app_name = "Testbed"
+     * windows = [
+     *   {
+     *      resolution="1280 720"
+     *      position="100 100"
+     *      name="main_window"
+     *      title="Testbed Main Window"
+     *   }
+     * ]
+     * systems = [
+     *  {
+     *     name="plugin_system"
+     *     plugins = [
+     *       {
+     *         name = "kohi.plugin.renderer.vulkan"
+     *         config = {
+     *           ...
+     *         }
+     *       },
+     *       {
+     *         name = "kohi.plugin.audio.openal"
+     *         config = {
+     *           ...
+     *         }
+     *       }
+     *     ]
+     *   }
+     * ]
+     *
+     */
+
+    /* // Load the Vulkan renderer plugin.
     if (!platform_dynamic_library_load("kohi.plugin.renderer.vulkan", &out_application->renderer_library)) {
         return false;
     }
@@ -171,7 +203,7 @@ b8 create_application(application* out_application) {
     PFN_audio_plugin_create audio_plugin_create = out_application->audio_library.functions[0].pfn;
     if (!audio_plugin_create(&out_application->audio_plugin)) {
         return false;
-    }
+    } */
 
     return true;
 }

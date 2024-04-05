@@ -1,6 +1,6 @@
 #include "ring_queue.h"
 
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "logger.h"
 
 b8 ring_queue_create(u32 stride, u32 capacity, void* memory, ring_queue* out_queue) {

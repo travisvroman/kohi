@@ -263,6 +263,7 @@ KAPI renderbuffer* renderer_renderbuffer_get(renderbuffer_type type);
  * @param indices The index array.
  * @return True on success; otherwise false.
  */
+KDEPRECATED("The renderer frontend geometry functions will be removed in a future pass. Upload directly to renderbuffers instead.")
 KAPI b8 renderer_geometry_create(struct geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
 
 /**
@@ -271,6 +272,7 @@ KAPI b8 renderer_geometry_create(struct geometry* geometry, u32 vertex_size, u32
  * @param geometry A pointer to the geometry to upload.
  * @return True on success; otherwise false.
  */
+KDEPRECATED("The renderer frontend geometry functions will be removed in a future pass. Upload directly to renderbuffers instead.")
 KAPI b8 renderer_geometry_upload(struct geometry* geometry);
 
 /**
@@ -281,6 +283,7 @@ KAPI b8 renderer_geometry_upload(struct geometry* geometry);
  * @param vertex_count The number of vertices which will be updated.
  * @param vertices The vertex data.
  */
+KDEPRECATED("The renderer frontend geometry functions will be removed in a future pass. Upload directly to renderbuffers instead.")
 KAPI void renderer_geometry_vertex_update(struct geometry* g, u32 offset, u32 vertex_count, void* vertices, b8 include_in_frame_workload);
 
 /**
@@ -288,6 +291,7 @@ KAPI void renderer_geometry_vertex_update(struct geometry* g, u32 offset, u32 ve
  *
  * @param geometry A pointer to the geometry to be destroyed.
  */
+KDEPRECATED("The renderer frontend geometry functions will be removed in a future pass. Upload directly to renderbuffers instead.")
 KAPI void renderer_geometry_destroy(struct geometry* geometry);
 
 /**
@@ -295,6 +299,7 @@ KAPI void renderer_geometry_destroy(struct geometry* geometry);
  *
  * @param data The render data of the geometry to be drawn.
  */
+KDEPRECATED("The renderer frontend geometry functions will be removed in a future pass. Upload directly to renderbuffers instead.")
 KAPI void renderer_geometry_draw(geometry_render_data* data);
 
 /**

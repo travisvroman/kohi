@@ -5,8 +5,8 @@
 #include <platform/filesystem.h>
 #include <resources/loaders/loader_utils.h>
 
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
 #include "defines.h"
 #include "resources/resource_types.h"

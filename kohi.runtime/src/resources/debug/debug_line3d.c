@@ -1,8 +1,8 @@
 #include "debug_line3d.h"
 
-#include "identifier.h"
-#include "khandle.h"
-#include "kmemory.h"
+#include "identifiers/identifier.h"
+#include "identifiers/khandle.h"
+#include "memory/kmemory.h"
 #include "math/kmath.h"
 #include "renderer/renderer_frontend.h"
 #include "systems/xform_system.h"

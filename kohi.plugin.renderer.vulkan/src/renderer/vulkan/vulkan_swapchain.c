@@ -1,7 +1,7 @@
 #include "vulkan_swapchain.h"
 
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
 #include "systems/texture_system.h"
 #include "vulkan_device.h"

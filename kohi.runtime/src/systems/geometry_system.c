@@ -1,9 +1,9 @@
 #include "geometry_system.h"
 
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
-#include "math/geometry_utils.h"
+#include "math/geometry.h"
 #include "renderer/renderer_frontend.h"
 #include "systems/material_system.h"
 
@@ -217,10 +217,10 @@ static b8 create_default_geometries(geometry_system_state* state) {
 
     const f32 f = 10.0f;
 
-    verts[0].position.x = -0.5 * f;  // 0    3
-    verts[0].position.y = -0.5 * f;  //
-    verts[0].texcoord.x = 0.0f;      //
-    verts[0].texcoord.y = 0.0f;      // 2    1
+    verts[0].position.x = -0.5 * f; // 0    3
+    verts[0].position.y = -0.5 * f; //
+    verts[0].texcoord.x = 0.0f;     //
+    verts[0].texcoord.y = 0.0f;     // 2    1
 
     verts[1].position.y = 0.5 * f;
     verts[1].position.x = 0.5 * f;
@@ -284,10 +284,10 @@ geometry_config geometry_system_generate_plane_config(f32 width, f32 height, u32
 
     geometry_config config;
     config.vertex_size = sizeof(vertex_3d);
-    config.vertex_count = x_segment_count * y_segment_count * 4;  // 4 verts per segment
+    config.vertex_count = x_segment_count * y_segment_count * 4; // 4 verts per segment
     config.vertices = kallocate(sizeof(vertex_3d) * config.vertex_count, MEMORY_TAG_ARRAY);
     config.index_size = sizeof(u32);
-    config.index_count = x_segment_count * y_segment_count * 6;  // 6 indices per segment
+    config.index_count = x_segment_count * y_segment_count * 6; // 6 indices per segment
     config.indices = kallocate(sizeof(u32) * config.index_count, MEMORY_TAG_ARRAY);
 
     // TODO: This generates extra vertices, but we can always deduplicate them later.
@@ -383,10 +383,10 @@ geometry_config geometry_system_generate_cube_config(f32 width, f32 height, f32 
 
     geometry_config config;
     config.vertex_size = sizeof(vertex_3d);
-    config.vertex_count = 4 * 6;  // 4 verts per side, 6 sides
+    config.vertex_count = 4 * 6; // 4 verts per side, 6 sides
     config.vertices = kallocate(sizeof(vertex_3d) * config.vertex_count, MEMORY_TAG_ARRAY);
     config.index_size = sizeof(u32);
-    config.index_count = 6 * 6;  // 6 indices per side, 6 sides
+    config.index_count = 6 * 6; // 6 indices per side, 6 sides
     config.indices = kallocate(sizeof(u32) * config.index_count, MEMORY_TAG_ARRAY);
 
     f32 half_width = width * 0.5f;

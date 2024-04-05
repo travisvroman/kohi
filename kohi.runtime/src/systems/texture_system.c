@@ -1,16 +1,16 @@
 #include "texture_system.h"
 
 #include "containers/hashtable.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
-#include "core/threadpool.h"
-#include "core/worker_thread.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/loaders/image_loader.h"
 #include "resources/resource_types.h"
 #include "systems/job_system.h"
 #include "systems/resource_system.h"
+#include "threads/threadpool.h"
+#include "threads/worker_thread.h"
 
 typedef struct texture_system_state {
     texture_system_config config;
@@ -112,7 +112,7 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
     // Fill the hashtable with invalid references to use as a default.
     texture_reference invalid_ref;
     invalid_ref.auto_release = false;
-    invalid_ref.handle = INVALID_ID;  // Primary reason for needing default values.
+    invalid_ref.handle = INVALID_ID; // Primary reason for needing default values.
     invalid_ref.reference_count = 0;
     hashtable_fill(&state_ptr->registered_texture_table, &invalid_ref);
 
@@ -542,7 +542,7 @@ static b8 create_default_textures(texture_system_state* state) {
 
     // Normal texture.
     KTRACE("Creating default normal texture...");
-    u8 normal_pixels[16 * 16 * 4];  // w * h * channels
+    u8 normal_pixels[16 * 16 * 4]; // w * h * channels
     kset_memory(normal_pixels, 255, sizeof(u8) * 16 * 16 * 4);
 
     // Each pixel.
@@ -559,7 +559,7 @@ static b8 create_default_textures(texture_system_state* state) {
 
     // Combined texture
     KTRACE("Creating default combined (metallic, roughness, AO) texture...");
-    u8 combined_pixels[16 * 16 * 4];  // w * h * channels
+    u8 combined_pixels[16 * 16 * 4]; // w * h * channels
     kset_memory(combined_pixels, 255, sizeof(u8) * 16 * 16 * 4);
 
     // Each pixel.
@@ -567,9 +567,9 @@ static b8 create_default_textures(texture_system_state* state) {
         for (u64 col = 0; col < 16; ++col) {
             u64 index = (row * 16) + col;
             u64 index_bpp = index * channels;
-            combined_pixels[index_bpp + 0] = 0;    // Default for metallic is black.
-            combined_pixels[index_bpp + 1] = 128;  // Default for roughness is medium grey
-            combined_pixels[index_bpp + 2] = 255;  // Default for AO is white.
+            combined_pixels[index_bpp + 0] = 0;   // Default for metallic is black.
+            combined_pixels[index_bpp + 1] = 128; // Default for roughness is medium grey
+            combined_pixels[index_bpp + 2] = 255; // Default for AO is white.
         }
     }
     create_default_texture(&state->default_combined_texture, combined_pixels, 16, DEFAULT_COMBINED_TEXTURE_NAME);
@@ -788,18 +788,18 @@ static void texture_load_layered_job_fail(void* result_data) {
     texture_load_layered_result* typed_result = result_data;
 
     switch (typed_result->result_code) {
-        case TEXTURE_LOAD_JOB_CODE_RESOURCE_LOAD_FAILED:
-            KERROR("Layered texture load failed to load one or more resources.");
-            break;
-        case TEXTURE_LOAD_JOB_CODE_FIRST_QUERY_FAILED:
-            KERROR("Failed to query properties for first layer image. Unable to create arrayed texture.");
-            break;
-        case TEXTURE_LOAD_JOB_CODE_RESOURCE_DIMENSION_MISMATCH:
-            KERROR("Failed to load the layered image because at least one layer's texture is the wrong size.");
-            break;
-        default:
-            KERROR("Layered texture load failed for an unknown reason.");
-            break;
+    case TEXTURE_LOAD_JOB_CODE_RESOURCE_LOAD_FAILED:
+        KERROR("Layered texture load failed to load one or more resources.");
+        break;
+    case TEXTURE_LOAD_JOB_CODE_FIRST_QUERY_FAILED:
+        KERROR("Failed to query properties for first layer image. Unable to create arrayed texture.");
+        break;
+    case TEXTURE_LOAD_JOB_CODE_RESOURCE_DIMENSION_MISMATCH:
+        KERROR("Failed to load the layered image because at least one layer's texture is the wrong size.");
+        break;
+    default:
+        KERROR("Layered texture load failed for an unknown reason.");
+        break;
     }
 }
 
@@ -1049,33 +1049,33 @@ static b8 create_texture(texture* t, texture_type type, u32 width, u32 height, u
         // KTRACE("Load skipped for texture '%s'. This is expected behaviour.");
     } else {
         switch (t->type) {
-            case TEXTURE_TYPE_CUBE: {
-                char texture_names[6][TEXTURE_NAME_MAX_LENGTH];
+        case TEXTURE_TYPE_CUBE: {
+            char texture_names[6][TEXTURE_NAME_MAX_LENGTH];
 
-                // +X,-X,+Y,-Y,+Z,-Z in _cubemap_ space, which is LH y-down
-                string_format(texture_names[0], "%s_r", t->name);  // Right texture
-                string_format(texture_names[1], "%s_l", t->name);  // Left texture
-                string_format(texture_names[2], "%s_u", t->name);  // Up texture
-                string_format(texture_names[3], "%s_d", t->name);  // Down texture
-                string_format(texture_names[4], "%s_f", t->name);  // Front texture
-                string_format(texture_names[5], "%s_b", t->name);  // Back texture
+            // +X,-X,+Y,-Y,+Z,-Z in _cubemap_ space, which is LH y-down
+            string_format(texture_names[0], "%s_r", t->name); // Right texture
+            string_format(texture_names[1], "%s_l", t->name); // Left texture
+            string_format(texture_names[2], "%s_u", t->name); // Up texture
+            string_format(texture_names[3], "%s_d", t->name); // Down texture
+            string_format(texture_names[4], "%s_f", t->name); // Front texture
+            string_format(texture_names[5], "%s_b", t->name); // Back texture
 
-                if (!load_cube_textures(texture_names, t)) {
-                    KERROR("Failed to load cube texture '%s'.", t->name);
-                    return false;
-                }
-            } break;
-            case TEXTURE_TYPE_2D:
-            case TEXTURE_TYPE_2D_ARRAY: {
-                if (!load_texture(t->name, t, layer_texture_names)) {
-                    KERROR("Failed to load texture '%s'.", t->name);
-                    return false;
-                }
-            } break;
-            default: {
-                KERROR("Unrecognized texture type %u. Cannot process texture reference.", t->type);
+            if (!load_cube_textures(texture_names, t)) {
+                KERROR("Failed to load cube texture '%s'.", t->name);
                 return false;
             }
+        } break;
+        case TEXTURE_TYPE_2D:
+        case TEXTURE_TYPE_2D_ARRAY: {
+            if (!load_texture(t->name, t, layer_texture_names)) {
+                KERROR("Failed to load texture '%s'.", t->name);
+                return false;
+            }
+        } break;
+        default: {
+            KERROR("Unrecognized texture type %u. Cannot process texture reference.", t->type);
+            return false;
+        }
         }
     }
 

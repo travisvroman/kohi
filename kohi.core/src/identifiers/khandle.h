@@ -13,7 +13,7 @@
 #ifndef _K_HANDLE_H_
 #define _K_HANDLE_H_
 
-#include "identifier.h"
+#include "identifiers/identifier.h"
 #include "defines.h"
 
 #define INVALID_K_HANDLE INVALID_ID_U64

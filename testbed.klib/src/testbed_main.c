@@ -2,14 +2,14 @@
 
 #include <containers/darray.h>
 #include <core/console.h>
-#include <event.h>
-#include <frame_data.h>
 #include <core/input.h>
 #include <core/kclock.h>
+#include <core/metrics.h>
+#include <event.h>
+#include <frame_data.h>
 #include <kmemory.h>
 #include <kstring.h>
 #include <logger.h>
-#include <core/metrics.h>
 #include <math/geometry_2d.h>
 #include <math/geometry_3d.h>
 #include <math/kmath.h>
@@ -19,9 +19,9 @@
 #include <resources/terrain.h>
 
 #include "core/engine.h"
-#include "khandle.h"
 #include "defines.h"
 #include "game_state.h"
+#include "identifiers/khandle.h"
 #include "math/math_types.h"
 #include "renderer/viewport.h"
 #include "systems/camera_system.h"
@@ -484,6 +484,7 @@ b8 application_initialize(struct application* game_inst) {
         return false;
     }
 
+    // FIXME: This should be done via a plugin loading interface.
     systems_manager_state* sys_mgr_state = engine_systems_manager_state_get(game_inst);
     standard_ui_system_config standard_ui_cfg = {0};
     standard_ui_cfg.max_control_count = 1024;

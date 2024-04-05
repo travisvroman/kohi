@@ -1,10 +1,10 @@
 #include "vulkan_renderer_plugin_main.h"
 
-#include <kmemory.h>
 #include <logger.h>
+#include <memory/kmemory.h>
 
-#include "renderer/vulkan/vulkan_backend.h"
 #include "kohi.plugin.renderer.vulkan_version.h"
+#include "renderer/vulkan/vulkan_backend.h"
 
 b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->initialize = vulkan_renderer_backend_initialize;

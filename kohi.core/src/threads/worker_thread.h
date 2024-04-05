@@ -1,9 +1,9 @@
 #pragma once
 
 #include "containers/queue.h"
-#include "kmutex.h"
-#include "ksemaphore.h"
-#include "kthread.h"
+#include "threads/kmutex.h"
+#include "threads/ksemaphore.h"
+#include "threads/kthread.h"
 #include "defines.h"
 
 typedef struct worker_thread {

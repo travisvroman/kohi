@@ -1,6 +1,6 @@
 #include "stack.h"
 
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "logger.h"
 
 static void stack_ensure_allocated(stack* s, u32 count) {

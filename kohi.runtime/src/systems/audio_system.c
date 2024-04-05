@@ -1,9 +1,9 @@
 #include "audio_system.h"
 
 #include "audio/audio_types.h"
-#include "logger.h"
-#include "core/systems_manager.h"
+#include "core/engine.h"
 #include "defines.h"
+#include "logger.h"
 
 typedef struct audio_channel {
     f32 volume;
@@ -54,7 +54,7 @@ b8 audio_system_initialize(u64* memory_requirement, void* state, void* config) {
     typed_state->plugin = typed_config->plugin;
 
     audio_plugin_config plugin_config = {0};
-    plugin_config.max_sources = typed_config->audio_channel_count;  // MAX_AUDIO_CHANNELS;
+    plugin_config.max_sources = typed_config->audio_channel_count; // MAX_AUDIO_CHANNELS;
     plugin_config.max_buffers = 256;
     plugin_config.chunk_size = typed_config->chunk_size;
     plugin_config.frequency = typed_config->frequency;
@@ -86,36 +86,36 @@ b8 audio_system_update(void* state, struct frame_data* p_frame_data) {
 }
 
 b8 audio_system_listener_orientation_set(vec3 position, vec3 forward, vec3 up) {
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
     state->plugin.listener_position_set(&state->plugin, position);
     state->plugin.listener_orientation_set(&state->plugin, forward, up);
     return true;
 }
 
 struct audio_file* audio_system_chunk_load(const char* path) {
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
     return state->plugin.chunk_load(&state->plugin, path);
 }
 
 struct audio_file* audio_system_stream_load(const char* path) {
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
     return state->plugin.stream_load(&state->plugin, path);
 }
 
 void audio_system_close(struct audio_file* file) {
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
     state->plugin.audio_unload(&state->plugin, file);
 }
 
 void audio_system_master_volume_query(f32* out_volume) {
     if (out_volume) {
-        audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+        audio_system_state* state = engine_systems_get()->audio_system;
         *out_volume = state->master_volume;
     }
 }
 
 void audio_system_master_volume_set(f32 volume) {
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
     state->master_volume = KCLAMP(volume, 0.0f, 1.0f);
 
     // Now adjust each channel's volume to take this into account.
@@ -133,14 +133,14 @@ b8 audio_system_channel_volume_query(i8 channel_id, f32* out_volume) {
     if (channel_id < 0 || !out_volume) {
         return false;
     }
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
     *out_volume = state->channels[channel_id].volume;
 
     return true;
 }
 
 b8 audio_system_channel_volume_set(i8 channel_id, f32 volume) {
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
     if ((u8)channel_id >= state->config.audio_channel_count) {
         KERROR("Channel id %u is outside the range of available channels. Nothing was done.", channel_id);
         return false;
@@ -162,7 +162,7 @@ b8 audio_system_channel_play(i8 channel_id, struct audio_file* file, b8 loop) {
         return false;
     }
 
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
 
     // If -1 is passed, use the first available channel.
     if (channel_id == -1) {
@@ -208,7 +208,7 @@ b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitte
         return false;
     }
 
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
     // If -1 is passed, use the first available channel.
     if (channel_id == -1) {
         for (u32 i = 0; i < state->config.audio_channel_count; ++i) {
@@ -235,7 +235,7 @@ b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitte
 }
 
 void audio_system_channel_stop(i8 channel_id) {
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
     if (channel_id < 0) {
         // Stop all channels.
         for (u32 i = 0; i < state->config.audio_channel_count; ++i) {
@@ -248,7 +248,7 @@ void audio_system_channel_stop(i8 channel_id) {
 }
 
 void audio_system_channel_pause(i8 channel_id) {
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
     if (channel_id < 0) {
         // Pause all channels.
         for (u32 i = 0; i < state->config.audio_channel_count; ++i) {
@@ -261,7 +261,7 @@ void audio_system_channel_pause(i8 channel_id) {
 }
 
 void audio_system_channel_resume(i8 channel_id) {
-    audio_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_AUDIO);
+    audio_system_state* state = engine_systems_get()->audio_system;
     if (channel_id < 0) {
         // Resume all channels.
         for (u32 i = 0; i < state->config.audio_channel_count; ++i) {

@@ -4,10 +4,10 @@
  * @brief This file contains global type definitions which are used
  * throughout the entire engine and applications referencing it.
  * Numeric types are asserted statically to gurantee expected size.
- * @version 1.0
- * @date 2022-01-10
+ * @version 2.0
+ * @date 2024-04-03
  *
- * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2024
  *
  */
 
@@ -222,6 +222,17 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 
 /** @brief No-inline qualifier */
 #define KNOINLINE
+#endif
+
+// Deprecation
+#if defined(__clang__) || defined(__gcc__)
+/** @brief Mark something (i.e. a function) as deprecated. */
+#define KDEPRECATED(message) __attribute__((deprecated(message)))
+#elif defined(_MSC_VER)
+/** @brief Mark something (i.e. a function) as deprecated. */
+#define KDEPRECATED(message) __declspec(deprecated(message))
+#else
+#error "Unsupported compiler - don't know how to define deprecations!"
 #endif
 
 /** @brief Gets the number of bytes from amount of gibibytes (GiB) (1024*1024*1024) */

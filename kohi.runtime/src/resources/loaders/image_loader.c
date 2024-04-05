@@ -1,7 +1,7 @@
 #include "image_loader.h"
 
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
 #include "loader_utils.h"
 #include "math/kmath.h"

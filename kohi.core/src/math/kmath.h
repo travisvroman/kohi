@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "defines.h"
 #include "math_types.h"
 

@@ -1,7 +1,7 @@
 #include "loader_utils.h"
 
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
 
 b8 resource_unload(struct resource_loader* self, resource* resource, memory_tag tag) {

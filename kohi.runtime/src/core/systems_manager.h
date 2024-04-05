@@ -13,7 +13,7 @@
 #pragma once
 
 #include "defines.h"
-#include "memory/linear_allocator.h"
+#include "memory/allocators/linear_allocator.h"
 
 struct frame_data;
 

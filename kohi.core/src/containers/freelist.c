@@ -1,6 +1,6 @@
 #include "freelist.h"
 
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "logger.h"
 
 typedef struct freelist_node {

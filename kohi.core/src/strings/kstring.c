@@ -1,4 +1,4 @@
-#include "kstring.h"
+#include "strings/kstring.h"
 
 #include <ctype.h> // isspace
 #include <stdarg.h>
@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "containers/darray.h"
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "logger.h"
 #include "math/kmath.h"
 

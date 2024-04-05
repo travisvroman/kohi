@@ -1,6 +1,7 @@
 #include "forward_rendergraph.h"
 
 #include "containers/darray.h"
+#include "core/frame_data.h"
 #include "logger.h"
 #include "math/kmath.h"
 #include "renderer/camera.h"
@@ -210,7 +211,7 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
                 for (u32 i = 0; i < 8; ++i) {
                     center = vec3_add(center, vec3_from_vec4(corners[i]));
                 }
-                center = vec3_div_scalar(center, 8.0f);  // size
+                center = vec3_div_scalar(center, 8.0f); // size
                 if (c == MAX_CASCADE_COUNT - 1) {
                     culling_center = center;
                 }

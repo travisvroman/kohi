@@ -1,10 +1,10 @@
 #include "nine_slice.h"
 
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "logger.h"
-#include "kstring.h"
+#include "strings/kstring.h"
 //
-#include "kassert.h"
+#include "debug/kassert.h"
 
 typedef struct nine_slice_pos_tc {
     f32 tx_min, ty_min, tx_max, ty_max;

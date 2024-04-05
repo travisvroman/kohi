@@ -34,7 +34,7 @@ typedef struct ring_queue {
  * @param out_queue A pointer to hold the newly created queue.
  * @returns True on success; otherwise false.
  */
-b8 ring_queue_create(u32 stride, u32 capacity, void* memory, ring_queue* out_queue);
+KAPI b8 ring_queue_create(u32 stride, u32 capacity, void* memory, ring_queue* out_queue);
 
 /**
  * @brief Destroys the given queue. If memory was not passed in during creation,
@@ -42,7 +42,7 @@ b8 ring_queue_create(u32 stride, u32 capacity, void* memory, ring_queue* out_que
  *
  * @param queue A pointer to the queue to destroy.
  */
-void ring_queue_destroy(ring_queue* queue);
+KAPI void ring_queue_destroy(ring_queue* queue);
 
 /**
  * @brief Adds value to queue, if space is available.
@@ -51,7 +51,7 @@ void ring_queue_destroy(ring_queue* queue);
  * @param value The value to be added.
  * @return True if success; otherwise false.
  */
-b8 ring_queue_enqueue(ring_queue* queue, void* value);
+KAPI b8 ring_queue_enqueue(ring_queue* queue, void* value);
 
 /**
  * @brief Attempts to retrieve the next value from the provided queue.
@@ -60,7 +60,7 @@ b8 ring_queue_enqueue(ring_queue* queue, void* value);
  * @param out_value A pointer to hold the retrieved value.
  * @return True if success; otherwise false.
  */
-b8 ring_queue_dequeue(ring_queue* queue, void* out_value);
+KAPI b8 ring_queue_dequeue(ring_queue* queue, void* out_value);
 
 /**
  * @brief Attempts to retrieve, but not remove, the next value in the queue, if not empty.
@@ -69,4 +69,4 @@ b8 ring_queue_dequeue(ring_queue* queue, void* out_value);
  * @param out_value A pointer to hold the retrieved value.
  * @return True if success; otherwise false.
  */
-b8 ring_queue_peek(const ring_queue* queue, void* out_value);
+KAPI b8 ring_queue_peek(const ring_queue* queue, void* out_value);

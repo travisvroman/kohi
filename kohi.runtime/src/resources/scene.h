@@ -1,8 +1,8 @@
 #pragma once
 
-#include "khandle.h"
 #include "defines.h"
 #include "graphs/hierarchy_graph.h"
+#include "identifiers/khandle.h"
 #include "math/math_types.h"
 #include "resources/debug/debug_grid.h"
 #include "resources/resource_types.h"
@@ -226,3 +226,15 @@ KAPI b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, ve
 KAPI b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
 
 KAPI b8 scene_save(scene* s);
+
+/**
+ * @brief Attempts to parse a xform config (_NOT_ an actual xform) from the provided string.
+ * If the string contains 10 elements, rotation is parsed as quaternion.
+ * If it contains 9 elements, rotation is parsed as euler angles and is
+ * converted to quaternion. Anything else is invalid.
+ *
+ * @param str The string to parse from.
+ * @param out_xform A pointer to the xform to write to.
+ * @return True if parsed successfully, otherwise false.
+ */
+KAPI b8 string_to_scene_xform_config(const char* str, struct scene_xform_config* out_xform);

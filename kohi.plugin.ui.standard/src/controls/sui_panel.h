@@ -2,10 +2,12 @@
 
 #include "../standard_ui_system.h"
 
+struct geometry;
+
 typedef struct sui_panel_internal_data {
     vec4 rect;
     vec4 colour;
-    geometry* g;
+    struct geometry* g;
     u32 instance_id;
     u64 frame_number;
     u8 draw_index;

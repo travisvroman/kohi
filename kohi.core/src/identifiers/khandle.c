@@ -1,6 +1,6 @@
-#include "khandle.h"
+#include "identifiers/khandle.h"
 
-#include "identifier.h"
+#include "identifiers/identifier.h"
 #include "defines.h"
 
 k_handle k_handle_create(u32 handle_index) {

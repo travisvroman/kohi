@@ -2,12 +2,11 @@
 
 #include <containers/darray.h>
 #include <core/console.h>
-#include <event.h>
+#include <core/event.h>
 #include <core/input.h>
-#include <kmemory.h>
-#include <kstring.h>
-#include <core/systems_manager.h>
+#include <memory/kmemory.h>
 #include <resources/resource_types.h>
+#include <strings/kstring.h>
 
 #include "controls/sui_label.h"
 #include "controls/sui_panel.h"
@@ -63,7 +62,7 @@ static b8 debug_console_on_resize(u16 code, void* sender, void* listener_inst, e
 
     return false;
 }
-void debug_console_create(debug_console_state* out_console_state) {
+void debug_console_create(standard_ui_state* sui_state, debug_console_state* out_console_state) {
     if (out_console_state) {
         out_console_state->line_display_count = 10;
         out_console_state->line_offset = 0;
@@ -72,6 +71,7 @@ void debug_console_create(debug_console_state* out_console_state) {
         out_console_state->history = darray_create(command_history_entry);
         out_console_state->history_offset = -1;
         out_console_state->loaded = false;
+        out_console_state->sui_state = sui_state;
 
         // NOTE: update the text based on number of lines to display and
         // the number of lines offset from the bottom. A UI Text object is
@@ -103,16 +103,15 @@ b8 debug_console_load(debug_console_state* state) {
             KERROR("Failed to load background panel.");
         } else {
             /* transform_translate(&state->bg_panel.xform, (vec3){500, 100}); */
-            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
-            if (!standard_ui_system_register_control(sui_state, &state->bg_panel)) {
+            if (!standard_ui_system_register_control(state->sui_state, &state->bg_panel)) {
                 KERROR("Unable to register control.");
             } else {
-                if (!standard_ui_system_control_add_child(sui_state, 0, &state->bg_panel)) {
+                if (!standard_ui_system_control_add_child(state->sui_state, 0, &state->bg_panel)) {
                     KERROR("Failed to parent background panel.");
                 } else {
                     state->bg_panel.is_active = true;
                     state->bg_panel.is_visible = false;
-                    if (!standard_ui_system_update_active(sui_state, &state->bg_panel)) {
+                    if (!standard_ui_system_update_active(state->sui_state, &state->bg_panel)) {
                         KERROR("Unable to update active state.");
                     }
                 }
@@ -128,15 +127,14 @@ b8 debug_console_load(debug_console_state* state) {
         if (!sui_panel_control_load(&state->text_control)) {
             KERROR("Failed to load text control.");
         } else {
-            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
-            if (!standard_ui_system_register_control(sui_state, &state->text_control)) {
+            if (!standard_ui_system_register_control(state->sui_state, &state->text_control)) {
                 KERROR("Unable to register control.");
             } else {
-                if (!standard_ui_system_control_add_child(sui_state, &state->bg_panel, &state->text_control)) {
+                if (!standard_ui_system_control_add_child(state->sui_state, &state->bg_panel, &state->text_control)) {
                     KERROR("Failed to parent background panel.");
                 } else {
                     state->text_control.is_active = true;
-                    if (!standard_ui_system_update_active(sui_state, &state->text_control)) {
+                    if (!standard_ui_system_update_active(state->sui_state, &state->text_control)) {
                         KERROR("Unable to update active state.");
                     }
                 }
@@ -159,15 +157,14 @@ b8 debug_console_load(debug_console_state* state) {
             state->entry_textbox.user_data = state;
             state->entry_textbox.user_data_size = sizeof(debug_console_state*);
             state->entry_textbox.on_key = debug_console_entry_box_on_key;
-            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
-            if (!standard_ui_system_register_control(sui_state, &state->entry_textbox)) {
+            if (!standard_ui_system_register_control(state->sui_state, &state->entry_textbox)) {
                 KERROR("Unable to register control.");
             } else {
-                if (!standard_ui_system_control_add_child(sui_state, &state->bg_panel, &state->entry_textbox)) {
+                if (!standard_ui_system_control_add_child(state->sui_state, &state->bg_panel, &state->entry_textbox)) {
                     KERROR("Failed to parent textbox control to background panel of debug console.");
                 } else {
                     state->entry_textbox.is_active = true;
-                    if (!standard_ui_system_update_active(sui_state, &state->entry_textbox)) {
+                    if (!standard_ui_system_update_active(state->sui_state, &state->entry_textbox)) {
                         KERROR("Unable to update active state.");
                     }
                 }
@@ -290,8 +287,7 @@ void debug_console_visible_set(debug_console_state* state, b8 visible) {
     if (state) {
         state->visible = visible;
         state->bg_panel.is_visible = visible;
-        void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
-        standard_ui_system_focus_control(sui_state, visible ? &state->entry_textbox : 0);
+        standard_ui_system_focus_control(state->sui_state, visible ? &state->entry_textbox : 0);
         input_key_repeats_enable(visible);
     }
 }

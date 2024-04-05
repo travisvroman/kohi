@@ -1,8 +1,8 @@
 #include "bitmap_font_loader.h"
 
 #include "logger.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
 

@@ -1,34 +1,35 @@
 #include "standard_ui_system.h"
 
 #include <containers/darray.h>
-#include <event.h>
-#include <identifier.h>
+#include <core/event.h>
 #include <core/input.h>
-#include <kmemory.h>
-#include <kstring.h>
-#include <logger.h>
 #include <core/systems_manager.h>
 #include <defines.h>
-#include <math/geometry_utils.h>
+#include <identifiers/identifier.h>
+#include <identifiers/khandle.h>
+#include <input_types.h>
+#include <logger.h>
+#include <math/geometry.h>
 #include <math/kmath.h>
+#include <math/math_types.h>
+#include <memory/kmemory.h>
 #include <renderer/renderer_frontend.h>
+#include <renderer/renderer_types.h>
 #include <resources/resource_types.h>
+#include <strings/kstring.h>
+#include <systems/font_system.h>
 #include <systems/geometry_system.h>
 #include <systems/shader_system.h>
 #include <systems/texture_system.h>
+#include <systems/xform_system.h>
 
-#include "khandle.h"
-#include "math/math_types.h"
-#include "renderer/renderer_types.h"
 #include "kohi.plugin.ui.standard_version.h"
-#include "systems/font_system.h"
-#include "systems/xform_system.h"
 
 static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
     standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
 
     sui_mouse_event evt;
-    evt.mouse_button = (buttons)context.data.i16[0];
+    evt.mouse_button = (mouse_buttons)context.data.i16[0];
     evt.x = context.data.i16[1];
     evt.y = context.data.i16[2];
     for (u32 i = 0; i < typed_state->active_control_count; ++i) {
@@ -54,7 +55,7 @@ static b8 standard_ui_system_mouse_up(u16 code, void* sender, void* listener_ins
     standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
 
     sui_mouse_event evt;
-    evt.mouse_button = (buttons)context.data.i16[0];
+    evt.mouse_button = (mouse_buttons)context.data.i16[0];
     evt.x = context.data.i16[1];
     evt.y = context.data.i16[2];
     for (u32 i = 0; i < typed_state->active_control_count; ++i) {
@@ -81,7 +82,7 @@ static b8 standard_ui_system_click(u16 code, void* sender, void* listener_inst, 
     standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
 
     sui_mouse_event evt;
-    evt.mouse_button = (buttons)context.data.i16[0];
+    evt.mouse_button = (mouse_buttons)context.data.i16[0];
     evt.x = context.data.i16[1];
     evt.y = context.data.i16[2];
     for (u32 i = 0; i < typed_state->active_control_count; ++i) {

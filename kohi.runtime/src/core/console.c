@@ -1,12 +1,12 @@
 #include "console.h"
 
-#include "kassert.h"
+#include "debug/kassert.h"
 #include "containers/darray.h"
 #include "containers/stack.h"
-#include "kstring.h"
+#include "strings/kstring.h"
 #include "logger.h"
 #include "defines.h"
-#include "kmemory.h"
+#include "memory/kmemory.h"
 
 typedef struct console_consumer {
     PFN_console_consumer_write callback;

@@ -1,4 +1,3 @@
-
 /**
  * @file standard_ui_system.h
  * @author Travis Vroman (travis@kohiengine.com)
@@ -14,15 +13,12 @@
 
 #include <math/math_types.h>
 
-#include "identifier.h"
-#include "core/input.h"
 #include "defines.h"
+#include "identifiers/identifier.h"
+#include "input_types.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
 #include "systems/xform_system.h"
-
-// FIXME: Need to maintain a list of extension types somewhere and pull from there.
-#define K_SYSTEM_TYPE_STANDARD_UI_EXT 128
 
 struct frame_data;
 
@@ -47,7 +43,7 @@ typedef struct standard_ui_render_data {
 } standard_ui_render_data;
 
 typedef struct sui_mouse_event {
-    buttons mouse_button;
+    mouse_buttons mouse_button;
     i16 x;
     i16 y;
 } sui_mouse_event;

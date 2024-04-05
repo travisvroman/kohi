@@ -1,7 +1,6 @@
 #ifndef _RENDERGRAPH_H_
 #define _RENDERGRAPH_H_
 
-#include "frame_data.h"
 #include "defines.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
@@ -43,7 +42,7 @@ typedef struct rendergraph_pass_data {
     struct viewport* vp;
     mat4 view_matrix;
     mat4 projection_matrix;
-    vec3 view_position;  // TODO: might not need this?
+    vec3 view_position; // TODO: might not need this?
     void* ext_data;
 } rendergraph_pass_data;
 
@@ -99,7 +98,7 @@ KAPI b8 rendergraph_finalize(rendergraph* graph);
 
 KAPI b8 rendergraph_load_resources(rendergraph* graph);
 
-KAPI b8 rendergraph_execute_frame(rendergraph* graph, frame_data* p_frame_data);
+KAPI b8 rendergraph_execute_frame(rendergraph* graph, struct frame_data* p_frame_data);
 
 KAPI b8 rendergraph_on_resize(rendergraph* graph, u16 width, u16 height);
 

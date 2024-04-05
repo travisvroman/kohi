@@ -6,20 +6,22 @@
 #include "application_types.h"
 #include "console.h"
 #include "containers/darray.h"
+#include "containers/registry.h"
 #include "core/event.h"
 #include "core/input.h"
 #include "core/kvar.h"
 #include "core/metrics.h"
 #include "frame_data.h"
-#include "kclock.h"
-#include "khandle.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "identifiers/khandle.h"
+#include "identifiers/uuid.h"
 #include "logger.h"
-#include "memory/linear_allocator.h"
+#include "memory/allocators/linear_allocator.h"
+#include "memory/kmemory.h"
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
-#include "uuid.h"
+#include "strings/kstring.h"
+#include "systems/plugin_system.h"
+#include "time/kclock.h"
 
 // systems
 #include "systems/audio_system.h"
@@ -34,6 +36,8 @@
 #include "systems/texture_system.h"
 #include "systems/timeline_system.h"
 #include "systems/xform_system.h"
+
+struct kwindow;
 
 typedef struct engine_state_t {
     application* game_inst;
@@ -55,64 +59,19 @@ typedef struct engine_state_t {
 
     frame_data p_frame_data;
 
-    u64 platform_memory_requirement;
-    struct platform_state* platform;
-
-    u64 console_memory_requirement;
-    struct console_state* console;
+    // Platform console consumer.
     u8 platform_consumer_id;
-
-    // Log file.
-    file_handle log_file_handle;
+    // Log file console consumer.
     u8 logfile_consumer_id;
+    // Log file handle.
+    file_handle log_file_handle;
 
-    u64 kvar_system_memory_requirement;
-    struct kvar_state* kvar;
+    // Engine system states.
+    engine_system_states systems;
 
-    u64 event_system_memory_requirement;
-    struct event_state* event;
+    // External system state registry.
+    kregistry external_systems_registry;
 
-    u64 input_system_memory_requirement;
-    struct input_state* input;
-
-    u64 timeline_system_memory_requirement;
-    struct timeline_state* timeline;
-
-    u64 resource_system_memory_requirement;
-    struct resource_state* resource;
-
-    u64 shader_system_memory_requirement;
-    struct shader_system_state* shader;
-
-    u64 renderer_system_memory_requirement;
-    struct renderer_system_state* renderer;
-
-    u64 job_system_memory_requirement;
-    struct job_system_state* job;
-
-    u64 audio_system_memory_requirement;
-    struct audio_system_state* audio;
-
-    u64 xform_system_memory_requirement;
-    struct xform_system_state* xform_system;
-
-    u64 texture_system_memory_requirement;
-    struct texture_system_state* texture_system;
-
-    u64 font_system_memory_requirement;
-    struct font_system_state* font_system;
-
-    u64 material_system_memory_requirement;
-    struct material_system_state* material_system;
-
-    u64 geometry_system_memory_requirement;
-    struct geometry_system_state* geometry_system;
-
-    u64 light_system_memory_requirement;
-    struct light_system_state* light_system;
-
-    u64 camera_system_memory_requirement;
-    struct camera_system_state* camera_system;
 } engine_state_t;
 
 static engine_state_t* engine_state;
@@ -142,8 +101,8 @@ static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_con
 static b8 engine_on_resized(u16 code, void* sender, void* listener_inst, event_context context);
 static void engine_on_filewatcher_file_deleted(u32 watcher_id);
 static void engine_on_filewatcher_file_written(u32 watcher_id);
-static void engine_on_window_closed(const struct k_window* window);
-static void engine_on_window_resized(const struct k_window* window, u16 width, u16 height);
+static void engine_on_window_closed(const struct kwindow* window);
+static void engine_on_window_resized(const struct kwindow* window, u16 width, u16 height);
 static void engine_on_process_key(keys key, b8 pressed);
 static void engine_on_process_mouse_button(mouse_buttons button, b8 pressed);
 static void engine_on_process_mouse_move(i16 x, i16 y);
@@ -181,22 +140,24 @@ b8 engine_create(application* game_inst) {
     engine_state->resizing = false;
     engine_state->frames_since_resize = 0;
 
+    // Setup a registry for external systems to register themselves to.
+    kregistry_create(&engine_state->external_systems_registry);
+
+    // TODO: Handle plugins more gracefully.
     game_inst->app_config.renderer_plugin = game_inst->render_plugin;
     game_inst->app_config.audio_plugin = game_inst->audio_plugin;
 
-    // TODO: Reworking the systems manager to be single-phase. This means _all_ systems should be initialized
-    // and ready before game boot. Any systems requiring game config for boot (i.e. renderer) should probably
-    // be refactored or have a separate "post-boot" interface entry point.
+    // Engine systems
+    engine_system_states* systems = &engine_state->systems;
 
-    // Thinking this order should be something of the following:
-    // Platform initialization first (NOTE: NOT window creation - that should happen much later).
+    // Platform initialization first. NOTE: NOT window creation - that should happen much later.
     {
         platform_system_config plat_config = {0};
         plat_config.application_name = game_inst->app_config.name;
-        engine_state->platform_memory_requirement = 0;
-        platform_system_startup(&engine_state->platform_memory_requirement, 0, &plat_config);
-        engine_state->platform = kallocate(engine_state->platform_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!platform_system_startup(&engine_state->platform_memory_requirement, engine_state->platform, &plat_config)) {
+        systems->platform_memory_requirement = 0;
+        platform_system_startup(&systems->platform_memory_requirement, 0, &plat_config);
+        systems->platform_system = kallocate(systems->platform_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!platform_system_startup(&systems->platform_memory_requirement, systems->platform_system, &plat_config)) {
             KERROR("Failed to initialize platform layer.");
             return false;
         }
@@ -204,19 +165,20 @@ b8 engine_create(application* game_inst) {
 
     // Console system
     {
-        console_initialize(&engine_state->console_memory_requirement, 0, 0);
-        engine_state->console = kallocate(engine_state->console_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!console_initialize(&engine_state->console_memory_requirement, engine_state->console, 0)) {
+        console_initialize(&systems->console_memory_requirement, 0, 0);
+        systems->console_system = kallocate(systems->console_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!console_initialize(&systems->console_memory_requirement, systems->console_system, 0)) {
             KERROR("Failed to initialize console.");
             return false;
         }
 
         // Platform should then register as a console consumer.
-        console_consumer_register(engine_state->platform, engine_platform_console_write, &engine_state->platform_consumer_id);
+        console_consumer_register(systems->platform_system, engine_platform_console_write, &engine_state->platform_consumer_id);
         // Setup the engine as another console consumer, which now owns the "console.log" file.
         // Create new/wipe existing log file, then open it.
-        if (!filesystem_open("console.log", FILE_MODE_WRITE, false, &engine_state->log_file_handle)) {
-            KFATAL("Unable to open console.log for writing.");
+        const char* log_filename = "console.log";
+        if (!filesystem_open(log_filename, FILE_MODE_WRITE, false, &engine_state->log_file_handle)) {
+            KFATAL("Unable to open '%s' for writing.", log_filename);
             return false;
         }
         console_consumer_register(engine_state, engine_log_file_write, &engine_state->logfile_consumer_id);
@@ -230,11 +192,37 @@ b8 engine_create(application* game_inst) {
 #endif
     KINFO("Kohi Runtime v. %s (%s)", KVERSION, build_type);
 
+    // Plugin system
+    {
+        // TODO: Parse plugin system config from app config. (see entry.c)
+        plugin_system_config plugin_sys_config = {0};
+        plugin_sys_config.plugins = darray_create(plugin_system_plugin_config);
+        // renderer plugin
+        plugin_system_plugin_config renderer_plugin_config = {0};
+        renderer_plugin_config.name = "kohi.plugin.renderer.vulkan";
+        darray_push(plugin_sys_config.plugins, renderer_plugin_config);
+        // audio plugin
+        plugin_system_plugin_config audio_plugin_config = {0};
+        audio_plugin_config.name = "kohi.plugin.audio.openal";
+        darray_push(plugin_sys_config.plugins, audio_plugin_config);
+        // standard ui plugin
+        plugin_system_plugin_config ui_plugin_config = {0};
+        ui_plugin_config.name = "kohi.plugin.ui.standard";
+        darray_push(plugin_sys_config.plugins, ui_plugin_config);
+
+        plugin_system_intialize(&systems->plugin_system_memory_requirement, 0, &plugin_sys_config);
+        systems->plugin_system = kallocate(systems->plugin_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!plugin_system_intialize(&systems->plugin_system_memory_requirement, systems->plugin_system, &plugin_sys_config)) {
+            KERROR("Failed to initialize plugin system.");
+            return false;
+        }
+    }
+
     // KVar system
     {
-        kvar_system_initialize(&engine_state->kvar_system_memory_requirement, 0, 0);
-        engine_state->kvar = kallocate(engine_state->kvar_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!kvar_system_initialize(&engine_state->kvar_system_memory_requirement, engine_state->kvar, 0)) {
+        kvar_system_initialize(&systems->kvar_system_memory_requirement, 0, 0);
+        systems->kvar_system = kallocate(systems->kvar_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!kvar_system_initialize(&systems->kvar_system_memory_requirement, systems->kvar_system, 0)) {
             KERROR("Failed to initialize KVar system.");
             return false;
         }
@@ -242,9 +230,9 @@ b8 engine_create(application* game_inst) {
 
     // Event system.
     {
-        event_system_initialize(&engine_state->event_system_memory_requirement, 0, 0);
-        engine_state->event = kallocate(engine_state->event_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!event_system_initialize(&engine_state->event_system_memory_requirement, engine_state->event, 0)) {
+        event_system_initialize(&systems->event_system_memory_requirement, 0, 0);
+        systems->event_system = kallocate(systems->event_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!event_system_initialize(&systems->event_system_memory_requirement, systems->event_system, 0)) {
             KERROR("Failed to initialize event system.");
             return false;
         }
@@ -258,9 +246,9 @@ b8 engine_create(application* game_inst) {
 
     // Input system.
     {
-        input_system_initialize(&engine_state->input_system_memory_requirement, 0, 0);
-        engine_state->input = kallocate(engine_state->input_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!input_system_initialize(&engine_state->input_system_memory_requirement, engine_state->input, 0)) {
+        input_system_initialize(&systems->input_system_memory_requirement, 0, 0);
+        systems->input_system = kallocate(systems->input_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!input_system_initialize(&systems->input_system_memory_requirement, systems->input_system, 0)) {
             KERROR("Failed to initialize input system.");
             return false;
         }
@@ -277,9 +265,9 @@ b8 engine_create(application* game_inst) {
         resource_system_config resource_sys_config = {0};
         resource_sys_config.asset_base_path = "../assets"; // TODO: The application should probably configure this.
         resource_sys_config.max_loader_count = 32;
-        resource_system_initialize(&engine_state->resource_system_memory_requirement, 0, &resource_sys_config);
-        engine_state->resource = kallocate(engine_state->resource_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!resource_system_initialize(&engine_state->resource_system_memory_requirement, engine_state->resource, &resource_sys_config)) {
+        resource_system_initialize(&systems->resource_system_memory_requirement, 0, &resource_sys_config);
+        systems->resource_system = kallocate(systems->resource_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!resource_system_initialize(&systems->resource_system_memory_requirement, systems->resource_system, &resource_sys_config)) {
             KERROR("Failed to iniitialize resource system.");
             return false;
         }
@@ -292,9 +280,9 @@ b8 engine_create(application* game_inst) {
         shader_sys_config.max_uniform_count = 128;
         shader_sys_config.max_global_textures = 31;
         shader_sys_config.max_instance_textures = 31;
-        shader_system_initialize(&engine_state->shader_system_memory_requirement, 0, &shader_sys_config);
-        engine_state->shader = kallocate(engine_state->shader_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!shader_system_initialize(&engine_state->shader_system_memory_requirement, engine_state->shader, &shader_sys_config)) {
+        shader_system_initialize(&systems->shader_system_memory_requirement, 0, &shader_sys_config);
+        systems->shader_system = kallocate(systems->shader_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!shader_system_initialize(&systems->shader_system_memory_requirement, systems->shader_system, &shader_sys_config)) {
             KERROR("Failed to initialize shader system.");
             return false;
         }
@@ -305,9 +293,9 @@ b8 engine_create(application* game_inst) {
         renderer_system_config renderer_sys_config = {0};
         renderer_sys_config.application_name = game_inst->app_config.name;
         renderer_sys_config.plugin = game_inst->app_config.renderer_plugin;
-        renderer_system_initialize(&engine_state->renderer_system_memory_requirement, 0, &renderer_sys_config);
-        engine_state->renderer = kallocate(engine_state->renderer_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!renderer_system_initialize(&engine_state->renderer_system_memory_requirement, engine_state->renderer, &renderer_sys_config)) {
+        renderer_system_initialize(&systems->renderer_system_memory_requirement, 0, &renderer_sys_config);
+        systems->renderer_system = kallocate(systems->renderer_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!renderer_system_initialize(&systems->renderer_system_memory_requirement, systems->renderer_system, &renderer_sys_config)) {
             KERROR("Failed to initialize renderer system.");
             return false;
         }
@@ -356,10 +344,10 @@ b8 engine_create(application* game_inst) {
         job_system_config job_sys_config = {0};
         job_sys_config.max_job_thread_count = thread_count;
         job_sys_config.type_masks = job_thread_types;
-        job_system_initialize(&engine_state->job_system_memory_requirement, 0, &job_sys_config);
-        engine_state->job = kallocate(engine_state->job_system_memory_requirement, MEMORY_TAG_ENGINE);
+        job_system_initialize(&systems->job_system_memory_requirement, 0, &job_sys_config);
+        systems->job_system = kallocate(systems->job_system_memory_requirement, MEMORY_TAG_ENGINE);
 
-        if (!job_system_initialize(&engine_state->job_system_memory_requirement, engine_state->job, &job_sys_config)) {
+        if (!job_system_initialize(&systems->job_system_memory_requirement, systems->job_system, &job_sys_config)) {
             KERROR("Failed to initialize job system.");
             return false;
         }
@@ -370,9 +358,9 @@ b8 engine_create(application* game_inst) {
         audio_system_config audio_sys_config = {0};
         audio_sys_config.plugin = game_inst->app_config.audio_plugin;
         audio_sys_config.audio_channel_count = 8;
-        audio_system_initialize(&engine_state->audio_system_memory_requirement, 0, &audio_sys_config);
-        engine_state->audio = kallocate(engine_state->audio_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!audio_system_initialize(&engine_state->audio_system_memory_requirement, engine_state->audio, &audio_sys_config)) {
+        audio_system_initialize(&systems->audio_system_memory_requirement, 0, &audio_sys_config);
+        systems->audio_system = kallocate(systems->audio_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!audio_system_initialize(&systems->audio_system_memory_requirement, systems->audio_system, &audio_sys_config)) {
             KERROR("Failed to initialize audio system.");
             return false;
         }
@@ -382,9 +370,9 @@ b8 engine_create(application* game_inst) {
     {
         xform_system_config xform_sys_config = {0};
         xform_sys_config.initial_slot_count = 128;
-        xform_system_initialize(&engine_state->xform_system_memory_requirement, 0, &xform_sys_config);
-        engine_state->xform_system = kallocate(engine_state->xform_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!xform_system_initialize(&engine_state->xform_system_memory_requirement, engine_state->xform_system, &xform_sys_config)) {
+        xform_system_initialize(&systems->xform_system_memory_requirement, 0, &xform_sys_config);
+        systems->xform_system = kallocate(systems->xform_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!xform_system_initialize(&systems->xform_system_memory_requirement, systems->xform_system, &xform_sys_config)) {
             KERROR("Failed to intialize xform system.");
             return false;
         }
@@ -394,9 +382,9 @@ b8 engine_create(application* game_inst) {
     {
         timeline_system_config timeline_config = {0};
         timeline_config.dummy = 1;
-        timeline_system_initialize(&engine_state->timeline_system_memory_requirement, 0, 0);
-        engine_state->timeline = kallocate(engine_state->timeline_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!timeline_system_initialize(&engine_state->timeline_system_memory_requirement, engine_state->timeline, &timeline_config)) {
+        timeline_system_initialize(&systems->timeline_system_memory_requirement, 0, 0);
+        systems->timeline_system = kallocate(systems->timeline_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!timeline_system_initialize(&systems->timeline_system_memory_requirement, systems->timeline_system, &timeline_config)) {
             KERROR("Failed to initialize timeline system.");
             return false;
         }
@@ -406,9 +394,9 @@ b8 engine_create(application* game_inst) {
     {
         texture_system_config texture_sys_config;
         texture_sys_config.max_texture_count = 65536;
-        texture_system_initialize(&engine_state->texture_system_memory_requirement, 0, &texture_sys_config);
-        engine_state->texture_system = kallocate(engine_state->texture_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!texture_system_initialize(&engine_state->texture_system_memory_requirement, engine_state->texture_system, &texture_sys_config)) {
+        texture_system_initialize(&systems->texture_system_memory_requirement, 0, &texture_sys_config);
+        systems->texture_system = kallocate(systems->texture_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!texture_system_initialize(&systems->texture_system_memory_requirement, systems->texture_system, &texture_sys_config)) {
             KERROR("Failed to initialize texture system.");
             return false;
         }
@@ -416,9 +404,9 @@ b8 engine_create(application* game_inst) {
 
     // Font system
     {
-        font_system_initialize(&engine_state->font_system_memory_requirement, 0, 0);
-        engine_state->font_system = kallocate(engine_state->font_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!font_system_initialize(&engine_state->font_system_memory_requirement, engine_state->font_system, 0)) {
+        font_system_initialize(&systems->font_system_memory_requirement, 0, 0);
+        systems->font_system = kallocate(systems->font_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!font_system_initialize(&systems->font_system_memory_requirement, systems->font_system, 0)) {
             KERROR("Failed to initialize font system.");
             return false;
         }
@@ -428,9 +416,9 @@ b8 engine_create(application* game_inst) {
     {
         material_system_config material_sys_config = {0};
         material_sys_config.max_material_count = 4096;
-        material_system_initialize(&engine_state->material_system_memory_requirement, 0, &material_sys_config);
-        engine_state->material_system = kallocate(engine_state->material_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!material_system_initialize(&engine_state->material_system_memory_requirement, engine_state->material_system, &material_sys_config)) {
+        material_system_initialize(&systems->material_system_memory_requirement, 0, &material_sys_config);
+        systems->material_system = kallocate(systems->material_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!material_system_initialize(&systems->material_system_memory_requirement, systems->material_system, &material_sys_config)) {
             KERROR("Failed to initialize material system.");
             return false;
         }
@@ -440,9 +428,9 @@ b8 engine_create(application* game_inst) {
     {
         geometry_system_config geometry_sys_config = {0};
         geometry_sys_config.max_geometry_count = 4096;
-        geometry_system_initialize(&engine_state->geometry_system_memory_requirement, 0, &geometry_sys_config);
-        engine_state->geometry_system = kallocate(engine_state->geometry_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!geometry_system_initialize(&engine_state->geometry_system_memory_requirement, engine_state->geometry_system, &geometry_sys_config)) {
+        geometry_system_initialize(&systems->geometry_system_memory_requirement, 0, &geometry_sys_config);
+        systems->geometry_system = kallocate(systems->geometry_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!geometry_system_initialize(&systems->geometry_system_memory_requirement, systems->geometry_system, &geometry_sys_config)) {
             KERROR("Failed to initialize geometry system.");
             return false;
         }
@@ -450,9 +438,9 @@ b8 engine_create(application* game_inst) {
 
     // Light system
     {
-        light_system_initialize(&engine_state->light_system_memory_requirement, 0, 0);
-        engine_state->light_system = kallocate(engine_state->light_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!light_system_initialize(&engine_state->light_system_memory_requirement, engine_state->light_system, 0)) {
+        light_system_initialize(&systems->light_system_memory_requirement, 0, 0);
+        systems->light_system = kallocate(systems->light_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!light_system_initialize(&systems->light_system_memory_requirement, systems->light_system, 0)) {
             KERROR("Failed to initialize light system.");
             return false;
         }
@@ -462,9 +450,9 @@ b8 engine_create(application* game_inst) {
     {
         camera_system_config camera_sys_config = {0};
         camera_sys_config.max_camera_count = 61;
-        camera_system_initialize(&engine_state->camera_system_memory_requirement, 0, &camera_sys_config);
-        engine_state->camera_system = kallocate(engine_state->camera_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!camera_system_initialize(&engine_state->camera_system_memory_requirement, engine_state->camera_system, &camera_sys_config)) {
+        camera_system_initialize(&systems->camera_system_memory_requirement, 0, &camera_sys_config);
+        systems->camera_system = kallocate(systems->camera_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!camera_system_initialize(&systems->camera_system_memory_requirement, systems->camera_system, &camera_sys_config)) {
             KERROR("Failed to initialize camera system.");
             return false;
         }
@@ -549,7 +537,7 @@ b8 engine_run(application* game_inst) {
             //
             // Update timelines. Note that this is not done by the systems manager
             // because we don't want or have timeline data in the frame_data struct any longer.
-            timeline_system_update(engine_state->timeline, delta);
+            timeline_system_update(engine_state->systems.timeline_system, delta);
 
             // update metrics
             metrics_update(frame_elapsed_time);
@@ -675,24 +663,27 @@ b8 engine_run(application* game_inst) {
 
     // Shut down all systems.
     {
-        camera_system_shutdown(engine_state->camera_system);
-        light_system_shutdown(engine_state->light_system);
-        geometry_system_shutdown(engine_state->geometry_system);
-        material_system_shutdown(engine_state->material_system);
-        font_system_shutdown(engine_state->font_system);
-        texture_system_shutdown(engine_state->texture_system);
-        timeline_system_shutdown(engine_state->timeline);
-        xform_system_shutdown(engine_state->xform_system);
-        audio_system_shutdown(engine_state->audio);
-        job_system_shutdown(engine_state->job);
-        renderer_system_shutdown(engine_state->renderer);
-        shader_system_shutdown(engine_state->shader);
-        resource_system_shutdown(engine_state->resource);
-        input_system_shutdown(engine_state->input);
-        event_system_shutdown(engine_state->event);
-        kvar_system_shutdown(engine_state->kvar);
-        console_shutdown(engine_state->console);
-        platform_system_shutdown(engine_state->platform);
+        // Engine systems
+        engine_system_states* systems = &engine_state->systems;
+
+        camera_system_shutdown(systems->camera_system);
+        light_system_shutdown(systems->light_system);
+        geometry_system_shutdown(systems->geometry_system);
+        material_system_shutdown(systems->material_system);
+        font_system_shutdown(systems->font_system);
+        texture_system_shutdown(systems->texture_system);
+        timeline_system_shutdown(systems->timeline_system);
+        xform_system_shutdown(systems->xform_system);
+        audio_system_shutdown(systems->audio_system);
+        job_system_shutdown(systems->job_system);
+        renderer_system_shutdown(systems->renderer_system);
+        shader_system_shutdown(systems->shader_system);
+        resource_system_shutdown(systems->resource_system);
+        input_system_shutdown(systems->input_system);
+        event_system_shutdown(systems->event_system);
+        kvar_system_shutdown(systems->kvar_system);
+        console_shutdown(systems->console_system);
+        platform_system_shutdown(systems->platform_system);
         memory_system_shutdown();
     }
 
@@ -709,6 +700,21 @@ void engine_on_event_system_initialized(void) {
 
 const struct frame_data* engine_frame_data_get(struct application* game_inst) {
     return &((engine_state_t*)game_inst->engine_state)->p_frame_data;
+}
+
+const engine_system_states* engine_systems_get(void) {
+    return &engine_state->systems;
+}
+
+k_handle engine_external_system_register(u64 system_state_memory_requirement) {
+    // Don't pass a block of memory here since the system should call "get state" next for it.
+    // This keeps memory ownership inside the engine and its registry.
+    return kregistry_add_entry(&engine_state->external_systems_registry, 0, system_state_memory_requirement, true);
+}
+
+void* engine_external_system_state_get(k_handle system_handle) {
+    // Acquire the system state, but without any listener/callback.
+    return kregistry_entry_acquire(&engine_state->external_systems_registry, system_handle, 0, 0);
 }
 
 static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
@@ -770,14 +776,14 @@ static void engine_on_filewatcher_file_written(u32 watcher_id) {
     event_fire(EVENT_CODE_WATCHED_FILE_WRITTEN, 0, context);
 }
 
-static void engine_on_window_closed(const struct k_window* window) {
+static void engine_on_window_closed(const struct kwindow* window) {
     if (window) {
         // TODO: handle window closes independently.
         event_fire(EVENT_CODE_APPLICATION_QUIT, 0, (event_context){});
     }
 }
 
-static void engine_on_window_resized(const struct k_window* window, u16 width, u16 height) {
+static void engine_on_window_resized(const struct kwindow* window, u16 width, u16 height) {
     event_context context;
     context.data.u16[0] = width;
     context.data.u16[1] = height;

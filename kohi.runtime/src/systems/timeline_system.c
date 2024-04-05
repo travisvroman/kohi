@@ -1,10 +1,11 @@
 #include "timeline_system.h"
-#include "kassert.h"
-#include "khandle.h"
-#include "kmemory.h"
-#include "logger.h"
-#include "core/systems_manager.h"
+
+#include "core/engine.h"
+#include "debug/kassert.h"
 #include "defines.h"
+#include "identifiers/khandle.h"
+#include "logger.h"
+#include "memory/kmemory.h"
 
 typedef struct timeline_data {
     /** @brief The time in seconds since the last frame. */
@@ -104,7 +105,7 @@ b8 timeline_system_update(void* state, f32 engine_delta_time) {
 
 k_handle timeline_system_create(f32 scale) {
     k_handle new_handle;
-    timeline_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_TIMELINE);
+    timeline_system_state* state = engine_systems_get()->timeline_system;
     for (u32 i = 0; i < state->entry_count; ++i) {
         if (state->handle_uuids[i] == INVALID_ID_U64) {
             // Found a free slot. Use it.
@@ -143,7 +144,7 @@ void timeline_system_destroy(k_handle timeline) {
     if (k_handle_is_invalid(timeline)) {
         return;
     }
-    timeline_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_TIMELINE);
+    timeline_system_state* state = engine_systems_get()->timeline_system;
     // Check that the passed-in handle is not stale.
     if (state->handle_uuids[timeline.handle_index] != timeline.unique_id.uniqueid) {
         // It's stale, do nothing.
@@ -161,7 +162,7 @@ static timeline_data* timeline_get_at(k_handle timeline) {
         return 0;
     }
 
-    timeline_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_TIMELINE);
+    timeline_system_state* state = engine_systems_get()->timeline_system;
     KASSERT_MSG(timeline.handle_index < state->entry_count, "Provided handle index is out of range.");
 
     // Check that the passed-in handle is not stale.
@@ -210,7 +211,7 @@ f32 timeline_system_delta_get(k_handle timeline) {
 }
 
 k_handle timeline_system_get_engine(void) {
-    timeline_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_TIMELINE);
+    timeline_system_state* state = engine_systems_get()->timeline_system;
     k_handle handle;
     handle.handle_index = 0;
     handle.unique_id.uniqueid = state->handle_uuids[0];
@@ -218,7 +219,7 @@ k_handle timeline_system_get_engine(void) {
 }
 
 k_handle timeline_system_get_game(void) {
-    timeline_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_TIMELINE);
+    timeline_system_state* state = engine_systems_get()->timeline_system;
     k_handle handle;
     handle.handle_index = 1;
     handle.unique_id.uniqueid = state->handle_uuids[1];

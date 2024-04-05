@@ -3,12 +3,12 @@
 #include "containers/darray.h"
 #include "containers/hashtable.h"
 #include "core/event.h"
-#include "frame_data.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "core/frame_data.h"
 #include "core/kvar.h"
-#include "logger.h"
 #include "defines.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
+#include "logger.h"
 #include "math/kmath.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
@@ -229,7 +229,7 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     // Fill the hashtable with invalid references to use as a default.
     material_reference invalid_ref;
     invalid_ref.auto_release = false;
-    invalid_ref.handle = INVALID_ID;  // Primary reason for needing default values.
+    invalid_ref.handle = INVALID_ID; // Primary reason for needing default values.
     invalid_ref.reference_count = 0;
     hashtable_fill(&state_ptr->registered_material_table, &invalid_ref);
 
@@ -298,7 +298,7 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     }
 
     // Add a kvar to track PCF filtering enabled/disabled.
-    kvar_i32_set("use_pcf", 0, 1);  // On by default.
+    kvar_i32_set("use_pcf", 0, 1); // On by default.
     kvar_i32_get("use_pcf", &state_ptr->use_pcf);
 
     event_register(EVENT_CODE_KVAR_CHANGED, 0, material_system_on_event);
@@ -535,7 +535,7 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
         // Setup a configuration to get instance resources for this material.
         shader_instance_resource_config instance_resource_config = {0};
         // Map count for this type is known.
-        instance_resource_config.uniform_config_count = 3;  // NOTE: This includes material maps, shadow maps and irradiance map.
+        instance_resource_config.uniform_config_count = 3; // NOTE: This includes material maps, shadow maps and irradiance map.
         instance_resource_config.uniform_configs = kallocate(sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
 
         // Material textures (single array texture)
@@ -1043,7 +1043,7 @@ static b8 load_material(material_config* config, material* m) {
         // Gather a list of pointers to texture maps;
         // Send it off to the renderer to acquire resources.
         // Map count for this type is known.
-        instance_resource_config.uniform_config_count = 3;  // NOTE: This includes material maps, shadow maps and irradiance map.
+        instance_resource_config.uniform_config_count = 3; // NOTE: This includes material maps, shadow maps and irradiance map.
         instance_resource_config.uniform_configs = kallocate(sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
 
         // Material textures
@@ -1097,43 +1097,43 @@ static b8 load_material(material_config* config, material* m) {
             if (config->properties[i].size > 0) {
                 void* data = 0;
                 switch (config->properties[i].type) {
-                    case SHADER_UNIFORM_TYPE_INT8:
-                        data = &config->properties[i].value_i8;
-                        break;
-                    case SHADER_UNIFORM_TYPE_UINT8:
-                        data = &config->properties[i].value_u8;
-                        break;
-                    case SHADER_UNIFORM_TYPE_INT16:
-                        data = &config->properties[i].value_i16;
-                        break;
-                    case SHADER_UNIFORM_TYPE_UINT16:
-                        data = &config->properties[i].value_u16;
-                        break;
-                    case SHADER_UNIFORM_TYPE_INT32:
-                        data = &config->properties[i].value_i32;
-                        break;
-                    case SHADER_UNIFORM_TYPE_UINT32:
-                        data = &config->properties[i].value_u32;
-                        break;
-                    case SHADER_UNIFORM_TYPE_FLOAT32:
-                        data = &config->properties[i].value_f32;
-                        break;
-                    case SHADER_UNIFORM_TYPE_FLOAT32_2:
-                        data = &config->properties[i].value_v2;
-                        break;
-                    case SHADER_UNIFORM_TYPE_FLOAT32_3:
-                        data = &config->properties[i].value_v3;
-                        break;
-                    case SHADER_UNIFORM_TYPE_FLOAT32_4:
-                        data = &config->properties[i].value_v4;
-                        break;
-                    case SHADER_UNIFORM_TYPE_MATRIX_4:
-                        data = &config->properties[i].value_mat4;
-                        break;
-                    default:
-                        // TODO: custom size?
-                        KWARN("Unable to process shader uniform type %d (index %u) for material '%s'. Skipping.", config->properties[i].type, i, m->name);
-                        continue;
+                case SHADER_UNIFORM_TYPE_INT8:
+                    data = &config->properties[i].value_i8;
+                    break;
+                case SHADER_UNIFORM_TYPE_UINT8:
+                    data = &config->properties[i].value_u8;
+                    break;
+                case SHADER_UNIFORM_TYPE_INT16:
+                    data = &config->properties[i].value_i16;
+                    break;
+                case SHADER_UNIFORM_TYPE_UINT16:
+                    data = &config->properties[i].value_u16;
+                    break;
+                case SHADER_UNIFORM_TYPE_INT32:
+                    data = &config->properties[i].value_i32;
+                    break;
+                case SHADER_UNIFORM_TYPE_UINT32:
+                    data = &config->properties[i].value_u32;
+                    break;
+                case SHADER_UNIFORM_TYPE_FLOAT32:
+                    data = &config->properties[i].value_f32;
+                    break;
+                case SHADER_UNIFORM_TYPE_FLOAT32_2:
+                    data = &config->properties[i].value_v2;
+                    break;
+                case SHADER_UNIFORM_TYPE_FLOAT32_3:
+                    data = &config->properties[i].value_v3;
+                    break;
+                case SHADER_UNIFORM_TYPE_FLOAT32_4:
+                    data = &config->properties[i].value_v4;
+                    break;
+                case SHADER_UNIFORM_TYPE_MATRIX_4:
+                    data = &config->properties[i].value_mat4;
+                    break;
+                default:
+                    // TODO: custom size?
+                    KWARN("Unable to process shader uniform type %d (index %u) for material '%s'. Skipping.", config->properties[i].type, i, m->name);
+                    continue;
                 }
 
                 // Copy the block and move up.
@@ -1241,7 +1241,7 @@ static b8 create_default_pbr_material(material_system_state* state) {
     state->default_pbr_material.property_struct_size = sizeof(material_phong_properties);
     state->default_pbr_material.properties = kallocate(sizeof(material_phong_properties), MEMORY_TAG_MATERIAL_INSTANCE);
     material_phong_properties* properties = (material_phong_properties*)state->default_pbr_material.properties;
-    properties->diffuse_colour = vec4_one();  // white
+    properties->diffuse_colour = vec4_one(); // white
     properties->shininess = 8.0f;
     state->default_pbr_material.maps = darray_reserve(texture_map, PBR_MAP_COUNT);
     darray_length_set(state->default_pbr_material.maps, PBR_MAP_COUNT);
@@ -1269,7 +1269,7 @@ static b8 create_default_pbr_material(material_system_state* state) {
     material* m = &state->default_pbr_material;
     shader_instance_resource_config instance_resource_config = {0};
     // Map count for this type is known.
-    instance_resource_config.uniform_config_count = 3;  // NOTE: This includes material maps, shadow maps and irradiance map.
+    instance_resource_config.uniform_config_count = 3; // NOTE: This includes material maps, shadow maps and irradiance map.
     instance_resource_config.uniform_configs = kallocate(sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
 
     // Material textures
@@ -1327,7 +1327,7 @@ static b8 create_default_terrain_material(material_system_state* state) {
     state->default_terrain_material.properties = kallocate(sizeof(material_terrain_properties), MEMORY_TAG_MATERIAL_INSTANCE);
     material_terrain_properties* properties = (material_terrain_properties*)state->default_terrain_material.properties;
     properties->num_materials = MAX_TERRAIN_MATERIAL_COUNT;
-    properties->materials[0].diffuse_colour = vec4_one();  // white
+    properties->materials[0].diffuse_colour = vec4_one(); // white
     properties->materials[0].shininess = 8.0f;
     state->default_terrain_material.maps = darray_reserve(texture_map, TERRAIN_SAMP_COUNT);
     darray_length_set(state->default_terrain_material.maps, TERRAIN_SAMP_COUNT);
@@ -1351,7 +1351,7 @@ static b8 create_default_terrain_material(material_system_state* state) {
     // Setup a configuration to get instance resources for this material.
     shader_instance_resource_config instance_resource_config = {0};
     // Map count for this type is known.
-    instance_resource_config.uniform_config_count = 3;  // NOTE: This includes material maps, shadow maps and irradiance map.
+    instance_resource_config.uniform_config_count = 3; // NOTE: This includes material maps, shadow maps and irradiance map.
     instance_resource_config.uniform_configs = kallocate(sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
 
     // Material textures

@@ -1,6 +1,6 @@
 #include "core/event.h"
 
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "logger.h"
 #include "containers/darray.h"
 #include "core/engine.h"

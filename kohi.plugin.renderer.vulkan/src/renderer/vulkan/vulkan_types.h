@@ -16,7 +16,7 @@
 
 #include "containers/freelist.h"
 #include "containers/hashtable.h"
-#include "kassert.h"
+#include "debug/kassert.h"
 #include "defines.h"
 #include "renderer/renderer_types.h"
 #include "vulkan/vulkan_core.h"

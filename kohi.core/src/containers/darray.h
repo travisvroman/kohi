@@ -5,9 +5,10 @@
  *
  * @details
  * Memory layout:
- * - u64 capacity = number elements that can be held.
- * - u64 length = number of elements currently contained
- * - u64 stride = size of each element in bytes
+ * - u64 capacity = number elements that can be held. (8 bytes)
+ * - u64 length = number of elements currently contained (8 bytes)
+ * - u64 stride = size of each element in bytes (8 bytes)
+ * - void* allocator (if used, otherwise 0) (8 bytes)
  * - void* elements
  * @version 2.0
  * @date 2023-08-30
@@ -134,11 +135,11 @@ KAPI void darray_destroy(void* array);
 // work just fine, though. Both are GNU extensions.
 
 /**
- * @brief Pops an entry out of the array and places it into dest.
+ * @brief Pops an entry out of the array and places it into dest (if provided).
  * @param array The array to pop from.
- * @param dest A pointer to hold the popped value.
+ * @param dest A pointer to hold the popped value. Optional.
  */
-KAPI void darray_pop(void* array, void* value_ptr);
+KAPI void darray_pop(void* array, void* dest);
 
 /**
  * @brief Inserts a copy of the given value into the supplied array at the given index.
@@ -155,14 +156,14 @@ KAPI void darray_pop(void* array, void* value_ptr);
     }
 
 /**
- * @brief Pops an entry out of the array at the given index and places it into dest.
+ * @brief Pops an entry out of the array at the given index and places it into dest (if provided).
  * Brings in all entries after the popped index in by one.
  * @param array The array to pop from.
  * @param index The index to pop from.
- * @param dest A pointer to hold the popped value.
+ * @param dest A pointer to hold the popped value. Optional.
  * @returns The array block.
  */
-KAPI void* darray_pop_at(void* array, u64 index, void* value_ptr);
+KAPI void* darray_pop_at(void* array, u64 index, void* dest);
 
 /**
  * @brief Clears all entries from the array. Does not release any internally-allocated memory.

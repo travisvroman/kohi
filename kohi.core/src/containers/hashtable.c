@@ -1,6 +1,6 @@
 #include "hashtable.h"
 
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "logger.h"
 
 static u64 hash_name(const char* name, u32 element_count) {

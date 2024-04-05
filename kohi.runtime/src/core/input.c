@@ -4,7 +4,7 @@
 #include "core/event.h"
 #include "frame_data.h"
 #include "core/keymap.h"
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "logger.h"
 
 typedef struct keyboard_state {

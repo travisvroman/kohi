@@ -1,7 +1,7 @@
 #include "debug_grid.h"
 
-#include "identifier.h"
-#include "kstring.h"
+#include "identifiers/identifier.h"
+#include "strings/kstring.h"
 #include "defines.h"
 #include "math/kmath.h"
 #include "renderer/renderer_frontend.h"

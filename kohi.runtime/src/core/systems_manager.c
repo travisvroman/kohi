@@ -1,4 +1,4 @@
-#include "systems_manager.h"
+/*#include "systems_manager.h"
 
 #include "containers/darray.h"
 #include "logger.h"
@@ -8,8 +8,8 @@
 #include "core/engine.h"
 #include "core/event.h"
 #include "core/input.h"
-#include "kmemory.h"
 #include "core/kvar.h"
+#include "memory/kmemory.h"
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
 #include "systems/audio_system.h"
@@ -22,6 +22,7 @@
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
 #include "systems/timeline_system.h"
+
 
 // Version reporting.
 #include "kohi.runtime_version.h"
@@ -368,3 +369,4 @@ static b8 register_known_systems_post_boot(systems_manager_state* state, applica
 
     return true;
 }
+*/

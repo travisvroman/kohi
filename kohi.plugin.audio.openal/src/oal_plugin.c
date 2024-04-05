@@ -2,34 +2,34 @@
 
 #include "defines.h"
 #ifdef KPLATFORM_WINDOWS
-#include <malloc.h>
+#    include <malloc.h>
 #else
-#include <alloca.h>
+#    include <alloca.h>
 #endif
-#include <kmutex.h>
-#include <kthread.h>
 #include <math/kmath.h>
 #include <platform/platform.h>
+#include <threads/kmutex.h>
+#include <threads/kthread.h>
 
 #include "audio/audio_types.h"
 #include "containers/darray.h"
-#include "kmemory.h"
-#include "kstring.h"
-#include "logger.h"
 #include "defines.h"
+#include "logger.h"
+#include "memory/kmemory.h"
 #include "resources/loaders/audio_loader.h"
 #include "resources/loaders/loader_utils.h"
 #include "resources/resource_types.h"
+#include "strings/kstring.h"
 #include "systems/job_system.h"
 #include "systems/resource_system.h"
 
 // OpenAL
 #ifdef KPLATFORM_WINDOWS
-#include <al.h>
-#include <alc.h>
+#    include <al.h>
+#    include <alc.h>
 #else
-#include <AL/al.h>
-#include <AL/alc.h>
+#    include <AL/al.h>
+#    include <AL/alc.h>
 #endif
 // The number of buffers used for streaming music file data.
 #define OAL_PLUGIN_MUSIC_BUFFER_COUNT 2
@@ -62,7 +62,7 @@ typedef struct audio_plugin_source {
     // Worker thread for this source.
     kthread thread;
 
-    kmutex data_mutex;  // everything from here down should be accessed/changed during lock.
+    kmutex data_mutex; // everything from here down should be accessed/changed during lock.
     struct audio_file* current;
     b8 trigger_play;
     b8 trigger_exit;
@@ -614,18 +614,18 @@ b8 oal_plugin_source_looping_set(struct audio_plugin* plugin, u32 source_index, 
 
 static const char* oal_plugin_error_str(ALCenum err) {
     switch (err) {
-        case AL_INVALID_VALUE:
-            return "AL_INVALID_VALUE";
-        case AL_INVALID_NAME:
-            return "AL_INVALID_NAME or ALC_INVALID_DEVICE";
-        case AL_INVALID_OPERATION:
-            return "AL_INVALID_OPERATION";
-        case AL_NO_ERROR:
-            return "AL_NO_ERROR";
-        case AL_OUT_OF_MEMORY:
-            return "AL_OUT_OF_MEMORY or could not find audio device";
-        default:
-            return "Unknown/unhandled error";
+    case AL_INVALID_VALUE:
+        return "AL_INVALID_VALUE";
+    case AL_INVALID_NAME:
+        return "AL_INVALID_NAME or ALC_INVALID_DEVICE";
+    case AL_INVALID_OPERATION:
+        return "AL_INVALID_OPERATION";
+    case AL_NO_ERROR:
+        return "AL_NO_ERROR";
+    case AL_OUT_OF_MEMORY:
+        return "AL_OUT_OF_MEMORY or could not find audio device";
+    default:
+        return "Unknown/unhandled error";
     }
 }
 

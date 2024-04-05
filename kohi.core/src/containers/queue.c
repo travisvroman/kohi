@@ -1,6 +1,6 @@
 #include "queue.h"
 
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "logger.h"
 
 static void queue_ensure_allocated(queue* s, u32 count) {

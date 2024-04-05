@@ -2,11 +2,11 @@
 
 #include "containers/darray.h"
 #include "core/event.h"
-#include "frame_data.h"
-#include "kmemory.h"
-#include "kstring.h"
-#include "logger.h"
+#include "core/frame_data.h"
 #include "defines.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
+#include "logger.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_utils.h"
 #include "resources/resource_types.h"
@@ -163,8 +163,8 @@ b8 shader_system_create(renderpass* pass, const shader_config* config) {
 
     // Create a hashtable to store uniform array indexes. This provides a direct index into the
     // 'uniforms' array stored in the shader for quick lookups by name.
-    u64 element_size = sizeof(u16);  // Indexes are stored as u16s.
-    u64 element_count = 1023;        // This is more uniforms than we will ever need, but a bigger table reduces collision chance.
+    u64 element_size = sizeof(u16); // Indexes are stored as u16s.
+    u64 element_count = 1023;       // This is more uniforms than we will ever need, but a bigger table reduces collision chance.
     out_shader->hashtable_block = kallocate(element_size * element_count, MEMORY_TAG_HASHTABLE);
     hashtable_create(element_size, element_count, out_shader->hashtable_block, false, &out_shader->uniform_lookup);
 
@@ -432,32 +432,32 @@ b8 shader_system_bind_local(void) {
 static b8 internal_attribute_add(shader* shader, const shader_attribute_config* config) {
     u32 size = 0;
     switch (config->type) {
-        case SHADER_ATTRIB_TYPE_INT8:
-        case SHADER_ATTRIB_TYPE_UINT8:
-            size = 1;
-            break;
-        case SHADER_ATTRIB_TYPE_INT16:
-        case SHADER_ATTRIB_TYPE_UINT16:
-            size = 2;
-            break;
-        case SHADER_ATTRIB_TYPE_FLOAT32:
-        case SHADER_ATTRIB_TYPE_INT32:
-        case SHADER_ATTRIB_TYPE_UINT32:
-            size = 4;
-            break;
-        case SHADER_ATTRIB_TYPE_FLOAT32_2:
-            size = 8;
-            break;
-        case SHADER_ATTRIB_TYPE_FLOAT32_3:
-            size = 12;
-            break;
-        case SHADER_ATTRIB_TYPE_FLOAT32_4:
-            size = 16;
-            break;
-        default:
-            KERROR("Unrecognized type %d, defaulting to size of 4. This probably is not what is desired.");
-            size = 4;
-            break;
+    case SHADER_ATTRIB_TYPE_INT8:
+    case SHADER_ATTRIB_TYPE_UINT8:
+        size = 1;
+        break;
+    case SHADER_ATTRIB_TYPE_INT16:
+    case SHADER_ATTRIB_TYPE_UINT16:
+        size = 2;
+        break;
+    case SHADER_ATTRIB_TYPE_FLOAT32:
+    case SHADER_ATTRIB_TYPE_INT32:
+    case SHADER_ATTRIB_TYPE_UINT32:
+        size = 4;
+        break;
+    case SHADER_ATTRIB_TYPE_FLOAT32_2:
+        size = 8;
+        break;
+    case SHADER_ATTRIB_TYPE_FLOAT32_3:
+        size = 12;
+        break;
+    case SHADER_ATTRIB_TYPE_FLOAT32_4:
+        size = 16;
+        break;
+    default:
+        KERROR("Unrecognized type %d, defaulting to size of 4. This probably is not what is desired.");
+        size = 4;
+        break;
     }
 
     shader->attribute_stride += size;
@@ -554,7 +554,7 @@ static b8 internal_uniform_add(shader* shader, const shader_uniform_config* conf
     }
     b8 is_sampler = uniform_type_is_sampler(config->type);
     shader_uniform entry;
-    entry.index = uniform_count;  // Index is saved to the hashtable for lookups.
+    entry.index = uniform_count; // Index is saved to the hashtable for lookups.
     entry.scope = config->scope;
     entry.type = config->type;
     entry.array_length = config->array_length;
@@ -567,7 +567,7 @@ static b8 internal_uniform_add(shader* shader, const shader_uniform_config* conf
     }
 
     if (config->scope == SHADER_SCOPE_LOCAL) {
-        entry.set_index = 2;  // NOTE: set 2 doesn't exist in Vulkan, it's a push constant.
+        entry.set_index = 2; // NOTE: set 2 doesn't exist in Vulkan, it's a push constant.
         entry.offset = shader->local_ubo_size;
         entry.size = config->size;
     } else {

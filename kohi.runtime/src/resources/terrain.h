@@ -1,8 +1,7 @@
 #pragma once
 
-#include "frame_data.h"
-#include "identifier.h"
 #include "defines.h"
+#include "identifiers/identifier.h"
 #include "math/math_types.h"
 #include "resources/resource_types.h"
 
@@ -37,12 +36,12 @@ typedef struct terrain_vertex_data {
 } terrain_vertex_data;
 
 typedef struct terrain_config {
-    char *name;
-    char *resource_name;
+    char* name;
+    char* resource_name;
 } terrain_config;
 
 typedef struct terrain_resource {
-    char *name;
+    char* name;
     u32 chunk_size;
     u32 tile_count_x;
     u32 tile_count_z;
@@ -54,10 +53,10 @@ typedef struct terrain_resource {
     f32 scale_y;
 
     u32 vertex_data_length;
-    terrain_vertex_data *vertex_datas;
+    terrain_vertex_data* vertex_datas;
 
     u32 material_count;
-    char **material_names;
+    char** material_names;
 } terrain_resource;
 
 typedef struct terrain_chunk_lod {
@@ -67,7 +66,7 @@ typedef struct terrain_chunk_lod {
     /** @brief The total index count, including those for side skirts. */
     u32 total_index_count;
     /** @brief The index data. */
-    u32 *indices;
+    u32* indices;
     /** @brief The offset from the beginning of the index buffer. */
     u64 index_buffer_offset;
 } terrain_chunk_lod;
@@ -77,10 +76,10 @@ typedef struct terrain_chunk {
     u16 generation;
     u32 surface_vertex_count;
     u32 total_vertex_count;
-    terrain_vertex *vertices;
+    terrain_vertex* vertices;
     u64 vertex_buffer_offset;
 
-    terrain_chunk_lod *lods;
+    terrain_chunk_lod* lods;
 
     /** @brief The center of the geometry in local coordinates. */
     vec3 center;
@@ -88,7 +87,7 @@ typedef struct terrain_chunk {
     extents_3d extents;
 
     /** @brief A pointer to the material associated with this geometry.. */
-    struct material *material;
+    struct material* material;
 
     u8 current_lod;
 } terrain_chunk;
@@ -105,8 +104,8 @@ typedef struct terrain {
     identifier id;
     u32 generation;
     terrain_state state;
-    char *name;
-    char *resource_name;
+    char* name;
+    char* resource_name;
     u32 tile_count_x;
     u32 tile_count_z;
     // How large each tile is on the x axis.
@@ -119,7 +118,7 @@ typedef struct terrain {
     u32 chunk_size;
 
     u32 vertex_data_length;
-    terrain_vertex_data *vertex_datas;
+    terrain_vertex_data* vertex_datas;
 
     extents_3d extents;
     vec3 origin;
@@ -129,25 +128,25 @@ typedef struct terrain {
     // 0, 1, 2, 3
     // 4, 5, 6, 7
     // 8, 9, ...
-    terrain_chunk *chunks;
+    terrain_chunk* chunks;
 
     u8 lod_count;
 
     u32 material_count;
-    char **material_names;
+    char** material_names;
 } terrain;
 
-KAPI b8 terrain_create(const terrain_config *config, terrain *out_terrain);
-KAPI void terrain_destroy(terrain *t);
+KAPI b8 terrain_create(const terrain_config* config, terrain* out_terrain);
+KAPI void terrain_destroy(terrain* t);
 
-KAPI b8 terrain_initialize(terrain *t);
-KAPI b8 terrain_load(terrain *t);
-KAPI b8 terrain_chunk_load(terrain *t, terrain_chunk *chunk);
-KAPI b8 terrain_unload(terrain *t);
-KAPI b8 terrain_chunk_unload(terrain *t, terrain_chunk *chunk);
+KAPI b8 terrain_initialize(terrain* t);
+KAPI b8 terrain_load(terrain* t);
+KAPI b8 terrain_chunk_load(terrain* t, terrain_chunk* chunk);
+KAPI b8 terrain_unload(terrain* t);
+KAPI b8 terrain_chunk_unload(terrain* t, terrain_chunk* chunk);
 
-KAPI b8 terrain_update(terrain *t);
+KAPI b8 terrain_update(terrain* t);
 
-KAPI void terrain_geometry_generate_normals(u32 vertex_count, struct terrain_vertex *vertices, u32 index_count, u32 *indices);
+KAPI void terrain_geometry_generate_normals(u32 vertex_count, struct terrain_vertex* vertices, u32 index_count, u32* indices);
 
-KAPI void terrain_geometry_generate_tangents(u32 vertex_count, struct terrain_vertex *vertices, u32 index_count, u32 *indices);
+KAPI void terrain_geometry_generate_tangents(u32 vertex_count, struct terrain_vertex* vertices, u32 index_count, u32* indices);

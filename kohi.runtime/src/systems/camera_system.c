@@ -1,7 +1,7 @@
 #include "camera_system.h"
 
 #include "containers/hashtable.h"
-#include "kstring.h"
+#include "strings/kstring.h"
 #include "logger.h"
 #include "renderer/camera.h"
 

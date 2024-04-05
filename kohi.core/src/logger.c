@@ -1,9 +1,9 @@
 #include "logger.h"
-#include "kassert.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "debug/kassert.h"
+#include "memory/kmemory.h"
 #include "platform/filesystem.h"
 #include "platform/platform.h"
+#include "strings/kstring.h"
 
 //
 #include <stdarg.h>
@@ -37,6 +37,11 @@ void _log_output(log_level level, const char* message, ...) {
         console_hook(level, out_message);
     } else {
         platform_console_write(0, level, out_message);
+    }
+
+    // Trigger a "debug break" for fatal errors.
+    if (level == LOG_LEVEL_FATAL) {
+        kdebug_break();
     }
 }
 

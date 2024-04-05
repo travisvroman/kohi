@@ -1,7 +1,7 @@
 #include "filesystem.h"
 
 #include "logger.h"
-#include "kmemory.h"
+#include "memory/kmemory.h"
 
 #include <stdio.h>
 #include <string.h>

@@ -1,12 +1,11 @@
 #include "sui_panel.h"
 
 #include <containers/darray.h>
-#include <kstring.h>
-#include <core/systems_manager.h>
-#include <math/geometry_utils.h>
+#include <math/geometry.h>
 #include <math/kmath.h>
 #include <renderer/renderer_frontend.h>
 #include <resources/resource_types.h>
+#include <strings/kstring.h>
 #include <systems/geometry_system.h>
 #include <systems/shader_system.h>
 

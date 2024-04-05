@@ -1,5 +1,5 @@
 #include "keymap.h"
-#include "kmemory.h"
+#include "memory/kmemory.h"
 
 keymap keymap_create(void) {
     keymap map;

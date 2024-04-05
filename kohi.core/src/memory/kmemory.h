@@ -59,6 +59,7 @@ typedef enum memory_tag {
     MEMORY_TAG_HASHTABLE,
     MEMORY_TAG_UI,
     MEMORY_TAG_AUDIO,
+    MEMORY_TAG_REGISTRY,
 
     MEMORY_TAG_MAX_TAGS
 } memory_tag;
@@ -73,12 +74,12 @@ typedef struct memory_system_configuration {
  * @brief Initializes the memory system.
  * @param config The configuration for this system.
  */
-b8 memory_system_initialize(memory_system_configuration config);
+KAPI b8 memory_system_initialize(memory_system_configuration config);
 
 /**
  * @brief Shuts down the memory system.
  */
-void memory_system_shutdown(void);
+KAPI void memory_system_shutdown(void);
 
 /**
  * @brief Performs a memory allocation from the host of the given size. The allocation

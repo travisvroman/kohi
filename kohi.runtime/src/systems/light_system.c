@@ -1,7 +1,7 @@
 #include "light_system.h"
 
+#include "core/engine.h"
 #include "logger.h"
-#include "core/systems_manager.h"
 
 #define MAX_POINT_LIGHTS 10
 
@@ -30,7 +30,7 @@ b8 light_system_directional_add(directional_light* light) {
     if (!light) {
         return false;
     }
-    light_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_LIGHT);
+    light_system_state* state = engine_systems_get()->light_system;
     state->dir_light = light;
     return true;
 }
@@ -39,7 +39,7 @@ b8 light_system_point_add(point_light* light) {
     if (!light) {
         return false;
     }
-    light_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_LIGHT);
+    light_system_state* state = engine_systems_get()->light_system;
     for (u32 i = 0; i < MAX_POINT_LIGHTS; ++i) {
         if (!state->p_lights[i]) {
             state->p_lights[i] = light;
@@ -56,7 +56,7 @@ b8 light_system_directional_remove(directional_light* light) {
     if (!light) {
         return false;
     }
-    light_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_LIGHT);
+    light_system_state* state = engine_systems_get()->light_system;
     if (state->dir_light == light) {
         state->dir_light = 0;
         return true;
@@ -69,7 +69,7 @@ b8 light_system_point_remove(point_light* light) {
     if (!light) {
         return false;
     }
-    light_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_LIGHT);
+    light_system_state* state = engine_systems_get()->light_system;
     for (u32 i = 0; i < MAX_POINT_LIGHTS; ++i) {
         if (state->p_lights[i] == light) {
             state->p_lights[i] = 0;
@@ -82,12 +82,12 @@ b8 light_system_point_remove(point_light* light) {
 }
 
 directional_light* light_system_directional_light_get(void) {
-    light_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_LIGHT);
+    light_system_state* state = engine_systems_get()->light_system;
     return state->dir_light;
 }
 
 u32 light_system_point_light_count(void) {
-    light_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_LIGHT);
+    light_system_state* state = engine_systems_get()->light_system;
     i32 count = 0;
     for (u32 i = 0; i < MAX_POINT_LIGHTS; ++i) {
         if (state->p_lights[i]) {
@@ -102,7 +102,7 @@ b8 light_system_point_lights_get(point_light* p_lights) {
     if (!p_lights) {
         return false;
     }
-    light_system_state* state = systems_manager_get_state(K_SYSTEM_TYPE_LIGHT);
+    light_system_state* state = engine_systems_get()->light_system;
     for (u32 i = 0, j = 0; i < MAX_POINT_LIGHTS; ++i) {
         if (state->p_lights[i]) {
             p_lights[j] = *(state->p_lights[i]);

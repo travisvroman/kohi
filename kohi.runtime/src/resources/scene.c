@@ -2,17 +2,16 @@
 
 #include "containers/darray.h"
 #include "core/console.h"
-#include "frame_data.h"
-#include "identifier.h"
-#include "khandle.h"
-#include "kmemory.h"
-#include "kstring.h"
-#include "logger.h"
+#include "core/frame_data.h"
 #include "defines.h"
 #include "graphs/hierarchy_graph.h"
+#include "identifiers/identifier.h"
+#include "identifiers/khandle.h"
+#include "logger.h"
 #include "math/geometry_3d.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
+#include "memory/kmemory.h"
 #include "parsers/kson_parser.h"
 #include "platform/filesystem.h"
 #include "renderer/camera.h"
@@ -24,10 +23,14 @@
 #include "resources/resource_types.h"
 #include "resources/skybox.h"
 #include "resources/terrain.h"
+#include "strings/kstring.h"
 #include "systems/light_system.h"
 #include "systems/resource_system.h"
 #include "systems/xform_system.h"
 #include "utils/ksort.h"
+
+// TODO: remove this
+#include <stdio.h> //sscanf
 
 static void scene_actual_unload(scene* scene);
 static void scene_node_metadata_ensure_allocated(scene* s, u64 handle_index);
@@ -1634,6 +1637,52 @@ static b8 scene_serialize_node(const scene* s, const hierarchy_graph_view* view,
 
             darray_push(node->value.o.properties, children_prop);
         }
+    }
+
+    return true;
+}
+
+b8 string_to_scene_xform_config(const char* str, scene_xform_config* out_xform) {
+    if (!str || !out_xform) {
+        return false;
+    }
+
+    kzero_memory(out_xform, sizeof(scene_xform_config));
+    f32 values[7] = {0};
+
+    i32 count = sscanf(
+        str,
+        "%f %f %f %f %f %f %f %f %f %f",
+        &out_xform->position.x, &out_xform->position.y, &out_xform->position.z,
+        &values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6]);
+
+    if (count == 10) {
+        // Treat as quat, load directly.
+        out_xform->rotation.x = values[0];
+        out_xform->rotation.y = values[1];
+        out_xform->rotation.z = values[2];
+        out_xform->rotation.w = values[3];
+
+        // Set scale
+        out_xform->scale.x = values[4];
+        out_xform->scale.y = values[5];
+        out_xform->scale.z = values[6];
+    } else if (count == 9) {
+        quat x_rot = quat_from_axis_angle((vec3){1.0f, 0, 0}, deg_to_rad(values[0]), true);
+        quat y_rot = quat_from_axis_angle((vec3){0, 1.0f, 0}, deg_to_rad(values[1]), true);
+        quat z_rot = quat_from_axis_angle((vec3){0, 0, 1.0f}, deg_to_rad(values[2]), true);
+        out_xform->rotation = quat_mul(x_rot, quat_mul(y_rot, z_rot));
+
+        // Set scale
+        out_xform->scale.x = values[3];
+        out_xform->scale.y = values[4];
+        out_xform->scale.z = values[5];
+    } else {
+        KWARN("Format error: invalid xform provided. Identity transform will be used.");
+        out_xform->position = vec3_zero();
+        out_xform->rotation = quat_identity();
+        out_xform->scale = vec3_one();
+        return false;
     }
 
     return true;

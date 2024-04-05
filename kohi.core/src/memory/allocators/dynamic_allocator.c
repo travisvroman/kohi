@@ -1,7 +1,7 @@
-#include "dynamic_allocator.h"
+#include "memory/allocators/dynamic_allocator.h"
 
-#include "kassert.h"
-#include "kmemory.h"
+#include "debug/kassert.h"
+#include "memory/kmemory.h"
 #include "logger.h"
 #include "containers/freelist.h"
 

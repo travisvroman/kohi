@@ -53,7 +53,7 @@ make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.core DO_VE
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Engine runtime lib
-make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.runtime DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="-Ikohi.core\src" ADDL_LINK_FLAGS="-lkohi.core %ENGINE_LINK%"
+make -f "Makefile.library.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.runtime DO_VERSION=%DO_VERSION% ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="-lkohi.core %ENGINE_LINK%"
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Vulkan Renderer plugin lib

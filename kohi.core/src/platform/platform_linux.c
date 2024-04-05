@@ -28,13 +28,13 @@
 #include <xcb/xcb.h>
 
 #include "containers/darray.h"
-#include "kassert.h"
+#include "debug/kassert.h"
 #include "core/event.h"
 #include "core/input.h"
-#include "kmemory.h"
-#include "kmutex.h"
-#include "kstring.h"
-#include "kthread.h"
+#include "memory/kmemory.h"
+#include "threads/kmutex.h"
+#include "strings/kstring.h"
+#include "threads/kthread.h"
 #include "logger.h"
 
 #if _POSIX_C_SOURCE >= 199309L

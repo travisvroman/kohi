@@ -4,21 +4,21 @@
 #include <vulkan/vulkan_core.h>
 
 #include "containers/darray.h"
-#include "kassert.h"
 #include "core/event.h"
-#include "frame_data.h"
-#include "kmemory.h"
-#include "kstring.h"
-#include "logger.h"
+#include "core/frame_data.h"
+#include "debug/kassert.h"
 #include "defines.h"
+#include "logger.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
+#include "memory/kmemory.h"
 #include "platform/platform.h"
 #include "platform/vulkan_platform.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_utils.h"
 #include "renderer/viewport.h"
 #include "resources/resource_types.h"
+#include "strings/kstring.h"
 #include "systems/material_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
@@ -41,7 +41,7 @@
 
 // NOTE: To disable the custom allocator, comment this out or set to 0.
 #ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
-#define KVULKAN_USE_CUSTOM_ALLOCATOR 1
+#    define KVULKAN_USE_CUSTOM_ALLOCATOR 1
 #endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
@@ -81,10 +81,10 @@ void* vulkan_alloc_allocation(void* user_data, size_t size, size_t alignment,
     }
 
     void* result = kallocate_aligned(size, (u16)alignment, MEMORY_TAG_VULKAN);
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
     KTRACE("Allocated block %p. Size=%llu, Alignment=%llu", result, size,
            alignment);
-#endif
+#    endif
     return result;
 }
 
@@ -98,24 +98,24 @@ void* vulkan_alloc_allocation(void* user_data, size_t size, size_t alignment,
  */
 void vulkan_alloc_free(void* user_data, void* memory) {
     if (!memory) {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Block is null, nothing to free: %p", memory);
-#endif
+#    endif
         return;
     }
 
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
     KTRACE("Attempting to free block %p...", memory);
-#endif
+#    endif
     u64 size;
     u16 alignment;
     b8 result = kmemory_get_size_alignment(memory, &size, &alignment);
     if (result) {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE(
             "Block %p found with size/alignment: %llu/%u. Freeing aligned block...",
             memory, size, alignment);
-#endif
+#    endif
         kfree_aligned(memory, size, alignment, MEMORY_TAG_VULKAN);
     } else {
         KERROR("vulkan_alloc_free failed to get alignment lookup for block %p.",
@@ -169,28 +169,28 @@ void* vulkan_alloc_reallocation(void* user_data, void* original, size_t size,
         return 0;
     }
 
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
     KTRACE("Attempting to realloc block %p...", original);
-#endif
+#    endif
 
     void* result = vulkan_alloc_allocation(user_data, size, alloc_alignment,
                                            allocation_scope);
     if (result) {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Block %p reallocated to %p, copying data...", original, result);
-#endif
+#    endif
 
         // Copy over the original memory.
         kcopy_memory(result, original, alloc_size);
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Freeing original aligned block %p...", original);
-#endif
+#    endif
         // Free the original memory only if the new allocation was successful.
         kfree_aligned(original, alloc_size, alloc_alignment, MEMORY_TAG_VULKAN);
     } else {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
         KERROR("Failed to realloc %p.", original);
-#endif
+#    endif
     }
 
     return result;
@@ -211,9 +211,9 @@ void* vulkan_alloc_reallocation(void* user_data, void* original, size_t size,
 void vulkan_alloc_internal_alloc(void* pUserData, size_t size,
                                  VkInternalAllocationType allocationType,
                                  VkSystemAllocationScope allocationScope) {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
     KTRACE("External allocation of size: %llu", size);
-#endif
+#    endif
     kallocate_report((u64)size, MEMORY_TAG_VULKAN_EXT);
 }
 
@@ -232,9 +232,9 @@ void vulkan_alloc_internal_alloc(void* pUserData, size_t size,
 void vulkan_alloc_internal_free(void* pUserData, size_t size,
                                 VkInternalAllocationType allocationType,
                                 VkSystemAllocationScope allocationScope) {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
     KTRACE("External free of size: %llu", size);
-#endif
+#    endif
     kfree_report((u64)size, MEMORY_TAG_VULKAN_EXT);
 }
 

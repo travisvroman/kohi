@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "defines.h"
 #include "resources/resource_types.h"
 

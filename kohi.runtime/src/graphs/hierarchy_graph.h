@@ -18,7 +18,7 @@
 #ifndef _XFORM_GRAPH_H_
 #define _XFORM_GRAPH_H_
 
-#include "khandle.h"
+#include "identifiers/khandle.h"
 #include "math/math_types.h"
 
 struct frame_data;

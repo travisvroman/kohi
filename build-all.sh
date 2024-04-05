@@ -48,7 +48,7 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Kohi Runtime
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.runtime DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="-I./kohi.core/src" ADDL_LINK_FLAGS="-lkohi.core"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.runtime DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="-lkohi.core"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then

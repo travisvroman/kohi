@@ -3,8 +3,8 @@
 #include <containers/darray.h>
 #include <vulkan/vulkan_core.h>
 
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"

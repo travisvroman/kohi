@@ -1,8 +1,8 @@
 #ifndef _XFORM_SYSTEM_H_
 #define _XFORM_SYSTEM_H_
 
-#include "identifier.h"
-#include "khandle.h"
+#include "identifiers/identifier.h"
+#include "identifiers/khandle.h"
 #include "math/math_types.h"
 
 struct frame_data;
@@ -215,17 +215,5 @@ KAPI mat4 xform_world_get(k_handle t);
  * @return The xform in string format.
  */
 KAPI const char* xform_to_string(k_handle t);
-
-/**
- * @brief Attempts to parse a xform config (_NOT_ an actual xform) from the provided string.
- * If the string contains 10 elements, rotation is parsed as quaternion.
- * If it contains 9 elements, rotation is parsed as euler angles and is
- * converted to quaternion. Anything else is invalid.
- *
- * @param str The string to parse from.
- * @param out_xform A pointer to the xform to write to.
- * @return True if parsed successfully, otherwise false.
- */
-KAPI b8 string_to_xform_config(const char* str, struct scene_xform_config* out_xform);
 
 #endif

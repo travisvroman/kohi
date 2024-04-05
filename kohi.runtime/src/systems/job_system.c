@@ -1,14 +1,14 @@
 #include "job_system.h"
 
 #include "containers/ring_queue.h"
-#include "kassert.h"
-#include "frame_data.h"
-#include "kmemory.h"
-#include "kmutex.h"
-#include "core/ksemaphore.h"
-#include "kthread.h"
-#include "logger.h"
+#include "core/frame_data.h"
 #include "defines.h"
+#include "debug/kassert.h"
+#include "memory/kmemory.h"
+#include "threads/kmutex.h"
+#include "threads/ksemaphore.h"
+#include "threads/kthread.h"
+#include "logger.h"
 
 typedef struct job_thread {
     u8 index;

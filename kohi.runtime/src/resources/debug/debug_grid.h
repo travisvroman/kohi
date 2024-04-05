@@ -1,5 +1,6 @@
-#include "identifier.h"
 #include "defines.h"
+#include "identifiers/identifier.h"
+#include "math/geometry.h"
 #include "math/math_types.h"
 #include "resources/resource_types.h"
 
@@ -20,7 +21,7 @@ typedef enum debug_grid_orientation {
 } debug_grid_orientation;
 
 typedef struct debug_grid_config {
-    char *name;
+    char* name;
     debug_grid_orientation orientation;
     /** @brief The space count in the first dimension of the orientation from both directions outward from origin. */
     u32 tile_count_dim_0;
@@ -35,12 +36,12 @@ typedef struct debug_grid_config {
     /** @brief The total number of vertices. */
     u32 vertex_length;
     /** @brief Generated vertex data. */
-    colour_vertex_3d *vertices;
+    colour_vertex_3d* vertices;
 } debug_grid_config;
 
 typedef struct debug_grid {
     identifier id;
-    char *name;
+    char* name;
     debug_grid_orientation orientation;
     /** @brief The space count in the first dimension of the orientation from both directions outward from origin. */
     u32 tile_count_dim_0;
@@ -56,16 +57,16 @@ typedef struct debug_grid {
     vec3 origin;
 
     u32 vertex_count;
-    colour_vertex_3d *vertices;
+    colour_vertex_3d* vertices;
 
     geometry geo;
 } debug_grid;
 
-KAPI b8 debug_grid_create(const debug_grid_config *config, debug_grid *out_grid);
-KAPI void debug_grid_destroy(debug_grid *grid);
+KAPI b8 debug_grid_create(const debug_grid_config* config, debug_grid* out_grid);
+KAPI void debug_grid_destroy(debug_grid* grid);
 
-KAPI b8 debug_grid_initialize(debug_grid *grid);
-KAPI b8 debug_grid_load(debug_grid *grid);
-KAPI b8 debug_grid_unload(debug_grid *grid);
+KAPI b8 debug_grid_initialize(debug_grid* grid);
+KAPI b8 debug_grid_load(debug_grid* grid);
+KAPI b8 debug_grid_unload(debug_grid* grid);
 
-KAPI b8 debug_grid_update(debug_grid *grid);
+KAPI b8 debug_grid_update(debug_grid* grid);

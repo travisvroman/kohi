@@ -1,8 +1,9 @@
 #pragma once
 
-#include "identifier.h"
-#include "khandle.h"
 #include "defines.h"
+#include "identifiers/identifier.h"
+#include "identifiers/khandle.h"
+#include "math/geometry.h"
 #include "math/math_types.h"
 #include "resources/resource_types.h"
 

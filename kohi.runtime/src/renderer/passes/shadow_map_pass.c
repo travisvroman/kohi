@@ -1,8 +1,8 @@
 #include "shadow_map_pass.h"
 
 #include "containers/darray.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
 #include "defines.h"
 #include "math/math_types.h"

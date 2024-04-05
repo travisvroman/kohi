@@ -1,11 +1,11 @@
 #include "terrain.h"
 
-#include "identifier.h"
-#include "kmemory.h"
-#include "kstring.h"
-#include "logger.h"
 #include "defines.h"
-#include "math/geometry_utils.h"
+#include "identifiers/identifier.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
+#include "logger.h"
+#include "math/geometry.h"
 #include "math/kmath.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
@@ -561,7 +561,7 @@ static void terrain_chunk_calculate_geometry(terrain* t, terrain_chunk* chunk, u
 }
 
 // FIXME: These should be made more generic and be rolled back into geometry utils in core.
-void terrain_geometry_generate_normals(u32 vertex_count, terrain_vertex *vertices, u32 index_count, u32 *indices) {
+void terrain_geometry_generate_normals(u32 vertex_count, terrain_vertex* vertices, u32 index_count, u32* indices) {
     for (u32 i = 0; i < index_count; i += 3) {
         u32 i0 = indices[i + 0];
         u32 i1 = indices[i + 1];
@@ -580,7 +580,7 @@ void terrain_geometry_generate_normals(u32 vertex_count, terrain_vertex *vertice
     }
 }
 
-void terrain_geometry_generate_tangents(u32 vertex_count, terrain_vertex *vertices, u32 index_count, u32 *indices) {
+void terrain_geometry_generate_tangents(u32 vertex_count, terrain_vertex* vertices, u32 index_count, u32* indices) {
     for (u32 i = 0; i < index_count; i += 3) {
         u32 i0 = indices[i + 0];
         u32 i1 = indices[i + 1];

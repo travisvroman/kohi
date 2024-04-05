@@ -1,8 +1,8 @@
 #include "resource_system.h"
 
-#include "kassert.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "debug/kassert.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
 
 // Known resource loaders.

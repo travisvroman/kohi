@@ -5,8 +5,8 @@
 #include "logger.h"
 #include "core/event.h"
 #include "core/input.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 
 #include "containers/darray.h"
 

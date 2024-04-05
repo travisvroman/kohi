@@ -16,7 +16,7 @@
 #include <renderer/renderer_frontend.h>
 #include <systems/timeline_system.h>
 
-#include "khandle.h"
+#include "identifiers/khandle.h"
 #include "debug_console.h"
 #include "game_state.h"
 #include "renderer/renderer_types.h"

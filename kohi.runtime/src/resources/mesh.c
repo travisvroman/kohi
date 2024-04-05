@@ -1,8 +1,8 @@
 #include "mesh.h"
 
-#include "identifier.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "identifiers/identifier.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"

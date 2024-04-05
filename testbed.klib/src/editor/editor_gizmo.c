@@ -16,8 +16,8 @@
 #include <renderer/renderer_frontend.h>
 #include <systems/xform_system.h>
 
-#include "khandle.h"
-#include "kmemory.h"
+#include "identifiers/khandle.h"
+#include "memory/kmemory.h"
 #include "math/math_types.h"
 #include "renderer/camera.h"
 

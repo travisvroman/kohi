@@ -1,7 +1,7 @@
 #include "containers/darray.h"
 
-#include "kmemory.h"
 #include "logger.h"
+#include "memory/kmemory.h"
 
 void* _darray_create(u64 length, u64 stride, frame_allocator_int* allocator) {
     u64 header_size = sizeof(darray_header);
@@ -80,7 +80,9 @@ void _darray_pop(void* array, void* dest) {
     }
     u64 addr = (u64)array;
     addr += ((length - 1) * stride);
-    kcopy_memory(dest, (void*)addr, stride);
+    if (dest) {
+        kcopy_memory(dest, (void*)addr, stride);
+    }
     darray_length_set(array, length - 1);
 }
 
@@ -93,7 +95,9 @@ void* darray_pop_at(void* array, u64 index, void* dest) {
     }
 
     u64 addr = (u64)array;
-    kcopy_memory(dest, (void*)(addr + (index * stride)), stride);
+    if (dest) {
+        kcopy_memory(dest, (void*)(addr + (index * stride)), stride);
+    }
 
     // If not on the last element, snip out the entry and copy the rest inward.
     if (index != length - 1) {

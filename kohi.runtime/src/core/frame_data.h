@@ -1,7 +1,7 @@
 #pragma once
 
 #include "defines.h"
-#include "kmemory.h"
+#include "memory/kmemory.h"
 
 struct linear_allocator;
 

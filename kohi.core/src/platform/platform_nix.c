@@ -33,11 +33,11 @@
 #include <errno.h>  // For error reporting
 
 #include "containers/darray.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
-#include "kthread.h"
-#include "kmutex.h"
+#include "threads/kthread.h"
+#include "threads/kmutex.h"
 
 typedef struct nix_semaphore_internal {
     sem_t *semaphore;

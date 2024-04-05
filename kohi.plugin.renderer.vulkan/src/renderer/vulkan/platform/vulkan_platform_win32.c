@@ -2,36 +2,36 @@
 // Windows platform layer.
 #if KPLATFORM_WINDOWS
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan_win32.h>
+#    define WIN32_LEAN_AND_MEAN
+#    include <Windows.h>
+#    include <vulkan/vulkan.h>
+#    include <vulkan/vulkan_win32.h>
 
-#include <containers/darray.h>
-#include <platform/platform.h>
-#include <kmemory.h>
-#include <logger.h>
+#    include <containers/darray.h>
+#    include <logger.h>
+#    include <memory/kmemory.h>
+#    include <platform/platform.h>
 
-#include "renderer/vulkan/vulkan_types.h"
-#include "renderer/vulkan/platform/vulkan_platform.h"
+#    include "renderer/vulkan/platform/vulkan_platform.h"
+#    include "renderer/vulkan/vulkan_types.h"
 
 typedef struct win32_handle_info {
     HINSTANCE h_instance;
     HWND hwnd;
 } win32_handle_info;
 
-void platform_get_required_extension_names(const char ***names_darray) {
+void platform_get_required_extension_names(const char*** names_darray) {
     darray_push(*names_darray, &"VK_KHR_win32_surface");
 }
 
 // Surface creation for Vulkan
-b8 platform_create_vulkan_surface(vulkan_context *context) {
+b8 platform_create_vulkan_surface(vulkan_context* context) {
     u64 size = 0;
     platform_get_handle_info(&size, 0);
-    void *block = kallocate(size, MEMORY_TAG_RENDERER);
+    void* block = kallocate(size, MEMORY_TAG_RENDERER);
     platform_get_handle_info(&size, block);
 
-    win32_handle_info *handle = (win32_handle_info *)block;
+    win32_handle_info* handle = (win32_handle_info*)block;
 
     if (!handle) {
         return false;

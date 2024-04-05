@@ -36,6 +36,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] queue 
   - [ ] pool 
   - [ ] bst
+  - [x] registry
 - [ ] quadtrees/octrees
 - [x] Threads 
 - [ ] Flag to force single-threaded mode.
@@ -82,7 +83,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Physics System (front-end)
 - [ ] networking
 - [ ] profiling
-- [ ] timeline system
+- [x] timeline system
 - [ ] skeletal animation system
 - [x] skybox
 - [ ] skysphere (i.e dynamic day/night cycles)
@@ -113,6 +114,21 @@ The items in this list are not in any particular order. This list will be update
   - [ ] physics volumes 
   - [ ] weather
 - [ ] Multi-window applications
+- [ ] 0.7 Reorg 
+  - [x] Split engine into "core" and "runtime"
+  - [x] Rename plugin libs to consistent format, update builds, etc.
+  - [ ] Remove systems manager, and move all system init back to engine.
+  - [ ] External systems registry
+  - [ ] Plugin System implementation
+    - [ ] kruntime_plugin structure
+    - [ ] Convert Vulkan Plugin to kruntime_plugin
+    - [ ] Convert OpenAL Plugin to kruntime_plugin
+    - [ ] Convert Standard UI Plugin to kruntime_plugin
+  - [ ] Implement windowing logic in platform layer.
+  - [ ] Implement windowing logic in renderer front/backend 
+  - [x] Ability to deprecate code (mark as deprecated/warn).
+  - [x] Deprecate "geometry" interface points in renderer frontend/
+  - [ ] Move loading of application lib from app to engine (config-powered!)
 - [ ] 0.7 Scene refactor (see notes below):
   - [x] Rename simple scene to just "scene" and move to engine core.
   - [x] Create a unique-per-system handle for each system to identify a resource. These handles would be linked to 
@@ -124,13 +140,6 @@ The items in this list are not in any particular order. This list will be update
   - [x] Replace any and all transforms with xform handles.
   - [ ] Update systems (and create some) that use handles:
     - [x] Create xform system that uses handles
-    - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
-    - [ ] Convert material system to use handles
-    - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
-    - [ ] Convert shader system to use handles (everything that _isn't_ the renderer should use handles).
-    - [ ] Convert lighting system to use handles.
-    - [ ] Create skybox system that uses handles.
-    - [ ] Create scene system that uses handles.
   - [x] (See KSON) Refactor scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
   - [x] Write "(de)serialization" routines for savable resources and use those in the above loader.
           Scene Refactor notes: Refactor into node-based system using handles for various types.
@@ -155,8 +164,15 @@ The items in this list are not in any particular order. This list will be update
          
           We might also think about, at this point, reworking the scene parser to better handle object heirarchy in a more
           expressive language fasion (perhaps using some sort of scoping syntax like "{}" to surround objects).
-     
- 
+- [ ] 0.8
+  - [ ] Handle refactoring 
+    - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
+    - [ ] Convert material system to use handles
+    - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
+    - [ ] Convert shader system to use handles (everything that _isn't_ the renderer should use handles).
+    - [ ] Convert lighting system to use handles.
+    - [ ] Create skybox system that uses handles.
+    - [ ] Create scene system that uses handles.
 
 ## Renderer:
 - [ ] geometry generation (2d and 3d, e.g. cube, cylinder, etc.)
@@ -218,6 +234,7 @@ The items in this list are not in any particular order. This list will be update
    - [ ] multithreading
  - [ ] Metal Renderer Plugin 
  - [ ] OpenGL Renderer Plugin 
+ - [ ] Headless Renderer Plugin
 
 
 ## Standard UI: (separated section because number of controls)

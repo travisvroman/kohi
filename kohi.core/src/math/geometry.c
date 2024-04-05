@@ -1,8 +1,8 @@
 #include "geometry.h"
 
-#include "kassert.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "debug/kassert.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
 #include "math/kmath.h"
 #include "math/math_types.h"

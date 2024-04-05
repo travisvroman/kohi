@@ -1,16 +1,17 @@
 #include "scene_loader.h"
 
 #include "containers/darray.h"
-#include "kmemory.h"
-#include "kstring.h"
 #include "logger.h"
 #include "math/kmath.h"
+#include "memory/kmemory.h"
 #include "parsers/kson_parser.h"
 #include "platform/filesystem.h"
 #include "resources/loaders/loader_utils.h"
 #include "resources/resource_types.h"
 #include "resources/scene.h"
+#include "strings/kstring.h"
 #include "systems/resource_system.h"
+#include "systems/xform_system.h"
 
 #define SHADOW_DISTANCE_DEFAULT 200.0f
 #define SHADOW_FADE_DISTANCE_DEFAULT 25.0f
@@ -188,7 +189,7 @@ b8 scene_node_config_deserialize_kson(const kson_object* node_object, scene_node
     if (kson_object_property_value_get_string(node_object, "xform", &xform_string)) {
         // Found an xform, deserialize it into config.
         out_node_config->xform = kallocate(sizeof(scene_xform_config), MEMORY_TAG_SCENE);
-        string_to_xform_config(xform_string, out_node_config->xform);
+        string_to_scene_xform_config(xform_string, out_node_config->xform);
     } else {
         out_node_config->xform = 0;
     }

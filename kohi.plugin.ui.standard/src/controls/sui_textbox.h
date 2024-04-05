@@ -1,9 +1,9 @@
 #pragma once
 
-#include <math/geometry_utils.h>
 #include <renderer/renderer_types.h>
 
 #include "defines.h"
+#include "math/nine_slice.h"
 #include "standard_ui_system.h"
 
 /*

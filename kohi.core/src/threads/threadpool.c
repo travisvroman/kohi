@@ -1,7 +1,7 @@
 #include "threadpool.h"
 
 #include "logger.h"
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "worker_thread.h"
 
 b8 threadpool_create(u32 thread_count, threadpool* out_pool) {

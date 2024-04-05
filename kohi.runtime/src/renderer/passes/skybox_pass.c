@@ -1,6 +1,6 @@
 #include "skybox_pass.h"
 
-#include "kmemory.h"
+#include "memory/kmemory.h"
 #include "logger.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"

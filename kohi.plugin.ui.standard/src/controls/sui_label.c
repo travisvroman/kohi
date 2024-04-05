@@ -1,17 +1,16 @@
 #include "sui_label.h"
 
 #include <containers/darray.h>
-#include <kassert.h>
-#include <kmemory.h>
-#include <kstring.h>
+#include <debug/kassert.h>
+#include <defines.h>
 #include <logger.h>
 #include <math/kmath.h>
+#include <memory/kmemory.h>
 #include <renderer/renderer_frontend.h>
+#include <resources/resource_types.h>
+#include <strings/kstring.h>
 #include <systems/font_system.h>
 #include <systems/shader_system.h>
-
-#include "defines.h"
-#include "resources/resource_types.h"
 
 typedef struct sui_label_pending_data {
     u32 quad_count;

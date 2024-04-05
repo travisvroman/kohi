@@ -2,8 +2,8 @@
 
 #include "containers/darray.h"
 #include "containers/hashtable.h"
-#include "kmemory.h"
-#include "kstring.h"
+#include "memory/kmemory.h"
+#include "strings/kstring.h"
 #include "logger.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/resource_types.h"
