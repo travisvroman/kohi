@@ -102,26 +102,6 @@ typedef struct engine_system_states {
 } engine_system_states;
 
 /**
- * @brief Represents configuration for the application. The application config
- * is fed to the engine on creation, so it knows how to configure itself internally.
- */
-typedef struct application_config {
-
-    /** @brief The application name used in windowing, if applicable. */
-    char* name;
-
-    // TODO: Handle this better than via app config.
-    renderer_plugin renderer_plugin;
-    audio_plugin audio_plugin;
-
-    /** @brief The size of the frame allocator. */
-    u64 frame_allocator_size;
-
-    /** @brief The size of the application-specific frame data. Set to 0 if not used. */
-    u64 app_frame_data_size;
-} application_config;
-
-/**
  * @brief Creates the engine, standing up the platform layer and all
  * underlying subsystems.
  * @param game_inst A pointer to the application instance associated with the engine

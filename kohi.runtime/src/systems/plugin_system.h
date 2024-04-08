@@ -44,4 +44,6 @@ b8 plugin_system_on_window_resize(struct plugin_system_state* state, struct kwin
 
 KAPI b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name, const char* config);
 
+KAPI kruntime_plugin* plugin_system_get(struct plugin_system_state* state, const char* name);
+
 #endif

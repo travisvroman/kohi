@@ -57,6 +57,7 @@ typedef struct kwindow_config {
     u32 width;
     u32 height;
     const char* title;
+    const char* name;
 } kwindow_config;
 
 /**

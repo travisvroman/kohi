@@ -1,0 +1,33 @@
+// Application config file.
+app_name = "Testbed"
+frame_allocator_size = 128
+app_frame_data_size = 128
+renderer_plugin_name = "kohi.plugin.renderer.vulkan"
+audio_plugin_name = "kohi.plugin.audio.openal"
+windows = [
+   {
+    resolution="1280 720"
+    position="100 100"
+    name="main_window"
+    title="Testbed Main Window"
+   }
+]
+systems = [
+   {
+       name="plugin_system"
+       plugins = [
+           {
+               name = "kohi.plugin.renderer.vulkan"
+               config = {
+                   
+               }
+           },
+           {
+               name = "kohi.plugin.audio.openal"
+               config = {
+                   
+               }
+           }
+       ]
+   }
+]

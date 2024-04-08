@@ -111,6 +111,9 @@ b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_conte
 // Define the function to create a game
 b8 create_application(application* out_application) {
     // Application configuration.
+
+    // NOTE: The application can inject anything it needs
+    // into the configuration at this point.
     out_application->app_config.start_pos_x = 100;
     out_application->app_config.start_pos_y = 100;
     out_application->app_config.start_width = 1280;
@@ -142,38 +145,6 @@ b8 create_application(application* out_application) {
 
     out_application->engine_state = 0;
     out_application->state = 0;
-
-    /*
-     * app_name = "Testbed"
-     * windows = [
-     *   {
-     *      resolution="1280 720"
-     *      position="100 100"
-     *      name="main_window"
-     *      title="Testbed Main Window"
-     *   }
-     * ]
-     * systems = [
-     *  {
-     *     name="plugin_system"
-     *     plugins = [
-     *       {
-     *         name = "kohi.plugin.renderer.vulkan"
-     *         config = {
-     *           ...
-     *         }
-     *       },
-     *       {
-     *         name = "kohi.plugin.audio.openal"
-     *         config = {
-     *           ...
-     *         }
-     *       }
-     *     ]
-     *   }
-     * ]
-     *
-     */
 
     /* // Load the Vulkan renderer plugin.
     if (!platform_dynamic_library_load("kohi.plugin.renderer.vulkan", &out_application->renderer_library)) {

@@ -23,6 +23,18 @@ b8 plugin_system_intialize(u64* memory_requirement, struct plugin_system_state* 
 
     state->plugins = darray_create(kruntime_plugin);
 
+    // Stand up all plugins in config. Don't initialize them yet, just create them.
+    u32 plugin_count = darray_length(config->plugins);
+    for (u32 i = 0; i < plugin_count; ++i) {
+        plugin_system_plugin_config* plugin = &config->plugins[i];
+
+        // TODO: Resolve configuration per plugin.
+        if (!plugin_system_load_plugin(state, plugin->name, "")) {
+            // Warn about it, but move on.
+            KERROR("Plugin '%s' creation failed during plugin system boot.", plugin->name);
+        }
+    }
+
     return true;
 }
 

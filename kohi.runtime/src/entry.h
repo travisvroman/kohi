@@ -18,21 +18,21 @@
  *
  * \section intro Introduction
  *
- * This site contains the auto-generated API documentation for the Kohi Game Engine. 
+ * This site contains the auto-generated API documentation for the Kohi Game Engine.
  *
  * \section information Information
  *
  * \subsection mainsite Main Website
  * See [kohiengine.com](https://kohiengine.com) for the newest project updates.
- * 
+ *
  * \subsection twitch Twitch
  * The Twitch channel is where development happens LIVE on stream.
- * 
+ *
  * Link: [Twitch Channel](https://twitch.tv/travisvroman)
- * 
+ *
  * \subsection yt YouTube
  * The YouTube channel contains all of the archives of the Twitch streams, as well as the original video series for the Kohi Game Engine. It also contains lots of other content outside of this project.
- * 
+ *
  * Link: [YouTube Channel](https://youtube.com/travisvroman)
  */
 #pragma once
@@ -55,6 +55,7 @@ extern b8 initialize_application(application* app);
  * @returns 0 on successful execution; nonzero on error.
  */
 int main(void) {
+    // TODO: load up application config file, get it parsed and ready to hand off.
     // Request the application instance from the application.
     application app_inst = {0};
     if (!create_application(&app_inst)) {
