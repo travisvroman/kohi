@@ -110,7 +110,7 @@ b8 application_config_parse_file_content(const char* file_content, application_c
                     new_window.position_y = (u32)start_position.y;
                 }
             }
-            // TODO: Maybe use some value here to indicate a "use defualt" to the platform layer?
+            // TODO: Maybe use some value here to indicate a "use default" to the platform layer?
             if (!new_window.position_x) {
                 new_window.position_x = 10;
             }
@@ -131,4 +131,14 @@ b8 application_config_parse_file_content(const char* file_content, application_c
         win.resolution = vec2_create(1280, 720);
         darray_push(out_config->windows, win);
     }
+
+    // System configs
+    out_config->systems = darray_create(application_system_config);
+    kson_array system_configs_array;
+    if (!kson_object_property_value_get_object(&app_config_tree.root, "systems", &system_configs_array)) {
+        KERROR("systems config is required in application configuration.");
+        return false;
+    }
+
+    // Loop through and fill up struct
 }
