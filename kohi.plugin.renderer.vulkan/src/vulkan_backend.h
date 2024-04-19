@@ -46,13 +46,13 @@ void vulkan_renderer_set_stencil_write_mask(struct renderer_plugin* plugin, u32 
 b8 vulkan_renderer_renderpass_begin(renderer_plugin* backend, renderpass* pass, render_target* target);
 b8 vulkan_renderer_renderpass_end(renderer_plugin* backend, renderpass* pass);
 
-void vulkan_renderer_texture_create(renderer_plugin* backend, const u8* pixels, texture* texture);
-void vulkan_renderer_texture_destroy(renderer_plugin* backend, texture* texture);
-void vulkan_renderer_texture_create_writeable(renderer_plugin* backend, texture* t);
-void vulkan_renderer_texture_resize(renderer_plugin* backend, texture* t, u32 new_width, u32 new_height);
-void vulkan_renderer_texture_write_data(renderer_plugin* backend, texture* t, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
-void vulkan_renderer_texture_read_data(renderer_plugin* backend, texture* t, u32 offset, u32 size, void** out_memory);
-void vulkan_renderer_texture_read_pixel(renderer_plugin* backend, texture* t, u32 x, u32 y, u8** out_rgba);
+b8 vulkan_renderer_texture_resources_acquire(renderer_plugin* plugin, texture_internal_data* texture_data, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags);
+void vulkan_renderer_texture_resources_release(renderer_plugin* plugin, texture_internal_data* texture_data);
+
+void vulkan_renderer_texture_resize(renderer_plugin* backend, struct texture_internal_data* texture_data, u32 new_width, u32 new_height);
+void vulkan_renderer_texture_write_data(renderer_plugin* backend, struct texture_internal_data* texture_data, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
+void vulkan_renderer_texture_read_data(renderer_plugin* backend, struct texture_internal_data* texture_data, u32 offset, u32 size, void** out_memory);
+void vulkan_renderer_texture_read_pixel(renderer_plugin* backend, struct texture_internal_data* texture_data, u32 x, u32 y, u8** out_rgba);
 
 b8 vulkan_renderer_shader_create(renderer_plugin* backend, struct shader* shader, const shader_config* config, renderpass* pass);
 void vulkan_renderer_shader_destroy(renderer_plugin* backend, struct shader* shader);

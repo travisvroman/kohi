@@ -12,8 +12,9 @@
 struct frame_data;
 
 typedef struct audio_system_config {
+    // FIXME: Resolve from app config.
     /** The audio plugin to use with this system. Must already by setup at this point. */
-    audio_plugin plugin;
+    audio_plugin* plugin;
     /** @brief The frequency to output audio at. */
     u32 frequency;
     /**

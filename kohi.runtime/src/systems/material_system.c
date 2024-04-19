@@ -2,24 +2,25 @@
 
 #include "containers/darray.h"
 #include "containers/hashtable.h"
+#include "core/engine.h"
 #include "core/event.h"
 #include "core/frame_data.h"
 #include "core/kvar.h"
 #include "defines.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
 #include "logger.h"
 #include "math/kmath.h"
+#include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
+#include "strings/kstring.h"
 #include "systems/light_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
 
 #ifndef PBR_MAP_COUNT
-#define PBR_MAP_COUNT 5
+#    define PBR_MAP_COUNT 5
 #endif
 
 #define MAX_SHADOW_CASCADE_COUNT 4
@@ -127,6 +128,9 @@ typedef struct material_system_state {
 
     mat4 directional_light_space[MAX_SHADOW_CASCADE_COUNT];
 
+    // Keep a pointer to the renderer state for quick access.
+    struct renderer_system_state* renderer;
+
     i32 use_pcf;
 } material_system_state;
 
@@ -176,6 +180,10 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     }
 
     state_ptr = state;
+
+    // Keep a pointer to the renderer system state for quick access.
+    state_ptr->renderer = engine_systems_get()->renderer_system;
+
     state_ptr->config = *typed_config;
 
     state_ptr->pbr_shader_id = INVALID_ID;
@@ -688,7 +696,10 @@ b8 material_system_apply_global(u32 shader_id, struct frame_data* p_frame_data, 
     if (!s) {
         return false;
     }
-    if (s->render_frame_number == p_frame_data->renderer_frame_number && s->draw_index == p_frame_data->draw_index) {
+
+    u64 renderer_frame_number = renderer_system_frame_number_get(state_ptr->renderer);
+
+    if (s->render_frame_number == renderer_frame_number) {
         return true;
     }
 
@@ -741,7 +752,7 @@ b8 material_system_apply_global(u32 shader_id, struct frame_data* p_frame_data, 
     MATERIAL_APPLY_OR_FAIL(shader_system_apply_global(true, p_frame_data));
 
     // Sync the frame number.
-    s->render_frame_number = p_frame_data->renderer_frame_number;
+    s->render_frame_number = renderer_frame_number;
     return true;
 }
 

@@ -28,8 +28,6 @@ typedef struct rendergraph_source {
     char* name;
     rendergraph_source_type type;
     rendergraph_source_origin origin;
-    // Array of texture pointers.
-    texture** textures;
 } rendergraph_source;
 
 typedef struct rendergraph_sink {
@@ -58,6 +56,9 @@ typedef struct rendergraph_pass {
 
     renderpass pass;
     void* internal_data;
+
+    // darray A collection of self-owned render targets.
+    render_target* owned_render_targets;
 
     b8 presents_after;
 

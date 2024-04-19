@@ -37,9 +37,11 @@
  */
 #pragma once
 
-#include "application_types.h"
+#include "application/application_config.h"
+#include "application/application_types.h"
 #include "core/engine.h"
 #include "logger.h"
+#include "platform/filesystem.h"
 
 /** @brief Externally-defined function to create a application, provided by the consumer
  * of this library.
@@ -55,9 +57,22 @@ extern b8 initialize_application(application* app);
  * @returns 0 on successful execution; nonzero on error.
  */
 int main(void) {
+
     // TODO: load up application config file, get it parsed and ready to hand off.
     // Request the application instance from the application.
     application app_inst = {0};
+
+    const char* app_file_content = filesystem_read_entire_text_file("app_config.kson");
+    if (!app_file_content) {
+        KFATAL("Failed to read app_config.kson file text. Application cannot start.");
+        return -68;
+    }
+
+    if (!application_config_parse_file_content(app_file_content, &app_inst.app_config)) {
+        KFATAL("Failed to parse application config. Cannot start.");
+        return -69;
+    }
+
     if (!create_application(&app_inst)) {
         KFATAL("Could not create application!");
         return -1;

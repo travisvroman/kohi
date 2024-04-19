@@ -2,6 +2,7 @@
 
 #include "containers/darray.h"
 #include "logger.h"
+#include "parsers/kson_parser.h"
 #include "platform/platform.h"
 #include "plugins/plugin_types.h"
 
@@ -9,6 +10,67 @@ typedef struct plugin_system_state {
     // darray
     kruntime_plugin* plugins;
 } plugin_system_state;
+
+b8 plugin_system_deserialize_config(const char* config_str, plugin_system_config* out_config) {
+    if (!config_str || !out_config) {
+        KERROR("plugin_system_deserialize_config requires a valid string and a pointer to hold the config.");
+        return false;
+    }
+
+    kson_tree tree = {0};
+    if (!kson_tree_from_string(config_str, &tree)) {
+        KERROR("Failed to parse plugin system configuration.");
+        return false;
+    }
+
+    out_config->plugins = darray_create(plugin_system_plugin_config);
+
+    // Get plugin configs.
+    kson_array plugin_configs = {0};
+    if (!kson_object_property_value_get_object(&tree.root, "plugins", &plugin_configs)) {
+        KERROR("No plugins are configured.");
+        return false;
+    }
+
+    u32 plugin_count = 0;
+    if (!kson_array_element_count_get(&plugin_configs, &plugin_count)) {
+        KERROR("Failed to get plugin count.");
+        return false;
+    }
+
+    // Each plugin.
+    for (u32 i = 0; i < plugin_count; ++i) {
+        kson_object plugin_config_obj = {0};
+        if (!kson_array_element_value_get_object(&plugin_configs, i, &plugin_config_obj)) {
+            KERROR("Failed to get plugin config at index %u.", i);
+            continue;
+        }
+
+        // Name is required.
+        plugin_system_plugin_config plugin = {0};
+        if (!kson_object_property_value_get_string(&plugin_config_obj, "name", &plugin.name)) {
+            KERROR("Unable to get name for plugin at index %u.", i);
+            continue;
+        }
+
+        // Config is optional at this level. Attempt to extract the object first.
+        kson_object plugin_config = {0};
+        if (!kson_object_property_value_get_object(&plugin_config_obj, "config", &plugin_config)) {
+            // If one doesn't exist, zero it out and move on.
+            plugin.config_str = 0;
+        } else {
+            // If it does exist, convert it back to a string and store it.
+            kson_tree config_tree = {0};
+            config_tree.root = plugin_config;
+            plugin.config_str = kson_tree_to_string(&config_tree);
+        }
+
+        // Push into the array.
+        darray_push(out_config->plugins, plugin);
+    }
+
+    return true;
+}
 
 b8 plugin_system_intialize(u64* memory_requirement, struct plugin_system_state* state, struct plugin_system_config* config) {
     if (!memory_requirement) {

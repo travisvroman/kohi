@@ -1,7 +1,7 @@
 #include "editor_pass.h"
 
-#include "memory/kmemory.h"
 #include "logger.h"
+#include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
 #include "systems/material_system.h"
@@ -46,7 +46,6 @@ b8 editor_pass_initialize(struct rendergraph_pass* self) {
     editor_pass_config.stencil = 0;
     editor_pass_config.target.attachment_count = 2;
     editor_pass_config.target.attachments = kallocate(sizeof(render_target_attachment_config) * editor_pass_config.target.attachment_count, MEMORY_TAG_ARRAY);
-    editor_pass_config.render_target_count = renderer_window_attachment_count_get();
 
     // Colour attachment
     render_target_attachment_config* editor_target_colour = &editor_pass_config.target.attachments[0];

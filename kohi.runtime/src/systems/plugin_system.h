@@ -18,7 +18,7 @@ typedef struct plugin_system_plugin_config {
     // Name of the plugin.
     const char* name;
     // To be deserialized by the plugin itself since it knows how this should be laid out.
-    kson_object plugin_config;
+    const char* config_str;
 } plugin_system_plugin_config;
 
 /**
@@ -31,6 +31,8 @@ typedef struct plugin_system_config {
 
 struct frame_data;
 struct kwindow;
+
+b8 plugin_system_deserialize_config(const char* config_str, plugin_system_config* out_config);
 
 b8 plugin_system_intialize(u64* memory_requirement, struct plugin_system_state* state, struct plugin_system_config* config);
 

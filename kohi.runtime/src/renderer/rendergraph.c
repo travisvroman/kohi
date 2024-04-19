@@ -1,13 +1,14 @@
 #include "rendergraph.h"
 
 #include "containers/darray.h"
+#include "core/engine.h"
 #include "core/frame_data.h"
 #include "defines.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
 #include "logger.h"
+#include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
+#include "strings/kstring.h"
 
 static b8 regenerate_render_targets(rendergraph* graph, rendergraph_pass* pass, u16 width, u16 height);
 
@@ -32,6 +33,8 @@ void rendergraph_destroy(rendergraph* graph) {
             graph->name = 0;
         }
 
+        // Destroy self-owned render targets.
+
         if (graph->passes) {
             // Destroy render passes.
             u32 pass_count = darray_length(graph->passes);
@@ -39,11 +42,14 @@ void rendergraph_destroy(rendergraph* graph) {
                 rendergraph_pass* pass = graph->passes[i];
 
                 // Destroy render targets.
-                for (u32 p = 0; p < pass->pass.render_target_count; ++p) {
-                    render_target* target = &pass->pass.targets[p];
+                if (pass->owned_render_targets) {
+                    u32 render_target_count = darray_length(pass->owned_render_targets);
+                    for (u32 p = 0; p < render_target_count; ++p) {
+                        render_target* target = &pass->owned_render_targets[p];
 
-                    // Destroy the target if it exists.
-                    renderer_render_target_destroy(target, true);
+                        // Destroy the target if it exists.
+                        renderer_render_target_destroy(target, true);
+                    }
                 }
 
                 // Destroy the pass itself.
@@ -265,7 +271,7 @@ b8 rendergraph_finalize(rendergraph* graph) {
     }
 
     // Get global texture references for global sources.
-    u32 global_source_count = darray_length(graph->global_sources);
+    /* u32 global_source_count = darray_length(graph->global_sources);
     for (u32 i = 0; i < global_source_count; ++i) {
         rendergraph_source* source = &graph->global_sources[i];
         if (source->origin == RENDERGRAPH_SOURCE_ORIGIN_GLOBAL) {
@@ -282,7 +288,7 @@ b8 rendergraph_finalize(rendergraph* graph) {
                 }
             }
         }
-    }
+    } */
 
     // Verify that something is linked up to the global colour source.
     rendergraph_pass* backbuffer_first_user = 0;
@@ -474,54 +480,69 @@ static b8 regenerate_render_targets(rendergraph* graph, rendergraph_pass* pass, 
         return false;
     }
 
-    for (u32 i = 0; i < pass->pass.render_target_count; ++i) {
-        render_target* target = &pass->pass.targets[i];
+    // FIXME: This function shouldn't even exist. If the rendergraph_pass has rendertargets it owns, it will
+    // also be aware of when those need regenerating, and won't need a call like this to facilitate it.
+    // This and all the PFNs relatedto it can likely be removed completely.
 
-        // Destroy the old target if it exists.
-        renderer_render_target_destroy(target, false);
+    /*
+    // If the rendergraph pass owns render tagets, regenerate them.
+    if (pass->owned_render_targets) {
+        u32 render_target_count = darray_length(pass->owned_render_targets);
+        for (u32 i = 0; i < render_target_count; ++i) {
+            render_target* target = &pass->owned_render_targets[i];
 
-        // Retrieve texture pointers for all attachments and frames.
-        for (u32 a = 0; a < target->attachment_count; ++a) {
-            render_target_attachment* attachment = &target->attachments[a];
-            if (attachment->source == RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT) {
-                if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_COLOUR) {
-                    attachment->texture = renderer_window_attachment_get(i);
-                } else if (attachment->type & RENDER_TARGET_ATTACHMENT_TYPE_DEPTH || attachment->type & RENDER_TARGET_ATTACHMENT_TYPE_STENCIL) {
-                    attachment->texture = renderer_depth_attachment_get(i);
-                } else {
-                    KERROR("Unsupported attachment type: 0x%x", attachment->type);
-                    return false;
-                }
-            } else if (attachment->source == RENDER_TARGET_ATTACHMENT_SOURCE_SELF) {
-                // Regenerate, if needed/supported for this pass.
-                if (pass->attachment_textures_regenerate) {
-                    if (!pass->attachment_textures_regenerate(pass, width, height)) {
-                        KERROR("Failed to regenerate attachment textures for rendergraph pass'%s'.", pass->name);
+            // Destroy the old target if it exists.
+            renderer_render_target_destroy(target, false);
+
+            // This is because renderpasses/graphs should not be bound to a window, yet might need its attachment.
+            // So this should look up whatever window/surface/etc. is currently being targeted and use that to
+            // perform the lookup at the time it is needed.
+            //
+            // Retrieve texture pointers for all attachments and frames.
+            for (u32 a = 0; a < target->attachment_count; ++a) {
+                render_target_attachment* attachment = &target->attachments[a];
+                if (attachment->source == RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT) {
+                    // NOTE: default sources shouldn't be regenerated here, but should be regenerated
+                    // by whatever owns them (i.e. a window on window resize)
+                    if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_COLOUR) {
+                        attachment->texture = renderer_window_attachment_get(engine_states->renderer_system, window);
+                    } else if (attachment->type & RENDER_TARGET_ATTACHMENT_TYPE_DEPTH || attachment->type & RENDER_TARGET_ATTACHMENT_TYPE_STENCIL) {
+                        attachment->texture = renderer_depth_attachment_get(i);
+                    } else {
+                        KERROR("Unsupported attachment type: 0x%x", attachment->type);
+                        return false;
+                    }
+                } else if (attachment->source == RENDER_TARGET_ATTACHMENT_SOURCE_SELF) {
+                    // Regenerate, if needed/supported for this pass.
+                    if (pass->attachment_textures_regenerate) {
+                        if (!pass->attachment_textures_regenerate(pass, width, height)) {
+                            KERROR("Failed to regenerate attachment textures for rendergraph pass'%s'.", pass->name);
+                        }
+                    }
+                    if (!pass->attachment_populate) {
+                        KERROR("Attempted to get a self-owned attachment texture for a pass that does not implement attachment_populate.");
+                        return false;
+                    }
+                    if (!pass->attachment_populate(pass, attachment)) {
+                        KERROR("Unsupported attachment type: 0x%x", attachment->type);
+                        return false;
                     }
                 }
-                if (!pass->attachment_populate) {
-                    KERROR("Attempted to get a self-owned attachment texture for a pass that does not implement attachment_populate.");
-                    return false;
-                }
-                if (!pass->attachment_populate(pass, attachment)) {
-                    KERROR("Unsupported attachment type: 0x%x", attachment->type);
-                    return false;
-                }
             }
+
+            b8 use_custom_size = target->attachments[0].source == RENDER_TARGET_ATTACHMENT_SOURCE_SELF;
+
+            // Create the underlying render target.
+            renderer_render_target_create(
+                target->attachment_count,
+                target->attachments,
+                &pass->pass,
+                use_custom_size ? target->attachments[0].texture->width : width,
+                use_custom_size ? target->attachments[0].texture->height : height,
+                0,
+                &pass->owned_render_targets[i]);
         }
-
-        b8 use_custom_size = target->attachments[0].source == RENDER_TARGET_ATTACHMENT_SOURCE_SELF;
-
-        // Create the underlying render target.
-        renderer_render_target_create(
-            target->attachment_count,
-            target->attachments,
-            &pass->pass,
-            use_custom_size ? target->attachments[0].texture->width : width,
-            use_custom_size ? target->attachments[0].texture->height : height,
-            0,
-            &pass->pass.targets[i]);
-    }
+    }*/
 
     return true;
 }

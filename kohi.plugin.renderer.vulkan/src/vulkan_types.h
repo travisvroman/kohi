@@ -170,6 +170,21 @@ typedef struct vulkan_image {
     u32 mip_levels;
 } vulkan_image;
 
+// Struct definition for renderer-specific texture data.
+typedef struct texture_internal_data {
+    /**
+     * @brief Represents the number of updates this texture has had.
+     * INVALID_ID means it has never been loaded. Incremented every time texture data is uploaded.
+     */
+    u32 generation;
+    // Number of vulkan_images in the array. This is typically 1 unless the texture
+    // requires the frame_count to be taken into account.
+    u32 image_count;
+    // Array of images. Used when image_count > 1.
+    vulkan_image* images;
+
+} texture_internal_data;
+
 /** @brief Represents the possible states of a renderpass. */
 typedef enum vulkan_render_pass_state {
     /** @brief The renderpass is ready to begin. */
@@ -507,6 +522,36 @@ typedef struct vulkan_shader {
 struct shaderc_compiler;
 
 /**
+ * @brief The Vulkan-specific backend window state.
+ */
+typedef struct kwindow_renderer_backend_state {
+    /** @brief The internal Vulkan surface for the window to be drawn to. */
+    VkSurfaceKHR surface;
+    /** @brief The swapchain. */
+    vulkan_swapchain swapchain;
+    /** @brief The current image index. */
+    u32 image_index;
+
+    /** @brief Indicates if the swapchain is currently being recreated. */
+    b8 recreating_swapchain;
+
+    /** @brief Render targets used for world rendering. @note One per frame. */
+    render_target world_render_targets[3];
+
+    /** @brief The framebuffer's current width. */
+    u32 framebuffer_width;
+
+    /** @brief The framebuffer's current height. */
+    u32 framebuffer_height;
+
+    /** @brief Current generation of framebuffer size. If it does not match framebuffer_size_last_generation, a new one should be generated. */
+    u64 framebuffer_size_generation;
+
+    /** @brief The generation of the framebuffer when it was last created. Set to framebuffer_size_generation when updated. */
+    u64 framebuffer_size_last_generation;
+} kwindow_renderer_backend_state;
+
+/**
  * @brief The overall Vulkan context for the backend. Holds and maintains
  * global renderer backend state, Vulkan instance, etc.
  */
@@ -520,18 +565,6 @@ typedef struct vulkan_context {
     /** @brief The instance-level api patch version. */
     u32 api_patch;
 
-    /** @brief The framebuffer's current width. */
-    u32 framebuffer_width;
-
-    /** @brief The framebuffer's current height. */
-    u32 framebuffer_height;
-
-    /** @brief Current generation of framebuffer size. If it does not match framebuffer_size_last_generation, a new one should be generated. */
-    u64 framebuffer_size_generation;
-
-    /** @brief The generation of the framebuffer when it was last created. Set to framebuffer_size_generation when updated. */
-    u64 framebuffer_size_last_generation;
-
     /** @brief The viewport rectangle. */
     vec4 viewport_rect;
 
@@ -542,8 +575,6 @@ typedef struct vulkan_context {
     VkInstance instance;
     /** @brief The internal Vulkan allocator. */
     VkAllocationCallbacks* allocator;
-    /** @brief The internal Vulkan surface for the window to be drawn to. */
-    VkSurfaceKHR surface;
 
 #if defined(_DEBUG)
     /** @brief The debug messenger, if active.. */
@@ -562,9 +593,6 @@ typedef struct vulkan_context {
     /** @brief The Vulkan device. */
     vulkan_device device;
 
-    /** @brief The swapchain. */
-    vulkan_swapchain swapchain;
-
     /** @brief The graphics command buffers, one per frame. @note: darray */
     vulkan_command_buffer* graphics_command_buffers;
 
@@ -579,21 +607,12 @@ typedef struct vulkan_context {
     /** @brief The in-flight fences, used to indicate to the application when a frame is busy/ready. */
     VkFence in_flight_fences[2];
 
-    /** @brief The current image index. */
-    u32 image_index;
-
     /** @brief The current frame. */
     u32 current_frame;
-
-    /** @brief Indicates if the swapchain is currently being recreated. */
-    b8 recreating_swapchain;
 
     b8 render_flag_changed;
 
     b8 validation_enabled;
-
-    /** @brief Render targets used for world rendering. @note One per frame. */
-    render_target world_render_targets[3];
 
     /** @brief Indicates if multi-threading is supported by this device. */
     b8 multithreading_enabled;

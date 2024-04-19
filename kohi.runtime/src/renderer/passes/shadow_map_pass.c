@@ -1,16 +1,16 @@
 #include "shadow_map_pass.h"
 
 #include "containers/darray.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
-#include "logger.h"
 #include "defines.h"
+#include "logger.h"
 #include "math/math_types.h"
+#include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "renderer/rendergraph.h"
 #include "renderer/viewport.h"
 #include "resources/resource_types.h"
+#include "strings/kstring.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
@@ -24,8 +24,7 @@ typedef struct shadow_map_shader_locations {
 } shadow_map_shader_locations;
 
 typedef struct cascade_resources {
-    // One target per frame.
-    render_target* targets;
+    render_target target;
 } cascade_resources;
 
 typedef struct shadow_shader_instance_data {
@@ -42,7 +41,7 @@ typedef struct shadow_map_pass_internal_data {
     // Custom projection matrix for shadow pass.
     viewport camera_viewport;
 
-    texture* depth_textures;
+    texture depth_texture;
 
     // One per cascade.
     cascade_resources cascades[MAX_CASCADE_COUNT];
@@ -95,6 +94,11 @@ b8 shadow_map_pass_initialize(struct rendergraph_pass* self) {
     shadow_map_pass_internal_data* internal_data = self->internal_data;
 
     // Create the depth attachments, one per frame.
+    // FIXME: Should not be worrying about frame count here - this should
+    // be handled and managed within the renderer backend. The texture system
+    // should perhaps have a flag that could be passed to indicate this, but this
+    // actual logic shouldn't be here.
+    // UPDATE: This should be done via a texture flag.
     u8 frame_count = renderer_window_attachment_count_get();
 
     internal_data->depth_textures = kallocate(sizeof(texture) * frame_count, MEMORY_TAG_RENDERER);
@@ -123,12 +127,11 @@ b8 shadow_map_pass_initialize(struct rendergraph_pass* self) {
     shadowmap_pass_config.stencil = 0;
     shadowmap_pass_config.target.attachment_count = 1;
     shadowmap_pass_config.target.attachments = kallocate(sizeof(render_target_attachment_config) * shadowmap_pass_config.target.attachment_count, MEMORY_TAG_ARRAY);
-    shadowmap_pass_config.render_target_count = frame_count;
 
     // Depth attachment.
     render_target_attachment_config* shadowpass_target_depth = &shadowmap_pass_config.target.attachments[0];
     shadowpass_target_depth->type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
-    shadowpass_target_depth->source = RENDER_TARGET_ATTACHMENT_SOURCE_SELF;  // This owns the attachment.
+    shadowpass_target_depth->source = RENDER_TARGET_ATTACHMENT_SOURCE_SELF; // This owns the attachment.
     shadowpass_target_depth->load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
     shadowpass_target_depth->store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
     shadowpass_target_depth->present_after = true;
@@ -538,7 +541,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
             return false;
         }
 
-    }  // End cascade pass
+    } // End cascade pass
 
     return true;
 }
@@ -548,27 +551,15 @@ void shadow_map_pass_destroy(struct rendergraph_pass* self) {
         if (self->internal_data) {
             shadow_map_pass_internal_data* internal_data = self->internal_data;
 
-            // Destroy the attachments, one per frame.
-            u8 attachment_count = renderer_window_attachment_count_get();
-
             // Renderpass attachments.
             for (u32 i = 0; i < MAX_CASCADE_COUNT; ++i) {
                 cascade_resources* cascade = &internal_data->cascades[i];
-                // Targets per frame
-                for (u32 f = 0; f < attachment_count; ++f) {
-                    // One render target per pass
-                    render_target* target = &cascade->targets[f];
 
-                    // Create the underlying render target.
-                    renderer_render_target_destroy(target, true);
-                }
-                kfree(cascade->targets, sizeof(render_target) * attachment_count, MEMORY_TAG_ARRAY);
+                // Create the underlying render target.
+                renderer_render_target_destroy(&cascade->target, true);
             }
 
-            for (u8 i = 0; i < attachment_count; ++i) {
-                renderer_texture_destroy(&internal_data->depth_textures[i]);
-            }
-            kfree(internal_data->depth_textures, sizeof(texture*) * attachment_count, MEMORY_TAG_ARRAY);
+            renderer_texture_destroy(&internal_data->depth_texture);
 
             renderer_texture_map_resources_release(&internal_data->default_colour_map);
             renderer_texture_map_resources_release(&internal_data->default_terrain_colour_map);
@@ -595,6 +586,7 @@ b8 shadow_map_pass_source_populate(struct rendergraph_pass* self, rendergraph_so
     }
 
     shadow_map_pass_internal_data* internal_data = self->internal_data;
+    // FIXME: Should just be frame-agnostic, single source texture.
     u32 frame_count = renderer_window_attachment_count_get();
     if (!source->textures) {
         source->textures = kallocate(sizeof(texture*) * frame_count, MEMORY_TAG_ARRAY);

@@ -1,8 +1,8 @@
 #include "vulkan_swapchain.h"
 
+#include "logger.h"
 #include "memory/kmemory.h"
 #include "strings/kstring.h"
-#include "logger.h"
 #include "systems/texture_system.h"
 #include "vulkan_device.h"
 #include "vulkan_image.h"
@@ -11,6 +11,7 @@
 static void create(vulkan_context* context, u32 width, u32 height, renderer_config_flags flags, vulkan_swapchain* swapchain);
 static void destroy(vulkan_context* context, vulkan_swapchain* swapchain);
 
+// FIXME: Should this return a bool?
 void vulkan_swapchain_create(
     vulkan_context* context,
     u32 width,

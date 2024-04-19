@@ -13,59 +13,59 @@
 
 #if defined(KPLATFORM_LINUX) || defined(KPLATFORM_APPLE)
 
-#include "core/ksemaphore.h"
-#include <dlfcn.h>
-#include <fcntl.h>  // For O_* constants
+#    include "threads/ksemaphore.h"
+#    include <dlfcn.h>
+#    include <fcntl.h> // For O_* constants
 
 // NOTE: Apple's include is on a different path.
-#if defined(KPLATFORM_APPLE)
-#include <sys/semaphore.h>
-#endif
+#    if defined(KPLATFORM_APPLE)
+#        include <sys/semaphore.h>
+#    endif
 
 // NOTE: Linux has its own path, plus needs a few more headers.
-#if defined(KPLATFORM_LINUX)
-#include <semaphore.h>  // sudo apt install linux-headers
+#    if defined(KPLATFORM_LINUX)
+#        include <semaphore.h> // sudo apt install linux-headers
 /* #include <sys/stat.h>   // For mode constants */
-#endif
+#    endif
 
-#include <sys/shm.h>
-#include <pthread.h>
-#include <errno.h>  // For error reporting
+#    include <errno.h> // For error reporting
+#    include <pthread.h>
+#    include <sys/shm.h>
 
-#include "containers/darray.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
-#include "logger.h"
-#include "threads/kthread.h"
-#include "threads/kmutex.h"
+#    include "containers/darray.h"
+#    include "logger.h"
+#    include "memory/kmemory.h"
+#    include "strings/kstring.h"
+#    include "threads/kmutex.h"
+#    include "threads/kthread.h"
 
 typedef struct nix_semaphore_internal {
-    sem_t *semaphore;
-    char *name;
+    sem_t* semaphore;
+    char* name;
 } nix_semaphore_internal;
 
 static u32 semaphore_id = 0;
 
 // NOTE: Begin threads.
 
-b8 kthread_create(pfn_thread_start start_function_ptr, void *params, b8 auto_detach, kthread *out_thread) {
+b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_detach, kthread* out_thread) {
     if (!start_function_ptr) {
         return false;
     }
 
     // pthread_create uses a function pointer that returns void*, so cold-cast to this type.
-    i32 result = pthread_create((pthread_t *)&out_thread->thread_id, 0, (void *(*)(void *))start_function_ptr, params);
+    i32 result = pthread_create((pthread_t*)&out_thread->thread_id, 0, (void* (*)(void*))start_function_ptr, params);
     if (result != 0) {
         switch (result) {
-            case EAGAIN:
-                KERROR("Failed to create thread: insufficient resources to create another thread.");
-                return false;
-            case EINVAL:
-                KERROR("Failed to create thread: invalid settings were passed in attributes..");
-                return false;
-            default:
-                KERROR("Failed to create thread: an unhandled error has occurred. errno=%i", result);
-                return false;
+        case EAGAIN:
+            KERROR("Failed to create thread: insufficient resources to create another thread.");
+            return false;
+        case EINVAL:
+            KERROR("Failed to create thread: invalid settings were passed in attributes..");
+            return false;
+        default:
+            KERROR("Failed to create thread: an unhandled error has occurred. errno=%i", result);
+            return false;
         }
     }
     KDEBUG("Starting process on thread id: %#x", out_thread->thread_id);
@@ -73,21 +73,21 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void *params, b8 auto_det
     // Only save off the handle if not auto-detaching.
     if (!auto_detach) {
         out_thread->internal_data = platform_allocate(sizeof(u64), false);
-        *(u64 *)out_thread->internal_data = out_thread->thread_id;
+        *(u64*)out_thread->internal_data = out_thread->thread_id;
     } else {
         // If immediately detaching, make sure the operation is a success.
         result = pthread_detach((pthread_t)out_thread->thread_id);
         if (result != 0) {
             switch (result) {
-                case EINVAL:
-                    KERROR("Failed to detach newly-created thread: thread is not a joinable thread.");
-                    return false;
-                case ESRCH:
-                    KERROR("Failed to detach newly-created thread: no thread with the id %#x could be found.", out_thread->thread_id);
-                    return false;
-                default:
-                    KERROR("Failed to detach newly-created thread: an unknown error has occurred. errno=%i", result);
-                    return false;
+            case EINVAL:
+                KERROR("Failed to detach newly-created thread: thread is not a joinable thread.");
+                return false;
+            case ESRCH:
+                KERROR("Failed to detach newly-created thread: no thread with the id %#x could be found.", out_thread->thread_id);
+                return false;
+            default:
+                KERROR("Failed to detach newly-created thread: an unknown error has occurred. errno=%i", result);
+                return false;
             }
         }
     }
@@ -95,26 +95,26 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void *params, b8 auto_det
     return true;
 }
 
-void kthread_destroy(kthread *thread) {
+void kthread_destroy(kthread* thread) {
     if (thread->internal_data) {
         kthread_cancel(thread);
     }
 }
 
-void kthread_detach(kthread *thread) {
+void kthread_detach(kthread* thread) {
     if (thread->internal_data) {
-        i32 result = pthread_detach(*(pthread_t *)thread->internal_data);
+        i32 result = pthread_detach(*(pthread_t*)thread->internal_data);
         if (result != 0) {
             switch (result) {
-                case EINVAL:
-                    KERROR("Failed to detach thread: thread is not a joinable thread.");
-                    break;
-                case ESRCH:
-                    KERROR("Failed to detach thread: no thread with the id %#x could be found.", thread->thread_id);
-                    break;
-                default:
-                    KERROR("Failed to detach thread: an unknown error has occurred. errno=%i", result);
-                    break;
+            case EINVAL:
+                KERROR("Failed to detach thread: thread is not a joinable thread.");
+                break;
+            case ESRCH:
+                KERROR("Failed to detach thread: no thread with the id %#x could be found.", thread->thread_id);
+                break;
+            default:
+                KERROR("Failed to detach thread: an unknown error has occurred. errno=%i", result);
+                break;
             }
         }
         platform_free(thread->internal_data, false);
@@ -123,17 +123,17 @@ void kthread_detach(kthread *thread) {
     }
 }
 
-void kthread_cancel(kthread *thread) {
+void kthread_cancel(kthread* thread) {
     if (thread->internal_data) {
-        i32 result = pthread_cancel(*(pthread_t *)thread->internal_data);
+        i32 result = pthread_cancel(*(pthread_t*)thread->internal_data);
         if (result != 0) {
             switch (result) {
-                case ESRCH:
-                    KERROR("Failed to cancel thread: no thread with the id %#x could be found.", thread->thread_id);
-                    break;
-                default:
-                    KERROR("Failed to cancel thread: an unknown error has occurred. errno=%i", result);
-                    break;
+            case ESRCH:
+                KERROR("Failed to cancel thread: no thread with the id %#x could be found.", thread->thread_id);
+                break;
+            default:
+                KERROR("Failed to cancel thread: an unknown error has occurred. errno=%i", result);
+                break;
             }
         }
         platform_free(thread->internal_data, false);
@@ -142,18 +142,18 @@ void kthread_cancel(kthread *thread) {
     }
 }
 
-b8 kthread_is_active(kthread *thread) {
+b8 kthread_is_active(kthread* thread) {
     // TODO: Find a better way to verify this.
     return thread->internal_data != 0;
 }
 
-void kthread_sleep(kthread *thread, u64 ms) {
+void kthread_sleep(kthread* thread, u64 ms) {
     platform_sleep(ms);
 }
 
-b8 kthread_wait(kthread *thread) {
+b8 kthread_wait(kthread* thread) {
     if (thread && thread->internal_data) {
-        i32 result = pthread_join(*(pthread_t *)thread->internal_data, 0);
+        i32 result = pthread_join(*(pthread_t*)thread->internal_data, 0);
         // When a thread is joined, its lifecycle ends.
         platform_free(thread->internal_data, false);
         thread->internal_data = 0;
@@ -165,11 +165,11 @@ b8 kthread_wait(kthread *thread) {
     return false;
 }
 
-b8 kthread_wait_timeout(kthread *thread, u64 wait_ms) {
+b8 kthread_wait_timeout(kthread* thread, u64 wait_ms) {
     if (thread && thread->internal_data) {
         KWARN("kthread_wait_timeout - timeout not supported on this platform.");
         // LEFTOFF: Need a wait/notify loop to support timeout.
-        i32 result = pthread_join(*(pthread_t *)thread->internal_data, 0);
+        i32 result = pthread_join(*(pthread_t*)thread->internal_data, 0);
         // When a thread is joined, its lifecycle ends.
         platform_free(thread->internal_data, false);
         thread->internal_data = 0;
@@ -187,7 +187,7 @@ u64 platform_current_thread_id(void) {
 // NOTE: End threads.
 
 // NOTE: Begin mutexes
-b8 kmutex_create(kmutex *out_mutex) {
+b8 kmutex_create(kmutex* out_mutex) {
     if (!out_mutex) {
         return false;
     }
@@ -205,27 +205,27 @@ b8 kmutex_create(kmutex *out_mutex) {
 
     // Save off the mutex handle.
     out_mutex->internal_data = platform_allocate(sizeof(pthread_mutex_t), false);
-    *(pthread_mutex_t *)out_mutex->internal_data = mutex;
+    *(pthread_mutex_t*)out_mutex->internal_data = mutex;
 
     return true;
 }
 
-void kmutex_destroy(kmutex *mutex) {
+void kmutex_destroy(kmutex* mutex) {
     if (mutex) {
-        i32 result = pthread_mutex_destroy((pthread_mutex_t *)mutex->internal_data);
+        i32 result = pthread_mutex_destroy((pthread_mutex_t*)mutex->internal_data);
         switch (result) {
-            case 0:
-                // KTRACE("Mutex destroyed.");
-                break;
-            case EBUSY:
-                KERROR("Unable to destroy mutex: mutex is locked or referenced.");
-                break;
-            case EINVAL:
-                KERROR("Unable to destroy mutex: the value specified by mutex is invalid.");
-                break;
-            default:
-                KERROR("An handled error has occurred while destroy a mutex: errno=%i", result);
-                break;
+        case 0:
+            // KTRACE("Mutex destroyed.");
+            break;
+        case EBUSY:
+            KERROR("Unable to destroy mutex: mutex is locked or referenced.");
+            break;
+        case EINVAL:
+            KERROR("Unable to destroy mutex: the value specified by mutex is invalid.");
+            break;
+        default:
+            KERROR("An handled error has occurred while destroy a mutex: errno=%i", result);
+            break;
         }
 
         platform_free(mutex->internal_data, false);
@@ -233,54 +233,54 @@ void kmutex_destroy(kmutex *mutex) {
     }
 }
 
-b8 kmutex_lock(kmutex *mutex) {
+b8 kmutex_lock(kmutex* mutex) {
     if (!mutex) {
         return false;
     }
     // Lock
-    i32 result = pthread_mutex_lock((pthread_mutex_t *)mutex->internal_data);
+    i32 result = pthread_mutex_lock((pthread_mutex_t*)mutex->internal_data);
     switch (result) {
-        case 0:
-            // Success, everything else is a failure.
-            // KTRACE("Obtained mutex lock.");
-            return true;
-        case EOWNERDEAD:
-            KERROR("Owning thread terminated while mutex still active.");
-            return false;
-        case EAGAIN:
-            KERROR("Unable to obtain mutex lock: the maximum number of recursive mutex locks has been reached.");
-            return false;
-        case EBUSY:
-            KERROR("Unable to obtain mutex lock: a mutex lock already exists.");
-            return false;
-        case EDEADLK:
-            KERROR("Unable to obtain mutex lock: a mutex deadlock was detected.");
-            return false;
-        default:
-            KERROR("An handled error has occurred while obtaining a mutex lock: errno=%i", result);
-            return false;
+    case 0:
+        // Success, everything else is a failure.
+        // KTRACE("Obtained mutex lock.");
+        return true;
+    case EOWNERDEAD:
+        KERROR("Owning thread terminated while mutex still active.");
+        return false;
+    case EAGAIN:
+        KERROR("Unable to obtain mutex lock: the maximum number of recursive mutex locks has been reached.");
+        return false;
+    case EBUSY:
+        KERROR("Unable to obtain mutex lock: a mutex lock already exists.");
+        return false;
+    case EDEADLK:
+        KERROR("Unable to obtain mutex lock: a mutex deadlock was detected.");
+        return false;
+    default:
+        KERROR("An handled error has occurred while obtaining a mutex lock: errno=%i", result);
+        return false;
     }
 }
 
-b8 kmutex_unlock(kmutex *mutex) {
+b8 kmutex_unlock(kmutex* mutex) {
     if (!mutex) {
         return false;
     }
     if (mutex->internal_data) {
-        i32 result = pthread_mutex_unlock((pthread_mutex_t *)mutex->internal_data);
+        i32 result = pthread_mutex_unlock((pthread_mutex_t*)mutex->internal_data);
         switch (result) {
-            case 0:
-                // KTRACE("Freed mutex lock.");
-                return true;
-            case EOWNERDEAD:
-                KERROR("Unable to unlock mutex: owning thread terminated while mutex still active.");
-                return false;
-            case EPERM:
-                KERROR("Unable to unlock mutex: mutex not owned by current thread.");
-                return false;
-            default:
-                KERROR("An handled error has occurred while unlocking a mutex lock: errno=%i", result);
-                return false;
+        case 0:
+            // KTRACE("Freed mutex lock.");
+            return true;
+        case EOWNERDEAD:
+            KERROR("Unable to unlock mutex: owning thread terminated while mutex still active.");
+            return false;
+        case EPERM:
+            KERROR("Unable to unlock mutex: mutex not owned by current thread.");
+            return false;
+        default:
+            KERROR("An handled error has occurred while unlocking a mutex lock: errno=%i", result);
+            return false;
         }
     }
 
@@ -288,7 +288,7 @@ b8 kmutex_unlock(kmutex *mutex) {
 }
 // NOTE: End mutexes
 
-b8 ksemaphore_create(ksemaphore *out_semaphore, u32 max_count, u32 start_count) {
+b8 ksemaphore_create(ksemaphore* out_semaphore, u32 max_count, u32 start_count) {
     if (!out_semaphore) {
         return false;
     }
@@ -298,7 +298,7 @@ b8 ksemaphore_create(ksemaphore *out_semaphore, u32 max_count, u32 start_count) 
     semaphore_id++;
 
     out_semaphore->internal_data = kallocate(sizeof(nix_semaphore_internal), MEMORY_TAG_ENGINE);
-    nix_semaphore_internal *internal = out_semaphore->internal_data;
+    nix_semaphore_internal* internal = out_semaphore->internal_data;
 
     if ((internal->semaphore = sem_open(name_buf, O_CREAT, 0664, 1)) == SEM_FAILED) {
         KERROR("Failed to open semaphore");
@@ -309,12 +309,12 @@ b8 ksemaphore_create(ksemaphore *out_semaphore, u32 max_count, u32 start_count) 
     return true;
 }
 
-void ksemaphore_destroy(ksemaphore *semaphore) {
+void ksemaphore_destroy(ksemaphore* semaphore) {
     if (!semaphore) {
         return;
     }
 
-    nix_semaphore_internal *internal = semaphore->internal_data;
+    nix_semaphore_internal* internal = semaphore->internal_data;
     if (sem_close(internal->semaphore) == -1) {
         KERROR("Failed to close semaphore.");
     }
@@ -328,12 +328,12 @@ void ksemaphore_destroy(ksemaphore *semaphore) {
     semaphore->internal_data = 0;
 }
 
-b8 ksemaphore_signal(ksemaphore *semaphore) {
+b8 ksemaphore_signal(ksemaphore* semaphore) {
     if (!semaphore || !semaphore->internal_data) {
         return false;
     }
 
-    nix_semaphore_internal *internal = semaphore->internal_data;
+    nix_semaphore_internal* internal = semaphore->internal_data;
     if (sem_post(internal->semaphore) != 0) {
         KERROR("Semaphore failed to post!");
         return false;
@@ -347,12 +347,12 @@ b8 ksemaphore_signal(ksemaphore *semaphore) {
  * semaphore is considered unsignaled and this call blocks until the
  * semaphore is signaled by ksemaphore_signal.
  */
-b8 ksemaphore_wait(ksemaphore *semaphore, u64 timeout_ms) {
+b8 ksemaphore_wait(ksemaphore* semaphore, u64 timeout_ms) {
     if (!semaphore || !semaphore->internal_data) {
         return false;
     }
 
-    nix_semaphore_internal *internal = semaphore->internal_data;
+    nix_semaphore_internal* internal = semaphore->internal_data;
     // TODO: handle timeout value using sem_timedwait()
     if (sem_wait(internal->semaphore) != 0) {
         KERROR("Semaphore failed to wait!");
@@ -362,7 +362,7 @@ b8 ksemaphore_wait(ksemaphore *semaphore, u64 timeout_ms) {
     return true;
 }
 
-b8 platform_dynamic_library_load(const char *name, dynamic_library *out_library) {
+b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library) {
     if (!out_library) {
         return false;
     }
@@ -371,15 +371,15 @@ b8 platform_dynamic_library_load(const char *name, dynamic_library *out_library)
         return false;
     }
 
-    char filename[260];  // NOTE: same as Windows, for now.
+    char filename[260]; // NOTE: same as Windows, for now.
     kzero_memory(filename, sizeof(char) * 260);
 
-    const char *extension = platform_dynamic_library_extension();
-    const char *prefix = platform_dynamic_library_prefix();
+    const char* extension = platform_dynamic_library_extension();
+    const char* prefix = platform_dynamic_library_prefix();
 
     string_format(filename, "%s%s%s", prefix, name, extension);
 
-    void *library = dlopen(filename, RTLD_NOW);  // "libtestbed_lib_loaded.dylib"
+    void* library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded.dylib"
     if (!library) {
         KERROR("Error opening library: %s", dlerror());
         return false;
@@ -396,7 +396,7 @@ b8 platform_dynamic_library_load(const char *name, dynamic_library *out_library)
     return true;
 }
 
-b8 platform_dynamic_library_unload(dynamic_library *library) {
+b8 platform_dynamic_library_unload(dynamic_library* library) {
     if (!library) {
         return false;
     }
@@ -406,28 +406,28 @@ b8 platform_dynamic_library_unload(dynamic_library *library) {
     }
 
     i32 result = dlclose(library->internal_data);
-    if (result != 0) {  // Opposite of Windows, 0 means success.
+    if (result != 0) { // Opposite of Windows, 0 means success.
         return false;
     }
     library->internal_data = 0;
 
     if (library->name) {
         u64 length = string_length(library->name);
-        kfree((void *)library->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+        kfree((void*)library->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
     }
 
     if (library->filename) {
         u64 length = string_length(library->filename);
-        kfree((void *)library->filename, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+        kfree((void*)library->filename, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
     }
 
     if (library->functions) {
         u32 count = darray_length(library->functions);
         for (u32 i = 0; i < count; ++i) {
-            dynamic_library_function *f = &library->functions[i];
+            dynamic_library_function* f = &library->functions[i];
             if (f->name) {
                 u64 length = string_length(f->name);
-                kfree((void *)f->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+                kfree((void*)f->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
             }
         }
 
@@ -440,7 +440,7 @@ b8 platform_dynamic_library_unload(dynamic_library *library) {
     return true;
 }
 
-b8 platform_dynamic_library_load_function(const char *name, dynamic_library *library) {
+void* platform_dynamic_library_load_function(const char* name, dynamic_library* library) {
     if (!name || !library) {
         return false;
     }
@@ -449,7 +449,7 @@ b8 platform_dynamic_library_load_function(const char *name, dynamic_library *lib
         return false;
     }
 
-    void *f_addr = dlsym(library->internal_data, name);
+    void* f_addr = dlsym(library->internal_data, name);
     if (!f_addr) {
         return false;
     }
@@ -459,7 +459,7 @@ b8 platform_dynamic_library_load_function(const char *name, dynamic_library *lib
     f.name = string_duplicate(name);
     darray_push(library->functions, f);
 
-    return true;
+    return f_addr;
 }
 
 #endif

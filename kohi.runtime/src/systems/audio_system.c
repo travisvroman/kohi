@@ -16,7 +16,8 @@ typedef struct audio_channel {
 
 typedef struct audio_system_state {
     audio_system_config config;
-    audio_plugin plugin;
+    // FIXME: Resolve from app config.
+    audio_plugin* plugin;
     f32 master_volume;
     audio_channel channels[MAX_AUDIO_CHANNELS];
 } audio_system_state;
@@ -59,13 +60,13 @@ b8 audio_system_initialize(u64* memory_requirement, void* state, void* config) {
     plugin_config.chunk_size = typed_config->chunk_size;
     plugin_config.frequency = typed_config->frequency;
     plugin_config.channel_count = typed_config->channel_count;
-    return typed_state->plugin.initialize(&typed_state->plugin, plugin_config);
+    return typed_state->plugin->initialize(typed_state->plugin, plugin_config);
 }
 
 void audio_system_shutdown(void* state) {
     if (state) {
         audio_system_state* typed_state = (audio_system_state*)state;
-        typed_state->plugin.shutdown(&typed_state->plugin);
+        typed_state->plugin->shutdown(typed_state->plugin);
     }
 }
 
@@ -76,35 +77,35 @@ b8 audio_system_update(void* state, struct frame_data* p_frame_data) {
         audio_channel* channel = &typed_state->channels[i];
         if (channel->emitter) {
             // TODO: sync all properties
-            typed_state->plugin.source_position_set(&typed_state->plugin, i, channel->emitter->position);
-            typed_state->plugin.source_looping_set(&typed_state->plugin, i, channel->emitter->looping);
-            typed_state->plugin.source_gain_set(&typed_state->plugin, i, typed_state->master_volume * typed_state->channels[i].volume * channel->emitter->volume);
+            typed_state->plugin->source_position_set(typed_state->plugin, i, channel->emitter->position);
+            typed_state->plugin->source_looping_set(typed_state->plugin, i, channel->emitter->looping);
+            typed_state->plugin->source_gain_set(typed_state->plugin, i, typed_state->master_volume * typed_state->channels[i].volume * channel->emitter->volume);
         }
     }
 
-    return typed_state->plugin.update(&typed_state->plugin, p_frame_data);
+    return typed_state->plugin->update(typed_state->plugin, p_frame_data);
 }
 
 b8 audio_system_listener_orientation_set(vec3 position, vec3 forward, vec3 up) {
     audio_system_state* state = engine_systems_get()->audio_system;
-    state->plugin.listener_position_set(&state->plugin, position);
-    state->plugin.listener_orientation_set(&state->plugin, forward, up);
+    state->plugin->listener_position_set(state->plugin, position);
+    state->plugin->listener_orientation_set(state->plugin, forward, up);
     return true;
 }
 
 struct audio_file* audio_system_chunk_load(const char* path) {
     audio_system_state* state = engine_systems_get()->audio_system;
-    return state->plugin.chunk_load(&state->plugin, path);
+    return state->plugin->chunk_load(state->plugin, path);
 }
 
 struct audio_file* audio_system_stream_load(const char* path) {
     audio_system_state* state = engine_systems_get()->audio_system;
-    return state->plugin.stream_load(&state->plugin, path);
+    return state->plugin->stream_load(state->plugin, path);
 }
 
 void audio_system_close(struct audio_file* file) {
     audio_system_state* state = engine_systems_get()->audio_system;
-    state->plugin.audio_unload(&state->plugin, file);
+    state->plugin->audio_unload(state->plugin, file);
 }
 
 void audio_system_master_volume_query(f32* out_volume) {
@@ -125,7 +126,7 @@ void audio_system_master_volume_set(f32 volume) {
             // Take the emitter's volume into account if there is one.
             mixed_volume *= state->channels[i].emitter->volume;
         }
-        state->plugin.source_gain_set(&state->plugin, i, mixed_volume);
+        state->plugin->source_gain_set(state->plugin, i, mixed_volume);
     }
 }
 
@@ -153,7 +154,7 @@ b8 audio_system_channel_volume_set(i8 channel_id, f32 volume) {
         // Take the emitter's volume into account if there is one.
         mixed_volume *= state->channels[channel_id].emitter->volume;
     }
-    state->plugin.source_gain_set(&state->plugin, channel_id, mixed_volume);
+    state->plugin->source_gain_set(state->plugin, channel_id, mixed_volume);
     return true;
 }
 
@@ -188,19 +189,19 @@ b8 audio_system_channel_play(i8 channel_id, struct audio_file* file, b8 loop) {
     channel->current = file;
 
     // Set the channel volume.
-    state->plugin.source_gain_set(&state->plugin, channel_id, state->master_volume * channel->volume);
+    state->plugin->source_gain_set(state->plugin, channel_id, state->master_volume * channel->volume);
 
     if (file->type == AUDIO_FILE_TYPE_SOUND_EFFECT) {
         // Set the position to the listener position.
         vec3 position;
-        state->plugin.listener_position_query(&state->plugin, &position);
-        state->plugin.source_position_set(&state->plugin, channel_id, position);
+        state->plugin->listener_position_query(state->plugin, &position);
+        state->plugin->source_position_set(state->plugin, channel_id, position);
         // Set looping.
-        state->plugin.source_looping_set(&state->plugin, channel_id, loop);
+        state->plugin->source_looping_set(state->plugin, channel_id, loop);
     }
 
-    state->plugin.source_stop(&state->plugin, channel_id);
-    return state->plugin.play_on_source(&state->plugin, file, channel_id);
+    state->plugin->source_stop(state->plugin, channel_id);
+    return state->plugin->play_on_source(state->plugin, file, channel_id);
 }
 
 b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitter) {
@@ -231,7 +232,7 @@ b8 audio_system_channel_emitter_play(i8 channel_id, struct audio_emitter* emitte
     channel->emitter = emitter;
     channel->current = emitter->file;
 
-    return state->plugin.play_on_source(&state->plugin, emitter->file, channel_id);
+    return state->plugin->play_on_source(state->plugin, emitter->file, channel_id);
 }
 
 void audio_system_channel_stop(i8 channel_id) {
@@ -239,11 +240,11 @@ void audio_system_channel_stop(i8 channel_id) {
     if (channel_id < 0) {
         // Stop all channels.
         for (u32 i = 0; i < state->config.audio_channel_count; ++i) {
-            state->plugin.source_stop(&state->plugin, i);
+            state->plugin->source_stop(state->plugin, i);
         }
     } else {
         // Stop the given channel.
-        state->plugin.source_stop(&state->plugin, channel_id);
+        state->plugin->source_stop(state->plugin, channel_id);
     }
 }
 
@@ -252,11 +253,11 @@ void audio_system_channel_pause(i8 channel_id) {
     if (channel_id < 0) {
         // Pause all channels.
         for (u32 i = 0; i < state->config.audio_channel_count; ++i) {
-            state->plugin.source_pause(&state->plugin, i);
+            state->plugin->source_pause(state->plugin, i);
         }
     } else {
         // Pause the given channel.
-        state->plugin.source_pause(&state->plugin, channel_id);
+        state->plugin->source_pause(state->plugin, channel_id);
     }
 }
 
@@ -265,10 +266,10 @@ void audio_system_channel_resume(i8 channel_id) {
     if (channel_id < 0) {
         // Resume all channels.
         for (u32 i = 0; i < state->config.audio_channel_count; ++i) {
-            state->plugin.source_resume(&state->plugin, i);
+            state->plugin->source_resume(state->plugin, i);
         }
     } else {
         // Resume the given channel.
-        state->plugin.source_resume(&state->plugin, channel_id);
+        state->plugin->source_resume(state->plugin, channel_id);
     }
 }

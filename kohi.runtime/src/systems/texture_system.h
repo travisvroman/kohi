@@ -160,21 +160,11 @@ KAPI void texture_system_release(const char* name);
  * @param channel_count The number of channels in the texture (typically 4 for RGBA)
  * @param has_transparency Indicates if the texture will have transparency.
  * @param is_writeable Indicates if the texture is writeable.
- * @param internal_data A pointer to the internal data to be set on the texture.
+ * @param renderer_texture_handle A handle to the internal data to be set on the texture.
  * @param register_texture Indicates if the texture should be registered with the system.
  * @param out_texture An optional pointer to hold the wrapped texture. If null, a new pointer is allocated and returned instead.
  */
-KAPI void texture_system_wrap_internal(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, b8 is_writeable, b8 register_texture, void* internal_data, texture* out_texture);
-
-/**
- * @brief Sets the internal data of a texture. Useful for replacing internal data from within the
- * renderer for wrapped textures, for example.
- *
- * @param t A pointer to the texture to be updated.
- * @param internal_data A pointer to the internal data to be set.
- * @return True on success; otherwise false.
- */
-KAPI b8 texture_system_set_internal(texture* t, void* internal_data);
+KAPI void texture_system_wrap_internal(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, b8 is_writeable, b8 register_texture, k_handle renderer_texture_handle, texture* out_texture);
 
 /**
  * @brief Resizes the given texture. May only be done on writeable textures.

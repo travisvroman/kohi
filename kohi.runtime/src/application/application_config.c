@@ -25,11 +25,6 @@ b8 application_config_parse_file_content(const char* file_content, application_c
         return false;
     }
 
-    if (!kson_object_property_value_get_string(&app_config_tree.root, "renderer_plugin_name", &out_config->renderer_plugin_name)) {
-        KERROR("Failed to find property 'renderer_plugin_name', which is required.");
-        return false;
-    }
-
     if (!kson_object_property_value_get_string(&app_config_tree.root, "audio_plugin_name", &out_config->audio_plugin_name)) {
         KERROR("Failed to find property 'audio_plugin_name', which is required.");
         return false;
@@ -54,7 +49,7 @@ b8 application_config_parse_file_content(const char* file_content, application_c
     }
 
     // Window configs.
-    out_config->windows = darray_create(application_window_config);
+    out_config->windows = darray_create(kwindow_config);
     kson_array window_configs_array;
     if (kson_object_property_value_get_object(&app_config_tree.root, "windows", &window_configs_array)) {
         u32 window_config_count = 0;
@@ -117,6 +112,8 @@ b8 application_config_parse_file_content(const char* file_content, application_c
             if (!new_window.position_y) {
                 new_window.position_y = 10;
             }
+
+            darray_push(out_config->windows, new_window);
         }
     }
 
@@ -124,11 +121,13 @@ b8 application_config_parse_file_content(const char* file_content, application_c
     u32 window_count = darray_length(out_config->windows);
     if (window_count == 0) {
         KWARN("A window configuration was not provided or was not valid, so a default one will be used.");
-        application_window_config win = {0};
+        kwindow_config win = {0};
         win.name = "main_window";
         win.title = "Kohi Application Main Window";
-        win.position = vec2_create(100, 100);
-        win.resolution = vec2_create(1280, 720);
+        win.position_x = 100;
+        win.position_y = 100;
+        win.width = 1280;
+        win.height = 720;
         darray_push(out_config->windows, win);
     }
 
@@ -140,5 +139,60 @@ b8 application_config_parse_file_content(const char* file_content, application_c
         return false;
     }
 
+    u32 system_config_count = 0;
+    if (!kson_array_element_count_get(&system_configs_array, &system_config_count)) {
+        KERROR("Failed to get element count of 'systems' array. This configuration is required.");
+        return false;
+    }
+
+    for (u32 i = 0; i < system_config_count; ++i) {
+        kson_object system_config = {0};
+        if (!kson_array_element_value_get_object(&system_configs_array, i, &system_config)) {
+            KERROR("Failed to get system config object at index %u. Continuing on and trying the next...", i);
+            continue;
+        }
+
+        // Name
+        application_system_config new_system = {0};
+        if (!kson_object_property_value_get_string(&system_config, "name", &new_system.name)) {
+            KERROR("Required property 'name' is missing from system config. Cannot process system.");
+            continue;
+        }
+
+        // Obtain the 'config' property and set it up as a tree to re-serialize into a string.
+        kson_tree temp = {0};
+        if (!kson_object_property_value_get_object(&system_config, "config", &temp.root)) {
+            KERROR("Required property 'config' is missing from system config. Cannot process system.");
+            continue;
+        }
+
+        new_system.configuration_str = kson_tree_to_string(&temp);
+
+        // NOTE: No need to clean up the temp tree since it reuses objects already present in the
+        // main tree. This can/will be cleaned up at the end of processing.
+
+        // Push it into the collection of configs.
+        darray_push(out_config->systems, new_system);
+    }
+
     // Loop through and fill up struct
+    return true;
+}
+
+b8 application_config_system_config_get(const application_config* config, const char* system_name, application_system_config* out_sys_config) {
+    if (!config || !system_name || !out_sys_config) {
+        return false;
+    }
+
+    if (config->systems) {
+        u32 system_count = darray_length(config->systems);
+        for (u32 i = 0; i < system_count; ++i) {
+            if (strings_equali(system_name, config->systems[i].name)) {
+                *out_sys_config = config->systems[i];
+                return true;
+            }
+        }
+    }
+
+    return false;
 }

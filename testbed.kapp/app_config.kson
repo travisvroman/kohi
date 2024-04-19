@@ -2,7 +2,6 @@
 app_name = "Testbed"
 frame_allocator_size = 128
 app_frame_data_size = 128
-renderer_plugin_name = "kohi.plugin.renderer.vulkan"
 audio_plugin_name = "kohi.plugin.audio.openal"
 windows = [
    {
@@ -13,7 +12,14 @@ windows = [
    }
 ]
 systems = [
-   {
+    {
+        name="renderer"
+        vsync=true
+        power_saving=true
+        enable_validation=true
+        backend_plugin_name = "kohi.plugin.renderer.vulkan"
+    }
+    {
        name="plugin_system"
        plugins = [
            {
@@ -28,6 +34,9 @@ systems = [
                    
                }
            }
+           {
+                name = "kohi.plugin.ui.standard"
+           }
        ]
-   }
+    }
 ]

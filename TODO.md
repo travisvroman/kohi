@@ -1,7 +1,9 @@
-# Kohi Engine Roadmap 
+# Kohi Engine Roadmap
+
 The items in this list are not in any particular order. This list will be updated occasionally as development progresses.
 
 ## Engine general:
+
 - [x] platform layer (Windows, Linux, macOS)
   - [x] UTF-8/Wide character handling for Win32 windowing.
   - [x] Wayland support
@@ -9,21 +11,21 @@ The items in this list are not in any particular order. This list will be update
 - [x] clock
 - [x] testing framework
 - [x] math library (vector math, etc)
-- [x] Memory system 
+- [x] Memory system
 - [x] Generic sorting function/library.
 - [ ] Allocators:
   - [x] linear allocator
   - [x] dynamic allocator (variable-size allocations)
   - [ ] pool allocator
 - [x] Systems manager
-- [x] Resource system 
+- [x] Resource system
 - [x] Resource Loaders:
   - [x] binary
   - [x] text
   - [x] image
-  - [x] material 
-  - [x] bitmap font 
-  - [x] system font 
+  - [x] material
+  - [x] bitmap font
+  - [x] system font
   - [x] scene
 - [ ] mobile runtime support (Android, iOS)
 - [ ] SIMD
@@ -31,14 +33,14 @@ The items in this list are not in any particular order. This list will be update
   - [x] stack
   - [x] hashtable
   - [x] freelist
-  - [x] dynamic arrays  
+  - [x] dynamic arrays
   - [x] ring buffer
-  - [x] queue 
-  - [ ] pool 
+  - [x] queue
+  - [ ] pool
   - [ ] bst
   - [x] registry
 - [ ] quadtrees/octrees
-- [x] Threads 
+- [x] Threads
 - [ ] Flag to force single-threaded mode.
 - [x] Semaphores
 - [x] Job system
@@ -46,11 +48,11 @@ The items in this list are not in any particular order. This list will be update
   - [x] Job semaphores/signaling
 - [x] ThreadPools
 - [ ] Multi-threaded logger
-- [x] Textures 
+- [x] Textures
   - [ ] binary file format (.kbt)
-- [x] Renderable (writeable) textures 
-- [x] Static geometry 
-- [x] Materials 
+- [x] Renderable (writeable) textures
+- [x] Static geometry
+- [x] Materials
 - [ ] billboards
 - [ ] particles
 - [ ] Input:
@@ -62,7 +64,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Conosole
   - [x] Console consumer interface
   - [x] Logger as consumer
-  - [x] Debug console as consumer 
+  - [x] Debug console as consumer
   - [x] kvars (console variables)
   - [x] Console commands
 - [x] Application-level configuration
@@ -75,7 +77,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] ToString/FromString API
 - [x] Scenes
   - [x] Base implementation
-  - [x] Load from file 
+  - [x] Load from file
   - [ ] Adjustable global scene properties
   - [x] Save to file
 - [x] Renderer System (front-end/backend plugin architecture)
@@ -89,8 +91,8 @@ The items in this list are not in any particular order. This list will be update
 - [ ] skysphere (i.e dynamic day/night cycles)
 - [ ] water plane
 - [x] Raycasting
-- [x] Object picking 
-  - [x] Pixel-perfect picking 
+- [x] Object picking
+  - [x] Pixel-perfect picking
   - [x] Raycast picking
 - [x] Gizmo (in-world object manipulation)
 - [x] Viewports
@@ -100,7 +102,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] voxel-based
     - [ ] smooth voxels
   - [x] pixel picking
-  - [x] raycast picking 
+  - [x] raycast picking
   - [x] chunking/culling
     - [x] BUG: culling is currently passing all chunks always.
   - [x] LOD
@@ -108,30 +110,40 @@ The items in this list are not in any particular order. This list will be update
   - [ ] tessellation
   - [ ] holes
   - [ ] collision
-- [ ] volumes 
+- [ ] volumes
   - [ ] visibility/occlusion
-  - [ ] triggers 
-  - [ ] physics volumes 
+  - [ ] triggers
+  - [ ] physics volumes
   - [ ] weather
 - [ ] Multi-window applications
-- [ ] 0.7 Reorg 
+- [ ] 0.7 Reorg
   - [x] Split engine into "core" and "runtime"
   - [x] Rename plugin libs to consistent format, update builds, etc.
   - [ ] Remove systems manager, and move all system init back to engine.
   - [ ] External systems registry
-  - [ ] Plugin System implementation
-    - [ ] kruntime_plugin structure
+  - [x] Plugin System implementation
+    - [x] kruntime_plugin structure
     - [ ] Convert Vulkan Plugin to kruntime_plugin
     - [ ] Convert OpenAL Plugin to kruntime_plugin
     - [ ] Convert Standard UI Plugin to kruntime_plugin
-  - [ ] Implement windowing logic in platform layer.
-  - [ ] Implement windowing logic in renderer front/backend 
+  - [x] Implement windowing logic in platform layer.
+  - [ ] Implement windowing logic in renderer front/backend
   - [x] Ability to deprecate code (mark as deprecated/warn).
   - [x] Deprecate "geometry" interface points in renderer frontend/
   - [ ] Move loading of application lib from app to engine (config-powered!)
+  - [ ] frame/swapchain image count refactor:
+    - [ ] Move anything that's aware of double/triple/5x buffering exclusively to the renderer backend. Nothing outside that should know or care about it.
+    - [ ] Refactor renderer texture API to pass a new TEXTURE_FLAG_RENDERER_BUFFERING flag used to indicate to the backend that
+          resources should be created "per-frame" if this is set (i.e. 3 internal textures for triple-buffering)
+    - [ ] Adjust render target logic to defer to the backend when reaching for a texture handle to use for the above case.
+    - [ ] Rendergraph passes should either own thier own render_targets or should get them from another source/window.
+    - [ ] Renderpasses should no longer own render targets.
+    - [ ] Framebuffers (i.e. render targets) should no longer require a renderpass to create. (i.e. use a dummy pass)
+    - [ ] Shaders (graphics pipelines) should no longer require a renderpass to create. (i.e. use a dummy pass)
 - [ ] 0.7 Scene refactor (see notes below):
+
   - [x] Rename simple scene to just "scene" and move to engine core.
-  - [x] Create a unique-per-system handle for each system to identify a resource. These handles would be linked to 
+  - [x] Create a unique-per-system handle for each system to identify a resource. These handles would be linked to
         a resource array of some sort and an index element within that array via a structure that holds both.
   - [x] Create new "xform" structure and system that uses handles and can manage dependencies in updates internally.
         NOTE: This system should be laid out in a data-oriented way.
@@ -142,30 +154,30 @@ The items in this list are not in any particular order. This list will be update
     - [x] Create xform system that uses handles
   - [x] (See KSON) Refactor scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
   - [x] Write "(de)serialization" routines for savable resources and use those in the above loader.
-          Scene Refactor notes: Refactor into node-based system using handles for various types.
-          A node should contain 3 (maybe 4) things: a unique identifier, a handle id (which is a
-          link into a scene-wide handle table, which itself points to an index into an array of resources),
-          a potential parent handle id (which can be INVALID_ID if unused), and potentially a name.
-          There would then be lists of resource types (think mesh, terrain, lights, skybox, etc) which would
-          each have lookup tables of handle ids to indices into these arrays. Additionally there would be a set
-          of a lookup table and transforms that would be used. Separating these would allow updates on these objects
-          in cache-coherent loops as well as any sorting/dependency lookup that would need to be done.
-         
-          The above will require that meshes have transforms removed from them. The transform would then be
-          also referenced by the _node_ instead of the mesh. This would also facilitate batching of like meshes for
-          rendering in the future. Transforms would also have the parent pointer removed, and instead also use
-          handles. This would eliminate issues with invalid pointers when an array of a resource (i.e. transform) is
-          expanded and realloced. This should be done in a phased approach, and thus perhaps a new "xform" should be
-          created, and the "transform" structure could be deprecated. Note that the resource lookup for this would
-          likely be global, not just within a scene.
-         
+        Scene Refactor notes: Refactor into node-based system using handles for various types.
+        A node should contain 3 (maybe 4) things: a unique identifier, a handle id (which is a
+        link into a scene-wide handle table, which itself points to an index into an array of resources),
+        a potential parent handle id (which can be INVALID*ID if unused), and potentially a name.
+        There would then be lists of resource types (think mesh, terrain, lights, skybox, etc) which would
+        each have lookup tables of handle ids to indices into these arrays. Additionally there would be a set
+        of a lookup table and transforms that would be used. Separating these would allow updates on these objects
+        in cache-coherent loops as well as any sorting/dependency lookup that would need to be done.
+        The above will require that meshes have transforms removed from them. The transform would then be
+        also referenced by the \_node* instead of the mesh. This would also facilitate batching of like meshes for
+        rendering in the future. Transforms would also have the parent pointer removed, and instead also use
+        handles. This would eliminate issues with invalid pointers when an array of a resource (i.e. transform) is
+        expanded and realloced. This should be done in a phased approach, and thus perhaps a new "xform" should be
+        created, and the "transform" structure could be deprecated. Note that the resource lookup for this would
+        likely be global, not just within a scene.
+
           We could then have a few different "graphs" in the scene: one for transforms, one for visibility (i.e a flat
           array of currently-visible objects would likely suffice here), and others.
-         
+
           We might also think about, at this point, reworking the scene parser to better handle object heirarchy in a more
           expressive language fasion (perhaps using some sort of scoping syntax like "{}" to surround objects).
+
 - [ ] 0.8
-  - [ ] Handle refactoring 
+  - [ ] Handle refactoring
     - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
     - [ ] Convert material system to use handles
     - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
@@ -175,6 +187,7 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Create scene system that uses handles.
 
 ## Renderer:
+
 - [ ] geometry generation (2d and 3d, e.g. cube, cylinder, etc.)
 - [ ] advanced materials (WIP)
 - [x] PBR Lighting model
@@ -182,10 +195,10 @@ The items in this list are not in any particular order. This list will be update
 - [ ] instanced rendering
 - [ ] Per-scene vertex/index buffers
 - [ ] Queue-up of data uploads during scene load:
-  - Notes/ steps involved: 
+  - Notes/ steps involved:
     - Setup a queue in the scene to hold pending mesh data.
     - For each mesh:
-      - Make sure mesh is invalidated so it doesn't attempt to render. 
+      - Make sure mesh is invalidated so it doesn't attempt to render.
       - Assign a unique id for it and add it to the queue
       - Load it from disk (multithreaded, currently done but needs some changes). Save off id, size, data, offsets, etc.
       - Reserve space in buffer freelist but _don't_ upload to GPU. Save the offset in the queue as well.
@@ -206,7 +219,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Point light shadows
 - [x] texture mipmapping
 - [x] Specular maps (NOTE: removed in favour of PBR)
-- [x] Normal maps 
+- [x] Normal maps
 - [x] Phong Lighting model (NOTE: removed in favour of PBR)
 - [x] Multiple/configurable renderpass support.
 - [x] Rendergraph
@@ -216,28 +229,30 @@ The items in this list are not in any particular order. This list will be update
   - [x] Forward rendering specialized rendergraph
   - [ ] Deferred rendering specialized rendergraph
   - [ ] Forward+ rendering specialized rendergraph
-- [x] Forward rendering 
-- [ ] Deferred rendering 
+- [x] Forward rendering
+- [ ] Deferred rendering
 - [ ] Forward+ rendering
 - [ ] Compute Shader support (frontend)
 
 ## Plugins:
- - [ ] ECS (Entity Component System)
- - [x] Audio (OpenAL plugin)
- - [ ] Vulkan Renderer Plugin (WIP)
-   - [ ] multithreading
-     - [ ] texture data upload
-     - [ ] mesh data upload
-   - [ ] pipeline statistic querying
-   - [ ] compute support
- - [ ] Direct3D Renderer Plugin 
-   - [ ] multithreading
- - [ ] Metal Renderer Plugin 
- - [ ] OpenGL Renderer Plugin 
- - [ ] Headless Renderer Plugin
 
+- [ ] ECS (Entity Component System)
+- [x] Audio (OpenAL plugin)
+- [ ] Vulkan Renderer Plugin (WIP)
+  - [ ] Decouple renderpass from shader/pipeline and framebuffer/rendertargets
+  - [ ] multithreading
+    - [ ] texture data upload
+    - [ ] mesh data upload
+  - [ ] pipeline statistic querying
+  - [ ] compute support
+- [ ] Direct3D Renderer Plugin
+  - [ ] multithreading
+- [ ] Metal Renderer Plugin
+- [ ] OpenGL Renderer Plugin
+- [ ] Headless Renderer Plugin
 
 ## Standard UI: (separated section because number of controls)
+
 - [x] Standard UI system
 - [ ] Layering
 - [ ] UI file format
@@ -247,23 +262,24 @@ The items in this list are not in any particular order. This list will be update
 - [ ] docking
 - [ ] drag and drop support
 - [ ] UI Controls (one of the few engine-level areas that uses OOP):
-  * [x] Base control - all controls come from this
-  * [x] panel
-  * [ ] image box
-  * [ ] viewport control (world/scenes will be switched to use these as render targets)
-  * [ ] rich text control (system text w/ multicolour, bold/italic, etc. and bitmap text with multicolour only)
-  * [x] button
-  * [ ] checkbox
-  * [ ] radio buttons
-  * [ ] tabs
-  * [ ] windows/modals (complete with resize, min/max/restore, open/close, etc.)
-  * [ ] resizable multi-panels
-  * [ ] scrollbar
-  * [ ] scroll container
-  * [x] textbox/textarea
-  * [x] In-game debug console
+  - [x] Base control - all controls come from this
+  - [x] panel
+  - [ ] image box
+  - [ ] viewport control (world/scenes will be switched to use these as render targets)
+  - [ ] rich text control (system text w/ multicolour, bold/italic, etc. and bitmap text with multicolour only)
+  - [x] button
+  - [ ] checkbox
+  - [ ] radio buttons
+  - [ ] tabs
+  - [ ] windows/modals (complete with resize, min/max/restore, open/close, etc.)
+  - [ ] resizable multi-panels
+  - [ ] scrollbar
+  - [ ] scroll container
+  - [x] textbox/textarea
+  - [x] In-game debug console
 
-## Editor 
+## Editor
+
 - [ ] Editor application and 'runtime' executable
   - [ ] World editor
   - [ ] UI editor
@@ -271,9 +287,10 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Move .obj, .mtl import logic to editor (output to binary .ksm format).
 - [ ] Move texture import logic to editor (output to binary .kbt format).
 - [ ] DDS/KTX texture format imports
-- [ ] FBX model imports 
+- [ ] FBX model imports
 
 ## Other items:
+
 - [ ] Split off "core" items (defines, memory, strings, containers, etc.) into a "core" or "foundation" library so they may be used without having to pull in all of the engine.
 - [ ] Split off platform layers into separate libraries outside the engine.
 - [x] Auto-Generated API documentation
@@ -282,4 +299,4 @@ The items in this list are not in any particular order. This list will be update
 - [x] Add git tags to mark version releases (https://github.com/travisvroman/kohi/issues/174)
 - [ ] Nix build compatability (https://github.com/travisvroman/kohi/issues/175)
 
-Back to [readme](readme.md) 
+Back to [readme](readme.md)

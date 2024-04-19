@@ -60,15 +60,34 @@ typedef struct kwindow_config {
     const char* name;
 } kwindow_config;
 
+struct kwindow_platform_state;
+struct kwindow_renderer_state;
+
 /**
- * @brief An opaque window handle.
+ * @brief Represents a window in the application.
  */
-struct kwindow;
+typedef struct kwindow {
+    /** @brief The internal name of the window. */
+    const char* name;
+    /** @brief The title of the window. */
+    const char* title;
+
+    u16 width;
+    u16 height;
+    b8 resizing;
+    u16 frames_since_resize;
+
+    /** @brief Holds platform-specific data. */
+    struct kwindow_platform_state* platform_state;
+
+    /** @brief Holds renderer-specific data. */
+    struct kwindow_renderer_state* renderer_state;
+} kwindow;
 
 typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id);
 typedef void (*platform_filewatcher_file_written_callback)(u32 watcher_id);
 typedef void (*platform_window_closed_callback)(const struct kwindow* window);
-typedef void (*platform_window_resized_callback)(const struct kwindow* window, u16 width, u16 height);
+typedef void (*platform_window_resized_callback)(const struct kwindow* window);
 typedef void (*platform_process_key)(keys key, b8 pressed);
 typedef void (*platform_process_mouse_button)(mouse_buttons button, b8 pressed);
 typedef void (*platform_process_mouse_move)(i16 x, i16 y);
@@ -96,12 +115,12 @@ KAPI void platform_system_shutdown(struct platform_state* state);
 /**
  * @brief Creates a new window from the given config and optionally opens it immediately.
  *
- * @param config The configuration to be used for creating the window.
+ * @param config A constant pointer to the configuration to be used for creating the window.
  * @param window A pointer to hold the newly-created window.
  * @param show_immediately Indicates whether the window should open immediately upon creation.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 platform_window_create(kwindow_config config, struct kwindow* window, b8 show_immediately);
+KAPI b8 platform_window_create(const kwindow_config* config, struct kwindow* window, b8 show_immediately);
 
 /**
  * @brief Destroys the given window.

@@ -9,12 +9,28 @@
  *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
  *
+ * The lifecycle of a single frame (including mult. monitors) should look something like this:
+ *
+ * frame_prepare - Increments renderer frame number
+ *
+ * frame_prepare_window_surface - verifies swapchain, gets image index, etc.
+ * frame_commands_begin - begins command list/buffer
+ * <insert renderpasses, draws, etc. here>
+ * frame_commands_end - ends command list/buffer
+ * frame_submit - submits command list/buffer for execution.
+ * frame_present - once frame execution is complete, presents swapchain image.
+ *
+ *
+ *
  */
 
 #pragma once
 
 #include "core/frame_data.h"
+#include "defines.h"
+#include "identifiers/khandle.h"
 #include "renderer_types.h"
+#include "resources/resource_types.h"
 
 struct shader;
 struct shader_uniform;
@@ -22,9 +38,17 @@ struct frame_data;
 struct viewport;
 
 typedef struct renderer_system_config {
-    char* application_name;
-    renderer_plugin plugin;
+    const char* application_name;
+    const char* backend_plugin_name;
+    b8 vsync;
+    b8 enable_validation;
+    b8 power_saving;
 } renderer_system_config;
+
+struct renderer_system_state;
+struct kwindow;
+
+b8 renderer_system_deserialize_config(const char* config_str, renderer_system_config* out_config);
 
 /**
  * @brief Initializes the renderer frontend/system. Should be called twice - once
@@ -33,25 +57,30 @@ typedef struct renderer_system_config {
  *
  * @param memory_requirement A pointer to hold the memory requirement for this system.
  * @param state A block of memory to hold state data, or 0 if obtaining memory requirement.
- * @param config The configuration (renderer_system_config) for the renderer.
+ * @param config A constant pointer to the configuration for the renderer.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_system_initialize(u64* memory_requirement, void* state, void* config);
+KAPI b8 renderer_system_initialize(u64* memory_requirement, struct renderer_system_state* state, const renderer_system_config* config);
 
 /**
  * @brief Shuts the renderer system/frontend down.
  *
  * @param state A pointer to the state block of memory.
  */
-KAPI void renderer_system_shutdown(void* state);
+KAPI void renderer_system_shutdown(struct renderer_system_state* state);
+
+KAPI u64 renderer_system_frame_number_get(struct renderer_system_state* state);
+
+KAPI b8 renderer_on_window_created(struct renderer_system_state* state, struct kwindow* window);
+KAPI void renderer_on_window_destroyed(struct renderer_system_state* state, struct kwindow* window);
 
 /**
- * @brief Handles resize events.
+ * @brief Handles window resize events.
  *
- * @param width The new window width.
- * @param height The new window height.
+ * @param state A pointer to the state block of memory.
+ * @param window A const pointer to the window that was resized.
  */
-KAPI void renderer_on_resized(u16 width, u16 height);
+KAPI void renderer_on_window_resized(struct renderer_system_state* state, const struct kwindow* window);
 
 /**
  * @brief Begins the marking of a section of commands, listed under a given name and
@@ -78,21 +107,30 @@ KAPI void renderer_end_debug_label(void);
  * @param p_frame_data A pointer to the current frame's data.
  * @return True if successful; otherwise false.
  */
-KAPI b8 renderer_frame_prepare(struct frame_data* p_frame_data);
+KAPI b8 renderer_frame_prepare(struct renderer_system_state* state, struct frame_data* p_frame_data);
+
+/**
+ * @brief Prepares a window's surface for drawing.
+ * @param p_frame_data A pointer to the current frame's data.
+ * @return True if successful; otherwise false.
+ */
+KAPI b8 renderer_frame_prepare_window_surface(struct renderer_system_state* state, struct kwindow* window, struct frame_data* p_frame_data);
 
 /**
  * @brief Begins a render. There must be at least one of these and a matching end per frame.
  * @param p_frame_data A pointer to the current frame's data.
  * @return True if successful; otherwise false.
  */
-KAPI b8 renderer_begin(struct frame_data* p_frame_data);
+KAPI b8 renderer_frame_command_list_begin(struct renderer_system_state* state, struct frame_data* p_frame_data);
 
 /**
  * @brief Ends a render.
  * @param p_frame_data A pointer to the current frame's data.
  * @return True if successful; otherwise false.
  */
-KAPI b8 renderer_end(struct frame_data* p_frame_data);
+KAPI b8 renderer_frame_command_list_end(struct renderer_system_state* state, struct frame_data* p_frame_data);
+
+KAPI b8 renderer_frame_submit(struct renderer_system_state* state, struct frame_data* p_frame_data);
 
 /**
  * @brief Performs routines required to draw a frame, such as presentation. Should only be called
@@ -101,7 +139,7 @@ KAPI b8 renderer_end(struct frame_data* p_frame_data);
  * @param p_frame_data A constant pointer to the current frame's data.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_present(struct frame_data* p_frame_data);
+KAPI b8 renderer_frame_present(struct renderer_system_state* state, struct kwindow* window, struct frame_data* p_frame_data);
 
 /**
  * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
@@ -182,67 +220,77 @@ KAPI void renderer_set_stencil_compare_mask(u32 compare_mask);
 KAPI void renderer_set_stencil_write_mask(u32 write_mask);
 
 /**
- * @brief Creates a new texture.
+ * Attempts to acquire renderer-specific resources to back a texture.
  *
- * @param pixels The raw image data to be uploaded to the GPU.
- * @param texture A pointer to the texture to be loaded.
+ * @param state A pointer to the renderer system state.
+ * @param type The type of texture.
+ * @param width The texture width in pixels.
+ * @param height The texture height in pixels.
+ * @param channel_count The number of channels in the texture (i.e. RGBA = 4)
+ * @param mip_levels The number of mip maps the internal texture has. Must always be at least 1.
+ * @param array_size For arrayed textures, how many "layers" there are. Otherwise this is 1.
+ * @param flags Various property flags to be used in creating this texture.
+ * @param out_renderer_texture_handle A pointer to hold the renderer texture handle, which points to the backing resource(s) of the texture.
+ * @returns True on success, otherwise false;
  */
-KAPI void renderer_texture_create(const u8* pixels, struct texture* texture);
+KAPI b8 renderer_texture_resources_acquire(struct renderer_system_state* state, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, k_handle* out_renderer_texture_handle);
 
 /**
- * @brief Destroys the given texture, releasing internal resources from the GPU.
+ * Releases backing renderer-specific resources for the given renderer_texture_id.
  *
- * @param texture A pointer to the texture to be destroyed.
+ * @param state A pointer to the renderer system state.
+ * @param renderer_texture_id The handle of the renderer texture whose resources are to be released.
  */
-KAPI void renderer_texture_destroy(struct texture* texture);
-
-/**
- * @brief Creates a new writeable texture with no data written to it.
- *
- * @param t A pointer to the texture to hold the resources.
- */
-KAPI void renderer_texture_create_writeable(texture* t);
+KAPI void renderer_texture_resources_release(struct renderer_system_state* state, k_handle renderer_texture_id);
 
 /**
  * @brief Resizes a texture. There is no check at this level to see if the
  * texture is writeable. Internal resources are destroyed and re-created at
  * the new resolution. Data is lost and would need to be reloaded.
  *
- * @param t A pointer to the texture to be resized.
+ * @param state A pointer to the renderer system state.
+ * @param renderer_texture_handle A handle to the texture to be resized.
  * @param new_width The new width in pixels.
  * @param new_height The new height in pixels.
+ * @returns True on success; otherwise false.
  */
-KAPI void renderer_texture_resize(texture* t, u32 new_width, u32 new_height);
+KAPI b8 renderer_texture_resize(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 new_width, u32 new_height);
 
 /**
  * @brief Writes the given data to the provided texture.
  *
- * @param t A pointer to the texture to be written to. NOTE: Must be a writeable texture.
+ * @param state A pointer to the renderer system state.
+ * @param renderer_texture_handle A handle to the texture to be written to. NOTE: Must be a writeable texture.
  * @param offset The offset in bytes from the beginning of the data to be written.
  * @param size The number of bytes to be written.
  * @param pixels The raw image data to be written.
+ * @returns True on success; otherwise false.
  */
-KAPI void renderer_texture_write_data(texture* t, u32 offset, u32 size, const u8* pixels);
+KAPI b8 renderer_texture_write_data(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 offset, u32 size, const u8* pixels);
 
 /**
  * @brief Reads the given data from the provided texture.
  *
- * @param t A pointer to the texture to be read from.
+ * @param state A pointer to the renderer system state.
+ * @param renderer_texture_handle A handle to the texture to be read from.
  * @param offset The offset in bytes from the beginning of the data to be read.
  * @param size The number of bytes to be read.
  * @param out_memory A pointer to a block of memory to write the read data to.
+ * @returns True on success; otherwise false.
  */
-KAPI void renderer_texture_read_data(texture* t, u32 offset, u32 size, void** out_memory);
+KAPI b8 renderer_texture_read_data(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 offset, u32 size, void** out_memory);
 
 /**
  * @brief Reads a pixel from the provided texture at the given x/y coordinate.
  *
- * @param t A pointer to the texture to be read from.
+ * @param state A pointer to the renderer system state.
+ * @param renderer_texture_handle A handle to the texture to be read from.
  * @param x The pixel x-coordinate.
  * @param y The pixel y-coordinate.
  * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
+ * @returns True on success; otherwise false.
  */
-KAPI void renderer_texture_read_pixel(texture* t, u32 x, u32 y, u8** out_rgba);
+KAPI b8 renderer_texture_read_pixel(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 x, u32 y, u8** out_rgba);
 
 /**
  * @brief Attempts retrieve the renderer's internal buffer of the given type.
@@ -503,30 +551,21 @@ KAPI void renderer_render_target_create(u8 attachment_count, render_target_attac
 KAPI void renderer_render_target_destroy(render_target* target, b8 free_internal_memory);
 
 /**
- * @brief Attempts to get the window render target at the given index.
+ * @brief Attempts to get the window render target.
  *
- * @param index The index of the attachment to get. Must be within the range of window render target count.
+ * @param window A constant pointer to the window whose attachment to get.
  * @return A pointer to a texture attachment if successful; otherwise 0.
  */
-KAPI texture* renderer_window_attachment_get(u8 index);
+KAPI texture* renderer_window_attachment_get(struct renderer_system_state* state, const struct kwindow* window);
 
 /**
  * @brief Returns a pointer to the main depth texture target.
  *
- * @param index The index of the attachment to get. Must be within the range of window render target count.
+ * @param window A constant pointer to the window whose attachment to get.
  * @return A pointer to a texture attachment if successful; otherwise 0.
  */
-KAPI texture* renderer_depth_attachment_get(u8 index);
-
-/**
- * @brief Returns the current window attachment index.
- */
-KAPI u8 renderer_window_attachment_index_get(void);
-
-/**
- * @brief Returns the number of attachments required for window-based render targets.
- */
-KAPI u8 renderer_window_attachment_count_get(void);
+KDEPRECATED("The renderer should not have nor maintain depth attachments. This should be owned by whatever uses it (i.e. a rendergraph_pass). This function will be removed.");
+KAPI texture* renderer_depth_attachment_get(struct renderer_system_state* state, const struct kwindow* window);
 
 /**
  * @brief Creates a new renderpass.

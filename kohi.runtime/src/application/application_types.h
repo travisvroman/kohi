@@ -11,11 +11,13 @@
 
 #pragma once
 
+#include "application_config.h"
 #include "core/engine.h"
 #include "platform/platform.h"
 
 struct render_packet;
 struct frame_data;
+struct application_config;
 
 /** @brief Represents the various stages of application lifecycle. */
 typedef enum application_stage {
@@ -85,10 +87,10 @@ typedef struct application {
     /**
      * @brief Function pointer to handle resizes, if applicable.
      * @param app_inst A pointer to the application instance.
-     * @param width The width of the window in pixels.
+     * @param window A constant pointer to the window that was resized.
      * @param height The height of the window in pixels.
      * */
-    void (*on_resize)(struct application* app_inst, u32 width, u32 height);
+    void (*on_window_resize)(struct application* app_inst, const struct kwindow* window);
 
     /**
      * @brief Shuts down the application, prompting release of resources.
@@ -108,13 +110,6 @@ typedef struct application {
 
     /** @brief A block of memory to hold the engine state. Created and managed by the engine. */
     void* engine_state;
-
-    // TODO: Move this to somewhere better...
-    dynamic_library renderer_library;
-    renderer_plugin render_plugin;
-
-    dynamic_library audio_library;
-    audio_plugin audio_plugin;
 
     dynamic_library game_library;
 } application;

@@ -4,7 +4,7 @@
 #include <memory/kmemory.h>
 
 #include "kohi.plugin.renderer.vulkan_version.h"
-#include "renderer/vulkan/vulkan_backend.h"
+#include "vulkan_backend.h"
 
 b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->initialize = vulkan_renderer_backend_initialize;
@@ -31,9 +31,8 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->renderpass_begin = vulkan_renderer_renderpass_begin;
     out_plugin->renderpass_end = vulkan_renderer_renderpass_end;
     out_plugin->resized = vulkan_renderer_backend_on_resized;
-    out_plugin->texture_create = vulkan_renderer_texture_create;
-    out_plugin->texture_destroy = vulkan_renderer_texture_destroy;
-    out_plugin->texture_create_writeable = vulkan_renderer_texture_create_writeable;
+    out_plugin->texture_resources_acquire = vulkan_renderer_texture_resources_acquire;
+    out_plugin->texture_resource_release = vulkan_renderer_texture_resources_release;
     out_plugin->texture_resize = vulkan_renderer_texture_resize;
     out_plugin->texture_write_data = vulkan_renderer_texture_write_data;
     out_plugin->texture_read_data = vulkan_renderer_texture_read_data;

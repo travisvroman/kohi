@@ -18,9 +18,6 @@ typedef b8 (*PFN_kruntime_plugin_render)(struct kruntime_plugin* plugin, struct 
 
 typedef void (*PFN_kruntime_plugin_on_window_resized)(void* plugin_state, struct kwindow* window, u16 width, u16 height);
 
-/** @brief An opaque handle to the plugin's internal state. */
-struct kruntime_plugin_state;
-
 /**
  * A generic structure to hold function pointers for a given plugin. These serve as
  * the plugin's hook into the system at various points of its lifecycle. Only the
@@ -65,7 +62,7 @@ typedef struct kruntime_plugin {
     u64 plugin_state_size;
 
     /** @brief The block of memory holding the plugin's internal state. */
-    struct kruntime_plugin_state* plugin_state;
+    void* plugin_state;
 } kruntime_plugin;
 
 #endif
