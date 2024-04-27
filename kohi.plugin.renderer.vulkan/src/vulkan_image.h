@@ -12,6 +12,7 @@
 #pragma once
 
 #include "vulkan_types.h"
+#include <vulkan/vulkan_core.h>
 
 /**
  * @brief Creates a new Vulkan image.
@@ -47,6 +48,14 @@ void vulkan_image_create(
     vulkan_image* out_image);
 
 /**
+ * @brief Destroys the given image.
+ *
+ * @param context A pointer to the Vulkan context.
+ * @param image A pointer to the image to be destroyed.
+ */
+void vulkan_image_destroy(vulkan_context* context, vulkan_image* image);
+
+/**
  * @brief Creates a view for the given image.
  *
  * @param context A pointer to the Vulkan context.
@@ -56,6 +65,7 @@ void vulkan_image_create(
  * @param format The image format.
  * @param image A pointer to the image to associate the view with.
  * @param out_view A pointer to hold the created view.
+ * @param out_view_subresource_range A pointer to hold the view's calculated subresource range.
  * @param aspect_flags Aspect flags to be used when creating the view, if applicable.
  */
 void vulkan_image_view_create(
@@ -66,7 +76,8 @@ void vulkan_image_view_create(
     VkFormat format,
     vulkan_image* image,
     VkImageAspectFlags aspect_flags,
-    VkImageView* out_view);
+    VkImageView* out_view,
+    VkImageSubresourceRange* out_view_subresource_range);
 
 /**
  * @brief Transitions the provided image from old_layout to new_layout.
@@ -146,11 +157,3 @@ void vulkan_image_copy_pixel_to_buffer(
     u32 x,
     u32 y,
     vulkan_command_buffer* command_buffer);
-
-/**
- * @brief Destroys the given image.
- *
- * @param context A pointer to the Vulkan context.
- * @param image A pointer to the image to be destroyed.
- */
-void vulkan_image_destroy(vulkan_context* context, vulkan_image* image);

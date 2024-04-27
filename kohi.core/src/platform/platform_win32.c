@@ -564,7 +564,7 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
 
     char filename[MAX_PATH];
     kzero_memory(filename, sizeof(char) * MAX_PATH);
-    string_format(filename, "%s.dll", name);
+    string_format_unsafe(filename, "%s.dll", name);
 
     HMODULE library = LoadLibraryA(filename);
     if (!library) {

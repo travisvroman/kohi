@@ -35,7 +35,7 @@ b8 forward_rendergraph_create(const forward_rendergraph_config* config, forward_
     }
 
     // Skybox pass
-    RG_CHECK(rendergraph_pass_create(&out_graph->internal_graph, "skybox", skybox_pass_create, 0, &out_graph->skybox_pass));
+    RG_CHECK(rendergraph_pass_create(&out_graph->internal_graph, "skybox", skybox_rendergraph_node_create, 0, &out_graph->skybox_pass));
     RG_CHECK(rendergraph_pass_sink_add(&out_graph->internal_graph, "skybox", "colourbuffer"));
     RG_CHECK(rendergraph_pass_source_add(&out_graph->internal_graph, "skybox", "colourbuffer", RENDERGRAPH_SOURCE_TYPE_RENDER_TARGET_COLOUR, RENDERGRAPH_SOURCE_ORIGIN_OTHER));
     RG_CHECK(rendergraph_pass_set_sink_linkage(&out_graph->internal_graph, "skybox", "colourbuffer", 0, "colourbuffer"));
@@ -59,9 +59,9 @@ b8 forward_rendergraph_create(const forward_rendergraph_config* config, forward_
     RG_CHECK(rendergraph_pass_set_sink_linkage(&out_graph->internal_graph, "scene", "shadowmap", "shadowmap_pass", "depthbuffer"));
 
     // "refresh" pfns
-    out_graph->skybox_pass.initialize = skybox_pass_initialize;
-    out_graph->skybox_pass.execute = skybox_pass_execute;
-    out_graph->skybox_pass.destroy = skybox_pass_destroy;
+    out_graph->skybox_pass.initialize = skybox_rendergraph_node_initialize;
+    out_graph->skybox_pass.execute = skybox_rendergraph_node_execute;
+    out_graph->skybox_pass.destroy = skybox_rendergraph_node_destroy;
 
     out_graph->shadowmap_pass.initialize = shadow_map_pass_initialize;
     out_graph->shadowmap_pass.execute = shadow_map_pass_execute;

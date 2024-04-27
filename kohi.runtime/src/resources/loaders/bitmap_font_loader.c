@@ -50,7 +50,7 @@ static b8 bitmap_font_loader_load(struct resource_loader* self, const char* name
     bitmap_font_file_type type = BITMAP_FONT_FILE_TYPE_NOT_FOUND;
     // Try each supported extension.
     for (u32 i = 0; i < SUPPORTED_FILETYPE_COUNT; ++i) {
-        string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, supported_filetypes[i].extension);
+        string_format_unsafe(full_file_path, format_str, resource_system_base_path(), self->type_path, name, supported_filetypes[i].extension);
         // If the file exists, open it and stop looking.
         if (filesystem_exists(full_file_path)) {
             if (filesystem_open(full_file_path, FILE_MODE_READ, supported_filetypes[i].is_binary, &f)) {
@@ -75,7 +75,7 @@ static b8 bitmap_font_loader_load(struct resource_loader* self, const char* name
         case BITMAP_FONT_FILE_TYPE_FNT: {
             // Generate the KBF filename.
             char kbf_file_name[512];
-            string_format(kbf_file_name, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".kbf");
+            string_format_unsafe(kbf_file_name, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".kbf");
             result = import_fnt_file(&f, kbf_file_name, &resource_data);
             break;
         }

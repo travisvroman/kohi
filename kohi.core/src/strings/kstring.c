@@ -6,12 +6,12 @@
 #include <string.h>
 
 #include "containers/darray.h"
-#include "memory/kmemory.h"
 #include "logger.h"
 #include "math/kmath.h"
+#include "memory/kmemory.h"
 
 #ifndef _MSC_VER
-#include <strings.h>
+#    include <strings.h>
 #endif
 
 u64 string_length(const char* str) {
@@ -187,18 +187,46 @@ b8 strings_nequali(const char* str0, const char* str1, u64 length) {
 #endif
 }
 
-i32 string_format(char* dest, const char* format, ...) {
+char* string_format(const char* format, ...) {
+    if (!format) {
+        return 0;
+    }
+
+    __builtin_va_list arg_ptr;
+    va_start(arg_ptr, format);
+    char* result = string_format_v(format, arg_ptr);
+    va_end(arg_ptr);
+    return result;
+}
+
+char* string_format_v(const char* format, void* va_listp) {
+    if (!format) {
+        return 0;
+    }
+
+    i32 length = vsnprintf(0, 0, format, va_listp);
+    char* buffer = kallocate(length + 1, MEMORY_TAG_STRING);
+    if (!buffer) {
+        return 0;
+    }
+    vsnprintf(buffer, length + 1, format, va_listp);
+    return buffer;
+}
+
+// TODO: remove unsafe/deprecated
+i32 string_format_unsafe(char* dest, const char* format, ...) {
     if (dest) {
         __builtin_va_list arg_ptr;
         va_start(arg_ptr, format);
-        i32 written = string_format_v(dest, format, arg_ptr);
+        i32 written = string_format_v_unsafe(dest, format, arg_ptr);
         va_end(arg_ptr);
         return written;
     }
     return -1;
 }
 
-i32 string_format_v(char* dest, const char* format, void* va_listp) {
+// TODO: remove unsafe/deprecated
+i32 string_format_v_unsafe(char* dest, const char* format, void* va_listp) {
     if (dest) {
         // Big, but can fit on the stack.
         char buffer[32000] = {0};
@@ -424,23 +452,23 @@ const char* mat4_to_string(mat4 m) {
     char buffer[512];
     kzero_memory(buffer, sizeof(char) * 512);
     f32* d = m.data;
-    string_format(buffer, "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
-                  d[0],
-                  d[1],
-                  d[2],
-                  d[3],
-                  d[4],
-                  d[5],
-                  d[6],
-                  d[7],
-                  d[8],
-                  d[9],
-                  d[10],
-                  d[11],
-                  d[12],
-                  d[13],
-                  d[14],
-                  d[15]);
+    string_format_unsafe(buffer, "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
+                         d[0],
+                         d[1],
+                         d[2],
+                         d[3],
+                         d[4],
+                         d[5],
+                         d[6],
+                         d[7],
+                         d[8],
+                         d[9],
+                         d[10],
+                         d[11],
+                         d[12],
+                         d[13],
+                         d[14],
+                         d[15]);
     return string_duplicate(buffer);
 }
 
@@ -457,7 +485,7 @@ b8 string_to_vec4(const char* str, vec4* out_vector) {
 const char* vec4_to_string(vec4 v) {
     char buffer[100];
     kzero_memory(buffer, sizeof(char) * 100);
-    string_format(buffer, "%f %f %f %f", v.x, v.y, v.z, v.w);
+    string_format_unsafe(buffer, "%f %f %f %f", v.x, v.y, v.z, v.w);
     return string_duplicate(buffer);
 }
 
@@ -474,7 +502,7 @@ b8 string_to_vec3(const char* str, vec3* out_vector) {
 const char* vec3_to_string(vec3 v) {
     char buffer[75];
     kzero_memory(buffer, sizeof(char) * 75);
-    string_format(buffer, "%f %f %f", v.x, v.y, v.z);
+    string_format_unsafe(buffer, "%f %f %f", v.x, v.y, v.z);
     return string_duplicate(buffer);
 }
 
@@ -491,7 +519,7 @@ b8 string_to_vec2(const char* str, vec2* out_vector) {
 const char* vec2_to_string(vec2 v) {
     char buffer[50];
     kzero_memory(buffer, sizeof(char) * 50);
-    string_format(buffer, "%f %f", v.x, v.y);
+    string_format_unsafe(buffer, "%f %f", v.x, v.y);
     return string_duplicate(buffer);
 }
 
@@ -508,7 +536,7 @@ b8 string_to_f32(const char* str, f32* f) {
 const char* f32_to_string(f32 f) {
     char buffer[20];
     kzero_memory(buffer, sizeof(char) * 20);
-    string_format(buffer, "%f", f);
+    string_format_unsafe(buffer, "%f", f);
     return string_duplicate(buffer);
 }
 
@@ -525,7 +553,7 @@ b8 string_to_f64(const char* str, f64* f) {
 const char* f64_to_string(f64 f) {
     char buffer[25];
     kzero_memory(buffer, sizeof(char) * 25);
-    string_format(buffer, "%f", f);
+    string_format_unsafe(buffer, "%f", f);
     return string_duplicate(buffer);
 }
 
@@ -542,7 +570,7 @@ b8 string_to_i8(const char* str, i8* i) {
 const char* i8_to_string(i8 i) {
     char buffer[25];
     kzero_memory(buffer, sizeof(char) * 25);
-    string_format(buffer, "%hhi", i);
+    string_format_unsafe(buffer, "%hhi", i);
     return string_duplicate(buffer);
 }
 
@@ -559,7 +587,7 @@ b8 string_to_i16(const char* str, i16* i) {
 const char* i16_to_string(i16 i) {
     char buffer[25];
     kzero_memory(buffer, sizeof(char) * 25);
-    string_format(buffer, "%hi", i);
+    string_format_unsafe(buffer, "%hi", i);
     return string_duplicate(buffer);
 }
 
@@ -576,7 +604,7 @@ b8 string_to_i32(const char* str, i32* i) {
 const char* i32_to_string(i32 i) {
     char buffer[25];
     kzero_memory(buffer, sizeof(char) * 25);
-    string_format(buffer, "%i", i);
+    string_format_unsafe(buffer, "%i", i);
     return string_duplicate(buffer);
 }
 
@@ -593,7 +621,7 @@ b8 string_to_i64(const char* str, i64* i) {
 const char* i64_to_string(i64 i) {
     char buffer[25];
     kzero_memory(buffer, sizeof(char) * 25);
-    string_format(buffer, "%lli", i);
+    string_format_unsafe(buffer, "%lli", i);
     return string_duplicate(buffer);
 }
 
@@ -610,7 +638,7 @@ b8 string_to_u8(const char* str, u8* u) {
 const char* u8_to_string(u8 u) {
     char buffer[25];
     kzero_memory(buffer, sizeof(char) * 25);
-    string_format(buffer, "%hhu", u);
+    string_format_unsafe(buffer, "%hhu", u);
     return string_duplicate(buffer);
 }
 
@@ -627,7 +655,7 @@ b8 string_to_u16(const char* str, u16* u) {
 const char* u16_to_string(u16 u) {
     char buffer[25];
     kzero_memory(buffer, sizeof(char) * 25);
-    string_format(buffer, "%hu", u);
+    string_format_unsafe(buffer, "%hu", u);
     return string_duplicate(buffer);
 }
 
@@ -644,7 +672,7 @@ b8 string_to_u32(const char* str, u32* u) {
 const char* u32_to_string(u32 u) {
     char buffer[25];
     kzero_memory(buffer, sizeof(char) * 25);
-    string_format(buffer, "%u", u);
+    string_format_unsafe(buffer, "%u", u);
     return string_duplicate(buffer);
 }
 
@@ -661,7 +689,7 @@ b8 string_to_u64(const char* str, u64* u) {
 const char* u64_to_string(u64 u) {
     char buffer[25];
     kzero_memory(buffer, sizeof(char) * 25);
-    string_format(buffer, "%llu", u);
+    string_format_unsafe(buffer, "%llu", u);
     return string_duplicate(buffer);
 }
 

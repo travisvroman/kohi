@@ -20,7 +20,7 @@ void _log_output(log_level level, const char* message, ...) {
     // Technically imposes a 32k character limit on a single log entry, but...
     // DON'T DO THAT!
     char out_message[32000] = {0};
-    string_format(out_message, "%s%s\n", level_strs[level], message);
+    string_format_unsafe(out_message, "%s%s\n", level_strs[level], message);
 
     // Format original message.
     // NOTE: Oddly enough, MS's headers override the GCC/Clang va_list type with a "typedef char* va_list" in some
@@ -28,7 +28,7 @@ void _log_output(log_level level, const char* message, ...) {
     // which is the type GCC/Clang's va_start expects.
     __builtin_va_list arg_ptr;
     va_start(arg_ptr, message);
-    string_format_v(out_message, message, arg_ptr);
+    string_format_v_unsafe(out_message, message, arg_ptr);
     va_end(arg_ptr);
 
     // If the console hook is defined, make sure to forward messages to it, and it will pass along to consumers.

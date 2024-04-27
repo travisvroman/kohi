@@ -148,7 +148,7 @@ const char *resource_system_base_path_for_type(resource_type type) {
                 u32 base_length = string_length(state_ptr->config.asset_base_path);
                 u32 total_length = type_length + base_length + 3;
                 char *combined_path = kallocate(sizeof(char) * total_length, MEMORY_TAG_STRING);
-                string_format(combined_path, "%s/%s/", state_ptr->config.asset_base_path, l->type_path);
+                string_format_unsafe(combined_path, "%s/%s/", state_ptr->config.asset_base_path, l->type_path);
                 return combined_path;
             }
         }

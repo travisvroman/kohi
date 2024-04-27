@@ -69,14 +69,14 @@ b8 application_config_parse_file_content(const char* file_content, application_c
             kwindow_config new_window = {0};
             if (!kson_object_property_value_get_string(&window_config, "name", &new_window.name)) {
                 char name_buf[256] = {0};
-                string_format(name_buf, "app_window_%u", i);
+                string_format_unsafe(name_buf, "app_window_%u", i);
                 new_window.name = string_duplicate(name_buf);
             }
 
             // Title
             if (!kson_object_property_value_get_string(&window_config, "title", &new_window.title)) {
                 char title_buf[256] = {0};
-                string_format(title_buf, "Kohi Application Window %u", i);
+                string_format_unsafe(title_buf, "Kohi Application Window %u", i);
                 new_window.title = string_duplicate(title_buf);
             }
 

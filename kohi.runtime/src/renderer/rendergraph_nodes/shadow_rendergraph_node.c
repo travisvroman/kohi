@@ -1,6 +1,7 @@
-#include "shadow_map_pass.h"
+#include "shadow_rendergraph_node.h"
 
 #include "containers/darray.h"
+#include "core/engine.h"
 #include "defines.h"
 #include "logger.h"
 #include "math/math_types.h"
@@ -33,6 +34,7 @@ typedef struct shadow_shader_instance_data {
 } shadow_shader_instance_data;
 
 typedef struct shadow_map_pass_internal_data {
+    struct renderer_system_state* renderer;
     shadow_map_pass_config config;
 
     shader* s;
@@ -41,6 +43,7 @@ typedef struct shadow_map_pass_internal_data {
     // Custom projection matrix for shadow pass.
     viewport camera_viewport;
 
+    // The depth texture used for the directional light shadow.
     texture depth_texture;
 
     // One per cascade.
@@ -67,7 +70,7 @@ typedef struct shadow_map_pass_internal_data {
     u8 terrain_instance_draw_index;
 } shadow_map_pass_internal_data;
 
-b8 shadow_map_pass_create(struct rendergraph_pass* self, void* config) {
+b8 shadow_rendergraph_node_create(struct rendergraph_node* self, void* config) {
     if (!self || !config) {
         KERROR("shadow_map_pass_create requires both a pointer to self and a valid config");
         return false;
@@ -75,56 +78,35 @@ b8 shadow_map_pass_create(struct rendergraph_pass* self, void* config) {
 
     self->internal_data = kallocate(sizeof(shadow_map_pass_internal_data), MEMORY_TAG_RENDERER);
     shadow_map_pass_internal_data* internal_data = self->internal_data;
+    internal_data->renderer = engine_systems_get()->renderer_system;
     internal_data->config = *((shadow_map_pass_config*)config);
 
     self->pass_data.ext_data = kallocate(sizeof(shadow_map_pass_extended_data), MEMORY_TAG_RENDERER);
 
     // Custom function pointers.
-    self->attachment_populate = shadow_map_pass_attachment_populate;
     self->source_populate = shadow_map_pass_source_populate;
 
     return true;
 }
 
-b8 shadow_map_pass_initialize(struct rendergraph_pass* self) {
+b8 shadow_rendergraph_node_initialize(struct rendergraph_node* self) {
     if (!self) {
         return false;
     }
 
     shadow_map_pass_internal_data* internal_data = self->internal_data;
 
-    // Create the depth attachments, one per frame.
-    // FIXME: Should not be worrying about frame count here - this should
-    // be handled and managed within the renderer backend. The texture system
-    // should perhaps have a flag that could be passed to indicate this, but this
-    // actual logic shouldn't be here.
-    // UPDATE: This should be done via a texture flag.
-    u8 frame_count = renderer_window_attachment_count_get();
-
-    internal_data->depth_textures = kallocate(sizeof(texture) * frame_count, MEMORY_TAG_RENDERER);
-
-    for (u8 i = 0; i < frame_count; ++i) {
-        // Depth
-        texture* dt = &internal_data->depth_textures[i];
-        dt->type = TEXTURE_TYPE_2D_ARRAY;
-        dt->flags |= TEXTURE_FLAG_DEPTH | TEXTURE_FLAG_IS_WRITEABLE;
-        dt->width = internal_data->config.resolution;
-        dt->height = internal_data->config.resolution;
-        dt->array_size = MAX_CASCADE_COUNT;
-        string_format(dt->name, "shadowmap_pass_res_%u_idx_%u_depth_texture", internal_data->config.resolution, i);
-        dt->mip_levels = 1;
-        dt->channel_count = 4;
-        dt->generation = INVALID_ID;
-        renderer_texture_create_writeable(dt);
-    }
+    // Create the depth attachment for the directional light shadow.
+    // This should take renderer buffering into account.
+    texture_flag_bits flags = TEXTURE_FLAG_DEPTH | TEXTURE_FLAG_IS_WRITEABLE | TEXTURE_FLAG_RENDERER_BUFFERING;
+    renderer_texture_resources_acquire(
+        internal_data->renderer, "shadowmap_node_texture", TEXTURE_TYPE_2D_ARRAY, internal_data->config.resolution, internal_data->config.resolution,
+        4, 1, MAX_CASCADE_COUNT, flags, &internal_data->depth_texture.renderer_texture_handle);
 
     // Setup the renderpass.
     renderpass_config shadowmap_pass_config = {0};
     shadowmap_pass_config.name = "Renderpass.Shadowmap";
-    shadowmap_pass_config.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
-    shadowmap_pass_config.clear_flags = RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG;
-    shadowmap_pass_config.depth = 1.0f;
-    shadowmap_pass_config.stencil = 0;
+    shadowmap_pass_config.clear_flags = 0;
     shadowmap_pass_config.target.attachment_count = 1;
     shadowmap_pass_config.target.attachments = kallocate(sizeof(render_target_attachment_config) * shadowmap_pass_config.target.attachment_count, MEMORY_TAG_ARRAY);
 
@@ -201,7 +183,7 @@ b8 shadow_map_pass_initialize(struct rendergraph_pass* self) {
     return true;
 }
 
-b8 shadow_map_pass_load_resources(struct rendergraph_pass* self) {
+b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
     if (!self) {
         return false;
     }
@@ -281,42 +263,48 @@ b8 shadow_map_pass_load_resources(struct rendergraph_pass* self) {
         return false;
     }
 
-    // Create the depth attachments, one per frame.
-    u8 frame_count = renderer_window_attachment_count_get();
-    // Renderpass attachments.
-    for (u32 i = 0; i < MAX_CASCADE_COUNT; ++i) {
+    // Create the depth attachment for the directional light.
+    // Each cascade uses one layer of the depth texture.
+    for (u16 i = 0; i < MAX_CASCADE_COUNT; ++i) {
         cascade_resources* cascade = &internal_data->cascades[i];
-        // Targets per frame
-        cascade->targets = kallocate(sizeof(render_target) * frame_count, MEMORY_TAG_ARRAY);
-        for (u32 f = 0; f < frame_count; ++f) {
-            // One render target per pass
-            render_target* target = &cascade->targets[f];
-            target->attachment_count = 1;
-            // 2 attachments per target, (colour, depth)
-            target->attachments = kallocate(sizeof(render_target_attachment) * target->attachment_count, MEMORY_TAG_ARRAY);
-            target->attachments[0].type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
-            target->attachments[0].source = RENDER_TARGET_ATTACHMENT_SOURCE_SELF;
-            target->attachments[0].texture = &internal_data->depth_textures[f];
-            target->attachments[0].present_after = true;
-            target->attachments[0].load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
-            target->attachments[0].store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
 
-            // Create the underlying render target.
-            renderer_render_target_create(
+        render_target* target = &cascade->target;
+        target->attachment_count = 1;
+        // 2 attachments per target, (colour, depth)
+        target->attachments = kallocate(sizeof(render_target_attachment) * target->attachment_count, MEMORY_TAG_ARRAY);
+        target->attachments[0].type = RENDER_TARGET_ATTACHMENT_TYPE_DEPTH;
+        target->attachments[0].source = RENDER_TARGET_ATTACHMENT_SOURCE_SELF;
+        target->attachments[0].texture = &internal_data->depth_texture;
+        target->attachments[0].present_after = true;
+        target->attachments[0].load_operation = RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
+        target->attachments[0].store_operation = RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE;
+
+        // Create the underlying render target.
+        if (!renderer_render_target_create(
                 target->attachment_count,
                 target->attachments,
+                &i, // Since using a layered image, the cascade index is also the layer index.
+                true,
                 &self->pass,
-                internal_data->config.resolution,
-                internal_data->config.resolution,
-                i,
-                target);
+                target)) {
+            KERROR("Failed to create render target backing resources in shadow map pass.");
+            return false;
         }
     }
+
+    // NOTE: This is from the "attachment_populate" that used to exist.
+    // TODO: This hook-up might need to be made elsewhere.
+    // Also note that this is already assigned above, so might not be needed.
+    /* shadow_map_pass_internal_data* internal_data = self->internal_data;
+    if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
+        attachment->texture = &internal_data->depth_textures[0];
+        return true;
+    } */
 
     return true;
 }
 
-b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_frame_data) {
+b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data* p_frame_data) {
     if (!self) {
         return false;
     }
@@ -327,14 +315,10 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
     // Bind the internal viewport - do not use one provided in pass data.
     renderer_active_viewport_set(&internal_data->camera_viewport);
 
+    // One renderpass per cascade - directional light.
     for (u32 p = 0; p < MAX_CASCADE_COUNT; ++p) {
-        // shadow_map_cascade_data* cascade = &ext_data->cascades[p];
-        /* if (!renderer_renderpass_begin(&self->pass, &self->pass.targets[p_frame_data->render_target_index])) {
-            KERROR("Shadowmap pass failed to start.");
-            return false;
-        } */
 
-        if (!renderer_renderpass_begin(&self->pass, &internal_data->cascades[p].targets[p_frame_data->render_target_index])) {
+        if (!renderer_renderpass_begin(&self->pass, &internal_data->cascades[p].target)) {
             KERROR("Shadowmap pass failed to start.");
             return false;
         }
@@ -419,8 +403,9 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
 
             u32 bind_id = INVALID_ID;
             texture_map* bind_map = 0;
-            u64* render_number = 0;
-            u8* draw_index = 0;
+            // FIXME: These should be removed.
+            /* u64* render_number = 0;
+            u8* draw_index = 0; */
 
             // Decide what bindings to use.
             if (g->material && g->material->maps) {
@@ -431,27 +416,22 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
                 bind_map = &g->material->maps[0];
                 // NOTE: can't update the _material's_ frame number/draw index because it still needs to be
                 // used for the actual scene render.
-                shadow_shader_instance_data* instance = &internal_data->instances[g->material->internal_id + 1];
-                render_number = &instance->render_frame_number;
-                draw_index = &instance->render_draw_index;
+                /* shadow_shader_instance_data* instance = &internal_data->instances[g->material->internal_id + 1]; */
+                // FIXME: These should be removed.
+                /* render_number = &instance->render_frame_number;
+                draw_index = &instance->render_draw_index; */
             } else {
                 // Use the default instance.
                 bind_id = internal_data->default_instance_id;
                 // Use the default colour map.
                 bind_map = &internal_data->default_colour_map;
-                render_number = &internal_data->default_instance_frame_number;
-                draw_index = &internal_data->default_instance_draw_index;
+                // FIXME: These should be removed.
+                /* render_number = &internal_data->default_instance_frame_number;
+                draw_index = &internal_data->default_instance_draw_index; */
             }
 
-            // LEFTOFF: This shader is used 4 times per frame, which means this needs to be updated 4 times,
-            // which it can't be, because the descriptors will have already been updated.
-            // This means doing this in a single pass is now a requirement, unless I can somehow figure out a
-            // way to make this work without duplicating descriptors.
-            // This will also be needed to move the globals below back to where they should be.
-            // A short-term solution could be to array the matrices and index them by pass number, which may be
-            // the way to go before refactoring all of this. Then these could be updated once at the beginning.
-            // Bollocks.
-            b8 needs_update = *render_number != p_frame_data->renderer_frame_number || *draw_index != p_frame_data->draw_index;
+            // FIXME: Commenting this out will likely break this pass.
+            b8 needs_update = true; //*render_number != p_frame_data->renderer_frame_number || *draw_index != p_frame_data->draw_index;
 
             // Use the bindings.
             shader_system_bind_instance(bind_id);
@@ -462,8 +442,9 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
             shader_system_apply_instance(needs_update, p_frame_data);
 
             // Sync the frame number and draw index.
-            *render_number = p_frame_data->renderer_frame_number;
-            *draw_index = p_frame_data->draw_index;
+            // FIXME: These should be removed.
+            /* *render_number = p_frame_data->renderer_frame_number;
+             *draw_index = p_frame_data->draw_index; */
 
             // Apply the locals
             shader_system_bind_local();
@@ -510,10 +491,12 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
 
             // Just draw these using the default instance and texture map.
             texture_map* bind_map = &internal_data->default_terrain_colour_map;
-            u64* render_number = &internal_data->terrain_instance_frame_number;
-            u8* draw_index = &internal_data->terrain_instance_draw_index;
+            // FIXME: These should be removed.
+            /* u64* render_number = &internal_data->terrain_instance_frame_number;
+            u8* draw_index = &internal_data->terrain_instance_draw_index; */
 
-            b8 needs_update = *render_number != p_frame_data->renderer_frame_number || *draw_index != p_frame_data->draw_index;
+            // FIXME: Commenting this out will likely break this pass.
+            b8 needs_update = true; //*render_number != p_frame_data->renderer_frame_number || *draw_index != p_frame_data->draw_index;
 
             shader_system_bind_instance(internal_data->terrain_instance_id);
             if (!shader_system_uniform_set_by_location(internal_data->terrain_locations.colour_map_location, bind_map)) {
@@ -523,8 +506,9 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
             shader_system_apply_instance(needs_update, p_frame_data);
 
             // Sync the frame number and draw index.
-            *render_number = p_frame_data->renderer_frame_number;
-            *draw_index = p_frame_data->draw_index;
+            // FIXME: These should be removed.
+            /* *render_number = p_frame_data->renderer_frame_number;
+             *draw_index = p_frame_data->draw_index; */
 
             // Apply the locals
             shader_system_bind_local();
@@ -546,7 +530,7 @@ b8 shadow_map_pass_execute(struct rendergraph_pass* self, struct frame_data* p_f
     return true;
 }
 
-void shadow_map_pass_destroy(struct rendergraph_pass* self) {
+void shadow_rendergraph_node_destroy(struct rendergraph_node* self) {
     if (self) {
         if (self->internal_data) {
             shadow_map_pass_internal_data* internal_data = self->internal_data;
@@ -559,7 +543,7 @@ void shadow_map_pass_destroy(struct rendergraph_pass* self) {
                 renderer_render_target_destroy(&cascade->target, true);
             }
 
-            renderer_texture_destroy(&internal_data->depth_texture);
+            renderer_texture_resources_release(internal_data->renderer, internal_data->depth_texture.renderer_texture_handle);
 
             renderer_texture_map_resources_release(&internal_data->default_colour_map);
             renderer_texture_map_resources_release(&internal_data->default_terrain_colour_map);
@@ -578,35 +562,4 @@ void shadow_map_pass_destroy(struct rendergraph_pass* self) {
             self->internal_data = 0;
         }
     }
-}
-
-b8 shadow_map_pass_source_populate(struct rendergraph_pass* self, rendergraph_source* source) {
-    if (!self || !source) {
-        return false;
-    }
-
-    shadow_map_pass_internal_data* internal_data = self->internal_data;
-    // FIXME: Should just be frame-agnostic, single source texture.
-    u32 frame_count = renderer_window_attachment_count_get();
-    if (!source->textures) {
-        source->textures = kallocate(sizeof(texture*) * frame_count, MEMORY_TAG_ARRAY);
-    }
-    if (strings_equali(source->name, "depthbuffer")) {
-        for (u32 i = 0; i < frame_count; ++i) {
-            source->textures[i] = &internal_data->depth_textures[i];
-        }
-        return true;
-    }
-    KERROR("shadow_map_pass_source_populate could not populate source '%s' as it is unrecognized.", source->name);
-    return false;
-}
-
-b8 shadow_map_pass_attachment_populate(struct rendergraph_pass* self, render_target_attachment* attachment) {
-    shadow_map_pass_internal_data* internal_data = self->internal_data;
-    if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
-        attachment->texture = &internal_data->depth_textures[0];
-        return true;
-    }
-
-    return false;
 }

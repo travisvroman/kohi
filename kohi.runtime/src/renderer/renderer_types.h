@@ -47,27 +47,6 @@ typedef enum renderer_debug_view_mode {
     RENDERER_VIEW_MODE_WIREFRAME = 4
 } renderer_debug_view_mode;
 
-typedef enum render_target_attachment_type {
-    RENDER_TARGET_ATTACHMENT_TYPE_COLOUR = 0x1,
-    RENDER_TARGET_ATTACHMENT_TYPE_DEPTH = 0x2,
-    RENDER_TARGET_ATTACHMENT_TYPE_STENCIL = 0x4
-} render_target_attachment_type;
-
-typedef enum render_target_attachment_source {
-    RENDER_TARGET_ATTACHMENT_SOURCE_DEFAULT = 0x1,
-    RENDER_TARGET_ATTACHMENT_SOURCE_SELF = 0x2
-} render_target_attachment_source;
-
-typedef enum render_target_attachment_load_operation {
-    RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_DONT_CARE = 0x0,
-    RENDER_TARGET_ATTACHMENT_LOAD_OPERATION_LOAD = 0x1
-} render_target_attachment_load_operation;
-
-typedef enum render_target_attachment_store_operation {
-    RENDER_TARGET_ATTACHMENT_STORE_OPERATION_DONT_CARE = 0x0,
-    RENDER_TARGET_ATTACHMENT_STORE_OPERATION_STORE = 0x1
-} render_target_attachment_store_operation;
-
 typedef enum renderer_projection_matrix_type {
     RENDERER_PROJECTION_MATRIX_TYPE_PERSPECTIVE = 0x0,
     /** @brief An orthographic matrix that is zero-based on the top left. */
@@ -114,69 +93,117 @@ typedef enum renderer_compare_op {
     RENDERER_COMPARE_OP_ALWAYS = 7
 } renderer_compare_op;
 
-typedef struct render_target_attachment_config {
-    render_target_attachment_type type;
-    render_target_attachment_source source;
-    render_target_attachment_load_operation load_operation;
-    render_target_attachment_store_operation store_operation;
-    b8 present_after;
-} render_target_attachment_config;
+typedef enum renderer_attachment_type_flag_bits {
+    RENDERER_ATTACHMENT_TYPE_FLAG_COLOUR_BIT = 0x1,
+    RENDERER_ATTACHMENT_TYPE_FLAG_DEPTH_BIT = 0x2,
+    RENDERER_ATTACHMENT_TYPE_FLAG_STENCIL_BIT = 0x4
+} renderer_attachment_type_flag_bits;
 
-typedef struct render_target_config {
+typedef u32 renderer_attachment_type_flags;
+
+typedef enum renderer_attachment_load_operation {
+    RENDERER_ATTACHMENT_LOAD_OPERATION_DONT_CARE = 0x0,
+    RENDERER_ATTACHMENT_LOAD_OPERATION_LOAD = 0x1
+} renderer_attachment_load_operation;
+
+typedef enum renderer_attachment_store_operation {
+    RENDERER_ATTACHMENT_STORE_OPERATION_DONT_CARE = 0x0,
+    RENDERER_ATTACHMENT_STORE_OPERATION_STORE = 0x1
+} renderer_attachment_store_operation;
+
+typedef enum renderer_attachment_use {
+    RENDERER_ATTACHMENT_USE_DONT_CARE,
+    RENDERER_ATTACHMENT_USE_COLOUR_ATTACHMENT,
+    RENDERER_ATTACHMENT_USE_COLOUR_PRESENT,
+    RENDERER_ATTACHMENT_USE_COLOUR_SHADER_READ,
+    RENDERER_ATTACHMENT_USE_COLOUR_SHADER_WRITE,
+    RENDERER_ATTACHMENT_USE_DEPTH_STENCIL_ATTACHMENT,
+    RENDERER_ATTACHMENT_USE_DEPTH_STENCIL_SHADER_READ,
+    RENDERER_ATTACHMENT_USE_DEPTH_STENCIL_SHADER_WRITE
+} renderer_attachment_use;
+
+/**
+ * @brief Configuration for an attachment to a framebuffer.
+ */
+typedef struct framebuffer_attachment_config {
+    /** @brief The attachment type. Bitwise flags. See renderer_attachment_type_flag_bits enum */
+    renderer_attachment_type_flags type;
+    /** @brief A pointer to the texture to be used for the attachment. */
+    struct texture* target;
+} framebuffer_attachment_config;
+
+typedef struct framebuffer_config {
     u8 attachment_count;
-    render_target_attachment_config* attachments;
-} render_target_config;
+    framebuffer_attachment_config* attachments;
+    u16* layer_indices;
+    b8 account_for_renderer_frames;
+    struct renderpass* pass;
+} framebuffer_config;
 
-typedef struct render_target_attachment {
-    render_target_attachment_type type;
-    render_target_attachment_source source;
-    render_target_attachment_load_operation load_operation;
-    render_target_attachment_store_operation store_operation;
-    b8 present_after;
-    struct texture* texture;
-} render_target_attachment;
-
-/** @brief Represents a render target, which is used for rendering to a texture or set of textures. */
-typedef struct render_target {
-    /** @brief The number of attachments */
-    u8 attachment_count;
-    /** @brief An array of attachments. */
-    struct render_target_attachment* attachments;
-    /** @brief The renderer API internal framebuffer object. */
-    void* internal_framebuffer;
-} render_target;
+/** @brief An opaque handle to renderer-API-specific framebuffer data. */
+struct framebuffer_internal_data;
 
 /**
  * @brief The types of clearing to be done on a renderpass.
  * Can be combined together for multiple clearing functions.
  */
-typedef enum renderpass_clear_flag {
+typedef enum renderpass_clear_flag_bits {
     /** @brief No clearing should be done. */
-    RENDERPASS_CLEAR_NONE_FLAG = 0x0,
+    RENDERPASS_CLEAR_NONE_FLAG_BIT = 0x0,
     /** @brief Clear the colour buffer. */
-    RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG = 0x1,
+    RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG_BIT = 0x1,
     /** @brief Clear the depth buffer. */
-    RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG = 0x2,
+    RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG_BIT = 0x2,
     /** @brief Clear the stencil buffer. */
-    RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG = 0x4
-} renderpass_clear_flag;
+    RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG_BIT = 0x4
+} renderpass_clear_flag_bits;
+
+/** @brief Bitwise combination of renderpass_clear_flag_bits. */
+typedef u32 renderpass_clear_flags;
+
+/**
+ * @brief Configuration for an attachment to a renderpass.
+ */
+typedef struct renderpass_attachment_config {
+    /** @brief The attachment type. Bitwise flags. See renderer_attachment_type_flag_bits enum */
+    renderer_attachment_type_flag_bits type;
+    /** @brief The load operation for this attachment (i.e. loaded before pass begins). */
+    renderer_attachment_load_operation load_op;
+    /** @brief The store operation for this attachment. (i.e stored/thrown away when pass ends) */
+    renderer_attachment_store_operation store_op;
+    /** @brief How the attachment will be used when the pass ends. */
+    renderer_attachment_use post_pass_use;
+    /** @brief How the attachment should/should not be cleared at the beginning of the pass. */
+    renderpass_clear_flags clear_flags;
+    /**
+     * @brief The colour value to use when clearing the attachment
+     * if RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG_BIT is set. Otherwise ignored.
+     */
+    vec4 clear_colour;
+    /**
+     * @brief The depth value to use when clearing the attachment
+     * if RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG_BIT is set. Otherwise ignored.
+     */
+    f32 clear_depth;
+    /**
+     * @brief The stencil value to use when clearing the attachment
+     * if RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG_BIT is set. Otherwise ignored.
+     */
+    i32 clear_stencil;
+} renderpass_attachment_config;
 
 typedef struct renderpass_config {
     /** @brief The name of this renderpass. */
     const char* name;
-    f32 depth;
-    u32 stencil;
-
     /** @brief The current render area of the renderpass. */
     vec4 render_area;
     /** @brief The clear colour used for this renderpass. */
     vec4 clear_colour;
 
-    /** @brief The clear flags for this renderpass. */
-    u8 clear_flags;
-
-    /** @brief The render target configuration. */
-    render_target_config target;
+    /** @brief The number of attachment configs present for this pass. */
+    u8 attachment_count;
+    /** @brief The attachment configurations for this pass. */
+    renderpass_attachment_config* attachment_configs;
 } renderpass_config;
 
 /**
@@ -190,14 +217,10 @@ typedef struct renderpass {
 
     /** @brief The current render area of the renderpass. */
     vec4 render_area;
-    /** @brief The clear colour used for this renderpass. */
-    vec4 clear_colour;
-
-    /** @brief The clear flags for this renderpass. */
-    u8 clear_flags;
 
     /** @brief Internal renderpass data */
     void* internal_data;
+
 } renderpass;
 
 typedef enum renderbuffer_type {
@@ -302,16 +325,14 @@ typedef struct kwindow_renderer_state {
     struct kwindow* window;
     // The viewport information for the given window.
     struct viewport* active_viewport;
-    /** @brief The draw index for this frame. Used to track queue submissions for this frame (renderer_begin()/end())/ */
-    u8 draw_index;
 
-    /** @brief The current render target index for renderers that use multiple render targets
-     *  at once (i.e. Vulkan). For renderers that don't this will likely always be 0.
-     */
-    u64 frame_index;
+    // This is technically the swapchain images, which should be wrapped into a single texture.
+    texture colourbuffer;
+    // This is technically the per-frame depth image, which should be wrapped into a single texture.
+    texture depthbuffer;
 
-    /** @brief The render target pointing to the image resource(s) owned by this window. */
-    render_target target;
+    /** @brief A handle pointing to the framebuffer resource(s) owned by this window. */
+    k_handle framebuffer_handle;
 
     /** @brief The internal state of the window containing renderer backend data. */
     struct kwindow_renderer_backend_state* backend_state;
@@ -325,9 +346,13 @@ typedef struct kwindow_renderer_state {
  * the way things actually work on the backend.
  */
 typedef struct renderer_backend_interface {
+    // A pointer to the frontend state in case the backend needs to communicate with it.
+    struct renderer_system_state* frontend_state;
 
     // The size needed by the renderer backend to hold texture data.
     u64 texture_internal_data_size;
+    // The size needed by the renderer backend to hold framebuffer data.
+    u64 framebuffer_internal_data_size;
 
     /**
      * @brief The draw index for the current frame. Typically aligns with the
@@ -494,10 +519,10 @@ typedef struct renderer_backend_interface {
      *
      * @param backend A pointer to the renderer backend interface.
      * @param pass A pointer to the renderpass to begin.
-     * @param target A pointer to the render target to be used.
+     * @param framebuffer_handle A handle pointing to the framebuffer to be used for the renderpass.
      * @return True on success; otherwise false.
      */
-    b8 (*renderpass_begin)(struct renderer_backend_interface* backend, renderpass* pass, render_target* target);
+    b8 (*renderpass_begin)(struct renderer_backend_interface* backend, renderpass* pass, k_handle framebuffer_handle);
 
     /**
      * @brief Ends a renderpass with the given id.
@@ -508,7 +533,13 @@ typedef struct renderer_backend_interface {
      */
     b8 (*renderpass_end)(struct renderer_backend_interface* backend, renderpass* pass);
 
-    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, struct texture_internal_data* data, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags);
+    void (*clear_colour_set)(struct renderer_backend_interface* backend, vec4 clear_colour);
+    void (*clear_depth_set)(struct renderer_backend_interface* backend, f32 depth);
+    void (*clear_stencil_set)(struct renderer_backend_interface* backend, u32 stencil);
+    void (*clear_colour_texture)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal);
+    void (*clear_depth_stencil)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal);
+
+    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, struct texture_internal_data* data, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags);
     void (*texture_resources_release)(struct renderer_backend_interface* backend, struct texture_internal_data* data);
 
     /**
@@ -725,24 +756,19 @@ typedef struct renderer_backend_interface {
      * @brief Creates a new render target using the provided data.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param attachment_count The number of attachments.
-     * @param attachments An array of attachments.
-     * @param renderpass A pointer to the renderpass the render target is associated with.
-     * @param width The width of the render target in pixels.
-     * @param height The height of the render target in pixels.
-     * @param layer_index The index of the layer to use for the attachment, if the image is a array texture.
-     * @param out_target A pointer to hold the newly created render target.
+     * @param config A constant pointer to the framebuffer configuration.
+     * @param internal_data A pointer to the internal framebuffer data.
+     * @returns True on success; otherwise false.
      */
-    b8 (*render_target_create)(struct renderer_backend_interface* backend, u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, u16 layer_index, render_target* out_target);
+    b8 (*framebuffer_create)(struct renderer_backend_interface* backend, const struct framebuffer_config* config, struct framebuffer_internal_data* internal_data);
 
     /**
      * @brief Destroys the provided render target.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param target A pointer to the render target to be destroyed.
-     * @param free_internal_memory Indicates if internal memory should be freed.
+     * @param internal_data A pointer to the framebuffer internal data.
      */
-    void (*render_target_destroy)(struct renderer_backend_interface* backend, render_target* target, b8 free_internal_memory);
+    void (*framebuffer_destroy)(struct renderer_backend_interface* backend, struct framebuffer_internal_data* internal_data);
 
     /**
      * @brief Creates a new renderpass.
@@ -940,176 +966,3 @@ typedef struct renderer_backend_interface {
      */
     void (*wait_for_idle)(struct renderer_backend_interface* backend);
 } renderer_backend_interface;
-
-struct render_view_packet;
-struct linear_allocator;
-
-/**
- * @brief A render view instance, responsible for the generation
- * of view packets based on internal logic and given config.
- */
-typedef struct render_view {
-    /** @brief The name of the view. */
-    const char* name;
-    /** @brief The current width of this view. */
-    u16 width;
-    /** @brief The current height of this view. */
-    u16 height;
-
-    /** @brief The number of renderpasses used by this view. */
-    u8 renderpass_count;
-    /** @brief An array of renderpasses used by this view. */
-    renderpass* passes;
-
-    /** @brief The name of the custom shader used by this view, if there is one. */
-    const char* custom_shader_name;
-    /** @brief The internal, view-specific data for this view. */
-    void* internal_data;
-
-    /**
-     * @brief A pointer to a function to be called when this view is registered with the view system.
-     *
-     * @param self A pointer to the view being registered.
-     * @return True on success; otherwise false.
-     */
-    b8 (*on_registered)(struct render_view* self);
-    /**
-     * @brief A pointer to a function to be called when this view is destroyed.
-     *
-     * @param self A pointer to the view being destroyed.
-     */
-    void (*on_destroy)(struct render_view* self);
-
-    /**
-     * @brief A pointer to a function to be called when the owner of this view (such
-     * as the window) is resized.
-     *
-     * @param self A pointer to the view being resized.
-     * @param width The new width in pixels.
-     * @param width The new height in pixels.
-     */
-    void (*on_resize)(struct render_view* self, u32 width, u32 height);
-
-    /**
-     * @brief Builds a render view packet using the provided view and meshes.
-     *
-     * @param self A pointer to the view to use.
-     * @param frame_data A pointer to the current frame's data.
-     * @param v A pointer to the viewport to be used.
-     * @param c A pointer to the camera to be used.
-     * @param data Freeform data used to build the packet.
-     * @param out_packet A pointer to hold the generated packet.
-     * @return True on success; otherwise false.
-     */
-    b8 (*on_packet_build)(const struct render_view* self, struct frame_data* p_frame_data, struct viewport* v, struct camera* c, void* data, struct render_view_packet* out_packet);
-
-    /**
-     * @brief Destroys a render view packet.
-     *
-     * @param self A pointer to the view to use.
-     * @param packet A pointer to the packet to be destroyed.
-     */
-    void (*on_packet_destroy)(const struct render_view* self, struct render_view_packet* packet);
-
-    /**
-     * @brief Uses the given view and packet to render the contents therein.
-     *
-     * @param self A pointer to the view to use.
-     * @param packet A pointer to the packet whose data is to be rendered.
-     * @param p_frame_data A pointer to the current frame's data.
-     * @return True on success; otherwise false.
-     */
-    b8 (*on_render)(const struct render_view* self, const struct render_view_packet* packet, struct frame_data* p_frame_data);
-
-    /**
-     * @brief Regenerates the resources for the given attachment at the provided pass index.
-     *
-     * @param self A pointer to the view to use.
-     * @param pass_index The index of the renderpass to generate for.
-     * @param attachment A pointer to the attachment whose resources are to be regenerated.
-     * @return True on success; otherwise false.
-     */
-    b8 (*attachment_target_regenerate)(struct render_view* self, u32 pass_index, struct render_target_attachment* attachment);
-} render_view;
-
-typedef struct skybox_packet_data {
-    struct skybox* sb;
-} skybox_packet_data;
-
-/**
- * @brief A packet for and generated by a render view, which contains
- * data about what is to be rendered.
- */
-typedef struct render_view_packet {
-    /** @brief A pointer to the viewport to be used. */
-    struct viewport* vp;
-    /** @brief A constant pointer to the view this packet is associated with. */
-    const render_view* view;
-    /** @brief The current view matrix. */
-    mat4 view_matrix;
-    /** @brief The current projection matrix. */
-    mat4 projection_matrix;
-    /** @brief The current view position, if applicable. */
-    vec3 view_position;
-    /** @brief The data for the current skybox. */
-    skybox_packet_data skybox_data;
-    /** @brief The number of geometries to be drawn. */
-    u32 geometry_count;
-    /** @brief The geometries to be drawn. */
-    geometry_render_data* geometries;
-
-    /** @brief The number of terrain geometries to be drawn. */
-    u32 terrain_geometry_count;
-    /** @brief The terrain geometries to be drawn. */
-    geometry_render_data* terrain_geometries;
-
-    /** @brief The number of debug geometries to be drawn. */
-    u32 debug_geometry_count;
-    /** @brief The debug geometries to be drawn. */
-    geometry_render_data* debug_geometries;
-
-    struct terrain** terrains;
-    /** @brief The name of the custom shader to use, if applicable. Otherwise 0. */
-    const char* custom_shader_name;
-    /** @brief Holds a pointer to freeform data, typically understood both by the object and consuming view. */
-    void* extended_data;
-} render_view_packet;
-
-typedef struct mesh_packet_data {
-    u32 mesh_count;
-    mesh** meshes;
-} mesh_packet_data;
-
-struct ui_text;
-typedef struct ui_packet_data {
-    mesh_packet_data mesh_data;
-    // TODO: temp
-    u32 text_count;
-    struct ui_text** texts;
-} ui_packet_data;
-
-typedef struct pick_packet_data {
-    // Copy of frame data darray ptr
-    geometry_render_data* world_mesh_data;
-    // Copy of frame data darray ptr
-    geometry_render_data* terrain_mesh_data;
-    mesh_packet_data ui_mesh_data;
-    u32 ui_geometry_count;
-    // TODO: temp
-    u32 text_count;
-    struct ui_text** texts;
-} pick_packet_data;
-
-struct skybox;
-
-/**
- * @brief A structure which is generated by the application and sent once
- * to the renderer to render a given frame. Consists of any data required,
- * such as delta time and a collection of views to be rendered.
- */
-typedef struct render_packet {
-    /** The number of views to be rendered. */
-    u16 view_count;
-    /** An array of views to be rendered. */
-    render_view_packet* views;
-} render_packet;

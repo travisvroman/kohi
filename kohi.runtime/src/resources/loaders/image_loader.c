@@ -33,7 +33,7 @@ static b8 image_loader_load(struct resource_loader *self, const char *name,
     // Try different extensions
     b8 found = false;
     for (u32 i = 0; i < IMAGE_EXTENSION_COUNT; ++i) {
-        string_format(full_file_path, format_str, resource_system_base_path(),
+        string_format_unsafe(full_file_path, format_str, resource_system_base_path(),
                       self->type_path, name, supported_extensions[i]);
         if (filesystem_exists(full_file_path)) {
             found = true;
@@ -146,7 +146,7 @@ b8 image_loader_query_properties(const char *image_name, i32 *out_width, i32 *ou
     // Try each supported extension to see if the image file exists.
     b8 found = false;
     for (u32 i = 0; i < IMAGE_EXTENSION_COUNT; ++i) {
-        string_format(full_file_path, format_str, image_base_path, image_name, supported_extensions[i]);
+        string_format_unsafe(full_file_path, format_str, image_base_path, image_name, supported_extensions[i]);
         if (filesystem_exists(full_file_path)) {
             found = true;
             break;

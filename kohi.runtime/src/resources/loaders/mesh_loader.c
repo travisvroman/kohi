@@ -78,7 +78,7 @@ static b8 mesh_loader_load(struct resource_loader* self, const char* name,
     mesh_file_type type = MESH_FILE_TYPE_NOT_FOUND;
     // Try each supported extension.
     for (u32 i = 0; i < SUPPORTED_FILETYPE_COUNT; ++i) {
-        string_format(full_file_path, format_str, resource_system_base_path(),
+        string_format_unsafe(full_file_path, format_str, resource_system_base_path(),
                       self->type_path, name, supported_filetypes[i].extension);
         // If the file exists, open it and stop looking.
         if (filesystem_exists(full_file_path)) {
@@ -105,7 +105,7 @@ static b8 mesh_loader_load(struct resource_loader* self, const char* name,
     case MESH_FILE_TYPE_OBJ: {
         // Generate the ksm filename.
         char ksm_file_name[512];
-        string_format(ksm_file_name, "%s/%s/%s%s", resource_system_base_path(),
+        string_format_unsafe(ksm_file_name, "%s/%s/%s%s", resource_system_base_path(),
                       self->type_path, name, ".ksm");
         result = import_obj_file(&f, ksm_file_name, &resource_data);
         break;
@@ -915,7 +915,7 @@ static b8 write_kmt_file(const char* mtl_file_path, material_config* config) {
     file_handle f;
 
     char full_file_path[512];
-    string_format(full_file_path, format_str, resource_system_base_path_for_type(RESOURCE_TYPE_MATERIAL), config->name, ".kmt");
+    string_format_unsafe(full_file_path, format_str, resource_system_base_path_for_type(RESOURCE_TYPE_MATERIAL), config->name, ".kmt");
     if (!filesystem_open(full_file_path, FILE_MODE_WRITE, false, &f)) {
         KERROR("Error opening material file for writing: '%s'", full_file_path);
         return false;
@@ -931,33 +931,33 @@ static b8 write_kmt_file(const char* mtl_file_path, material_config* config) {
     filesystem_write_line(&f, "# Types can be phong,pbr,custom");
     filesystem_write_line(&f, "type=pbr"); // TODO: Other material types
 
-    string_format(line_buffer, "name=%s", config->name);
+    string_format_unsafe(line_buffer, "name=%s", config->name);
     filesystem_write_line(&f, line_buffer);
 
     filesystem_write_line(&f, "# If custom, shader is required.");
-    string_format(line_buffer, "shader=%s", config->shader_name);
+    string_format_unsafe(line_buffer, "shader=%s", config->shader_name);
     filesystem_write_line(&f, line_buffer);
 
     // Write maps
     u32 map_count = darray_length(config->maps);
     for (u32 i = 0; i < map_count; ++i) {
         filesystem_write_line(&f, "[map]");
-        string_format(line_buffer, "name=%s", config->maps[i].name);
+        string_format_unsafe(line_buffer, "name=%s", config->maps[i].name);
         filesystem_write_line(&f, line_buffer);
 
-        string_format(line_buffer, "filter_min=%s", config->maps[i].filter_min == TEXTURE_FILTER_MODE_LINEAR ? "linear" : "nearest");
+        string_format_unsafe(line_buffer, "filter_min=%s", config->maps[i].filter_min == TEXTURE_FILTER_MODE_LINEAR ? "linear" : "nearest");
         filesystem_write_line(&f, line_buffer);
-        string_format(line_buffer, "filter_mag=%s", config->maps[i].filter_mag == TEXTURE_FILTER_MODE_LINEAR ? "linear" : "nearest");
-        filesystem_write_line(&f, line_buffer);
-
-        string_format(line_buffer, "repeat_u=%s", string_from_repeat(config->maps[i].repeat_u));
-        filesystem_write_line(&f, line_buffer);
-        string_format(line_buffer, "repeat_v=%s", string_from_repeat(config->maps[i].repeat_v));
-        filesystem_write_line(&f, line_buffer);
-        string_format(line_buffer, "repeat_w=%s", string_from_repeat(config->maps[i].repeat_w));
+        string_format_unsafe(line_buffer, "filter_mag=%s", config->maps[i].filter_mag == TEXTURE_FILTER_MODE_LINEAR ? "linear" : "nearest");
         filesystem_write_line(&f, line_buffer);
 
-        string_format(line_buffer, "texture_name=%s", config->maps[i].texture_name);
+        string_format_unsafe(line_buffer, "repeat_u=%s", string_from_repeat(config->maps[i].repeat_u));
+        filesystem_write_line(&f, line_buffer);
+        string_format_unsafe(line_buffer, "repeat_v=%s", string_from_repeat(config->maps[i].repeat_v));
+        filesystem_write_line(&f, line_buffer);
+        string_format_unsafe(line_buffer, "repeat_w=%s", string_from_repeat(config->maps[i].repeat_w));
+        filesystem_write_line(&f, line_buffer);
+
+        string_format_unsafe(line_buffer, "texture_name=%s", config->maps[i].texture_name);
         filesystem_write_line(&f, line_buffer);
         filesystem_write_line(&f, "[/map]");
     }
@@ -966,46 +966,46 @@ static b8 write_kmt_file(const char* mtl_file_path, material_config* config) {
     u32 prop_count = darray_length(config->properties);
     for (u32 i = 0; i < prop_count; ++i) {
         filesystem_write_line(&f, "[prop]");
-        string_format(line_buffer, "name=%s", config->properties[i].name);
+        string_format_unsafe(line_buffer, "name=%s", config->properties[i].name);
         filesystem_write_line(&f, line_buffer);
 
         // type
-        string_format(line_buffer, "type=%s", string_from_type(config->properties[i].type));
+        string_format_unsafe(line_buffer, "type=%s", string_from_type(config->properties[i].type));
         filesystem_write_line(&f, line_buffer);
         // value
         switch (config->properties[i].type) {
         case SHADER_UNIFORM_TYPE_FLOAT32:
-            string_format(line_buffer, "value=%f", config->properties[i].value_f32);
+            string_format_unsafe(line_buffer, "value=%f", config->properties[i].value_f32);
             break;
         case SHADER_UNIFORM_TYPE_FLOAT32_2:
-            string_format(line_buffer, "value=%f %f", config->properties[i].value_v2);
+            string_format_unsafe(line_buffer, "value=%f %f", config->properties[i].value_v2);
             break;
         case SHADER_UNIFORM_TYPE_FLOAT32_3:
-            string_format(line_buffer, "value=%f %f %f", config->properties[i].value_v3);
+            string_format_unsafe(line_buffer, "value=%f %f %f", config->properties[i].value_v3);
             break;
         case SHADER_UNIFORM_TYPE_FLOAT32_4:
-            string_format(line_buffer, "value=%f %f %f %f", config->properties[i].value_v4);
+            string_format_unsafe(line_buffer, "value=%f %f %f %f", config->properties[i].value_v4);
             break;
         case SHADER_UNIFORM_TYPE_INT8:
-            string_format(line_buffer, "value=%d", config->properties[i].value_i8);
+            string_format_unsafe(line_buffer, "value=%d", config->properties[i].value_i8);
             break;
         case SHADER_UNIFORM_TYPE_INT16:
-            string_format(line_buffer, "value=%d", config->properties[i].value_i16);
+            string_format_unsafe(line_buffer, "value=%d", config->properties[i].value_i16);
             break;
         case SHADER_UNIFORM_TYPE_INT32:
-            string_format(line_buffer, "value=%d", config->properties[i].value_i32);
+            string_format_unsafe(line_buffer, "value=%d", config->properties[i].value_i32);
             break;
         case SHADER_UNIFORM_TYPE_UINT8:
-            string_format(line_buffer, "value=%u", config->properties[i].value_u8);
+            string_format_unsafe(line_buffer, "value=%u", config->properties[i].value_u8);
             break;
         case SHADER_UNIFORM_TYPE_UINT16:
-            string_format(line_buffer, "value=%u", config->properties[i].value_u16);
+            string_format_unsafe(line_buffer, "value=%u", config->properties[i].value_u16);
             break;
         case SHADER_UNIFORM_TYPE_UINT32:
-            string_format(line_buffer, "value=%u", config->properties[i].value_u32);
+            string_format_unsafe(line_buffer, "value=%u", config->properties[i].value_u32);
             break;
         case SHADER_UNIFORM_TYPE_MATRIX_4:
-            string_format(line_buffer, "value=%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f ",
+            string_format_unsafe(line_buffer, "value=%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f ",
                           config->properties[i].value_mat4.data[0],
                           config->properties[i].value_mat4.data[1],
                           config->properties[i].value_mat4.data[2],

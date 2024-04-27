@@ -1098,7 +1098,7 @@ b8 console_command_execute(const char* command) {
 
     // Write the line back out to the console for reference.
     char temp[512] = {0};
-    string_format(temp, "-->%s", command);
+    string_format_unsafe(temp, "-->%s", command);
     console_write(LOG_LEVEL_INFO, temp);
 
     // Yep, strings are slow. But it's a console. It doesn't need to be lightning fast...

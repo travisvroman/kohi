@@ -294,7 +294,7 @@ b8 ksemaphore_create(ksemaphore* out_semaphore, u32 max_count, u32 start_count) 
     }
 
     char name_buf[20] = {0};
-    string_format(name_buf, "/kohi_job_sem_%u", semaphore_id);
+    string_format_unsafe(name_buf, "/kohi_job_sem_%u", semaphore_id);
     semaphore_id++;
 
     out_semaphore->internal_data = kallocate(sizeof(nix_semaphore_internal), MEMORY_TAG_ENGINE);
@@ -377,7 +377,7 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
     const char* extension = platform_dynamic_library_extension();
     const char* prefix = platform_dynamic_library_prefix();
 
-    string_format(filename, "%s%s%s", prefix, name, extension);
+    string_format_unsafe(filename, "%s%s%s", prefix, name, extension);
 
     void* library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded.dylib"
     if (!library) {

@@ -230,7 +230,7 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipelin
         &out_pipeline->pipeline_layout));
 
     char pipeline_layout_name_buf[512] = {0};
-    string_format(pipeline_layout_name_buf, "pipeline_layout_shader_%s", config->name);
+    string_format_unsafe(pipeline_layout_name_buf, "pipeline_layout_shader_%s", config->name);
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_PIPELINE_LAYOUT, out_pipeline->pipeline_layout, pipeline_layout_name_buf);
 
     // Pipeline create
@@ -267,7 +267,7 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipelin
     darray_destroy(dynamic_states);
 
     char pipeline_name_buf[512] = {0};
-    string_format(pipeline_name_buf, "pipeline_shader_%s", config->name);
+    string_format_unsafe(pipeline_name_buf, "pipeline_shader_%s", config->name);
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_PIPELINE, out_pipeline->handle, pipeline_name_buf);
 
     if (vulkan_result_is_success(result)) {

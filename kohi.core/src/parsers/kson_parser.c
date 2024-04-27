@@ -1495,15 +1495,15 @@ b8 kson_object_property_value_get_string(const kson_object* object, const char* 
     // NOTE: Try some type conversions.
     if (p->type == KSON_PROPERTY_TYPE_INT) {
         char buf[50] = {0};
-        string_format(buf, "%i", p->value.i);
+        string_format_unsafe(buf, "%i", p->value.i);
         *out_value = string_duplicate(buf);
     } else if (p->type == KSON_PROPERTY_TYPE_FLOAT) {
         char buf[50] = {0};
-        string_format(buf, "%f", p->value.f);
+        string_format_unsafe(buf, "%f", p->value.f);
         *out_value = string_duplicate(buf);
     } else if (p->type == KSON_PROPERTY_TYPE_BOOLEAN) {
         char buf[6] = {0};
-        string_format(buf, "%s", p->value.b ? "true" : "false");
+        string_format_unsafe(buf, "%s", p->value.b ? "true" : "false");
         *out_value = string_duplicate(buf);
     } else if (p->type == KSON_PROPERTY_TYPE_OBJECT) {
         *out_value = string_duplicate("[Object]");

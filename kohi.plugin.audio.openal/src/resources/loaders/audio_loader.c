@@ -80,7 +80,7 @@ static b8 audio_loader_load(struct resource_loader* self, const char* name, void
 
     char* format_str = "%s/%s/%s%s";
     char full_file_path[512];
-    string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, "");
+    string_format_unsafe(full_file_path, format_str, resource_system_base_path(), self->type_path, name, "");
 
     out_resource->full_path = string_duplicate(full_file_path);
 

@@ -109,22 +109,48 @@ KAPI b8 strings_nequal(const char* str0, const char* str1, u64 length);
 KAPI b8 strings_nequali(const char* str0, const char* str1, u64 length);
 
 /**
+ * @brief Performs string formatting against the given format string and parameters.
+ * NOTE: that this performs a dynamic allocation and should be freed by the caller.
+ *
+ * @param format The format string to use for the operation
+ * @param ... The format arguments.
+ * @returns The newly-formatted string (dynamically allocated).
+ */
+KAPI char* string_format(const char* format, ...);
+
+/**
+ * @brief Performs variadic string formatting against the given format string and va_list.
+ * NOTE: that this performs a dynamic allocation and should be freed by the caller.
+ *
+ * @param format The string to be formatted.
+ * @param va_list The variadic argument list.
+ * @returns The newly-formatted string (dynamically allocated).
+ */
+KAPI char* string_format_v(const char* format, void* va_list);
+
+/**
  * @brief Performs string formatting to dest given format string and parameters.
+ * @deprecated
+ * @note This version of the function is unsafe. Use string_format() instead.
  * @param dest The destination for the formatted string.
  * @param format The format string to use for the operation
  * @param ... The format arguments.
  * @returns The length of the newly-formatted string.
  */
-KAPI i32 string_format(char* dest, const char* format, ...);
+KDEPRECATED("This version of string format is legacy, and unsafe. Use string_format() instead.")
+KAPI i32 string_format_unsafe(char* dest, const char* format, ...);
 
 /**
  * @brief Performs variadic string formatting to dest given format string and va_list.
+ * @deprecated
+ * @note This version of the function is unsafe. Use string_format() instead.
  * @param dest The destination for the formatted string.
  * @param format The string to be formatted.
  * @param va_list The variadic argument list.
  * @returns The size of the data written.
  */
-KAPI i32 string_format_v(char* dest, const char* format, void* va_list);
+KDEPRECATED("This version of string format variadic is legacy, and unsafe. Use string_format_v() instead.")
+KAPI i32 string_format_v_unsafe(char* dest, const char* format, void* va_list);
 
 /**
  * @brief Empties the provided string by setting the first character to 0.

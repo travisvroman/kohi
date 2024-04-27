@@ -84,8 +84,8 @@ b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_conte
             const char* extension = platform_dynamic_library_extension();
             char source_file[260];
             char target_file[260];
-            string_format(source_file, "%stestbed.klib%s", prefix, extension);
-            string_format(target_file, "%stestbed.klib_loaded%s", prefix, extension);
+            string_format_unsafe(source_file, "%stestbed.klib%s", prefix, extension);
+            string_format_unsafe(target_file, "%stestbed.klib_loaded%s", prefix, extension);
 
             platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
             while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
@@ -126,8 +126,8 @@ b8 create_application(application* out_application) {
         const char* extension = platform_dynamic_library_extension();
         char source_file[260];
         char target_file[260];
-        string_format(source_file, "%stestbed.klib%s", prefix, extension);
-        string_format(target_file, "%stestbed.klib_loaded%s", prefix, extension);
+        string_format_unsafe(source_file, "%stestbed.klib%s", prefix, extension);
+        string_format_unsafe(target_file, "%stestbed.klib_loaded%s", prefix, extension);
 
         err_code = platform_copy_file(source_file, target_file, true);
         if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
@@ -188,7 +188,7 @@ b8 initialize_application(application* app) {
     const char* extension = platform_dynamic_library_extension();
     char path[260];
     kzero_memory(path, sizeof(char) * 260);
-    string_format(path, "%s%s%s", prefix, "testbed.klib", extension);
+    string_format_unsafe(path, "%s%s%s", prefix, "testbed.klib", extension);
 
     if (!platform_watch_file(path, &app->game_library.watch_id)) {
         KERROR("Failed to watch the testbed library!");

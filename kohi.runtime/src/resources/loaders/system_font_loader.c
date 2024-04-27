@@ -49,7 +49,7 @@ static b8 system_font_loader_load(struct resource_loader* self, const char* name
     system_font_file_type type = SYSTEM_FONT_FILE_TYPE_NOT_FOUND;
     // Try each supported extension.
     for (u32 i = 0; i < SUPPORTED_FILETYPE_COUNT; ++i) {
-        string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, supported_filetypes[i].extension);
+        string_format_unsafe(full_file_path, format_str, resource_system_base_path(), self->type_path, name, supported_filetypes[i].extension);
         // If the file exists, open it and stop looking.
         if (filesystem_exists(full_file_path)) {
             if (filesystem_open(full_file_path, FILE_MODE_READ, supported_filetypes[i].is_binary, &f)) {
@@ -73,7 +73,7 @@ static b8 system_font_loader_load(struct resource_loader* self, const char* name
         case SYSTEM_FONT_FILE_TYPE_FONTCONFIG: {
             // Generate the ksf filename.
             char ksf_file_name[512];
-            string_format(ksf_file_name, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".ksf");
+            string_format_unsafe(ksf_file_name, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".ksf");
             result = import_fontconfig_file(&f, self->type_path, ksf_file_name, &resource_data);
             break;
         }
@@ -152,7 +152,7 @@ static b8 import_fontconfig_file(file_handle* f, const char* type_path, const ch
 
             char* format_str = "%s/%s/%s";
             char full_file_path[512];
-            string_format(full_file_path, format_str, resource_system_base_path(), type_path, trimmed_value);
+            string_format_unsafe(full_file_path, format_str, resource_system_base_path(), type_path, trimmed_value);
 
             // Open and read the font file as binary, and save into an allocated
             // buffer on the resource itself.

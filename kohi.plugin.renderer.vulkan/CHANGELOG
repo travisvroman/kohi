@@ -1,5 +1,10 @@
 Kohi Vulkan Renderer Plugin Changelog
 
+- 0.5.0
+  - Refactored plugin to follow standardized plugin loading/interfaces.
+  - Changed all resources which are per-frame (i.e. framebuffers, textures) to handle the internal frame-specific logic
+    internal to the plugin, so the frontend nor the engine no longer need be concerned about this.
+  - colorbuffer and depthbuffer are now owned by the window. Depthbuffer is no longer created as part of the swapchain.
 
 - 0.4.0
   - Vulkan-specific plugin changelog file created. Updates specific to this backend are now listed here.

@@ -401,7 +401,7 @@ const char* xform_to_string(k_handle t) {
 
         char buffer[512] = {0};
         kzero_memory(buffer, sizeof(char) * 512);
-        string_format(buffer, "%f %f %f %f %f %f %f %f %f %f",
+        string_format_unsafe(buffer, "%f %f %f %f %f %f %f %f %f %f",
                       position.x,
                       position.y,
                       position.z,

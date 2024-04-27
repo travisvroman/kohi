@@ -107,10 +107,10 @@ KAPI font_data* font_system_acquire(const char* font_name, u16 font_size, font_t
 /**
  * @brief Releases references to the font held by the provided ui_text.
  *
- * @param text A pointer to the text object to release the font from.
+ * @param font_name The name of the font to acquire. Must be an already loaded font.
  * @return True on success; otherwise false.
  */
-KAPI b8 font_system_release(struct ui_text* text);
+KAPI b8 font_system_release(const char* font_name);
 
 /**
  * @brief Verifies the atlas of the provided font contains

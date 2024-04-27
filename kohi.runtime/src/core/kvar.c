@@ -282,7 +282,7 @@ static void kvar_print(kvar_entry* entry, b8 include_name) {
     if (!entry) {
         char name_equals[512] = {0};
         if (include_name) {
-            string_format(name_equals, "%s = ", entry->name);
+            string_format_unsafe(name_equals, "%s = ", entry->name);
         }
         switch (entry->type) {
         case KVAR_TYPE_INT:
@@ -394,18 +394,18 @@ static void kvar_console_command_print_all(console_command_context context) {
             char val_str[1024] = {0};
             switch (entry->type) {
             case KVAR_TYPE_INT:
-                string_format(val_str, "i32 %s = %i, desc='%s'", entry->name, entry->value.i, entry->description ? entry->description : "");
+                string_format_unsafe(val_str, "i32 %s = %i, desc='%s'", entry->name, entry->value.i, entry->description ? entry->description : "");
                 break;
             case KVAR_TYPE_FLOAT:
-                string_format(val_str, "f32 %s = %f, desc='%s'", entry->name, entry->value.f, entry->description ? entry->description : "");
+                string_format_unsafe(val_str, "f32 %s = %f, desc='%s'", entry->name, entry->value.f, entry->description ? entry->description : "");
                 break;
             case KVAR_TYPE_STRING:
-                string_format(val_str, "str %s = '%s', desc='%s'", entry->name, entry->value.s, entry->description ? entry->description : "");
+                string_format_unsafe(val_str, "str %s = '%s', desc='%s'", entry->name, entry->value.s, entry->description ? entry->description : "");
                 break;
             default:
                 // Unknown type found. Bleat about it, but try printing it out anyway.
                 console_write(LOG_LEVEL_WARN, "kvar of unknown type found. Possible corruption?");
-                string_format(val_str, "??? %s = ???, desc='%s'", entry->name, entry->description ? entry->description : "");
+                string_format_unsafe(val_str, "??? %s = ???, desc='%s'", entry->name, entry->description ? entry->description : "");
                 break;
             }
             console_write(LOG_LEVEL_INFO, val_str);

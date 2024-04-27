@@ -41,17 +41,6 @@ void rendergraph_destroy(rendergraph* graph) {
             for (u32 i = 0; i < pass_count; ++i) {
                 rendergraph_pass* pass = graph->passes[i];
 
-                // Destroy render targets.
-                if (pass->owned_render_targets) {
-                    u32 render_target_count = darray_length(pass->owned_render_targets);
-                    for (u32 p = 0; p < render_target_count; ++p) {
-                        render_target* target = &pass->owned_render_targets[p];
-
-                        // Destroy the target if it exists.
-                        renderer_render_target_destroy(target, true);
-                    }
-                }
-
                 // Destroy the pass itself.
                 pass->destroy(pass);
             }
@@ -68,22 +57,8 @@ void rendergraph_destroy(rendergraph* graph) {
     }
 }
 
-b8 rendergraph_global_source_add(rendergraph* graph, const char* name, rendergraph_source_type type, rendergraph_source_origin origin) {
-    if (!graph) {
-        return false;
-    }
-
-    rendergraph_source source = {0};
-    source.name = string_duplicate(name);
-    source.type = type;
-    source.origin = origin;
-    darray_push(graph->global_sources, source);
-
-    return true;
-}
-
 // pass functions
-b8 rendergraph_pass_create(rendergraph* graph, const char* name, b8 (*create_pfn)(struct rendergraph_pass* self, void* config), void* config, rendergraph_pass* out_pass) {
+b8 rendergraph_pass_create(rendergraph* graph, const char* name, b8 (*create_pfn)(struct rendergraph_node* self, void* config), void* config, rendergraph_pass* out_pass) {
     if (!graph || !out_pass) {
         return false;
     }
@@ -107,160 +82,6 @@ b8 rendergraph_pass_create(rendergraph* graph, const char* name, b8 (*create_pfn
     }
 
     darray_push(graph->passes, out_pass);
-
-    return true;
-}
-
-b8 rendergraph_pass_source_add(rendergraph* graph, const char* pass_name, const char* source_name, rendergraph_source_type type, rendergraph_source_origin origin) {
-    if (!graph) {
-        return false;
-    }
-
-    // Find the pass.
-    rendergraph_pass* pass = 0;
-    u32 pass_count = darray_length(graph->passes);
-    for (u32 i = 0; i < pass_count; ++i) {
-        if (strings_equal(graph->passes[i]->name, pass_name)) {
-            pass = graph->passes[i];
-            break;
-        }
-    }
-
-    if (!pass) {
-        KERROR("Unable to find a rendergraph pass named '%s'.", pass_name);
-        return false;
-    }
-
-    // Verify that the pass doesn't already have a source of the same name.
-    u32 source_count = darray_length(pass->sources);
-    for (u32 i = 0; i < source_count; ++i) {
-        if (strings_equal(pass->sources[i].name, source_name)) {
-            KERROR("The pass '%s' already has a source named '%s'. Source not added.", pass_name, source_name);
-            return false;
-        }
-    }
-
-    rendergraph_source source = {0};
-    source.name = string_duplicate(source_name);
-    source.type = type;
-    source.origin = origin;
-    darray_push(pass->sources, source);
-
-    return true;
-}
-
-b8 rendergraph_pass_sink_add(rendergraph* graph, const char* pass_name, const char* sink_name) {
-    if (!graph) {
-        return false;
-    }
-
-    // Find the pass.
-    rendergraph_pass* pass = 0;
-    u32 pass_count = darray_length(graph->passes);
-    for (u32 i = 0; i < pass_count; ++i) {
-        if (strings_equal(graph->passes[i]->name, pass_name)) {
-            pass = graph->passes[i];
-            break;
-        }
-    }
-
-    if (!pass) {
-        KERROR("Unable to find a rendergraph pass named '%s'.", pass_name);
-        return false;
-    }
-
-    // Verify that the pass doesn't already have a sink of the same name.
-    u32 sink_count = darray_length(pass->sinks);
-    for (u32 i = 0; i < sink_count; ++i) {
-        if (strings_equal(pass->sinks[i].name, sink_name)) {
-            KERROR("The pass '%s' already has a sink named '%s'. Sink not added.", pass_name, sink_name);
-            return false;
-        }
-    }
-
-    rendergraph_sink sink = {0};
-    sink.name = string_duplicate(sink_name);
-    darray_push(pass->sinks, sink);
-
-    return true;
-}
-
-b8 rendergraph_pass_set_sink_linkage(rendergraph* graph, const char* pass_name, const char* sink_name, const char* source_pass_name, const char* source_name) {
-    if (!graph) {
-        return false;
-    }
-
-    // Find the target pass.
-    rendergraph_pass* pass = 0;
-    u32 pass_count = darray_length(graph->passes);
-    for (u32 i = 0; i < pass_count; ++i) {
-        if (strings_equal(graph->passes[i]->name, pass_name)) {
-            pass = graph->passes[i];
-            break;
-        }
-    }
-
-    if (!pass) {
-        KERROR("Unable to find a rendergraph target pass named '%s'.", pass_name);
-        return false;
-    }
-
-    // Find the target sink.
-    rendergraph_sink* sink = 0;
-    u32 sink_count = darray_length(pass->sinks);
-    for (u32 i = 0; i < sink_count; ++i) {
-        if (strings_equal(pass->sinks[i].name, sink_name)) {
-            sink = &pass->sinks[i];
-            break;
-        }
-    }
-
-    if (!sink) {
-        KERROR("Unable to find sink named '%s' on rendergraph target pass named '%s'.", sink_name, pass_name);
-        return false;
-    }
-
-    rendergraph_source* source = 0;
-    if (!source_pass_name) {
-        // Global source.
-        u32 source_count = darray_length(graph->global_sources);
-        for (u32 i = 0; i < source_count; ++i) {
-            if (strings_equal(graph->global_sources[i].name, source_name)) {
-                source = &graph->global_sources[i];
-                break;
-            }
-        }
-    } else {
-        // Pass source.
-        rendergraph_pass* source_pass = 0;
-        u32 pass_count = darray_length(graph->passes);
-        for (u32 i = 0; i < pass_count; ++i) {
-            if (strings_equal(graph->passes[i]->name, source_pass_name)) {
-                source_pass = graph->passes[i];
-                break;
-            }
-        }
-        if (!source_pass) {
-            KERROR("Unable to find source pass named '%s'.", source_pass_name);
-            return false;
-        }
-
-        u32 source_count = darray_length(source_pass->sources);
-        for (u32 i = 0; i < source_count; ++i) {
-            if (strings_equal(source_pass->sources[i].name, source_name)) {
-                source = &source_pass->sources[i];
-                break;
-            }
-        }
-    }
-
-    if (!source) {
-        KERROR("Unable to find source named '%s'.", source_name);
-        return false;
-    }
-
-    // Everything needed to perform the link is present, so do the thing.
-    sink->bound_source = source;
 
     return true;
 }

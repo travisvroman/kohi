@@ -223,6 +223,7 @@ KAPI void renderer_set_stencil_write_mask(u32 write_mask);
  * Attempts to acquire renderer-specific resources to back a texture.
  *
  * @param state A pointer to the renderer system state.
+ * @param name The name of the texture. Used for internal resource naming/debugging purposes.
  * @param type The type of texture.
  * @param width The texture width in pixels.
  * @param height The texture height in pixels.
@@ -233,7 +234,7 @@ KAPI void renderer_set_stencil_write_mask(u32 write_mask);
  * @param out_renderer_texture_handle A pointer to hold the renderer texture handle, which points to the backing resource(s) of the texture.
  * @returns True on success, otherwise false;
  */
-KAPI b8 renderer_texture_resources_acquire(struct renderer_system_state* state, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, k_handle* out_renderer_texture_handle);
+KAPI b8 renderer_texture_resources_acquire(struct renderer_system_state* state, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, k_handle* out_renderer_texture_handle);
 
 /**
  * Releases backing renderer-specific resources for the given renderer_texture_id.
@@ -242,6 +243,15 @@ KAPI b8 renderer_texture_resources_acquire(struct renderer_system_state* state, 
  * @param renderer_texture_id The handle of the renderer texture whose resources are to be released.
  */
 KAPI void renderer_texture_resources_release(struct renderer_system_state* state, k_handle renderer_texture_id);
+
+/**
+ * @brief Gets an opaque pointer to renderer-specific resource data. Typically only used by a renderer backend.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param renderer_texture_id The handle of the renderer texture whose resources to get.
+ * @returns A pointer to internal resources on success; otherwise 0/null.
+ */
+KAPI struct texture_internal_data* renderer_texture_resources_get(struct renderer_system_state* state, k_handle renderer_texture_handle);
 
 /**
  * @brief Resizes a texture. There is no check at this level to see if the
@@ -354,10 +364,10 @@ KAPI void renderer_geometry_draw(geometry_render_data* data);
  * @brief Begins the given renderpass.
  *
  * @param pass A pointer to the renderpass to begin.
- * @param target A pointer to the render target to be used.
+ * @param framebuffer_handle A handle to the framebuffer to be used for this pass.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderpass_begin(renderpass* pass, render_target* target);
+KAPI b8 renderer_renderpass_begin(renderpass* pass, k_handle framebuffer_handle);
 
 /**
  * @brief Ends the given renderpass.
@@ -366,6 +376,48 @@ KAPI b8 renderer_renderpass_begin(renderpass* pass, render_target* target);
  * @return True on success; otherwise false.
  */
 KAPI b8 renderer_renderpass_end(renderpass* pass);
+
+/**
+ * @brief Sets the value to be used on the colour buffer clear.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param colour the RGBA colour to be used for the next clear operation. Each element is clamped to [0-1]
+ */
+KAPI void renderer_clear_colour_set(struct renderer_system_state* state, vec4 colour);
+
+/**
+ * @brief Sets the value to be used on the depth buffer clear.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param depth The depth value to be used for the next clear operation. Clamped to [0-1].
+ */
+KAPI void renderer_clear_depth_set(struct renderer_system_state* state, f32 depth);
+
+/**
+ * @brief Sets the value to be used on the stencil buffer clear.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param stencil The depth value to be used for the next clear operation.
+ */
+KAPI void renderer_clear_stencil_set(struct renderer_system_state* state, u32 stencil);
+
+/**
+ * @brief Clears the colour buffer using the previously set clear colour.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param renderer_texture_handle A handle to the texture to clear.
+ * @returns True if successful; otherwise false.
+ */
+KAPI b8 renderer_clear_colour_texture(struct renderer_system_state* state, k_handle renderer_texture_handle);
+
+/**
+ * @brief Clears the depth/stencil buffer using the previously set clear values.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param renderer_texture_handle A handle to the texture to clear.
+ * @returns True if successful; otherwise false.
+ */
+KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle renderer_texture_handle);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.
@@ -530,25 +582,22 @@ KAPI b8 renderer_texture_map_resources_acquire(struct texture_map* map);
 KAPI void renderer_texture_map_resources_release(struct texture_map* map);
 
 /**
- * @brief Creates a new render target using the provided data.
+ * @brief Creates a new framebuffer using the provided data.
  *
- * @param attachment_count The number of attachments.
- * @param attachments An array of attachments.
- * @param renderpass A pointer to the renderpass the render target is associated with.
- * @param width The width of the render target in pixels.
- * @param height The height of the render target in pixels.
- * @param layer_index The index of the layer to use if the texture is an arrayed texture. Otherwise ignored.
- * @param out_target A pointer to hold the newly created render target.
+ * @param state A pointer to the renderer system state.
+ * @param config A constant pointer to the config to be used when creating the framebuffer.
+ * @param out_framebuffer_handle A pointer to hold the handle to the newly-created framebuffer.
+ * @returns True on success; otherwise false.
  */
-KAPI void renderer_render_target_create(u8 attachment_count, render_target_attachment* attachments, renderpass* pass, u32 width, u32 height, u16 layer_index, render_target* out_target);
+KAPI b8 renderer_framebuffer_create(struct renderer_system_state* state, const struct framebuffer_config* config, k_handle* out_framebuffer_handle);
 
 /**
- * @brief Destroys the provided render target.
+ * @brief Destroys the provided framebuffer and invalidates is handle.
  *
- * @param target A pointer to the render target to be destroyed.
- * @param free_internal_memory Indicates if internal memory should be freed.
+ * @param state A pointer to the renderer system state.
+ * @param framebuffer_handle A pointer to the handle to the framebuffer to be destroyed.
  */
-KAPI void renderer_render_target_destroy(render_target* target, b8 free_internal_memory);
+KAPI void renderer_framebuffer_destroy(struct renderer_system_state* state, k_handle* framebuffer_handle);
 
 /**
  * @brief Attempts to get the window render target.

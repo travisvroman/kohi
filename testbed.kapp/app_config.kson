@@ -40,3 +40,73 @@ systems = [
        ]
     }
 ]
+rendergraphs = [
+    {
+        name = "forward_graph"
+        global_sources = [
+            {
+                name = "colourbuffer"
+                type = "texture"
+                origin = "main_window.colourbuffer"
+            }
+            {
+                name = "active_camera"
+                type = "camera"
+                origin = "camera_system.active_camera"
+            }
+            {
+                name = "depthbuffer"
+                type = "texture"
+                origin = "active_camera.depthbuffer"
+            }
+        ]
+        passes = [
+            {
+                name = "clear_colour_pass"
+                type = "clear_colour"
+                source_name = "global.colourbuffer"
+            }
+            {
+                name = "clear_depth_stencil_pass"
+                type = "clear_depth_stencil"
+                source_name = "global.depthbuffer"
+            }
+            {
+                name = "skybox_pass"
+                type = "skybox"
+                sinks = [
+                    {
+                        name = "sink_colourbuffer"
+                        type = "texture"
+                        source_name = "clear_colour_pass.colourbuffer"
+                    }
+                ]
+            }
+            {
+                name = "shadow_pass",
+                type = "shadowmap"
+                config = {
+                    resolution = 2048
+                }
+            }
+            {
+                name = "scene_pass"
+                type = "scene"
+                sinks = [
+                    {
+                        name = "sink_colourbuffer"
+                        source = "skybox_pass.colourbuffer"
+                    }
+                    {
+                        name = "sink_depthbuffer"
+                        source = "clear_depth_stencil_pass.depthbuffer"
+                    }
+                    {
+                        name = "sink_shadowmap"
+                        source = "shadow_pass.source_shadowmap"
+                    }
+                ]
+            }
+        ]
+    }
+]

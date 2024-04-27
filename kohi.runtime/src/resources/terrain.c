@@ -261,7 +261,7 @@ b8 terrain_chunk_load(terrain* t, terrain_chunk* chunk) {
 
     // Create a terrain material by copying the properties of these materials to a new terrain material.
     char terrain_material_name[MATERIAL_NAME_MAX_LENGTH] = {0};
-    string_format(terrain_material_name, "terrain_mat_%s", t->name);
+    string_format_unsafe(terrain_material_name, "terrain_mat_%s", t->name);
     // NOTE: While the terrain could technically hold the material, doing this here lends the ability
     // for each chunk to have a separate material.
     chunk->material = material_system_acquire_terrain_material(terrain_material_name, t->material_count, (const char**)t->material_names, true);

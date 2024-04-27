@@ -2,11 +2,11 @@
 
 #include "containers/darray.h"
 #include "containers/hashtable.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
 #include "logger.h"
+#include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/resource_types.h"
+#include "strings/kstring.h"
 #include "systems/resource_system.h"
 #include "systems/texture_system.h"
 
@@ -375,7 +375,7 @@ font_data* font_system_acquire(const char* font_name, u16 font_size, font_type t
     return 0;
 }
 
-b8 font_system_release(struct ui_text* text) {
+b8 font_system_release(const char* font_name) {
     // TODO: Lookup font by name in appropriate hashtable.
     return true;
 }
@@ -466,7 +466,7 @@ vec2 font_system_measure_string(font_data* font, const char* text) {
 
             // Get the offset of the next character. If there is no advance, move forward one,
             // otherwise use advance as-is.
-            u32 offset = c + advance;  //(advance < 1 ? 1 : advance);
+            u32 offset = c + advance; //(advance < 1 ? 1 : advance);
             if (offset < text_length_utf8 - 1) {
                 // Get the next codepoint.
                 i32 next_codepoint = 0;
@@ -492,7 +492,7 @@ vec2 font_system_measure_string(font_data* font, const char* text) {
         }
 
         // Now advance c
-        c += advance - 1;  // Subtracting 1 because the loop always increments once for single-byte anyway.
+        c += advance - 1; // Subtracting 1 because the loop always increments once for single-byte anyway.
     }
 
     // One last check in case of no more newlines.
@@ -558,7 +558,7 @@ static void cleanup_font_data(font_data* font) {
 
 static b8 create_system_font_variant(system_font_lookup* lookup, u16 size, const char* font_name, font_data* out_variant) {
     kzero_memory(out_variant, sizeof(font_data));
-    out_variant->atlas_size_x = 1024;  // TODO: configurable size
+    out_variant->atlas_size_x = 1024; // TODO: configurable size
     out_variant->atlas_size_y = 1024;
     out_variant->size = size;
     out_variant->type = FONT_TYPE_SYSTEM;
@@ -570,7 +570,7 @@ static b8 create_system_font_variant(system_font_lookup* lookup, u16 size, const
 
     // Push default codepoints (ascii 32-127) always, plus a -1 for unknown.
     internal_data->codepoints = darray_reserve(i32, 96);
-    darray_push(internal_data->codepoints, -1);  // push invalid char
+    darray_push(internal_data->codepoints, -1); // push invalid char
     for (i32 i = 0; i < 95; ++i) {
         internal_data->codepoints[i + 1] = i + 32;
     }
@@ -578,7 +578,7 @@ static b8 create_system_font_variant(system_font_lookup* lookup, u16 size, const
 
     // Create texture.
     char font_tex_name[255];
-    string_format(font_tex_name, "__system_text_atlas_%s_i%i_sz%i__", font_name, lookup->index, size);
+    string_format_unsafe(font_tex_name, "__system_text_atlas_%s_i%i_sz%i__", font_name, lookup->index, size);
     out_variant->atlas.texture = texture_system_acquire_writeable(font_tex_name, out_variant->atlas_size_x, out_variant->atlas_size_y, 4, true);
 
     // Obtain some metrics
@@ -651,7 +651,7 @@ static b8 rebuild_system_font_variant_atlas(system_font_lookup* lookup, font_dat
         g->page_id = 0;
         g->x_offset = pc->xoff;
         g->y_offset = pc->yoff;
-        g->x = pc->x0;  // xmin;
+        g->x = pc->x0; // xmin;
         g->y = pc->y0;
         g->width = pc->x1 - pc->x0;
         g->height = pc->y1 - pc->y0;
