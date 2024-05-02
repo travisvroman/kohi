@@ -41,6 +41,7 @@ struct geometry_system_state;
 struct light_system_state;
 struct camera_system_state;
 struct plugin_system_state;
+struct rendergraph_system_state;
 
 typedef struct engine_system_states {
     u64 platform_memory_requirement;
@@ -99,6 +100,9 @@ typedef struct engine_system_states {
 
     u64 plugin_system_memory_requirement;
     struct plugin_system_state* plugin_system;
+
+    u64 rendergraph_system_memory_requirement;
+    struct rendergraph_system_state* rendergraph_system;
 } engine_system_states;
 
 /**

@@ -45,65 +45,60 @@ rendergraphs = [
         name = "forward_graph"
         global_sources = [
             {
-                name = "colourbuffer"
-                type = "texture"
-                origin = "main_window.colourbuffer"
-            }
-            {
                 name = "active_camera"
                 type = "camera"
-                origin = "camera_system.active_camera"
-            }
-            {
-                name = "depthbuffer"
-                type = "texture"
-                origin = "active_camera.depthbuffer"
             }
         ]
-        passes = [
+        global_colourbuffer_sink_source_name = "forward.colourbuffer"
+        nodes = [
             {
-                name = "clear_colour_pass"
+                name = "clear_colour"
                 type = "clear_colour"
-                source_name = "global.colourbuffer"
+                config = {
+                    source_name = "global.colourbuffer"
+                }
             }
             {
-                name = "clear_depth_stencil_pass"
+                name = "clear_depth_stencil"
                 type = "clear_depth_stencil"
-                source_name = "global.depthbuffer"
+                config = {
+                    source_name = "global.depthbuffer"
+                    clear_depth = true
+                    clear_stencil = true
+                }
             }
             {
-                name = "skybox_pass"
+                name = "skybox"
                 type = "skybox"
                 sinks = [
                     {
-                        name = "sink_colourbuffer"
-                        type = "texture"
-                        source_name = "clear_colour_pass.colourbuffer"
+                        name = "colourbuffer"
+                        source_name = "clear_colour.colourbuffer"
                     }
                 ]
             }
             {
-                name = "shadow_pass",
-                type = "shadowmap"
+                name = "shadow",
+                type = "shadow"
                 config = {
                     resolution = 2048
                 }
             }
             {
-                name = "scene_pass"
-                type = "scene"
+                name = "forward"
+                type = "forward"
                 sinks = [
                     {
-                        name = "sink_colourbuffer"
-                        source = "skybox_pass.colourbuffer"
+                        name = "colourbuffer"
+                        source = "skybox.colourbuffer"
                     }
                     {
-                        name = "sink_depthbuffer"
-                        source = "clear_depth_stencil_pass.depthbuffer"
+                        name = "depthbuffer"
+                        source = "clear_depth_stencil.depthbuffer"
                     }
                     {
-                        name = "sink_shadowmap"
-                        source = "shadow_pass.source_shadowmap"
+                        name = "shadow"
+                        source = "shadow.shadowmap"
                     }
                 ]
             }

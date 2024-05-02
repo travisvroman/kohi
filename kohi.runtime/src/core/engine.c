@@ -21,6 +21,7 @@
 #include "platform/platform.h"
 #include "plugins/plugin_types.h"
 #include "renderer/renderer_frontend.h"
+#include "renderer/rendergraph.h"
 #include "strings/kstring.h"
 #include "systems/plugin_system.h"
 #include "time/kclock.h"
@@ -457,6 +458,16 @@ b8 engine_create(application* game_inst) {
         systems->camera_system = kallocate(systems->camera_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!camera_system_initialize(&systems->camera_system_memory_requirement, systems->camera_system, &camera_sys_config)) {
             KERROR("Failed to initialize camera system.");
+            return false;
+        }
+    }
+
+    // Rendergraph system
+    {
+        rendergraph_system_initialize(&systems->rendergraph_system_memory_requirement, 0);
+        systems->rendergraph_system = kallocate(systems->rendergraph_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!rendergraph_system_initialize(&systems->rendergraph_system_memory_requirement, systems->rendergraph_system)) {
+            KERROR("Failed to initialize rendergraph system.");
             return false;
         }
     }
