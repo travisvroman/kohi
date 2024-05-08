@@ -561,6 +561,10 @@ f32 platform_device_pixel_ratio(void) {
 }
 
 // NOTE: Begin threads.
+typedef struct macos_kthread_internal_data {
+    pthread_t thread_id;
+    pthread_mutex_t wait_for_mutex; // TODO: use kmutex?
+} macos_kthread_internal_data;
 
 b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_detach, kthread* out_thread) {
     if (!start_function_ptr) {
@@ -586,8 +590,10 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_det
 
     // Only save off the handle if not auto-detaching.
     if (!auto_detach) {
-        out_thread->internal_data = platform_allocate(sizeof(u64), false);
-        *(u64*)out_thread->internal_data = out_thread->thread_id;
+        out_thread->internal_data = platform_allocate(sizeof(macos_kthread_internal_data), false);
+        macos_kthread_internal_data* internal_data = (macos_kthread_internal_data*) out_thread->internal_data;
+        internal_data->thread_id = (pthread_t)out_thread->thread_id;
+        pthread_mutex_init(&internal_data->wait_for_mutex, NULL);
     } else {
         // If immediately detaching, make sure the operation is a success.
         result = pthread_detach((pthread_t)out_thread->thread_id);
@@ -615,7 +621,7 @@ void kthread_destroy(kthread* thread) {
 
 void kthread_detach(kthread* thread) {
     if (thread->internal_data) {
-        i32 result = pthread_detach(*(pthread_t*)thread->internal_data);
+        i32 result = pthread_detach(((macos_kthread_internal_data*)thread->internal_data)->thread_id);
         if (result != 0) {
             switch (result) {
                 case EINVAL:
@@ -629,6 +635,7 @@ void kthread_detach(kthread* thread) {
                     break;
             }
         }
+        pthread_mutex_destroy(&((macos_kthread_internal_data*)thread->internal_data)->wait_for_mutex);
         platform_free(thread->internal_data, false);
         thread->internal_data = 0;
     }
@@ -636,7 +643,7 @@ void kthread_detach(kthread* thread) {
 
 void kthread_cancel(kthread* thread) {
     if (thread->internal_data) {
-        i32 result = pthread_cancel(*(pthread_t*)thread->internal_data);
+        i32 result = pthread_cancel(((macos_kthread_internal_data*)thread->internal_data)->thread_id);
         if (result != 0) {
             switch (result) {
                 case ESRCH:
@@ -647,6 +654,7 @@ void kthread_cancel(kthread* thread) {
                     break;
             }
         }
+        pthread_mutex_destroy(&((macos_kthread_internal_data*)thread->internal_data)->wait_for_mutex);
         platform_free(thread->internal_data, false);
         thread->internal_data = 0;
         thread->thread_id = 0;
@@ -660,6 +668,24 @@ b8 kthread_is_active(kthread* thread) {
 
 void kthread_sleep(kthread* thread, u64 ms) {
     platform_sleep(ms);
+}
+
+b8 kthread_wait(kthread *thread) {
+    if (thread && thread->internal_data) {
+        pthread_condattr_t condattr;
+        pthread_cond_t cond;
+        pthread_condattr_init(&condattr);
+        pthread_cond_init(&cond, &condattr);
+        pthread_condattr_destroy(&condattr);
+
+        // TODO: is this the right way?
+        int result = pthread_cond_wait(&cond, &((macos_kthread_internal_data*)thread->internal_data)->wait_for_mutex);
+        pthread_cond_destroy(&cond);
+        if (result == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 u64 platform_current_thread_id(void) {

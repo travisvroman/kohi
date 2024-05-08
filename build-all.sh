@@ -47,7 +47,10 @@ fi
 # Vulkan Renderer Lib
 if [ $PLATFORM = 'macos' ]
 then
-   VULKAN_SDK=/usr/local/
+   if [-z $VULKAN_SDK]
+   then
+      VULKAN_SDK=/usr/local/
+   fi
 fi
 make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=vulkan_renderer DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="-I./engine/src -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="-lengine -lvulkan -lshaderc_shared -L$VULKAN_SDK/lib"
 ERRORLEVEL=$?
@@ -114,4 +117,3 @@ echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
 
 echo "All assemblies $ACTION_STR_PAST successfully on $PLATFORM ($TARGET)." | sed -e "s/successfully/${txtgrn}successfully${txtrst}/g"
-
