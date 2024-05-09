@@ -176,6 +176,9 @@ The items in this list are not in any particular order. This list will be update
           We might also think about, at this point, reworking the scene parser to better handle object heirarchy in a more
           expressive language fasion (perhaps using some sort of scoping syntax like "{}" to surround objects).
 
+  - [ ] Change rendergraph to gather required resources at the beginning of a frame (i.e. global.colourbuffer from current window's render target).
+  - [ ] Remove specialized rendergraphs, will be replaced by "templates" (forward, editor, etc.)
+
 - [ ] 0.8
   - [ ] Handle refactoring
     - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)

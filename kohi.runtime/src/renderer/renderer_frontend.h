@@ -405,19 +405,19 @@ KAPI void renderer_clear_stencil_set(struct renderer_system_state* state, u32 st
  * @brief Clears the colour buffer using the previously set clear colour.
  *
  * @param state A pointer to the renderer system state.
- * @param renderer_texture_handle A handle to the texture to clear.
+ * @param framebuffer_handle A handle to the texture to clear.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 renderer_clear_colour_texture(struct renderer_system_state* state, k_handle renderer_texture_handle);
+KAPI b8 renderer_clear_colour(struct renderer_system_state* state, k_handle framebuffer_handle);
 
 /**
  * @brief Clears the depth/stencil buffer using the previously set clear values.
  *
  * @param state A pointer to the renderer system state.
- * @param renderer_texture_handle A handle to the texture to clear.
+ * @param framebuffer_handle A handle to the texture to clear.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle renderer_texture_handle);
+KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle framebuffer_handle);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.

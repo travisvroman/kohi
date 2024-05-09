@@ -27,7 +27,7 @@ systems = [
                config = {
                    
                }
-           },
+           }
            {
                name = "kohi.plugin.audio.openal"
                config = {
@@ -43,28 +43,26 @@ systems = [
 rendergraphs = [
     {
         name = "forward_graph"
-        global_sources = [
-            {
-                name = "active_camera"
-                type = "camera"
-            }
-        ]
-        global_colourbuffer_sink_source_name = "forward.colourbuffer"
         nodes = [
+            {
+                name = "frame_begin"
+                type = "frame_begin"
+                comment = "This node is required, but not configurable."
+            }
             {
                 name = "clear_colour"
                 type = "clear_colour"
                 config = {
-                    source_name = "global.colourbuffer"
+                    source_name = "frame_begin.colourbuffer"
                 }
             }
             {
-                name = "clear_depth_stencil"
+                name = "clear_ds"
                 type = "clear_depth_stencil"
                 config = {
-                    source_name = "global.depthbuffer"
-                    clear_depth = true
-                    clear_stencil = true
+                    source_name = "frame_begin.depthbuffer"
+                    depth_clear_value = 1.0
+                    stencil_clear_value = 0
                 }
             }
             {
@@ -78,7 +76,7 @@ rendergraphs = [
                 ]
             }
             {
-                name = "shadow",
+                name = "shadow"
                 type = "shadow"
                 config = {
                     resolution = 2048
@@ -94,13 +92,21 @@ rendergraphs = [
                     }
                     {
                         name = "depthbuffer"
-                        source = "clear_depth_stencil.depthbuffer"
+                        source = "clear_ds.depthbuffer"
                     }
                     {
                         name = "shadow"
                         source = "shadow.shadowmap"
                     }
                 ]
+            }
+            {
+                name = "frame_end"
+                type = "frame_end"
+                comment = "This node is required."
+                config = {
+                    colourbuffer_source = "forward.colourbuffer"
+                }
             }
         ]
     }

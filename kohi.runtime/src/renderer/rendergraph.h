@@ -13,6 +13,7 @@
     }
 
 struct texture;
+struct rendergraph_system_state;
 
 /**
  * @brief Represents a resource type to be used with rendergraph
@@ -54,12 +55,15 @@ typedef struct rendergraph_source {
  * type (i.e. a texture or number), which is provided by a source.
  */
 typedef struct rendergraph_sink {
-    char* name;
+    const char* name;
+    const char* configured_source_name;
     /** @brief The type of data expected in this sink. Bound source type must match. */
     rendergraph_resource_type type;
     /** @brief A pointer to the bound source. */
     rendergraph_source* bound_source;
 } rendergraph_sink;
+
+struct rendergraph;
 
 /**
  * @brief Represents a single node in a rendergraph. A node is
@@ -68,8 +72,12 @@ typedef struct rendergraph_sink {
  * output (typically sources) to potentially other nodes.
  */
 typedef struct rendergraph_node {
+    u32 index;
     /** @brief The name of the node. */
     const char* name;
+
+    // The graph owning this node.
+    struct rendergraph* graph;
 
     u32 source_count;
     rendergraph_source* sources;
@@ -79,17 +87,14 @@ typedef struct rendergraph_node {
 
     void* internal_data;
 
-    /**
-     * @brief Indicates if the colour attachment will be used for presentation at the completion of this node's execution.
-     * NOTE: This should only ever be set by the owning rendergraph during linked resource resolution time.
-     */
-    b8 presents_colour;
-
     b8 (*initialize)(struct rendergraph_node* self);
     b8 (*load_resources)(struct rendergraph_node* self);
     b8 (*execute)(struct rendergraph_node* self, struct frame_data* p_frame_data);
     void (*destroy)(struct rendergraph_node* self);
 } rendergraph_node;
+
+// Opaque type representing internal dependency graph.
+struct rg_dep_graph;
 
 typedef struct rendergraph {
     char* name;
@@ -99,25 +104,48 @@ typedef struct rendergraph {
     // Handle to a global depthbuffer framebuffer.
     k_handle global_depthbuffer;
 
-    u32 global_source_count;
-    rendergraph_source* global_sources;
-
     u32 node_count;
     // Array of nodes in this graph.
     rendergraph_node* nodes;
 
-    // This is what is fed to the presentation engine once the graph is complete.
-    rendergraph_sink colourbuffer_global_sink;
+    rendergraph_node* begin_node;
+    rendergraph_node* end_node;
 
-    /** @brief The name of the source that outputs the final version of the colourbuffer. */
-    const char* global_colourbuffer_sink_source_name;
+    u32* execution_list;
+
+    struct rg_dep_graph* dep_graph;
 } rendergraph;
 
-struct rendergraph_system_state;
+/**
+ * Configuration structure for a node sink
+ */
+typedef struct rendergraph_node_sink_config {
+    const char* name;
+    const char* type;
+    const char* source_name;
+} rendergraph_node_sink_config;
+
+/**
+ * @brief The configuration for a rendergraph node.
+ */
+typedef struct rendergraph_node_config {
+    /** @brief The name of the node. */
+    const char* name;
+    /** @brief The type of the node. */
+    const char* type;
+
+    /** @brief The number of sinks in this node. */
+    u32 sink_count;
+    /** @brief A collection of sink configs. Must be a config for each sink in the node. Names must match. */
+    rendergraph_node_sink_config* sinks;
+
+    /** @brief Additional node-specific config in string format. The node should know how to parse this. Optional. */
+    const char* config_str;
+} rendergraph_node_config;
 
 typedef struct rendergraph_node_factory {
     const char* type;
-    b8 (*create)(rendergraph_node* node, const char* config_str);
+    b8 (*create)(rendergraph* graph, rendergraph_node* node, const struct rendergraph_node_config* config);
 } rendergraph_node_factory;
 
 KAPI b8 rendergraph_create(const char* config_str, k_handle global_colourbuffer, k_handle global_depthbuffer, rendergraph* out_graph);

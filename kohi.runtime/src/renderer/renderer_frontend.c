@@ -642,10 +642,10 @@ void renderer_clear_stencil_set(struct renderer_system_state* state, u32 stencil
     }
 }
 
-b8 renderer_clear_colour_texture(struct renderer_system_state* state, k_handle renderer_texture_handle) {
-    if (state && !k_handle_is_invalid(renderer_texture_handle)) {
-        struct texture_internal_data* data = state->textures[renderer_texture_handle.handle_index].data;
-        state->backend->clear_colour_texture(state->backend, data);
+b8 renderer_clear_colour_texture(struct renderer_system_state* state, k_handle framebuffer_handle) {
+    if (state && !k_handle_is_invalid(framebuffer_handle)) {
+        struct texture_internal_data* data = state->textures[framebuffer_handle.handle_index].data;
+        state->backend->clear_colour(state->backend, data);
         return true;
     }
 
@@ -653,9 +653,9 @@ b8 renderer_clear_colour_texture(struct renderer_system_state* state, k_handle r
     return false;
 }
 
-b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle renderer_texture_handle) {
-    if (state && !k_handle_is_invalid(renderer_texture_handle)) {
-        struct texture_internal_data* data = state->textures[renderer_texture_handle.handle_index].data;
+b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle framebuffer_handle) {
+    if (state && !k_handle_is_invalid(framebuffer_handle)) {
+        struct texture_internal_data* data = state->textures[framebuffer_handle.handle_index].data;
         state->backend->clear_depth_stencil(state->backend, data);
         return true;
     }
