@@ -65,14 +65,107 @@ typedef struct forward_rendergraph_node_internal_data {
     mat4 directional_light_projections[MAX_SHADOW_CASCADE_COUNT];
 } forward_rendergraph_node_internal_data;
 
-b8 forward_rendergraph_node_create(struct rendergraph_node* self, void* config) {
+b8 forward_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node* self, struct rendergraph_node_config* config) {
     if (!self) {
+        KERROR("forward_rendergraph_node_create requires a valid pointer to a pass");
+        return false;
+    }
+    if (!config) {
+        KERROR("forward_rendergraph_node_create requires a valid configuration.");
         return false;
     }
 
+    // Setup internal data.
     self->internal_data = kallocate(sizeof(forward_rendergraph_node_internal_data), MEMORY_TAG_RENDERER);
     forward_rendergraph_node_internal_data* internal_data = self->internal_data;
     internal_data->renderer = engine_systems_get()->renderer_system;
+
+    self->name = string_duplicate(config->name);
+
+    // Setup sinks
+    self->sink_count = 3;
+    self->sinks = kallocate(sizeof(rendergraph_sink) * self->sink_count, MEMORY_TAG_ARRAY);
+
+    // Grab sink configs first. These are all required because they need source linkages.
+    rendergraph_node_sink_config* colourbuffer_sink_config = 0;
+    rendergraph_node_sink_config* depthbuffer_sink_config = 0;
+    rendergraph_node_sink_config* shadow_sink_config = 0;
+    for (u32 i = 0; i < config->sink_count; ++i) {
+        rendergraph_node_sink_config* sink = &config->sinks[i];
+        if (strings_equali("colourbuffer", sink->name)) {
+            colourbuffer_sink_config = sink;
+            break;
+        } else if (strings_equali("depthbuffer", sink->name)) {
+            depthbuffer_sink_config = sink;
+            break;
+        } else if (strings_equali("shadow", sink->name)) {
+            shadow_sink_config = sink;
+            break;
+        }
+    }
+
+    // Colourbuffer sink
+    if (!colourbuffer_sink_config) {
+        KERROR("Forward rendergraph node requires configuration for sink called 'colourbuffer'.");
+        return false;
+    } else {
+        rendergraph_sink* colourbuffer_sink = &self->sinks[0];
+        colourbuffer_sink->name = string_duplicate("colourbuffer");
+        colourbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
+        colourbuffer_sink->bound_source = 0;
+        // Save off the configured source name for later lookup and binding.
+        colourbuffer_sink->configured_source_name = string_duplicate(colourbuffer_sink_config->source_name);
+    }
+
+    // Depthbuffer sink
+    if (!depthbuffer_sink_config) {
+        KERROR("Forward rendergraph node requires configuration for sink called 'depthbuffer'.");
+        return false;
+    } else {
+        rendergraph_sink* depthbuffer_sink = &self->sinks[1];
+        depthbuffer_sink->name = string_duplicate("depthbuffer");
+        depthbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
+        depthbuffer_sink->bound_source = 0;
+        // Save off the configured source name for later lookup and binding.
+        depthbuffer_sink->configured_source_name = string_duplicate(depthbuffer_sink_config->source_name);
+    }
+
+    // Shadow sink
+    if (!depthbuffer_sink_config) {
+        KERROR("Forward rendergraph node requires configuration for sink called 'shadow'.");
+        return false;
+    } else {
+        rendergraph_sink* shadow_sink = &self->sinks[2];
+        shadow_sink->name = string_duplicate("shadow");
+        shadow_sink->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
+        shadow_sink->bound_source = 0;
+        // Save off the configured source name for later lookup and binding.
+        shadow_sink->configured_source_name = string_duplicate(shadow_sink_config->source_name);
+    }
+
+    // Has two sources, one for the colourbuffer and one for the depthbuffer.
+    self->source_count = 2;
+    self->sources = kallocate(sizeof(rendergraph_source) * self->source_count, MEMORY_TAG_ARRAY);
+
+    // Setup the colourbuffer source.
+    rendergraph_source* colourbuffer_source = &self->sources[0];
+    colourbuffer_source->name = string_duplicate("colourbuffer");
+    colourbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
+    colourbuffer_source->value.framebuffer_handle = k_handle_invalid();
+    colourbuffer_source->is_bound = false;
+
+    // Setup the colourbuffer source.
+    rendergraph_source* depthbuffer_source = &self->sources[1];
+    depthbuffer_source->name = string_duplicate("depthbuffer");
+    depthbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
+    depthbuffer_source->value.framebuffer_handle = k_handle_invalid();
+    depthbuffer_source->is_bound = false;
+
+    // Function pointers.
+    self->initialize = forward_rendergraph_node_initialize;
+    self->destroy = forward_rendergraph_node_destroy;
+    self->load_resources = forward_rendergraph_node_load_resources;
+    self->execute = forward_rendergraph_node_execute;
 
     return true;
 }

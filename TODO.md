@@ -178,6 +178,8 @@ The items in this list are not in any particular order. This list will be update
 
   - [ ] Change rendergraph to gather required resources at the beginning of a frame (i.e. global.colourbuffer from current window's render target).
   - [ ] Remove specialized rendergraphs, will be replaced by "templates" (forward, editor, etc.)
+  - [ ] Separate debug shapes out to new debug_shapes_rendergraph_node.
+  - [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
 
 - [ ] 0.8
   - [ ] Handle refactoring
