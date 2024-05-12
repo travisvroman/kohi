@@ -142,7 +142,7 @@ KAPI b8 renderer_frame_submit(struct renderer_system_state* state, struct frame_
 KAPI b8 renderer_frame_present(struct renderer_system_state* state, struct kwindow* window, struct frame_data* p_frame_data);
 
 /**
- * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
+ * @brief Sets the renderer viewport to the given rectangle.
  *
  * @param rect The viewport rectangle to be set.
  */
@@ -150,12 +150,11 @@ KAPI void renderer_viewport_set(vec4 rect);
 
 /**
  * @brief Resets the viewport to the default, which matches the application window.
- * Must be done within a renderpass.
  */
 KAPI void renderer_viewport_reset(void);
 
 /**
- * @brief Sets the renderer scissor to the given rectangle. Must be done within a renderpass.
+ * @brief Sets the renderer scissor to the given rectangle.
  *
  * @param rect The scissor rectangle to be set.
  */
@@ -163,7 +162,6 @@ KAPI void renderer_scissor_set(vec4 rect);
 
 /**
  * @brief Resets the scissor to the default, which matches the application window.
- * Must be done within a renderpass.
  */
 KAPI void renderer_scissor_reset(void);
 
@@ -353,29 +351,12 @@ KDEPRECATED("The renderer frontend geometry functions will be removed in a futur
 KAPI void renderer_geometry_destroy(struct geometry* geometry);
 
 /**
- * @brief Draws the given geometry. Should only be called inside a renderpass, within a frame.
+ * @brief Draws the given geometry.
  *
  * @param data The render data of the geometry to be drawn.
  */
 KDEPRECATED("The renderer frontend geometry functions will be removed in a future pass. Upload directly to renderbuffers instead.")
 KAPI void renderer_geometry_draw(geometry_render_data* data);
-
-/**
- * @brief Begins the given renderpass.
- *
- * @param pass A pointer to the renderpass to begin.
- * @param framebuffer_handle A handle to the framebuffer to be used for this pass.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_renderpass_begin(renderpass* pass, k_handle framebuffer_handle);
-
-/**
- * @brief Ends the given renderpass.
- *
- * @param pass A pointer to the renderpass to end.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_renderpass_end(renderpass* pass);
 
 /**
  * @brief Sets the value to be used on the colour buffer clear.
@@ -405,29 +386,28 @@ KAPI void renderer_clear_stencil_set(struct renderer_system_state* state, u32 st
  * @brief Clears the colour buffer using the previously set clear colour.
  *
  * @param state A pointer to the renderer system state.
- * @param framebuffer_handle A handle to the texture to clear.
+ * @param texture_handle A handle to the texture to clear.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 renderer_clear_colour(struct renderer_system_state* state, k_handle framebuffer_handle);
+KAPI b8 renderer_clear_colour(struct renderer_system_state* state, k_handle texture_handle);
 
 /**
  * @brief Clears the depth/stencil buffer using the previously set clear values.
  *
  * @param state A pointer to the renderer system state.
- * @param framebuffer_handle A handle to the texture to clear.
+ * @param texture_handle A handle to the texture to clear.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle framebuffer_handle);
+KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle texture_handle);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.
  *
  * @param s A pointer to the shader.
  * @param config A constant pointer to the shader config.
- * @param pass A pointer to the renderpass to be associated with the shader.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 renderer_shader_create(struct shader* s, const shader_config* config, renderpass* pass);
+KAPI b8 renderer_shader_create(struct shader* s, const shader_config* config);
 
 /**
  * @brief Destroys the given shader and releases any resources held by it.
@@ -582,24 +562,6 @@ KAPI b8 renderer_texture_map_resources_acquire(struct texture_map* map);
 KAPI void renderer_texture_map_resources_release(struct texture_map* map);
 
 /**
- * @brief Creates a new framebuffer using the provided data.
- *
- * @param state A pointer to the renderer system state.
- * @param config A constant pointer to the config to be used when creating the framebuffer.
- * @param out_framebuffer_handle A pointer to hold the handle to the newly-created framebuffer.
- * @returns True on success; otherwise false.
- */
-KAPI b8 renderer_framebuffer_create(struct renderer_system_state* state, const struct framebuffer_config* config, k_handle* out_framebuffer_handle);
-
-/**
- * @brief Destroys the provided framebuffer and invalidates is handle.
- *
- * @param state A pointer to the renderer system state.
- * @param framebuffer_handle A pointer to the handle to the framebuffer to be destroyed.
- */
-KAPI void renderer_framebuffer_destroy(struct renderer_system_state* state, k_handle* framebuffer_handle);
-
-/**
  * @brief Attempts to get the window render target.
  *
  * @param window A constant pointer to the window whose attachment to get.
@@ -615,21 +577,6 @@ KAPI texture* renderer_window_attachment_get(struct renderer_system_state* state
  */
 KDEPRECATED("The renderer should not have nor maintain depth attachments. This should be owned by whatever uses it (i.e. a rendergraph_pass). This function will be removed.");
 KAPI texture* renderer_depth_attachment_get(struct renderer_system_state* state, const struct kwindow* window);
-
-/**
- * @brief Creates a new renderpass.
- *
- * @param config A constant pointer to the configuration to be used when creating the renderpass.
- * @param out_renderpass A pointer to the generic renderpass.
- */
-KAPI b8 renderer_renderpass_create(const renderpass_config* config, renderpass* out_renderpass);
-
-/**
- * @brief Destroys the given renderpass.
- *
- * @param pass A pointer to the renderpass to be destroyed.
- */
-KAPI void renderer_renderpass_destroy(renderpass* pass);
 
 /**
  * @brief Indicates if the renderer is capable of multi-threading.

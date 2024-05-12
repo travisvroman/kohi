@@ -177,53 +177,10 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     forward_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Setup sinks and sources. Don't bind these yet.
-    {
-        // Sinks
-        {
-            self->sinks = darray_create(rendergraph_sink);
-            // colourbuffer sink
-            rendergraph_sink colourbuffer_sink = {0};
-            colourbuffer_sink.name = string_duplicate("colourbuffer");
-            colourbuffer_sink.type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
-            darray_push(self->sinks, colourbuffer_sink);
-            // depthbuffer sink
-            rendergraph_sink depthbuffer_sink = {0};
-            depthbuffer_sink.name = string_duplicate("depthbuffer");
-            depthbuffer_sink.type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
-            darray_push(self->sinks, depthbuffer_sink);
-            // directional shadow sink
-            rendergraph_sink directional_shadow_sink = {0};
-            directional_shadow_sink.name = string_duplicate("directional_shadowmap");
-            directional_shadow_sink.type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
-            darray_push(self->sinks, directional_shadow_sink);
-        }
-
-        // Sources
-        {
-            self->sources = darray_create(rendergraph_source);
-            // colourbuffer source
-            rendergraph_source colourbuffer_source = {0};
-            colourbuffer_source.name = string_duplicate("colourbuffer");
-            colourbuffer_source.type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
-            colourbuffer_source.value.framebuffer_handle = k_handle_invalid();
-            colourbuffer_source.is_bound = false;
-            darray_push(self->sources, colourbuffer_source);
-            // depthbuffer source
-            rendergraph_source depthbuffer_source = {0};
-            depthbuffer_source.name = string_duplicate("depthbuffer");
-            depthbuffer_source.type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
-            depthbuffer_source.value.framebuffer_handle = k_handle_invalid();
-            depthbuffer_source.is_bound = false;
-            darray_push(self->sources, depthbuffer_source);
-        }
-    }
-
-    // Renderpass config - forward.
+    // Setup the renderpass.
     {
         renderpass_config forward_rendergraph_node_config = {0};
         forward_rendergraph_node_config.name = "Renderpass.World";
-        forward_rendergraph_node_config.clear_colour = (vec4){0.0f, 0.0f, 0.2f, 1.0f};
         forward_rendergraph_node_config.attachment_count = 2;
         forward_rendergraph_node_config.attachment_configs = kallocate(sizeof(renderpass_attachment_config) * forward_rendergraph_node_config.attachment_count, MEMORY_TAG_ARRAY);
 
@@ -314,18 +271,10 @@ b8 forward_rendergraph_node_load_resources(struct rendergraph_node* self) {
     }
     forward_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Ensure a source is hooked up to the shadowmap sinks.
-    u32 sink_count = darray_length(self->sinks);
-
-    // Make sure the current sink has a source hooked up to it.
-    // TODO: sink/source verification should be done at the graph level.
-    for (u32 i = 0; i < sink_count; ++i) {
-        rendergraph_sink* sink = &self->sinks[i];
-        // TODO: configurable?
-        if (strings_equali(sink->name, "shadowmap")) {
-            internal_data->shadowmap_source = sink->bound_source;
-            break;
-        }
+    // Resolve framebuffer handle via bound source.
+    if (self->sinks[0].bound_source) {
+        internal_data->colourbuffer_handle = self->sinks[0].bound_source->value.framebuffer_handle;
+        return true;
     }
     if (!internal_data->shadowmap_source) {
         KERROR("Required '%s' source not hooked up to forward pass. Creation fails.", "shadowmap");

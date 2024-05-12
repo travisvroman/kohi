@@ -26,17 +26,11 @@
 #include "systems/shader_system.h"
 
 struct texture_internal_data;
-struct framebuffer_internal_data;
 
 typedef struct texture_lookup {
     u64 uniqueid;
     struct texture_internal_data* data;
 } texture_lookup;
-
-typedef struct framebuffer_lookup {
-    u64 uniqueid;
-    struct framebuffer_internal_data* data;
-} framebuffer_lookup;
 
 typedef struct renderer_system_state {
     /** @brief The current frame number. */
@@ -51,9 +45,6 @@ typedef struct renderer_system_state {
 
     // darray Collection of renderer-specific texture data.
     texture_lookup* textures;
-
-    // darray Collection on renderer-specific framebuffer data.
-    framebuffer_lookup* framebuffers;
 
     // The number of render targets. Typically lines up with the amount of swapchain images.
     // NOTE: Standardizing the rule here that all windows should have the same number here.
@@ -201,29 +192,6 @@ b8 renderer_on_window_created(struct renderer_system_state* state, struct kwindo
     // Create backend resources (i.e swapchain, surface, images, etc.).
     if (!state->backend->window_create(state->backend, window)) {
         KERROR("Renderer backend failed to create resources for new window. See logs for details.");
-        return false;
-    }
-
-    // Also setup a framebuffer for it.
-    framebuffer_config fb_config = {0};
-    fb_config.pass = 0; // TODO: Don't require this rubbish.
-    fb_config.attachment_count = 2;
-    fb_config.attachments = kallocate(sizeof(framebuffer_attachment_config) * fb_config.attachment_count, MEMORY_TAG_ARRAY);
-    fb_config.layer_indices = 0;
-    fb_config.account_for_renderer_frames = true;
-
-    // Colour attachment - every window gets one of these by default.
-    framebuffer_attachment_config* colour_attachment = &fb_config.attachments[0];
-    colour_attachment->type = RENDERER_ATTACHMENT_TYPE_FLAG_COLOUR_BIT;
-    colour_attachment->target = &window->renderer_state->colourbuffer;
-    // Depth attachment - every window gets one of these by default as well.
-    framebuffer_attachment_config* depth_attachment = &fb_config.attachments[1];
-    depth_attachment->type = RENDERER_ATTACHMENT_TYPE_FLAG_DEPTH_BIT | RENDERER_ATTACHMENT_TYPE_FLAG_STENCIL_BIT;
-    depth_attachment->target = &window->renderer_state->depthbuffer;
-
-    // Create the framebuffer.
-    if (!renderer_framebuffer_create(state, &fb_config, &window->renderer_state->framebuffer_handle)) {
-        KFATAL("Failed to create default framebuffer for window '%s'. Process failed.", window->name);
         return false;
     }
 
@@ -614,16 +582,6 @@ void renderer_geometry_draw(geometry_render_data* data) {
     }
 }
 
-b8 renderer_renderpass_begin(renderpass* pass, k_handle framebuffer_handle) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->renderpass_begin(state_ptr->backend, pass, framebuffer_handle);
-}
-
-b8 renderer_renderpass_end(renderpass* pass) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->renderpass_end(state_ptr->backend, pass);
-}
-
 void renderer_clear_colour_set(struct renderer_system_state* state, vec4 colour) {
     if (state) {
         state->backend->clear_colour_set(state->backend, colour);
@@ -642,9 +600,9 @@ void renderer_clear_stencil_set(struct renderer_system_state* state, u32 stencil
     }
 }
 
-b8 renderer_clear_colour_texture(struct renderer_system_state* state, k_handle framebuffer_handle) {
-    if (state && !k_handle_is_invalid(framebuffer_handle)) {
-        struct texture_internal_data* data = state->textures[framebuffer_handle.handle_index].data;
+b8 renderer_clear_colour_texture(struct renderer_system_state* state, k_handle texture_handle) {
+    if (state && !k_handle_is_invalid(texture_handle)) {
+        struct texture_internal_data* data = state->textures[texture_handle.handle_index].data;
         state->backend->clear_colour(state->backend, data);
         return true;
     }
@@ -653,9 +611,9 @@ b8 renderer_clear_colour_texture(struct renderer_system_state* state, k_handle f
     return false;
 }
 
-b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle framebuffer_handle) {
-    if (state && !k_handle_is_invalid(framebuffer_handle)) {
-        struct texture_internal_data* data = state->textures[framebuffer_handle.handle_index].data;
+b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle texture_handle) {
+    if (state && !k_handle_is_invalid(texture_handle)) {
+        struct texture_internal_data* data = state->textures[texture_handle.handle_index].data;
         state->backend->clear_depth_stencil(state->backend, data);
         return true;
     }
@@ -664,7 +622,7 @@ b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle fr
     return false;
 }
 
-b8 renderer_shader_create(shader* s, const shader_config* config, renderpass* pass) {
+b8 renderer_shader_create(shader* s, const shader_config* config) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
 
     // Get the uniform counts.
@@ -919,60 +877,6 @@ void renderer_texture_map_resources_release(struct texture_map* map) {
     state_ptr->backend->texture_map_resources_release(state_ptr->backend, map);
 }
 
-b8 renderer_framebuffer_create(renderer_system_state* state, const framebuffer_config* config, k_handle* out_framebuffer_handle) {
-    // TODO: rework backend
-
-    if (!state) {
-        return false;
-    }
-
-    if (!state->framebuffers) {
-        state->framebuffers = darray_create(framebuffer_lookup);
-    }
-
-    struct framebuffer_internal_data* data = kallocate(state->backend->framebuffer_internal_data_size, MEMORY_TAG_RENDERER);
-    b8 success = state->backend->framebuffer_create(state->backend, config, data);
-    // Only insert into the lookup table on success.
-    if (success) {
-        u32 framebuffer_count = darray_length(state->framebuffers);
-        for (u32 i = 0; i < framebuffer_count; ++i) {
-            framebuffer_lookup* lookup = &state->framebuffers[i];
-            if (lookup->uniqueid == INVALID_ID_U64) {
-                // Found a free "slot", use it.
-                *out_framebuffer_handle = k_handle_create(i);
-                lookup->uniqueid = out_framebuffer_handle->unique_id.uniqueid;
-                lookup->data = data;
-                return success;
-            }
-        }
-
-        // No free "slots", add one.
-        framebuffer_lookup new_lookup = {0};
-        *out_framebuffer_handle = k_handle_create(framebuffer_count);
-        new_lookup.uniqueid = out_framebuffer_handle->unique_id.uniqueid;
-        new_lookup.data = data;
-        darray_push(state->textures, new_lookup);
-    } else {
-        KERROR("Failed to create framebuffer. See logs for details.");
-        kfree(data, state->backend->framebuffer_internal_data_size, MEMORY_TAG_RENDERER);
-    }
-    return success;
-}
-
-void renderer_framebuffer_destroy(renderer_system_state* state, k_handle* framebuffer_handle) {
-    if (state && !k_handle_is_invalid(*framebuffer_handle)) {
-        framebuffer_lookup* lookup = &state->framebuffers[framebuffer_handle->handle_index];
-        state->backend->framebuffer_destroy(state->backend, lookup->data);
-
-        kfree(lookup->data, state->backend->framebuffer_internal_data_size, MEMORY_TAG_RENDERER);
-        lookup->data = 0;
-        lookup->uniqueid = INVALID_ID_U64;
-
-        // Also invalidate the handle.
-        k_handle_invalidate(framebuffer_handle);
-    }
-}
-
 // TODO: go away
 texture* renderer_window_attachment_get(renderer_system_state* state, const struct kwindow* window) {
     // FIXME: What is the backend doing here?
@@ -983,34 +887,6 @@ texture* renderer_window_attachment_get(renderer_system_state* state, const stru
 texture* renderer_depth_attachment_get(renderer_system_state* state, const struct kwindow* window) {
     // FIXME: What is the backend doing here?
     return state->backend->depth_attachment_get(state->backend, window);
-}
-
-b8 renderer_renderpass_create(const renderpass_config* config, renderpass* out_renderpass) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    if (!config) {
-        KERROR("Renderpass config is required.");
-        return false;
-    }
-
-    if (config->attachment_count == 0) {
-        KERROR("Cannot have a renderpass target with an attachment count of 0, ya dingus.");
-        return false;
-    }
-
-    out_renderpass->name = string_duplicate(config->name);
-
-    return state_ptr->backend->renderpass_create(state_ptr->backend, config, out_renderpass);
-}
-
-void renderer_renderpass_destroy(renderpass* pass) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-
-    if (pass->name) {
-        kfree(pass->name, string_length(pass->name) + 1, MEMORY_TAG_STRING);
-        pass->name = 0;
-    }
-
-    state_ptr->backend->renderpass_destroy(state_ptr->backend, pass);
 }
 
 b8 renderer_is_multithreaded(void) {

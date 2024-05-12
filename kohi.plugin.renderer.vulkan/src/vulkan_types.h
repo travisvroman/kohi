@@ -308,8 +308,6 @@ typedef enum vulkan_topology_class {
 typedef struct vulkan_pipeline_config {
     /** @brief The name of the pipeline. Used primarily for debugging purposes. */
     char* name;
-    /** @brief A pointer to the renderpass to associate with the pipeline. */
-    vulkan_renderpass* renderpass;
     /** @brief The stride of the vertex data to be used (ex: sizeof(vertex_3d)) */
     u32 stride;
     /** @brief The number of attributes. */
@@ -340,6 +338,11 @@ typedef struct vulkan_pipeline_config {
     u32 topology_types;
     /** @brief The vertex winding order used to determine the front face of triangles. */
     renderer_winding winding;
+
+    u32 colour_attachment_count;
+    VkFormat* colour_attachment_formats;
+    VkFormat depth_attachment_format;
+    VkFormat stencil_attachment_format;
 } vulkan_pipeline_config;
 
 /**
@@ -470,9 +473,6 @@ typedef struct vulkan_shader {
     face_cull_mode cull_mode;
 
     u32 max_instances;
-
-    /** @brief A pointer to the renderpass to be used with this shader. */
-    vulkan_renderpass* renderpass;
 
     /** @brief The number of shader stages in this shader. */
     u8 stage_count;
@@ -639,6 +639,9 @@ typedef struct vulkan_context {
     PFN_vkCmdSetStencilTestEnableEXT vkCmdSetStencilTestEnableEXT;
     PFN_vkCmdSetDepthTestEnableEXT vkCmdSetDepthTestEnableEXT;
     PFN_vkCmdSetStencilOpEXT vkCmdSetStencilOpEXT;
+
+    PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR;
+    PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR;
 
     /** @brief A pointer to the currently bound shader. */
     struct shader* bound_shader;

@@ -122,107 +122,6 @@ typedef enum renderer_attachment_use {
     RENDERER_ATTACHMENT_USE_DEPTH_STENCIL_SHADER_WRITE
 } renderer_attachment_use;
 
-/**
- * @brief Configuration for an attachment to a framebuffer.
- */
-typedef struct framebuffer_attachment_config {
-    /** @brief The attachment type. Bitwise flags. See renderer_attachment_type_flag_bits enum */
-    renderer_attachment_type_flags type;
-    /** @brief A pointer to the texture to be used for the attachment. */
-    struct texture* target;
-} framebuffer_attachment_config;
-
-typedef struct framebuffer_config {
-    u8 attachment_count;
-    framebuffer_attachment_config* attachments;
-    u16* layer_indices;
-    b8 account_for_renderer_frames;
-    struct renderpass* pass;
-} framebuffer_config;
-
-/** @brief An opaque handle to renderer-API-specific framebuffer data. */
-struct framebuffer_internal_data;
-
-/**
- * @brief The types of clearing to be done on a renderpass.
- * Can be combined together for multiple clearing functions.
- */
-typedef enum renderpass_clear_flag_bits {
-    /** @brief No clearing should be done. */
-    RENDERPASS_CLEAR_NONE_FLAG_BIT = 0x0,
-    /** @brief Clear the colour buffer. */
-    RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG_BIT = 0x1,
-    /** @brief Clear the depth buffer. */
-    RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG_BIT = 0x2,
-    /** @brief Clear the stencil buffer. */
-    RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG_BIT = 0x4
-} renderpass_clear_flag_bits;
-
-/** @brief Bitwise combination of renderpass_clear_flag_bits. */
-typedef u32 renderpass_clear_flags;
-
-/**
- * @brief Configuration for an attachment to a renderpass.
- */
-typedef struct renderpass_attachment_config {
-    /** @brief The attachment type. Bitwise flags. See renderer_attachment_type_flag_bits enum */
-    renderer_attachment_type_flag_bits type;
-    /** @brief The load operation for this attachment (i.e. loaded before pass begins). */
-    renderer_attachment_load_operation load_op;
-    /** @brief The store operation for this attachment. (i.e stored/thrown away when pass ends) */
-    renderer_attachment_store_operation store_op;
-    /** @brief How the attachment will be used when the pass ends. */
-    renderer_attachment_use post_pass_use;
-    /** @brief How the attachment should/should not be cleared at the beginning of the pass. */
-    renderpass_clear_flags clear_flags;
-    /**
-     * @brief The colour value to use when clearing the attachment
-     * if RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG_BIT is set. Otherwise ignored.
-     */
-    vec4 clear_colour;
-    /**
-     * @brief The depth value to use when clearing the attachment
-     * if RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG_BIT is set. Otherwise ignored.
-     */
-    f32 clear_depth;
-    /**
-     * @brief The stencil value to use when clearing the attachment
-     * if RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG_BIT is set. Otherwise ignored.
-     */
-    i32 clear_stencil;
-} renderpass_attachment_config;
-
-typedef struct renderpass_config {
-    /** @brief The name of this renderpass. */
-    const char* name;
-    /** @brief The current render area of the renderpass. */
-    vec4 render_area;
-    /** @brief The clear colour used for this renderpass. */
-    vec4 clear_colour;
-
-    /** @brief The number of attachment configs present for this pass. */
-    u8 attachment_count;
-    /** @brief The attachment configurations for this pass. */
-    renderpass_attachment_config* attachment_configs;
-} renderpass_config;
-
-/**
- * @brief Represents a generic renderpass.
- */
-typedef struct renderpass {
-    /** @brief The id of the renderpass */
-    u16 id;
-
-    char* name;
-
-    /** @brief The current render area of the renderpass. */
-    vec4 render_area;
-
-    /** @brief Internal renderpass data */
-    void* internal_data;
-
-} renderpass;
-
 typedef enum renderbuffer_type {
     /** @brief Buffer is use is unknown. Default, but usually invalid. */
     RENDERBUFFER_TYPE_UNKNOWN,
@@ -331,9 +230,6 @@ typedef struct kwindow_renderer_state {
     // This is technically the per-frame depth image, which should be wrapped into a single texture.
     texture depthbuffer;
 
-    /** @brief A handle pointing to the framebuffer resource(s) owned by this window. */
-    k_handle framebuffer_handle;
-
     /** @brief The internal state of the window containing renderer backend data. */
     struct kwindow_renderer_backend_state* backend_state;
 } kwindow_renderer_state;
@@ -351,8 +247,6 @@ typedef struct renderer_backend_interface {
 
     // The size needed by the renderer backend to hold texture data.
     u64 texture_internal_data_size;
-    // The size needed by the renderer backend to hold framebuffer data.
-    u64 framebuffer_internal_data_size;
 
     /**
      * @brief The draw index for the current frame. Typically aligns with the
@@ -424,7 +318,7 @@ typedef struct renderer_backend_interface {
     b8 (*frame_present)(struct renderer_backend_interface* backend, struct kwindow* window, struct frame_data* p_frame_data);
 
     /**
-     * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
+     * @brief Sets the renderer viewport to the given rectangle.
      *
      * @param backend A pointer to the renderer backend interface.
      * @param rect The viewport rectangle to be set.
@@ -433,14 +327,13 @@ typedef struct renderer_backend_interface {
 
     /**
      * @brief Resets the viewport to the default, which matches the application window.
-     * Must be done within a renderpass.
      * @param backend A pointer to the renderer backend interface.
      *
      */
     void (*viewport_reset)(struct renderer_backend_interface* backend);
 
     /**
-     * @brief Sets the renderer scissor to the given rectangle. Must be done within a renderpass.
+     * @brief Sets the renderer scissor to the given rectangle.
      *
      * @param backend A pointer to the renderer backend interface.
      * @param rect The scissor rectangle to be set.
@@ -449,7 +342,6 @@ typedef struct renderer_backend_interface {
 
     /**
      * @brief Resets the scissor to the default, which matches the application window.
-     * Must be done within a renderpass.
      *
      * @param backend A pointer to the renderer backend interface.
      */
@@ -513,25 +405,6 @@ typedef struct renderer_backend_interface {
      * @param write_mask The new value to use as the stencil write mask.
      */
     void (*set_stencil_write_mask)(struct renderer_backend_interface* backend, u32 write_mask);
-
-    /**
-     * @brief Begins a renderpass with the given id.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param pass A pointer to the renderpass to begin.
-     * @param framebuffer_handle A handle pointing to the framebuffer to be used for the renderpass.
-     * @return True on success; otherwise false.
-     */
-    b8 (*renderpass_begin)(struct renderer_backend_interface* backend, renderpass* pass, k_handle framebuffer_handle);
-
-    /**
-     * @brief Ends a renderpass with the given id.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param pass A pointer to the renderpass to end.
-     * @return True on success; otherwise false.
-     */
-    b8 (*renderpass_end)(struct renderer_backend_interface* backend, renderpass* pass);
 
     void (*clear_colour_set)(struct renderer_backend_interface* backend, vec4 clear_colour);
     void (*clear_depth_set)(struct renderer_backend_interface* backend, f32 depth);
@@ -600,10 +473,9 @@ typedef struct renderer_backend_interface {
      * @param backend A pointer to the renderer backend interface.
      * @param s A pointer to the shader.
      * @param config A constant pointer to the shader config.
-     * @param pass A pointer to the renderpass to be associated with the shader.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct renderer_backend_interface* backend, struct shader* shader, const shader_config* config, renderpass* pass);
+    b8 (*shader_create)(struct renderer_backend_interface* backend, struct shader* shader, const shader_config* config);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
@@ -751,41 +623,6 @@ typedef struct renderer_backend_interface {
      * @param map A pointer to the texture map to release resources from.
      */
     void (*texture_map_resources_release)(struct renderer_backend_interface* backend, struct texture_map* map);
-
-    /**
-     * @brief Creates a new render target using the provided data.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param config A constant pointer to the framebuffer configuration.
-     * @param internal_data A pointer to the internal framebuffer data.
-     * @returns True on success; otherwise false.
-     */
-    b8 (*framebuffer_create)(struct renderer_backend_interface* backend, const struct framebuffer_config* config, struct framebuffer_internal_data* internal_data);
-
-    /**
-     * @brief Destroys the provided render target.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param internal_data A pointer to the framebuffer internal data.
-     */
-    void (*framebuffer_destroy)(struct renderer_backend_interface* backend, struct framebuffer_internal_data* internal_data);
-
-    /**
-     * @brief Creates a new renderpass.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param config A constant pointer to the configuration to be used when creating the renderpass.
-     * @param out_renderpass A pointer to the generic renderpass.
-     */
-    b8 (*renderpass_create)(struct renderer_backend_interface* backend, const renderpass_config* config, renderpass* out_renderpass);
-
-    /**
-     * @brief Destroys the given renderpass.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param pass A pointer to the renderpass to be destroyed.
-     */
-    void (*renderpass_destroy)(struct renderer_backend_interface* backend, renderpass* pass);
 
     /**
      * @brief Attempts to get the window render target at the given index.

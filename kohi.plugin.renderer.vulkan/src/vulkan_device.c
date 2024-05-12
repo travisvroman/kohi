@@ -1,11 +1,11 @@
 #include "vulkan_device.h"
 
 #include "containers/darray.h"
+#include "logger.h"
 #include "memory/kmemory.h"
 #include "strings/kstring.h"
-#include "logger.h"
-#include "renderer/vulkan/vulkan_types.h"
 #include "vulkan/vulkan_core.h"
+#include "vulkan_types.h"
 #include "vulkan_utils.h"
 
 typedef struct vulkan_physical_device_requirements {
@@ -114,7 +114,7 @@ b8 vulkan_device_create(vulkan_context* context) {
     kfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
 
     // Setup an array large enough to hold all, even if we don't use them all.
-    const char* extension_names[5];
+    const char* extension_names[6];
     u32 ext_idx = 0;
     extension_names[ext_idx] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
     ext_idx++;
@@ -136,6 +136,8 @@ b8 vulkan_device_create(vulkan_context* context) {
         ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT) != 0)) {
         extension_names[ext_idx] = VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME;
         ext_idx++;
+        extension_names[ext_idx] = VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME;
+        ext_idx++;
     }
     // If smooth lines are supported, load the extension.
     if ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT)) {
@@ -145,13 +147,13 @@ b8 vulkan_device_create(vulkan_context* context) {
 
     // Request supported device features.
     VkPhysicalDeviceFeatures device_features = {};
-    device_features.samplerAnisotropy = context->device.features.samplerAnisotropy;  // Request anistrophy
+    device_features.samplerAnisotropy = context->device.features.samplerAnisotropy; // Request anistrophy
     device_features.fillModeNonSolid = context->device.features.fillModeNonSolid;
 
     // VK_EXT_descriptor_indexing
     VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT};
     // Partial binding is required for descriptor aliasing.
-    descriptor_indexing_features.descriptorBindingPartiallyBound = VK_TRUE;  // TODO: Check if supported?
+    descriptor_indexing_features.descriptorBindingPartiallyBound = VK_TRUE; // TODO: Check if supported?
 
 #if defined(VK_USE_PLATFORM_MACOS_MVK)
     // NOTE: On macOS set environment variable to configure MoltenVK for using Metal argument buffers (needed for descriptor indexing).
@@ -171,6 +173,11 @@ b8 vulkan_device_create(vulkan_context* context) {
         line_rasterization_ext.smoothLines = VK_TRUE;
         extended_dynamic_state.pNext = &line_rasterization_ext;
     }
+
+    // Dynamic rendering.
+    VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_ext = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES};
+    dynamic_rendering_ext.dynamicRendering = true;
+    line_rasterization_ext.pNext = &dynamic_rendering_ext;
 
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     device_create_info.queueCreateInfoCount = index_count;
@@ -211,9 +218,13 @@ b8 vulkan_device_create(vulkan_context* context) {
         context->vkCmdSetStencilOpEXT = (PFN_vkCmdSetStencilOpEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetStencilOpEXT");
         context->vkCmdSetStencilTestEnableEXT = (PFN_vkCmdSetStencilTestEnableEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetStencilTestEnableEXT");
         context->vkCmdSetDepthTestEnableEXT = (PFN_vkCmdSetDepthTestEnableEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetDepthTestEnableEXT");
+
+        // Dynamic rendering
+        context->vkCmdBeginRenderingKHR = (PFN_vkCmdBeginRenderingKHR)vkGetInstanceProcAddr(context->instance, "vkCmdBeginRenderingKHR");
+        context->vkCmdEndRenderingKHR = (PFN_vkCmdEndRenderingKHR)vkGetInstanceProcAddr(context->instance, "vkCmdEndRenderingKHR");
     } else {
         if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
-            KINFO("Vulkan device supports native dynamic state.");
+            KINFO("Vulkan device supports native dynamic state and dynamic rendering.");
         } else {
             KWARN("Vulkan device does not support native or extension dynamic state. This may cause issues with the renderer.");
         }
@@ -462,22 +473,22 @@ static b8 select_physical_device(vulkan_context* context) {
             KINFO("Selected device: '%s'.", properties.deviceName);
             // GPU type, etc.
             switch (properties.deviceType) {
-                default:
-                case VK_PHYSICAL_DEVICE_TYPE_OTHER:
-                    KINFO("GPU type is Unknown.");
-                    break;
-                case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-                    KINFO("GPU type is Integrated.");
-                    break;
-                case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-                    KINFO("GPU type is Descrete.");
-                    break;
-                case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-                    KINFO("GPU type is Virtual.");
-                    break;
-                case VK_PHYSICAL_DEVICE_TYPE_CPU:
-                    KINFO("GPU type is CPU.");
-                    break;
+            default:
+            case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+                KINFO("GPU type is Unknown.");
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+                KINFO("GPU type is Integrated.");
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+                KINFO("GPU type is Descrete.");
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+                KINFO("GPU type is Virtual.");
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_CPU:
+                KINFO("GPU type is CPU.");
+                break;
             }
 
             KINFO("GPU Driver version: %s", driverProperties.driverInfo);

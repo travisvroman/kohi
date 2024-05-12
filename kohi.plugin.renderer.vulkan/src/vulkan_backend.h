@@ -19,7 +19,6 @@
 struct shader;
 struct shader_uniform;
 struct frame_data;
-struct framebuffer_internal_data;
 struct kwindow;
 
 b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const renderer_backend_config* config, u8* out_window_render_target_count);
@@ -48,9 +47,6 @@ void vulkan_renderer_set_stencil_op(struct renderer_backend_interface* backend, 
 void vulkan_renderer_set_stencil_compare_mask(struct renderer_backend_interface* backend, u32 compare_mask);
 void vulkan_renderer_set_stencil_write_mask(struct renderer_backend_interface* backend, u32 write_mask);
 
-b8 vulkan_renderer_renderpass_begin(renderer_backend_interface* backend, renderpass* pass, render_target* target);
-b8 vulkan_renderer_renderpass_end(renderer_backend_interface* backend, renderpass* pass);
-
 void vulkan_renderer_clear_colour_set(renderer_backend_interface* backend, vec4 clear_colour);
 void vulkan_renderer_clear_depth_set(renderer_backend_interface* backend, f32 depth);
 void vulkan_renderer_clear_stencil_set(renderer_backend_interface* backend, u32 stencil);
@@ -65,7 +61,7 @@ void vulkan_renderer_texture_write_data(renderer_backend_interface* backend, str
 void vulkan_renderer_texture_read_data(renderer_backend_interface* backend, struct texture_internal_data* texture_data, u32 offset, u32 size, void** out_memory);
 void vulkan_renderer_texture_read_pixel(renderer_backend_interface* backend, struct texture_internal_data* texture_data, u32 x, u32 y, u8** out_rgba);
 
-b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, struct shader* shader, const shader_config* config, renderpass* pass);
+b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, struct shader* shader, const shader_config* config);
 void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, struct shader* shader);
 
 b8 vulkan_renderer_shader_initialize(renderer_backend_interface* backend, struct shader* shader);
@@ -85,12 +81,6 @@ b8 vulkan_renderer_shader_apply_local(renderer_backend_interface* backend, struc
 b8 vulkan_renderer_texture_map_resources_acquire(renderer_backend_interface* backend, texture_map* map);
 void vulkan_renderer_texture_map_resources_release(renderer_backend_interface* backend, texture_map* map);
 b8 vulkan_renderer_texture_map_resources_refresh(renderer_backend_interface* backend, texture_map* map);
-
-b8 vulkan_renderpass_create(renderer_backend_interface* backend, const renderpass_config* config, renderpass* out_renderpass);
-void vulkan_renderpass_destroy(renderer_backend_interface* backend, renderpass* pass);
-
-b8 vulkan_renderer_framebuffer_create(renderer_backend_interface* backend, const struct framebuffer_config* config, struct framebuffer_internal_data* internal_data);
-void vulkan_renderer_framebuffer_destroy(renderer_backend_interface* backend, struct framebuffer_internal_data* internal_data);
 
 texture* vulkan_renderer_window_attachment_get(renderer_backend_interface* backend, u8 index);
 texture* vulkan_renderer_depth_attachment_get(renderer_backend_interface* backend, u8 index);

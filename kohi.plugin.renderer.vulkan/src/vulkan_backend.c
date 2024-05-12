@@ -26,7 +26,6 @@
 #include "vulkan_command_buffer.h"
 #include "vulkan_device.h"
 #include "vulkan_image.h"
-#include "vulkan_pipeline.h"
 #include "vulkan_swapchain.h"
 #include "vulkan_types.h"
 #include "vulkan_utils.h"
@@ -62,6 +61,10 @@ static b8 vulkan_buffer_copy_range_internal(vulkan_context* context,
 static vulkan_command_buffer* get_current_command_buffer(vulkan_context* context);
 static u32 get_current_image_index(vulkan_context* context);
 
+static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipeline_config* config, vulkan_pipeline* out_pipeline);
+static void vulkan_pipeline_destroy(vulkan_context* context, vulkan_pipeline* pipeline);
+static void vulkan_pipeline_bind(vulkan_command_buffer* command_buffer, VkPipelineBindPoint bind_point, vulkan_pipeline* pipeline);
+
 // FIXME: May want to have this as a configurable option instead.
 // Forward declarations of custom vulkan allocator functions.
 #if KVULKAN_USE_CUSTOM_ALLOCATOR == 1
@@ -86,7 +89,6 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend,
 
     // Note down the internal size requirements for various resources.
     backend->texture_internal_data_size = sizeof(texture_internal_data);
-    backend->framebuffer_internal_data_size = sizeof(framebuffer_internal_data);
 
     // Function pointers
     context->find_memory_index = find_memory_index;
@@ -1045,49 +1047,6 @@ void vulkan_renderer_set_stencil_write_mask(struct renderer_backend_interface* b
     vkCmdSetStencilWriteMask(command_buffer->handle, VK_STENCIL_FACE_FRONT_AND_BACK, write_mask);
 }
 
-b8 vulkan_renderer_renderpass_begin(renderer_backend_interface* backend, renderpass* pass, framebuffer_internal_data* framebuffer) {
-    vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
-
-    // Begin the render pass.
-    vulkan_renderpass* internal_data = pass->internal_data;
-
-    viewport* v = renderer_active_viewport_get();
-
-    VkRenderPassBeginInfo begin_info = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-    begin_info.renderPass = internal_data->handle;
-    begin_info.framebuffer = framebuffer->framebuffer_count == 1 ? framebuffer->framebuffers[0] : framebuffer->framebuffers[context->current_window->renderer_state->backend_state->image_index];
-    begin_info.renderArea.offset.x = v->rect.x;
-    begin_info.renderArea.offset.y = v->rect.y;
-    begin_info.renderArea.extent.width = v->rect.width;
-    begin_info.renderArea.extent.height = v->rect.height;
-
-    // KTRACE("Renderpass '%s' is using framebuffer at 0x%x", pass->name, target->internal_framebuffer);
-
-    begin_info.clearValueCount = darray_length(internal_data->clear_values);
-    begin_info.pClearValues = internal_data->clear_values;
-
-    vkCmdBeginRenderPass(command_buffer->handle, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
-    command_buffer->state = COMMAND_BUFFER_STATE_IN_RENDER_PASS;
-
-#ifdef _DEBUG
-    vec3 rgba = (vec3){kfrandom_in_range(0.0f, 1.0f), kfrandom_in_range(0.0f, 1.0f), kfrandom_in_range(0.0f, 1.0f)};
-    vulkan_renderer_begin_debug_label(backend, pass->name, rgba);
-#endif
-    return true;
-}
-
-b8 vulkan_renderer_renderpass_end(renderer_backend_interface* backend, renderpass* pass) {
-    vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
-    // End the renderpass.
-    vkCmdEndRenderPass(command_buffer->handle);
-    vulkan_renderer_end_debug_label(backend);
-
-    command_buffer->state = COMMAND_BUFFER_STATE_RECORDING;
-    return true;
-}
-
 void vulkan_renderer_clear_colour_set(renderer_backend_interface* backend, vec4 colour) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
 
@@ -1527,7 +1486,7 @@ void vulkan_renderer_texture_read_pixel(renderer_backend_interface* backend, str
     }
 }
 
-b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, shader* s, const shader_config* config, renderpass* pass) {
+b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, shader* s, const shader_config* config) {
     // Verify stage support.
     for (u8 i = 0; i < config->stage_count; ++i) {
         switch (config->stage_configs[i].stage) {
@@ -1551,7 +1510,6 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, shader* s,
 
     // Setup the internal shader.
     vulkan_shader* internal_shader = (vulkan_shader*)s->internal_data;
-    internal_shader->renderpass = pass->internal_data;
     internal_shader->local_push_constant_block = kallocate(128, MEMORY_TAG_RENDERER);
 
     internal_shader->stage_count = config->stage_count;
@@ -1824,7 +1782,6 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
         }
 
         vulkan_pipeline_config pipeline_config = {0};
-        pipeline_config.renderpass = internal_shader->renderpass;
         pipeline_config.stride = s->attribute_stride;
         pipeline_config.attribute_count = darray_length(s->attributes);
         pipeline_config.attributes = internal_shader->attributes;
@@ -1848,6 +1805,18 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
         pipeline_config.push_constant_ranges = &push_constant_range;
         pipeline_config.name = string_duplicate(s->name);
         pipeline_config.topology_types = s->topology_types;
+
+        // TODO: Figure out the format(s) of the colour attachments (if they exist) and pass them along here.
+        pipeline_config.colour_attachment_count = 1;
+        pipeline_config.colour_attachment_formats & context->current_window->renderer_state->backend_state->swapchain.image_format;
+
+        if ((s->flags & SHADER_FLAG_DEPTH_TEST) || (s->flags & SHADER_FLAG_DEPTH_WRITE)) {
+            pipeline_config.depth_attachment_format = context->device.depth_format;
+            pipeline_config.stencil_attachment_format = context->device.depth_format;
+        } else {
+            pipeline_config.depth_attachment_format = VK_FORMAT_UNDEFINED;
+            pipeline_config.stencil_attachment_format = VK_FORMAT_UNDEFINED;
+        }
 
         b8 pipeline_result = vulkan_graphics_pipeline_create(context, &pipeline_config, &new_pipelines[i]);
 
@@ -2942,438 +2911,6 @@ static b8 create_shader_module(vulkan_context* context, shader* s, shader_stage_
     return true;
 }
 
-b8 vulkan_renderpass_create(renderer_backend_interface* backend, const renderpass_config* config, renderpass* out_renderpass) {
-    vulkan_context* context = (vulkan_context*)plugin->internal_context;
-    out_renderpass->internal_data = kallocate(sizeof(vulkan_renderpass), MEMORY_TAG_RENDERER);
-    vulkan_renderpass* internal_data = (vulkan_renderpass*)out_renderpass->internal_data;
-
-    // Main subpass
-    VkSubpassDescription subpass = {};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-
-    // Attachments.
-    VkAttachmentDescription* attachment_descriptions = darray_create(VkAttachmentDescription);
-    VkAttachmentDescription* colour_attachment_descs = darray_create(VkAttachmentDescription);
-    VkAttachmentDescription* depth_attachment_descs = darray_create(VkAttachmentDescription);
-
-    internal_data->clear_values = darray_create(VkClearValue);
-
-    // Can always just look at the first target since they are all the same (one
-    // per frame). render_target* target = &out_renderpass->targets[0];
-    for (u32 i = 0; i < config->attachment_count; ++i) {
-        renderpass_attachment_config* attachment_config = &config->attachment_configs[i];
-
-        VkAttachmentDescription attachment_desc = {0};
-        if (attachment_config->type == RENDERER_ATTACHMENT_TYPE_FLAG_COLOUR_BIT) {
-            // Colour attachment.
-            b8 do_clear_colour = (attachment_config->clear_flags & RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG_BIT) != 0;
-            b8 is_loading = false;
-            b8 is_storing = false;
-
-            attachment_desc.format = context->swapchain.image_format.format;
-            // TODO: configurable format? Probably should have a way to determine attachment source (i.e. is it writing to the window colourbuffer?)
-            /* attachment_desc.format = VK_FORMAT_R8G8B8A8_UNORM; */
-
-            attachment_desc.samples = VK_SAMPLE_COUNT_1_BIT;
-
-            // Add a clear value even if it isn't used.
-            VkClearValue colour_clear = {0};
-            kcopy_memory(colour_clear.color.float32, &attachment_config->clear_colour, sizeof(vec4));
-
-            darray_push(internal_data->clear_values, colour_clear);
-
-            // Determine which load operation to use.
-            switch (attachment_config->load_op) {
-            case RENDERER_ATTACHMENT_LOAD_OPERATION_DONT_CARE:
-                // If we don't care, the only other thing that needs checking is if the attachment is being cleared.
-                attachment_desc.loadOp = do_clear_colour ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                break;
-            case RENDERER_ATTACHMENT_LOAD_OPERATION_LOAD:
-                // If we are loading, check if we are also clearing. This combination
-                // doesn't make sense, and should be warned about.
-                if (do_clear_colour) {
-                    KWARN(
-                        "Colour attachment load operation set to load, but is also "
-                        "set to clear. This combination is invalid, and will err "
-                        "toward clearing. Verify attachment configuration.");
-                    attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                } else {
-                    attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-                    is_loading = true;
-                }
-                break;
-            default:
-                KFATAL(
-                    "Invalid and unsupported combination of load operation (0x%x) "
-                    "and clear flags (0x%x) for colour attachment.",
-                    attachment_desc.loadOp, out_renderpass->clear_flags);
-                return false;
-            }
-
-            // Determine which store operation to use.
-            switch (attachment_config->store_operation) {
-            case RENDERER_ATTACHMENT_STORE_OPERATION_DONT_CARE:
-                attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                break;
-            case RENDERER_ATTACHMENT_STORE_OPERATION_STORE:
-                attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-                is_storing = true;
-                break;
-            default:
-                KFATAL("Invalid store operation (0x%x) set for colour attachment. Check configuration.", attachment_config->store_operation);
-                return false;
-            }
-
-            // NOTE: these will never be used on a colour attachment.
-            attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            // If loading, that means coming from another pass, meaning the format
-            // should be VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL. Otherwise it is
-            // undefined.
-            attachment_desc.initialLayout = is_loading ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
-
-            // If the renderpass is set to present colour, then this attachment should be
-            // transitioned to a layout for that when the pass completes. Otherwise, it should
-            // wind up in a format where the attachment may be used in another pass.
-            switch (attachment_config->post_pass_use) {
-            case RENDERER_ATTACHMENT_USE_COLOUR_PRESENT:
-                attachment_desc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-                break;
-            case RENDERER_ATTACHMENT_USE_COLOUR_ATTACHMENT:
-            case RENDERER_ATTACHMENT_USE_COLOUR_SHADER_WRITE:
-                attachment_desc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                break;
-            case RENDERER_ATTACHMENT_USE_COLOUR_SHADER_WRITE:
-                attachment_desc.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                break;
-            case RENDERER_ATTACHMENT_USE_DEPTH_STENCIL_ATTACHMENT:
-            case RENDERER_ATTACHMENT_USE_DEPTH_STENCIL_SHADER_READ:
-            case RENDERER_ATTACHMENT_USE_DEPTH_STENCIL_SHADER_WRITE:
-                KERROR("Cannot set a depth stencil use on a colour attachment. Check renderpass attachment configuration.");
-                return false;
-            default:
-                // NOTE: If not one of the above uses, but set to store, chances are the
-                // image content will be used for _something_. Default to attachment.
-                if (is_storing) {
-                    KWARN("Colour attachment use not set to present, read, or attachment, but is set to store. Falling back to attachment.");
-                    attachment_desc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                } else {
-                    // If this is here, then why is this being written to at all?
-                    KWARN("Colour attachment use not set to present or attachment and is also NOT set to store. Selecting undefined, but why have this attachment in the first place?");
-                    attachment_desc.finalLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                }
-                break;
-            }
-            attachment_desc.flags = 0;
-
-            // Push to colour attachments array.
-            darray_push(colour_attachment_descs, attachment_desc);
-        } else if (attachment_config->type & RENDERER_ATTACHMENT_TYPE_FLAG_DEPTH_BIT || attachment_config->type & RENDERER_ATTACHMENT_TYPE_FLAG_STENCIL_BIT) {
-            // Depth attachment.
-            b8 do_clear_depth = (attachment_config->clear_flags & RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG_BIT) != 0;
-            b8 do_clear_stencil = (attachment_config->clear_flags & RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG_BIT) != 0;
-            b8 is_loading = false;
-            b8 is_storing = false;
-
-            // Add a clear value even if it isn't used.
-            VkClearValue depth_stencil_clear = {0};
-            depth_stencil_clear.depthStencil.depth = attachment_config->clear_depth;
-            depth_stencil_clear.depthStencil.stencil = attachment_config->clear_stencil;
-            darray_push(internal_data->clear_values, depth_stencil_clear);
-
-            attachment_desc.format = context->device.depth_format;
-
-            attachment_desc.samples = VK_SAMPLE_COUNT_1_BIT;
-            // Determine which load operation to use.
-            switch (attachment_config->load_op) {
-            case RENDERER_ATTACHMENT_LOAD_OPERATION_DONT_CARE:
-                // If we don't care, the only other thing that needs checking is if the
-                // attachment is being cleared.
-                attachment_desc.loadOp = do_clear_depth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                attachment_desc.stencilLoadOp = do_clear_stencil ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                break;
-            case RENDERER_ATTACHMENT_LOAD_OPERATION_LOAD:
-                // If we are loading, check if we are also clearing. This combination
-                // doesn't make sense, and should be warned about.
-                if (do_clear_depth || do_clear_stencil) {
-                    KWARN(
-                        "Depth/stencil attachment load operation set to load, but is also "
-                        "set to clear. This combination is invalid, and will err "
-                        "toward clearing. Verify attachment configuration.");
-                    attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                } else {
-                    attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-                    is_loading = true;
-                }
-                break;
-            default:
-                KFATAL(
-                    "Invalid and unsupported combination of load operation (0x%x) "
-                    "and clear flags (0x%x) for depth attachment.",
-                    attachment_desc.loadOp, out_renderpass->clear_flags);
-                return false;
-            }
-
-            // Determine which store operation to use.
-            switch (attachment_config->store_operation) {
-            case RENDERER_ATTACHMENT_STORE_OPERATION_DONT_CARE:
-                attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                break;
-            case RENDERER_ATTACHMENT_STORE_OPERATION_STORE:
-                attachment_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-                attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-                is_storing = true;
-                break;
-            default:
-                KFATAL("Invalid store operation (0x%x) set for depth attachment. Check configuration.", attachment_config->store_operation);
-                return false;
-            }
-
-            // If coming from a previous pass, should already be
-            // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL. Otherwise undefined.
-            attachment_desc.initialLayout = is_loading ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
-
-            switch (attachment_config->post_pass_use) {
-            case RENDERER_ATTACHMENT_USE_DEPTH_STENCIL_SHADER_READ:
-                attachment_desc.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                break;
-            case RENDERER_ATTACHMENT_USE_DEPTH_STENCIL_ATTACHMENT:
-            case RENDERER_ATTACHMENT_USE_DEPTH_STENCIL_SHADER_WRITE:
-                attachment_desc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                break;
-            case RENDERER_ATTACHMENT_USE_COLOUR_ATTACHMENT:
-            case RENDERER_ATTACHMENT_USE_COLOUR_PRESENT:
-            case RENDERER_ATTACHMENT_USE_COLOUR_SHADER_READ:
-            case RENDERER_ATTACHMENT_USE_COLOUR_SHADER_WRITE:
-                KERROR("Cannot set a colour use on a depth stencil attachment. Check renderpass attachment configuration.");
-                return false;
-            default:
-                // NOTE: If not one of the above uses, but set to store, chances are the
-                // image content will be used for _something_. Default to attachment.
-                if (is_storing) {
-                    KWARN("Depth/stencil attachment use not set to read or attachment, but is set to store. Falling back to attachment.");
-                    attachment_desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-                } else {
-                    // If this is here, then why is this being written to at all?
-                    KWARN("Depth/stencil attachment use not set to read or attachment and is also NOT set to store. Selecting undefined, but why have this attachment in the first place?");
-                    attachment_desc.finalLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                }
-                break;
-            }
-            attachment_desc.flags = 0;
-
-            // Push to depth attachments array.
-            darray_push(depth_attachment_descs, attachment_desc);
-        }
-        // Push to general array.
-        darray_push(attachment_descriptions, attachment_desc);
-    }
-
-    // Setup the attachment references.
-    u32 attachments_added = 0;
-
-    // Colour attachment reference.
-    VkAttachmentReference* colour_attachment_references = 0;
-    u32 colour_attachment_count = darray_length(colour_attachment_descs);
-    if (colour_attachment_count > 0) {
-        colour_attachment_references = kallocate(sizeof(VkAttachmentReference) * colour_attachment_count, MEMORY_TAG_ARRAY);
-        for (u32 i = 0; i < colour_attachment_count; ++i) {
-            colour_attachment_references[i].attachment = attachments_added; // Attachment description array index
-            colour_attachment_references[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            attachments_added++;
-        }
-
-        subpass.colorAttachmentCount = colour_attachment_count;
-        subpass.pColorAttachments = colour_attachment_references;
-    } else {
-        subpass.colorAttachmentCount = 0;
-        subpass.pColorAttachments = 0;
-    }
-
-    // Depth attachment reference.
-    VkAttachmentReference* depth_attachment_references = 0;
-    u32 depth_attachment_count = darray_length(depth_attachment_descs);
-    if (depth_attachment_count > 0) {
-        KASSERT_MSG(depth_attachment_count == 1, "Multiple depth/stencil attachments not supported.");
-        depth_attachment_references = kallocate(sizeof(VkAttachmentReference) * depth_attachment_count, MEMORY_TAG_ARRAY);
-        for (u32 i = 0; i < depth_attachment_count; ++i) {
-            depth_attachment_references[i].attachment = attachments_added; // Attachment description array index
-            depth_attachment_references[i].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            attachments_added++;
-        }
-
-        // Depth stencil data.
-        subpass.pDepthStencilAttachment = depth_attachment_references;
-    } else {
-        subpass.pDepthStencilAttachment = 0;
-    }
-
-    // Input from a shader
-    subpass.inputAttachmentCount = 0;
-    subpass.pInputAttachments = 0;
-
-    // Attachments used for multisampling colour attachments
-    subpass.pResolveAttachments = 0;
-
-    // Attachments not used in this subpass, but must be preserved for the next.
-    subpass.preserveAttachmentCount = 0;
-    subpass.pPreserveAttachments = 0;
-
-    // Render pass dependencies. TODO: make this configurable.
-    VkSubpassDependency dependency = {0};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependency.dependencyFlags = 0;
-
-    // Render pass create.
-    VkRenderPassCreateInfo render_pass_create_info = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    render_pass_create_info.attachmentCount = darray_length(attachment_descriptions);
-
-    render_pass_create_info.pAttachments = attachment_descriptions;
-    render_pass_create_info.subpassCount = 1;
-    render_pass_create_info.pSubpasses = &subpass;
-    render_pass_create_info.dependencyCount = 1;
-    render_pass_create_info.pDependencies = &dependency;
-    render_pass_create_info.pNext = 0;
-    render_pass_create_info.flags = 0;
-
-    VK_CHECK(vkCreateRenderPass(context->device.logical_device, &render_pass_create_info, context->allocator, &internal_data->handle));
-
-    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_RENDER_PASS, internal_data->handle, out_renderpass->name);
-
-    // Cleanup
-    if (attachment_descriptions) {
-        darray_destroy(attachment_descriptions);
-    }
-
-    if (colour_attachment_descs) {
-        darray_destroy(colour_attachment_descs);
-    }
-    if (colour_attachment_references) {
-        kfree(colour_attachment_references, sizeof(VkAttachmentReference) * colour_attachment_count, MEMORY_TAG_ARRAY);
-    }
-
-    if (depth_attachment_descs) {
-        darray_destroy(depth_attachment_descs);
-    }
-    if (depth_attachment_references) {
-        kfree(depth_attachment_references, sizeof(VkAttachmentReference) * depth_attachment_count, MEMORY_TAG_ARRAY);
-    }
-
-    return true;
-}
-
-void vulkan_renderpass_destroy(renderer_backend_interface* backend, renderpass* pass) {
-    vulkan_context* context = (vulkan_context*)plugin->internal_context;
-    if (pass && pass->internal_data) {
-        vulkan_renderpass* internal_data = pass->internal_data;
-        vkDestroyRenderPass(context->device.logical_device, internal_data->handle,
-                            context->allocator);
-        internal_data->handle = 0;
-        kfree(internal_data, sizeof(vulkan_renderpass), MEMORY_TAG_RENDERER);
-        pass->internal_data = 0;
-    }
-}
-
-b8 vulkan_renderer_framebuffer_create(renderer_backend_interface* backend, const struct framebuffer_config* config, struct framebuffer_internal_data* internal_data) {
-    // NOTE: In order to keep the concept of multiple frames internal, if the framebuffer
-    // is double-/triple-/whatever-buffered, that many framebuffers will also need to be
-    // created.
-    vulkan_context* context = (vulkan_context*)backend->internal_context;
-
-    // Setup array to hold framebuffer(s).
-    // TODO: device->image_count to window->image_count
-    internal_data->framebuffer_count = config->account_for_renderer_frames ? context->device.image_count : 1;
-    internal_data->framebuffers = kallocate(sizeof(VkFramebuffer) * internal_data->framebuffer_count, MEMORY_TAG_RENDERER);
-
-    // Get the smallest attachment size and use that as the width/height.
-    // This is because the Vulkan spec states that the framebuffer must be less than or equal to the
-    // smallest attachment. Technically, so too must the renderpass using it.
-    // Ideally though, they should all be the same size.
-    u32 min_width = 99999999;
-    u32 min_height = 99999999;
-    for (u32 i = 0; i < config->attachment_count; ++i) {
-        min_width = KMIN(config->attachments[i].width, min_width);
-        min_height = KMIN(config->attachments[i].height, min_height);
-    }
-
-    if (min_width < 1 || min_height < 1) {
-        KERROR("Framebuffer cannot use attachments whose width is less than 1");
-        return false;
-    }
-
-    // Each framebuffer (one per frame).
-    for (u32 f = 0; f < internal_data->framebuffer_count; ++f) {
-        // Get a flattened list of attachment views for the framebuffer.
-        VkImageView attachment_views[32] = {0}; // NOTE: Max number of attachments
-        for (u32 i = 0; i < config->attachment_count; ++i) {
-            texture_internal_data* internal = config->attachments[i].texture->texture_internal_data;
-            // Verify the the image count is correct for the attachment.
-            if (internal->image_count != internal_data->framebuffer_count) {
-                KERROR("Attachment image count/framebuffer count mismatch.");
-                return false;
-            }
-
-            // Get the view from the image matching the current framebuffer index.
-            vulkan_image* image = &internal->images[f];
-            if (image->layer_views) {
-                attachment_views[i] = image->layer_views[layer_indices[i]];
-            } else {
-                // Verify that attachment textur has the same number of internal Vulkan images to facilitate this.
-                if (config->account_for_renderer_frames) {
-                    KERROR("Attempting to create a framebuffer which should account for renderer frames, but attachment index %u is only setup with a single backing image.");
-                    return false;
-                }
-                attachment_views[i] = image->view;
-            }
-        }
-
-        // TODO: Because of Vulkan's insistance on tightly coupling renderpasses to framebuffers,
-        // create a dummy renderpass based on the attachment config we already have here. This would
-        // prevent the need to pass in a renderpass from the front end. At least in therory.
-
-        // Create the framebuffer based on this info.
-        VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-        framebuffer_create_info.renderPass = ((vulkan_renderpass*)pass->internal_data)->handle;
-        framebuffer_create_info.attachmentCount = config->attachment_count;
-        framebuffer_create_info.pAttachments = attachment_views;
-        framebuffer_create_info.width = min_width;
-        framebuffer_create_info.height = min_height;
-        framebuffer_create_info.layers = 1;
-
-        VK_CHECK(vkCreateFramebuffer(
-            context->device.logical_device, &framebuffer_create_info,
-            context->allocator, &internal_data->framebuffers[f]));
-
-        char formatted_name[512] = {0};
-        string_format_unsafe(formatted_name, "pass_%s_framebuffer_%u_x_%u_frame_%u", pass->name, width, height, f);
-        VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_FRAMEBUFFER, internal_data->framebuffers[f], formatted_name);
-        KTRACE("Created framebuffer ' %s' at 0x%x.", formatted_name, internal_data->framebuffer[f]);
-    }
-
-    // Keep a copy of the attachments passed in.
-    kcopy_memory(out_target->attachments, attachments, sizeof(render_target_attachment) * attachment_count);
-
-    return true;
-}
-
-void vulkan_renderer_framebuffer_destroy(renderer_backend_interface* backend, framebuffer_internal_data* internal_data) {
-    vulkan_context* context = (vulkan_context*)backend->internal_context;
-    if (internal_data && internal_data->framebuffers) {
-        for (u32 i - 0; i < internal_data->framebuffer_count; ++i) {
-            vkDestroyFramebuffer(context->device.logical_device, internal_data->framebuffers[i], context->allocator);
-        }
-        kfree(internal_data->framebuffers, sizeof(VkFramebuffer) * internal_data->framebuffer_count, MEMORY_TAG_RENDERER);
-        internal_data->framebuffers = 0;
-        internal_data->framebuffer_count = 0;
-    }
-}
-
 texture* vulkan_renderer_window_attachment_get(renderer_backend_interface* backend,
                                                u8 index) {
     vulkan_context* context = (vulkan_context*)plugin->internal_context;
@@ -4154,6 +3691,302 @@ static vulkan_command_buffer* get_current_command_buffer(vulkan_context* context
 
 static u32 get_current_image_index(vulkan_context* context) {
     return context->current_window->renderer_state->backend_state->image_index;
+}
+
+static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipeline_config* config, vulkan_pipeline* out_pipeline) {
+    // Viewport state
+    VkPipelineViewportStateCreateInfo viewport_state = {VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+    viewport_state.viewportCount = 1;
+    viewport_state.pViewports = &config->viewport;
+    viewport_state.scissorCount = 1;
+    viewport_state.pScissors = &config->scissor;
+
+    // Rasterizer
+    VkPipelineRasterizationStateCreateInfo rasterizer_create_info = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+    rasterizer_create_info.depthClampEnable = VK_FALSE;
+    rasterizer_create_info.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer_create_info.polygonMode = (config->shader_flags & SHADER_FLAG_WIREFRAME) ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+    rasterizer_create_info.lineWidth = 1.0f;
+    switch (config->cull_mode) {
+    case FACE_CULL_MODE_NONE:
+        rasterizer_create_info.cullMode = VK_CULL_MODE_NONE;
+        break;
+    case FACE_CULL_MODE_FRONT:
+        rasterizer_create_info.cullMode = VK_CULL_MODE_FRONT_BIT;
+        break;
+    default:
+    case FACE_CULL_MODE_BACK:
+        rasterizer_create_info.cullMode = VK_CULL_MODE_BACK_BIT;
+        break;
+    case FACE_CULL_MODE_FRONT_AND_BACK:
+        rasterizer_create_info.cullMode = VK_CULL_MODE_FRONT_AND_BACK;
+        break;
+    }
+
+    if (config->winding == RENDERER_WINDING_CLOCKWISE) {
+        rasterizer_create_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    } else if (config->winding == RENDERER_WINDING_COUNTER_CLOCKWISE) {
+        rasterizer_create_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    } else {
+        KWARN("Invalid front-face winding order specified, default to counter-clockwise");
+        rasterizer_create_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    }
+    rasterizer_create_info.depthBiasEnable = VK_FALSE;
+    rasterizer_create_info.depthBiasConstantFactor = 0.0f;
+    rasterizer_create_info.depthBiasClamp = 0.0f;
+    rasterizer_create_info.depthBiasSlopeFactor = 0.0f;
+
+    // Smooth line rasterisation, if supported.
+    VkPipelineRasterizationLineStateCreateInfoEXT line_rasterization_ext = {0};
+    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT) {
+        line_rasterization_ext.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT;
+        line_rasterization_ext.lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH_EXT;
+        rasterizer_create_info.pNext = &line_rasterization_ext;
+    }
+
+    // Multisampling.
+    VkPipelineMultisampleStateCreateInfo multisampling_create_info = {VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+    multisampling_create_info.sampleShadingEnable = VK_FALSE;
+    multisampling_create_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampling_create_info.minSampleShading = 1.0f;
+    multisampling_create_info.pSampleMask = 0;
+    multisampling_create_info.alphaToCoverageEnable = VK_FALSE;
+    multisampling_create_info.alphaToOneEnable = VK_FALSE;
+
+    // Depth and stencil testing.
+    VkPipelineDepthStencilStateCreateInfo depth_stencil = {VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+    if (config->shader_flags & SHADER_FLAG_DEPTH_TEST) {
+        depth_stencil.depthTestEnable = VK_TRUE;
+        if (config->shader_flags & SHADER_FLAG_DEPTH_WRITE) {
+            depth_stencil.depthWriteEnable = VK_TRUE;
+        }
+        depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depth_stencil.depthBoundsTestEnable = VK_FALSE;
+    }
+    depth_stencil.stencilTestEnable = (config->shader_flags & SHADER_FLAG_STENCIL_TEST) ? VK_TRUE : VK_FALSE;
+    if (config->shader_flags & SHADER_FLAG_STENCIL_TEST) {
+        // equivalent to glStencilFunc(func, ref, mask)
+        depth_stencil.back.compareOp = VK_COMPARE_OP_ALWAYS;
+        depth_stencil.back.reference = 1;
+        depth_stencil.back.compareMask = 0xFF;
+
+        // equivalent of glStencilOp(stencilFail, depthFail, depthPass)pipelin
+        depth_stencil.back.failOp = VK_STENCIL_OP_ZERO;
+        depth_stencil.back.depthFailOp = VK_STENCIL_OP_ZERO;
+        depth_stencil.back.passOp = VK_STENCIL_OP_REPLACE;
+        // equivalent of glStencilMask(mask)
+
+        // Back face
+        depth_stencil.back.writeMask = (config->shader_flags & SHADER_FLAG_STENCIL_WRITE) ? 0xFF : 0x00;
+
+        // Front face. Just use the same settings for front/back.
+        depth_stencil.front = depth_stencil.back;
+    }
+
+    VkPipelineColorBlendAttachmentState color_blend_attachment_state;
+    kzero_memory(&color_blend_attachment_state, sizeof(VkPipelineColorBlendAttachmentState));
+    color_blend_attachment_state.blendEnable = VK_TRUE;
+    color_blend_attachment_state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    color_blend_attachment_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    color_blend_attachment_state.colorBlendOp = VK_BLEND_OP_ADD;
+    color_blend_attachment_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    color_blend_attachment_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    color_blend_attachment_state.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    color_blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                                  VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo color_blend_state_create_info = {VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+    color_blend_state_create_info.logicOpEnable = VK_FALSE;
+    color_blend_state_create_info.logicOp = VK_LOGIC_OP_COPY;
+    color_blend_state_create_info.attachmentCount = 1;
+    color_blend_state_create_info.pAttachments = &color_blend_attachment_state;
+
+    // Dynamic state
+    VkDynamicState* dynamic_states = darray_create(VkDynamicState);
+    darray_push(dynamic_states, VK_DYNAMIC_STATE_VIEWPORT);
+    darray_push(dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
+    // Dynamic state, if supported.
+    if ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) || (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT)) {
+        darray_push(dynamic_states, VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY);
+        darray_push(dynamic_states, VK_DYNAMIC_STATE_FRONT_FACE);
+        darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_OP);
+        darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE_EXT);
+        darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
+        darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
+        darray_push(dynamic_states, VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE);
+        darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+        /* darray_push(dynamic_states, VK_DYNAMIC_STATE_COLOR_WRITE_ENABLE_EXT);
+        darray_push(dynamic_states, VK_DYNAMIC_STATE_COLOR_WRITE_MASK_EXT); */
+    }
+
+    VkPipelineDynamicStateCreateInfo dynamic_state_create_info = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
+    dynamic_state_create_info.dynamicStateCount = darray_length(dynamic_states);
+    dynamic_state_create_info.pDynamicStates = dynamic_states;
+
+    // Vertex input
+    VkVertexInputBindingDescription binding_description;
+    binding_description.binding = 0; // Binding index
+    binding_description.stride = config->stride;
+    binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; // Move to next data entry for each vertex.
+
+    // Attributes
+    VkPipelineVertexInputStateCreateInfo vertex_input_info = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+    vertex_input_info.vertexBindingDescriptionCount = 1;
+    vertex_input_info.pVertexBindingDescriptions = &binding_description;
+    vertex_input_info.vertexAttributeDescriptionCount = config->attribute_count;
+    vertex_input_info.pVertexAttributeDescriptions = config->attributes;
+
+    // Input assembly
+    VkPipelineInputAssemblyStateCreateInfo input_assembly = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+    // The pipeline being created already has available types, so just grab the first one.
+    for (u32 i = 1; i < PRIMITIVE_TOPOLOGY_TYPE_MAX; i = i << 1) {
+        if (out_pipeline->supported_topology_types & i) {
+            primitive_topology_type ptt = i;
+
+            switch (ptt) {
+            case PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+                break;
+            case PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+                break;
+            case PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+                break;
+            case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+                break;
+            case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+                break;
+            case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+                break;
+            default:
+                KWARN("primitive topology '%u' not supported. Skipping.", ptt);
+                break;
+            }
+
+            break;
+        }
+    }
+    input_assembly.primitiveRestartEnable = VK_FALSE;
+
+    // Pipeline layout
+    VkPipelineLayoutCreateInfo pipeline_layout_create_info = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+
+    // Push constants
+    VkPushConstantRange ranges[32];
+    if (config->push_constant_range_count > 0) {
+        if (config->push_constant_range_count > 32) {
+            KERROR("vulkan_graphics_pipeline_create: cannot have more than 32 push constant ranges. Passed count: %i", config->push_constant_range_count);
+            return false;
+        }
+
+        // NOTE: 32 is the max number of ranges we can ever have, since spec only guarantees 128 bytes with 4-byte alignment.
+        kzero_memory(ranges, sizeof(VkPushConstantRange) * 32);
+        for (u32 i = 0; i < config->push_constant_range_count; ++i) {
+            ranges[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            ranges[i].offset = config->push_constant_ranges[i].offset;
+            ranges[i].size = config->push_constant_ranges[i].size;
+        }
+        pipeline_layout_create_info.pushConstantRangeCount = config->push_constant_range_count;
+        pipeline_layout_create_info.pPushConstantRanges = ranges;
+    } else {
+        pipeline_layout_create_info.pushConstantRangeCount = 0;
+        pipeline_layout_create_info.pPushConstantRanges = 0;
+    }
+
+    // Descriptor set layouts
+    pipeline_layout_create_info.setLayoutCount = config->descriptor_set_layout_count;
+    pipeline_layout_create_info.pSetLayouts = config->descriptor_set_layouts;
+
+    // Create the pipeline layout.
+    VK_CHECK(vkCreatePipelineLayout(
+        context->device.logical_device,
+        &pipeline_layout_create_info,
+        context->allocator,
+        &out_pipeline->pipeline_layout));
+
+    char pipeline_layout_name_buf[512] = {0};
+    string_format_unsafe(pipeline_layout_name_buf, "pipeline_layout_shader_%s", config->name);
+    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_PIPELINE_LAYOUT, out_pipeline->pipeline_layout, pipeline_layout_name_buf);
+
+    // Pipeline create
+    VkGraphicsPipelineCreateInfo pipeline_create_info = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    pipeline_create_info.stageCount = config->stage_count;
+    pipeline_create_info.pStages = config->stages;
+    pipeline_create_info.pVertexInputState = &vertex_input_info;
+    pipeline_create_info.pInputAssemblyState = &input_assembly;
+
+    pipeline_create_info.pViewportState = &viewport_state;
+    pipeline_create_info.pRasterizationState = &rasterizer_create_info;
+    pipeline_create_info.pMultisampleState = &multisampling_create_info;
+    pipeline_create_info.pDepthStencilState = ((config->shader_flags & SHADER_FLAG_DEPTH_TEST) || (config->shader_flags & SHADER_FLAG_STENCIL_TEST)) ? &depth_stencil : 0;
+    pipeline_create_info.pColorBlendState = &color_blend_state_create_info;
+    pipeline_create_info.pDynamicState = &dynamic_state_create_info;
+    pipeline_create_info.pTessellationState = 0;
+
+    pipeline_create_info.layout = out_pipeline->pipeline_layout;
+
+    pipeline_create_info.renderPass = VK_NULL_HANDLE;
+    pipeline_create_info.subpass = VK_NULL_HANDLE;
+    pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
+    pipeline_create_info.basePipelineIndex = -1;
+
+    // dynamic rendering
+    VkPipelineRenderingCreateInfoKHR pipeline_rendering_create_info = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
+    pipeline_rendering_create_info.pNext = VK_NULL_HANDLE;
+    pipeline_rendering_create_info.colorAttachmentCount = config->colour_attachment_count;
+    pipeline_rendering_create_info.pColorAttachmentFormats = config->colour_attachment_formats;
+    pipeline_rendering_create_info.depthAttachmentFormat = config->depth_attachment_format;
+    pipeline_rendering_create_info.stencilAttachmentFormat = config->stencil_attachment_format;
+
+    pipeline_create_info.pNext = &pipeline_rendering_create_info;
+
+    VkResult result = vkCreateGraphicsPipelines(
+        context->device.logical_device,
+        VK_NULL_HANDLE,
+        1,
+        &pipeline_create_info,
+        context->allocator,
+        &out_pipeline->handle);
+
+    // Cleanup
+    darray_destroy(dynamic_states);
+
+    char pipeline_name_buf[512] = {0};
+    string_format_unsafe(pipeline_name_buf, "pipeline_shader_%s", config->name);
+    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_PIPELINE, out_pipeline->handle, pipeline_name_buf);
+
+    if (vulkan_result_is_success(result)) {
+        KDEBUG("Graphics pipeline created!");
+        return true;
+    }
+
+    KERROR("vkCreateGraphicsPipelines failed with %s.", vulkan_result_string(result, true));
+    return false;
+}
+
+static void vulkan_pipeline_destroy(vulkan_context* context, vulkan_pipeline* pipeline) {
+    if (pipeline) {
+        // Destroy pipeline
+        if (pipeline->handle) {
+            vkDestroyPipeline(context->device.logical_device, pipeline->handle, context->allocator);
+            pipeline->handle = 0;
+        }
+
+        // Destroy layout
+        if (pipeline->pipeline_layout) {
+            vkDestroyPipelineLayout(context->device.logical_device, pipeline->pipeline_layout, context->allocator);
+            pipeline->pipeline_layout = 0;
+        }
+    }
+}
+
+static void vulkan_pipeline_bind(vulkan_command_buffer* command_buffer, VkPipelineBindPoint bind_point, vulkan_pipeline* pipeline) {
+    vkCmdBindPipeline(command_buffer->handle, bind_point, pipeline->handle);
 }
 
 #endif // KVULKAN_USE_CUSTOM_ALLOCATOR == 1
