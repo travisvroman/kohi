@@ -198,7 +198,7 @@ typedef enum renderer_winding {
  */
 typedef struct shader_instance_uniform_texture_config {
     /** @brief The locaton of the uniform to map to. */
-    u16 uniform_location;
+    /* u16 uniform_location; */
     /** @brief The number of texture maps bound to the uniform. */
     u32 texture_map_count;
     /** @brief An array of pointers to texture maps to be mapped to the uniform. */
@@ -248,11 +248,6 @@ typedef struct renderer_backend_interface {
     // The size needed by the renderer backend to hold texture data.
     u64 texture_internal_data_size;
 
-    /**
-     * @brief The draw index for the current frame. Typically aligns with the
-     * number of queue submissions per frame.
-     */
-    u8 draw_index;
     /**
      * @brief The size of the backend-specific renderer context.
      */
@@ -390,6 +385,9 @@ typedef struct renderer_backend_interface {
      */
     void (*set_stencil_op)(struct renderer_backend_interface* backend, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
 
+    void (*begin_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, u32 colour_target_count, struct texture_internal_data** colour_targets, struct texture_internal_data* depth_stencil_target);
+    void (*end_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data);
+
     /**
      * @brief Set stencil compare mask.
      *
@@ -524,52 +522,34 @@ typedef struct renderer_backend_interface {
     b8 (*shader_supports_wireframe)(const struct renderer_backend_interface* backend, const struct shader* s);
 
     /**
-     * @brief Binds global resources for use and updating.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader whose globals are to be bound.
-     * @return True on success; otherwise false.
-     */
-    b8 (*shader_bind_globals)(struct renderer_backend_interface* backend, struct shader* s);
-
-    /**
-     * @brief Binds instance resources for use and updating.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader whose instance resources are to be bound.
-     * @param instance_id The identifier of the instance to be bound.
-     * @return True on success; otherwise false.
-     */
-    b8 (*shader_bind_instance)(struct renderer_backend_interface* backend, struct shader* s, u32 instance_id);
-
-    /**
-     * @brief Binds local resources for use and updating.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader whose local resources are to be bound.
-     * @return True on success; otherwise false.
-     */
-    b8 (*shader_bind_local)(struct renderer_backend_interface* backend, struct shader* s);
-
-    /**
      * @brief Applies global data to the uniform buffer.
      *
      * @param backend A pointer to the renderer backend interface.
      * @param s A pointer to the shader to apply the global data for.
-     * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
+     * @param renderer_frame_number The current renderer frame number provided by the frontend.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_globals)(struct renderer_backend_interface* backend, struct shader* s, b8 needs_update, struct frame_data* p_frame_data);
+    b8 (*shader_apply_globals)(struct renderer_backend_interface* backend, struct shader* s, u64 renderer_frame_number);
 
     /**
      * @brief Applies data for the currently bound instance.
      *
      * @param backend A pointer to the renderer backend interface.
      * @param s A pointer to the shader to apply the instance data for.
-     * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
+     * @param renderer_frame_number The current renderer frame number provided by the frontend.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_instance)(struct renderer_backend_interface* backend, struct shader* s, b8 needs_update, struct frame_data* p_frame_data);
+    b8 (*shader_apply_instance)(struct renderer_backend_interface* backend, struct shader* s, u64 renderer_frame_number);
+
+    /**
+     * @brief Applies local data to the uniform buffer.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param s A pointer to the shader to apply the instance data for.
+     * @param renderer_frame_number The current renderer frame number provided by the frontend.
+     * @return True on success; otherwise false.
+     */
+    b8 (*shader_apply_local)(struct renderer_backend_interface* backend, struct shader* s, u64 renderer_frame_number);
 
     /**
      * @brief Acquires internal instance-level resources and provides an instance id.
@@ -605,8 +585,6 @@ typedef struct renderer_backend_interface {
      */
     b8 (*shader_uniform_set)(struct renderer_backend_interface* backend, struct shader* frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
 
-    b8 (*shader_apply_local)(struct renderer_backend_interface* backend, struct shader* s, struct frame_data* p_frame_data);
-
     /**
      * @brief Acquires internal resources for the given texture map.
      *
@@ -623,23 +601,6 @@ typedef struct renderer_backend_interface {
      * @param map A pointer to the texture map to release resources from.
      */
     void (*texture_map_resources_release)(struct renderer_backend_interface* backend, struct texture_map* map);
-
-    /**
-     * @brief Attempts to get the window render target at the given index.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @return A pointer to a texture attachment if successful; otherwise 0.
-     */
-    texture* (*window_attachment_get)(struct renderer_backend_interface* backend, const struct kwindow* window);
-
-    /**
-     * @brief Returns a pointer to the main depth texture target.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param window The window associated with the depth attachment.
-     * @return A pointer to a texture attachment if successful; otherwise 0.
-     */
-    texture* (*depth_attachment_get)(struct renderer_backend_interface* backend, const struct kwindow* window);
 
     /**
      * @brief Indicates if the renderer is capable of multi-threading.

@@ -6,8 +6,17 @@
 #include "resources/resource_types.h"
 #include "strings/kstring.h"
 #include "vulkan/vulkan_core.h"
-#include "vulkan_device.h"
 #include "vulkan_utils.h"
+
+// A lookup table of vulkan image view types indexed Kohi's texture types.
+static VkImageViewType vulkan_view_types[4] = {
+    VK_IMAGE_VIEW_TYPE_2D,
+    VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+    VK_IMAGE_VIEW_TYPE_CUBE,
+    VK_IMAGE_VIEW_TYPE_CUBE_ARRAY};
+
+// Ensure changes to texture types break this if it isn't also updated.
+STATIC_ASSERT(TEXTURE_TYPE_COUNT == (sizeof(vulkan_view_types) / sizeof(*vulkan_view_types)), "Texture type count does not match Vulkan image view lookup table count.");
 
 void vulkan_image_create(
     vulkan_context* context,
@@ -37,6 +46,9 @@ void vulkan_image_create(
     out_image->format = format;
     out_image->layer_count = layer_count;
     out_image->layer_views = 0;
+    out_image->layer_view_create_infos = 0;
+    out_image->layer_view_subresource_ranges = 0;
+    out_image->has_view = create_view;
     if (layer_count < 1) {
         layer_count = 1;
     }
@@ -98,20 +110,60 @@ void vulkan_image_create(
     if (create_view) {
         // Single view, encapsulating all layers.
         out_image->view = 0;
-        vulkan_image_view_create(context, type, layer_count, -1, format, out_image, view_aspect_flags, &out_image->view, &out_image->view_subresource_range);
+
+        out_image->view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        out_image->view_create_info.image = out_image->handle;
+        out_image->view_create_info.viewType = vulkan_view_types[type];
+        out_image->view_create_info.format = format;
+        // Save off the subresource range in case it's needed for another operation (such as clear).
+        out_image->view_subresource_range.aspectMask = view_aspect_flags;
+        out_image->view_subresource_range.baseMipLevel = 0;
+        out_image->view_subresource_range.levelCount = out_image->mip_levels;
+        out_image->view_subresource_range.layerCount = layer_count;
+        out_image->view_subresource_range.baseArrayLayer = 0;
+        out_image->view_create_info.subresourceRange = out_image->view_subresource_range;
+
+        VK_CHECK(vkCreateImageView(context->device.logical_device, &out_image->view_create_info, context->allocator, &out_image->view));
+
+#if _DEBUG
+        char* formatted_name = string_format("%s_view_idx_%u", out_image->name, 0);
+        VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, out_image->view, formatted_name);
+        string_free(formatted_name);
+#endif
 
         // Create views per layer.
         if (layer_count > 1) {
             // Multiple views, one per layer
             out_image->layer_views = kallocate(sizeof(VkImageView) * layer_count, MEMORY_TAG_ARRAY);
             out_image->layer_view_subresource_ranges = kallocate(sizeof(VkImageSubresourceRange) * layer_count, MEMORY_TAG_ARRAY);
+            out_image->layer_view_create_infos = kallocate(sizeof(VkImageCreateInfo) * layer_count, MEMORY_TAG_ARRAY);
             texture_type view_type = type;
             if (type == TEXTURE_TYPE_CUBE || type == TEXTURE_TYPE_CUBE_ARRAY) {
                 // NOTE: for individual sampling of cubemap/cubemap array layers, the view type needs to be 2d.
                 view_type = TEXTURE_TYPE_2D;
             }
             for (u32 i = 0; i < layer_count; ++i) {
-                vulkan_image_view_create(context, view_type, 1, i, format, out_image, view_aspect_flags, &out_image->layer_views[i], &out_image->layer_view_subresource_ranges[i]);
+                VkImageViewCreateInfo* view_create_info = &out_image->layer_view_create_infos[i];
+                VkImageSubresourceRange* view_subresource_range = &out_image->layer_view_subresource_ranges[i];
+                view_create_info->sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+                view_create_info->image = out_image->handle;
+                view_create_info->viewType = vulkan_view_types[view_type];
+                view_create_info->format = format;
+                // Save off the subresource range in case it's needed for another operation (such as clear).
+                view_subresource_range->aspectMask = view_aspect_flags;
+                view_subresource_range->baseMipLevel = 0;
+                view_subresource_range->levelCount = out_image->mip_levels;
+                view_subresource_range->layerCount = 1;
+                view_subresource_range->baseArrayLayer = i;
+                view_create_info->subresourceRange = *view_subresource_range;
+
+                VK_CHECK(vkCreateImageView(context->device.logical_device, view_create_info, context->allocator, &out_image->layer_views[i]));
+
+#if _DEBUG
+                char* formatted_name = string_format("%s_view_layer_idx_%u", out_image->name, i);
+                VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, out_image->layer_views[i], formatted_name);
+                string_free(formatted_name);
+#endif
             }
         }
     }
@@ -132,6 +184,10 @@ void vulkan_image_destroy(vulkan_context* context, vulkan_image* image) {
     if (image->layer_view_subresource_ranges) {
         kfree(image->layer_view_subresource_ranges, sizeof(VkImageSubresourceRange) * image->layer_count, MEMORY_TAG_ARRAY);
         image->layer_view_subresource_ranges = 0;
+    }
+    if (image->layer_view_create_infos) {
+        kfree(image->layer_view_create_infos, sizeof(VkImageCreateInfo) * image->layer_count, MEMORY_TAG_ARRAY);
+        image->layer_view_create_infos = 0;
     }
     image->layer_count = 0;
 
@@ -154,44 +210,73 @@ void vulkan_image_destroy(vulkan_context* context, vulkan_image* image) {
     kzero_memory(&image->memory_requirements, sizeof(VkMemoryRequirements));
 }
 
-// A lookup table of vulkan image view types indexed Kohi's texture types.
-static VkImageViewType vulkan_view_types[4] = {
-    VK_IMAGE_VIEW_TYPE_2D,
-    VK_IMAGE_VIEW_TYPE_2D_ARRAY,
-    VK_IMAGE_VIEW_TYPE_CUBE,
-    VK_IMAGE_VIEW_TYPE_CUBE_ARRAY};
+void vulkan_image_recreate(vulkan_context* context, vulkan_image* image) {
+    // Release the old images/views first, then create new.
+    vkDestroyImage(context->device.logical_device, image->handle, context->allocator);
+    vkFreeMemory(context->device.logical_device, image->memory, context->allocator);
+    b8 is_device_memory = (image->memory_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    kfree_report(image->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
+    if (image->has_view) {
+        // Single view, encapsulating all layers.
+        vkDestroyImageView(context->device.logical_device, image->view, context->allocator);
 
-// Ensure changes to texture types break this if it isn't also updated.
-STATIC_ASSERT(TEXTURE_TYPE_COUNT == (sizeof(vulkan_view_types) / sizeof(*vulkan_view_types)), "Texture type count does not match Vulkan image view lookup table count.");
+        // Destroy views per layer.
+        u32 layer_count = image->view_subresource_range.layerCount;
+        if (layer_count > 1) {
+            for (u32 i = 0; i < layer_count; ++i) {
+                vkDestroyImageView(context->device.logical_device, image->layer_views[i], context->allocator);
+            }
+        }
+    }
 
-void vulkan_image_view_create(
-    vulkan_context* context,
-    texture_type type,
-    u16 layer_count,
-    i32 layer_index,
-    VkFormat format,
-    vulkan_image* image,
-    VkImageAspectFlags aspect_flags,
-    VkImageView* out_view,
-    VkImageSubresourceRange* out_view_subresource_range) {
+    // Now create the new.
+    VK_CHECK(vkCreateImage(context->device.logical_device, &image->image_create_info, context->allocator, &image->handle));
+    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE, image->handle, image->name);
 
-    VkImageViewCreateInfo view_create_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-    view_create_info->image = image->handle;
-    view_create_info->viewType = vulkan_view_types[type];
-    view_create_info->format = format;
-    // Save off the subresource range in case it's needed for another operation (such as clear).
-    out_view_subresource_range->subresourceRange.aspectMask = aspect_flags;
-    out_view_subresource_range->subresourceRange.baseMipLevel = 0;
-    out_view_subresource_range->subresourceRange.levelCount = image->mip_levels;
-    out_view_subresource_range->subresourceRange.layerCount = layer_index < 0 ? layer_count : 1;
-    out_view_subresource_range->subresourceRange.baseArrayLayer = layer_index < 0 ? 0 : layer_index;
-    view_create_info.subresourceRange = *out_view_subresource_range;
+    // Query memory requirements.
+    vkGetImageMemoryRequirements(context->device.logical_device, image->handle, &image->memory_requirements);
 
-    VK_CHECK(vkCreateImageView(context->device.logical_device, out_view_create_info, context->allocator, out_view));
+    i32 memory_type = context->find_memory_index(context, image->memory_requirements.memoryTypeBits, image->memory_flags);
+    if (memory_type == -1) {
+        KERROR("Required memory type not found. Image not valid.");
+    }
 
-    char formatted_name[TEXTURE_NAME_MAX_LENGTH] = {0};
-    string_format_unsafe(formatted_name, "%s_view_idx_%u", image->name, layer_index);
-    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, *out_view, formatted_name);
+    // Allocate memory
+    VkMemoryAllocateInfo memory_allocate_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    memory_allocate_info.allocationSize = image->memory_requirements.size;
+    memory_allocate_info.memoryTypeIndex = memory_type;
+    VK_CHECK(vkAllocateMemory(context->device.logical_device, &memory_allocate_info, context->allocator, &image->memory));
+    if (image->name) {
+        VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE_MEMORY, image->memory, image->name);
+    }
+
+    // Bind the memory
+    VK_CHECK(vkBindImageMemory(context->device.logical_device, image->handle, image->memory, 0)); // TODO: configurable memory offset.
+
+    // Report the memory as in-use.
+    kallocate_report(image->memory_requirements.size, is_device_memory ? MEMORY_TAG_GPU_LOCAL : MEMORY_TAG_VULKAN);
+
+    // Create view
+    if (image->has_view) {
+        // Single view, encapsulating all layers.
+        image->view = 0;
+
+        VK_CHECK(vkCreateImageView(context->device.logical_device, &image->view_create_info, context->allocator, &image->view));
+
+#ifdef _DEBUG
+        char* formatted_name = string_format("%s_view_idx_%u", image->name, 0);
+        VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, image->view, formatted_name);
+        string_free(formatted_name);
+#endif
+
+        // Create views per layer.
+        u32 layer_count = image->view_subresource_range.layerCount;
+        if (layer_count > 1) {
+            for (u32 i = 0; i < layer_count; ++i) {
+                VK_CHECK(vkCreateImageView(context->device.logical_device, &image->layer_view_create_infos[i], context->allocator, &image->layer_views[i]));
+            }
+        }
+    }
 }
 
 void vulkan_image_transition_layout(
@@ -433,42 +518,17 @@ void vulkan_image_copy_from_buffer(
         &region);
 }
 
-void vulkan_image_copy_to_buffer(
-    vulkan_context* context,
-    vulkan_image* image,
-    VkBuffer buffer,
-    vulkan_command_buffer* command_buffer) {
-    VkBufferImageCopy region = {};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = image->layer_count;
-
-    region.imageExtent.width = image->width;
-    region.imageExtent.height = image->height;
-    region.imageExtent.depth = 1;
-
-    vkCmdCopyImageToBuffer(
-        command_buffer->handle,
-        image->handle,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        buffer,
-        1,
-        &region);
-}
-
-void vulkan_image_copy_pixel_to_buffer(
+void vulkan_image_copy_region_to_buffer(
     vulkan_context* context,
     vulkan_image* image,
     VkBuffer buffer,
     u32 x,
     u32 y,
+    u32 width,
+    u32 height,
     vulkan_command_buffer* command_buffer) {
-    VkBufferImageCopy region = {};
+
+    VkBufferImageCopy region = {0};
     region.bufferOffset = 0;
     region.bufferRowLength = 0;
     region.bufferImageHeight = 0;
@@ -480,8 +540,8 @@ void vulkan_image_copy_pixel_to_buffer(
 
     region.imageOffset.x = x;
     region.imageOffset.y = y;
-    region.imageExtent.width = 1;
-    region.imageExtent.height = 1;
+    region.imageExtent.width = width;
+    region.imageExtent.height = height;
     region.imageExtent.depth = 1;
 
     vkCmdCopyImageToBuffer(

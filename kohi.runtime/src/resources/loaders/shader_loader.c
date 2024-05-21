@@ -1,13 +1,13 @@
 #include "shader_loader.h"
 
 #include "containers/darray.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
-#include "logger.h"
 #include "loader_utils.h"
+#include "logger.h"
 #include "math/kmath.h"
+#include "memory/kmemory.h"
 #include "platform/filesystem.h"
 #include "resources/resource_types.h"
+#include "strings/kstring.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
 
@@ -35,12 +35,15 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
     resource_data->uniform_count = 0;
     resource_data->uniforms = darray_create(shader_uniform_config);
     resource_data->stage_count = 0;
-    resource_data->stage_configs = 0;  // NOTE: initialized once count is known.
+    resource_data->stage_configs = 0; // NOTE: initialized once count is known.
     resource_data->cull_mode = FACE_CULL_MODE_BACK;
     resource_data->topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST;
     resource_data->stage_count = 0;
     // NOTE: This directly influences how much resources are available.
     resource_data->max_instances = 1;
+
+    // NOTE: By default, all shaders write to the colour buffer unless otherwise specified.
+    resource_data->flags = SHADER_FLAG_COLOUR_WRITE;
 
     resource_data->name = 0;
 
@@ -79,7 +82,7 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
         // Assume a max of 511-65 (446) for the max length of the value to account for the variable name and the '='.
         char raw_value[446];
         kzero_memory(raw_value, sizeof(char) * 446);
-        string_mid(raw_value, trimmed, equal_index + 1, -1);  // Read the rest of the line
+        string_mid(raw_value, trimmed, equal_index + 1, -1); // Read the rest of the line
         char* trimmed_value = string_trim(raw_value);
 
         // Process the variable.
@@ -195,6 +198,13 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
             if (stencil_test) {
                 resource_data->flags |= SHADER_FLAG_STENCIL_TEST;
             }
+        } else if (strings_equali(trimmed_var_name, "colour_write")) {
+            b8 colour_write;
+            string_to_bool(trimmed_value, &colour_write);
+            // Unset the bit here if colour_write is explicitly set to false.
+            if (!colour_write) {
+                resource_data->flags &= ~SHADER_FLAG_COLOUR_WRITE;
+            }
         } else if (strings_equali(trimmed_var_name, "supports_wireframe")) {
             b8 wireframe;
             string_to_bool(trimmed_value, &wireframe);
@@ -268,7 +278,7 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
                 shader_uniform_config uniform;
 
                 // Check if it's an array type.
-                u32 array_length = 1;  // An array length of 1 is just a single.
+                u32 array_length = 1; // An array length of 1 is just a single.
                 b8 is_array = string_parse_array_length(fields[0], &array_length);
                 if (array_length < 1) {
                     KWARN("Cannot have an array with a length < 1. Defaulting to 1.");

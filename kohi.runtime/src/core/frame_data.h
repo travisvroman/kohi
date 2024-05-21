@@ -9,6 +9,7 @@ struct linear_allocator;
  * @brief Engine-level current frame-specific data.
  */
 typedef struct frame_data {
+
     /** @brief The number of meshes drawn in the last frame. */
     u32 drawn_mesh_count;
 

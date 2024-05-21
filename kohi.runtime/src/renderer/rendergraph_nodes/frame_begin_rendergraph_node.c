@@ -23,15 +23,15 @@ b8 frame_begin_rendergraph_node_create(struct rendergraph* graph, struct renderg
     // Setup the colourbuffer source.
     rendergraph_source* colourbuffer_source = &self->sources[0];
     colourbuffer_source->name = string_duplicate("colourbuffer");
-    colourbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
-    colourbuffer_source->value.framebuffer_handle = graph->global_colourbuffer;
+    colourbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
+    colourbuffer_source->value.t = graph->global_colourbuffer;
     colourbuffer_source->is_bound = false;
 
     // Setup the colourbuffer source.
     rendergraph_source* depthbuffer_source = &self->sources[1];
     depthbuffer_source->name = string_duplicate("depthbuffer");
-    depthbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
-    depthbuffer_source->value.framebuffer_handle = graph->global_depthbuffer;
+    depthbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
+    depthbuffer_source->value.t = graph->global_depthbuffer;
     depthbuffer_source->is_bound = false;
 
     // Function pointers.

@@ -22,12 +22,10 @@ typedef struct skybox_renderpass_node_internal_data {
     struct renderer_system_state* renderer;
 
     shader* s;
+    u32 shader_id;
     skybox_shader_locations locations;
 
-    // The internal renderer renderpass.
-    renderpass internal_pass;
-
-    k_handle colourbuffer_handle;
+    struct texture* colourbuffer_texture;
 
     skybox* sb;
 
@@ -70,7 +68,7 @@ KAPI b8 skybox_rendergraph_node_create(struct rendergraph* graph, struct renderg
         // Setup the colourbuffer sink.
         rendergraph_sink* colourbuffer_sink = &self->sinks[0];
         colourbuffer_sink->name = string_duplicate("colourbuffer");
-        colourbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
+        colourbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
         colourbuffer_sink->bound_source = 0;
         // Save off the configured source name for later lookup and binding.
         colourbuffer_sink->configured_source_name = string_duplicate(sink_config->source_name);
@@ -86,8 +84,8 @@ KAPI b8 skybox_rendergraph_node_create(struct rendergraph* graph, struct renderg
     // Setup the colourbuffer source.
     rendergraph_source* colourbuffer_source = &self->sources[0];
     colourbuffer_source->name = string_duplicate("colourbuffer");
-    colourbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
-    colourbuffer_source->value.framebuffer_handle = k_handle_invalid();
+    colourbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
+    colourbuffer_source->value.t = 0;
     colourbuffer_source->is_bound = false;
 
     // Function pointers.
@@ -106,31 +104,6 @@ b8 skybox_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     skybox_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Setup the renderpass.
-    renderpass_config skybox_rendergraph_node_config = {0};
-    skybox_rendergraph_node_config.name = "Renderpass.Skybox";
-    skybox_rendergraph_node_config.attachment_count = 1;
-    // TODO: leaking this?
-    skybox_rendergraph_node_config.attachment_configs = kallocate(sizeof(renderpass_attachment_config) * skybox_rendergraph_node_config.attachment_count, MEMORY_TAG_ARRAY);
-
-    // Color attachment.
-    renderpass_attachment_config* skybox_target_colour = &skybox_rendergraph_node_config.attachment_configs[0];
-    skybox_target_colour->type = RENDERER_ATTACHMENT_TYPE_FLAG_COLOUR_BIT;
-    skybox_target_colour->load_op = RENDERER_ATTACHMENT_LOAD_OPERATION_DONT_CARE;
-
-    // Only need to store if something is bound to the output source.
-    if (self->sources[0].is_bound) {
-        skybox_target_colour->store_op = RENDERER_ATTACHMENT_STORE_OPERATION_STORE;
-        skybox_target_colour->post_pass_use = RENDERER_ATTACHMENT_USE_COLOUR_ATTACHMENT;
-    } else {
-        skybox_target_colour->store_op = RENDERER_ATTACHMENT_STORE_OPERATION_DONT_CARE;
-    }
-
-    if (!renderer_renderpass_create(&skybox_rendergraph_node_config, &internal_data->internal_pass)) {
-        KERROR("Skybox rendergraph pass - Failed to create skybox renderpass ");
-        return false;
-    }
-
     // Load skybox shader.
     const char* skybox_shader_name = "Shader.Builtin.Skybox";
     resource skybox_shader_config_resource;
@@ -139,7 +112,7 @@ b8 skybox_rendergraph_node_initialize(struct rendergraph_node* self) {
         return false;
     }
     shader_config* skybox_shader_config = (shader_config*)skybox_shader_config_resource.data;
-    if (!shader_system_create(&internal_data->internal_pass, skybox_shader_config)) {
+    if (!shader_system_create(skybox_shader_config)) {
         KERROR("Failed to create skybox shader.");
         return false;
     }
@@ -147,9 +120,10 @@ b8 skybox_rendergraph_node_initialize(struct rendergraph_node* self) {
     resource_system_unload(&skybox_shader_config_resource);
     // Get a pointer to the shader.
     internal_data->s = shader_system_get(skybox_shader_name);
-    internal_data->locations.projection_location = shader_system_uniform_location(internal_data->s, "projection");
-    internal_data->locations.view_location = shader_system_uniform_location(internal_data->s, "view");
-    internal_data->locations.cube_map_location = shader_system_uniform_location(internal_data->s, "cube_texture");
+    internal_data->shader_id = internal_data->s->id;
+    internal_data->locations.projection_location = shader_system_uniform_location(internal_data->shader_id, "projection");
+    internal_data->locations.view_location = shader_system_uniform_location(internal_data->shader_id, "view");
+    internal_data->locations.cube_map_location = shader_system_uniform_location(internal_data->shader_id, "cube_texture");
 
     return true;
 }
@@ -162,7 +136,7 @@ b8 skybox_rendergraph_node_load_resources(struct rendergraph_node* self) {
     // Resolve framebuffer handle via bound source.
     skybox_rendergraph_node_internal_data* internal_data = self->internal_data;
     if (self->sinks[0].bound_source) {
-        internal_data->colourbuffer_handle = self->sinks[0].bound_source->value.framebuffer_handle;
+        internal_data->colourbuffer_texture = self->sinks[0].bound_source->value.t;
         return true;
     }
 
@@ -179,13 +153,10 @@ b8 skybox_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
     // Bind the viewport
     renderer_active_viewport_set(internal_data->vp);
 
-    if (!renderer_renderpass_begin(&internal_data->internal_pass, internal_data->colourbuffer_handle)) {
-        KERROR("skybox pass failed to start.");
-        return false;
-    }
+    renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid());
 
     if (internal_data->sb) {
-        shader_system_use_by_id(internal_data->s->id);
+        shader_system_use_by_id(internal_data->shader_id);
 
         // Get the view matrix, but zero out the position so the skybox stays put on screen.
         mat4 view_matrix = internal_data->view;
@@ -194,27 +165,24 @@ b8 skybox_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
         view_matrix.data[14] = 0.0f;
 
         // Apply globals
-        renderer_shader_bind_globals(internal_data->s);
-        if (!shader_system_uniform_set_by_location(internal_data->locations.projection_location, &internal_data->projection)) {
+        if (!shader_system_uniform_set_by_location(internal_data->shader_id, internal_data->locations.projection_location, &internal_data->projection)) {
             KERROR("Failed to apply skybox projection uniform.");
             return false;
         }
-        if (!shader_system_uniform_set_by_location(internal_data->locations.view_location, &view_matrix)) {
+        if (!shader_system_uniform_set_by_location(internal_data->shader_id, internal_data->locations.view_location, &view_matrix)) {
             KERROR("Failed to apply skybox view uniform.");
             return false;
         }
-        shader_system_apply_global(true, p_frame_data);
+        shader_system_apply_global(internal_data->shader_id);
 
         // Instance
-        shader_system_bind_instance(internal_data->sb->instance_id);
-        if (!shader_system_uniform_set_by_location(internal_data->locations.cube_map_location, &internal_data->sb->cubemap)) {
+        shader_system_bind_instance(internal_data->shader_id, internal_data->sb->instance_id);
+        if (!shader_system_uniform_set_by_location(internal_data->shader_id, internal_data->locations.cube_map_location, &internal_data->sb->cubemap)) {
             KERROR("Failed to apply skybox cube map uniform.");
             return false;
         }
 
-        // FIXME: This likely will break things.
-        b8 needs_update = true; // ext_data->sb->render_frame_number != p_frame_data->renderer_frame_number || ext_data->sb->draw_index != p_frame_data->draw_index;
-        shader_system_apply_instance(needs_update, p_frame_data);
+        shader_system_apply_instance(internal_data->shader_id);
 
         // Draw it.
         geometry_render_data render_data = {};
@@ -229,10 +197,7 @@ b8 skybox_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
         renderer_geometry_draw(&render_data);
     }
 
-    if (!renderer_renderpass_end(&internal_data->internal_pass)) {
-        KERROR("skybox pass failed to end.");
-        return false;
-    }
+    renderer_end_rendering(internal_data->renderer, p_frame_data);
 
     return true;
 }
@@ -240,9 +205,7 @@ b8 skybox_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
 void skybox_rendergraph_node_destroy(struct rendergraph_node* self) {
     if (self) {
         if (self->internal_data) {
-            skybox_rendergraph_node_internal_data* internal_data = self->internal_data;
-            // Destroy the pass.
-            renderer_renderpass_destroy(&internal_data->internal_pass);
+            /* skybox_rendergraph_node_internal_data* internal_data = self->internal_data; */
             kfree(self->internal_data, sizeof(skybox_rendergraph_node_internal_data), MEMORY_TAG_RENDERER);
             self->internal_data = 0;
         }

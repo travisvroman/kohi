@@ -18,8 +18,6 @@
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
 
-struct frame_data;
-
 /** @brief Configuration for the shader system. */
 typedef struct shader_system_config {
     /** @brief The maximum number of shaders held in the system. NOTE: Should be at least 512. */
@@ -83,11 +81,19 @@ typedef struct shader_attribute {
 
 typedef enum shader_flags {
     SHADER_FLAG_NONE = 0x00,
+    // Reads from depth buffer.
     SHADER_FLAG_DEPTH_TEST = 0x01,
+    // Writes to depth buffer.
     SHADER_FLAG_DEPTH_WRITE = 0x02,
     SHADER_FLAG_WIREFRAME = 0x04,
+    // Reads from depth buffer.
     SHADER_FLAG_STENCIL_TEST = 0x08,
-    SHADER_FLAG_STENCIL_WRITE = 0x10
+    // Writes to depth buffer.
+    SHADER_FLAG_STENCIL_WRITE = 0x10,
+    // Reads from colour buffer.
+    SHADER_FLAG_COLOUR_READ = 0x20,
+    // Writes to colour buffer.
+    SHADER_FLAG_COLOUR_WRITE = 0x40
 } shader_flags;
 
 typedef u32 shader_flag_bits;
@@ -142,12 +148,8 @@ typedef struct shader {
     /** @brief The number of instance textures. */
     u8 instance_texture_count;
 
-    shader_scope bound_scope;
-
     /** @brief The identifier of the currently bound instance. */
     u32 bound_instance_id;
-    /** @brief The currently bound instance's ubo offset. */
-    u32 bound_ubo_offset;
 
     /** @brief The block of memory used by the uniform hashtable. */
     void* hashtable_block;
@@ -180,11 +182,6 @@ typedef struct shader {
 
     /** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
     u16 attribute_stride;
-
-    /** @brief Used to ensure the shader's globals are only updated once per frame. */
-    u64 render_frame_number;
-    /** @brief Used to ensure the shader's globals are only updated once per draw. */
-    u8 draw_index;
 
     u8 shader_stage_count;
     shader_stage_config* stage_configs;
@@ -222,17 +219,18 @@ void shader_system_shutdown(void* state);
 /**
  * @brief Creates a new shader with the given config.
  *
- * @param pass A pointer to the renderpass to be used with this shader.
  * @param config The configuration to be used when creating the shader.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_create(renderpass* pass, const shader_config* config);
+KAPI b8 shader_system_create(const shader_config* config);
 
 /**
  * @brief Reloads the given shader.
+ *
+ * @param shader_id The id of the shader to reload.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_reload(shader* s);
+KAPI b8 shader_system_reload(u32 shader_id);
 
 /**
  * @brief Gets the identifier of a shader by name.
@@ -259,22 +257,14 @@ KAPI shader* shader_system_get_by_id(u32 shader_id);
 KAPI shader* shader_system_get(const char* shader_name);
 
 /**
- * @brief Uses the shader with the given name.
- *
- * @param shader_name The name of the shader to use. Case sensitive.
- * @return True on success; otherwise false.
- */
-KAPI b8 shader_system_use(const char* shader_name);
-
-/**
  * @brief Attempts to set wireframe mode on the given shader. If the renderer backend, or the shader
  * does not support this , it will fail when attempting to enable. Disabling will always succeed.
  *
- * @param s A pointer to the shader to be used.
+ * @param shader_id The id of the shader to set wireframe mode for.
  * @param wireframe_enabled Indicates if wireframe mode should be enabled.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_set_wireframe(shader* s, b8 wireframe_enabled);
+KAPI b8 shader_system_set_wireframe(u32 shader_id, b8 wireframe_enabled);
 
 /**
  * @brief Uses the shader with the given identifier.
@@ -287,138 +277,126 @@ KAPI b8 shader_system_use_by_id(u32 shader_id);
 /**
  * @brief Returns the uniform location for a uniform with the given name, if found.
  *
- * @param s A pointer to the shader to obtain the location from.
+ * @param shader_id The id of the shader to obtain the location from.
  * @param uniform_name The name of the uniform to search for.
  * @return The uniform location, if found; otherwise INVALID_ID_U16.
  */
-KAPI u16 shader_system_uniform_location(shader* s, const char* uniform_name);
+KAPI u16 shader_system_uniform_location(u32 shader_id, const char* uniform_name);
 
 /**
  * @brief Sets the value of a uniform with the given name to the supplied value.
- * NOTE: Operates against the currently-used shader.
  *
+ * @param shader_id The identifier of the shader to update.
  * @param uniform_name The name of the uniform to be set.
  * @param value The value to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set(const char* uniform_name, const void* value);
+KAPI b8 shader_system_uniform_set(u32 shader_id, const char* uniform_name, const void* value);
 
 /**
  * @brief Sets the value of an arrayed uniform with the given name to the supplied value.
- * NOTE: Operates against the currently-used shader.
  *
+ * @param shader_id The identifier of the shader to update.
  * @param uniform_name The name of the uniform to be set.
  * @param array_index The index into the uniform array, if the uniform is in fact an array. Otherwise ignored.
  * @param value The value to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set_arrayed(const char* uniform_name, u32 array_index, const void* value);
+KAPI b8 shader_system_uniform_set_arrayed(u32 shader_id, const char* uniform_name, u32 array_index, const void* value);
 
 /**
  * @brief Sets the texture of a sampler with the given name to the supplied texture.
- * NOTE: Operates against the currently-used shader.
  *
+ * @param shader_id The identifier of the shader to update.
  * @param uniform_name The name of the uniform to be set.
  * @param t A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set(const char* sampler_name, const texture* t);
+KAPI b8 shader_system_sampler_set(u32 shader_id, const char* sampler_name, const texture* t);
 
 /**
  * @brief Sets the texture of an arrayed sampler with the given name to the supplied texture.
- * NOTE: Operates against the currently-used shader.
  *
+ * @param shader_id The identifier of the shader to update.
  * @param uniform_name The name of the uniform to be set.
  * @param array_index The index into the uniform array, if the uniform is in fact an array. Otherwise ignored.
  * @param t A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set_arrayed(const char* sampler_name, u32 array_index, const texture* t);
+KAPI b8 shader_system_sampler_set_arrayed(u32 shader_id, const char* sampler_name, u32 array_index, const texture* t);
 
 /**
  * @brief Sets a uniform value by location.
- * NOTE: Operates against the currently-used shader.
  *
+ * @param shader_id The identifier of the shader to update.
  * @param index The location of the uniform.
  * @param value The value of the uniform.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set_by_location(u16 location, const void* value);
+KAPI b8 shader_system_uniform_set_by_location(u32 shader_id, u16 location, const void* value);
 
 /**
  * @brief Sets a uniform value by location.
- * NOTE: Operates against the currently-used shader.
  *
+ * @param shader_id The identifier of the shader to update.
  * @param location The location of the uniform.
  * @param array_index The index into the uniform array, if the uniform is in fact an array. Otherwise ignored.
  * @param value The value of the uniform.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set_by_location_arrayed(u16 location, u32 array_index, const void* value);
+KAPI b8 shader_system_uniform_set_by_location_arrayed(u32 shader_id, u16 location, u32 array_index, const void* value);
 
 /**
  * @brief Sets a sampler value by location.
- * NOTE: Operates against the currently-used shader.
  *
+ * @param shader_id The identifier of the shader to update.
  * @param location The location of the uniform.
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set_by_location(u16 location, const struct texture* t);
+KAPI b8 shader_system_sampler_set_by_location(u32 shader_id, u16 location, const struct texture* t);
 
 /**
  * @brief Sets a sampler value by location.
- * NOTE: Operates against the currently-used shader.
  *
+ * @param shader_id The identifier of the shader to update.
  * @param index The location of the uniform.
  * @param array_index The index into the uniform array, if the uniform is in fact an array. Otherwise ignored.
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set_by_location_arrayed(u16 location, u32 array_index, const struct texture* t);
-
-/**
- * @brief Applies global-scoped uniforms.
- * NOTE: Operates against the currently-used shader.
- *
- * @param needs_update Indicates if shader internals need to be updated, or just to be bound.
- * @return True on success; otherwise false.
- */
-KAPI b8 shader_system_apply_global(b8 needs_update, struct frame_data* p_frame_data);
-
-/**
- * @brief Applies instance-scoped uniforms.
- * NOTE: Operates against the currently-used shader.
- * @param needs_update Indicates if the shader needs uniform updates or just needs to be bound.
- *
- * @param needs_update Indicates if shader internals need to be updated, or just to be bound.
- * @return True on success; otherwise false.
- */
-KAPI b8 shader_system_apply_instance(b8 needs_update, struct frame_data* p_frame_data);
+KAPI b8 shader_system_sampler_set_by_location_arrayed(u32 shader_id, u16 location, u32 array_index, const struct texture* t);
 
 /**
  * @brief Binds the instance with the given id for use. Must be done before setting
  * instance-scoped uniforms.
- * NOTE: Operates against the currently-used shader.
  *
+ * @param shader_id The identifier of the shader to update.
  * @param instance_id The identifier of the instance to bind.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_bind_instance(u32 instance_id);
+KAPI b8 shader_system_bind_instance(u32 shader_id, u32 instance_id);
+
+/**
+ * @brief Applies global-scoped uniforms.
+ *
+ * @param shader_id The identifier of the shader to update.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_apply_global(u32 shader_id);
+
+/**
+ * @brief Applies instance-scoped uniforms.
+ *
+ * @param shader_id The identifier of the shader to update.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_apply_instance(u32 shader_id);
 
 /**
  * @brief Applies local-scoped uniforms.
- * NOTE: Operates against the currently-used shader.
  *
+ * @param shader_id The identifier of the shader to update.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_local(struct frame_data* p_frame_data);
-
-/**
- * @brief Binds the instance with the given id for use. Must be done before setting
- * local-scoped uniforms.
- * NOTE: Operates against the currently-used shader.
- *
- * @return True on success; otherwise false.
- */
-KAPI b8 shader_system_bind_local(void);
+KAPI b8 shader_system_apply_local(u32 shader_id);

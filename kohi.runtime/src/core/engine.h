@@ -130,10 +130,9 @@ void engine_on_event_system_initialized(void);
 /**
  * @brief Obtains a constant pointer to the current frame data.
  *
- * @param game_inst A pointer to the application instance.
  * @return A constant pointer to the current frame data.
  */
-KAPI const struct frame_data* engine_frame_data_get(struct application* game_inst);
+KAPI const struct frame_data* engine_frame_data_get(void);
 
 /**
  * @brief Obtains a constant pointer to the collection of system states from the engine.

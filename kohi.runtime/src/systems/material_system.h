@@ -106,62 +106,6 @@ KAPI material* material_system_get_default_pbr(void);
 KAPI material* material_system_get_default_terrain(void);
 
 /**
- * @brief Applies global-level data for the material shader id.
- *
- * @param shader_id The identifier of the shader to apply globals for.
- * @param p_frame_data A constant pointer to the current frame's data.
- * @param projection A constant pointer to a projection matrix.
- * @param view A constant pointer to a view matrix.
- * @param ambient_colour The ambient colour of the scene.
- * @param view_position The camera position.
- * @param render_mode The render mode.
- * @return True on success; otherwise false.
- */
-KAPI b8 material_system_apply_global(u32 shader_id, struct frame_data* p_frame_data, const mat4* projection, const mat4* view, const vec4* ambient_colour, const vec3* view_position, u32 render_mode);
-
-/**
- * @brief Applies instance-level material data for the given material.
- *
- * @param m A pointer to the material to be applied.
- * @param p_frame_data A pointer to the current frame's data.
- * @param needs_update Indicates if material internals require updating, or if they should just be bound.
- * @return True on success; otherwise false.
- */
-KAPI b8 material_system_apply_instance(material* m, struct frame_data* p_frame_data, b8 needs_update);
-
-/**
- * @brief Applies local-level material data (typically just model matrix).
- *
- * @param m A pointer to the material to be applied.
- * @param model A constant pointer to the model matrix to be applied.
- * @return True on success; otherwise false.
- */
-KAPI b8 material_system_apply_local(material* m, const mat4* model, struct frame_data* p_frame_data);
-
-/**
- * @ brief Sets the provided shadowmap texture to be used for future binding/draw calls until changed.
- *
- * @param shadow_texture A pointer to the shadowmap texture to be used.
- * @returns True on success; otherwise false;
- */
-KAPI b8 material_system_shadow_map_set(texture* shadow_texture, u8 index);
-/**
- * @brief Sets the provided cubemap texture to be used for future binding/draw calls until changed.
- *  NOTE: Provided texture must be a cubemap texture or this function will fail.
- *
- * @param irradiance_cube_texture A pointer to the irradiance cubemap texture to be used. If null, system falls back on default cubemap texuture.
- * @returns True on success; otherwise false.
- */
-KAPI b8 material_system_irradiance_set(texture* irradiance_cube_texture);
-
-/**
- * @brief Sets the current directional light-space matrix to be used for future binding calls that require it.
- *
- * @param directional_light_space The directional light-space matrix.
- */
-KAPI void material_system_directional_light_space_set(mat4 directional_light_space, u8 index);
-
-/**
  * @brief Dumps all of the registered materials and their reference counts/handles.
  */
 KAPI void material_system_dump(void);

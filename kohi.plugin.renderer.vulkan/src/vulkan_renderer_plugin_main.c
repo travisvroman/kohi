@@ -58,15 +58,6 @@ b8 plugin_create(renderer_plugin* out_plugin) {
     out_plugin->texture_map_resources_acquire = vulkan_renderer_texture_map_resources_acquire;
     out_plugin->texture_map_resources_release = vulkan_renderer_texture_map_resources_release;
 
-    out_plugin->render_target_create = vulkan_renderer_render_target_create;
-    out_plugin->render_target_destroy = vulkan_renderer_render_target_destroy;
-
-    out_plugin->renderpass_create = vulkan_renderpass_create;
-    out_plugin->renderpass_destroy = vulkan_renderpass_destroy;
-    out_plugin->window_attachment_get = vulkan_renderer_window_attachment_get;
-    out_plugin->depth_attachment_get = vulkan_renderer_depth_attachment_get;
-    out_plugin->window_attachment_index_get = vulkan_renderer_window_attachment_index_get;
-    out_plugin->window_attachment_count_get = vulkan_renderer_window_attachment_count_get;
     out_plugin->is_multithreaded = vulkan_renderer_is_multithreaded;
     out_plugin->flag_enabled_get = vulkan_renderer_flag_enabled_get;
     out_plugin->flag_enabled_set = vulkan_renderer_flag_enabled_set;

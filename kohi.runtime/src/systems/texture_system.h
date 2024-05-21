@@ -240,3 +240,15 @@ KAPI texture* texture_system_get_default_cube_texture(void);
  * done for default textures.
  */
 KAPI texture* texture_system_get_default_terrain_texture(void);
+
+/**
+ * @brief Gets a pointer to either the internal data of the supplied texture if loaded,
+ * or one to the internal of a default texture of the appropriate type. If a default texture
+ * is used, out_generation will be set to INVALID_ID. If an invalid texture is passed, 0/null
+ * will be returned.
+ *
+ * @param t A pointer to the texture whose internal data will be fetched.
+ * @param out_generation A pointer to hold the generation of the texture.
+ * @returns A pointer to texture internal data if successful, otherwise 0/null.
+ */
+KAPI struct texture_internal_data* texture_system_get_internal_or_default(texture* t, u8* out_generation);

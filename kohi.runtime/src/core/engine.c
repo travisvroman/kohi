@@ -753,8 +753,8 @@ void engine_on_event_system_initialized(void) {
     event_register(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
 }
 
-const struct frame_data* engine_frame_data_get(struct application* game_inst) {
-    return &((engine_state_t*)game_inst->engine_state)->p_frame_data;
+const struct frame_data* engine_frame_data_get(void) {
+    return &engine_state->p_frame_data;
 }
 
 const engine_system_states* engine_systems_get(void) {

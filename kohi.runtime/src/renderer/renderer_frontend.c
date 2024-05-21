@@ -4,6 +4,7 @@
 #include "containers/freelist.h"
 #include "containers/hashtable.h"
 #include "core/engine.h"
+#include "core/event.h"
 #include "core/frame_data.h"
 #include "core/kvar.h"
 #include "debug/kassert.h"
@@ -54,6 +55,10 @@ typedef struct renderer_system_state {
     renderbuffer geometry_vertex_buffer;
     /** @brief The object index buffer, used to hold geometry indices. */
     renderbuffer geometry_index_buffer;
+
+    // Renderer options.
+    // Use PCF filtering
+    b8 use_pcf;
 } renderer_system_state;
 
 b8 renderer_system_deserialize_config(const char* config_str, renderer_system_config* out_config) {
@@ -94,6 +99,21 @@ b8 renderer_system_deserialize_config(const char* config_str, renderer_system_co
     return true;
 }
 
+static b8 renderer_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
+    if (code == EVENT_CODE_KVAR_CHANGED) {
+        renderer_system_state* state = listener_inst;
+        kvar_change* change = context.data.custom_data.data;
+        if (strings_equali("use_pcf", change->name)) {
+            i32 use_pcf_val;
+            kvar_i32_get("use_pcf", &use_pcf_val);
+            state->use_pcf = use_pcf_val == 0 ? false : true;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* state, const renderer_system_config* config) {
     *memory_requirement = sizeof(renderer_system_state);
     if (state == 0) {
@@ -126,6 +146,14 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
 
     // Create the vsync kvar
     kvar_i32_set("vsync", 0, (renderer_config.flags & RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? 1 : 0);
+
+    // Renderer options
+    // Add a kvar to track PCF filtering enabled/disabled.
+    kvar_i32_set("use_pcf", 0, 1); // On by default.
+    i32 use_pcf_val;
+    kvar_i32_get("use_pcf", &use_pcf_val);
+    state->use_pcf = use_pcf_val == 0 ? false : true;
+    event_register(EVENT_CODE_KVAR_CHANGED, state, renderer_on_event);
 
     // Initialize the backend.
     if (!state->backend->initialize(state->backend, &renderer_config)) {
@@ -311,6 +339,40 @@ void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_op pa
     state_ptr->backend->set_stencil_op(state_ptr->backend, fail_op, pass_op, depth_fail_op, compare_op);
 }
 
+void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, u32 colour_target_count, k_handle* colour_targets, k_handle depth_stencil_target) {
+    struct texture_internal_data** colour_datas = 0;
+    if (colour_target_count) {
+        if (colour_target_count == 1) {
+            // Optimization: Skip array allocation and just pass through the address of it.
+            if (k_handle_is_invalid(colour_targets[0])) {
+                KFATAL("Passed invalid handle to texture target when beginning rendering. Null is used, and will likely cause a failure.");
+            } else {
+                colour_datas = &state->textures[colour_targets[0].handle_index].data;
+            }
+        } else {
+            colour_datas = p_frame_data->allocator.allocate(sizeof(struct texture_internal_data*) * colour_target_count);
+            for (u32 i = 0; i < colour_target_count; ++i) {
+                if (k_handle_is_invalid(colour_targets[i])) {
+                    KFATAL("Passed invalid handle to texture target when beginning rendering. Null is used, and will likely cause a failure.");
+                    colour_datas[i] = 0;
+                } else {
+                    colour_datas[i] = state->textures[colour_targets[i].handle_index].data;
+                }
+            }
+        }
+    }
+
+    struct texture_internal_data* depth_data = 0;
+    if (!k_handle_is_invalid(depth_stencil_target)) {
+        depth_data = state->textures[depth_stencil_target.handle_index].data;
+    }
+    state->backend->begin_rendering(state->backend, p_frame_data, colour_target_count, colour_datas, depth_data);
+}
+
+void renderer_end_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data) {
+    state->backend->end_rendering(state->backend, p_frame_data);
+}
+
 void renderer_set_stencil_compare_mask(u32 compare_mask) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     state_ptr->backend->set_stencil_compare_mask(state_ptr->backend, compare_mask);
@@ -424,6 +486,13 @@ b8 renderer_texture_resize(struct renderer_system_state* state, k_handle rendere
         return state->backend->texture_resize(state->backend, data, new_width, new_height);
     }
     return false;
+}
+
+struct texture_internal_data* renderer_texture_internal_get(struct renderer_system_state* state, k_handle renderer_texture_handle) {
+    if (state && !k_handle_is_invalid(renderer_texture_handle)) {
+        return state->textures[renderer_texture_handle.handle_index].data;
+    }
+    return 0;
 }
 
 renderbuffer* renderer_renderbuffer_get(renderbuffer_type type) {
@@ -600,7 +669,7 @@ void renderer_clear_stencil_set(struct renderer_system_state* state, u32 stencil
     }
 }
 
-b8 renderer_clear_colour_texture(struct renderer_system_state* state, k_handle texture_handle) {
+b8 renderer_clear_colour(struct renderer_system_state* state, k_handle texture_handle) {
     if (state && !k_handle_is_invalid(texture_handle)) {
         struct texture_internal_data* data = state->textures[texture_handle.handle_index].data;
         state->backend->clear_colour(state->backend, data);
@@ -622,8 +691,7 @@ b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle te
     return false;
 }
 
-b8 renderer_shader_create(shader* s, const shader_config* config) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+b8 renderer_shader_create(struct renderer_system_state* state, shader* s, const shader_config* config) {
 
     // Get the uniform counts.
     s->global_uniform_count = 0;
@@ -706,10 +774,10 @@ b8 renderer_shader_create(shader* s, const shader_config* config) {
         resource_system_unload(&text_resource);
     }
 
-    return state_ptr->backend->shader_create(state_ptr->backend, s, config, pass);
+    return state->backend->shader_create(state->backend, s, config);
 }
 
-void renderer_shader_destroy(shader* s) {
+void renderer_shader_destroy(struct renderer_system_state* state, shader* s) {
 #ifdef _DEBUG
     if (s->module_watch_ids) {
         // Unwatch the shader files.
@@ -717,19 +785,16 @@ void renderer_shader_destroy(shader* s) {
             platform_unwatch_file(s->module_watch_ids[i]);
         }
 
-        renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-        state_ptr->backend->shader_destroy(state_ptr->backend, s);
+        state->backend->shader_destroy(state->backend, s);
     }
 #endif
 }
 
-b8 renderer_shader_initialize(shader* s) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_initialize(state_ptr->backend, s);
+b8 renderer_shader_initialize(struct renderer_system_state* state, shader* s) {
+    return state->backend->shader_initialize(state->backend, s);
 }
 
-b8 renderer_shader_reload(struct shader* s) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+b8 renderer_shader_reload(struct renderer_system_state* state, struct shader* s) {
 
     // Examine shader stages and load shader source as required. This source is
     // then fed to the backend renderer, which stands up any shader program resources
@@ -781,18 +846,16 @@ b8 renderer_shader_reload(struct shader* s) {
         return false;
     }
 
-    return state_ptr->backend->shader_reload(state_ptr->backend, s);
+    return state->backend->shader_reload(state->backend, s);
 }
 
-b8 renderer_shader_use(shader* s) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_use(state_ptr->backend, s);
+b8 renderer_shader_use(struct renderer_system_state* state, shader* s) {
+    return state->backend->shader_use(state->backend, s);
 }
 
-b8 renderer_shader_set_wireframe(shader* s, b8 wireframe_enabled) {
+b8 renderer_shader_set_wireframe(struct renderer_system_state* state, shader* s, b8 wireframe_enabled) {
     // Ensure that this shader has the ability to go wireframe before changing.
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    if (!state_ptr->backend->shader_supports_wireframe(state_ptr->backend, s)) {
+    if (!state->backend->shader_supports_wireframe(state->backend, s)) {
         // Not supported, don't enable. Bleat about it.
         KWARN("Shader does not support wireframe mode: '%s'.", s->name);
         return false;
@@ -801,37 +864,24 @@ b8 renderer_shader_set_wireframe(shader* s, b8 wireframe_enabled) {
     return true;
 }
 
-b8 renderer_shader_bind_globals(shader* s) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_bind_globals(state_ptr->backend, s);
+b8 renderer_shader_apply_globals(struct renderer_system_state* state, shader* s) {
+    return state->backend->shader_apply_globals(state->backend, s, state->frame_number);
 }
 
-b8 renderer_shader_bind_instance(shader* s, u32 instance_id) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_bind_instance(state_ptr->backend, s, instance_id);
+b8 renderer_shader_apply_instance(struct renderer_system_state* state, shader* s) {
+    return state->backend->shader_apply_instance(state->backend, s, state->frame_number);
 }
 
-b8 renderer_shader_bind_local(shader* s) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_bind_local(state_ptr->backend, s);
+b8 renderer_shader_apply_local(struct renderer_system_state* state, shader* s) {
+    return state->backend->shader_apply_local(state->backend, s, state->frame_number);
 }
 
-b8 renderer_shader_apply_globals(shader* s, b8 needs_update, frame_data* p_frame_data) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_apply_globals(state_ptr->backend, s, needs_update, p_frame_data);
-}
-
-b8 renderer_shader_apply_instance(shader* s, b8 needs_update, frame_data* p_frame_data) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_apply_instance(state_ptr->backend, s, needs_update, p_frame_data);
-}
-
-b8 renderer_shader_instance_resources_acquire(struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id) {
+b8 renderer_shader_instance_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->shader_instance_resources_acquire(state_ptr->backend, s, config, out_instance_id);
 }
 
-b8 renderer_shader_instance_resources_release(shader* s, u32 instance_id) {
+b8 renderer_shader_instance_resources_release(struct renderer_system_state* state, shader* s, u32 instance_id) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->shader_instance_resources_release(state_ptr->backend, s, instance_id);
 }
@@ -857,14 +907,9 @@ shader_uniform* renderer_shader_uniform_get(shader* s, const char* name) {
     return &s->uniforms[uniform_index];
 }
 
-b8 renderer_shader_uniform_set(shader* s, shader_uniform* uniform, u32 array_index, const void* value) {
+b8 renderer_shader_uniform_set(struct renderer_system_state* state, shader* s, shader_uniform* uniform, u32 array_index, const void* value) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->shader_uniform_set(state_ptr->backend, s, uniform, array_index, value);
-}
-
-b8 renderer_shader_apply_local(shader* s, frame_data* p_frame_data) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_apply_local(state_ptr->backend, s, p_frame_data);
 }
 
 b8 renderer_texture_map_resources_acquire(struct texture_map* map) {
@@ -875,18 +920,6 @@ b8 renderer_texture_map_resources_acquire(struct texture_map* map) {
 void renderer_texture_map_resources_release(struct texture_map* map) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     state_ptr->backend->texture_map_resources_release(state_ptr->backend, map);
-}
-
-// TODO: go away
-texture* renderer_window_attachment_get(renderer_system_state* state, const struct kwindow* window) {
-    // FIXME: What is the backend doing here?
-    return state->backend->window_attachment_get(state->backend, window);
-}
-
-// TODO: go away
-texture* renderer_depth_attachment_get(renderer_system_state* state, const struct kwindow* window) {
-    // FIXME: What is the backend doing here?
-    return state->backend->depth_attachment_get(state->backend, window);
 }
 
 b8 renderer_is_multithreaded(void) {
@@ -1122,4 +1155,11 @@ viewport* renderer_active_viewport_get(void) {
 void renderer_wait_for_idle(void) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     state_ptr->backend->wait_for_idle(state_ptr->backend);
+}
+
+b8 renderer_pcf_enabled(struct renderer_system_state* state) {
+    if (!state) {
+        return false;
+    }
+    return state->use_pcf;
 }

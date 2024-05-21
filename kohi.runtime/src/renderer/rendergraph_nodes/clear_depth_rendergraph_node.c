@@ -1,7 +1,6 @@
 
 #include "clear_depth_rendergraph_node.h"
 #include "core/engine.h"
-#include "identifiers/khandle.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "parsers/kson_parser.h"
@@ -17,7 +16,7 @@ typedef struct clear_depth_rendergraph_node_config {
 
 typedef struct clear_depth_rendergraph_node_internal_data {
     struct renderer_system_state* renderer;
-    k_handle buffer_handle;
+    struct texture* buffer_texture;
     f32 depth_clear_value;
     u32 stencil_clear_value;
 } clear_depth_rendergraph_node_internal_data;
@@ -52,7 +51,7 @@ b8 clear_depth_rendergraph_node_create(struct rendergraph* graph, struct renderg
     // Setup the depthbuffer sink.
     rendergraph_sink* depthbuffer_sink = &self->sinks[0];
     depthbuffer_sink->name = string_duplicate("depthbuffer");
-    depthbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
+    depthbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
     depthbuffer_sink->bound_source = 0;
     // Save off the configured source name for later lookup and binding.
     depthbuffer_sink->configured_source_name = string_duplicate(typed_config.source_name);
@@ -64,8 +63,8 @@ b8 clear_depth_rendergraph_node_create(struct rendergraph* graph, struct renderg
     // Setup the depthbuffer source.
     rendergraph_source* depthbuffer_source = &self->sources[0];
     depthbuffer_source->name = string_duplicate("depthbuffer");
-    depthbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
-    depthbuffer_source->value.framebuffer_handle = graph->global_depthbuffer;
+    depthbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
+    depthbuffer_source->value.t = graph->global_depthbuffer;
     depthbuffer_source->is_bound = false;
 
     // Function pointers.
@@ -73,6 +72,8 @@ b8 clear_depth_rendergraph_node_create(struct rendergraph* graph, struct renderg
     self->destroy = clear_depth_rendergraph_node_destroy;
     self->load_resources = clear_depth_rendergraph_node_load_resources;
     self->execute = clear_depth_rendergraph_node_execute;
+
+    destroy_config(&typed_config);
 
     return true;
 }
@@ -88,7 +89,7 @@ b8 clear_depth_rendergraph_node_load_resources(struct rendergraph_node* self) {
     }
 
     clear_depth_rendergraph_node_internal_data* internal_data = self->internal_data;
-    internal_data->buffer_handle = self->sinks[0].bound_source->value.framebuffer_handle;
+    internal_data->buffer_texture = self->sinks[0].bound_source->value.t;
 
     return true;
 }
@@ -103,7 +104,7 @@ b8 clear_depth_rendergraph_node_execute(struct rendergraph_node* self, struct fr
     renderer_clear_depth_set(internal_data->renderer, internal_data->depth_clear_value);
     renderer_clear_stencil_set(internal_data->renderer, internal_data->stencil_clear_value);
 
-    return renderer_clear_depth_stencil(internal_data->renderer, internal_data->buffer_handle);
+    return renderer_clear_depth_stencil(internal_data->renderer, internal_data->buffer_texture->renderer_texture_handle);
 }
 
 void clear_depth_rendergraph_node_destroy(struct rendergraph_node* self) {

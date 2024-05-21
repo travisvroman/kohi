@@ -40,7 +40,7 @@ b8 frame_end_rendergraph_node_create(struct rendergraph* graph, struct rendergra
     // Setup the colourbuffer sink.
     rendergraph_sink* colourbuffer_sink = &self->sinks[0];
     colourbuffer_sink->name = string_duplicate("colourbuffer");
-    colourbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER;
+    colourbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
     colourbuffer_sink->bound_source = 0;
     // Save off the configured source name for later lookup and binding.
     colourbuffer_sink->configured_source_name = string_duplicate(typed_config.colourbuffer_source);

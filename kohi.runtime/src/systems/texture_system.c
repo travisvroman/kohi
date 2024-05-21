@@ -2,6 +2,7 @@
 
 #include "containers/hashtable.h"
 #include "core/engine.h"
+#include "defines.h"
 #include "identifiers/khandle.h"
 #include "logger.h"
 #include "memory/kmemory.h"
@@ -395,6 +396,49 @@ texture* texture_system_get_default_cube_texture(void) {
 
 texture* texture_system_get_default_terrain_texture(void) {
     RETURN_TEXT_PTR_OR_NULL(state_ptr->default_terrain_texture, "texture_system_get_default_terrain_texture");
+}
+
+struct texture_internal_data* texture_system_get_internal_or_default(texture* t, u8* out_generation) {
+    if (!t || !out_generation) {
+        return 0;
+    }
+
+    // Texture isn't loaded yet, use a default.
+    if (t->generation == INVALID_ID_U8) {
+        // Texture generations are always invalid for default textures, so
+        // check first if already using one.
+        if (!texture_system_is_default_texture(t)) {
+            // If not using one, grab the default by type. This is only here as a failsafe
+            // and to be used while assets are loading.
+            switch (t->type) {
+            case TEXTURE_TYPE_2D:
+                t = texture_system_get_default_texture();
+                break;
+            case TEXTURE_TYPE_2D_ARRAY:
+                // TODO: Making the assumption this is a terrain.
+                // Should probably acquire a new default texture with the
+                // corresponding number of layers instead.
+                t = texture_system_get_default_terrain_texture();
+                break;
+            case TEXTURE_TYPE_CUBE:
+                t = texture_system_get_default_cube_texture();
+                break;
+            default:
+                KWARN("Texture system failed to determine texture type while getting internal data. Falling back to 2D.");
+                t = texture_system_get_default_texture();
+                break;
+            }
+        }
+
+        // Since using a default texture, set the outward generation to invalid id
+        *out_generation = INVALID_ID_U8;
+
+    } else {
+        // Set the actual texture generation.
+        *out_generation = t->generation;
+    }
+
+    return renderer_texture_internal_get(state_ptr->renderer, t->renderer_texture_handle);
 }
 
 static b8 create_and_upload_texture(texture* t, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, u32 offset, u8* pixels) {

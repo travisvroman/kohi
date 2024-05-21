@@ -1,27 +1,27 @@
 #include "shader_system.h"
 
 #include "containers/darray.h"
+#include "core/engine.h"
 #include "core/event.h"
-#include "core/frame_data.h"
 #include "defines.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
 #include "logger.h"
+#include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_utils.h"
 #include "resources/resource_types.h"
+#include "strings/kstring.h"
 #include "systems/texture_system.h"
 
 // The internal shader system state.
 typedef struct shader_system_state {
+    // A pointer to the renderer system state.
+    struct renderer_system_state* renderer;
     // This system's configuration.
     shader_system_config config;
     // A lookup table for shader name->id
     hashtable lookup;
     // The memory used for the lookup table.
     void* lookup_memory;
-    // The identifier for the currently bound shader.
-    u32 current_shader_id;
     // A collection of created shaders.
     shader* shaders;
 } shader_system_state;
@@ -49,7 +49,7 @@ static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_co
             shader* s = &typed_state->shaders[i];
             for (u32 w = 0; w < s->shader_stage_count; ++w) {
                 if (s->module_watch_ids[w] == file_watch_id) {
-                    if (!shader_system_reload(s)) {
+                    if (!shader_system_reload(s->id)) {
                         KWARN("Shader hot-reload failed for shader '%s'. See logs for details.", s->name);
                         // Allow other systems to pick this up.
                         return false;
@@ -94,13 +94,11 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config)
     state_ptr->lookup_memory = (void*)(addr + struct_requirement);
     state_ptr->shaders = (void*)((u64)state_ptr->lookup_memory + hashtable_requirement);
     state_ptr->config = *typed_config;
-    state_ptr->current_shader_id = INVALID_ID;
     hashtable_create(sizeof(u32), typed_config->max_shader_count, state_ptr->lookup_memory, false, &state_ptr->lookup);
 
     // Invalidate all shader ids.
     for (u32 i = 0; i < typed_config->max_shader_count; ++i) {
         state_ptr->shaders[i].id = INVALID_ID;
-        state_ptr->shaders[i].render_frame_number = INVALID_ID_U64;
     }
 
     // Fill the table with invalid ids.
@@ -113,6 +111,9 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config)
     for (u32 i = 0; i < state_ptr->config.max_shader_count; ++i) {
         state_ptr->shaders[i].id = INVALID_ID;
     }
+
+    // Keep a pointer to the renderer state.
+    state_ptr->renderer = engine_systems_get()->renderer_system;
 
     // Watch for file hot reloads in debug builds.
 #ifdef _DEBUG
@@ -139,7 +140,7 @@ void shader_system_shutdown(void* state) {
     state_ptr = 0;
 }
 
-b8 shader_system_create(renderpass* pass, const shader_config* config) {
+b8 shader_system_create(const shader_config* config) {
     u32 id = generate_new_shader_id();
     shader* out_shader = &state_ptr->shaders[id];
     kzero_memory(out_shader, sizeof(shader));
@@ -186,7 +187,7 @@ b8 shader_system_create(renderpass* pass, const shader_config* config) {
     // Take a copy of the flags.
     out_shader->flags = config->flags;
 
-    if (!renderer_shader_create(out_shader, config, pass)) {
+    if (!renderer_shader_create(state_ptr->renderer, out_shader, config)) {
         KERROR("Error creating shader.");
         return false;
     }
@@ -220,7 +221,7 @@ b8 shader_system_create(renderpass* pass, const shader_config* config) {
     }
 
     // Initialize the shader.
-    if (!renderer_shader_initialize(out_shader)) {
+    if (!renderer_shader_initialize(state_ptr->renderer, out_shader)) {
         KERROR("shader_system_create: initialization failed for shader '%s'.", config->name);
         // NOTE: initialize automatically destroys the shader if it fails.
         return false;
@@ -230,19 +231,20 @@ b8 shader_system_create(renderpass* pass, const shader_config* config) {
     // so this can be looked up by name later.
     if (!hashtable_set(&state_ptr->lookup, config->name, &out_shader->id)) {
         // Dangit, we got so far... welp, nuke the shader and boot.
-        renderer_shader_destroy(out_shader);
+        renderer_shader_destroy(state_ptr->renderer, out_shader);
         return false;
     }
 
     return true;
 }
 
-b8 shader_system_reload(shader* s) {
-    if (!s) {
+b8 shader_system_reload(u32 shader_id) {
+    if (shader_id == INVALID_ID) {
         return false;
     }
 
-    return renderer_shader_reload(s);
+    shader* s = &state_ptr->shaders[shader_id];
+    return renderer_shader_reload(state_ptr->renderer, s);
 }
 
 u32 shader_system_get_id(const char* shader_name) {
@@ -280,7 +282,7 @@ shader* shader_system_get(const char* shader_name) {
 }
 
 static void internal_shader_destroy(shader* s) {
-    renderer_shader_destroy(s);
+    renderer_shader_destroy(state_ptr->renderer, s);
 
     // Set it to be unusable right away.
     s->state = SHADER_STATE_NOT_CREATED;
@@ -310,47 +312,33 @@ void shader_system_destroy(const char* shader_name) {
     internal_shader_destroy(s);
 }
 
-b8 shader_system_use(const char* shader_name) {
-    u32 next_shader_id = shader_system_get_id(shader_name);
-    if (next_shader_id == INVALID_ID) {
-        return false;
-    }
-
-    return shader_system_use_by_id(next_shader_id);
-}
-
-b8 shader_system_set_wireframe(shader* s, b8 wireframe_enabled) {
+b8 shader_system_set_wireframe(u32 shader_id, b8 wireframe_enabled) {
     // Disabling is always supported because it's basically a no-op.
+
+    shader* s = &state_ptr->shaders[shader_id];
     if (!wireframe_enabled) {
         s->is_wireframe = false;
         return true;
     }
 
-    return renderer_shader_set_wireframe(s, wireframe_enabled);
+    return renderer_shader_set_wireframe(state_ptr->renderer, s, wireframe_enabled);
 }
 
 b8 shader_system_use_by_id(u32 shader_id) {
-    // Only perform the use if the shader id is different.
-    // if (state_ptr->current_shader_id != shader_id) {
     shader* next_shader = shader_system_get_by_id(shader_id);
-    state_ptr->current_shader_id = shader_id;
-    if (!renderer_shader_use(next_shader)) {
+    if (!renderer_shader_use(state_ptr->renderer, next_shader)) {
         KERROR("Failed to use shader '%s'.", next_shader->name);
         return false;
     }
-    if (!renderer_shader_bind_globals(next_shader)) {
-        KERROR("Failed to bind globals for shader '%s'.", next_shader->name);
-        return false;
-    }
-    // }
     return true;
 }
 
-u16 shader_system_uniform_location(shader* s, const char* uniform_name) {
-    if (!s || s->id == INVALID_ID) {
-        KERROR("shader_system_uniform_location called with invalid shader.");
+u16 shader_system_uniform_location(u32 shader_id, const char* uniform_name) {
+    if (shader_id == INVALID_ID) {
+        KERROR("shader_system_uniform_location called with invalid shader id.");
         return INVALID_ID_U16;
     }
+    shader* s = &state_ptr->shaders[shader_id];
 
     u16 index = INVALID_ID_U16;
     if (!hashtable_get(&s->uniform_lookup, uniform_name, &index) || index == INVALID_ID_U16) {
@@ -360,73 +348,60 @@ u16 shader_system_uniform_location(shader* s, const char* uniform_name) {
     return s->uniforms[index].index;
 }
 
-b8 shader_system_uniform_set(const char* uniform_name, const void* value) {
-    return shader_system_uniform_set_arrayed(uniform_name, 0, value);
+b8 shader_system_uniform_set(u32 shader_id, const char* uniform_name, const void* value) {
+    return shader_system_uniform_set_arrayed(shader_id, uniform_name, 0, value);
 }
 
-b8 shader_system_uniform_set_arrayed(const char* uniform_name, u32 array_index, const void* value) {
-    if (state_ptr->current_shader_id == INVALID_ID) {
-        KERROR("shader_system_uniform_set called without a shader in use.");
+b8 shader_system_uniform_set_arrayed(u32 shader_id, const char* uniform_name, u32 array_index, const void* value) {
+    if (shader_id == INVALID_ID) {
+        KERROR("shader_system_uniform_set_arrayed called with invalid shader id.");
         return false;
     }
-    shader* s = &state_ptr->shaders[state_ptr->current_shader_id];
-    u16 index = shader_system_uniform_location(s, uniform_name);
-    return shader_system_uniform_set_by_location_arrayed(index, array_index, value);
+
+    u16 index = shader_system_uniform_location(shader_id, uniform_name);
+    return shader_system_uniform_set_by_location_arrayed(shader_id, index, array_index, value);
 }
 
-b8 shader_system_sampler_set(const char* sampler_name, const texture* t) {
-    return shader_system_sampler_set_arrayed(sampler_name, 0, t);
+b8 shader_system_sampler_set(u32 shader_id, const char* sampler_name, const texture* t) {
+    return shader_system_sampler_set_arrayed(shader_id, sampler_name, 0, t);
 }
 
-b8 shader_system_sampler_set_arrayed(const char* sampler_name, u32 array_index, const texture* t) {
-    return shader_system_uniform_set_arrayed(sampler_name, array_index, t);
+b8 shader_system_sampler_set_arrayed(u32 shader_id, const char* sampler_name, u32 array_index, const texture* t) {
+    return shader_system_uniform_set_arrayed(shader_id, sampler_name, array_index, t);
 }
 
-b8 shader_system_sampler_set_by_location(u16 location, const texture* t) {
-    return shader_system_uniform_set_by_location_arrayed(location, 0, t);
+b8 shader_system_sampler_set_by_location(u32 shader_id, u16 location, const texture* t) {
+    return shader_system_uniform_set_by_location_arrayed(shader_id, location, 0, t);
 }
 
-b8 shader_system_uniform_set_by_location(u16 location, const void* value) {
-    return shader_system_uniform_set_by_location_arrayed(location, 0, value);
+b8 shader_system_uniform_set_by_location(u32 shader_id, u16 location, const void* value) {
+    return shader_system_uniform_set_by_location_arrayed(shader_id, location, 0, value);
 }
 
-b8 shader_system_uniform_set_by_location_arrayed(u16 location, u32 array_index, const void* value) {
-    shader* shader = &state_ptr->shaders[state_ptr->current_shader_id];
-    shader_uniform* uniform = &shader->uniforms[location];
-    if (shader->bound_scope != uniform->scope) {
-        if (uniform->scope == SHADER_SCOPE_GLOBAL) {
-            renderer_shader_bind_globals(shader);
-        } else if (uniform->scope == SHADER_SCOPE_INSTANCE) {
-            renderer_shader_bind_instance(shader, shader->bound_instance_id);
-        } else {
-            // NOTE: Nothing to do here for locals, just set the uniform.
-        }
-        shader->bound_scope = uniform->scope;
-    }
-    return renderer_shader_uniform_set(shader, uniform, array_index, value);
+b8 shader_system_uniform_set_by_location_arrayed(u32 shader_id, u16 location, u32 array_index, const void* value) {
+    shader* s = &state_ptr->shaders[shader_id];
+    shader_uniform* uniform = &s->uniforms[location];
+    return renderer_shader_uniform_set(state_ptr->renderer, s, uniform, array_index, value);
 }
 
-b8 shader_system_apply_global(b8 needs_update, frame_data* p_frame_data) {
-    return renderer_shader_apply_globals(&state_ptr->shaders[state_ptr->current_shader_id], needs_update, p_frame_data);
-}
-b8 shader_system_apply_instance(b8 needs_update, frame_data* p_frame_data) {
-    return renderer_shader_apply_instance(&state_ptr->shaders[state_ptr->current_shader_id], needs_update, p_frame_data);
+b8 shader_system_bind_instance(u32 shader_id, u32 instance_id) {
+    state_ptr->shaders[shader_id].bound_instance_id = instance_id;
+    return true;
 }
 
-b8 shader_system_bind_instance(u32 instance_id) {
-    shader* s = &state_ptr->shaders[state_ptr->current_shader_id];
-    s->bound_instance_id = instance_id;
-    return renderer_shader_bind_instance(s, instance_id);
+b8 shader_system_apply_global(u32 shader_id) {
+    shader* s = &state_ptr->shaders[shader_id];
+    return renderer_shader_apply_globals(state_ptr->renderer, s);
 }
 
-b8 shader_system_apply_local(struct frame_data* p_frame_data) {
-    shader* s = &state_ptr->shaders[state_ptr->current_shader_id];
-    return renderer_shader_apply_local(s, p_frame_data);
+b8 shader_system_apply_instance(u32 shader_id) {
+    shader* s = &state_ptr->shaders[shader_id];
+    return renderer_shader_apply_instance(state_ptr->renderer, s);
 }
 
-b8 shader_system_bind_local(void) {
-    shader* s = &state_ptr->shaders[state_ptr->current_shader_id];
-    return renderer_shader_bind_local(s);
+b8 shader_system_apply_local(u32 shader_id) {
+    shader* s = &state_ptr->shaders[shader_id];
+    return renderer_shader_apply_local(state_ptr->renderer, s);
 }
 
 static b8 internal_attribute_add(shader* shader, const shader_attribute_config* config) {

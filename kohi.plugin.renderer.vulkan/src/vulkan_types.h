@@ -146,12 +146,17 @@ typedef struct vulkan_image {
     VkImage handle;
     /** @brief The memory used by the image. */
     VkDeviceMemory memory;
+    /** @brief The image creation info. */
+    VkImageCreateInfo image_create_info;
+
     /** @brief The view for the image, which is used to access the image. */
     VkImageView view;
     VkImageSubresourceRange view_subresource_range;
+    VkImageViewCreateInfo view_create_info;
     /** @brief If there are multiple layers, one view per layer exists here. */
     VkImageView* layer_views;
     VkImageSubresourceRange* layer_view_subresource_ranges;
+    VkImageViewCreateInfo* layer_view_create_infos;
     /** @brief The GPU memory requirements for this image. */
     VkMemoryRequirements memory_requirements;
     /** @brief Memory property flags */
@@ -168,6 +173,7 @@ typedef struct vulkan_image {
     char* name;
     /** The number of mipmaps to be generated for this image. Must always be at least 1. */
     u32 mip_levels;
+    b8 has_view;
 } vulkan_image;
 
 // Struct definition for renderer-specific texture data.
@@ -397,10 +403,12 @@ typedef struct vulkan_descriptor_set_config {
  * per frame (with a max of 3).
  */
 typedef struct vulkan_descriptor_state {
-    /** @brief The descriptor generation, per frame. */
+    /** @brief The descriptor generation, per swapchain image. */
     u8 generations[3];
-    /** @brief The identifier, per frame. Typically used for texture ids. */
+    /** @brief The identifier, per swapchain image. Typically used for texture ids. */
     u32 ids[3];
+    /** @brief The frame number this descriptor was last updated on, per swapchain image. */
+    u64 frame_numbers[3];
 } vulkan_descriptor_state;
 
 typedef struct vulkan_uniform_sampler_state {
@@ -578,6 +586,8 @@ typedef struct vulkan_context {
 
     /** @brief The instance-level api patch version. */
     u32 api_patch;
+
+    renderer_config_flags flags;
 
     /** @brief The currently cached colour buffer clear value. */
     VkClearColorValue colour_clear_value;

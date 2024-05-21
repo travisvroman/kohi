@@ -204,6 +204,24 @@ KAPI void renderer_set_depth_test_enabled(b8 enabled);
 KAPI void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
 
 /**
+ * @brief Begins rendering against the given targets.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param p_frame_data A pointer to the current frame data.
+ * @param colour_target_count The number of colour targets to be drawn to.
+ * @param colour_targets An array of handles to colour targets. Required unless colour_target_count is 0.
+ * @param depth_stencil_target A handle to a depth stencil target to render to.
+ */
+KAPI void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, u32 colour_target_count, k_handle* colour_targets, k_handle depth_stencil_target);
+
+/**
+ *
+ * @param state A pointer to the renderer system state.
+ * @param p_frame_data A pointer to the current frame data.
+ */
+KAPI void renderer_end_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data);
+
+/**
  * @brief Set stencil compare mask.
  *
  * @param compare_mask The new value to use as the stencil compare mask.
@@ -299,6 +317,15 @@ KAPI b8 renderer_texture_read_data(struct renderer_system_state* state, k_handle
  * @returns True on success; otherwise false.
  */
 KAPI b8 renderer_texture_read_pixel(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 x, u32 y, u8** out_rgba);
+
+/**
+ * @brief Attempts to return a pointer to the internal texture data associated with the provided handle.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param renderer_texture_handle A handle to the texture to be read from.
+ * @returns A pointer to the internal texture data on success; otherwise null/0.
+ */
+KAPI struct texture_internal_data* renderer_texture_internal_get(struct renderer_system_state* state, k_handle renderer_texture_handle);
 
 /**
  * @brief Attempts retrieve the renderer's internal buffer of the given type.
@@ -403,148 +430,120 @@ KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_hand
 /**
  * @brief Creates internal shader resources using the provided parameters.
  *
+ * @param state A pointer to the renderer state.
  * @param s A pointer to the shader.
  * @param config A constant pointer to the shader config.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 renderer_shader_create(struct shader* s, const shader_config* config);
+KAPI b8 renderer_shader_create(struct renderer_system_state* state, struct shader* s, const shader_config* config);
 
 /**
  * @brief Destroys the given shader and releases any resources held by it.
+ *
+ * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to be destroyed.
  */
-KAPI void renderer_shader_destroy(struct shader* s);
+KAPI void renderer_shader_destroy(struct renderer_system_state* state, struct shader* s);
 
 /**
  * @brief Initializes a configured shader. Will be automatically destroyed if this step fails.
  * Must be done after vulkan_shader_create().
  *
+ * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to be initialized.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_initialize(struct shader* s);
+KAPI b8 renderer_shader_initialize(struct renderer_system_state* state, struct shader* s);
 
 /**
  * @brief Reloads the internals of the given shader.
  *
+ * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to be reloaded.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_reload(struct shader* s);
+KAPI b8 renderer_shader_reload(struct renderer_system_state* state, struct shader* s);
 
 /**
  * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
  * and for use in draw calls.
  *
+ * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to be used.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_use(struct shader* s);
+KAPI b8 renderer_shader_use(struct renderer_system_state* state, struct shader* s);
 
 /**
  * @brief Attempts to set wireframe mode on the given shader. If the backend, or the shader
  * does not support this , it will fail when attempting to enable. Disabling will always succeed.
  *
+ * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to be used.
  * @param wireframe_enabled Indicates if wireframe mode should be enabled.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_set_wireframe(struct shader* s, b8 wireframe_enabled);
-
-/**
- * @brief Binds global resources for use and updating.
- *
- * @param s A pointer to the shader whose globals are to be bound.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_bind_globals(struct shader* s);
-
-/**
- * @brief Binds instance resources for use and updating.
- *
- * @param s A pointer to the shader whose instance resources are to be bound.
- * @param instance_id The identifier of the instance to be bound.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_bind_instance(struct shader* s, u32 instance_id);
-
-/**
- * @brief Binds local resources for use and updating.
- *
- * @param s A pointer to the shader whose local resources are to be bound.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_bind_local(struct shader* s);
+KAPI b8 renderer_shader_set_wireframe(struct renderer_system_state* state, struct shader* s, b8 wireframe_enabled);
 
 /**
  * @brief Applies global data to the uniform buffer.
  *
+ * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to apply the global data for.
- * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_globals(struct shader* s, b8 needs_update, frame_data* p_frame_data);
+KAPI b8 renderer_shader_apply_globals(struct renderer_system_state* state, struct shader* s);
 
 /**
  * @brief Applies data for the currently bound instance.
  *
+ * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to apply the instance data for.
- * @param needs_update Indicates if the shader uniforms need to be updated or just bound.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_instance(struct shader* s, b8 needs_update, frame_data* p_frame_data);
+KAPI b8 renderer_shader_apply_instance(struct renderer_system_state* state, struct shader* s);
+
+/**
+ * @brief Triggers the upload of local uniform data to the GPU.
+ *
+ * @param state A pointer to the renderer state.
+ * @param s A ponter to the shader.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 renderer_shader_apply_local(struct renderer_system_state* state, struct shader* s);
 
 /**
  * @brief Acquires internal instance-level resources and provides an instance id.
  *
+ * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to acquire resources from.
  * @param config A constant pointer to the configuration of the instance to be used while acquiring resources.
  * @param out_instance_id A pointer to hold the new instance identifier.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_instance_resources_acquire(struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id);
+KAPI b8 renderer_shader_instance_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id);
 
 /**
  * @brief Releases internal instance-level resources for the given instance id.
  *
+ * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to release resources from.
  * @param instance_id The instance identifier whose resources are to be released.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_instance_resources_release(struct shader* s, u32 instance_id);
-
-/**
- * Attempts to get a pointer to a uniform from the given shader at the given location.
- * @param s A pointer to the shader to get the uniform for.
- * @param name The location of the uniform to obtain.
- * @returns A pointer to a uniform if found; otherwise null/0.
- */
-KAPI struct shader_uniform* renderer_shader_uniform_get_by_location(struct shader* s, u16 location);
-
-/**
- * Attempts to get a pointer to a uniform from the given shader of the provided name.
- * @param s A pointer to the shader to get the uniform for.
- * @param name The name of the uniform to obtain.
- * @returns A pointer to a uniform if found; otherwise null/0.
- */
-KAPI struct shader_uniform* renderer_shader_uniform_get(struct shader* s, const char* name);
+KAPI b8 renderer_shader_instance_resources_release(struct renderer_system_state* state, struct shader* s, u32 instance_id);
 
 /**
  * @brief Sets the uniform of the given shader to the provided value.
  *
+ * @param state A pointer to the renderer state.
  * @param s A ponter to the shader.
  * @param uniform A constant pointer to the uniform.
  * @param array_index The index of the uniform array to be set, if it is an array. For non-array types, this value is ignored.
  * @param value A pointer to the value to be set.
- * @return b8 True on success; otherwise false.
+ * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_uniform_set(struct shader* s, struct shader_uniform* uniform, u32 array_index, const void* value);
-
-/**
- * @brief Triggers the upload of local uniform data to the GPU.
- * @param s A ponter to the shader.
- */
-KAPI b8 renderer_shader_apply_local(struct shader* s, frame_data* p_frame_data);
+KAPI b8 renderer_shader_uniform_set(struct renderer_system_state* state, struct shader* s, struct shader_uniform* uniform, u32 array_index, const void* value);
 
 /**
  * @brief Acquires internal resources for the given texture map.
@@ -560,23 +559,6 @@ KAPI b8 renderer_texture_map_resources_acquire(struct texture_map* map);
  * @param map A pointer to the texture map to release resources from.
  */
 KAPI void renderer_texture_map_resources_release(struct texture_map* map);
-
-/**
- * @brief Attempts to get the window render target.
- *
- * @param window A constant pointer to the window whose attachment to get.
- * @return A pointer to a texture attachment if successful; otherwise 0.
- */
-KAPI texture* renderer_window_attachment_get(struct renderer_system_state* state, const struct kwindow* window);
-
-/**
- * @brief Returns a pointer to the main depth texture target.
- *
- * @param window A constant pointer to the window whose attachment to get.
- * @return A pointer to a texture attachment if successful; otherwise 0.
- */
-KDEPRECATED("The renderer should not have nor maintain depth attachments. This should be owned by whatever uses it (i.e. a rendergraph_pass). This function will be removed.");
-KAPI texture* renderer_depth_attachment_get(struct renderer_system_state* state, const struct kwindow* window);
 
 /**
  * @brief Indicates if the renderer is capable of multi-threading.
@@ -768,3 +750,8 @@ KAPI void renderer_active_viewport_set(struct viewport* v);
  * NOTE: This incurs a lot of overhead/waits, and should be used sparingly.
  */
 KAPI void renderer_wait_for_idle(void);
+
+/**
+ * Indicates if PCF filtering is enabled for shadow maps.
+ */
+KAPI b8 renderer_pcf_enabled(struct renderer_system_state* state);

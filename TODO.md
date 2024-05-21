@@ -119,15 +119,15 @@ The items in this list are not in any particular order. This list will be update
 - [ ] 0.7 Reorg
   - [x] Split engine into "core" and "runtime"
   - [x] Rename plugin libs to consistent format, update builds, etc.
-  - [ ] Remove systems manager, and move all system init back to engine.
-  - [ ] External systems registry
+  - [x] Remove systems manager, and move all system init back to engine.
+  - [x] External systems registry
   - [x] Plugin System implementation
     - [x] kruntime_plugin structure
     - [ ] Convert Vulkan Plugin to kruntime_plugin
     - [ ] Convert OpenAL Plugin to kruntime_plugin
     - [ ] Convert Standard UI Plugin to kruntime_plugin
   - [x] Implement windowing logic in platform layer.
-  - [ ] Implement windowing logic in renderer front/backend
+  - [x] Implement windowing logic in renderer front/backend
   - [x] Ability to deprecate code (mark as deprecated/warn).
   - [x] Deprecate "geometry" interface points in renderer frontend/
   - [ ] Move loading of application lib from app to engine (config-powered!)
@@ -135,11 +135,10 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Move anything that's aware of double/triple/5x buffering exclusively to the renderer backend. Nothing outside that should know or care about it.
     - [ ] Refactor renderer texture API to pass a new TEXTURE_FLAG_RENDERER_BUFFERING flag used to indicate to the backend that
           resources should be created "per-frame" if this is set (i.e. 3 internal textures for triple-buffering)
-    - [ ] Adjust render target logic to defer to the backend when reaching for a texture handle to use for the above case.
-    - [ ] Rendergraph passes should either own thier own render_targets or should get them from another source/window.
-    - [ ] Renderpasses should no longer own render targets.
-    - [ ] Framebuffers (i.e. render targets) should no longer require a renderpass to create. (i.e. use a dummy pass)
-    - [ ] Shaders (graphics pipelines) should no longer require a renderpass to create. (i.e. use a dummy pass)
+    - [x] Adjust render target logic to defer to the backend when reaching for a texture handle to use for the above case.
+    - [x] Renderpasses should no longer own render targets.
+    - [x] Framebuffers (i.e. render targets) should no longer require a renderpass to create. (i.e. use a dummy pass)
+    - [x] Shaders (graphics pipelines) should no longer require a renderpass to create. (i.e. use a dummy pass)
 - [ ] 0.7 Scene refactor (see notes below):
 
   - [x] Rename simple scene to just "scene" and move to engine core.
@@ -182,6 +181,14 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
 
 - [ ] 0.8
+  - [ ] Separate colourbuffer to its own texture separate from the swapchain/blit to swapchain image just before present.
+    - [ ] (Should probably be switchable for potential performance reasons i.e. mobile?)
+  - [ ] Material system refactor
+    - [ ] Support for multiple pipelines
+      - [ ] Standard Pipeline (Forward rendergraph)
+      - [ ] Custom Pipeline (Custom user rendergraph)
+    - [ ] Shader config specifies pipeline it uses, which determines its attachments
+    - [ ] Convert material configs to KSON
   - [ ] Handle refactoring
     - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
     - [ ] Convert material system to use handles
@@ -296,7 +303,7 @@ The items in this list are not in any particular order. This list will be update
 
 ## Other items:
 
-- [ ] Split off "core" items (defines, memory, strings, containers, etc.) into a "core" or "foundation" library so they may be used without having to pull in all of the engine.
+- [x] Split off "core" items (defines, memory, strings, containers, etc.) into a "core" or "foundation" library so they may be used without having to pull in all of the engine.
 - [ ] Split off platform layers into separate libraries outside the engine.
 - [x] Auto-Generated API documentation
 - [ ] Documentation

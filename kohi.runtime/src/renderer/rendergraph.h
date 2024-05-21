@@ -2,7 +2,6 @@
 #define _RENDERGRAPH_H_
 
 #include "defines.h"
-#include "identifiers/khandle.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
 
@@ -22,7 +21,6 @@ struct rendergraph_system_state;
 typedef enum rendergraph_resource_type {
     RENDERGRAPH_RESOURCE_TYPE_UNDEFINED,
     RENDERGRAPH_RESOURCE_TYPE_TEXTURE,
-    RENDERGRAPH_RESOURCE_TYPE_FRAMEBUFFER,
     RENDERGRAPH_RESOURCE_TYPE_NUMBER,
     RENDERGRAPH_RESOURCE_TYPE_MAX
 } rendergraph_resource_type;
@@ -41,9 +39,6 @@ typedef struct rendergraph_source {
     union {
         /** @brief A pointer to the underlying texture resource. */
         struct texture* t;
-
-        /** @brief A handle to a framebuffer resource. */
-        k_handle framebuffer_handle;
 
         /** @brief A copy of the underlying unsigned int resource. */
         u64 u64;
@@ -99,10 +94,10 @@ struct rg_dep_graph;
 typedef struct rendergraph {
     char* name;
 
-    // Handle to a global colourbuffer framebuffer.
-    k_handle global_colourbuffer;
-    // Handle to a global depthbuffer framebuffer.
-    k_handle global_depthbuffer;
+    // A pointer to the global colourbuffer framebuffer.
+    struct texture* global_colourbuffer;
+    // A pointer to the global depthbuffer framebuffer.
+    struct texture* global_depthbuffer;
 
     u32 node_count;
     // Array of nodes in this graph.
@@ -148,7 +143,7 @@ typedef struct rendergraph_node_factory {
     b8 (*create)(rendergraph* graph, rendergraph_node* node, const struct rendergraph_node_config* config);
 } rendergraph_node_factory;
 
-KAPI b8 rendergraph_create(const char* config_str, k_handle global_colourbuffer, k_handle global_depthbuffer, rendergraph* out_graph);
+KAPI b8 rendergraph_create(const char* config_str, struct texture* global_colourbuffer, struct texture* global_depthbuffer, rendergraph* out_graph);
 KAPI void rendergraph_destroy(rendergraph* graph);
 
 KAPI b8 rendergraph_finalize(rendergraph* graph);

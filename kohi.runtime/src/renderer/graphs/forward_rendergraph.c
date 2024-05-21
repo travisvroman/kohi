@@ -1,4 +1,4 @@
-#include "forward_rendergraph.h"
+/* #include "forward_rendergraph.h"
 
 #include "containers/darray.h"
 #include "core/frame_data.h"
@@ -67,7 +67,7 @@ b8 forward_rendergraph_create(const forward_rendergraph_config* config, forward_
     out_graph->shadowmap_pass.execute = shadow_map_pass_execute;
     out_graph->shadowmap_pass.destroy = shadow_map_pass_destroy;
     out_graph->shadowmap_pass.load_resources = shadow_map_pass_load_resources;
-    /* graph->shadowmap_pass.source_populate = shadow_map_pass_source_populate; */
+    //graph->shadowmap_pass.source_populate = shadow_map_pass_source_populate;
 
     out_graph->scene_pass.initialize = scene_pass_initialize;
     out_graph->scene_pass.execute = scene_pass_execute;
@@ -173,7 +173,7 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
             shadow_map_pass_extended_data* ext_data = pass->pass_data.ext_data;
             ext_data->light = dir_light;
 
-            /* frustum culling_frustum; */
+            // frustum culling_frustum;
             vec3 culling_center;
             f32 culling_radius;
 
@@ -383,7 +383,7 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
             darray_length_set(ext_data->debug_geometries, ext_data->debug_geometry_count);
 
             // TODO: Move this to the scene.
-            /* // HACK: Inject raycast debug geometries into scene pass data.
+            // HACK: Inject raycast debug geometries into scene pass data.
              *
             u32 line_count = darray_length(state->test_lines);
             for (u32 i = 0; i < line_count; ++i) {
@@ -412,7 +412,7 @@ b8 forward_rendergraph_frame_prepare(forward_rendergraph* graph, struct frame_da
                 rd.unique_id = INVALID_ID_U16;
                 darray_push(ext_data->debug_geometries, rd);
                 ext_data->debug_geometry_count++;
-            } */
+            }
         }
     } else {
         // Scene not loaded.
@@ -431,4 +431,4 @@ b8 forward_rendergraph_execute(forward_rendergraph* graph, struct frame_data* p_
 
 b8 forward_rendergraph_on_resize(forward_rendergraph* graph, u32 width, u32 height) {
     return rendergraph_on_resize(&graph->internal_graph, width, height);
-}
+} */

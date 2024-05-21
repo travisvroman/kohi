@@ -56,28 +56,14 @@ void vulkan_image_create(
 void vulkan_image_destroy(vulkan_context* context, vulkan_image* image);
 
 /**
- * @brief Creates a view for the given image.
+ * @brief Destroys and recrates internal image and view resources based on current create
+ * infos which are cached on the provided image. If changing properties (i.e. resizing),
+ * modify those create infos first.
  *
  * @param context A pointer to the Vulkan context.
- * @param type The type of texture. Provides hints to creation.
- * @param layer_count The total number of layers in the image.
- * @param layer_index The layer index this view refers to.
- * @param format The image format.
- * @param image A pointer to the image to associate the view with.
- * @param out_view A pointer to hold the created view.
- * @param out_view_subresource_range A pointer to hold the view's calculated subresource range.
- * @param aspect_flags Aspect flags to be used when creating the view, if applicable.
+ * @param image A pointer to the image to be recreated.
  */
-void vulkan_image_view_create(
-    vulkan_context* context,
-    texture_type type,
-    u16 layer_count,
-    i32 layer_index,
-    VkFormat format,
-    vulkan_image* image,
-    VkImageAspectFlags aspect_flags,
-    VkImageView* out_view,
-    VkImageSubresourceRange* out_view_subresource_range);
+void vulkan_image_recreate(vulkan_context* context, vulkan_image* image);
 
 /**
  * @brief Transitions the provided image from old_layout to new_layout.
@@ -146,14 +132,18 @@ void vulkan_image_copy_to_buffer(
  * @param context The Vulkan context.
  * @param image The image to copy the image's data from.
  * @param buffer The buffer to copy to.
- * @param x The x-coordinate of the pixel to copy.
- * @param y The y-coordinate of the pixel to copy.
+ * @param x The x-coordinate start of the pixel region to copy.
+ * @param y The y-coordinate start of the pixel region to copy.
+ * @param width The width in pixels of the region to copy.
+ * @param height The height in pixels of the region to copy.
  * @param command_buffer The command buffer to be used for the copy.
  */
-void vulkan_image_copy_pixel_to_buffer(
+void vulkan_image_copy_region_to_buffer(
     vulkan_context* context,
     vulkan_image* image,
     VkBuffer buffer,
     u32 x,
     u32 y,
+    u32 width,
+    u32 height,
     vulkan_command_buffer* command_buffer);

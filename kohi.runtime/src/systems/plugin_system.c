@@ -5,6 +5,7 @@
 #include "parsers/kson_parser.h"
 #include "platform/platform.h"
 #include "plugins/plugin_types.h"
+#include "strings/kstring.h"
 
 typedef struct plugin_system_state {
     // darray
@@ -224,4 +225,21 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
 
     KINFO("Plugin '%s' successfully loaded.");
     return true;
+}
+
+kruntime_plugin* plugin_system_get(struct plugin_system_state* state, const char* name) {
+    if (!state || !name) {
+        return 0;
+    }
+
+    u32 plugin_count = darray_length(state->plugins);
+    for (u32 i = 0; i < plugin_count; ++i) {
+        kruntime_plugin* plugin = &state->plugins[i];
+        if (strings_equali(name, plugin->name)) {
+            return plugin;
+        }
+    }
+
+    KERROR("No plugin named '%s' found. 0/null is returned.", name);
+    return 0;
 }
