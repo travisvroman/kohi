@@ -265,7 +265,7 @@ static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapc
 
     kwindow* window = swapchain->owning_window;
     kwindow_renderer_state* window_internal = window->renderer_state;
-    kwindow_renderer_backend_state* window_backend = window_internal->backend_state;
+    /* kwindow_renderer_backend_state* window_backend = window_internal->backend_state; */
 
     texture_internal_data* texture_data = renderer_texture_resources_get(backend->frontend_state, window_internal->colourbuffer.renderer_texture_handle);
     if (!texture_data) {

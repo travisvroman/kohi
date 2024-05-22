@@ -77,9 +77,7 @@ static void vulkan_alloc_internal_free(void* pUserData, size_t size, VkInternalA
 static b8 create_vulkan_allocator(vulkan_context* context, VkAllocationCallbacks* callbacks);
 #endif // KVULKAN_USE_CUSTOM_ALLOCATOR == 1
 
-b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend,
-                                      const renderer_backend_config* config,
-                                      u8* out_window_render_target_count) {
+b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const renderer_backend_config* config) {
     backend->internal_context_size = sizeof(vulkan_context);
     backend->internal_context = kallocate(backend->internal_context_size, MEMORY_TAG_RENDERER);
     // Cold-cast the context
@@ -629,9 +627,9 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
     window_internal->backend_state = 0;
 }
 
-void vulkan_renderer_backend_on_window_resized(renderer_backend_interface* backend, kwindow* window) {
+void vulkan_renderer_backend_on_window_resized(renderer_backend_interface* backend, const kwindow* window) {
     // Cold-cast the context
-    vulkan_context* context = (vulkan_context*)backend->internal_context;
+    /* vulkan_context* context = (vulkan_context*)backend->internal_context; */
     kwindow_renderer_backend_state* backend_window = window->renderer_state->backend_state;
     // Update the "framebuffer size generation", a counter which indicates when
     // the framebuffer size has been updated.
@@ -1372,7 +1370,7 @@ void vulkan_renderer_texture_resources_release(renderer_backend_interface* backe
     }
 }
 
-void vulkan_renderer_texture_resize(renderer_backend_interface* backend, struct texture_internal_data* texture_data, u32 new_width, u32 new_height) {
+b8 vulkan_renderer_texture_resize(renderer_backend_interface* backend, struct texture_internal_data* texture_data, u32 new_width, u32 new_height) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     if (texture_data) {
         for (u32 i = 0; i < texture_data->image_count; ++i) {
@@ -1397,11 +1395,15 @@ void vulkan_renderer_texture_resize(renderer_backend_interface* backend, struct 
 
         // Counts as a texture update.
         texture_data->generation++;
+
+        return true;
     }
+
+    return false;
 }
 
-void vulkan_renderer_texture_write_data(renderer_backend_interface* backend, struct texture_internal_data* texture_data,
-                                        u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload) {
+b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, struct texture_internal_data* texture_data,
+                                      u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     if (texture_data) {
         u32 current_frame = context->current_window->renderer_state->backend_state->current_frame;
@@ -1437,10 +1439,13 @@ void vulkan_renderer_texture_write_data(renderer_backend_interface* backend, str
 
         // Counts as a texture update.
         texture_data->generation++;
+        return true;
     }
+
+    return false;
 }
 
-static void texture_read_offset_range(
+static b8 texture_read_offset_range(
     renderer_backend_interface* backend,
     struct texture_internal_data* texture_data,
     u32 offset,
@@ -1470,7 +1475,7 @@ static void texture_read_offset_range(
         renderbuffer staging;
         if (!renderer_renderbuffer_create("renderbuffer_texture_read_staging", RENDERBUFFER_TYPE_READ, size, RENDERBUFFER_TRACK_TYPE_NONE, &staging)) {
             KERROR("Failed to create staging buffer for texture read.");
-            return;
+            return false;
         }
         renderer_renderbuffer_bind(&staging, 0);
 
@@ -1499,15 +1504,18 @@ static void texture_read_offset_range(
 
         renderer_renderbuffer_unbind(&staging);
         renderer_renderbuffer_destroy(&staging);
+        return true;
     }
+
+    return false;
 }
 
-void vulkan_renderer_texture_read_data(renderer_backend_interface* backend, struct texture_internal_data* texture_data, u32 offset, u32 size, u8** out_pixels) {
-    texture_read_offset_range(backend, texture_data, offset, size, 0, 0, 0, 0, out_pixels);
+b8 vulkan_renderer_texture_read_data(renderer_backend_interface* backend, struct texture_internal_data* texture_data, u32 offset, u32 size, u8** out_pixels) {
+    return texture_read_offset_range(backend, texture_data, offset, size, 0, 0, 0, 0, out_pixels);
 }
 
-void vulkan_renderer_texture_read_pixel(renderer_backend_interface* backend, struct texture_internal_data* texture_data, u32 x, u32 y, u8** out_rgba) {
-    texture_read_offset_range(backend, texture_data, 0, 0, x, y, 1, 1, out_rgba);
+b8 vulkan_renderer_texture_read_pixel(renderer_backend_interface* backend, struct texture_internal_data* texture_data, u32 x, u32 y, u8** out_rgba) {
+    return texture_read_offset_range(backend, texture_data, 0, 0, x, y, 1, 1, out_rgba);
 }
 
 b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, shader* s, const shader_config* config) {

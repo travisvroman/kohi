@@ -464,10 +464,10 @@ b8 renderer_texture_write_data(struct renderer_system_state* state, k_handle ren
     return false;
 }
 
-b8 renderer_texture_read_data(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 offset, u32 size, void** out_memory) {
+b8 renderer_texture_read_data(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 offset, u32 size, u8** out_pixels) {
     if (state && !k_handle_is_invalid(renderer_texture_handle)) {
         struct texture_internal_data* data = state->textures[renderer_texture_handle.handle_index].data;
-        return state->backend->texture_read_data(state->backend, data, offset, size, out_memory);
+        return state->backend->texture_read_data(state->backend, data, offset, size, out_pixels);
     }
     return false;
 }

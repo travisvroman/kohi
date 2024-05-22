@@ -14,7 +14,7 @@
 
 #include <defines.h>
 
-struct platform_state;
+struct kwindow;
 struct vulkan_context;
 
 /**

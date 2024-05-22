@@ -10,23 +10,23 @@
 #    include <vulkan/vulkan.h>
 
 #    include <containers/darray.h>
-#    include <kmemory.h>
 #    include <logger.h>
+#    include <memory/kmemory.h>
+#    include <platform/platform.h>
 
-#    include "renderer/vulkan/platform/vulkan_platform.h"
-#    include "renderer/vulkan/vulkan_types.h"
+#    include "vulkan_types.h"
 
 typedef struct linux_handle_info {
     xcb_connection_t* connection;
     xcb_window_t window;
 } linux_handle_info;
 
-void platform_get_required_extension_names(const char*** names_darray) {
+void vulkan_platform_get_required_extension_names(const char*** names_darray) {
     darray_push(*names_darray, &"VK_KHR_xcb_surface"); // VK_KHR_xlib_surface?
 }
 
 // Surface creation for Vulkan
-b8 platform_create_vulkan_surface(vulkan_context* context, kwindow* window) {
+b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow* window) {
     u64 size = 0;
     platform_get_handle_info(&size, 0);
     void* block = kallocate(size, MEMORY_TAG_RENDERER);
@@ -42,7 +42,7 @@ b8 platform_create_vulkan_surface(vulkan_context* context, kwindow* window) {
         context->instance,
         &create_info,
         context->allocator,
-        &context->surface);
+        &window->renderer_state->backend_state->surface);
     if (result != VK_SUCCESS) {
         KFATAL("Vulkan surface creation failed.");
         return false;

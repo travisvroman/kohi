@@ -301,10 +301,10 @@ KAPI b8 renderer_texture_write_data(struct renderer_system_state* state, k_handl
  * @param renderer_texture_handle A handle to the texture to be read from.
  * @param offset The offset in bytes from the beginning of the data to be read.
  * @param size The number of bytes to be read.
- * @param out_memory A pointer to a block of memory to write the read data to.
+ * @param out_pixels A pointer to a block of memory to write the read data to.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_texture_read_data(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 offset, u32 size, void** out_memory);
+KAPI b8 renderer_texture_read_data(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 offset, u32 size, u8** out_memory);
 
 /**
  * @brief Reads a pixel from the provided texture at the given x/y coordinate.

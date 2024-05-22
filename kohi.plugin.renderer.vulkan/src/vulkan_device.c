@@ -3,6 +3,7 @@
 #include "containers/darray.h"
 #include "logger.h"
 #include "memory/kmemory.h"
+#include "platform/platform.h"
 #include "strings/kstring.h"
 #include "vulkan/vulkan_core.h"
 #include "vulkan_types.h"
@@ -462,7 +463,7 @@ static b8 select_physical_device(vulkan_context* context) {
         vulkan_physical_device_queue_family_info queue_info = {};
         b8 result = physical_device_meets_requirements(
             physical_devices[i],
-            context->surface,
+            context->current_window->renderer_state->backend_state->surface,
             &properties,
             &features,
             &requirements,
