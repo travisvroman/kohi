@@ -2,9 +2,9 @@
 
 #include <renderer/renderer_types.h>
 
+#include "../standard_ui_system.h"
 #include "defines.h"
 #include "math/nine_slice.h"
-#include "standard_ui_system.h"
 
 /*
  * TODO: Textbox items

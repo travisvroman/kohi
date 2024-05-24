@@ -1,25 +1,25 @@
 #include "sui_textbox.h"
 
 #include <containers/darray.h>
-#include <event.h>
-#include <kmemory.h>
-#include <kstring.h>
-#include <logger.h>
+#include <core/event.h>
+#include <core/input.h>
 #include <core/systems_manager.h>
+#include <defines.h>
+#include <logger.h>
+#include <math/geometry.h>
 #include <math/kmath.h>
+#include <memory/kmemory.h>
 #include <renderer/renderer_frontend.h>
+#include <resources/resource_types.h>
+#include <strings/kstring.h>
+#include <systems/font_system.h>
 #include <systems/geometry_system.h>
 #include <systems/shader_system.h>
+#include <systems/xform_system.h>
 
+#include "../standard_ui_system.h"
+#include "controls/sui_label.h"
 #include "controls/sui_panel.h"
-#include "core/input.h"
-#include "defines.h"
-#include "math/geometry_utils.h"
-#include "resources/resource_types.h"
-#include "standard_ui_system.h"
-#include "sui_label.h"
-#include "systems/font_system.h"
-#include "systems/xform_system.h"
 
 static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context);
 
