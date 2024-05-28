@@ -22,10 +22,10 @@ typedef struct sui_label_pending_data {
     u32* index_buffer_data;
 } sui_label_pending_data;
 
-static void sui_label_control_render_frame_prepare(struct sui_control* self, const struct frame_data* p_frame_data);
+static void sui_label_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data);
 
-b8 sui_label_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control) {
-    if (!sui_base_control_create(name, out_control)) {
+b8 sui_label_control_create(standard_ui_state* state, const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control) {
+    if (!sui_base_control_create(state, name, out_control)) {
         return false;
     }
 
@@ -67,9 +67,9 @@ b8 sui_label_control_create(const char* name, font_type type, const char* font_n
 
     // Set text if applicable.
     if (text && string_length(text) > 0) {
-        sui_label_text_set(out_control, text);
+        sui_label_text_set(state, out_control, text);
     } else {
-        sui_label_text_set(out_control, "");
+        sui_label_text_set(state, out_control, "");
     }
 
     typed_data->instance_id = INVALID_ID;
@@ -79,18 +79,17 @@ b8 sui_label_control_create(const char* name, font_type type, const char* font_n
     // TODO: Should there be an override option for the shader?
     texture_map* maps[1] = {&typed_data->data->atlas};
     shader* s = shader_system_get("Shader.StandardUI");
-    u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index;
+    /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
     shader_instance_resource_config instance_resource_config = {0};
     // Map count for this type is known.
     shader_instance_uniform_texture_config atlas_texture = {0};
-    atlas_texture.uniform_location = atlas_location;
     atlas_texture.texture_map_count = 1;
     atlas_texture.texture_maps = maps;
 
     instance_resource_config.uniform_config_count = 1;
     instance_resource_config.uniform_configs = &atlas_texture;
 
-    if (!renderer_shader_instance_resources_acquire(s, &instance_resource_config, &typed_data->instance_id)) {
+    if (!renderer_shader_instance_resources_acquire(state->renderer, s, &instance_resource_config, &typed_data->instance_id)) {
         KFATAL("Unable to acquire shader resources for font texture map.");
         return false;
     }
@@ -104,12 +103,12 @@ b8 sui_label_control_create(const char* name, font_type type, const char* font_n
     return true;
 }
 
-void sui_label_control_destroy(struct sui_control* self) {
-    sui_base_control_destroy(self);
+void sui_label_control_destroy(standard_ui_state* state, struct sui_control* self) {
+    sui_base_control_destroy(state, self);
 }
 
-b8 sui_label_control_load(struct sui_control* self) {
-    if (!sui_base_control_load(self)) {
+b8 sui_label_control_load(standard_ui_state* state, struct sui_control* self) {
+    if (!sui_base_control_load(state, self)) {
         return false;
     }
 
@@ -123,7 +122,7 @@ b8 sui_label_control_load(struct sui_control* self) {
     return true;
 }
 
-void sui_label_control_unload(struct sui_control* self) {
+void sui_label_control_unload(standard_ui_state* state, struct sui_control* self) {
     sui_label_internal_data* typed_data = self->internal_data;
 
     if (typed_data->text) {
@@ -153,14 +152,14 @@ void sui_label_control_unload(struct sui_control* self) {
 
     // Release resources for font texture map.
     shader* ui_shader = shader_system_get("Shader.StandardUI"); // TODO: text shader.
-    if (!renderer_shader_instance_resources_release(ui_shader, typed_data->instance_id)) {
+    if (!renderer_shader_instance_resources_release(state->renderer, ui_shader, typed_data->instance_id)) {
         KFATAL("Unable to release shader resources for font texture map.");
     }
     typed_data->instance_id = INVALID_ID;
 }
 
-b8 sui_label_control_update(struct sui_control* self, struct frame_data* p_frame_data) {
-    if (!sui_base_control_update(self, p_frame_data)) {
+b8 sui_label_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data) {
+    if (!sui_base_control_update(state, self, p_frame_data)) {
         return false;
     }
 
@@ -169,8 +168,8 @@ b8 sui_label_control_update(struct sui_control* self, struct frame_data* p_frame
     return true;
 }
 
-b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
-    if (!sui_base_control_render(self, p_frame_data, render_data)) {
+b8 sui_label_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
+    if (!sui_base_control_render(state, self, p_frame_data, render_data)) {
         return false;
     }
 
@@ -194,8 +193,6 @@ b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame
         renderable.render_data.diffuse_colour = typed_data->colour;
 
         renderable.instance_id = &typed_data->instance_id;
-        renderable.frame_number = &typed_data->frame_number;
-        renderable.draw_index = &typed_data->draw_index;
 
         darray_push(render_data->renderables, renderable);
     }
@@ -203,7 +200,7 @@ b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame
     return true;
 }
 
-void sui_label_text_set(struct sui_control* self, const char* text) {
+void sui_label_text_set(standard_ui_state* state, struct sui_control* self, const char* text) {
     if (self) {
         sui_label_internal_data* typed_data = self->internal_data;
 
@@ -224,7 +221,7 @@ void sui_label_text_set(struct sui_control* self, const char* text) {
     }
 }
 
-const char* sui_label_text_get(struct sui_control* self) {
+const char* sui_label_text_get(standard_ui_state* state, struct sui_control* self) {
     if (self && self->internal_data) {
         sui_label_internal_data* typed_data = self->internal_data;
         return typed_data->text;
@@ -391,7 +388,7 @@ static b8 regenerate_label_geometry(const sui_control* self, sui_label_pending_d
     return true;
 }
 
-static void sui_label_control_render_frame_prepare(struct sui_control* self, const struct frame_data* p_frame_data) {
+static void sui_label_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data) {
     if (self) {
         sui_label_internal_data* typed_data = self->internal_data;
         if (typed_data->is_dirty) {

@@ -23,12 +23,12 @@ typedef struct sui_label_internal_data {
     b8 is_dirty;
 } sui_label_internal_data;
 
-KAPI b8 sui_label_control_create(const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control);
-KAPI void sui_label_control_destroy(struct sui_control* self);
-KAPI b8 sui_label_control_load(struct sui_control* self);
-KAPI void sui_label_control_unload(struct sui_control* self);
-KAPI b8 sui_label_control_update(struct sui_control* self, struct frame_data* p_frame_data);
-KAPI b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
+KAPI b8 sui_label_control_create(standard_ui_state* state, const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control);
+KAPI void sui_label_control_destroy(standard_ui_state* state, struct sui_control* self);
+KAPI b8 sui_label_control_load(standard_ui_state* state, struct sui_control* self);
+KAPI void sui_label_control_unload(standard_ui_state* state, struct sui_control* self);
+KAPI b8 sui_label_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data);
+KAPI b8 sui_label_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data);
 
 /**
  * @brief Sets the text on the given label object.
@@ -36,6 +36,6 @@ KAPI b8 sui_label_control_render(struct sui_control* self, struct frame_data* p_
  * @param u_text A pointer to the label whose text will be set.
  * @param text The text to be set.
  */
-KAPI void sui_label_text_set(struct sui_control* self, const char* text);
+KAPI void sui_label_text_set(standard_ui_state* state, struct sui_control* self, const char* text);
 
-KAPI const char* sui_label_text_get(struct sui_control* self);
+KAPI const char* sui_label_text_get(standard_ui_state* state, struct sui_control* self);

@@ -9,10 +9,10 @@
 #include <systems/geometry_system.h>
 #include <systems/shader_system.h>
 
-static void sui_panel_control_render_frame_prepare(struct sui_control* self, const struct frame_data* p_frame_data);
+static void sui_panel_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data);
 
-b8 sui_panel_control_create(const char* name, vec2 size, vec4 colour, struct sui_control* out_control) {
-    if (!sui_base_control_create(name, out_control)) {
+b8 sui_panel_control_create(standard_ui_state* state, const char* name, vec2 size, vec4 colour, struct sui_control* out_control) {
+    if (!sui_base_control_create(state, name, out_control)) {
         return false;
     }
 
@@ -37,12 +37,12 @@ b8 sui_panel_control_create(const char* name, vec2 size, vec4 colour, struct sui
     return true;
 }
 
-void sui_panel_control_destroy(struct sui_control* self) {
-    sui_base_control_destroy(self);
+void sui_panel_control_destroy(standard_ui_state* state, struct sui_control* self) {
+    sui_base_control_destroy(state, self);
 }
 
-b8 sui_panel_control_load(struct sui_control* self) {
-    if (!sui_base_control_load(self)) {
+b8 sui_panel_control_load(standard_ui_state* state, struct sui_control* self) {
+    if (!sui_base_control_load(state, self)) {
         return false;
     }
 
@@ -59,32 +59,29 @@ b8 sui_panel_control_load(struct sui_control* self) {
     // Get UI geometry from config. NOTE: this uploads to GPU
     typed_data->g = geometry_system_acquire_from_config(ui_config, true);
 
-    standard_ui_state* typed_state = systems_manager_get_state(128); // HACK: need standard way to get extension types.
-
     // Acquire instance resources for this control.
-    texture_map* maps[1] = {&typed_state->ui_atlas};
+    texture_map* maps[1] = {&state->ui_atlas};
     shader* s = shader_system_get("Shader.StandardUI");
-    u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index;
+    /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
     shader_instance_resource_config instance_resource_config = {0};
     // Map count for this type is known.
     shader_instance_uniform_texture_config atlas_texture = {0};
-    atlas_texture.uniform_location = atlas_location;
     atlas_texture.texture_map_count = 1;
     atlas_texture.texture_maps = maps;
 
     instance_resource_config.uniform_config_count = 1;
     instance_resource_config.uniform_configs = &atlas_texture;
 
-    renderer_shader_instance_resources_acquire(s, &instance_resource_config, &typed_data->instance_id);
+    renderer_shader_instance_resources_acquire(state->renderer, s, &instance_resource_config, &typed_data->instance_id);
 
     return true;
 }
 
-void sui_panel_control_unload(struct sui_control* self) {
+void sui_panel_control_unload(standard_ui_state* state, struct sui_control* self) {
 }
 
-b8 sui_panel_control_update(struct sui_control* self, struct frame_data* p_frame_data) {
-    if (!sui_base_control_update(self, p_frame_data)) {
+b8 sui_panel_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data) {
+    if (!sui_base_control_update(state, self, p_frame_data)) {
         return false;
     }
 
@@ -93,8 +90,8 @@ b8 sui_panel_control_update(struct sui_control* self, struct frame_data* p_frame
     return true;
 }
 
-b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
-    if (!sui_base_control_render(self, p_frame_data, render_data)) {
+b8 sui_panel_control_render(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data, standard_ui_render_data* render_data) {
+    if (!sui_base_control_render(state, self, p_frame_data, render_data)) {
         return false;
     }
 
@@ -113,15 +110,13 @@ b8 sui_panel_control_render(struct sui_control* self, struct frame_data* p_frame
         renderable.render_data.diffuse_colour = typed_data->colour;
 
         renderable.instance_id = &typed_data->instance_id;
-        renderable.frame_number = &typed_data->frame_number;
-        renderable.draw_index = &typed_data->draw_index;
 
         darray_push(render_data->renderables, renderable);
     }
 
     return true;
 }
-vec2 sui_panel_size(struct sui_control* self) {
+vec2 sui_panel_size(standard_ui_state* state, struct sui_control* self) {
     if (!self) {
         return vec2_zero();
     }
@@ -130,7 +125,7 @@ vec2 sui_panel_size(struct sui_control* self) {
     return (vec2){typed_data->rect.width, typed_data->rect.height};
 }
 
-b8 sui_panel_control_resize(struct sui_control* self, vec2 new_size) {
+b8 sui_panel_control_resize(standard_ui_state* state, struct sui_control* self, vec2 new_size) {
     if (!self) {
         return false;
     }
@@ -149,7 +144,7 @@ b8 sui_panel_control_resize(struct sui_control* self, vec2 new_size) {
     return true;
 }
 
-static void sui_panel_control_render_frame_prepare(struct sui_control* self, const struct frame_data* p_frame_data) {
+static void sui_panel_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data) {
     if (self) {
         sui_panel_internal_data* typed_data = self->internal_data;
         if (typed_data->is_dirty) {

@@ -1,8 +1,9 @@
+/*
 #include "standard_ui_rendergraph.h"
 
 #include "containers/darray.h"
-#include "logger.h"
 #include "core/systems_manager.h"
+#include "logger.h"
 #include "math/kmath.h"
 #include "passes/ui_pass.h"
 #include "renderer/camera.h"
@@ -86,3 +87,4 @@ b8 standard_ui_rendergraph_execute(standard_ui_rendergraph* graph, struct frame_
 b8 standard_ui_rendergraph_on_resize(standard_ui_rendergraph* graph, u32 width, u32 height) {
     return rendergraph_on_resize(&graph->internal_graph, width, height);
 }
+*/

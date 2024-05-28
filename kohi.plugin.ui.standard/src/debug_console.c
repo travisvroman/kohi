@@ -13,7 +13,7 @@
 #include "controls/sui_textbox.h"
 #include "standard_ui_system.h"
 
-static void debug_console_entry_box_on_key(sui_control* self, sui_keyboard_event evt);
+static void debug_console_entry_box_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt);
 
 b8 debug_console_consumer_write(void* inst, log_level level, const char* message) {
     debug_console_state* state = (debug_console_state*)inst;
@@ -57,8 +57,8 @@ static b8 debug_console_on_resize(u16 code, void* sender, void* listener_inst, e
     /* u16 height = context.data.u16[1]; */
 
     debug_console_state* state = listener_inst;
-    vec2 size = sui_panel_size(&state->bg_panel);
-    sui_panel_control_resize(&state->bg_panel, (vec2){width, size.y});
+    vec2 size = sui_panel_size(state->sui_state, &state->bg_panel);
+    sui_panel_control_resize(state->sui_state, &state->bg_panel, (vec2){width, size.y});
 
     return false;
 }
@@ -96,10 +96,10 @@ b8 debug_console_load(debug_console_state* state) {
     u16 font_size = 31;
     f32 height = 50.0f + (font_size * state->line_display_count + 1); // Account for padding and textbox at the bottom
 
-    if (!sui_panel_control_create("debug_console_bg_panel", (vec2){1280.0f, height}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->bg_panel)) {
+    if (!sui_panel_control_create(state->sui_state, "debug_console_bg_panel", (vec2){1280.0f, height}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->bg_panel)) {
         KERROR("Failed to create background panel.");
     } else {
-        if (!sui_panel_control_load(&state->bg_panel)) {
+        if (!sui_panel_control_load(state->sui_state, &state->bg_panel)) {
             KERROR("Failed to load background panel.");
         } else {
             /* transform_translate(&state->bg_panel.xform, (vec3){500, 100}); */
@@ -120,11 +120,11 @@ b8 debug_console_load(debug_console_state* state) {
     }
 
     // Create a ui text control for rendering.
-    if (!sui_label_control_create("debug_console_log_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->text_control)) {
+    if (!sui_label_control_create(state->sui_state, "debug_console_log_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->text_control)) {
         KFATAL("Unable to create text control for debug console.");
         return false;
     } else {
-        if (!sui_panel_control_load(&state->text_control)) {
+        if (!sui_panel_control_load(state->sui_state, &state->text_control)) {
             KERROR("Failed to load text control.");
         } else {
             if (!standard_ui_system_register_control(state->sui_state, &state->text_control)) {
@@ -142,16 +142,16 @@ b8 debug_console_load(debug_console_state* state) {
         }
     }
 
-    sui_control_position_set(&state->text_control, (vec3){3.0f, font_size, 0.0f});
+    sui_control_position_set(state->sui_state, &state->text_control, (vec3){3.0f, font_size, 0.0f});
 
     // Create another ui text control for rendering typed text.
 
     // new one
-    if (!sui_textbox_control_create("debug_console_entry_textbox", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->entry_textbox)) {
+    if (!sui_textbox_control_create(state->sui_state, "debug_console_entry_textbox", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->entry_textbox)) {
         KFATAL("Unable to create entry textbox control for debug console.");
         return false;
     } else {
-        if (!state->entry_textbox.load(&state->entry_textbox)) {
+        if (!state->entry_textbox.load(state->sui_state, &state->entry_textbox)) {
             KERROR("Failed to load entry textbox for debug console.");
         } else {
             state->entry_textbox.user_data = state;
@@ -172,7 +172,7 @@ b8 debug_console_load(debug_console_state* state) {
         }
     }
     // HACK: This is definitely not the best way to figure out the height of the above text control.
-    sui_control_position_set(&state->entry_textbox, (vec3){3.0f, 10.0f + (font_size * state->line_display_count), 0.0f});
+    sui_control_position_set(state->sui_state, &state->entry_textbox, (vec3){3.0f, 10.0f + (font_size * state->line_display_count), 0.0f});
     state->loaded = true;
 
     return true;
@@ -214,19 +214,20 @@ void debug_console_update(debug_console_state* state) {
         buffer[buffer_pos] = '\0';
 
         // Once the string is built, set the text.
-        sui_label_text_set(&state->text_control, buffer);
+        sui_label_text_set(state->sui_state, &state->text_control, buffer);
 
         state->dirty = false;
     }
 }
 
-static void debug_console_entry_box_on_key(sui_control* self, sui_keyboard_event evt) {
+static void debug_console_entry_box_on_key(standard_ui_state* state, sui_control* self, sui_keyboard_event evt) {
     if (evt.type == SUI_KEYBOARD_EVENT_TYPE_PRESS) {
         u16 key_code = evt.key;
         /* b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT); */
 
         if (key_code == KEY_ENTER) {
-            const char* entry_control_text = sui_textbox_text_get(self);
+            debug_console_state* state = self->internal_data;
+            const char* entry_control_text = sui_textbox_text_get(state->sui_state, self);
             u32 len = string_length(entry_control_text);
             if (len > 0) {
                 // Keep the command in the history list.
@@ -241,7 +242,7 @@ static void debug_console_entry_box_on_key(sui_control* self, sui_keyboard_event
                     }
                 }
                 // Clear the text.
-                sui_textbox_text_set(self, "");
+                sui_textbox_text_set(state->sui_state, self, "");
             }
         }
     }
@@ -351,7 +352,7 @@ void debug_console_history_back(debug_console_state* state) {
         if (length > 0) {
             state->history_offset = KMIN(state->history_offset + 1, length - 1);
             i32 idx = length - state->history_offset - 1;
-            sui_textbox_text_set(&state->entry_textbox, state->history[idx].command);
+            sui_textbox_text_set(state->sui_state, &state->entry_textbox, state->history[idx].command);
         }
     }
 }
@@ -363,6 +364,7 @@ void debug_console_history_forward(debug_console_state* state) {
             state->history_offset = KMAX(state->history_offset - 1, -1);
             i32 idx = length - state->history_offset - 1;
             sui_textbox_text_set(
+                state->sui_state,
                 &state->entry_textbox,
                 state->history_offset == -1 ? "" : state->history[idx].command);
         }

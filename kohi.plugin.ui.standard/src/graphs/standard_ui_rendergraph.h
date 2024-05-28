@@ -1,4 +1,4 @@
-
+/*
 #pragma once
 
 #include "renderer/rendergraph.h"
@@ -27,3 +27,4 @@ KAPI b8 standard_ui_rendergraph_update(standard_ui_rendergraph* graph, struct fr
 KAPI b8 standard_ui_rendergraph_frame_prepare(standard_ui_rendergraph* graph, struct frame_data* p_frame_data, struct camera* current_camera, struct viewport* current_viewport, struct scene* scene, u32 render_mode);
 KAPI b8 standard_ui_rendergraph_execute(standard_ui_rendergraph* graph, struct frame_data* p_frame_data);
 KAPI b8 standard_ui_rendergraph_on_resize(standard_ui_rendergraph* graph, u32 width, u32 height);
+*/
