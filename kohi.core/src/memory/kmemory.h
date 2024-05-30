@@ -60,6 +60,7 @@ typedef enum memory_tag {
     MEMORY_TAG_UI,
     MEMORY_TAG_AUDIO,
     MEMORY_TAG_REGISTRY,
+    MEMORY_TAG_PLUGIN,
 
     MEMORY_TAG_MAX_TAGS
 } memory_tag;

@@ -1,4 +1,4 @@
-
+/*
 #pragma once
 
 #include "renderer/rendergraph.h"
@@ -33,3 +33,4 @@ KAPI b8 editor_rendergraph_on_resize(editor_rendergraph* graph, u32 width, u32 h
 KAPI void editor_rendergraph_gizmo_set(editor_rendergraph* graph, struct editor_gizmo* gizmo);
 
 KAPI void editor_rendergraph_refresh_pfns(editor_rendergraph* graph);
+*/

@@ -208,7 +208,7 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
     KTRACE("Initialized standard UI system (%s).", KVERSION);
 
     // FIXME: Need to register external system - not sure if this should be done here or when/where the plugin is initialized.
-    /* engine_external_system_register(memory_requirement); */
+    engine_external_system_register(memory_requirement);
 
     state->renderer = engine_systems_get()->renderer_system;
 

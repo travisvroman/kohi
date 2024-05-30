@@ -2,52 +2,49 @@
 
 #include <containers/darray.h>
 #include <core/console.h>
+#include <core/engine.h>
+#include <core/event.h>
+#include <core/frame_data.h>
 #include <core/input.h>
-#include <core/kclock.h>
 #include <core/metrics.h>
-#include <event.h>
-#include <frame_data.h>
-#include <kmemory.h>
-#include <kstring.h>
+#include <defines.h>
+#include <identifiers/khandle.h>
+#include <input_types.h>
 #include <logger.h>
 #include <math/geometry_2d.h>
 #include <math/geometry_3d.h>
 #include <math/kmath.h>
+#include <math/math_types.h>
+#include <memory/kmemory.h>
 #include <renderer/camera.h>
 #include <renderer/renderer_frontend.h>
 #include <renderer/renderer_types.h>
+#include <renderer/rendergraph.h>
+#include <renderer/viewport.h>
 #include <resources/terrain.h>
+#include <strings/kstring.h>
+#include <systems/camera_system.h>
+#include <time/kclock.h>
 
-#include "core/engine.h"
-#include "defines.h"
 #include "game_state.h"
-#include "identifiers/khandle.h"
-#include "math/math_types.h"
-#include "renderer/viewport.h"
-#include "systems/camera_system.h"
 
 // Standard UI.
 #include <controls/sui_button.h>
 #include <controls/sui_label.h>
 #include <controls/sui_panel.h>
-#include <passes/ui_pass.h>
+#include <standard_ui_plugin_main.h>
 #include <standard_ui_system.h>
 
-// Rendergraphs.
-#include "graphs/editor_rendergraph.h"
-#include "graphs/standard_ui_rendergraph.h"
-#include "renderer/graphs/forward_rendergraph.h"
-#include "renderer/rendergraph.h"
+// Audio plugin
+#include <resources/loaders/audio_loader.h>
 
 // TODO: Editor temp
+#include "editor/editor_gizmo.h"
 #include <resources/debug/debug_box3d.h>
 #include <resources/debug/debug_line3d.h>
 
-#include "editor/editor_gizmo.h"
-
 // TODO: temp
-#include <identifier.h>
-#include <resources/loaders/audio_loader.h>
+#include <identifiers/identifier.h>
 #include <resources/mesh.h>
 #include <resources/scene.h>
 #include <resources/skybox.h>
@@ -67,6 +64,8 @@
 #include "game_keybinds.h"
 // TODO: end temp
 
+#include "plugins/plugin_types.h"
+#include "systems/plugin_system.h"
 #include "systems/timeline_system.h"
 #include "testbed.klib_version.h"
 
@@ -82,12 +81,6 @@ void application_register_events(struct application* game_inst);
 void application_unregister_events(struct application* game_inst);
 static b8 load_main_scene(struct application* game_inst);
 static b8 save_main_scene(struct application* game_inst);
-static b8 create_rendergraphs(application* app);
-static b8 initialize_rendergraphs(application* app);
-static b8 prepare_rendergraphs(application* app, frame_data* p_frame_data);
-static b8 execute_rendergraphs(application* app, frame_data* p_frame_data);
-static void destroy_rendergraphs(application* app);
-static void refresh_rendergraph_pfns(application* app);
 
 static f32 get_engine_delta_time(void) {
     k_handle engine = timeline_system_get_engine();
@@ -250,7 +243,7 @@ static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_contex
     testbed_game_state* state = (testbed_game_state*)listener_inst;
 
     // Only care about left button drags.
-    if (drag_button == BUTTON_LEFT) {
+    if (drag_button == MOUSE_BUTTON_LEFT) {
         mat4 view = camera_view_get(state->world_camera);
         vec3 origin = camera_position_get(state->world_camera);
 
@@ -283,7 +276,7 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
     } else if (code == EVENT_CODE_BUTTON_RELEASED) {
         u16 button = context.data.u16[0];
         switch (button) {
-        case BUTTON_LEFT: {
+        case MOUSE_BUTTON_LEFT: {
             i16 x = context.data.i16[1];
             i16 y = context.data.i16[2];
             testbed_game_state* state = (testbed_game_state*)listener_inst;
@@ -391,7 +384,7 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
 }
 
 static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_context context) {
-    if (code == EVENT_CODE_MOUSE_MOVED && !input_is_button_dragging(BUTTON_LEFT)) {
+    if (code == EVENT_CODE_MOUSE_MOVED && !input_is_button_dragging(MOUSE_BUTTON_LEFT)) {
         i16 x = context.data.i16[0];
         i16 y = context.data.i16[1];
 
@@ -413,7 +406,7 @@ static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_
     return false; // Allow other event handlers to recieve this event.
 }
 
-static void sui_test_button_on_click(struct sui_control* self, struct sui_mouse_event event) {
+static void sui_test_button_on_click(struct standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
     if (self) {
         KDEBUG("Clicked '%s'!", self->name);
     }
@@ -428,43 +421,20 @@ b8 application_boot(struct application* game_inst) {
 
     // Allocate the game state.
     game_inst->state = kallocate(sizeof(testbed_game_state), MEMORY_TAG_GAME);
-    ((testbed_game_state*)game_inst->state)->running = false;
+    testbed_game_state* state = game_inst->state;
+    state->running = false;
 
-    debug_console_create(&((testbed_game_state*)game_inst->state)->debug_console);
+    // Get the standard ui plugin.
+    state->sui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.standard");
+    state->sui_plugin_state = state->sui_plugin->plugin_state;
+    state->sui_state = state->sui_plugin_state->state;
+
+    debug_console_create(state->sui_state, &((testbed_game_state*)game_inst->state)->debug_console);
 
     application_config* config = &game_inst->app_config;
 
     config->frame_allocator_size = MEBIBYTES(64);
     config->app_frame_data_size = sizeof(testbed_application_frame_data);
-
-    // Configure fonts.
-    config->font_config.auto_release = false;
-    config->font_config.default_bitmap_font_count = 1;
-
-    bitmap_font_config bmp_font_config = {};
-    // UbuntuMono21px NotoSans21px
-    bmp_font_config.name = "Ubuntu Mono 21px";
-    bmp_font_config.resource_name = "UbuntuMono21px";
-    bmp_font_config.size = 21;
-    config->font_config.bitmap_font_configs = kallocate(sizeof(bitmap_font_config) * 1, MEMORY_TAG_ARRAY);
-    config->font_config.bitmap_font_configs[0] = bmp_font_config;
-
-    system_font_config sys_font_config;
-    sys_font_config.default_size = 20;
-    sys_font_config.name = "Noto Sans";
-    sys_font_config.resource_name = "NotoSansCJK";
-
-    config->font_config.default_system_font_count = 1;
-    config->font_config.system_font_configs = kallocate(sizeof(sys_font_config) * 1, MEMORY_TAG_ARRAY);
-    config->font_config.system_font_configs[0] = sys_font_config;
-
-    config->font_config.max_bitmap_font_count = 101;
-    config->font_config.max_system_font_count = 101;
-
-    if (!create_rendergraphs(game_inst)) {
-        KERROR("Failed to create render graphs. Aborting application.");
-        return false;
-    }
 
     // Keymaps
     game_setup_keymaps(game_inst);
@@ -478,25 +448,15 @@ b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
 
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
-
-    if (!initialize_rendergraphs(game_inst)) {
-        KERROR("Failed to initialize rendergraphs. See logs for details.");
-        return false;
-    }
-
-    // FIXME: This should be done via a plugin loading interface.
-    systems_manager_state* sys_mgr_state = engine_systems_manager_state_get(game_inst);
-    standard_ui_system_config standard_ui_cfg = {0};
-    standard_ui_cfg.max_control_count = 1024;
-    if (!systems_manager_register(sys_mgr_state, K_SYSTEM_TYPE_STANDARD_UI_EXT, standard_ui_system_initialize, standard_ui_system_shutdown, standard_ui_system_update, standard_ui_system_render_prepare_frame, &standard_ui_cfg)) {
-        KERROR("Failed to register standard ui system.");
-        return false;
-    }
+    standard_ui_state* sui_state = state->sui_state;
 
     application_register_events(game_inst);
 
     // Register resource loaders.
     resource_system_loader_register(audio_resource_loader_create());
+
+    // LEFTOFF: Pick out rendergraph(s) config from app config, create/init them
+    // from here, save off to state.
 
     // Invalid handle = no selection.
     state->selection.xform_handle = k_handle_invalid();
@@ -544,6 +504,9 @@ b8 application_initialize(struct application* game_inst) {
         KERROR("Failed to load editor gizmo!");
         return false;
     }
+
+    // FIXME: set in debug3d rg node. Might want a way to reference just the geometry,
+    // and not have to maintain a pointer in this way.
     editor_rendergraph_gizmo_set(&state->editor_graph, &state->gizmo);
 
     // World meshes
@@ -554,14 +517,13 @@ b8 application_initialize(struct application* game_inst) {
     }
 
     // Create test ui text objects
-    if (!sui_label_control_create("testbed_mono_test_text", FONT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "test text 123,\n\tyo!", &state->test_text)) {
+    if (!sui_label_control_create(sui_state, "testbed_mono_test_text", FONT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "test text 123,\n\tyo!", &state->test_text)) {
         KERROR("Failed to load basic ui bitmap text.");
         return false;
     } else {
-        if (!sui_label_control_load(&state->test_text)) {
+        if (!sui_label_control_load(sui_state, &state->test_text)) {
             KERROR("Failed to load test text.");
         } else {
-            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
             if (!standard_ui_system_register_control(sui_state, &state->test_text)) {
                 KERROR("Unable to register control.");
             } else {
@@ -577,17 +539,16 @@ b8 application_initialize(struct application* game_inst) {
         }
     }
     // Move debug text to new bottom of screen.
-    sui_control_position_set(&state->test_text, vec3_create(20, game_inst->app_config.start_height - 75, 0));
+    sui_control_position_set(sui_state, &state->test_text, vec3_create(20, state->height - 75, 0));
 
     // Standard ui stuff.
-    if (!sui_panel_control_create("test_panel", (vec2){300.0f, 300.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.5f}, &state->test_panel)) {
+    if (!sui_panel_control_create(sui_state, "test_panel", (vec2){300.0f, 300.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.5f}, &state->test_panel)) {
         KERROR("Failed to create test panel.");
     } else {
-        if (!sui_panel_control_load(&state->test_panel)) {
+        if (!sui_panel_control_load(sui_state, &state->test_panel)) {
             KERROR("Failed to load test panel.");
         } else {
             xform_translate(state->test_panel.xform, (vec3){950, 350});
-            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
             if (!standard_ui_system_register_control(sui_state, &state->test_panel)) {
                 KERROR("Unable to register control.");
             } else {
@@ -603,7 +564,7 @@ b8 application_initialize(struct application* game_inst) {
         }
     }
 
-    if (!sui_button_control_create("test_button", &state->test_button)) {
+    if (!sui_button_control_create(sui_state, "test_button", &state->test_button)) {
         KERROR("Failed to create test button.");
     } else {
         // Assign a click handler.
@@ -613,10 +574,9 @@ b8 application_initialize(struct application* game_inst) {
         // quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
         // transform_translate_rotate(&state->test_button.xform, (vec3){50, 50, 0}, rotation);
 
-        if (!sui_button_control_load(&state->test_button)) {
+        if (!sui_button_control_load(sui_state, &state->test_button)) {
             KERROR("Failed to load test button.");
         } else {
-            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
             if (!standard_ui_system_register_control(sui_state, &state->test_button)) {
                 KERROR("Unable to register control.");
             } else {
@@ -632,14 +592,13 @@ b8 application_initialize(struct application* game_inst) {
         }
     }
 
-    if (!sui_label_control_create("testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Press 'L' to load a \n\tscene!\n\n\tこんにちは 한", &state->test_sys_text)) {
+    if (!sui_label_control_create(sui_state, "testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Press 'L' to load a \n\tscene!\n\n\tこんにちは 한", &state->test_sys_text)) {
         KERROR("Failed to load basic ui system text.");
         return false;
     } else {
-        if (!sui_label_control_load(&state->test_sys_text)) {
+        if (!sui_label_control_load(sui_state, &state->test_sys_text)) {
             KERROR("Failed to load test system text.");
         } else {
-            void* sui_state = systems_manager_get_state(K_SYSTEM_TYPE_STANDARD_UI_EXT);
             if (!standard_ui_system_register_control(sui_state, &state->test_sys_text)) {
                 KERROR("Unable to register control.");
             } else {
@@ -654,7 +613,7 @@ b8 application_initialize(struct application* game_inst) {
             }
         }
     }
-    sui_control_position_set(&state->test_sys_text, vec3_create(950, 450, 0));
+    sui_control_position_set(sui_state, &state->test_sys_text, vec3_create(950, 450, 0));
     // TODO: end temp load/prepare stuff
 
     state->world_camera = camera_system_acquire("world");
@@ -731,7 +690,7 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     // TODO: testing resize
     static f32 button_height = 50.0f;
     button_height = 50.0f + (ksin(get_engine_delta_time()) * 20.0f);
-    sui_button_control_height_set(&state->test_button, (i32)button_height);
+    sui_button_control_height_set(state->sui_state, &state->test_button, (i32)button_height);
 
     // Update the bitmap text with camera position. NOTE: just using the default camera for now.
     vec3 pos = camera_position_get(state->world_camera);
@@ -781,8 +740,8 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     // Only track these things once actually running.
     if (state->running) {
         // Also tack on current mouse state.
-        b8 left_down = input_is_button_down(BUTTON_LEFT);
-        b8 right_down = input_is_button_down(BUTTON_RIGHT);
+        b8 left_down = input_is_button_down(MOUSE_BUTTON_LEFT);
+        b8 right_down = input_is_button_down(MOUSE_BUTTON_RIGHT);
         i32 mouse_x, mouse_y;
         input_get_mouse_position(&mouse_x, &mouse_y);
 
@@ -822,9 +781,7 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
         }
 
         char* vsync_text = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
-        char text_buffer[2048] = {0};
-        string_format_unsafe(
-            text_buffer,
+        char* text_buffer = string_format(
             "\
 FPS: %5.1f(%4.1fms)        Pos=[%7.3f %7.3f %7.3f] Rot=[%7.3f, %7.3f, %7.3f]\n\
 Upd: %8.3fus, Prep: %8.3fus, Rend: %8.3fus, Tot: %8.3fus \n\
@@ -850,7 +807,8 @@ VSync: %s Drawn: %-5u (%-5u shadow pass) Hovered: %s%u",
             state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
 
         // Update the text control.
-        sui_label_text_set(&state->test_text, text_buffer);
+        sui_label_text_set(state->sui_state, &state->test_text, text_buffer);
+        string_free(text_buffer);
     }
 
     debug_console_update(&((testbed_game_state*)game_inst->state)->debug_console);
@@ -873,10 +831,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
     kclock_start(&state->prepare_clock);
 
-    if (!prepare_rendergraphs(app_inst, p_frame_data)) {
-        KERROR("Preparation of rendergraphs failed. See logs for details.");
-        return false;
-    }
+    // TODO: Anything to do here?
 
     kclock_update(&state->prepare_clock);
     return true;
@@ -891,10 +846,7 @@ b8 application_render_frame(struct application* game_inst, struct frame_data* p_
 
     kclock_start(&state->render_clock);
 
-    if (!execute_rendergraphs(game_inst, p_frame_data)) {
-        KERROR("Execution of rendergraphs failed. See logs for details.");
-        return false;
-    }
+    // TODO: Anything to do here?
 
     kclock_update(&state->render_clock);
 
@@ -932,19 +884,8 @@ void application_on_resize(struct application* game_inst, u32 width, u32 height)
 
     // TODO: temp
     // Move debug text to new bottom of screen.
-    sui_control_position_set(&state->test_text, vec3_create(20, state->height - 95, 0));
-
-    // Pass the resize onto the rendergraphs.
-    if (!forward_rendergraph_on_resize(&state->forward_graph, width, height)) {
-        KERROR("Error resizing forward rendergraph. See logs for details.");
-    }
-    if (!editor_rendergraph_on_resize(&state->editor_graph, width, height)) {
-        KERROR("Error resizing editor rendergraph. See logs for details.");
-    }
-    if (!standard_ui_rendergraph_on_resize(&state->standard_ui_graph, width, height)) {
-        KERROR("Error resizing Standard UI rendergraph. See logs for details.");
-    }
-
+    // FIXME: This should be handled by the standard ui system resize event handler (that doesn't exist yet).
+    sui_control_position_set(state->sui_state, &state->test_text, vec3_create(20, state->height - 95, 0));
     // TODO: end temp
 }
 
@@ -965,9 +906,6 @@ void application_shutdown(struct application* game_inst) {
 
     // Destroy ui texts
     debug_console_unload(&state->debug_console);
-
-    // Destroy rendergraph(s)
-    destroy_rendergraphs(game_inst);
 }
 
 void application_lib_on_unload(struct application* game_inst) {
@@ -983,7 +921,6 @@ void application_lib_on_load(struct application* game_inst) {
     if (game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE) {
         game_setup_commands(game_inst);
         game_setup_keymaps(game_inst);
-        refresh_rendergraph_pfns(game_inst);
     }
 }
 
@@ -994,7 +931,7 @@ static void toggle_vsync(void) {
 }
 
 static b8 game_on_kvar_changed(u16 code, void* sender, void* listener_inst, event_context data) {
-    if (code == EVENT_CODE_KVAR_CHANGED && strings_equali(data.data.c, "vsync")) {
+    if (code == EVENT_CODE_KVAR_CHANGED && strings_equali(data.data.s, "vsync")) {
         toggle_vsync();
     }
     return false;
@@ -1038,109 +975,6 @@ void application_unregister_events(struct application* game_inst) {
     // TODO: end temp
 
     event_unregister(EVENT_CODE_KVAR_CHANGED, 0, game_on_kvar_changed);
-}
-
-static void refresh_rendergraph_pfns(application* app) {
-    testbed_game_state* state = (testbed_game_state*)app->state;
-
-    editor_rendergraph_refresh_pfns(&state->editor_graph);
-}
-
-static b8 create_rendergraphs(application* app) {
-    testbed_game_state* state = (testbed_game_state*)app->state;
-
-    forward_rendergraph_config forward_config = {0};
-    forward_config.shadowmap_resolution = 2048;
-    if (!forward_rendergraph_create(&forward_config, &state->forward_graph)) {
-        KERROR("Forward rendergraph failed to initialize.");
-        return false;
-    }
-
-    editor_rendergraph_config editor_config = {0};
-    editor_config.dummy = 0;
-    if (!editor_rendergraph_create(&editor_config, &state->editor_graph)) {
-        KERROR("Editor rendergraph failed to initialize.");
-        return false;
-    }
-
-    standard_ui_rendergraph_config sui_config = {0};
-    sui_config.dummy = 0;
-    if (!standard_ui_rendergraph_create(&sui_config, &state->standard_ui_graph)) {
-        KERROR("Standard UI rendergraph failed to initialize.");
-        return false;
-    }
-
-    return true;
-}
-
-static b8 initialize_rendergraphs(application* app) {
-    testbed_game_state* state = (testbed_game_state*)app->state;
-
-    if (!forward_rendergraph_initialize(&state->forward_graph)) {
-        KERROR("Failed to load Forward rendergraph resources.");
-        return false;
-    }
-    if (!editor_rendergraph_initialize(&state->editor_graph)) {
-        KERROR("Failed to load Editor rendergraph resources.");
-        return false;
-    }
-    if (!standard_ui_rendergraph_initialize(&state->standard_ui_graph)) {
-        KERROR("Failed to load Standard UI rendergraph resources.");
-        return false;
-    }
-
-    return true;
-}
-
-static b8 prepare_rendergraphs(application* app, frame_data* p_frame_data) {
-    testbed_game_state* state = (testbed_game_state*)app->state;
-
-    // Prepare the configured rendergraphs.
-    if (!forward_rendergraph_frame_prepare(&state->forward_graph, p_frame_data, state->world_camera, &state->world_viewport, &state->main_scene, state->render_mode)) {
-        KERROR("Forward rendergraph failed to prepare frame data.");
-        return false;
-    }
-
-    if (!editor_rendergraph_frame_prepare(&state->editor_graph, p_frame_data, state->world_camera, &state->world_viewport, &state->main_scene, state->render_mode)) {
-        KERROR("Editor rendergraph failed to prepare frame data.");
-        return false;
-    }
-
-    if (!standard_ui_rendergraph_frame_prepare(&state->standard_ui_graph, p_frame_data, 0, &state->ui_viewport, &state->main_scene, state->render_mode)) {
-        KERROR("Standard UI rendergraph failed to prepare frame data.");
-        return false;
-    }
-
-    return true;
-}
-
-static b8 execute_rendergraphs(application* app, frame_data* p_frame_data) {
-    testbed_game_state* state = (testbed_game_state*)app->state;
-
-    if (!forward_rendergraph_execute(&state->forward_graph, p_frame_data)) {
-        KERROR("Forward rendergraph failed to execute frame. See logs for details.");
-        return false;
-    }
-
-    if (!editor_rendergraph_execute(&state->editor_graph, p_frame_data)) {
-        KERROR("Editor rendergraph failed to execute frame. See logs for details.");
-        return false;
-    }
-
-    if (!standard_ui_rendergraph_execute(&state->standard_ui_graph, p_frame_data)) {
-        KERROR("Standard UI rendergraph failed to execute frame. See logs for details.");
-        return false;
-    }
-
-    return true;
-}
-
-static void destroy_rendergraphs(application* app) {
-    testbed_game_state* state = (testbed_game_state*)app->state;
-
-    forward_rendergraph_destroy(&state->forward_graph);
-    editor_rendergraph_destroy(&state->editor_graph);
-    standard_ui_rendergraph_destroy(&state->standard_ui_graph);
 }
 
 static b8 load_main_scene(struct application* game_inst) {

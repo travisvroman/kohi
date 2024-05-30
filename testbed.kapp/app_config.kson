@@ -20,6 +20,22 @@ systems = [
         backend_plugin_name = "kohi.plugin.renderer.vulkan"
     }
     {
+        name = "font"
+        auto_release = false
+        default_bitmap_font = {
+            name = "Ubuntu Mono 21px"
+            size = 21
+            resource_name = "UbuntuMono21px"
+        }
+        default_system_font = {
+            name = "Noto Sans"
+            size = 20
+            resource_name = "NotoSansCJK"
+        }
+        max_bitmap_font_count = 101
+        max_system_font_count = 101
+    }
+    {
        name="plugin_system"
        plugins = [
            {
@@ -101,11 +117,31 @@ rendergraphs = [
                 ]
             }
             {
+                name = "debug"
+                type = "debug3d"
+                sinks = [
+                    {
+                        name = "colourbuffer"
+                        source_name = "forward.colourbuffer"
+                    }
+                ]
+            }
+            {
+                name = "sui"
+                type = "standard_ui"
+                sinks = [
+                    {
+                        name = "colourbuffer"
+                        source_name = "debug.colourbuffer"
+                    }
+                ]
+            }
+            {
                 name = "frame_end"
                 type = "frame_end"
                 comment = "This node is required."
                 config = {
-                    colourbuffer_source = "forward.colourbuffer"
+                    colourbuffer_source = "sui.colourbuffer"
                 }
             }
         ]

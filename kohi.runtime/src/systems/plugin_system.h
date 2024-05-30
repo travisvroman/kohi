@@ -5,7 +5,7 @@
 #include "parsers/kson_parser.h"
 #include "plugins/plugin_types.h"
 
-// LEFTOFF: Build up a system that can load plugins by configured names,
+// Build up a system that can load plugins by configured names,
 // which is then uses to load shared libraries. It will then load up the
 // found kruntime_plugin functions that are available, setup the state
 // and register it as globally available to be queried later.

@@ -9,7 +9,7 @@ struct kwindow;
 struct kruntime_plugin;
 
 typedef b8 (*PFN_kruntime_plugin_create)(struct kruntime_plugin* out_plugin);
-typedef void (*PFN_kruntime_plugin_initialize)(struct kruntime_plugin* plugin);
+typedef b8 (*PFN_kruntime_plugin_initialize)(struct kruntime_plugin* plugin);
 typedef void (*PFN_kruntime_plugin_destroy)(struct kruntime_plugin* plugin);
 
 typedef b8 (*PFN_kruntime_plugin_update)(struct kruntime_plugin* plugin, struct frame_data* p_frame_data);

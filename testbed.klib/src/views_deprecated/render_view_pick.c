@@ -1,16 +1,17 @@
+/*
 #include "render_view_pick.h"
 
 #include "containers/darray.h"
 #include "core/event.h"
-#include "frame_data.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
-#include "logger.h"
 #include "core/uuid.h"
+#include "frame_data.h"
+#include "logger.h"
 #include "math/kmath.h"
+#include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "renderer/viewport.h"
+#include "strings/kstring.h"
 #include "systems/camera_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
@@ -66,7 +67,7 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, even
 
     switch (code) {
     case EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED:
-        /* render_view_system_render_targets_regenerate(self); */
+        // render_view_system_render_targets_regenerate(self);
         // This needs to be consumed by other views, so consider it _not_ handled.
         return false;
     }
@@ -312,7 +313,7 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct frame
             render_data.index_count = g->index_count;
             render_data.index_buffer_offset = g->index_buffer_offset;
             // TODO: Get from hierarchy.
-            /* render_data.model = xform_world_get(m->xform); */
+            // render_data.model = xform_world_get(m->xform);
             render_data.unique_id = m->id.uniqueid;
             darray_push(out_packet->geometries, render_data);
             out_packet->geometry_count++;
@@ -324,11 +325,11 @@ b8 render_view_pick_on_packet_build(const struct render_view* self, struct frame
     }
 
     // Count texts as well.
-    /* for (u32 i = 0; i < packet_data->text_count; ++i) {
-        if (packet_data->texts[i]->id.uniqueid > highest_instance_id) {
-            highest_instance_id = packet_data->texts[i]->id.uniqueid;
-        }
-    } */
+    //for (u32 i = 0; i < packet_data->text_count; ++i) {
+    //    if (packet_data->texts[i]->id.uniqueid > highest_instance_id) {
+    //        highest_instance_id = packet_data->texts[i]->id.uniqueid;
+    //    }
+    //}
 
     i32 required_instance_count = highest_instance_id + 1;
 
@@ -539,31 +540,31 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
         }
 
         // Draw bitmap text
-        /* for (u32 i = 0; i < packet_data->text_count; ++i) {
-            ui_text* text = packet_data->texts[i];
-            current_instance_id = text->id.uniqueid;
-            shader_system_bind_instance(current_instance_id);
+        //for (u32 i = 0; i < packet_data->text_count; ++i) {
+        //   ui_text* text = packet_data->texts[i];
+        //   current_instance_id = text->id.uniqueid;
+        //   shader_system_bind_instance(current_instance_id);
 
-            // Get colour based on id
-            vec3 id_colour;
-            u32 r, g, b;
-            u32_to_rgb(text->id.uniqueid, &r, &g, &b);
-            rgb_u32_to_vec3(r, g, b, &id_colour);
-            if (!shader_system_uniform_set_by_location(data->ui_shader_info.id_colour_location, &id_colour)) {
-                KERROR("Failed to apply id colour uniform.");
-                return false;
-            }
+        //   // Get colour based on id
+        //   vec3 id_colour;
+        //   u32 r, g, b;
+        //   u32_to_rgb(text->id.uniqueid, &r, &g, &b);
+        //   rgb_u32_to_vec3(r, g, b, &id_colour);
+        //   if (!shader_system_uniform_set_by_location(data->ui_shader_info.id_colour_location, &id_colour)) {
+        //       KERROR("Failed to apply id colour uniform.");
+        //       return false;
+        //   }
 
-            shader_system_apply_instance(true);
+        //   shader_system_apply_instance(true);
 
-            // Apply the locals
-            mat4 model = transform_world_get(&text->transform);
-            if (!shader_system_uniform_set_by_location(data->ui_shader_info.model_location, &model)) {
-                KERROR("Failed to apply model matrix for text");
-            }
+        //   // Apply the locals
+        //   mat4 model = transform_world_get(&text->transform);
+        //   if (!shader_system_uniform_set_by_location(data->ui_shader_info.model_location, &model)) {
+        //       KERROR("Failed to apply model matrix for text");
+        //   }
 
-            ui_text_draw(text);
-        } */
+        //   ui_text_draw(text);
+        //}
 
         if (!renderer_renderpass_end(pass)) {
             KERROR("render_view_ui_on_render pass index %u failed to end.", p);
@@ -648,3 +649,4 @@ b8 render_view_pick_attachment_target_regenerate(struct render_view* self, u32 p
 
     return true;
 }
+*/

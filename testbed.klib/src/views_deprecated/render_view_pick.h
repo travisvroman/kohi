@@ -1,3 +1,4 @@
+/*
 #pragma once
 
 #include "defines.h"
@@ -17,3 +18,4 @@ b8 render_view_pick_on_render(const struct render_view* self, const struct rende
 
 void render_view_pick_get_matrices(const struct render_view* self, mat4* out_view, mat4* out_projection);
 b8 render_view_pick_attachment_target_regenerate(struct render_view* self, u32 pass_index, struct render_target_attachment* attachment);
+*/

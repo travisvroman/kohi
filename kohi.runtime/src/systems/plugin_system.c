@@ -210,7 +210,7 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
     // Load optional hook functions.
     new_plugin.kplugin_initialize = platform_dynamic_library_load_function("kplugin_initialize", &new_plugin.library);
     new_plugin.kplugin_update = platform_dynamic_library_load_function("kplugin_update", &new_plugin.library);
-    new_plugin.kplugin_initialize = platform_dynamic_library_load_function("kplugin_frame_prepare", &new_plugin.library);
+    new_plugin.kplugin_frame_prepare = platform_dynamic_library_load_function("kplugin_frame_prepare", &new_plugin.library);
     new_plugin.kplugin_render = platform_dynamic_library_load_function("kplugin_render", &new_plugin.library);
     new_plugin.kplugin_on_window_resized = platform_dynamic_library_load_function("kplugin_on_window_resized", &new_plugin.library);
 
@@ -218,6 +218,15 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
     if (!plugin_create(&new_plugin)) {
         KERROR("plugin_create call failed for plugin '%s'. Plugin load failed.", name);
         return false;
+    }
+
+    // Invoke the initialization of the plugin.
+    // NOTE: May need to move this if it proves to be happening too early.
+    if (new_plugin.kplugin_initialize) {
+        if (!new_plugin.kplugin_initialize(&new_plugin)) {
+            KERROR("Failed to initialize new plugin during creation.");
+            return false;
+        }
     }
 
     // Register the plugin

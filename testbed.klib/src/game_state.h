@@ -1,27 +1,26 @@
 #pragma once
 
-#include <application_types.h>
+#include <application/application_types.h>
 #include <defines.h>
 #include <math/math_types.h>
-#include <renderer/graphs/forward_rendergraph.h>
 #include <renderer/rendergraph.h>
 #include <systems/camera_system.h>
 
 #include "audio/audio_types.h"
-#include "identifiers/khandle.h"
 #include "editor/editor_gizmo.h"
 #include "graphs/editor_rendergraph.h"
 #include "graphs/standard_ui_rendergraph.h"
+#include "identifiers/khandle.h"
 #include "renderer/viewport.h"
 #include "resources/scene.h"
 
 // TODO: temp
-#include <core/kclock.h>
 #include <core/keymap.h>
 #include <resources/debug/debug_box3d.h>
 #include <resources/skybox.h>
 #include <standard_ui_system.h>
 #include <systems/light_system.h>
+#include <time/kclock.h>
 
 #include "debug_console.h"
 struct debug_line3d;
@@ -85,17 +84,14 @@ typedef struct testbed_game_state {
 
     viewport world_viewport2;
 
-    rendergraph_pass editor_pass;
-    rendergraph_pass ui_pass;
-
-    forward_rendergraph forward_graph;
-    editor_rendergraph editor_graph;
-    standard_ui_rendergraph standard_ui_graph;
-
     selected_object selection;
     b8 using_gizmo;
 
     u32 render_mode;
+
+    struct kruntime_plugin* sui_plugin;
+    struct standard_ui_plugin_state* sui_plugin_state;
+    struct standard_ui_state* sui_state;
 
     struct sui_control test_panel;
     struct sui_control test_button;
