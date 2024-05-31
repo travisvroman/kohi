@@ -81,7 +81,7 @@ make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=testbed.kapp
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Tests
-make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.runtime.tests ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%"
+make -f "Makefile.executable.mak" %ACTION% TARGET=%TARGET% ASSEMBLY=kohi.core.tests ADDL_INC_FLAGS="%INC_CORE_RT%" ADDL_LINK_FLAGS="%LNK_CORE_RT%"
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
 REM Tools

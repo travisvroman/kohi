@@ -1,8 +1,7 @@
 // Application config file.
-app_name = "Testbed"
+app_name = "Kohi Engine Testbed Application"
 frame_allocator_size = 128
 app_frame_data_size = 128
-audio_plugin_name = "kohi.plugin.audio.openal"
 windows = [
    {
     resolution="1280 720"

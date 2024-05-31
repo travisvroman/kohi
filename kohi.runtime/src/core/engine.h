@@ -42,6 +42,7 @@ struct light_system_state;
 struct camera_system_state;
 struct plugin_system_state;
 struct rendergraph_system_state;
+struct kwindow;
 
 typedef struct engine_system_states {
     u64 platform_memory_requirement;
@@ -142,3 +143,5 @@ KAPI const engine_system_states* engine_systems_get(void);
 KAPI k_handle engine_external_system_register(u64 system_state_memory_requirement);
 
 KAPI void* engine_external_system_state_get(k_handle system_handle);
+
+KAPI struct kwindow* engine_active_window_get(void);

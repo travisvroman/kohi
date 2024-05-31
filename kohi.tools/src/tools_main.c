@@ -1,7 +1,7 @@
 #include <containers/darray.h>
-#include <kstring.h>
-#include <logger.h>
 #include <defines.h>
+#include <logger.h>
+#include <strings/kstring.h>
 
 // For executing shell commands.
 #include <stdlib.h>
@@ -169,7 +169,7 @@ i32 combine_texture_maps(i32 argc, char** argv) {
             target_buffer[index_bpp + 0] = maps[MAP_TYPE_METALLIC].data[index_bpp + 0];
             target_buffer[index_bpp + 1] = maps[MAP_TYPE_ROUGHNESS].data[index_bpp + 1];
             target_buffer[index_bpp + 2] = maps[MAP_TYPE_AO].data[index_bpp + 2];
-            target_buffer[index_bpp + 3] = 255;  // reserved
+            target_buffer[index_bpp + 3] = 255; // reserved
         }
     }
 

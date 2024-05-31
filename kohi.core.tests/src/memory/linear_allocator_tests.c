@@ -1,7 +1,7 @@
 #include "linear_allocator_tests.h"
 
 #include <defines.h>
-#include <memory/linear_allocator.h>
+#include <memory/allocators/linear_allocator.h>
 
 #include "../expect.h"
 #include "../test_manager.h"

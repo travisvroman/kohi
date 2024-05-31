@@ -1,12 +1,12 @@
 #include <containers/darray.h>
+#include <core/event.h>
 #include <entry.h>
-#include <event.h>
-#include <kmemory.h>
-#include <kstring.h>
+#include <memory/kmemory.h>
 #include <platform/platform.h>
+#include <strings/kstring.h>
 
-typedef b8 (*PFN_renderer_plugin_create)(renderer_plugin* out_plugin);
-typedef b8 (*PFN_audio_plugin_create)(audio_plugin* out_plugin);
+/* typedef b8 (*PFN_renderer_plugin_create)(renderer_plugin* out_plugin); */
+/* typedef b8 (*PFN_audio_plugin_create)(audio_plugin* out_plugin); */
 typedef u64 (*PFN_application_state_size)(void);
 
 b8 load_game_lib(application* app) {
@@ -30,7 +30,7 @@ b8 load_game_lib(application* app) {
     if (!platform_dynamic_library_load_function("application_render_frame", &app->game_library)) {
         return false;
     }
-    if (!platform_dynamic_library_load_function("application_on_resize", &app->game_library)) {
+    if (!platform_dynamic_library_load_function("application_on_window_resize", &app->game_library)) {
         return false;
     }
     if (!platform_dynamic_library_load_function("application_shutdown", &app->game_library)) {
@@ -51,7 +51,7 @@ b8 load_game_lib(application* app) {
     app->update = app->game_library.functions[2].pfn;
     app->prepare_frame = app->game_library.functions[3].pfn;
     app->render_frame = app->game_library.functions[4].pfn;
-    app->on_resize = app->game_library.functions[5].pfn;
+    app->on_window_resize = app->game_library.functions[5].pfn;
     app->shutdown = app->game_library.functions[6].pfn;
     app->lib_on_load = app->game_library.functions[7].pfn;
     app->lib_on_unload = app->game_library.functions[8].pfn;
@@ -111,25 +111,15 @@ b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_conte
 // Define the function to create a game
 b8 create_application(application* out_application) {
     // Application configuration.
-
-    // NOTE: The application can inject anything it needs
-    // into the configuration at this point.
-    out_application->app_config.start_pos_x = 100;
-    out_application->app_config.start_pos_y = 100;
-    out_application->app_config.start_width = 1280;
-    out_application->app_config.start_height = 720;
-    out_application->app_config.name = "Kohi Engine Testbed";
-
     platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
     while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
         const char* prefix = platform_dynamic_library_prefix();
         const char* extension = platform_dynamic_library_extension();
-        char source_file[260];
-        char target_file[260];
-        string_format_unsafe(source_file, "%stestbed.klib%s", prefix, extension);
-        string_format_unsafe(target_file, "%stestbed.klib_loaded%s", prefix, extension);
-
+        char* source_file = string_format("%stestbed.klib%s", prefix, extension);
+        char* target_file = string_format("%stestbed.klib_loaded%s", prefix, extension);
         err_code = platform_copy_file(source_file, target_file, true);
+        string_free(source_file);
+        string_free(target_file);
         if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
             platform_sleep(100);
         }
@@ -186,6 +176,7 @@ b8 initialize_application(application* app) {
 
     const char* prefix = platform_dynamic_library_prefix();
     const char* extension = platform_dynamic_library_extension();
+    // FIXME: safe version of string format
     char path[260];
     kzero_memory(path, sizeof(char) * 260);
     string_format_unsafe(path, "%s%s%s", prefix, "testbed.klib", extension);

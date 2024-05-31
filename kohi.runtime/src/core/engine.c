@@ -483,7 +483,6 @@ b8 engine_create(application* game_inst) {
     // Reach into platform and open new window(s) in accordance with app config.
     // Notify renderer of window(s)/setup surface(s), etc.
     u32 window_count = darray_length(game_inst->app_config.windows);
-    // FIXME: Multiple window support at the engine level.
     if (window_count > 1) {
         KFATAL("Multiple windows are not yet implemented at the engine level. Please just stick to one for now.");
         return false;
@@ -558,6 +557,8 @@ b8 engine_run(application* game_inst) {
     // FIXME: Need a better way to select the active window.
     kwindow* w = &engine_state->windows[0];
 
+    // FIXME: The event loop in the platform layer depends on active window.
+    // In theory this means there should be one of these loops per window.
     while (engine_state->is_running) {
         if (!platform_pump_messages()) {
             engine_state->is_running = false;
@@ -770,6 +771,11 @@ k_handle engine_external_system_register(u64 system_state_memory_requirement) {
 void* engine_external_system_state_get(k_handle system_handle) {
     // Acquire the system state, but without any listener/callback.
     return kregistry_entry_acquire(&engine_state->external_systems_registry, system_handle, 0, 0);
+}
+
+struct kwindow* engine_active_window_get(void) {
+    // FIXME: multi-window support
+    return &engine_state->windows[0];
 }
 
 static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context) {

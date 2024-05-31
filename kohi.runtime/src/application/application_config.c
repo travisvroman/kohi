@@ -175,6 +175,46 @@ b8 application_config_parse_file_content(const char* file_content, application_c
         darray_push(out_config->systems, new_system);
     }
 
+    // Rendergraph configs.
+    out_config->rendergraphs = darray_create(application_rendergraph_config);
+    kson_array rendergraph_configs_array;
+    if (!kson_object_property_value_get_object(&app_config_tree.root, "rendergraphs", &rendergraph_configs_array)) {
+        KERROR("rendergraphs config is required in application configuration.");
+        return false;
+    }
+
+    u32 rendergraph_config_count = 0;
+    if (!kson_array_element_count_get(&rendergraph_configs_array, &rendergraph_config_count)) {
+        KERROR("Failed to get element count of 'rendergraphs' array. This configuration is required.");
+        return false;
+    }
+
+    for (u32 i = 0; i < rendergraph_config_count; ++i) {
+        kson_object rendergraph_config = {0};
+        if (!kson_array_element_value_get_object(&rendergraph_configs_array, i, &rendergraph_config)) {
+            KERROR("Failed to get rendergraph config object at index %u. Continuing on and trying the next...", i);
+            continue;
+        }
+
+        // Name
+        application_rendergraph_config new_rendergraph = {0};
+        if (!kson_object_property_value_get_string(&rendergraph_config, "name", &new_rendergraph.name)) {
+            KERROR("Required property 'name' is missing from rendergraph config. Cannot process system.");
+            continue;
+        }
+
+        // Obtain the entire config and re-serialize it into a string.
+        kson_tree temp = {0};
+        temp.root = rendergraph_config;
+        new_rendergraph.configuration_str = kson_tree_to_string(&temp);
+
+        // NOTE: No need to clean up the temp tree since it reuses objects already present in the
+        // main tree. This can/will be cleaned up at the end of processing.
+
+        // Push it into the collection of configs.
+        darray_push(out_config->rendergraphs, new_rendergraph);
+    }
+
     // Loop through and fill up struct
     return true;
 }

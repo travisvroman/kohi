@@ -109,7 +109,7 @@ echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
 
 # Tests
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.runtime.tests ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT"
+make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.core.tests ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then

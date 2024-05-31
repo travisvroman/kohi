@@ -31,6 +31,13 @@ typedef struct application_system_config {
     const char* configuration_str;
 } application_system_config;
 
+typedef struct application_rendergraph_config {
+    /** @brief The name of the rendergraph. */
+    const char* name;
+    /** @brief The configuration of the rendergraph in string format, to be parsed by the rendergraph system. */
+    const char* configuration_str;
+} application_rendergraph_config;
+
 /**
  * @brief Represents configuration for the application. The application config
  * is fed to the engine on creation, so it knows how to configure itself internally.
@@ -49,6 +56,9 @@ typedef struct application_config {
     // darray of configurations for core engine systems.
     application_system_config* systems;
 
+    // darray of rendergraph configurations.
+    application_rendergraph_config* rendergraphs;
+
     /** @brief The size of the engine's frame allocator. */
     u64 frame_allocator_size;
 
@@ -64,7 +74,7 @@ typedef struct application_config {
  * @param out_config A pointer to hold the application config structure.
  * @returns True on success; otherwise false.
  */
-b8 application_config_parse_file_content(const char* file_content, application_config* out_config);
+KAPI b8 application_config_parse_file_content(const char* file_content, application_config* out_config);
 
 /**
  * @brief Attempts to get the generic-level configuration for the system with the provided name.
@@ -74,6 +84,6 @@ b8 application_config_parse_file_content(const char* file_content, application_c
  * @param out_sys_config A pointer to hold the selected system config, if found.
  * @returns True on success; otherwise false.
  */
-b8 application_config_system_config_get(const application_config* config, const char* system_name, application_system_config* out_sys_config);
+KAPI b8 application_config_system_config_get(const application_config* config, const char* system_name, application_system_config* out_sys_config);
 
 #endif

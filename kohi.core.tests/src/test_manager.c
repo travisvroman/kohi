@@ -2,8 +2,8 @@
 
 #include <containers/darray.h>
 #include <logger.h>
-#include <kstring.h>
-#include <core/kclock.h>
+#include <strings/kstring.h>
+#include <time/kclock.h>
 
 typedef struct test_entry {
     PFN_test func;

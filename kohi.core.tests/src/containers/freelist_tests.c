@@ -1,10 +1,9 @@
-#include "hashtable_tests.h"
-#include "../test_manager.h"
 #include "../expect.h"
+#include "../test_manager.h"
 
-#include <defines.h>
 #include <containers/freelist.h>
-#include <kmemory.h>
+#include <defines.h>
+#include <memory/kmemory.h>
 
 u8 freelist_should_create_and_destroy(void) {
     // NOTE: creating a small size list, which will trigger a warning.
@@ -48,7 +47,7 @@ u8 freelist_should_allocate_one_and_free_one(void) {
     freelist_create(total_size, &memory_requirement, block, &list);
 
     // Allocate some space.
-    u64 offset = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    u64 offset = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     b8 result = freelist_allocate_block(&list, 64, &offset);
     // Verify that result is true, offset should be set to 0.
     expect_to_be_true(result);
@@ -88,21 +87,21 @@ u8 freelist_should_allocate_one_and_free_multi(void) {
     freelist_create(total_size, &memory_requirement, block, &list);
 
     // Allocate some space.
-    u64 offset = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    u64 offset = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     b8 result = freelist_allocate_block(&list, 64, &offset);
     // Verify that result is true, offset should be set to 0.
     expect_to_be_true(result);
     expect_should_be(0, offset);
 
     // Allocate some more space.
-    u64 offset2 = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    u64 offset2 = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     result = freelist_allocate_block(&list, 64, &offset2);
     // Verify that result is true, offset should be set to the size of the previous allocation.
     expect_to_be_true(result);
     expect_should_be(64, offset2);
 
     // Allocate one more space.
-    u64 offset3 = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    u64 offset3 = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     result = freelist_allocate_block(&list, 64, &offset3);
     // Verify that result is true, offset should be set to the offset+size of the previous allocation.
     expect_to_be_true(result);
@@ -122,11 +121,11 @@ u8 freelist_should_allocate_one_and_free_multi(void) {
     expect_should_be(total_size - 128, free_space);
 
     // Allocate some more space, this should fill the middle block back in.
-    u64 offset4 = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    u64 offset4 = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     result = freelist_allocate_block(&list, 64, &offset4);
     // Verify that result is true, offset should be set to the size of the previous allocation.
     expect_to_be_true(result);
-    expect_should_be(offset2, offset4);  // Offset should be the same as 2 since it occupies the same space
+    expect_should_be(offset2, offset4); // Offset should be the same as 2 since it occupies the same space
 
     // Verify that the correct amount of space is free.
     free_space = freelist_free_space(&list);
@@ -171,21 +170,21 @@ u8 freelist_should_allocate_one_and_free_multi_varying_sizes(void) {
     freelist_create(total_size, &memory_requirement, block, &list);
 
     // Allocate some space.
-    u64 offset = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    u64 offset = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     b8 result = freelist_allocate_block(&list, 64, &offset);
     // Verify that result is true, offset should be set to 0.
     expect_to_be_true(result);
     expect_should_be(0, offset);
 
     // Allocate some more space.
-    u64 offset2 = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    u64 offset2 = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     result = freelist_allocate_block(&list, 32, &offset2);
     // Verify that result is true, offset should be set to the size of the previous allocation.
     expect_to_be_true(result);
     expect_should_be(64, offset2);
 
     // Allocate one more space.
-    u64 offset3 = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    u64 offset3 = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     result = freelist_allocate_block(&list, 64, &offset3);
     // Verify that result is true, offset should be set to the offset+size of the previous allocation.
     expect_to_be_true(result);
@@ -206,11 +205,11 @@ u8 freelist_should_allocate_one_and_free_multi_varying_sizes(void) {
 
     // Allocate some more space, this time larger than the old middle block. This should have a new offset
     // at the end of the list.
-    u64 offset4 = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    u64 offset4 = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     result = freelist_allocate_block(&list, 64, &offset4);
     // Verify that result is true, offset should be set to the size of the previous allocation.
     expect_to_be_true(result);
-    expect_should_be(160, offset4);  // Offset should be the end since it occupies more space than the old middle block.
+    expect_should_be(160, offset4); // Offset should be the end since it occupies more space than the old middle block.
 
     // Verify that the correct amount of space is free.
     free_space = freelist_free_space(&list);
@@ -255,7 +254,7 @@ u8 freelist_should_allocate_to_full_and_fail_to_allocate_more(void) {
     freelist_create(total_size, &memory_requirement, block, &list);
 
     // Allocate all space.
-    u64 offset = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    u64 offset = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     b8 result = freelist_allocate_block(&list, 512, &offset);
     // Verify that result is true, offset should be set to 0.
     expect_to_be_true(result);
@@ -266,12 +265,11 @@ u8 freelist_should_allocate_to_full_and_fail_to_allocate_more(void) {
     expect_should_be(0, free_space);
 
     // Now try allocating some more
-    u64 offset2 = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    u64 offset2 = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     KDEBUG("The following warning message is intentional.");
     result = freelist_allocate_block(&list, 64, &offset2);
     // Verify that result is false
     expect_to_be_false(result);
-
 
     // Verify that the correct amount of space is free.
     free_space = freelist_free_space(&list);
@@ -292,7 +290,7 @@ typedef struct alloc_data {
 
 u8 util_freelist_allocate(freelist* list, alloc_data* data, u64* currently_allocated, u64 total_list_size) {
     // Allocate some space.
-    data->offset = INVALID_ID;  // Start with invalid id, which is a good default since it should never happen.
+    data->offset = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
     b8 result = freelist_allocate_block(list, data->size, &data->offset);
     // Verify that result is true
     expect_to_be_true(result);

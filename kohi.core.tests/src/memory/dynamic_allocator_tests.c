@@ -1,11 +1,11 @@
 #include "dynamic_allocator_tests.h"
-#include "../test_manager.h"
 #include "../expect.h"
+#include "../test_manager.h"
 
 #include <defines.h>
 
-#include <kmemory.h>
-#include <memory/dynamic_allocator.h>
+#include <memory/allocators/dynamic_allocator.h>
+#include <memory/kmemory.h>
 
 u8 dynamic_allocator_should_create_and_destroy(void) {
     dynamic_allocator alloc;
@@ -331,10 +331,10 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
 
     const u32 alloc_data_count = 4;
     alloc_data alloc_datas[4];
-    alloc_datas[0] = (alloc_data){0, 1, 31};   // 1-byte alignment.
-    alloc_datas[1] = (alloc_data){0, 16, 82};  // 16-byte alignment.
-    alloc_datas[2] = (alloc_data){0, 1, 59};   // 1-byte alignment.
-    alloc_datas[3] = (alloc_data){0, 8, 73};   // 1-byte alignment.
+    alloc_datas[0] = (alloc_data){0, 1, 31};  // 1-byte alignment.
+    alloc_datas[1] = (alloc_data){0, 16, 82}; // 16-byte alignment.
+    alloc_datas[2] = (alloc_data){0, 1, 59};  // 1-byte alignment.
+    alloc_datas[3] = (alloc_data){0, 8, 73};  // 1-byte alignment.
     // Total size needed, including headers.
     u64 total_allocator_size = 0;
     for (u32 i = 0; i < alloc_data_count; ++i) {
