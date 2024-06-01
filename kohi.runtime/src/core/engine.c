@@ -255,7 +255,7 @@ b8 engine_create(application* game_inst) {
     // Resource system.
     {
         resource_system_config resource_sys_config = {0};
-        resource_sys_config.asset_base_path = "../assets"; // TODO: The application should probably configure this.
+        resource_sys_config.asset_base_path = "../testbed.assets"; // TODO: The application should probably configure this.
         resource_sys_config.max_loader_count = 32;
         resource_system_initialize(&systems->resource_system_memory_requirement, 0, &resource_sys_config);
         systems->resource_system = kallocate(systems->resource_system_memory_requirement, MEMORY_TAG_ENGINE);

@@ -12,47 +12,65 @@ windows = [
 ]
 systems = [
     {
+        name="resource"
+        config = {
+            asset_base_path="../testbed.assets"
+        }
+    }
+    {
+        name="audio"
+        config = {
+            backend_plugin_name = "kohi.plugin.audio.openal"
+        }
+    }
+    {
         name="renderer"
-        vsync=true
-        power_saving=true
-        enable_validation=true
-        backend_plugin_name = "kohi.plugin.renderer.vulkan"
+        config = {
+            vsync=true
+            power_saving=true
+            enable_validation=true
+            backend_plugin_name = "kohi.plugin.renderer.vulkan"
+        }
     }
     {
         name = "font"
-        auto_release = false
-        default_bitmap_font = {
-            name = "Ubuntu Mono 21px"
-            size = 21
-            resource_name = "UbuntuMono21px"
+        config = {
+            auto_release = false
+            default_bitmap_font = {
+                name = "Ubuntu Mono 21px"
+                size = 21
+                resource_name = "UbuntuMono21px"
+            }
+            default_system_font = {
+                name = "Noto Sans"
+                size = 20
+                resource_name = "NotoSansCJK"
+            }
+            max_bitmap_font_count = 101
+            max_system_font_count = 101
         }
-        default_system_font = {
-            name = "Noto Sans"
-            size = 20
-            resource_name = "NotoSansCJK"
-        }
-        max_bitmap_font_count = 101
-        max_system_font_count = 101
     }
     {
        name="plugin_system"
-       plugins = [
-           {
-               name = "kohi.plugin.renderer.vulkan"
-               config = {
-                   
+       config = {
+           plugins = [
+               {
+                   name = "kohi.plugin.renderer.vulkan"
+                   config = {
+                       
+                   }
                }
-           }
-           {
-               name = "kohi.plugin.audio.openal"
-               config = {
-                   
+               {
+                   name = "kohi.plugin.audio.openal"
+                   config = {
+                       
+                   }
                }
-           }
-           {
-                name = "kohi.plugin.ui.standard"
-           }
-       ]
+               {
+                    name = "kohi.plugin.ui.standard"
+               }
+           ]
+       }
     }
 ]
 rendergraphs = [

@@ -150,11 +150,12 @@ const char* filesystem_read_entire_text_file(const char* filepath) {
 
     // File size
     u64 size = 0;
-    if (!filesystem_size(f.handle, &size)) {
+    if (!filesystem_size(&f, &size)) {
         return false;
     }
-    char* buf = kallocate(size, MEMORY_TAG_STRING);
+    char* buf = kallocate(size + 1, MEMORY_TAG_STRING);
     u64 bytes_read = fread(buf, 1, size, (FILE*)f.handle);
+    buf[bytes_read] = 0;
 
     // It's possible that bytes_read < size because of CRLF (i.e. on Windows)
     // that are ignored when reading here. If so, return a duplicate of the string

@@ -25,10 +25,11 @@ b8 application_config_parse_file_content(const char* file_content, application_c
         return false;
     }
 
-    if (!kson_object_property_value_get_string(&app_config_tree.root, "audio_plugin_name", &out_config->audio_plugin_name)) {
-        KERROR("Failed to find property 'audio_plugin_name', which is required.");
-        return false;
-    }
+    // FIXME: Move this to audio system config
+    // if (!kson_object_property_value_get_string(&app_config_tree.root, "audio_plugin_name", &out_config->audio_plugin_name)) {
+    //     KERROR("Failed to find property 'audio_plugin_name', which is required.");
+    //     return false;
+    // }
 
     // frame_allocator_size is optional, so use a defualt if it isn't defined.
     i64 frame_alloc_size = 0; // kson doesn't do unsigned ints, so convert it after.

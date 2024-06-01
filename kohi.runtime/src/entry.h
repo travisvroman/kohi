@@ -62,7 +62,7 @@ int main(void) {
     // Request the application instance from the application.
     application app_inst = {0};
 
-    const char* app_file_content = filesystem_read_entire_text_file("app_config.kson");
+    const char* app_file_content = filesystem_read_entire_text_file("../testbed.assets/app_config.kson");
     if (!app_file_content) {
         KFATAL("Failed to read app_config.kson file text. Application cannot start.");
         return -68;
