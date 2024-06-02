@@ -117,7 +117,24 @@ void plugin_system_shutdown(struct plugin_system_state* state) {
     }
 }
 
-b8 plugin_system_update(struct plugin_system_state* state, struct frame_data* p_frame_data) {
+b8 plugin_system_initialize_plugins(struct plugin_system_state* state) {
+    if (state && state->plugins) {
+        u32 plugin_count = darray_length(state->plugins);
+        for (u32 i = 0; i < plugin_count; ++i) {
+            kruntime_plugin* plugin = &state->plugins[i];
+            // Invoke post-boot-time initialization of the plugin.
+            if (plugin->kplugin_initialize) {
+                if (!plugin->kplugin_initialize(plugin)) {
+                    KERROR("Failed to initialize new plugin.");
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+b8 plugin_system_update_plugins(struct plugin_system_state* state, struct frame_data* p_frame_data) {
     if (state && state->plugins) {
         u32 plugin_count = darray_length(state->plugins);
         for (u32 i = 0; i < plugin_count; ++i) {
@@ -132,7 +149,7 @@ b8 plugin_system_update(struct plugin_system_state* state, struct frame_data* p_
     return true;
 }
 
-b8 plugin_system_frame_prepare(struct plugin_system_state* state, struct frame_data* p_frame_data) {
+b8 plugin_system_frame_prepare_plugins(struct plugin_system_state* state, struct frame_data* p_frame_data) {
     if (state && state->plugins) {
         u32 plugin_count = darray_length(state->plugins);
         for (u32 i = 0; i < plugin_count; ++i) {
@@ -147,7 +164,7 @@ b8 plugin_system_frame_prepare(struct plugin_system_state* state, struct frame_d
     return true;
 }
 
-b8 plugin_system_render(struct plugin_system_state* state, struct frame_data* p_frame_data) {
+b8 plugin_system_render_plugins(struct plugin_system_state* state, struct frame_data* p_frame_data) {
     if (state && state->plugins) {
         u32 plugin_count = darray_length(state->plugins);
         for (u32 i = 0; i < plugin_count; ++i) {
@@ -162,7 +179,7 @@ b8 plugin_system_render(struct plugin_system_state* state, struct frame_data* p_
     return true;
 }
 
-b8 plugin_system_on_window_resize(struct plugin_system_state* state, struct kwindow* window, u16 width, u16 height) {
+b8 plugin_system_on_window_resize_plugins(struct plugin_system_state* state, struct kwindow* window, u16 width, u16 height) {
     if (state && state->plugins) {
         u32 plugin_count = darray_length(state->plugins);
         for (u32 i = 0; i < plugin_count; ++i) {
@@ -186,6 +203,7 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
     }
 
     kruntime_plugin new_plugin = {0};
+    new_plugin.name = string_duplicate(name);
 
     // Load the plugin library.
     if (!platform_dynamic_library_load(name, &new_plugin.library)) {
@@ -196,18 +214,19 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
     // kplugin_create is required. This should fail if it does not exist.
     PFN_kruntime_plugin_create plugin_create = platform_dynamic_library_load_function("kplugin_create", &new_plugin.library);
     if (!plugin_create) {
-        KERROR("Required function kplugin_create does not exist in library '%s'. Plugin load failed.");
+        KERROR("Required function kplugin_create does not exist in library '%s'. Plugin load failed.", name);
         return false;
     }
 
     // kplugin_destroy is required. This should fail if it does not exist.
     new_plugin.kplugin_destroy = platform_dynamic_library_load_function("kplugin_destroy", &new_plugin.library);
     if (!new_plugin.kplugin_destroy) {
-        KERROR("Required function kplugin_destroy does not exist in library '%s'. Plugin load failed.");
+        KERROR("Required function kplugin_destroy does not exist in library '%s'. Plugin load failed.", name);
         return false;
     }
 
     // Load optional hook functions.
+    new_plugin.kplugin_boot = platform_dynamic_library_load_function("kplugin_boot", &new_plugin.library);
     new_plugin.kplugin_initialize = platform_dynamic_library_load_function("kplugin_initialize", &new_plugin.library);
     new_plugin.kplugin_update = platform_dynamic_library_load_function("kplugin_update", &new_plugin.library);
     new_plugin.kplugin_frame_prepare = platform_dynamic_library_load_function("kplugin_frame_prepare", &new_plugin.library);
@@ -220,11 +239,10 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
         return false;
     }
 
-    // Invoke the initialization of the plugin.
-    // NOTE: May need to move this if it proves to be happening too early.
-    if (new_plugin.kplugin_initialize) {
-        if (!new_plugin.kplugin_initialize(&new_plugin)) {
-            KERROR("Failed to initialize new plugin during creation.");
+    // Invoke boot-time initialization of the plugin.
+    if (new_plugin.kplugin_boot) {
+        if (!new_plugin.kplugin_boot(&new_plugin)) {
+            KERROR("Failed to boot new plugin during creation.");
             return false;
         }
     }
@@ -232,7 +250,7 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
     // Register the plugin
     darray_push(state->plugins, new_plugin);
 
-    KINFO("Plugin '%s' successfully loaded.");
+    KINFO("Plugin '%s' successfully loaded.", name);
     return true;
 }
 

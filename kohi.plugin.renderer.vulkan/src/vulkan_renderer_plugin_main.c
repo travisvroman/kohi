@@ -10,7 +10,7 @@
 
 // LEFTOFF: These are definitely wrong now - need to realign all of these
 // between the front/back end. // nocheckin
-b8 plugin_create(kruntime_plugin* out_plugin) {
+b8 kplugin_create(kruntime_plugin* out_plugin) {
     out_plugin->plugin_state_size = sizeof(renderer_backend_interface);
     out_plugin->plugin_state = kallocate(out_plugin->plugin_state_size, MEMORY_TAG_RENDERER);
 
@@ -95,7 +95,7 @@ b8 plugin_create(kruntime_plugin* out_plugin) {
     return true;
 }
 
-void plugin_destroy(kruntime_plugin* plugin) {
+void kplugin_destroy(kruntime_plugin* plugin) {
     if (plugin && plugin->plugin_state) {
         kfree(plugin->plugin_state, plugin->plugin_state_size, MEMORY_TAG_RENDERER);
     }

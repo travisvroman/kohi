@@ -9,6 +9,7 @@ struct kwindow;
 struct kruntime_plugin;
 
 typedef b8 (*PFN_kruntime_plugin_create)(struct kruntime_plugin* out_plugin);
+typedef b8 (*PFN_kruntime_plugin_boot)(struct kruntime_plugin* plugin);
 typedef b8 (*PFN_kruntime_plugin_initialize)(struct kruntime_plugin* plugin);
 typedef void (*PFN_kruntime_plugin_destroy)(struct kruntime_plugin* plugin);
 
@@ -37,7 +38,15 @@ typedef struct kruntime_plugin {
     dynamic_library library;
 
     /**
+     * @brief A pointer to the plugin's `kplugin_boot` function. Optional.
+     * This function is for plugins which require boot-time setup (i.e the renderer).
+     * If exists, this is invoked at boot time.
+     */
+    PFN_kruntime_plugin_boot kplugin_boot;
+
+    /**
      * @brief A pointer to the plugin's `kplugin_initialize` function. Optional.
+     * If exists, this is invoked post-boot-time.
      */
     PFN_kruntime_plugin_initialize kplugin_initialize;
 

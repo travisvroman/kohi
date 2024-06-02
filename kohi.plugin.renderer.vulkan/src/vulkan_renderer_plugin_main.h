@@ -19,11 +19,11 @@
  * @param out_plugin A pointer to hold the newly-created renderer plugin.
  * @return True if successful; otherwise false.
  */
-KAPI b8 plugin_create(kruntime_plugin* out_plugin);
+KAPI b8 kplugin_create(kruntime_plugin* out_plugin);
 
 /**
  * @brief Destroys the given plugin.
  *
  * @param plugin A pointer to the runtime plugin to be destroyed.
  */
-KAPI void plugin_destroy(kruntime_plugin* plugin);
+KAPI void kplugin_destroy(kruntime_plugin* plugin);

@@ -96,11 +96,11 @@ typedef struct audio_plugin_state {
 } audio_plugin_state;
 
 static b8 oal_plugin_check_error(void);
-static b8 oal_plugin_source_create(struct audio_plugin* plugin, audio_plugin_source* out_source);
-static void oal_plugin_source_destroy(struct audio_plugin* plugin, audio_plugin_source* source);
-static u32 oal_plugin_find_free_buffer(struct audio_plugin* plugin);
+static b8 oal_plugin_source_create(struct audio_backend_interface* plugin, audio_plugin_source* out_source);
+static void oal_plugin_source_destroy(struct audio_backend_interface* plugin, audio_plugin_source* source);
+static u32 oal_plugin_find_free_buffer(struct audio_backend_interface* plugin);
 
-static b8 oal_plugin_stream_music_data(audio_plugin* plugin, ALuint buffer, audio_file* audio) {
+static b8 oal_plugin_stream_music_data(audio_backend_interface* plugin, ALuint buffer, audio_file* audio) {
     if (!plugin || !audio) {
         return false;
     }
@@ -132,7 +132,7 @@ static b8 oal_plugin_stream_music_data(audio_plugin* plugin, ALuint buffer, audi
 
     return true;
 }
-static b8 oal_plugin_stream_update(audio_plugin* plugin, audio_file* audio, audio_plugin_source* source) {
+static b8 oal_plugin_stream_update(audio_backend_interface* plugin, audio_file* audio, audio_plugin_source* source) {
     if (!plugin || !audio) {
         return false;
     }
@@ -178,13 +178,13 @@ static b8 oal_plugin_stream_update(audio_plugin* plugin, audio_file* audio, audi
 }
 
 typedef struct source_work_thread_params {
-    struct audio_plugin* plugin;
+    struct audio_backend_interface* plugin;
     audio_plugin_source* source;
 } source_work_thread_params;
 
 static u32 source_work_thread(void* params) {
     source_work_thread_params* typed_params = params;
-    audio_plugin* plugin = typed_params->plugin;
+    audio_backend_interface* plugin = typed_params->plugin;
     audio_plugin_source* source = typed_params->source;
 
     // Release this right away since it's no longer needed.
@@ -220,7 +220,7 @@ static u32 source_work_thread(void* params) {
     return 0;
 }
 
-b8 oal_plugin_initialize(struct audio_plugin* plugin, audio_plugin_config config) {
+b8 oal_plugin_initialize(struct audio_backend_interface* plugin, audio_plugin_config config) {
     if (plugin) {
         plugin->internal_state = kallocate(sizeof(audio_plugin_state), MEMORY_TAG_AUDIO);
 
@@ -293,7 +293,7 @@ b8 oal_plugin_initialize(struct audio_plugin* plugin, audio_plugin_config config
     return false;
 }
 
-void oal_plugin_shutdown(struct audio_plugin* plugin) {
+void oal_plugin_shutdown(struct audio_backend_interface* plugin) {
     if (plugin) {
         if (plugin->internal_state) {
             // Destroy sources.
@@ -308,11 +308,11 @@ void oal_plugin_shutdown(struct audio_plugin* plugin) {
             plugin->internal_state = 0;
         }
 
-        kzero_memory(plugin, sizeof(audio_plugin));
+        kzero_memory(plugin, sizeof(audio_backend_interface));
     }
 }
 
-b8 oal_plugin_update(struct audio_plugin* plugin, struct frame_data* p_frame_data) {
+b8 oal_plugin_update(struct audio_backend_interface* plugin, struct frame_data* p_frame_data) {
     if (!plugin) {
         return false;
     }
@@ -320,7 +320,7 @@ b8 oal_plugin_update(struct audio_plugin* plugin, struct frame_data* p_frame_dat
     return true;
 }
 
-b8 oal_plugin_listener_position_query(struct audio_plugin* plugin, vec3* out_position) {
+b8 oal_plugin_listener_position_query(struct audio_backend_interface* plugin, vec3* out_position) {
     if (!plugin || !out_position) {
         KERROR("oal_plugin_listener_position_query requires valid pointers to a plugin and out_position.");
         return false;
@@ -330,7 +330,7 @@ b8 oal_plugin_listener_position_query(struct audio_plugin* plugin, vec3* out_pos
     return true;
 }
 
-b8 oal_plugin_listener_position_set(struct audio_plugin* plugin, vec3 position) {
+b8 oal_plugin_listener_position_set(struct audio_backend_interface* plugin, vec3 position) {
     if (!plugin) {
         KERROR("oal_plugin_listener_position_set requires a valid pointer to a plugin.");
         return false;
@@ -343,7 +343,7 @@ b8 oal_plugin_listener_position_set(struct audio_plugin* plugin, vec3 position) 
     return true;
 }
 
-b8 oal_plugin_listener_orientation_query(struct audio_plugin* plugin, vec3* out_forward, vec3* out_up) {
+b8 oal_plugin_listener_orientation_query(struct audio_backend_interface* plugin, vec3* out_forward, vec3* out_up) {
     if (!plugin || !out_forward || !out_up) {
         KERROR("oal_plugin_listener_orientation_query requires valid pointers to a plugin, out_forward and out_up.");
         return false;
@@ -354,7 +354,7 @@ b8 oal_plugin_listener_orientation_query(struct audio_plugin* plugin, vec3* out_
     return true;
 }
 
-b8 oal_plugin_listener_orientation_set(struct audio_plugin* plugin, vec3 forward, vec3 up) {
+b8 oal_plugin_listener_orientation_set(struct audio_backend_interface* plugin, vec3 forward, vec3 up) {
     if (!plugin) {
         KERROR("oal_plugin_listener_orientation_set requires a valid pointer to a plugin.");
         return false;
@@ -367,7 +367,7 @@ b8 oal_plugin_listener_orientation_set(struct audio_plugin* plugin, vec3 forward
     return oal_plugin_check_error();
 }
 
-static b8 source_set_defaults(struct audio_plugin* plugin, audio_plugin_source* source, b8 reset_use) {
+static b8 source_set_defaults(struct audio_backend_interface* plugin, audio_plugin_source* source, b8 reset_use) {
     // Mark it as not in use.
     if (reset_use) {
         source->in_use = false;
@@ -394,7 +394,7 @@ static b8 source_set_defaults(struct audio_plugin* plugin, audio_plugin_source* 
     return true;
 }
 
-static b8 oal_plugin_source_create(struct audio_plugin* plugin, audio_plugin_source* out_source) {
+static b8 oal_plugin_source_create(struct audio_backend_interface* plugin, audio_plugin_source* out_source) {
     if (!plugin || !out_source) {
         KERROR("oal_plugin_source_create requires valid pointers to a plugin and out_source.");
         return false;
@@ -422,7 +422,7 @@ static b8 oal_plugin_source_create(struct audio_plugin* plugin, audio_plugin_sou
     return true;
 }
 
-static void oal_plugin_source_destroy(struct audio_plugin* plugin, audio_plugin_source* source) {
+static void oal_plugin_source_destroy(struct audio_backend_interface* plugin, audio_plugin_source* source) {
     if (plugin && source) {
         alDeleteSources(1, &source->id);
         kzero_memory(source, sizeof(audio_plugin_source));
@@ -430,7 +430,7 @@ static void oal_plugin_source_destroy(struct audio_plugin* plugin, audio_plugin_
     }
 }
 
-static void oal_plugin_find_playing_sources(struct audio_plugin* plugin, u32 playing[], u32* count) {
+static void oal_plugin_find_playing_sources(struct audio_backend_interface* plugin, u32 playing[], u32* count) {
     if (!plugin || !count) {
         return;
     }
@@ -445,7 +445,7 @@ static void oal_plugin_find_playing_sources(struct audio_plugin* plugin, u32 pla
     }
 }
 
-static void clear_buffer(struct audio_plugin* plugin, u32* buf_ptr, u32 amount) {
+static void clear_buffer(struct audio_backend_interface* plugin, u32* buf_ptr, u32 amount) {
     if (plugin) {
         for (u32 a = 0; a < amount; ++a) {
             for (u32 i = 0; i < plugin->internal_state->buffer_count; ++i) {
@@ -459,7 +459,7 @@ static void clear_buffer(struct audio_plugin* plugin, u32* buf_ptr, u32 amount) 
     KWARN("Buffer could not be cleared.");
 }
 
-static u32 oal_plugin_find_free_buffer(struct audio_plugin* plugin) {
+static u32 oal_plugin_find_free_buffer(struct audio_backend_interface* plugin) {
     if (plugin) {
         u32 free_count = darray_length(plugin->internal_state->free_buffers);
 
@@ -524,7 +524,7 @@ static u32 oal_plugin_find_free_buffer(struct audio_plugin* plugin) {
     return INVALID_ID;
 }
 
-b8 oal_plugin_source_gain_query(struct audio_plugin* plugin, u32 source_index, f32* out_gain) {
+b8 oal_plugin_source_gain_query(struct audio_backend_interface* plugin, u32 source_index, f32* out_gain) {
     if (plugin && out_gain && source_index <= plugin->internal_state->config.max_sources) {
         *out_gain = plugin->internal_state->sources[source_index].gain;
         return true;
@@ -534,7 +534,7 @@ b8 oal_plugin_source_gain_query(struct audio_plugin* plugin, u32 source_index, f
     return false;
 }
 
-b8 oal_plugin_source_gain_set(struct audio_plugin* plugin, u32 source_index, f32 gain) {
+b8 oal_plugin_source_gain_set(struct audio_backend_interface* plugin, u32 source_index, f32 gain) {
     if (plugin && source_index <= plugin->internal_state->config.max_sources) {
         audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->gain = gain;
@@ -546,7 +546,7 @@ b8 oal_plugin_source_gain_set(struct audio_plugin* plugin, u32 source_index, f32
     return false;
 }
 
-b8 oal_plugin_source_pitch_query(struct audio_plugin* plugin, u32 source_index, f32* out_pitch) {
+b8 oal_plugin_source_pitch_query(struct audio_backend_interface* plugin, u32 source_index, f32* out_pitch) {
     if (plugin && out_pitch && source_index <= plugin->internal_state->config.max_sources) {
         *out_pitch = plugin->internal_state->sources[source_index].pitch;
         return true;
@@ -556,7 +556,7 @@ b8 oal_plugin_source_pitch_query(struct audio_plugin* plugin, u32 source_index, 
     return false;
 }
 
-b8 oal_plugin_source_pitch_set(struct audio_plugin* plugin, u32 source_index, f32 pitch) {
+b8 oal_plugin_source_pitch_set(struct audio_backend_interface* plugin, u32 source_index, f32 pitch) {
     if (plugin && source_index <= plugin->internal_state->config.max_sources) {
         audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->pitch = pitch;
@@ -568,7 +568,7 @@ b8 oal_plugin_source_pitch_set(struct audio_plugin* plugin, u32 source_index, f3
     return false;
 }
 
-b8 oal_plugin_source_position_query(struct audio_plugin* plugin, u32 source_index, vec3* out_position) {
+b8 oal_plugin_source_position_query(struct audio_backend_interface* plugin, u32 source_index, vec3* out_position) {
     if (plugin && out_position && source_index <= plugin->internal_state->config.max_sources) {
         *out_position = plugin->internal_state->sources[source_index].position;
         return true;
@@ -578,7 +578,7 @@ b8 oal_plugin_source_position_query(struct audio_plugin* plugin, u32 source_inde
     return false;
 }
 
-b8 oal_plugin_source_position_set(struct audio_plugin* plugin, u32 source_index, vec3 position) {
+b8 oal_plugin_source_position_set(struct audio_backend_interface* plugin, u32 source_index, vec3 position) {
     if (plugin && source_index <= plugin->internal_state->config.max_sources) {
         audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->position = position;
@@ -590,7 +590,7 @@ b8 oal_plugin_source_position_set(struct audio_plugin* plugin, u32 source_index,
     return false;
 }
 
-b8 oal_plugin_source_looping_query(struct audio_plugin* plugin, u32 source_index, b8* out_looping) {
+b8 oal_plugin_source_looping_query(struct audio_backend_interface* plugin, u32 source_index, b8* out_looping) {
     if (plugin && out_looping && source_index <= plugin->internal_state->config.max_sources) {
         *out_looping = plugin->internal_state->sources[source_index].looping;
         return true;
@@ -600,7 +600,7 @@ b8 oal_plugin_source_looping_query(struct audio_plugin* plugin, u32 source_index
     return false;
 }
 
-b8 oal_plugin_source_looping_set(struct audio_plugin* plugin, u32 source_index, b8 looping) {
+b8 oal_plugin_source_looping_set(struct audio_backend_interface* plugin, u32 source_index, b8 looping) {
     if (plugin && source_index <= plugin->internal_state->config.max_sources) {
         audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->looping = looping;
@@ -638,7 +638,7 @@ static b8 oal_plugin_check_error(void) {
     return true;
 }
 
-struct audio_file* oal_plugin_stream_load(struct audio_plugin* plugin, const char* name) {
+struct audio_file* oal_plugin_stream_load(struct audio_backend_interface* plugin, const char* name) {
     if (!plugin) {
         return 0;
     }
@@ -686,7 +686,7 @@ struct audio_file* oal_plugin_stream_load(struct audio_plugin* plugin, const cha
     return out_file;
 }
 
-struct audio_file* oal_plugin_chunk_load(struct audio_plugin* plugin, const char* name) {
+struct audio_file* oal_plugin_chunk_load(struct audio_backend_interface* plugin, const char* name) {
     if (!plugin) {
         return 0;
     }
@@ -748,7 +748,7 @@ struct audio_file* oal_plugin_chunk_load(struct audio_plugin* plugin, const char
     return 0;
 }
 
-void oal_plugin_audio_file_close(struct audio_plugin* plugin, struct audio_file* file) {
+void oal_plugin_audio_file_close(struct audio_backend_interface* plugin, struct audio_file* file) {
     if (!plugin || !file) {
         KERROR("oal_plugin_audio_file_close requires valid pointers to plugin and file");
         return;
@@ -763,7 +763,7 @@ void oal_plugin_audio_file_close(struct audio_plugin* plugin, struct audio_file*
     resource_system_unload(r);
 }
 
-b8 oal_plugin_source_play(struct audio_plugin* plugin, i8 source_index) {
+b8 oal_plugin_source_play(struct audio_backend_interface* plugin, i8 source_index) {
     if (!plugin || source_index < 0) {
         return false;
     }
@@ -779,7 +779,7 @@ b8 oal_plugin_source_play(struct audio_plugin* plugin, i8 source_index) {
     return true;
 }
 
-b8 oal_plugin_play_on_source(struct audio_plugin* plugin, struct audio_file* file, i8 source_index) {
+b8 oal_plugin_play_on_source(struct audio_backend_interface* plugin, struct audio_file* file, i8 source_index) {
     if (!plugin || !file || source_index < 0) {
         return false;
     }
@@ -820,7 +820,7 @@ b8 oal_plugin_play_on_source(struct audio_plugin* plugin, struct audio_file* fil
     return true;
 }
 
-b8 oal_plugin_source_stop(struct audio_plugin* plugin, i8 source_index) {
+b8 oal_plugin_source_stop(struct audio_backend_interface* plugin, i8 source_index) {
     if (!plugin || source_index < 0) {
         return false;
     }
@@ -840,7 +840,7 @@ b8 oal_plugin_source_stop(struct audio_plugin* plugin, i8 source_index) {
 
     return true;
 }
-b8 oal_plugin_source_pause(struct audio_plugin* plugin, i8 source_index) {
+b8 oal_plugin_source_pause(struct audio_backend_interface* plugin, i8 source_index) {
     if (!plugin || source_index < 0) {
         return false;
     }
@@ -855,7 +855,7 @@ b8 oal_plugin_source_pause(struct audio_plugin* plugin, i8 source_index) {
 
     return true;
 }
-b8 oal_plugin_source_resume(struct audio_plugin* plugin, i8 source_index) {
+b8 oal_plugin_source_resume(struct audio_backend_interface* plugin, i8 source_index) {
     if (!plugin || source_index < 0) {
         return false;
     }

@@ -463,6 +463,9 @@ static b8 select_physical_device(vulkan_context* context) {
         vulkan_physical_device_queue_family_info queue_info = {};
         b8 result = physical_device_meets_requirements(
             physical_devices[i],
+            // TODO: This requires a valid surface, but there isn't one yet as creating a new 
+            // window also creates resources that require a device... maybe a dummy surface 
+            // would suffice?
             context->current_window->renderer_state->backend_state->surface,
             &properties,
             &features,

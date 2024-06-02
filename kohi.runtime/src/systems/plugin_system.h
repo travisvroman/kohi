@@ -38,11 +38,12 @@ b8 plugin_system_intialize(u64* memory_requirement, struct plugin_system_state* 
 
 void plugin_system_shutdown(struct plugin_system_state* state);
 
-b8 plugin_system_update(struct plugin_system_state* state, struct frame_data* p_frame_data);
-b8 plugin_system_frame_prepare(struct plugin_system_state* state, struct frame_data* p_frame_data);
-b8 plugin_system_render(struct plugin_system_state* state, struct frame_data* p_frame_data);
+b8 plugin_system_initialize_plugins(struct plugin_system_state* state);
+b8 plugin_system_update_plugins(struct plugin_system_state* state, struct frame_data* p_frame_data);
+b8 plugin_system_frame_prepare_plugins(struct plugin_system_state* state, struct frame_data* p_frame_data);
+b8 plugin_system_render_plugins(struct plugin_system_state* state, struct frame_data* p_frame_data);
 
-b8 plugin_system_on_window_resize(struct plugin_system_state* state, struct kwindow* window, u16 width, u16 height);
+b8 plugin_system_on_window_resize_plugins(struct plugin_system_state* state, struct kwindow* window, u16 width, u16 height);
 
 KAPI b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name, const char* config);
 

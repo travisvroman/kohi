@@ -255,7 +255,7 @@ b8 engine_create(application* game_inst) {
     // Resource system.
     {
         resource_system_config resource_sys_config = {0};
-        resource_sys_config.asset_base_path = "../testbed.assets"; // TODO: The application should probably configure this.
+        resource_sys_config.asset_base_path = "../testbed.assets";  // TODO: The application should probably configure this.
         resource_sys_config.max_loader_count = 32;
         resource_system_initialize(&systems->resource_system_memory_requirement, 0, &resource_sys_config);
         systems->resource_system = kallocate(systems->resource_system_memory_requirement, MEMORY_TAG_ENGINE);
@@ -360,7 +360,7 @@ b8 engine_create(application* game_inst) {
     {
         audio_system_config audio_sys_config = {0};
         // FIXME: Resolve from application config.
-        audio_sys_config.plugin = 0; // game_inst->app_config->audio_plugin;
+        audio_sys_config.plugin = 0;  // game_inst->app_config->audio_plugin;
         audio_sys_config.audio_channel_count = 8;
         audio_system_initialize(&systems->audio_system_memory_requirement, 0, &audio_sys_config);
         systems->audio_system = kallocate(systems->audio_system_memory_requirement, MEMORY_TAG_ENGINE);
@@ -504,6 +504,12 @@ b8 engine_create(application* game_inst) {
 
         // Add to tracked window list
         darray_push(engine_state->windows, new_window);
+    }
+
+    // Post-boot plugin init
+    if (!plugin_system_initialize_plugins(engine_state->systems.plugin_system)) {
+        KERROR("Plugin(s) failed initialization. See logs for details.");
+        return false;
     }
 
     // TODO: Handle post-boot items in systems that require app config.
@@ -780,11 +786,11 @@ struct kwindow* engine_active_window_get(void) {
 
 static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
     switch (code) {
-    case EVENT_CODE_APPLICATION_QUIT: {
-        KINFO("EVENT_CODE_APPLICATION_QUIT recieved, shutting down.\n");
-        engine_state->is_running = false;
-        return true;
-    }
+        case EVENT_CODE_APPLICATION_QUIT: {
+            KINFO("EVENT_CODE_APPLICATION_QUIT recieved, shutting down.\n");
+            engine_state->is_running = false;
+            return true;
+        }
     }
 
     return false;
@@ -810,7 +816,6 @@ static void engine_on_window_closed(const struct kwindow* window) {
 }
 
 static void engine_on_window_resized(const struct kwindow* window) {
-
     // Handle minimization
     if (window->width == 0 || window->height == 0) {
         KINFO("Window minimized, suspending application.");

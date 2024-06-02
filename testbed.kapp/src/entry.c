@@ -131,6 +131,7 @@ b8 create_application(application* out_application) {
 
     if (!load_game_lib(out_application)) {
         KERROR("Initial game lib load failed!");
+        return false;
     }
 
     out_application->engine_state = 0;

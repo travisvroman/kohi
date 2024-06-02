@@ -17,7 +17,7 @@ KAPI b8 application_prepare_frame(struct application* app_inst, struct frame_dat
 
 KAPI b8 application_render_frame(struct application* game_inst, struct frame_data* p_frame_data);
 
-KAPI void application_on_resize(struct application* game_inst, const struct kwindow* window);
+KAPI void application_on_window_resize(struct application* game_inst, const struct kwindow* window);
 
 KAPI void application_shutdown(struct application* game_inst);
 

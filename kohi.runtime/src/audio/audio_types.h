@@ -66,22 +66,22 @@ typedef struct audio_plugin_config {
     u32 chunk_size;
 } audio_plugin_config;
 
-typedef struct audio_plugin {
+typedef struct audio_backend_interface {
     struct audio_plugin_state* internal_state;
 
-    b8 (*initialize)(struct audio_plugin* plugin, audio_plugin_config config);
+    b8 (*initialize)(struct audio_backend_interface* plugin, audio_plugin_config config);
 
-    void (*shutdown)(struct audio_plugin* plugin);
+    void (*shutdown)(struct audio_backend_interface* plugin);
 
-    b8 (*update)(struct audio_plugin* plugin, struct frame_data* p_frame_data);
+    b8 (*update)(struct audio_backend_interface* plugin, struct frame_data* p_frame_data);
 
-    b8 (*listener_position_query)(struct audio_plugin* plugin, vec3* out_position);
-    b8 (*listener_position_set)(struct audio_plugin* plugin, vec3 position);
+    b8 (*listener_position_query)(struct audio_backend_interface* plugin, vec3* out_position);
+    b8 (*listener_position_set)(struct audio_backend_interface* plugin, vec3 position);
 
-    b8 (*listener_orientation_query)(struct audio_plugin* plugin, vec3* out_forward, vec3* out_up);
-    b8 (*listener_orientation_set)(struct audio_plugin* plugin, vec3 forward, vec3 up);
+    b8 (*listener_orientation_query)(struct audio_backend_interface* plugin, vec3* out_forward, vec3* out_up);
+    b8 (*listener_orientation_set)(struct audio_backend_interface* plugin, vec3 forward, vec3 up);
 
-    b8 (*source_gain_query)(struct audio_plugin* plugin, u32 source_id, f32* out_gain);
+    b8 (*source_gain_query)(struct audio_backend_interface* plugin, u32 source_id, f32* out_gain);
     /**
      * @param plugin A pointer to the plugin.
      * @param source_id The identifier of the source to modify.
@@ -92,9 +92,9 @@ typedef struct audio_plugin {
      *  interpreted as zero volume - the channel is effectively disabled.
      * @returns True on success; otherwise false.
      */
-    b8 (*source_gain_set)(struct audio_plugin* plugin, u32 source_id, f32 gain);
+    b8 (*source_gain_set)(struct audio_backend_interface* plugin, u32 source_id, f32 gain);
 
-    b8 (*source_pitch_query)(struct audio_plugin* plugin, u32 source_id, f32* out_pitch);
+    b8 (*source_pitch_query)(struct audio_backend_interface* plugin, u32 source_id, f32* out_pitch);
 
     /**
      * @param plugin A pointer to the plugin.
@@ -102,23 +102,23 @@ typedef struct audio_plugin {
      * @param Specify the pitch to be applied at source. Range: [0.5f - 2.0f] Default: 1.0f
      * @returns True on success; otherwise false.
      */
-    b8 (*source_pitch_set)(struct audio_plugin* plugin, u32 source_id, f32 pitch);
+    b8 (*source_pitch_set)(struct audio_backend_interface* plugin, u32 source_id, f32 pitch);
 
-    b8 (*source_position_query)(struct audio_plugin* plugin, u32 source_id, vec3* out_position);
-    b8 (*source_position_set)(struct audio_plugin* plugin, u32 source_id, vec3 position);
+    b8 (*source_position_query)(struct audio_backend_interface* plugin, u32 source_id, vec3* out_position);
+    b8 (*source_position_set)(struct audio_backend_interface* plugin, u32 source_id, vec3 position);
 
-    b8 (*source_looping_query)(struct audio_plugin* plugin, u32 source_id, b8* out_looping);
-    b8 (*source_looping_set)(struct audio_plugin* plugin, u32 source_id, b8 looping);
+    b8 (*source_looping_query)(struct audio_backend_interface* plugin, u32 source_id, b8* out_looping);
+    b8 (*source_looping_set)(struct audio_backend_interface* plugin, u32 source_id, b8 looping);
 
-    struct audio_file* (*chunk_load)(struct audio_plugin* plugin, const char* name);
-    struct audio_file* (*stream_load)(struct audio_plugin* plugin, const char* name);
-    void (*audio_unload)(struct audio_plugin* plugin, struct audio_file* file);
+    struct audio_file* (*chunk_load)(struct audio_backend_interface* plugin, const char* name);
+    struct audio_file* (*stream_load)(struct audio_backend_interface* plugin, const char* name);
+    void (*audio_unload)(struct audio_backend_interface* plugin, struct audio_file* file);
 
-    b8 (*source_play)(struct audio_plugin* plugin, i8 source_index);
-    b8 (*play_on_source)(struct audio_plugin* plugin, struct audio_file* file, i8 source_index);
+    b8 (*source_play)(struct audio_backend_interface* plugin, i8 source_index);
+    b8 (*play_on_source)(struct audio_backend_interface* plugin, struct audio_file* file, i8 source_index);
 
-    b8 (*source_stop)(struct audio_plugin* plugin, i8 source_index);
-    b8 (*source_pause)(struct audio_plugin* plugin, i8 source_index);
-    b8 (*source_resume)(struct audio_plugin* plugin, i8 source_index);
+    b8 (*source_stop)(struct audio_backend_interface* plugin, i8 source_index);
+    b8 (*source_pause)(struct audio_backend_interface* plugin, i8 source_index);
+    b8 (*source_resume)(struct audio_backend_interface* plugin, i8 source_index);
 
-} audio_plugin;
+} audio_backend_interface;

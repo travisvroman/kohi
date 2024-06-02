@@ -2,7 +2,8 @@
 
 #include "defines.h"
 
-struct audio_plugin;
+struct kruntime_plugin;
 
 // Plugin entry point.
-KAPI b8 plugin_create(struct audio_plugin* out_plugin);
+KAPI b8 kplugin_create(struct kruntime_plugin* out_plugin);
+KAPI void kplugin_destroy(struct kruntime_plugin* plugin);

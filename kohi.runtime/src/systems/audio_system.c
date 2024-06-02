@@ -17,7 +17,7 @@ typedef struct audio_channel {
 typedef struct audio_system_state {
     audio_system_config config;
     // FIXME: Resolve from app config.
-    audio_plugin* plugin;
+    audio_backend_interface* plugin;
     f32 master_volume;
     audio_channel channels[MAX_AUDIO_CHANNELS];
 } audio_system_state;
