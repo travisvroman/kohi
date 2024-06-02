@@ -29,10 +29,9 @@ typedef struct win32_file_watch {
     FILETIME last_write_time;
 } win32_file_watch;
 
-typedef struct kwindow {
-    const char* title;
+typedef struct kwindow_platform_state {
     HWND hwnd;
-} kwindow;
+} kwindow_platform_state;
 
 typedef struct platform_state {
     win32_handle_info handle;
@@ -137,16 +136,16 @@ void platform_system_shutdown(struct platform_state* state) {
     }
 }
 
-b8 platform_window_create(kwindow_config config, struct kwindow* window, b8 show_immediately) {
+b8 platform_window_create(const kwindow_config* config, struct kwindow* window, b8 show_immediately) {
     if (!window) {
         return false;
     }
 
     // Create window
-    i32 client_x = config.position_x;
-    i32 client_y = config.position_y;
-    u32 client_width = config.width;
-    u32 client_height = config.height;
+    i32 client_x = config->position_x;
+    i32 client_y = config->position_y;
+    u32 client_width = config->width;
+    u32 client_height = config->height;
 
     i32 window_x = client_x;
     i32 window_y = client_y;
@@ -172,18 +171,18 @@ b8 platform_window_create(kwindow_config config, struct kwindow* window, b8 show
     window_width += border_rect.right - border_rect.left;
     window_height += border_rect.bottom - border_rect.top;
 
-    if (config.title) {
-        window->title = string_duplicate(config.title);
+    if (config->title) {
+        window->title = string_duplicate(config->title);
     } else {
         window->title = string_duplicate("Kohi Game Engine Window");
     }
 
-    window->hwnd = CreateWindowExA(
+    window->platform_state->hwnd = CreateWindowExA(
         window_ex_style, "kohi_window_class", window->title,
         window_style, window_x, window_y, window_width, window_height,
         0, 0, state_ptr->handle.h_instance, 0);
 
-    if (window->hwnd == 0) {
+    if (window->platform_state->hwnd == 0) {
         MessageBoxA(NULL, "Window creation failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
 
         KFATAL("Window creation failed!");
@@ -199,15 +198,15 @@ void platform_window_destroy(struct kwindow* window) {
         for (u32 i = 0; i < len; ++i) {
             if (state_ptr->windows[i] == window) {
                 KTRACE("Destroying window...");
-                DestroyWindow(window->hwnd);
-                window->hwnd = 0;
+                DestroyWindow(window->platform_state->hwnd);
+                window->platform_state->hwnd = 0;
                 state_ptr->windows[i] = 0;
                 break;
             }
         }
         KERROR("Destroying a window that was somehow not registered with the platform layer.");
-        DestroyWindow(window->hwnd);
-        window->hwnd = 0;
+        DestroyWindow(window->platform_state->hwnd);
+        window->platform_state->hwnd = 0;
     }
 }
 
@@ -220,7 +219,7 @@ b8 platform_window_show(struct kwindow* window) {
     i32 show_window_command_flags = should_activate ? SW_SHOW : SW_SHOWNOACTIVATE;
     // If initially minimized, use SW_MINIMIZE : SW_SHOWMINNOACTIVE;
     // If initially maximized, use SW_SHOWMAXIMIZED : SW_MAXIMIZE
-    ShowWindow(window->hwnd, show_window_command_flags);
+    ShowWindow(window->platform_state->hwnd, show_window_command_flags);
 
     return true;
 }
@@ -232,7 +231,7 @@ b8 platform_window_hide(struct kwindow* window) {
 
     // Yep... it's the same function with a flag passed to hide...
     i32 show_window_command_flags = SW_HIDE;
-    ShowWindow(window->hwnd, show_window_command_flags);
+    ShowWindow(window->platform_state->hwnd, show_window_command_flags);
 
     return true;
 }
@@ -250,7 +249,7 @@ b8 platform_window_title_set(struct kwindow* window, const char* title) {
     }
 
     // If the function succeeds, the return value is nonzero.
-    return (SetWindowText(window->hwnd, title) != 0);
+    return (SetWindowText(window->platform_state->hwnd, title) != 0);
 }
 
 b8 platform_pump_messages(void) {
@@ -829,7 +828,7 @@ static kwindow* window_from_handle(HWND hwnd) {
     u32 len = darray_length(state_ptr->windows);
     for (u32 i = 0; i < len; ++i) {
         kwindow* w = state_ptr->windows[i];
-        if (w && w->hwnd == hwnd) {
+        if (w && w->platform_state->hwnd == hwnd) {
             return state_ptr->windows[i];
         }
     }
@@ -890,7 +889,20 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
             KERROR("Recieved a window resize event for a non-registered window!");
             return 0;
         }
-        state_ptr->window_resized_callback(w, width, height);
+
+        // Check if different. If so, trigger a resize event.
+        if (width != w->width || height != w->height) {
+            // Flag as resizing and store the change, but wait to regenerate.
+            w->resizing = true;
+            // Also reset the frame count since the last  resize operation.
+            w->frames_since_resize = 0;
+            // Update dimensions
+            w->width = width;
+            w->height = height;
+
+            // Only trigger the callback if there was an actual change.
+            state_ptr->window_resized_callback(w);
+        }
     } break;
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:

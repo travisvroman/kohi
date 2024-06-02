@@ -500,6 +500,11 @@ b8 platform_pump_messages(void) {
                 u16 height = configure_event->height;
 
                 kwindow* w = window_from_handle(configure_event->window);
+                if (!w) {
+                    KERROR("Recieved a window resize event for a non-registered window!");
+                    return 0;
+                }
+
                 // Check if different. If so, trigger a resize event.
                 if (width != w->width || height != w->height) {
                     // Flag as resizing and store the change, but wait to regenerate.

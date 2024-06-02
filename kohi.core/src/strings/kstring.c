@@ -207,7 +207,11 @@ char* string_format_v(const char* format, void* va_listp) {
     // Create a copy of the va_listp since vsnprintf can invalidate the elements of the list
     // while finding the required buffer length.
     va_list list_copy;
+#ifdef _MSC_VER
+    list_copy = va_listp;
+#else
     va_copy(list_copy, va_listp);
+#endif
     i32 length = vsnprintf(0, 0, format, list_copy);
     va_end(list_copy);
     char* buffer = kallocate(length + 1, MEMORY_TAG_STRING);
