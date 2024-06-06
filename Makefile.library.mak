@@ -6,12 +6,14 @@ OBJ_DIR := obj
 
 DEFINES := -DKEXPORT
 
+C_STD := -std=c99 -pedantic
+
 # Detect OS and architecture.
 ifeq ($(OS),Windows_NT)
     # WIN32
 	BUILD_PLATFORM := windows
 	EXTENSION := .dll
-	COMPILER_FLAGS := -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -Wstrict-prototypes -Wno-unused-parameter -Wno-missing-field-initializers
+	COMPILER_FLAGS := $(C_STD)  -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -Wstrict-prototypes -Wno-unused-parameter -Wno-missing-field-initializers
 	INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
 	LINKER_FLAGS := -shared -L$(OBJ_DIR)\$(ASSEMBLY) -L.\$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 	DEFINES += -D_CRT_SECURE_NO_WARNINGS
@@ -43,7 +45,7 @@ else
 		EXTENSION := .so
 		# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say
 		# otherwise are exported (i.e. via KAPI).
-		COMPILER_FLAGS :=-fvisibility=hidden -fpic -Wall -Wno-error=deprecated-declarations -Werror -Wvla -Wno-missing-braces -fdeclspec 
+		COMPILER_FLAGS := $(C_STD) -fvisibility=hidden -fpic -Wall -Wno-error=deprecated-declarations -Werror -Wvla -Wno-missing-braces -fdeclspec 
 		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src -I$(VULKAN_SDK)/include $(ADDL_INC_FLAGS)
 		# NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
 		# These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
@@ -61,7 +63,7 @@ else
 		EXTENSION := .dylib
 		# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say
 		# otherwise are exported (i.e. via KAPI).
-		COMPILER_FLAGS :=-fvisibility=hidden -fpic -Wall -Werror -Wvla -Wno-error=deprecated-declarations -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -ObjC
+		COMPILER_FLAGS := $(C_STD) -fvisibility=hidden -fpic -Wall -Werror -Wvla -Wno-error=deprecated-declarations -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -ObjC
 		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
 		# NOTE: Equivalent of the linux version above, this ensures that symbols linking against are resolved.
 		# Discovered this here: https://stackoverflow.com/questions/26971333/what-is-clangs-equivalent-to-no-undefined-gcc-flag

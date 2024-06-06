@@ -127,12 +127,12 @@ KAPI void darray_destroy(void* array);
  */
 #define darray_push(array, value)           \
     {                                       \
-        typeof(value) temp = value;         \
+        __typeof__(value) temp = value;     \
         array = _darray_push(array, &temp); \
     }
-// NOTE: could use __auto_type for temp above, but intellisense
-// for VSCode flags it as an unknown type. typeof() seems to
-// work just fine, though. Both are GNU extensions.
+// NOTE: using __typeof__ instead of typeof to
+// allow this to be used without having to use gnu
+// extensions (i.e. -std=gnu99), and just c99 (-std=c99)
 
 /**
  * @brief Pops an entry out of the array and places it into dest (if provided).
@@ -151,7 +151,7 @@ KAPI void darray_pop(void* array, void* dest);
  */
 #define darray_insert_at(array, index, value)           \
     {                                                   \
-        typeof(value) temp = value;                     \
+        __typeof__(value) temp = value;                 \
         array = _darray_insert_at(array, index, &temp); \
     }
 
