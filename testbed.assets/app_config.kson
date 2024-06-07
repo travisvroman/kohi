@@ -21,6 +21,7 @@ systems = [
         name="audio"
         config = {
             backend_plugin_name = "kohi.plugin.audio.openal"
+            audio_channel_count = 8
         }
     }
     {
@@ -63,7 +64,7 @@ systems = [
                {
                    name = "kohi.plugin.audio.openal"
                    config = {
-                       
+                       max_buffers = 256
                    }
                }
                {

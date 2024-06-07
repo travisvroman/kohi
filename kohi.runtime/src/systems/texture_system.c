@@ -507,7 +507,7 @@ static b8 create_default_cube_texture(texture* t, const char* name) {
     }
 
     // Copy the image side data (same on all sides) to the relevant portion of the pixel array.
-    u64 image_size = t->width * t->height * t->channel_count * t->array_size;
+    u64 image_size = tex_dimension * tex_dimension * channels * 6;
     u8* pixels = kallocate(sizeof(u8) * image_size, MEMORY_TAG_ARRAY);
     for (u8 i = 0; i < 6; ++i) {
         kcopy_memory(pixels + image_size * i, cube_side_pixels, image_size);

@@ -1,4 +1,5 @@
 #include "platform.h"
+#include <xcb/xproto.h>
 
 // Linux platform layer.
 #if KPLATFORM_LINUX
@@ -48,6 +49,7 @@
 
 typedef struct linux_handle_info {
     xcb_connection_t* connection;
+    xcb_screen_t* screen;
 } linux_handle_info;
 
 typedef struct linux_file_watch {
@@ -111,6 +113,27 @@ b8 platform_system_startup(u64* memory_requirement, struct platform_state* state
         return false;
     }
 
+    // Get data from the X server
+    const struct xcb_setup_t* setup = xcb_get_setup(state_ptr->handle.connection);
+
+    // TODO: Does this need to be associated with the window?
+    // Loop through screens using iterator
+    xcb_screen_iterator_t it = xcb_setup_roots_iterator(setup);
+    for (i32 s = 0; s < state_ptr->screen_count; ++s) {
+        /* f32 w_inches = it.data->width_in_millimeters * 0.0394;
+        f32 h_inches = it.data->height_in_millimeters * 0.0394;
+        f32 x_dpi = (f32)it.data->width_in_pixels / w_inches;
+
+        KINFO("Monitor '%s' has a DPI of %.2f for a device pixelratio of %0.2f", it.index, x_dpi, x_dpi / 96.0f);
+        // state_ptr->device_pixel_ratio = x_dpi / 96.0f;  // Default DPI is considered 96. */
+
+        xcb_screen_next(&it);
+    }
+
+    // After screens have been looped through, assign it.
+    state_ptr->screen = it.data;
+    state_ptr->handle.screen = state_ptr->screen;
+
     return true;
 }
 
@@ -138,26 +161,6 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
     i32 client_y = config->position_y;
     u32 client_width = config->width;
     u32 client_height = config->height;
-
-    // Get data from the X server
-    const struct xcb_setup_t* setup = xcb_get_setup(state_ptr->handle.connection);
-
-    // TODO: Does this need to be associated with the window?
-    // Loop through screens using iterator
-    xcb_screen_iterator_t it = xcb_setup_roots_iterator(setup);
-    for (i32 s = 0; s < state_ptr->screen_count; ++s) {
-        /* f32 w_inches = it.data->width_in_millimeters * 0.0394;
-        f32 h_inches = it.data->height_in_millimeters * 0.0394;
-        f32 x_dpi = (f32)it.data->width_in_pixels / w_inches;
-
-        KINFO("Monitor '%s' has a DPI of %.2f for a device pixelratio of %0.2f", it.index, x_dpi, x_dpi / 96.0f);
-        // state_ptr->device_pixel_ratio = x_dpi / 96.0f;  // Default DPI is considered 96. */
-
-        xcb_screen_next(&it);
-    }
-
-    // After screens have been looped through, assign it.
-    state_ptr->screen = it.data;
 
     // Allocate a XID for the window to be created.
     window->platform_state->window = xcb_generate_id(state_ptr->handle.connection);

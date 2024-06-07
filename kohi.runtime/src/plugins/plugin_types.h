@@ -34,6 +34,9 @@ typedef struct kruntime_plugin {
     /** @brief The plugin's name. Just for display, really. Serves no purpose. */
     const char* name;
 
+    /** @brief The plugin's configuration in string format. */
+    const char* config_str;
+
     /** @brief The dynamically loaded library for the plugin. */
     dynamic_library library;
 

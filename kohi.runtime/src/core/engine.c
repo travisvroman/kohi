@@ -255,7 +255,7 @@ b8 engine_create(application* game_inst) {
     // Resource system.
     {
         resource_system_config resource_sys_config = {0};
-        resource_sys_config.asset_base_path = "../testbed.assets";  // TODO: The application should probably configure this.
+        resource_sys_config.asset_base_path = "../testbed.assets"; // TODO: The application should probably configure this.
         resource_sys_config.max_loader_count = 32;
         resource_system_initialize(&systems->resource_system_memory_requirement, 0, &resource_sys_config);
         systems->resource_system = kallocate(systems->resource_system_memory_requirement, MEMORY_TAG_ENGINE);
@@ -358,10 +358,23 @@ b8 engine_create(application* game_inst) {
 
     // Audio system
     {
+
+        // Get the generic config from application config first.
+        application_system_config generic_sys_config = {0};
+        if (!application_config_system_config_get(&game_inst->app_config, "audio", &generic_sys_config)) {
+            // TODO: Maybe audio shouldn't be required?
+            KERROR("No configuration exists in app config for the audio system. This configuration is required.");
+            return false;
+        }
+
         audio_system_config audio_sys_config = {0};
-        // FIXME: Resolve from application config.
-        audio_sys_config.plugin = 0;  // game_inst->app_config->audio_plugin;
-        audio_sys_config.audio_channel_count = 8;
+
+        // Parse plugin system config from app config.
+        if (!audio_system_deserialize_config(generic_sys_config.configuration_str, &audio_sys_config)) {
+            KERROR("Failed to deserialize audio system config, which is required.");
+            return false;
+        }
+
         audio_system_initialize(&systems->audio_system_memory_requirement, 0, &audio_sys_config);
         systems->audio_system = kallocate(systems->audio_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!audio_system_initialize(&systems->audio_system_memory_requirement, systems->audio_system, &audio_sys_config)) {
@@ -786,11 +799,11 @@ struct kwindow* engine_active_window_get(void) {
 
 static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
     switch (code) {
-        case EVENT_CODE_APPLICATION_QUIT: {
-            KINFO("EVENT_CODE_APPLICATION_QUIT recieved, shutting down.\n");
-            engine_state->is_running = false;
-            return true;
-        }
+    case EVENT_CODE_APPLICATION_QUIT: {
+        KINFO("EVENT_CODE_APPLICATION_QUIT recieved, shutting down.\n");
+        engine_state->is_running = false;
+        return true;
+    }
     }
 
     return false;

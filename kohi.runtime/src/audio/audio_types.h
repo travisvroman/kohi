@@ -8,6 +8,7 @@
 struct audio_plugin_state;
 struct frame_data;
 
+struct audio_system_config;
 struct audio_file_internal;
 struct audio_file_plugin_data;
 struct resource;
@@ -47,29 +48,10 @@ typedef struct audio_emitter {
     u32 source_id;
 } audio_emitter;
 
-typedef struct audio_plugin_config {
-    /** @brief The maximum number of buffers available. Default: 256 */
-    u32 max_buffers;
-    /** @brief The maximum number of sources available. Default: 8 */
-    u32 max_sources;
-    /** @brief The frequency to output audio at. */
-    u32 frequency;
-    /**
-     * @brief The number of audio channels to support (i.e. 2 for stereo, 1 for mono).
-     * not to be confused with audio_channel_count below.
-     */
-    u32 channel_count;
-
-    /**
-     * The size to chunk streamed audio data in.
-     */
-    u32 chunk_size;
-} audio_plugin_config;
-
 typedef struct audio_backend_interface {
     struct audio_plugin_state* internal_state;
 
-    b8 (*initialize)(struct audio_backend_interface* plugin, audio_plugin_config config);
+    b8 (*initialize)(struct audio_backend_interface* plugin, const struct audio_system_config* config, const char* plugin_config);
 
     void (*shutdown)(struct audio_backend_interface* plugin);
 

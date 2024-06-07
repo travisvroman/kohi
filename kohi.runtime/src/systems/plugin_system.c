@@ -91,8 +91,7 @@ b8 plugin_system_intialize(u64* memory_requirement, struct plugin_system_state* 
     for (u32 i = 0; i < plugin_count; ++i) {
         plugin_system_plugin_config* plugin = &config->plugins[i];
 
-        // TODO: Resolve configuration per plugin.
-        if (!plugin_system_load_plugin(state, plugin->name, "")) {
+        if (!plugin_system_load_plugin(state, plugin->name, plugin->config_str)) {
             // Warn about it, but move on.
             KERROR("Plugin '%s' creation failed during plugin system boot.", plugin->name);
         }
@@ -192,7 +191,7 @@ b8 plugin_system_on_window_resize_plugins(struct plugin_system_state* state, str
     return true;
 }
 
-b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name, const char* config) {
+b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name, const char* config_str) {
     if (!state) {
         return false;
     }
@@ -245,6 +244,11 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
             KERROR("Failed to boot new plugin during creation.");
             return false;
         }
+    }
+
+    // Take a copy of the config string if it exists.
+    if (config_str) {
+        new_plugin.config_str = string_duplicate(config_str);
     }
 
     // Register the plugin

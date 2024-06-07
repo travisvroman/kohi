@@ -1259,10 +1259,24 @@ static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* windo
     // Wait for any operations to complete.
     vkDeviceWaitIdle(context->device.logical_device);
 
-    // Requery support
+    /* // Requery support
     vulkan_device_query_swapchain_support(context->device.physical_device, window_backend->surface, &context->device.swapchain_support);
+
+    vulkan_swapchain_support_info* swapchain_support = &context->device.swapchain_support;
+    if (swapchain_support->format_count < 1 || swapchain_support->present_mode_count < 1) {
+        if (swapchain_support->formats) {
+            kfree(swapchain_support->formats, sizeof(VkSurfaceFormatKHR) * swapchain_support->format_count, MEMORY_TAG_RENDERER);
+        }
+        if (swapchain_support->present_modes) {
+            kfree(swapchain_support->present_modes, sizeof(VkPresentModeKHR) * swapchain_support->present_mode_count, MEMORY_TAG_RENDERER);
+        }
+        KINFO("Required swapchain support not present, skipping device.");
+        return false;
+    } */
+
     // Redetect the depth format.
     vulkan_device_detect_depth_format(&context->device);
+
     // Recreate the swapchain.
     if (!vulkan_swapchain_recreate(backend, window, &window_backend->swapchain)) {
         // TODO: Should this be fatal? Or keep trying?
@@ -1405,15 +1419,29 @@ b8 vulkan_renderer_texture_resize(renderer_backend_interface* backend, struct te
 b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, struct texture_internal_data* texture_data,
                                       u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
+    // If no window, can't include in a frame workload.
+    if (!context->current_window) {
+        include_in_frame_workload = false;
+    }
     if (texture_data) {
-        u32 current_frame = context->current_window->renderer_state->backend_state->current_frame;
+        renderbuffer temp;
+        renderbuffer* staging = 0;
+        if (include_in_frame_workload) {
+            u32 current_frame = context->current_window->renderer_state->backend_state->current_frame;
+            staging = &context->current_window->renderer_state->backend_state->staging[current_frame];
+        } else {
+            renderer_renderbuffer_create("temp_staging", RENDERBUFFER_TYPE_STAGING, size * texture_data->image_count, RENDERBUFFER_TRACK_TYPE_NONE, &temp);
+            renderer_renderbuffer_bind(&temp, 0);
+            staging = &temp;
+        }
         for (u32 i = 0; i < texture_data->image_count; ++i) {
             vulkan_image* image = &texture_data->images[i];
-            renderbuffer* staging = &context->current_window->renderer_state->backend_state->staging[current_frame];
 
             // Staging buffer.
             u64 staging_offset = 0;
-            renderer_renderbuffer_allocate(staging, size, &staging_offset);
+            if (include_in_frame_workload) {
+                renderer_renderbuffer_allocate(staging, size, &staging_offset);
+            }
             vulkan_buffer_load_range(backend, staging, staging_offset, size, pixels, include_in_frame_workload);
 
             vulkan_command_buffer temp_command_buffer;
@@ -1435,6 +1463,10 @@ b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, struc
             }
 
             vulkan_command_buffer_end_single_use(context, pool, &temp_command_buffer, queue);
+        }
+
+        if (!include_in_frame_workload) {
+            renderer_renderbuffer_destroy(&temp);
         }
 
         // Counts as a texture update.

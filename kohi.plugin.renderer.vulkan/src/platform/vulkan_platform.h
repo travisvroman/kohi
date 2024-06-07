@@ -16,6 +16,7 @@
 
 struct kwindow;
 struct vulkan_context;
+struct VkPhysicalDevice_T;
 
 /**
  * @brief Creates and assigns a surface to the given context.
@@ -32,3 +33,8 @@ b8 vulkan_platform_create_vulkan_surface(struct vulkan_context* context, struct 
  * as this function adds names to the array.
  */
 void vulkan_platform_get_required_extension_names(const char*** names_darray);
+
+/**
+ * Indicates if the given device/queue family index combo supports presentation.
+ */
+b8 vulkan_platform_presentation_support(struct vulkan_context* context, struct VkPhysicalDevice_T* physical_device, u32 queue_family_index);

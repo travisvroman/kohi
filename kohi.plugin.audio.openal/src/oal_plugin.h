@@ -4,8 +4,9 @@
 #include <defines.h>
 
 struct audio_plugin_source;
+struct audio_system_config;
 
-b8 oal_plugin_initialize(struct audio_backend_interface* plugin, audio_plugin_config config);
+b8 oal_plugin_initialize(struct audio_backend_interface* plugin, const struct audio_system_config* config, const char* plugin_config);
 
 void oal_plugin_shutdown(struct audio_backend_interface* plugin);
 

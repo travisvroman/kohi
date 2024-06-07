@@ -4,6 +4,7 @@
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "platform/platform.h"
+#include "platform/vulkan_platform.h"
 #include "strings/kstring.h"
 #include "vulkan/vulkan_core.h"
 #include "vulkan_types.h"
@@ -29,8 +30,8 @@ typedef struct vulkan_physical_device_queue_family_info {
 
 static b8 select_physical_device(vulkan_context* context);
 static b8 physical_device_meets_requirements(
+    vulkan_context* context,
     VkPhysicalDevice device,
-    VkSurfaceKHR surface,
     const VkPhysicalDeviceProperties* properties,
     const VkPhysicalDeviceFeatures* features,
     const vulkan_physical_device_requirements* requirements,
@@ -462,11 +463,8 @@ static b8 select_physical_device(vulkan_context* context) {
 
         vulkan_physical_device_queue_family_info queue_info = {};
         b8 result = physical_device_meets_requirements(
+            context,
             physical_devices[i],
-            // TODO: This requires a valid surface, but there isn't one yet as creating a new 
-            // window also creates resources that require a device... maybe a dummy surface 
-            // would suffice?
-            context->current_window->renderer_state->backend_state->surface,
             &properties,
             &features,
             &requirements,
@@ -561,8 +559,8 @@ static b8 select_physical_device(vulkan_context* context) {
 }
 
 static b8 physical_device_meets_requirements(
+    vulkan_context* context,
     VkPhysicalDevice device,
-    VkSurfaceKHR surface,
     const VkPhysicalDeviceProperties* properties,
     const VkPhysicalDeviceFeatures* features,
     const vulkan_physical_device_requirements* requirements,
@@ -599,8 +597,7 @@ static b8 physical_device_meets_requirements(
             ++current_transfer_score;
 
             // If also a present queue, this prioritizes grouping of the 2.
-            VkBool32 supports_present = VK_FALSE;
-            VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &supports_present));
+            b8 supports_present = vulkan_platform_presentation_support(context, device, i);
             if (supports_present) {
                 out_queue_info->present_family_index = i;
                 ++current_transfer_score;
@@ -629,8 +626,7 @@ static b8 physical_device_meets_requirements(
     // present.
     if (out_queue_info->present_family_index == -1) {
         for (u32 i = 0; i < queue_family_count; ++i) {
-            VkBool32 supports_present = VK_FALSE;
-            VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &supports_present));
+            b8 supports_present = vulkan_platform_presentation_support(context, device, i);
             if (supports_present) {
                 out_queue_info->present_family_index = i;
 
@@ -662,23 +658,6 @@ static b8 physical_device_meets_requirements(
         KTRACE("Present Family Index:  %i", out_queue_info->present_family_index);
         KTRACE("Transfer Family Index: %i", out_queue_info->transfer_family_index);
         KTRACE("Compute Family Index:  %i", out_queue_info->compute_family_index);
-
-        // Query swapchain support.
-        vulkan_device_query_swapchain_support(
-            device,
-            surface,
-            out_swapchain_support);
-
-        if (out_swapchain_support->format_count < 1 || out_swapchain_support->present_mode_count < 1) {
-            if (out_swapchain_support->formats) {
-                kfree(out_swapchain_support->formats, sizeof(VkSurfaceFormatKHR) * out_swapchain_support->format_count, MEMORY_TAG_RENDERER);
-            }
-            if (out_swapchain_support->present_modes) {
-                kfree(out_swapchain_support->present_modes, sizeof(VkPresentModeKHR) * out_swapchain_support->present_mode_count, MEMORY_TAG_RENDERER);
-            }
-            KINFO("Required swapchain support not present, skipping device.");
-            return false;
-        }
 
         // Device extensions.
         if (requirements->device_extension_names) {

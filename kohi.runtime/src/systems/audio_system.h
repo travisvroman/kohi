@@ -12,9 +12,6 @@
 struct frame_data;
 
 typedef struct audio_system_config {
-    // FIXME: Resolve from app config.
-    /** The audio plugin to use with this system. Must already by setup at this point. */
-    audio_backend_interface* plugin;
     /** @brief The frequency to output audio at. */
     u32 frequency;
     /**
@@ -33,7 +30,12 @@ typedef struct audio_system_config {
      * can have its volume independently controlled. Not to be confused with channel_count above.
      */
     u32 audio_channel_count;
+
+    /** @brief The name of the plugin to be loaded for the audio backend. */
+    const char* backend_plugin_name;
 } audio_system_config;
+
+KAPI b8 audio_system_deserialize_config(const char* config_str, audio_system_config* out_config);
 
 /**
  * @brief Initializes the audio system.
@@ -45,7 +47,7 @@ typedef struct audio_system_config {
  * @param config The configuration (audio_system_config) for this system.
  * @return True on success; otherwise false.
  */
-KAPI b8 audio_system_initialize(u64* memory_requirement, void* state, void* config);
+KAPI b8 audio_system_initialize(u64* memory_requirement, void* state, audio_system_config* config);
 
 /**
  * @brief Shuts down the audio system.

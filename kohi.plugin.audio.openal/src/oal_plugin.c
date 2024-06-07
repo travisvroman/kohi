@@ -1,6 +1,7 @@
 #include "oal_plugin.h"
 
 #include "defines.h"
+#include "parsers/kson_parser.h"
 #ifdef KPLATFORM_WINDOWS
 #    include <malloc.h>
 #else
@@ -17,9 +18,8 @@
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "resources/loaders/audio_loader.h"
-#include "resources/loaders/loader_utils.h"
 #include "resources/resource_types.h"
-#include "strings/kstring.h"
+#include "systems/audio_system.h"
 #include "systems/job_system.h"
 #include "systems/resource_system.h"
 
@@ -70,8 +70,24 @@ typedef struct audio_plugin_source {
 
 // The internal state for this audio plugin.
 typedef struct audio_plugin_state {
-    // A copy of the configuration.
-    audio_plugin_config config;
+
+    /** @brief The maximum number of buffers available. Default: 256 */
+    u32 max_buffers;
+    /** @brief The maximum number of sources available. Default: 8 */
+    u32 max_sources;
+    /** @brief The frequency to output audio at. */
+    u32 frequency;
+    /**
+     * @brief The number of audio channels to support (i.e. 2 for stereo, 1 for mono).
+     * not to be confused with audio_channel_count below.
+     */
+    u32 channel_count;
+
+    /**
+     * The size to chunk streamed audio data in.
+     */
+    u32 chunk_size;
+
     // The selected audio device.
     ALCdevice* device;
     // The current audio context.
@@ -99,6 +115,7 @@ static b8 oal_plugin_check_error(void);
 static b8 oal_plugin_source_create(struct audio_backend_interface* plugin, audio_plugin_source* out_source);
 static void oal_plugin_source_destroy(struct audio_backend_interface* plugin, audio_plugin_source* source);
 static u32 oal_plugin_find_free_buffer(struct audio_backend_interface* plugin);
+static b8 plugin_deserialize_config(const char* config_str, audio_plugin_state* state);
 
 static b8 oal_plugin_stream_music_data(audio_backend_interface* plugin, ALuint buffer, audio_file* audio) {
     if (!plugin || !audio) {
@@ -106,7 +123,7 @@ static b8 oal_plugin_stream_music_data(audio_backend_interface* plugin, ALuint b
     }
 
     // Figure out how many samples can be taken.
-    u64 size = audio->load_samples(audio, plugin->internal_state->config.chunk_size, plugin->internal_state->config.chunk_size);
+    u64 size = audio->load_samples(audio, plugin->internal_state->chunk_size, plugin->internal_state->chunk_size);
     if (size == INVALID_ID_U64) {
         KERROR("Error streaming data. Check logs for more info.");
         return false;
@@ -220,20 +237,26 @@ static u32 source_work_thread(void* params) {
     return 0;
 }
 
-b8 oal_plugin_initialize(struct audio_backend_interface* plugin, audio_plugin_config config) {
+b8 oal_plugin_initialize(struct audio_backend_interface* plugin, const audio_system_config* config, const char* plugin_config) {
     if (plugin) {
         plugin->internal_state = kallocate(sizeof(audio_plugin_state), MEMORY_TAG_AUDIO);
 
-        plugin->internal_state->config = config;
-        if (plugin->internal_state->config.max_sources < 1) {
+        // Parse the plugin config string.
+        if (!plugin_deserialize_config(plugin_config, plugin->internal_state)) {
+            KERROR("Failed to initialize OpenAL backend.");
+            return false;
+        }
+
+        // Copy over the relevant frontend config properties.
+        plugin->internal_state->max_sources = config->audio_channel_count; // MAX_AUDIO_CHANNELS;
+        plugin->internal_state->chunk_size = config->chunk_size;
+        plugin->internal_state->frequency = config->frequency;
+        plugin->internal_state->channel_count = config->channel_count;
+
+        if (plugin->internal_state->max_sources < 1) {
             KWARN("Audio plugin config.max_sources was configured as 0. Defaulting to 8.");
-            plugin->internal_state->config.max_sources = 8;
+            plugin->internal_state->max_sources = 8;
         }
-        if (plugin->internal_state->config.max_buffers < 20) {
-            KWARN("Audio plugin config.max_buffers was configured to be less than 20, the recommended minimum. Defaulting to 256.");
-            plugin->internal_state->config.max_buffers = 256;
-        }
-        plugin->internal_state->buffer_count = plugin->internal_state->config.max_buffers;
 
         plugin->internal_state->free_buffers = darray_create(u32);
 
@@ -262,9 +285,9 @@ b8 oal_plugin_initialize(struct audio_backend_interface* plugin, audio_plugin_co
         alListener3f(AL_VELOCITY, 0, 0, 0);
         oal_plugin_check_error();
 
-        plugin->internal_state->sources = kallocate(sizeof(audio_plugin_source) * config.max_sources, MEMORY_TAG_AUDIO);
+        plugin->internal_state->sources = kallocate(sizeof(audio_plugin_source) * plugin->internal_state->max_sources, MEMORY_TAG_AUDIO);
         // Create all sources.
-        for (u32 i = 0; i < config.max_sources; ++i) {
+        for (u32 i = 0; i < plugin->internal_state->max_sources; ++i) {
             if (!oal_plugin_source_create(plugin, &plugin->internal_state->sources[i])) {
                 KERROR("Unable to create audio source in OpenAL plugin.");
                 return false;
@@ -297,7 +320,7 @@ void oal_plugin_shutdown(struct audio_backend_interface* plugin) {
     if (plugin) {
         if (plugin->internal_state) {
             // Destroy sources.
-            for (u32 i = 0; i < plugin->internal_state->config.max_sources; ++i) {
+            for (u32 i = 0; i < plugin->internal_state->max_sources; ++i) {
                 oal_plugin_source_destroy(plugin, &plugin->internal_state->sources[i]);
             }
             if (plugin->internal_state->device) {
@@ -436,7 +459,7 @@ static void oal_plugin_find_playing_sources(struct audio_backend_interface* plug
     }
 
     ALint state = 0;
-    for (u32 i = 0; i < plugin->internal_state->config.max_sources; ++i) {
+    for (u32 i = 0; i < plugin->internal_state->max_sources; ++i) {
         alGetSourcei(plugin->internal_state->sources[i - 1].id, AL_SOURCE_STATE, &state);
         if (state == AL_PLAYING) {
             playing[(*count)] = plugin->internal_state->sources[i - 1].id;
@@ -471,7 +494,7 @@ static u32 oal_plugin_find_free_buffer(struct audio_backend_interface* plugin) {
             }
 
             u32 playing_source_count = 0;
-            u32* playing_sources = kallocate(sizeof(u32) * plugin->internal_state->config.max_sources, MEMORY_TAG_ARRAY);
+            u32* playing_sources = kallocate(sizeof(u32) * plugin->internal_state->max_sources, MEMORY_TAG_ARRAY);
             oal_plugin_find_playing_sources(plugin, playing_sources, &playing_source_count);
             // Avoid a crash when calling alGetSourcei while checking for freeable buffers. Resumed below.
             for (u32 i = 0; i < playing_source_count; ++i) {
@@ -501,7 +524,7 @@ static u32 oal_plugin_find_free_buffer(struct audio_backend_interface* plugin) {
                 alSourcePlay(plugin->internal_state->sources[i - 1].id);
                 oal_plugin_check_error();
             }
-            kfree(playing_sources, sizeof(u32) * plugin->internal_state->config.max_sources, MEMORY_TAG_ARRAY);
+            kfree(playing_sources, sizeof(u32) * plugin->internal_state->max_sources, MEMORY_TAG_ARRAY);
         }
 
         // Check free count again, this time there must be at least one or there is an error condition.
@@ -525,7 +548,7 @@ static u32 oal_plugin_find_free_buffer(struct audio_backend_interface* plugin) {
 }
 
 b8 oal_plugin_source_gain_query(struct audio_backend_interface* plugin, u32 source_index, f32* out_gain) {
-    if (plugin && out_gain && source_index <= plugin->internal_state->config.max_sources) {
+    if (plugin && out_gain && source_index <= plugin->internal_state->max_sources) {
         *out_gain = plugin->internal_state->sources[source_index].gain;
         return true;
     }
@@ -535,7 +558,7 @@ b8 oal_plugin_source_gain_query(struct audio_backend_interface* plugin, u32 sour
 }
 
 b8 oal_plugin_source_gain_set(struct audio_backend_interface* plugin, u32 source_index, f32 gain) {
-    if (plugin && source_index <= plugin->internal_state->config.max_sources) {
+    if (plugin && source_index <= plugin->internal_state->max_sources) {
         audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->gain = gain;
         alSourcef(source->id, AL_GAIN, gain);
@@ -547,7 +570,7 @@ b8 oal_plugin_source_gain_set(struct audio_backend_interface* plugin, u32 source
 }
 
 b8 oal_plugin_source_pitch_query(struct audio_backend_interface* plugin, u32 source_index, f32* out_pitch) {
-    if (plugin && out_pitch && source_index <= plugin->internal_state->config.max_sources) {
+    if (plugin && out_pitch && source_index <= plugin->internal_state->max_sources) {
         *out_pitch = plugin->internal_state->sources[source_index].pitch;
         return true;
     }
@@ -557,7 +580,7 @@ b8 oal_plugin_source_pitch_query(struct audio_backend_interface* plugin, u32 sou
 }
 
 b8 oal_plugin_source_pitch_set(struct audio_backend_interface* plugin, u32 source_index, f32 pitch) {
-    if (plugin && source_index <= plugin->internal_state->config.max_sources) {
+    if (plugin && source_index <= plugin->internal_state->max_sources) {
         audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->pitch = pitch;
         alSourcef(source->id, AL_PITCH, pitch);
@@ -569,7 +592,7 @@ b8 oal_plugin_source_pitch_set(struct audio_backend_interface* plugin, u32 sourc
 }
 
 b8 oal_plugin_source_position_query(struct audio_backend_interface* plugin, u32 source_index, vec3* out_position) {
-    if (plugin && out_position && source_index <= plugin->internal_state->config.max_sources) {
+    if (plugin && out_position && source_index <= plugin->internal_state->max_sources) {
         *out_position = plugin->internal_state->sources[source_index].position;
         return true;
     }
@@ -579,7 +602,7 @@ b8 oal_plugin_source_position_query(struct audio_backend_interface* plugin, u32 
 }
 
 b8 oal_plugin_source_position_set(struct audio_backend_interface* plugin, u32 source_index, vec3 position) {
-    if (plugin && source_index <= plugin->internal_state->config.max_sources) {
+    if (plugin && source_index <= plugin->internal_state->max_sources) {
         audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->position = position;
         alSource3f(source->id, AL_POSITION, position.x, position.y, position.z);
@@ -591,7 +614,7 @@ b8 oal_plugin_source_position_set(struct audio_backend_interface* plugin, u32 so
 }
 
 b8 oal_plugin_source_looping_query(struct audio_backend_interface* plugin, u32 source_index, b8* out_looping) {
-    if (plugin && out_looping && source_index <= plugin->internal_state->config.max_sources) {
+    if (plugin && out_looping && source_index <= plugin->internal_state->max_sources) {
         *out_looping = plugin->internal_state->sources[source_index].looping;
         return true;
     }
@@ -601,7 +624,7 @@ b8 oal_plugin_source_looping_query(struct audio_backend_interface* plugin, u32 s
 }
 
 b8 oal_plugin_source_looping_set(struct audio_backend_interface* plugin, u32 source_index, b8 looping) {
-    if (plugin && source_index <= plugin->internal_state->config.max_sources) {
+    if (plugin && source_index <= plugin->internal_state->max_sources) {
         audio_plugin_source* source = &plugin->internal_state->sources[source_index];
         source->looping = looping;
         alSourcei(source->id, AL_LOOPING, looping ? AL_TRUE : AL_FALSE);
@@ -654,7 +677,7 @@ struct audio_file* oal_plugin_stream_load(struct audio_backend_interface* plugin
     audio_file* out_file = 0;
     audio_resource_loader_params params = {0};
     params.type = AUDIO_FILE_TYPE_MUSIC_STREAM;
-    params.chunk_size = plugin->internal_state->config.chunk_size;
+    params.chunk_size = plugin->internal_state->chunk_size;
     resource audio_resource;
     if (!resource_system_load(name, RESOURCE_TYPE_AUDIO, &params, &audio_resource)) {
         KERROR("Failed to open audio resource. Load failed.");
@@ -703,7 +726,7 @@ struct audio_file* oal_plugin_chunk_load(struct audio_backend_interface* plugin,
     audio_file* out_file = 0;
     audio_resource_loader_params params = {0};
     params.type = AUDIO_FILE_TYPE_SOUND_EFFECT;
-    params.chunk_size = plugin->internal_state->config.chunk_size;
+    params.chunk_size = plugin->internal_state->chunk_size;
     resource* audio_resource = kallocate(sizeof(resource), MEMORY_TAG_RESOURCE);
     if (!resource_system_load(name, RESOURCE_TYPE_AUDIO, &params, audio_resource)) {
         KERROR("Failed to open audio resource. Load failed.");
@@ -867,6 +890,33 @@ b8 oal_plugin_source_resume(struct audio_backend_interface* plugin, i8 source_in
     if (source_state == AL_PAUSED) {
         alSourcePlay(source->id);
     }
+
+    return true;
+}
+
+static b8 plugin_deserialize_config(const char* config_str, audio_plugin_state* state) {
+    if (!config_str || !state) {
+        KERROR("plugin_deserialize_config requires a valid pointer to out_config and state");
+        return false;
+    }
+
+    kson_tree tree = {0};
+    if (!kson_tree_from_string(config_str, &tree)) {
+        KERROR("Failed to parse audio plugin config.");
+        return false;
+    }
+
+    i64 max_buffers = 0;
+    if (!kson_object_property_value_get_int(&tree.root, "max_buffers", &max_buffers)) {
+        max_buffers = 256;
+    }
+    if (max_buffers < 20) {
+        KWARN("Audio plugin config.max_buffers was configured to be less than 20, the recommended minimum. Defaulting to 256.");
+        state->max_buffers = 256;
+    }
+    state->buffer_count = max_buffers;
+
+    kson_tree_cleanup(&tree);
 
     return true;
 }

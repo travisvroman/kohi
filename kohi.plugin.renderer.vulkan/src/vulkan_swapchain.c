@@ -88,6 +88,18 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
         window_backend->surface,
         &context->device.swapchain_support);
 
+    vulkan_swapchain_support_info* swapchain_support = &context->device.swapchain_support;
+    if (swapchain_support->format_count < 1 || swapchain_support->present_mode_count < 1) {
+        if (swapchain_support->formats) {
+            kfree(swapchain_support->formats, sizeof(VkSurfaceFormatKHR) * swapchain_support->format_count, MEMORY_TAG_RENDERER);
+        }
+        if (swapchain_support->present_modes) {
+            kfree(swapchain_support->present_modes, sizeof(VkPresentModeKHR) * swapchain_support->present_mode_count, MEMORY_TAG_RENDERER);
+        }
+        KINFO("Required swapchain support not present, skipping device.");
+        return false;
+    }
+
     // Swapchain extent
     if (context->device.swapchain_support.capabilities.currentExtent.width != UINT32_MAX) {
         swapchain_extent = context->device.swapchain_support.capabilities.currentExtent;
