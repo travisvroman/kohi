@@ -413,6 +413,7 @@ b8 renderer_texture_resources_acquire(struct renderer_system_state* state, const
                 k_handle new_handle = k_handle_create(i);
                 lookup->uniqueid = new_handle.unique_id.uniqueid;
                 lookup->data = data;
+                *out_renderer_texture_handle = new_handle;
                 return success;
             }
         }
@@ -423,6 +424,7 @@ b8 renderer_texture_resources_acquire(struct renderer_system_state* state, const
         new_lookup.uniqueid = new_handle.unique_id.uniqueid;
         new_lookup.data = data;
         darray_push(state->textures, new_lookup);
+        *out_renderer_texture_handle = new_handle;
     } else {
         KERROR("Failed to acquire texture resources. See logs for details.");
         kfree(data, state->backend->texture_internal_data_size, MEMORY_TAG_RENDERER);

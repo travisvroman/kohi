@@ -451,9 +451,14 @@ static b8 create_and_upload_texture(texture* t, const char* name, texture_type t
     t->mip_levels = mip_levels;
     t->array_size = array_size;
 
+    // Take a copy of the name.
+    t->name = string_duplicate(name);
+
     // Acquire backing renderer resources.
     if (!renderer_texture_resources_acquire(state_ptr->renderer, t->name, t->type, t->width, t->height, t->channel_count, t->mip_levels, t->array_size, t->flags, &t->renderer_texture_handle)) {
         KERROR("Failed to acquire renderer resources for default texture '%s'. See logs for details.", name);
+        string_free(t->name);
+        t->name = 0;
         return false;
     }
 
@@ -461,6 +466,8 @@ static b8 create_and_upload_texture(texture* t, const char* name, texture_type t
     u32 size = t->width * t->height * t->channel_count * t->array_size;
     if (!renderer_texture_write_data(state_ptr->renderer, t->renderer_texture_handle, 0, size, pixels)) {
         KERROR("Failed to write texture data for default texture '%s'", name);
+        string_free(t->name);
+        t->name = 0;
         // Since this failed, make sure to release the texture's backing renderer resources.
         renderer_texture_resources_release(state_ptr->renderer, t->renderer_texture_handle);
         // Also zero out memory so there's no mistaking this for an active texture.
@@ -468,9 +475,6 @@ static b8 create_and_upload_texture(texture* t, const char* name, texture_type t
 
         return false;
     }
-
-    // Don't take a copy of the name unless everything worked. One less thing to free if not.
-    t->name = string_duplicate(name);
 
     return true;
 }
