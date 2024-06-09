@@ -1,5 +1,4 @@
 #include "platform.h"
-#include <xcb/xproto.h>
 
 // Linux platform layer.
 #if KPLATFORM_LINUX
@@ -23,6 +22,7 @@
 #    include <X11/keysym.h>
 #    include <sys/time.h>
 #    include <xcb/xcb.h>
+#    include <xcb/xproto.h>
 
 #    include "containers/darray.h"
 #    include "debug/kassert.h"

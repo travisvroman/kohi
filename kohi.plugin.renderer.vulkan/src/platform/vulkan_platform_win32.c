@@ -53,4 +53,8 @@ b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow
     return true;
 }
 
+b8 vulkan_platform_presentation_support(vulkan_context* context, VkPhysicalDevice physical_device, u32 queue_family_index) {
+    return (b8)vkGetPhysicalDeviceWin32PresentationSupportKHR(physical_device, queue_family_index);
+}
+
 #endif
