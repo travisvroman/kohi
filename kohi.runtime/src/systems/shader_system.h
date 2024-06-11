@@ -250,9 +250,10 @@ KAPI shader* shader_system_get_by_id(u32 shader_id);
 
 /**
  * @brief Returns a pointer to a shader with the given name.
+ * Attempts to load the shader if not already loaded.
  *
  * @param shader_name The name to search for. Case sensitive.
- * @return A pointer to a shader, if found; otherwise 0.
+ * @return A pointer to a shader, if found/loaded; otherwise 0.
  */
 KAPI shader* shader_system_get(const char* shader_name);
 

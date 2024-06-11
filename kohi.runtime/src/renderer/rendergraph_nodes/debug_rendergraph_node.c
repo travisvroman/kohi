@@ -9,7 +9,6 @@
 #include "renderer/rendergraph.h"
 #include "strings/kstring.h"
 #include "systems/material_system.h"
-#include "systems/resource_system.h"
 #include "systems/shader_system.h"
 
 typedef struct debug_shader_locations {
@@ -106,21 +105,8 @@ b8 debug_rendergraph_node_initialize(struct rendergraph_node* self) {
     debug_rendergraph_node_internal_data* internal_data = self->internal_data;
 
     // Load debug colour3d shader and get shader uniform locations.
-    const char* colour_shader_name = "Shader.Builtin.ColourShader3D";
-    resource colour_shader_config_resource;
-    if (!resource_system_load(colour_shader_name, RESOURCE_TYPE_SHADER, 0, &colour_shader_config_resource)) {
-        KERROR("Failed to load debug colour 3d shader resource.");
-        return false;
-    }
-    shader_config* colour_shader_config = (shader_config*)colour_shader_config_resource.data;
-    if (!shader_system_create(colour_shader_config)) {
-        KERROR("Failed to create colour 3d shader.");
-        return false;
-    }
-
-    resource_system_unload(&colour_shader_config_resource);
     // Get a pointer to the shader.
-    internal_data->colour_shader = shader_system_get(colour_shader_name);
+    internal_data->colour_shader = shader_system_get("Shader.Builtin.ColourShader3D");
     internal_data->colour_shader_id = internal_data->colour_shader->id;
     internal_data->debug_locations.projection = shader_system_uniform_location(internal_data->colour_shader_id, "projection");
     internal_data->debug_locations.view = shader_system_uniform_location(internal_data->colour_shader_id, "view");

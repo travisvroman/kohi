@@ -9,7 +9,6 @@
 #include "renderer/rendergraph.h"
 #include "resources/skybox.h"
 #include "strings/kstring.h"
-#include "systems/resource_system.h"
 #include "systems/shader_system.h"
 
 typedef struct skybox_shader_locations {
@@ -104,22 +103,8 @@ b8 skybox_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     skybox_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Load skybox shader.
-    const char* skybox_shader_name = "Shader.Builtin.Skybox";
-    resource skybox_shader_config_resource;
-    if (!resource_system_load(skybox_shader_name, RESOURCE_TYPE_SHADER, 0, &skybox_shader_config_resource)) {
-        KERROR("Failed to load skybox shader resource.");
-        return false;
-    }
-    shader_config* skybox_shader_config = (shader_config*)skybox_shader_config_resource.data;
-    if (!shader_system_create(skybox_shader_config)) {
-        KERROR("Failed to create skybox shader.");
-        return false;
-    }
-
-    resource_system_unload(&skybox_shader_config_resource);
     // Get a pointer to the shader.
-    internal_data->s = shader_system_get(skybox_shader_name);
+    internal_data->s = shader_system_get("Shader.Builtin.Skybox");
     internal_data->shader_id = internal_data->s->id;
     internal_data->locations.projection_location = shader_system_uniform_location(internal_data->shader_id, "projection");
     internal_data->locations.view_location = shader_system_uniform_location(internal_data->shader_id, "view");

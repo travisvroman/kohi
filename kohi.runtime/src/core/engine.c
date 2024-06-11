@@ -265,21 +265,6 @@ b8 engine_create(application* game_inst) {
         }
     }
 
-    // Shader system
-    {
-        shader_system_config shader_sys_config;
-        shader_sys_config.max_shader_count = 1024;
-        shader_sys_config.max_uniform_count = 128;
-        shader_sys_config.max_global_textures = 31;
-        shader_sys_config.max_instance_textures = 31;
-        shader_system_initialize(&systems->shader_system_memory_requirement, 0, &shader_sys_config);
-        systems->shader_system = kallocate(systems->shader_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!shader_system_initialize(&systems->shader_system_memory_requirement, systems->shader_system, &shader_sys_config)) {
-            KERROR("Failed to initialize shader system.");
-            return false;
-        }
-    }
-
     // Renderer system
     {
         // Get the generic config from application config first.
@@ -302,6 +287,34 @@ b8 engine_create(application* game_inst) {
             KERROR("Failed to initialize renderer system.");
             return false;
         }
+    }
+
+    // Reach into platform and open new window(s) in accordance with app config.
+    // Notify renderer of window(s)/setup surface(s), etc.
+    u32 window_count = darray_length(game_inst->app_config.windows);
+    if (window_count > 1) {
+        KFATAL("Multiple windows are not yet implemented at the engine level. Please just stick to one for now.");
+        return false;
+    }
+
+    engine_state->windows = darray_reserve(kwindow, window_count);
+    for (u32 i = 0; i < window_count; ++i) {
+        kwindow_config* window_config = &game_inst->app_config.windows[i];
+        kwindow new_window = {0};
+        new_window.name = string_duplicate(window_config->name);
+        if (!platform_window_create(window_config, &new_window, true)) {
+            KERROR("Failed to create window '%s'.", window_config->name);
+            return false;
+        }
+
+        // Tell the renderer about the window.
+        if (!renderer_on_window_created(engine_state->systems.renderer_system, &new_window)) {
+            KERROR("The renderer failed to create resources for the window '%s.", window_config->name);
+            return false;
+        }
+
+        // Add to tracked window list
+        darray_push(engine_state->windows, new_window);
     }
 
     // Job system
@@ -407,6 +420,21 @@ b8 engine_create(application* game_inst) {
         }
     }
 
+    // Shader system
+    {
+        shader_system_config shader_sys_config;
+        shader_sys_config.max_shader_count = 1024;
+        shader_sys_config.max_uniform_count = 128;
+        shader_sys_config.max_global_textures = 31;
+        shader_sys_config.max_instance_textures = 31;
+        shader_system_initialize(&systems->shader_system_memory_requirement, 0, &shader_sys_config);
+        systems->shader_system = kallocate(systems->shader_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!shader_system_initialize(&systems->shader_system_memory_requirement, systems->shader_system, &shader_sys_config)) {
+            KERROR("Failed to initialize shader system.");
+            return false;
+        }
+    }
+
     // Texture system
     {
         texture_system_config texture_sys_config;
@@ -415,6 +443,18 @@ b8 engine_create(application* game_inst) {
         systems->texture_system = kallocate(systems->texture_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!texture_system_initialize(&systems->texture_system_memory_requirement, systems->texture_system, &texture_sys_config)) {
             KERROR("Failed to initialize texture system.");
+            return false;
+        }
+    }
+
+    // Material system
+    {
+        material_system_config material_sys_config = {0};
+        material_sys_config.max_material_count = 4096;
+        material_system_initialize(&systems->material_system_memory_requirement, 0, &material_sys_config);
+        systems->material_system = kallocate(systems->material_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!material_system_initialize(&systems->material_system_memory_requirement, systems->material_system, &material_sys_config)) {
+            KERROR("Failed to initialize material system.");
             return false;
         }
     }
@@ -440,18 +480,6 @@ b8 engine_create(application* game_inst) {
         systems->font_system = kallocate(systems->font_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!font_system_initialize(&systems->font_system_memory_requirement, systems->font_system, &font_sys_config)) {
             KERROR("Failed to initialize font system.");
-            return false;
-        }
-    }
-
-    // Material system
-    {
-        material_system_config material_sys_config = {0};
-        material_sys_config.max_material_count = 4096;
-        material_system_initialize(&systems->material_system_memory_requirement, 0, &material_sys_config);
-        systems->material_system = kallocate(systems->material_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!material_system_initialize(&systems->material_system_memory_requirement, systems->material_system, &material_sys_config)) {
-            KERROR("Failed to initialize material system.");
             return false;
         }
     }
@@ -508,31 +536,6 @@ b8 engine_create(application* game_inst) {
         return false;
     }
 
-    // Reach into platform and open new window(s) in accordance with app config.
-    // Notify renderer of window(s)/setup surface(s), etc.
-    u32 window_count = darray_length(game_inst->app_config.windows);
-    if (window_count > 1) {
-        KFATAL("Multiple windows are not yet implemented at the engine level. Please just stick to one for now.");
-        return false;
-    }
-
-    for (u32 i = 0; i < window_count; ++i) {
-        kwindow_config* window_config = &game_inst->app_config.windows[i];
-        kwindow new_window = {0};
-        if (!platform_window_create(window_config, &new_window, true)) {
-            KERROR("Failed to create window '%s'.", window_config->name);
-            return false;
-        }
-
-        // Tell the renderer about the window.
-        if (!renderer_on_window_created(engine_state->systems.renderer_system, &new_window)) {
-            KERROR("The renderer failed to create resources for the window '%s.", window_config->name);
-            return false;
-        }
-
-        // Add to tracked window list
-        darray_push(engine_state->windows, new_window);
-    }
     // NOTE: End boot application sequence.
 
     // Post-boot plugin init

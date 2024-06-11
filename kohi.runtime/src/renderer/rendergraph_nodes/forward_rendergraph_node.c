@@ -17,7 +17,6 @@
 #include "resources/resource_types.h"
 #include "systems/light_system.h"
 #include "systems/material_system.h"
-#include "systems/resource_system.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
 
@@ -258,21 +257,8 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     forward_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Load PBR shader
-    const char* pbr_shader_name = "Shader.PBRMaterial";
-    resource pbr_config_resource;
-    if (!resource_system_load(pbr_shader_name, RESOURCE_TYPE_SHADER, 0, &pbr_config_resource)) {
-        KERROR("Failed to load PBR shader resource.");
-        return false;
-    }
-    shader_config* pbr_config = (shader_config*)pbr_config_resource.data;
-    if (!shader_system_create(pbr_config)) {
-        KERROR("Failed to create PBR shader.");
-        return false;
-    }
-    resource_system_unload(&pbr_config_resource);
     // Save off a pointer to the PBR shader as well as its uniform locations.
-    internal_data->pbr_shader = shader_system_get(pbr_shader_name);
+    internal_data->pbr_shader = shader_system_get("Shader.PBRMaterial");
     internal_data->pbr_locations.projection = shader_system_uniform_location(internal_data->pbr_shader_id, "projection");
     internal_data->pbr_locations.view = shader_system_uniform_location(internal_data->pbr_shader_id, "view");
     internal_data->pbr_locations.light_space_0 = shader_system_uniform_location(internal_data->pbr_shader_id, "light_space_0");
@@ -293,21 +279,8 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->pbr_locations.use_pcf = shader_system_uniform_location(internal_data->pbr_shader_id, "use_pcf");
     internal_data->pbr_locations.bias = shader_system_uniform_location(internal_data->pbr_shader_id, "bias");
 
-    // Load terrain shader.
-    const char* terrain_shader_name = "Shader.Builtin.Terrain";
-    resource terrain_shader_config_resource;
-    if (!resource_system_load(terrain_shader_name, RESOURCE_TYPE_SHADER, 0, &terrain_shader_config_resource)) {
-        KERROR("Failed to load terrain shader resource.");
-        return false;
-    }
-    shader_config* terrain_shader_config = (shader_config*)terrain_shader_config_resource.data;
-    if (!shader_system_create(terrain_shader_config)) {
-        KERROR("Failed to create terrain shader.");
-        return false;
-    }
-    resource_system_unload(&terrain_shader_config_resource);
     // Save off a pointer to the terrain shader as well as its uniform locations.
-    internal_data->terrain_shader = shader_system_get(terrain_shader_name);
+    internal_data->terrain_shader = shader_system_get("Shader.Builtin.Terrain");
     internal_data->terrain_locations.projection = shader_system_uniform_location(internal_data->terrain_shader_id, "projection");
     internal_data->terrain_locations.view = shader_system_uniform_location(internal_data->terrain_shader_id, "view");
     internal_data->terrain_locations.light_space_0 = shader_system_uniform_location(internal_data->terrain_shader_id, "light_space_0");
@@ -330,27 +303,12 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     // Load debug colour3d shader.
     // FIXME: Move to another node.
-    const char* colour3d_shader_name = "Shader.Builtin.ColourShader3D";
-    resource colour3d_shader_config_resource;
-    if (!resource_system_load(colour3d_shader_name, RESOURCE_TYPE_SHADER, 0, &colour3d_shader_config_resource)) {
-        KERROR("Failed to load colour3d shader resource.");
-        return false;
-    }
-    shader_config* colour3d_shader_config = (shader_config*)colour3d_shader_config_resource.data;
-    if (!shader_system_create(colour3d_shader_config)) {
-        KERROR("Failed to create colour3d shader.");
-        return false;
-    }
-    resource_system_unload(&colour3d_shader_config_resource);
-
-    // Save off a pointer to the colour shader.
-    internal_data->colour_shader = shader_system_get(colour3d_shader_name);
-    // Get colour3d shader uniform locations.
-    {
-        internal_data->debug_locations.projection = shader_system_uniform_location(internal_data->colour_shader_id, "projection");
-        internal_data->debug_locations.view = shader_system_uniform_location(internal_data->colour_shader_id, "view");
-        internal_data->debug_locations.model = shader_system_uniform_location(internal_data->colour_shader_id, "model");
-    }
+    //
+    // Save off a pointer to the colour3d shader as well as its uniform locations.
+    internal_data->colour_shader = shader_system_get("Shader.Builtin.ColourShader3D");
+    internal_data->debug_locations.projection = shader_system_uniform_location(internal_data->colour_shader_id, "projection");
+    internal_data->debug_locations.view = shader_system_uniform_location(internal_data->colour_shader_id, "view");
+    internal_data->debug_locations.model = shader_system_uniform_location(internal_data->colour_shader_id, "model");
 
     // Grab the default cubemap texture as the irradiance texture.
     internal_data->irradiance_cube_texture = texture_system_get_default_cube_texture();

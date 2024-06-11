@@ -10,7 +10,6 @@
 #include "renderer/rendergraph.h"
 #include "standard_ui_system.h"
 #include "strings/kstring.h"
-#include "systems/resource_system.h"
 #include "systems/shader_system.h"
 
 typedef struct ui_shader_locations {
@@ -110,22 +109,9 @@ b8 ui_rendergraph_node_initialize(struct rendergraph_node* self) {
     ui_pass_internal_data* internal_data = self->internal_data;
 
     // Load the StandardUI shader.
-    const char* sui_shader_name = "Shader.StandardUI";
-    resource sui_config_resource;
-    if (!resource_system_load(sui_shader_name, RESOURCE_TYPE_SHADER, 0, &sui_config_resource)) {
-        KERROR("Failed to load StandardUI shader resource.");
-        return false;
-    }
-    shader_config* sui_config = (shader_config*)sui_config_resource.data;
-    // NOTE: Assuming the first pass since that's all this view has.
-    if (!shader_system_create(sui_config)) {
-        KERROR("Failed to create StandardUI shader.");
-        return false;
-    }
-    resource_system_unload(&sui_config_resource);
 
     // Get either the custom shader override or the defined default.
-    internal_data->sui_shader = shader_system_get(sui_shader_name);
+    internal_data->sui_shader = shader_system_get("Shader.StandardUI");
     internal_data->shader_id = internal_data->sui_shader->id;
     internal_data->sui_locations.projection = shader_system_uniform_location(internal_data->shader_id, "projection");
     internal_data->sui_locations.view = shader_system_uniform_location(internal_data->shader_id, "view");

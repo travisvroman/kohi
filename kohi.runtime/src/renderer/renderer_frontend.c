@@ -126,6 +126,8 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
 
     // Cold-cast to the known type and keep a convenience pointer.
     state->backend = (renderer_backend_interface*)state->backend_plugin->plugin_state;
+    // Keep a copy of the frontend state for the backend.
+    state->backend->frontend_state = state;
 
     state->frame_number = 0;
     state->active_viewport = 0;

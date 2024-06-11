@@ -44,6 +44,12 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 
     VkExtent2D swapchain_extent = {window->width, window->height};
 
+    // Requery swapchain support.
+    vulkan_device_query_swapchain_support(
+        context->device.physical_device,
+        window_backend->surface,
+        &context->device.swapchain_support);
+
     // Choose a swap surface format.
     b8 found = false;
     for (u32 i = 0; i < context->device.swapchain_support.format_count; ++i) {
@@ -81,12 +87,6 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
     } else {
         present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
     }
-
-    // Requery swapchain support.
-    vulkan_device_query_swapchain_support(
-        context->device.physical_device,
-        window_backend->surface,
-        &context->device.swapchain_support);
 
     vulkan_swapchain_support_info* swapchain_support = &context->device.swapchain_support;
     if (swapchain_support->format_count < 1 || swapchain_support->present_mode_count < 1) {
