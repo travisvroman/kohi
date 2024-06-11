@@ -20,11 +20,11 @@
  */
 typedef struct system_font_config {
     /** @brief The name of the font. */
-    char* name;
+    const char* name;
     /** @brief The default size of the font. */
     u16 default_size;
     /** @brief The name of the resource containing the font data. */
-    char* resource_name;
+    const char* resource_name;
 } system_font_config;
 
 /**
@@ -32,11 +32,11 @@ typedef struct system_font_config {
  */
 typedef struct bitmap_font_config {
     /** @brief The name of the font. */
-    char* name;
+    const char* name;
     /** @brief The size of the font. */
     u16 size;
     /** @brief The name of the resource containing the font data. */
-    char* resource_name;
+    const char* resource_name;
 } bitmap_font_config;
 
 /**
@@ -45,21 +45,15 @@ typedef struct bitmap_font_config {
  * process.
  */
 typedef struct font_system_config {
-    /** @brief The default number of system fonts. */
-    u8 default_system_font_count;
-    /** @brief The default system font configs. */
-    system_font_config* system_font_configs;
-    /** @brief The default number of bitmap fonts. */
-    u8 default_bitmap_font_count;
-    /** @brief The default bitmap font configs. */
-    bitmap_font_config* bitmap_font_configs;
-    /** @brief The default number of system fonts. */
-    u8 max_system_font_count;
-    /** @brief The default number of bitmap fonts. */
-    u8 max_bitmap_font_count;
+    /** @brief The default system font config. */
+    system_font_config default_system_font;
+    /** @brief The default bitmap font config. */
+    bitmap_font_config default_bitmap_font;
     /** @brief Indicates if fonts should auto-release when not used. */
     b8 auto_release;
 } font_system_config;
+
+b8 font_system_deserialize_config(const char* config_str, font_system_config* out_config);
 
 /**
  * @brief Initializes the font system. As with other systems, this should
@@ -71,7 +65,7 @@ typedef struct font_system_config {
  * @param config The font system config.
  * @return True on success; otherwise false.
  */
-b8 font_system_initialize(u64* memory_requirement, void* memory, void* config);
+b8 font_system_initialize(u64* memory_requirement, void* memory, font_system_config* config);
 /**
  * @brief Shuts down the font system.
  *

@@ -47,8 +47,6 @@ systems = [
                 size = 20
                 resource_name = "NotoSansCJK"
             }
-            max_bitmap_font_count = 101
-            max_system_font_count = 101
         }
     }
     {

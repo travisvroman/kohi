@@ -369,7 +369,7 @@ b8 engine_create(application* game_inst) {
 
         audio_system_config audio_sys_config = {0};
 
-        // Parse plugin system config from app config.
+        // Parse system config from app config.
         if (!audio_system_deserialize_config(generic_sys_config.configuration_str, &audio_sys_config)) {
             KERROR("Failed to deserialize audio system config, which is required.");
             return false;
@@ -421,9 +421,24 @@ b8 engine_create(application* game_inst) {
 
     // Font system
     {
-        font_system_initialize(&systems->font_system_memory_requirement, 0, 0);
+        // Get the generic config from application config first.
+        application_system_config generic_sys_config = {0};
+        if (!application_config_system_config_get(&game_inst->app_config, "font", &generic_sys_config)) {
+            KERROR("No configuration exists in app config for the font system. This configuration is required.");
+            return false;
+        }
+
+        font_system_config font_sys_config = {0};
+
+        // Parse system config from app config.
+        if (!font_system_deserialize_config(generic_sys_config.configuration_str, &font_sys_config)) {
+            KERROR("Failed to deserialize font system config, which is required.");
+            return false;
+        }
+
+        font_system_initialize(&systems->font_system_memory_requirement, 0, &font_sys_config);
         systems->font_system = kallocate(systems->font_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!font_system_initialize(&systems->font_system_memory_requirement, systems->font_system, 0)) {
+        if (!font_system_initialize(&systems->font_system_memory_requirement, systems->font_system, &font_sys_config)) {
             KERROR("Failed to initialize font system.");
             return false;
         }
@@ -486,7 +501,7 @@ b8 engine_create(application* game_inst) {
     }
 
     // NOTE: Boot sequence =======================================================================================================
-    // Perform the game's boot sequence.
+    // Perform the application's boot sequence.
     game_inst->stage = APPLICATION_STAGE_BOOTING;
     if (!game_inst->boot(game_inst)) {
         KFATAL("Game boot sequence failed; aborting application.");
@@ -518,6 +533,7 @@ b8 engine_create(application* game_inst) {
         // Add to tracked window list
         darray_push(engine_state->windows, new_window);
     }
+    // NOTE: End boot application sequence.
 
     // Post-boot plugin init
     if (!plugin_system_initialize_plugins(engine_state->systems.plugin_system)) {

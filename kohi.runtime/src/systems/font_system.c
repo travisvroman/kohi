@@ -4,6 +4,7 @@
 #include "containers/hashtable.h"
 #include "logger.h"
 #include "memory/kmemory.h"
+#include "parsers/kson_parser.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/resource_types.h"
 #include "strings/kstring.h"
@@ -56,6 +57,8 @@ typedef struct font_system_state {
     void* system_hashtable_block;
 } font_system_state;
 
+static const u32 max_font_count = 101; // TODO: May need to find a better way to handle this.
+
 static b8 setup_font_data(font_data* font);
 static void cleanup_font_data(font_data* font);
 static b8 create_system_font_variant(system_font_lookup* lookup, u16 size, const char* font_name, font_data* out_variant);
@@ -64,19 +67,90 @@ static b8 verify_system_font_size_variant(system_font_lookup* lookup, font_data*
 
 static font_system_state* state_ptr;
 
-b8 font_system_initialize(u64* memory_requirement, void* memory, void* config) {
-    font_system_config* typed_config = (font_system_config*)config;
-    if (typed_config->max_bitmap_font_count == 0 || typed_config->max_system_font_count == 0) {
-        KFATAL("font_system_initialize - config.max_bitmap_font_count and config.max_system_font_count must be > 0.");
+b8 font_system_deserialize_config(const char* config_str, font_system_config* out_config) {
+    if (!config_str || !out_config) {
+        KERROR("Font system config requires both a configuration string and a valid pointer to hold the config.");
         return false;
     }
 
+    kson_tree tree = {0};
+    if (!kson_tree_from_string(config_str, &tree)) {
+        KERROR("Failed to parse font system config.");
+        return false;
+    }
+
+    // Auto-release property. Optional, defaults to true if not provided.
+    if (!kson_object_property_value_get_bool(&tree.root, "auto_release", &out_config->auto_release)) {
+        out_config->auto_release = true;
+    }
+
+    // default_bitmap_font object is required.
+    kson_object default_bitmap_font_obj;
+    if (!kson_object_property_value_get_object(&tree.root, "default_bitmap_font", &default_bitmap_font_obj)) {
+        KERROR("font_system_deserialize_config: config does not contain default_bitmap_font object, which is required.");
+        return false;
+    } else {
+        // Font name.
+        if (!kson_object_property_value_get_string(&default_bitmap_font_obj, "name", &out_config->default_bitmap_font.name)) {
+            KERROR("Default bitmap font requires a 'name'.");
+            return false;
+        }
+
+        // Font size is required for bitmap fonts.
+        i64 font_size = 0;
+        if (!kson_object_property_value_get_int(&default_bitmap_font_obj, "size", &font_size)) {
+            KERROR("'size' is a required field for bitmap fonts.");
+            return false;
+        }
+        out_config->default_bitmap_font.size = (u16)font_size;
+
+        // Resource name.
+        if (!kson_object_property_value_get_string(&default_bitmap_font_obj, "resource_name", &out_config->default_bitmap_font.resource_name)) {
+            KERROR("Default bitmap font requires a 'resource_name'.");
+            return false;
+        }
+    }
+
+    // default_system_font object is required.
+    kson_object default_system_font_obj;
+    if (!kson_object_property_value_get_object(&tree.root, "default_system_font", &default_system_font_obj)) {
+        KERROR("font_system_deserialize_config: config does not contain default_system_font object, which is required.");
+        return false;
+    } else {
+        // Font name.
+        if (!kson_object_property_value_get_string(&default_system_font_obj, "name", &out_config->default_system_font.name)) {
+            KERROR("Default system font requires a 'name'.");
+            return false;
+        }
+
+        // Font size is optional for system fonts. Use a default of 20 if not provided.
+        i64 font_size = 0;
+        if (!kson_object_property_value_get_int(&default_system_font_obj, "size", &font_size)) {
+            font_size = 20;
+        }
+        out_config->default_system_font.default_size = (u16)font_size;
+
+        // Resource name.
+        if (!kson_object_property_value_get_string(&default_system_font_obj, "resource_name", &out_config->default_system_font.resource_name)) {
+            KERROR("Default system font requires a 'resource_name'.");
+            return false;
+        }
+    }
+
+    kson_tree_cleanup(&tree);
+
+    return true;
+}
+
+b8 font_system_initialize(u64* memory_requirement, void* memory, font_system_config* config) {
+    font_system_config* typed_config = (font_system_config*)config;
+
     // Block of memory will contain state structure, then blocks for arrays, then blocks for hashtables.
     u64 struct_requirement = sizeof(font_system_state);
-    u64 bmp_array_requirement = sizeof(bitmap_font_lookup) * typed_config->max_bitmap_font_count;
-    u64 sys_array_requirement = sizeof(system_font_lookup) * typed_config->max_system_font_count;
-    u64 bmp_hashtable_requirement = sizeof(u16) * typed_config->max_bitmap_font_count;
-    u64 sys_hashtable_requirement = sizeof(u16) * typed_config->max_system_font_count;
+    u64 bmp_array_requirement = sizeof(bitmap_font_lookup) * max_font_count;
+    u64 sys_array_requirement = sizeof(system_font_lookup) * max_font_count;
+    u64 bmp_hashtable_requirement = sizeof(u16) * max_font_count;
+    u64 sys_hashtable_requirement = sizeof(u16) * max_font_count;
     *memory_requirement = struct_requirement + bmp_array_requirement + sys_array_requirement + bmp_hashtable_requirement + sys_hashtable_requirement;
 
     if (!memory) {
@@ -98,8 +172,8 @@ b8 font_system_initialize(u64* memory_requirement, void* memory, void* config) {
     void* sys_hashtable_block = (void*)(((u8*)bmp_hashtable_block) + bmp_hashtable_requirement);
 
     // Create hashtables for font lookups.
-    hashtable_create(sizeof(u16), state_ptr->config.max_bitmap_font_count, bmp_hashtable_block, false, &state_ptr->bitmap_font_lookup);
-    hashtable_create(sizeof(u16), state_ptr->config.max_system_font_count, sys_hashtable_block, false, &state_ptr->system_font_lookup);
+    hashtable_create(sizeof(u16), max_font_count, bmp_hashtable_block, false, &state_ptr->bitmap_font_lookup);
+    hashtable_create(sizeof(u16), max_font_count, sys_hashtable_block, false, &state_ptr->system_font_lookup);
 
     // Fill both hashtables with invalid references to use as a default.
     u16 invalid_id = INVALID_ID_U16;
@@ -107,29 +181,22 @@ b8 font_system_initialize(u64* memory_requirement, void* memory, void* config) {
     hashtable_fill(&state_ptr->system_font_lookup, &invalid_id);
 
     // Invalidate all entries in both arrays.
-    u32 count = state_ptr->config.max_bitmap_font_count;
-    for (u32 i = 0; i < count; ++i) {
+    for (u32 i = 0; i < max_font_count; ++i) {
         state_ptr->bitmap_fonts[i].id = INVALID_ID_U16;
         state_ptr->bitmap_fonts[i].reference_count = 0;
     }
-    count = state_ptr->config.max_system_font_count;
-    for (u32 i = 0; i < count; ++i) {
+    for (u32 i = 0; i < max_font_count; ++i) {
         state_ptr->system_fonts[i].id = INVALID_ID_U16;
         state_ptr->system_fonts[i].reference_count = 0;
     }
 
-    // Load up any default fonts.
-    // Bitmap fonts.
-    for (u32 i = 0; i < state_ptr->config.default_bitmap_font_count; ++i) {
-        if (!font_system_bitmap_font_load(&state_ptr->config.bitmap_font_configs[i])) {
-            KERROR("Failed to load bitmap font: %s", state_ptr->config.bitmap_font_configs[i].name);
-        }
+    // Load up default bitmap font.
+    if (!font_system_bitmap_font_load(&state_ptr->config.default_bitmap_font)) {
+        KERROR("Failed to load bitmap font: %s", state_ptr->config.default_bitmap_font.name);
     }
-    // System fonts.
-    for (u32 i = 0; i < state_ptr->config.default_system_font_count; ++i) {
-        if (!font_system_system_font_load(&state_ptr->config.system_font_configs[i])) {
-            KERROR("Failed to load system font: %s", state_ptr->config.system_font_configs[i].name);
-        }
+    // System font.
+    if (!font_system_system_font_load(&state_ptr->config.default_system_font)) {
+        KERROR("Failed to load system font: %s", state_ptr->config.default_system_font.name);
     }
 
     return true;
@@ -138,7 +205,7 @@ b8 font_system_initialize(u64* memory_requirement, void* memory, void* config) {
 void font_system_shutdown(void* memory) {
     if (memory) {
         // Cleanup bitmap fonts.
-        for (u16 i = 0; i < state_ptr->config.max_bitmap_font_count; ++i) {
+        for (u16 i = 0; i < max_font_count; ++i) {
             if (state_ptr->bitmap_fonts[i].id != INVALID_ID_U16) {
                 font_data* data = &state_ptr->bitmap_fonts[i].font.resource_data->data;
                 cleanup_font_data(data);
@@ -147,7 +214,7 @@ void font_system_shutdown(void* memory) {
         }
 
         // Cleanup system fonts.
-        for (u16 i = 0; i < state_ptr->config.max_system_font_count; ++i) {
+        for (u16 i = 0; i < max_font_count; ++i) {
             if (state_ptr->system_fonts[i].id != INVALID_ID_U16) {
                 // Cleanup each variant.
                 u32 variant_count = darray_length(state_ptr->system_fonts[i].size_variants);
@@ -196,7 +263,7 @@ b8 font_system_system_font_load(system_font_config* config) {
         }
 
         // Get a new id
-        for (u16 j = 0; j < state_ptr->config.max_system_font_count; ++j) {
+        for (u16 j = 0; j < max_font_count; ++j) {
             if (state_ptr->system_fonts[j].id == INVALID_ID_U16) {
                 id = j;
                 break;
@@ -266,7 +333,7 @@ b8 font_system_bitmap_font_load(bitmap_font_config* config) {
     }
 
     // Get a new id
-    for (u16 i = 0; i < state_ptr->config.max_bitmap_font_count; ++i) {
+    for (u16 i = 0; i < max_font_count; ++i) {
         if (state_ptr->bitmap_fonts[i].id == INVALID_ID_U16) {
             id = i;
             break;
