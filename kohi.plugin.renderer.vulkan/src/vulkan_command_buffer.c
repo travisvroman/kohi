@@ -101,4 +101,4 @@ void vulkan_command_buffer_end_single_use(
 
     // Free the command buffer.
     vulkan_command_buffer_free(context, pool, command_buffer);
- }
+}

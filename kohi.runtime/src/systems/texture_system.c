@@ -99,6 +99,8 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
         return true;
     }
 
+    KDEBUG("Initializing texture system...");
+
     state_ptr = state;
     state_ptr->config = *typed_config;
 
@@ -130,6 +132,8 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
 
     // Create default textures for use in the system.
     create_default_textures(state_ptr);
+
+    KDEBUG("Texture system initialization complete.");
 
     return true;
 }
@@ -487,6 +491,7 @@ static b8 create_default_texture(texture* t, u8* pixels, u32 tex_dimension, cons
 static b8 create_default_cube_texture(texture* t, const char* name) {
     const u32 tex_dimension = 16;
     const u32 channels = 4;
+    const u32 layers = 6; // one per side.
     const u32 pixel_count = tex_dimension * tex_dimension;
     u8 cube_side_pixels[16 * 16 * 4];
     kset_memory(cube_side_pixels, 255, sizeof(u8) * pixel_count * channels);
@@ -511,17 +516,18 @@ static b8 create_default_cube_texture(texture* t, const char* name) {
     }
 
     // Copy the image side data (same on all sides) to the relevant portion of the pixel array.
-    u64 image_size = tex_dimension * tex_dimension * channels * 6;
-    u8* pixels = kallocate(sizeof(u8) * image_size, MEMORY_TAG_ARRAY);
-    for (u8 i = 0; i < 6; ++i) {
-        kcopy_memory(pixels + image_size * i, cube_side_pixels, image_size);
+    u64 layer_size = sizeof(u8) * tex_dimension * tex_dimension * channels;
+    u64 image_size = layer_size * layers;
+    u8* pixels = kallocate(image_size, MEMORY_TAG_ARRAY);
+    for (u8 i = 0; i < layers; ++i) {
+        kcopy_memory(pixels + layer_size * i, cube_side_pixels, layer_size);
     }
 
     // Acquire internal texture resources and upload to GPU.
-    b8 result = create_and_upload_texture(t, name, TEXTURE_TYPE_CUBE, tex_dimension, tex_dimension, 4, 1, 6, 0, 0, pixels);
+    b8 result = create_and_upload_texture(t, name, TEXTURE_TYPE_CUBE, tex_dimension, tex_dimension, channels, 1, layers, 0, 0, pixels);
 
     // Cleanup pixels array.
-    kfree(pixels, sizeof(u8) * image_size * 6, MEMORY_TAG_ARRAY);
+    kfree(pixels, image_size, MEMORY_TAG_ARRAY);
     pixels = 0;
 
     return result;

@@ -21,7 +21,14 @@
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
             "cppStandard": "c++17",
-            "intelliSenseMode": "clang-x64"
+            "intelliSenseMode": "clang-x64",
+            "browse": {
+                "path": [
+                    "${workspaceRoot}",
+                    "/usr/lib/"
+                ],
+                "limitSymbolsToIncludedHeaders": false,
+            }
         },
         {
             "name": "Mac",

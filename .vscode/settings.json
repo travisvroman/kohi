@@ -21,6 +21,7 @@
     "C_Cpp.vcFormat.space.pointerReferenceAlignment": "left",
     "C_Cpp.clang_format_sortIncludes": false,
     "C_Cpp.vcFormat.indent.namespaceContents": true,
+    "C_Cpp.workspaceSymbols": "All",
     "editor.cursorStyle": "block",
     "window.zoomLevel": 1,
     "editor.tabCompletion": "on",

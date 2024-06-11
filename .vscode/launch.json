@@ -19,13 +19,16 @@
             },
             "linux": {
                 "externalConsole": false,
+                // "environment": [
+                //     { "name": "VK_LOADER_DEBUG", "value": "all"}
+                // ]
             },
             "windows": {
                 "type": "cppvsdbg",
                 "program": "${workspaceFolder}/bin/testbed.kapp.exe",
                 // cppvsdbg requires this instead of externalConsole
                 "console": "integratedTerminal",
-            }
+            },
         },
         {
             "name": "Launch Unit Tests",
