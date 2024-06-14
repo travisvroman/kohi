@@ -210,7 +210,7 @@ b8 debug_rendergraph_node_debug_geometries_set(struct rendergraph_node* self, st
 
 b8 debug_rendergraph_node_register_factory(void) {
     rendergraph_node_factory factory = {0};
-    factory.type = "debug";
+    factory.type = "debug3d";
     factory.create = debug_rendergraph_node_create;
     return rendergraph_system_node_factory_register(engine_systems_get()->rendergraph_system, &factory);
 }

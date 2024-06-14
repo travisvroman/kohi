@@ -12,6 +12,7 @@
 #include "renderer/rendergraph.h"
 #include "renderer/viewport.h"
 #include "resources/resource_types.h"
+#include "strings/kstring.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
@@ -83,7 +84,7 @@ typedef struct shadow_rendergraph_node_internal_data {
 
 } shadow_rendergraph_node_internal_data;
 
-b8 shadow_rendergraph_node_create(struct rendergraph_node* self, void* config) {
+b8 shadow_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node* self, const struct rendergraph_node_config* config) {
     if (!self || !config) {
         KERROR("shadow_map_pass_create requires both a pointer to self and a valid config");
         return false;
@@ -93,6 +94,23 @@ b8 shadow_rendergraph_node_create(struct rendergraph_node* self, void* config) {
     shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
     internal_data->renderer = engine_systems_get()->renderer_system;
     internal_data->config = *((shadow_rendergraph_node_config*)config);
+
+    // Has one source, for the shadowmap.
+    self->source_count = 1;
+    self->sources = kallocate(sizeof(rendergraph_source) * self->source_count, MEMORY_TAG_ARRAY);
+
+    // Setup the colourbuffer source.
+    rendergraph_source* shadowmap_source = &self->sources[0];
+    shadowmap_source->name = string_duplicate("shadowmap");
+    shadowmap_source->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
+    shadowmap_source->value.t = 0;
+    shadowmap_source->is_bound = false;
+
+    // Function pointers.
+    self->initialize = shadow_rendergraph_node_initialize;
+    self->destroy = shadow_rendergraph_node_destroy;
+    self->load_resources = shadow_rendergraph_node_load_resources;
+    self->execute = shadow_rendergraph_node_execute;
 
     return true;
 }
@@ -104,34 +122,11 @@ b8 shadow_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Create the depth attachment for the directional light shadow.
-    // This should take renderer buffering into account.
-    texture_flag_bits flags = TEXTURE_FLAG_DEPTH | TEXTURE_FLAG_IS_WRITEABLE | TEXTURE_FLAG_RENDERER_BUFFERING;
-    renderer_texture_resources_acquire(
-        internal_data->renderer, "shadowmap_node_texture", TEXTURE_TYPE_2D_ARRAY, internal_data->config.resolution, internal_data->config.resolution,
-        4, 1, MAX_SHADOW_CASCADE_COUNT, flags, &internal_data->depth_texture.renderer_texture_handle);
-
     // Load shadowmap shader. Attempt to to get the already-loaded shader if it doesn't exist.
-    const char* shadowmap_shader_name = "Shader.Shadowmap";
-    internal_data->s = shader_system_get(shadowmap_shader_name);
+    internal_data->s = shader_system_get("Shader.Shadowmap");
     if (!internal_data->s) {
-        KTRACE("Shader '%s' doesn't exist. Attempting to load it...", shadowmap_shader_name);
-        resource shadowmap_shader_config_resource;
-        if (!resource_system_load(shadowmap_shader_name, RESOURCE_TYPE_SHADER, 0, &shadowmap_shader_config_resource)) {
-            KERROR("Failed to load shadow shader resource.");
-            return false;
-        }
-        shader_config* shadowmap_shader_config = (shader_config*)shadowmap_shader_config_resource.data;
-        if (!shader_system_create(shadowmap_shader_config)) {
-            KERROR("Failed to create shadow shader.");
-            return false;
-        }
-
-        resource_system_unload(&shadowmap_shader_config_resource);
-        // Get a pointer to the shader.
-        internal_data->s = shader_system_get(shadowmap_shader_name);
-    } else {
-        KTRACE("Shader '%s' already exists, using it.", shadowmap_shader_name);
+        KERROR("Shader for shadow rendergraph node failed to load. See logs for details.");
+        return false;
     }
     internal_data->shader_id = internal_data->s->id;
     internal_data->locations.projections_location = shader_system_uniform_location(internal_data->shader_id, "projections");
@@ -141,26 +136,10 @@ b8 shadow_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->locations.colour_map_location = shader_system_uniform_location(internal_data->shader_id, "colour_map");
 
     // Terrain shadowmap shader.
-    const char* terrain_shadowmap_shader_name = "Shader.ShadowmapTerrain";
-    internal_data->ts = shader_system_get(terrain_shadowmap_shader_name);
+    internal_data->ts = shader_system_get("Shader.ShadowmapTerrain");
     if (!internal_data->ts) {
-        KTRACE("Shader '%s' doesn't exist. Attempting to load it...", terrain_shadowmap_shader_name);
-        resource terrain_shadowmap_shader_config_resource;
-        if (!resource_system_load(terrain_shadowmap_shader_name, RESOURCE_TYPE_SHADER, 0, &terrain_shadowmap_shader_config_resource)) {
-            KERROR("Failed to load terrain shadow shader resource.");
-            return false;
-        }
-        shader_config* terrain_shadowmap_shader_config = (shader_config*)terrain_shadowmap_shader_config_resource.data;
-        if (!shader_system_create(terrain_shadowmap_shader_config)) {
-            KERROR("Failed to create terrain shadow shader.");
-            return false;
-        }
-
-        resource_system_unload(&terrain_shadowmap_shader_config_resource);
-        // Get a pointer to the shader.
-        internal_data->ts = shader_system_get(terrain_shadowmap_shader_name);
-    } else {
-        KTRACE("Shader '%s' already exists, using it.", terrain_shadowmap_shader_name);
+        KERROR("Failed to load shader for shadowmap rendergraph node (terrain)");
+        return false;
     }
 
     internal_data->terrain_shader_id = internal_data->ts->id;
@@ -179,69 +158,75 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
     }
     shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Create a texture map to be used across the board for the diffuse/albedo transparency sample.
-    internal_data->default_colour_map.mip_levels = 1;
-    internal_data->default_colour_map.generation = INVALID_ID_U8;
-    internal_data->default_colour_map.repeat_u = internal_data->default_colour_map.repeat_v = internal_data->default_colour_map.repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
-    internal_data->default_colour_map.filter_minify = internal_data->default_colour_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-
-    // Grab the default texture for the default texture map.
-    internal_data->default_colour_map.texture = texture_system_get_default_diffuse_texture();
-
-    // Create a texture map to be used across the board for the diffuse/albedo transparency sample.
-    internal_data->default_terrain_colour_map.mip_levels = 1;
-    internal_data->default_terrain_colour_map.generation = INVALID_ID_U8;
-    internal_data->default_terrain_colour_map.repeat_u = internal_data->default_terrain_colour_map.repeat_v = internal_data->default_terrain_colour_map.repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
-    internal_data->default_terrain_colour_map.filter_minify = internal_data->default_terrain_colour_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-
-    // Grab the default texture for the default terrain texture map.
-    internal_data->default_terrain_colour_map.texture = texture_system_get_default_diffuse_texture();
-
-    // Acquire resources for the default texture map.
-    if (!renderer_texture_map_resources_acquire(&internal_data->default_colour_map)) {
-        KERROR("Failed to acquire texture map resources for default colour map in shadowmap pass.");
-        return false;
-    }
-
-    // Acquire resources for the default terrain texture map.
-    if (!renderer_texture_map_resources_acquire(&internal_data->default_terrain_colour_map)) {
-        KERROR("Failed to acquire texture map resources for default terrain colour map in shadowmap pass.");
-        return false;
-    }
-
-    // Reserve an instance id for the default "material" to render to.
+    // Static meshes.
     {
-        texture_map* maps[1] = {&internal_data->default_colour_map};
-        /* shader* s = internal_data->s; */
-        /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
-        shader_instance_resource_config instance_resource_config = {0};
-        // Map count for this type is known.
-        shader_instance_uniform_texture_config colour_texture = {0};
-        /* colour_texture.uniform_location = atlas_location; */
-        colour_texture.texture_map_count = 1;
-        colour_texture.texture_maps = maps;
+        // Create a texture map to be used across the board for the diffuse/albedo transparency sample.
+        internal_data->default_colour_map.mip_levels = 1;
+        internal_data->default_colour_map.generation = INVALID_ID_U8;
+        internal_data->default_colour_map.repeat_u = internal_data->default_colour_map.repeat_v = internal_data->default_colour_map.repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
+        internal_data->default_colour_map.filter_minify = internal_data->default_colour_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
 
-        instance_resource_config.uniform_config_count = 1;
-        instance_resource_config.uniform_configs = &colour_texture;
-        renderer_shader_instance_resources_acquire(internal_data->renderer, internal_data->s, &instance_resource_config, &internal_data->default_instance_id);
+        // Grab the default texture for the default texture map.
+        internal_data->default_colour_map.texture = texture_system_get_default_diffuse_texture();
+
+        // Acquire resources for the default texture map.
+        if (!renderer_texture_map_resources_acquire(&internal_data->default_colour_map)) {
+            KERROR("Failed to acquire texture map resources for default colour map in shadowmap pass.");
+            return false;
+        }
+
+        // Reserve an instance id for the default "material" to render to.
+        {
+            texture_map* maps[1] = {&internal_data->default_colour_map};
+            /* shader* s = internal_data->s; */
+            /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
+            shader_instance_resource_config instance_resource_config = {0};
+            // Map count for this type is known.
+            shader_instance_uniform_texture_config colour_texture = {0};
+            /* colour_texture.uniform_location = atlas_location; */
+            colour_texture.texture_map_count = 1;
+            colour_texture.texture_maps = maps;
+
+            instance_resource_config.uniform_config_count = 1;
+            instance_resource_config.uniform_configs = &colour_texture;
+            renderer_shader_instance_resources_acquire(internal_data->renderer, internal_data->s, &instance_resource_config, &internal_data->default_instance_id);
+        }
     }
 
-    // Reserve an instance id for the default "material" to render to.
+    // Terrain
     {
-        texture_map* terrain_maps[1] = {&internal_data->default_terrain_colour_map};
-        /* shader* s = internal_data->ts; */
-        /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
-        shader_instance_resource_config instance_resource_config = {0};
-        // Map count for this type is known.
-        shader_instance_uniform_texture_config colour_texture = {0};
-        /* colour_texture.uniform_location = atlas_location; */
-        colour_texture.texture_map_count = 1;
-        colour_texture.texture_maps = terrain_maps;
+        // Create a texture map to be used across the board for the diffuse/albedo transparency sample.
+        internal_data->default_terrain_colour_map.mip_levels = 1;
+        internal_data->default_terrain_colour_map.generation = INVALID_ID_U8;
+        internal_data->default_terrain_colour_map.repeat_u = internal_data->default_terrain_colour_map.repeat_v = internal_data->default_terrain_colour_map.repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
+        internal_data->default_terrain_colour_map.filter_minify = internal_data->default_terrain_colour_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
 
-        instance_resource_config.uniform_config_count = 1;
-        instance_resource_config.uniform_configs = &colour_texture;
+        // Grab the default texture for the default terrain texture map.
+        internal_data->default_terrain_colour_map.texture = texture_system_get_default_diffuse_texture();
 
-        renderer_shader_instance_resources_acquire(internal_data->renderer, internal_data->ts, &instance_resource_config, &internal_data->terrain_instance_id);
+        // Acquire resources for the default terrain texture map.
+        if (!renderer_texture_map_resources_acquire(&internal_data->default_terrain_colour_map)) {
+            KERROR("Failed to acquire texture map resources for default terrain colour map in shadowmap pass.");
+            return false;
+        }
+
+        // Reserve an instance id for the default "material" to render to.
+        {
+            texture_map* terrain_maps[1] = {&internal_data->default_terrain_colour_map};
+            /* shader* s = internal_data->ts; */
+            /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
+            shader_instance_resource_config instance_resource_config = {0};
+            // Map count for this type is known.
+            shader_instance_uniform_texture_config colour_texture = {0};
+            /* colour_texture.uniform_location = atlas_location; */
+            colour_texture.texture_map_count = 1;
+            colour_texture.texture_maps = terrain_maps;
+
+            instance_resource_config.uniform_config_count = 1;
+            instance_resource_config.uniform_configs = &colour_texture;
+
+            renderer_shader_instance_resources_acquire(internal_data->renderer, internal_data->ts, &instance_resource_config, &internal_data->terrain_instance_id);
+        }
     }
 
     // NOTE: Setup a default viewport. The only component that is used for this is the underlying
@@ -253,23 +238,41 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
         return false;
     }
 
-    /*
-        // Create the depth attachment for the directional light.
-        // Each cascade uses one layer of the depth texture.
-        for (u16 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
-            cascade_resources* cascade = &internal_data->cascade_resources[i];
+    // Create the depth attachment for the directional light shadow.
+    // This should take renderer buffering into account.
+    //
+    /* texture_flag_bits flags = TEXTURE_FLAG_DEPTH | TEXTURE_FLAG_IS_WRITEABLE | TEXTURE_FLAG_RENDERER_BUFFERING; */
+    /* renderer_texture_resources_acquire(
+        internal_data->renderer, "shadowmap_node_texture", TEXTURE_TYPE_2D_ARRAY, internal_data->config.resolution, internal_data->config.resolution,
+        4, 1, MAX_SHADOW_CASCADE_COUNT, flags, &internal_data->depth_texture.renderer_texture_handle); */
 
-            framebuffer_config fb_config = {0};
-            fb_config.attachment_count = 1;
-            fb_config.attachments = kallocate(sizeof(framebuffer_attachment_config) * fb_config.attachment_count, MEMORY_TAG_ARRAY);
-            fb_config.attachments[0].type = RENDERER_ATTACHMENT_TYPE_FLAG_DEPTH_BIT;
-            fb_config.attachments[0].target = &internal_data->depth_texture;
+    texture* t = &internal_data->depth_texture;
+    t->width = t->height = internal_data->config.resolution;
+    t->type = TEXTURE_TYPE_2D_ARRAY;
+    t->flags = TEXTURE_FLAG_DEPTH | TEXTURE_FLAG_IS_WRITEABLE | TEXTURE_FLAG_RENDERER_BUFFERING;
+    t->array_size = MAX_SHADOW_CASCADE_COUNT;
+    t->channel_count = 4;
+    t->mip_levels = 1;
+    t->generation = INVALID_ID_U8;
+    t->id = -1;
+    t->name = string_duplicate("__shadow_rg_node_shadowmap__");
 
-            if (!renderer_framebuffer_create(internal_data->renderer, &fb_config, &cascade->framebuffer_handle)) {
-                KERROR("Failed to create cascase framebuffer in shadow rendergraph node.");
-                return false;
-            }
-        } */
+    if (!renderer_texture_resources_acquire(
+            internal_data->renderer,
+            t->name,
+            t->type,
+            t->width,
+            t->height,
+            t->channel_count,
+            t->mip_levels,
+            t->array_size,
+            t->flags,
+            &internal_data->depth_texture.renderer_texture_handle)) {
+        KERROR("Failed to acquire renderer resources for shadow rendergraph node map.");
+        return false;
+    }
+
+    self->sources[0].value.t = &internal_data->depth_texture;
 
     return true;
 }
@@ -470,6 +473,10 @@ void shadow_rendergraph_node_destroy(struct rendergraph_node* self) {
             shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 
             renderer_texture_resources_release(internal_data->renderer, internal_data->depth_texture.renderer_texture_handle);
+            if (internal_data->depth_texture.name) {
+                string_free(internal_data->depth_texture.name);
+                internal_data->depth_texture.name = 0;
+            }
 
             renderer_texture_map_resources_release(&internal_data->default_colour_map);
             renderer_texture_map_resources_release(&internal_data->default_terrain_colour_map);
@@ -540,4 +547,11 @@ b8 shadow_rendergraph_node_terrain_geometries_set(struct rendergraph_node* self,
     kcopy_memory(internal_data->terrain_geometries, geometries, sizeof(geometry_render_data) * geometry_count);
 
     return false;
+}
+
+b8 shadow_rendergraph_node_register_factory(void) {
+    rendergraph_node_factory factory = {0};
+    factory.type = "shadow";
+    factory.create = shadow_rendergraph_node_create;
+    return rendergraph_system_node_factory_register(engine_systems_get()->rendergraph_system, &factory);
 }

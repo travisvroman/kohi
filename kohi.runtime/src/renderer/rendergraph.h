@@ -148,6 +148,7 @@ KAPI void rendergraph_destroy(rendergraph* graph);
 
 KAPI b8 rendergraph_finalize(rendergraph* graph);
 
+KAPI b8 rendergraph_initialize(rendergraph* graph);
 KAPI b8 rendergraph_load_resources(rendergraph* graph);
 
 KAPI b8 rendergraph_execute_frame(rendergraph* graph, struct frame_data* p_frame_data);

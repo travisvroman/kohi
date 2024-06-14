@@ -4,7 +4,7 @@
 
 #include "../standard_ui_system.h"
 #include "defines.h"
-#include "math/nine_slice.h"
+#include "renderer/nine_slice.h"
 
 /*
  * TODO: Textbox items

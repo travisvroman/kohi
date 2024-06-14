@@ -27,7 +27,7 @@ b8 frame_begin_rendergraph_node_create(struct rendergraph* graph, struct renderg
     colourbuffer_source->value.t = graph->global_colourbuffer;
     colourbuffer_source->is_bound = false;
 
-    // Setup the colourbuffer source.
+    // Setup the depthbuffer source.
     rendergraph_source* depthbuffer_source = &self->sources[1];
     depthbuffer_source->name = string_duplicate("depthbuffer");
     depthbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;

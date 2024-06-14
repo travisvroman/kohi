@@ -15,6 +15,17 @@ struct material;
 struct kwindow_renderer_backend_state;
 struct texture_internal_data;
 
+typedef struct renderbuffer_data {
+    /** @brief The element count. */
+    u32 element_count;
+    /** @brief The size of each element. */
+    u32 element_size;
+    /** @brief The element data. */
+    void* elements;
+    /** @brief The offset from the beginning of the buffer. */
+    u64 buffer_offset;
+} renderbuffer_data;
+
 typedef struct geometry_render_data {
     mat4 model;
     // TODO: keep material id/handle instead.

@@ -183,7 +183,7 @@ b8 sui_textbox_control_size_set(standard_ui_state* state, struct sui_control* se
     self->bounds.height = height;
     self->bounds.width = width;
 
-    update_nine_slice(&typed_data->nslice, 0);
+    nine_slice_update(&typed_data->nslice, 0);
 
     return true;
 }
@@ -210,7 +210,8 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
     vec2i atlas_max = (vec2i){193, 43};
     vec2i corner_px_size = (vec2i){3, 3};
     vec2i corner_size = (vec2i){10, 10};
-    if (!generate_nine_slice(self->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
+    // NOTE: Also uploads to the GPU.
+    if (!nine_slice_create(self->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
         KERROR("Failed to generate nine slice.");
         return false;
     }
@@ -228,6 +229,8 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
     typed_data->clip_mask.clip_geometry = geometry_system_acquire_from_config(clip_config, false);
 
     typed_data->clip_mask.render_data.model = mat4_identity();
+    // LEFTOFF: Convert this to generate just verts/indices, and upload via the new
+    // renderer api functions instead of deprecated geometry functions.
     typed_data->clip_mask.render_data.material = 0;
     typed_data->clip_mask.render_data.unique_id = typed_data->clip_mask.reference_id;
 

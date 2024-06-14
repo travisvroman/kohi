@@ -12,8 +12,8 @@
 
 #pragma once
 
-#include "renderer/renderer_types.h"
 #include "math/geometry.h"
+#include "renderer/renderer_types.h"
 
 /** @brief The geometry system configuration. */
 typedef struct geometry_system_config {
@@ -25,8 +25,6 @@ typedef struct geometry_system_config {
     u32 max_geometry_count;
 
 } geometry_system_config;
-
-
 
 /** @brief The name of the default geometry. */
 #define DEFAULT_GEOMETRY_NAME "default"
@@ -65,6 +63,7 @@ KAPI geometry* geometry_system_acquire_by_id(u32 id);
  * @param auto_release Indicates if the acquired geometry should be unloaded when its reference count reaches 0.
  * @return A pointer to the acquired geometry or nullptr if failed.
  */
+KDEPRECATED("The geometry system acquire function will be removed in a future pass. Upload directly to renderbuffers instead.")
 KAPI geometry* geometry_system_acquire_from_config(geometry_config config, b8 auto_release);
 
 /**

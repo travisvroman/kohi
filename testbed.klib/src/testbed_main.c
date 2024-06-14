@@ -426,13 +426,6 @@ b8 application_boot(struct application* game_inst) {
     testbed_game_state* state = game_inst->state;
     state->running = false;
 
-    // Get the standard ui plugin.
-    state->sui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.standard");
-    state->sui_plugin_state = state->sui_plugin->plugin_state;
-    state->sui_state = state->sui_plugin_state->state;
-
-    debug_console_create(state->sui_state, &((testbed_game_state*)game_inst->state)->debug_console);
-
     application_config* config = &game_inst->app_config;
 
     config->frame_allocator_size = MEBIBYTES(64);
@@ -450,7 +443,14 @@ b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
 
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
+
+    // Get the standard ui plugin.
+    state->sui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.standard");
+    state->sui_plugin_state = state->sui_plugin->plugin_state;
+    state->sui_state = state->sui_plugin_state->state;
     standard_ui_state* sui_state = state->sui_state;
+
+    debug_console_create(state->sui_state, &((testbed_game_state*)game_inst->state)->debug_console);
 
     application_register_events(game_inst);
 
@@ -707,6 +707,11 @@ b8 application_initialize(struct application* game_inst) {
         KERROR("Failed to play test emitter.");
     }
     audio_system_channel_play(7, state->test_music, true); */
+
+    if (!rendergraph_initialize(&state->forward_graph)) {
+        KERROR("Failed to initialize rendergraph. See logs for details.");
+        return false;
+    }
 
     if (!rendergraph_load_resources(&state->forward_graph)) {
         KERROR("Failed to load resources for rendergraph. See logs for details.");

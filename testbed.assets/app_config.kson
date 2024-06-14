@@ -120,15 +120,15 @@ rendergraphs = [
                 sinks = [
                     {
                         name = "colourbuffer"
-                        source = "skybox.colourbuffer"
+                        source_name = "skybox.colourbuffer"
                     }
                     {
                         name = "depthbuffer"
-                        source = "clear_ds.depthbuffer"
+                        source_name = "clear_ds.depthbuffer"
                     }
                     {
                         name = "shadow"
-                        source = "shadow.shadowmap"
+                        source_name = "shadow.shadowmap"
                     }
                 ]
             }

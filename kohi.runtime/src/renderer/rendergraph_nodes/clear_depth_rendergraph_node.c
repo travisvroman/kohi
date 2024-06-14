@@ -130,7 +130,7 @@ void clear_depth_rendergraph_node_destroy(struct rendergraph_node* self) {
 
 b8 clear_depth_rendergraph_node_register_factory(void) {
     rendergraph_node_factory factory = {0};
-    factory.type = "clear_depth";
+    factory.type = "clear_depth_stencil";
     factory.create = clear_depth_rendergraph_node_create;
     return rendergraph_system_node_factory_register(engine_systems_get()->rendergraph_system, &factory);
 }

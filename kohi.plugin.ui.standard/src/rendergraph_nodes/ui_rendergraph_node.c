@@ -267,7 +267,7 @@ void ui_rendergraph_node_set_viewport_and_matrices(struct rendergraph_node* self
 
 b8 ui_rendergraph_node_register_factory(void) {
     rendergraph_node_factory factory = {0};
-    factory.type = "skybox";
+    factory.type = "standard_ui";
     factory.create = ui_rendergraph_node_create;
     return rendergraph_system_node_factory_register(engine_systems_get()->rendergraph_system, &factory);
 }

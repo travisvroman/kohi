@@ -145,7 +145,7 @@ typedef struct forward_rendergraph_node_internal_data {
     mat4 directional_light_spaces[MAX_SHADOW_CASCADE_COUNT];
 } forward_rendergraph_node_internal_data;
 
-b8 forward_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node* self, struct rendergraph_node_config* config) {
+b8 forward_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node* self, const struct rendergraph_node_config* config) {
     if (!self) {
         KERROR("forward_rendergraph_node_create requires a valid pointer to a pass");
         return false;
@@ -174,13 +174,13 @@ b8 forward_rendergraph_node_create(struct rendergraph* graph, struct rendergraph
         rendergraph_node_sink_config* sink = &config->sinks[i];
         if (strings_equali("colourbuffer", sink->name)) {
             colourbuffer_sink_config = sink;
-            break;
+            continue;
         } else if (strings_equali("depthbuffer", sink->name)) {
             depthbuffer_sink_config = sink;
-            break;
+            continue;
         } else if (strings_equali("shadow", sink->name)) {
             shadow_sink_config = sink;
-            break;
+            continue;
         }
     }
 
@@ -758,4 +758,11 @@ b8 forward_rendergraph_node_view_projection_set(struct rendergraph_node* self, m
         return true;
     }
     return false;
+}
+
+b8 forward_rendergraph_node_register_factory(void) {
+    rendergraph_node_factory factory = {0};
+    factory.type = "forward";
+    factory.create = forward_rendergraph_node_create;
+    return rendergraph_system_node_factory_register(engine_systems_get()->rendergraph_system, &factory);
 }

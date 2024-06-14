@@ -1,8 +1,7 @@
 #pragma once
 
 #include "../standard_ui_system.h"
-
-#include "math/nine_slice.h"
+#include "renderer/nine_slice.h"
 
 typedef struct sui_button_internal_data {
     vec2i size;

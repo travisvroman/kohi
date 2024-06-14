@@ -9,6 +9,7 @@
 #include <strings/kstring.h>
 #include <systems/shader_system.h>
 
+#include "renderer/nine_slice.h"
 #include "standard_ui_system.h"
 
 static void sui_button_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data);
@@ -58,7 +59,7 @@ b8 sui_button_control_height_set(standard_ui_state* state, struct sui_control* s
 
     self->bounds.height = height;
 
-    update_nine_slice(&typed_data->nslice, 0);
+    nine_slice_update(&typed_data->nslice, 0);
 
     return true;
 }
@@ -77,7 +78,7 @@ b8 sui_button_control_load(standard_ui_state* state, struct sui_control* self) {
     vec2i atlas_max = (vec2i){158, 19};
     vec2i corner_px_size = (vec2i){3, 3};
     vec2i corner_size = (vec2i){10, 10};
-    if (!generate_nine_slice(self->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
+    if (!nine_slice_create(self->name, typed_data->size, atlas_size, atlas_min, atlas_max, corner_px_size, corner_size, &typed_data->nslice)) {
         KERROR("Failed to generate nine slice.");
         return false;
     }
@@ -160,7 +161,7 @@ void sui_button_on_mouse_out(standard_ui_state* state, struct sui_control* self,
         typed_data->nslice.atlas_px_min.y = 12;
         typed_data->nslice.atlas_px_max.x = 158;
         typed_data->nslice.atlas_px_max.y = 19;
-        update_nine_slice(&typed_data->nslice, 0);
+        nine_slice_update(&typed_data->nslice, 0);
     }
 }
 
@@ -178,7 +179,7 @@ void sui_button_on_mouse_over(standard_ui_state* state, struct sui_control* self
             typed_data->nslice.atlas_px_max.x = 158;
             typed_data->nslice.atlas_px_max.y = 37;
         }
-        update_nine_slice(&typed_data->nslice, 0);
+        nine_slice_update(&typed_data->nslice, 0);
     }
 }
 void sui_button_on_mouse_down(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
@@ -188,7 +189,7 @@ void sui_button_on_mouse_down(standard_ui_state* state, struct sui_control* self
         typed_data->nslice.atlas_px_min.y = 21;
         typed_data->nslice.atlas_px_max.x = 158;
         typed_data->nslice.atlas_px_max.y = 28;
-        update_nine_slice(&typed_data->nslice, 0);
+        nine_slice_update(&typed_data->nslice, 0);
     }
 }
 void sui_button_on_mouse_up(standard_ui_state* state, struct sui_control* self, struct sui_mouse_event event) {
@@ -206,6 +207,6 @@ void sui_button_on_mouse_up(standard_ui_state* state, struct sui_control* self, 
             typed_data->nslice.atlas_px_max.x = 158;
             typed_data->nslice.atlas_px_max.y = 37;
         }
-        update_nine_slice(&typed_data->nslice, 0);
+        nine_slice_update(&typed_data->nslice, 0);
     }
 }
