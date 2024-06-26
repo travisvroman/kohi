@@ -10,6 +10,7 @@
 #include "strings/kstring.h"
 #include "systems/material_system.h"
 #include "systems/shader_system.h"
+#include "renderer/viewport.h"
 
 typedef struct debug_shader_locations {
     u16 projection;
@@ -26,7 +27,7 @@ typedef struct debug_rendergraph_node_internal_data {
 
     struct texture* colourbuffer_texture;
 
-    struct viewport* vp;
+    viewport vp;
     mat4 view;
     mat4 projection;
 
@@ -124,6 +125,8 @@ b8 debug_rendergraph_node_load_resources(struct rendergraph_node* self) {
     debug_rendergraph_node_internal_data* internal_data = self->internal_data;
     if (self->sinks[0].bound_source) {
         internal_data->colourbuffer_texture = self->sinks[0].bound_source->value.t;
+        self->sources[0].value.t = internal_data->colourbuffer_texture;
+        self->sources[0].is_bound = true;
         return true;
     }
 
@@ -138,7 +141,7 @@ b8 debug_rendergraph_node_execute(struct rendergraph_node* self, struct frame_da
     debug_rendergraph_node_internal_data* internal_data = self->internal_data;
 
     // Bind the viewport
-    renderer_active_viewport_set(internal_data->vp);
+    renderer_active_viewport_set(&internal_data->vp);
 
     if (internal_data->geometry_count > 0) {
         renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid());
@@ -178,7 +181,7 @@ void debug_rendergraph_node_destroy(struct rendergraph_node* self) {
     }
 }
 
-b8 debug_rendergraph_node_viewport_set(struct rendergraph_node* self, struct viewport* v) {
+b8 debug_rendergraph_node_viewport_set(struct rendergraph_node* self, viewport v) {
     if (self && self->internal_data) {
         debug_rendergraph_node_internal_data* internal_data = self->internal_data;
         internal_data->vp = v;

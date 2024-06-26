@@ -11,6 +11,7 @@
 #include "vulkan_device.h"
 #include "vulkan_types.h"
 #include "vulkan_utils.h"
+#include <vulkan/vulkan_core.h>
 
 static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_config_flags flags, vulkan_swapchain* swapchain);
 static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapchain);
@@ -126,7 +127,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
     swapchain_create_info.imageColorSpace = swapchain->image_format.colorSpace;
     swapchain_create_info.imageExtent = swapchain_extent;
     swapchain_create_info.imageArrayLayers = 1;
-    swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
     // Setup the queue family indices
     if (context->device.graphics_queue_index != context->device.present_queue_index) {
@@ -255,7 +256,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
         view_create_info.image = image->handle;
         view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
         view_create_info.format = swapchain->image_format.format;
-        image->view_subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        image->view_subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // | VK_IMAGE_USAGE_SAMPLED_BIT;
         image->view_subresource_range.baseMipLevel = 0;
         image->view_subresource_range.levelCount = 1;
         image->view_subresource_range.baseArrayLayer = 0;

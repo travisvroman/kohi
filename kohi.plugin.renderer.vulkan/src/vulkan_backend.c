@@ -500,7 +500,7 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
             1,
             context->device.depth_format,
             VK_IMAGE_TILING_OPTIMAL,
-            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             true,
             VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
@@ -661,8 +661,6 @@ b8 vulkan_renderer_frame_prepare(renderer_backend_interface* backend, struct fra
 }
 
 b8 vulkan_renderer_frame_prepare_window_surface(renderer_backend_interface* backend, struct kwindow* window, struct frame_data* p_frame_data) {
-    // FIXME: swapchain needs to be associated with a window.
-    //
     // Cold-cast the context
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     vulkan_device* device = &context->device;
@@ -1050,6 +1048,7 @@ void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend,
     if (depth_stencil_target) {
         VkRenderingAttachmentInfoKHR depth_attachment_info = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
         depth_attachment_info.imageView = depth_stencil_target->images[image_index].view;
+        depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         render_info.pDepthAttachment = &depth_attachment_info;
         render_info.pStencilAttachment = &depth_attachment_info;
     } else {
@@ -1141,6 +1140,7 @@ void vulkan_renderer_clear_stencil_set(renderer_backend_interface* backend, u32 
 }
 
 void vulkan_renderer_clear_colour_texture(renderer_backend_interface* backend, texture_internal_data* tex_internal) {
+
     // Cold-cast the context
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
@@ -1148,12 +1148,42 @@ void vulkan_renderer_clear_colour_texture(renderer_backend_interface* backend, t
     // If a per-frame texture, get the appropriate image index. Otherwise it's just the first one.
     vulkan_image* image = tex_internal->image_count == 1 ? &tex_internal->images[0] : &tex_internal->images[get_current_image_index(context)];
 
+    // Transition the layout
+    VkImageMemoryBarrier barrier = {0};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.srcQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.dstQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.image = image->handle;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    // Mips
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = image->mip_levels;
+
+    // Transition all layers at once.
+    barrier.subresourceRange.layerCount = image->layer_count;
+
+    // Start at the first layer.
+    barrier.subresourceRange.baseArrayLayer = 0;
+
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+    vkCmdPipelineBarrier(
+        command_buffer->handle,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0,
+        0, 0,
+        0, 0,
+        1, &barrier);
+
     // Clear the image.
     vkCmdClearColorImage(
         command_buffer->handle,
         image->handle,
-        // TODO: detect the actual current layout?
-        VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         &context->colour_clear_value,
         image->layer_count,
         image->layer_count == 1 ? &image->view_subresource_range : image->layer_view_subresource_ranges);
@@ -1167,15 +1197,86 @@ void vulkan_renderer_clear_depth_stencil(renderer_backend_interface* backend, te
     // If a per-frame texture, get the appropriate image index. Otherwise it's just the first one.
     vulkan_image* image = tex_internal->image_count == 1 ? &tex_internal->images[0] : &tex_internal->images[get_current_image_index(context)];
 
+    // Transition the layout
+    VkImageMemoryBarrier barrier = {0};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.srcQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.dstQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.image = image->handle;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    // Mips
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = image->mip_levels;
+
+    // Transition all layers at once.
+    barrier.subresourceRange.layerCount = image->layer_count;
+
+    // Start at the first layer.
+    barrier.subresourceRange.baseArrayLayer = 0;
+
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+    vkCmdPipelineBarrier(
+        command_buffer->handle,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0,
+        0, 0,
+        0, 0,
+        1, &barrier);
+
     // Clear the image.
     vkCmdClearDepthStencilImage(
         command_buffer->handle,
         image->handle,
-        // TODO: detect the actual current layout?
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         &context->depth_stencil_clear_value,
         image->layer_count,
         image->layer_count == 1 ? &image->view_subresource_range : image->layer_view_subresource_ranges);
+}
+
+void vulkan_renderer_colour_texture_prepare_for_present(renderer_backend_interface* backend, texture_internal_data* tex_internal) {
+
+    // Cold-cast the context
+    vulkan_context* context = (vulkan_context*)backend->internal_context;
+    vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
+
+    // If a per-frame texture, get the appropriate image index. Otherwise it's just the first one.
+    vulkan_image* image = tex_internal->image_count == 1 ? &tex_internal->images[0] : &tex_internal->images[get_current_image_index(context)];
+
+    // Transition the layout
+    VkImageMemoryBarrier barrier = {0};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    barrier.srcQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.dstQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.image = image->handle;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    // Mips
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = image->mip_levels;
+
+    // Transition all layers at once.
+    barrier.subresourceRange.layerCount = image->layer_count;
+
+    // Start at the first layer.
+    barrier.subresourceRange.baseArrayLayer = 0;
+
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+
+    vkCmdPipelineBarrier(
+        command_buffer->handle,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        0,
+        0, 0,
+        0, 0,
+        1, &barrier);
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL

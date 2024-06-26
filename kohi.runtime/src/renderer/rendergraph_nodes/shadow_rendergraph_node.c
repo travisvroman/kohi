@@ -7,6 +7,7 @@
 #include "logger.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
+#include "parsers/kson_parser.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "renderer/rendergraph.h"
@@ -84,6 +85,9 @@ typedef struct shadow_rendergraph_node_internal_data {
 
 } shadow_rendergraph_node_internal_data;
 
+static b8 deserialize_config(const char* source_str, shadow_rendergraph_node_config* out_config);
+/* static void destroy_config(shadow_rendergraph_node_config* config); */
+
 b8 shadow_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node* self, const struct rendergraph_node_config* config) {
     if (!self || !config) {
         KERROR("shadow_map_pass_create requires both a pointer to self and a valid config");
@@ -93,7 +97,10 @@ b8 shadow_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_
     self->internal_data = kallocate(sizeof(shadow_rendergraph_node_internal_data), MEMORY_TAG_RENDERER);
     shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
     internal_data->renderer = engine_systems_get()->renderer_system;
-    internal_data->config = *((shadow_rendergraph_node_config*)config);
+    if (!deserialize_config(config->config_str, &internal_data->config)) {
+        KERROR("Failed to deserialize configuration for shadow_rendergraph_node. Node creation failed.");
+        return false;
+    }
 
     // Has one source, for the shadowmap.
     self->source_count = 1;
@@ -554,4 +561,28 @@ b8 shadow_rendergraph_node_register_factory(void) {
     factory.type = "shadow";
     factory.create = shadow_rendergraph_node_create;
     return rendergraph_system_node_factory_register(engine_systems_get()->rendergraph_system, &factory);
+}
+
+static b8 deserialize_config(const char* source_str, shadow_rendergraph_node_config* out_config) {
+    if (!source_str || !string_length(source_str) || !out_config) {
+        return false;
+    }
+
+    kson_tree tree = {0};
+    if (!kson_tree_from_string(source_str, &tree)) {
+        KERROR("Failed to parse config for shadow_rendergraph_node.");
+        return false;
+    }
+
+    i64 resolution;
+    b8 result = kson_object_property_value_get_int(&tree.root, "resolution", &resolution);
+    if (!result) {
+        // Use a default resolution if not defined.
+        resolution = 1024;
+    }
+    out_config->resolution = (u16)resolution;
+
+    kson_tree_cleanup(&tree);
+
+    return result;
 }

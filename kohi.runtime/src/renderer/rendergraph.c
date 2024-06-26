@@ -85,6 +85,8 @@ b8 rendergraph_create(const char* config_str, struct texture* global_colourbuffe
         KERROR("rendergraph_create requires valid pointers to global colour and depthbuffers.");
         return false;
     }
+    out_graph->global_colourbuffer = global_colourbuffer;
+    out_graph->global_depthbuffer = global_depthbuffer;
 
     // Process config.
     rendergraph_config config = {0};

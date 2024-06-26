@@ -302,19 +302,20 @@ b8 engine_create(application* game_inst) {
         kwindow_config* window_config = &game_inst->app_config.windows[i];
         kwindow new_window = {0};
         new_window.name = string_duplicate(window_config->name);
-        if (!platform_window_create(window_config, &new_window, true)) {
+        // Add to tracked window list
+        darray_push(engine_state->windows, new_window);
+
+        kwindow* window = &engine_state->windows[(darray_length(engine_state->windows) - 1)];
+        if (!platform_window_create(window_config, window, true)) {
             KERROR("Failed to create window '%s'.", window_config->name);
             return false;
         }
 
         // Tell the renderer about the window.
-        if (!renderer_on_window_created(engine_state->systems.renderer_system, &new_window)) {
+        if (!renderer_on_window_created(engine_state->systems.renderer_system, window)) {
             KERROR("The renderer failed to create resources for the window '%s.", window_config->name);
             return false;
         }
-
-        // Add to tracked window list
-        darray_push(engine_state->windows, new_window);
     }
 
     // Job system

@@ -234,7 +234,7 @@ b8 forward_rendergraph_node_create(struct rendergraph* graph, struct rendergraph
     colourbuffer_source->value.t = 0;
     colourbuffer_source->is_bound = false;
 
-    // Setup the colourbuffer source.
+    // Setup the depthbuffer source.
     rendergraph_source* depthbuffer_source = &self->sources[1];
     depthbuffer_source->name = string_duplicate("depthbuffer");
     depthbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
@@ -330,8 +330,20 @@ b8 forward_rendergraph_node_load_resources(struct rendergraph_node* self) {
     // Resolve framebuffer handle via bound source.
     if (self->sinks[0].bound_source) {
         internal_data->colourbuffer_texture = self->sinks[0].bound_source->value.t;
-        return true;
+        self->sources[0].value.t = internal_data->colourbuffer_texture;
+        self->sources[0].is_bound = true;
     }
+
+    if (self->sinks[1].bound_source) {
+        internal_data->depthbuffer_texture = self->sinks[1].bound_source->value.t;
+        self->sources[1].value.t = internal_data->depthbuffer_texture;
+        self->sources[1].is_bound = true;
+    }
+
+    if (self->sinks[2].bound_source) {
+        internal_data->shadowmap_source = self->sinks[2].bound_source;
+    }
+
     if (!internal_data->shadowmap_source) {
         KERROR("Required '%s' source not hooked up to forward pass. Creation fails.", "shadowmap");
         return false;
@@ -740,10 +752,10 @@ b8 forward_rendergraph_node_irradiance_texture_set(struct rendergraph_node* self
     return false;
 }
 
-b8 forward_rendergraph_node_viewport_set(struct rendergraph_node* self, struct viewport* v) {
+b8 forward_rendergraph_node_viewport_set(struct rendergraph_node* self, viewport v) {
     if (self && self->internal_data) {
         forward_rendergraph_node_internal_data* internal_data = self->internal_data;
-        internal_data->vp = *v;
+        internal_data->vp = v;
         return true;
     }
     return false;

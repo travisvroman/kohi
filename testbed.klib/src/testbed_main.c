@@ -67,6 +67,10 @@
 
 #include "platform/platform.h"
 #include "plugins/plugin_types.h"
+#include "renderer/rendergraph_nodes/debug_rendergraph_node.h"
+#include "renderer/rendergraph_nodes/forward_rendergraph_node.h"
+#include "renderer/rendergraph_nodes/skybox_rendergraph_node.h"
+#include "rendergraph_nodes/ui_rendergraph_node.h"
 #include "systems/plugin_system.h"
 #include "systems/timeline_system.h"
 #include "testbed.klib_version.h"
@@ -881,6 +885,39 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
     kclock_start(&state->prepare_clock);
 
     // TODO: Anything to do here?
+    // FIXME: Cache this instead of looking up every frame. // nocheckin
+    u32 node_count = state->forward_graph.node_count;
+    for (u32 i = 0; i < node_count; ++i) {
+        rendergraph_node* node = &state->forward_graph.nodes[i];
+        if (strings_equali(node->name, "sui")) {
+            ui_rendergraph_node_set_atlas(node, &state->sui_state->ui_atlas);
+
+            // We have the one.
+            ui_rendergraph_node_set_viewport_and_matrices(
+                node,
+                state->ui_viewport,
+                mat4_identity(),
+                state->ui_viewport.projection);
+
+            // Gather SUI render data.
+            standard_ui_render_data render_data = {0};
+
+            // Renderables.
+            render_data.renderables = darray_create_with_allocator(standard_ui_renderable, &p_frame_data->allocator);
+            if (!standard_ui_system_render(state->sui_state, 0, p_frame_data, &render_data)) {
+                KERROR("The standard ui system failed to render.");
+            }
+            ui_rendergraph_node_set_render_data(node, render_data);
+        } else if (strings_equali(node->name, "debug")) {
+            debug_rendergraph_node_viewport_set(node, state->world_viewport);
+            debug_rendergraph_node_view_projection_set(node, state->world_camera->view_matrix, state->world_camera->position, state->world_viewport.projection);
+        } else if (strings_equali(node->name, "forward")) {
+            forward_rendergraph_node_viewport_set(node, state->world_viewport);
+            forward_rendergraph_node_view_projection_set(node, state->world_camera->view_matrix, state->world_camera->position, state->world_viewport.projection);
+        } else if (strings_equali(node->name, "skybox")) {
+            skybox_rendergraph_node_set_viewport_and_matrices(node, state->world_viewport, state->world_camera->view_matrix, state->world_viewport.projection);
+        }
+    }
 
     kclock_update(&state->prepare_clock);
     return true;

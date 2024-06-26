@@ -35,6 +35,13 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
     backend->scissor_set = vulkan_renderer_scissor_set;
     backend->scissor_reset = vulkan_renderer_scissor_reset;
 
+    backend->clear_depth_set = vulkan_renderer_clear_depth_set;
+    backend->clear_colour_set = vulkan_renderer_clear_colour_set;
+    backend->clear_stencil_set = vulkan_renderer_clear_stencil_set;
+    backend->clear_colour = vulkan_renderer_clear_colour_texture;
+    backend->clear_depth_stencil = vulkan_renderer_clear_depth_stencil;
+    backend->colour_texture_prepare_for_present = vulkan_renderer_colour_texture_prepare_for_present;
+
     backend->winding_set = vulkan_renderer_winding_set;
     backend->set_stencil_test_enabled = vulkan_renderer_set_stencil_test_enabled;
     backend->set_depth_test_enabled = vulkan_renderer_set_depth_test_enabled;

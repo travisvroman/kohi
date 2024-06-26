@@ -213,7 +213,7 @@ b8 nine_slice_update(nine_slice* nslice, vertex_2d* vertices) {
     b8 using_geo_verts = false;
     if (!vertices) {
         using_geo_verts = true;
-        vertices = nslice->g->vertices;
+        vertices = nslice->vertex_data.elements;
     }
 
     // update the 9 quads.

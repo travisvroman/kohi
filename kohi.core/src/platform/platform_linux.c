@@ -134,6 +134,8 @@ b8 platform_system_startup(u64* memory_requirement, struct platform_state* state
     state_ptr->screen = it.data;
     state_ptr->handle.screen = state_ptr->screen;
 
+    state_ptr->windows = darray_create(kwindow*);
+
     return true;
 }
 
@@ -354,6 +356,9 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
         KFATAL("An error occurred when flusing the stream: %d", stream_result);
         return false;
     }
+
+    // Register the window internally.
+    darray_push(state_ptr->windows, window);
 
     return true;
 }

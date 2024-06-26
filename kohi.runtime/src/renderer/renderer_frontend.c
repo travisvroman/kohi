@@ -695,6 +695,16 @@ b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle te
     return false;
 }
 
+void renderer_colour_texture_prepare_for_present(struct renderer_system_state* state, k_handle texture_handle) {
+    if (state && !k_handle_is_invalid(texture_handle)) {
+        struct texture_internal_data* data = state->textures[texture_handle.handle_index].data;
+        state->backend->colour_texture_prepare_for_present(state->backend, data);
+        return;
+    }
+
+    KERROR("renderer_colour_texture_prepare_for_present requires a valid handle to a texture. Nothing was done.");
+}
+
 b8 renderer_shader_create(struct renderer_system_state* state, shader* s, const shader_config* config) {
 
     // Get the uniform counts.

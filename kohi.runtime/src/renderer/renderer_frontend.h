@@ -428,6 +428,14 @@ KAPI b8 renderer_clear_colour(struct renderer_system_state* state, k_handle text
 KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle texture_handle);
 
 /**
+ * @brief Performs operations required on the supplied colour texture before presentation.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param texture_handle A handle to the texture to prepare for presentation.
+ */
+KAPI void renderer_colour_texture_prepare_for_present(struct renderer_system_state* state, k_handle texture_handle);
+
+/**
  * @brief Creates internal shader resources using the provided parameters.
  *
  * @param state A pointer to the renderer state.

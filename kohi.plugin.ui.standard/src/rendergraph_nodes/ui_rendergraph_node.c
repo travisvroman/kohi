@@ -8,6 +8,7 @@
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "renderer/rendergraph.h"
+#include "renderer/viewport.h"
 #include "standard_ui_system.h"
 #include "strings/kstring.h"
 #include "systems/shader_system.h"
@@ -38,7 +39,7 @@ typedef struct ui_pass_internal_data {
     struct texture_map* ui_atlas;
     standard_ui_render_data render_data;
 
-    struct viewport* vp;
+    viewport vp;
     mat4 view;
     mat4 projection;
 } ui_pass_internal_data;
@@ -131,6 +132,8 @@ b8 ui_rendergraph_node_load_resources(struct rendergraph_node* self) {
     ui_pass_internal_data* internal_data = self->internal_data;
     if (self->sinks[0].bound_source) {
         internal_data->colourbuffer_texture = self->sinks[0].bound_source->value.t;
+        self->sources[0].value.t = internal_data->colourbuffer_texture;
+        self->sources[0].is_bound = true;
         return true;
     }
 
@@ -145,7 +148,7 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
     ui_pass_internal_data* internal_data = self->internal_data;
 
     // Bind the viewport
-    renderer_active_viewport_set(internal_data->vp);
+    renderer_active_viewport_set(&internal_data->vp);
 
     renderer_set_depth_test_enabled(false);
 
@@ -254,7 +257,7 @@ void ui_rendergraph_node_set_render_data(struct rendergraph_node* self, standard
     }
 }
 
-void ui_rendergraph_node_set_viewport_and_matrices(struct rendergraph_node* self, struct viewport* vp, mat4 view, mat4 projection) {
+void ui_rendergraph_node_set_viewport_and_matrices(struct rendergraph_node* self, viewport vp, mat4 view, mat4 projection) {
     if (self) {
         if (self->internal_data) {
             ui_pass_internal_data* internal_data = self->internal_data;

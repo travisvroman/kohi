@@ -133,16 +133,17 @@ b8 sui_button_control_render(standard_ui_state* state, struct sui_control* self,
     }
 
     sui_button_internal_data* typed_data = self->internal_data;
-    if (typed_data->nslice.g) {
+    if (typed_data->nslice.vertex_data.elements) {
         standard_ui_renderable renderable = {0};
         renderable.render_data.unique_id = self->id.uniqueid;
-        renderable.render_data.material = typed_data->nslice.g->material;
-        renderable.render_data.vertex_count = typed_data->nslice.g->vertex_count;
-        renderable.render_data.vertex_element_size = typed_data->nslice.g->vertex_element_size;
-        renderable.render_data.vertex_buffer_offset = typed_data->nslice.g->vertex_buffer_offset;
-        renderable.render_data.index_count = typed_data->nslice.g->index_count;
-        renderable.render_data.index_element_size = typed_data->nslice.g->index_element_size;
-        renderable.render_data.index_buffer_offset = typed_data->nslice.g->index_buffer_offset;
+        // FIXME: Do we need material here?
+        renderable.render_data.material = 0; // typed_data->nslice.g->material;
+        renderable.render_data.vertex_count = typed_data->nslice.vertex_data.element_count;
+        renderable.render_data.vertex_element_size = typed_data->nslice.vertex_data.element_size;
+        renderable.render_data.vertex_buffer_offset = typed_data->nslice.vertex_data.buffer_offset;
+        renderable.render_data.index_count = typed_data->nslice.index_data.element_count;
+        renderable.render_data.index_element_size = typed_data->nslice.index_data.element_size;
+        renderable.render_data.index_buffer_offset = typed_data->nslice.index_data.buffer_offset;
         renderable.render_data.model = xform_world_get(self->xform);
         renderable.render_data.diffuse_colour = vec4_one(); // white. TODO: pull from object properties.
 

@@ -4,7 +4,6 @@
 #include "renderer/renderer_types.h"
 
 typedef struct nine_slice {
-    struct geometry* g;
     // Actual corner w/h
     vec2i corner_size;
     // Sampled corner w/h

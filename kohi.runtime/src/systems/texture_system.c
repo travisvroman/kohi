@@ -1070,6 +1070,8 @@ static b8 create_texture(texture* t, texture_type type, u32 width, u32 height, u
     // Set some values regardless of texture type.
     t->type = type;
     t->array_size = array_size;
+    t->renderer_texture_handle = k_handle_invalid();
+    t->generation = INVALID_ID_U8;
     if (is_writeable) {
         t->flags |= TEXTURE_FLAG_IS_WRITEABLE;
     }
