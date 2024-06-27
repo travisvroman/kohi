@@ -336,6 +336,11 @@ void renderer_set_depth_test_enabled(b8 enabled) {
     state_ptr->backend->set_depth_test_enabled(state_ptr->backend, enabled);
 }
 
+void renderer_set_depth_write_enabled(b8 enabled) {
+    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    state_ptr->backend->set_depth_write_enabled(state_ptr->backend, enabled);
+}
+
 void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     state_ptr->backend->set_stencil_op(state_ptr->backend, fail_op, pass_op, depth_fail_op, compare_op);
@@ -463,7 +468,12 @@ struct texture_internal_data* renderer_texture_resources_get(struct renderer_sys
 b8 renderer_texture_write_data(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 offset, u32 size, const u8* pixels) {
     if (state && !k_handle_is_invalid(renderer_texture_handle)) {
         struct texture_internal_data* data = state->textures[renderer_texture_handle.handle_index].data;
-        return state->backend->texture_write_data(state->backend, data, offset, size, pixels, true);
+        b8 include_in_frame_workload = true;
+        b8 result = state->backend->texture_write_data(state->backend, data, offset, size, pixels, include_in_frame_workload);
+        if(!include_in_frame_workload) {
+            // TODO: update generation?
+        }
+        return result;
     }
     return false;
 }

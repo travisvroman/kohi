@@ -151,6 +151,7 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
     renderer_active_viewport_set(&internal_data->vp);
 
     renderer_set_depth_test_enabled(false);
+    renderer_set_depth_write_enabled(false);
 
     renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid());
 
@@ -175,6 +176,7 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
             // Enable writing, disable test.
             renderer_set_stencil_test_enabled(true);
             renderer_set_depth_test_enabled(false);
+            renderer_set_depth_write_enabled(false);
             renderer_set_stencil_reference((u32)renderable->clip_mask_render_data->unique_id);
             renderer_set_stencil_write_mask(0xFF);
             renderer_set_stencil_op(

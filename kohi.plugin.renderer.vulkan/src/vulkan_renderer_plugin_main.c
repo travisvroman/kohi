@@ -45,6 +45,7 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
     backend->winding_set = vulkan_renderer_winding_set;
     backend->set_stencil_test_enabled = vulkan_renderer_set_stencil_test_enabled;
     backend->set_depth_test_enabled = vulkan_renderer_set_depth_test_enabled;
+    backend->set_depth_write_enabled = vulkan_renderer_set_depth_write_enabled;
     backend->set_stencil_reference = vulkan_renderer_set_stencil_reference;
     backend->set_stencil_op = vulkan_renderer_set_stencil_op;
 

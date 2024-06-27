@@ -220,6 +220,7 @@ b8 vulkan_device_create(vulkan_context* context) {
         context->vkCmdSetStencilOpEXT = (PFN_vkCmdSetStencilOpEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetStencilOpEXT");
         context->vkCmdSetStencilTestEnableEXT = (PFN_vkCmdSetStencilTestEnableEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetStencilTestEnableEXT");
         context->vkCmdSetDepthTestEnableEXT = (PFN_vkCmdSetDepthTestEnableEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetDepthTestEnableEXT");
+        context->vkCmdSetDepthWriteEnableEXT = (PFN_vkCmdSetDepthWriteEnableEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetDepthWriteEnableEXT");
 
         // Dynamic rendering
         context->vkCmdBeginRenderingKHR = (PFN_vkCmdBeginRenderingKHR)vkGetInstanceProcAddr(context->instance, "vkCmdBeginRenderingKHR");

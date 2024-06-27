@@ -19,12 +19,14 @@
  * @param context A pointer to the Vulkan context.
  * @param pool The pool to allocate a command buffer from.
  * @param is_primary Indicates if the command buffer is a primary or secondary buffer.
+ * @param name The name of the command buffer, for debugging purposes. 
  * @param out_command_buffer A pointer to hold the newly allocated command buffer.
  */
 void vulkan_command_buffer_allocate(
     vulkan_context* context,
     VkCommandPool pool,
     b8 is_primary,
+    const char* name,
     vulkan_command_buffer* out_command_buffer);
 
 /**

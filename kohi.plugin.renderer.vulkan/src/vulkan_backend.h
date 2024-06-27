@@ -48,6 +48,7 @@ void vulkan_renderer_scissor_reset(renderer_backend_interface* backend);
 void vulkan_renderer_winding_set(struct renderer_backend_interface* backend, renderer_winding winding);
 void vulkan_renderer_set_stencil_test_enabled(struct renderer_backend_interface* backend, b8 enabled);
 void vulkan_renderer_set_depth_test_enabled(struct renderer_backend_interface* backend, b8 enabled);
+void vulkan_renderer_set_depth_write_enabled(struct renderer_backend_interface* backend, b8 enabled);
 void vulkan_renderer_set_stencil_reference(struct renderer_backend_interface* backend, u32 reference);
 void vulkan_renderer_set_stencil_op(struct renderer_backend_interface* backend, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
 

@@ -259,6 +259,7 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     // Save off a pointer to the PBR shader as well as its uniform locations.
     internal_data->pbr_shader = shader_system_get("Shader.PBRMaterial");
+    internal_data->pbr_shader_id = internal_data->pbr_shader->id;
     internal_data->pbr_locations.projection = shader_system_uniform_location(internal_data->pbr_shader_id, "projection");
     internal_data->pbr_locations.view = shader_system_uniform_location(internal_data->pbr_shader_id, "view");
     internal_data->pbr_locations.light_space_0 = shader_system_uniform_location(internal_data->pbr_shader_id, "light_space_0");
@@ -281,6 +282,7 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     // Save off a pointer to the terrain shader as well as its uniform locations.
     internal_data->terrain_shader = shader_system_get("Shader.Builtin.Terrain");
+    internal_data->terrain_shader_id = internal_data->terrain_shader->id;
     internal_data->terrain_locations.projection = shader_system_uniform_location(internal_data->terrain_shader_id, "projection");
     internal_data->terrain_locations.view = shader_system_uniform_location(internal_data->terrain_shader_id, "view");
     internal_data->terrain_locations.light_space_0 = shader_system_uniform_location(internal_data->terrain_shader_id, "light_space_0");
@@ -306,6 +308,7 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     //
     // Save off a pointer to the colour3d shader as well as its uniform locations.
     internal_data->colour_shader = shader_system_get("Shader.Builtin.ColourShader3D");
+    internal_data->colour_shader_id = internal_data->colour_shader->id;
     internal_data->debug_locations.projection = shader_system_uniform_location(internal_data->colour_shader_id, "projection");
     internal_data->debug_locations.view = shader_system_uniform_location(internal_data->colour_shader_id, "view");
     internal_data->debug_locations.model = shader_system_uniform_location(internal_data->colour_shader_id, "model");
@@ -353,7 +356,6 @@ b8 forward_rendergraph_node_load_resources(struct rendergraph_node* self) {
     texture_map* sm = &internal_data->shadow_map;
     sm->repeat_u = sm->repeat_v = sm->repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
     sm->filter_minify = sm->filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-    // TODO: Might think about moving this elsewhere and handling in a more generic way.
     sm->texture = internal_data->shadowmap_source->value.t;
     sm->generation = INVALID_ID_U8;
 
@@ -412,9 +414,9 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
 
             // Directional light - global for this shader..
             directional_light_data default_dir_light_data = {0};
-            const directional_light_data* dir_light_data = &internal_data->dir_light->data;
-            if (!dir_light_data) {
-                dir_light_data = &default_dir_light_data;
+            const directional_light_data* dir_light_data = &default_dir_light_data;
+            if (internal_data->dir_light) {
+                dir_light_data = &internal_data->dir_light->data;
             }
             UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.dir_light, dir_light_data));
 
@@ -525,10 +527,10 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
 
             // Apply globals
             {
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->terrain_locations.projection, &internal_data->projection_matrix));
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->terrain_locations.view, &internal_data->view_matrix));
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->terrain_locations.view_position, &internal_data->view_position));
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->terrain_locations.render_mode, &internal_data->render_mode));
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.projection, &internal_data->projection_matrix));
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.view, &internal_data->view_matrix));
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.view_position, &internal_data->view_position));
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.render_mode, &internal_data->render_mode));
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.cascade_splits, &internal_data->cascade_splits));
 
                 // Light space for shadow mapping. Per cascade
@@ -562,6 +564,7 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
 
                 // Only rebind/update the material if it's a new material. Duplicates can reuse the already-bound material.
                 if (m->internal_id != current_material_id) {
+                    shader_system_bind_instance(internal_data->pbr_shader_id, m->internal_id);
                     // Properties
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.properties, m->properties));
                     // Maps
@@ -572,11 +575,11 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
                     // Shadow Maps
                     texture* shadow_map_texture = internal_data->shadowmap_source->value.t;
                     m->maps[PBR_SAMP_IDX_SHADOW_MAP].texture = shadow_map_texture ? shadow_map_texture : texture_system_get_default_diffuse_texture();
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.shadow_textures, &m->maps[PBR_SAMP_IDX_SHADOW_MAP]));
+                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->pbr_locations.shadow_textures, &m->maps[PBR_SAMP_IDX_SHADOW_MAP]));
 
                     // Irradience map - use the material-assigned one if exists, otherwise use the "global" assigned one.
                     m->maps[PBR_SAMP_IDX_IRRADIANCE_MAP].texture = m->irradiance_texture ? m->irradiance_texture : internal_data->irradiance_cube_texture;
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->terrain_locations.ibl_cube_texture, &m->maps[PBR_SAMP_IDX_IRRADIANCE_MAP]));
+                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.ibl_cube_texture, &m->maps[PBR_SAMP_IDX_IRRADIANCE_MAP]));
 
                     // Directional light.
                     directional_light* dir_light = light_system_directional_light_get();

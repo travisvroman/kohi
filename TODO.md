@@ -197,6 +197,7 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Convert lighting system to use handles.
     - [ ] Create skybox system that uses handles.
     - [ ] Create scene system that uses handles.
+  - [ ] Material map declaration order should not matter in material config files, but it seemingly does.
 
 ## Renderer:
 

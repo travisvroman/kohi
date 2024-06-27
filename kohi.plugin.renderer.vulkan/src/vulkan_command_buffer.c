@@ -1,13 +1,14 @@
 #include "vulkan_command_buffer.h"
 
+#include "vulkan_utils.h"
 #include "memory/kmemory.h"
 
 void vulkan_command_buffer_allocate(
     vulkan_context* context,
     VkCommandPool pool,
     b8 is_primary,
+    const char* name,
     vulkan_command_buffer* out_command_buffer) {
-
     kzero_memory(out_command_buffer, sizeof(vulkan_command_buffer));
 
     VkCommandBufferAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
@@ -22,6 +23,10 @@ void vulkan_command_buffer_allocate(
         &allocate_info,
         &out_command_buffer->handle));
     out_command_buffer->state = COMMAND_BUFFER_STATE_READY;
+
+    if (name) {
+        VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_COMMAND_BUFFER, out_command_buffer->handle, name);
+    }
 }
 
 void vulkan_command_buffer_free(
@@ -43,7 +48,6 @@ void vulkan_command_buffer_begin(
     b8 is_single_use,
     b8 is_renderpass_continue,
     b8 is_simultaneous_use) {
-    
     VkCommandBufferBeginInfo begin_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     begin_info.flags = 0;
     if (is_single_use) {
@@ -77,7 +81,7 @@ void vulkan_command_buffer_allocate_and_begin_single_use(
     vulkan_context* context,
     VkCommandPool pool,
     vulkan_command_buffer* out_command_buffer) {
-    vulkan_command_buffer_allocate(context, pool, true, out_command_buffer);
+    vulkan_command_buffer_allocate(context, pool, true, "single_use_command_buffer", out_command_buffer);
     vulkan_command_buffer_begin(out_command_buffer, true, false, false);
 }
 
@@ -86,7 +90,6 @@ void vulkan_command_buffer_end_single_use(
     VkCommandPool pool,
     vulkan_command_buffer* command_buffer,
     VkQueue queue) {
-
     // End the command buffer.
     vulkan_command_buffer_end(command_buffer);
 

@@ -378,6 +378,14 @@ typedef struct renderer_backend_interface {
     void (*set_depth_test_enabled)(struct renderer_backend_interface* backend, b8 enabled);
 
     /**
+     * @brief Set depth write enabled/disabled.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param enabled Indicates if depth write should be enabled/disabled for subsequent draws.
+     */
+    void (*set_depth_write_enabled)(struct renderer_backend_interface* backend, b8 enabled);
+
+    /**
      * @brief Set the stencil reference for testing.
      *
      * @param backend A pointer to the renderer backend interface.

@@ -194,6 +194,13 @@ KAPI void renderer_set_stencil_reference(u32 reference);
 KAPI void renderer_set_depth_test_enabled(b8 enabled);
 
 /**
+ * @brief Set depth write enabled/disabled.
+ *
+ * @param enabled Indicates if depth write should be enabled/disabled for subsequent draws.
+ */
+KAPI void renderer_set_depth_write_enabled(b8 enabled);
+
+/**
  * @brief Set stencil operation.
  *
  * @param fail_op Specifys the action performed on samples that fail the stencil test.

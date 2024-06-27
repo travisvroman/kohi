@@ -17,6 +17,7 @@
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
+#include <vulkan/vulkan_core.h>
 
 typedef struct shadow_shader_locations {
     u16 projections_location;
@@ -280,6 +281,8 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
     }
 
     self->sources[0].value.t = &internal_data->depth_texture;
+    // Texture never gets uploaded to as most others do, so manually set this.
+    t->generation = 0;
 
     return true;
 }
@@ -288,6 +291,10 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
     if (!self) {
         return false;
     }
+
+    // FIXME: Need to transition the format from (whatever) to VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    // then perform the render,
+    // then transition to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL.
 
     shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 

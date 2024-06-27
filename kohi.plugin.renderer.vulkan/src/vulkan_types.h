@@ -178,11 +178,6 @@ typedef struct vulkan_image {
 
 // Struct definition for renderer-specific texture data.
 typedef struct texture_internal_data {
-    /**
-     * @brief Represents the number of updates this texture has had.
-     * INVALID_ID means it has never been loaded. Incremented every time texture data is uploaded.
-     */
-    u32 generation;
     // Number of vulkan_images in the array. This is typically 1 unless the texture
     // requires the frame_count to be taken into account.
     u32 image_count;
@@ -648,6 +643,7 @@ typedef struct vulkan_context {
     PFN_vkCmdSetFrontFaceEXT vkCmdSetFrontFaceEXT;
     PFN_vkCmdSetStencilTestEnableEXT vkCmdSetStencilTestEnableEXT;
     PFN_vkCmdSetDepthTestEnableEXT vkCmdSetDepthTestEnableEXT;
+    PFN_vkCmdSetDepthWriteEnableEXT vkCmdSetDepthWriteEnableEXT;
     PFN_vkCmdSetStencilOpEXT vkCmdSetStencilOpEXT;
 
     PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR;

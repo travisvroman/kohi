@@ -61,6 +61,7 @@ static b8 vulkan_buffer_copy_range_internal(vulkan_context* context,
                                             u64 size, b8 queue_wait);
 static vulkan_command_buffer* get_current_command_buffer(vulkan_context* context);
 static u32 get_current_image_index(vulkan_context* context);
+static u32 get_current_frame_index(vulkan_context* context);
 
 static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipeline_config* config, vulkan_pipeline* out_pipeline);
 static void vulkan_pipeline_destroy(vulkan_context* context, vulkan_pipeline* pipeline);
@@ -458,7 +459,6 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
                 // Also flag as a depth texture
                 TEXTURE_FLAG_IS_WRAPPED | TEXTURE_FLAG_IS_WRITEABLE | TEXTURE_FLAG_RENDERER_BUFFERING | TEXTURE_FLAG_DEPTH,
                 &window_internal->depthbuffer.renderer_texture_handle)) {
-
             KFATAL("Failed to acquire internal texture resources for window.depthbuffer");
             return false;
         }
@@ -749,12 +749,9 @@ b8 vulkan_renderer_frame_prepare_window_surface(renderer_backend_interface* back
 b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend, struct frame_data* p_frame_data) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
 
-    kwindow* window = context->current_window;
-    kwindow_renderer_state* window_internal = window->renderer_state;
-    kwindow_renderer_backend_state* window_backend = window_internal->backend_state;
 
     // Begin recording commands.
-    vulkan_command_buffer* command_buffer = &window_backend->graphics_command_buffers[window_backend->image_index];
+    vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
 
     vulkan_command_buffer_reset(command_buffer);
     vulkan_command_buffer_begin(command_buffer, false, false, false);
@@ -773,6 +770,7 @@ b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend,
         RENDERER_COMPARE_OP_ALWAYS);
     vulkan_renderer_set_stencil_test_enabled(backend, false);
     vulkan_renderer_set_depth_test_enabled(backend, true);
+    vulkan_renderer_set_depth_write_enabled(backend, true);
     // Disable stencil writing.
     vulkan_renderer_set_stencil_write_mask(backend, 0x00);
     return true;
@@ -780,8 +778,8 @@ b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend,
 
 b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, struct frame_data* p_frame_data) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    kwindow_renderer_backend_state* window_backend = context->current_window->renderer_state->backend_state;
-    vulkan_command_buffer* command_buffer = &window_backend->graphics_command_buffers[window_backend->image_index];
+    // kwindow_renderer_backend_state* window_backend = context->current_window->renderer_state->backend_state;
+    vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
 
     // Just end the command buffer.
     vulkan_command_buffer_end(command_buffer);
@@ -792,7 +790,7 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 b8 vulkan_renderer_frame_submit(struct renderer_backend_interface* backend, struct frame_data* p_frame_data) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     kwindow_renderer_backend_state* window_backend = context->current_window->renderer_state->backend_state;
-    vulkan_command_buffer* command_buffer = &window_backend->graphics_command_buffers[window_backend->image_index];
+    vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
 
     // Submit the queue and wait for the operation to complete.
     // Begin queue submission
@@ -998,6 +996,19 @@ void vulkan_renderer_set_depth_test_enabled(struct renderer_backend_interface* b
     }
 }
 
+void vulkan_renderer_set_depth_write_enabled(struct renderer_backend_interface* backend, b8 enabled) {
+    vulkan_context* context = (vulkan_context*)backend->internal_context;
+    vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
+
+    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
+        vkCmdSetDepthWriteEnable(command_buffer->handle, (VkBool32)enabled);
+    } else if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT) {
+        context->vkCmdSetDepthWriteEnableEXT(command_buffer->handle, (VkBool32)enabled);
+    } else {
+        KFATAL("renderer_set_depth_write_enabled cannot be used on a device without dynamic state support.");
+    }
+}
+
 void vulkan_renderer_set_stencil_reference(struct renderer_backend_interface* backend, u32 reference) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
@@ -1140,7 +1151,6 @@ void vulkan_renderer_clear_stencil_set(renderer_backend_interface* backend, u32 
 }
 
 void vulkan_renderer_clear_colour_texture(renderer_backend_interface* backend, texture_internal_data* tex_internal) {
-
     // Cold-cast the context
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
@@ -1239,7 +1249,6 @@ void vulkan_renderer_clear_depth_stencil(renderer_backend_interface* backend, te
 }
 
 void vulkan_renderer_colour_texture_prepare_for_present(renderer_backend_interface* backend, texture_internal_data* tex_internal) {
-
     // Cold-cast the context
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
@@ -1328,7 +1337,9 @@ static void create_command_buffers(vulkan_context* context, kwindow* window) {
         kzero_memory(&window_backend->graphics_command_buffers[i], sizeof(vulkan_command_buffer));
 
         // Allocate a new buffer.
-        vulkan_command_buffer_allocate(context, context->device.graphics_command_pool, true, &window_backend->graphics_command_buffers[i]);
+        char* name = string_format("%s_command_buffer_%d", window->name, i);
+        vulkan_command_buffer_allocate(context, context->device.graphics_command_pool, true, name, &window_backend->graphics_command_buffers[i]);
+        string_free(name);
     }
 
     KDEBUG("Vulkan command buffers created.");
@@ -1360,20 +1371,6 @@ static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* windo
     // Wait for any operations to complete.
     vkDeviceWaitIdle(context->device.logical_device);
 
-    /* // Requery support
-    vulkan_device_query_swapchain_support(context->device.physical_device, window_backend->surface, &context->device.swapchain_support);
-
-    vulkan_swapchain_support_info* swapchain_support = &context->device.swapchain_support;
-    if (swapchain_support->format_count < 1 || swapchain_support->present_mode_count < 1) {
-        if (swapchain_support->formats) {
-            kfree(swapchain_support->formats, sizeof(VkSurfaceFormatKHR) * swapchain_support->format_count, MEMORY_TAG_RENDERER);
-        }
-        if (swapchain_support->present_modes) {
-            kfree(swapchain_support->present_modes, sizeof(VkPresentModeKHR) * swapchain_support->present_mode_count, MEMORY_TAG_RENDERER);
-        }
-        KINFO("Required swapchain support not present, skipping device.");
-        return false;
-    } */
 
     // Redetect the depth format.
     vulkan_device_detect_depth_format(&context->device);
@@ -1465,9 +1462,6 @@ b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend
         string_free(image_name);
     }
 
-    // Since data has not been uploaded yet, the generation should be INVALID_ID.
-    texture_data->generation = INVALID_ID;
-
     return true;
 }
 
@@ -1479,9 +1473,6 @@ void vulkan_renderer_texture_resources_release(renderer_backend_interface* backe
         }
         kfree(texture_data->images, sizeof(vulkan_image) * texture_data->image_count, MEMORY_TAG_TEXTURE);
         texture_data->images = 0;
-
-        // Since resources are released, make sure the generation of this texture is no longer valid.
-        texture_data->generation = INVALID_ID;
     }
 }
 
@@ -1507,9 +1498,6 @@ b8 vulkan_renderer_texture_resize(renderer_backend_interface* backend, struct te
 
             vulkan_image_recreate(context, image);
         }
-
-        // Counts as a texture update.
-        texture_data->generation++;
 
         return true;
     }
@@ -1571,7 +1559,11 @@ b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, struc
         }
 
         // Counts as a texture update.
-        texture_data->generation++;
+        // FIXME: This internal generation isn't useful in particular.
+        // Also, the texture generation here can only really be updated if we _don't_ include
+        // the upload in the frame workload, since that results in a wait. If we include it in
+        // the frame workload, then we must also wait until that frame's queue is complete.
+        // texture_data->generation++;
         return true;
     }
 
@@ -2362,7 +2354,6 @@ static b8 vulkan_descriptorset_update_and_bind(
     u32 uniform_count,
     vulkan_uniform_sampler_state* samplers,
     u32 sampler_count) {
-
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     u32 image_index = get_current_image_index(context);
     vulkan_shader* internal = s->internal_data;
@@ -2496,6 +2487,9 @@ static b8 vulkan_descriptorset_update_and_bind(
             // multi-threaded.
             vkUpdateDescriptorSets(context->device.logical_device, descriptor_write_count, descriptor_writes, 0, 0);
         }
+
+        // Sync the frame number.
+        descriptor_state->frame_numbers[image_index] = renderer_frame_number;
     }
 
     // Pick the correct pipeline.
@@ -2830,7 +2824,7 @@ b8 vulkan_renderer_shader_instance_resources_acquire(renderer_backend_interface*
 
 #ifdef _DEBUG
     for (u32 i = 0; i < 3; ++i) {
-        char* desc_set_object_name = string_format("desc_set_shader_%s_instance_frame_%u", s->name, i);
+        char* desc_set_object_name = string_format("desc_set_shader_%s_instance_%u_frame_%u", s->name, *out_instance_id, i);
         VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DESCRIPTOR_SET, instance_state->descriptor_sets[i], desc_set_object_name);
         string_free(desc_set_object_name);
     }
@@ -2921,6 +2915,10 @@ b8 vulkan_renderer_uniform_set(renderer_backend_interface* backend, shader* s, s
             addr = (u64)internal->local_push_constant_block;
             break;
         case SHADER_SCOPE_INSTANCE:
+            if (s->bound_instance_id == INVALID_ID) {
+                KERROR("An instance must be bound before setting an instance uniform.");
+                return false;
+            }
             addr = (u64)internal->mapped_uniform_buffer_block;
             vulkan_shader_instance_state* instance = &internal->instance_states[s->bound_instance_id];
             ubo_offset = instance->offset;
@@ -3460,7 +3458,7 @@ b8 vulkan_buffer_load_range(
 
         // Load the data into the staging buffer.
         u64 staging_offset = 0;
-        renderbuffer* staging = &context->current_window->renderer_state->backend_state->staging[get_current_image_index(context)];
+        renderbuffer* staging = &context->current_window->renderer_state->backend_state->staging[get_current_frame_index(context)];
         renderer_renderbuffer_allocate(staging, size, &staging_offset);
         vulkan_buffer_load_range(backend, staging, staging_offset, size, data, include_in_frame_workload);
 
@@ -3793,6 +3791,9 @@ static vulkan_command_buffer* get_current_command_buffer(vulkan_context* context
 static u32 get_current_image_index(vulkan_context* context) {
     return context->current_window->renderer_state->backend_state->image_index;
 }
+static u32 get_current_frame_index(vulkan_context* context) {
+    return context->current_window->renderer_state->backend_state->current_frame;
+}
 
 static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipeline_config* config, vulkan_pipeline* out_pipeline) {
     // Viewport state
@@ -3916,6 +3917,7 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
         darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
         darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
         darray_push(dynamic_states, VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE);
+        darray_push(dynamic_states, VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE);
         darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_REFERENCE);
         /* darray_push(dynamic_states, VK_DYNAMIC_STATE_COLOR_WRITE_ENABLE_EXT);
         darray_push(dynamic_states, VK_DYNAMIC_STATE_COLOR_WRITE_MASK_EXT); */

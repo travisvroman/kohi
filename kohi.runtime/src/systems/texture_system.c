@@ -81,6 +81,8 @@ static u8* load_and_combine_cube_textures(const char texture_names[6][TEXTURE_NA
 static void destroy_texture(texture* t);
 static b8 process_texture_reference(const char* name, i8 reference_diff, b8 auto_release, u32* out_texture_id, b8* needs_creation);
 static b8 create_texture(texture* t, texture_type type, u32 width, u32 height, u8 channel_count, u16 array_size, const char** layer_texture_names, b8 is_writeable, b8 skip_load);
+static void increment_generation(texture* t);
+static void invalidate_texture(texture* t);
 
 b8 texture_system_initialize(u64* memory_requirement, void* state, void* config) {
     texture_system_config* typed_config = (texture_system_config*)config;
@@ -340,7 +342,9 @@ b8 texture_system_resize(texture* t, u32 width, u32 height, b8 regenerate_intern
         // update.
         if (!(t->flags & TEXTURE_FLAG_IS_WRAPPED) && regenerate_internal_data) {
             // Regenerate internals for the new size.
-            return renderer_texture_resize(state_ptr->renderer, t->renderer_texture_handle, width, height);
+            b8 result = renderer_texture_resize(state_ptr->renderer, t->renderer_texture_handle, width, height);
+            increment_generation(t);
+            return result;
         }
         return true;
     }
@@ -462,7 +466,7 @@ static b8 create_and_upload_texture(texture* t, const char* name, texture_type t
     if (!renderer_texture_resources_acquire(state_ptr->renderer, t->name, t->type, t->width, t->height, t->channel_count, t->mip_levels, t->array_size, t->flags, &t->renderer_texture_handle)) {
         KERROR("Failed to acquire renderer resources for default texture '%s'. See logs for details.", name);
         string_free(t->name);
-        t->name = 0;
+        invalidate_texture(t);
         return false;
     }
 
@@ -474,10 +478,18 @@ static b8 create_and_upload_texture(texture* t, const char* name, texture_type t
         t->name = 0;
         // Since this failed, make sure to release the texture's backing renderer resources.
         renderer_texture_resources_release(state_ptr->renderer, t->renderer_texture_handle);
-        // Also zero out memory so there's no mistaking this for an active texture.
-        kzero_memory(t, sizeof(texture));
+        invalidate_texture(t);
 
         return false;
+    }
+
+    if (texture_system_is_default_texture(t)) {
+        // Default textures always have an invalid generation.
+        t->generation = INVALID_ID_U8;
+    } else {
+        // TODO: Check for upload success before incrementing. If successful (or pending success on frame workload),
+        // update texture generation.
+        increment_generation(t);
     }
 
     return true;
@@ -804,7 +816,7 @@ static void texture_load_layered_job_success(void* result) {
     }
 
     // Upload pixel data to GPU.
-    u64 total_size = t->width * t->height * t->channel_count;
+    u64 total_size = t->width * t->height * t->channel_count * t->array_size;
     if (!renderer_texture_write_data(state_ptr->renderer, t->renderer_texture_handle, 0, total_size, typed_result->data_block)) {
         KERROR("Error uploading pixel data to GPU for texture '%s'", t->name);
     }
@@ -905,10 +917,6 @@ static u32 layered_texture_do_work(void* param) {
 static b8 texture_load_layered_job_start(void* params, void* result_data) {
     texture_load_layered_params* load_params = (texture_load_layered_params*)params;
     texture_load_layered_result* typed_result = result_data;
-
-    // LEFTOFF: Split this into 3 jobs - The first job performs the query, then sets up all of the layered texture jobs, then sets
-    // up a final job to move all that memory into the contiguous block in a final job, which has the layer jobs as a dependency.
-    // THEN submit all jobs.
 
     // Query the dimensions of the first image. All subsequent images must match dimensions.
     // Channel count from the image is ignored.
@@ -1233,4 +1241,22 @@ static b8 process_texture_reference(const char* name, i8 reference_diff, b8 auto
 
     KERROR("process_texture_reference called before texture system is initialized.");
     return false;
+}
+
+static void increment_generation(texture* t) {
+    if (t) {
+        t->generation++;
+        // Ensure we don't land on invalid before rolling over.
+        if (t->generation == INVALID_ID_U8) {
+            t->generation = 0;
+        }
+    }
+}
+
+static void invalidate_texture(texture* t) {
+    if (t) {
+        kzero_memory(t, sizeof(texture));
+        t->generation = INVALID_ID_U8;
+        t->renderer_texture_handle = k_handle_invalid();
+    }
 }
