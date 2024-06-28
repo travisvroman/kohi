@@ -489,7 +489,7 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
         vulkan_image* image = &texture_data->images[i];
 
         // Construct a unique name for each image.
-        char* formatted_name = string_format("__kohi_default_depth_stencil_texture_%u", i);
+        char* formatted_name = string_format("__window_%s_depth_stencil_texture_%u", window->name, i);
 
         // Create the actual backing image.
         vulkan_image_create(
@@ -748,7 +748,6 @@ b8 vulkan_renderer_frame_prepare_window_surface(renderer_backend_interface* back
 
 b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend, struct frame_data* p_frame_data) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-
 
     // Begin recording commands.
     vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
@@ -1041,7 +1040,7 @@ void vulkan_renderer_set_stencil_op(struct renderer_backend_interface* backend, 
     }
 }
 
-void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend, frame_data* p_frame_data, u32 colour_target_count, struct texture_internal_data** colour_targets, struct texture_internal_data* depth_stencil_target) {
+void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend, frame_data* p_frame_data, u32 colour_target_count, struct texture_internal_data** colour_targets, struct texture_internal_data* depth_stencil_target, u32 depth_stencil_layer) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
     u32 image_index = context->current_window->renderer_state->backend_state->image_index;
@@ -1055,10 +1054,15 @@ void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend,
 
     // TODO: This may be a problem for layered images/cubemaps
     render_info.layerCount = 1;
+
     // Depth
     if (depth_stencil_target) {
         VkRenderingAttachmentInfoKHR depth_attachment_info = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
-        depth_attachment_info.imageView = depth_stencil_target->images[image_index].view;
+        vulkan_image* image = &depth_stencil_target->images[image_index];
+        depth_attachment_info.imageView = image->view;
+        if (image->layer_count > 1) {
+            depth_attachment_info.imageView = image->layer_views[depth_stencil_layer];
+        }
         depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         render_info.pDepthAttachment = &depth_attachment_info;
         render_info.pStencilAttachment = &depth_attachment_info;
@@ -1288,6 +1292,48 @@ void vulkan_renderer_colour_texture_prepare_for_present(renderer_backend_interfa
         1, &barrier);
 }
 
+void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* backend, texture_internal_data* tex_internal, texture_flag_bits flags) {
+    // Cold-cast the context
+    vulkan_context* context = (vulkan_context*)backend->internal_context;
+    vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
+
+    // If a per-frame texture, get the appropriate image index. Otherwise it's just the first one.
+    vulkan_image* image = tex_internal->image_count == 1 ? &tex_internal->images[0] : &tex_internal->images[get_current_image_index(context)];
+
+    b8 is_depth = (flags & TEXTURE_FLAG_DEPTH) != 0;
+
+    // Transition the layout
+    VkImageMemoryBarrier barrier = {0};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.dstQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.image = image->handle;
+    barrier.subresourceRange.aspectMask = is_depth ? (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT) : VK_IMAGE_ASPECT_COLOR_BIT;
+    // Mips
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = image->mip_levels;
+
+    // Transition all layers at once.
+    barrier.subresourceRange.layerCount = image->layer_count;
+
+    // Start at the first layer.
+    barrier.subresourceRange.baseArrayLayer = 0;
+
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = is_depth ? VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT : VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+
+    vkCmdPipelineBarrier(
+        command_buffer->handle,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        0,
+        0, 0,
+        0, 0,
+        1, &barrier);
+}
+
 VKAPI_ATTR VkBool32 VKAPI_CALL
 vk_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
                   VkDebugUtilsMessageTypeFlagsEXT message_types,
@@ -1371,7 +1417,6 @@ static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* windo
     // Wait for any operations to complete.
     vkDeviceWaitIdle(context->device.logical_device);
 
-
     // Redetect the depth format.
     vulkan_device_detect_depth_format(&context->device);
 
@@ -1437,21 +1482,20 @@ b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend
     }
     texture_data->images = kallocate(sizeof(vulkan_image) * texture_data->image_count, MEMORY_TAG_TEXTURE);
 
-    VkImageUsageFlagBits usage;
+    VkImageUsageFlagBits usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     VkImageAspectFlagBits aspect;
     VkFormat image_format;
     if (flags & TEXTURE_FLAG_DEPTH) {
-        usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
         image_format = context->device.depth_format;
     } else {
-        usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         image_format = channel_count_to_format(channel_count, VK_FORMAT_R8G8B8A8_UNORM);
     }
 
-    // Create one image per frame (or just one image)
+    // Create one image per swapchain image (or just one image)
     for (u32 i = 0; i < texture_data->image_count; ++i) {
         char* image_name = string_format("%s_vkimage_%d", name, i);
         vulkan_image_create(

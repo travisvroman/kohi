@@ -132,7 +132,7 @@ void vulkan_image_create(
         VK_CHECK(vkCreateImageView(context->device.logical_device, &out_image->view_create_info, context->allocator, &out_image->view));
 
 #if _DEBUG
-        char* formatted_name = string_format("%s_view_idx_%u", out_image->name, 0);
+        char* formatted_name = string_format("%s_view_idx_global", out_image->name);
         VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, out_image->view, formatted_name);
         string_free(formatted_name);
 #endif
@@ -146,6 +146,10 @@ void vulkan_image_create(
             texture_type view_type = type;
             if (type == TEXTURE_TYPE_CUBE || type == TEXTURE_TYPE_CUBE_ARRAY) {
                 // NOTE: for individual sampling of cubemap/cubemap array layers, the view type needs to be 2d.
+                view_type = TEXTURE_TYPE_2D;
+            }
+            if (type == TEXTURE_TYPE_2D_ARRAY) {
+                // NOTE: for individual sampling of array layers, the view type needs to be 2d.
                 view_type = TEXTURE_TYPE_2D;
             }
             for (u32 i = 0; i < layer_count; ++i) {

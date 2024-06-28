@@ -377,7 +377,7 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
     renderer_active_viewport_set(&internal_data->vp);
 
     // Begin rendering
-    renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle);
+    renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
 
     // Calculate light-space matrices for each shadow cascade.
     for (u8 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {

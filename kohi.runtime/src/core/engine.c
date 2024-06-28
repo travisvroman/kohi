@@ -297,7 +297,7 @@ b8 engine_create(application* game_inst) {
         return false;
     }
 
-    engine_state->windows = darray_reserve(kwindow, window_count);
+    engine_state->windows = darray_create(kwindow);
     for (u32 i = 0; i < window_count; ++i) {
         kwindow_config* window_config = &game_inst->app_config.windows[i];
         kwindow new_window = {0};
@@ -758,6 +758,17 @@ b8 engine_run(application* game_inst) {
     // Unregister from events.
     event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
 
+    // TODO: Close/destroy any and all active windows.
+    u32 window_count = darray_length(engine_state->windows);
+    for (u32 i = 0; i < window_count; ++i) {
+        kwindow* window = &engine_state->windows[i];
+
+        // Tell the renderer about the window destruction.
+        renderer_on_window_destroyed(engine_state->systems.renderer_system, window);
+
+        platform_window_destroy(window);
+    }
+
     // Shut down all systems.
     {
         // Engine systems
@@ -772,9 +783,9 @@ b8 engine_run(application* game_inst) {
         timeline_system_shutdown(systems->timeline_system);
         xform_system_shutdown(systems->xform_system);
         audio_system_shutdown(systems->audio_system);
-        job_system_shutdown(systems->job_system);
-        renderer_system_shutdown(systems->renderer_system);
         shader_system_shutdown(systems->shader_system);
+        renderer_system_shutdown(systems->renderer_system);
+        job_system_shutdown(systems->job_system);
         resource_system_shutdown(systems->resource_system);
         input_system_shutdown(systems->input_system);
         event_system_shutdown(systems->event_system);

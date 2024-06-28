@@ -145,7 +145,9 @@ void texture_system_shutdown(void* state) {
         // Destroy all loaded textures.
         for (u32 i = 0; i < state_ptr->config.max_texture_count; ++i) {
             texture* t = &state_ptr->registered_textures[i];
-            renderer_texture_resources_release(state_ptr->renderer, t->renderer_texture_handle);
+            if (t->id != INVALID_ID && !k_handle_is_invalid(t->renderer_texture_handle)) {
+                destroy_texture(t);
+            }
         }
 
         destroy_default_textures(state_ptr);
@@ -281,6 +283,9 @@ texture* texture_system_acquire_textures_as_arrayed(const char* name, u32 layer_
 }
 
 void texture_system_release(const char* name) {
+    if (!name) {
+        return;
+    }
     // Ignore release requests for the default texture.
     // TODO: Check against other default texture names as well?
     if (strings_equali(name, DEFAULT_TEXTURE_NAME)) {
@@ -477,7 +482,7 @@ static b8 create_and_upload_texture(texture* t, const char* name, texture_type t
         string_free(t->name);
         t->name = 0;
         // Since this failed, make sure to release the texture's backing renderer resources.
-        renderer_texture_resources_release(state_ptr->renderer, t->renderer_texture_handle);
+        renderer_texture_resources_release(state_ptr->renderer, &t->renderer_texture_handle);
         invalidate_texture(t);
 
         return false;
@@ -742,7 +747,7 @@ static void texture_load_job_success(void* params) {
     *texture_params->out_texture = texture_params->temp_texture;
 
     // Destroy the old texture.
-    renderer_texture_resources_release(state_ptr->renderer, old.renderer_texture_handle);
+    renderer_texture_resources_release(state_ptr->renderer, &old.renderer_texture_handle);
 
     KTRACE("Successfully loaded texture '%s'.", texture_params->resource_name);
 
@@ -828,7 +833,7 @@ static void texture_load_layered_job_success(void* result) {
     *typed_result->out_texture = typed_result->temp_texture;
 
     // Destroy the old texture.
-    renderer_texture_resources_release(state_ptr->renderer, old.renderer_texture_handle);
+    renderer_texture_resources_release(state_ptr->renderer, &old.renderer_texture_handle);
 
     if (typed_result->name) {
         KTRACE("Successfully loaded layered texture '%s'.", typed_result->name);
@@ -950,6 +955,7 @@ static b8 texture_load_layered_job_start(void* params, void* result_data) {
     typed_result->temp_texture.type = load_params->out_texture->type;
     typed_result->temp_texture.id = load_params->out_texture->id;
     typed_result->temp_texture.flags = load_params->out_texture->flags;
+    typed_result->temp_texture.name = string_duplicate(load_params->out_texture->name);
 
     image_resource_params resource_params;
     resource_params.flip_y = true;
@@ -1065,12 +1071,23 @@ static b8 load_texture(const char* texture_name, texture* t, const char** layer_
 }
 
 static void destroy_texture(texture* t) {
+    if (!t) {
+        return;
+    }
     // Clean up backend resources.
-    renderer_texture_resources_release(state_ptr->renderer, t->renderer_texture_handle);
+    renderer_texture_resources_release(state_ptr->renderer, &t->renderer_texture_handle);
 
     string_free(t->name);
-    kzero_memory(t, sizeof(texture));
+    t->name = 0;
     t->id = INVALID_ID;
+    t->flags = 0;
+    t->type = 0;
+    t->width = 0;
+    t->height = 0;
+    t->array_size = 0;
+    t->mip_levels = 0;
+    t->channel_count = 0;
+    t->generation = INVALID_ID_U8;
 }
 
 static b8 create_texture(texture* t, texture_type type, u32 width, u32 height, u8 channel_count, u16 array_size, const char** layer_texture_names, b8 is_writeable, b8 skip_load) {

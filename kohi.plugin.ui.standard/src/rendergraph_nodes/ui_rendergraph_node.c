@@ -153,7 +153,7 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
     renderer_set_depth_test_enabled(false);
     renderer_set_depth_write_enabled(false);
 
-    renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid());
+    renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid(), 0);
 
     // Renderables
     if (!shader_system_use_by_id(internal_data->sui_shader->id)) {

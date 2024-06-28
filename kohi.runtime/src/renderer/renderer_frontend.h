@@ -218,8 +218,9 @@ KAPI void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_
  * @param colour_target_count The number of colour targets to be drawn to.
  * @param colour_targets An array of handles to colour targets. Required unless colour_target_count is 0.
  * @param depth_stencil_target A handle to a depth stencil target to render to.
+ * @param depth_stencil_layer For layered depth targets, the layer index to render to. Ignored otherwise.
  */
-KAPI void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, u32 colour_target_count, k_handle* colour_targets, k_handle depth_stencil_target);
+KAPI void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, u32 colour_target_count, k_handle* colour_targets, k_handle depth_stencil_target, u32 depth_stencil_layer);
 
 /**
  *
@@ -263,9 +264,9 @@ KAPI b8 renderer_texture_resources_acquire(struct renderer_system_state* state, 
  * Releases backing renderer-specific resources for the given renderer_texture_id.
  *
  * @param state A pointer to the renderer system state.
- * @param renderer_texture_id The handle of the renderer texture whose resources are to be released.
+ * @param handle A pointer to the handle of the renderer texture whose resources are to be released. Handle is automatically invalidated.
  */
-KAPI void renderer_texture_resources_release(struct renderer_system_state* state, k_handle renderer_texture_id);
+KAPI void renderer_texture_resources_release(struct renderer_system_state* state, k_handle* handle);
 
 /**
  * @brief Gets an opaque pointer to renderer-specific resource data. Typically only used by a renderer backend.
@@ -441,6 +442,15 @@ KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_hand
  * @param texture_handle A handle to the texture to prepare for presentation.
  */
 KAPI void renderer_colour_texture_prepare_for_present(struct renderer_system_state* state, k_handle texture_handle);
+
+/**
+ * @brief Performs operations required on the supplied texture before being used for sampling.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param texture_handle A handle to the texture to prepare for sampling.
+ * @param flags Texture flags from the texture itself, used to determine format/layout, etc.
+ */
+KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, k_handle texture_handle, texture_flag_bits flags);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.

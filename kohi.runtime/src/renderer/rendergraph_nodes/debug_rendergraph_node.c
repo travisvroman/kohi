@@ -144,7 +144,7 @@ b8 debug_rendergraph_node_execute(struct rendergraph_node* self, struct frame_da
     renderer_active_viewport_set(&internal_data->vp);
 
     if (internal_data->geometry_count > 0) {
-        renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid());
+        renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid(), 0);
 
         shader_system_use_by_id(internal_data->colour_shader->id);
 

@@ -140,7 +140,7 @@ b8 skybox_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
     // Bind the viewport
     renderer_active_viewport_set(&internal_data->vp);
 
-    renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid());
+    renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid(), 0);
 
     if (internal_data->sb && internal_data->sb->g->generation != INVALID_ID_U16) {
         shader_system_use_by_id(internal_data->shader_id);

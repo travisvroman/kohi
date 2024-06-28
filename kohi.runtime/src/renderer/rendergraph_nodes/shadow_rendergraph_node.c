@@ -14,7 +14,6 @@
 #include "renderer/viewport.h"
 #include "resources/resource_types.h"
 #include "strings/kstring.h"
-#include "systems/resource_system.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
 #include <vulkan/vulkan_core.h>
@@ -61,7 +60,6 @@ typedef struct shadow_rendergraph_node_internal_data {
     texture_map default_colour_map;
     u32 default_instance_id;
     u64 default_instance_frame_number;
-    u8 default_instance_draw_index;
 
     // Track instance data per instance. darray
     shadow_shader_instance_data* instances;
@@ -70,10 +68,6 @@ typedef struct shadow_rendergraph_node_internal_data {
     shader* ts;
     u32 terrain_shader_id;
     shadow_shader_locations terrain_locations;
-    texture_map default_terrain_colour_map;
-    u32 terrain_instance_id;
-    u64 terrain_instance_frame_number;
-    u8 terrain_instance_draw_index;
 
     const struct directional_light* light;
     // Per-cascade data.
@@ -155,7 +149,6 @@ b8 shadow_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->terrain_locations.views_location = shader_system_uniform_location(internal_data->terrain_shader_id, "views");
     internal_data->terrain_locations.model_location = shader_system_uniform_location(internal_data->terrain_shader_id, "model");
     internal_data->terrain_locations.cascade_index_location = shader_system_uniform_location(internal_data->terrain_shader_id, "cascade_index");
-    internal_data->terrain_locations.colour_map_location = shader_system_uniform_location(internal_data->terrain_shader_id, "colour_map");
 
     return true;
 }
@@ -201,42 +194,6 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
         }
     }
 
-    // Terrain
-    {
-        // Create a texture map to be used across the board for the diffuse/albedo transparency sample.
-        internal_data->default_terrain_colour_map.mip_levels = 1;
-        internal_data->default_terrain_colour_map.generation = INVALID_ID_U8;
-        internal_data->default_terrain_colour_map.repeat_u = internal_data->default_terrain_colour_map.repeat_v = internal_data->default_terrain_colour_map.repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
-        internal_data->default_terrain_colour_map.filter_minify = internal_data->default_terrain_colour_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-
-        // Grab the default texture for the default terrain texture map.
-        internal_data->default_terrain_colour_map.texture = texture_system_get_default_diffuse_texture();
-
-        // Acquire resources for the default terrain texture map.
-        if (!renderer_texture_map_resources_acquire(&internal_data->default_terrain_colour_map)) {
-            KERROR("Failed to acquire texture map resources for default terrain colour map in shadowmap pass.");
-            return false;
-        }
-
-        // Reserve an instance id for the default "material" to render to.
-        {
-            texture_map* terrain_maps[1] = {&internal_data->default_terrain_colour_map};
-            /* shader* s = internal_data->ts; */
-            /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
-            shader_instance_resource_config instance_resource_config = {0};
-            // Map count for this type is known.
-            shader_instance_uniform_texture_config colour_texture = {0};
-            /* colour_texture.uniform_location = atlas_location; */
-            colour_texture.texture_map_count = 1;
-            colour_texture.texture_maps = terrain_maps;
-
-            instance_resource_config.uniform_config_count = 1;
-            instance_resource_config.uniform_configs = &colour_texture;
-
-            renderer_shader_instance_resources_acquire(internal_data->renderer, internal_data->ts, &instance_resource_config, &internal_data->terrain_instance_id);
-        }
-    }
-
     // NOTE: Setup a default viewport. The only component that is used for this is the underlying
     // viewport rect, but is required to be set by the renderer before beginning a renderpass.
     // The projection matrix within this is not used, therefore the fov and clip planes do not matter.
@@ -248,12 +205,6 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
 
     // Create the depth attachment for the directional light shadow.
     // This should take renderer buffering into account.
-    //
-    /* texture_flag_bits flags = TEXTURE_FLAG_DEPTH | TEXTURE_FLAG_IS_WRITEABLE | TEXTURE_FLAG_RENDERER_BUFFERING; */
-    /* renderer_texture_resources_acquire(
-        internal_data->renderer, "shadowmap_node_texture", TEXTURE_TYPE_2D_ARRAY, internal_data->config.resolution, internal_data->config.resolution,
-        4, 1, MAX_SHADOW_CASCADE_COUNT, flags, &internal_data->depth_texture.renderer_texture_handle); */
-
     texture* t = &internal_data->depth_texture;
     t->width = t->height = internal_data->config.resolution;
     t->type = TEXTURE_TYPE_2D_ARRAY;
@@ -301,10 +252,13 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
     // Bind the internal viewport - do not use one provided in pass data.
     renderer_active_viewport_set(&internal_data->camera_viewport);
 
+    // Clear the image first.
+    renderer_clear_depth_stencil(engine_systems_get()->renderer_system, internal_data->depth_texture.renderer_texture_handle);
+
     // One renderpass per cascade - directional light.
     for (u32 p = 0; p < MAX_SHADOW_CASCADE_COUNT; ++p) {
 
-        renderer_begin_rendering(internal_data->renderer, p_frame_data, 0, 0, internal_data->depth_texture.renderer_texture_handle);
+        renderer_begin_rendering(internal_data->renderer, p_frame_data, 0, 0, internal_data->depth_texture.renderer_texture_handle, p);
 
         // Use the standard shadowmap shader.
         shader_system_use_by_id(internal_data->s->id);
@@ -454,16 +408,6 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
             for (u32 i = 0; i < internal_data->terrain_geometry_count; ++i) {
                 geometry_render_data* terrain = &internal_data->terrain_geometries[i];
 
-                // Just draw these using the default instance and texture map.
-                texture_map* bind_map = &internal_data->default_terrain_colour_map;
-
-                shader_system_bind_instance(internal_data->terrain_shader_id, internal_data->terrain_instance_id);
-                if (!shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.colour_map_location, bind_map)) {
-                    KERROR("Failed to apply shadowmap color_map uniform to terrain geometry.");
-                    return false;
-                }
-                shader_system_apply_instance(internal_data->terrain_shader_id);
-
                 // Apply the locals
                 shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.model_location, &terrain->model);
                 shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.cascade_index_location, &p);
@@ -476,6 +420,9 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
 
         renderer_end_rendering(internal_data->renderer, p_frame_data);
 
+        // Prepare the image to be sampled from.
+        renderer_texture_prepare_for_sampling(internal_data->renderer, internal_data->depth_texture.renderer_texture_handle, internal_data->depth_texture.flags);
+
     } // End cascade pass
 
     return true;
@@ -486,16 +433,14 @@ void shadow_rendergraph_node_destroy(struct rendergraph_node* self) {
         if (self->internal_data) {
             shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-            renderer_texture_resources_release(internal_data->renderer, internal_data->depth_texture.renderer_texture_handle);
+            renderer_texture_resources_release(internal_data->renderer, &internal_data->depth_texture.renderer_texture_handle);
             if (internal_data->depth_texture.name) {
                 string_free(internal_data->depth_texture.name);
                 internal_data->depth_texture.name = 0;
             }
 
             renderer_texture_map_resources_release(&internal_data->default_colour_map);
-            renderer_texture_map_resources_release(&internal_data->default_terrain_colour_map);
             renderer_shader_instance_resources_release(internal_data->renderer, internal_data->s, internal_data->default_instance_id);
-            renderer_shader_instance_resources_release(internal_data->renderer, internal_data->ts, internal_data->terrain_instance_id);
 
             // Internal data.
             kfree(self->internal_data, sizeof(shadow_rendergraph_node_internal_data), MEMORY_TAG_RENDERER);

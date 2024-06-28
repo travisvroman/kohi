@@ -7,7 +7,6 @@ depth_test=1
 depth_write=1
 colour_write=0
 cull_mode=none
-max_instances=256
 
 # Attributes: type,name
 attribute=vec3,in_position
@@ -23,4 +22,3 @@ uniform=mat4[4],0,projections
 uniform=mat4[4],0,views
 uniform=mat4,2,model
 uniform=u32,2,cascade_index
-uniform=sampler2D,1,colour_map

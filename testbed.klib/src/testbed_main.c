@@ -969,7 +969,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
                     forward_rendergraph_node_cascade_data_set(
                         node,
-                        splits.elements[c],
+                        (near + splits.elements[c] * clip_range) * 1.0f, // splits.elements[c]
                         shadow_camera_lookats[c],
                         shadow_camera_projections[c],
                         c);
@@ -1210,6 +1210,8 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 }
                 // Track the number of meshes drawn in the shadow pass.
                 p_frame_data->drawn_shadow_mesh_count = geometry_count;
+                // Tell the node about them.
+                shadow_rendergraph_node_static_geometries_set(node, p_frame_data, geometry_count, geometries);
 
                 // Gather terrain geometries.
                 u32 terrain_geometry_count = 0;
@@ -1226,6 +1228,8 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
                 // TODO: Counter for terrain geometries.
                 p_frame_data->drawn_shadow_mesh_count += terrain_geometry_count;
+                // Tell the node about them.
+                shadow_rendergraph_node_terrain_geometries_set(node, p_frame_data, terrain_geometry_count, terrain_geometries);
             }
         } else if (strings_equali(node->name, "skybox")) {
             skybox_rendergraph_node_set_viewport_and_matrices(node, state->world_viewport, state->world_camera->view_matrix, state->world_viewport.projection);
@@ -1316,7 +1320,7 @@ void application_shutdown(struct application* game_inst) {
         KDEBUG("Done.");
     }
 
-    // TODO: Temp
+    rendergraph_destroy(&state->forward_graph);
 
     // Destroy ui texts
     debug_console_unload(&state->debug_console);

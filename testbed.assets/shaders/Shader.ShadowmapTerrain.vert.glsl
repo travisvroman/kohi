@@ -20,12 +20,6 @@ layout(push_constant) uniform push_constants {
     uint cascade_index;
 } local_ubo;
 
-// Data Transfer Object
-layout(location = 1) out struct dto {
-	vec2 tex_coord;
-} out_dto;
-
 void main() {
-    out_dto.tex_coord = in_texcoord;
     gl_Position = global_ubo.projections[local_ubo.cascade_index] * global_ubo.views[local_ubo.cascade_index] * local_ubo.model * vec4(in_position, 1.0);
 }

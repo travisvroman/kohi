@@ -171,7 +171,7 @@ void rendergraph_destroy(rendergraph* graph) {
         }
 
         // Destroy all nodes
-        for (u32 i = 0; graph->node_count; ++i) {
+        for (u32 i = 0; i < graph->node_count; ++i) {
             rendergraph_node* node = &graph->nodes[i];
             if (node->destroy) {
                 node->destroy(node);
@@ -739,7 +739,7 @@ static b8 rg_dep_graph_topological_sort(rendergraph* graph) {
     // Always force the begin node to be first and the end node to be last.
     graph->execution_list[0] = graph->begin_node->index;
     graph->execution_list[graph->node_count - 1] = graph->end_node->index;
-    u32 current_index = graph->node_count - 2;// Work backwards 1;
+    u32 current_index = graph->node_count - 2; // Work backwards 1;
     while (stack_index) {
         rg_dep_node* node = stack[--stack_index];
         if (node->index == graph->begin_node->index || node->index == graph->end_node->index) {
