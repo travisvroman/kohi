@@ -694,8 +694,26 @@ b8 vulkan_renderer_frame_prepare_window_surface(renderer_backend_interface* back
 
         // If the swapchain recreation failed (because, for example, the window was
         // minimized), boot out before unsetting the flag.
-        if (!recreate_swapchain(backend, window)) {
-            return false;
+        if (window_backend->skip_frames == 0) {
+            if (!recreate_swapchain(backend, window)) {
+                return false;
+            }
+        }
+
+        window_backend->skip_frames++;
+
+        // Resize depth buffer image.
+        if (window_backend->skip_frames == window_backend->swapchain.max_frames_in_flight) {
+            if (!k_handle_is_invalid(window->renderer_state->depthbuffer.renderer_texture_handle)) {
+                /* vkQueueWaitIdle(context->device.graphics_queue); */
+                if (!renderer_texture_resize(backend->frontend_state, window->renderer_state->depthbuffer.renderer_texture_handle, window->width, window->height)) {
+                    KERROR("Failed to resize depth buffer for window '%s'. See logs for details.", window->name);
+                }
+            }
+            // Sync the framebuffer size generation.
+            window_backend->framebuffer_previous_size_generation = window_backend->framebuffer_size_generation;
+
+            window_backend->skip_frames = 0;
         }
 
         KINFO("Resized, booting.");
@@ -1426,9 +1444,6 @@ static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* windo
         KERROR("Failed to recreate swapchain. See logs for details.");
         return false;
     }
-
-    // Sync the framebuffer size generation.
-    window_backend->framebuffer_previous_size_generation = window_backend->framebuffer_size_generation;
 
     // Free old command buffers.
     if (window_backend->graphics_command_buffers) {

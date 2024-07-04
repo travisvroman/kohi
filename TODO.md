@@ -5,7 +5,7 @@ The items in this list are not in any particular order. This list will be update
 ## Engine general:
 
 - [x] platform layer (Windows, Linux, macOS)
-  - [x] UTF-8/Wide character handling for Win32 windowing.
+  - [ ] UTF-8/Wide character handling for Win32 windowing.
   - [x] Wayland support
 - [x] event system
 - [x] clock
@@ -115,7 +115,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] triggers
   - [ ] physics volumes
   - [ ] weather
-- [ ] Multi-window applications
+- [x] Multi-window applications
 - [ ] 0.7 Reorg
   - [x] Split engine into "core" and "runtime"
   - [x] Rename plugin libs to consistent format, update builds, etc.

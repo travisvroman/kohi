@@ -1116,6 +1116,7 @@ static b8 create_texture(texture* t, texture_type type, u32 width, u32 height, u
             KERROR("Failed to acquire renderer resources for default texture '%s'. See logs for details.", t->name);
             return false;
         }
+        t->generation = 0;
 
         result = true;
         // KTRACE("Load skipped for texture '%s'. This is expected behaviour.");

@@ -325,10 +325,13 @@ void vulkan_device_query_swapchain_support(
     VkSurfaceKHR surface,
     vulkan_swapchain_support_info* out_support_info) {
     // Surface capabilities
-    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+    VkResult result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
         physical_device,
         surface,
-        &out_support_info->capabilities));
+        &out_support_info->capabilities);
+    if (!vulkan_result_is_success(result)) {
+        KFATAL("vkGetPhysicalDeviceSurfaceCapabilitiesKHR failed with message: %s", vulkan_result_string(result, true));
+    }
 
     // Surface formats
     VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(

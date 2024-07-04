@@ -16,7 +16,6 @@
 #include "strings/kstring.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
-#include <vulkan/vulkan_core.h>
 
 typedef struct shadow_shader_locations {
     u16 projections_location;

@@ -177,6 +177,11 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
         window->title = string_duplicate("Kohi Game Engine Window");
     }
 
+    window->width = client_width;
+    window->height = client_height;
+
+    window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_UNKNOWN);
+
     window->platform_state->hwnd = CreateWindowExA(
         window_ex_style, "kohi_window_class", window->title,
         window_style, window_x, window_y, window_width, window_height,
@@ -187,6 +192,12 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 
         KFATAL("Window creation failed!");
         return false;
+    }
+
+    darray_push(state_ptr->windows, window);
+
+    if (show_immediately) {
+        platform_window_show(window);
     }
 
     return true;

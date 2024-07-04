@@ -566,6 +566,8 @@ typedef struct kwindow_renderer_backend_state {
 
     u64 framebuffer_size_generation;
     u64 framebuffer_previous_size_generation;
+
+    u8 skip_frames;
 } kwindow_renderer_backend_state;
 
 /**
