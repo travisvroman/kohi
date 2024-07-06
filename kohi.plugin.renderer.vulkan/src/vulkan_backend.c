@@ -1968,9 +1968,13 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, shader*
         kfree(internal_shader->instance_states, sizeof(vulkan_shader_instance_state) * internal_shader->max_instances, MEMORY_TAG_ARRAY);
 
         // Uniform buffer.
-        vulkan_buffer_unmap_memory(backend, &internal_shader->uniform_buffer, 0, VK_WHOLE_SIZE);
-        internal_shader->mapped_uniform_buffer_block = 0;
-        renderer_renderbuffer_destroy(&internal_shader->uniform_buffer);
+        for (u32 i = 0; i < image_count; ++i) {
+            vulkan_buffer_unmap_memory(backend, &internal_shader->uniform_buffers[i], 0, VK_WHOLE_SIZE);
+            internal_shader->mapped_uniform_buffer_blocks[i] = 0;
+            renderer_renderbuffer_destroy(&internal_shader->uniform_buffers[i]);
+        }
+        kfree(internal_shader->mapped_uniform_buffer_blocks, sizeof(void*) * image_count, MEMORY_TAG_ARRAY);
+        kfree(internal_shader->uniform_buffers, sizeof(renderbuffer) * image_count, MEMORY_TAG_ARRAY);
 
         // Pipelines
         for (u32 i = 0; i < VULKAN_TOPOLOGY_CLASS_MAX; ++i) {
@@ -2381,25 +2385,35 @@ b8 vulkan_renderer_shader_initialize(renderer_backend_interface* backend, shader
     s->global_ubo_stride = get_aligned(s->global_ubo_size, s->required_ubo_alignment);
     s->ubo_stride = get_aligned(s->ubo_size, s->required_ubo_alignment);
 
-    // Uniform  buffer.
-    u64 total_buffer_size = s->global_ubo_stride + (s->ubo_stride * internal_shader->max_instances);
-    if (!renderer_renderbuffer_create("renderbuffer_global_uniform", RENDERBUFFER_TYPE_UNIFORM, total_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, &internal_shader->uniform_buffer)) {
-        KERROR("Vulkan buffer creation failed for object shader.");
-        return false;
-    }
-    renderer_renderbuffer_bind(&internal_shader->uniform_buffer, 0);
+    internal_shader->mapped_uniform_buffer_blocks = kallocate(sizeof(void*) * image_count, MEMORY_TAG_ARRAY);
+    internal_shader->uniform_buffers = kallocate(sizeof(renderbuffer) * image_count, MEMORY_TAG_ARRAY);
 
-    // Map the entire buffer's memory.
-    internal_shader->mapped_uniform_buffer_block = vulkan_buffer_map_memory(backend, &internal_shader->uniform_buffer, 0, VK_WHOLE_SIZE);
+    // Uniform  buffers, one per swapchain image.
+    u64 total_buffer_size = s->global_ubo_stride + (s->ubo_stride * internal_shader->max_instances);
+    for (u32 i = 0; i < image_count; ++i) {
+        const char* buffer_name = string_format("renderbuffer_uniform_%s_idx_%d", s->name, i);
+        if (!renderer_renderbuffer_create(buffer_name, RENDERBUFFER_TYPE_UNIFORM, total_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, &internal_shader->uniform_buffers[i])) {
+            KERROR("Vulkan buffer creation failed for object shader.");
+            string_free(buffer_name);
+            return false;
+        }
+        string_free(buffer_name);
+        renderer_renderbuffer_bind(&internal_shader->uniform_buffers[i], 0);
+        // Map the entire buffer's memory.
+        internal_shader->mapped_uniform_buffer_blocks[i] = vulkan_buffer_map_memory(backend, &internal_shader->uniform_buffers[i], 0, VK_WHOLE_SIZE);
+    }
 
     // NOTE: All of this below is only allocated if actually needed.
     //
     //  Allocate space for the global UBO, whcih should occupy the _stride_ space,
     //  _not_ the actual size used.
     if (s->global_ubo_size > 0 && s->global_ubo_stride > 0) {
-        if (!renderer_renderbuffer_allocate(&internal_shader->uniform_buffer, s->global_ubo_stride, &s->global_ubo_offset)) {
-            KERROR("Failed to allocate space for the uniform buffer!");
-            return false;
+        // Per swapchain image
+        for (u32 i = 0; i < image_count; ++i) {
+            if (!renderer_renderbuffer_allocate(&internal_shader->uniform_buffers[i], s->global_ubo_stride, &s->global_ubo_offset)) {
+                KERROR("Failed to allocate space for the uniform buffer!");
+                return false;
+            }
         }
 
         // Allocate global descriptor sets, one per frame. Global is always the first set.
@@ -2498,7 +2512,7 @@ static b8 vulkan_descriptorset_update_and_bind(
             // Only do this if the descriptor has not yet been updated.
             u8* ubo_generation = &(descriptor_state->generations[image_index]);
             if (*ubo_generation == INVALID_ID_U8) {
-                ubo_buffer_info.buffer = ((vulkan_buffer*)internal->uniform_buffer.internal_data)->handle;
+                ubo_buffer_info.buffer = ((vulkan_buffer*)internal->uniform_buffers[image_index].internal_data)->handle;
                 KASSERT_MSG((ubo_offset % context->device.properties.limits.minUniformBufferOffsetAlignment) == 0, "Ubo offset must be a multiple of device.properties.limits.minUniformBufferOffsetAlignment.");
                 ubo_buffer_info.offset = ubo_offset;
                 ubo_buffer_info.range = ubo_stride;
@@ -2925,9 +2939,12 @@ b8 vulkan_renderer_shader_instance_resources_acquire(renderer_backend_interface*
     // Allocate some space in the UBO - by the stride, not the size.
     u64 size = s->ubo_stride;
     if (size > 0) {
-        if (!renderer_renderbuffer_allocate(&internal->uniform_buffer, size, &instance_state->offset)) {
-            KERROR("vulkan_material_shader_acquire_resources failed to acquire ubo space");
-            return false;
+        u32 image_count = context->current_window->renderer_state->backend_state->swapchain.image_count;
+        for (u32 i = 0; i < image_count; ++i) {
+            if (!renderer_renderbuffer_allocate(&internal->uniform_buffers[i], size, &instance_state->offset)) {
+                KERROR("vulkan_material_shader_acquire_resources failed to acquire ubo space");
+                return false;
+            }
         }
     }
 
@@ -3005,8 +3022,11 @@ b8 vulkan_renderer_shader_instance_resources_release(renderer_backend_interface*
     }
 
     if (s->ubo_stride != 0) {
-        if (!renderer_renderbuffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset)) {
-            KERROR("vulkan_renderer_shader_release_instance_resources failed to free range from renderbuffer.");
+        u32 image_count = context->current_window->renderer_state->backend_state->swapchain.image_count;
+        for (u32 i = 0; i < image_count; ++i) {
+            if (!renderer_renderbuffer_free(&internal->uniform_buffers[i], s->ubo_stride, instance_state->offset)) {
+                KERROR("vulkan_renderer_shader_release_instance_resources failed to free range from renderbuffer.");
+            }
         }
     }
     instance_state->offset = INVALID_ID;
@@ -3050,6 +3070,7 @@ b8 vulkan_renderer_uniform_set(renderer_backend_interface* backend, shader* s, s
     } else {
         u64 addr;
         u64 ubo_offset = 0;
+        u32 image_index = ((vulkan_context*)backend->internal_context)->current_window->renderer_state->backend_state->image_index;
         switch (uniform->scope) {
             case SHADER_SCOPE_LOCAL:
                 addr = (u64)internal->local_push_constant_block;
@@ -3059,13 +3080,13 @@ b8 vulkan_renderer_uniform_set(renderer_backend_interface* backend, shader* s, s
                     KERROR("An instance must be bound before setting an instance uniform.");
                     return false;
                 }
-                addr = (u64)internal->mapped_uniform_buffer_block;
+                addr = (u64)internal->mapped_uniform_buffer_blocks[image_index];
                 vulkan_shader_instance_state* instance = &internal->instance_states[s->bound_instance_id];
                 ubo_offset = instance->offset;
                 break;
             case SHADER_SCOPE_GLOBAL:
             default:
-                addr = (u64)internal->mapped_uniform_buffer_block;
+                addr = (u64)internal->mapped_uniform_buffer_blocks[image_index];
                 ubo_offset = s->global_ubo_offset;
                 break;
         }

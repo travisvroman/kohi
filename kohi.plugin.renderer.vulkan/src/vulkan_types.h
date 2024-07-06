@@ -446,8 +446,8 @@ typedef struct vulkan_shader_instance_state {
  * files to construct a shader for use in rendering.
  */
 typedef struct vulkan_shader {
-    /** @brief The block of memory mapped to the uniform buffer. */
-    void* mapped_uniform_buffer_block;
+    /** @brief The block of memory mapped to the each per-swapchain-image uniform buffer. */
+    void** mapped_uniform_buffer_blocks;
     /** @brief The block of memory used for push constants, 128B. */
     void* local_push_constant_block;
 
@@ -502,8 +502,8 @@ typedef struct vulkan_shader {
     // A mapping of sampler uniforms to descriptors and texture maps.
     vulkan_uniform_sampler_state* global_sampler_uniforms;
 
-    /** @brief The uniform buffer used by this shader. */
-    renderbuffer uniform_buffer;
+    /** @brief The uniform buffers used by this shader, one per swapchain image. */
+    renderbuffer* uniform_buffers;
 
     /** @brief An array of pointers to pipelines associated with this shader. */
     vulkan_pipeline** pipelines;

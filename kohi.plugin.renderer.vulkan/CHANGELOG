@@ -7,6 +7,7 @@ Kohi Vulkan Renderer Plugin Changelog
   - colorbuffer and depthbuffer are now owned by the window. Depthbuffer is no longer created as part of the swapchain.
   - Fixed an issue where triple buffering was always assumed by some data structures. Also fixed overallocation of descriptor sets.
   - Fixed an issue with artifacts near cascade shadow map split seams on AMD GPUs.
+  - Uniform buffers for shaders are now one per swapchain image instead of one, eliminating sync issues with uniforms.
 
 - 0.4.0
   - Vulkan-specific plugin changelog file created. Updates specific to this backend are now listed here.
