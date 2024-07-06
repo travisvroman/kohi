@@ -345,6 +345,7 @@ void vulkan_renderer_backend_shutdown(renderer_backend_interface* backend) {
     if (backend->internal_context) {
         kfree(backend->internal_context, backend->internal_context_size, MEMORY_TAG_RENDERER);
         backend->internal_context_size = 0;
+        backend->internal_context = 0;
     }
 
 #if defined(_DEBUG)
@@ -515,19 +516,6 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
 
         // Setup a debug name for the image.
         VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE, image->handle, image->name);
-
-        // Create the view for this image.
-        VkImageViewCreateInfo view_create_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-        view_create_info.image = image->handle;
-        view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        view_create_info.format = context->device.depth_format;
-        image->view_subresource_range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-        image->view_subresource_range.baseMipLevel = 0;
-        image->view_subresource_range.levelCount = 1;
-        image->view_subresource_range.baseArrayLayer = 0;
-        image->view_subresource_range.layerCount = 1;
-        view_create_info.subresourceRange = image->view_subresource_range;
-        VK_CHECK(vkCreateImageView(context->device.logical_device, &view_create_info, context->allocator, &image->view));
     }
 
     KINFO("Vulkan depthbuffer created successfully.");
@@ -591,6 +579,7 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
         window_backend->graphics_command_buffers = 0;
 
         // Destroy depthbuffer images/views.
+
         texture_internal_data* texture_data = renderer_texture_resources_get(backend->frontend_state, window_internal->depthbuffer.renderer_texture_handle);
         if (!texture_data) {
             KWARN("Unable to get internal data for depthbuffer image. Underlying resources may not be properly destroyed.");
@@ -607,8 +596,11 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
                     vulkan_image_destroy(context, &texture_data->images[i]);
                 }
                 // Free the internal data.
-                kfree(texture_data->images, sizeof(vulkan_image) * texture_data->image_count, MEMORY_TAG_TEXTURE);
+                // kfree(texture_data->images, sizeof(vulkan_image) * texture_data->image_count, MEMORY_TAG_TEXTURE);
             }
+
+            // Releasing the resources for the default depthbuffer should destroy backing resources too.
+            renderer_texture_resources_release(backend->frontend_state, &window->renderer_state->depthbuffer.renderer_texture_handle);
         }
     }
 
@@ -1939,9 +1931,7 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, shader*
         VkDevice logical_device = context->device.logical_device;
         VkAllocationCallbacks* vk_allocator = context->allocator;
 
-        // FIXME: This is really only valid for the window it's attached to, unless this number is synced and
-        // used across all windows. This should probably be stored and accessed elsewhere.
-        u32 image_count = context->current_window->renderer_state->backend_state->swapchain.image_count;
+        u32 image_count = internal_shader->uniform_buffer_count;
 
         // Descriptor set layouts.
         for (u32 i = 0; i < internal_shader->descriptor_set_count; ++i) {
@@ -1962,8 +1952,12 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, shader*
 
         // Destroy the instance states.
         for (u32 i = 0; i < internal_shader->max_instances; ++i) {
-            kfree(internal_shader->instance_states[i].descriptor_sets, sizeof(VkDescriptorSet) * image_count, MEMORY_TAG_ARRAY);
-            kfree(internal_shader->instance_states[i].sampler_uniforms, sizeof(vulkan_uniform_sampler_state) * s->instance_uniform_sampler_count, MEMORY_TAG_ARRAY);
+            if (internal_shader->instance_states[i].descriptor_sets) {
+                kfree(internal_shader->instance_states[i].descriptor_sets, sizeof(VkDescriptorSet) * image_count, MEMORY_TAG_ARRAY);
+            }
+            if (internal_shader->instance_states[i].sampler_uniforms) {
+                kfree(internal_shader->instance_states[i].sampler_uniforms, sizeof(vulkan_uniform_sampler_state) * s->instance_uniform_sampler_count, MEMORY_TAG_ARRAY);
+            }
         }
         kfree(internal_shader->instance_states, sizeof(vulkan_shader_instance_state) * internal_shader->max_instances, MEMORY_TAG_ARRAY);
 
@@ -2387,6 +2381,7 @@ b8 vulkan_renderer_shader_initialize(renderer_backend_interface* backend, shader
 
     internal_shader->mapped_uniform_buffer_blocks = kallocate(sizeof(void*) * image_count, MEMORY_TAG_ARRAY);
     internal_shader->uniform_buffers = kallocate(sizeof(renderbuffer) * image_count, MEMORY_TAG_ARRAY);
+    internal_shader->uniform_buffer_count = image_count;
 
     // Uniform  buffers, one per swapchain image.
     u64 total_buffer_size = s->global_ubo_stride + (s->ubo_stride * internal_shader->max_instances);
@@ -2409,7 +2404,7 @@ b8 vulkan_renderer_shader_initialize(renderer_backend_interface* backend, shader
     //  _not_ the actual size used.
     if (s->global_ubo_size > 0 && s->global_ubo_stride > 0) {
         // Per swapchain image
-        for (u32 i = 0; i < image_count; ++i) {
+        for (u32 i = 0; i < internal_shader->uniform_buffer_count; ++i) {
             if (!renderer_renderbuffer_allocate(&internal_shader->uniform_buffers[i], s->global_ubo_stride, &s->global_ubo_offset)) {
                 KERROR("Failed to allocate space for the uniform buffer!");
                 return false;
@@ -2939,8 +2934,7 @@ b8 vulkan_renderer_shader_instance_resources_acquire(renderer_backend_interface*
     // Allocate some space in the UBO - by the stride, not the size.
     u64 size = s->ubo_stride;
     if (size > 0) {
-        u32 image_count = context->current_window->renderer_state->backend_state->swapchain.image_count;
-        for (u32 i = 0; i < image_count; ++i) {
+        for (u32 i = 0; i < internal->uniform_buffer_count; ++i) {
             if (!renderer_renderbuffer_allocate(&internal->uniform_buffers[i], size, &instance_state->offset)) {
                 KERROR("vulkan_material_shader_acquire_resources failed to acquire ubo space");
                 return false;
@@ -3022,8 +3016,7 @@ b8 vulkan_renderer_shader_instance_resources_release(renderer_backend_interface*
     }
 
     if (s->ubo_stride != 0) {
-        u32 image_count = context->current_window->renderer_state->backend_state->swapchain.image_count;
-        for (u32 i = 0; i < image_count; ++i) {
+        for (u32 i = 0; i < internal->uniform_buffer_count; ++i) {
             if (!renderer_renderbuffer_free(&internal->uniform_buffers[i], s->ubo_stride, instance_state->offset)) {
                 KERROR("vulkan_renderer_shader_release_instance_resources failed to free range from renderbuffer.");
             }

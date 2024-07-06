@@ -214,7 +214,6 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 
 void standard_ui_system_shutdown(standard_ui_state* state) {
     if (state) {
-
         // Stop listening for input events.
         event_unregister(EVENT_CODE_BUTTON_CLICKED, state, standard_ui_system_click);
         event_unregister(EVENT_CODE_MOUSE_MOVED, state, standard_ui_system_move);
@@ -234,6 +233,10 @@ void standard_ui_system_shutdown(standard_ui_state* state) {
             c->destroy(state, c);
         }
 
+        // Release texture map for UI atlas.
+        renderer_texture_map_resources_release(&state->ui_atlas);
+
+        // Release texture for UI atlas.
         if (state->ui_atlas.texture) {
             texture_system_release(state->ui_atlas.texture->name);
             state->ui_atlas.texture = 0;

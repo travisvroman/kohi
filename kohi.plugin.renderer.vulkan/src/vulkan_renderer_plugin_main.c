@@ -105,8 +105,9 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
 }
 
 void kplugin_destroy(kruntime_plugin* plugin) {
-    if (plugin && plugin->plugin_state) {
-        kfree(plugin->plugin_state, plugin->plugin_state_size, MEMORY_TAG_RENDERER);
-    }
-    kzero_memory(plugin, sizeof(kruntime_plugin));
+    // NOTE: this is taken care of internally
+    // if (plugin && plugin->plugin_state) {
+    //     kfree(plugin->plugin_state, plugin->plugin_state_size, MEMORY_TAG_RENDERER);
+    // }
+    // kzero_memory(plugin, sizeof(kruntime_plugin));
 }

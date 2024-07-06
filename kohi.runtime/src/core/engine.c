@@ -791,6 +791,7 @@ b8 engine_run(application* game_inst) {
         timeline_system_shutdown(systems->timeline_system);
         xform_system_shutdown(systems->xform_system);
         audio_system_shutdown(systems->audio_system);
+        plugin_system_shutdown(systems->plugin_system);
         shader_system_shutdown(systems->shader_system);
         renderer_system_shutdown(systems->renderer_system);
         job_system_shutdown(systems->job_system);

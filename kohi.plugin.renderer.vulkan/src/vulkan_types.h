@@ -504,6 +504,7 @@ typedef struct vulkan_shader {
 
     /** @brief The uniform buffers used by this shader, one per swapchain image. */
     renderbuffer* uniform_buffers;
+    u32 uniform_buffer_count;
 
     /** @brief An array of pointers to pipelines associated with this shader. */
     vulkan_pipeline** pipelines;
