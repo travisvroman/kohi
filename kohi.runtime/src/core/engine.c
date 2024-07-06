@@ -752,6 +752,8 @@ b8 engine_run(application* game_inst) {
 
             // Update last time
             engine_state->last_time = current_time;
+        } else {
+            KDEBUG("suspended...");
         }
     }
 

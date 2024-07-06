@@ -129,6 +129,24 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define INVALID_ID_U16 65535U
 #define INVALID_ID_U8 255U
 
+#define U64_MAX 18446744073709551615UL
+#define U32_MAX 4294967295U
+#define U16_MAX 65535U
+#define U8_MAX 255U
+#define U64_MIN 0UL
+#define U32_MIN 0U
+#define U16_MIN 0U
+#define U8_MIN 0U
+
+#define I8_MAX 127
+#define I16_MAX 32767
+#define I32_MAX 2147483647
+#define I64_MAX 9223372036854775807L
+#define I8_MIN (-I8_MAX - 1)
+#define I16_MIN (-I16_MAX - 1)
+#define I32_MIN (-I32_MAX - 1)
+#define I64_MIN (-I64_MAX - 1)
+
 // Platform detection
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
 #define KPLATFORM_WINDOWS 1
@@ -236,18 +254,18 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #endif
 
 /** @brief Gets the number of bytes from amount of gibibytes (GiB) (1024*1024*1024) */
-#define GIBIBYTES(amount) ((amount)*1024ULL * 1024ULL * 1024ULL)
+#define GIBIBYTES(amount) ((amount) * 1024ULL * 1024ULL * 1024ULL)
 /** @brief Gets the number of bytes from amount of mebibytes (MiB) (1024*1024) */
-#define MEBIBYTES(amount) ((amount)*1024ULL * 1024ULL)
+#define MEBIBYTES(amount) ((amount) * 1024ULL * 1024ULL)
 /** @brief Gets the number of bytes from amount of kibibytes (KiB) (1024) */
-#define KIBIBYTES(amount) ((amount)*1024ULL)
+#define KIBIBYTES(amount) ((amount) * 1024ULL)
 
 /** @brief Gets the number of bytes from amount of gigabytes (GB) (1000*1000*1000) */
-#define GIGABYTES(amount) ((amount)*1000ULL * 1000ULL * 1000ULL)
+#define GIGABYTES(amount) ((amount) * 1000ULL * 1000ULL * 1000ULL)
 /** @brief Gets the number of bytes from amount of megabytes (MB) (1000*1000) */
-#define MEGABYTES(amount) ((amount)*1000ULL * 1000ULL)
+#define MEGABYTES(amount) ((amount) * 1000ULL * 1000ULL)
 /** @brief Gets the number of bytes from amount of kilobytes (KB) (1000) */
-#define KILOBYTES(amount) ((amount)*1000ULL)
+#define KILOBYTES(amount) ((amount) * 1000ULL)
 
 KINLINE u64 get_aligned(u64 operand, u64 granularity) {
     return ((operand + (granularity - 1)) & ~(granularity - 1));

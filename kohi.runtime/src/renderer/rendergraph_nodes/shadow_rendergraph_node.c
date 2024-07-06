@@ -242,6 +242,8 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
         return false;
     }
 
+    renderer_begin_debug_label("shadow rendergraph node", (vec3){1.0f, 0.0f, 0.0f});
+
     // FIXME: Need to transition the format from (whatever) to VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     // then perform the render,
     // then transition to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL.
@@ -256,6 +258,9 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
 
     // One renderpass per cascade - directional light.
     for (u32 p = 0; p < MAX_SHADOW_CASCADE_COUNT; ++p) {
+        const char* label_text = string_format("shadow_rendergraph_cascade_%u", p);
+        renderer_begin_debug_label(label_text, (vec3){1.0f - (p * 0.2f), 0.0f, 0.0f});
+        string_free(label_text);
 
         renderer_begin_rendering(internal_data->renderer, p_frame_data, 0, 0, internal_data->depth_texture.renderer_texture_handle, p);
 
@@ -419,10 +424,14 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
 
         renderer_end_rendering(internal_data->renderer, p_frame_data);
 
-        // Prepare the image to be sampled from.
-        renderer_texture_prepare_for_sampling(internal_data->renderer, internal_data->depth_texture.renderer_texture_handle, internal_data->depth_texture.flags);
+        renderer_end_debug_label();
 
-    } // End cascade pass
+    }  // End cascade pass
+
+    // Prepare the image to be sampled from.
+    renderer_texture_prepare_for_sampling(internal_data->renderer, internal_data->depth_texture.renderer_texture_handle, internal_data->depth_texture.flags);
+
+    renderer_end_debug_label();
 
     return true;
 }

@@ -35,6 +35,7 @@ Changelog
   - Added a new, safer version of `string_format` that allocates the memory needed on the fly. Renamed the previous version to `string_format_unsafe` and marked as deprecated.
   - Renamed assets folder to 'testbed.assets' and moved application config to it. This is now the testbed-specific asset folder.
   - Shader system 'get' function now attempts to auto-load shader if it does not yet exist. This allows shader 'load'/resource logic to be removed elsewhere.
+  - Added min and max values to defines for all integer types.
 
 - 0.6.0
   - Updated versioning system and build process. Each library now maintains its own version (and potentially changelog at some point).

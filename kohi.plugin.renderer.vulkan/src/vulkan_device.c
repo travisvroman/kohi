@@ -147,51 +147,55 @@ b8 vulkan_device_create(vulkan_context* context) {
         ext_idx++;
     }
 
-    // Request supported device features.
-    VkPhysicalDeviceFeatures device_features = {};
-    device_features.samplerAnisotropy = context->device.features.samplerAnisotropy; // Request anistrophy
-    device_features.fillModeNonSolid = context->device.features.fillModeNonSolid;
+    // NOTE: Request supported device features.
+    VkPhysicalDeviceFeatures2 device_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR};
+    {
+        // Native features
+        device_features.features.samplerAnisotropy = context->device.features.samplerAnisotropy;  // Request anistrophy
+        device_features.features.fillModeNonSolid = context->device.features.fillModeNonSolid;
 
-    // VK_EXT_descriptor_indexing
-    VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT};
-    // Partial binding is required for descriptor aliasing.
-    descriptor_indexing_features.descriptorBindingPartiallyBound = VK_TRUE; // TODO: Check if supported?
+        // Dynamic rendering.
+        VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_ext = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES};
+        dynamic_rendering_ext.dynamicRendering = VK_TRUE;
+        device_features.pNext = &dynamic_rendering_ext;
+
+        // VK_EXT_extended_dynamic_state
+        VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT};
+        extended_dynamic_state.extendedDynamicState = VK_TRUE;
+        dynamic_rendering_ext.pNext = &extended_dynamic_state;
+
+        // VK_EXT_descriptor_indexing
+        VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT};
+        // Partial binding is required for descriptor aliasing.
+        descriptor_indexing_features.descriptorBindingPartiallyBound = VK_TRUE;  // TODO: Check if supported?
+        extended_dynamic_state.pNext = &descriptor_indexing_features;
 
 #if defined(VK_USE_PLATFORM_MACOS_MVK)
-    // NOTE: On macOS set environment variable to configure MoltenVK for using Metal argument buffers (needed for descriptor indexing).
-    //     - MoltenVK supports Metal argument buffers on macOS, iOS possible in future (see https://github.com/KhronosGroup/MoltenVK/issues/1651)
-    setenv("MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS", "1", 1);
+        // NOTE: On macOS set environment variable to configure MoltenVK for using Metal argument buffers (needed for descriptor indexing).
+        //     - MoltenVK supports Metal argument buffers on macOS, iOS possible in future (see https://github.com/KhronosGroup/MoltenVK/issues/1651)
+        setenv("MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS", "1", 1);
 #endif
 
-    // VK_EXT_extended_dynamic_state
-    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT};
-    extended_dynamic_state.extendedDynamicState = VK_TRUE;
-    descriptor_indexing_features.pNext = &extended_dynamic_state;
-
-    // Smooth line rasterisation, if supported.
-    VkPhysicalDeviceLineRasterizationFeaturesEXT line_rasterization_ext = {0};
-    if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT) {
-        line_rasterization_ext.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
-        line_rasterization_ext.smoothLines = VK_TRUE;
-        extended_dynamic_state.pNext = &line_rasterization_ext;
+        // Smooth line rasterisation, if supported.
+        VkPhysicalDeviceLineRasterizationFeaturesEXT line_rasterization_ext = {0};
+        if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT) {
+            line_rasterization_ext.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
+            line_rasterization_ext.smoothLines = VK_TRUE;
+            descriptor_indexing_features.pNext = &line_rasterization_ext;
+        }
     }
-
-    // Dynamic rendering.
-    VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_ext = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES};
-    dynamic_rendering_ext.dynamicRendering = true;
-    line_rasterization_ext.pNext = &dynamic_rendering_ext;
 
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     device_create_info.queueCreateInfoCount = index_count;
     device_create_info.pQueueCreateInfos = queue_create_infos;
-    device_create_info.pEnabledFeatures = &device_features;
+    device_create_info.pEnabledFeatures = 0;  // &device_features;
     device_create_info.enabledExtensionCount = ext_idx;
     device_create_info.ppEnabledExtensionNames = extension_names;
 
     // Deprecated and ignored, so pass nothing.
     device_create_info.enabledLayerCount = 0;
     device_create_info.ppEnabledLayerNames = 0;
-    device_create_info.pNext = &descriptor_indexing_features;
+    device_create_info.pNext = &device_features;
 
     // Create the device.
     VK_CHECK(vkCreateDevice(
@@ -479,22 +483,22 @@ static b8 select_physical_device(vulkan_context* context) {
             KINFO("Selected device: '%s'.", properties.deviceName);
             // GPU type, etc.
             switch (properties.deviceType) {
-            default:
-            case VK_PHYSICAL_DEVICE_TYPE_OTHER:
-                KINFO("GPU type is Unknown.");
-                break;
-            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-                KINFO("GPU type is Integrated.");
-                break;
-            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-                KINFO("GPU type is Descrete.");
-                break;
-            case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-                KINFO("GPU type is Virtual.");
-                break;
-            case VK_PHYSICAL_DEVICE_TYPE_CPU:
-                KINFO("GPU type is CPU.");
-                break;
+                default:
+                case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+                    KINFO("GPU type is Unknown.");
+                    break;
+                case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+                    KINFO("GPU type is Integrated.");
+                    break;
+                case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+                    KINFO("GPU type is Descrete.");
+                    break;
+                case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+                    KINFO("GPU type is Virtual.");
+                    break;
+                case VK_PHYSICAL_DEVICE_TYPE_CPU:
+                    KINFO("GPU type is CPU.");
+                    break;
             }
 
             KINFO("GPU Driver version: %s", driverProperties.driverInfo);

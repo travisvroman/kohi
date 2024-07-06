@@ -399,11 +399,11 @@ typedef struct vulkan_descriptor_set_config {
  */
 typedef struct vulkan_descriptor_state {
     /** @brief The descriptor generation, per swapchain image. */
-    u8 generations[3];
+    u8* generations;
     /** @brief The identifier, per swapchain image. Typically used for texture ids. */
-    u32 ids[3];
+    u32* ids;
     /** @brief The frame number this descriptor was last updated on, per swapchain image. */
-    u64 frame_numbers[3];
+    u64* frame_numbers;
 } vulkan_descriptor_state;
 
 typedef struct vulkan_uniform_sampler_state {
@@ -431,8 +431,7 @@ typedef struct vulkan_shader_instance_state {
     u64 offset;
 
     /** @brief The descriptor sets for this instance, one per frame. */
-    // TODO: handle frame counts other than 3.
-    VkDescriptorSet descriptor_sets[3];
+    VkDescriptorSet* descriptor_sets;
 
     // UBO descriptor
     vulkan_descriptor_state ubo_descriptor_state;
@@ -494,9 +493,8 @@ typedef struct vulkan_shader {
     /** @brief Descriptor set layouts, max of 2. Index 0=global, 1=instance. */
     VkDescriptorSetLayout descriptor_set_layouts[2];
 
-    /** @brief Global descriptor sets, one per frame. */
-    // TODO: handle frame counts other than 3.
-    VkDescriptorSet global_descriptor_sets[3];
+    /** @brief Global descriptor sets, one per swapchain image. */
+    VkDescriptorSet* global_descriptor_sets;
 
     // UBO descriptor
     vulkan_descriptor_state global_ubo_descriptor_state;
@@ -517,7 +515,7 @@ typedef struct vulkan_shader {
     /** @brief The currently-selected topology. */
     VkPrimitiveTopology current_topology;
 
-    /** @brief The instance states for all instances. @todo TODO: make dynamic */
+    /** @brief The instance states for all instances. */
     vulkan_shader_instance_state* instance_states;
 
 } vulkan_shader;

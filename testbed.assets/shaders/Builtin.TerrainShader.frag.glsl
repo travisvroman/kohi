@@ -111,7 +111,9 @@ float calculate_pcf(vec3 projected, int cascade_index) {
 
 float calculate_unfiltered(vec3 projected, int cascade_index) {
     // Sample the shadow map.
-    float map_depth = texture(shadow_texture, vec3(projected.xy, cascade_index)).r;
+    // Fix issue with seams between shadow cascades, seemingly specific for AMD cards.
+    vec2 dxy = vec2(0, 0);
+    float map_depth = textureGrad(shadow_texture, vec3(projected.xy, cascade_index), dxy, dxy).r;
 
     // TODO: cast/get rid of branch.
     float shadow = projected.z - in_dto.bias > map_depth ? 0.0 : 1.0;
@@ -233,7 +235,7 @@ void main() {
         }
     }
     if(cascade_index == -1) {
-        cascade_index = MAX_SHADOW_CASCADES;
+        cascade_index = MAX_SHADOW_CASCADES - 1;
     }
     float shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, global_ubo.dir_light, cascade_index);
 
