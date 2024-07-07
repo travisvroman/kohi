@@ -950,9 +950,6 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 KERROR("The standard ui system failed to render.");
             }
             ui_rendergraph_node_set_render_data(node, render_data);
-        } else if (strings_equali(node->name, "debug")) {
-            debug_rendergraph_node_viewport_set(node, state->world_viewport);
-            debug_rendergraph_node_view_projection_set(node, state->world_camera->view_matrix, state->world_camera->position, state->world_viewport.projection);
         } else if (strings_equali(node->name, "forward")) {
             // Ensure internal lists, etc. are reset.
             forward_rendergraph_node_reset(node);
@@ -1034,55 +1031,6 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 p_frame_data->drawn_mesh_count += terrain_geometry_count;
                 // Tell the node about them.
                 forward_rendergraph_node_terrain_geometries_set(node, p_frame_data, terrain_geometry_count, terrain_geometries);
-
-                // FIXME: Move this debug geometry to the pass below.
-                // Debug geometry
-                /*
-                if (!scene_debug_render_data_query(scene, &ext_data->debug_geometry_count, 0)) {
-                    KERROR("Failed to obtain count of debug render objects.");
-                    return false;
-                }
-                ext_data->debug_geometries = darray_reserve_with_allocator(geometry_render_data, ext_data->debug_geometry_count, &p_frame_data->allocator);
-
-                if (!scene_debug_render_data_query(scene, &ext_data->debug_geometry_count, &ext_data->debug_geometries)) {
-                    KERROR("Failed to obtain debug render objects.");
-                    return false;
-                }
-                // Make sure the count is correct before pushing.
-                darray_length_set(ext_data->debug_geometries, ext_data->debug_geometry_count);
-                */
-
-                // TODO: Move this to the scene.
-                // HACK: Inject raycast debug geometries into scene pass data.
-                // FIXME: Add this to the debug node below.
-                /*u32 line_count = darray_length(state->test_lines);
-                for (u32 i = 0; i < line_count; ++i) {
-                    geometry_render_data rd = {0};
-                    rd.model = transform_world_get(&state->test_lines[i].xform);
-                    geometry* g = &state->test_lines[i].geo;
-                    rd.material = g->material;
-                    rd.vertex_count = g->vertex_count;
-                    rd.vertex_buffer_offset = g->vertex_buffer_offset;
-                    rd.index_count = g->index_count;
-                    rd.index_buffer_offset = g->index_buffer_offset;
-                    rd.unique_id = INVALID_ID_U16;
-                    darray_push(ext_data->debug_geometries, rd);
-                    ext_data->debug_geometry_count++;
-                }
-                u32 box_count = darray_length(state->test_boxes);
-                for (u32 i = 0; i < box_count; ++i) {
-                    geometry_render_data rd = {0};
-                    rd.model = transform_world_get(&state->test_boxes[i].xform);
-                    geometry* g = &state->test_boxes[i].geo;
-                    rd.material = g->material;
-                    rd.vertex_count = g->vertex_count;
-                    rd.vertex_buffer_offset = g->vertex_buffer_offset;
-                    rd.index_count = g->index_count;
-                    rd.index_buffer_offset = g->index_buffer_offset;
-                    rd.unique_id = INVALID_ID_U16;
-                    darray_push(ext_data->debug_geometries, rd);
-                    ext_data->debug_geometry_count++;
-                }*/
 
             } else {
                 // Scene not loaded.
@@ -1245,6 +1193,66 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             } else {
                 // Otherwise set to null.
                 skybox_rendergraph_node_set_skybox(node, 0);
+            }
+        } else if (strings_equali(node->name, "debug")) {
+
+            debug_rendergraph_node_viewport_set(node, state->world_viewport);
+            debug_rendergraph_node_view_projection_set(
+                node,
+                camera_view_get(current_camera),
+                camera_position_get(current_camera),
+                current_viewport->projection);
+
+            u32 debug_geometry_count = 0;
+            if (!scene_debug_render_data_query(scene, &debug_geometry_count, 0)) {
+                KERROR("Failed to obtain count of debug render objects.");
+                return false;
+            }
+            geometry_render_data* debug_geometries = darray_reserve_with_allocator(geometry_render_data, debug_geometry_count, &p_frame_data->allocator);
+
+            if (!scene_debug_render_data_query(scene, &debug_geometry_count, &debug_geometries)) {
+                KERROR("Failed to obtain debug render objects.");
+                return false;
+            }
+            // Make sure the count is correct before pushing.
+            darray_length_set(debug_geometries, debug_geometry_count);
+
+            // TODO: Move this to the scene.
+            // HACK: Inject raycast debug geometries into scene pass data.
+            // FIXME: Add this to the debug node below.
+            u32 line_count = darray_length(state->test_lines);
+            for (u32 i = 0; i < line_count; ++i) {
+                geometry_render_data rd = {0};
+                rd.model = xform_world_get(state->test_lines[i].xform);
+                geometry* g = &state->test_lines[i].geo;
+                rd.material = g->material;
+                rd.vertex_count = g->vertex_count;
+                rd.vertex_buffer_offset = g->vertex_buffer_offset;
+                rd.index_count = g->index_count;
+                rd.index_buffer_offset = g->index_buffer_offset;
+                rd.unique_id = INVALID_ID_U16;
+                darray_push(debug_geometries, rd);
+                debug_geometry_count++;
+            }
+            u32 box_count = darray_length(state->test_boxes);
+            for (u32 i = 0; i < box_count; ++i) {
+                geometry_render_data rd = {0};
+                rd.model = xform_world_get(state->test_boxes[i].xform);
+                geometry* g = &state->test_boxes[i].geo;
+                rd.material = g->material;
+                rd.vertex_count = g->vertex_count;
+                rd.vertex_buffer_offset = g->vertex_buffer_offset;
+                rd.index_count = g->index_count;
+                rd.index_buffer_offset = g->index_buffer_offset;
+                rd.unique_id = INVALID_ID_U16;
+                darray_push(debug_geometries, rd);
+                debug_geometry_count++;
+            }
+
+            // TODO: set geometries
+            if (!debug_rendergraph_node_debug_geometries_set(node, p_frame_data, debug_geometry_count, debug_geometries)) {
+                // NOTE: Not going to abort the whole graph for this failure, but will bleat about it loudly.
+                KERROR("Failed to set geometries for debug rendergraph node.");
             }
         }
     }

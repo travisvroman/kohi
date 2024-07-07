@@ -970,52 +970,56 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
 
     // Point lights
     {
-        u32 point_light_count = darray_length(scene->point_lights);
-        for (u32 i = 0; i < point_light_count; ++i) {
-            if (scene->point_lights[i].debug_data) {
-                if (debug_geometries) {
-                    scene_debug_data* debug = (scene_debug_data*)scene->point_lights[i].debug_data;
+        if (scene->point_lights) {
+            u32 point_light_count = darray_length(scene->point_lights);
+            for (u32 i = 0; i < point_light_count; ++i) {
+                if (scene->point_lights[i].debug_data) {
+                    if (debug_geometries) {
+                        scene_debug_data* debug = (scene_debug_data*)scene->point_lights[i].debug_data;
 
-                    // Debug box 3d
-                    geometry_render_data data = {0};
-                    data.model = xform_world_get(debug->box.xform);
-                    geometry* g = &debug->box.geo;
-                    data.material = g->material;
-                    data.vertex_count = g->vertex_count;
-                    data.vertex_buffer_offset = g->vertex_buffer_offset;
-                    data.index_count = g->index_count;
-                    data.index_buffer_offset = g->index_buffer_offset;
-                    data.unique_id = debug->box.id.uniqueid;
+                        // Debug box 3d
+                        geometry_render_data data = {0};
+                        data.model = xform_world_get(debug->box.xform);
+                        geometry* g = &debug->box.geo;
+                        data.material = g->material;
+                        data.vertex_count = g->vertex_count;
+                        data.vertex_buffer_offset = g->vertex_buffer_offset;
+                        data.index_count = g->index_count;
+                        data.index_buffer_offset = g->index_buffer_offset;
+                        data.unique_id = debug->box.id.uniqueid;
 
-                    (*debug_geometries)[(*data_count)] = data;
+                        (*debug_geometries)[(*data_count)] = data;
+                    }
+                    (*data_count)++;
                 }
-                (*data_count)++;
             }
         }
     }
 
     // Mesh debug shapes
     {
-        u32 mesh_count = darray_length(scene->meshes);
-        for (u32 i = 0; i < mesh_count; ++i) {
-            if (scene->meshes[i].debug_data) {
-                if (debug_geometries) {
-                    scene_debug_data* debug = (scene_debug_data*)scene->meshes[i].debug_data;
+        if (scene->meshes) {
+            u32 mesh_count = darray_length(scene->meshes);
+            for (u32 i = 0; i < mesh_count; ++i) {
+                if (scene->meshes[i].debug_data) {
+                    if (debug_geometries) {
+                        scene_debug_data* debug = (scene_debug_data*)scene->meshes[i].debug_data;
 
-                    // Debug box 3d
-                    geometry_render_data data = {0};
-                    data.model = xform_world_get(debug->box.xform);
-                    geometry* g = &debug->box.geo;
-                    data.material = g->material;
-                    data.vertex_count = g->vertex_count;
-                    data.vertex_buffer_offset = g->vertex_buffer_offset;
-                    data.index_count = g->index_count;
-                    data.index_buffer_offset = g->index_buffer_offset;
-                    data.unique_id = debug->box.id.uniqueid;
+                        // Debug box 3d
+                        geometry_render_data data = {0};
+                        data.model = xform_world_get(debug->box.xform);
+                        geometry* g = &debug->box.geo;
+                        data.material = g->material;
+                        data.vertex_count = g->vertex_count;
+                        data.vertex_buffer_offset = g->vertex_buffer_offset;
+                        data.index_count = g->index_count;
+                        data.index_buffer_offset = g->index_buffer_offset;
+                        data.unique_id = debug->box.id.uniqueid;
 
-                    (*debug_geometries)[(*data_count)] = data;
+                        (*debug_geometries)[(*data_count)] = data;
+                    }
+                    (*data_count)++;
                 }
-                (*data_count)++;
             }
         }
     }

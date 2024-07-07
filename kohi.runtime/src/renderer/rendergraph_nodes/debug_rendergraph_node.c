@@ -26,6 +26,7 @@ typedef struct debug_rendergraph_node_internal_data {
     debug_shader_locations debug_locations;
 
     struct texture* colourbuffer_texture;
+    struct texture* depthbuffer_texture;
 
     viewport vp;
     mat4 view;
@@ -52,34 +53,51 @@ b8 debug_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_n
 
     self->name = string_duplicate(config->name);
 
-    // Has one sink, for the colourbuffer.
-    self->sink_count = 1;
+    // Has two sinks, one for the colourbuffer and one for depthbuffer.
+    self->sink_count = 2;
     self->sinks = kallocate(sizeof(rendergraph_sink) * self->sink_count, MEMORY_TAG_ARRAY);
 
-    rendergraph_node_sink_config* sink_config = 0;
+    rendergraph_node_sink_config* colourbuffer_sink_config = 0;
+    rendergraph_node_sink_config* depthbuffer_sink_config = 0;
     for (u32 i = 0; i < config->sink_count; ++i) {
         rendergraph_node_sink_config* sink = &config->sinks[i];
         if (strings_equali("colourbuffer", sink->name)) {
-            sink_config = sink;
-            break;
+            colourbuffer_sink_config = sink;
+        } else if (strings_equali("depthbuffer", sink->name)) {
+            depthbuffer_sink_config = sink;
+        } else {
+            KWARN("Debug rendergraph node contains config for unknown sink '%s', which will be ignored.", sink->name);
         }
     }
 
-    if (sink_config) {
+    if (colourbuffer_sink_config) {
         // Setup the colourbuffer sink.
         rendergraph_sink* colourbuffer_sink = &self->sinks[0];
         colourbuffer_sink->name = string_duplicate("colourbuffer");
         colourbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
         colourbuffer_sink->bound_source = 0;
         // Save off the configured source name for later lookup and binding.
-        colourbuffer_sink->configured_source_name = string_duplicate(sink_config->source_name);
+        colourbuffer_sink->configured_source_name = string_duplicate(colourbuffer_sink_config->source_name);
     } else {
-        KERROR("Skybox rendergraph node requires configuration for sink called 'colourbuffer'.");
+        KERROR("Debug rendergraph node requires configuration for sink called 'colourbuffer'.");
+        return false;
+    }
+
+    if (depthbuffer_sink_config) {
+        // Setup the colourbuffer sink.
+        rendergraph_sink* depthbuffer_sink = &self->sinks[1];
+        depthbuffer_sink->name = string_duplicate("depthbuffer");
+        depthbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
+        depthbuffer_sink->bound_source = 0;
+        // Save off the configured source name for later lookup and binding.
+        depthbuffer_sink->configured_source_name = string_duplicate(depthbuffer_sink_config->source_name);
+    } else {
+        KERROR("Debug rendergraph node requires configuration for sink called 'depthbuffer'.");
         return false;
     }
 
     // Has one source, for the colourbuffer.
-    self->source_count = 1;
+    self->source_count = 2;
     self->sources = kallocate(sizeof(rendergraph_source) * self->source_count, MEMORY_TAG_ARRAY);
 
     // Setup the colourbuffer source.
@@ -88,6 +106,13 @@ b8 debug_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_n
     colourbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
     colourbuffer_source->value.t = 0;
     colourbuffer_source->is_bound = false;
+
+    // Setup the depthbuffer source.
+    rendergraph_source* depthbuffer_source = &self->sources[1];
+    depthbuffer_source->name = string_duplicate("depthbuffer");
+    depthbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
+    depthbuffer_source->value.t = 0;
+    depthbuffer_source->is_bound = false;
 
     // Function pointers.
     self->initialize = debug_rendergraph_node_initialize;
@@ -127,10 +152,18 @@ b8 debug_rendergraph_node_load_resources(struct rendergraph_node* self) {
         internal_data->colourbuffer_texture = self->sinks[0].bound_source->value.t;
         self->sources[0].value.t = internal_data->colourbuffer_texture;
         self->sources[0].is_bound = true;
-        return true;
+    } else {
+        return false;
+    }
+    if (self->sinks[1].bound_source) {
+        internal_data->depthbuffer_texture = self->sinks[1].bound_source->value.t;
+        self->sources[1].value.t = internal_data->depthbuffer_texture;
+        self->sources[1].is_bound = true;
+    } else {
+        return false;
     }
 
-    return false;
+    return true;
 }
 
 b8 debug_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data* p_frame_data) {
@@ -144,7 +177,7 @@ b8 debug_rendergraph_node_execute(struct rendergraph_node* self, struct frame_da
     renderer_active_viewport_set(&internal_data->vp);
 
     if (internal_data->geometry_count > 0) {
-        renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid(), 0);
+        renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
 
         shader_system_use_by_id(internal_data->colour_shader->id);
 

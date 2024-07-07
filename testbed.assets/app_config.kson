@@ -140,6 +140,10 @@ rendergraphs = [
                         name = "colourbuffer"
                         source_name = "forward.colourbuffer"
                     }
+                    {
+                        name = "depthbuffer"
+                        source_name = "forward.depthbuffer"
+                    }
                 ]
             }
             {
