@@ -20,6 +20,7 @@ KAPI b8 forward_rendergraph_node_initialize(struct rendergraph_node* self);
 KAPI b8 forward_rendergraph_node_load_resources(struct rendergraph_node* self);
 KAPI b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data* p_frame_data);
 KAPI void forward_rendergraph_node_destroy(struct rendergraph_node* self);
+KAPI void forward_rendergraph_node_reset(struct rendergraph_node* self);
 
 KAPI b8 forward_rendergraph_node_render_mode_set(struct rendergraph_node* self, u32 render_mode);
 KAPI b8 forward_rendergraph_node_directional_light_set(struct rendergraph_node* self, const struct directional_light* light);

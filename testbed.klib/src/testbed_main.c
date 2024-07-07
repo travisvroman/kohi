@@ -954,6 +954,8 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             debug_rendergraph_node_viewport_set(node, state->world_viewport);
             debug_rendergraph_node_view_projection_set(node, state->world_camera->view_matrix, state->world_camera->position, state->world_viewport.projection);
         } else if (strings_equali(node->name, "forward")) {
+            // Ensure internal lists, etc. are reset.
+            forward_rendergraph_node_reset(node);
             forward_rendergraph_node_viewport_set(node, state->world_viewport);
             forward_rendergraph_node_view_projection_set(
                 node,

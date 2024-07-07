@@ -680,6 +680,16 @@ void forward_rendergraph_node_destroy(struct rendergraph_node* self) {
     }
 }
 
+void forward_rendergraph_node_reset(struct rendergraph_node* self) {
+    if (self && self->internal_data) {
+        forward_rendergraph_node_internal_data* internal_data = self->internal_data;
+        internal_data->terrain_geometries = 0;
+        internal_data->terrain_geometry_count = 0;
+        internal_data->geometries = 0;
+        internal_data->geometry_count = 0;
+    }
+}
+
 b8 forward_rendergraph_node_render_mode_set(struct rendergraph_node* self, u32 render_mode) {
     if (self && self->internal_data) {
         forward_rendergraph_node_internal_data* internal_data = self->internal_data;

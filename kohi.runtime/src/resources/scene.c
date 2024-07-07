@@ -616,14 +616,15 @@ b8 scene_unload(scene* scene, b8 immediate) {
         return false;
     }
 
+    // Always immediately set the state to unloading.
+    scene->state = SCENE_STATE_UNLOADING;
+
+    // If immediate, trigger the unload right away. Otherwise it will happen on the next frame.
     if (immediate) {
-        scene->state = SCENE_STATE_UNLOADING;
         scene_actual_unload(scene);
         return true;
     }
 
-    // Update the state to show the scene is currently unloading.
-    scene->state = SCENE_STATE_UNLOADING;
     return true;
 }
 

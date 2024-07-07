@@ -14,7 +14,7 @@
     },
     "workbench.statusBar.visible": true,
     "editor.lineNumbers": "on",
-    "C_Cpp.clang_format_style": "{ BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 0, NamespaceIndentation: All}",
+    "C_Cpp.clang_format_style": "{ BasedOnStyle: LLVM, IndentWidth: 4, ColumnLimit: 0, NamespaceIndentation: All, BreakBeforeBraces: Attach, PointerAlignment: Left, IndentPPDirectives: AfterHash}",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.block": "sameLine",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.type": "sameLine",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.function": "sameLine",
