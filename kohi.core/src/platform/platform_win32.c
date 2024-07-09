@@ -506,7 +506,7 @@ b8 ksemaphore_create(ksemaphore* out_semaphore, u32 max_count, u32 start_count) 
         return false;
     }
 
-    out_semaphore->internal_data = CreateSemaphore(0, start_count, max_count, "semaphore");
+    out_semaphore->internal_data = CreateSemaphore(0, start_count, max_count, 0);
 
     return true;
 }
