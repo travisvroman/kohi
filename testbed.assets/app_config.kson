@@ -7,7 +7,7 @@ windows = [
     resolution="1280 720"
     position="100 100"
     name="main_window"
-    title="Testbed Main Window"
+    title="Testbed Main Window (コーヒー)"
    }
 ]
 systems = [

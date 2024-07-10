@@ -5,7 +5,7 @@ The items in this list are not in any particular order. This list will be update
 ## Engine general:
 
 - [x] platform layer (Windows, Linux, macOS)
-  - [ ] UTF-8/Wide character handling for Win32 windowing.
+  - [x] UTF-8/Wide character handling for Win32 windowing.
   - [x] Wayland support
 - [x] event system
 - [x] clock
@@ -123,9 +123,9 @@ The items in this list are not in any particular order. This list will be update
   - [x] External systems registry
   - [x] Plugin System implementation
     - [x] kruntime_plugin structure
-    - [ ] Convert Vulkan Plugin to kruntime_plugin
-    - [ ] Convert OpenAL Plugin to kruntime_plugin
-    - [ ] Convert Standard UI Plugin to kruntime_plugin
+    - [x] Convert Vulkan Plugin to kruntime_plugin
+    - [x] Convert OpenAL Plugin to kruntime_plugin
+    - [x] Convert Standard UI Plugin to kruntime_plugin
   - [x] Implement windowing logic in platform layer.
   - [x] Implement windowing logic in renderer front/backend
   - [x] Ability to deprecate code (mark as deprecated/warn).

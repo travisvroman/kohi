@@ -61,6 +61,9 @@ static LARGE_INTEGER start_time;
 
 static void platform_update_watches(void);
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
+static LPCWSTR cstr_to_wcstr(const char* str);
+static void wcstr_free(LPCWSTR wstr);
+static const char* wcstr_to_cstr(LPCWSTR wstr);
 
 void clock_setup(void) {
     LARGE_INTEGER frequency;
@@ -75,7 +78,7 @@ b8 platform_system_startup(u64* memory_requirement, platform_state* state, platf
         return true;
     }
     state_ptr = state;
-    state_ptr->handle.h_instance = GetModuleHandleA(0);
+    state_ptr->handle.h_instance = GetModuleHandleW(0);
 
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &state_ptr->std_output_csbi);
     GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &state_ptr->err_output_csbi);
@@ -101,21 +104,44 @@ b8 platform_system_startup(u64* memory_requirement, platform_state* state, platf
     state_ptr->device_pixel_ratio = 1.0f;
 
     // Setup and register window class. This can be done at platform init and be reused.
-    HICON icon = LoadIcon(state_ptr->handle.h_instance, IDI_APPLICATION);
-    WNDCLASSA wc;
-    memset(&wc, 0, sizeof(wc));
+    HICON icon = LoadIconW(state_ptr->handle.h_instance, IDI_APPLICATION);
+    WNDCLASSEXW wc = {0};
+    wc.cbSize = sizeof(WNDCLASSEXW);
     wc.style = CS_DBLCLKS; // Get double-clicks
     wc.lpfnWndProc = win32_process_message;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = state_ptr->handle.h_instance;
     wc.hIcon = icon;
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW); // NULL; // Manage the cursor manually
-    wc.hbrBackground = NULL;                  // Transparent
-    wc.lpszClassName = "kohi_window_class";
+    wc.hIconSm = icon;
+    wc.hCursor = LoadCursorW(NULL, IDC_ARROW); // NULL; // Manage the cursor manually
+    wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+    wc.lpszClassName = L"kohi_window_class";
+    wc.lpszMenuName = 0;
 
-    if (!RegisterClassA(&wc)) {
-        MessageBoxA(0, "Window registration failed", "Error", MB_ICONEXCLAMATION | MB_OK);
+    if (!RegisterClassExW(&wc)) {
+        DWORD last_error = GetLastError();
+        LPWSTR wmessage_buf = 0;
+
+        // Ask Win32 to give us the string version of that message ID.
+        // The parameters we pass in, tell Win32 to create the buffer that holds the message for us (because we don't yet know how long the message string will be).
+        u64 size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                  NULL, last_error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&wmessage_buf, 0, NULL);
+        if (size) {
+            const char* err_message = wcstr_to_cstr(wmessage_buf);
+            const char* message = string_format("Window creation failed with error: '%s'.", err_message);
+            LocalFree(wmessage_buf); // Free the Win32's string's buffer.
+
+            const WCHAR* wmessage = cstr_to_wcstr(message);
+            MessageBoxW(NULL, wmessage, L"Error!", MB_ICONEXCLAMATION | MB_OK);
+            KFATAL(message);
+            string_free(message);
+            wcstr_free(wmessage);
+        } else {
+            MessageBoxW(0, L"Window registration failed", L"Error", MB_ICONEXCLAMATION | MB_OK);
+            KFATAL("Window registration failed!");
+        }
+
         return false;
     }
 
@@ -182,15 +208,38 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 
     window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_UNKNOWN);
 
-    window->platform_state->hwnd = CreateWindowExA(
-        window_ex_style, "kohi_window_class", window->title,
+    // Convert to wide character string first.
+    LPCWSTR wtitle = cstr_to_wcstr(window->title);
+    window->platform_state->hwnd = CreateWindowExW(
+        window_ex_style, L"kohi_window_class", wtitle,
         window_style, window_x, window_y, window_width, window_height,
         0, 0, state_ptr->handle.h_instance, 0);
+    wcstr_free(wtitle);
 
     if (window->platform_state->hwnd == 0) {
-        MessageBoxA(NULL, "Window creation failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        DWORD last_error = GetLastError();
+        LPWSTR wmessage_buf = 0;
 
-        KFATAL("Window creation failed!");
+        // Ask Win32 to give us the string version of that message ID.
+        // The parameters we pass in, tell Win32 to create the buffer that holds the message for us
+        // (because we don't yet know how long the message string will be).
+        u64 size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                  NULL, last_error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&wmessage_buf, 0, NULL);
+        if (size) {
+            const char* err_message = wcstr_to_cstr(wmessage_buf);
+            const char* message = string_format("Window creation failed with error: '%s'.", err_message);
+            LocalFree(wmessage_buf); // Free the Win32's string's buffer.
+
+            const WCHAR* wmessage = cstr_to_wcstr(message);
+            MessageBoxW(NULL, wmessage, L"Error!", MB_ICONEXCLAMATION | MB_OK);
+            KFATAL(message);
+            string_free(message);
+            wcstr_free(wmessage);
+        } else {
+            MessageBoxW(NULL, L"Window creation failed!", L"Error!", MB_ICONEXCLAMATION | MB_OK);
+            KFATAL("Window creation failed!");
+        }
+
         return false;
     }
 
@@ -260,16 +309,20 @@ b8 platform_window_title_set(struct kwindow* window, const char* title) {
         return false;
     }
 
+    LPCWSTR wtitle = cstr_to_wcstr(window->title);
+
     // If the function succeeds, the return value is nonzero.
-    return (SetWindowText(window->platform_state->hwnd, title) != 0);
+    b8 result = (SetWindowText(window->platform_state->hwnd, wtitle) != 0);
+    wcstr_free(wtitle);
+    return result;
 }
 
 b8 platform_pump_messages(void) {
     if (state_ptr) {
         MSG message;
-        while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE)) {
+        while (PeekMessageW(&message, NULL, 0, 0, PM_REMOVE)) {
             TranslateMessage(&message);
-            DispatchMessageA(&message);
+            DispatchMessageW(&message);
         }
     }
     platform_update_watches();
@@ -312,10 +365,12 @@ void platform_console_write(struct platform_state* platform, log_level level, co
     // FATAL,ERROR,WARN,INFO,DEBUG,TRACE
     static u8 levels[6] = {64, 4, 6, 2, 1, 8};
     SetConsoleTextAttribute(console_handle, levels[level]);
-    OutputDebugStringA(message);
-    u64 length = strlen(message);
+    LPCWSTR wmessage = cstr_to_wcstr(message);
+    OutputDebugStringW(wmessage);
+    u64 length = lstrlen(wmessage); // strlen(message);
     DWORD number_written = 0;
-    WriteConsoleA(console_handle, message, (DWORD)length, &number_written, 0);
+    WriteConsoleW(console_handle, wmessage, (DWORD)length, &number_written, 0);
+    wcstr_free(wmessage);
 
     SetConsoleTextAttribute(console_handle, csbi.wAttributes);
 }
@@ -577,7 +632,9 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
     kzero_memory(filename, sizeof(char) * MAX_PATH);
     string_format_unsafe(filename, "%s.dll", name);
 
-    HMODULE library = LoadLibraryA(filename);
+    LPCWSTR wfilename = cstr_to_wcstr(filename);
+    HMODULE library = LoadLibraryW(wfilename);
+    wcstr_free(wfilename);
     if (!library) {
         return false;
     }
@@ -700,7 +757,11 @@ void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel
 }
 
 platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists) {
-    BOOL result = CopyFileA(source, dest, !overwrite_if_exists);
+    LPCWSTR wsource = cstr_to_wcstr(source);
+    LPCWSTR wdest = cstr_to_wcstr(dest);
+    BOOL result = CopyFileW(wsource, wdest, !overwrite_if_exists);
+    wcstr_free(wsource);
+    wcstr_free(wdest);
     if (!result) {
         DWORD err = GetLastError();
         if (err == ERROR_FILE_NOT_FOUND) {
@@ -727,8 +788,10 @@ static b8 register_watch(const char* file_path, u32* out_watch_id) {
         state_ptr->watches = darray_create(win32_file_watch);
     }
 
-    WIN32_FIND_DATAA data;
-    HANDLE file_handle = FindFirstFileA(file_path, &data);
+    WIN32_FIND_DATAW data;
+    LPCWSTR wfile_path = cstr_to_wcstr(file_path);
+    HANDLE file_handle = FindFirstFileW(wfile_path, &data);
+    wcstr_free(wfile_path);
     if (file_handle == INVALID_HANDLE_VALUE) {
         return false;
     }
@@ -798,8 +861,11 @@ static void platform_update_watches(void) {
     for (u32 i = 0; i < count; ++i) {
         win32_file_watch* f = &state_ptr->watches[i];
         if (f->id != INVALID_ID) {
-            WIN32_FIND_DATAA data;
-            HANDLE file_handle = FindFirstFileA(f->file_path, &data);
+            WIN32_FIND_DATAW data;
+
+            LPCWSTR wfile_path = cstr_to_wcstr(f->file_path);
+            HANDLE file_handle = FindFirstFileW(wfile_path, &data);
+            wcstr_free(wfile_path);
             if (file_handle == INVALID_HANDLE_VALUE) {
                 // This means the file has been deleted, remove from watch.
                 if (state_ptr->watcher_deleted_callback) {
@@ -887,7 +953,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
 
             MONITORINFO monitor_info = {0};
             monitor_info.cbSize = sizeof(MONITORINFO);
-            if (!GetMonitorInfoA(monitor, &monitor_info)) {
+            if (!GetMonitorInfoW(monitor, &monitor_info)) {
                 KWARN("Failed to get monitor info. ");
             }
 
@@ -1002,9 +1068,69 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
             }
         }
     } break;
+    case WM_SHOWWINDOW: {
+        // NOTE: Prevent the white flash by working around the way Windows shows the window.
+        // This makes the window visible, but transparent, then paints the black background brush,
+        // and finally makes the window opaque again.
+        if (!GetLayeredWindowAttributes(hwnd, NULL, NULL, NULL)) {
+            SetLayeredWindowAttributes(hwnd, 0, 0, LWA_ALPHA);
+            DefWindowProc(hwnd, WM_ERASEBKGND, (WPARAM)GetDC(hwnd), l_param);
+            SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
+            AnimateWindow(hwnd, 200, AW_ACTIVATE | AW_BLEND);
+            return 0;
+        }
+    } break;
     }
 
-    return DefWindowProcA(hwnd, msg, w_param, l_param);
+    return DefWindowProcW(hwnd, msg, w_param, l_param);
+}
+
+static LPCWSTR cstr_to_wcstr(const char* str) {
+    if (!str) {
+        return 0;
+    }
+
+    i32 len = MultiByteToWideChar(CP_UTF8, 0, str, -1, 0, 0);
+    if (len == 0) {
+        return 0;
+    }
+    wchar_t* wstr = kallocate(sizeof(wchar_t) * (len), MEMORY_TAG_STRING);
+    if (!wstr) {
+        return 0;
+    }
+    if (MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, len) == 0) {
+        kfree((wchar_t*)wstr, sizeof(wchar_t) * (len), MEMORY_TAG_STRING);
+        return 0;
+    }
+    return wstr;
+}
+
+static void wcstr_free(LPCWSTR wstr) {
+    if (wstr) {
+        u32 len = lstrlen(wstr);
+        kfree((WCHAR*)wstr, sizeof(WCHAR) * len, MEMORY_TAG_STRING);
+    }
+}
+
+static const char* wcstr_to_cstr(LPCWSTR wstr) {
+    if (!wstr) {
+        return 0;
+    }
+
+    i32 length = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, NULL, 0, NULL, NULL);
+    if (length == 0) {
+        return 0;
+    }
+    char* str = kallocate(sizeof(WCHAR) * length, MEMORY_TAG_STRING);
+    if (!str) {
+        return 0;
+    }
+    if (WideCharToMultiByte(CP_UTF8, 0, wstr, -1, str, length, NULL, NULL) == 0) {
+        kfree((char*)str, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+        return 0;
+    }
+
+    return str;
 }
 
 #endif // KPLATFORM_WINDOWS

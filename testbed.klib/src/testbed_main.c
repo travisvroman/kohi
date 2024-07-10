@@ -539,6 +539,9 @@ b8 application_initialize(struct application* game_inst) {
         return false;
     }
 
+    // Setup the clear colour.
+    renderer_clear_colour_set(engine_systems_get()->renderer_system, (vec4){0.0f, 0.0f, 0.2f, 1.0f});
+
     state->forward_move_speed = 5.0f * 5.0f;
     state->backward_move_speed = 2.5f * 5.0f;
 
