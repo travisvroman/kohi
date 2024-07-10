@@ -768,6 +768,18 @@ void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_d
             for (u32 i = 0; i < point_light_count; ++i) {
                 if (scene->point_lights[i].debug_data) {
                     scene_debug_data* debug = (scene_debug_data*)scene->point_lights[i].debug_data;
+
+                    // Lookup the attachment to get the xform handle to set as the parent.
+                    scene_attachment* attachment = &scene->point_light_attachments[i];
+                    k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
+                    // Since debug objects aren't actually added to the hierarchy or as attachments, need to manually update
+                    // the xform here, using the node's world xform as the parent.
+                    xform_calculate_local(debug->box.xform);
+                    mat4 local = xform_local_get(debug->box.xform);
+                    mat4 parent_world = xform_world_get(xform_handle);
+                    mat4 model = mat4_mul(local, parent_world);
+                    xform_world_set(debug->box.xform, model);
+
                     debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
                 }
             }
@@ -783,6 +795,18 @@ void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_d
                 }
                 if (m->debug_data) {
                     scene_debug_data* debug = m->debug_data;
+
+                    // Lookup the attachment to get the xform handle to set as the parent.
+                    scene_attachment* attachment = &scene->mesh_attachments[i];
+                    k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
+                    // Since debug objects aren't actually added to the hierarchy or as attachments, need to manually update
+                    // the xform here, using the node's world xform as the parent.
+                    xform_calculate_local(debug->box.xform);
+                    mat4 local = xform_local_get(debug->box.xform);
+                    mat4 parent_world = xform_world_get(xform_handle);
+                    mat4 model = mat4_mul(local, parent_world);
+                    xform_world_set(debug->box.xform, model);
+
                     debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
                 }
             }
