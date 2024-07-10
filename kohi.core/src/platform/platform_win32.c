@@ -209,12 +209,16 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
     window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_UNKNOWN);
 
     // Convert to wide character string first.
-    LPCWSTR wtitle = cstr_to_wcstr(window->title);
+    // LPCWSTR wtitle = cstr_to_wcstr(window->title);
+    // FIXME: For some reason using the above causes renderdoc to fail to open the window,
+    // but using the below does not...
+    WCHAR wtitle[256];
+    MultiByteToWideChar(CP_UTF8, 0, window->title, -1, wtitle, 256);
     window->platform_state->hwnd = CreateWindowExW(
         window_ex_style, L"kohi_window_class", wtitle,
         window_style, window_x, window_y, window_width, window_height,
         0, 0, state_ptr->handle.h_instance, 0);
-    wcstr_free(wtitle);
+    // wcstr_free(wtitle);
 
     if (window->platform_state->hwnd == 0) {
         DWORD last_error = GetLastError();

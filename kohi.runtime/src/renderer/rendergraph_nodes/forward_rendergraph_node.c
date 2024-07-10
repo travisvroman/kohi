@@ -421,7 +421,7 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
             UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.dir_light, dir_light_data));
 
             // Global shader options.
-            b8 use_pcf = renderer_pcf_enabled(internal_data->renderer);
+            i32 use_pcf = (i32)renderer_pcf_enabled(internal_data->renderer);
             UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.use_pcf, &use_pcf));
 
             // HACK: Read this in from somewhere (or have global setter?);
@@ -539,7 +539,7 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
                 }
 
                 // Global shader options.
-                b8 use_pcf = renderer_pcf_enabled(internal_data->renderer);
+                i32 use_pcf = (i32)renderer_pcf_enabled(internal_data->renderer);
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.use_pcf, &use_pcf));
 
                 // HACK: Read this in from somewhere (or have global setter?);

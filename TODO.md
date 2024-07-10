@@ -251,7 +251,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] ECS (Entity Component System)
 - [x] Audio (OpenAL plugin)
 - [ ] Vulkan Renderer Plugin (WIP)
-  - [ ] Decouple renderpass from shader/pipeline and framebuffer/rendertargets
+  - [x] Decouple renderpass from shader/pipeline and framebuffer/rendertargets
   - [ ] multithreading
     - [ ] texture data upload
     - [ ] mesh data upload

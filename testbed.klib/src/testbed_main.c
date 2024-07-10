@@ -26,6 +26,7 @@
 #include <systems/camera_system.h>
 #include <systems/texture_system.h>
 #include <time/kclock.h>
+#include <core/kvar.h>
 
 #include "application/application_config.h"
 #include "game_state.h"
@@ -1382,9 +1383,13 @@ static void toggle_vsync(void) {
     renderer_flag_enabled_set(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
 }
 
-static b8 game_on_kvar_changed(u16 code, void* sender, void* listener_inst, event_context data) {
-    if (code == EVENT_CODE_KVAR_CHANGED && strings_equali(data.data.s, "vsync")) {
-        toggle_vsync();
+static b8 game_on_kvar_changed(u16 code, void* sender, void* listener_inst, event_context context) {
+    if (code == EVENT_CODE_KVAR_CHANGED) {
+        kvar_change* change = context.data.custom_data.data;
+        if (strings_equali("vsync", change->name)) {
+            toggle_vsync();
+            return true;
+        }
     }
     return false;
 }

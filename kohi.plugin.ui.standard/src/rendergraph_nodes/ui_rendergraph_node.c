@@ -36,6 +36,7 @@ typedef struct ui_pass_internal_data {
     sui_shader_locations sui_locations;
 
     struct texture* colourbuffer_texture;
+    struct texture* depthbuffer_texture;
     struct texture_map* ui_atlas;
     standard_ui_render_data render_data;
 
@@ -56,34 +57,49 @@ b8 ui_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node
 
     self->name = string_duplicate(config->name);
 
-    // Has one sink, for the colourbuffer.
-    self->sink_count = 1;
+    // Two sinks, one for colour and one for depth.
+    self->sink_count = 2;
     self->sinks = kallocate(sizeof(rendergraph_sink) * self->sink_count, MEMORY_TAG_ARRAY);
 
-    rendergraph_node_sink_config* sink_config = 0;
+    rendergraph_node_sink_config* colourbuffer_sink_config = 0;
+    rendergraph_node_sink_config* depthbuffer_sink_config = 0;
     for (u32 i = 0; i < config->sink_count; ++i) {
         rendergraph_node_sink_config* sink = &config->sinks[i];
         if (strings_equali("colourbuffer", sink->name)) {
-            sink_config = sink;
-            break;
+            colourbuffer_sink_config = sink;
+        } else if (strings_equali("depthbuffer", sink->name)) {
+            depthbuffer_sink_config = sink;
         }
     }
 
-    if (sink_config) {
+    if (colourbuffer_sink_config) {
         // Setup the colourbuffer sink.
         rendergraph_sink* colourbuffer_sink = &self->sinks[0];
         colourbuffer_sink->name = string_duplicate("colourbuffer");
         colourbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
         colourbuffer_sink->bound_source = 0;
         // Save off the configured source name for later lookup and binding.
-        colourbuffer_sink->configured_source_name = string_duplicate(sink_config->source_name);
+        colourbuffer_sink->configured_source_name = string_duplicate(colourbuffer_sink_config->source_name);
     } else {
         KERROR("UI rendergraph node requires configuration for sink called 'colourbuffer'.");
         return false;
     }
 
-    // Has one source, for the colourbuffer.
-    self->source_count = 1;
+    if (depthbuffer_sink_config) {
+        // Setup the depthbuffer sink.
+        rendergraph_sink* depthbuffer_sink = &self->sinks[1];
+        depthbuffer_sink->name = string_duplicate("depthbuffer");
+        depthbuffer_sink->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
+        depthbuffer_sink->bound_source = 0;
+        // Save off the configured source name for later lookup and binding.
+        depthbuffer_sink->configured_source_name = string_duplicate(depthbuffer_sink_config->source_name);
+    } else {
+        KERROR("UI rendergraph node requires configuration for sink called 'depthbuffer'.");
+        return false;
+    }
+
+    // Two sources, one for colour and the second for depth/stencil.
+    self->source_count = 2;
     self->sources = kallocate(sizeof(rendergraph_source) * self->source_count, MEMORY_TAG_ARRAY);
 
     // Setup the colourbuffer source.
@@ -92,6 +108,13 @@ b8 ui_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node
     colourbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
     colourbuffer_source->value.t = 0;
     colourbuffer_source->is_bound = false;
+
+    // Setup the depthbuffer source.
+    rendergraph_source* depthbuffer_source = &self->sources[1];
+    depthbuffer_source->name = string_duplicate("depthbuffer");
+    depthbuffer_source->type = RENDERGRAPH_RESOURCE_TYPE_TEXTURE;
+    depthbuffer_source->value.t = 0;
+    depthbuffer_source->is_bound = false;
 
     // Function pointers.
     self->initialize = ui_rendergraph_node_initialize;
@@ -134,10 +157,19 @@ b8 ui_rendergraph_node_load_resources(struct rendergraph_node* self) {
         internal_data->colourbuffer_texture = self->sinks[0].bound_source->value.t;
         self->sources[0].value.t = internal_data->colourbuffer_texture;
         self->sources[0].is_bound = true;
-        return true;
+    } else {
+        return false;
     }
 
-    return false;
+    if (self->sinks[1].bound_source) {
+        internal_data->depthbuffer_texture = self->sinks[1].bound_source->value.t;
+        self->sources[1].value.t = internal_data->depthbuffer_texture;
+        self->sources[1].is_bound = true;
+    } else {
+        return false;
+    }
+
+    return true;
 }
 
 b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data* p_frame_data) {
@@ -153,7 +185,7 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
     renderer_set_depth_test_enabled(false);
     renderer_set_depth_write_enabled(false);
 
-    renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid(), 0);
+    renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
 
     // Renderables
     if (!shader_system_use_by_id(internal_data->sui_shader->id)) {
@@ -173,6 +205,7 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
 
         // Render clipping mask geometry if it exists.
         if (renderable->clip_mask_render_data) {
+            renderer_begin_debug_label("clip_mask", (vec3){0, 1, 0});
             // Enable writing, disable test.
             renderer_set_stencil_test_enabled(true);
             renderer_set_depth_test_enabled(false);
@@ -184,6 +217,9 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
                 RENDERER_STENCIL_OP_REPLACE,
                 RENDERER_STENCIL_OP_REPLACE,
                 RENDERER_COMPARE_OP_ALWAYS);
+
+            renderer_clear_depth_set(internal_data->renderer, 1.0f);
+            renderer_clear_stencil_set(internal_data->renderer, 0.0f);
 
             shader_system_uniform_set_by_location(internal_data->shader_id, internal_data->sui_locations.model, &renderable->clip_mask_render_data->model);
             shader_system_apply_local(internal_data->shader_id);
@@ -199,6 +235,7 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
                 RENDERER_STENCIL_OP_REPLACE,
                 RENDERER_STENCIL_OP_KEEP,
                 RENDERER_COMPARE_OP_EQUAL);
+            renderer_end_debug_label();
         } else {
             renderer_set_stencil_write_mask(0x00);
             renderer_set_stencil_test_enabled(false);

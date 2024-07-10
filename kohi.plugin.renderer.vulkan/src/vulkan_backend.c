@@ -41,7 +41,7 @@
 
 // NOTE: To disable the custom allocator, comment this out or set to 0.
 #ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
-#define KVULKAN_USE_CUSTOM_ALLOCATOR 1
+#    define KVULKAN_USE_CUSTOM_ALLOCATOR 1
 #endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
@@ -76,7 +76,7 @@ static void* vulkan_alloc_reallocation(void* user_data, void* original, size_t s
 static void vulkan_alloc_internal_alloc(void* pUserData, size_t size, VkInternalAllocationType allocationType, VkSystemAllocationScope allocationScope);
 static void vulkan_alloc_internal_free(void* pUserData, size_t size, VkInternalAllocationType allocationType, VkSystemAllocationScope allocationScope);
 static b8 create_vulkan_allocator(vulkan_context* context, VkAllocationCallbacks* callbacks);
-#endif  // KVULKAN_USE_CUSTOM_ALLOCATOR == 1
+#endif // KVULKAN_USE_CUSTOM_ALLOCATOR == 1
 
 b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const renderer_backend_config* config) {
     backend->internal_context_size = sizeof(vulkan_context);
@@ -134,12 +134,12 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
     // Obtain a list of required extensions
     const char** required_extensions = darray_create(const char*);
     darray_push(required_extensions,
-                &VK_KHR_SURFACE_EXTENSION_NAME);                         // Generic surface extension
-    vulkan_platform_get_required_extension_names(&required_extensions);  // Platform-specific extension(s)
+                &VK_KHR_SURFACE_EXTENSION_NAME);                        // Generic surface extension
+    vulkan_platform_get_required_extension_names(&required_extensions); // Platform-specific extension(s)
     u32 required_extension_count = 0;
 #if defined(_DEBUG)
     darray_push(required_extensions,
-                &VK_EXT_DEBUG_UTILS_EXTENSION_NAME);  // debug utilities
+                &VK_EXT_DEBUG_UTILS_EXTENSION_NAME); // debug utilities
 
     KDEBUG("Required extensions:");
     required_extension_count = darray_length(required_extensions);
@@ -933,49 +933,49 @@ void vulkan_renderer_winding_set(struct renderer_backend_interface* backend, ren
 
 static VkStencilOp vulkan_renderer_get_stencil_op(renderer_stencil_op op) {
     switch (op) {
-        case RENDERER_STENCIL_OP_KEEP:
-            return VK_STENCIL_OP_KEEP;
-        case RENDERER_STENCIL_OP_ZERO:
-            return VK_STENCIL_OP_ZERO;
-        case RENDERER_STENCIL_OP_REPLACE:
-            return VK_STENCIL_OP_REPLACE;
-        case RENDERER_STENCIL_OP_INCREMENT_AND_CLAMP:
-            return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
-        case RENDERER_STENCIL_OP_DECREMENT_AND_CLAMP:
-            return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
-        case RENDERER_STENCIL_OP_INCREMENT_AND_WRAP:
-            return VK_STENCIL_OP_DECREMENT_AND_WRAP;
-        case RENDERER_STENCIL_OP_DECREMENT_AND_WRAP:
-            return VK_STENCIL_OP_DECREMENT_AND_WRAP;
-        case RENDERER_STENCIL_OP_INVERT:
-            return VK_STENCIL_OP_INVERT;
-        default:
-            KWARN("Unsupported stencil op, defaulting to keep.");
-            return VK_STENCIL_OP_KEEP;
+    case RENDERER_STENCIL_OP_KEEP:
+        return VK_STENCIL_OP_KEEP;
+    case RENDERER_STENCIL_OP_ZERO:
+        return VK_STENCIL_OP_ZERO;
+    case RENDERER_STENCIL_OP_REPLACE:
+        return VK_STENCIL_OP_REPLACE;
+    case RENDERER_STENCIL_OP_INCREMENT_AND_CLAMP:
+        return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+    case RENDERER_STENCIL_OP_DECREMENT_AND_CLAMP:
+        return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+    case RENDERER_STENCIL_OP_INCREMENT_AND_WRAP:
+        return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+    case RENDERER_STENCIL_OP_DECREMENT_AND_WRAP:
+        return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+    case RENDERER_STENCIL_OP_INVERT:
+        return VK_STENCIL_OP_INVERT;
+    default:
+        KWARN("Unsupported stencil op, defaulting to keep.");
+        return VK_STENCIL_OP_KEEP;
     }
 }
 
 static VkCompareOp vulkan_renderer_get_compare_op(renderer_compare_op op) {
     switch (op) {
-        case RENDERER_COMPARE_OP_NEVER:
-            return VK_COMPARE_OP_NEVER;
-        case RENDERER_COMPARE_OP_LESS:
-            return VK_COMPARE_OP_LESS;
-        case RENDERER_COMPARE_OP_EQUAL:
-            return VK_COMPARE_OP_EQUAL;
-        case RENDERER_COMPARE_OP_LESS_OR_EQUAL:
-            return VK_COMPARE_OP_LESS_OR_EQUAL;
-        case RENDERER_COMPARE_OP_GREATER:
-            return VK_COMPARE_OP_GREATER;
-        case RENDERER_COMPARE_OP_NOT_EQUAL:
-            return VK_COMPARE_OP_NOT_EQUAL;
-        case RENDERER_COMPARE_OP_GREATER_OR_EQUAL:
-            return VK_COMPARE_OP_GREATER_OR_EQUAL;
-        case RENDERER_COMPARE_OP_ALWAYS:
-            return VK_COMPARE_OP_ALWAYS;
-        default:
-            KWARN("Unsupported compare op, using always.");
-            return VK_COMPARE_OP_ALWAYS;
+    case RENDERER_COMPARE_OP_NEVER:
+        return VK_COMPARE_OP_NEVER;
+    case RENDERER_COMPARE_OP_LESS:
+        return VK_COMPARE_OP_LESS;
+    case RENDERER_COMPARE_OP_EQUAL:
+        return VK_COMPARE_OP_EQUAL;
+    case RENDERER_COMPARE_OP_LESS_OR_EQUAL:
+        return VK_COMPARE_OP_LESS_OR_EQUAL;
+    case RENDERER_COMPARE_OP_GREATER:
+        return VK_COMPARE_OP_GREATER;
+    case RENDERER_COMPARE_OP_NOT_EQUAL:
+        return VK_COMPARE_OP_NOT_EQUAL;
+    case RENDERER_COMPARE_OP_GREATER_OR_EQUAL:
+        return VK_COMPARE_OP_GREATER_OR_EQUAL;
+    case RENDERER_COMPARE_OP_ALWAYS:
+        return VK_COMPARE_OP_ALWAYS;
+    default:
+        KWARN("Unsupported compare op, using always.");
+        return VK_COMPARE_OP_ALWAYS;
     }
 }
 
@@ -1110,8 +1110,8 @@ void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend,
         }
 
         depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;     // Always load.
-        depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;  // Always store.
+        depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;    // Always load.
+        depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // Always store.
         depth_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
         depth_attachment_info.resolveImageView = 0;
         render_info.pDepthAttachment = &depth_attachment_info;
@@ -1130,8 +1130,8 @@ void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend,
             attachment_info->sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
             attachment_info->imageView = colour_targets[i]->images[image_index].view;
             attachment_info->imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            attachment_info->loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;     // Always load.
-            attachment_info->storeOp = VK_ATTACHMENT_STORE_OP_STORE;  // Always store.
+            attachment_info->loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;    // Always load.
+            attachment_info->storeOp = VK_ATTACHMENT_STORE_OP_STORE; // Always store.
             kzero_memory(attachment_info->clearValue.color.float32, sizeof(f32) * 4);
             attachment_info->resolveMode = VK_RESOLVE_MODE_NONE;
             attachment_info->resolveImageView = 0;
@@ -1247,7 +1247,7 @@ void vulkan_renderer_clear_colour_texture(renderer_backend_interface* backend, t
     vkCmdClearColorImage(
         command_buffer->handle,
         image->handle,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,  // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         &context->colour_clear_value,
         image->layer_count,
         image->layer_count == 1 ? &image->view_subresource_range : image->layer_view_subresource_ranges);
@@ -1376,8 +1376,8 @@ void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* ba
 
     vkCmdPipelineBarrier(
         command_buffer->handle,
-        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,     // VK_PIPELINE_STAGE_TRANSFER_BIT
-        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,  // VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,    // VK_PIPELINE_STAGE_TRANSFER_BIT
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, // VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
         0,
         0, 0,
         0, 0,
@@ -1390,19 +1390,19 @@ vk_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
                   const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
                   void* user_data) {
     switch (message_severity) {
-        default:
-        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-            KERROR(callback_data->pMessage);
-            break;
-        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-            KWARN(callback_data->pMessage);
-            break;
-        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-            KINFO(callback_data->pMessage);
-            break;
-        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-            KTRACE(callback_data->pMessage);
-            break;
+    default:
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+        KERROR(callback_data->pMessage);
+        break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+        KWARN(callback_data->pMessage);
+        break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+        KINFO(callback_data->pMessage);
+        break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+        KTRACE(callback_data->pMessage);
+        break;
     }
     return VK_FALSE;
 }
@@ -1504,16 +1504,16 @@ static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* windo
 
 static VkFormat channel_count_to_format(u8 channel_count, VkFormat default_format) {
     switch (channel_count) {
-        case 1:
-            return VK_FORMAT_R8_UNORM;
-        case 2:
-            return VK_FORMAT_R8G8_UNORM;
-        case 3:
-            return VK_FORMAT_R8G8B8_UNORM;
-        case 4:
-            return VK_FORMAT_R8G8B8A8_UNORM;
-        default:
-            return default_format;
+    case 1:
+        return VK_FORMAT_R8_UNORM;
+    case 2:
+        return VK_FORMAT_R8G8_UNORM;
+    case 3:
+        return VK_FORMAT_R8G8B8_UNORM;
+    case 4:
+        return VK_FORMAT_R8G8B8A8_UNORM;
+    default:
+        return default_format;
     }
 }
 
@@ -1740,18 +1740,18 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, shader* s,
     // Verify stage support.
     for (u8 i = 0; i < config->stage_count; ++i) {
         switch (config->stage_configs[i].stage) {
-            case SHADER_STAGE_FRAGMENT:
-            case SHADER_STAGE_VERTEX:
-                break;
-            case SHADER_STAGE_GEOMETRY:
-                KWARN("vulkan_renderer_shader_create: VK_SHADER_STAGE_GEOMETRY_BIT is set but not yet supported.");
-                break;
-            case SHADER_STAGE_COMPUTE:
-                KWARN("vulkan_renderer_shader_create: SHADER_STAGE_COMPUTE is set but not yet supported.");
-                break;
-            default:
-                KERROR("Unsupported stage type: %d", config->stage_configs[i].name);
-                break;
+        case SHADER_STAGE_FRAGMENT:
+        case SHADER_STAGE_VERTEX:
+            break;
+        case SHADER_STAGE_GEOMETRY:
+            KWARN("vulkan_renderer_shader_create: VK_SHADER_STAGE_GEOMETRY_BIT is set but not yet supported.");
+            break;
+        case SHADER_STAGE_COMPUTE:
+            KWARN("vulkan_renderer_shader_create: SHADER_STAGE_COMPUTE is set but not yet supported.");
+            break;
+        default:
+            KERROR("Unsupported stage type: %d", config->stage_configs[i].name);
+            break;
         }
     }
 
@@ -1823,7 +1823,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, shader* s,
         u8 global_binding_index = 0;
         if (s->global_uniform_count > 0) {
             set_config->bindings[global_binding_index].binding = global_binding_index;
-            set_config->bindings[global_binding_index].descriptorCount = 1;  // NOTE: the whole UBO is one binding.
+            set_config->bindings[global_binding_index].descriptorCount = 1; // NOTE: the whole UBO is one binding.
             set_config->bindings[global_binding_index].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             set_config->bindings[global_binding_index].stageFlags = VK_SHADER_STAGE_ALL;
             global_binding_index++;
@@ -1839,7 +1839,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, shader* s,
                 // Look up by the sampler indices collected above.
                 shader_uniform_config* u = &config->uniforms[s->global_sampler_indices[i]];
                 set_config->bindings[global_binding_index].binding = global_binding_index;
-                set_config->bindings[global_binding_index].descriptorCount = KMAX(u->array_length, 1);  // Either treat as an array or a single texture, depending on what is passed in.
+                set_config->bindings[global_binding_index].descriptorCount = KMAX(u->array_length, 1); // Either treat as an array or a single texture, depending on what is passed in.
                 set_config->bindings[global_binding_index].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 set_config->bindings[global_binding_index].stageFlags = VK_SHADER_STAGE_ALL;
                 global_binding_index++;
@@ -1881,7 +1881,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, shader* s,
                 // Look up by the sampler indices collected above.
                 shader_uniform_config* u = &config->uniforms[s->instance_sampler_indices[i]];
                 set_config->bindings[instance_binding_index].binding = instance_binding_index;
-                set_config->bindings[instance_binding_index].descriptorCount = KMAX(u->array_length, 1);  // Either treat as an array or a single texture, depending on what is passed in.
+                set_config->bindings[instance_binding_index].descriptorCount = KMAX(u->array_length, 1); // Either treat as an array or a single texture, depending on what is passed in.
                 set_config->bindings[instance_binding_index].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 set_config->bindings[instance_binding_index].stageFlags = VK_SHADER_STAGE_ALL;
                 instance_binding_index++;
@@ -2097,7 +2097,7 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
             pipeline_config.colour_attachment_formats = 0;
         }
 
-        if ((s->flags & SHADER_FLAG_DEPTH_TEST) || (s->flags & SHADER_FLAG_DEPTH_WRITE)) {
+        if ((s->flags & SHADER_FLAG_DEPTH_TEST) || (s->flags & SHADER_FLAG_DEPTH_WRITE) || (s->flags & SHADER_FLAG_STENCIL_TEST) || (s->flags & SHADER_FLAG_STENCIL_WRITE)) {
             pipeline_config.depth_attachment_format = context->device.depth_format;
             pipeline_config.stencil_attachment_format = context->device.depth_format;
         } else {
@@ -2225,7 +2225,7 @@ b8 vulkan_renderer_shader_initialize(renderer_backend_interface* backend, shader
     pool_info.poolSizeCount = internal_shader->pool_size_count;
     pool_info.pPoolSizes = internal_shader->pool_sizes;
     pool_info.maxSets = internal_shader->max_descriptor_set_count;
-    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;  // | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT; // | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 #if defined(VK_USE_PLATFORM_MACOS_MVK)
     // NOTE: increase the per-stage descriptor samplers limit on macOS (maxPerStageDescriptorUpdateAfterBindSamplers > maxPerStageDescriptorSamplers)
     pool_info.flags |= VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
@@ -2332,27 +2332,27 @@ b8 vulkan_renderer_shader_initialize(renderer_backend_interface* backend, shader
             for (u32 j = 1; j < PRIMITIVE_TOPOLOGY_TYPE_MAX; j = j << 1) {
                 if (internal_shader->pipelines[i]->supported_topology_types & j) {
                     switch (j) {
-                        case PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST:
-                            internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-                            break;
-                        case PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST:
-                            internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-                            break;
-                        case PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP:
-                            internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-                            break;
-                        case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST:
-                            internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-                            break;
-                        case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP:
-                            internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-                            break;
-                        case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN:
-                            internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
-                            break;
-                        default:
-                            KWARN("primitive topology '%u' not supported. Skipping.", j);
-                            break;
+                    case PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST:
+                        internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+                        break;
+                    case PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST:
+                        internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+                        break;
+                    case PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP:
+                        internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+                        break;
+                    case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST:
+                        internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+                        break;
+                    case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP:
+                        internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+                        break;
+                    case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN:
+                        internal_shader->current_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+                        break;
+                    default:
+                        KWARN("primitive topology '%u' not supported. Skipping.", j);
+                        break;
                     }
 
                     // Break out here and just assume the first one for now. This can be overidden by
@@ -2726,35 +2726,35 @@ b8 vulkan_renderer_shader_apply_local(renderer_backend_interface* backend, shade
 static VkSamplerAddressMode convert_repeat_type(const char* axis,
                                                 texture_repeat repeat) {
     switch (repeat) {
-        case TEXTURE_REPEAT_REPEAT:
-            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        case TEXTURE_REPEAT_MIRRORED_REPEAT:
-            return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-        case TEXTURE_REPEAT_CLAMP_TO_EDGE:
-            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        case TEXTURE_REPEAT_CLAMP_TO_BORDER:
-            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-        default:
-            KWARN(
-                "convert_repeat_type(axis='%s') Type '%x' not supported, defaulting "
-                "to repeat.",
-                axis, repeat);
-            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    case TEXTURE_REPEAT_REPEAT:
+        return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    case TEXTURE_REPEAT_MIRRORED_REPEAT:
+        return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+    case TEXTURE_REPEAT_CLAMP_TO_EDGE:
+        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    case TEXTURE_REPEAT_CLAMP_TO_BORDER:
+        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    default:
+        KWARN(
+            "convert_repeat_type(axis='%s') Type '%x' not supported, defaulting "
+            "to repeat.",
+            axis, repeat);
+        return VK_SAMPLER_ADDRESS_MODE_REPEAT;
     }
 }
 
 static VkFilter convert_filter_type(const char* op, texture_filter filter) {
     switch (filter) {
-        case TEXTURE_FILTER_MODE_NEAREST:
-            return VK_FILTER_NEAREST;
-        case TEXTURE_FILTER_MODE_LINEAR:
-            return VK_FILTER_LINEAR;
-        default:
-            KWARN(
-                "convert_filter_type(op='%s'): Unsupported filter type '%x', "
-                "defaulting to linear.",
-                op, filter);
-            return VK_FILTER_LINEAR;
+    case TEXTURE_FILTER_MODE_NEAREST:
+        return VK_FILTER_NEAREST;
+    case TEXTURE_FILTER_MODE_LINEAR:
+        return VK_FILTER_LINEAR;
+    default:
+        KWARN(
+            "convert_filter_type(op='%s'): Unsupported filter type '%x', "
+            "defaulting to linear.",
+            op, filter);
+        return VK_FILTER_LINEAR;
     }
 }
 
@@ -3065,23 +3065,23 @@ b8 vulkan_renderer_uniform_set(renderer_backend_interface* backend, shader* s, s
         u64 ubo_offset = 0;
         u32 image_index = ((vulkan_context*)backend->internal_context)->current_window->renderer_state->backend_state->image_index;
         switch (uniform->scope) {
-            case SHADER_SCOPE_LOCAL:
-                addr = (u64)internal->local_push_constant_block;
-                break;
-            case SHADER_SCOPE_INSTANCE:
-                if (s->bound_instance_id == INVALID_ID) {
-                    KERROR("An instance must be bound before setting an instance uniform.");
-                    return false;
-                }
-                addr = (u64)internal->mapped_uniform_buffer_blocks[image_index];
-                vulkan_shader_instance_state* instance = &internal->instance_states[s->bound_instance_id];
-                ubo_offset = instance->offset;
-                break;
-            case SHADER_SCOPE_GLOBAL:
-            default:
-                addr = (u64)internal->mapped_uniform_buffer_blocks[image_index];
-                ubo_offset = s->global_ubo_offset;
-                break;
+        case SHADER_SCOPE_LOCAL:
+            addr = (u64)internal->local_push_constant_block;
+            break;
+        case SHADER_SCOPE_INSTANCE:
+            if (s->bound_instance_id == INVALID_ID) {
+                KERROR("An instance must be bound before setting an instance uniform.");
+                return false;
+            }
+            addr = (u64)internal->mapped_uniform_buffer_blocks[image_index];
+            vulkan_shader_instance_state* instance = &internal->instance_states[s->bound_instance_id];
+            ubo_offset = instance->offset;
+            break;
+        case SHADER_SCOPE_GLOBAL:
+        default:
+            addr = (u64)internal->mapped_uniform_buffer_blocks[image_index];
+            ubo_offset = s->global_ubo_offset;
+            break;
         }
         addr += ubo_offset + uniform->offset + (uniform->size * array_index);
         kcopy_memory((void*)addr, value, uniform->size);
@@ -3092,21 +3092,21 @@ b8 vulkan_renderer_uniform_set(renderer_backend_interface* backend, shader* s, s
 #ifdef _DEBUG
 static const char* shader_stage_to_string(shader_stage stage) {
     switch (stage) {
-        case SHADER_STAGE_VERTEX:
-            return "vertex";
-            break;
-        case SHADER_STAGE_FRAGMENT:
-            return "fragment";
-            break;
-        case SHADER_STAGE_COMPUTE:
-            return "compute";
-            break;
-        case SHADER_STAGE_GEOMETRY:
-            return "geometry";
-            break;
-        default:
-            return "";
-            break;
+    case SHADER_STAGE_VERTEX:
+        return "vertex";
+        break;
+    case SHADER_STAGE_FRAGMENT:
+        return "fragment";
+        break;
+    case SHADER_STAGE_COMPUTE:
+        return "compute";
+        break;
+    case SHADER_STAGE_GEOMETRY:
+        return "geometry";
+        break;
+    default:
+        return "";
+        break;
     }
 }
 #endif
@@ -3115,25 +3115,25 @@ static b8 create_shader_module(vulkan_context* context, shader* s, shader_stage_
     shaderc_shader_kind shader_kind;
     VkShaderStageFlagBits stage;
     switch (config->stage) {
-        case SHADER_STAGE_VERTEX:
-            shader_kind = shaderc_glsl_default_vertex_shader;
-            stage = VK_SHADER_STAGE_VERTEX_BIT;
-            break;
-        case SHADER_STAGE_FRAGMENT:
-            shader_kind = shaderc_glsl_default_fragment_shader;
-            stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-            break;
-        case SHADER_STAGE_COMPUTE:
-            shader_kind = shaderc_glsl_default_compute_shader;
-            stage = VK_SHADER_STAGE_COMPUTE_BIT;
-            break;
-        case SHADER_STAGE_GEOMETRY:
-            shader_kind = shaderc_glsl_default_geometry_shader;
-            stage = VK_SHADER_STAGE_GEOMETRY_BIT;
-            break;
-        default:
-            KERROR("Unsupported shader kind. Unable to create module.");
-            return false;
+    case SHADER_STAGE_VERTEX:
+        shader_kind = shaderc_glsl_default_vertex_shader;
+        stage = VK_SHADER_STAGE_VERTEX_BIT;
+        break;
+    case SHADER_STAGE_FRAGMENT:
+        shader_kind = shaderc_glsl_default_fragment_shader;
+        stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        break;
+    case SHADER_STAGE_COMPUTE:
+        shader_kind = shaderc_glsl_default_compute_shader;
+        stage = VK_SHADER_STAGE_COMPUTE_BIT;
+        break;
+    case SHADER_STAGE_GEOMETRY:
+        shader_kind = shaderc_glsl_default_geometry_shader;
+        stage = VK_SHADER_STAGE_GEOMETRY_BIT;
+        break;
+    default:
+        KERROR("Unsupported shader kind. Unable to create module.");
+        return false;
     }
 
     KDEBUG("Compiling stage '%s' for shader '%s'...", shader_stage_to_string(config->stage), s->name);
@@ -3247,53 +3247,53 @@ b8 vulkan_buffer_create_internal(renderer_backend_interface* backend, renderbuff
     vulkan_buffer internal_buffer;
 
     switch (buffer->type) {
-        case RENDERBUFFER_TYPE_VERTEX:
-            internal_buffer.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-            internal_buffer.memory_property_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-            break;
-        case RENDERBUFFER_TYPE_INDEX:
-            internal_buffer.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-            internal_buffer.memory_property_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-            break;
-        case RENDERBUFFER_TYPE_UNIFORM: {
-            u32 device_local_bits = context->device.supports_device_local_host_visible
-                                        ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                                        : 0;
-            internal_buffer.usage =
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            internal_buffer.memory_property_flags =
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | device_local_bits;
-        } break;
-        case RENDERBUFFER_TYPE_STAGING:
-            internal_buffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-            internal_buffer.memory_property_flags =
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-            break;
-        case RENDERBUFFER_TYPE_READ:
-            internal_buffer.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-            internal_buffer.memory_property_flags =
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-            break;
-        case RENDERBUFFER_TYPE_STORAGE:
-            KERROR("Storage buffer not yet supported.");
-            return false;
-        default:
-            KERROR("Unsupported buffer type: %i", buffer->type);
-            return false;
+    case RENDERBUFFER_TYPE_VERTEX:
+        internal_buffer.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        internal_buffer.memory_property_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        break;
+    case RENDERBUFFER_TYPE_INDEX:
+        internal_buffer.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                                VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        internal_buffer.memory_property_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        break;
+    case RENDERBUFFER_TYPE_UNIFORM: {
+        u32 device_local_bits = context->device.supports_device_local_host_visible
+                                    ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+                                    : 0;
+        internal_buffer.usage =
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        internal_buffer.memory_property_flags =
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | device_local_bits;
+    } break;
+    case RENDERBUFFER_TYPE_STAGING:
+        internal_buffer.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        internal_buffer.memory_property_flags =
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        break;
+    case RENDERBUFFER_TYPE_READ:
+        internal_buffer.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        internal_buffer.memory_property_flags =
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        break;
+    case RENDERBUFFER_TYPE_STORAGE:
+        KERROR("Storage buffer not yet supported.");
+        return false;
+    default:
+        KERROR("Unsupported buffer type: %i", buffer->type);
+        return false;
     }
 
     VkBufferCreateInfo buffer_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     buffer_info.size = buffer->total_size;
     buffer_info.usage = internal_buffer.usage;
     buffer_info.sharingMode =
-        VK_SHARING_MODE_EXCLUSIVE;  // NOTE: Only used in one queue.
+        VK_SHARING_MODE_EXCLUSIVE; // NOTE: Only used in one queue.
 
     VK_CHECK(vkCreateBuffer(context->device.logical_device, &buffer_info,
                             context->allocator, &internal_buffer.handle));
@@ -3400,7 +3400,7 @@ b8 vulkan_buffer_resize(renderer_backend_interface* backend, renderbuffer* buffe
     buffer_info.size = new_size;
     buffer_info.usage = internal_buffer->usage;
     buffer_info.sharingMode =
-        VK_SHARING_MODE_EXCLUSIVE;  // NOTE: Only used in one queue.
+        VK_SHARING_MODE_EXCLUSIVE; // NOTE: Only used in one queue.
 
     VkBuffer new_buffer;
     VK_CHECK(vkCreateBuffer(context->device.logical_device, &buffer_info,
@@ -3757,10 +3757,10 @@ static void* vulkan_alloc_allocation(void* user_data, size_t size, size_t alignm
     }
 
     void* result = kallocate_aligned(size, (u16)alignment, MEMORY_TAG_VULKAN);
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
     KTRACE("Allocated block %p. Size=%llu, Alignment=%llu", result, size,
            alignment);
-#endif
+#    endif
     return result;
 }
 
@@ -3774,24 +3774,24 @@ static void* vulkan_alloc_allocation(void* user_data, size_t size, size_t alignm
  */
 static void vulkan_alloc_free(void* user_data, void* memory) {
     if (!memory) {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Block is null, nothing to free: %p", memory);
-#endif
+#    endif
         return;
     }
 
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
     KTRACE("Attempting to free block %p...", memory);
-#endif
+#    endif
     u64 size;
     u16 alignment;
     b8 result = kmemory_get_size_alignment(memory, &size, &alignment);
     if (result) {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE(
             "Block %p found with size/alignment: %llu/%u. Freeing aligned block...",
             memory, size, alignment);
-#endif
+#    endif
         kfree_aligned(memory, size, alignment, MEMORY_TAG_VULKAN);
     } else {
         KERROR("vulkan_alloc_free failed to get alignment lookup for block %p.",
@@ -3845,28 +3845,28 @@ static void* vulkan_alloc_reallocation(void* user_data, void* original, size_t s
         return 0;
     }
 
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
     KTRACE("Attempting to realloc block %p...", original);
-#endif
+#    endif
 
     void* result = vulkan_alloc_allocation(user_data, size, alloc_alignment,
                                            allocation_scope);
     if (result) {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Block %p reallocated to %p, copying data...", original, result);
-#endif
+#    endif
 
         // Copy over the original memory.
         kcopy_memory(result, original, alloc_size);
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Freeing original aligned block %p...", original);
-#endif
+#    endif
         // Free the original memory only if the new allocation was successful.
         kfree_aligned(original, alloc_size, alloc_alignment, MEMORY_TAG_VULKAN);
     } else {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
         KERROR("Failed to realloc %p.", original);
-#endif
+#    endif
     }
 
     return result;
@@ -3887,9 +3887,9 @@ static void* vulkan_alloc_reallocation(void* user_data, void* original, size_t s
 static void vulkan_alloc_internal_alloc(void* pUserData, size_t size,
                                         VkInternalAllocationType allocationType,
                                         VkSystemAllocationScope allocationScope) {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
     KTRACE("External allocation of size: %llu", size);
-#endif
+#    endif
     kallocate_report((u64)size, MEMORY_TAG_VULKAN_EXT);
 }
 
@@ -3908,9 +3908,9 @@ static void vulkan_alloc_internal_alloc(void* pUserData, size_t size,
 static void vulkan_alloc_internal_free(void* pUserData, size_t size,
                                        VkInternalAllocationType allocationType,
                                        VkSystemAllocationScope allocationScope) {
-#ifdef KVULKAN_ALLOCATOR_TRACE
+#    ifdef KVULKAN_ALLOCATOR_TRACE
     KTRACE("External free of size: %llu", size);
-#endif
+#    endif
     kfree_report((u64)size, MEMORY_TAG_VULKAN_EXT);
 }
 
@@ -3964,19 +3964,19 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
     rasterizer_create_info.polygonMode = (config->shader_flags & SHADER_FLAG_WIREFRAME) ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizer_create_info.lineWidth = 1.0f;
     switch (config->cull_mode) {
-        case FACE_CULL_MODE_NONE:
-            rasterizer_create_info.cullMode = VK_CULL_MODE_NONE;
-            break;
-        case FACE_CULL_MODE_FRONT:
-            rasterizer_create_info.cullMode = VK_CULL_MODE_FRONT_BIT;
-            break;
-        default:
-        case FACE_CULL_MODE_BACK:
-            rasterizer_create_info.cullMode = VK_CULL_MODE_BACK_BIT;
-            break;
-        case FACE_CULL_MODE_FRONT_AND_BACK:
-            rasterizer_create_info.cullMode = VK_CULL_MODE_FRONT_AND_BACK;
-            break;
+    case FACE_CULL_MODE_NONE:
+        rasterizer_create_info.cullMode = VK_CULL_MODE_NONE;
+        break;
+    case FACE_CULL_MODE_FRONT:
+        rasterizer_create_info.cullMode = VK_CULL_MODE_FRONT_BIT;
+        break;
+    default:
+    case FACE_CULL_MODE_BACK:
+        rasterizer_create_info.cullMode = VK_CULL_MODE_BACK_BIT;
+        break;
+    case FACE_CULL_MODE_FRONT_AND_BACK:
+        rasterizer_create_info.cullMode = VK_CULL_MODE_FRONT_AND_BACK;
+        break;
     }
 
     if (config->winding == RENDERER_WINDING_CLOCKWISE) {
@@ -4083,9 +4083,9 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
 
     // Vertex input
     VkVertexInputBindingDescription binding_description;
-    binding_description.binding = 0;  // Binding index
+    binding_description.binding = 0; // Binding index
     binding_description.stride = config->stride;
-    binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;  // Move to next data entry for each vertex.
+    binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; // Move to next data entry for each vertex.
 
     // Attributes
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
@@ -4102,27 +4102,27 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
             primitive_topology_type ptt = i;
 
             switch (ptt) {
-                case PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST:
-                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-                    break;
-                case PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST:
-                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-                    break;
-                case PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP:
-                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-                    break;
-                case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST:
-                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-                    break;
-                case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP:
-                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-                    break;
-                case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN:
-                    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
-                    break;
-                default:
-                    KWARN("primitive topology '%u' not supported. Skipping.", ptt);
-                    break;
+            case PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+                break;
+            case PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+                break;
+            case PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+                break;
+            case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+                break;
+            case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+                break;
+            case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN:
+                input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+                break;
+            default:
+                KWARN("primitive topology '%u' not supported. Skipping.", ptt);
+                break;
             }
 
             break;
@@ -4166,11 +4166,11 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
         context->allocator,
         &out_pipeline->pipeline_layout));
 
-#if _DEBUG
+#    if _DEBUG
     char* pipeline_layout_name_buf = string_format("pipeline_layout_shader_%s", config->name);
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_PIPELINE_LAYOUT, out_pipeline->pipeline_layout, pipeline_layout_name_buf);
     string_free(pipeline_layout_name_buf);
-#endif
+#    endif
 
     // Pipeline create
     VkGraphicsPipelineCreateInfo pipeline_create_info = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
@@ -4215,11 +4215,11 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
     // Cleanup
     darray_destroy(dynamic_states);
 
-#if _DEBUG
+#    if _DEBUG
     char* pipeline_name_buf = string_format("pipeline_shader_%s", config->name);
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_PIPELINE, out_pipeline->handle, pipeline_name_buf);
     string_free(pipeline_name_buf);
-#endif
+#    endif
 
     if (vulkan_result_is_success(result)) {
         KDEBUG("Graphics pipeline created!");
@@ -4250,4 +4250,4 @@ static void vulkan_pipeline_bind(vulkan_command_buffer* command_buffer, VkPipeli
     vkCmdBindPipeline(command_buffer->handle, bind_point, pipeline->handle);
 }
 
-#endif  // KVULKAN_USE_CUSTOM_ALLOCATOR == 1
+#endif // KVULKAN_USE_CUSTOM_ALLOCATOR == 1

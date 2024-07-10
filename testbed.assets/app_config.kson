@@ -164,6 +164,10 @@ rendergraphs = [
                         name = "colourbuffer"
                         source_name = "editor_gizmo.colourbuffer"
                     }
+                    {
+                        name = "depthbuffer"
+                        source_name = "debug.depthbuffer"
+                    }
                 ]
             }
             {

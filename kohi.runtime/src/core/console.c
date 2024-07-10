@@ -189,29 +189,29 @@ static void console_object_print(u8 indent, console_object* obj) {
     indent_buffer[idx] = 0;
 
     switch (obj->type) {
-        case CONSOLE_OBJECT_TYPE_INT32:
-            KINFO("%s%i", indent_buffer, *((i32*)obj->block));
-            break;
-        case CONSOLE_OBJECT_TYPE_UINT32:
-            KINFO("%s%u", indent_buffer, *((u32*)obj->block));
-            break;
-        case CONSOLE_OBJECT_TYPE_F32:
-            KINFO("%s%f", indent_buffer, *((f32*)obj->block));
-            break;
-        case CONSOLE_OBJECT_TYPE_BOOL: {
-            b8 val = *((b8*)obj->block);
-            KINFO("%s%s", indent_buffer, val ? "true" : "false");
-        } break;
-        case CONSOLE_OBJECT_TYPE_STRUCT:
-            if (obj->properties) {
-                KINFO("%s", obj->name);
-                indent++;
-                u32 len = darray_length(obj->properties);
-                for (u32 i = 0; i < len; ++i) {
-                    console_object_print(indent, &obj->properties[i]);
-                }
+    case CONSOLE_OBJECT_TYPE_INT32:
+        KINFO("%s%i", indent_buffer, *((i32*)obj->block));
+        break;
+    case CONSOLE_OBJECT_TYPE_UINT32:
+        KINFO("%s%u", indent_buffer, *((u32*)obj->block));
+        break;
+    case CONSOLE_OBJECT_TYPE_F32:
+        KINFO("%s%f", indent_buffer, *((f32*)obj->block));
+        break;
+    case CONSOLE_OBJECT_TYPE_BOOL: {
+        b8 val = *((b8*)obj->block);
+        KINFO("%s%s", indent_buffer, val ? "true" : "false");
+    } break;
+    case CONSOLE_OBJECT_TYPE_STRUCT:
+        if (obj->properties) {
+            KINFO("%s", obj->name);
+            indent++;
+            u32 len = darray_length(obj->properties);
+            for (u32 i = 0; i < len; ++i) {
+                console_object_print(indent, &obj->properties[i]);
             }
-            break;
+        }
+        break;
     }
 }
 /*
@@ -994,6 +994,8 @@ console_expression_parse_cleanup2:
 }*/
 
 static b8 console_expression_parse(const char* expression, console_object_type* out_type, void* out_value) {
+    // TODO: Disabling this for now. Need to rethink this implementation.
+    /*
     b8 result = true;
     char* expression_copy = string_duplicate(expression);
     char* expression_copy_original = expression_copy;
@@ -1060,6 +1062,8 @@ console_expression_parse_cleanup:
     string_free(expression_copy_original);
 
     return result;
+    */
+    return false;
 }
 
 b8 console_command_execute(const char* command) {
