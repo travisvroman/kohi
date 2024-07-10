@@ -116,7 +116,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] physics volumes
   - [ ] weather
 - [x] Multi-window applications
-- [ ] 0.7 Reorg
+- [x] 0.7 Reorg
   - [x] Split engine into "core" and "runtime"
   - [x] Rename plugin libs to consistent format, update builds, etc.
   - [x] Remove systems manager, and move all system init back to engine.
@@ -130,17 +130,16 @@ The items in this list are not in any particular order. This list will be update
   - [x] Implement windowing logic in renderer front/backend
   - [x] Ability to deprecate code (mark as deprecated/warn).
   - [x] Deprecate "geometry" interface points in renderer frontend/
-  - [ ] Move loading of application lib from app to engine (config-powered!)
-  - [ ] frame/swapchain image count refactor:
-    - [ ] Move anything that's aware of double/triple/5x buffering exclusively to the renderer backend. Nothing outside that should know or care about it.
-    - [ ] Refactor renderer texture API to pass a new TEXTURE_FLAG_RENDERER_BUFFERING flag used to indicate to the backend that
+  - [x] Move loading of application lib from app to engine (config-powered!)
+  - [x] frame/swapchain image count refactor:
+    - [x] Move anything that's aware of double/triple/5x buffering exclusively to the renderer backend. Nothing outside that should know or care about it.
+    - [x] Refactor renderer texture API to pass a new TEXTURE_FLAG_RENDERER_BUFFERING flag used to indicate to the backend that
           resources should be created "per-frame" if this is set (i.e. 3 internal textures for triple-buffering)
     - [x] Adjust render target logic to defer to the backend when reaching for a texture handle to use for the above case.
     - [x] Renderpasses should no longer own render targets.
     - [x] Framebuffers (i.e. render targets) should no longer require a renderpass to create. (i.e. use a dummy pass)
     - [x] Shaders (graphics pipelines) should no longer require a renderpass to create. (i.e. use a dummy pass)
-- [ ] 0.7 Scene refactor (see notes below):
-
+- [x] 0.7 Scene refactor (see notes below):
   - [x] Rename simple scene to just "scene" and move to engine core.
   - [x] Create a unique-per-system handle for each system to identify a resource. These handles would be linked to
         a resource array of some sort and an index element within that array via a structure that holds both.
@@ -149,7 +148,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] Create hierarchy graph that handles transform hierarchy and can provide a view of it. Also generating world matrices.
   - [x] Remove transform from mesh.
   - [x] Replace any and all transforms with xform handles.
-  - [ ] Update systems (and create some) that use handles:
+  - [x] Update systems (and create some) that use handles:
     - [x] Create xform system that uses handles
   - [x] (See KSON) Refactor scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
   - [x] Write "(de)serialization" routines for savable resources and use those in the above loader.
@@ -162,7 +161,7 @@ The items in this list are not in any particular order. This list will be update
         of a lookup table and transforms that would be used. Separating these would allow updates on these objects
         in cache-coherent loops as well as any sorting/dependency lookup that would need to be done.
         The above will require that meshes have transforms removed from them. The transform would then be
-        also referenced by the \_node* instead of the mesh. This would also facilitate batching of like meshes for
+        also referenced by the *node* instead of the mesh. This would also facilitate batching of like meshes for
         rendering in the future. Transforms would also have the parent pointer removed, and instead also use
         handles. This would eliminate issues with invalid pointers when an array of a resource (i.e. transform) is
         expanded and realloced. This should be done in a phased approach, and thus perhaps a new "xform" should be
@@ -174,13 +173,13 @@ The items in this list are not in any particular order. This list will be update
 
           We might also think about, at this point, reworking the scene parser to better handle object heirarchy in a more
           expressive language fasion (perhaps using some sort of scoping syntax like "{}" to surround objects).
-
-  - [ ] Change rendergraph to gather required resources at the beginning of a frame (i.e. global.colourbuffer from current window's render target).
-  - [ ] Remove specialized rendergraphs, will be replaced by "templates" (forward, editor, etc.)
-  - [ ] Separate debug shapes out to new debug_shapes_rendergraph_node.
-  - [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
+  - [x] Remove specialized rendergraphs. Replaced by app config.
+  - [x] Separate debug shapes out to new debug_rendergraph_node.
+  - [x] Separate editor gizmo out to new editor_gizmo_rendergraph_node.
 
 - [ ] 0.8
+  - [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
+  - [ ] Change rendergraph to gather required resources at the beginning of a frame (i.e. global.colourbuffer from current window's render target).
   - [ ] Separate colourbuffer to its own texture separate from the swapchain/blit to swapchain image just before present.
     - [ ] (Should probably be switchable for potential performance reasons i.e. mobile?)
   - [ ] Material system refactor
@@ -197,7 +196,7 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Convert lighting system to use handles.
     - [ ] Create skybox system that uses handles.
     - [ ] Create scene system that uses handles.
-  - [ ] Material map declaration order should not matter in material config files, but it seemingly does.
+  - [ ] BUG: Material map declaration order should not matter in material config files, but it seemingly does.
 
 ## Renderer:
 
