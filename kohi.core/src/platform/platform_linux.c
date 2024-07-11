@@ -60,6 +60,7 @@ typedef struct linux_file_watch {
 
 typedef struct kwindow_platform_state {
     xcb_window_t window;
+    f32 device_pixel_ratio;
 } kwindow_platform_state;
 
 typedef struct platform_state {
@@ -72,7 +73,6 @@ typedef struct platform_state {
     i32 screen_count;
     // darray
     linux_file_watch* watches;
-    f32 device_pixel_ratio;
 
     // darray of pointers to created windows (owned by the application);
     kwindow** windows;
@@ -100,7 +100,6 @@ b8 platform_system_startup(u64* memory_requirement, struct platform_state* state
     }
 
     state_ptr = state;
-    state_ptr->device_pixel_ratio = 1.0f;
 
     // Connect to X
     state_ptr->display = XOpenDisplay(NULL);
@@ -617,6 +616,10 @@ void platform_get_handle_info(u64* out_size, void* memory) {
     }
 
     kcopy_memory(memory, &state_ptr->handle, *out_size);
+}
+
+f32 platform_device_pixel_ratio(const struct kwindow* window) {
+    return window->platform_state->device_pixel_ratio;
 }
 
 const char* platform_dynamic_library_extension(void) {

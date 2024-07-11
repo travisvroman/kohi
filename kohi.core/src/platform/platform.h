@@ -72,9 +72,20 @@ typedef struct kwindow {
     /** @brief The title of the window. */
     const char* title;
 
+    /** @brief The width of the window in pixels */
     u16 width;
+    /** @brief The height of the window in pixels */
     u16 height;
+
+    /**
+     * @brief Represents the pixel density of this window. Should only ever be
+     * read from, as the platform layer is responsible for determining this.
+     */
+    f32 device_pixel_ratio;
+
+    /** @brief Indicates if this window is currently being resized. */
     b8 resizing;
+    /** @brief Indicates the number of frames that have passed since the last resize event. */
     u16 frames_since_resize;
 
     /** @brief Holds platform-specific data. */
@@ -262,9 +273,11 @@ KAPI i32 platform_get_processor_count(void);
 KAPI void platform_get_handle_info(u64* out_size, void* memory);
 
 /**
- * @brief Returns the device pixel ratio of the main window.
+ * @brief Returns the device pixel ratio of the supplied window.
+ * @param window A constant pointer to the window to retrieve device pixel ratio for.
+ * @return The device pixel ratio.
  */
-KAPI f32 platform_device_pixel_ratio(void);
+KAPI f32 platform_device_pixel_ratio(const struct kwindow* window);
 
 /**
  * @brief Loads a dynamic library.

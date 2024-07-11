@@ -727,10 +727,8 @@ void platform_get_handle_info(u64* out_size, void* memory) {
     kcopy_memory(memory, &state_ptr->handle, *out_size);
 }
 
-f32 platform_device_pixel_ratio(void) {
-    // LEFTOFF: This is window specific and will require an interface change
-    // at the platform-agnostic layer frontend.
-    return state_ptr->device_pixel_ratio;
+f32 platform_device_pixel_ratio(const struct kwindow* window) {
+    return window->platform_state->device_pixel_ratio;
 }
 
 const char* platform_dynamic_library_extension(void) {
@@ -739,6 +737,38 @@ const char* platform_dynamic_library_extension(void) {
 
 const char* platform_dynamic_library_prefix(void) {
     return "lib";
+}
+
+void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback) {
+    state_ptr->watcher_deleted_callback = callback;
+}
+
+void platform_register_watcher_written_callback(platform_filewatcher_file_written_callback callback) {
+    state_ptr->watcher_written_callback = callback;
+}
+
+void platform_register_window_closed_callback(platform_window_closed_callback callback) {
+    state_ptr->window_closed_callback = callback;
+}
+
+void platform_register_window_resized_callback(platform_window_resized_callback callback) {
+    state_ptr->window_resized_callback = callback;
+}
+
+void platform_register_process_key(platform_process_key callback) {
+    state_ptr->process_key = callback;
+}
+
+void platform_register_process_mouse_button_callback(platform_process_mouse_button callback) {
+    state_ptr->process_mouse_button = callback;
+}
+
+void platform_register_process_mouse_move_callback(platform_process_mouse_move callback) {
+    state_ptr->process_mouse_move = callback;
+}
+
+void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel callback) {
+    state_ptr->process_mouse_wheel = callback;
 }
 
 platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists) {
@@ -849,9 +879,11 @@ static void platform_update_watches(void) {
             if (result != 0) {
                 if (errno == ENOENT) {
                     // File doesn't exist. Which means it was deleted. Remove the watch.
-                    event_context context = {0};
-                    context.data.u32[0] = f->id;
-                    event_fire(EVENT_CODE_WATCHED_FILE_DELETED, 0, context);
+                    if (state_ptr->watcher_deleted_callback) {
+                        state_ptr->watcher_deleted_callback(f->id);
+                    } else {
+                        KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_deleted_callback()");
+                    }
                     KINFO("File watch id %d has been removed.", f->id);
                     unregister_watch(f->id);
                     continue;
@@ -867,9 +899,11 @@ static void platform_update_watches(void) {
                 KTRACE("File update found.");
                 f->last_write_time = info.st_mtime;
                 // Notify listeners.
-                event_context context = {0};
-                context.data.u32[0] = f->id;
-                event_fire(EVENT_CODE_WATCHED_FILE_WRITTEN, 0, context);
+                if (state_ptr->watcher_written_callback) {
+                    state_ptr->watcher_written_callback(f->id);
+                } else {
+                    KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_written_callback()");
+                }
             }
         }
     }
@@ -1140,7 +1174,7 @@ static void handle_modifier_key(
             if (!(state_ptr->modifier_key_states & l_mod)) {
                 state_ptr->modifier_key_states |= l_mod;
                 // Report the keypress
-                input_process_key(k_l_keycode, true);
+                state_ptr->process_key(k_l_keycode, true);
             }
         }
 
@@ -1149,7 +1183,7 @@ static void handle_modifier_key(
             if (!(state_ptr->modifier_key_states & r_mod)) {
                 state_ptr->modifier_key_states |= r_mod;
                 // Report the keypress
-                input_process_key(k_r_keycode, true);
+                state_ptr->process_key(k_r_keycode, true);
             }
         }
     } else {
@@ -1157,7 +1191,7 @@ static void handle_modifier_key(
             if (state_ptr->modifier_key_states & l_mod) {
                 state_ptr->modifier_key_states &= ~(l_mod);
                 // Report the release.
-                input_process_key(k_l_keycode, false);
+                state_ptr->process_key(k_l_keycode, false);
             }
         }
 
@@ -1165,7 +1199,7 @@ static void handle_modifier_key(
             if (state_ptr->modifier_key_states & r_mod) {
                 state_ptr->modifier_key_states &= ~(r_mod);
                 // Report the release.
-                input_process_key(k_r_keycode, false);
+                state_ptr->process_key(k_r_keycode, false);
             }
         }
     }
@@ -1235,11 +1269,11 @@ static void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags) {
         if (modifier_flags & NSEventModifierFlagCapsLock) {
             // Report as a keypress. This notifies the system
             // that caps lock has been turned on.
-            input_process_key(KEY_CAPITAL, true);
+            state_ptr->process_key(KEY_CAPITAL, true);
         } else {
             // Report as a release. This notifies the system
             // that caps lock has been turned off.
-            input_process_key(KEY_CAPITAL, false);
+            state_ptr->process_key(KEY_CAPITAL, false);
         }
     }
 }

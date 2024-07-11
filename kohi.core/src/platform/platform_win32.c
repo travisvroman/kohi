@@ -99,7 +99,6 @@ b8 platform_system_startup(u64* memory_requirement, platform_state* state, platf
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     // NOTE: Older versions of windows might have to use this:
     // SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
-    state_ptr->device_pixel_ratio = 1.0f;
 
     // Setup and register window class. This can be done at platform init and be reused.
     HICON icon = LoadIconW(state_ptr->handle.h_instance, IDI_APPLICATION);
@@ -203,6 +202,7 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 
     window->width = client_width;
     window->height = client_height;
+    window->device_pixel_ratio = 1.0f;
 
     window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_UNKNOWN);
 
@@ -407,8 +407,8 @@ void platform_get_handle_info(u64* out_size, void* memory) {
     kcopy_memory(memory, &state_ptr->handle, *out_size);
 }
 
-f32 platform_device_pixel_ratio(void) {
-    return state_ptr->device_pixel_ratio;
+f32 platform_device_pixel_ratio(const struct window* window) {
+    return window->device_pixel_ratio;
 }
 
 // NOTE: Begin threads
@@ -875,9 +875,6 @@ static void platform_update_watches(void) {
                 } else {
                     KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_deleted_callback()");
                 }
-                // event_context context = {0};
-                // context.data.u32[0] = f->id;
-                // event_fire(EVENT_CODE_WATCHED_FILE_DELETED, 0, context);
                 KINFO("File watch id %d has been removed.", f->id);
                 unregister_watch(f->id);
                 continue;
@@ -891,9 +888,6 @@ static void platform_update_watches(void) {
             if (CompareFileTime(&data.ftLastWriteTime, &f->last_write_time) != 0) {
                 f->last_write_time = data.ftLastWriteTime;
                 // Notify listeners.
-                // event_context context = {0};
-                // context.data.u32[0] = f->id;
-                // event_fire(EVENT_CODE_WATCHED_FILE_WRITTEN, 0, context);
                 if (state_ptr->watcher_written_callback) {
                     state_ptr->watcher_written_callback(f->id);
                 } else {
@@ -937,10 +931,11 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
     case WM_DPICHANGED:
         // x- and y-axis DPI are always the same, so just grab one.
         i32 x_dpi = GET_X_LPARAM(w_param);
+        kwindow* w = window_from_handle(hwnd);
 
         // Store off the device pixel ratio.
-        state_ptr->device_pixel_ratio = (f32)x_dpi / USER_DEFAULT_SCREEN_DPI;
-        KINFO("Display device pixel ratio is: %.2f", state_ptr->device_pixel_ratio);
+        window->device_pixel_ratio = (f32)x_dpi / USER_DEFAULT_SCREEN_DPI;
+        KINFO("Display device pixel ratio is: %.2f", window->device_pixel_ratio);
 
         return 0;
     case WM_SIZE: {
