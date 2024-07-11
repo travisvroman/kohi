@@ -4,8 +4,6 @@
 #if _WIN32 // KPLATFORM_WINDOWS // FIXME: macro doesn't highlight correctly in vscode
 
 #    include "containers/darray.h"
-// #include "core/event.h"
-// #include "core/input.h"
 #    include "logger.h"
 #    include "memory/kmemory.h"
 #    include "strings/kstring.h"

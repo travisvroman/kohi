@@ -210,7 +210,8 @@ char* string_format_v(const char* format, void* va_listp) {
 #ifdef _MSC_VER
     list_copy = va_listp;
 #else
-    va_copy(list_copy, va_listp);
+    list_copy = va_listp;
+    // va_copy(list_copy, (const __builtin_va_list)va_listp);
 #endif
     i32 length = vsnprintf(0, 0, format, list_copy);
     va_end(list_copy);
