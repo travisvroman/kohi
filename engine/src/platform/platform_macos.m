@@ -613,6 +613,16 @@ void kthread_destroy(kthread* thread) {
     kthread_cancel(thread);
 }
 
+b8 kthread_wait(kthread *thread){
+    if (thread && thread->internal_data) {
+        i32 result = pthread_join(*(pthread_t*)thread->internal_data, NULL);
+        if (result == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void kthread_detach(kthread* thread) {
     if (thread->internal_data) {
         i32 result = pthread_detach(*(pthread_t*)thread->internal_data);
