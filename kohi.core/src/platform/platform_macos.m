@@ -1,26 +1,25 @@
 #include "platform.h"
 #include "platform/platform.h"
 
-// TODO: put this back // nocheckin
-// #if defined(KPLATFORM_APPLE)
+#if defined(KPLATFORM_APPLE)
 
-#include "logger.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
+#    include "logger.h"
+#    include "memory/kmemory.h"
+#    include "strings/kstring.h"
 
-#include "containers/darray.h"
+#    include "containers/darray.h"
 
-#include <crt_externs.h>
-#include <mach/mach_time.h>
+#    include <crt_externs.h>
+#    include <mach/mach_time.h>
 
-#include <copyfile.h>
-#include <errno.h>
-#include <sys/stat.h>
+#    include <copyfile.h>
+#    include <errno.h>
+#    include <sys/stat.h>
 
-#import <Cocoa/Cocoa.h>
-#import <Foundation/Foundation.h>
-#import <QuartzCore/CAMetalLayer.h>
-#import <QuartzCore/QuartzCore.h>
+#    import <Cocoa/Cocoa.h>
+#    import <Foundation/Foundation.h>
+#    import <QuartzCore/CAMetalLayer.h>
+#    import <QuartzCore/QuartzCore.h>
 
 @class ApplicationDelegate;
 @class WindowDelegate;
@@ -700,17 +699,17 @@ f64 platform_get_absolute_time(void) {
 }
 
 void platform_sleep(u64 ms) {
-#if _POSIX_C_SOURCE >= 199309L
+#    if _POSIX_C_SOURCE >= 199309L
     struct timespec ts;
     ts.tv_sec = ms / 1000;
     ts.tv_nsec = (ms % 1000) * 1000 * 1000;
     nanosleep(&ts, 0);
-#else
+#    else
     if (ms >= 1000) {
         sleep(ms / 1000);
     }
     usleep((ms % 1000) * 1000);
-#endif
+#    endif
 }
 
 i32 platform_get_processor_count(void) {
@@ -1147,14 +1146,14 @@ static keys translate_keycode(u32 ns_keycode) {
 }
 
 // Bit masks for left and right versions of these keys.
-#define MACOS_LSHIFT_MASK (1 << 1)
-#define MACOS_RSHIFT_MASK (1 << 2)
-#define MACOS_LCTRL_MASK (1 << 0)
-#define MACOS_RCTRL_MASK (1 << 13)
-#define MACOS_LCOMMAND_MASK (1 << 3)
-#define MACOS_RCOMMAND_MASK (1 << 4)
-#define MACOS_LALT_MASK (1 << 5)
-#define MACOS_RALT_MASK (1 << 6)
+#    define MACOS_LSHIFT_MASK (1 << 1)
+#    define MACOS_RSHIFT_MASK (1 << 2)
+#    define MACOS_LCTRL_MASK (1 << 0)
+#    define MACOS_RCTRL_MASK (1 << 13)
+#    define MACOS_LCOMMAND_MASK (1 << 3)
+#    define MACOS_RCOMMAND_MASK (1 << 4)
+#    define MACOS_LALT_MASK (1 << 5)
+#    define MACOS_RALT_MASK (1 << 6)
 
 static void handle_modifier_key(
     u32 ns_keycode,
@@ -1278,4 +1277,4 @@ static void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags) {
     }
 }
 
-// #endif // TODO: put this back // nocheckin
+#endif

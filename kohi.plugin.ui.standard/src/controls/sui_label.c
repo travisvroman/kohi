@@ -229,6 +229,13 @@ const char* sui_label_text_get(standard_ui_state* state, struct sui_control* sel
     return 0;
 }
 
+void sui_label_colour_set(standard_ui_state* state, struct sui_control* self, vec4 colour) {
+    if (self && self->internal_data) {
+        sui_label_internal_data* typed_data = self->internal_data;
+        typed_data->colour = colour;
+    }
+}
+
 static font_glyph* glyph_from_codepoint(font_data* font, i32 codepoint) {
     for (u32 i = 0; i < font->glyph_count; ++i) {
         if (font->glyphs[i].codepoint == codepoint) {

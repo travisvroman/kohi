@@ -39,3 +39,4 @@ KAPI b8 sui_label_control_render(standard_ui_state* state, struct sui_control* s
 KAPI void sui_label_text_set(standard_ui_state* state, struct sui_control* self, const char* text);
 
 KAPI const char* sui_label_text_get(standard_ui_state* state, struct sui_control* self);
+KAPI void sui_label_colour_set(standard_ui_state* state, struct sui_control* self, vec4 colour);

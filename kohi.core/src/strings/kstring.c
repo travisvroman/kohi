@@ -209,8 +209,9 @@ char* string_format_v(const char* format, void* va_listp) {
     va_list list_copy;
 #ifdef _MSC_VER
     list_copy = va_listp;
-#else
+#elif defined(KPLATFORM_APPLE)
     list_copy = va_listp;
+#else
     // va_copy(list_copy, (const __builtin_va_list)va_listp);
 #endif
     i32 length = vsnprintf(0, 0, format, list_copy);
