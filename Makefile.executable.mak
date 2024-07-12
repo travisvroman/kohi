@@ -10,7 +10,7 @@ ifeq ($(OS),Windows_NT)
     # WIN32
 	BUILD_PLATFORM := windows
 	EXTENSION := .exe
-	COMPILER_FLAGS := -Wall -Werror -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -Wstrict-prototypes
+	COMPILER_FLAGS := -Wall -Werror -Wno-error=deprecated-declarations -Wno-error=unused-function -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -Wstrict-prototypes
 	INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
 	LINKER_FLAGS := -L$(BUILD_DIR) $(ADDL_LINK_FLAGS) -Xlinker /INCREMENTAL
 	DEFINES += -D_CRT_SECURE_NO_WARNINGS
@@ -42,7 +42,7 @@ else
 		EXTENSION := 
 		# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say
 		# otherwise are exported (i.e. via KAPI).
-		COMPILER_FLAGS :=-fvisibility=hidden -fpic -Wall -Werror -Wvla -Wno-missing-braces -fdeclspec
+		COMPILER_FLAGS :=-fvisibility=hidden -fpic -Wall -Wno-error=deprecated-declarations -Wno-error=unused-function -Werror -Wvla -Wno-missing-braces -fdeclspec
 		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
 		# NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
 		# These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
@@ -61,7 +61,7 @@ else
 		EXTENSION := 
 		# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say
 		# otherwise are exported (i.e. via KAPI).
-		COMPILER_FLAGS :=-fvisibility=hidden -Wall -Werror -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC
+		COMPILER_FLAGS :=-fvisibility=hidden -Wall -Wno-error=deprecated-declarations -Wno-error=unused-function -Werror -Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -fPIC
 		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
 		# NOTE: Equivalent of the linux version above, this ensures that symbols linking against are resolved.
 		# Discovered this here: https://stackoverflow.com/questions/26971333/what-is-clangs-equivalent-to-no-undefined-gcc-flag
@@ -97,6 +97,8 @@ LINKER_FLAGS += -g
 endif
 
 all: scaffold compile link gen_compile_flags
+
+.NOTPARALLEL: scaffold
 
 .PHONY: scaffold
 scaffold: # create build directory
@@ -146,7 +148,7 @@ $(OBJ_DIR)/%.c.o: %.c
 .PHONY: gen_compile_flags
 gen_compile_flags:
 ifeq ($(BUILD_PLATFORM),windows)
-	$(shell powershell \"$(INCLUDE_FLAGS) $(DEFINES)\".replace('-I', '-I..\').replace(' ', \"`n\").replace('-I..\C:', '-IC:') > $(ASSEMBLY)/compile_flags.txt)
+	$(shell powershell \"$(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0\".replace('-I', '-I..\').replace(' ', \"`n\").replace('-I..\C:', '-IC:') > $(ASSEMBLY)/compile_flags.txt)
 else
-	@echo $(INCLUDE_FLAGS) $(DEFINES) | tr " " "\n" | sed "s/\-I\.\//\-I\.\.\//g" > $(ASSEMBLY)/compile_flags.txt
+	@echo $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0| tr " " "\n" | sed "s/\-I\.\//\-I\.\.\//g" > $(ASSEMBLY)/compile_flags.txt
 endif

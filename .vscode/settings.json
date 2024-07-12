@@ -1,4 +1,5 @@
 {
+    "debug.focusWindowOnBreak": false,
     "workbench.colorTheme": "Gruvbox Dark (Hard)",
     "xmlTools.enforcePrettySelfClosingTagOnFormat": true,
     "editor.minimap.enabled": false,
@@ -13,13 +14,14 @@
     },
     "workbench.statusBar.visible": true,
     "editor.lineNumbers": "on",
-    "C_Cpp.clang_format_style": "{ BasedOnStyle: Google, IndentWidth: 4, ColumnLimit: 0, NamespaceIndentation: All}",
+    "C_Cpp.clang_format_style": "{ BasedOnStyle: LLVM, IndentWidth: 4, ColumnLimit: 0, NamespaceIndentation: All, BreakBeforeBraces: Attach, PointerAlignment: Left, IndentPPDirectives: AfterHash}",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.block": "sameLine",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.type": "sameLine",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.function": "sameLine",
     "C_Cpp.vcFormat.space.pointerReferenceAlignment": "left",
     "C_Cpp.clang_format_sortIncludes": false,
     "C_Cpp.vcFormat.indent.namespaceContents": true,
+    "C_Cpp.workspaceSymbols": "All",
     "editor.cursorStyle": "block",
     "window.zoomLevel": 1,
     "editor.tabCompletion": "on",
@@ -110,7 +112,14 @@
         "shader_system.h": "c",
         "renderer_types.h": "c",
         "transform.h": "c",
-        "windows.h": "c"
+        "windows.h": "c",
+        "light_system.h": "c",
+        "texture_system.h": "c",
+        "job_system.h": "c",
+        "system_error": "c",
+        "xlocale": "c",
+        "stat.h": "c",
+        "debug_line3d.h": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [
