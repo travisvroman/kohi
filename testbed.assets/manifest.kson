@@ -1,0 +1,18 @@
+asset_base_path = "testbed.assets"
+imports = [
+    {
+        libname = "kohi.runtime"
+        filepath = "../kohi.runtime/assets"
+    }
+    {
+        libname = "kohi.plugin.ui.standard"
+        filepath = "../kohi.plugin.ui.standard/assets"
+    }
+]
+assets = [
+    {
+        name = "Testbed.Models.falcon"
+        type = "static_mesh"
+        filepath = "models/falcon.ksm"
+    }
+]

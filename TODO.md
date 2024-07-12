@@ -116,6 +116,13 @@ The items in this list are not in any particular order. This list will be update
   - [ ] physics volumes
   - [ ] weather
 - [x] Multi-window applications
+- [ ] Asset packaging system, including package build process.
+    https://excalidraw.com/#json=5krkRPmGHvqoYkufVE_ED,ujzx6tqRDUn63DzjraQ_jw
+  - [ ] Assets specific to rutime or plugins should be provided at that level to the package build process.
+  - [ ] Would provide an interface to the engine, and the implementation could either load from disk or binary blob.
+- [ ] For release builds, compile shaders to bytecode/SPIR-V and place into package binary.
+
+
 - [x] 0.7 Reorg
   - [x] Split engine into "core" and "runtime"
   - [x] Rename plugin libs to consistent format, update builds, etc.
