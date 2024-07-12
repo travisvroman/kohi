@@ -756,7 +756,7 @@ static b8 rg_dep_graph_topological_sort(rendergraph* graph) {
     KDEBUG("Rengergraph will be executed in the following order:");
     for (u32 i = 0; i < graph->node_count; ++i) {
         rendergraph_node* node = &graph->nodes[i];
-        KDEBUG("[%d]: %s", node->index, graph->nodes[node->index].name);
+        KINFO("[%d]: %s", node->index, graph->nodes[node->index].name);
     }
     return true;
 }

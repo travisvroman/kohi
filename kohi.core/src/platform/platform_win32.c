@@ -29,6 +29,7 @@ typedef struct win32_file_watch {
 
 typedef struct kwindow_platform_state {
     HWND hwnd;
+    f32 device_pixel_ratio;
 } kwindow_platform_state;
 
 typedef struct platform_state {
@@ -37,7 +38,7 @@ typedef struct platform_state {
     CONSOLE_SCREEN_BUFFER_INFO err_output_csbi;
     // darray
     win32_file_watch* watches;
-    f32 device_pixel_ratio;
+    
 
     // darray of pointers to created windows (owned by the application);
     kwindow** windows;
@@ -407,8 +408,8 @@ void platform_get_handle_info(u64* out_size, void* memory) {
     kcopy_memory(memory, &state_ptr->handle, *out_size);
 }
 
-f32 platform_device_pixel_ratio(const struct window* window) {
-    return window->device_pixel_ratio;
+f32 platform_device_pixel_ratio(const struct kwindow* window) {
+    return window->platform_state->device_pixel_ratio;
 }
 
 // NOTE: Begin threads
@@ -934,8 +935,8 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
         kwindow* w = window_from_handle(hwnd);
 
         // Store off the device pixel ratio.
-        window->device_pixel_ratio = (f32)x_dpi / USER_DEFAULT_SCREEN_DPI;
-        KINFO("Display device pixel ratio is: %.2f", window->device_pixel_ratio);
+        w->platform_state->device_pixel_ratio = (f32)x_dpi / USER_DEFAULT_SCREEN_DPI;
+        KINFO("Display device pixel ratio is: %.2f", w->platform_state->device_pixel_ratio);
 
         return 0;
     case WM_SIZE: {

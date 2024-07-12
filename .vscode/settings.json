@@ -118,7 +118,8 @@
         "job_system.h": "c",
         "system_error": "c",
         "xlocale": "c",
-        "stat.h": "c"
+        "stat.h": "c",
+        "debug_line3d.h": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [
