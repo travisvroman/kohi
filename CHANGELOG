@@ -1,6 +1,14 @@
 Changelog
 
 - 0.7.0
+  - NOTE: Due to changes in structure, it is recommended that you perform a full clean build if you used prior versions previously. 
+    - It is also recommended to manually remove all files within `bin/` and `obj/` directories.
+  - Performed rename pass on all libraries and executables on the project for consistency. Build scripts have been updated to reflect this.
+    - Kohi-specific libraries now begin with `kohi.<library>`. For example, `kohi.engine`.
+    - Kohi plugins are now named in the format `kohi.plugin.<plugin_type>.<name>`. Examples are `kohi.plugin.renderer.vulkan` and `kohi.plugin.audio.openal`.
+    - Tests will be split by library. Ex: `kohi.engine.tests`.
+    - Tools will have a separate 'namespace' as well `kohi.tools.<name>`. Ex: `kohi.tools.versiongen`.
+    - Applications will use the application name as the namespace, followed by '.kapp' or '.klib' `<application_name>.[kapp|klib]`. Ex: `testbed.kapp` is the executable and `testbed.klib` is the code library.
   - Renamed "simple_scene" to just "scene". Moved it and loader to engine core, removed references from testbed application.
   - Added handles to be used in place of raw pointers. Resource systems (i.e. materials, textures, meshes, etc.) need to be converted to use this.
   - Created xform and xform system to replace transforms.
@@ -15,6 +23,19 @@ Changelog
   - Added "to_string" functions for basic types (int, bool, float, etc.) and vector types (vec2, vec3, etc.).
   - Added kreallocate, kreallocate_aligned and kreallocate_report for easier handling of reallocs in user code.
   - Added basic timeline system. Will likely be enhanced in the future.
+  - Project has been restructured.
+  - Expanded kvar system to also include floats and strings along with ints. Registered new console commands as well.
+  - Simplified kvar system so that kvar_x_set also creates the variable if it doesn't yet exist, and remove create function. Also added "description" field for an optional description if desired, which will show up when dumping all kvars.
+  - Fixed string API to no longer require unnecessary strings when converting ints, floats and bools to string.
+  - Added KDEPRECATED macro to mark functions as deprecated.
+  - Marked renderer frontend "geometry" functions as deprecated. These will be removed in a future release.
+  - `math/geometry_utils.h` has now been combined with and renamed to `math/geometry.h`.
+  - Changed `dest` parameter of `darray_pop()` and `darray_pop_at()` to be optional. If 0/null is provided, the element data is just thrown away.
+  - Enhanced assertions to actually stop the application when failed.
+  - Added a new, safer version of `string_format` that allocates the memory needed on the fly. Renamed the previous version to `string_format_unsafe` and marked as deprecated.
+  - Renamed assets folder to 'testbed.assets' and moved application config to it. This is now the testbed-specific asset folder.
+  - Shader system 'get' function now attempts to auto-load shader if it does not yet exist. This allows shader 'load'/resource logic to be removed elsewhere.
+  - Added min and max values to defines for all integer types.
 
 - 0.6.0
   - Updated versioning system and build process. Each library now maintains its own version (and potentially changelog at some point).

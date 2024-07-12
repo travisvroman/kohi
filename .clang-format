@@ -4,3 +4,4 @@ ColumnLimit: 0
 NamespaceIndentation: All
 BreakBeforeBraces: Attach
 PointerAlignment: Left
+IndentPPDirectives: AfterHash
