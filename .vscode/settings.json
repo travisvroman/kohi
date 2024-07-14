@@ -119,7 +119,9 @@
         "system_error": "c",
         "xlocale": "c",
         "stat.h": "c",
-        "debug_line3d.h": "c"
+        "debug_line3d.h": "c",
+        "water_plane_rendergraph_node.h": "c",
+        "water_plane.h": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [

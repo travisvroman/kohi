@@ -1,0 +1,18 @@
+# Kohi shader config file
+version=1.0
+name=Runtime.Shader.Water
+renderpass=Renderpass.Builtin.World
+stages=vertex,fragment
+stagefiles=shaders/Runtime.Shader.Water.vert.glsl,shaders/Runtime.Shader.Water.frag.glsl
+depth_test=1
+depth_write=1
+
+# Attributes: type,name
+attribute=vec4,in_position
+
+# Uniforms: type,scope,name
+# NOTE: For scope: 0=global, 1=instance, 2=local
+uniform=mat4,0,projection
+uniform=mat4,0,view
+uniform=vec4,1,dummy
+uniform=mat4,2,model

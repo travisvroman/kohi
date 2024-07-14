@@ -141,6 +141,22 @@ static b8 deserialize_scene_skybox_attachment(const kson_object* attachment_obje
     return true;
 }
 
+static b8 deserialize_scene_water_plane_attachment(const kson_object* attachment_object, scene_node_attachment_water_plane* attachment) {
+    if (!attachment_object || !attachment) {
+        return false;
+    }
+
+    // TODO: water plane specific properties
+    // const char* cubemap_name_str = 0;
+    // if (!kson_object_property_value_get_string(attachment_object, "cubemap_name", &cubemap_name_str)) {
+    //     KERROR("Skybox attachment config requires a valid 'cubemap_name'. Deserialization failed.");
+    //     return false;
+    // }
+    // attachment->cubemap_name = string_duplicate(cubemap_name_str);
+
+    return true;
+}
+
 static scene_node_attachment_type scene_attachment_type_from_string(const char* str) {
     if (!str) {
         return SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN;
@@ -156,6 +172,8 @@ static scene_node_attachment_type scene_attachment_type_from_string(const char* 
         return SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT;
     } else if (strings_equali(str, "point_light")) {
         return SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT;
+    } else if (strings_equali(str, "water_plane")) {
+        return SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE;
     } else {
         return SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN;
     }
@@ -269,9 +287,15 @@ b8 scene_node_config_deserialize_kson(const kson_object* node_object, scene_node
                         kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_point_light), MEMORY_TAG_SCENE);
                         continue;
                     }
-                }
-
-                break;
+                } break;
+                case SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE: {
+                    new_attachment.attachment_data = kallocate(sizeof(scene_node_attachment_water_plane), MEMORY_TAG_SCENE);
+                    if (!deserialize_scene_water_plane_attachment(&attachment_object, new_attachment.attachment_data)) {
+                        KERROR("Failed to deserialize attachment. Skipping.");
+                        kfree(new_attachment.attachment_data, sizeof(scene_node_attachment_water_plane), MEMORY_TAG_SCENE);
+                        continue;
+                    }
+                } break;
                 default:
                 case SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN:
                     KERROR("Attachment type is unknown. Skipping.");

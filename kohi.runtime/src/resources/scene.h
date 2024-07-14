@@ -13,6 +13,7 @@ struct directional_light;
 struct point_light;
 struct mesh;
 struct skybox;
+struct water_plane;
 struct geometry_config;
 struct camera;
 struct scene_config;
@@ -79,6 +80,10 @@ typedef struct scene_skybox_metadata {
     const char* cubemap_name;
 } scene_skybox_metadata;
 
+typedef struct scene_water_plane_metadata {
+    u32 reserved;
+} scene_water_plane_metadata;
+
 typedef struct scene {
     u32 id;
     scene_flags flags;
@@ -136,6 +141,16 @@ typedef struct scene {
     scene_attachment* skybox_attachments;
     // Array of skybox metadata.
     scene_skybox_metadata* skybox_metadata;
+
+    // darray of water planes.
+    struct water_plane* water_planes;
+    // TODO: Delete this
+    // Indices into the attachment array for xform lookups.
+    u32* water_plane_attachment_indices;
+    // Array of scene attachments for water planes.
+    scene_attachment* water_plane_attachments;
+    // Array of water plane metadata.
+    scene_water_plane_metadata* water_plane_metadata;
 
     // A grid for the scene.
     debug_grid grid;
