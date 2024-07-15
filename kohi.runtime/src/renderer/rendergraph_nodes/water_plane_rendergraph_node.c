@@ -188,14 +188,15 @@ b8 water_plane_rendergraph_node_execute(struct rendergraph_node* self, struct fr
 
     water_plane_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    renderer_begin_debug_label("Water Plane", (vec3){0, 0, 1});
+    renderer_begin_debug_label(self->name, (vec3){0, 0, 1});
 
     if (internal_data->count > 0) {
-        // Bind the viewport
-        renderer_active_viewport_set(&internal_data->vp);
 
         // TODO: Will need to do this once for refraction, then once for reflection w/ transformed camera.
-        renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
+        renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
+
+        // Bind the viewport
+        renderer_active_viewport_set(&internal_data->vp);
 
         shader_system_use_by_id(internal_data->water_shader->id);
 

@@ -215,12 +215,13 @@ KAPI void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_
  *
  * @param state A pointer to the renderer system state.
  * @param p_frame_data A pointer to the current frame data.
+ * @param render_area A rectangle representing the area of the attachments to render to.
  * @param colour_target_count The number of colour targets to be drawn to.
  * @param colour_targets An array of handles to colour targets. Required unless colour_target_count is 0.
  * @param depth_stencil_target A handle to a depth stencil target to render to.
  * @param depth_stencil_layer For layered depth targets, the layer index to render to. Ignored otherwise.
  */
-KAPI void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, u32 colour_target_count, k_handle* colour_targets, k_handle depth_stencil_target, u32 depth_stencil_layer);
+KAPI void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, k_handle* colour_targets, k_handle depth_stencil_target, u32 depth_stencil_layer);
 
 /**
  *

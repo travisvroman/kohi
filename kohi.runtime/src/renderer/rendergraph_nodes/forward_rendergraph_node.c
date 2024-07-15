@@ -373,11 +373,13 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
     }
     forward_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Bind the viewport
-    renderer_active_viewport_set(&internal_data->vp);
+    renderer_begin_debug_label(self->name, (vec3){1.0f, 0.5f, 0});
 
     // Begin rendering
-    renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
+    renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
+
+    // Bind the viewport
+    renderer_active_viewport_set(&internal_data->vp);
 
     // Calculate light-space matrices for each shadow cascade.
     for (u8 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
@@ -664,6 +666,7 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
     }
 
     renderer_end_rendering(internal_data->renderer, p_frame_data);
+    renderer_end_debug_label();
 
     return true;
 }

@@ -1,5 +1,9 @@
 Kohi Vulkan Renderer Plugin Changelog
 
+- 0.6.0
+  - Added support for secondary command buffers.
+  - Updated "renderings" to always use secondary command buffers. This allows reuse of resources within a frame such as descriptors when a scene is rendered more than once (water plane, cascaded shadow mapping, etc.).
+
 - 0.5.0
   - Refactored plugin to follow standardized plugin loading/interfaces.
   - Changed all resources which are per-frame (i.e. framebuffers, textures) to handle the internal frame-specific logic

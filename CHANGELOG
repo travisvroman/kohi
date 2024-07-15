@@ -1,5 +1,10 @@
 Changelog
 
+- 0.8.0
+  - Added debug labels to all rendergraph nodes using "renderings".
+  - Added dynamic state caching on the renderer frontend. These get automatically re-applied per "rendering".
+    - There is a "per frame default" struct of settings that is automatically reapplied at the beginning of a frame.
+
 - 0.7.0
   - NOTE: Due to changes in structure, it is recommended that you perform a full clean build if you used prior versions previously. 
     - It is also recommended to manually remove all files within `bin/` and `obj/` directories.
