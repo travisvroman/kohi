@@ -5,6 +5,10 @@
 #include "renderer/renderer_frontend.h"
 #include "systems/shader_system.h"
 #include "core/engine.h"
+#include "strings/kstring.h"
+#include "platform/platform.h"
+
+static b8 generate_texture(struct renderer_system_state* renderer, texture* t, const char* name, u32 tex_width, u32 tex_height, b8 is_depth);
 
 b8 water_plane_create(water_plane* out_plane) {
     if (!out_plane) {
@@ -76,10 +80,38 @@ b8 water_plane_load(water_plane* plane) {
             return false;
         }
 
+        // Get the current window size as the dimensions of these textures will be based on this.
+        kwindow* window = engine_active_window_get();
+        // TODO: should probably cut this in half.
+        u32 tex_width = window->width;
+        u32 tex_height = window->height;
+        struct renderer_system_state* renderer = engine_systems_get()->renderer_system;
+
+        // Create reflection textures.
+        texture* t = &plane->reflection_colour;
+        if (!generate_texture(renderer, t, "__waterplane_reflection_colour__", tex_width, tex_height, false)) {
+            return false;
+        }
+        t = &plane->reflection_depth;
+        if (!generate_texture(renderer, t, "__waterplane_reflection_depth__", tex_width, tex_height, true)) {
+            return false;
+        }
+
+        // Create refraction textures.
+        t = &plane->refraction_colour;
+        if (!generate_texture(renderer, t, "__waterplane_refraction_colour__", tex_width, tex_height, false)) {
+            return false;
+        }
+        t = &plane->refraction_depth;
+        if (!generate_texture(renderer, t, "__waterplane_refraction_depth__", tex_width, tex_height, true)) {
+            return false;
+        }
+
         return true;
     }
     return false;
 }
+
 b8 water_plane_unload(water_plane* plane) {
     if (plane) {
         renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
@@ -111,4 +143,37 @@ b8 water_plane_update(water_plane* plane) {
         return true;
     }
     return false;
+}
+
+static b8 generate_texture(struct renderer_system_state* renderer, texture* t, const char* name, u32 tex_width, u32 tex_height, b8 is_depth) {
+    t->width = tex_width;
+    t->height = tex_height;
+    t->type = TEXTURE_TYPE_2D;
+    t->flags = TEXTURE_FLAG_IS_WRITEABLE | TEXTURE_FLAG_RENDERER_BUFFERING;
+    if (is_depth) {
+        t->flags |= TEXTURE_FLAG_DEPTH;
+    }
+    t->array_size = 1;
+    t->channel_count = 4;
+    t->mip_levels = 1;
+    t->generation = INVALID_ID_U8;
+    t->id = -1;
+    t->name = string_duplicate(name);
+
+    if (!renderer_texture_resources_acquire(
+            renderer,
+            t->name,
+            t->type,
+            t->width,
+            t->height,
+            t->channel_count,
+            t->mip_levels,
+            t->array_size,
+            t->flags,
+            &t->renderer_texture_handle)) {
+        KERROR("Failed to acquire renderer resources for '%s'.", t->name);
+        return false;
+    }
+
+    return true;
 }

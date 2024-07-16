@@ -1532,7 +1532,11 @@ b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend
     } else {
         usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-        image_format = channel_count_to_format(channel_count, VK_FORMAT_R8G8B8A8_UNORM);
+        if (flags & TEXTURE_FLAG_IS_WRITEABLE) {
+            image_format = context->current_window->renderer_state->backend_state->swapchain.image_format.format;
+        } else {
+            image_format = channel_count_to_format(channel_count, VK_FORMAT_R8G8B8A8_UNORM);
+        }
     }
 
     // Create one image per swapchain image (or just one image)

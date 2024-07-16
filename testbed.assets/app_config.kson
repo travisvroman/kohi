@@ -133,8 +133,8 @@ rendergraphs = [
                 ]
             }
             {
-                name = "water"
-                type = "water_plane"
+                name = "debug"
+                type = "debug3d"
                 sinks = [
                     {
                         name = "colourbuffer"
@@ -143,20 +143,6 @@ rendergraphs = [
                     {
                         name = "depthbuffer"
                         source_name = "forward.depthbuffer"
-                    }
-                ]
-            }
-            {
-                name = "debug"
-                type = "debug3d"
-                sinks = [
-                    {
-                        name = "colourbuffer"
-                        source_name = "water.colourbuffer"
-                    }
-                    {
-                        name = "depthbuffer"
-                        source_name = "water.depthbuffer"
                     }
                 ]
             }

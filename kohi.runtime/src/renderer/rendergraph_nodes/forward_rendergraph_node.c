@@ -7,6 +7,7 @@
 #include "memory/kmemory.h"
 #include "renderer/renderer_types.h"
 #include "renderer/viewport.h"
+#include "renderer/camera.h"
 #include "strings/kstring.h"
 
 // FIXME: Kinda dumb to have to include this to get MAX_SHADOW_CASCADE_COUNT...
@@ -15,6 +16,7 @@
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
 #include "resources/resource_types.h"
+#include "resources/water_plane.h"
 #include "systems/light_system.h"
 #include "systems/material_system.h"
 #include "systems/shader_system.h"
@@ -40,9 +42,9 @@ const u32 TERRAIN_SAMP_IDX_IRRADIANCE_MAP = 1 + TERRAIN_SAMP_IDX_SHADOW_MAP;
 
 typedef struct pbr_shader_uniform_locations {
     u16 projection;
-    u16 view;
+    u16 views;
     u16 cascade_splits;
-    u16 view_position;
+    u16 view_positions;
     u16 properties;
     u16 ibl_cube_texture;
     u16 material_texures;
@@ -55,6 +57,8 @@ typedef struct pbr_shader_uniform_locations {
     u16 render_mode;
     u16 use_pcf;
     u16 bias;
+    u16 clipping_plane;
+    u16 view_index;
     u16 dir_light;
     u16 p_lights;
     u16 num_p_lights;
@@ -63,9 +67,9 @@ typedef struct pbr_shader_uniform_locations {
 typedef struct terrain_shader_locations {
     b8 loaded;
     u16 projection;
-    u16 view;
+    u16 views;
     u16 cascade_splits;
-    u16 view_position;
+    u16 view_positions;
     u16 model;
     u16 render_mode;
     u16 dir_light;
@@ -82,13 +86,16 @@ typedef struct terrain_shader_locations {
     u16 material_texures;
     u16 use_pcf;
     u16 bias;
+    u16 clipping_plane;
+    u16 view_index;
 } terrain_shader_locations;
 
-typedef struct debug_shader_locations {
+typedef struct water_shader_locations {
     u16 projection;
     u16 view;
     u16 model;
-} debug_shader_locations;
+    u16 dummy;
+} water_shader_locations;
 
 typedef struct forward_rendergraph_node_internal_data {
     struct renderer_system_state* renderer;
@@ -107,10 +114,13 @@ typedef struct forward_rendergraph_node_internal_data {
     // Known locations for terrain shader.
     terrain_shader_locations terrain_locations;
 
-    shader* colour_shader;
-    u32 colour_shader_id;
-    // FIXME: Move debug shape rendering to another node.
-    debug_shader_locations debug_locations;
+    u32 water_shader_id;
+    shader* water_shader;
+    // Known locations for terrain shader.
+    water_shader_locations shader_locations;
+
+    renderbuffer* vertex_buffer;
+    renderbuffer* index_buffer;
 
     rendergraph_source* shadowmap_source;
 
@@ -122,9 +132,10 @@ typedef struct forward_rendergraph_node_internal_data {
     u32 render_mode;
     viewport vp;
 
-    mat4 view_matrix;
+    // mat4 view_matrix;
+    // vec3 view_position;
     mat4 projection_matrix;
-    vec3 view_position;
+    camera* current_camera;
 
     u32 geometry_count;
     struct geometry_render_data* geometries;
@@ -132,8 +143,8 @@ typedef struct forward_rendergraph_node_internal_data {
     u32 terrain_geometry_count;
     struct geometry_render_data* terrain_geometries;
 
-    u32 debug_geometry_count;
-    struct geometry_render_data* debug_geometries;
+    u32 water_plane_count;
+    water_plane** water_planes;
 
     struct texture* irradiance_cube_texture;
     const struct directional_light* dir_light;
@@ -261,13 +272,13 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->pbr_shader = shader_system_get("Shader.PBRMaterial");
     internal_data->pbr_shader_id = internal_data->pbr_shader->id;
     internal_data->pbr_locations.projection = shader_system_uniform_location(internal_data->pbr_shader_id, "projection");
-    internal_data->pbr_locations.view = shader_system_uniform_location(internal_data->pbr_shader_id, "view");
+    internal_data->pbr_locations.views = shader_system_uniform_location(internal_data->pbr_shader_id, "views");
     internal_data->pbr_locations.light_space_0 = shader_system_uniform_location(internal_data->pbr_shader_id, "light_space_0");
     internal_data->pbr_locations.light_space_1 = shader_system_uniform_location(internal_data->pbr_shader_id, "light_space_1");
     internal_data->pbr_locations.light_space_2 = shader_system_uniform_location(internal_data->pbr_shader_id, "light_space_2");
     internal_data->pbr_locations.light_space_3 = shader_system_uniform_location(internal_data->pbr_shader_id, "light_space_3");
     internal_data->pbr_locations.cascade_splits = shader_system_uniform_location(internal_data->pbr_shader_id, "cascade_splits");
-    internal_data->pbr_locations.view_position = shader_system_uniform_location(internal_data->pbr_shader_id, "view_position");
+    internal_data->pbr_locations.view_positions = shader_system_uniform_location(internal_data->pbr_shader_id, "view_positions");
     internal_data->pbr_locations.properties = shader_system_uniform_location(internal_data->pbr_shader_id, "properties");
     internal_data->pbr_locations.material_texures = shader_system_uniform_location(internal_data->pbr_shader_id, "material_textures");
     internal_data->pbr_locations.shadow_textures = shader_system_uniform_location(internal_data->pbr_shader_id, "shadow_textures");
@@ -279,18 +290,20 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->pbr_locations.num_p_lights = shader_system_uniform_location(internal_data->pbr_shader_id, "num_p_lights");
     internal_data->pbr_locations.use_pcf = shader_system_uniform_location(internal_data->pbr_shader_id, "use_pcf");
     internal_data->pbr_locations.bias = shader_system_uniform_location(internal_data->pbr_shader_id, "bias");
+    internal_data->pbr_locations.clipping_plane = shader_system_uniform_location(internal_data->pbr_shader_id, "clipping_plane");
+    internal_data->pbr_locations.view_index = shader_system_uniform_location(internal_data->pbr_shader_id, "view_index");
 
     // Save off a pointer to the terrain shader as well as its uniform locations.
     internal_data->terrain_shader = shader_system_get("Shader.Builtin.Terrain");
     internal_data->terrain_shader_id = internal_data->terrain_shader->id;
     internal_data->terrain_locations.projection = shader_system_uniform_location(internal_data->terrain_shader_id, "projection");
-    internal_data->terrain_locations.view = shader_system_uniform_location(internal_data->terrain_shader_id, "view");
+    internal_data->terrain_locations.views = shader_system_uniform_location(internal_data->terrain_shader_id, "views");
     internal_data->terrain_locations.light_space_0 = shader_system_uniform_location(internal_data->terrain_shader_id, "light_space_0");
     internal_data->terrain_locations.light_space_1 = shader_system_uniform_location(internal_data->terrain_shader_id, "light_space_1");
     internal_data->terrain_locations.light_space_2 = shader_system_uniform_location(internal_data->terrain_shader_id, "light_space_2");
     internal_data->terrain_locations.light_space_3 = shader_system_uniform_location(internal_data->terrain_shader_id, "light_space_3");
     internal_data->terrain_locations.cascade_splits = shader_system_uniform_location(internal_data->terrain_shader_id, "cascade_splits");
-    internal_data->terrain_locations.view_position = shader_system_uniform_location(internal_data->terrain_shader_id, "view_position");
+    internal_data->terrain_locations.view_positions = shader_system_uniform_location(internal_data->terrain_shader_id, "view_positions");
     internal_data->terrain_locations.model = shader_system_uniform_location(internal_data->terrain_shader_id, "model");
     internal_data->terrain_locations.render_mode = shader_system_uniform_location(internal_data->terrain_shader_id, "mode");
     internal_data->terrain_locations.dir_light = shader_system_uniform_location(internal_data->terrain_shader_id, "dir_light");
@@ -302,16 +315,20 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->terrain_locations.ibl_cube_texture = shader_system_uniform_location(internal_data->terrain_shader_id, "ibl_cube_texture");
     internal_data->terrain_locations.use_pcf = shader_system_uniform_location(internal_data->terrain_shader_id, "use_pcf");
     internal_data->terrain_locations.bias = shader_system_uniform_location(internal_data->terrain_shader_id, "bias");
+    internal_data->terrain_locations.clipping_plane = shader_system_uniform_location(internal_data->terrain_shader_id, "clipping_plane");
+    internal_data->terrain_locations.view_index = shader_system_uniform_location(internal_data->terrain_shader_id, "view_index");
 
-    // Load debug colour3d shader.
-    // FIXME: Move to another node.
-    //
-    // Save off a pointer to the colour3d shader as well as its uniform locations.
-    internal_data->colour_shader = shader_system_get("Shader.Builtin.ColourShader3D");
-    internal_data->colour_shader_id = internal_data->colour_shader->id;
-    internal_data->debug_locations.projection = shader_system_uniform_location(internal_data->colour_shader_id, "projection");
-    internal_data->debug_locations.view = shader_system_uniform_location(internal_data->colour_shader_id, "view");
-    internal_data->debug_locations.model = shader_system_uniform_location(internal_data->colour_shader_id, "model");
+    // Load Water plane shader and get shader uniform locations.
+    // Get a pointer to the shader.
+    internal_data->water_shader = shader_system_get("Runtime.Shader.Water");
+    internal_data->water_shader_id = internal_data->water_shader->id;
+    internal_data->shader_locations.projection = shader_system_uniform_location(internal_data->water_shader_id, "projection");
+    internal_data->shader_locations.view = shader_system_uniform_location(internal_data->water_shader_id, "view");
+    internal_data->shader_locations.model = shader_system_uniform_location(internal_data->water_shader_id, "model");
+    internal_data->shader_locations.dummy = shader_system_uniform_location(internal_data->water_shader_id, "dummy");
+
+    internal_data->vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
+    internal_data->index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
 
     // Grab the default cubemap texture as the irradiance texture.
     internal_data->irradiance_cube_texture = texture_system_get_default_cube_texture();
@@ -367,19 +384,71 @@ b8 forward_rendergraph_node_load_resources(struct rendergraph_node* self) {
     return true;
 }
 
-b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data* p_frame_data) {
-    if (!self) {
-        return false;
+b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u32 plane_count, water_plane** planes, texture* colour, texture* depth, vec4 clipping_plane, camera* cam, struct frame_data* p_frame_data) {
+    // Draw the water plane
+    renderer_begin_debug_label("water planes", (vec3){0, 0, 1});
+
+    if (plane_count) {
+        // renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, depth->renderer_texture_handle, 0);
+
+        // Bind the viewport
+        renderer_active_viewport_set(&internal_data->vp);
+
+        shader_system_use_by_id(internal_data->water_shader->id);
+
+        // Globals
+        mat4 view_matrix = camera_view_get(internal_data->current_camera);
+        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.projection, &internal_data->projection_matrix);
+        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.view, &view_matrix);
+        shader_system_apply_global(internal_data->water_shader_id);
+
+        // Draw each plane.
+        for (u32 i = 0; i < plane_count; ++i) {
+
+            water_plane* plane = planes[i];
+
+            // Instance uniforms
+            shader_system_bind_instance(internal_data->water_shader_id, plane->instance_id);
+            vec4 dummy = (vec4){0.0f, 0.0f, 1.0f, 0.0f};
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.dummy, &dummy /*&plane->dummy*/);
+            shader_system_apply_instance(internal_data->water_shader_id);
+
+            // Set model matrix.
+            // TODO: model matrix from transform.
+            mat4 model = mat4_identity();
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.model, &model);
+            shader_system_apply_local(internal_data->water_shader_id);
+
+            // Draw it.
+            // TODO: Draw based on vert/index data.
+            // renderer_geometry_draw(render_data);
+            if (!renderer_renderbuffer_draw(internal_data->vertex_buffer, plane->vertex_buffer_offset, 4, true)) {
+                KERROR("Failed to bind vertex buffer data for water plane.");
+                return false;
+            }
+            if (!renderer_renderbuffer_draw(internal_data->index_buffer, plane->index_buffer_offset, 6, false)) {
+                KERROR("Failed to draw water plane using index data.");
+                return false;
+            }
+        }
     }
-    forward_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    renderer_begin_debug_label(self->name, (vec3){1.0f, 0.5f, 0});
+    renderer_end_debug_label();
 
+    return true;
+}
+
+b8 render_scene(forward_rendergraph_node_internal_data* internal_data, texture* colour, texture* depth, u32 plane_count, water_plane** planes, b8 include_water_plane, vec4 clipping_plane, camera* cam, camera* inverted_cam, b8 use_inverted, struct frame_data* p_frame_data) {
     // Begin rendering
-    renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
+    renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, depth->renderer_texture_handle, 0);
 
     // Bind the viewport
     renderer_active_viewport_set(&internal_data->vp);
+
+    mat4 view_matrix = camera_view_get(cam);
+    vec3 view_position = camera_position_get(cam);
+    mat4 inverted_view_matrix = camera_view_get(inverted_cam);
+    vec3 inverted_view_position = camera_position_get(inverted_cam);
 
     // Calculate light-space matrices for each shadow cascade.
     for (u8 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
@@ -404,8 +473,11 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
         // Apply globals
         {
             UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.projection, &internal_data->projection_matrix));
-            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.view, &internal_data->view_matrix));
-            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.view_position, &internal_data->view_position));
+            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->terrain_shader_id, internal_data->terrain_locations.views, 0, &view_matrix));
+            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->terrain_shader_id, internal_data->terrain_locations.view_positions, 0, &view_position));
+            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->terrain_shader_id, internal_data->terrain_locations.views, 1, &inverted_view_matrix));
+            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->terrain_shader_id, internal_data->terrain_locations.view_positions, 1, &inverted_view_position));
+
             UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.render_mode, &internal_data->render_mode));
             UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.cascade_splits, &internal_data->cascade_splits));
 
@@ -429,6 +501,8 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
             // HACK: Read this in from somewhere (or have global setter?);
             f32 bias = 0.00005f;
             UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.bias, &bias));
+
+            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.clipping_plane, &clipping_plane));
 
             // Apply/upload them to the GPU
             if (!shader_system_apply_global(internal_data->terrain_shader_id)) {
@@ -503,6 +577,8 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
             // Apply the locals
             {
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.model, &internal_data->terrain_geometries[i].model));
+                int view_index = use_inverted ? 1 : 0;
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.view_index, &view_index));
                 shader_system_apply_local(internal_data->terrain_shader_id);
             }
 
@@ -510,6 +586,9 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
             renderer_geometry_draw(&internal_data->terrain_geometries[i]);
         }
     }
+
+    // Tracker for water being drawn.
+    b8 water_drawn = false;
 
     // Static geometries.
     {
@@ -530,8 +609,10 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
             // Apply globals
             {
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.projection, &internal_data->projection_matrix));
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.view, &internal_data->view_matrix));
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.view_position, &internal_data->view_position));
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.views, 0, &view_matrix));
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.view_positions, 0, &view_position));
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.views, 1, &inverted_view_matrix));
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.view_positions, 1, &inverted_view_position));
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.render_mode, &internal_data->render_mode));
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.cascade_splits, &internal_data->cascade_splits));
 
@@ -548,6 +629,8 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
                 f32 bias = 0.00005f;
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.bias, &bias));
 
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.clipping_plane, &clipping_plane));
+
                 // Apply/upload them to the GPU
                 if (!shader_system_apply_global(internal_data->pbr_shader_id)) {
                     KERROR("Failed to apply global uniforms.");
@@ -558,6 +641,10 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
             u32 current_material_id = INVALID_ID - 1;
             // Draw geometries.
             u32 count = internal_data->geometry_count;
+            // Keep track of when transparent rendering begins. The water plane, if drawn,
+            // must happen before this. NOTE: This may cause problems with transparent objects behind the water plane.
+            b8 transparency_started = false;
+
             for (u32 i = 0; i < count; ++i) {
                 material* m = internal_data->geometries[i].material;
                 if (!m) {
@@ -566,6 +653,22 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
 
                 // Only rebind/update the material if it's a new material. Duplicates can reuse the already-bound material.
                 if (m->internal_id != current_material_id) {
+                    // If the new material has transparency, pause rendering if water planes are to be rendered.
+                    if (include_water_plane && !transparency_started && m->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) {
+                        if (!render_water_planes(internal_data, plane_count, planes, colour, depth, vec4_zero(), cam, p_frame_data)) {
+                            KERROR("Failed to draw water plane! See logs for details.");
+                            return false;
+                        } else {
+                            water_drawn = true;
+                            transparency_started = true;
+                        }
+
+                        // Switch back to the PBR shader.
+                        if (!shader_system_use_by_id(internal_data->pbr_shader_id)) {
+                            KERROR("Failed to switch back to PBR shader. Render frame failed.");
+                            return false;
+                        }
+                    }
                     shader_system_bind_instance(internal_data->pbr_shader_id, m->internal_id);
                     // Properties
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.properties, m->properties));
@@ -616,6 +719,8 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
                 // Apply the locals
                 {
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.model, &internal_data->geometries[i].model));
+                    int view_index = use_inverted ? 1 : 0;
+                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.view_index, &view_index));
                     shader_system_apply_local(internal_data->pbr_shader_id);
                 }
 
@@ -635,37 +740,69 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
         }
     }
 
-    // Debug geometries (i.e. grids, lines, boxes, gizmos, etc.)
-    // This goes through the same geometry system as anything else.
-    u32 debug_geometry_count = internal_data->debug_geometry_count;
-    if (debug_geometry_count > 0) {
-        shader_system_use_by_id(internal_data->colour_shader_id);
-
-        // Globals
-        UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->colour_shader_id, internal_data->debug_locations.projection, &internal_data->projection_matrix));
-        UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->colour_shader_id, internal_data->debug_locations.view, &internal_data->view_matrix));
-
-        if (!shader_system_apply_global(internal_data->colour_shader_id)) {
-            KERROR("Failed to apply globals for colour shader.");
+    // Edge case where no transparent/meshes were drawn, make sure the water is drawn (if it should be).
+    if (include_water_plane && !water_drawn) {
+        if (!render_water_planes(internal_data, internal_data->water_plane_count, internal_data->water_planes, colour, depth, vec4_zero(), cam, p_frame_data)) {
+            KERROR("Failed to draw water plane! See logs for details.");
             return false;
-        }
-
-        // Each geometry.
-        for (u32 i = 0; i < debug_geometry_count; ++i) {
-            // NOTE: No instance-level uniforms to be set.
-
-            // Local
-            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->colour_shader_id, internal_data->debug_locations.model, &internal_data->debug_geometries[i].model));
-            if (!shader_system_apply_local(internal_data->colour_shader_id)) {
-                KERROR("Failed to apply locals for colour shader.");
-            }
-
-            // Draw it.
-            renderer_geometry_draw(&internal_data->debug_geometries[i]);
         }
     }
 
     renderer_end_rendering(internal_data->renderer, p_frame_data);
+
+    return true;
+}
+
+b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data* p_frame_data) {
+    if (!self) {
+        return false;
+    }
+    forward_rendergraph_node_internal_data* internal_data = self->internal_data;
+
+    renderer_begin_debug_label(self->name, (vec3){1.0f, 0.5f, 0});
+
+    // Create and use an inverted camera
+    camera inverted_camera = camera_copy(*internal_data->current_camera);
+    // Invert position across plane.
+    f32 double_distance = 2.0f * (internal_data->current_camera->position.y - 0); // TODO: water plane position, distance along plane normal.
+    vec3 inv_cam_pos = camera_position_get(&inverted_camera);
+    inv_cam_pos.y -= double_distance; // TODO: invert along water plane normal axis.
+    camera_position_set(&inverted_camera, inv_cam_pos);
+    vec3 inv_cam_rot = camera_rotation_euler_get(&inverted_camera);
+    inv_cam_rot.x *= -1.0f;
+    camera_rotation_euler_set_radians(&inverted_camera, inv_cam_rot);
+
+    // Render to reflect/refract textures for each plane.
+    for (u32 i = 0; i < internal_data->water_plane_count; ++i) {
+        water_plane* plane = internal_data->water_planes[i];
+
+        // Refraction, clip above plane. Don't render the water plane itself. Uses bound camera
+        // TODO: clipping plane should be based on position/orientation of water plane.
+        vec4 refract_plane = (vec4){0, -1, 0, 0.001f}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
+        renderer_clear_colour(internal_data->renderer, plane->refraction_colour.renderer_texture_handle);
+        renderer_clear_depth_stencil(internal_data->renderer, plane->refraction_depth.renderer_texture_handle);
+        if (!render_scene(internal_data, &plane->refraction_colour, &plane->refraction_depth, 0, 0, false, refract_plane, internal_data->current_camera, &inverted_camera, false, p_frame_data)) {
+            KERROR("Failed to render scene.");
+            return false;
+        }
+
+        // Reflection, clip below plane. Don't render the water plane itself.
+        renderer_clear_colour(internal_data->renderer, plane->reflection_colour.renderer_texture_handle);
+        renderer_clear_depth_stencil(internal_data->renderer, plane->reflection_depth.renderer_texture_handle);
+        vec4 reflect_plane = (vec4){0, 1, 0, 0.001f}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
+        if (!render_scene(internal_data, &plane->reflection_colour, &plane->reflection_depth, 0, 0, false, reflect_plane, internal_data->current_camera, &inverted_camera, true, p_frame_data)) {
+            KERROR("Failed to render scene.");
+            return false;
+        }
+    }
+
+    // Finally, draw the scene normally with no clipping. Include the water plane rendering. Uses bound camera.
+    vec4 clipping_plane = vec4_zero(); // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
+    if (!render_scene(internal_data, internal_data->colourbuffer_texture, internal_data->depthbuffer_texture, internal_data->water_plane_count, internal_data->water_planes, true, clipping_plane, internal_data->current_camera, &inverted_camera, false, p_frame_data)) {
+        KERROR("Failed to render scene.");
+        return false;
+    }
+
     renderer_end_debug_label();
 
     return true;
@@ -748,12 +885,16 @@ b8 forward_rendergraph_node_terrain_geometries_set(struct rendergraph_node* self
     return false;
 }
 
-b8 forward_rendergraph_node_debug_geometries_set(struct rendergraph_node* self, struct frame_data* p_frame_data, u32 geometry_count, const struct geometry_render_data* geometries) {
+b8 forward_rendergraph_node_water_planes_set(struct rendergraph_node* self, struct frame_data* p_frame_data, u32 count, struct water_plane** planes) {
     if (self && self->internal_data) {
         forward_rendergraph_node_internal_data* internal_data = self->internal_data;
-        internal_data->debug_geometry_count = geometry_count;
-        internal_data->debug_geometries = p_frame_data->allocator.allocate(sizeof(geometry_render_data) * geometry_count);
-        kcopy_memory(internal_data->debug_geometries, geometries, sizeof(geometry_render_data) * geometry_count);
+        internal_data->water_plane_count = count;
+        if (count > 0) {
+            internal_data->water_planes = p_frame_data->allocator.allocate(sizeof(struct water_plane*) * count);
+            kcopy_memory(internal_data->water_planes, planes, sizeof(struct water_plane*) * count);
+        } else {
+            internal_data->water_planes = 0;
+        }
         return true;
     }
     return false;
@@ -777,11 +918,10 @@ b8 forward_rendergraph_node_viewport_set(struct rendergraph_node* self, viewport
     return false;
 }
 
-b8 forward_rendergraph_node_view_projection_set(struct rendergraph_node* self, mat4 view_matrix, vec3 view_pos, mat4 projection_matrix) {
+b8 forward_rendergraph_node_camera_projection_set(struct rendergraph_node* self, struct camera* view_camera, mat4 projection_matrix) {
     if (self && self->internal_data) {
         forward_rendergraph_node_internal_data* internal_data = self->internal_data;
-        internal_data->view_matrix = view_matrix;
-        internal_data->view_position = view_pos;
+        internal_data->current_camera = view_camera;
         internal_data->projection_matrix = projection_matrix;
         return true;
     }

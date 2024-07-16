@@ -76,7 +76,6 @@
 #include "renderer/rendergraph_nodes/shadow_rendergraph_node.h"
 #include "renderer/rendergraph_nodes/skybox_rendergraph_node.h"
 #include "rendergraph_nodes/ui_rendergraph_node.h"
-#include "renderer/rendergraph_nodes/water_plane_rendergraph_node.h"
 #include "systems/plugin_system.h"
 #include "systems/timeline_system.h"
 #include "testbed.klib_version.h"
@@ -992,10 +991,9 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             // Ensure internal lists, etc. are reset.
             forward_rendergraph_node_reset(node);
             forward_rendergraph_node_viewport_set(node, state->world_viewport);
-            forward_rendergraph_node_view_projection_set(
+            forward_rendergraph_node_camera_projection_set(
                 node,
-                camera_view_get(current_camera),
-                camera_position_get(current_camera),
+                current_camera,
                 current_viewport->projection);
 
             // Tell our scene to generate relevant render data if it is loaded.
@@ -1070,12 +1068,24 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 // Tell the node about them.
                 forward_rendergraph_node_terrain_geometries_set(node, p_frame_data, terrain_geometry_count, terrain_geometries);
 
+                // FIXME: get water planes properly instead of this hack.
+                u32 water_plane_count = 1;
+                water_plane** planes = darray_reserve_with_allocator(water_plane*, water_plane_count, &p_frame_data->allocator);
+                darray_push(planes, &scene->water_planes[0]);
+
+                // TODO: set geometries
+                if (!forward_rendergraph_node_water_planes_set(node, p_frame_data, water_plane_count, planes)) {
+                    // NOTE: Not going to abort the whole graph for this failure, but will bleat about it loudly.
+                    KERROR("Failed to set water planes for water_plane rendergraph node.");
+                }
+
             } else {
                 // Scene not loaded.
 
                 // Do not run these passes if the scene is not loaded.
                 // graph->scene_pass.pass_data.do_execute = false;
                 // graph->shadowmap_pass.pass_data.do_execute = false;
+                forward_rendergraph_node_water_planes_set(node, p_frame_data, 0, 0);
             }
         } else if (strings_equali(node->name, "shadow")) {
             // Shadowmap pass - only runs if there is a directional light.
@@ -1306,29 +1316,6 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
             // Only draw if loaded.
             editor_gizmo_rendergraph_node_enabled_set(node, scene->state == SCENE_STATE_LOADED);
-        } else if (strings_equali(node->name, "water")) {
-            if (scene->state == SCENE_STATE_LOADED) {
-                water_plane_rendergraph_node_viewport_set(node, state->world_viewport);
-                water_plane_rendergraph_node_view_projection_set(
-                    node,
-                    camera_view_get(current_camera),
-                    camera_position_get(current_camera),
-                    current_viewport->projection);
-
-                // FIXME: get water planes properly instead of this hack.
-                u32 water_plane_count = 1;
-                water_plane** planes = darray_reserve_with_allocator(water_plane*, water_plane_count, &p_frame_data->allocator);
-                darray_push(planes, &scene->water_planes[0]);
-
-                // TODO: set geometries
-                if (!water_plane_rendergraph_node_water_planes_set(node, p_frame_data, water_plane_count, planes)) {
-                    // NOTE: Not going to abort the whole graph for this failure, but will bleat about it loudly.
-                    KERROR("Failed to set water planes for water_plane rendergraph node.");
-                }
-            } else {
-                water_plane_rendergraph_node_water_planes_set(node, p_frame_data, 0, 0);
-            }
-            // water_plane_rendergraph_node_water_planes_set(node, p_frame_data, 0, 0);
         }
     }
 

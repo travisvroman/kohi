@@ -151,8 +151,13 @@ b8 vulkan_device_create(vulkan_context* context) {
     VkPhysicalDeviceFeatures2 device_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR};
     {
         // Native features
-        device_features.features.samplerAnisotropy = context->device.features.samplerAnisotropy;  // Request anistrophy
+        device_features.features.samplerAnisotropy = context->device.features.samplerAnisotropy; // Request anistrophy
         device_features.features.fillModeNonSolid = context->device.features.fillModeNonSolid;
+        // Support for clipping planes.
+        device_features.features.shaderClipDistance = context->device.features.shaderClipDistance;
+        if (!device_features.features.shaderClipDistance) {
+            KERROR("shaderClipDistance not supported by Vulkan device '%s'!", context->device.properties.deviceName);
+        }
 
         // Dynamic rendering.
         VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_ext = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES};
@@ -167,7 +172,7 @@ b8 vulkan_device_create(vulkan_context* context) {
         // VK_EXT_descriptor_indexing
         VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT};
         // Partial binding is required for descriptor aliasing.
-        descriptor_indexing_features.descriptorBindingPartiallyBound = VK_TRUE;  // TODO: Check if supported?
+        descriptor_indexing_features.descriptorBindingPartiallyBound = VK_TRUE; // TODO: Check if supported?
         extended_dynamic_state.pNext = &descriptor_indexing_features;
 
 #if defined(VK_USE_PLATFORM_MACOS_MVK)
@@ -188,7 +193,7 @@ b8 vulkan_device_create(vulkan_context* context) {
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     device_create_info.queueCreateInfoCount = index_count;
     device_create_info.pQueueCreateInfos = queue_create_infos;
-    device_create_info.pEnabledFeatures = 0;  // &device_features;
+    device_create_info.pEnabledFeatures = 0; // &device_features;
     device_create_info.enabledExtensionCount = ext_idx;
     device_create_info.ppEnabledExtensionNames = extension_names;
 
@@ -483,22 +488,22 @@ static b8 select_physical_device(vulkan_context* context) {
             KINFO("Selected device: '%s'.", properties.deviceName);
             // GPU type, etc.
             switch (properties.deviceType) {
-                default:
-                case VK_PHYSICAL_DEVICE_TYPE_OTHER:
-                    KINFO("GPU type is Unknown.");
-                    break;
-                case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-                    KINFO("GPU type is Integrated.");
-                    break;
-                case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-                    KINFO("GPU type is Descrete.");
-                    break;
-                case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-                    KINFO("GPU type is Virtual.");
-                    break;
-                case VK_PHYSICAL_DEVICE_TYPE_CPU:
-                    KINFO("GPU type is CPU.");
-                    break;
+            default:
+            case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+                KINFO("GPU type is Unknown.");
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+                KINFO("GPU type is Integrated.");
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+                KINFO("GPU type is Descrete.");
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+                KINFO("GPU type is Virtual.");
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_CPU:
+                KINFO("GPU type is CPU.");
+                break;
             }
 
             KINFO("GPU Driver version: %s", driverProperties.driverInfo);

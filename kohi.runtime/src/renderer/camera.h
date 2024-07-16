@@ -53,6 +53,14 @@ typedef struct camera {
 KAPI camera camera_create(void);
 
 /**
+ * @brief Creates a copy of the camera based on the provided source.
+ * 
+ * @param source A constant pointer to a camera source.
+ * @return The camera copy.
+ */
+KAPI camera camera_copy(camera source);
+
+/**
  * @brief Defaults the provided camera to default zero
  * rotation and position, and view matrix to identity.
  *
@@ -85,12 +93,20 @@ KAPI void camera_position_set(camera* c, vec3 position);
 KAPI vec3 camera_rotation_euler_get(const camera* c);
 
 /**
- * @brief Sets the provided camera's rotation in Euler angles.
+ * @brief Sets the provided camera's rotation in Euler angles (degrees).
  *
  * @param c A pointer to a camera.
- * @param position The rotation in Euler angles to be set.
+ * @param rotation The rotation in Euler angles to be set (degrees).
  */
 KAPI void camera_rotation_euler_set(camera* c, vec3 rotation);
+
+/**
+ * @brief Sets the provided camera's rotation in Euler angles (radians).
+ *
+ * @param c A pointer to a camera.
+ * @param rotation_radians The rotation in Euler angles to be set (radians).
+ */
+KAPI void camera_rotation_euler_set_radians(camera* c, vec3 rotation_radians);
 
 /**
  * @brief Obtains a copy of the camera's view matrix. If camera is
