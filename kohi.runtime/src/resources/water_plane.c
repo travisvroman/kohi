@@ -4,6 +4,7 @@
 #include "math/kmath.h"
 #include "renderer/renderer_frontend.h"
 #include "systems/shader_system.h"
+#include "systems/texture_system.h"
 #include "core/engine.h"
 #include "strings/kstring.h"
 #include "platform/platform.h"
@@ -29,13 +30,17 @@ void water_plane_destroy(water_plane* plane) {
 
 b8 water_plane_initialize(water_plane* plane) {
     if (plane) {
+        plane->tiling = 1.0f;         // TODO: configurable.
+        plane->wave_strength = 0.02f; // TODO: configurable.
+        plane->wave_speed = 0.03f;    // TODO: configurable.
+
         // Create the geometry, but don't load it yet.
         // TODO: should probably be based on some size.
         f32 size = 100.0f;
-        plane->vertices[0] = (vec4){-size, 0, -size, 1};
-        plane->vertices[1] = (vec4){-size, 0, size, 1};
-        plane->vertices[2] = (vec4){size, 0, size, 1};
-        plane->vertices[3] = (vec4){size, 0, -size, 1};
+        plane->vertices[0] = (water_plane_vertex){-size, 0, -size, 1};
+        plane->vertices[1] = (water_plane_vertex){-size, 0, +size, 1};
+        plane->vertices[2] = (water_plane_vertex){+size, 0, +size, 1};
+        plane->vertices[3] = (water_plane_vertex){+size, 0, -size, 1};
 
         plane->indices[0] = 0;
         plane->indices[1] = 1;
@@ -45,7 +50,7 @@ b8 water_plane_initialize(water_plane* plane) {
         plane->indices[5] = 0;
 
         // Maps array
-        plane->map_count = 2;
+        plane->map_count = WATER_PLANE_MAP_COUNT;
         plane->maps = kallocate(sizeof(texture_map) * plane->map_count, MEMORY_TAG_ARRAY);
         for (u32 i = 0; i < plane->map_count; ++i) {
             texture_map* map = &plane->maps[i];
@@ -67,7 +72,7 @@ b8 water_plane_load(water_plane* plane) {
         renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
         renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
         // Allocate space
-        if (!renderer_renderbuffer_allocate(vertex_buffer, sizeof(vec4) * 4, &plane->vertex_buffer_offset)) {
+        if (!renderer_renderbuffer_allocate(vertex_buffer, sizeof(water_plane_vertex) * 4, &plane->vertex_buffer_offset)) {
             KERROR("Failed to allocate space in vertex buffer.");
             return false;
         }
@@ -77,7 +82,7 @@ b8 water_plane_load(water_plane* plane) {
         }
 
         // Load data
-        if (!renderer_renderbuffer_load_range(vertex_buffer, plane->vertex_buffer_offset, sizeof(vec4) * 4, plane->vertices, false)) {
+        if (!renderer_renderbuffer_load_range(vertex_buffer, plane->vertex_buffer_offset, sizeof(water_plane_vertex) * 4, plane->vertices, false)) {
             KERROR("Failed to load data into vertex buffer.");
             return false;
         }
@@ -113,9 +118,16 @@ b8 water_plane_load(water_plane* plane) {
             return false;
         }
 
+        // Get dudv texture.
+        plane->dudv_texture = texture_system_acquire("Runtime.Texture.Water_DUDV", true);
+        if (!plane->dudv_texture) {
+            KERROR("Failed to load default DUDV texture for water plane. Water planes won't render correctly.");
+        }
+
         // Fill out texture maps.
-        plane->maps[0].texture = &plane->reflection_colour;
-        plane->maps[1].texture = &plane->refraction_colour;
+        plane->maps[WATER_PLANE_MAP_REFLECTION].texture = &plane->reflection_colour;
+        plane->maps[WATER_PLANE_MAP_REFRACTION].texture = &plane->refraction_colour;
+        plane->maps[WATER_PLANE_MAP_DUDV].texture = plane->dudv_texture;
 
         // Acquire instance resources for this plane.
         u32 shader_id = shader_system_get_id("Runtime.Shader.Water");
@@ -131,10 +143,11 @@ b8 water_plane_load(water_plane* plane) {
 
 b8 water_plane_unload(water_plane* plane) {
     if (plane) {
+        struct renderer_system_state* renderer = engine_systems_get()->renderer_system;
         renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
         renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
         // Free space
-        if (!renderer_renderbuffer_free(vertex_buffer, sizeof(vec4) * 4, plane->vertex_buffer_offset)) {
+        if (!renderer_renderbuffer_free(vertex_buffer, sizeof(water_plane_vertex) * 4, plane->vertex_buffer_offset)) {
             KERROR("Failed to free space in vertex buffer.");
             return false;
         }
@@ -143,9 +156,31 @@ b8 water_plane_unload(water_plane* plane) {
             return false;
         }
 
+        // Destroy generated textures.
+        texture* textures[4] = {
+            &plane->reflection_colour,
+            &plane->reflection_depth,
+            &plane->refraction_colour,
+            &plane->refraction_depth};
+        for (u32 i = 0; i < 4; ++i) {
+            texture* t = textures[i];
+            renderer_texture_resources_release(renderer, &t->renderer_texture_handle);
+            if (t->name) {
+                string_free(t->name);
+                t->name = 0;
+            }
+            t->array_size = 0;
+            t->channel_count = 0;
+            t->flags = 0;
+            t->generation = INVALID_ID_U8;
+            t->height = t->width = 0;
+            t->mip_levels = 0;
+            t->type = 0;
+        }
+
         // Release instance resources for this plane.
         u32 shader_id = shader_system_get_id("Runtime.Shader.Water");
-        if (!shader_system_shader_instance_release(shader_id, plane->instance_id)) {
+        if (!shader_system_shader_instance_release(shader_id, plane->instance_id, plane->map_count, plane->maps)) {
             KERROR("Failed to release instance resources for water plane.");
             return false;
         }

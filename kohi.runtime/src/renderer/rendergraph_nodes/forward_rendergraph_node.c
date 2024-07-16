@@ -21,6 +21,7 @@
 #include "systems/material_system.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
+#include "systems/timeline_system.h"
 
 #define UNIFORM_APPLY_OR_FAIL(expr)                   \
     if (!expr) {                                      \
@@ -93,10 +94,14 @@ typedef struct terrain_shader_locations {
 typedef struct water_shader_locations {
     u16 projection;
     u16 view;
+    u16 view_position;
     u16 model;
-    u16 dummy;
+    u16 tiling;
+    u16 wave_strength;
+    u16 move_factor;
     u16 reflection_texture;
     u16 refraction_texture;
+    u16 dudv_texture;
 } water_shader_locations;
 
 typedef struct forward_rendergraph_node_internal_data {
@@ -119,7 +124,7 @@ typedef struct forward_rendergraph_node_internal_data {
     u32 water_shader_id;
     shader* water_shader;
     // Known locations for terrain shader.
-    water_shader_locations shader_locations;
+    water_shader_locations water_shader_locations;
 
     renderbuffer* vertex_buffer;
     renderbuffer* index_buffer;
@@ -324,12 +329,16 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     // Get a pointer to the shader.
     internal_data->water_shader = shader_system_get("Runtime.Shader.Water");
     internal_data->water_shader_id = internal_data->water_shader->id;
-    internal_data->shader_locations.projection = shader_system_uniform_location(internal_data->water_shader_id, "projection");
-    internal_data->shader_locations.view = shader_system_uniform_location(internal_data->water_shader_id, "view");
-    internal_data->shader_locations.model = shader_system_uniform_location(internal_data->water_shader_id, "model");
-    internal_data->shader_locations.dummy = shader_system_uniform_location(internal_data->water_shader_id, "dummy");
-    internal_data->shader_locations.reflection_texture = shader_system_uniform_location(internal_data->water_shader_id, "reflection_texture");
-    internal_data->shader_locations.refraction_texture = shader_system_uniform_location(internal_data->water_shader_id, "refraction_texture");
+    internal_data->water_shader_locations.projection = shader_system_uniform_location(internal_data->water_shader_id, "projection");
+    internal_data->water_shader_locations.view = shader_system_uniform_location(internal_data->water_shader_id, "view");
+    internal_data->water_shader_locations.view_position = shader_system_uniform_location(internal_data->water_shader_id, "view_position");
+    internal_data->water_shader_locations.model = shader_system_uniform_location(internal_data->water_shader_id, "model");
+    internal_data->water_shader_locations.tiling = shader_system_uniform_location(internal_data->water_shader_id, "tiling");
+    internal_data->water_shader_locations.wave_strength = shader_system_uniform_location(internal_data->water_shader_id, "wave_strength");
+    internal_data->water_shader_locations.move_factor = shader_system_uniform_location(internal_data->water_shader_id, "move_factor");
+    internal_data->water_shader_locations.reflection_texture = shader_system_uniform_location(internal_data->water_shader_id, "reflection_texture");
+    internal_data->water_shader_locations.refraction_texture = shader_system_uniform_location(internal_data->water_shader_id, "refraction_texture");
+    internal_data->water_shader_locations.dudv_texture = shader_system_uniform_location(internal_data->water_shader_id, "dudv_texture");
 
     internal_data->vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
     internal_data->index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
@@ -393,6 +402,9 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
     renderer_begin_debug_label("water planes", (vec3){0, 0, 1});
 
     if (plane_count) {
+        // Calculate movement based on the total game time.
+        k_handle game_timeline = timeline_system_get_game();
+        f32 delta_time = timeline_system_delta_get(game_timeline);
         // renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, depth->renderer_texture_handle, 0);
 
         // Bind the viewport
@@ -402,8 +414,10 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
 
         // Globals
         mat4 view_matrix = camera_view_get(internal_data->current_camera);
-        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.projection, &internal_data->projection_matrix);
-        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.view, &view_matrix);
+        vec3 view_position = camera_position_get(internal_data->current_camera);
+        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.projection, &internal_data->projection_matrix);
+        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.view, &view_matrix);
+        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.view_position, &view_position);
         shader_system_apply_global(internal_data->water_shader_id);
 
         // Draw each plane.
@@ -411,19 +425,28 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
 
             water_plane* plane = planes[i];
 
+            // Move factor is based on wave speed * total game time, wrap around at 1.
+            static f32 move_factor = 0;
+            move_factor += (plane->wave_speed * delta_time);
+            if(move_factor > 1) {
+                move_factor -= 1;
+            }
+
             // Instance uniforms
             shader_system_bind_instance(internal_data->water_shader_id, plane->instance_id);
-            vec4 dummy = (vec4){0.0f, 0.0f, 1.0f, 0.0f};
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.dummy, &dummy /*&plane->dummy*/);
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.reflection_texture, &plane->maps[0]);
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.refraction_texture, &plane->maps[1]);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.tiling, &plane->tiling);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.wave_strength, &plane->wave_strength);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.move_factor, &move_factor);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.reflection_texture, &plane->maps[WATER_PLANE_MAP_REFLECTION]);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.refraction_texture, &plane->maps[WATER_PLANE_MAP_REFRACTION]);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.dudv_texture, &plane->maps[WATER_PLANE_MAP_DUDV]);
             //
             shader_system_apply_instance(internal_data->water_shader_id);
 
             // Set model matrix.
             // TODO: model matrix from transform.
             mat4 model = mat4_identity();
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.model, &model);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.model, &model);
             shader_system_apply_local(internal_data->water_shader_id);
 
             // Draw it.
@@ -785,7 +808,7 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
 
         // Refraction, clip above plane. Don't render the water plane itself. Uses bound camera
         // TODO: clipping plane should be based on position/orientation of water plane.
-        vec4 refract_plane = (vec4){0, -1, 0, 0.001f}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
+        vec4 refract_plane = (vec4){0, -1, 0, 0}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
         renderer_clear_colour(internal_data->renderer, plane->refraction_colour.renderer_texture_handle);
         renderer_clear_depth_stencil(internal_data->renderer, plane->refraction_depth.renderer_texture_handle);
         if (!render_scene(internal_data, &plane->refraction_colour, &plane->refraction_depth, 0, 0, false, refract_plane, internal_data->current_camera, &inverted_camera, false, p_frame_data)) {
@@ -796,7 +819,7 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
         // Reflection, clip below plane. Don't render the water plane itself.
         renderer_clear_colour(internal_data->renderer, plane->reflection_colour.renderer_texture_handle);
         renderer_clear_depth_stencil(internal_data->renderer, plane->reflection_depth.renderer_texture_handle);
-        vec4 reflect_plane = (vec4){0, 1, 0, 0.001f}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
+        vec4 reflect_plane = (vec4){0, 1, 0, 0}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
         if (!render_scene(internal_data, &plane->reflection_colour, &plane->reflection_depth, 0, 0, false, reflect_plane, internal_data->current_camera, &inverted_camera, true, p_frame_data)) {
             KERROR("Failed to render scene.");
             return false;

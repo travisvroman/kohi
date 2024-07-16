@@ -12,7 +12,7 @@ nodes = [
             }
             {
                 type = "directional_light"
-                colour = "80.000000 80.000000 70.000000 1.000000"
+                colour = "40.000000 40.000000 30.000000 1.000000"
                 direction = "0.100000 -1.000000 0.100000 1.000000"
                 shadow_distance = 100.000000
                 shadow_fade_distance = 5.000000

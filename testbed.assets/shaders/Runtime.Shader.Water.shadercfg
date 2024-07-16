@@ -14,7 +14,14 @@ attribute=vec4,in_position
 # NOTE: For scope: 0=global, 1=instance, 2=local
 uniform=mat4,0,projection
 uniform=mat4,0,view
-uniform=vec4,1,dummy
+uniform=vec3,0,view_position
+uniform=f32,0,global_padding
+
+uniform=f32,1,tiling
+uniform=f32,1,wave_strength
+uniform=f32,1,move_factor
+uniform=vec2,1,instance_padding
 uniform=sampler2D,1,reflection_texture
 uniform=sampler2D,1,refraction_texture
+uniform=sampler2D,1,dudv_texture
 uniform=mat4,2,model

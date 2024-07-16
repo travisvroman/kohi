@@ -477,8 +477,13 @@ b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, texture_m
     return result;
 }
 
-b8 shader_system_shader_instance_release(u32 shader_id, u32 instance_id) {
+b8 shader_system_shader_instance_release(u32 shader_id, u32 instance_id, u32 map_count, texture_map* maps) {
     shader* selected_shader = shader_system_get_by_id(shader_id);
+
+    // Release texture map resources.
+    for (u32 i = 0; i < map_count; ++i) {
+        renderer_texture_map_resources_release(&maps[i]);
+    }
 
     // Release the instance resources for this shader.
     b8 result = renderer_shader_instance_resources_release(state_ptr->renderer, selected_shader, instance_id);
