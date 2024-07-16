@@ -1256,14 +1256,18 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 KERROR("Failed to obtain count of debug render objects.");
                 return false;
             }
-            geometry_render_data* debug_geometries = darray_reserve_with_allocator(geometry_render_data, debug_geometry_count, &p_frame_data->allocator);
+            geometry_render_data* debug_geometries = 0;
+            if (debug_geometry_count) {
+                debug_geometries = darray_reserve_with_allocator(geometry_render_data, debug_geometry_count, &p_frame_data->allocator);
 
-            if (!scene_debug_render_data_query(scene, &debug_geometry_count, &debug_geometries)) {
-                KERROR("Failed to obtain debug render objects.");
-                return false;
+                if (!scene_debug_render_data_query(scene, &debug_geometry_count, &debug_geometries)) {
+                    KERROR("Failed to obtain debug render objects.");
+                    return false;
+                }
+
+                // Make sure the count is correct before pushing.
+                darray_length_set(debug_geometries, debug_geometry_count);
             }
-            // Make sure the count is correct before pushing.
-            darray_length_set(debug_geometries, debug_geometry_count);
 
             // TODO: Move this to the scene.
             // HACK: Inject raycast debug geometries into scene pass data.

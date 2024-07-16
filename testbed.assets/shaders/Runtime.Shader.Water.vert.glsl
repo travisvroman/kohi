@@ -11,7 +11,9 @@ layout(set = 1, binding = 0) uniform instance_uniform_object {
     vec4 dummy;
 } instance_ubo;
 
-layout(location = 0) out vec4 dummy;
+layout(location = 0) out struct dto {
+	vec4 clip_space;
+} out_dto;
 
 layout(push_constant) uniform push_constants {
 	
@@ -20,7 +22,6 @@ layout(push_constant) uniform push_constants {
 } local_ubo;
 
 void main() {
-	dummy = instance_ubo.dummy;
-	dummy.z = 1.0;
-	gl_Position = global_ubo.projection * global_ubo.view * local_ubo.model * vec4(in_position.xyz, 1.0);
+	out_dto.clip_space = global_ubo.projection * global_ubo.view * local_ubo.model * vec4(in_position.xyz, 1.0);
+	gl_Position = out_dto.clip_space;
 }

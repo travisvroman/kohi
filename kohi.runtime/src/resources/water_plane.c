@@ -43,6 +43,19 @@ b8 water_plane_initialize(water_plane* plane) {
         plane->indices[3] = 2;
         plane->indices[4] = 3;
         plane->indices[5] = 0;
+
+        // Maps array
+        plane->map_count = 2;
+        plane->maps = kallocate(sizeof(texture_map) * plane->map_count, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < plane->map_count; ++i) {
+            texture_map* map = &plane->maps[i];
+            map->filter_magnify = map->filter_minify = TEXTURE_FILTER_MODE_LINEAR;
+            map->generation = INVALID_ID_U8;
+            map->internal_id = INVALID_ID;
+            map->repeat_u = map->repeat_v = map->repeat_w = TEXTURE_REPEAT_REPEAT;
+            map->mip_levels = 1;
+            map->texture = 0;
+        }
         return true;
     }
     return false;
@@ -73,13 +86,6 @@ b8 water_plane_load(water_plane* plane) {
             return false;
         }
 
-        // Acquire instance resources for this plane.
-        u32 shader_id = shader_system_get_id("Runtime.Shader.Water");
-        if (!shader_system_shader_instance_acquire(shader_id, 0, 0, &plane->instance_id)) {
-            KERROR("Failed to acquire instance resources for water plane.");
-            return false;
-        }
-
         // Get the current window size as the dimensions of these textures will be based on this.
         kwindow* window = engine_active_window_get();
         // TODO: should probably cut this in half.
@@ -104,6 +110,17 @@ b8 water_plane_load(water_plane* plane) {
         }
         t = &plane->refraction_depth;
         if (!generate_texture(renderer, t, "__waterplane_refraction_depth__", tex_width, tex_height, true)) {
+            return false;
+        }
+
+        // Fill out texture maps.
+        plane->maps[0].texture = &plane->reflection_colour;
+        plane->maps[1].texture = &plane->refraction_colour;
+
+        // Acquire instance resources for this plane.
+        u32 shader_id = shader_system_get_id("Runtime.Shader.Water");
+        if (!shader_system_shader_instance_acquire(shader_id, plane->map_count, plane->maps, &plane->instance_id)) {
+            KERROR("Failed to acquire instance resources for water plane.");
             return false;
         }
 
@@ -174,6 +191,9 @@ static b8 generate_texture(struct renderer_system_state* renderer, texture* t, c
         KERROR("Failed to acquire renderer resources for '%s'.", t->name);
         return false;
     }
+
+    // Count as "loaded".
+    t->generation = 0;
 
     return true;
 }

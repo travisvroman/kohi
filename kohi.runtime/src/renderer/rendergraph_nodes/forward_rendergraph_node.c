@@ -95,6 +95,8 @@ typedef struct water_shader_locations {
     u16 view;
     u16 model;
     u16 dummy;
+    u16 reflection_texture;
+    u16 refraction_texture;
 } water_shader_locations;
 
 typedef struct forward_rendergraph_node_internal_data {
@@ -326,6 +328,8 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->shader_locations.view = shader_system_uniform_location(internal_data->water_shader_id, "view");
     internal_data->shader_locations.model = shader_system_uniform_location(internal_data->water_shader_id, "model");
     internal_data->shader_locations.dummy = shader_system_uniform_location(internal_data->water_shader_id, "dummy");
+    internal_data->shader_locations.reflection_texture = shader_system_uniform_location(internal_data->water_shader_id, "reflection_texture");
+    internal_data->shader_locations.refraction_texture = shader_system_uniform_location(internal_data->water_shader_id, "refraction_texture");
 
     internal_data->vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
     internal_data->index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
@@ -411,6 +415,9 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
             shader_system_bind_instance(internal_data->water_shader_id, plane->instance_id);
             vec4 dummy = (vec4){0.0f, 0.0f, 1.0f, 0.0f};
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.dummy, &dummy /*&plane->dummy*/);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.reflection_texture, &plane->maps[0]);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->shader_locations.refraction_texture, &plane->maps[1]);
+            //
             shader_system_apply_instance(internal_data->water_shader_id);
 
             // Set model matrix.
@@ -794,6 +801,9 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
             KERROR("Failed to render scene.");
             return false;
         }
+
+        renderer_texture_prepare_for_sampling(internal_data->renderer, plane->reflection_colour.renderer_texture_handle, plane->reflection_colour.flags);
+        renderer_texture_prepare_for_sampling(internal_data->renderer, plane->refraction_colour.renderer_texture_handle, plane->refraction_colour.flags);
     }
 
     // Finally, draw the scene normally with no clipping. Include the water plane rendering. Uses bound camera.

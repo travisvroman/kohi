@@ -15,4 +15,6 @@ attribute=vec4,in_position
 uniform=mat4,0,projection
 uniform=mat4,0,view
 uniform=vec4,1,dummy
+uniform=sampler2D,1,reflection_texture
+uniform=sampler2D,1,refraction_texture
 uniform=mat4,2,model
