@@ -14,6 +14,10 @@ typedef enum water_plane_maps {
     WATER_PLANE_MAP_REFLECTION = 0,
     WATER_PLANE_MAP_REFRACTION = 1,
     WATER_PLANE_MAP_DUDV = 2,
+    WATER_PLANE_MAP_NORMAL = 3,
+    WATER_PLANE_MAP_SHADOW = 4,
+    WATER_PLANE_MAP_IBL_CUBE = 5,
+    WATER_PLANE_MAP_REFRACT_DEPTH = 6,
     WATER_PLANE_MAP_COUNT
 } water_plane_maps;
 
@@ -42,6 +46,9 @@ typedef struct water_plane {
 
     // Pointer to dudv texture.
     texture* dudv_texture;
+
+    // Pointer to normal texture.
+    texture* normal_texture;
 } water_plane;
 
 KAPI b8 water_plane_create(water_plane* out_plane);

@@ -30,7 +30,7 @@ void water_plane_destroy(water_plane* plane) {
 
 b8 water_plane_initialize(water_plane* plane) {
     if (plane) {
-        plane->tiling = 1.0f;         // TODO: configurable.
+        plane->tiling = 0.25f;         // TODO: configurable.
         plane->wave_strength = 0.02f; // TODO: configurable.
         plane->wave_speed = 0.03f;    // TODO: configurable.
 
@@ -124,10 +124,20 @@ b8 water_plane_load(water_plane* plane) {
             KERROR("Failed to load default DUDV texture for water plane. Water planes won't render correctly.");
         }
 
+        // Get normal texture.
+        plane->normal_texture = texture_system_acquire("Runtime.Texture.Water_Normal", true);
+        if (!plane->normal_texture) {
+            KERROR("Failed to load default Normal texture for water plane. Water planes won't render correctly.");
+        }
+
         // Fill out texture maps.
         plane->maps[WATER_PLANE_MAP_REFLECTION].texture = &plane->reflection_colour;
         plane->maps[WATER_PLANE_MAP_REFRACTION].texture = &plane->refraction_colour;
         plane->maps[WATER_PLANE_MAP_DUDV].texture = plane->dudv_texture;
+        plane->maps[WATER_PLANE_MAP_NORMAL].texture = plane->normal_texture;
+        plane->maps[WATER_PLANE_MAP_SHADOW].texture = 0;
+        plane->maps[WATER_PLANE_MAP_IBL_CUBE].texture = 0;
+        plane->maps[WATER_PLANE_MAP_REFRACT_DEPTH].texture = &plane->refraction_depth;
 
         // Acquire instance resources for this plane.
         u32 shader_id = shader_system_get_id("Runtime.Shader.Water");

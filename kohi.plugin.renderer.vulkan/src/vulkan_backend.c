@@ -2760,7 +2760,7 @@ static b8 create_sampler(vulkan_context* context, texture_map* map, VkSampler* s
     b8 is_depth = map->texture && ((map->texture->flags & TEXTURE_FLAG_DEPTH) != 0);
 
     // Sync the mip levels with that of the assigned texture.
-    map->mip_levels = is_depth ? 1 : map->texture->mip_levels;
+    map->mip_levels = is_depth ? 1 : map->texture ? map->texture->mip_levels : 1;
 
     sampler_info.minFilter = convert_filter_type("min", map->filter_minify);
     sampler_info.magFilter = convert_filter_type("mag", map->filter_magnify);
@@ -2789,7 +2789,7 @@ static b8 create_sampler(vulkan_context* context, texture_map* map, VkSampler* s
     sampler_info.minLod = 0.0f;
     // NOTE: Uncomment the following line to test the lowest mip level.
     /* sampler_info.minLod = map->texture->mip_levels > 1 ? map->texture->mip_levels : 0.0f; */
-    sampler_info.maxLod = map->texture->mip_levels;
+    sampler_info.maxLod = map->mip_levels;
 
     VkResult result = vkCreateSampler(context->device.logical_device, &sampler_info, context->allocator, sampler);
     if (!vulkan_result_is_success(VK_SUCCESS)) {
@@ -2821,7 +2821,7 @@ b8 vulkan_renderer_texture_map_resources_acquire(renderer_backend_interface* bac
     }
 
 #if _DEBUG
-    char* formatted_name = string_format("%s_texmap_sampler", map->texture->name);
+    char* formatted_name = string_format("%s_texmap_sampler", map->texture ? map->texture->name : "__noname__");
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_SAMPLER, context->samplers[selected_id], formatted_name);
     string_free(formatted_name);
 #endif

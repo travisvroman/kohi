@@ -450,10 +450,12 @@ b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, texture_m
         for (u32 j = 0; j < uniform_config->texture_map_count; ++j) {
             uniform_config->texture_maps[j] = &maps[i];
 
-            // Acquire resources for the map.
-            if (!renderer_texture_map_resources_acquire(uniform_config->texture_maps[j])) {
-                KERROR("Unable to acquire resources for texture map.");
-                return false;
+            // Acquire resources for the map, but only if a texture is assigned.
+            if (uniform_config->texture_maps[j]->texture) {
+                if (!renderer_texture_map_resources_acquire(uniform_config->texture_maps[j])) {
+                    KERROR("Unable to acquire resources for texture map.");
+                    return false;
+                }
             }
         }
     }

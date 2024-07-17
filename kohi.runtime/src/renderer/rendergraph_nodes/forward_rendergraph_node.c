@@ -92,16 +92,31 @@ typedef struct terrain_shader_locations {
 } terrain_shader_locations;
 
 typedef struct water_shader_locations {
+    // Global
     u16 projection;
     u16 view;
+    u16 light_space;
+    u16 cascade_splits;
     u16 view_position;
-    u16 model;
+    u16 mode;
+    u16 use_pcf;
+    u16 bias;
+    // Instance uniforms
+    u16 dir_light;
+    u16 p_lights;
     u16 tiling;
     u16 wave_strength;
     u16 move_factor;
+    // Instance samplers
     u16 reflection_texture;
     u16 refraction_texture;
     u16 dudv_texture;
+    u16 normal_texture;
+    u16 shadow_textures;
+    u16 ibl_cube_texture;
+    u16 refract_depth_texture;
+    // Local uniforms
+    u16 model;
 } water_shader_locations;
 
 typedef struct forward_rendergraph_node_internal_data {
@@ -329,16 +344,31 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     // Get a pointer to the shader.
     internal_data->water_shader = shader_system_get("Runtime.Shader.Water");
     internal_data->water_shader_id = internal_data->water_shader->id;
+    // global uniforms
     internal_data->water_shader_locations.projection = shader_system_uniform_location(internal_data->water_shader_id, "projection");
     internal_data->water_shader_locations.view = shader_system_uniform_location(internal_data->water_shader_id, "view");
+    internal_data->water_shader_locations.light_space = shader_system_uniform_location(internal_data->water_shader_id, "light_space");
+    internal_data->water_shader_locations.cascade_splits = shader_system_uniform_location(internal_data->water_shader_id, "cascade_splits");
     internal_data->water_shader_locations.view_position = shader_system_uniform_location(internal_data->water_shader_id, "view_position");
-    internal_data->water_shader_locations.model = shader_system_uniform_location(internal_data->water_shader_id, "model");
+    internal_data->water_shader_locations.mode = shader_system_uniform_location(internal_data->water_shader_id, "mode");
+    internal_data->water_shader_locations.use_pcf = shader_system_uniform_location(internal_data->water_shader_id, "use_pcf");
+    internal_data->water_shader_locations.bias = shader_system_uniform_location(internal_data->water_shader_id, "bias");
+    // instance uniforms
+    internal_data->water_shader_locations.dir_light = shader_system_uniform_location(internal_data->water_shader_id, "dir_light");
+    internal_data->water_shader_locations.p_lights = shader_system_uniform_location(internal_data->water_shader_id, "p_lights");
     internal_data->water_shader_locations.tiling = shader_system_uniform_location(internal_data->water_shader_id, "tiling");
     internal_data->water_shader_locations.wave_strength = shader_system_uniform_location(internal_data->water_shader_id, "wave_strength");
     internal_data->water_shader_locations.move_factor = shader_system_uniform_location(internal_data->water_shader_id, "move_factor");
+    // instance samplers
     internal_data->water_shader_locations.reflection_texture = shader_system_uniform_location(internal_data->water_shader_id, "reflection_texture");
     internal_data->water_shader_locations.refraction_texture = shader_system_uniform_location(internal_data->water_shader_id, "refraction_texture");
     internal_data->water_shader_locations.dudv_texture = shader_system_uniform_location(internal_data->water_shader_id, "dudv_texture");
+    internal_data->water_shader_locations.normal_texture = shader_system_uniform_location(internal_data->water_shader_id, "normal_texture");
+    internal_data->water_shader_locations.shadow_textures = shader_system_uniform_location(internal_data->water_shader_id, "shadow_textures");
+    internal_data->water_shader_locations.ibl_cube_texture = shader_system_uniform_location(internal_data->water_shader_id, "ibl_cube_texture");
+    internal_data->water_shader_locations.refract_depth_texture = shader_system_uniform_location(internal_data->water_shader_id, "refract_depth_texture");
+    // local
+    internal_data->water_shader_locations.model = shader_system_uniform_location(internal_data->water_shader_id, "model");
 
     internal_data->vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
     internal_data->index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
@@ -418,6 +448,16 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
         shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.projection, &internal_data->projection_matrix);
         shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.view, &view_matrix);
         shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.view_position, &view_position);
+        for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+            shader_system_uniform_set_by_location_arrayed(internal_data->water_shader_id, internal_data->water_shader_locations.light_space, i, &internal_data->directional_light_spaces[i]);
+        }
+        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.cascade_splits, &internal_data->cascade_splits);
+        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.mode, &internal_data->render_mode);
+        i32 use_pcf = (i32)renderer_pcf_enabled(internal_data->renderer);
+        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.use_pcf, &use_pcf);
+        // HACK: Read this in from somewhere (or have global setter?);
+        f32 bias = 0.00005f;
+        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.bias, &bias);
         shader_system_apply_global(internal_data->water_shader_id);
 
         // Draw each plane.
@@ -428,18 +468,59 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
             // Move factor is based on wave speed * total game time, wrap around at 1.
             static f32 move_factor = 0;
             move_factor += (plane->wave_speed * delta_time);
-            if(move_factor > 1) {
+            if (move_factor > 1) {
                 move_factor -= 1;
             }
 
             // Instance uniforms
             shader_system_bind_instance(internal_data->water_shader_id, plane->instance_id);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.dir_light, internal_data->dir_light);
+            // Point lights.
+            u32 p_light_count = light_system_point_light_count();
+            if (p_light_count) {
+                point_light* p_lights = p_frame_data->allocator.allocate(sizeof(point_light) * p_light_count);
+                light_system_point_lights_get(p_lights);
+
+                point_light_data* p_light_datas = p_frame_data->allocator.allocate(sizeof(point_light_data) * p_light_count);
+                for (u32 i = 0; i < p_light_count; ++i) {
+                    p_light_datas[i] = p_lights[i].data;
+                }
+
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.p_lights, p_light_datas));
+            }
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.tiling, &plane->tiling);
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.wave_strength, &plane->wave_strength);
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.move_factor, &move_factor);
+            // Instance samplers
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.reflection_texture, &plane->maps[WATER_PLANE_MAP_REFLECTION]);
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.refraction_texture, &plane->maps[WATER_PLANE_MAP_REFRACTION]);
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.dudv_texture, &plane->maps[WATER_PLANE_MAP_DUDV]);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.normal_texture, &plane->maps[WATER_PLANE_MAP_NORMAL]);
+
+            // Shadow maps
+            texture* shadow_map_texture = internal_data->shadowmap_source->value.t;
+            plane->maps[WATER_PLANE_MAP_SHADOW].texture = shadow_map_texture ? shadow_map_texture : texture_system_get_default_diffuse_texture();
+            // Ensure there are valid resources acquired first.
+            if (plane->maps[WATER_PLANE_MAP_SHADOW].internal_id == INVALID_ID) {
+                if (!renderer_texture_map_resources_acquire(&plane->maps[WATER_PLANE_MAP_SHADOW])) {
+                    KERROR("Unable to acquire resources for texture map.");
+                    return false;
+                }
+            }
+            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.shadow_textures, &plane->maps[WATER_PLANE_MAP_SHADOW]));
+
+            // Irradience map - use the "global" assigned one.
+            plane->maps[WATER_PLANE_MAP_IBL_CUBE].texture = internal_data->irradiance_cube_texture;
+            // Ensure there are valid resources acquired first.
+            if (plane->maps[WATER_PLANE_MAP_IBL_CUBE].internal_id == INVALID_ID) {
+                if (!renderer_texture_map_resources_acquire(&plane->maps[WATER_PLANE_MAP_IBL_CUBE])) {
+                    KERROR("Unable to acquire resources for texture map.");
+                    return false;
+                }
+            }
+            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.ibl_cube_texture, &plane->maps[WATER_PLANE_MAP_IBL_CUBE]));
+
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.refract_depth_texture, &plane->maps[WATER_PLANE_MAP_REFRACT_DEPTH]);
             //
             shader_system_apply_instance(internal_data->water_shader_id);
 
@@ -827,6 +908,7 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
 
         renderer_texture_prepare_for_sampling(internal_data->renderer, plane->reflection_colour.renderer_texture_handle, plane->reflection_colour.flags);
         renderer_texture_prepare_for_sampling(internal_data->renderer, plane->refraction_colour.renderer_texture_handle, plane->refraction_colour.flags);
+        renderer_texture_prepare_for_sampling(internal_data->renderer, plane->refraction_depth.renderer_texture_handle, plane->refraction_depth.flags);
     }
 
     // Finally, draw the scene normally with no clipping. Include the water plane rendering. Uses bound camera.
