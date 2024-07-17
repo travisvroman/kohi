@@ -6,10 +6,12 @@
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
 #include "core/engine.h"
+#include "core/event.h"
 #include "strings/kstring.h"
 #include "platform/platform.h"
 
 static b8 generate_texture(struct renderer_system_state* renderer, texture* t, const char* name, u32 tex_width, u32 tex_height, b8 is_depth);
+static b8 water_plane_on_event(u16 code, void* sender, void* listener_inst, event_context data);
 
 b8 water_plane_create(water_plane* out_plane) {
     if (!out_plane) {
@@ -30,7 +32,7 @@ void water_plane_destroy(water_plane* plane) {
 
 b8 water_plane_initialize(water_plane* plane) {
     if (plane) {
-        plane->tiling = 0.25f;         // TODO: configurable.
+        plane->tiling = 0.25f;        // TODO: configurable.
         plane->wave_strength = 0.02f; // TODO: configurable.
         plane->wave_speed = 0.03f;    // TODO: configurable.
 
@@ -146,6 +148,13 @@ b8 water_plane_load(water_plane* plane) {
             return false;
         }
 
+        // Listen for window resizes, as these must trigger a resize of our reflect/refract
+        // texture render targets. This should only be active while the plane is loaded.
+        if (!event_register(EVENT_CODE_WINDOW_RESIZED, plane, water_plane_on_event)) {
+            KERROR("Unable to register water plane for resize event. See logs for details.");
+            return false;
+        }
+
         return true;
     }
     return false;
@@ -153,6 +162,12 @@ b8 water_plane_load(water_plane* plane) {
 
 b8 water_plane_unload(water_plane* plane) {
     if (plane) {
+        // Immediately stop listening for resize events.
+        if (!event_unregister(EVENT_CODE_WINDOW_RESIZED, plane, water_plane_on_event)) {
+            // Nothing to really do about it, but warn the user.
+            KWARN("Unable to unregister water plane for resize event. See logs for details.");
+        }
+
         struct renderer_system_state* renderer = engine_systems_get()->renderer_system;
         renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
         renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
@@ -241,4 +256,40 @@ static b8 generate_texture(struct renderer_system_state* renderer, texture* t, c
     t->generation = 0;
 
     return true;
+}
+
+static b8 water_plane_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
+    if (code == EVENT_CODE_WINDOW_RESIZED) {
+        // Resize textures to match new frame buffer.
+        u16 width = context.data.u16[0];
+        u16 height = context.data.u16[1];
+
+        // const kwindow* window = sender;
+        water_plane* plane = listener_inst;
+
+        if (plane->reflection_colour.generation != INVALID_ID_U8) {
+            if (!texture_system_resize(&plane->reflection_colour, width, height, true)) {
+                KERROR("Failed to resize reflection colour texture for water plane.");
+            }
+        }
+        if (plane->reflection_depth.generation != INVALID_ID_U8) {
+            if (!texture_system_resize(&plane->reflection_depth, width, height, true)) {
+                KERROR("Failed to resize reflection depth texture for water plane.");
+            }
+        }
+
+        if (plane->refraction_colour.generation != INVALID_ID_U8) {
+            if (!texture_system_resize(&plane->refraction_colour, width, height, true)) {
+                KERROR("Failed to resize refraction colour texture for water plane.");
+            }
+        }
+        if (plane->refraction_depth.generation != INVALID_ID_U8) {
+            if (!texture_system_resize(&plane->refraction_depth, width, height, true)) {
+                KERROR("Failed to resize refraction depth texture for water plane.");
+            }
+        }
+    }
+
+    // Allow other systems to pick up event.
+    return false;
 }

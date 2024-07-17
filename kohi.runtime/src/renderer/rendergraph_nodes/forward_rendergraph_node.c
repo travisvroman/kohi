@@ -107,6 +107,7 @@ typedef struct water_shader_locations {
     u16 tiling;
     u16 wave_strength;
     u16 move_factor;
+    u16 num_p_lights;
     // Instance samplers
     u16 reflection_texture;
     u16 refraction_texture;
@@ -359,6 +360,7 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->water_shader_locations.tiling = shader_system_uniform_location(internal_data->water_shader_id, "tiling");
     internal_data->water_shader_locations.wave_strength = shader_system_uniform_location(internal_data->water_shader_id, "wave_strength");
     internal_data->water_shader_locations.move_factor = shader_system_uniform_location(internal_data->water_shader_id, "move_factor");
+    internal_data->water_shader_locations.num_p_lights = shader_system_uniform_location(internal_data->water_shader_id, "num_p_lights");
     // instance samplers
     internal_data->water_shader_locations.reflection_texture = shader_system_uniform_location(internal_data->water_shader_id, "reflection_texture");
     internal_data->water_shader_locations.refraction_texture = shader_system_uniform_location(internal_data->water_shader_id, "refraction_texture");
@@ -474,7 +476,7 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
 
             // Instance uniforms
             shader_system_bind_instance(internal_data->water_shader_id, plane->instance_id);
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.dir_light, internal_data->dir_light);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.dir_light, &internal_data->dir_light->data);
             // Point lights.
             u32 p_light_count = light_system_point_light_count();
             if (p_light_count) {
@@ -491,6 +493,7 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.tiling, &plane->tiling);
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.wave_strength, &plane->wave_strength);
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.move_factor, &move_factor);
+            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.num_p_lights, &p_light_count);
             // Instance samplers
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.reflection_texture, &plane->maps[WATER_PLANE_MAP_REFLECTION]);
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.refraction_texture, &plane->maps[WATER_PLANE_MAP_REFRACTION]);
@@ -554,7 +557,16 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, texture* 
     renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, depth->renderer_texture_handle, 0);
 
     // Bind the viewport
-    renderer_active_viewport_set(&internal_data->vp);
+    if (include_water_plane) {
+        renderer_active_viewport_set(&internal_data->vp);
+    } else {
+        // Drawing to render target, use its size instead.
+        rect_2d viewport_rect = (vec4){0, 0 + (f32)colour->height, (f32)colour->width, -(f32)colour->height};
+        renderer_viewport_set(viewport_rect);
+
+        rect_2d scissor_rect = (vec4){0, 0, (f32)colour->width, (f32)colour->height};
+        renderer_scissor_set(scissor_rect);
+    }
 
     mat4 view_matrix = camera_view_get(cam);
     vec3 view_position = camera_position_get(cam);
@@ -889,7 +901,7 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
 
         // Refraction, clip above plane. Don't render the water plane itself. Uses bound camera
         // TODO: clipping plane should be based on position/orientation of water plane.
-        vec4 refract_plane = (vec4){0, -1, 0, 0}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
+        vec4 refract_plane = (vec4){0, -1, 0, 0 + 1.0f}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
         renderer_clear_colour(internal_data->renderer, plane->refraction_colour.renderer_texture_handle);
         renderer_clear_depth_stencil(internal_data->renderer, plane->refraction_depth.renderer_texture_handle);
         if (!render_scene(internal_data, &plane->refraction_colour, &plane->refraction_depth, 0, 0, false, refract_plane, internal_data->current_camera, &inverted_camera, false, p_frame_data)) {

@@ -27,7 +27,7 @@ uniform=struct480,1,p_lights
 uniform=f32,1,tiling
 uniform=f32,1,wave_strength
 uniform=f32,1,move_factor
-uniform=i32,1,num_p_lights;
+uniform=i32,1,num_p_lights
 
 uniform=sampler2D,1,reflection_texture
 uniform=sampler2D,1,refraction_texture

@@ -44,7 +44,7 @@ layout(set = 1, binding = 0) uniform instance_uniform_object {
     float tiling;
     float wave_strength;
     float move_factor;
-	float padding;
+	int num_p_lights;
 } instance_ubo;
 
 layout(push_constant) uniform push_constants {

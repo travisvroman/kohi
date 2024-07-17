@@ -87,46 +87,15 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal);
 
 // Entry point
 void main() {
-    // Perspective division to NDC for texture projection, then to screen space.
-    vec2 ndc = (in_dto.clip_space.xy / in_dto.clip_space.w) / 2.0 + 0.5;
-    vec2 reflect_texcoord = vec2(ndc.x, ndc.y);
-    vec2 refract_texcoord = vec2(ndc.x, -ndc.y);
-
-    // TODO: Should come as uniforms from the viewport's near/far.
-    float near = 0.1;
-    float far = 1000.0;
-    float depth = texture(refract_depth_texture, refract_texcoord).r;
-    // Convert depth to linear distance.
-    float floor_distance = 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
-    depth = gl_FragCoord.z;
-    float water_distance = 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
-    float water_depth = floor_distance - water_distance;
-
     // Calculate surface distortion and bring it into [-1.0 - 1.0] range
     vec2 distorted_texcoords = texture(dudv_texture, vec2(in_dto.texcoord.x + instance_ubo.move_factor, in_dto.texcoord.y)).rg * 0.1;
     distorted_texcoords = in_dto.texcoord + vec2(distorted_texcoords.x, distorted_texcoords.y + instance_ubo.move_factor);
-    vec2 distortion_total = (texture(dudv_texture, distorted_texcoords).rg * 2.0 - 1.0) * instance_ubo.wave_strength;
 
-    reflect_texcoord += distortion_total;
-    // Avoid edge artifacts by clamping slightly inward to prevent texture wrapping.
-    reflect_texcoord = clamp(reflect_texcoord, 0.001, 0.999);
-
-    refract_texcoord += distortion_total;
-    // Avoid edge artifacts by clamping slightly inward to prevent texture wrapping.
-    refract_texcoord.x = clamp(refract_texcoord.x, 0.001, 0.999);
-    refract_texcoord.y = clamp(refract_texcoord.y, -0.999, -0.001); // Account for flipped y-axis
-
-    vec4 reflect_colour = texture(reflection_texture, reflect_texcoord);
-    vec4 refract_colour = texture(refraction_texture, refract_texcoord);
-
-    // Calculate the fresnel effect. TODO: Should read in the water plane normal.
-    float fresnel_factor = dot(normalize(in_dto.world_to_camera), vec3(0, 1, 0));
-    fresnel_factor = clamp(fresnel_factor, 0.0, 1.0);
-
+    // Compute the surface normal using the normal map.
     vec4 normal_colour = texture(normal_texture, distorted_texcoords);
     // Extract the normal, shifting to a range of [-1 - 1]
     vec3 normal = vec3(normal_colour.r * 2.0 - 1.0, normal_colour.g * 2.5, normal_colour.b * 2.0 - 1.0);
-    // vec3 normal = in_dto.normal;
+    
     vec3 original_tangent = normalize(vec3(1, 0, -0));
     vec3 tangent = original_tangent; // TODO: take from actual plane
     tangent = (tangent - dot(tangent, normal) *  normal);
@@ -135,20 +104,63 @@ void main() {
 
     normal = normalize(TBN*normal);
 
-    // Lighting
-    // vec4 lighting = do_lighting(global_ubo.view, in_dto.frag_position, reflect_colour.rgb, normal);
-    // reflect_colour = lighting;
+    float water_depth = 0;
 
-    out_colour = mix(reflect_colour, refract_colour, fresnel_factor);
-    vec4 tint = vec4(0.0, 0.3, 0.5, 1.0);
-    out_colour = mix(out_colour, tint, 0.2);
+    if(global_ubo.mode == 0) {
+        // Perspective division to NDC for texture projection, then to screen space.
+        vec2 ndc = (in_dto.clip_space.xy / in_dto.clip_space.w) / 2.0 + 0.5;
+        vec2 reflect_texcoord = vec2(ndc.x, ndc.y);
+        vec2 refract_texcoord = vec2(ndc.x, -ndc.y);
+
+        // TODO: Should come as uniforms from the viewport's near/far.
+        float near = 0.1;
+        float far = 1000.0;
+        float depth = texture(refract_depth_texture, refract_texcoord).r;
+        // Convert depth to linear distance.
+        float floor_distance = 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
+        depth = gl_FragCoord.z;
+        float water_distance = 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
+        water_depth = floor_distance - water_distance;
+
+        // Distort further
+        vec2 distortion_total = (texture(dudv_texture, distorted_texcoords).rg * 2.0 - 1.0) * instance_ubo.wave_strength;
+
+        reflect_texcoord += distortion_total;
+        // Avoid edge artifacts by clamping slightly inward to prevent texture wrapping.
+        reflect_texcoord = clamp(reflect_texcoord, 0.001, 0.999);
+
+        refract_texcoord += distortion_total;
+        // Avoid edge artifacts by clamping slightly inward to prevent texture wrapping.
+        refract_texcoord.x = clamp(refract_texcoord.x, 0.001, 0.999);
+        refract_texcoord.y = clamp(refract_texcoord.y, -0.999, -0.001); // Account for flipped y-axis
+
+        vec4 reflect_colour = texture(reflection_texture, reflect_texcoord);
+        vec4 refract_colour = texture(refraction_texture, refract_texcoord);
+
+        // Calculate the fresnel effect. TODO: Should read in the water plane normal.
+        float fresnel_factor = dot(normalize(in_dto.world_to_camera), vec3(0, 1, 0));
+        fresnel_factor = clamp(fresnel_factor, 0.0, 1.0);
+
+        // Lighting
+        // vec4 lighting = do_lighting(global_ubo.view, in_dto.frag_position, reflect_colour.rgb, normal);
+        // reflect_colour = lighting;
+
+        out_colour = mix(reflect_colour, refract_colour, fresnel_factor);
+        vec4 tint = vec4(0.0, 0.3, 0.5, 1.0);
+        out_colour = mix(out_colour, tint, 0.2);
+    } else {
+        // Other modes should just use white.
+        out_colour = vec4(1.0);
+    }
 
     // TODO: this kinda works... but the specular is very dull.
     vec4 lighting = do_lighting(global_ubo.view, in_dto.frag_position, out_colour.rgb, normal);
     out_colour = lighting;
 
-    // TODO: The 2.0 modifies the falloff depth of the water at the edge.
-    out_colour.a = clamp(water_depth / 0.5, 0.0, 1.0);
+    if(global_ubo.mode == 0) {
+        // TODO: The 2.0 modifies the falloff depth of the water at the edge.
+        out_colour.a = clamp(water_depth / 0.5, 0.0, 1.0);
+    }
 }
 
 vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal) {
@@ -156,7 +168,7 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal) {
 
     // These can be hardcoded for water surfaces.
     float metallic = 1.0;
-    float roughness = 0.0;
+    float roughness = 0.5;
     float ao = 1.0;
 
     // Generate shadow value based on current fragment position vs shadow map.

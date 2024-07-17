@@ -222,6 +222,7 @@ void vulkan_image_destroy(vulkan_context* context, vulkan_image* image) {
 }
 
 void vulkan_image_recreate(vulkan_context* context, vulkan_image* image) {
+    vkDeviceWaitIdle(context->device.logical_device);
     // Release the old images/views first, then create new.
     vkDestroyImage(context->device.logical_device, image->handle, context->allocator);
     vkFreeMemory(context->device.logical_device, image->memory, context->allocator);
