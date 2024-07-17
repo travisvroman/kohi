@@ -98,16 +98,6 @@ rendergraphs = [
                 }
             }
             {
-                name = "skybox"
-                type = "skybox"
-                sinks = [
-                    {
-                        name = "colourbuffer"
-                        source_name = "clear_colour.colourbuffer"
-                    }
-                ]
-            }
-            {
                 name = "shadow"
                 type = "shadow"
                 config = {
@@ -120,7 +110,7 @@ rendergraphs = [
                 sinks = [
                     {
                         name = "colourbuffer"
-                        source_name = "skybox.colourbuffer"
+                        source_name = "clear_colour.colourbuffer"
                     }
                     {
                         name = "depthbuffer"

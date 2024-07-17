@@ -16,7 +16,6 @@
 #include "renderer/rendergraph_nodes/debug_rendergraph_node.h"
 #include "renderer/rendergraph_nodes/forward_rendergraph_node.h"
 #include "renderer/rendergraph_nodes/shadow_rendergraph_node.h"
-#include "renderer/rendergraph_nodes/skybox_rendergraph_node.h"
 #include "rendergraph_nodes/frame_begin_rendergraph_node.h"
 #include "rendergraph_nodes/frame_end_rendergraph_node.h"
 
@@ -407,11 +406,6 @@ b8 rendergraph_system_initialize(u64* memory_requirement, struct rendergraph_sys
 
     if (!clear_depth_rendergraph_node_register_factory()) {
         KERROR("Failed to register known rendergraph factory type 'clear_depth'.");
-        return false;
-    }
-
-    if (!skybox_rendergraph_node_register_factory()) {
-        KERROR("Failed to register known rendergraph factory type 'skybox'.");
         return false;
     }
 

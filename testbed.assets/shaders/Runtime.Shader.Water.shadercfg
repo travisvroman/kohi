@@ -6,6 +6,7 @@ stages=vertex,fragment
 stagefiles=shaders/Runtime.Shader.Water.vert.glsl,shaders/Runtime.Shader.Water.frag.glsl
 depth_test=1
 depth_write=1
+supports_wireframe=1
 
 # Attributes: type,name
 attribute=vec4,in_position

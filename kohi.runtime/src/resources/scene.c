@@ -1021,7 +1021,8 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
     *data_count = 0;
 
     // TODO: Check if grid exists.
-    {
+    // TODO: flag for toggling grid on and off.
+    if (false) {
         if (debug_geometries) {
             geometry_render_data data = {0};
             data.model = mat4_identity();
@@ -1463,6 +1464,46 @@ b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, vec3 ce
     }
 
     *out_count = darray_length(*out_terrain_geometries);
+
+    return true;
+}
+
+/**
+ * @brief Gets a count and optionally an array of water planes from the given scene.
+ *
+ * @param scene A constant pointer to the scene.
+ * @param f A constant pointer to the frustum to use for culling.
+ * @param center The center view point.
+ * @param p_frame_data A pointer to the current frame's data.
+ * @param out_count A pointer to hold the count.
+ * @param out_water_planes A pointer to an array of pointers to water planes. Pass 0 if just obtaining the count.
+ * @return True on success; otherwise false.
+ */
+b8 scene_water_plane_query(const scene* scene, const frustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, water_plane*** out_water_planes) {
+    if (!scene) {
+        return false;
+    }
+    *out_count = 0;
+
+    u32 count = 0;
+    u32 water_plane_count = darray_length(scene->water_planes);
+    for (u32 i = 0; i < water_plane_count; ++i) {
+        if (out_water_planes) {
+            // scene_attachment* attachment = &scene->mesh_attachments[i];
+            // k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
+            // mat4 model = xform_world_get(xform_handle);
+
+            water_plane* wp = &scene->water_planes[i];
+            scene_attachment* attachment = &scene->water_plane_attachments[i];
+            k_handle xform_handle = scene->hierarchy.xform_handles[attachment->hierarchy_node_handle.handle_index];
+            // FIXME: World should work here, but for some reason isn't being updated...
+            wp->model = xform_local_get(xform_handle);
+            darray_push(*out_water_planes, wp);
+        }
+        count++;
+    }
+
+    *out_count = count;
 
     return true;
 }

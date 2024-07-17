@@ -4,6 +4,9 @@ Changelog
   - Added debug labels to all rendergraph nodes using "renderings".
   - Added dynamic state caching on the renderer frontend. These get automatically re-applied per "rendering".
     - There is a "per frame default" struct of settings that is automatically reapplied at the beginning of a frame.
+  - Added water plane resource, which allows the rendering of a basic plane of water.
+    - The rendering of this is handled within the forward rendergraph node.
+  - Skybox rendergraph node has been merged with forward rendergraph node to facilitate water plane rendering.
 
 - 0.7.0
   - NOTE: Due to changes in structure, it is recommended that you perform a full clean build if you used prior versions previously. 

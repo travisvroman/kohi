@@ -38,7 +38,7 @@ b8 water_plane_initialize(water_plane* plane) {
 
         // Create the geometry, but don't load it yet.
         // TODO: should probably be based on some size.
-        f32 size = 100.0f;
+        f32 size = 256.0f;
         plane->vertices[0] = (water_plane_vertex){-size, 0, -size, 1};
         plane->vertices[1] = (water_plane_vertex){-size, 0, +size, 1};
         plane->vertices[2] = (water_plane_vertex){+size, 0, +size, 1};

@@ -136,30 +136,30 @@ void main() {
 
         vec4 reflect_colour = texture(reflection_texture, reflect_texcoord);
         vec4 refract_colour = texture(refraction_texture, refract_texcoord);
+        // Refract should be slightly darker since it's wet.
+        refract_colour.rgb = clamp(reflect_colour.rgb -= vec3(0.2), vec3(0.0), vec3(1.0));
 
-        // Calculate the fresnel effect. TODO: Should read in the water plane normal.
-        float fresnel_factor = dot(normalize(in_dto.world_to_camera), vec3(0, 1, 0));
+        // Calculate the fresnel effect.
+        float fresnel_factor = dot(normalize(in_dto.world_to_camera), normal);
         fresnel_factor = clamp(fresnel_factor, 0.0, 1.0);
 
-        // Lighting
-        // vec4 lighting = do_lighting(global_ubo.view, in_dto.frag_position, reflect_colour.rgb, normal);
-        // reflect_colour = lighting;
-
         out_colour = mix(reflect_colour, refract_colour, fresnel_factor);
-        vec4 tint = vec4(0.0, 0.3, 0.5, 1.0);
-        out_colour = mix(out_colour, tint, 0.2);
+        vec4 tint = vec4(0.0, 0.3, 0.5, 1.0); // TODO: configurable.
+        float tint_strength = 0.5; // TODO: configurable.
+        out_colour = mix(out_colour, tint, tint_strength);
     } else {
         // Other modes should just use white.
         out_colour = vec4(1.0);
     }
 
-    // TODO: this kinda works... but the specular is very dull.
+    // Apply lighting
     vec4 lighting = do_lighting(global_ubo.view, in_dto.frag_position, out_colour.rgb, normal);
     out_colour = lighting;
 
     if(global_ubo.mode == 0) {
-        // TODO: The 2.0 modifies the falloff depth of the water at the edge.
-        out_colour.a = clamp(water_depth / 0.5, 0.0, 1.0);
+        // Falloff depth of the water at the edge.
+        float edge_depth_falloff = 4.0; // TODO: configurable
+        out_colour.a = clamp(water_depth / edge_depth_falloff, 0.0, 1.0);
     }
 }
 
@@ -167,8 +167,8 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal) {
     vec4 light_colour;
 
     // These can be hardcoded for water surfaces.
-    float metallic = 1.0;
-    float roughness = 0.5;
+    float metallic = 0.9;
+    float roughness = 1.0 - metallic;
     float ao = 1.0;
 
     // Generate shadow value based on current fragment position vs shadow map.
