@@ -27,6 +27,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Flag for toggling debug items on/off in scene.
   - [ ] Flag for toggling grid on/off in scene.
   - [ ] Water plane: Add various properties to configuration.
+  - [ ] Water plane: Fix frustum culling for reflections.
 
 ## Engine general:
 
