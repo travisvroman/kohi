@@ -5,9 +5,9 @@
 #include "logger.h"
 #include "math/kmath.h"
 #include "memory/kmemory.h"
+#include "renderer/camera.h"
 #include "renderer/renderer_types.h"
 #include "renderer/viewport.h"
-#include "renderer/camera.h"
 #include "strings/kstring.h"
 
 // FIXME: Kinda dumb to have to include this to get MAX_SHADOW_CASCADE_COUNT...
@@ -596,14 +596,12 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, texture* 
     }
 
     // Skybox first.
-    // FIXME: I think this is interrupting the scene render....
     if (internal_data->sb && internal_data->sb->state == SKYBOX_STATE_LOADED) {
         renderer_begin_debug_label("skybox", (vec3){0.5f, 0.5f, 1.0});
         renderer_set_depth_test_enabled(false);
         renderer_set_depth_write_enabled(false);
-        // renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, k_handle_invalid(), 0);
 
-        if (internal_data->sb && internal_data->sb->g->generation != INVALID_ID_U16) {
+        if (internal_data->sb->g->generation != INVALID_ID_U16) {
             shader_system_use_by_id(internal_data->skybox_shader_id);
 
             // Get the view matrix, but zero out the position so the skybox stays put on screen.
@@ -648,8 +646,6 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, texture* 
         // Restore depth state.
         renderer_set_depth_test_enabled(true);
         renderer_set_depth_write_enabled(true);
-
-        // renderer_end_rendering(internal_data->renderer, p_frame_data);
 
         renderer_end_debug_label();
     }

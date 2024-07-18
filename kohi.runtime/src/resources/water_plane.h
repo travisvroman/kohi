@@ -35,7 +35,7 @@ typedef struct water_plane {
 
     // Texture maps for reflect/refract normals.
     u32 map_count;
-    struct texture_map* maps; // 0=reflection, 1=refraction, 2=dudv
+    struct texture_map* maps;
 
     // Refraction target textures, owned by this plane.
     texture refraction_colour;

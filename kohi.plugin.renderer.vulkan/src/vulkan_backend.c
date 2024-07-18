@@ -2760,7 +2760,8 @@ static b8 create_sampler(vulkan_context* context, texture_map* map, VkSampler* s
     b8 is_depth = map->texture && ((map->texture->flags & TEXTURE_FLAG_DEPTH) != 0);
 
     // Sync the mip levels with that of the assigned texture.
-    map->mip_levels = is_depth ? 1 : map->texture ? map->texture->mip_levels : 1;
+    map->mip_levels = is_depth ? 1 : map->texture ? map->texture->mip_levels
+                                                  : 1;
 
     sampler_info.minFilter = convert_filter_type("min", map->filter_minify);
     sampler_info.magFilter = convert_filter_type("mag", map->filter_magnify);
@@ -2775,8 +2776,10 @@ static b8 create_sampler(vulkan_context* context, texture_map* map, VkSampler* s
         sampler_info.anisotropyEnable = VK_FALSE;
         sampler_info.maxAnisotropy = 0;
     } else {
-        sampler_info.anisotropyEnable = VK_TRUE;
-        sampler_info.maxAnisotropy = 16;
+        /* sampler_info.anisotropyEnable = VK_TRUE;
+        sampler_info.maxAnisotropy = 16; */
+        sampler_info.anisotropyEnable = VK_FALSE;
+        sampler_info.maxAnisotropy = 0;
     }
     sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
     // sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;

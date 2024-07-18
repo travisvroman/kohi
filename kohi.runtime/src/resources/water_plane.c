@@ -1,14 +1,16 @@
 #include "water_plane.h"
 
-#include "logger.h"
-#include "math/kmath.h"
-#include "renderer/renderer_frontend.h"
-#include "systems/shader_system.h"
-#include "systems/texture_system.h"
 #include "core/engine.h"
 #include "core/event.h"
-#include "strings/kstring.h"
+#include "logger.h"
+#include "math/kmath.h"
+#include "memory/kmemory.h"
 #include "platform/platform.h"
+#include "renderer/renderer_frontend.h"
+#include "resources/resource_types.h"
+#include "strings/kstring.h"
+#include "systems/shader_system.h"
+#include "systems/texture_system.h"
 
 static b8 generate_texture(struct renderer_system_state* renderer, texture* t, const char* name, u32 tex_width, u32 tex_height, b8 is_depth);
 static b8 water_plane_on_event(u16 code, void* sender, void* listener_inst, event_context data);
@@ -26,7 +28,11 @@ b8 water_plane_create(water_plane* out_plane) {
 }
 void water_plane_destroy(water_plane* plane) {
     if (plane) {
-        //
+        if (plane->maps) {
+            kfree(plane->maps, sizeof(texture_map) * plane->map_count, MEMORY_TAG_ARRAY);
+        }
+
+        kzero_memory(plane, sizeof(water_plane));
     }
 }
 
@@ -261,8 +267,8 @@ static b8 generate_texture(struct renderer_system_state* renderer, texture* t, c
 static b8 water_plane_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
     if (code == EVENT_CODE_WINDOW_RESIZED) {
         // Resize textures to match new frame buffer.
-        u16 width = context.data.u16[0];
-        u16 height = context.data.u16[1];
+        u16 width = context.data.u16[0] / 8;
+        u16 height = context.data.u16[1] / 8;
 
         // const kwindow* window = sender;
         water_plane* plane = listener_inst;
