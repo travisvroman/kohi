@@ -76,6 +76,8 @@ enum macos_modifier_keys {
 
 static platform_state* state_ptr;
 
+static void handle_resize(kwindow* w, u16 width, u16 height);
+
 // Key translation
 static keys translate_keycode(u32 ns_keycode);
 // Modifier key handling
@@ -309,7 +311,8 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
 }
 
 - (void)windowDidChangeScreen:(NSNotification*)notification {
-    kwindow* w = ((WindowDelegate*)notification.object)->kohi_window;
+    NSWindow* window = [notification object];
+    kwindow* w = ((WindowDelegate*)window.delegate)->kohi_window;
     kwindow_platform_state* ps = w->platform_state;
     CGSize viewSize = ps->view.bounds.size;
     NSSize newDrawableSize = [ps->view convertSizeToBacking:viewSize];
@@ -318,13 +321,14 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
     // Save off the device pixel ratio.
     ps->device_pixel_ratio = ps->layer.contentsScale;
 
-    w->width = (u16)newDrawableSize.width;
-    w->height = (u16)newDrawableSize.height;
-    state_ptr->window_resized_callback(w);
+    u16 width = (u16)newDrawableSize.width;
+    u16 height = (u16)newDrawableSize.height;
+    handle_resize(w, width, height);
 }
 
 - (void)windowDidResize:(NSNotification*)notification {
-    kwindow* w = ((WindowDelegate*)notification.object)->kohi_window;
+    NSWindow* window = [notification object];
+    kwindow* w = ((WindowDelegate*)window.delegate)->kohi_window;
     kwindow_platform_state* ps = w->platform_state;
     CGSize viewSize = ps->view.bounds.size;
     NSSize newDrawableSize = [ps->view convertSizeToBacking:viewSize];
@@ -333,25 +337,25 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
     // Save off the device pixel ratio.
     ps->device_pixel_ratio = ps->layer.contentsScale;
 
-    w->width = (u16)newDrawableSize.width;
-    w->height = (u16)newDrawableSize.height;
-    state_ptr->window_resized_callback(w);
+    u16 width = (u16)newDrawableSize.width;
+    u16 height = (u16)newDrawableSize.height;
+    handle_resize(w, width, height);
 }
 
 - (void)windowDidMiniaturize:(NSNotification*)notification {
     // Send a size of 0, which tells the application it was minimized.
-    kwindow* w = ((WindowDelegate*)notification.object)->kohi_window;
+    NSWindow* window = [notification object];
+    kwindow* w = ((WindowDelegate*)window.delegate)->kohi_window;
     kwindow_platform_state* ps = w->platform_state;
 
-    w->width = 0;
-    w->height = 0;
-    state_ptr->window_resized_callback(w);
+    handle_resize(w, 0, 0);
 
     [ps->handle miniaturize:nil];
 }
 
 - (void)windowDidDeminiaturize:(NSNotification*)notification {
-    kwindow* w = ((WindowDelegate*)notification.object)->kohi_window;
+    NSWindow* window = [notification object];
+    kwindow* w = ((WindowDelegate*)window.delegate)->kohi_window;
     kwindow_platform_state* ps = w->platform_state;
     CGSize viewSize = ps->view.bounds.size;
     NSSize newDrawableSize = [ps->view convertSizeToBacking:viewSize];
@@ -360,14 +364,31 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
     // Save off the device pixel ratio.
     ps->device_pixel_ratio = ps->layer.contentsScale;
 
-    w->width = (u16)newDrawableSize.width;
-    w->height = (u16)newDrawableSize.height;
-    state_ptr->window_resized_callback(w);
+    u16 width = (u16)newDrawableSize.width;
+    u16 height = (u16)newDrawableSize.height;
+    handle_resize(w, width, height);
 
     [ps->handle deminiaturize:nil];
 }
 
 @end // WindowDelegate
+
+static void handle_resize(kwindow* w, u16 width, u16 height) {
+
+    // Check if different. If so, trigger a resize event.
+    if (width != w->width || height != w->height) {
+        // Flag as resizing and store the change, but wait to regenerate.
+        w->resizing = true;
+        // Also reset the frame count since the last  resize operation.
+        w->frames_since_resize = 0;
+        // Update dimensions
+        w->width = width;
+        w->height = height;
+
+        // Only trigger the callback if there was an actual change.
+        state_ptr->window_resized_callback(w);
+    }
+}
 
 b8 platform_system_startup(u64* memory_requirement, platform_state* state, platform_system_config* config) {
     *memory_requirement = sizeof(platform_state);
