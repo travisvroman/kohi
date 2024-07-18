@@ -52,7 +52,7 @@ The items in this list are not in any particular order. This list will be update
 
 - [x] platform layer (Windows, Linux, macOS)
   - [x] UTF-8/Wide character handling for Win32 windowing.
-  - [ ] UTF-8/Wide character handling for Linux windowing.
+  - [x] UTF-8/Wide character handling for Linux windowing.
   - [x] Wayland support
 - [x] event system
 - [x] clock

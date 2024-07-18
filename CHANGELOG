@@ -7,6 +7,7 @@ Changelog
   - Added water plane resource, which allows the rendering of a basic plane of water.
     - The rendering of this is handled within the forward rendergraph node.
   - Skybox rendergraph node has been merged with forward rendergraph node to facilitate water plane rendering.
+  - Fixed an issue with UTF8 window titles not rendering correctly in X11 (Linux).
 
 - 0.7.0
   - NOTE: Due to changes in structure, it is recommended that you perform a full clean build if you used prior versions previously. 
