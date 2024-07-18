@@ -764,24 +764,6 @@ b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend,
 
     vulkan_command_buffer_reset(command_buffer);
     vulkan_command_buffer_begin(command_buffer, false, false, false);
-
-    // Dynamic state
-
-    vulkan_renderer_winding_set(backend, RENDERER_WINDING_COUNTER_CLOCKWISE);
-
-    vulkan_renderer_set_stencil_reference(backend, 0);
-    vulkan_renderer_set_stencil_compare_mask(backend, 0xFF);
-    vulkan_renderer_set_stencil_op(
-        backend,
-        RENDERER_STENCIL_OP_KEEP,
-        RENDERER_STENCIL_OP_REPLACE,
-        RENDERER_STENCIL_OP_KEEP,
-        RENDERER_COMPARE_OP_ALWAYS);
-    vulkan_renderer_set_stencil_test_enabled(backend, false);
-    vulkan_renderer_set_depth_test_enabled(backend, true);
-    vulkan_renderer_set_depth_write_enabled(backend, true);
-    // Disable stencil writing.
-    vulkan_renderer_set_stencil_write_mask(backend, 0x00);
     return true;
 }
 
@@ -807,6 +789,13 @@ b8 vulkan_renderer_frame_submit(struct renderer_backend_interface* backend, stru
 
     // Command buffer(s) to be executed.
     submit_info.commandBufferCount = 1;
+    // Update the state of the secondary buffers.
+    for (u32 i = 0; i < command_buffer->secondary_count; ++i) {
+        vulkan_command_buffer* secondary = &command_buffer->secondary_buffers[i];
+        if (secondary->state == COMMAND_BUFFER_STATE_RECORDING_ENDED) {
+            secondary->state = COMMAND_BUFFER_STATE_SUBMITTED;
+        }
+    }
     submit_info.pCommandBuffers = &command_buffer->handle;
 
     // The semaphore(s) to be signaled when the queue is complete.
@@ -836,6 +825,9 @@ b8 vulkan_renderer_frame_submit(struct renderer_backend_interface* backend, stru
     }
 
     vulkan_command_buffer_update_submitted(command_buffer);
+
+    // Loop back to the first index.
+    command_buffer->secondary_buffer_index = 0;
     // End queue submission
 
     return true;
@@ -1050,17 +1042,21 @@ void vulkan_renderer_set_stencil_op(struct renderer_backend_interface* backend, 
     }
 }
 
-void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend, frame_data* p_frame_data, u32 colour_target_count, struct texture_internal_data** colour_targets, struct texture_internal_data* depth_stencil_target, u32 depth_stencil_layer) {
+void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend, frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, struct texture_internal_data** colour_targets, struct texture_internal_data* depth_stencil_target, u32 depth_stencil_layer) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
+    vulkan_command_buffer* primary = get_current_command_buffer(context);
     u32 image_index = context->current_window->renderer_state->backend_state->image_index;
 
-    viewport* v = renderer_active_viewport_get();
+    // Anytime we "begin" a render, update the "in-render" state and get the appropriate secondary.
+    primary->in_render = true;
+    vulkan_command_buffer* secondary = get_current_command_buffer(context);
+    vulkan_command_buffer_begin(secondary, false, false, false);
+
     VkRenderingInfo render_info = {VK_STRUCTURE_TYPE_RENDERING_INFO};
-    render_info.renderArea.offset.x = v->rect.x;
-    render_info.renderArea.offset.y = v->rect.y;
-    render_info.renderArea.extent.width = v->rect.width;
-    render_info.renderArea.extent.height = v->rect.height;
+    render_info.renderArea.offset.x = render_area.x;
+    render_info.renderArea.offset.y = render_area.y;
+    render_info.renderArea.extent.width = render_area.width;
+    render_info.renderArea.extent.height = render_area.height;
 
     // TODO: This may be a problem for layered images/cubemaps
     render_info.layerCount = 1;
@@ -1069,40 +1065,6 @@ void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend,
     VkRenderingAttachmentInfoKHR depth_attachment_info = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
     if (depth_stencil_target) {
         vulkan_image* image = &depth_stencil_target->images[image_index];
-
-        // // vulkan_image_transition_layout(context, command_buffer, image, image->format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-        // // Transition the layout
-        // VkImageMemoryBarrier barrier = {0};
-        // barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        // barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        // barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        // barrier.srcQueueFamilyIndex = context->device.graphics_queue_index;
-        // barrier.dstQueueFamilyIndex = context->device.graphics_queue_index;
-        // barrier.image = image->handle;
-        // barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-        // // Mips
-        // barrier.subresourceRange.baseMipLevel = 0;
-        // barrier.subresourceRange.levelCount = image->mip_levels;
-
-        // // Transition all layers at once.
-        // barrier.subresourceRange.layerCount = image->layer_count;
-
-        // // Start at the first layer.
-        // barrier.subresourceRange.baseArrayLayer = 0;
-
-        // barrier.srcAccessMask = 0;
-        // barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-        // vkCmdPipelineBarrier(
-        //     command_buffer->handle,
-        //     VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        //     VK_PIPELINE_STAGE_TRANSFER_BIT,
-        //     0,
-        //     0, 0,
-        //     0, 0,
-        //     1, &barrier);
-
-        //     //
 
         depth_attachment_info.imageView = image->view;
         if (image->layer_count > 1) {
@@ -1143,22 +1105,34 @@ void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend,
         render_info.pColorAttachments = 0;
     }
 
+    // Kick off the render using the secondary buffer.
     if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
-        vkCmdBeginRendering(command_buffer->handle, &render_info);
+        vkCmdBeginRendering(secondary->handle, &render_info);
     } else {
-        context->vkCmdBeginRenderingKHR(command_buffer->handle, &render_info);
+        context->vkCmdBeginRenderingKHR(secondary->handle, &render_info);
     }
 }
 
 void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, frame_data* p_frame_data) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
+    // Since ending a rendering, will be in a secondary buffer.
+    vulkan_command_buffer* secondary = get_current_command_buffer(context);
+    vulkan_command_buffer* primary = secondary->parent;
 
     if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
-        vkCmdEndRendering(command_buffer->handle);
+        vkCmdEndRendering(secondary->handle);
     } else {
-        context->vkCmdEndRenderingKHR(command_buffer->handle);
+        context->vkCmdEndRenderingKHR(secondary->handle);
     }
+
+    // End the secondary buffer.
+    vulkan_command_buffer_end(secondary);
+    // Execute the secondary command buffer via the primary buffer.
+    vkCmdExecuteCommands(primary->handle, 1, &secondary->handle);
+
+    // Move on to the next buffer index
+    primary->secondary_buffer_index++;
+    primary->in_render = false;
 }
 
 void vulkan_renderer_set_stencil_compare_mask(struct renderer_backend_interface* backend, u32 compare_mask) {
@@ -1355,7 +1329,7 @@ void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* ba
     // Transition the layout
     VkImageMemoryBarrier barrier = {0};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = is_depth ? VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     barrier.srcQueueFamilyIndex = context->device.graphics_queue_index;
     barrier.dstQueueFamilyIndex = context->device.graphics_queue_index;
@@ -1430,12 +1404,29 @@ static void create_command_buffers(vulkan_context* context, kwindow* window) {
     u32 new_image_count = window_backend->swapchain.image_count;
     window_backend->graphics_command_buffers = kallocate(sizeof(vulkan_command_buffer) * new_image_count, MEMORY_TAG_ARRAY);
     for (u32 i = 0; i < new_image_count; ++i) {
-        kzero_memory(&window_backend->graphics_command_buffers[i], sizeof(vulkan_command_buffer));
+        vulkan_command_buffer* primary_buffer = &window_backend->graphics_command_buffers[i];
+        kzero_memory(primary_buffer, sizeof(vulkan_command_buffer));
 
         // Allocate a new buffer.
         char* name = string_format("%s_command_buffer_%d", window->name, i);
-        vulkan_command_buffer_allocate(context, context->device.graphics_command_pool, true, name, &window_backend->graphics_command_buffers[i]);
+        vulkan_command_buffer_allocate(context, context->device.graphics_command_pool, true, name, primary_buffer);
         string_free(name);
+
+        // Allocate new secondary command buffers.
+        // TODO: should this be configurable?
+        primary_buffer->secondary_count = 16;
+        primary_buffer->secondary_buffers = kallocate(sizeof(vulkan_command_buffer) * primary_buffer->secondary_count, MEMORY_TAG_ARRAY);
+        for (u32 j = 0; j < primary_buffer->secondary_count; ++j) {
+            vulkan_command_buffer* secondary_buffer = &primary_buffer->secondary_buffers[j];
+            char* secondary_name = string_format("%s_command_buffer_%d_secondary_%d", window->name, i, j);
+            vulkan_command_buffer_allocate(context, context->device.graphics_command_pool, false, secondary_name, secondary_buffer);
+            string_free(secondary_name);
+            // Set the primary buffer pointer.
+            secondary_buffer->parent = primary_buffer;
+        }
+
+        primary_buffer->secondary_buffer_index = 0; // Start at the first secondary buffer.
+        primary_buffer->in_render = false;          // start off as "not in render".
     }
 
     KDEBUG("Vulkan command buffers created.");
@@ -1541,7 +1532,11 @@ b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend
     } else {
         usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-        image_format = channel_count_to_format(channel_count, VK_FORMAT_R8G8B8A8_UNORM);
+        if (flags & TEXTURE_FLAG_IS_WRITEABLE) {
+            image_format = context->current_window->renderer_state->backend_state->swapchain.image_format.format;
+        } else {
+            image_format = channel_count_to_format(channel_count, VK_FORMAT_R8G8B8A8_UNORM);
+        }
     }
 
     // Create one image per swapchain image (or just one image)
@@ -2765,7 +2760,8 @@ static b8 create_sampler(vulkan_context* context, texture_map* map, VkSampler* s
     b8 is_depth = map->texture && ((map->texture->flags & TEXTURE_FLAG_DEPTH) != 0);
 
     // Sync the mip levels with that of the assigned texture.
-    map->mip_levels = is_depth ? 1 : map->texture->mip_levels;
+    map->mip_levels = is_depth ? 1 : map->texture ? map->texture->mip_levels
+                                                  : 1;
 
     sampler_info.minFilter = convert_filter_type("min", map->filter_minify);
     sampler_info.magFilter = convert_filter_type("mag", map->filter_magnify);
@@ -2780,8 +2776,10 @@ static b8 create_sampler(vulkan_context* context, texture_map* map, VkSampler* s
         sampler_info.anisotropyEnable = VK_FALSE;
         sampler_info.maxAnisotropy = 0;
     } else {
-        sampler_info.anisotropyEnable = VK_TRUE;
-        sampler_info.maxAnisotropy = 16;
+        /* sampler_info.anisotropyEnable = VK_TRUE;
+        sampler_info.maxAnisotropy = 16; */
+        sampler_info.anisotropyEnable = VK_FALSE;
+        sampler_info.maxAnisotropy = 0;
     }
     sampler_info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
     // sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
@@ -2794,7 +2792,7 @@ static b8 create_sampler(vulkan_context* context, texture_map* map, VkSampler* s
     sampler_info.minLod = 0.0f;
     // NOTE: Uncomment the following line to test the lowest mip level.
     /* sampler_info.minLod = map->texture->mip_levels > 1 ? map->texture->mip_levels : 0.0f; */
-    sampler_info.maxLod = map->texture->mip_levels;
+    sampler_info.maxLod = map->mip_levels;
 
     VkResult result = vkCreateSampler(context->device.logical_device, &sampler_info, context->allocator, sampler);
     if (!vulkan_result_is_success(VK_SUCCESS)) {
@@ -2826,7 +2824,7 @@ b8 vulkan_renderer_texture_map_resources_acquire(renderer_backend_interface* bac
     }
 
 #if _DEBUG
-    char* formatted_name = string_format("%s_texmap_sampler", map->texture->name);
+    char* formatted_name = string_format("%s_texmap_sampler", map->texture ? map->texture->name : "__noname__");
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_SAMPLER, context->samplers[selected_id], formatted_name);
     string_free(formatted_name);
 #endif
@@ -3939,7 +3937,24 @@ static b8 create_vulkan_allocator(vulkan_context* context,
 
 static vulkan_command_buffer* get_current_command_buffer(vulkan_context* context) {
     kwindow_renderer_backend_state* window_backend = context->current_window->renderer_state->backend_state;
-    return &window_backend->graphics_command_buffers[window_backend->image_index];
+    vulkan_command_buffer* primary = &window_backend->graphics_command_buffers[window_backend->image_index];
+
+    // If inside a "render", return the secondary buffer at the current index.
+    if (primary->in_render) {
+        if (!primary->secondary_buffers) {
+            KWARN("get_current_command_buffer requested draw index, but no secondary buffers exist.");
+            return primary;
+        } else {
+            if (primary->secondary_buffer_index >= primary->secondary_count) {
+                KWARN("get_current_command_buffer specified a draw index (%d) outside the bounds of 0-%d. Returning the first one, which may result in errors.", primary->secondary_buffer_index, primary->secondary_count - 1);
+                return &primary->secondary_buffers[0];
+            } else {
+                return &primary->secondary_buffers[primary->secondary_buffer_index];
+            }
+        }
+    } else {
+        return primary;
+    }
 }
 
 static u32 get_current_image_index(vulkan_context* context) {

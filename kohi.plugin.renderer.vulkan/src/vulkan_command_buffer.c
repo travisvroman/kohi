@@ -23,6 +23,8 @@ void vulkan_command_buffer_allocate(
         &allocate_info,
         &out_command_buffer->handle));
     out_command_buffer->state = COMMAND_BUFFER_STATE_READY;
+    // Store if the buffer is primary.
+    out_command_buffer->is_primary = is_primary;
 
     if (name) {
         VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_COMMAND_BUFFER, out_command_buffer->handle, name);
@@ -58,6 +60,17 @@ void vulkan_command_buffer_begin(
     }
     if (is_simultaneous_use) {
         begin_info.flags |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+    }
+
+    // Include required inheritance info if the buffer is secondary.
+    // This is mostly blank due to using dynamic rendering, but would require
+    // renderpass/subpass information if those were used.
+    if (command_buffer->is_primary) {
+        begin_info.pInheritanceInfo = 0;
+    } else {
+        VkCommandBufferInheritanceInfo inheritance_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO};
+        inheritance_info.subpass = 0;
+        begin_info.pInheritanceInfo = &inheritance_info;
     }
 
     VK_CHECK(vkBeginCommandBuffer(command_buffer->handle, &begin_info));

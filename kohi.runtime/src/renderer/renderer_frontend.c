@@ -33,6 +33,26 @@ typedef struct texture_lookup {
     struct texture_internal_data* data;
 } texture_lookup;
 
+typedef struct renderer_dynamic_state {
+    vec4 viewport;
+    vec4 scissor;
+
+    b8 depth_test_enabled;
+    b8 depth_write_enabled;
+    b8 stencil_test_enabled;
+
+    u32 stencil_reference;
+    u32 stencil_compare_mask;
+    u32 stencil_write_mask;
+
+    renderer_stencil_op fail_op;
+    renderer_stencil_op pass_op;
+    renderer_stencil_op depth_fail_op;
+    renderer_compare_op compare_op;
+
+    renderer_winding winding;
+} renderer_dynamic_state;
+
 typedef struct renderer_system_state {
     /** @brief The current frame number. */
     u64 frame_number;
@@ -59,7 +79,14 @@ typedef struct renderer_system_state {
     // Renderer options.
     // Use PCF filtering
     b8 use_pcf;
+
+    // Current dynamic state settings.
+    renderer_dynamic_state dynamic_state;
+    // Frame defaults - dynamic state settings that are reapplied at the beginning of every frame.
+    renderer_dynamic_state frame_default_dynamic_state;
 } renderer_system_state;
+
+static void reapply_dynamic_state(renderer_system_state* state, const renderer_dynamic_state* dynamic_state);
 
 b8 renderer_system_deserialize_config(const char* config_str, renderer_system_config* out_config) {
     if (!config_str || !out_config) {
@@ -163,6 +190,23 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
         return false;
     }
 
+    // Default dynamic state settings.
+    state->dynamic_state.viewport = (vec4){0, 0, 1280, 720};
+    state->dynamic_state.scissor = (vec4){0, 0, 1280, 720};
+    state->dynamic_state.depth_test_enabled = true;
+    state->dynamic_state.depth_write_enabled = true;
+    state->dynamic_state.stencil_test_enabled = false;
+    state->dynamic_state.stencil_reference = 0;
+    state->dynamic_state.stencil_write_mask = 0;
+    state->dynamic_state.fail_op = RENDERER_STENCIL_OP_KEEP;
+    state->dynamic_state.pass_op = RENDERER_STENCIL_OP_REPLACE;
+    state->dynamic_state.depth_fail_op = RENDERER_STENCIL_OP_KEEP;
+    state->dynamic_state.compare_op = RENDERER_COMPARE_OP_ALWAYS;
+    state->dynamic_state.winding = RENDERER_WINDING_COUNTER_CLOCKWISE;
+
+    // Take a copy as the frame default.
+    state->frame_default_dynamic_state = state->dynamic_state;
+
     // Geometry vertex buffer
     // TODO: make this configurable.
     const u64 vertex_buffer_size = sizeof(vertex_3d) * 20 * 1024 * 1024;
@@ -231,8 +275,6 @@ b8 renderer_on_window_created(struct renderer_system_state* state, struct kwindo
 void renderer_on_window_destroyed(struct renderer_system_state* state, struct kwindow* window) {
     if (window) {
 
-       
-
         // Destroy on backend first.
         state->backend->window_destroy(state->backend, window);
     }
@@ -278,7 +320,14 @@ b8 renderer_frame_prepare_window_surface(struct renderer_system_state* state, st
 }
 
 b8 renderer_frame_command_list_begin(struct renderer_system_state* state, struct frame_data* p_frame_data) {
-    return state->backend->frame_commands_begin(state->backend, p_frame_data);
+    b8 result = state->backend->frame_commands_begin(state->backend, p_frame_data);
+
+    // Reapply frame defaults if successful.
+    if (result) {
+        reapply_dynamic_state(state, &state->frame_default_dynamic_state);
+    }
+
+    return result;
 }
 
 b8 renderer_frame_command_list_end(struct renderer_system_state* state, struct frame_data* p_frame_data) {
@@ -297,6 +346,7 @@ b8 renderer_frame_present(struct renderer_system_state* state, struct kwindow* w
 
 void renderer_viewport_set(vec4 rect) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    state_ptr->dynamic_state.viewport = rect;
     state_ptr->backend->viewport_set(state_ptr->backend, rect);
 }
 
@@ -307,6 +357,7 @@ void renderer_viewport_reset(void) {
 
 void renderer_scissor_set(vec4 rect) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    state_ptr->dynamic_state.scissor = rect;
     state_ptr->backend->scissor_set(state_ptr->backend, rect);
 }
 
@@ -317,36 +368,48 @@ void renderer_scissor_reset(void) {
 
 void renderer_winding_set(renderer_winding winding) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    state_ptr->dynamic_state.winding = winding;
     state_ptr->backend->winding_set(state_ptr->backend, winding);
 }
 
 void renderer_set_stencil_test_enabled(b8 enabled) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    state_ptr->dynamic_state.stencil_test_enabled = enabled;
     state_ptr->backend->set_stencil_test_enabled(state_ptr->backend, enabled);
 }
 
 void renderer_set_stencil_reference(u32 reference) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    state_ptr->dynamic_state.stencil_reference = reference;
     state_ptr->backend->set_stencil_reference(state_ptr->backend, reference);
 }
 
 void renderer_set_depth_test_enabled(b8 enabled) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    state_ptr->dynamic_state.depth_test_enabled = enabled;
     state_ptr->backend->set_depth_test_enabled(state_ptr->backend, enabled);
 }
 
 void renderer_set_depth_write_enabled(b8 enabled) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    // Cache dynamic state.
+    state_ptr->dynamic_state.depth_write_enabled = enabled;
     state_ptr->backend->set_depth_write_enabled(state_ptr->backend, enabled);
 }
 
 void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    // Cache dynamic state.
+    state_ptr->dynamic_state.fail_op = fail_op;
+    state_ptr->dynamic_state.pass_op = pass_op;
+    state_ptr->dynamic_state.depth_fail_op = depth_fail_op;
+    state_ptr->dynamic_state.compare_op = compare_op;
     state_ptr->backend->set_stencil_op(state_ptr->backend, fail_op, pass_op, depth_fail_op, compare_op);
 }
 
-void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, u32 colour_target_count, k_handle* colour_targets, k_handle depth_stencil_target, u32 depth_stencil_layer) {
+void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, k_handle* colour_targets, k_handle depth_stencil_target, u32 depth_stencil_layer) {
     struct texture_internal_data** colour_datas = 0;
+    KASSERT_MSG(render_area.width != 0 && render_area.height != 0, "renderer_begin_rendering must have a width and height.");
     if (colour_target_count) {
         if (colour_target_count == 1) {
             // Optimization: Skip array allocation and just pass through the address of it.
@@ -372,7 +435,10 @@ void renderer_begin_rendering(struct renderer_system_state* state, struct frame_
     if (!k_handle_is_invalid(depth_stencil_target)) {
         depth_data = state->textures[depth_stencil_target.handle_index].data;
     }
-    state->backend->begin_rendering(state->backend, p_frame_data, colour_target_count, colour_datas, depth_data, depth_stencil_layer);
+    state->backend->begin_rendering(state->backend, p_frame_data, render_area, colour_target_count, colour_datas, depth_data, depth_stencil_layer);
+
+    // Dynamic state needs to be reapplied here in case the backend needs it.
+    reapply_dynamic_state(state, &state->dynamic_state);
 }
 
 void renderer_end_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data) {
@@ -381,6 +447,7 @@ void renderer_end_rendering(struct renderer_system_state* state, struct frame_da
 
 void renderer_set_stencil_compare_mask(u32 compare_mask) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    state_ptr->dynamic_state.stencil_compare_mask = compare_mask;
     state_ptr->backend->set_stencil_compare_mask(state_ptr->backend, compare_mask);
 }
 
@@ -1196,4 +1263,22 @@ b8 renderer_pcf_enabled(struct renderer_system_state* state) {
         return false;
     }
     return state->use_pcf;
+}
+
+static void reapply_dynamic_state(renderer_system_state* state, const renderer_dynamic_state* dynamic_state) {
+    renderer_set_depth_test_enabled(dynamic_state->depth_test_enabled);
+    renderer_set_depth_write_enabled(dynamic_state->depth_write_enabled);
+
+    renderer_set_stencil_test_enabled(dynamic_state->stencil_test_enabled);
+    renderer_set_stencil_reference(dynamic_state->stencil_reference);
+    renderer_set_stencil_write_mask(dynamic_state->stencil_write_mask);
+    renderer_set_stencil_compare_mask(dynamic_state->stencil_compare_mask);
+    renderer_set_stencil_op(
+        dynamic_state->fail_op,
+        dynamic_state->pass_op,
+        dynamic_state->depth_fail_op,
+        dynamic_state->compare_op);
+    renderer_winding_set(dynamic_state->winding);
+    renderer_viewport_set(dynamic_state->viewport);
+    renderer_scissor_set(dynamic_state->scissor);
 }

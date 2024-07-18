@@ -299,7 +299,7 @@ shader* shader_system_get(const char* shader_name) {
         return shader_system_get_by_id(shader_id);
     }
 
-    KERROR("There is not shader available called '%s', and one by that name could also not be loaded.");
+    KERROR("There is not shader available called '%s', and one by that name could also not be loaded.", shader_name);
     return 0;
 }
 
@@ -424,6 +424,76 @@ b8 shader_system_apply_instance(u32 shader_id) {
 b8 shader_system_apply_local(u32 shader_id) {
     shader* s = &state_ptr->shaders[shader_id];
     return renderer_shader_apply_local(state_ptr->renderer, s);
+}
+
+b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, texture_map* maps, u32* out_instance_id) {
+    shader* selected_shader = shader_system_get_by_id(shader_id);
+
+    // Ensure that configs are setup for required texture maps.
+    shader_instance_resource_config instance_resource_config = {0};
+    u32 instance_sampler_count = selected_shader->instance_uniform_sampler_count;
+
+    instance_resource_config.uniform_config_count = instance_sampler_count;
+    if (instance_sampler_count > 0) {
+        instance_resource_config.uniform_configs = kallocate(sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
+    } else {
+        instance_resource_config.uniform_configs = 0;
+    }
+
+    // Create a sampler config for each map.
+    for (u32 i = 0; i < instance_sampler_count; ++i) {
+        shader_uniform* u = &selected_shader->uniforms[selected_shader->instance_sampler_indices[i]];
+        shader_instance_uniform_texture_config* uniform_config = &instance_resource_config.uniform_configs[i];
+        /* uniform_config->uniform_location = u->location; */
+        uniform_config->texture_map_count = KMAX(u->array_length, 1);
+        uniform_config->texture_maps = kallocate(sizeof(texture_map*) * uniform_config->texture_map_count, MEMORY_TAG_ARRAY);
+        for (u32 j = 0; j < uniform_config->texture_map_count; ++j) {
+            uniform_config->texture_maps[j] = &maps[i];
+
+            // Acquire resources for the map, but only if a texture is assigned.
+            if (uniform_config->texture_maps[j]->texture) {
+                if (!renderer_texture_map_resources_acquire(uniform_config->texture_maps[j])) {
+                    KERROR("Unable to acquire resources for texture map.");
+                    return false;
+                }
+            }
+        }
+    }
+
+    // Acquire the instance resources for this shader.
+    b8 result = renderer_shader_instance_resources_acquire(state_ptr->renderer, selected_shader, &instance_resource_config, out_instance_id);
+    if (!result) {
+        KERROR("Failed to acquire renderer resources for shader '%s'.", selected_shader->name);
+    }
+
+    // Clean up the uniform configs.
+    if (instance_resource_config.uniform_configs) {
+        for (u32 i = 0; i < instance_resource_config.uniform_config_count; ++i) {
+            shader_instance_uniform_texture_config* ucfg = &instance_resource_config.uniform_configs[i];
+            kfree(ucfg->texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
+            ucfg->texture_maps = 0;
+        }
+        kfree(instance_resource_config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
+    }
+
+    return result;
+}
+
+b8 shader_system_shader_instance_release(u32 shader_id, u32 instance_id, u32 map_count, texture_map* maps) {
+    shader* selected_shader = shader_system_get_by_id(shader_id);
+
+    // Release texture map resources.
+    for (u32 i = 0; i < map_count; ++i) {
+        renderer_texture_map_resources_release(&maps[i]);
+    }
+
+    // Release the instance resources for this shader.
+    b8 result = renderer_shader_instance_resources_release(state_ptr->renderer, selected_shader, instance_id);
+    if (!result) {
+        KERROR("Failed to acquire renderer resources for shader '%s'.", selected_shader->name);
+    }
+
+    return result;
 }
 
 static b8 internal_attribute_add(shader* shader, const shader_attribute_config* config) {

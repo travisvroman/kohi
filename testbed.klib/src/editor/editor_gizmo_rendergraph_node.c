@@ -146,11 +146,12 @@ b8 editor_gizmo_rendergraph_node_execute(struct rendergraph_node* self, struct f
     editor_gizmo_rendergraph_node_internal_data* internal_data = self->internal_data;
     editor_gizmo* gizmo = internal_data->gizmo;
 
-    // Bind the viewport
-    renderer_active_viewport_set(&internal_data->vp);
-
+    renderer_begin_debug_label(self->name, (vec3){0.5f, 1.0f, 0.5});
     if (internal_data->enabled) {
-        renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid(), 0);
+        renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid(), 0);
+
+        // Bind the viewport
+        renderer_active_viewport_set(&internal_data->vp);
 
         shader_system_use_by_id(internal_data->colour_shader->id);
 
@@ -198,6 +199,7 @@ b8 editor_gizmo_rendergraph_node_execute(struct rendergraph_node* self, struct f
 
         renderer_end_rendering(internal_data->renderer, p_frame_data);
     }
+    renderer_end_debug_label();
 
     return true;
 }
