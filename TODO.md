@@ -3,36 +3,38 @@
 The items in this list are not in any particular order. This list will be updated occasionally as development progresses.
 
 ## 0.8.0 Release
-  - [ ] Fix release build hang on startup (creating logical device).
-  - [ ] Combine duplicated platform code (such as device_pixel_ratio and callback assignments) to a general platform.c file.
-  - [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
-  - [ ] Change rendergraph to gather required resources at the beginning of a frame (i.e. global.colourbuffer from current window's render target).
-  - [ ] Separate colourbuffer to its own texture separate from the swapchain/blit to swapchain image just before present.
-    - [ ] (Should probably be switchable for potential performance reasons i.e. mobile?)
-  - [ ] Material system refactor
-    - [ ] Support for multiple pipelines
-      - [ ] Standard Pipeline (Forward rendergraph)
-      - [ ] Custom Pipeline (Custom user rendergraph)
-    - [ ] Shader config specifies pipeline it uses, which determines its attachments
-    - [ ] Convert material configs to KSON
-  - [ ] Handle refactoring
-    - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
-    - [ ] Convert material system to use handles
-    - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
-    - [ ] Convert shader system to use handles (everything that _isn't_ the renderer should use handles).
-    - [ ] Convert lighting system to use handles.
-    - [ ] Create skybox system that uses handles.
-    - [ ] Create scene system that uses handles.
-  - [ ] BUG: Material map declaration order should not matter in material config files, but it seemingly does.
-  - [ ] Flag for toggling debug items on/off in scene.
-  - [ ] Flag for toggling grid on/off in scene.
-  - [ ] Water plane: Add various properties to configuration.
-  - [ ] Water plane: Fix frustum culling for reflections.
+
+- [ ] Fix release build hang on startup (creating logical device).
+- [ ] Combine duplicated platform code (such as device_pixel_ratio and callback assignments) to a general platform.c file.
+- [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
+- [ ] Change rendergraph to gather required resources at the beginning of a frame (i.e. global.colourbuffer from current window's render target).
+- [ ] Separate colourbuffer to its own texture separate from the swapchain/blit to swapchain image just before present.
+  - [ ] (Should probably be switchable for potential performance reasons i.e. mobile?)
+- [ ] Material system refactor
+  - [ ] Support for multiple pipelines
+    - [ ] Standard Pipeline (Forward rendergraph)
+    - [ ] Custom Pipeline (Custom user rendergraph)
+  - [ ] Shader config specifies pipeline it uses, which determines its attachments
+  - [ ] Convert material configs to KSON
+- [ ] Handle refactoring
+  - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
+  - [ ] Convert material system to use handles
+  - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
+  - [ ] Convert shader system to use handles (everything that _isn't_ the renderer should use handles).
+  - [ ] Convert lighting system to use handles.
+  - [ ] Create skybox system that uses handles.
+  - [ ] Create scene system that uses handles.
+- [ ] BUG: Material map declaration order should not matter in material config files, but it seemingly does.
+- [ ] Flag for toggling debug items on/off in scene.
+- [ ] Flag for toggling grid on/off in scene.
+- [ ] Water plane: Add various properties to configuration.
+- [ ] Water plane: Fix frustum culling for reflections.
 
 ## Engine general:
 
 - [x] platform layer (Windows, Linux, macOS)
   - [x] UTF-8/Wide character handling for Win32 windowing.
+  - [ ] UTF-8/Wide character handling for Linux windowing.
   - [x] Wayland support
 - [x] event system
 - [x] clock
@@ -187,7 +189,7 @@ The items in this list are not in any particular order. This list will be update
       of a lookup table and transforms that would be used. Separating these would allow updates on these objects
       in cache-coherent loops as well as any sorting/dependency lookup that would need to be done.
       The above will require that meshes have transforms removed from them. The transform would then be
-      also referenced by the *node* instead of the mesh. This would also facilitate batching of like meshes for
+      also referenced by the *node\* instead of the mesh. This would also facilitate batching of like meshes for
       rendering in the future. Transforms would also have the parent pointer removed, and instead also use
       handles. This would eliminate issues with invalid pointers when an array of a resource (i.e. transform) is
       expanded and realloced. This should be done in a phased approach, and thus perhaps a new "xform" should be
@@ -199,6 +201,7 @@ The items in this list are not in any particular order. This list will be update
 
         We might also think about, at this point, reworking the scene parser to better handle object heirarchy in a more
         expressive language fasion (perhaps using some sort of scoping syntax like "{}" to surround objects).
+
 - [x] Remove specialized rendergraphs. Replaced by app config.
 - [x] Separate debug shapes out to new debug_rendergraph_node.
 - [x] Separate editor gizmo out to new editor_gizmo_rendergraph_node.
