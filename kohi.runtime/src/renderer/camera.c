@@ -8,6 +8,15 @@ camera camera_create(void) {
     return c;
 }
 
+camera camera_copy(camera source) {
+    camera c;
+    c.euler_rotation = source.euler_rotation;
+    c.position = source.position;
+    c.is_dirty = source.is_dirty;
+    c.view_matrix = source.view_matrix;
+    return c;
+}
+
 void camera_reset(camera* c) {
     if (c) {
         c->euler_rotation = vec3_zero();
@@ -36,6 +45,16 @@ vec3 camera_rotation_euler_get(const camera* c) {
         return c->euler_rotation;
     }
     return vec3_zero();
+}
+
+void camera_rotation_euler_set_radians(camera* c, vec3 rotation_radians) {
+    if (c) {
+        // Convert number passed in to radians.
+        c->euler_rotation.x = rotation_radians.x;
+        c->euler_rotation.y = rotation_radians.y;
+        c->euler_rotation.z = rotation_radians.z;
+        c->is_dirty = true;
+    }
 }
 
 void camera_rotation_euler_set(camera* c, vec3 rotation) {

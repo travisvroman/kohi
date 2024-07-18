@@ -2,10 +2,39 @@
 
 The items in this list are not in any particular order. This list will be updated occasionally as development progresses.
 
+## 0.8.0 Release
+
+- [ ] Fix release build hang on startup (creating logical device).
+- [ ] Combine duplicated platform code (such as device_pixel_ratio and callback assignments) to a general platform.c file.
+- [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
+- [ ] Change rendergraph to gather required resources at the beginning of a frame (i.e. global.colourbuffer from current window's render target).
+- [ ] Separate colourbuffer to its own texture separate from the swapchain/blit to swapchain image just before present.
+  - [ ] (Should probably be switchable for potential performance reasons i.e. mobile?)
+- [ ] Material system refactor
+  - [ ] Support for multiple pipelines
+    - [ ] Standard Pipeline (Forward rendergraph)
+    - [ ] Custom Pipeline (Custom user rendergraph)
+  - [ ] Shader config specifies pipeline it uses, which determines its attachments
+  - [ ] Convert material configs to KSON
+- [ ] Handle refactoring
+  - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
+  - [ ] Convert material system to use handles
+  - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
+  - [ ] Convert shader system to use handles (everything that _isn't_ the renderer should use handles).
+  - [ ] Convert lighting system to use handles.
+  - [ ] Create skybox system that uses handles.
+  - [ ] Create scene system that uses handles.
+- [ ] BUG: Material map declaration order should not matter in material config files, but it seemingly does.
+- [ ] Flag for toggling debug items on/off in scene.
+- [ ] Flag for toggling grid on/off in scene.
+- [ ] Water plane: Add various properties to configuration.
+- [ ] Water plane: Fix frustum culling for reflections.
+
 ## Engine general:
 
 - [x] platform layer (Windows, Linux, macOS)
   - [x] UTF-8/Wide character handling for Win32 windowing.
+  - [ ] UTF-8/Wide character handling for Linux windowing.
   - [x] Wayland support
 - [x] event system
 - [x] clock
@@ -89,7 +118,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] skeletal animation system
 - [x] skybox
 - [ ] skysphere (i.e dynamic day/night cycles)
-- [ ] water plane
+- [x] water plane
 - [x] Raycasting
 - [x] Object picking
   - [x] Pixel-perfect picking
@@ -147,65 +176,43 @@ The items in this list are not in any particular order. This list will be update
     - [x] Framebuffers (i.e. render targets) should no longer require a renderpass to create. (i.e. use a dummy pass)
     - [x] Shaders (graphics pipelines) should no longer require a renderpass to create. (i.e. use a dummy pass)
 - [x] 0.7 Scene refactor (see notes below):
-  - [x] Rename simple scene to just "scene" and move to engine core.
-  - [x] Create a unique-per-system handle for each system to identify a resource. These handles would be linked to
-        a resource array of some sort and an index element within that array via a structure that holds both.
-  - [x] Create new "xform" structure and system that uses handles and can manage dependencies in updates internally.
-        NOTE: This system should be laid out in a data-oriented way.
-  - [x] Create hierarchy graph that handles transform hierarchy and can provide a view of it. Also generating world matrices.
-  - [x] Remove transform from mesh.
-  - [x] Replace any and all transforms with xform handles.
-  - [x] Update systems (and create some) that use handles:
-    - [x] Create xform system that uses handles
-  - [x] (See KSON) Refactor scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
-  - [x] Write "(de)serialization" routines for savable resources and use those in the above loader.
-        Scene Refactor notes: Refactor into node-based system using handles for various types.
-        A node should contain 3 (maybe 4) things: a unique identifier, a handle id (which is a
-        link into a scene-wide handle table, which itself points to an index into an array of resources),
-        a potential parent handle id (which can be INVALID*ID if unused), and potentially a name.
-        There would then be lists of resource types (think mesh, terrain, lights, skybox, etc) which would
-        each have lookup tables of handle ids to indices into these arrays. Additionally there would be a set
-        of a lookup table and transforms that would be used. Separating these would allow updates on these objects
-        in cache-coherent loops as well as any sorting/dependency lookup that would need to be done.
-        The above will require that meshes have transforms removed from them. The transform would then be
-        also referenced by the *node* instead of the mesh. This would also facilitate batching of like meshes for
-        rendering in the future. Transforms would also have the parent pointer removed, and instead also use
-        handles. This would eliminate issues with invalid pointers when an array of a resource (i.e. transform) is
-        expanded and realloced. This should be done in a phased approach, and thus perhaps a new "xform" should be
-        created, and the "transform" structure could be deprecated. Note that the resource lookup for this would
-        likely be global, not just within a scene.
+- [x] Rename simple scene to just "scene" and move to engine core.
+- [x] Create a unique-per-system handle for each system to identify a resource. These handles would be linked to
+      a resource array of some sort and an index element within that array via a structure that holds both.
+- [x] Create new "xform" structure and system that uses handles and can manage dependencies in updates internally.
+      NOTE: This system should be laid out in a data-oriented way.
+- [x] Create hierarchy graph that handles transform hierarchy and can provide a view of it. Also generating world matrices.
+- [x] Remove transform from mesh.
+- [x] Replace any and all transforms with xform handles.
+- [x] Update systems (and create some) that use handles:
+  - [x] Create xform system that uses handles
+- [x] (See KSON) Refactor scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
+- [x] Write "(de)serialization" routines for savable resources and use those in the above loader.
+      Scene Refactor notes: Refactor into node-based system using handles for various types.
+      A node should contain 3 (maybe 4) things: a unique identifier, a handle id (which is a
+      link into a scene-wide handle table, which itself points to an index into an array of resources),
+      a potential parent handle id (which can be INVALID*ID if unused), and potentially a name.
+      There would then be lists of resource types (think mesh, terrain, lights, skybox, etc) which would
+      each have lookup tables of handle ids to indices into these arrays. Additionally there would be a set
+      of a lookup table and transforms that would be used. Separating these would allow updates on these objects
+      in cache-coherent loops as well as any sorting/dependency lookup that would need to be done.
+      The above will require that meshes have transforms removed from them. The transform would then be
+      also referenced by the *node\* instead of the mesh. This would also facilitate batching of like meshes for
+      rendering in the future. Transforms would also have the parent pointer removed, and instead also use
+      handles. This would eliminate issues with invalid pointers when an array of a resource (i.e. transform) is
+      expanded and realloced. This should be done in a phased approach, and thus perhaps a new "xform" should be
+      created, and the "transform" structure could be deprecated. Note that the resource lookup for this would
+      likely be global, not just within a scene.
 
-          We could then have a few different "graphs" in the scene: one for transforms, one for visibility (i.e a flat
-          array of currently-visible objects would likely suffice here), and others.
+        We could then have a few different "graphs" in the scene: one for transforms, one for visibility (i.e a flat
+        array of currently-visible objects would likely suffice here), and others.
 
-          We might also think about, at this point, reworking the scene parser to better handle object heirarchy in a more
-          expressive language fasion (perhaps using some sort of scoping syntax like "{}" to surround objects).
-  - [x] Remove specialized rendergraphs. Replaced by app config.
-  - [x] Separate debug shapes out to new debug_rendergraph_node.
-  - [x] Separate editor gizmo out to new editor_gizmo_rendergraph_node.
+        We might also think about, at this point, reworking the scene parser to better handle object heirarchy in a more
+        expressive language fasion (perhaps using some sort of scoping syntax like "{}" to surround objects).
 
-- [ ] 0.8
-  - [ ] Fix release build hang on startup (creating logical device).
-  - [ ] Combine duplicated platform code (such as device_pixel_ratio and callback assignments) to a general platform.c file.
-  - [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
-  - [ ] Change rendergraph to gather required resources at the beginning of a frame (i.e. global.colourbuffer from current window's render target).
-  - [ ] Separate colourbuffer to its own texture separate from the swapchain/blit to swapchain image just before present.
-    - [ ] (Should probably be switchable for potential performance reasons i.e. mobile?)
-  - [ ] Material system refactor
-    - [ ] Support for multiple pipelines
-      - [ ] Standard Pipeline (Forward rendergraph)
-      - [ ] Custom Pipeline (Custom user rendergraph)
-    - [ ] Shader config specifies pipeline it uses, which determines its attachments
-    - [ ] Convert material configs to KSON
-  - [ ] Handle refactoring
-    - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
-    - [ ] Convert material system to use handles
-    - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
-    - [ ] Convert shader system to use handles (everything that _isn't_ the renderer should use handles).
-    - [ ] Convert lighting system to use handles.
-    - [ ] Create skybox system that uses handles.
-    - [ ] Create scene system that uses handles.
-  - [ ] BUG: Material map declaration order should not matter in material config files, but it seemingly does.
+- [x] Remove specialized rendergraphs. Replaced by app config.
+- [x] Separate debug shapes out to new debug_rendergraph_node.
+- [x] Separate editor gizmo out to new editor_gizmo_rendergraph_node.
 
 ## Renderer:
 

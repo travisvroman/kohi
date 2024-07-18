@@ -1,0 +1,43 @@
+# Kohi shader config file
+version=1.0
+name=Runtime.Shader.Water
+renderpass=Renderpass.Builtin.World
+stages=vertex,fragment
+stagefiles=shaders/Runtime.Shader.Water.vert.glsl,shaders/Runtime.Shader.Water.frag.glsl
+depth_test=1
+depth_write=1
+supports_wireframe=1
+
+# Attributes: type,name
+attribute=vec4,in_position
+
+# Uniforms: type,scope,name
+# NOTE: For scope: 0=global, 1=instance, 2=local
+uniform=mat4,0,projection
+uniform=mat4,0,view
+uniform=mat4[4],0,light_space
+uniform=vec4,0,cascade_splits
+uniform=vec3,0,view_position
+uniform=i32,0,mode
+uniform=i32,0,use_pcf
+uniform=f32,0,bias
+uniform=vec2,0,padding
+
+uniform=struct48,1,dir_light
+uniform=struct480,1,p_lights
+uniform=f32,1,tiling
+uniform=f32,1,wave_strength
+uniform=f32,1,move_factor
+uniform=i32,1,num_p_lights
+
+uniform=sampler2D,1,reflection_texture
+uniform=sampler2D,1,refraction_texture
+uniform=sampler2D,1,dudv_texture
+uniform=sampler2D,1,normal_texture
+# Shadow map
+uniform=sampler2DArray,1,shadow_textures
+# IBL
+uniform=samplerCube,1,ibl_cube_texture
+uniform=samplerCube,1,refract_depth_texture
+
+uniform=mat4,2,model

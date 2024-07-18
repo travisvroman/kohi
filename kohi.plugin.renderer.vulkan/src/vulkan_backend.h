@@ -52,7 +52,7 @@ void vulkan_renderer_set_depth_write_enabled(struct renderer_backend_interface* 
 void vulkan_renderer_set_stencil_reference(struct renderer_backend_interface* backend, u32 reference);
 void vulkan_renderer_set_stencil_op(struct renderer_backend_interface* backend, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
 
-void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, u32 colour_target_count, struct texture_internal_data** colour_targets, struct texture_internal_data* depth_stencil_target, u32 depth_stencil_layer);
+void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, struct texture_internal_data** colour_targets, struct texture_internal_data* depth_stencil_target, u32 depth_stencil_layer);
 void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, struct frame_data* p_frame_data);
 
 void vulkan_renderer_set_stencil_compare_mask(struct renderer_backend_interface* backend, u32 compare_mask);

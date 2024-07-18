@@ -20,21 +20,23 @@ struct directional_light {
 
 layout(set = 0, binding = 0) uniform global_uniform_object {
     mat4 projection;
-	mat4 view;
+	mat4 views[2];
 	mat4 light_space[MAX_SHADOW_CASCADES];
 	vec4 cascade_splits;
 	directional_light dir_light;
-	vec3 view_position;
+	vec4 view_positions[2];
 	int mode;
     int use_pcf;
     float bias;
-    vec2 padding;
+    float padding;
 } global_ubo;
 
 layout(push_constant) uniform push_constants {
 	
 	// Only guaranteed a total of 128 bytes.
 	mat4 model; // 64 bytes
+	vec4 clipping_plane; // 16 bytes
+	int view_index;
 } u_push_constants;
 
 layout(location = 0) out int out_mode;
@@ -46,13 +48,13 @@ layout(location = 2) out struct dto {
 	vec4 cascade_splits;
 	vec2 tex_coord;
 	vec3 normal;
-	vec3 view_position;
+	vec4 view_position;
 	vec3 frag_position;
 	vec4 colour;
 	vec3 tangent;
     vec4 mat_weights;
     float bias;
-    vec3 padding;
+    float padding;
 } out_dto;
 
 // Vulkan's Y axis is flipped and Z range is halved.
@@ -73,9 +75,13 @@ void main() {
 	out_dto.normal = normalize(m3_model * in_normal);
 	out_dto.tangent = normalize(m3_model * in_tangent.xyz);
 	out_dto.cascade_splits = global_ubo.cascade_splits;
-	out_dto.view_position = global_ubo.view_position;
+	out_dto.view_position = global_ubo.view_positions[u_push_constants.view_index];
     out_dto.mat_weights = in_mat_weights;
-    gl_Position = global_ubo.projection * global_ubo.view * u_push_constants.model * vec4(in_position, 1.0);
+    gl_Position = global_ubo.projection * global_ubo.views[u_push_constants.view_index] * u_push_constants.model * vec4(in_position, 1.0);
+
+	// Apply clipping plane
+	vec4 world_position = u_push_constants.model * vec4(in_position, 1.0);
+	gl_ClipDistance[0] = dot(world_position, u_push_constants.clipping_plane);
 
 	// Get a light-space-transformed fragment positions.
     for(int i = 0; i < MAX_SHADOW_CASCADES; ++i) {

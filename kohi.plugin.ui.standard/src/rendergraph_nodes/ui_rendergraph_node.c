@@ -179,13 +179,16 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
 
     ui_pass_internal_data* internal_data = self->internal_data;
 
+    renderer_begin_debug_label(self->name, (vec3){0.5f, 0.5f, 0.5});
+
+    renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
+
     // Bind the viewport
     renderer_active_viewport_set(&internal_data->vp);
 
+    // Set various state overrides.
     renderer_set_depth_test_enabled(false);
     renderer_set_depth_write_enabled(false);
-
-    renderer_begin_rendering(internal_data->renderer, p_frame_data, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
 
     // Renderables
     if (!shader_system_use_by_id(internal_data->sui_shader->id)) {
@@ -269,6 +272,8 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
     }
 
     renderer_end_rendering(internal_data->renderer, p_frame_data);
+
+    renderer_end_debug_label();
 
     return true;
 }
