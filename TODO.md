@@ -4,18 +4,32 @@ The items in this list are not in any particular order. This list will be update
 
 ## 0.8.0 Release
 
-- [ ] Fix release build hang on startup (creating logical device).
+- [ ] Asset packaging (kpackage)
+  - [x] Reorganize assets from testbed.assets folder to go along with the respective "module".
+  - [x] Rename all assets and asset references to use the format "<package>.<asset_type>.<name>". I.e. "Testbed.Texture.arch"
+  - [ ] Setup one manifest file including a list of all these files in each "module.". Exclude "source" files (i.e. .obj and .mtl).
+  - [ ] Rework static mesh OBJ import process to take in package name as well as make material generation optional (so we don't overwrite the hand-rolled materials);
+  - [ ] Rework .mtl import process to use fully qualified names for textures (i.e. "Testbed.Texture.arch").
+  - [ ] Regenerate all .ksm files.
+  - [ ] Rename all references to "mesh" in the engine to "static_mesh" to separate it from later mesh types.
+  - [ ] Create kpackage interface in kohi.core.
+  - [ ] Point kpackage to files on disk for "debug" builds.
+  - [ ] Asset hot reloading
+  - [ ] Manifest file generator (utility that looks at directory structure and auto-creates manifest.kson file from that)
+  - [ ] Create binary blob format (.kpackage file) and read/write.
+  - [ ] Point kpackage to .kpackage file for "release" builds.
+- [ ] BUG: Fix release build hang on startup (creating logical device).
+- [ ] BUG: Fix macOS window resizing.
 - [ ] Combine duplicated platform code (such as device_pixel_ratio and callback assignments) to a general platform.c file.
 - [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
+  - [ ] Make this configurable
 - [ ] Change rendergraph to gather required resources at the beginning of a frame (i.e. global.colourbuffer from current window's render target).
 - [ ] Separate colourbuffer to its own texture separate from the swapchain/blit to swapchain image just before present.
   - [ ] (Should probably be switchable for potential performance reasons i.e. mobile?)
 - [ ] Material system refactor
-  - [ ] Support for multiple pipelines
-    - [ ] Standard Pipeline (Forward rendergraph)
-    - [ ] Custom Pipeline (Custom user rendergraph)
-  - [ ] Shader config specifies pipeline it uses, which determines its attachments
+  - [ ] Have material/texture system create the "combined" image at runtime instead of it being stored as a static asset (will make it easier to change in an editor without having to run a utility to do it).
   - [ ] Convert material configs to KSON
+  - [ ] Material hot-reloading (should do the above first)
 - [ ] Handle refactoring
   - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
   - [ ] Convert material system to use handles
@@ -29,6 +43,10 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Flag for toggling grid on/off in scene.
 - [ ] Water plane: Add various properties to configuration.
 - [ ] Water plane: Fix frustum culling for reflections.
+- [ ] Profiling and performance pass - a few quick things to consider:
+  - [ ] Optional ability to set texture filtering to aniso, and level, or disable.
+  - [ ] Reduce draw calls
+  - [ ] Occlusion queries/blocking volumes
 
 ## Engine general:
 
@@ -146,11 +164,10 @@ The items in this list are not in any particular order. This list will be update
   - [ ] weather
 - [x] Multi-window applications
 - [ ] Asset packaging system, including package build process.
-    https://excalidraw.com/#json=5krkRPmGHvqoYkufVE_ED,ujzx6tqRDUn63DzjraQ_jw
+      https://excalidraw.com/#json=5krkRPmGHvqoYkufVE_ED,ujzx6tqRDUn63DzjraQ_jw
   - [ ] Assets specific to rutime or plugins should be provided at that level to the package build process.
   - [ ] Would provide an interface to the engine, and the implementation could either load from disk or binary blob.
 - [ ] For release builds, compile shaders to bytecode/SPIR-V and place into package binary.
-
 
 - [x] 0.7 Reorg
   - [x] Split engine into "core" and "runtime"

@@ -2,9 +2,8 @@
 version=1
 name=PluginStandardUi.Shader.UI
 cull_mode=none
-renderpass=Renderpass.Builtin.UI
 stages=vertex,fragment
-stagefiles=assets/shaders/UI.vert.glsl,assets/shaders/UI.frag.glsl
+stagefiles=PluginStandardUi.Text.UI_vert,PluginStandardUi.Text.UI_frag
 depth_test=0
 depth_write=0
 stencil_test=1

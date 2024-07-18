@@ -12,14 +12,29 @@ assets = [
         path = "./assets/shaders/UI.shadercfg"
     }
     {
-        name = "UI.frag"
+        name = "UI_frag"
         type = "Text"
         path = "./assets/shaders/UI_frag.glsl"
     }
     {
-        name = "UI.vert"
+        name = "UI_vert"
         type = "Text"
         path = "./assets/shaders/UI_vert.glsl"
+    }
+    {
+        name = "Pick_UI"
+        type = "Shader"
+        path = "./assets/shaders/Pick_UI.shadercfg"
+    }
+    {
+        name = "Pick_UI_frag"
+        type = "Text"
+        path = "./assets/shaders/Pick_UI_frag.glsl"
+    }
+    {
+        name = "Pick_UI_vert"
+        type = "Text"
+        path = "./assets/shaders/Pick_UI_vert.glsl"
     }
     {
         name = "StandardUIAtlas"
@@ -41,7 +56,7 @@ assets = [
         type = "BitmapFont"
         path = "./assets/fonts/UbuntuMono21px.fnt"
     }
-    {
+    /{
         name = "UbuntuMono21px_0"
         type = "Texture"
         path = "./assets/textures/UbuntuMono21px_0.png"

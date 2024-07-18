@@ -1,0 +1,142 @@
+package_name = "Runtime"
+references = [
+]
+assets = [
+    {
+        name = "Colour3D"
+        type = "Shader"
+        path = "./assets/shaders/Colour3D.shadercfg"
+    }
+    {
+        name = "Colour3D_frag"
+        type = "Text"
+        path = "./assets/shaders/Colour3D_frag.glsl"
+    }
+    {
+        name = "Colour3D_vert"
+        type = "Text"
+        path = "./assets/shaders/Colour3D_vert.glsl"
+    }
+    {
+        name = "PBR_StaticMesh"
+        type = "Shader"
+        path = "./assets/shaders/PBR_StaticMesh.shadercfg"
+    }
+    {
+        name = "PBR_StaticMesh_frag"
+        type = "Text"
+        path = "./assets/shaders/PBR_StaticMesh_frag.glsl"
+    }
+    {
+        name = "PBR_StaticMesh_vert"
+        type = "Text"
+        path = "./assets/shaders/PBR_StaticMesh_vert.glsl"
+    }
+    {
+        name = "PBR_Terrain"
+        type = "Shader"
+        path = "./assets/shaders/PBR_Terrain.shadercfg"
+    }
+    {
+        name = "PBR_Terrain_frag"
+        type = "Text"
+        path = "./assets/shaders/PBR_Terrain_frag.glsl"
+    }
+    {
+        name = "PBR_Terrain_vert"
+        type = "Text"
+        path = "./assets/shaders/PBR_Terrain_vert.glsl"
+    }
+    {
+        name = "Pick_StaticMesh"
+        type = "Shader"
+        path = "./assets/shaders/Pick_StaticMesh.shadercfg"
+    }
+    {
+        name = "Pick_StaticMesh_frag"
+        type = "Text"
+        path = "./assets/shaders/Pick_StaticMesh_frag.glsl"
+    }
+    {
+        name = "Pick_StaticMesh_vert"
+        type = "Text"
+        path = "./assets/shaders/Pick_StaticMesh_vert.glsl"
+    }
+    {
+        name = "Pick_Terrain"
+        type = "Shader"
+        path = "./assets/shaders/Pick_Terrain.shadercfg"
+    }
+    {
+        name = "Pick_Terrain_frag"
+        type = "Text"
+        path = "./assets/shaders/Pick_Terrain_frag.glsl"
+    }
+    {
+        name = "Pick_Terrain_vert"
+        type = "Text"
+        path = "./assets/shaders/Pick_Terrain_vert.glsl"
+    }
+
+    {
+        name = "Shadow_StaticMesh"
+        type = "Shader"
+        path = "./assets/shaders/Shadow_StaticMesh.shadercfg"
+    }
+    {
+        name = "Shadow_StaticMesh_frag"
+        type = "Text"
+        path = "./assets/shaders/Shadow_StaticMesh_frag.glsl"
+    }
+    {
+        name = "Shadow_StaticMesh_vert"
+        type = "Text"
+        path = "./assets/shaders/Shadow_StaticMesh_vert.glsl"
+    }
+    {
+        name = "Shadow_Terrain"
+        type = "Shader"
+        path = "./assets/shaders/Shadow_Terrain.shadercfg"
+    }
+    {
+        name = "Shadow_Terrain_frag"
+        type = "Text"
+        path = "./assets/shaders/Shadow_Terrain_frag.glsl"
+    }
+    {
+        name = "Shadow_Terrain_vert"
+        type = "Text"
+        path = "./assets/shaders/Shadow_Terrain_vert.glsl"
+    }
+    {
+        name = "Skybox"
+        type = "Shader"
+        path = "./assets/shaders/Skybox.shadercfg"
+    }
+    {
+        name = "Skybox_frag"
+        type = "Text"
+        path = "./assets/shaders/Skybox_frag.glsl"
+    }
+    {
+        name = "Skybox_vert"
+        type = "Text"
+        path = "./assets/shaders/Skybox_vert.glsl"
+    }
+
+    {
+        name = "Water"
+        type = "Shader"
+        path = "./assets/shaders/Water.shadercfg"
+    }
+    {
+        name = "Water_frag"
+        type = "Text"
+        path = "./assets/shaders/Water_frag.glsl"
+    }
+    {
+        name = "Water_vert"
+        type = "Text"
+        path = "./assets/shaders/Water_vert.glsl"
+    }
+]

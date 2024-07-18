@@ -1,0 +1,47 @@
+# Kohi shader config file
+version=1
+name=Runtime.Shader.PBR_StaticMesh
+stages=vertex,fragment
+stagefiles=Runtime.Text.PBR_StaticMesh_vert,Runtime.Text.PBR_StaticMesh_frag
+depth_test=1
+depth_write=1
+supports_wireframe=1
+max_instances=256
+
+# Attributes: type,name
+attribute=vec3,in_position
+attribute=vec3,in_normal
+attribute=vec2,in_texcoord
+attribute=vec4,in_colour
+attribute=vec3,in_tangent
+
+# Uniforms: type,scope,name
+# NOTE: For scope: 0=global, 1=instance, 2=local
+uniform=mat4,0,projection
+uniform=mat4[2],0,views
+uniform=mat4,0,light_space_0
+uniform=mat4,0,light_space_1
+uniform=mat4,0,light_space_2
+uniform=mat4,0,light_space_3
+uniform=vec4,0,cascade_splits
+uniform=vec4[2],0,view_positions
+uniform=u32,0,mode
+uniform=u32,0,use_pcf
+uniform=f32,0,bias
+uniform=f32,0,padding
+
+# NOTE: samplers are bound in the order they are configured.
+# albedo,normal,combined (metallic,roughness,ao)
+uniform=sampler2D[3],1,material_textures
+# Shadow map
+uniform=sampler2DArray,1,shadow_textures
+# IBL
+uniform=samplerCube,1,ibl_cube_texture
+
+uniform=struct48,1,dir_light
+uniform=struct480,1,p_lights
+uniform=struct32,1,properties
+uniform=i32,1,num_p_lights
+uniform=mat4,2,model
+uniform=vec4,2,clipping_plane
+uniform=i32,2,view_index

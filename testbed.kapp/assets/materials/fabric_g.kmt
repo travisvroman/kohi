@@ -1,0 +1,56 @@
+#material file
+
+version=2
+type=pbr
+name=fabric_g
+
+[map]
+name=albedo
+filter_min=linear
+filter_mag=linear
+repeat_u=repeat
+repeat_v=repeat
+repeat_w=repeat
+texture_name=Testbed.Texture.sponza_curtain_blue_diff
+[/map]
+
+[map]
+name=combined
+filter_min=linear
+filter_mag=linear
+repeat_u=repeat
+repeat_v=repeat
+repeat_w=repeat
+texture_name=Testbed.Texture.sponza_curtain_combined
+[/map]
+
+[map]
+name=normal
+filter_min=linear
+filter_mag=linear
+repeat_v=repeat
+repeat_u=repeat
+repeat_w=repeat
+texture_name=Testbed.Texture.sponza_curtain_ddn
+[/map]
+
+[prop]
+name=diffuse_colour
+type=vec4
+value=0.588000 0.588000 0.588000 1.000000
+[/prop]
+
+# The material shader requires this padding to be in place.
+[prop]
+name=padding
+type=vec3
+value=0.000000 0.000000 0.000000
+[/prop]
+
+[prop]
+name=shininess
+type=f32
+value=10.0
+[/prop]
+
+
