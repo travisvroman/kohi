@@ -1,0 +1,73 @@
+package_name = "PluginUiStandard"
+references = [
+    {
+        name = "Runtime"
+        path = "../kohi.runtime/"
+    }
+]
+assets = [
+    {
+        name = "UI"
+        type = "Shader"
+        path = "./assets/shaders/UI.shadercfg"
+    }
+    {
+        name = "UI.frag"
+        type = "Text"
+        path = "./assets/shaders/UI_frag.glsl"
+    }
+    {
+        name = "UI.vert"
+        type = "Text"
+        path = "./assets/shaders/UI_vert.glsl"
+    }
+    {
+        name = "StandardUIAtlas"
+        type = "Texture"
+        path = "./assets/textures/StandardUIAtlas.png"
+    }
+    {
+        name = "NotoSans21px"
+        type = "BitmapFont"
+        path = "./assets/fonts/NotoSans21px.fnt"
+    }
+    {
+        name = "NotoSans21px_0"
+        type = "Texture"
+        path = "./assets/textures/NotoSans21px_0.png"
+    }
+    {
+        name = "UbuntuMono21px"
+        type = "BitmapFont"
+        path = "./assets/fonts/UbuntuMono21px.fnt"
+    }
+    {
+        name = "UbuntuMono21px_0"
+        type = "Texture"
+        path = "./assets/textures/UbuntuMono21px_0.png"
+    }
+    {
+        name = "NotoSansCJK"
+        type = "SystemFont"
+        path = "./assets/fonts/NotoSansCJK.fontcfg"
+    }
+    {
+        name = "NotoSansCJK-Regular"
+        type = "Binary"
+        path = "./assets/textures/NotoSansCJK-Regular.ttc"
+    }
+    {
+        name = "UbuntuMono"
+        type = "SystemFont"
+        path = "./assets/fonts/UbuntuMono.fontcfg"
+    }
+    {
+        name = "UbuntuMono-R"
+        type = "Binary"
+        path = "./assets/textures/UbuntuMono-R.ttf"
+    }
+    // TODO: Reference to an asset in another package?
+    {
+        reference = "Runtime.Binary.UbuntuMono-R"
+    }
+]
