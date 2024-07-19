@@ -10,6 +10,16 @@ windows = [
     title="Testbed Main Window (コーヒー)"
    }
 ]
+package_config = {
+    packages = [
+        "Runtime",
+        "PluginStandardUi",
+        "Testbed"
+    ]
+    process_as_text [
+        "SomeUserAssetType"
+    ]
+}
 systems = [
     {
         name="resource"

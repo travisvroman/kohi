@@ -4,22 +4,24 @@ The items in this list are not in any particular order. This list will be update
 
 ## 0.8.0 Release
 
+- [ ] Virtual file system (VFS)
+  - [ ] Sits on top of and manages packages, doles out requests to loaded packages, etc.
 - [ ] Asset packaging (kpackage)
   - [x] Reorganize assets from testbed.assets folder to go along with the respective "module".
   - [x] Rename all assets and asset references to use the format "<package>.<asset_type>.<name>". I.e. "Testbed.Texture.arch"
-  - [ ] Setup one manifest file including a list of all these files in each "module.". Exclude "source" files (i.e. .obj and .mtl).
+  - [x] Setup one manifest file including a list of all these files in each "module.". Exclude "source" files (i.e. .obj and .mtl).
   - [ ] Rework static mesh OBJ import process to take in package name as well as make material generation optional (so we don't overwrite the hand-rolled materials);
   - [ ] Rework .mtl import process to use fully qualified names for textures (i.e. "Testbed.Texture.arch").
   - [ ] Regenerate all .ksm files.
-  - [ ] Rename all references to "mesh" in the engine to "static_mesh" to separate it from later mesh types.
-  - [ ] Create kpackage interface in kohi.core.
+  - [x] Create kpackage interface in kohi.core.
   - [ ] Point kpackage to files on disk for "debug" builds.
   - [ ] Asset hot reloading
   - [ ] Manifest file generator (utility that looks at directory structure and auto-creates manifest.kson file from that)
   - [ ] Create binary blob format (.kpackage file) and read/write.
   - [ ] Point kpackage to .kpackage file for "release" builds.
+  - [ ] Rename all references to "mesh" in the engine to "static_mesh" to separate it from later mesh types.
 - [ ] BUG: Fix release build hang on startup (creating logical device).
-- [ ] BUG: Fix macOS window resizing.
+- [x] BUG: Fix macOS window resizing.
 - [ ] Combine duplicated platform code (such as device_pixel_ratio and callback assignments) to a general platform.c file.
 - [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
   - [ ] Make this configurable

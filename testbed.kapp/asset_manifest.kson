@@ -11,7 +11,7 @@ references = [
 ]
 assets = [
     {
-        name = "16___Default
+        name = "16___Default"
         type = "Material"
         path = "./assets/materials/16___Default.kmt"
     }
