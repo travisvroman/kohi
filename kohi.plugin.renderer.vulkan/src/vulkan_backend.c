@@ -3087,7 +3087,6 @@ b8 vulkan_renderer_uniform_set(renderer_backend_interface* backend, shader* s, s
     return true;
 }
 
-#ifdef _DEBUG
 static const char* shader_stage_to_string(shader_stage stage) {
     switch (stage) {
     case SHADER_STAGE_VERTEX:
@@ -3107,7 +3106,6 @@ static const char* shader_stage_to_string(shader_stage stage) {
         break;
     }
 }
-#endif
 
 static b8 create_shader_module(vulkan_context* context, shader* s, shader_stage_config* config, vulkan_shader_stage* out_stage) {
     shaderc_shader_kind shader_kind;
