@@ -201,16 +201,12 @@ b8 vulkan_device_create(vulkan_context* context) {
     device_create_info.ppEnabledLayerNames = 0;
     device_create_info.pNext = &device_features;
 
-    KINFO("Still Creating logical device...");
-
     // Create the device.
     VK_CHECK(vkCreateDevice(
         context->device.physical_device,
         &device_create_info,
         context->allocator,
         &context->device.logical_device));
-
-    KINFO("Did the thing!");
 
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE, context->device.logical_device, "Vulkan Logical Device");
 

@@ -38,7 +38,6 @@ typedef struct platform_state {
     CONSOLE_SCREEN_BUFFER_INFO err_output_csbi;
     // darray
     win32_file_watch* watches;
-    
 
     // darray of pointers to created windows (owned by the application);
     kwindow** windows;
@@ -212,7 +211,10 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
     // FIXME: For some reason using the above causes renderdoc to fail to open the window,
     // but using the below does not...
     WCHAR wtitle[256];
-    MultiByteToWideChar(CP_UTF8, 0, window->title, -1, wtitle, 256);
+    int len = MultiByteToWideChar(CP_UTF8, 0, window->title, -1, wtitle, 256);
+    if(!len) {
+
+    }
     window->platform_state->hwnd = CreateWindowExW(
         window_ex_style, L"kohi_window_class", wtitle,
         window_style, window_x, window_y, window_width, window_height,
@@ -1092,12 +1094,12 @@ static LPCWSTR cstr_to_wcstr(const char* str) {
     if (len == 0) {
         return 0;
     }
-    wchar_t* wstr = kallocate(sizeof(wchar_t) * (len), MEMORY_TAG_STRING);
+    LPWSTR wstr = kallocate(sizeof(WCHAR) * len, MEMORY_TAG_STRING);
     if (!wstr) {
         return 0;
     }
     if (MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, len) == 0) {
-        kfree((wchar_t*)wstr, sizeof(wchar_t) * (len), MEMORY_TAG_STRING);
+        kfree(wstr, sizeof(WCHAR) * len, MEMORY_TAG_STRING);
         return 0;
     }
     return wstr;
@@ -1105,8 +1107,8 @@ static LPCWSTR cstr_to_wcstr(const char* str) {
 
 static void wcstr_free(LPCWSTR wstr) {
     if (wstr) {
-        u32 len = lstrlen(wstr);
-        kfree((WCHAR*)wstr, sizeof(WCHAR) * len, MEMORY_TAG_STRING);
+        u32 len = lstrlen(wstr); // Note that lstrlen doesn't account for the null terminator.
+        kfree((WCHAR*)wstr, sizeof(WCHAR) * (len + 1), MEMORY_TAG_STRING);
     }
 }
 
@@ -1119,12 +1121,12 @@ static const char* wcstr_to_cstr(LPCWSTR wstr) {
     if (length == 0) {
         return 0;
     }
-    char* str = kallocate(sizeof(WCHAR) * length, MEMORY_TAG_STRING);
+    char* str = kallocate(sizeof(char) * length, MEMORY_TAG_STRING);
     if (!str) {
         return 0;
     }
     if (WideCharToMultiByte(CP_UTF8, 0, wstr, -1, str, length, NULL, NULL) == 0) {
-        kfree((char*)str, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+        kfree((char*)str, sizeof(char) * length, MEMORY_TAG_STRING);
         return 0;
     }
 

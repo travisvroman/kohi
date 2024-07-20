@@ -1947,11 +1947,14 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, shader*
 
         // Destroy the instance states.
         for (u32 i = 0; i < internal_shader->max_instances; ++i) {
-            if (internal_shader->instance_states[i].descriptor_sets) {
-                kfree(internal_shader->instance_states[i].descriptor_sets, sizeof(VkDescriptorSet) * image_count, MEMORY_TAG_ARRAY);
+            vulkan_shader_instance_state* instance = &internal_shader->instance_states[i];
+            if (instance->descriptor_sets) {
+                kfree(instance->descriptor_sets, sizeof(VkDescriptorSet) * image_count, MEMORY_TAG_ARRAY);
+                instance->descriptor_sets = 0;
             }
-            if (internal_shader->instance_states[i].sampler_uniforms) {
-                kfree(internal_shader->instance_states[i].sampler_uniforms, sizeof(vulkan_uniform_sampler_state) * s->instance_uniform_sampler_count, MEMORY_TAG_ARRAY);
+            if (instance->sampler_uniforms) {
+                kfree(instance->sampler_uniforms, sizeof(vulkan_uniform_sampler_state) * s->instance_uniform_sampler_count, MEMORY_TAG_ARRAY);
+                instance->sampler_uniforms = 0;
             }
         }
         kfree(internal_shader->instance_states, sizeof(vulkan_shader_instance_state) * internal_shader->max_instances, MEMORY_TAG_ARRAY);
@@ -2955,8 +2958,8 @@ b8 vulkan_renderer_shader_instance_resources_acquire(renderer_backend_interface*
     u8 instance_desc_set_index = has_global ? 1 : 0;
 
     // Per swapchain image
-    instance_state->descriptor_sets = kallocate(sizeof(VkDescriptorSet), MEMORY_TAG_ARRAY);
-    VkDescriptorSetLayout* layouts = kallocate(sizeof(VkDescriptorSetLayout), MEMORY_TAG_ARRAY);
+    instance_state->descriptor_sets = kallocate(sizeof(VkDescriptorSet) * image_count, MEMORY_TAG_ARRAY);
+    VkDescriptorSetLayout* layouts = kallocate(sizeof(VkDescriptorSetLayout) * image_count, MEMORY_TAG_ARRAY);
     for (u32 i = 0; i < image_count; ++i) {
         layouts[i] = internal->descriptor_set_layouts[instance_desc_set_index];
     }
@@ -3728,211 +3731,6 @@ void vulkan_renderer_wait_for_idle(renderer_backend_interface* backend) {
     }
 }
 
-/**
- * =================== VULKAN ALLOCATOR ===================
- */
-
-#if KVULKAN_USE_CUSTOM_ALLOCATOR == 1
-/**
- * @brief Implementation of PFN_vkAllocationFunction.
- * @link
- * https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkAllocationFunction.html
- *
- * @param user_data User data specified in the allocator by the application.
- * @param size The size in bytes of the requested allocation.
- * @param alignment The requested alignment of the allocation in bytes. Must be
- * a power of two.
- * @param allocationScope The allocation scope and lifetime.
- * @return A memory block if successful; otherwise 0.
- */
-static void* vulkan_alloc_allocation(void* user_data, size_t size, size_t alignment,
-                                     VkSystemAllocationScope allocation_scope) {
-    // Null MUST be returned if this fails.
-    if (size == 0) {
-        return 0;
-    }
-
-    void* result = kallocate_aligned(size, (u16)alignment, MEMORY_TAG_VULKAN);
-#    ifdef KVULKAN_ALLOCATOR_TRACE
-    KTRACE("Allocated block %p. Size=%llu, Alignment=%llu", result, size,
-           alignment);
-#    endif
-    return result;
-}
-
-/**
- * @brief Implementation of PFN_vkFreeFunction.
- * @link
- * https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkFreeFunction.html
- *
- * @param user_data User data specified in the allocator by the application.
- * @param memory The allocation to be freed.
- */
-static void vulkan_alloc_free(void* user_data, void* memory) {
-    if (!memory) {
-#    ifdef KVULKAN_ALLOCATOR_TRACE
-        KTRACE("Block is null, nothing to free: %p", memory);
-#    endif
-        return;
-    }
-
-#    ifdef KVULKAN_ALLOCATOR_TRACE
-    KTRACE("Attempting to free block %p...", memory);
-#    endif
-    u64 size;
-    u16 alignment;
-    b8 result = kmemory_get_size_alignment(memory, &size, &alignment);
-    if (result) {
-#    ifdef KVULKAN_ALLOCATOR_TRACE
-        KTRACE(
-            "Block %p found with size/alignment: %llu/%u. Freeing aligned block...",
-            memory, size, alignment);
-#    endif
-        kfree_aligned(memory, size, alignment, MEMORY_TAG_VULKAN);
-    } else {
-        KERROR("vulkan_alloc_free failed to get alignment lookup for block %p.",
-               memory);
-    }
-}
-
-/**
- * @brief Implementation of PFN_vkReallocationFunction.
- * @link
- * https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkReallocationFunction.html
- *
- * @param user_data User data specified in the allocator by the application.
- * @param original Either NULL or a pointer previously returned by
- * vulkan_alloc_allocation.
- * @param size The size in bytes of the requested allocation.
- * @param alignment The requested alignment of the allocation in bytes. Must be
- * a power of two.
- * @param allocation_scope The scope and lifetime of the allocation.
- * @return A memory block if successful; otherwise 0.
- */
-static void* vulkan_alloc_reallocation(void* user_data, void* original, size_t size,
-                                       size_t alignment,
-                                       VkSystemAllocationScope allocation_scope) {
-    if (!original) {
-        return vulkan_alloc_allocation(user_data, size, alignment,
-                                       allocation_scope);
-    }
-
-    if (size == 0) {
-        vulkan_alloc_free(user_data, original);
-        return 0;
-    }
-
-    // NOTE: if pOriginal is not null, the same alignment must be used for the new
-    // allocation as original.
-    u64 alloc_size;
-    u16 alloc_alignment;
-    b8 is_aligned =
-        kmemory_get_size_alignment(original, &alloc_size, &alloc_alignment);
-    if (!is_aligned) {
-        KERROR("vulkan_alloc_reallocation of unaligned block %p", original);
-        return 0;
-    }
-
-    if (alloc_alignment != alignment) {
-        KERROR(
-            "Attempted realloc using a different alignment of %llu than the "
-            "original of %hu.",
-            alignment, alloc_alignment);
-        return 0;
-    }
-
-#    ifdef KVULKAN_ALLOCATOR_TRACE
-    KTRACE("Attempting to realloc block %p...", original);
-#    endif
-
-    void* result = vulkan_alloc_allocation(user_data, size, alloc_alignment,
-                                           allocation_scope);
-    if (result) {
-#    ifdef KVULKAN_ALLOCATOR_TRACE
-        KTRACE("Block %p reallocated to %p, copying data...", original, result);
-#    endif
-
-        // Copy over the original memory.
-        kcopy_memory(result, original, alloc_size);
-#    ifdef KVULKAN_ALLOCATOR_TRACE
-        KTRACE("Freeing original aligned block %p...", original);
-#    endif
-        // Free the original memory only if the new allocation was successful.
-        kfree_aligned(original, alloc_size, alloc_alignment, MEMORY_TAG_VULKAN);
-    } else {
-#    ifdef KVULKAN_ALLOCATOR_TRACE
-        KERROR("Failed to realloc %p.", original);
-#    endif
-    }
-
-    return result;
-}
-
-/**
- * @brief Implementation of PFN_vkInternalAllocationNotification.
- * Purely informational, nothing can really be done with this except to track
- * it.
- * @link
- * https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkInternalAllocationNotification.html
- *
- * @param pUserData User data specified in the allocator by the application.
- * @param size The size of the allocation in bytes.
- * @param allocationType The type of internal allocation.
- * @param allocationScope The scope and lifetime of the allocation.
- */
-static void vulkan_alloc_internal_alloc(void* pUserData, size_t size,
-                                        VkInternalAllocationType allocationType,
-                                        VkSystemAllocationScope allocationScope) {
-#    ifdef KVULKAN_ALLOCATOR_TRACE
-    KTRACE("External allocation of size: %llu", size);
-#    endif
-    kallocate_report((u64)size, MEMORY_TAG_VULKAN_EXT);
-}
-
-/**
- * @brief Implementation of PFN_vkInternalFreeNotification.
- * Purely informational, nothing can really be done with this except to track
- * it.
- * @link
- * https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkInternalFreeNotification.html
- *
- * @param pUserData User data specified in the allocator by the application.
- * @param size The size of the allocation to be freed in bytes.
- * @param allocationType The type of internal allocation.
- * @param allocationScope The scope and lifetime of the allocation.
- */
-static void vulkan_alloc_internal_free(void* pUserData, size_t size,
-                                       VkInternalAllocationType allocationType,
-                                       VkSystemAllocationScope allocationScope) {
-#    ifdef KVULKAN_ALLOCATOR_TRACE
-    KTRACE("External free of size: %llu", size);
-#    endif
-    kfree_report((u64)size, MEMORY_TAG_VULKAN_EXT);
-}
-
-/**
- * @brief Create a vulkan allocator object, filling out the function pointers
- * in the provided struct.
- *
- * @param callbacks A pointer to the allocation callbacks structure to be filled
- * out.
- * @return b8 True on success; otherwise false.
- */
-static b8 create_vulkan_allocator(vulkan_context* context,
-                                  VkAllocationCallbacks* callbacks) {
-    if (callbacks) {
-        callbacks->pfnAllocation = vulkan_alloc_allocation;
-        callbacks->pfnReallocation = vulkan_alloc_reallocation;
-        callbacks->pfnFree = vulkan_alloc_free;
-        callbacks->pfnInternalAllocation = vulkan_alloc_internal_alloc;
-        callbacks->pfnInternalFree = vulkan_alloc_internal_free;
-        callbacks->pUserData = context;
-        return true;
-    }
-
-    return false;
-}
-
 static vulkan_command_buffer* get_current_command_buffer(vulkan_context* context) {
     kwindow_renderer_backend_state* window_backend = context->current_window->renderer_state->backend_state;
     vulkan_command_buffer* primary = &window_backend->graphics_command_buffers[window_backend->image_index];
@@ -4179,11 +3977,11 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
         context->allocator,
         &out_pipeline->pipeline_layout));
 
-#    if _DEBUG
+#if _DEBUG
     char* pipeline_layout_name_buf = string_format("pipeline_layout_shader_%s", config->name);
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_PIPELINE_LAYOUT, out_pipeline->pipeline_layout, pipeline_layout_name_buf);
     string_free(pipeline_layout_name_buf);
-#    endif
+#endif
 
     // Pipeline create
     VkGraphicsPipelineCreateInfo pipeline_create_info = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
@@ -4228,11 +4026,11 @@ static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_
     // Cleanup
     darray_destroy(dynamic_states);
 
-#    if _DEBUG
+#if _DEBUG
     char* pipeline_name_buf = string_format("pipeline_shader_%s", config->name);
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_PIPELINE, out_pipeline->handle, pipeline_name_buf);
     string_free(pipeline_name_buf);
-#    endif
+#endif
 
     if (vulkan_result_is_success(result)) {
         KDEBUG("Graphics pipeline created!");
@@ -4261,6 +4059,211 @@ static void vulkan_pipeline_destroy(vulkan_context* context, vulkan_pipeline* pi
 
 static void vulkan_pipeline_bind(vulkan_command_buffer* command_buffer, VkPipelineBindPoint bind_point, vulkan_pipeline* pipeline) {
     vkCmdBindPipeline(command_buffer->handle, bind_point, pipeline->handle);
+}
+
+/**
+ * =================== VULKAN ALLOCATOR ===================
+ */
+
+#if KVULKAN_USE_CUSTOM_ALLOCATOR == 1
+/**
+ * @brief Implementation of PFN_vkAllocationFunction.
+ * @link
+ * https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkAllocationFunction.html
+ *
+ * @param user_data User data specified in the allocator by the application.
+ * @param size The size in bytes of the requested allocation.
+ * @param alignment The requested alignment of the allocation in bytes. Must be
+ * a power of two.
+ * @param allocationScope The allocation scope and lifetime.
+ * @return A memory block if successful; otherwise 0.
+ */
+static void* vulkan_alloc_allocation(void* user_data, size_t size, size_t alignment,
+                                     VkSystemAllocationScope allocation_scope) {
+    // Null MUST be returned if this fails.
+    if (size == 0) {
+        return 0;
+    }
+
+    void* result = kallocate_aligned(size, (u16)alignment, MEMORY_TAG_VULKAN);
+#    ifdef KVULKAN_ALLOCATOR_TRACE
+    KTRACE("Allocated block %p. Size=%llu, Alignment=%llu", result, size,
+           alignment);
+#    endif
+    return result;
+}
+
+/**
+ * @brief Implementation of PFN_vkFreeFunction.
+ * @link
+ * https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkFreeFunction.html
+ *
+ * @param user_data User data specified in the allocator by the application.
+ * @param memory The allocation to be freed.
+ */
+static void vulkan_alloc_free(void* user_data, void* memory) {
+    if (!memory) {
+#    ifdef KVULKAN_ALLOCATOR_TRACE
+        KTRACE("Block is null, nothing to free: %p", memory);
+#    endif
+        return;
+    }
+
+#    ifdef KVULKAN_ALLOCATOR_TRACE
+    KTRACE("Attempting to free block %p...", memory);
+#    endif
+    u64 size;
+    u16 alignment;
+    b8 result = kmemory_get_size_alignment(memory, &size, &alignment);
+    if (result) {
+#    ifdef KVULKAN_ALLOCATOR_TRACE
+        KTRACE(
+            "Block %p found with size/alignment: %llu/%u. Freeing aligned block...",
+            memory, size, alignment);
+#    endif
+        kfree_aligned(memory, size, alignment, MEMORY_TAG_VULKAN);
+    } else {
+        KERROR("vulkan_alloc_free failed to get alignment lookup for block %p.",
+               memory);
+    }
+}
+
+/**
+ * @brief Implementation of PFN_vkReallocationFunction.
+ * @link
+ * https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkReallocationFunction.html
+ *
+ * @param user_data User data specified in the allocator by the application.
+ * @param original Either NULL or a pointer previously returned by
+ * vulkan_alloc_allocation.
+ * @param size The size in bytes of the requested allocation.
+ * @param alignment The requested alignment of the allocation in bytes. Must be
+ * a power of two.
+ * @param allocation_scope The scope and lifetime of the allocation.
+ * @return A memory block if successful; otherwise 0.
+ */
+static void* vulkan_alloc_reallocation(void* user_data, void* original, size_t size,
+                                       size_t alignment,
+                                       VkSystemAllocationScope allocation_scope) {
+    if (!original) {
+        return vulkan_alloc_allocation(user_data, size, alignment,
+                                       allocation_scope);
+    }
+
+    if (size == 0) {
+        vulkan_alloc_free(user_data, original);
+        return 0;
+    }
+
+    // NOTE: if pOriginal is not null, the same alignment must be used for the new
+    // allocation as original.
+    u64 alloc_size;
+    u16 alloc_alignment;
+    b8 is_aligned =
+        kmemory_get_size_alignment(original, &alloc_size, &alloc_alignment);
+    if (!is_aligned) {
+        KERROR("vulkan_alloc_reallocation of unaligned block %p", original);
+        return 0;
+    }
+
+    // if (alloc_alignment != alignment) {
+    //     KERROR(
+    //         "Attempted realloc using a different alignment of %llu than the "
+    //         "original of %hu.",
+    //         alignment, alloc_alignment);
+    //     return 0;
+    // }
+
+#    ifdef KVULKAN_ALLOCATOR_TRACE
+    KTRACE("Attempting to realloc block %p...", original);
+#    endif
+
+    void* result = vulkan_alloc_allocation(user_data, size, alignment,
+                                           allocation_scope);
+    if (result) {
+#    ifdef KVULKAN_ALLOCATOR_TRACE
+        KTRACE("Block %p reallocated to %p, copying data...", original, result);
+#    endif
+
+        // Copy over the original memory.
+        kcopy_memory(result, original, alloc_size);
+#    ifdef KVULKAN_ALLOCATOR_TRACE
+        KTRACE("Freeing original aligned block %p...", original);
+#    endif
+        // Free the original memory only if the new allocation was successful.
+        kfree_aligned(original, alloc_size, alloc_alignment, MEMORY_TAG_VULKAN);
+    } else {
+#    ifdef KVULKAN_ALLOCATOR_TRACE
+        KERROR("Failed to realloc %p.", original);
+#    endif
+    }
+
+    return result;
+}
+
+/**
+ * @brief Implementation of PFN_vkInternalAllocationNotification.
+ * Purely informational, nothing can really be done with this except to track
+ * it.
+ * @link
+ * https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkInternalAllocationNotification.html
+ *
+ * @param pUserData User data specified in the allocator by the application.
+ * @param size The size of the allocation in bytes.
+ * @param allocationType The type of internal allocation.
+ * @param allocationScope The scope and lifetime of the allocation.
+ */
+static void vulkan_alloc_internal_alloc(void* pUserData, size_t size,
+                                        VkInternalAllocationType allocationType,
+                                        VkSystemAllocationScope allocationScope) {
+#    ifdef KVULKAN_ALLOCATOR_TRACE
+    KTRACE("External allocation of size: %llu", size);
+#    endif
+    kallocate_report((u64)size, MEMORY_TAG_VULKAN_EXT);
+}
+
+/**
+ * @brief Implementation of PFN_vkInternalFreeNotification.
+ * Purely informational, nothing can really be done with this except to track
+ * it.
+ * @link
+ * https://www.khronos.org/registry/vulkan/specs/1.3-extensions/man/html/PFN_vkInternalFreeNotification.html
+ *
+ * @param pUserData User data specified in the allocator by the application.
+ * @param size The size of the allocation to be freed in bytes.
+ * @param allocationType The type of internal allocation.
+ * @param allocationScope The scope and lifetime of the allocation.
+ */
+static void vulkan_alloc_internal_free(void* pUserData, size_t size,
+                                       VkInternalAllocationType allocationType,
+                                       VkSystemAllocationScope allocationScope) {
+#    ifdef KVULKAN_ALLOCATOR_TRACE
+    KTRACE("External free of size: %llu", size);
+#    endif
+    kfree_report((u64)size, MEMORY_TAG_VULKAN_EXT);
+}
+
+/**
+ * @brief Create a vulkan allocator object, filling out the function pointers
+ * in the provided struct.
+ *
+ * @param callbacks A pointer to the allocation callbacks structure to be filled
+ * out.
+ * @return b8 True on success; otherwise false.
+ */
+static b8 create_vulkan_allocator(vulkan_context* context,
+                                  VkAllocationCallbacks* callbacks) {
+    if (callbacks) {
+        callbacks->pfnAllocation = vulkan_alloc_allocation;
+        callbacks->pfnReallocation = vulkan_alloc_reallocation;
+        callbacks->pfnFree = vulkan_alloc_free;
+        callbacks->pfnInternalAllocation = vulkan_alloc_internal_alloc;
+        callbacks->pfnInternalFree = vulkan_alloc_internal_free;
+        callbacks->pUserData = context;
+        return true;
+    }
+
+    return false;
 }
 
 #endif // KVULKAN_USE_CUSTOM_ALLOCATOR == 1
