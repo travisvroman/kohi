@@ -11,6 +11,11 @@ windows = [
    }
 ]
 package_config = {
+    packages = [
+        "Runtime",
+        "PluginStandardUi",
+        "Testbed"
+    ]
     process_as_text [
         "SomeUserAssetType"
     ]

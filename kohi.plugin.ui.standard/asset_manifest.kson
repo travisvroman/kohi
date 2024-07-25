@@ -56,7 +56,7 @@ assets = [
         type = "BitmapFont"
         path = "./assets/fonts/UbuntuMono21px.fnt"
     }
-    /{
+    {
         name = "UbuntuMono21px_0"
         type = "Texture"
         path = "./assets/textures/UbuntuMono21px_0.png"

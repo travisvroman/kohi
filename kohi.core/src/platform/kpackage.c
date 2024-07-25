@@ -2,6 +2,7 @@
 #include "containers/darray.h"
 #include "logger.h"
 #include "memory/kmemory.h"
+#include "parsers/kson_parser.h"
 #include "platform/filesystem.h"
 #include "strings/kstring.h"
 
@@ -147,20 +148,16 @@ void kpackage_destroy(kpackage* package) {
     }
 }
 
-static b8 treat_type_as_text(const char* type) {
+/* static b8 treat_type_as_text(const char* type) {
     for (u32 i = 0; i < TEXT_ASSET_TYPE_COUNT; ++i) {
         if (strings_equali(type, text_asset_types[i])) {
             return true;
         }
     }
     return false;
-}
+} */
 
-void* kpackage_asset_bytes_get(const kpackage* package, const char* type, const char* name, u64* out_size) {
-    if (!package || !type || !name || !out_size) {
-        KERROR("kpackage_asset_bytes_get requires valid pointers to package, type, name and out_size.");
-        return 0;
-    }
+static const char* asset_resolve(const kpackage* package, b8 is_binary, const char* type, const char* name, file_handle* out_handle, u64* out_size) {
 
     // Search for a list of the given type.
     u32 type_count = darray_length(package->internal_data->types);
@@ -176,38 +173,19 @@ void* kpackage_asset_bytes_get(const kpackage* package, const char* type, const 
                         KERROR("binary packages not yet supported.");
                         return 0;
                     } else {
-                        b8 is_text = treat_type_as_text(type);
                         // load the file content from disk.
-                        file_handle f;
-                        if (!filesystem_open(entry->path, FILE_MODE_READ, !is_text, &f)) {
+                        if (!filesystem_open(entry->path, FILE_MODE_READ, is_binary, out_handle)) {
                             KERROR("Package '%s': Failed to open asset '%s' file at path: '%s'.", package->name, name, entry->path);
                             return 0;
                         }
-
-                        if (!filesystem_size(&f, out_size)) {
-                            KERROR("Package '%s': Failed to get size for asset '%s' file at path: '%s'.", package->name, name, entry->path);
-                            return 0;
-                        }
-
-                        void* file_content = kallocate(*out_size, MEMORY_TAG_RESOURCE);
-
-                        if (is_text) {
-                            // Load as text
-                            if (!filesystem_read_all_text(&f, file_content, out_size)) {
-                                KERROR("Package '%s': Failed to read asset '%s' as text, at file at path: '%s'.", package->name, name, entry->path);
-                                return 0;
-                            }
-                        } else {
-                            // Load as binary
-                            if (!filesystem_read_all_bytes(&f, file_content, out_size)) {
-                                KERROR("Package '%s': Failed to read asset '%s' as binary, at file at path: '%s'.", package->name, name, entry->path);
-                                return 0;
-                            }
-                        }
-
-                        // Success!
-                        return file_content;
                     }
+
+                    if (!filesystem_size(out_handle, out_size)) {
+                        KERROR("Package '%s': Failed to get size for asset '%s' file at path: '%s'.", package->name, name, entry->path);
+                        return 0;
+                    }
+
+                    return string_duplicate(entry->path);
                 }
             }
             KERROR("Package '%s': No entry called '%s' exists of type '%s'.", package->name, name, type);
@@ -215,6 +193,230 @@ void* kpackage_asset_bytes_get(const kpackage* package, const char* type, const 
         }
     }
 
-    KERROR("Package '%s' does not contain an asset type of '%s'.", package->name, type);
+    KERROR("Package '%s': No entry called '%s' exists.", package->name, name);
     return 0;
+}
+
+void* kpackage_asset_bytes_get(const kpackage* package, const char* type, const char* name, u64* out_size) {
+    if (!package || !type || !name || !out_size) {
+        KERROR("kpackage_asset_bytes_get requires valid pointers to package, type, name and out_size.");
+        return 0;
+    }
+
+    b8 success = false;
+    file_handle f;
+    u64 size;
+    const char* asset_path = asset_resolve(package, true, type, name, &f, &size);
+    if (!asset_path) {
+        KERROR("kpackage_asset_bytes_get failed to find asset.");
+        goto kpackage_asset_bytes_get_cleanup;
+    }
+
+    void* file_content = kallocate(*out_size, MEMORY_TAG_RESOURCE);
+
+    // Load as binary
+    if (!filesystem_read_all_bytes(&f, file_content, out_size)) {
+        KERROR("Package '%s': Failed to read asset '%s' as binary, at file at path: '%s'.", package->name, name, asset_path);
+        goto kpackage_asset_bytes_get_cleanup;
+    }
+
+    success = true;
+
+kpackage_asset_bytes_get_cleanup:
+    filesystem_close(&f);
+
+    if (success) {
+        string_free(asset_path);
+    } else {
+        KERROR("Package '%s' does not contain an asset type of '%s'.", package->name, type);
+    }
+    return success ? file_content : 0;
+}
+
+const char* kpackage_asset_text_get(const kpackage* package, const char* type, const char* name, u64* out_size) {
+    if (!package || !type || !name || !out_size) {
+        KERROR("kpackage_asset_text_get requires valid pointers to package, type, name and out_size.");
+        return 0;
+    }
+
+    void* file_content = kallocate(*out_size, MEMORY_TAG_RESOURCE);
+
+    b8 success = false;
+    file_handle f;
+    u64 size;
+    const char* asset_path = asset_resolve(package, false, type, name, &f, &size);
+    if (!asset_path) {
+        KERROR("kpackage_asset_bytes_get failed to find asset.");
+        goto kpackage_asset_text_get_cleanup;
+    }
+
+    // Load as text
+    if (!filesystem_read_all_text(&f, file_content, out_size)) {
+        KERROR("Package '%s': Failed to read asset '%s' as text, at file at path: '%s'.", package->name, name, asset_path);
+        goto kpackage_asset_text_get_cleanup;
+    }
+
+    success = true;
+
+kpackage_asset_text_get_cleanup:
+    filesystem_close(&f);
+
+    if (success) {
+        string_free(asset_path);
+    } else {
+        KERROR("Package '%s' does not contain an asset type of '%s'.", package->name, type);
+    }
+    return success ? file_content : 0;
+}
+
+b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_manifest) {
+    if (!path || !out_manifest) {
+        KERROR("kpackage_parse_manifest_file_content requires valid pointers to path and out_manifest, ya dingus!");
+        return false;
+    }
+
+    file_handle f;
+    if (!filesystem_open(path, FILE_MODE_READ, false, &f)) {
+        KERROR("Failed to load asset manifest '%s'.", path);
+        return false;
+    }
+
+    b8 success = false;
+
+    u64 size;
+    if (!filesystem_size(&f, &size) || size == 0) {
+        KERROR("Failed to get system file size.");
+        goto kpackage_parse_cleanup;
+    }
+
+    char* file_content = kallocate(size, MEMORY_TAG_STRING);
+    u64 out_size;
+    if (!filesystem_read_all_text(&f, file_content, &out_size)) {
+        KERROR("Failed to read all text for asset manifest '%s'.", path);
+        goto kpackage_parse_cleanup;
+    }
+
+    // Parse manifest
+    kson_tree tree;
+    if (!kson_tree_from_string(file_content, &tree)) {
+        KERROR("Failed to parse asset manifest file '%s'. See logs for details.", path);
+        return false;
+    }
+
+    // Extract properties from file.
+    if (!kson_object_property_value_get_string(&tree.root, "package_name", &out_manifest->name)) {
+        KERROR("Asset manifest format - 'package_name' is required but not found.");
+        goto kpackage_parse_cleanup;
+    }
+
+    // Process references.
+    kson_array references = {0};
+    b8 contains_references = kson_object_property_value_get_object(&tree.root, "references", &references);
+    if (contains_references) {
+        u32 reference_array_count = 0;
+        if (!kson_array_element_count_get(&references, &reference_array_count)) {
+            KWARN("Failed to get array count for references. Skipping.");
+        } else {
+
+            // Stand up a darray for references.
+            out_manifest->references = darray_create(asset_manifest_reference);
+
+            for (u32 i = 0; i < reference_array_count; ++i) {
+                kson_object ref_obj = {0};
+                if (!kson_array_element_value_get_object(&references, i, &ref_obj)) {
+                    KWARN("Failed to get object at array index %u. Skipping.", i);
+                    continue;
+                }
+
+                asset_manifest_reference ref = {0};
+                if (!kson_object_property_value_get_string(&ref_obj, "name", &ref.name)) {
+                    KWARN("Failed to get reference name at array index %u. Skipping.", i);
+                    continue;
+                }
+                if (!kson_object_property_value_get_string(&ref_obj, "path", &ref.path)) {
+                    KWARN("Failed to get reference path at array index %u. Skipping.", i);
+                    if (ref.name) {
+                        string_free(ref.name);
+                    }
+                    continue;
+                }
+
+                // Add to references
+                darray_push(out_manifest->references, ref);
+            }
+        }
+    }
+
+    // Process assets.
+    kson_array assets = {0};
+    b8 contains_assets = kson_object_property_value_get_object(&tree.root, "assets", &assets);
+    if (contains_assets) {
+        u32 asset_array_count = 0;
+        if (!kson_array_element_count_get(&assets, &asset_array_count)) {
+            KWARN("Failed to get array count for assets. Skipping.");
+        } else {
+
+            // Stand up a darray for assets.
+            out_manifest->assets = darray_create(asset_manifest_asset);
+
+            for (u32 i = 0; i < asset_array_count; ++i) {
+                kson_object asset_obj = {0};
+                if (!kson_array_element_value_get_object(&assets, i, &asset_obj)) {
+                    KWARN("Failed to get object at array index %u. Skipping.", i);
+                    continue;
+                }
+
+                asset_manifest_asset asset = {0};
+                if (!kson_object_property_value_get_string(&asset_obj, "name", &asset.name)) {
+                    KWARN("Failed to get asset name at array index %u. Skipping.", i);
+                    continue;
+                }
+                if (!kson_object_property_value_get_string(&asset_obj, "path", &asset.path)) {
+                    KWARN("Failed to get asset path at array index %u. Skipping.", i);
+                    if (asset.name) {
+                        string_free(asset.name);
+                    }
+                    continue;
+                }
+                if (!kson_object_property_value_get_string(&asset_obj, "type", &asset.type)) {
+                    KWARN("Failed to get asset type at array index %u. Skipping.", i);
+                    if (asset.name) {
+                        string_free(asset.name);
+                    }
+                    if (asset.path) {
+                        string_free(asset.path);
+                    }
+                    continue;
+                }
+
+                // Add to assets
+                darray_push(out_manifest->assets, asset);
+            }
+        }
+    }
+
+    success = true;
+kpackage_parse_cleanup:
+    filesystem_close(&f);
+    if (file_content) {
+        string_free(file_content);
+    }
+    kson_tree_cleanup(&tree);
+    if (!success) {
+        // Clean up manifest.
+        if (manifest.references) {
+            u32 ref_count = darray_length(manifest.references);
+            for (u32 i = 0; i < ref_count; ++i) {
+                if (manifest.references[i].name) {
+                    string_free(manifest.references[i].name);
+                }
+                if (manifest.references[i].path) {
+                    string_free(manifest.references[i].path);
+                }
+            }
+            darray_destroy(manifest.references);
+            manifest.references = 0;
+        }
+    }
+    return success;
 }
