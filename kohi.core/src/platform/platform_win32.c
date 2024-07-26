@@ -15,9 +15,9 @@
 
 #    define WIN32_LEAN_AND_MEAN
 #    include <stdlib.h>
-#    include <timeapi.h>
 #    include <windows.h>
 #    include <windowsx.h> // param input extraction
+#    include <timeapi.h>
 
 typedef struct win32_handle_info {
     HINSTANCE h_instance;
