@@ -4,8 +4,8 @@ The items in this list are not in any particular order. This list will be update
 
 ## 0.8.0 Release
 
-- [ ] Virtual file system (VFS)
-  - [ ] Sits on top of and manages packages, doles out requests to loaded packages, etc.
+- [x] Virtual file system (VFS)
+  - [x] Sits on top of and manages packages, doles out requests to loaded packages, etc.
 - [ ] Asset packaging (kpackage)
   - [x] Reorganize assets from testbed.assets folder to go along with the respective "module".
   - [x] Rename all assets and asset references to use the format "<package>.<asset_type>.<name>". I.e. "Testbed.Texture.arch"
@@ -14,7 +14,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Rework .mtl import process to use fully qualified names for textures (i.e. "Testbed.Texture.arch").
   - [ ] Regenerate all .ksm files.
   - [x] Create kpackage interface in kohi.core.
-  - [ ] Point kpackage to files on disk for "debug" builds.
+  - [x] Point kpackage to files on disk for "debug" builds.
   - [ ] Asset hot reloading
   - [ ] Manifest file generator (utility that looks at directory structure and auto-creates manifest.kson file from that)
   - [ ] Create binary blob format (.kpackage file) and read/write.

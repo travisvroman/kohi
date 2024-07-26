@@ -389,7 +389,7 @@ b8 kson_parser_tokenize(kson_parser* parser, const char* source) {
                 // If any other character is come across here that isn't part of a string, it's unknown
                 // what should happen here. So, throw an error regarding this and boot if this is the
                 // case.
-                KERROR("Unexpected character '%s' at position %u. Tokenization failed.", codepoint, c + advance);
+                KERROR("Unexpected character '%c' at position %u. Tokenization failed.", codepoint, c + advance);
                 // Clear the tokens array, as there is nothing that can be done with them in this case.
                 darray_clear(parser->tokens);
                 return false;

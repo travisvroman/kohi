@@ -18,6 +18,7 @@
 
 #include "audio/audio_types.h"
 #include "identifiers/khandle.h"
+#include "platform/vfs.h"
 #include "renderer/renderer_types.h"
 
 struct application;
@@ -42,6 +43,7 @@ struct light_system_state;
 struct camera_system_state;
 struct plugin_system_state;
 struct rendergraph_system_state;
+struct vfs_state;
 struct kwindow;
 
 typedef struct engine_system_states {
@@ -104,6 +106,9 @@ typedef struct engine_system_states {
 
     u64 rendergraph_system_memory_requirement;
     struct rendergraph_system_state* rendergraph_system;
+
+    u64 vfs_system_memory_requirement;
+    struct vfs_state* vfs_system_state;
 } engine_system_states;
 
 /**

@@ -2,11 +2,11 @@ package_name = "Testbed"
 references = [
     {
         name = "Runtime"
-        path = "../kohi.runtime/"
+        path = "../kohi.runtime/asset_manifest.kson"
     }
     {
         name = "PluginStandardUi"
-        path = "../kohi.plugin.ui.standard/"
+        path = "../kohi.plugin.ui.standard/asset_manifest.kson"
     }
 ]
 assets = [
@@ -436,7 +436,7 @@ assets = [
         path = "./assets/textures/orange_lines_512.png"
     }
     {
-        name = "orange_lines_512"_SPEC
+        name = "orange_lines_512_SPEC"
         type = "Texture"
         path = "./assets/textures/orange_lines_512_SPEC.png"
     }

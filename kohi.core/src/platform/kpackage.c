@@ -27,13 +27,6 @@ typedef struct kpackage_internal {
     asset_type_lookup* types;
 } kpackage_internal;
 
-// Types of assets to be treated as text.
-#define TEXT_ASSET_TYPE_COUNT 3
-static const char* text_asset_types[TEXT_ASSET_TYPE_COUNT] = {
-    "Material",
-    "Scene",
-    "Terrain"};
-
 b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_package) {
     if (!manifest || !out_package) {
         KERROR("kpackage_create_from_manifest requires valid pointers to manifest and out_package.");
@@ -55,7 +48,7 @@ b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_p
     out_package->internal_data->types = darray_create(asset_type_lookup);
 
     // Process manifest
-    u32 asset_count = manifest->asset_count;
+    u32 asset_count = darray_length(manifest->assets);
     for (u32 i = 0; i < asset_count; ++i) {
         asset_manifest_asset* asset = &manifest->assets[i];
 
@@ -147,15 +140,6 @@ void kpackage_destroy(kpackage* package) {
         kzero_memory(package, sizeof(kpackage_internal));
     }
 }
-
-/* static b8 treat_type_as_text(const char* type) {
-    for (u32 i = 0; i < TEXT_ASSET_TYPE_COUNT; ++i) {
-        if (strings_equali(type, text_asset_types[i])) {
-            return true;
-        }
-    }
-    return false;
-} */
 
 static const char* asset_resolve(const kpackage* package, b8 is_binary, const char* type, const char* name, file_handle* out_handle, u64* out_size) {
 
@@ -275,6 +259,11 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
         return false;
     }
 
+    if (!filesystem_exists(path)) {
+        KERROR("File does not exist '%s'.", path);
+        return false;
+    }
+
     file_handle f;
     if (!filesystem_open(path, FILE_MODE_READ, false, &f)) {
         KERROR("Failed to load asset manifest '%s'.", path);
@@ -283,14 +272,15 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
 
     b8 success = false;
 
-    u64 size;
+    u64 size = 0;
+    char* file_content = 0;
     if (!filesystem_size(&f, &size) || size == 0) {
         KERROR("Failed to get system file size.");
         goto kpackage_parse_cleanup;
     }
 
-    char* file_content = kallocate(size, MEMORY_TAG_STRING);
-    u64 out_size;
+    file_content = kallocate(size + 1, MEMORY_TAG_STRING);
+    u64 out_size = 0;
     if (!filesystem_read_all_text(&f, file_content, &out_size)) {
         KERROR("Failed to read all text for asset manifest '%s'.", path);
         goto kpackage_parse_cleanup;
@@ -403,20 +393,62 @@ kpackage_parse_cleanup:
     }
     kson_tree_cleanup(&tree);
     if (!success) {
-        // Clean up manifest.
-        if (manifest.references) {
-            u32 ref_count = darray_length(manifest.references);
+        // Clean up out_manifest->
+        if (out_manifest->references) {
+            u32 ref_count = darray_length(out_manifest->references);
             for (u32 i = 0; i < ref_count; ++i) {
-                if (manifest.references[i].name) {
-                    string_free(manifest.references[i].name);
+                if (out_manifest->references[i].name) {
+                    string_free(out_manifest->references[i].name);
                 }
-                if (manifest.references[i].path) {
-                    string_free(manifest.references[i].path);
+                if (out_manifest->references[i].path) {
+                    string_free(out_manifest->references[i].path);
                 }
             }
-            darray_destroy(manifest.references);
-            manifest.references = 0;
+            darray_destroy(out_manifest->references);
+            out_manifest->references = 0;
         }
     }
     return success;
+}
+
+void kpackage_manifest_destroy(asset_manifest* manifest) {
+    if (manifest) {
+        if (manifest->name) {
+            string_free(manifest->name);
+        }
+        if (manifest->path) {
+            string_free(manifest->path);
+        }
+        if (manifest->references) {
+            u32 ref_count = darray_length(manifest->references);
+            for (u32 i = 0; i < ref_count; ++i) {
+                asset_manifest_reference* ref = &manifest->references[i];
+                if (ref->name) {
+                    string_free(ref->name);
+                }
+                if (ref->path) {
+                    string_free(ref->path);
+                }
+            }
+            darray_destroy(manifest->references);
+        }
+
+        if (manifest->assets) {
+            u32 ref_count = darray_length(manifest->assets);
+            for (u32 i = 0; i < ref_count; ++i) {
+                asset_manifest_asset* asset = &manifest->assets[i];
+                if (asset->name) {
+                    string_free(asset->name);
+                }
+                if (asset->path) {
+                    string_free(asset->path);
+                }
+                if (asset->type) {
+                    string_free(asset->type);
+                }
+            }
+            darray_destroy(manifest->assets);
+        }
+        kzero_memory(manifest, sizeof(asset_manifest));
+    }
 }

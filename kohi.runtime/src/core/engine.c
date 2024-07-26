@@ -19,6 +19,7 @@
 #include "memory/allocators/linear_allocator.h"
 #include "memory/kmemory.h"
 #include "platform/platform.h"
+#include "platform/vfs.h"
 #include "plugins/plugin_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
@@ -185,6 +186,27 @@ b8 engine_create(application* game_inst) {
     const char* build_type = "Debug";
 #endif
     KINFO("Kohi Runtime v. %s (%s)", KVERSION, build_type);
+
+    // Virtual File System
+    {
+        // TODO: Get the generic config from application config first.
+        /* application_system_config generic_sys_config = {0};
+        if (!application_config_system_config_get(&game_inst->app_config, "plugin_system", &generic_sys_config)) {
+            KERROR("No configuration exists in app config for the plugin system. This configuration is required.");
+            return false;
+        } */
+
+        // TODO: deserialize from app config.
+        vfs_config vfs_sys_config = {0};
+        vfs_sys_config.text_user_types = 0;
+
+        vfs_initialize(&systems->vfs_system_memory_requirement, 0, 0);
+        systems->vfs_system_state = kallocate(systems->vfs_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!vfs_initialize(&systems->vfs_system_memory_requirement, systems->vfs_system_state, &vfs_sys_config)) {
+            KERROR("Failed to initialize VFS. See logs for details.");
+            return false;
+        }
+    }
 
     // Plugin system
     {
@@ -799,6 +821,7 @@ b8 engine_run(application* game_inst) {
         input_system_shutdown(systems->input_system);
         event_system_shutdown(systems->event_system);
         kvar_system_shutdown(systems->kvar_system);
+        vfs_shutdown(systems->vfs_system_state);
         console_shutdown(systems->console_system);
         platform_system_shutdown(systems->platform_system);
         memory_system_shutdown();
