@@ -958,7 +958,7 @@ static b8 create_default_pbr_material(material_system_state* state) {
     // Clean up the uniform configs.
     for (u32 i = 0; i < instance_resource_config.uniform_config_count; ++i) {
         shader_instance_uniform_texture_config* ucfg = &instance_resource_config.uniform_configs[i];
-        kfree(ucfg->texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
+        kfree(ucfg->texture_maps, sizeof(ucfg->texture_maps[0]) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
         ucfg->texture_maps = 0;
     }
     kfree(instance_resource_config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
@@ -1040,7 +1040,7 @@ static b8 create_default_terrain_material(material_system_state* state) {
     // Clean up the uniform configs.
     for (u32 i = 0; i < instance_resource_config.uniform_config_count; ++i) {
         shader_instance_uniform_texture_config* ucfg = &instance_resource_config.uniform_configs[i];
-        kfree(ucfg->texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
+        kfree(ucfg->texture_maps, sizeof(ucfg->texture_maps[0]) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
         ucfg->texture_maps = 0;
     }
     kfree(instance_resource_config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);

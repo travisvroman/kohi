@@ -10,6 +10,17 @@
 #include <stdio.h>
 #include <string.h>
 
+#define K_USE_CUSTOM_MEMORY_ALLOCATOR 1
+
+#if !K_USE_CUSTOM_MEMORY_ALLOCATOR
+#    if _MSC_VER
+#        include <malloc.h>
+#        define aligned_alloc _aligned_malloc
+#        define aligned_free _aligned_free
+#    else
+#        include <stdlib.h>
+#    endif
+#endif
 struct memory_stats {
     u64 total_allocated;
     u64 tagged_allocations[MEMORY_TAG_MAX_TAGS];
@@ -66,6 +77,7 @@ typedef struct memory_system_state {
 static memory_system_state* state_ptr;
 
 b8 memory_system_initialize(memory_system_configuration config) {
+#if K_USE_CUSTOM_MEMORY_ALLOCATOR
     // The amount needed by the system state.
     u64 state_memory_requirement = sizeof(memory_system_state);
 
@@ -98,6 +110,12 @@ b8 memory_system_initialize(memory_system_configuration config) {
         KFATAL("Memory system is unable to setup internal allocator. Application cannot continue.");
         return false;
     }
+#else
+    state_ptr = aligned_alloc(sizeof(memory_system_state), 16);
+    state_ptr->config = config;
+    state_ptr->alloc_count = 0;
+    state_ptr->allocator_memory_requirement = 0;
+#endif
 
     // Create allocation mutex
     if (!kmutex_create(&state_ptr->allocation_mutex)) {
@@ -114,9 +132,13 @@ void memory_system_shutdown(void) {
         // Destroy allocation mutex
         kmutex_destroy(&state_ptr->allocation_mutex);
 
+#if K_USE_CUSTOM_MEMORY_ALLOCATOR
         dynamic_allocator_destroy(&state_ptr->allocator);
         // Free the entire block.
         platform_free(state_ptr, state_ptr->allocator_memory_requirement + sizeof(memory_system_state));
+#else
+        aligned_free(state_ptr);
+#endif
     }
     state_ptr = 0;
 }
@@ -146,7 +168,11 @@ void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
         state_ptr->stats.new_tagged_allocations[tag] += size;
         state_ptr->alloc_count++;
 
+#if K_USE_CUSTOM_MEMORY_ALLOCATOR
         block = dynamic_allocator_allocate_aligned(&state_ptr->allocator, size, alignment);
+#else
+        block = aligned_alloc(size, alignment);
+#endif
         kmutex_unlock(&state_ptr->allocation_mutex);
     } else {
         // If the system is not up yet, warn about it but give memory for now.
@@ -210,11 +236,28 @@ void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
             return;
         }
 
+#if K_USE_CUSTOM_MEMORY_ALLOCATOR
+        u64 osize = 0;
+        u16 oalignment = 0;
+        dynamic_allocator_get_size_alignment(block, &osize, &oalignment);
+        if (osize != size) {
+            printf("Free size mismatch! (%llu/%llu)\n", osize, size);
+        }
+        if (oalignment != alignment) {
+            printf("Free alignment mismatch! (%hu/%hu)\n", oalignment, alignment);
+        }
+#endif
+
         state_ptr->stats.total_allocated -= size;
         state_ptr->stats.tagged_allocations[tag] -= size;
         state_ptr->stats.new_tagged_deallocations[tag] += size;
         state_ptr->alloc_count--;
+#if K_USE_CUSTOM_MEMORY_ALLOCATOR
         b8 result = dynamic_allocator_free_aligned(&state_ptr->allocator, block);
+#else
+        aligned_free(block);
+        b8 result = true;
+#endif
 
         kmutex_unlock(&state_ptr->allocation_mutex);
 
@@ -250,7 +293,13 @@ b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment) {
         KFATAL("Error obtaining mutex lock during kmemory_get_size_alignment.");
         return false;
     }
+#if K_USE_CUSTOM_MEMORY_ALLOCATOR
     b8 result = dynamic_allocator_get_size_alignment(block, out_size, out_alignment);
+#else
+    *out_size = 0;
+    *out_alignment = 1;
+    b8 result = true;
+#endif
     kmutex_unlock(&state_ptr->allocation_mutex);
     return result;
 }
@@ -301,10 +350,16 @@ char* get_memory_usage_str(void) {
     kzero_memory(&state_ptr->stats.new_tagged_allocations, sizeof(state_ptr->stats.new_tagged_allocations));
     kzero_memory(&state_ptr->stats.new_tagged_deallocations, sizeof(state_ptr->stats.new_tagged_deallocations));
     {
-        // Compute total usage.
+// Compute total usage.
+#if K_USE_CUSTOM_MEMORY_ALLOCATOR
         u64 total_space = dynamic_allocator_total_space(&state_ptr->allocator);
         u64 free_space = dynamic_allocator_free_space(&state_ptr->allocator);
         u64 used_space = total_space - free_space;
+#else
+        u64 total_space = 0;
+        // u64 free_space = 0;
+        u64 used_space = 0;
+#endif
 
         f32 used_amount = 1.0f;
         const char* used_unit = get_unit_for_size(used_space, &used_amount);

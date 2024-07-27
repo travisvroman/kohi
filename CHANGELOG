@@ -8,6 +8,9 @@ Changelog
     - The rendering of this is handled within the forward rendergraph node.
   - Skybox rendergraph node has been merged with forward rendergraph node to facilitate water plane rendering.
   - Fixed an issue with UTF8 window titles not rendering correctly in X11 (Linux).
+  - Fixed a few issues on Win32 when dealing with wide strings.
+  - Fixed several memory issues that were causing stability issues. The bonus of this is that now the custom allocator
+    has more debugging capability and can be disabled if needed.
 
 - 0.7.1
   - Fixed window resizing issues in macOS

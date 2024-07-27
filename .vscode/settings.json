@@ -121,7 +121,11 @@
         "stat.h": "c",
         "debug_line3d.h": "c",
         "water_plane_rendergraph_node.h": "c",
-        "water_plane.h": "c"
+        "water_plane.h": "c",
+        "stdlib.h": "c",
+        "filesystem": "c",
+        "chrono": "c",
+        "codecvt": "c"
     },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [
