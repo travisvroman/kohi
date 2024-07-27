@@ -6,21 +6,39 @@ The items in this list are not in any particular order. This list will be update
 
 - [x] Virtual file system (VFS)
   - [x] Sits on top of and manages packages, doles out requests to loaded packages, etc.
+- [ ] Replace Resource System with new Asset System
+  - [ ] New asset system will work with asynchronous nature of VFS and automatically handle asset parsing/processing, hot-reloading and interaction with systems where necessary (i.e. texture system).
+  - [ ] Provide kasset structure which contains basic high-level metadata such as name, type, size and pointer to data, as well as a general "asset state" that can be looked at by any system (i.e. Uninitialized->Initialized->Loading->Loaded->Unloading)
+  - [ ] When an asset is requested, a name and callback are provided. The name and a asset-type-specific handler callback are provided to the VFS, which responds in kind when the asset is loaded. In the event more than one VFS call is required, the asset handler will be responsible for managing this and will ultimately invoke the original callback provided when the top-level asset was requested.
 - [ ] Asset packaging (kpackage)
   - [x] Reorganize assets from testbed.assets folder to go along with the respective "module".
   - [x] Rename all assets and asset references to use the format "<package>.<asset_type>.<name>". I.e. "Testbed.Texture.arch"
   - [x] Setup one manifest file including a list of all these files in each "module.". Exclude "source" files (i.e. .obj and .mtl).
-  - [ ] Rework static mesh OBJ import process to take in package name as well as make material generation optional (so we don't overwrite the hand-rolled materials);
-  - [ ] Rework .mtl import process to use fully qualified names for textures (i.e. "Testbed.Texture.arch").
-  - [ ] Regenerate all .ksm files.
+  - [ ] Asset type reworks:
+    - [ ] Rework static mesh OBJ import process to take in package name as well as make material generation optional (so we don't overwrite the hand-rolled materials);
+      - [ ] Rework .mtl import process to use fully qualified names for textures (i.e. "Testbed.Texture.arch").
+      - [ ] Regenerate all .ksm files.
+    - [ ] Textures
+    - [ ] Shaders
+      - [ ] Fix hot-reloading/change watches to be called from package/vfs
+      - [ ] Convert .shadercfg file to KSON-based .ksc (Kohi Shader Config)
+    - [ ] Bitmap fonts
+      - [ ] Rename .fnt files to .kbf (Kohi Bitmap Font)
+    - [ ] System fonts
+      - [ ] Convert .fontcfg to KSON-based .ksf file (Kohi System Font)
+    - [ ] .kmt Material files
+      - [ ] Convert .kmt to KSON
+    - [ ] Terrains
+      - [ ] Convert .kterrain to KSON-based .kht file (Kohi Heightmap Terrain)
   - [x] Create kpackage interface in kohi.core.
   - [x] Point kpackage to files on disk for "debug" builds.
   - [ ] Asset hot reloading
+  - [ ] Jobify VFS asset loading
   - [ ] Manifest file generator (utility that looks at directory structure and auto-creates manifest.kson file from that)
   - [ ] Create binary blob format (.kpackage file) and read/write.
   - [ ] Point kpackage to .kpackage file for "release" builds.
   - [ ] Rename all references to "mesh" in the engine to "static_mesh" to separate it from later mesh types.
-- [ ] BUG: Fix release build hang on startup (creating logical device).
+- [x] BUG: Fix release build hang on startup (creating logical device).
 - [x] BUG: Fix macOS window resizing.
 - [x] Fix release build hang on startup (creating logical device).
 - [ ] Combine duplicated platform code (such as device_pixel_ratio and callback assignments) to a general platform.c file.
@@ -147,9 +165,9 @@ The items in this list are not in any particular order. This list will be update
 - [x] Gizmo (in-world object manipulation)
 - [x] Viewports
 - [x] terrain
-  - [ ] binary format
-  - [x] heightmap-based
-  - [ ] voxel-based
+  - [ ] binary format (.kbt extension, Kohi Binary Terrain)
+  - [x] heightmap-based (.kht extension, Kohi Heightmap Terrain)
+  - [ ] voxel-based (.kvt extension, Kohi Voxel Terrain)
     - [ ] smooth voxels
   - [x] pixel picking
   - [x] raycast picking
