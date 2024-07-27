@@ -171,7 +171,7 @@ b8 shader_system_create(const shader_config* config) {
     hashtable_create(element_size, element_count, out_shader->hashtable_block, false, &out_shader->uniform_lookup);
 
     // Invalidate all spots in the hashtable.
-    u32 invalid = INVALID_ID;
+    u16 invalid = INVALID_ID_U16;
     hashtable_fill(&out_shader->uniform_lookup, &invalid);
 
     // A running total of the actual global uniform buffer object size.

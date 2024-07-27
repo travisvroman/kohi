@@ -195,8 +195,7 @@ void* kpackage_asset_bytes_get(const kpackage* package, const char* type, const 
         KERROR("kpackage_asset_bytes_get failed to find asset.");
         goto kpackage_asset_bytes_get_cleanup;
     }
-
-    void* file_content = kallocate(*out_size, MEMORY_TAG_RESOURCE);
+    void* file_content = kallocate(size, MEMORY_TAG_RESOURCE);
 
     // Load as binary
     if (!filesystem_read_all_bytes(&f, file_content, out_size)) {
