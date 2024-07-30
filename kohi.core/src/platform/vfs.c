@@ -1,8 +1,8 @@
 #include "vfs.h"
 
+#include "assets/kasset_types.h"
 #include "containers/darray.h"
 #include "logger.h"
-#include "memory/kmemory.h"
 #include "platform/kpackage.h"
 #include "strings/kstring.h"
 
@@ -74,70 +74,27 @@ void vfs_shutdown(vfs_state* state) {
     }
 }
 
-void vfs_request_asset(vfs_state* state, const char* name, PFN_on_asset_loaded_callback callback) {
+void vfs_request_asset(vfs_state* state, const kasset_name* name, PFN_on_asset_loaded_callback callback) {
     if (state && name && callback) {
-        // "Runtime.Texture.Rock.01"
-        char package_name[VFS_PACKAGE_NAME_MAX_LENGTH] = {0};
-        char asset_type[VFS_ASSET_TYPE_MAX_LENGTH] = {0};
-        char asset_name[VFS_ASSET_NAME_MAX_LENGTH] = {0};
-        char* parts[3] = {package_name, asset_type, asset_name};
 
-        // Get the UTF-8 string length
-        u32 text_length_utf8 = string_utf8_length(name);
-        u32 char_length = string_length(name);
-
-        if (text_length_utf8 < 1) {
-            KERROR("vfs_request_asset was passed an empty string for name. Nothing to be done.");
-            return;
-        }
-
-        u8 part_index = 0;
-        u32 part_loc = 0;
-        for (u32 c = 0; c < char_length;) {
-            i32 codepoint = name[c];
-            u8 advance = 1;
-
-            // Ensure the propert UTF-8 codepoint is being used.
-            if (!bytes_to_codepoint(name, c, &codepoint, &advance)) {
-                KWARN("Invalid UTF-8 found in string, using unknown codepoint of -1");
-                codepoint = -1;
-            }
-
-            if (part_index < 2 && codepoint == '.') {
-                // null terminate and move on.
-                parts[part_index][part_loc] = 0;
-                part_index++;
-                part_loc = 0;
-            }
-
-            // Add to the current part string.
-            for (u32 i = 0; i < advance; ++i) {
-                parts[part_index][part_loc] = c + i;
-                part_loc++;
-            }
-
-            c += advance;
-        }
-        parts[part_index][part_loc] = 0;
-
-        KDEBUG("Loading asset '%s' of type '%s' from package '%s'...", asset_name, asset_type, package_name);
+        KDEBUG("Loading asset '%s' of type '%s' from package '%s'...", name->asset_name, name->asset_type, name->package_name);
 
         u32 package_count = darray_length(state->packages);
         for (u32 i = 0; i < package_count; ++i) {
             kpackage* package = &state->packages[i];
-            if (strings_equali(package->name, package_name)) {
+            if (strings_equali(package->name, name->package_name)) {
                 // Determine if the asset type is text.
 
                 vfs_asset_data data = {0};
-                if (treat_type_as_text(asset_type)) {
-                    data.text = kpackage_asset_text_get(package, asset_type, asset_name, &data.size);
+                if (treat_type_as_text(name->asset_type)) {
+                    data.text = kpackage_asset_text_get(package, name->asset_type, name->asset_name, &data.size);
                     if (!data.text) {
                         KERROR("Failed to text load asset. See logs for details.");
                         data.success = false;
                         return;
                     }
                 } else {
-                    data.bytes = kpackage_asset_bytes_get(package, asset_type, asset_name, &data.size);
+                    data.bytes = kpackage_asset_bytes_get(package, name->asset_type, name->asset_name, &data.size);
                     if (!data.bytes) {
                         KERROR("Failed to load binary asset. See logs for details.");
                         data.success = false;
@@ -147,14 +104,13 @@ void vfs_request_asset(vfs_state* state, const char* name, PFN_on_asset_loaded_c
                 }
 
                 data.success = true;
-                callback(asset_name, data);
+                callback(name->asset_name, data);
 
                 return;
             }
         }
 
-        KERROR("No package named '%s' exists. Nothing was done.", package_name);
-
+        KERROR("No package named '%s' exists. Nothing was done.", name->package_name);
     } else {
         KERROR("vfs_request_asset requires state, name and callback to be provided.");
     }
