@@ -159,7 +159,7 @@ static void asset_system_release_internal(struct asset_system_state* state, cons
             // Valid entry found, decrement the reference count.
             asset_lookup* lookup = &state->lookups[lookup_index];
             lookup->reference_count--;
-            if (force_release || lookup->reference_count < 1 && lookup->auto_release) {
+            if (force_release || (lookup->reference_count < 1 && lookup->auto_release)) {
                 // Auto release set and criteria met.
                 // TODO: call asset handler's 'unload' function.
                 //
@@ -186,7 +186,7 @@ void asset_system_on_handler_result(struct asset_system_state* state, asset_requ
         case ASSET_REQUEST_RESULT_SUCCESS: {
             // See if the asset already exists first.
             u32 lookup_index = INVALID_ID;
-            if (hashtable_get(&state->lookup_table, asset->name, &lookup_index) && lookup_index != INVALID_ID) {
+            if (hashtable_get(&state->lookup_table, asset->meta.name.fully_qualified_name, &lookup_index) && lookup_index != INVALID_ID) {
                 // Valid entry found, increment the reference count and immediately make the callback.
                 asset_lookup* lookup = &state->lookups[lookup_index];
                 lookup->reference_count++;
@@ -199,22 +199,22 @@ void asset_system_on_handler_result(struct asset_system_state* state, asset_requ
 
         } break;
         case ASSET_REQUEST_RESULT_INVALID_PACKAGE:
-            KERROR("Asset '%s' load failed: An invalid package was specified.", asset->name);
+            KERROR("Asset '%s' load failed: An invalid package was specified.", asset->meta.name.fully_qualified_name);
             break;
         case ASSET_REQUEST_RESULT_INVALID_NAME:
-            KERROR("Asset '%s' load failed: An invalid asset name was specified.", asset->name);
+            KERROR("Asset '%s' load failed: An invalid asset name was specified.", asset->meta.name.fully_qualified_name);
             break;
         case ASSET_REQUEST_RESULT_INVALID_ASSET_TYPE:
-            KERROR("Asset '%s' load failed: An invalid asset type was specified.", asset->name);
+            KERROR("Asset '%s' load failed: An invalid asset type was specified.", asset->meta.name.fully_qualified_name);
             break;
         case ASSET_REQUEST_RESULT_PARSE_FAILED:
-            KERROR("Asset '%s' load failed: The parsing stage of the asset load failed.", asset->name);
+            KERROR("Asset '%s' load failed: The parsing stage of the asset load failed.", asset->meta.name.fully_qualified_name);
             break;
         case ASSET_REQUEST_RESULT_GPU_UPLOAD_FAILED:
-            KERROR("Asset '%s' load failed: The GPU-upload stage of the asset load failed.", asset->name);
+            KERROR("Asset '%s' load failed: The GPU-upload stage of the asset load failed.", asset->meta.name.fully_qualified_name);
             break;
         default:
-            KERROR("Asset '%s' load failed: An unspecified error has occurred.", asset->name);
+            KERROR("Asset '%s' load failed: An unspecified error has occurred.", asset->meta.name.fully_qualified_name);
             break;
         }
     }

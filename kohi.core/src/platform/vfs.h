@@ -1,6 +1,7 @@
 #pragma once
 
 #include "defines.h"
+#include "assets/kasset_types.h"
 
 struct kpackage;
 struct kasset_name;
@@ -37,4 +38,4 @@ typedef void (*PFN_on_asset_loaded_callback)(const char* name, vfs_asset_data as
 KAPI b8 vfs_initialize(u64* memory_requirement, vfs_state* out_state, const vfs_config* config);
 KAPI void vfs_shutdown(vfs_state* state);
 
-KAPI void vfs_request_asset(vfs_state* state, const struct kasset_name* name, PFN_on_asset_loaded_callback callback);
+KAPI void vfs_request_asset(vfs_state* state, const struct kasset_name* name, kasset_type type, PFN_on_asset_loaded_callback callback);

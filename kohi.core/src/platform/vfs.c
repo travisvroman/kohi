@@ -8,12 +8,12 @@
 
 // Types of assets to be treated as text.
 #define TEXT_ASSET_TYPE_COUNT 3
-static const char* text_asset_types[TEXT_ASSET_TYPE_COUNT] = {
-    "Material",
-    "Scene",
-    "Terrain"};
+static kasset_type asset_types[TEXT_ASSET_TYPE_COUNT] = {
+    KASSET_TYPE_MATERIAL,
+    KASSET_TYPE_SCENE,
+    KASSET_TYPE_HEIGHTMAP_TERRAIN};
 
-static b8 treat_type_as_text(const char* type);
+static b8 treat_type_as_text(kasset_type type);
 static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest);
 
 b8 vfs_initialize(u64* memory_requirement, vfs_state* state, const vfs_config* config) {
@@ -74,7 +74,7 @@ void vfs_shutdown(vfs_state* state) {
     }
 }
 
-void vfs_request_asset(vfs_state* state, const kasset_name* name, PFN_on_asset_loaded_callback callback) {
+void vfs_request_asset(vfs_state* state, const kasset_name* name, kasset_type type, PFN_on_asset_loaded_callback callback) {
     if (state && name && callback) {
 
         KDEBUG("Loading asset '%s' of type '%s' from package '%s'...", name->asset_name, name->asset_type, name->package_name);
@@ -86,15 +86,15 @@ void vfs_request_asset(vfs_state* state, const kasset_name* name, PFN_on_asset_l
                 // Determine if the asset type is text.
 
                 vfs_asset_data data = {0};
-                if (treat_type_as_text(name->asset_type)) {
-                    data.text = kpackage_asset_text_get(package, name->asset_type, name->asset_name, &data.size);
+                if (treat_type_as_text(type)) {
+                    data.text = kpackage_asset_text_get(package, type, name->asset_name, &data.size);
                     if (!data.text) {
                         KERROR("Failed to text load asset. See logs for details.");
                         data.success = false;
                         return;
                     }
                 } else {
-                    data.bytes = kpackage_asset_bytes_get(package, name->asset_type, name->asset_name, &data.size);
+                    data.bytes = kpackage_asset_bytes_get(package, type, name->asset_name, &data.size);
                     if (!data.bytes) {
                         KERROR("Failed to load binary asset. See logs for details.");
                         data.success = false;
@@ -116,9 +116,9 @@ void vfs_request_asset(vfs_state* state, const kasset_name* name, PFN_on_asset_l
     }
 }
 
-static b8 treat_type_as_text(const char* type) {
+static b8 treat_type_as_text(kasset_type type) {
     for (u32 i = 0; i < TEXT_ASSET_TYPE_COUNT; ++i) {
-        if (strings_equali(type, text_asset_types[i])) {
+        if (type == asset_types[i]) {
             return true;
         }
     }
