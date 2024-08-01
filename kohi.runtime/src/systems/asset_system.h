@@ -50,9 +50,18 @@ typedef struct asset_system_config {
  * @param asset A constant pointer to the asset that is loaded.
  * @param listener_inst A pointer to the listener, usually passed along with the original request.
  */
-typedef void(*PFN_kasset_on_result(asset_request_result result, const kasset* asset, void* listener_inst));
+typedef void (*PFN_kasset_on_result)(asset_request_result result, const kasset* asset, void* listener_inst);
 
 struct asset_system_state;
+
+/**
+ * @brief Deserializes configuration for the asset system from the provided string.
+ *
+ * @param config_str The string to deserialize.
+ * @param out_config A pointer to hold the deserialized config.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 asset_system_deserialize_config(const char* config_str, asset_system_config* out_config);
 
 /**
  * @brief Initializes the asset system. Call twice; once to get the memory requirement (pass 0 to state and config) and a second
@@ -102,3 +111,11 @@ KAPI void asset_system_release(struct asset_system_state* state, const char* nam
  * @param A pointer to the asset used in the operation.
  */
 KAPI void asset_system_on_handler_result(struct asset_system_state* state, asset_request_result result, kasset* asset, void* listener_instance, PFN_kasset_on_result callback);
+
+/**
+ * @brief Indicates if the provided asset type is a binary asset.
+ *
+ * @param type The asset type.
+ * @return True if binary; otherwise treated as text.
+ */
+KAPI b8 asset_type_is_binary(kasset_type type);

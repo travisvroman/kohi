@@ -189,6 +189,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Assets specific to rutime or plugins should be provided at that level to the package build process.
   - [ ] Would provide an interface to the engine, and the implementation could either load from disk or binary blob.
 - [ ] For release builds, compile shaders to bytecode/SPIR-V and place into package binary.
+- [ ] Custom types capability for asset system.
 
 - [x] 0.7 Reorg
   - [x] Split engine into "core" and "runtime"

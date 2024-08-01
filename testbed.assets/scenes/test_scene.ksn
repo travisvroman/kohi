@@ -85,7 +85,7 @@ nodes = [
         xform = "-50.000000 -3.900000 -50.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
         attachments = [
             {
-                type = "terrain"
+                type = "HeightmapTerrain"
                 name = "test_terrain"
                 resource_name = "test_terrain"
             }

@@ -5,6 +5,7 @@
 
 #include "application/application_config.h"
 #include "application/application_types.h"
+#include "assets/kasset_importer_registry.h"
 #include "console.h"
 #include "containers/darray.h"
 #include "containers/registry.h"
@@ -28,6 +29,7 @@
 #include "time/kclock.h"
 
 // systems
+#include "systems/asset_system.h"
 #include "systems/audio_system.h"
 #include "systems/camera_system.h"
 #include "systems/font_system.h"
@@ -191,8 +193,8 @@ b8 engine_create(application* game_inst) {
     {
         // TODO: Get the generic config from application config first.
         /* application_system_config generic_sys_config = {0};
-        if (!application_config_system_config_get(&game_inst->app_config, "plugin_system", &generic_sys_config)) {
-            KERROR("No configuration exists in app config for the plugin system. This configuration is required.");
+        if (!application_config_system_config_get(&game_inst->app_config, "virtual_file_system", &generic_sys_config)) {
+            KERROR("No configuration exists in app config for the virtual file system. This configuration is required.");
             return false;
         } */
 
@@ -204,6 +206,38 @@ b8 engine_create(application* game_inst) {
         systems->vfs_system_state = kallocate(systems->vfs_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!vfs_initialize(&systems->vfs_system_memory_requirement, systems->vfs_system_state, &vfs_sys_config)) {
             KERROR("Failed to initialize VFS. See logs for details.");
+            return false;
+        }
+    }
+
+    // Asset system - must always come after the VFS since it relies on it.
+    {
+        // Get the generic config from application config first.
+        application_system_config generic_sys_config = {0};
+        if (!application_config_system_config_get(&game_inst->app_config, "asset", &generic_sys_config)) {
+            KERROR("No configuration exists in app config for the asset system. This configuration is required.");
+            return false;
+        }
+
+        // Deserialize from app config.
+        asset_system_config asset_sys_config = {0};
+        if (!asset_system_deserialize_config(generic_sys_config.configuration_str, &asset_sys_config)) {
+            KERROR("Failed to deserialize asset system config, which is required.");
+            return false;
+        }
+
+        asset_system_initialize(&systems->asset_system_memory_requirement, 0, 0);
+        systems->asset_state = kallocate(systems->asset_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!asset_system_initialize(&systems->asset_system_memory_requirement, systems->asset_state, &asset_sys_config)) {
+            KERROR("Failed to initialize Asset System. See logs for details.");
+            return false;
+        }
+    }
+
+    // Asset importer registry.
+    {
+        if (!kasset_importer_registry_initialize()) {
+            KERROR("Failed to initialize asset importer registry. See logs for details.");
             return false;
         }
     }
@@ -821,6 +855,7 @@ b8 engine_run(application* game_inst) {
         input_system_shutdown(systems->input_system);
         event_system_shutdown(systems->event_system);
         kvar_system_shutdown(systems->kvar_system);
+        kasset_importer_registry_shutdown();
         vfs_shutdown(systems->vfs_system_state);
         console_shutdown(systems->console_system);
         platform_system_shutdown(systems->platform_system);

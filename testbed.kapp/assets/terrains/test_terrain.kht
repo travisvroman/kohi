@@ -1,20 +1,17 @@
 // Kohi Terrain config file (KSON format)
 version=2
-name=Testbed.Terrain.test_terrain
 
 // If set, image is used as heightmap data. 
-heightmap_file=Testbed.Texture.terrain_heightmap_256
+heightmap_filename="Testbed.Texture.terrain_heightmap_256"
 
 // If not provided, defaults to 16
 chunk_size=16
 
-scale = {
-    x=2.0
-    y=20.0
-    z=2.0
-}
+tile_scale = "2.0 20.0 2.0"
 
-material0=Testbed.Material.river_rock1
-material1=Testbed.Material.wavy-sand
-material2=Testbed.Material.wispy-grass-meadow
-material3=Testbed.Material.Crusted_snow2
+material_names = [
+    "Testbed.Material.river_rock1"
+    "Testbed.Material.wavy-sand"
+    "Testbed.Material.wispy-grass-meadow"
+    "Testbed.Material.Crusted_snow2"
+]

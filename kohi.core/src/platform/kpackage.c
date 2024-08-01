@@ -2,6 +2,7 @@
 #include "assets/kasset_types.h"
 #include "assets/kasset_utils.h"
 #include "containers/darray.h"
+#include "debug/kassert.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "parsers/kson_parser.h"
@@ -12,6 +13,8 @@ typedef struct asset_entry {
     const char* name;
     // If loaded from binary, this will be null.
     const char* path;
+    // Should be populated if the asset was imported.
+    const char* source_path;
 
     // If loaded from binary, these define where the asset is in the blob.
     u64 offset;
@@ -19,7 +22,8 @@ typedef struct asset_entry {
 } asset_entry;
 
 typedef struct kpackage_internal {
-    asset_entry* entries[KASSET_TYPE_MAX];
+    // darray of all asset entries.
+    asset_entry* entries;
 } kpackage_internal;
 
 b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_package) {
@@ -45,7 +49,6 @@ b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_p
     u32 asset_count = darray_length(manifest->assets);
     for (u32 i = 0; i < asset_count; ++i) {
         asset_manifest_asset* asset = &manifest->assets[i];
-        kasset_type type = kasset_type_from_string(asset->type);
 
         asset_entry new_entry = {0};
         new_entry.name = string_duplicate(asset->name);
@@ -53,11 +56,11 @@ b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_p
         // NOTE: Size and offset don't get filled out/used with a manifest version of a package.
 
         // Allocate the entry type array if it isn't already.
-        if (!out_package->internal_data->entries[type]) {
-            out_package->internal_data->entries[type] = darray_create(asset_entry);
+        if (!out_package->internal_data->entries) {
+            out_package->internal_data->entries = darray_create(asset_entry);
         }
         // Push the asset to it.
-        darray_push(out_package->internal_data->entries[type], new_entry);
+        darray_push(out_package->internal_data->entries, new_entry);
     }
 
     return true;
@@ -83,22 +86,18 @@ void kpackage_destroy(kpackage* package) {
             string_free(package->name);
         }
 
-        for (u32 i = 0; i < KASSET_TYPE_MAX; ++i) {
-            asset_entry* entry_list = package->internal_data->entries[i];
-            // Clear entries for each type.
-            if (entry_list) {
-                u32 entry_count = darray_length(entry_list);
-                for (u32 j = 0; j < entry_count; ++j) {
-                    asset_entry* entry = &entry_list[j];
-                    if (entry->name) {
-                        string_free(entry->name);
-                    }
-                    if (entry->path) {
-                        string_free(entry->path);
-                    }
+        if (package->internal_data->entries) {
+            u32 entry_count = darray_length(package->internal_data->entries);
+            for (u32 j = 0; j < entry_count; ++j) {
+                asset_entry* entry = &package->internal_data->entries[j];
+                if (entry->name) {
+                    string_free(entry->name);
                 }
-                darray_destroy(entry_list);
+                if (entry->path) {
+                    string_free(entry->path);
+                }
             }
+            darray_destroy(package->internal_data->entries);
         }
 
         if (package->internal_data) {
@@ -109,19 +108,12 @@ void kpackage_destroy(kpackage* package) {
     }
 }
 
-static const char* asset_resolve(const kpackage* package, b8 is_binary, kasset_type type, const char* name, file_handle* out_handle, u64* out_size) {
-
-    // Get the list of the given type.
-    asset_entry* entry_type_list = package->internal_data->entries[type];
-    if (!entry_type_list) {
-        KERROR("Package '%s': No entry called '%s' exists.", package->name, name);
-        return 0;
-    }
+static const char* asset_resolve(const kpackage* package, b8 is_binary, const char* name, file_handle* out_handle, u64* out_size) {
 
     // Search the type lookup's entries for the matching name.
-    u32 entry_count = darray_length(entry_type_list);
+    u32 entry_count = darray_length(package->internal_data->entries);
     for (u32 j = 0; j < entry_count; ++j) {
-        asset_entry* entry = &entry_type_list[j];
+        asset_entry* entry = &package->internal_data->entries[j];
         if (strings_equali(entry->name, name)) {
             if (package->is_binary) {
                 KERROR("binary packages not yet supported.");
@@ -147,16 +139,16 @@ static const char* asset_resolve(const kpackage* package, b8 is_binary, kasset_t
     return 0;
 }
 
-void* kpackage_asset_bytes_get(const kpackage* package, kasset_type type, const char* name, u64* out_size) {
-    if (!package || !type || !name || !out_size) {
-        KERROR("kpackage_asset_bytes_get requires valid pointers to package, type, name and out_size.");
+void* kpackage_asset_bytes_get(const kpackage* package, const char* name, u64* out_size) {
+    if (!package || !name || !out_size) {
+        KERROR("kpackage_asset_bytes_get requires valid pointers to package, name and out_size.");
         return 0;
     }
 
     b8 success = false;
     file_handle f;
     u64 size;
-    const char* asset_path = asset_resolve(package, true, type, name, &f, &size);
+    const char* asset_path = asset_resolve(package, true, name, &f, &size);
     if (!asset_path) {
         KERROR("kpackage_asset_bytes_get failed to find asset.");
         goto kpackage_asset_bytes_get_cleanup;
@@ -177,14 +169,14 @@ kpackage_asset_bytes_get_cleanup:
     if (success) {
         string_free(asset_path);
     } else {
-        KERROR("Package '%s' does not contain an asset type of '%s'.", package->name, type);
+        KERROR("Package '%s' does not contain asset '%s'.", package->name, name);
     }
     return success ? file_content : 0;
 }
 
-const char* kpackage_asset_text_get(const kpackage* package, kasset_type type, const char* name, u64* out_size) {
-    if (!package || !type || !name || !out_size) {
-        KERROR("kpackage_asset_text_get requires valid pointers to package, type, name and out_size.");
+const char* kpackage_asset_text_get(const kpackage* package, const char* name, u64* out_size) {
+    if (!package || !name || !out_size) {
+        KERROR("kpackage_asset_text_get requires valid pointers to package, name and out_size.");
         return 0;
     }
 
@@ -193,7 +185,7 @@ const char* kpackage_asset_text_get(const kpackage* package, kasset_type type, c
     b8 success = false;
     file_handle f;
     u64 size;
-    const char* asset_path = asset_resolve(package, false, type, name, &f, &size);
+    const char* asset_path = asset_resolve(package, false, name, &f, &size);
     if (!asset_path) {
         KERROR("kpackage_asset_bytes_get failed to find asset.");
         goto kpackage_asset_text_get_cleanup;
@@ -213,9 +205,83 @@ kpackage_asset_text_get_cleanup:
     if (success) {
         string_free(asset_path);
     } else {
-        KERROR("Package '%s' does not contain an asset type of '%s'.", package->name, type);
+        KERROR("Package '%s' does not contain asset '%s'.", package->name, name);
     }
     return success ? file_content : 0;
+}
+
+// Writes file to disk for packages using the asset manifest, not binary packages.
+static b8 kpackage_asset_write_file_internal(kpackage* package, const char* name, u64 size, void* bytes, b8 is_binary) {
+    file_handle f = {0};
+    // FIXME: Brute-force lookup, add a hash table or something better...
+    u32 entry_count = darray_length(package->internal_data->entries);
+    for (u32 i = 0; i < entry_count; ++i) {
+        asset_entry* entry = &package->internal_data->entries[i];
+        if (strings_equali(entry->name, name)) {
+            // Found a match.
+            if (!filesystem_open(entry->path, FILE_MODE_WRITE, is_binary, &f)) {
+                KERROR("Unable to open asset file for writing: '%s'", entry->path);
+                return false;
+            }
+
+            u64 bytes_written = 0;
+            if (!filesystem_write(&f, size, bytes, &bytes_written)) {
+                KERROR("Unable to write to asset file: '%s'", entry->path);
+                filesystem_close(&f);
+                return false;
+            }
+
+            if (bytes_written != size) {
+                KWARN("Asset bytes written/size mismatch: %llu/%llu", bytes_written, size);
+            }
+
+            return true;
+        }
+    }
+
+    // New asset file, write out.
+    KERROR("kpackage_asset_bytes_write attempted to write to an asset that is not in the manifest.");
+    return false;
+}
+
+b8 kpackage_asset_bytes_write(kpackage* package, const char* name, u64 size, void* bytes) {
+    if (!package || !name || !size || !bytes) {
+        KERROR("kpackage_asset_bytes_write requires valid pointers to package, name and bytes, and a nonzero size");
+        return false;
+    }
+
+    if (package->is_binary) {
+        // FIXME: do the thing.
+        KASSERT_MSG(false, "not yet supported");
+        return false;
+    }
+
+    if (!kpackage_asset_write_file_internal(package, name, size, bytes, true)) {
+        KERROR("Failed to write asset.");
+        return false;
+    }
+
+    return true;
+}
+
+b8 kpackage_asset_text_write(kpackage* package, const char* name, u64 size, const char* text) {
+    if (!package || !name || !size || !text) {
+        KERROR("kpackage_asset_text_write requires valid pointers to package, name and bytes, and a nonzero size");
+        return false;
+    }
+
+    if (package->is_binary) {
+        // FIXME: do the thing.
+        KASSERT_MSG(false, "not yet supported");
+        return false;
+    }
+
+    if (!kpackage_asset_write_file_internal(package, name, size, (void*)text, false)) {
+        KERROR("Failed to write asset.");
+        return false;
+    }
+
+    return true;
 }
 
 b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_manifest) {

@@ -11,11 +11,22 @@ windows = [
    }
 ]
 package_config = {
+    packages = [
+        "Runtime"
+        "PluginStandardUi"
+        "Testbed"
+    ]
     process_as_text [
         "SomeUserAssetType"
     ]
 }
 systems = [
+    {
+        name="asset"
+        config = {
+            max_asset_count = 2049
+        }
+    }
     {
         name="resource"
         config = {
@@ -57,24 +68,27 @@ systems = [
     {
        name="plugin_system"
        config = {
-           plugins = [
-               {
-                   name = "kohi.plugin.renderer.vulkan"
-                   config = {
-                       
-                   }
-               }
-               {
-                   name = "kohi.plugin.audio.openal"
-                   config = {
-                       max_buffers = 256
-                   }
-               }
-               {
-                    name = "kohi.plugin.ui.standard"
-               }
-           ]
-       }
+            plugins = [
+                {
+                    name = "kohi.plugin.utils"
+                }
+                {
+                    name = "kohi.plugin.renderer.vulkan"
+                    config = {
+                        
+                    }
+                }
+                {
+                    name = "kohi.plugin.audio.openal"
+                    config = {
+                        max_buffers = 256
+                    }
+                }
+                {
+                     name = "kohi.plugin.ui.standard"
+                }
+            ]
+        }
     }
 ]
 rendergraphs = [

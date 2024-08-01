@@ -71,7 +71,9 @@ static const char* kasset_type_strs[KASSET_TYPE_MAX] = {
     "Binary",           // KASSET_TYPE_BINARY,
     "Kson",             // KASSET_TYPE_KSON,
     "VoxelTerrain",     // KASSET_TYPE_VOXEL_TERRAIN,
-    "SkeletalMesh"      // KASSET_TYPE_SKELETAL_MESH,
+    "SkeletalMesh",     // KASSET_TYPE_SKELETAL_MESH,
+    "Audio",            // KASSET_TYPE_AUDIO,
+    "Music"             // KASSET_TYPE_MUSIC,
 };
 
 // Ensure changes to texture types break this if it isn't also updated.

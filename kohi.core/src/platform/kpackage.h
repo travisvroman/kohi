@@ -1,6 +1,5 @@
 #pragma once
 
-#include "assets/kasset_types.h"
 #include "defines.h"
 
 typedef struct asset_manifest_asset {
@@ -42,8 +41,11 @@ KAPI b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* 
 KAPI b8 kpackage_create_from_binary(u64 size, void* bytes, kpackage* out_package);
 KAPI void kpackage_destroy(kpackage* package);
 
-KAPI void* kpackage_asset_bytes_get(const kpackage* package, kasset_type type, const char* name, u64* out_size);
-KAPI const char* kpackage_asset_text_get(const kpackage* package, kasset_type type, const char* name, u64* out_size);
+KAPI void* kpackage_asset_bytes_get(const kpackage* package, const char* name, u64* out_size);
+KAPI const char* kpackage_asset_text_get(const kpackage* package, const char* name, u64* out_size);
+
+KAPI b8 kpackage_asset_bytes_write(kpackage* package, const char* name, u64 size, void* bytes);
+KAPI b8 kpackage_asset_text_write(kpackage* package, const char* name, u64 size, const char* text);
 
 KAPI b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_manifest);
 KAPI void kpackage_manifest_destroy(asset_manifest* manifest);

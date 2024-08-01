@@ -55,6 +55,14 @@ then
 echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
+# Kohi Utils plugin Lib
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.utils DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT"
+ERRORLEVEL=$?
+if [ $ERRORLEVEL -ne 0 ]
+then
+echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
+fi
+
 # Vulkan Renderer Lib
 if [ $PLATFORM = 'macos' ]
 then
