@@ -18,5 +18,6 @@ attribute=vec3,in_tangent
 # Uniforms: type,scope,name
 # NOTE: For scope: 0=global, 1=instance, 2=local
 uniform=mat4,0,projection
-uniform=mat4,0,view
+uniform=mat4[2],0,views
 uniform=samplerCube,1,cube_texture
+uniform=i32,2,view_index

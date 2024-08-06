@@ -214,6 +214,7 @@ assets = [
         name = "falcon"
         type = "StaticMesh"
         path = "./assets/models/falcon.ksm"
+        source_path = "./assets/models/falcon.obj"
     }
     {
         name = "sponza"

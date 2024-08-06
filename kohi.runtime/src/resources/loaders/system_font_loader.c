@@ -1,13 +1,14 @@
 #include "system_font_loader.h"
 
-#include "logger.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
-#include "resources/resource_types.h"
-#include "systems/resource_system.h"
-#include "math/kmath.h"
-#include "loader_utils.h"
 #include "containers/darray.h"
+#include "loader_utils.h"
+#include "logger.h"
+#include "math/kmath.h"
+#include "memory/kmemory.h"
+#include "resources/font_types.h"
+#include "resources/resource_types.h"
+#include "strings/kstring.h"
+#include "systems/resource_system.h"
 
 #include "platform/filesystem.h"
 
@@ -70,20 +71,20 @@ static b8 system_font_loader_load(struct resource_loader* self, const char* name
 
     b8 result = false;
     switch (type) {
-        case SYSTEM_FONT_FILE_TYPE_FONTCONFIG: {
-            // Generate the ksf filename.
-            char ksf_file_name[512];
-            string_format_unsafe(ksf_file_name, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".ksf");
-            result = import_fontconfig_file(&f, self->type_path, ksf_file_name, &resource_data);
-            break;
-        }
-        case SYSTEM_FONT_FILE_TYPE_KSF:
-            result = read_ksf_file(&f, &resource_data);
-            break;
-        case SYSTEM_FONT_FILE_TYPE_NOT_FOUND:
-            KERROR("Unable to find system font of supported type called '%s'.", name);
-            result = false;
-            break;
+    case SYSTEM_FONT_FILE_TYPE_FONTCONFIG: {
+        // Generate the ksf filename.
+        char ksf_file_name[512];
+        string_format_unsafe(ksf_file_name, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".ksf");
+        result = import_fontconfig_file(&f, self->type_path, ksf_file_name, &resource_data);
+        break;
+    }
+    case SYSTEM_FONT_FILE_TYPE_KSF:
+        result = read_ksf_file(&f, &resource_data);
+        break;
+    case SYSTEM_FONT_FILE_TYPE_NOT_FOUND:
+        KERROR("Unable to find system font of supported type called '%s'.", name);
+        result = false;
+        break;
     }
 
     filesystem_close(&f);
@@ -142,7 +143,7 @@ static b8 import_fontconfig_file(file_handle* f, const char* type_path, const ch
         // Assume a max of 511-65 (446) for the max length of the value to account for the variable name and the '='.
         char raw_value[446];
         kzero_memory(raw_value, sizeof(char) * 446);
-        string_mid(raw_value, trimmed, equal_index + 1, -1);  // Read the rest of the line
+        string_mid(raw_value, trimmed, equal_index + 1, -1); // Read the rest of the line
         char* trimmed_value = string_trim(raw_value);
 
         // Process the variable.

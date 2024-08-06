@@ -5,6 +5,8 @@
 #include "math/math_types.h"
 #include "resources/resource_types.h"
 
+#include <core_render_types.h>
+
 struct shader;
 struct shader_uniform;
 struct frame_data;
@@ -14,6 +16,7 @@ struct camera;
 struct material;
 struct kwindow_renderer_backend_state;
 struct texture_internal_data;
+struct texture_map;
 
 typedef struct renderbuffer_data {
     /** @brief The element count. */
@@ -213,7 +216,7 @@ typedef struct shader_instance_uniform_texture_config {
     /** @brief The number of texture maps bound to the uniform. */
     u32 texture_map_count;
     /** @brief An array of pointers to texture maps to be mapped to the uniform. */
-    texture_map** texture_maps;
+    struct texture_map** texture_maps;
 } shader_instance_uniform_texture_config;
 
 /**
@@ -244,6 +247,39 @@ typedef struct kwindow_renderer_state {
     /** @brief The internal state of the window containing renderer backend data. */
     struct kwindow_renderer_backend_state* backend_state;
 } kwindow_renderer_state;
+
+/**
+ * @brief A structure which maps a texture, use and
+ * other properties.
+ */
+typedef struct texture_map {
+    /**
+     * @brief The cached generation of the assigned texture.
+     * Used to determine when to regenerate this texture map's
+     * resources when a texture's generation changes (as this could
+     * be required if, say, a texture's mip levels change).
+     * */
+    u8 generation;
+    /**
+     * @brief Cached mip map levels. Should match assigned
+     * texture. Must always be at least 1.
+     */
+    u32 mip_levels;
+    /** @brief A pointer to a texture. */
+    texture* texture;
+    /** @brief Texture filtering mode for minification. */
+    texture_filter filter_minify;
+    /** @brief Texture filtering mode for magnification. */
+    texture_filter filter_magnify;
+    /** @brief The repeat mode on the U axis (or X, or S) */
+    texture_repeat repeat_u;
+    /** @brief The repeat mode on the V axis (or Y, or T) */
+    texture_repeat repeat_v;
+    /** @brief The repeat mode on the W axis (or Z, or U) */
+    texture_repeat repeat_w;
+    /** @brief An identifier used for internal resource lookups/management. */
+    u32 internal_id;
+} texture_map;
 
 /**
  * @brief A generic "interface" for the renderer backend. The renderer backend

@@ -11,6 +11,14 @@ Changelog
   - Fixed a few issues on Win32 when dealing with wide strings.
   - Fixed several memory issues that were causing stability issues. The bonus of this is that now the custom allocator
     has more debugging capability and can be disabled if needed.
+  - string_length now gracefully handles null being passed and returns 0.
+  - Fixed an issue where the skybox was not using the inverted view matrix for the reflection view when rendering for water.
+  - Tweaked the fragment shader for the water to make it look a bit nicer and properly add a "wetness" look to surfaces under water.
+  - Added asset packaging system.
+  - Added Virtual File System (VFS) which sits atop the packaging and native file systems to abstract the process of reading/writing files from the engine entirely.
+  - Added new Asset System, responsible for the lifetime of assets.
+  - Split off responsibility of resources to only be resources used in rendering/the world, versus assets which are loaded from disk/package.
+  - Added `kson_object_create()` and `kson_array_create()` to enhance the KSON API's usability.
 
 - 0.7.1
   - Fixed window resizing issues in macOS

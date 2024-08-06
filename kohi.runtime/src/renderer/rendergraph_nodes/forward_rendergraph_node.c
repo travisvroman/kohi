@@ -123,8 +123,9 @@ typedef struct water_shader_locations {
 
 typedef struct skybox_shader_locations {
     u16 projection_location;
-    u16 view_location;
+    u16 views_location;
     u16 cube_map_location;
+    u16 view_index;
 } skybox_shader_locations;
 
 typedef struct forward_rendergraph_node_internal_data {
@@ -389,8 +390,9 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->skybox_shader = shader_system_get("Shader.Builtin.Skybox");
     internal_data->skybox_shader_id = internal_data->skybox_shader->id;
     internal_data->skybox_shader_locations.projection_location = shader_system_uniform_location(internal_data->skybox_shader_id, "projection");
-    internal_data->skybox_shader_locations.view_location = shader_system_uniform_location(internal_data->skybox_shader_id, "view");
+    internal_data->skybox_shader_locations.views_location = shader_system_uniform_location(internal_data->skybox_shader_id, "views");
     internal_data->skybox_shader_locations.cube_map_location = shader_system_uniform_location(internal_data->skybox_shader_id, "cube_texture");
+    internal_data->skybox_shader_locations.view_index = shader_system_uniform_location(internal_data->skybox_shader_id, "view_index");
 
     internal_data->vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
     internal_data->index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
@@ -610,13 +612,22 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, texture* 
             view_matrix_skybox.data[13] = 0.0f;
             view_matrix_skybox.data[14] = 0.0f;
 
+            mat4 inverted_view_matrix_skybox = inverted_view_matrix;
+            inverted_view_matrix_skybox.data[12] = 0.0f;
+            inverted_view_matrix_skybox.data[13] = 0.0f;
+            inverted_view_matrix_skybox.data[14] = 0.0f;
+
             // Apply globals
             if (!shader_system_uniform_set_by_location(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.projection_location, &internal_data->projection_matrix)) {
                 KERROR("Failed to apply skybox projection uniform.");
                 return false;
             }
-            if (!shader_system_uniform_set_by_location(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.view_location, &view_matrix_skybox)) {
-                KERROR("Failed to apply skybox view uniform.");
+            if (!shader_system_uniform_set_by_location_arrayed(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.views_location, 0, &view_matrix_skybox)) {
+                KERROR("Failed to apply skybox view(0) uniform.");
+                return false;
+            }
+            if (!shader_system_uniform_set_by_location_arrayed(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.views_location, 1, &inverted_view_matrix_skybox)) {
+                KERROR("Failed to apply skybox view(0) uniform.");
                 return false;
             }
             shader_system_apply_global(internal_data->skybox_shader_id);
@@ -629,6 +640,13 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, texture* 
             }
 
             shader_system_apply_instance(internal_data->skybox_shader_id);
+
+            // Apply the locals
+            {
+                int view_index = use_inverted ? 1 : 0;
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.view_index, &view_index));
+                shader_system_apply_local(internal_data->skybox_shader_id);
+            }
 
             // Draw it.
             geometry_render_data render_data = {};
@@ -885,7 +903,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, texture* 
                     // Shadow Maps
                     texture* shadow_map_texture = internal_data->shadowmap_source->value.t;
                     m->maps[PBR_SAMP_IDX_SHADOW_MAP].texture = shadow_map_texture ? shadow_map_texture : texture_system_get_default_diffuse_texture();
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->pbr_locations.shadow_textures, &m->maps[PBR_SAMP_IDX_SHADOW_MAP]));
+                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.shadow_textures, &m->maps[PBR_SAMP_IDX_SHADOW_MAP]));
 
                     // Irradience map - use the material-assigned one if exists, otherwise use the "global" assigned one.
                     m->maps[PBR_SAMP_IDX_IRRADIANCE_MAP].texture = m->irradiance_texture ? m->irradiance_texture : internal_data->irradiance_cube_texture;

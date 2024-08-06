@@ -1,17 +1,22 @@
 #include "asset_system.h"
-#include "assets/handlers/asset_handler.h"
-#include "assets/kasset_utils.h"
 #include "core/engine.h"
-#include "defines.h"
-#include "identifiers/identifier.h"
 // Known handler types
+#include "assets/handlers/asset_handler_binary.h"
 #include "assets/handlers/asset_handler_heightmap_terrain.h"
+#include "assets/handlers/asset_handler_image.h"
+#include "assets/handlers/asset_handler_kson.h"
+#include "assets/handlers/asset_handler_material.h"
+#include "assets/handlers/asset_handler_static_mesh.h"
+#include "assets/handlers/asset_handler_text.h"
 
+#include <assets/asset_handler_types.h>
 #include <assets/kasset_types.h>
-#include <complex.h>
+#include <assets/kasset_utils.h>
 #include <containers/darray.h>
 #include <containers/hashtable.h>
 #include <debug/kassert.h>
+#include <defines.h>
+#include <identifiers/identifier.h>
 #include <logger.h>
 #include <memory/kmemory.h>
 #include <parsers/kson_parser.h>
@@ -105,6 +110,12 @@ b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* s
 
     // TODO: Setup handlers for known types.
     asset_handler_heightmap_terrain_create(&state->handlers[KASSET_TYPE_HEIGHTMAP_TERRAIN], vfs);
+    asset_handler_image_create(&state->handlers[KASSET_TYPE_IMAGE], vfs);
+    asset_handler_static_mesh_create(&state->handlers[KASSET_TYPE_STATIC_MESH], vfs);
+    asset_handler_material_create(&state->handlers[KASSET_TYPE_MATERIAL], vfs);
+    asset_handler_text_create(&state->handlers[KASSET_TYPE_TEXT], vfs);
+    asset_handler_kson_create(&state->handlers[KASSET_TYPE_KSON], vfs);
+    asset_handler_binary_create(&state->handlers[KASSET_TYPE_BINARY], vfs);
 
     return true;
 }
@@ -192,16 +203,24 @@ static void asset_system_release_internal(struct asset_system_state* state, cons
             lookup->reference_count--;
             if (force_release || (lookup->reference_count < 1 && lookup->auto_release)) {
                 // Auto release set and criteria met, so call asset handler's 'unload' function.
-                kasset_type type = lookup->asset.meta.asset_type;
+                kasset* asset = &lookup->asset;
+                kasset_type type = asset->meta.asset_type;
                 asset_handler* handler = &state->handlers[type];
                 if (!handler->release_asset) {
                     KWARN("No release setup on handler for asset type %d, fully_qualified_name='%s'", type, fully_qualified_name);
                 } else {
+                    // Release the asset-specific data.
                     // TODO: Jobify this call.
-                    handler->release_asset(handler, &lookup->asset);
+                    handler->release_asset(handler, asset);
                 }
 
-                //
+                // Free the common asset properties
+                if (asset->meta.source_file_path) {
+                    string_free(asset->meta.source_file_path);
+                }
+
+                kzero_memory(asset, sizeof(kasset));
+
                 // Ensure the lookup is invalidated.
                 lookup->asset.id.uniqueid = INVALID_ID_U64;
                 lookup->asset.generation = INVALID_ID;

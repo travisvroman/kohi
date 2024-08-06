@@ -16,41 +16,10 @@
 
 #include <assets/kasset_types.h>
 
-typedef enum asset_request_result {
-    /** The asset load was a success, including any GPU operations (if required). */
-    ASSET_REQUEST_RESULT_SUCCESS,
-    /** The specified package name was invalid or not found. */
-    ASSET_REQUEST_RESULT_INVALID_PACKAGE,
-    /** The specified asset type was invalid or not found. */
-    ASSET_REQUEST_RESULT_INVALID_ASSET_TYPE,
-    /** The specified asset name was invalid or not found. */
-    ASSET_REQUEST_RESULT_INVALID_NAME,
-    /** The asset was found, but failed to load during the parsing stage. */
-    ASSET_REQUEST_RESULT_PARSE_FAILED,
-    /** The asset was found, but failed to load during the GPU upload stage. */
-    ASSET_REQUEST_RESULT_GPU_UPLOAD_FAILED,
-    /** An internal system failure has occurred. See logs for details. */
-    ASSET_REQUEST_RESULT_INTERNAL_FAILURE,
-    /** No handler exists for the given asset. See logs for details. */
-    ASSET_REQUEST_RESULT_NO_HANDLER,
-    /** The total number of result options in this enumeration. Not an actual result value */
-    ASSET_REQUEST_RESULT_COUNT
-} asset_request_result;
-
 typedef struct asset_system_config {
     // The maximum number of assets which may be loaded at once.
     u32 max_asset_count;
 } asset_system_config;
-
-/**
- * @brief A function pointer typedef to be used to provide the asset asset_system
- * with a calback function when asset loading is complete or failed. This process is asynchronus.
- *
- * @param result The result of the asset request.
- * @param asset A constant pointer to the asset that is loaded.
- * @param listener_inst A pointer to the listener, usually passed along with the original request.
- */
-typedef void (*PFN_kasset_on_result)(asset_request_result result, const kasset* asset, void* listener_inst);
 
 struct asset_system_state;
 

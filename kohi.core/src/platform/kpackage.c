@@ -108,30 +108,13 @@ void kpackage_destroy(kpackage* package) {
     }
 }
 
-static const char* asset_resolve(const kpackage* package, b8 is_binary, const char* name, file_handle* out_handle, u64* out_size) {
-
+static asset_entry* asset_entry_get(const kpackage* package, const char* name) {
     // Search the type lookup's entries for the matching name.
     u32 entry_count = darray_length(package->internal_data->entries);
     for (u32 j = 0; j < entry_count; ++j) {
         asset_entry* entry = &package->internal_data->entries[j];
         if (strings_equali(entry->name, name)) {
-            if (package->is_binary) {
-                KERROR("binary packages not yet supported.");
-                return 0;
-            } else {
-                // load the file content from disk.
-                if (!filesystem_open(entry->path, FILE_MODE_READ, is_binary, out_handle)) {
-                    KERROR("Package '%s': Failed to open asset '%s' file at path: '%s'.", package->name, name, entry->path);
-                    return 0;
-                }
-            }
-
-            if (!filesystem_size(out_handle, out_size)) {
-                KERROR("Package '%s': Failed to get size for asset '%s' file at path: '%s'.", package->name, name, entry->path);
-                return 0;
-            }
-
-            return string_duplicate(entry->path);
+            return entry;
         }
     }
 
@@ -139,79 +122,131 @@ static const char* asset_resolve(const kpackage* package, b8 is_binary, const ch
     return 0;
 }
 
-void* kpackage_asset_bytes_get(const kpackage* package, const char* name, u64* out_size) {
-    if (!package || !name || !out_size) {
-        KERROR("kpackage_asset_bytes_get requires valid pointers to package, name and out_size.");
-        return 0;
+static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, const char* name, b8 get_source, u64* out_size, const void** out_data) {
+
+    asset_entry* entry = asset_entry_get(package, name);
+    if (!entry) {
     }
 
-    b8 success = false;
-    file_handle f;
-    u64 size;
-    const char* asset_path = asset_resolve(package, true, name, &f, &size);
-    if (!asset_path) {
-        KERROR("kpackage_asset_bytes_get failed to find asset.");
-        goto kpackage_asset_bytes_get_cleanup;
+    // Search the type lookup's entries for the matching name.
+    // FIXME: Brute-force lookup, add a hash table or something better...
+    u32 entry_count = darray_length(package->internal_data->entries);
+    for (u32 j = 0; j < entry_count; ++j) {
+        asset_entry* entry = &package->internal_data->entries[j];
+        if (strings_equali(entry->name, name)) {
+            if (package->is_binary) {
+                KERROR("binary packages not yet supported.");
+                return KPACKAGE_RESULT_INTERNAL_FAILURE;
+            } else {
+                kpackage_result result = KPACKAGE_RESULT_INTERNAL_FAILURE;
+
+                // Validate asset path.
+                const char* asset_path = get_source ? entry->source_path : entry->path;
+                if (!asset_path) {
+                    KERROR("Package '%s': No %s asset path exists for asset '%s'. Load operation failed.", package->name, get_source ? "source" : "primary", name);
+                    result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+                    goto get_data_cleanup;
+                }
+
+                // Validate that the file exists.
+                if (!filesystem_exists(asset_path)) {
+                    KERROR("Package '%s': Invalid %s asset path for asset '%s'. Load operation failed.", package->name, get_source ? "source" : "primary", name);
+                    result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+                    goto get_data_cleanup;
+                }
+
+                // load the file content from disk.
+                file_handle f = {0};
+                if (!filesystem_open(asset_path, FILE_MODE_READ, is_binary, &f)) {
+                    KERROR("Package '%s': Failed to open asset '%s' file at path: '%s'.", package->name, name, asset_path);
+                    result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+                    goto get_data_cleanup;
+                }
+
+                // Get the file size.
+                u64 file_size = 0;
+                if (!filesystem_size(&f, &file_size)) {
+                    KERROR("Package '%s': Failed to get size for asset '%s' file at path: '%s'.", package->name, name, asset_path);
+                    result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+                    goto get_data_cleanup;
+                }
+
+                void* data = kallocate(file_size, MEMORY_TAG_ASSET);
+
+                u64 read_size = 0;
+                if (is_binary) {
+                    // Load as binary
+                    if (!filesystem_read_all_bytes(&f, data, &read_size)) {
+                        KERROR("Package '%s': Failed to read asset '%s' as binary, at file at path: '%s'.", package->name, name, asset_path);
+                        goto get_data_cleanup;
+                    }
+                } else {
+                    // Load as text
+                    if (!filesystem_read_all_text(&f, data, &read_size)) {
+                        KERROR("Package '%s': Failed to read asset '%s' as text, at file at path: '%s'.", package->name, name, asset_path);
+                        goto get_data_cleanup;
+                    }
+                }
+
+                // Sanity check to make sure the bounds haven't been breached.
+                KASSERT_MSG(read_size <= file_size, "File read exceeded bounds of data allocation based on file size.");
+
+                // This means that data is bigger than it needs to be, and that a smaller block of memory can be used.
+                if (read_size < file_size) {
+                    KTRACE("Package '%s': asset '%s', file at path: '%s' - Read size/file size mismatch (%llu, %llu).", package->name, name, asset_path, read_size, file_size);
+                    void* temp = kallocate(read_size, MEMORY_TAG_ASSET);
+                    kcopy_memory(temp, data, read_size);
+                    kfree(data, file_size, MEMORY_TAG_ASSET);
+                    data = temp;
+                    file_size = read_size;
+                }
+
+                // Set the output.
+                *out_data = data;
+                *out_size = file_size;
+
+                // Success!
+                result = KPACKAGE_RESULT_SUCCESS;
+
+            get_data_cleanup:
+                filesystem_close(&f);
+
+                if (result != KPACKAGE_RESULT_SUCCESS) {
+                    if (data) {
+                        kfree(data, file_size, MEMORY_TAG_ASSET);
+                    }
+                } else {
+                    KERROR("Package '%s' does not contain asset '%s'.", package->name, name);
+                }
+                return result;
+            }
+        }
     }
-    void* file_content = kallocate(size, MEMORY_TAG_RESOURCE);
 
-    // Load as binary
-    if (!filesystem_read_all_bytes(&f, file_content, out_size)) {
-        KERROR("Package '%s': Failed to read asset '%s' as binary, at file at path: '%s'.", package->name, name, asset_path);
-        goto kpackage_asset_bytes_get_cleanup;
-    }
-
-    success = true;
-
-kpackage_asset_bytes_get_cleanup:
-    filesystem_close(&f);
-
-    if (success) {
-        string_free(asset_path);
-    } else {
-        KERROR("Package '%s' does not contain asset '%s'.", package->name, name);
-    }
-    return success ? file_content : 0;
+    KERROR("Package '%s': No entry called '%s' exists.", package->name, name);
+    return 0;
 }
 
-const char* kpackage_asset_text_get(const kpackage* package, const char* name, u64* out_size) {
-    if (!package || !name || !out_size) {
-        KERROR("kpackage_asset_text_get requires valid pointers to package, name and out_size.");
+kpackage_result kpackage_asset_bytes_get(const kpackage* package, const char* name, b8 get_source, u64* out_size, const void** out_data) {
+    if (!package || !name || !out_size || !out_data) {
+        KERROR("kpackage_asset_bytes_get requires valid pointers to package, name, out_size, and out_data.");
         return 0;
     }
 
-    void* file_content = kallocate(*out_size, MEMORY_TAG_RESOURCE);
+    return asset_get_data(package, true, name, get_source, out_size, out_data);
+}
 
-    b8 success = false;
-    file_handle f;
-    u64 size;
-    const char* asset_path = asset_resolve(package, false, name, &f, &size);
-    if (!asset_path) {
-        KERROR("kpackage_asset_bytes_get failed to find asset.");
-        goto kpackage_asset_text_get_cleanup;
+kpackage_result kpackage_asset_text_get(const kpackage* package, const char* name, b8 get_source, u64* out_size, const char** out_text) {
+    if (!package || !name || !out_size || !out_text) {
+        KERROR("kpackage_asset_text_get requires valid pointers to package, name, out_size, and out_text.");
+        return 0;
     }
 
-    // Load as text
-    if (!filesystem_read_all_text(&f, file_content, out_size)) {
-        KERROR("Package '%s': Failed to read asset '%s' as text, at file at path: '%s'.", package->name, name, asset_path);
-        goto kpackage_asset_text_get_cleanup;
-    }
-
-    success = true;
-
-kpackage_asset_text_get_cleanup:
-    filesystem_close(&f);
-
-    if (success) {
-        string_free(asset_path);
-    } else {
-        KERROR("Package '%s' does not contain asset '%s'.", package->name, name);
-    }
-    return success ? file_content : 0;
+    return asset_get_data(package, false, name, get_source, out_size, (const void**)out_text);
 }
 
 // Writes file to disk for packages using the asset manifest, not binary packages.
-static b8 kpackage_asset_write_file_internal(kpackage* package, const char* name, u64 size, void* bytes, b8 is_binary) {
+static b8 kpackage_asset_write_file_internal(kpackage* package, const char* name, u64 size, const void* bytes, b8 is_binary) {
     file_handle f = {0};
     // FIXME: Brute-force lookup, add a hash table or something better...
     u32 entry_count = darray_length(package->internal_data->entries);
@@ -244,7 +279,7 @@ static b8 kpackage_asset_write_file_internal(kpackage* package, const char* name
     return false;
 }
 
-b8 kpackage_asset_bytes_write(kpackage* package, const char* name, u64 size, void* bytes) {
+b8 kpackage_asset_bytes_write(kpackage* package, const char* name, u64 size, const void* bytes) {
     if (!package || !name || !size || !bytes) {
         KERROR("kpackage_asset_bytes_write requires valid pointers to package, name and bytes, and a nonzero size");
         return false;

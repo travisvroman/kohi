@@ -1,10 +1,10 @@
 #include "kasset_importer_image.h"
-#include "assets/kasset_types.h"
-#include "logger.h"
-#include "memory/kmemory.h"
 
+#include <assets/kasset_types.h>
 #include <core/engine.h>
+#include <logger.h>
 #include <math/kmath.h>
+#include <memory/kmemory.h>
 #include <platform/vfs.h>
 #include <serializers/kasset_binary_image_serializer.h>
 
@@ -13,7 +13,7 @@
 #define STBI_NO_STDIO
 #include "vendor/stb_image.h"
 
-b8 kasset_importer_image_import(struct kasset_importer* self, u64 data_size, void* data, void* params, struct kasset* out_asset) {
+b8 kasset_importer_image_import(const struct kasset_importer* self, u64 data_size, const void* data, void* params, struct kasset* out_asset) {
     if (!self || !data_size || !data) {
         KERROR("kasset_importer_image_import requires valid pointers to self and data, as well as a nonzero data_size.");
         return false;
@@ -50,8 +50,8 @@ b8 kasset_importer_image_import(struct kasset_importer* self, u64 data_size, voi
     }
 
     u64 actual_size = (bits_per_channel / 8) * typed_asset->channel_count * typed_asset->width * typed_asset->height;
-    out_asset->data_size = actual_size;
-    out_asset->bytes = pixels;
+    typed_asset->pixel_array_size = actual_size;
+    typed_asset->pixels = pixels;
 
     // NOTE: Querying is done below.
     /* i32 result = stbi_info_from_memory(data, data_size, (i32*)&typed_asset->width, (i32*)&typed_asset->height, (i32*)&typed_asset->channel_count);
@@ -70,7 +70,7 @@ b8 kasset_importer_image_import(struct kasset_importer* self, u64 data_size, voi
     struct vfs_state* vfs = engine_systems_get()->vfs_system_state;
 
     u64 serialized_block_size = 0;
-    void* serialized_block = kasset_binary_image_serialize(typed_asset, &serialized_block_size);
+    void* serialized_block = kasset_binary_image_serialize(out_asset, &serialized_block_size);
     if (!serialized_block) {
         KERROR("Binary image serialization failed, check logs.");
         return false;

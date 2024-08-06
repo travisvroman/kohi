@@ -5,6 +5,7 @@
 #include <core/event.h>
 #include <core/input.h>
 #include <memory/kmemory.h>
+#include <resources/font_types.h>
 #include <resources/resource_types.h>
 #include <strings/kstring.h>
 

@@ -3,6 +3,7 @@
 #include <ctype.h> // isspace
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "containers/darray.h"
@@ -15,6 +16,9 @@
 #endif
 
 u64 string_length(const char* str) {
+    if (!str) {
+        return 0;
+    }
     return strlen(str);
 }
 
@@ -322,6 +326,22 @@ i32 string_index_of(const char* str, char c) {
     u32 length = string_length(str);
     if (length > 0) {
         for (u32 i = 0; i < length; ++i) {
+            if (str[i] == c) {
+                return i;
+            }
+        }
+    }
+
+    return -1;
+}
+
+i32 string_last_index_of(const char* str, char c) {
+    if (!str) {
+        return -1;
+    }
+    u32 length = string_length(str);
+    if (length > 0) {
+        for (u32 i = length - 1; i > 0; --i) {
             if (str[i] == c) {
                 return i;
             }
@@ -869,6 +889,25 @@ void string_filename_no_extension_from_path(char* dest, const char* path) {
     string_mid(dest, path, start, end - start);
 }
 
+const char* string_extension_from_path(const char* path, b8 include_dot) {
+    if (!path) {
+        return 0;
+    }
+
+    i32 start = string_last_index_of(path, '.');
+    if (start == -1) {
+        return 0;
+    }
+    if (!include_dot) {
+        start++;
+    }
+
+    i32 length = string_length(path) - start;
+    char* out_str = kallocate(sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+    string_mid(out_str, path, start, length);
+    return out_str;
+}
+
 b8 string_parse_array_length(const char* str, u32* out_length) {
     if (!str || !out_length) {
         return false;
@@ -885,6 +924,28 @@ b8 string_parse_array_length(const char* str, u32* out_length) {
     string_mid(num_string, str, open_index + 1, close_index - open_index);
 
     return string_to_u32(num_string, out_length);
+}
+
+b8 string_line_get(const char* source_str, u16 max_line_length, u32 start_from, char** out_buffer, u32* out_line_length) {
+    if (!source_str || !max_line_length || !out_line_length || !out_buffer) {
+        return false;
+    }
+    if (!source_str[start_from]) {
+        return false;
+    }
+
+    u32 i = 0;
+    for (u32 c = start_from; source_str[c] && i < max_line_length; c++, ++i) {
+        if (source_str[c] == '\n') {
+            *out_line_length = i;
+            return true;
+        } else {
+            (*out_buffer)[i] = source_str[c];
+        }
+    }
+
+    *out_line_length = i;
+    return true;
 }
 
 // ----------------------

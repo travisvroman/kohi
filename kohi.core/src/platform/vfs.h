@@ -14,7 +14,7 @@
 
 struct kpackage;
 struct kasset;
-struct kasset_name;
+struct kasset_metadata;
 
 typedef struct vfs_state {
     // darray
@@ -27,10 +27,31 @@ typedef struct vfs_config {
 
 typedef enum vfs_asset_flag_bits {
     VFS_ASSET_FLAG_NONE = 0,
-    VFS_ASSET_FLAG_BINARY_BIT = 0x01
+    VFS_ASSET_FLAG_BINARY_BIT = 0x01,
+    // Asset loaded from source, needs importer to run.
+    VFS_ASSET_FLAG_FROM_SOURCE = 0x02
 } vfs_asset_flag_bits;
 
 typedef u32 vfs_asset_flags;
+
+typedef enum vfs_request_result {
+    /** The request was fulfilled successfully. */
+    VFS_REQUEST_RESULT_SUCCESS = 0,
+    /** The asset exists on the manifest, but the primary file could not be found on disk. */
+    VFS_REQUEST_RESULT_FILE_DOES_NOT_EXIST,
+    /** The asset exists on the manifest, but the source file could not be found on disk. */
+    VFS_REQUEST_RESULT_SOURCE_FILE_DOES_NOT_EXIST,
+    /** The package does not contain the asset */
+    VFS_REQUEST_RESULT_NOT_IN_PACKAGE,
+    /** Package does not exist. */
+    VFS_REQUEST_RESULT_PACKAGE_DOES_NOT_EXIST,
+    /** There was an error reading from the file. */
+    VFS_REQUEST_RESULT_READ_ERROR,
+    /** There was an error writing to the file. */
+    VFS_REQUEST_RESULT_WRITE_ERROR,
+    /** An internal failure has occurred in the VFS itself. */
+    VFS_REQUEST_RESULT_INTERNAL_FAILURE,
+} vfs_request_result;
 
 /**
  * @brief Represents data and properties from an asset loaded from the VFS.
@@ -42,13 +63,13 @@ typedef struct vfs_asset_data {
         /** The asset data as a string, if a text asset. Zero-terminated. */
         const char* text;
         /** The binary asset data, if a binary asset. */
-        void* bytes;
+        const void* bytes;
     };
     /** @brief Various flags for the given asset. */
     vfs_asset_flags flags;
 
     /** The result of the asset load operation. */
-    b8 success;
+    vfs_request_result result;
 
     /** The size of the context in bytes. */
     u32 context_size;
@@ -57,7 +78,7 @@ typedef struct vfs_asset_data {
     void* context;
 } vfs_asset_data;
 
-typedef void (*PFN_on_asset_loaded_callback)(const char* name, vfs_asset_data asset_data);
+typedef void (*PFN_on_asset_loaded_callback)(struct vfs_state* vfs, const char* name, vfs_asset_data asset_data);
 
 /**
  * @brief Initializes the Virtual File System (VFS). Call twice; once to get memory requirement
@@ -81,13 +102,53 @@ KAPI void vfs_shutdown(vfs_state* state);
  * @brief Requests an asset from the VFS, issuing the callback when complete. This call is asynchronous.
  *
  * @param state A pointer to the system state. Required.
- * @param name The fully-qualified name of the asset (i.e. "<PackageName>.<AssetType>.<AssetName>". Ex: "Testbed.Texture.Rock01"). Required.
+ * @param meta A pointer to the asset's metadata. Note: Can be updated with the source_path if one exists.
+ * @param is_binary Indicates if the asset is binary. Otherwise is loaded as text.
+ * @param get_source Indicates if the VFS should try to retrieve the source asset instead of the primary one if it exists.
+ * @param context_size The size of the context in bytes.
+ * @param context A pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important.
+ * @param callback The callback to be made once the asset load is complete. Required.
+ */
+KAPI void vfs_request_asset(vfs_state* state, struct kasset_metadata* meta, b8 is_binary, b8 get_source, u32 context_size, const void* context, PFN_on_asset_loaded_callback callback);
+
+/**
+ * @brief Requests an asset from the VFS synchronously. NOTE: This should be used sparingly as it performs device I/O directly.
+ * NOTE: Caller should also check out_data context to see if it needs freeing, as this is _not_ handled automatically as it is in the async version.
+ *
+ * @param state A pointer to the system state. Required.
+ * @param meta A pointer to the asset's metadata. Note: Can be updated with the source_path if one exists.
+ * @param is_binary Indicates if the asset is binary. Otherwise is loaded as text.
+ * @param get_source Indicates if the VFS should try to retrieve the source asset instead of the primary one if it exists.
+ * @param context_size The size of the context in bytes.
+ * @param context A pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important.
+ * @param out_data A pointer to hold the loaded asset data. Required.
+ */
+KAPI void vfs_request_asset_sync(vfs_state* state, struct kasset_metadata* meta, b8 is_binary, b8 get_source, u32 context_size, const void* context, vfs_asset_data* out_data);
+
+/**
+ * @brief Requests an asset directly a disk path via the VFS, issuing the callback when complete. This call is asynchronous.
+ *
+ * @param state A pointer to the system state. Required.
+ * @param path The path to the file to load (can be relative or absolute). Required.
  * @param is_binary Indicates if the asset is binary. Otherwise is loaded as text.
  * @param context_size The size of the context in bytes.
  * @param context A pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important.
  * @param callback The callback to be made once the asset load is complete. Required.
  */
-KAPI void vfs_request_asset(vfs_state* state, const struct kasset_name* name, b8 is_binary, u32 context_size, const void* context, PFN_on_asset_loaded_callback callback);
+KAPI void vfs_request_direct_from_disk(vfs_state* state, const char* path, b8 is_binary, u32 context_size, const void* context, PFN_on_asset_loaded_callback callback);
+
+/**
+ * @brief Requests an asset directly a disk path via the VFS synchronously. NOTE: This should be used sparingly as it performs device I/O directly.
+ * NOTE: Caller should also check out_data context to see if it needs freeing, as this is _not_ handled automatically as it is in the async version.
+ *
+ * @param state A pointer to the system state. Required.
+ * @param path The path to the file to load (can be relative or absolute). Required.
+ * @param is_binary Indicates if the asset is binary. Otherwise is loaded as text.
+ * @param context_size The size of the context in bytes.
+ * @param context A pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important.
+ * @param out_data A pointer to hold the loaded asset data. Required.
+ */
+KAPI void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, b8 is_binary, u32 context_size, const void* context, vfs_asset_data* out_data);
 
 /**
  * @brief Attempts to write the provided data to the VFS (or package) for the given asset.
@@ -96,7 +157,7 @@ KAPI void vfs_request_asset(vfs_state* state, const struct kasset_name* name, b8
  * @param asset A pointer to the asset to be written.
  * @param is_binary Indicates if the asset data is binary (ot text).
  * @param size The size of the data to be written.
- * @param data The block of data to be written.
+ * @param data A constant pointer to the block of data to be written.
  * @returns True on success; otherwise false.
  */
-KAPI b8 vfs_asset_write(vfs_state* state, const struct kasset* asset, b8 is_binary, u64 size, void* data);
+KAPI b8 vfs_asset_write(vfs_state* state, const struct kasset* asset, b8 is_binary, u64 size, const void* data);

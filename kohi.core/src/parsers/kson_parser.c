@@ -3,9 +3,9 @@
 #include "containers/darray.h"
 #include "containers/stack.h"
 #include "debug/kassert.h"
+#include "logger.h"
 #include "memory/kmemory.h"
 #include "strings/kstring.h"
-#include "logger.h"
 
 b8 kson_parser_create(kson_parser* out_parser) {
     if (!out_parser) {
@@ -60,10 +60,10 @@ static void _populate_token_content(kson_token* t, const char* source) {
     string_mid(buffer, source, t->start, t->end - t->start);
     t->content = string_duplicate(buffer);
 }
-#define POPULATE_TOKEN_CONTENT(t, source) _populate_token_content(t, source)
+#    define POPULATE_TOKEN_CONTENT(t, source) _populate_token_content(t, source)
 #else
 // No-op
-#define POPULATE_TOKEN_CONTENT(t, source)
+#    define POPULATE_TOKEN_CONTENT(t, source)
 #endif
 
 // Pushes the current token, if not of unknown type.
@@ -1554,4 +1554,18 @@ kson_property kson_array_property_create(const char* name) {
     arr.value.o.properties = darray_create(kson_property);
 
     return arr;
+}
+
+kson_object kson_object_create(void) {
+    kson_object new_obj = {0};
+    new_obj.type = KSON_OBJECT_TYPE_OBJECT;
+    new_obj.properties = 0;
+    return new_obj;
+}
+
+kson_array kson_array_create(void) {
+    kson_array new_arr = {0};
+    new_arr.type = KSON_OBJECT_TYPE_ARRAY;
+    new_arr.properties = 0;
+    return new_arr;
 }

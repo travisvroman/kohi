@@ -2,15 +2,16 @@
 
 #include "logger.h"
 #include "memory/kmemory.h"
-#include "strings/kstring.h"
+#include "resources/font_types.h"
 #include "resources/resource_types.h"
+#include "strings/kstring.h"
 #include "systems/resource_system.h"
 
 #include "loader_utils.h"
 
 #include "platform/filesystem.h"
 
-#include <stdio.h>  //sscanf
+#include <stdio.h> //sscanf
 
 typedef enum bitmap_font_file_type {
     BITMAP_FONT_FILE_TYPE_NOT_FOUND,
@@ -72,20 +73,20 @@ static b8 bitmap_font_loader_load(struct resource_loader* self, const char* name
 
     b8 result = false;
     switch (type) {
-        case BITMAP_FONT_FILE_TYPE_FNT: {
-            // Generate the KBF filename.
-            char kbf_file_name[512];
-            string_format_unsafe(kbf_file_name, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".kbf");
-            result = import_fnt_file(&f, kbf_file_name, &resource_data);
-            break;
-        }
-        case BITMAP_FONT_FILE_TYPE_KBF:
-            result = read_kbf_file(&f, &resource_data);
-            break;
-        case BITMAP_FONT_FILE_TYPE_NOT_FOUND:
-            KERROR("Unable to find bitmap font of supported type called '%s'.", name);
-            result = false;
-            break;
+    case BITMAP_FONT_FILE_TYPE_FNT: {
+        // Generate the KBF filename.
+        char kbf_file_name[512];
+        string_format_unsafe(kbf_file_name, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".kbf");
+        result = import_fnt_file(&f, kbf_file_name, &resource_data);
+        break;
+    }
+    case BITMAP_FONT_FILE_TYPE_KBF:
+        result = read_kbf_file(&f, &resource_data);
+        break;
+    case BITMAP_FONT_FILE_TYPE_NOT_FOUND:
+        KERROR("Unable to find bitmap font of supported type called '%s'.", name);
+        result = false;
+        break;
     }
 
     filesystem_close(&f);
@@ -154,7 +155,7 @@ static b8 import_fnt_file(file_handle* fnt_file, const char* out_kbf_filename, b
     u8 pages_read = 0;
     u32 kernings_read = 0;
     while (true) {
-        ++line_num;  // Increment the number right away, since most text editors' line display is 1-indexed.
+        ++line_num; // Increment the number right away, since most text editors' line display is 1-indexed.
         if (!filesystem_read_line(fnt_file, 511, &p, &line_length)) {
             break;
         }
@@ -166,128 +167,128 @@ static b8 import_fnt_file(file_handle* fnt_file, const char* out_kbf_filename, b
 
         char first_char = line_buf[0];
         switch (first_char) {
-            case 'i': {
-                // 'info' line
+        case 'i': {
+            // 'info' line
 
-                // NOTE: only extract the face and size, ignore the rest.
+            // NOTE: only extract the face and size, ignore the rest.
+            i32 elements_read = sscanf(
+                line_buf,
+                "info face=\"%[^\"]\" size=%u",
+                out_data->data.face,
+                &out_data->data.size);
+            VERIFY_LINE("info", line_num, 2, elements_read);
+            break;
+        }
+        case 'c': {
+            // 'common', 'char' or 'chars' line
+            if (line_buf[1] == 'o') {
+                // common
                 i32 elements_read = sscanf(
                     line_buf,
-                    "info face=\"%[^\"]\" size=%u",
-                    out_data->data.face,
-                    &out_data->data.size);
-                VERIFY_LINE("info", line_num, 2, elements_read);
-                break;
-            }
-            case 'c': {
-                // 'common', 'char' or 'chars' line
-                if (line_buf[1] == 'o') {
-                    // common
-                    i32 elements_read = sscanf(
-                        line_buf,
-                        "common lineHeight=%d base=%u scaleW=%d scaleH=%d pages=%d",  // ignore everything else.
-                        &out_data->data.line_height,
-                        &out_data->data.baseline,
-                        &out_data->data.atlas_size_x,
-                        &out_data->data.atlas_size_y,
-                        &out_data->page_count);
+                    "common lineHeight=%d base=%u scaleW=%d scaleH=%d pages=%d", // ignore everything else.
+                    &out_data->data.line_height,
+                    &out_data->data.baseline,
+                    &out_data->data.atlas_size_x,
+                    &out_data->data.atlas_size_y,
+                    &out_data->page_count);
 
-                    VERIFY_LINE("common", line_num, 5, elements_read);
+                VERIFY_LINE("common", line_num, 5, elements_read);
 
-                    // Allocate the pages array.
-                    if (out_data->page_count > 0) {
-                        if (!out_data->pages) {
-                            out_data->pages = kallocate(sizeof(bitmap_font_page) * out_data->page_count, MEMORY_TAG_ARRAY);
-                        }
-                    } else {
-                        KERROR("Pages is 0, which should not be possible. Font file reading aborted.");
-                        return false;
-                    }
-                } else if (line_buf[1] == 'h') {
-                    if (line_buf[4] == 's') {
-                        // chars line
-                        i32 elements_read = sscanf(line_buf, "chars count=%u", &out_data->data.glyph_count);
-                        VERIFY_LINE("chars", line_num, 1, elements_read);
-
-                        // Allocate the glyphs array.
-                        if (out_data->data.glyph_count > 0) {
-                            if (!out_data->data.glyphs) {
-                                out_data->data.glyphs = kallocate(sizeof(font_glyph) * out_data->data.glyph_count, MEMORY_TAG_ARRAY);
-                            }
-                        } else {
-                            KERROR("Glyph count is 0, which should not be possible. Font file reading aborted.");
-                            return false;
-                        }
-                    } else {
-                        // Assume 'char' line
-                        font_glyph* g = &out_data->data.glyphs[glyphs_read];
-
-                        i32 elements_read = sscanf(
-                            line_buf,
-                            "char id=%d x=%hu y=%hu width=%hu height=%hu xoffset=%hd yoffset=%hd xadvance=%hd page=%hhu chnl=%*u",
-                            &g->codepoint,
-                            &g->x,
-                            &g->y,
-                            &g->width,
-                            &g->height,
-                            &g->x_offset,
-                            &g->y_offset,
-                            &g->x_advance,
-                            &g->page_id);
-
-                        VERIFY_LINE("char", line_num, 9, elements_read);
-
-                        glyphs_read++;
+                // Allocate the pages array.
+                if (out_data->page_count > 0) {
+                    if (!out_data->pages) {
+                        out_data->pages = kallocate(sizeof(bitmap_font_page) * out_data->page_count, MEMORY_TAG_ARRAY);
                     }
                 } else {
-                    // invalid, ignore
+                    KERROR("Pages is 0, which should not be possible. Font file reading aborted.");
+                    return false;
                 }
-                break;
-            }
-            case 'p': {
-                // 'page' line
-                bitmap_font_page* page = &out_data->pages[pages_read];
-                i32 elements_read = sscanf(
-                    line_buf,
-                    "page id=%hhi file=\"%[^\"]\"",
-                    &page->id,
-                    page->file);
+            } else if (line_buf[1] == 'h') {
+                if (line_buf[4] == 's') {
+                    // chars line
+                    i32 elements_read = sscanf(line_buf, "chars count=%u", &out_data->data.glyph_count);
+                    VERIFY_LINE("chars", line_num, 1, elements_read);
 
-                // Strip the extension.
-                string_filename_no_extension_from_path(page->file, page->file);
-
-                VERIFY_LINE("page", line_num, 2, elements_read);
-
-                break;
-            }
-            case 'k': {
-                // 'kernings' or 'kerning' line
-                if (line_buf[7] == 's') {
-                    // Kernings
-                    i32 elements_read = sscanf(line_buf, "kernings count=%u", &out_data->data.kerning_count);
-
-                    VERIFY_LINE("kernings", line_num, 1, elements_read);
-
-                    // Allocate kernings array
-                    if (!out_data->data.kernings) {
-                        out_data->data.kernings = kallocate(sizeof(font_kerning) * out_data->data.kerning_count, MEMORY_TAG_ARRAY);
+                    // Allocate the glyphs array.
+                    if (out_data->data.glyph_count > 0) {
+                        if (!out_data->data.glyphs) {
+                            out_data->data.glyphs = kallocate(sizeof(font_glyph) * out_data->data.glyph_count, MEMORY_TAG_ARRAY);
+                        }
+                    } else {
+                        KERROR("Glyph count is 0, which should not be possible. Font file reading aborted.");
+                        return false;
                     }
-                } else if (line_buf[7] == ' ') {
-                    // Kerning record
-                    font_kerning* k = &out_data->data.kernings[kernings_read];
+                } else {
+                    // Assume 'char' line
+                    font_glyph* g = &out_data->data.glyphs[glyphs_read];
+
                     i32 elements_read = sscanf(
                         line_buf,
-                        "kerning first=%i  second=%i amount=%hi",
-                        &k->codepoint_0,
-                        &k->codepoint_1,
-                        &k->amount);
+                        "char id=%d x=%hu y=%hu width=%hu height=%hu xoffset=%hd yoffset=%hd xadvance=%hd page=%hhu chnl=%*u",
+                        &g->codepoint,
+                        &g->x,
+                        &g->y,
+                        &g->width,
+                        &g->height,
+                        &g->x_offset,
+                        &g->y_offset,
+                        &g->x_advance,
+                        &g->page_id);
 
-                    VERIFY_LINE("kerning", line_num, 3, elements_read);
+                    VERIFY_LINE("char", line_num, 9, elements_read);
+
+                    glyphs_read++;
                 }
-                break;
+            } else {
+                // invalid, ignore
             }
-            default:
-                // Skip the line.
-                break;
+            break;
+        }
+        case 'p': {
+            // 'page' line
+            bitmap_font_page* page = &out_data->pages[pages_read];
+            i32 elements_read = sscanf(
+                line_buf,
+                "page id=%hhi file=\"%[^\"]\"",
+                &page->id,
+                page->file);
+
+            // Strip the extension.
+            string_filename_no_extension_from_path(page->file, page->file);
+
+            VERIFY_LINE("page", line_num, 2, elements_read);
+
+            break;
+        }
+        case 'k': {
+            // 'kernings' or 'kerning' line
+            if (line_buf[7] == 's') {
+                // Kernings
+                i32 elements_read = sscanf(line_buf, "kernings count=%u", &out_data->data.kerning_count);
+
+                VERIFY_LINE("kernings", line_num, 1, elements_read);
+
+                // Allocate kernings array
+                if (!out_data->data.kernings) {
+                    out_data->data.kernings = kallocate(sizeof(font_kerning) * out_data->data.kerning_count, MEMORY_TAG_ARRAY);
+                }
+            } else if (line_buf[7] == ' ') {
+                // Kerning record
+                font_kerning* k = &out_data->data.kernings[kernings_read];
+                i32 elements_read = sscanf(
+                    line_buf,
+                    "kerning first=%i  second=%i amount=%hi",
+                    &k->codepoint_0,
+                    &k->codepoint_1,
+                    &k->amount);
+
+                VERIFY_LINE("kerning", line_num, 3, elements_read);
+            }
+            break;
+        }
+        default:
+            // Skip the line.
+            break;
         }
     }
 
@@ -418,7 +419,7 @@ static b8 write_kbf_file(const char* path, bitmap_font_resource_data* data) {
     resource_header header;
     header.magic_number = RESOURCE_MAGIC;
     header.resource_type = RESOURCE_TYPE_BITMAP_FONT;
-    header.version = 0x01U;  // Version 1 for now.
+    header.version = 0x01U; // Version 1 for now.
     header.reserved = 0;
     write_size = sizeof(resource_header);
     CLOSE_IF_FAILED(filesystem_write(&file, write_size, &header, &bytes_written), &file);

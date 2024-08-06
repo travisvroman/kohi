@@ -37,14 +37,21 @@ typedef struct kpackage {
     struct kpackage_internal* internal_data;
 } kpackage;
 
+typedef enum kpackage_result {
+    KPACKAGE_RESULT_SUCCESS = 0,
+    KPACKAGE_RESULT_PRIMARY_GET_FAILURE,
+    KPACKAGE_RESULT_SOURCE_GET_FAILURE,
+    KPACKAGE_RESULT_INTERNAL_FAILURE
+} kpackage_result;
+
 KAPI b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_package);
 KAPI b8 kpackage_create_from_binary(u64 size, void* bytes, kpackage* out_package);
 KAPI void kpackage_destroy(kpackage* package);
 
-KAPI void* kpackage_asset_bytes_get(const kpackage* package, const char* name, u64* out_size);
-KAPI const char* kpackage_asset_text_get(const kpackage* package, const char* name, u64* out_size);
+KAPI kpackage_result kpackage_asset_bytes_get(const kpackage* package, const char* name, b8 get_source, u64* out_size, const void** out_data);
+KAPI kpackage_result kpackage_asset_text_get(const kpackage* package, const char* name, b8 get_source, u64* out_size, const char** out_text);
 
-KAPI b8 kpackage_asset_bytes_write(kpackage* package, const char* name, u64 size, void* bytes);
+KAPI b8 kpackage_asset_bytes_write(kpackage* package, const char* name, u64 size, const void* bytes);
 KAPI b8 kpackage_asset_text_write(kpackage* package, const char* name, u64 size, const char* text);
 
 KAPI b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_manifest);

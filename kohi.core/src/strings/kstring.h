@@ -206,6 +206,15 @@ KAPI void string_mid(char* dest, const char* source, i32 start, i32 length);
 KAPI i32 string_index_of(const char* str, char c);
 
 /**
+ * @brief Returns the index of the last occurance of c in str; otherwise -1.
+ *
+ * @param str The string to be scanned.
+ * @param c The character to search for.
+ * @return The index of the last occurance of c; otherwise -1 if not found.
+ */
+KAPI i32 string_last_index_of(const char* str, char c);
+
+/**
  * @brief Returns the index of the first occurance of str_1 in str_0; otherwise -1.
  *
  * @param str_0 The string to be scanned.
@@ -600,12 +609,23 @@ KAPI void string_filename_from_path(char* dest, const char* path);
 KAPI void string_filename_no_extension_from_path(char* dest, const char* path);
 
 /**
+ * @brief Attempts to get the file extension from the given path. Allocates a new string which should be freed.
+ *
+ * @param path The full path to extract from.
+ * @param include_dot Indicates if the '.' should be included in the output.
+ * @returns The extension on success; otherwise 0.
+ */
+KAPI const char* string_extension_from_path(const char* path, b8 include_dot);
+
+/**
  * @brief Attempts to extract an array length from a given string. Ex: a string of sampler2D[4] will return True and set out_length to 4.
  * @param str The string to examine.
  * @param out_length A pointer to hold the length, if extracted successfully.
  * @returns True if an array length was found and parsed; otherwise false.
  */
 KAPI b8 string_parse_array_length(const char* str, u32* out_length);
+
+KAPI b8 string_line_get(const char* source_str, u16 max_line_length, u32 start_from, char** out_buffer, u32* out_line_length);
 
 // ----------------------
 // KString implementation

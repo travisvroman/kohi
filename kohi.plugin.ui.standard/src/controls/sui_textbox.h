@@ -1,10 +1,11 @@
 #pragma once
 
-#include <renderer/renderer_types.h>
+#include "standard_ui_system.h"
 
-#include "../standard_ui_system.h"
-#include "defines.h"
-#include "renderer/nine_slice.h"
+#include <defines.h>
+#include <renderer/nine_slice.h>
+#include <renderer/renderer_types.h>
+#include <resources/font_types.h>
 
 /*
  * TODO: Textbox items

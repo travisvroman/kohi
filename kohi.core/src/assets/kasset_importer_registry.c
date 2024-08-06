@@ -45,16 +45,18 @@ void kasset_importer_registry_shutdown(void) {
     }
 }
 
-b8 kasset_importer_registry_register(kasset_type type, kasset_importer importer) {
+b8 kasset_importer_registry_register(kasset_type type, const char* source_type, kasset_importer importer) {
     if (!state_ptr) {
         KERROR("Failed to register importer - import registry not yet initialized.");
         return false;
     }
 
-    if (!importer.source_type) {
+    if (!source_type) {
         KERROR("Source type not defined while trying to register importer. Registration failed.");
         return false;
     }
+
+    importer.source_type = string_duplicate(source_type);
 
     if (!importer.import) {
         KERROR("Function pointer 'import' not defined while trying to register importer. Registration failed.");

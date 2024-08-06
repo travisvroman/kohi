@@ -17,10 +17,11 @@ KAPI void kasset_importer_registry_shutdown(void);
  * @brief Registers the provided importer as an importer for the given asset type.
  *
  * @param type The target asset type.
+ * @param source_type A string representing the source file type's file extension without the '.'. Required.
  * @param importer A copy of the importer to register.
  * @returns True on success; otherwise false.
  */
-KAPI b8 kasset_importer_registry_register(kasset_type type, kasset_importer importer);
+KAPI b8 kasset_importer_registry_register(kasset_type type, const char* source_type, kasset_importer importer);
 
 /**
  * Attempts to obtain an importer for the given asset and source types.

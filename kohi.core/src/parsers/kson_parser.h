@@ -479,4 +479,10 @@ KAPI kson_property kson_object_property_create(const char* name);
  */
 KAPI kson_property kson_array_property_create(const char* name);
 
+/** @brief Creates and returns a new kson object. */
+KAPI kson_object kson_object_create(void);
+
+/** @brief Creates and returns a new kson array. */
+KAPI kson_array kson_array_create(void);
+
 #endif

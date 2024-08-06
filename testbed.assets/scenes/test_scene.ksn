@@ -13,7 +13,7 @@ nodes = [
             {
                 type = "directional_light"
                 colour = "40.000000 40.000000 30.000000 1.000000"
-                direction = "-0.57735 -0.57735 0.57735 0.0"
+                direction = "-0.577350 -0.577350 0.577350 0.000000"
                 shadow_distance = 100.000000
                 shadow_fade_distance = 5.000000
                 shadow_split_mult = 0.750000
@@ -64,7 +64,7 @@ nodes = [
     }
     {
         name = "falcon"
-        xform = "2.234540 0.536942 10.002614 0.036997 0.602169 -0.032698 0.796844 0.350000 0.350000 0.350000"
+        xform = "7.685925 -0.363394 5.845236 0.065921 0.919960 -0.104160 0.372138 0.350000 0.350000 0.350000"
         attachments = [
             {
                 type = "static_mesh"
@@ -85,7 +85,7 @@ nodes = [
         xform = "-50.000000 -3.900000 -50.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
         attachments = [
             {
-                type = "HeightmapTerrain"
+                type = "terrain"
                 name = "test_terrain"
                 resource_name = "test_terrain"
             }
@@ -97,7 +97,7 @@ nodes = [
         attachments = [
             {
                 type = "water_plane"
-                reserved = 42
+                reserved = 0
             }
         ]
     }
