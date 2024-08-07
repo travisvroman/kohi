@@ -13,23 +13,67 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Asset packaging (kpackage)
   - [x] Reorganize assets from testbed.assets folder to go along with the respective "module".
   - [x] Rename all assets and asset references to use the format "<package>.<asset_type>.<name>". I.e. "Testbed.Texture.arch"
+    - [ ] REDO this! asset_handler_request("PackageName", ASSET_TYPE, "AssetName"). Assets that rely on other assets can optionally specify a 
+          package name. VFS will first look in the same package for a asset of the right type with a match name. If not found, then iterate 
+          all packages looking for one and use the first one found. If more than one package contains such an asset, the user should specify 
+          the package in the asset reference.
   - [x] Setup one manifest file including a list of all these files in each "module.". Exclude "source" files (i.e. .obj and .mtl).
   - [ ] Asset type reworks:
-    - [ ] Rework static mesh OBJ import process to take in package name as well as make material generation optional (so we don't overwrite the hand-rolled materials);
+    - [ ] Static meshes
+      - [ ] Rework OBJ import process to take in package name as well as make material generation optional (so we don't overwrite the hand-rolled materials);
       - [ ] Rework .mtl import process to use fully qualified names for textures (i.e. "Testbed.Texture.arch").
       - [ ] Regenerate all .ksm files.
-    - [ ] Textures
+      - [ ] Create a "default static mesh" (named "Runtime.StaticMesh.Default") which is a cube with perhaps a warning material.
+      - [x] Asset handler 
+      - [x] Importer from Wavefront OBJ
+        - [x] OBJ Serializer
+      - [x] Serializer
+    - [x] Images
+      - [x] Asset handler 
+      - [x] Importer
+        - [x] Common formats (.bmp, .tga, .jpg, .png)
+        - [ ] Importer for KTX (future) 
+        - [ ] Importer for PSD (future)
+      - [x] Binary .kbi format
+      - [x] Serializer
     - [ ] Shaders
       - [ ] Fix hot-reloading/change watches to be called from package/vfs
       - [ ] Convert .shadercfg file to KSON-based .ksc (Kohi Shader Config)
+      - [ ] Asset handler 
+      - [ ] Serializer
     - [ ] Bitmap fonts
       - [ ] Rename .fnt files to .kbf (Kohi Bitmap Font)
+      - [ ] Asset handler 
+      - [ ] Serializer
     - [ ] System fonts
       - [ ] Convert .fontcfg to KSON-based .ksf file (Kohi System Font)
-    - [ ] .kmt Material files
-      - [ ] Convert .kmt to KSON
-    - [ ] Terrains
-      - [ ] Convert .kterrain to KSON-based .kht file (Kohi Heightmap Terrain)
+      - [ ] Asset handler 
+      - [ ] Importer to binary .ksb file (Kohi System Binary font)
+      - [ ] Serializer
+    - [ ] Materials
+      - [ ] Add a default "warning" material that stands out, to use in place of a non-existent material.
+      - [x] Convert .kmt to KSON
+      - [ ] Importer from MTL directly (as opposed to with an OBJ file).
+        - [x] MTL Serializer
+      - [x] Asset handler 
+      - [x] Serializer
+    - [x] Terrains -> HeightmapTerrains
+      - [x] Convert .kterrain to KSON-based .kht file (Kohi Heightmap Terrain)
+      - [x] Asset handler 
+      - [x] Serializer
+    - [x] Scenes 
+      - [x] Asset handler 
+      - [x] Serializer
+    - [ ] Audio effects
+      - [ ] Binary container format (.kfx)
+      - [ ] Asset handler 
+      - [ ] Importer
+      - [ ] Serializer
+    - [ ] Music
+      - [ ] Binary container format (.kmu)
+      - [ ] Asset handler 
+      - [ ] Importer
+      - [ ] Serializer
   - [x] Create kpackage interface in kohi.core.
   - [x] Point kpackage to files on disk for "debug" builds.
   - [ ] Asset hot reloading

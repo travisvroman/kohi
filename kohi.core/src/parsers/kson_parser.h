@@ -2,6 +2,7 @@
 #define _KSON_H_
 
 #include "defines.h"
+#include "math/math_types.h"
 
 typedef enum kson_token_type {
     KSON_TOKEN_TYPE_UNKNOWN,
@@ -161,6 +162,13 @@ KAPI b8 kson_tree_from_string(const char* source, kson_tree* out_tree);
 KAPI const char* kson_tree_to_string(kson_tree* tree);
 
 /**
+ * @brief Cleans up the given kson object and its properties recursively.
+ *
+ * @param obj A pointer to the object to be cleaned up. Required.
+ */
+KAPI void kson_object_cleanup(kson_object* obj);
+
+/**
  * @brief Performs cleanup operations on the given tree, freeing memory and resources held by it.
  *
  * @param tree A pointer to the tree to cleanup. Required.
@@ -202,6 +210,42 @@ KAPI b8 kson_array_value_add_boolean(kson_array* array, b8 value);
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_array_value_add_string(kson_array* array, const char* value);
+
+/**
+ * @brief Adds an unnamed mat4 value to the provided array.
+ *
+ * @param array A pointer to the array to add the property to.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_value_add_mat4(kson_array* array, mat4 value);
+
+/**
+ * @brief Adds an unnamed vec4 value to the provided array.
+ *
+ * @param array A pointer to the array to add the property to.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_value_add_vec4(kson_array* array, vec4 value);
+
+/**
+ * @brief Adds an unnamed vec3 value to the provided array.
+ *
+ * @param array A pointer to the array to add the property to.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_value_add_vec3(kson_array* array, vec3 value);
+
+/**
+ * @brief Adds an unnamed vec2 value to the provided array.
+ *
+ * @param array A pointer to the array to add the property to.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_value_add_vec2(kson_array* array, vec2 value);
 
 /**
  * @brief Adds an unnamed object value to the provided array.
@@ -278,6 +322,46 @@ KAPI b8 kson_object_value_add_boolean(kson_object* object, const char* name, b8 
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_object_value_add_string(kson_object* object, const char* name, const char* value);
+
+/**
+ * @brief Adds a named mat4 value to the provided object.
+ *
+ * @param object A pointer to the object to add the property to.
+ * @param name A constant pointer to the name to be used. Required.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_value_add_mat4(kson_object* object, const char* name, mat4 value);
+
+/**
+ * @brief Adds a named vec4 value to the provided object.
+ *
+ * @param object A pointer to the object to add the property to.
+ * @param name A constant pointer to the name to be used. Required.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_value_add_vec4(kson_object* object, const char* name, vec4 value);
+
+/**
+ * @brief Adds a named vec3 value to the provided object.
+ *
+ * @param object A pointer to the object to add the property to.
+ * @param name A constant pointer to the name to be used. Required.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_value_add_vec3(kson_object* object, const char* name, vec3 value);
+
+/**
+ * @brief Adds a named vec2 value to the provided object.
+ *
+ * @param object A pointer to the object to add the property to.
+ * @param name A constant pointer to the name to be used. Required.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_value_add_vec2(kson_object* object, const char* name, vec2 value);
 
 /**
  * @brief Adds a named object value to the provided object.
@@ -370,7 +454,7 @@ KAPI b8 kson_array_element_value_get_float(const kson_array* array, u32 index, f
 KAPI b8 kson_array_element_value_get_bool(const kson_array* array, u32 index, b8* out_value);
 
 /**
- * @brief Attempts to retrieve the array element's value at the provided index as a string. Fails if out of range.
+ * @brief Attempts to retrieve the array element's value at the provided index as a string. Fails if out of range
  * or on type mismatch.
  *
  * @param array A constant pointer to the array to search. Required.
@@ -379,6 +463,50 @@ KAPI b8 kson_array_element_value_get_bool(const kson_array* array, u32 index, b8
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_array_element_value_get_string(const kson_array* array, u32 index, const char** out_value);
+
+/**
+ * @brief Attempts to retrieve the array element's value at the provided index as a mat4. Fails if out of range
+ * or on type mismatch (these are stored as strings).
+ *
+ * @param array A constant pointer to the array to search. Required.
+ * @param index The array index to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_element_value_get_mat4(const kson_array* array, u32 index, mat4* out_value);
+
+/**
+ * @brief Attempts to retrieve the array element's value at the provided index as a vec4. Fails if out of range
+ * or on type mismatch (these are stored as strings).
+ *
+ * @param array A constant pointer to the array to search. Required.
+ * @param index The array index to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_element_value_get_vec4(const kson_array* array, u32 index, vec4* out_value);
+
+/**
+ * @brief Attempts to retrieve the array element's value at the provided index as a vec3. Fails if out of range
+ * or on type mismatch (these are stored as strings).
+ *
+ * @param array A constant pointer to the array to search. Required.
+ * @param index The array index to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_element_value_get_vec3(const kson_array* array, u32 index, vec3* out_value);
+
+/**
+ * @brief Attempts to retrieve the array element's value at the provided index as a vec2. Fails if out of range
+ * or on type mismatch (these are stored as strings).
+ *
+ * @param array A constant pointer to the array to search. Required.
+ * @param index The array index to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_element_value_get_vec2(const kson_array* array, u32 index, vec2* out_value);
 
 /**
  * @brief Attempts to retrieve the array element's value at the provided index as an object. Fails if out of range.
@@ -453,6 +581,50 @@ KAPI b8 kson_object_property_value_get_bool(const kson_object* object, const cha
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_object_property_value_get_string(const kson_object* object, const char* name, const char** out_value);
+
+/**
+ * @brief Attempts to retrieve the given object's property value by name as a mat4. Fails if not found
+ * or on type mismatch (these are always stored as strings).
+ *
+ * @param A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_mat4(const kson_object* object, const char* name, mat4* out_value);
+
+/**
+ * @brief Attempts to retrieve the given object's property value by name as a vec4. Fails if not found
+ * or on type mismatch (these are always stored as strings).
+ *
+ * @param A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_vec4(const kson_object* object, const char* name, vec4* out_value);
+
+/**
+ * @brief Attempts to retrieve the given object's property value by name as a vec3. Fails if not found
+ * or on type mismatch (these are always stored as strings).
+ *
+ * @param A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_vec3(const kson_object* object, const char* name, vec3* out_value);
+
+/**
+ * @brief Attempts to retrieve the given object's property value by name as a vec2. Fails if not found
+ * or on type mismatch (these are always stored as strings).
+ *
+ * @param A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_vec2(const kson_object* object, const char* name, vec2* out_value);
 
 /**
  * @brief Attempts to retrieve the given object's property value by name as an object. Fails if not found

@@ -19,6 +19,7 @@ Changelog
   - Added new Asset System, responsible for the lifetime of assets.
   - Split off responsibility of resources to only be resources used in rendering/the world, versus assets which are loaded from disk/package.
   - Added `kson_object_create()` and `kson_array_create()` to enhance the KSON API's usability.
+  - Added gets/sets to kson for mat4, vec4/3/2 types to enhance the KSON API's usability.
 
 - 0.7.1
   - Fixed window resizing issues in macOS

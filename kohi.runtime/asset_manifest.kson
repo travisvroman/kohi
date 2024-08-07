@@ -18,9 +18,15 @@ assets = [
         path = "./assets/shaders/Colour3D_vert.glsl"
     }
     {
-        name = "PBR_StaticMesh"
-        type = "Shader"
-        path = "./assets/shaders/PBR_StaticMesh.shadercfg"
+        name = "PBR"
+        type = "Folder"
+        assets = [
+            {
+                name = "StaticMesh"
+                type = "Shader"
+                path = "./assets/shaders/PBR/StaticMesh.ksc"
+            }
+        ]
     }
     {
         name = "PBR_StaticMesh_frag"

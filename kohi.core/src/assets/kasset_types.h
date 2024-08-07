@@ -66,6 +66,7 @@ typedef enum kasset_type {
     KASSET_TYPE_SKELETAL_MESH,
     KASSET_TYPE_AUDIO,
     KASSET_TYPE_MUSIC,
+    KASSET_TYPE_SHADER,
     KASSET_TYPE_MAX
 } kasset_type;
 
@@ -91,8 +92,6 @@ typedef struct kasset_metadata {
     u64 size;
     // Asset name info.
     kasset_name name;
-    /** @brief The asset type */
-    kasset_type asset_type;
     /** @brief The path of the originally imported file used to create this asset. */
     const char* source_file_path;
     // TODO: Listing of asset-type-specific metadata
@@ -359,3 +358,89 @@ typedef struct kasset_kson {
     const char* source_text;
     kson_tree tree;
 } kasset_kson;
+
+#define KASSET_TYPE_NAME_SCENE "Scene"
+
+typedef enum kasset_scene_node_attachment_type {
+    KASSET_SCENE_NODE_ATTACHMENT_TYPE_SKYBOX,
+    KASSET_SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT,
+    KASSET_SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT,
+    KASSET_SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH,
+    KASSET_SCENE_NODE_ATTACHMENT_TYPE_HEIGHTMAP_TERRAIN,
+    KASSET_SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE,
+    KASSET_SCENE_NODE_ATTACHMENT_TYPE_COUNT
+} kasset_scene_node_attachment_type;
+
+static const char* kasset_scene_node_attachment_type_strings[KASSET_SCENE_NODE_ATTACHMENT_TYPE_COUNT] = {
+    "Skybox",           // KASSET_SCENE_NODE_ATTACHMENT_TYPE_SKYBOX,
+    "DirectionalLight", // KASSET_SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT,
+    "PointLight",       // KASSET_SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT,
+    "StaticMesh",       // KASSET_SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH,
+    "HeightmapTerrain", // KASSET_SCENE_NODE_ATTACHMENT_TYPE_STATIC_HEIGHTMAP_TERRAIN,
+    "WaterPlane"        // KASSET_SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE,
+};
+
+// Ensure changes to scene attachment types break this if it isn't also updated.
+STATIC_ASSERT(KASSET_SCENE_NODE_ATTACHMENT_TYPE_COUNT == (sizeof(kasset_scene_node_attachment_type_strings) / sizeof(*kasset_scene_node_attachment_type_strings)), "Scene attachment type count does not match string lookup table count.");
+
+//////////////////////
+
+typedef struct kasset_scene_node_attachment {
+    kasset_scene_node_attachment_type type;
+    const char* name;
+} kasset_scene_node_attachment;
+
+typedef struct kasset_scene_node_attachment_skybox {
+    kasset_scene_node_attachment base;
+    const char* cubemap_image_asset_name;
+} kasset_scene_node_attachment_skybox;
+
+typedef struct kasset_scene_node_attachment_directional_light {
+    kasset_scene_node_attachment base;
+    vec4 colour;
+    vec4 direction;
+    f32 shadow_distance;
+    f32 shadow_fade_distance;
+    f32 shadow_split_mult;
+} kasset_scene_node_attachment_directional_light;
+
+typedef struct kasset_scene_node_attachment_point_light {
+    kasset_scene_node_attachment base;
+    vec4 colour;
+    vec4 position;
+    f32 constant_f;
+    f32 linear;
+    f32 quadratic;
+} kasset_scene_node_attachment_point_light;
+
+typedef struct kasset_scene_node_attachment_static_mesh {
+    kasset_scene_node_attachment base;
+    const char* asset_name;
+} kasset_scene_node_attachment_static_mesh;
+
+typedef struct kasset_scene_node_attachment_heightmap_terrain {
+    kasset_scene_node_attachment base;
+    const char* asset_name;
+} kasset_scene_node_attachment_heightmap_terrain;
+
+typedef struct kasset_scene_node_attachment_water_plane {
+    kasset_scene_node_attachment base;
+    // TODO: expand configurable properties.
+} kasset_scene_node_attachment_water_plane;
+
+typedef struct kasset_scene_node {
+    const char* name;
+    u32 attachment_count;
+    kasset_scene_node_attachment* attachments;
+    u32 child_count;
+    struct kasset_scene_node* children;
+    // String representation of xform, processed by the scene when needed.
+    const char* xform_source;
+} kasset_scene_node;
+
+typedef struct kasset_scene {
+    kasset base;
+    const char* description;
+    u32 node_count;
+    kasset_scene_node* nodes;
+} kasset_scene;

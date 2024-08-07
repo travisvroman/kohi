@@ -97,7 +97,6 @@ nodes = [
         attachments = [
             {
                 type = "water_plane"
-                reserved = 0
             }
         ]
     }

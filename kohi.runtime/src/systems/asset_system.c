@@ -6,6 +6,7 @@
 #include "assets/handlers/asset_handler_image.h"
 #include "assets/handlers/asset_handler_kson.h"
 #include "assets/handlers/asset_handler_material.h"
+#include "assets/handlers/asset_handler_scene.h"
 #include "assets/handlers/asset_handler_static_mesh.h"
 #include "assets/handlers/asset_handler_text.h"
 
@@ -116,6 +117,7 @@ b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* s
     asset_handler_text_create(&state->handlers[KASSET_TYPE_TEXT], vfs);
     asset_handler_kson_create(&state->handlers[KASSET_TYPE_KSON], vfs);
     asset_handler_binary_create(&state->handlers[KASSET_TYPE_BINARY], vfs);
+    asset_handler_scene_create(&state->handlers[KASSET_TYPE_SCENE], vfs);
 
     return true;
 }
@@ -175,9 +177,9 @@ void asset_system_request(struct asset_system_state* state, const char* fully_qu
                 kasset_util_parse_name(fully_qualified_name, &lookup->asset.meta.name);
 
                 // Get the appropriate asset handler for the type and request the asset.
-                asset_handler* handler = &state->handlers[lookup->asset.meta.asset_type];
+                asset_handler* handler = &state->handlers[lookup->asset.type];
                 if (!handler->request_asset) {
-                    KERROR("No handler setup for asset type %d, fully_qualified_name='%s'", lookup->asset.meta.asset_type, fully_qualified_name);
+                    KERROR("No handler setup for asset type %d, fully_qualified_name='%s'", lookup->asset.type, fully_qualified_name);
                     callback(ASSET_REQUEST_RESULT_NO_HANDLER, 0, listener_instance);
                 } else {
                     // TODO: Jobify this call.
@@ -204,7 +206,7 @@ static void asset_system_release_internal(struct asset_system_state* state, cons
             if (force_release || (lookup->reference_count < 1 && lookup->auto_release)) {
                 // Auto release set and criteria met, so call asset handler's 'unload' function.
                 kasset* asset = &lookup->asset;
-                kasset_type type = asset->meta.asset_type;
+                kasset_type type = asset->type;
                 asset_handler* handler = &state->handlers[type];
                 if (!handler->release_asset) {
                     KWARN("No release setup on handler for asset type %d, fully_qualified_name='%s'", type, fully_qualified_name);
