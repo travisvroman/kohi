@@ -119,12 +119,11 @@ KAPI void kallocate_report(u64 size, memory_tag tag);
  * @brief Performs a memory reallocation from the host of the given size, and also frees the
  * block of memory given. The reallocation is tracked for the provided tag.
  * @param block The block of memory to reallocate.
- * @param old_size The size of the old allocation (that gets freed).
  * @param new_size The size of the new allocation (that get allocated).
  * @param tag Indicates the use of the allocated block.
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
-KAPI void* kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag);
+KAPI void* kreallocate(void* block, u64 new_size, memory_tag tag);
 
 /**
  * @brief Performs a memory reallocation from the host of the given size and alignment, and also frees the
@@ -132,13 +131,12 @@ KAPI void* kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag);
  * NOTE: Memory allocated this way must be freed using kfree_aligned.
 
  * @param block The block of memory to reallocate.
- * @param old_size The size of the old allocation (that gets freed).
  * @param new_size The size of the new allocation (that get allocated).
  * @param alignment The byte alignment to be used for the reallocation.
  * @param tag Indicates the use of the allocated block.
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
-KAPI void* kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag);
+KAPI void* kreallocate_aligned(void* block, u64 new_size, u16 alignment, memory_tag tag);
 
 /**
  * @brief Reports an allocation associated with the application, but made externally.
@@ -152,20 +150,16 @@ KAPI void* kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alig
 KAPI void kreallocate_report(u64 old_size, u64 new_size, memory_tag tag);
 
 /**
- * @brief Frees the given block, and untracks its size from the given tag.
+ * @brief Frees the given block, and untracks its size from its original tag.
  * @param block A pointer to the block of memory to be freed.
- * @param size The size of the block to be freed.
- * @param tag The tag indicating the block's use.
  */
-KAPI void kfree(void* block, u64 size, memory_tag tag);
+KAPI void kfree(void* block);
 
 /**
- * @brief Frees the given block, and untracks its size from the given tag.
+ * @brief Frees the given block, and untracks its size from its original tag.
  * @param block A pointer to the block of memory to be freed.
- * @param size The size of the block to be freed.
- * @param tag The tag indicating the block's use.
  */
-KAPI void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag);
+KAPI void kfree_aligned(void* block);
 
 /**
  * @brief Reports a free associated with the application, but made externally.
@@ -184,9 +178,10 @@ KAPI void kfree_report(u64 size, memory_tag tag);
  * @param block The memory block.
  * @param out_size A pointer to hold the size of the block.
  * @param out_alignment A pointer to hold the alignment of the block.
+ * @param out_alignment A pointer to hold the memory tag of the block.
  * @return True on success; otherwise false.
  */
-KAPI b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment);
+KAPI b8 kmemory_get_size_alignment_tag(void* block, u64* out_size, u16* out_alignment, memory_tag* out_tag);
 
 /**
  * @brief Zeroes out the provided memory block.
