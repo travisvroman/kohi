@@ -39,8 +39,8 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Shaders
       - [ ] Fix hot-reloading/change watches to be called from package/vfs
       - [ ] Convert .shadercfg file to KSON-based .ksc (Kohi Shader Config)
-      - [ ] Asset handler 
-      - [ ] Serializer
+      - [x] Asset handler 
+      - [x] Serializer
     - [ ] Bitmap fonts
       - [ ] Rename .fnt files to .kbf (Kohi Bitmap Font)
       - [ ] Asset handler 
@@ -49,7 +49,8 @@ The items in this list are not in any particular order. This list will be update
       - [ ] Convert .fontcfg to KSON-based .ksf file (Kohi System Font)
       - [ ] Asset handler 
       - [ ] Importer to binary .ksb file (Kohi System Binary font)
-      - [ ] Serializer
+      - [ ] Import Serializer
+      - [ ] Primary format Serializer
     - [ ] Materials
       - [ ] Add a default "warning" material that stands out, to use in place of a non-existent material.
       - [x] Convert .kmt to KSON

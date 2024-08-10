@@ -444,3 +444,39 @@ typedef struct kasset_scene {
     u32 node_count;
     kasset_scene_node* nodes;
 } kasset_scene;
+
+#define KASSET_TYPE_NAME_SHADER "Shader"
+
+typedef struct kasset_shader_stage {
+    shader_stage type;
+    const char* source_asset_name;
+    const char* package_name;
+} kasset_shader_stage;
+
+typedef struct kasset_shader_attribute {
+    const char* name;
+    shader_attribute_type type;
+} kasset_shader_attribute;
+
+typedef struct kasset_shader_uniform {
+    const char* name;
+    shader_uniform_type type;
+    shader_scope scope;
+} kasset_shader_uniform;
+
+typedef struct kasset_shader {
+    kasset base;
+    u32 stage_count;
+    kasset_shader_stage* stages;
+    b8 depth_test;
+    b8 depth_write;
+    b8 stencil_test;
+    b8 stencil_write;
+    u16 max_instances;
+
+    u32 attribute_count;
+    kasset_shader_attribute* attributes;
+
+    u32 uniform_count;
+    kasset_shader_uniform* uniforms;
+} kasset_shader;

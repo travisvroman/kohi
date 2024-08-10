@@ -25,8 +25,8 @@ void asset_handler_heightmap_terrain_create(struct asset_handler* self, struct v
     self->type_name = KASSET_TYPE_NAME_HEIGHTMAP_TERRAIN;
     self->binary_serialize = 0;
     self->binary_deserialize = 0;
-    self->text_serialize = kasset_heightmap_serialize;
-    self->text_deserialize = kasset_heightmap_deserialize;
+    self->text_serialize = kasset_heightmap_terrain_serialize;
+    self->text_deserialize = kasset_heightmap_terrain_deserialize;
 }
 
 void asset_handler_heightmap_terrain_request_asset(struct asset_handler* self, struct kasset* asset, void* listener_instance, PFN_kasset_on_result user_callback) {

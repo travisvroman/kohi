@@ -1,21 +1,22 @@
 // Kohi shader config file
 version = 1
-stages = [
-    {
-        type = "vertex"
-        source_asset = "PBR/StaticMesh_vert"
-        package_name = "Runtime"
-    }
-    {
-        type = "fragment"
-        source_asset = "PBR/StaticMesh_frag"
-        package_name = "Runtime"
-    }
-]
 depth_test=true
 depth_write=true
 supports_wireframe=true
 max_instances=256
+
+stages = [
+    {
+        type = "vertex"
+        source_asset_name = "PBR/StaticMesh_vert"
+        package_name = "Runtime"
+    }
+    {
+        type = "fragment"
+        source_asset_name = "PBR/StaticMesh_frag"
+        package_name = "Runtime"
+    }
+]
 
 // Attributes: type,name
 attributes = [
@@ -28,7 +29,7 @@ attributes = [
         type = "vec3"
     }
     {
-        name = "in_texcord"
+        name = "in_texcoord"
         type = "vec2"
     }
     {
@@ -41,100 +42,87 @@ attributes = [
     }
 ]
 
-uniforms = [
-    {
-        name = "projection"
-        type = "mat4"
-        scope = "global"
-    }
-    {
-        name = "views"
-        type = "mat4[2]"
-        scope = "global"
-    }
-    {
-        name = "light_spaces"
-        type = "mat4[4]"
-        scope = "global"
-    }
-    {
-        name = "cascade_splits"
-        type = "vec4"
-        scope = "global"
-    }
-    {
-        name = "view_positions"
-        type = "vec4[2]"
-        scope = "global"
-    }
-    {
-        name = "mode"
-        type = "u32"
-        scope = "global"
-    }
-    {
-        name = "use_pcf"
-        type = "u32"
-        scope = "global"
-    }
-    {
-        name = "bias"
-        type = "f32"
-        scope = "global"
-    }
-    {
-        name = "padding"
-        type = "f32"
-        scope = "global"
-    }
-    {
-        name = "material_textures"
-        type = "sampler2D[3]"
-        scope = "instance"
-    }
-    {
-        name = "shadow_textures"
-        type = "sampler2DArray"
-        scope = "instance"
-    }
-    {
-        name = "ibl_cube_texture"
-        type = "samplerCube"
-        scope = "instance"
-    }
-    {
-        name = "dir_light"
-        type = "struct48"
-        scope = "instance"
-    }
-    {
-        name = "p_lights"
-        type = "struct480"
-        scope = "instance"
-    }
-    {
-        name = "properties"
-        type = "struct32"
-        scope = "instance"
-    }
-    {
-        name = "num_p_lights"
-        type = "i32"
-        scope = "instance"
-    }
-    {
-        name = "model"
-        type = "mat4"
-        scope = "local"
-    }
-    {
-        name = "clipping_plane"
-        type = "vec4"
-        scope = "local"
-    }
-    {
-        name = "view_index"
-        type = "i32"
-        scope = "local"
-    }
-]
+uniforms = {
+    global = [
+        {
+            name = "projection"
+            type = "mat4"
+        }
+        {
+            name = "views"
+            type = "mat4[2]"
+        }
+        {
+            name = "light_spaces"
+            type = "mat4[4]"
+        }
+        {
+            name = "cascade_splits"
+            type = "vec4"
+        }
+        {
+            name = "view_positions"
+            type = "vec4[2]"
+        }
+        {
+            name = "mode"
+            type = "u32"
+        }
+        {
+            name = "use_pcf"
+            type = "u32"
+        }
+        {
+            name = "bias"
+            type = "f32"
+        }
+        {
+            name = "padding"
+            type = "f32"
+        }
+    ]
+    instance = [
+        {
+            name = "material_textures"
+            type = "sampler2D[3]"
+        }
+        {
+            name = "shadow_textures"
+            type = "sampler2DArray"
+        }
+        {
+            name = "ibl_cube_texture"
+            type = "samplerCube"
+        }
+        {
+            name = "dir_light"
+            type = "struct48"
+        }
+        {
+            name = "p_lights"
+            type = "struct480"
+        }
+        {
+            name = "properties"
+            type = "struct32"
+        }
+        {
+            name = "num_p_lights"
+            type = "i32"
+        }
+    ]
+    local = [
+        {
+            name = "model"
+            type = "mat4"
+        }
+        {
+            name = "clipping_plane"
+            type = "vec4"
+        }
+        {
+            name = "view_index"
+            type = "i32"
+        }
+    ]
+}
