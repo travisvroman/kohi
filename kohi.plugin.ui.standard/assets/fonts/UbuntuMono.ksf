@@ -1,5 +1,5 @@
 # Font configuration file
-ttf_asset = "UbuntuMono-R"
+ttf_asset_name = "UbuntuMono-R"
 # Font faces provide names for each index, which are loaded into a lookup table.
 # Doing this because the way names are stored in the file can vary wildly and be 
 # somewhat unpredictable, if even provided in the first place.

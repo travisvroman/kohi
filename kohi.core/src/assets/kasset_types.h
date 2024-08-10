@@ -480,3 +480,18 @@ typedef struct kasset_shader {
     u32 uniform_count;
     kasset_shader_uniform* uniforms;
 } kasset_shader;
+
+#define KASSET_TYPE_NAME_SYSTEM_FONT "SystemFont"
+
+typedef struct kasset_system_font_face {
+    const char* name;
+} kasset_system_font_face;
+
+typedef struct kasset_system_font {
+    kasset base;
+    const char* ttf_asset_name;
+    u32 face_count;
+    kasset_system_font_face* faces;
+    u32 font_binary_size;
+    void* font_binary;
+} kasset_system_font;
