@@ -7,61 +7,8 @@
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "platform/vfs.h"
+#include "strings/kname.h"
 #include "strings/kstring.h"
-
-b8 kasset_util_parse_name(const char* fully_qualified_name, struct kasset_name* out_name) {
-    if (!fully_qualified_name || !out_name) {
-        KERROR("kasset_util_parse_name requires valid fully_qualified_name and valid pointer to out_name");
-        return false;
-    }
-    // "Runtime.Texture.Rock.01"
-    char package_name[KPACKAGE_NAME_MAX_LENGTH] = {0};
-    char asset_type[KASSET_TYPE_MAX_LENGTH] = {0};
-    char asset_name[KASSET_NAME_MAX_LENGTH] = {0};
-    char* parts[3] = {package_name, asset_type, asset_name};
-
-    // Get the UTF-8 string length
-    u32 text_length_utf8 = string_utf8_length(fully_qualified_name);
-    u32 char_length = string_length(fully_qualified_name);
-
-    if (text_length_utf8 < 1) {
-        KERROR("kasset_util_parse_name was passed an empty string for name. Nothing to be done.");
-        return false;
-    }
-
-    u8 part_index = 0;
-    u32 part_loc = 0;
-    for (u32 c = 0; c < char_length;) {
-        i32 codepoint = fully_qualified_name[c];
-        u8 advance = 1;
-
-        // Ensure the propert UTF-8 codepoint is being used.
-        if (!bytes_to_codepoint(fully_qualified_name, c, &codepoint, &advance)) {
-            KWARN("Invalid UTF-8 found in string, using unknown codepoint of -1");
-            codepoint = -1;
-        }
-
-        if (part_index < 2 && codepoint == '.') {
-            // null terminate and move on.
-            parts[part_index][part_loc] = 0;
-            part_index++;
-            part_loc = 0;
-        }
-
-        // Add to the current part string.
-        for (u32 i = 0; i < advance; ++i) {
-            parts[part_index][part_loc] = c + i;
-            part_loc++;
-        }
-
-        c += advance;
-    }
-    parts[part_index][part_loc] = 0;
-
-    out_name->fully_qualified_name = string_duplicate(fully_qualified_name);
-
-    return true;
-}
 
 // Static lookup table for kasset type strings.
 static const char* kasset_type_strs[KASSET_TYPE_MAX] = {
@@ -99,7 +46,7 @@ const char* kasset_type_to_string(kasset_type type) {
     return string_duplicate(kasset_type_strs[type]);
 }
 
-void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, const char* name, vfs_asset_data asset_data) {
+void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data asset_data) {
 
     // This handler requires context.
     KASSERT_MSG(asset_data.context_size && asset_data.context, "asset_handler_base_on_asset_loaded requires valid context.");
@@ -126,7 +73,7 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, const char* name,
             KTRACE("Source asset loaded.");
             // Import it, write the binary version to disk and request the primary again.
             // Choose the importer by getting the file extension (minus the '.').
-            const char* extension = string_extension_from_path(context.asset->meta.source_file_path, false);
+            const char* extension = string_extension_from_path(asset_data.path, false);
             if (!extension) {
                 KERROR("No file extension is provided on source asset, thus an importer cannot be chosen.");
                 result = ASSET_REQUEST_RESULT_NO_HANDLER;
@@ -210,9 +157,9 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, const char* name,
         // If primary file doesn't exist, try importing the source file instead.
         if (asset_data.result == VFS_REQUEST_RESULT_FILE_DOES_NOT_EXIST) {
             // Request the source asset. Can reuse the passed-in context.
-            vfs_request_asset(vfs, &context.asset->meta, true, true, sizeof(asset_handler_request_context), &context, asset_handler_base_on_asset_loaded);
+            vfs_request_asset(vfs, context.asset->meta.package_name, context.asset->meta.name, true, true, sizeof(asset_handler_request_context), &context, asset_handler_base_on_asset_loaded);
         } else if (asset_data.result == VFS_REQUEST_RESULT_SOURCE_FILE_DOES_NOT_EXIST) {
-            KERROR("Source file does not exist to be imported. Asset handler failed to load anything for asset '%s'", name);
+            KERROR("Source file does not exist to be imported. Asset handler failed to load anything for asset '%s'", kname_string_get(asset_data.asset_name));
             context.user_callback(ASSET_REQUEST_RESULT_VFS_REQUEST_FAILED, context.asset, context.listener_instance);
         }
     }

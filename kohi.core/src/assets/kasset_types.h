@@ -5,6 +5,7 @@
 #include "identifiers/identifier.h"
 #include "math/math_types.h"
 #include "parsers/kson_parser.h"
+#include "strings/kname.h"
 
 /** @brief A magic number indicating the file as a kohi binary asset file. */
 #define ASSET_MAGIC 0xcafebabe
@@ -70,30 +71,17 @@ typedef enum kasset_type {
     KASSET_TYPE_MAX
 } kasset_type;
 
-/**
- * @brief Represents the name of an asset, complete with all
- * parts of the name along with the fully-qualified name.
- */
-typedef struct kasset_name {
-    /** @brief The fully-qualified name in the format "<PackageName>.<AssetType>.<AssetName>". */
-    const char* fully_qualified_name;
-    /** @brief The package name the asset belongs to. */
-    char package_name[KPACKAGE_NAME_MAX_LENGTH];
-    /** @brief The asset type in string format. */
-    char asset_type[KASSET_TYPE_MAX_LENGTH];
-    /** @brief The asset name. */
-    char asset_name[KASSET_NAME_MAX_LENGTH];
-} kasset_name;
-
 typedef struct kasset_metadata {
     // The asset version.
     u32 version;
     // Size of the asset.
     u64 size;
-    // Asset name info.
-    kasset_name name;
-    /** @brief The path of the originally imported file used to create this asset. */
-    const char* source_file_path;
+    // Asset name stored as a kname.
+    kname name;
+    // Package name stored as a kname.
+    kname package_name;
+    /** @brief The path of the originally imported file used to create this asset, stored as a kname */
+    kname source_asset_path;
     // TODO: Listing of asset-type-specific metadata
 
 } kasset_metadata;

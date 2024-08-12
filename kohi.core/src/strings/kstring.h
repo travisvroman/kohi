@@ -627,6 +627,24 @@ KAPI b8 string_parse_array_length(const char* str, u32* out_length);
 
 KAPI b8 string_line_get(const char* source_str, u16 max_line_length, u32 start_from, char** out_buffer, u32* out_line_length);
 
+/** Indicates if provided codepoint is lower-case. Regular ASCII and western European high-ascii characters only. */
+KAPI b8 codepoint_is_lower(i32 codepoint);
+/** Indicates if provided codepoint is upper-case. Regular ASCII and western European high-ascii characters only. */
+KAPI b8 codepoint_is_upper(i32 codepoint);
+/** Indicates if provided codepoint is alpha-numeric. Regular ASCII and western European high-ascii characters only. */
+KAPI b8 codepoint_is_alpha(i32 codepoint);
+/** Indicates if provided codepoint is numeric. Regular ASCII and western European high-ascii characters only. */
+KAPI b8 codepoint_is_numeric(i32 codepoint);
+
+/**
+ * Converts string in-place to uppercase. Regular ASCII and western European high-ascii characters only.
+ */
+KAPI void string_to_lower(char* str);
+/**
+ * Converts string in-place to uppercase. Regular ASCII and western European high-ascii characters only.
+ */
+KAPI void string_to_upper(char* str);
+
 // ----------------------
 // KString implementation
 // ----------------------

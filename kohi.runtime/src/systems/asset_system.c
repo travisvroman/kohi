@@ -11,6 +11,7 @@
 #include "assets/handlers/asset_handler_static_mesh.h"
 #include "assets/handlers/asset_handler_system_font.h"
 #include "assets/handlers/asset_handler_text.h"
+#include "strings/kname.h"
 
 #include <assets/asset_handler_types.h>
 #include <assets/kasset_types.h>
@@ -49,7 +50,7 @@ typedef struct asset_system_state {
     asset_handler handlers[KASSET_TYPE_MAX];
 } asset_system_state;
 
-static void asset_system_release_internal(struct asset_system_state* state, const char* fully_qualified_name, b8 force_release);
+static void asset_system_release_internal(struct asset_system_state* state, kname name, b8 force_release);
 
 b8 asset_system_deserialize_config(const char* config_str, asset_system_config* out_config) {
     if (!config_str || !out_config) {
@@ -149,7 +150,7 @@ void asset_system_shutdown(struct asset_system_state* state) {
     }
 }
 
-void asset_system_request(struct asset_system_state* state, const char* fully_qualified_name, b8 auto_release, void* listener_instance, PFN_kasset_on_result callback) {
+void asset_system_request(struct asset_system_state* state, kasset_type type, kname package_name, kname asset_name, b8 auto_release, void* listener_instance, PFN_kasset_on_result callback) {
     KASSERT(state);
     // Lookup the asset by fully-qualified name.
     u32 lookup_index = INVALID_ID;
@@ -199,7 +200,7 @@ void asset_system_request(struct asset_system_state* state, const char* fully_qu
     }
 }
 
-static void asset_system_release_internal(struct asset_system_state* state, const char* fully_qualified_name, b8 force_release) {
+static void asset_system_release_internal(struct asset_system_state* state, kname name, b8 force_release) {
     if (state) {
         // Lookup the asset by fully-qualified name.
         u32 lookup_index = INVALID_ID;
@@ -240,7 +241,7 @@ static void asset_system_release_internal(struct asset_system_state* state, cons
     }
 }
 
-void asset_system_release(struct asset_system_state* state, const char* name) {
+void asset_system_release(struct asset_system_state* state, kname name) {
     asset_system_release_internal(state, name, false);
 }
 
@@ -263,22 +264,22 @@ void asset_system_on_handler_result(struct asset_system_state* state, asset_requ
 
         } break;
         case ASSET_REQUEST_RESULT_INVALID_PACKAGE:
-            KERROR("Asset '%s' load failed: An invalid package was specified.", asset->meta.name.fully_qualified_name);
+            KERROR("Asset '%s' load failed: An invalid package was specified.", kname_string_get(asset->meta.name));
             break;
         case ASSET_REQUEST_RESULT_INVALID_NAME:
-            KERROR("Asset '%s' load failed: An invalid asset name was specified.", asset->meta.name.fully_qualified_name);
+            KERROR("Asset '%s' load failed: An invalid asset name was specified.", kname_string_get(asset->meta.name));
             break;
         case ASSET_REQUEST_RESULT_INVALID_ASSET_TYPE:
-            KERROR("Asset '%s' load failed: An invalid asset type was specified.", asset->meta.name.fully_qualified_name);
+            KERROR("Asset '%s' load failed: An invalid asset type was specified.", kname_string_get(asset->meta.name));
             break;
         case ASSET_REQUEST_RESULT_PARSE_FAILED:
-            KERROR("Asset '%s' load failed: The parsing stage of the asset load failed.", asset->meta.name.fully_qualified_name);
+            KERROR("Asset '%s' load failed: The parsing stage of the asset load failed.", kname_string_get(asset->meta.name));
             break;
         case ASSET_REQUEST_RESULT_GPU_UPLOAD_FAILED:
-            KERROR("Asset '%s' load failed: The GPU-upload stage of the asset load failed.", asset->meta.name.fully_qualified_name);
+            KERROR("Asset '%s' load failed: The GPU-upload stage of the asset load failed.", kname_string_get(asset->meta.name));
             break;
         default:
-            KERROR("Asset '%s' load failed: An unspecified error has occurred.", asset->meta.name.fully_qualified_name);
+            KERROR("Asset '%s' load failed: An unspecified error has occurred.", kname_string_get(asset->meta.name));
             break;
         }
     }
