@@ -1,0 +1,64 @@
+version = 1
+depth_test = true
+depth_write = true
+
+stages = [
+    {
+        type = "vertex"
+        source_asset_name = "Pick_StaticMesh_vert"
+        package_name = "Runtime"
+    }
+    {
+        type = "fragment"
+        source_asset_name = "Pick_StaticMesh_frag"
+        package_name = "Runtime"
+    }
+]
+
+attributes = [
+    {
+        name = "in_position"
+        type = "vec3"
+    }
+    {
+        name = "in_normal"
+        type = "vec3"
+    }
+    {
+        name = "in_texcoord"
+        type = "vec2"
+    }
+    {
+        name = "in_colour"
+        type = "vec4"
+    }
+    {
+        name = "in_tangent"
+        type = "vec3"
+    }
+]
+
+uniforms = {
+    global = [
+        {
+            name = "projection"
+            type = "mat4"
+        }
+        {
+            name = "view"
+            type = "mat4"
+        }
+    ]
+    instance = [
+        {
+            name = "id_colour"
+            type = "vec3"
+        }
+    ]
+    local = [
+        {
+            name = "model"
+            type = "mat4"
+        }
+    ]
+}

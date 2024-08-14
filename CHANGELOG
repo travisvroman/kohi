@@ -20,6 +20,9 @@ Changelog
   - Split off responsibility of resources to only be resources used in rendering/the world, versus assets which are loaded from disk/package.
   - Added `kson_object_create()` and `kson_array_create()` to enhance the KSON API's usability.
   - Added gets/sets to kson for mat4, vec4/3/2 types to enhance the KSON API's usability.
+  - Added kname system, a system used to hash strings (to u64) for faster comparisons. Strings and thier hashes are stored in a global lookup table for reuse. These should be used 
+    for any "named" item in Kohi, such as assets or resources.
+  - Added u64_bst (Binary Search Tree) structure. Primarily for use with knames, but could be used for any u64-keyed data.
 
 - 0.7.1
   - Fixed window resizing issues in macOS

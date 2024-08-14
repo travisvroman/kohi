@@ -43,6 +43,8 @@ While the highest effort is made to reduce dependencies, each platform has thing
 
 ### Prerequisites for Windows
 
+NOTE: This project _does not_ work under WSL, nor will it in the forseeable future. Don't bother trying it. Even if you do get it working, it won't be supported.
+
 - Make for Windows: https://gnuwin32.sourceforge.net/packages/make.htm (Yes, the last update was in 2006. But if ain't broke, why fix it?)
 - Visual Studio Community (acts as backend for clang), 2019+ is fine: https://visualstudio.microsoft.com/vs/community/
 - Git for Windows: https://gitforwindows.org/

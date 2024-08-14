@@ -352,32 +352,11 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
         return false;
     }
 
-    if (!filesystem_exists(path)) {
-        KERROR("File does not exist '%s'.", path);
-        return false;
-    }
-
-    file_handle f;
-    if (!filesystem_open(path, FILE_MODE_READ, false, &f)) {
+    b8 success = false;
+    const char* file_content = filesystem_read_entire_text_file(path);
+    if (!file_content) {
         KERROR("Failed to load asset manifest '%s'.", path);
         return false;
-    }
-
-    b8 success = false;
-    const char* package_name = 0;
-
-    u64 size = 0;
-    char* file_content = 0;
-    if (!filesystem_size(&f, &size) || size == 0) {
-        KERROR("Failed to get system file size.");
-        goto kpackage_parse_cleanup;
-    }
-
-    file_content = kallocate(size + 1, MEMORY_TAG_STRING);
-    u64 out_size = 0;
-    if (!filesystem_read_all_text(&f, file_content, &out_size)) {
-        KERROR("Failed to read all text for asset manifest '%s'.", path);
-        goto kpackage_parse_cleanup;
     }
 
     // Parse manifest
@@ -388,11 +367,10 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
     }
 
     // Extract properties from file.
-    if (!kson_object_property_value_get_string(&tree.root, "package_name", &package_name)) {
+    if (!kson_object_property_value_get_kname(&tree.root, "package_name", &out_manifest->name)) {
         KERROR("Asset manifest format - 'package_name' is required but not found.");
         goto kpackage_parse_cleanup;
     }
-    out_manifest->name = kname_create(package_name);
 
     // Process references.
     kson_array references = {0};
@@ -487,10 +465,6 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
 
     success = true;
 kpackage_parse_cleanup:
-    if (package_name) {
-        string_free(package_name);
-    }
-    filesystem_close(&f);
     if (file_content) {
         string_free(file_content);
     }

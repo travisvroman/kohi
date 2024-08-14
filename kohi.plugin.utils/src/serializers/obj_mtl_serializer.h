@@ -24,8 +24,10 @@ typedef enum obj_texture_map_channel {
 } obj_texture_map_channel;
 
 typedef struct obj_mtl_source_texture_map {
-    const char* name;
-    const char* image_asset_name;
+    // Name of the texture map.
+    kname name;
+    // Name of the image asset.
+    kname image_asset_name;
     // The texture channel to be used.
     obj_texture_map_channel channel;
     texture_filter filter_min;
@@ -36,7 +38,7 @@ typedef struct obj_mtl_source_texture_map {
 } obj_mtl_source_texture_map;
 
 typedef struct obj_mtl_source_property {
-    const char* name;
+    kname name;
     shader_uniform_type type;
     u32 size;
     union {
@@ -56,7 +58,7 @@ typedef struct obj_mtl_source_property {
 
 typedef struct obj_mtl_source_material {
     // Name of the material.
-    const char* name;
+    kname name;
     // Material type.
     kmaterial_type type;
     // Texture maps

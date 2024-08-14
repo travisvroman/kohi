@@ -4,7 +4,9 @@
 #include "containers/darray.h"
 #include "core_render_types.h"
 #include "logger.h"
+#include "math/kmath.h"
 #include "parsers/kson_parser.h"
+#include "strings/kname.h"
 #include "strings/kstring.h"
 #include "utils/render_type_utils.h"
 
@@ -27,7 +29,7 @@ const char* kasset_material_serialize(const kasset* asset) {
     kson_object_value_add_string(&tree.root, "type", kmaterial_type_to_string(material->type));
 
     // Material name
-    kson_object_value_add_string(&tree.root, "name", material->name);
+    kson_object_value_add_string(&tree.root, "name", kname_string_get(material->base.name));
 
     // Format version.
     kson_object_value_add_int(&tree.root, "version", MATERIAL_FILE_VERSION);
@@ -44,7 +46,7 @@ const char* kasset_material_serialize(const kasset* asset) {
             kson_object prop = {0};
             prop.type = KSON_OBJECT_TYPE_OBJECT;
 
-            kson_object_value_add_string(&prop, "name", p->name);
+            kson_object_value_add_string(&prop, "name", kname_string_get(p->name));
             kson_object_value_add_string(&prop, "type", shader_uniform_type_to_string(p->type));
 
             // Add value as string for vector types. Otherwise add as int or float.
@@ -126,11 +128,11 @@ const char* kasset_material_serialize(const kasset* asset) {
             kson_object map = {0};
             map.type = KSON_OBJECT_TYPE_OBJECT;
 
-            kson_object_value_add_string(&map, "name", m->name);
+            kson_object_value_add_string(&map, "name", kname_string_get(m->name));
 
             // Fully-qualified image asset name.
             if (m->image_asset_name) {
-                kson_object_value_add_string(&map, "image_asset_name", m->image_asset_name);
+                kson_object_value_add_string(&map, "image_asset_name", kname_string_get(m->image_asset_name));
             }
 
             // Filtering
@@ -181,10 +183,13 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
     kasset_material* out_material = (kasset_material*)out_asset;
 
     // Extract top-level properties first.
-    if (!kson_object_property_value_get_string(&tree.root, "name", &out_material->name)) {
+    const char* material_name_str = 0;
+    if (!kson_object_property_value_get_string(&tree.root, "name", &material_name_str)) {
         KERROR("failed to obtain name from material file, which is a required field.");
         goto cleanup;
     }
+    out_material->base.name = kname_create(material_name_str);
+    string_free(material_name_str);
 
     // Material type
     const char* type_str = 0;
@@ -228,22 +233,23 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
                         kasset_material_property p = {0};
 
                         // Name is required.
-                        if (!kson_object_property_value_get_string(&prop, "name", &p.name)) {
+                        const char* prop_name_str = 0;
+                        if (!kson_object_property_value_get_string(&prop, "name", &prop_name_str)) {
                             KWARN("Material property has no name, but is required. Skipping property.");
                             continue;
                         }
+                        p.name = kname_create(prop_name_str);
+                        string_free(prop_name_str);
 
                         // Type is required.
                         const char* prop_type_str = 0;
                         if (!kson_object_property_value_get_string(&prop, "type", &prop_type_str)) {
                             KWARN("Material property has no type, but is required. Skipping property.");
-                            if (p.name) {
-                                string_free(p.name);
-                            }
                             continue;
                         }
                         // Convert type string into type.
                         p.type = string_to_shader_uniform_type(prop_type_str);
+                        string_free(prop_type_str);
 
                         // NOTE: Value is optional. Attempt parsing if it is there.
                         i64 i_value = 0;
@@ -252,32 +258,28 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
                             kson_object_property_value_get_float(&prop, "value", &p.value.f32);
                             break;
                         case SHADER_UNIFORM_TYPE_FLOAT32_2: {
-                            const char* value_str = 0;
-                            if (kson_object_property_value_get_string(&prop, "value", &value_str)) {
-                                string_to_vec2(value_str, &p.value.v2);
+                            if (!kson_object_property_value_get_vec2(&prop, "value", &p.value.v2)) {
+                                KWARN("Failed to extract vec2 from property. Defaulting to vec2_zero.");
+                                p.value.v2 = vec2_zero();
                             }
-                            string_free(value_str);
                         } break;
                         case SHADER_UNIFORM_TYPE_FLOAT32_3: {
-                            const char* value_str = 0;
-                            if (kson_object_property_value_get_string(&prop, "value", &value_str)) {
-                                string_to_vec3(value_str, &p.value.v3);
+                            if (!kson_object_property_value_get_vec3(&prop, "value", &p.value.v3)) {
+                                KWARN("Failed to extract vec3 from property. Defaulting to vec3_zero.");
+                                p.value.v3 = vec3_zero();
                             }
-                            string_free(value_str);
                         } break;
                         case SHADER_UNIFORM_TYPE_FLOAT32_4: {
-                            const char* value_str = 0;
-                            if (kson_object_property_value_get_string(&prop, "value", &value_str)) {
-                                string_to_vec4(value_str, &p.value.v4);
+                            if (!kson_object_property_value_get_vec4(&prop, "value", &p.value.v4)) {
+                                KWARN("Failed to extract vec4 from property. Defaulting to vec4_zero.");
+                                p.value.v4 = vec4_zero();
                             }
-                            string_free(value_str);
                         } break;
                         case SHADER_UNIFORM_TYPE_MATRIX_4: {
-                            const char* value_str = 0;
-                            if (kson_object_property_value_get_string(&prop, "value", &value_str)) {
-                                string_to_mat4(value_str, &p.value.mat4);
+                            if (!kson_object_property_value_get_mat4(&prop, "value", &p.value.mat4)) {
+                                KWARN("Failed to extract mat4 from property. Defaulting to mat4_identity.");
+                                p.value.mat4 = mat4_identity();
                             }
-                            string_free(value_str);
                         } break;
                         case SHADER_UNIFORM_TYPE_UINT32:
                             if (kson_object_property_value_get_int(&prop, "value", &i_value)) {
@@ -344,30 +346,27 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
                         kasset_material_map m = {0};
 
                         // name
-                        if (!kson_object_property_value_get_string(&map, "channel", &m.name)) {
+                        const char* map_name_str = 0;
+                        if (!kson_object_property_value_get_string(&map, "channel", &map_name_str)) {
                             KERROR("name, a required map field, was not found. Skipping map.");
                             continue;
                         }
+                        m.name = kname_create(map_name_str);
+                        string_free(map_name_str);
 
                         // image_asset_name
-                        if (!kson_object_property_value_get_string(&map, "image_asset_name", &m.image_asset_name)) {
+                        const char* image_asset_name_str = 0;
+                        if (!kson_object_property_value_get_string(&map, "image_asset_name", &image_asset_name_str)) {
                             KERROR("image_asset_name, a required map field, was not found. Skipping map.");
-                            if (m.name) {
-                                string_free(m.name);
-                            }
                             continue;
                         }
+                        m.image_asset_name = kname_create(image_asset_name_str);
+                        string_free(image_asset_name_str);
 
                         // channel
                         const char* channel_str = 0;
                         if (!kson_object_property_value_get_string(&map, "channel", &channel_str)) {
                             KERROR("channel, a required map field, was not found. Skipping map.");
-                            if (m.name) {
-                                string_free(m.name);
-                            }
-                            if (m.image_asset_name) {
-                                string_free(m.name);
-                            }
                             continue;
                         }
                         m.channel = string_to_material_map_channel(channel_str);

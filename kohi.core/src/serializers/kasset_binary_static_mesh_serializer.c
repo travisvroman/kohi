@@ -4,6 +4,7 @@
 #include "containers/darray.h"
 #include "logger.h"
 #include "memory/kmemory.h"
+#include "strings/kname.h"
 #include "strings/kstring.h"
 
 typedef struct binary_static_mesh_header {
@@ -62,12 +63,14 @@ KAPI void* kasset_binary_static_mesh_serialize(const kasset* asset, u64* out_siz
 
         // Name + null terminator.
         if (g->name) {
-            u64 len = string_length(g->name + 1);
+            const char* gname = kname_string_get(g->name);
+            u64 len = string_length(gname + 1);
             header.base.data_block_size += len;
         }
 
         if (g->material_asset_name) {
-            u64 len = string_length(g->material_asset_name) + 1;
+            const char* gmat_asset_name = kname_string_get(g->material_asset_name);
+            u64 len = string_length(gmat_asset_name) + 1;
             header.base.data_block_size += len;
         }
 
@@ -129,14 +132,16 @@ KAPI void* kasset_binary_static_mesh_serialize(const kasset* asset, u64* out_siz
 
         // Name + null terminator.
         if (g->name) {
-            u64 len = string_length(g->name + 1);
-            kcopy_memory(block + offset, g->name, len);
+            const char* str = kname_string_get(g->name);
+            u64 len = string_length(str + 1);
+            kcopy_memory(block + offset, str, len);
             offset += len;
         }
 
         if (g->material_asset_name) {
-            u64 len = string_length(g->material_asset_name) + 1;
-            kcopy_memory(block + offset, g->material_asset_name, len);
+            const char* str = kname_string_get(g->material_asset_name);
+            u64 len = string_length(str) + 1;
+            kcopy_memory(block + offset, str, len);
             offset += len;
         }
 

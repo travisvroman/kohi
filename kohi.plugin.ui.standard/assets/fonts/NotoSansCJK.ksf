@@ -1,6 +1,7 @@
 // Font configuration file
 version=1
-ttf_asset_name="Fonts/NotoSansCJK-Regular"
+ttf_asset_name="NotoSansCJK-Regular"
+ttf_asset_package_name = "PluginUiStandard"
 // Font faces provide names for each index, which are loaded into a lookup table.
 // Doing this because the way names are stored in the file can vary wildly and be 
 // somewhat unpredictable, if even provided in the first place.

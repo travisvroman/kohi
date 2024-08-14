@@ -110,7 +110,7 @@ KAPI void vfs_shutdown(vfs_state* state);
  * @brief Requests an asset from the VFS, issuing the callback when complete. This call is asynchronous.
  *
  * @param state A pointer to the system state. Required.
- * @param package_name The package name to request from.
+ * @param package_name The package name to request from. If INVALID_KNAME is provided, all packages are searched until an asset with a matching name is found (the first result is returned).
  * @param asset_name The name of the asset to request.
  * @param is_binary Indicates if the asset is binary. Otherwise is loaded as text.
  * @param get_source Indicates if the VFS should try to retrieve the source asset instead of the primary one if it exists.

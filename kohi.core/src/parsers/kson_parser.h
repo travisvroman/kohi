@@ -3,6 +3,7 @@
 
 #include "defines.h"
 #include "math/math_types.h"
+#include "strings/kname.h"
 
 typedef enum kson_token_type {
     KSON_TOKEN_TYPE_UNKNOWN,
@@ -248,6 +249,15 @@ KAPI b8 kson_array_value_add_vec3(kson_array* array, vec3 value);
 KAPI b8 kson_array_value_add_vec2(kson_array* array, vec2 value);
 
 /**
+ * @brief Adds an unnamed kname value to the provided array.
+ *
+ * @param array A pointer to the array to add the property to.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_value_add_kname(kson_array* array, kname value);
+
+/**
  * @brief Adds an unnamed object value to the provided array.
  *
  * @param array A pointer to the array to add the property to.
@@ -362,6 +372,16 @@ KAPI b8 kson_object_value_add_vec3(kson_object* object, const char* name, vec3 v
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_object_value_add_vec2(kson_object* object, const char* name, vec2 value);
+
+/**
+ * @brief Adds a named kname value to the provided object.
+ *
+ * @param object A pointer to the object to add the property to.
+ * @param name A constant pointer to the name to be used. Required.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_value_add_kname(kson_object* object, const char* name, kname value);
 
 /**
  * @brief Adds a named object value to the provided object.
@@ -509,6 +529,17 @@ KAPI b8 kson_array_element_value_get_vec3(const kson_array* array, u32 index, ve
 KAPI b8 kson_array_element_value_get_vec2(const kson_array* array, u32 index, vec2* out_value);
 
 /**
+ * @brief Attempts to retrieve the array element's value at the provided index as a kname. Fails if out of range
+ * or on type mismatch. knames are always stored as strings.
+ *
+ * @param array A constant pointer to the array to search. Required.
+ * @param index The array index to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_element_value_get_kname(const kson_array* array, u32 index, kname* out_value);
+
+/**
  * @brief Attempts to retrieve the array element's value at the provided index as an object. Fails if out of range.
  * or on type mismatch.
  *
@@ -625,6 +656,17 @@ KAPI b8 kson_object_property_value_get_vec3(const kson_object* object, const cha
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_object_property_value_get_vec2(const kson_object* object, const char* name, vec2* out_value);
+
+/**
+ * @brief Attempts to retrieve the given object's property value by name as a kname. Fails if not found
+ * or on type mismatch. knames are always stored as thier original text format.
+ *
+ * @param A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_kname(const kson_object* object, const char* name, kname* out_value);
 
 /**
  * @brief Attempts to retrieve the given object's property value by name as an object. Fails if not found

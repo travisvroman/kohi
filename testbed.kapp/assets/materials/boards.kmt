@@ -14,7 +14,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.boards_and_planks_bc
+texture_name=boards_and_planks_bc
 [/map]
 
 [map]
@@ -24,7 +24,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.boards_and_planks_roughness
+texture_name=boards_and_planks_roughness
 [/map]
 
 [map]
@@ -34,7 +34,7 @@ filter_mag=linear
 repeat_v=repeat
 repeat_u=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.boards_and_planks_n
+texture_name=boards_and_planks_n
 [/map]
 
 [prop]

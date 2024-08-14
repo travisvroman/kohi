@@ -12,7 +12,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.falc_wreck_low_DefaultMaterial_AlbedoTransparency
+texture_name=falc_wreck_low_DefaultMaterial_AlbedoTransparency
 [/map]
 
 [map]
@@ -22,7 +22,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.falc_wreck_low_DefaultMaterial_combined
+texture_name=falc_wreck_low_DefaultMaterial_combined
 [/map]
 
 [map]
@@ -32,7 +32,7 @@ filter_mag=linear
 repeat_v=repeat
 repeat_u=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.falc_wreck_low_DefaultMaterial_Normal
+texture_name=falc_wreck_low_DefaultMaterial_Normal
 [/map]
 
 [prop]

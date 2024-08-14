@@ -9,7 +9,7 @@ assets = [
     {
         name = "UI"
         type = "Shader"
-        path = "./assets/shaders/UI.shadercfg"
+        path = "./assets/shaders/UI.ksc"
     }
     {
         name = "UI_frag"
@@ -24,7 +24,7 @@ assets = [
     {
         name = "Pick_UI"
         type = "Shader"
-        path = "./assets/shaders/Pick_UI.shadercfg"
+        path = "./assets/shaders/Pick_UI.ksc"
     }
     {
         name = "Pick_UI_frag"
@@ -39,7 +39,8 @@ assets = [
     {
         name = "StandardUIAtlas"
         type = "Texture"
-        path = "./assets/textures/StandardUIAtlas.png"
+        path = "./assets/textures/StandardUIAtlas.kbi"
+        source_path = "./assets/textures/StandardUIAtlas.png"
     }
     {
         name = "NotoSans21px"
@@ -49,7 +50,8 @@ assets = [
     {
         name = "NotoSans21px_0"
         type = "Texture"
-        path = "./assets/textures/NotoSans21px_0.png"
+        path = "./assets/textures/NotoSans21px_0.kbi"
+        source_path = "./assets/textures/NotoSans21px_0.png"
     }
     {
         name = "UbuntuMono21px"
@@ -59,12 +61,13 @@ assets = [
     {
         name = "UbuntuMono21px_0"
         type = "Texture"
-        path = "./assets/textures/UbuntuMono21px_0.png"
+        path = "./assets/textures/UbuntuMono21px_0.kbi"
+        source_path = "./assets/textures/UbuntuMono21px_0.png"
     }
     {
         name = "NotoSansCJK"
         type = "SystemFont"
-        path = "./assets/fonts/NotoSansCJK.fontcfg"
+        path = "./assets/fonts/NotoSansCJK.ksf"
     }
     {
         name = "NotoSansCJK-Regular"
@@ -74,15 +77,11 @@ assets = [
     {
         name = "UbuntuMono"
         type = "SystemFont"
-        path = "./assets/fonts/UbuntuMono.fontcfg"
+        path = "./assets/fonts/UbuntuMono.ksf"
     }
     {
         name = "UbuntuMono-R"
         type = "Binary"
         path = "./assets/textures/UbuntuMono-R.ttf"
-    }
-    // TODO: Reference to an asset in another package?
-    {
-        reference = "Runtime.Binary.UbuntuMono-R"
     }
 ]

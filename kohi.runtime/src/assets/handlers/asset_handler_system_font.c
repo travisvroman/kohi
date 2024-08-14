@@ -1,5 +1,6 @@
 #include "asset_handler_system_font.h"
 #include "assets/kasset_types.h"
+#include "strings/kname.h"
 
 #include <assets/asset_handler_types.h>
 #include <assets/kasset_utils.h>
@@ -13,12 +14,13 @@
 #include <serializers/kasset_system_font_serializer.h>
 #include <strings/kstring.h>
 
-static void asset_handler_system_font_on_asset_loaded(struct vfs_state* vfs, const char* name, vfs_asset_data asset_data);
+static void asset_handler_system_font_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data asset_data);
 
 void asset_handler_system_font_create(struct asset_handler* self, struct vfs_state* vfs) {
     KASSERT_MSG(self && vfs, "Valid pointers are required for 'self' and 'vfs'.");
 
     self->vfs = vfs;
+    self->is_binary = false;
     self->request_asset = asset_handler_system_font_request_asset;
     self->release_asset = asset_handler_system_font_release_asset;
     self->type = KASSET_TYPE_SYSTEM_FONT;
@@ -30,7 +32,6 @@ void asset_handler_system_font_create(struct asset_handler* self, struct vfs_sta
 }
 
 void asset_handler_system_font_request_asset(struct asset_handler* self, struct kasset* asset, void* listener_instance, PFN_kasset_on_result user_callback) {
-    struct vfs_state* vfs_state = engine_systems_get()->vfs_system_state;
     // Create and pass along a context.
     // NOTE: The VFS takes a copy of this context, so the lifecycle doesn't matter.
     asset_handler_request_context context = {0};
@@ -38,30 +39,19 @@ void asset_handler_system_font_request_asset(struct asset_handler* self, struct 
     context.handler = self;
     context.listener_instance = listener_instance;
     context.user_callback = user_callback;
-    vfs_request_asset(vfs_state, &asset->meta, false, false, sizeof(asset_handler_request_context), &context, asset_handler_system_font_on_asset_loaded);
+    vfs_request_asset(self->vfs, asset->name, asset->package_name, false, false, sizeof(asset_handler_request_context), &context, asset_handler_system_font_on_asset_loaded);
 }
 
 void asset_handler_system_font_release_asset(struct asset_handler* self, struct kasset* asset) {
     kasset_system_font* typed_asset = (kasset_system_font*)asset;
-    if (typed_asset->ttf_asset_name) {
-        string_free(typed_asset->ttf_asset_name);
-        typed_asset->ttf_asset_name = 0;
-    }
     if (typed_asset->face_count && typed_asset->faces) {
-        for (u32 i = 0; i < typed_asset->face_count; ++i) {
-            const char* face_name = typed_asset->faces[i].name;
-            if (face_name) {
-                string_free(face_name);
-                face_name = 0;
-            }
-        }
         kfree(typed_asset->faces, sizeof(const char*) * typed_asset->face_count, MEMORY_TAG_ARRAY);
         typed_asset->faces = 0;
         typed_asset->face_count = 0;
     }
 }
 
-static void asset_handler_system_font_on_asset_loaded(struct vfs_state* vfs, const char* name, vfs_asset_data asset_data) {
+static void asset_handler_system_font_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data asset_data) {
     /* asset_handler_base_on_asset_loaded(vfs, name, asset_data); */
 
     // This handler requires context.
@@ -111,13 +101,54 @@ static void asset_handler_system_font_on_asset_loaded(struct vfs_state* vfs, con
                 }
             }
         }
-        // Load the ttf_asset_name (aka the font binary file)
-        vfs_asset_data font_file_data = {0};
-        kasset_metadata meta = {0};
-        kasset_system_font* typed_asset = (kasset_system_font*)context.asset;
-        // FIXME: Change away from names like this to just use the name provided.
-        kasset_util_parse_name(string_format("Runtime.Binary.%s", typed_asset->ttf_asset_name), &meta.name);
-        vfs_request_asset_sync(vfs, &context.asset->meta, true, false, 0, 0, &font_file_data);
+
+        // If successful thus far, attempt to load the font binary.
+        if (result == ASSET_REQUEST_RESULT_SUCCESS) {
+
+            // Load the ttf_asset_name (aka the font binary file)
+            vfs_asset_data font_file_data = {0};
+            kasset_system_font* typed_asset = (kasset_system_font*)context.asset;
+            // Request the asset synchronously.
+            vfs_request_asset_sync(vfs, typed_asset->ttf_asset_name, context.asset->package_name, true, false, 0, 0, &font_file_data);
+            if (font_file_data.result == VFS_REQUEST_RESULT_SUCCESS) {
+                // Take a copy of the font binary data.
+                typed_asset->font_binary_size = font_file_data.size;
+                typed_asset->font_binary = kallocate(typed_asset->font_binary_size, MEMORY_TAG_ASSET);
+                kcopy_memory(typed_asset->font_binary, font_file_data.bytes, font_file_data.size);
+
+            } else {
+                // NOTE: This could mean the asset doesn't exist in this package. Try all others by sending INVALID_KNAME as the package name.
+                vfs_request_asset_sync(vfs, typed_asset->ttf_asset_name, INVALID_KNAME, true, false, 0, 0, &font_file_data);
+
+                // If it was found, take a copy of the data.
+                if (font_file_data.result == VFS_REQUEST_RESULT_SUCCESS) {
+                    // Take a copy of the font binary data.
+                    typed_asset->font_binary_size = font_file_data.size;
+                    typed_asset->font_binary = kallocate(typed_asset->font_binary_size, MEMORY_TAG_ASSET);
+                    kcopy_memory(typed_asset->font_binary, font_file_data.bytes, font_file_data.size);
+                    // Warn so that it's obvious where this came from in the case that it's wrong.
+                    KWARN(
+                        "The dependent asset '%s' was not found in package '%s', but WAS found in package '%s'.",
+                        kname_string_get(typed_asset->ttf_asset_name),
+                        kname_string_get(context.asset->package_name),
+                        kname_string_get(font_file_data.package_name));
+                    // Update the package name.
+                    context.asset->package_name = font_file_data.package_name;
+
+                } else {
+                    // If it _still_ isn't found, then there really is nothing to do.
+                    KERROR("Failed to read system font binary data. Asset load failed.");
+                    result = ASSET_REQUEST_RESULT_VFS_REQUEST_FAILED;
+                }
+            }
+
+            // Release VFS asset.
+            if (font_file_data.bytes && font_file_data.size) {
+                kfree((void*)font_file_data.bytes, font_file_data.size, MEMORY_TAG_ASSET);
+                font_file_data.bytes = 0;
+                font_file_data.size = 0;
+            }
+        }
 
         // Send over the result.
         context.user_callback(result, context.asset, context.listener_instance);

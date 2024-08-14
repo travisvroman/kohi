@@ -11,7 +11,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.sponza_thorn_diff
+texture_name=sponza_thorn_diff
 [/map]
 
 [map]
@@ -21,7 +21,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.sponza_thorn_combined
+texture_name=sponza_thorn_combined
 [/map]
 
 [map]
@@ -31,7 +31,7 @@ filter_mag=linear
 repeat_v=repeat
 repeat_u=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.sponza_thorn_ddn
+texture_name=sponza_thorn_ddn
 [/map]
 
 [prop]

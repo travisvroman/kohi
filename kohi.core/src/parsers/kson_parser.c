@@ -5,6 +5,7 @@
 #include "debug/kassert.h"
 #include "logger.h"
 #include "memory/kmemory.h"
+#include "strings/kname.h"
 #include "strings/kstring.h"
 
 b8 kson_parser_create(kson_parser* out_parser) {
@@ -1146,7 +1147,7 @@ b8 kson_array_value_add_string(kson_array* array, const char* value) {
 b8 kson_array_value_add_mat4(kson_array* array, mat4 value) {
     const char* temp_str = mat4_to_string(value);
     if (!temp_str) {
-        KWARN("kson_array_value_add_mat4 failed to convert tile_scale to string.");
+        KWARN("kson_array_value_add_mat4 failed to convert value to string.");
         return false;
     }
     b8 result = kson_array_value_add_string(array, temp_str);
@@ -1157,7 +1158,7 @@ b8 kson_array_value_add_mat4(kson_array* array, mat4 value) {
 b8 kson_array_value_add_vec4(kson_array* array, vec4 value) {
     const char* temp_str = vec4_to_string(value);
     if (!temp_str) {
-        KWARN("kson_array_value_add_vec4 failed to convert tile_scale to string.");
+        KWARN("kson_array_value_add_vec4 failed to convert value to string.");
         return false;
     }
     b8 result = kson_array_value_add_string(array, temp_str);
@@ -1168,7 +1169,7 @@ b8 kson_array_value_add_vec4(kson_array* array, vec4 value) {
 b8 kson_array_value_add_vec3(kson_array* array, vec3 value) {
     const char* temp_str = vec3_to_string(value);
     if (!temp_str) {
-        KWARN("kson_array_value_add_vec3 failed to convert tile_scale to string.");
+        KWARN("kson_array_value_add_vec3 failed to convert value to string.");
         return false;
     }
     b8 result = kson_array_value_add_string(array, temp_str);
@@ -1179,11 +1180,21 @@ b8 kson_array_value_add_vec3(kson_array* array, vec3 value) {
 b8 kson_array_value_add_vec2(kson_array* array, vec2 value) {
     const char* temp_str = vec2_to_string(value);
     if (!temp_str) {
-        KWARN("kson_array_value_add_vec2 failed to convert tile_scale to string.");
+        KWARN("kson_array_value_add_vec2 failed to convert value to string.");
         return false;
     }
     b8 result = kson_array_value_add_string(array, temp_str);
     string_free(temp_str);
+    return result;
+}
+
+b8 kson_array_value_add_kname(kson_array* array, kname value) {
+    const char* temp_str = kname_string_get(value);
+    if (!temp_str) {
+        KWARN("kson_array_value_add_kname failed to convert value to string.");
+        return false;
+    }
+    b8 result = kson_array_value_add_string(array, temp_str);
     return result;
 }
 
@@ -1261,7 +1272,7 @@ b8 kson_object_value_add_string(kson_object* object, const char* name, const cha
 b8 kson_object_value_add_mat4(kson_object* object, const char* name, mat4 value) {
     const char* temp_str = mat4_to_string(value);
     if (!temp_str) {
-        KWARN("kson_object_value_add_mat4 failed to convert tile_scale to string.");
+        KWARN("kson_object_value_add_mat4 failed to convert value to string.");
         return false;
     }
     b8 result = kson_object_value_add_string(object, name, temp_str);
@@ -1272,7 +1283,7 @@ b8 kson_object_value_add_mat4(kson_object* object, const char* name, mat4 value)
 b8 kson_object_value_add_vec4(kson_object* object, const char* name, vec4 value) {
     const char* temp_str = vec4_to_string(value);
     if (!temp_str) {
-        KWARN("kson_object_value_add_vec4 failed to convert tile_scale to string.");
+        KWARN("kson_object_value_add_vec4 failed to convert value to string.");
         return false;
     }
     b8 result = kson_object_value_add_string(object, name, temp_str);
@@ -1283,7 +1294,7 @@ b8 kson_object_value_add_vec4(kson_object* object, const char* name, vec4 value)
 b8 kson_object_value_add_vec3(kson_object* object, const char* name, vec3 value) {
     const char* temp_str = vec3_to_string(value);
     if (!temp_str) {
-        KWARN("kson_object_value_add_vec3 failed to convert tile_scale to string.");
+        KWARN("kson_object_value_add_vec3 failed to convert value to string.");
         return false;
     }
     b8 result = kson_object_value_add_string(object, name, temp_str);
@@ -1294,11 +1305,21 @@ b8 kson_object_value_add_vec3(kson_object* object, const char* name, vec3 value)
 b8 kson_object_value_add_vec2(kson_object* object, const char* name, vec2 value) {
     const char* temp_str = vec2_to_string(value);
     if (!temp_str) {
-        KWARN("kson_object_value_add_vec2 failed to convert tile_scale to string.");
+        KWARN("kson_object_value_add_vec2 failed to convert value to string.");
         return false;
     }
     b8 result = kson_object_value_add_string(object, name, temp_str);
     string_free(temp_str);
+    return result;
+}
+
+b8 kson_object_value_add_kname(kson_object* object, const char* name, kname value) {
+    const char* temp_str = kname_string_get(value);
+    if (!temp_str) {
+        KWARN("kson_object_value_add_kname failed to convert value to string.");
+        return false;
+    }
+    b8 result = kson_object_value_add_string(object, name, temp_str);
     return result;
 }
 
@@ -1477,6 +1498,18 @@ b8 kson_array_element_value_get_vec2(const kson_array* array, u32 index, vec2* o
 
     const char* str = array->properties[index].value.s;
     return string_to_vec2(str, out_value);
+}
+
+b8 kson_array_element_value_get_kname(const kson_array* array, u32 index, kname* out_value) {
+    if (!out_value || !kson_array_index_in_range(array, index)) {
+        return false;
+    }
+
+    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
+
+    const char* str = array->properties[index].value.s;
+    *out_value = kname_create(str);
+    return true;
 }
 
 b8 kson_array_element_value_get_object(const kson_array* array, u32 index, kson_object* out_value) {
@@ -1701,6 +1734,16 @@ b8 kson_object_property_value_get_vec2(const kson_object* object, const char* na
 
     const char* str = kson_object_property_value_get_string_reference(object, name, "vec2");
     return string_to_vec2(str, out_value);
+}
+
+b8 kson_object_property_value_get_kname(const kson_object* object, const char* name, kname* out_value) {
+    if (!out_value) {
+        return false;
+    }
+
+    const char* str = kson_object_property_value_get_string_reference(object, name, "kname");
+    *out_value = kname_create(str);
+    return true;
 }
 
 b8 kson_object_property_value_get_object(const kson_object* object, const char* name, kson_object* out_value) {

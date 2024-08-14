@@ -11,19 +11,19 @@
 #include "assets/handlers/asset_handler_static_mesh.h"
 #include "assets/handlers/asset_handler_system_font.h"
 #include "assets/handlers/asset_handler_text.h"
-#include "strings/kname.h"
 
 #include <assets/asset_handler_types.h>
 #include <assets/kasset_types.h>
 #include <assets/kasset_utils.h>
 #include <containers/darray.h>
-#include <containers/hashtable.h>
+#include <containers/u64_bst.h>
 #include <debug/kassert.h>
 #include <defines.h>
 #include <identifiers/identifier.h>
 #include <logger.h>
 #include <memory/kmemory.h>
 #include <parsers/kson_parser.h>
+#include <strings/kname.h>
 #include <strings/kstring.h>
 
 typedef struct asset_lookup {
@@ -36,21 +36,20 @@ typedef struct asset_lookup {
 } asset_lookup;
 
 typedef struct asset_system_state {
+    vfs_state* vfs;
     // Max number of assets that can be loaded at any given time.
     u32 max_asset_count;
     // An array of lookups which contain reference and release data.
     asset_lookup* lookups;
-    // hashtable to find lookups by name.
-    hashtable lookup_table;
-    // Block of memory for the lookup hashtable.
-    void* lookup_table_block;
+    // A BST to use for lookups of assets by name.
+    bt_node* lookup_tree;
 
     // An array of handlers for various asset types.
     // TODO: This does not allow for user types, but for now this is fine.
     asset_handler handlers[KASSET_TYPE_MAX];
 } asset_system_state;
 
-static void asset_system_release_internal(struct asset_system_state* state, kname name, b8 force_release);
+static void asset_system_release_internal(struct asset_system_state* state, kname asset_name, kname package_name, b8 force_release);
 
 b8 asset_system_deserialize_config(const char* config_str, asset_system_config* out_config) {
     if (!config_str || !out_config) {
@@ -91,18 +90,10 @@ b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* s
 
     state->max_asset_count = config->max_asset_count;
 
-    // Asset lookup table.
+    // Asset lookup tree.
     {
-        state->lookups = kallocate(sizeof(asset_lookup) * state->max_asset_count, MEMORY_TAG_ARRAY);
-        state->lookup_table_block = kallocate(sizeof(u32) * state->max_asset_count, MEMORY_TAG_HASHTABLE);
-        hashtable_create(sizeof(u32), state->max_asset_count, state->lookup_table_block, false, &state->lookup_table);
-
-        // Invalidate all entries in the lookup table.
-        u32 invalid = INVALID_ID;
-        if (!hashtable_fill(&state->lookup_table, &invalid)) {
-            KERROR("asset_system_initialize: Failed to fill lookup table with invalid ids at init. Initialization failed.");
-            return false;
-        }
+        // NOTE: BST node created when first asset is requested.
+        state->lookup_tree = 0;
 
         // Invalidate all lookups.
         for (u32 i = 0; i < state->max_asset_count; ++i) {
@@ -110,19 +101,19 @@ b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* s
         }
     }
 
-    vfs_state* vfs = engine_systems_get()->vfs_system_state;
+    state->vfs = engine_systems_get()->vfs_system_state;
 
     // TODO: Setup handlers for known types.
-    asset_handler_heightmap_terrain_create(&state->handlers[KASSET_TYPE_HEIGHTMAP_TERRAIN], vfs);
-    asset_handler_image_create(&state->handlers[KASSET_TYPE_IMAGE], vfs);
-    asset_handler_static_mesh_create(&state->handlers[KASSET_TYPE_STATIC_MESH], vfs);
-    asset_handler_material_create(&state->handlers[KASSET_TYPE_MATERIAL], vfs);
-    asset_handler_text_create(&state->handlers[KASSET_TYPE_TEXT], vfs);
-    asset_handler_kson_create(&state->handlers[KASSET_TYPE_KSON], vfs);
-    asset_handler_binary_create(&state->handlers[KASSET_TYPE_BINARY], vfs);
-    asset_handler_scene_create(&state->handlers[KASSET_TYPE_SCENE], vfs);
-    asset_handler_shader_create(&state->handlers[KASSET_TYPE_SHADER], vfs);
-    asset_handler_system_font_create(&state->handlers[KASSET_TYPE_SYSTEM_FONT], vfs);
+    asset_handler_heightmap_terrain_create(&state->handlers[KASSET_TYPE_HEIGHTMAP_TERRAIN], state->vfs);
+    asset_handler_image_create(&state->handlers[KASSET_TYPE_IMAGE], state->vfs);
+    asset_handler_static_mesh_create(&state->handlers[KASSET_TYPE_STATIC_MESH], state->vfs);
+    asset_handler_material_create(&state->handlers[KASSET_TYPE_MATERIAL], state->vfs);
+    asset_handler_text_create(&state->handlers[KASSET_TYPE_TEXT], state->vfs);
+    asset_handler_kson_create(&state->handlers[KASSET_TYPE_KSON], state->vfs);
+    asset_handler_binary_create(&state->handlers[KASSET_TYPE_BINARY], state->vfs);
+    asset_handler_scene_create(&state->handlers[KASSET_TYPE_SCENE], state->vfs);
+    asset_handler_shader_create(&state->handlers[KASSET_TYPE_SHADER], state->vfs);
+    asset_handler_system_font_create(&state->handlers[KASSET_TYPE_SYSTEM_FONT], state->vfs);
 
     return true;
 }
@@ -135,16 +126,14 @@ void asset_system_shutdown(struct asset_system_state* state) {
                 asset_lookup* lookup = &state->lookups[i];
                 if (lookup->asset.id.uniqueid != INVALID_ID_U64) {
                     // Force release the asset.
-                    asset_system_release_internal(state, lookup->asset.meta.name.fully_qualified_name, true);
+                    asset_system_release_internal(state, lookup->asset.name, lookup->asset.package_name, true);
                 }
             }
             kfree(state->lookups, sizeof(asset_lookup) * state->max_asset_count, MEMORY_TAG_ARRAY);
         }
 
-        hashtable_destroy(&state->lookup_table);
-        if (state->lookup_table_block) {
-            kfree(state->lookup_table_block, sizeof(u32) * state->max_asset_count, MEMORY_TAG_HASHTABLE);
-        }
+        // Destroy the BST.
+        u64_bst_cleanup(state->lookup_tree);
 
         kzero_memory(state, sizeof(asset_system_state));
     }
@@ -154,7 +143,11 @@ void asset_system_request(struct asset_system_state* state, kasset_type type, kn
     KASSERT(state);
     // Lookup the asset by fully-qualified name.
     u32 lookup_index = INVALID_ID;
-    if (hashtable_get(&state->lookup_table, fully_qualified_name, &lookup_index) && lookup_index != INVALID_ID) {
+    const bt_node* node = u64_bst_find(state->lookup_tree, asset_name);
+    if (node) {
+        lookup_index = node->value.u32;
+    }
+    if (lookup_index != INVALID_ID) {
         // Valid entry found, increment the reference count and immediately make the callback.
         asset_lookup* lookup = &state->lookups[lookup_index];
         lookup->reference_count++;
@@ -169,23 +162,37 @@ void asset_system_request(struct asset_system_state* state, kasset_type type, kn
         for (u32 i = 0; i < state->max_asset_count; ++i) {
             asset_lookup* lookup = &state->lookups[i];
             if (lookup->asset.id.uniqueid == INVALID_ID_U64) {
-
-                if (!hashtable_set(&state->lookup_table, fully_qualified_name, &i)) {
-                    KERROR("asset_system_request was unable to set an entry into the lookup table for asset '%s'.", fully_qualified_name);
-                    callback(ASSET_REQUEST_RESULT_INTERNAL_FAILURE, 0, listener_instance);
-                    return;
+                bt_node_value v;
+                v.u32 = i;
+                bt_node* new_node = u64_bst_insert(state->lookup_tree, asset_name, v);
+                // Save as root if this is the first asset. Otherwise it'll be part of the tree automatically.
+                if (!state->lookup_tree) {
+                    state->lookup_tree = new_node;
                 }
 
                 // Found a free slot, setup the asset.
                 lookup->asset.id = identifier_create();
-                // Parse the asset name into parts.
-                kasset_util_parse_name(fully_qualified_name, &lookup->asset.meta.name);
 
                 // Get the appropriate asset handler for the type and request the asset.
                 asset_handler* handler = &state->handlers[lookup->asset.type];
                 if (!handler->request_asset) {
-                    KERROR("No handler setup for asset type %d, fully_qualified_name='%s'", lookup->asset.type, fully_qualified_name);
-                    callback(ASSET_REQUEST_RESULT_NO_HANDLER, 0, listener_instance);
+                    // If no request_asset function pointer exists, use a "default" vfs request.
+                    // Create and pass along a context.
+                    // NOTE: The VFS takes a copy of this context, so the lifecycle doesn't matter.
+                    asset_handler_request_context context = {0};
+                    context.asset = &lookup->asset;
+                    context.handler = handler;
+                    context.listener_instance = listener_instance;
+                    context.user_callback = callback;
+                    vfs_request_asset(
+                        state->vfs,
+                        lookup->asset.package_name,
+                        lookup->asset.name,
+                        handler->is_binary,
+                        false,
+                        sizeof(asset_handler_request_context),
+                        &context,
+                        asset_handler_base_on_asset_loaded);
                 } else {
                     // TODO: Jobify this call.
                     handler->request_asset(handler, &lookup->asset, listener_instance, callback);
@@ -200,11 +207,15 @@ void asset_system_request(struct asset_system_state* state, kasset_type type, kn
     }
 }
 
-static void asset_system_release_internal(struct asset_system_state* state, kname name, b8 force_release) {
+static void asset_system_release_internal(struct asset_system_state* state, kname asset_name, kname package_name, b8 force_release) {
     if (state) {
         // Lookup the asset by fully-qualified name.
         u32 lookup_index = INVALID_ID;
-        if (hashtable_get(&state->lookup_table, fully_qualified_name, &lookup_index) && lookup_index != INVALID_ID) {
+        const bt_node* node = u64_bst_find(state->lookup_tree, asset_name);
+        if (node) {
+            lookup_index = node->value.u32;
+        }
+        if (lookup_index != INVALID_ID) {
             // Valid entry found, decrement the reference count.
             asset_lookup* lookup = &state->lookups[lookup_index];
             lookup->reference_count--;
@@ -214,16 +225,11 @@ static void asset_system_release_internal(struct asset_system_state* state, knam
                 kasset_type type = asset->type;
                 asset_handler* handler = &state->handlers[type];
                 if (!handler->release_asset) {
-                    KWARN("No release setup on handler for asset type %d, fully_qualified_name='%s'", type, fully_qualified_name);
+                    KWARN("No release setup on handler for asset type %d, asset_name='%s', package_name='%s'", type, kname_string_get(asset_name), kname_string_get(package_name));
                 } else {
                     // Release the asset-specific data.
                     // TODO: Jobify this call.
                     handler->release_asset(handler, asset);
-                }
-
-                // Free the common asset properties
-                if (asset->meta.source_file_path) {
-                    string_free(asset->meta.source_file_path);
                 }
 
                 kzero_memory(asset, sizeof(kasset));
@@ -236,13 +242,13 @@ static void asset_system_release_internal(struct asset_system_state* state, knam
             }
         } else {
             // Entry not found, nothing to do.
-            KWARN("asset_system_release: Attempted to release asset '%s', which does not exist or is not already loaded. Nothing to do.", fully_qualified_name);
+            KWARN("asset_system_release: Attempted to release asset '%s' (package '%s'), which does not exist or is not already loaded. Nothing to do.", kname_string_get(asset_name), kname_string_get(package_name));
         }
     }
 }
 
-void asset_system_release(struct asset_system_state* state, kname name) {
-    asset_system_release_internal(state, name, false);
+void asset_system_release(struct asset_system_state* state, kname asset_name, kname package_name) {
+    asset_system_release_internal(state, asset_name, package_name, false);
 }
 
 void asset_system_on_handler_result(struct asset_system_state* state, asset_request_result result, kasset* asset, void* listener_instance, PFN_kasset_on_result callback) {
@@ -251,7 +257,11 @@ void asset_system_on_handler_result(struct asset_system_state* state, asset_requ
         case ASSET_REQUEST_RESULT_SUCCESS: {
             // See if the asset already exists first.
             u32 lookup_index = INVALID_ID;
-            if (hashtable_get(&state->lookup_table, asset->meta.name.fully_qualified_name, &lookup_index) && lookup_index != INVALID_ID) {
+            const bt_node* node = u64_bst_find(state->lookup_tree, asset->name);
+            if (node) {
+                lookup_index = node->value.u32;
+            }
+            if (lookup_index != INVALID_ID) {
                 // Valid entry found, increment the reference count and immediately make the callback.
                 asset_lookup* lookup = &state->lookups[lookup_index];
                 lookup->reference_count++;
@@ -260,26 +270,30 @@ void asset_system_on_handler_result(struct asset_system_state* state, asset_requ
                     callback(ASSET_REQUEST_RESULT_SUCCESS, &lookup->asset, listener_instance);
                 }
             } else {
+                // NOTE: The lookup should already exist at this point as defined above in asset_system_request.
+                KERROR("Could not find valid lookup for asset '%s', package '%s'.", kname_string_get(asset->name), kname_string_get(asset->package_name));
+                if (callback) {
+                    callback(ASSET_REQUEST_RESULT_INTERNAL_FAILURE, 0, listener_instance);
+                }
             }
-
         } break;
         case ASSET_REQUEST_RESULT_INVALID_PACKAGE:
-            KERROR("Asset '%s' load failed: An invalid package was specified.", kname_string_get(asset->meta.name));
+            KERROR("Asset '%s' load failed: An invalid package was specified.", kname_string_get(asset->name));
             break;
         case ASSET_REQUEST_RESULT_INVALID_NAME:
-            KERROR("Asset '%s' load failed: An invalid asset name was specified.", kname_string_get(asset->meta.name));
+            KERROR("Asset '%s' load failed: An invalid asset name was specified.", kname_string_get(asset->name));
             break;
         case ASSET_REQUEST_RESULT_INVALID_ASSET_TYPE:
-            KERROR("Asset '%s' load failed: An invalid asset type was specified.", kname_string_get(asset->meta.name));
+            KERROR("Asset '%s' load failed: An invalid asset type was specified.", kname_string_get(asset->name));
             break;
         case ASSET_REQUEST_RESULT_PARSE_FAILED:
-            KERROR("Asset '%s' load failed: The parsing stage of the asset load failed.", kname_string_get(asset->meta.name));
+            KERROR("Asset '%s' load failed: The parsing stage of the asset load failed.", kname_string_get(asset->name));
             break;
         case ASSET_REQUEST_RESULT_GPU_UPLOAD_FAILED:
-            KERROR("Asset '%s' load failed: The GPU-upload stage of the asset load failed.", kname_string_get(asset->meta.name));
+            KERROR("Asset '%s' load failed: The GPU-upload stage of the asset load failed.", kname_string_get(asset->name));
             break;
         default:
-            KERROR("Asset '%s' load failed: An unspecified error has occurred.", kname_string_get(asset->meta.name));
+            KERROR("Asset '%s' load failed: An unspecified error has occurred.", kname_string_get(asset->name));
             break;
         }
     }

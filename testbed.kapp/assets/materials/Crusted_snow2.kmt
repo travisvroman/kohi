@@ -11,7 +11,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.Crusted_snow2_Base_Color
+texture_name=Crusted_snow2_Base_Color
 [/map]
 
 [map]
@@ -21,7 +21,7 @@ filter_mag=linear
 repeat_v=repeat
 repeat_u=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.Crusted_snow2_Normal
+texture_name=Crusted_snow2_Normal
 [/map]
 
 [map]
@@ -31,7 +31,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.Crusted_snow2_combined
+texture_name=Crusted_snow2_combined
 [/map]
 
 [prop]

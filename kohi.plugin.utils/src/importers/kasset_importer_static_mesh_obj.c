@@ -4,6 +4,7 @@
 #include "platform/vfs.h"
 #include "serializers/obj_mtl_serializer.h"
 #include "serializers/obj_serializer.h"
+#include "strings/kname.h"
 
 #include <assets/kasset_types.h>
 #include <core/engine.h>
@@ -48,11 +49,11 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
             g->extents = g_src->extents;
 
             if (g_src->name) {
-                g->name = string_duplicate(g_src->name);
+                g->name = kname_create(g_src->name);
             }
 
             if (g_src->material_asset_name) {
-                g->material_asset_name = string_duplicate(g_src->material_asset_name);
+                g->material_asset_name = kname_create(g_src->material_asset_name);
             }
 
             if (g_src->index_count && g_src->indices) {
@@ -119,13 +120,13 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
         obj_mtl_source_asset mtl_asset = {0};
         if (material_file_name) {
             // Build path based on OBJ file path. The files should sit together on disk.
-            const char* obj_path = out_asset->meta.source_file_path;
+            const char* obj_path = kname_string_get(out_asset->meta.source_asset_path);
             char path_buf[512] = {0};
             string_directory_from_path(path_buf, obj_path);
-            const char* path = string_format("%s%s", path_buf, material_file_name);
+            const char* mtl_path = string_format("%s%s", path_buf, material_file_name);
 
             vfs_asset_data mtl_file_data = {0};
-            vfs_request_direct_from_disk_sync(vfs, path, false, 0, 0, &mtl_file_data);
+            vfs_request_direct_from_disk_sync(vfs, mtl_path, false, 0, 0, &mtl_file_data);
             if (mtl_file_data.result == VFS_REQUEST_RESULT_SUCCESS) {
                 // Deserialize the mtl file.
                 if (!obj_mtl_serializer_deserialize(mtl_file_data.text, &mtl_asset)) {
@@ -138,8 +139,12 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                         // Convert to kasset_material.
                         kasset_material new_material = {0};
 
-                        // Create the fully-qualified name for the material.
-                        new_material.name = string_format("%s.Material.%s", out_asset->meta.name.package_name, m_src->name);
+                        // Set material name and package name.
+                        new_material.base.name = m_src->name;
+                        new_material.base.package_name = out_asset->package_name;
+                        // Since it's an import, make note of the source asset path as well.
+                        new_material.base.meta.source_asset_path = kname_create(mtl_path);
+
                         // Imports do not use a custom shader.
                         new_material.custom_shader_name = 0;
 
@@ -153,10 +158,13 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                             obj_mtl_source_texture_map* map_src = &m_src->maps[j];
 
                             // Name of the map (really just for informational purposes)
-                            map->name = string_duplicate(map_src->name);
+                            map->name = map_src->name;
 
-                            // Create the fully-qualified name for the image asset.
-                            map->image_asset_name = string_format("%s.Image.%s", out_asset->meta.name.package_name, m_src->name);
+                            // Name for the image asset.
+                            map->image_asset_name = map_src->image_asset_name;
+
+                            // Name of the package containing the asset. In this case (import), it will always be the same package.
+                            map->image_asset_package_name = out_asset->package_name;
 
                             // Map channel. NOTE: OBJ format _can_ specify different channels per material type. Kohi doesn't, so just use the "base" type.
                             switch (map_src->channel) {
@@ -218,7 +226,7 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                             kasset_material_property* prop = &new_material.properties[j];
                             obj_mtl_source_property* prop_src = &m_src->properties[j];
 
-                            prop->name = string_duplicate(prop_src->name);
+                            prop->name = prop_src->name;
                             prop->type = prop_src->type;
                             prop->size = prop_src->size;
                             // NOTE: Not sure if this is the best way of handling this...
@@ -228,7 +236,7 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                         // Serialize the material.
                         const char* serialized_text = kasset_material_serialize((kasset*)&new_material);
                         if (!serialized_text) {
-                            KWARN("Failed to serialize material '%s'. See logs for details.", new_material.name);
+                            KWARN("Failed to serialize material '%s'. See logs for details.", kname_string_get(new_material.base.name));
                         }
 
                         // Write out kmt file.
@@ -238,58 +246,20 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
 
                         // Cleanup MTL asset.
                         {
-                            if (m_src->name) {
-                                string_free(m_src->name);
-                            }
-
                             // Maps
-                            for (u32 j = 0; j < m_src->texture_map_count; ++j) {
-                                obj_mtl_source_texture_map* map_src = &m_src->maps[j];
-                                if (map_src->name) {
-                                    string_free(map_src->name);
-                                }
-                                if (map_src->image_asset_name) {
-                                    string_free(map_src->image_asset_name);
-                                }
-                            }
                             kfree(m_src->maps, sizeof(obj_mtl_source_material) * m_src->texture_map_count, MEMORY_TAG_ARRAY);
 
                             // Properties
-                            for (u32 j = 0; j < m_src->property_count; ++j) {
-                                obj_mtl_source_property* map_src = &m_src->properties[j];
-                                if (map_src->name) {
-                                    string_free(map_src->name);
-                                }
-                            }
                             kfree(m_src->properties, sizeof(obj_mtl_source_property) * m_src->property_count, MEMORY_TAG_ARRAY);
                         }
 
                         // Cleanup kmt from memory since there is no mechanic from here to load it.
                         // This will just be loaded from disk later.
                         {
-                            if (new_material.name) {
-                                string_free(new_material.name);
-                            }
-
                             // Maps
-                            for (u32 j = 0; j < new_material.map_count; ++j) {
-                                kasset_material_map* map = &new_material.maps[j];
-                                if (map->name) {
-                                    string_free(map->name);
-                                }
-                                if (map->image_asset_name) {
-                                    string_free(map->image_asset_name);
-                                }
-                            }
                             kfree(new_material.maps, sizeof(obj_mtl_source_material) * new_material.map_count, MEMORY_TAG_ARRAY);
 
                             // Properties
-                            for (u32 j = 0; j < new_material.property_count; ++j) {
-                                kasset_material_property* prop = &new_material.properties[j];
-                                if (prop->name) {
-                                    string_free(prop->name);
-                                }
-                            }
                             kfree(new_material.properties, sizeof(obj_mtl_source_property) * new_material.property_count, MEMORY_TAG_ARRAY);
                         }
                     } // each material

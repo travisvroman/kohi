@@ -71,21 +71,6 @@ typedef enum kasset_type {
     KASSET_TYPE_MAX
 } kasset_type;
 
-typedef struct kasset_metadata {
-    // The asset version.
-    u32 version;
-    // Size of the asset.
-    u64 size;
-    // Asset name stored as a kname.
-    kname name;
-    // Package name stored as a kname.
-    kname package_name;
-    /** @brief The path of the originally imported file used to create this asset, stored as a kname */
-    kname source_asset_path;
-    // TODO: Listing of asset-type-specific metadata
-
-} kasset_metadata;
-
 /**
  * @brief The primary header for binary assets, to be used for serialization.
  * This should be the first member of the asset-specific binary file header.
@@ -175,6 +160,22 @@ typedef struct kasset_importer {
     PFN_kasset_importer_import import;
 } kasset_importer;
 
+/** @brief Various metadata included with the asset. */
+typedef struct kasset_metadata {
+    // The asset version.
+    u32 version;
+    /** @brief The path of the originally imported file used to create this asset, stored as a kname */
+    kname source_asset_path;
+
+    /** @brief The number of tags. */
+    u32 tag_count;
+
+    /** @brief An array of tags. */
+    kname* tags;
+    // TODO: Listing of asset-type-specific metadata
+
+} kasset_metadata;
+
 /**
  * @brief a structure meant to be included as the first member in the
  * struct of all asset types for quick casting purposes.
@@ -184,6 +185,12 @@ typedef struct kasset {
     identifier id;
     /** @brief Increments every time the asset is loaded/reloaded. Otherwise INVALID_ID. */
     u32 generation;
+    // Size of the asset.
+    u64 size;
+    // Asset name stored as a kname.
+    kname name;
+    // Package name stored as a kname.
+    kname package_name;
     /** @brief The asset type */
     kasset_type type;
     /** @brief Metadata for the asset */
@@ -194,11 +201,11 @@ typedef struct kasset {
 
 typedef struct kasset_heightmap_terrain {
     kasset base;
-    const char* heightmap_filename;
+    kname heightmap_asset_name;
     u16 chunk_size;
     vec3 tile_scale;
     u8 material_count;
-    const char** material_names;
+    kname* material_names;
 } kasset_heightmap_terrain;
 
 typedef enum kasset_image_format {
@@ -232,8 +239,8 @@ typedef struct kasset_image {
 #define KASSET_TYPE_NAME_STATIC_MESH "StaticMesh"
 
 typedef struct kasset_static_mesh_geometry {
-    const char* name;
-    const char* material_asset_name;
+    kname name;
+    kname material_asset_name;
     u32 vertex_count;
     vertex_3d* vertices;
     u32 index_count;
@@ -279,10 +286,12 @@ typedef enum kasset_material_map_channel {
 } kasset_material_map_channel;
 
 typedef struct kasset_material_map {
-    // Fully-qualified material asset name.
-    const char* name;
-    // Fully-qualified image asset name.
-    const char* image_asset_name; // TODO: image_asset_name?
+    // Material map name.
+    kname name;
+    // Image asset name.
+    kname image_asset_name;
+    // Name of the package containing the image asset.
+    kname image_asset_package_name;
     kasset_material_map_channel channel;
     texture_filter filter_min;
     texture_filter filter_mag;
@@ -292,7 +301,7 @@ typedef struct kasset_material_map {
 } kasset_material_map;
 
 typedef struct kasset_material_property {
-    const char* name;
+    kname name;
     shader_uniform_type type;
     u32 size;
     union {
@@ -313,7 +322,6 @@ typedef struct kasset_material_property {
 typedef struct kasset_material {
     kasset base;
     kmaterial_type type;
-    const char* name;
     // The asset name for a custom shader. Optional.
     char* custom_shader_name;
 
@@ -472,12 +480,13 @@ typedef struct kasset_shader {
 #define KASSET_TYPE_NAME_SYSTEM_FONT "SystemFont"
 
 typedef struct kasset_system_font_face {
-    const char* name;
+    kname name;
 } kasset_system_font_face;
 
 typedef struct kasset_system_font {
     kasset base;
-    const char* ttf_asset_name;
+    kname ttf_asset_name;
+    kname ttf_asset_package_name;
     u32 face_count;
     kasset_system_font_face* faces;
     u32 font_binary_size;

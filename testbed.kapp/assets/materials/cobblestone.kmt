@@ -12,7 +12,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.cobblestone
+texture_name=cobblestone
 [/map]
 
 [map]
@@ -22,7 +22,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.cobblestone_SPEC
+texture_name=cobblestone_SPEC
 [/map]
 
 [map]
@@ -32,7 +32,7 @@ filter_mag=linear
 repeat_v=repeat
 repeat_u=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.cobblestone_NRM
+texture_name=cobblestone_NRM
 [/map]
 
 [prop]

@@ -13,7 +13,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.bark_0021
+texture_name=bark_0021
 [/map]
 [prop]
 name=diffuse_colour

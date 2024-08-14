@@ -1,0 +1,71 @@
+version = 1
+depth_test=true
+depth_write=true
+colour_write=false
+cull_mode="none"
+max_instances=256
+
+stages = [
+    {
+        type = "vertex"
+        source_asset_name = "Shadow_StaticMesh_vert"
+        package_name = "Runtime"
+    }
+    {
+        type = "fragment"
+        source_asset_name = "Shadow_StaticMesh_frag"
+        package_name = "Runtime"
+    }
+]
+
+attributes = [
+    {
+        name = "in_position"
+        type = "vec3"
+    }
+    {
+        name = "in_normal"
+        type = "vec3"
+    }
+    {
+        name = "in_texcoord"
+        type = "vec2"
+    }
+    {
+        name = "in_colour"
+        type = "vec4"
+    }
+    {
+        name = "in_tangent"
+        type = "vec3"
+    }
+]
+
+uniforms = {
+    global = [
+        {
+            name = "projections"
+            type = "mat4[4]"
+        }
+        {
+            name = "views"
+            type = "mat4[4]"
+        }
+    ]
+    instance = [
+        {
+            name = "colour_map"
+            type = "sampler2D"
+        }
+    ]
+    local = [
+        {
+            name = "model"
+            type = "mat4"
+        }
+        {
+            name = "cascade_index"
+            type = "u32"
+        }
+    ]
+}

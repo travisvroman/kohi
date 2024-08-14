@@ -14,7 +14,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.beams_and_sticks_bc
+texture_name=beams_and_sticks_bc
 [/map]
 
 [map]
@@ -24,7 +24,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.beams_and_sticks_roughness
+texture_name=beams_and_sticks_roughness
 [/map]
 
 [map]
@@ -34,7 +34,7 @@ filter_mag=linear
 repeat_v=repeat
 repeat_u=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.beams_and_sticks_n
+texture_name=beams_and_sticks_n
 [/map]
 
 [prop]

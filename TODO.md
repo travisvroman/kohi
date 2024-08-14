@@ -4,6 +4,7 @@ The items in this list are not in any particular order. This list will be update
 
 ## 0.8.0 Release
 
+- [x] KName system (string hashing)
 - [x] Virtual file system (VFS)
   - [x] Sits on top of and manages packages, doles out requests to loaded packages, etc.
 - [ ] Replace Resource System with new Asset System
@@ -13,17 +14,19 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Asset packaging (kpackage)
   - [x] Reorganize assets from testbed.assets folder to go along with the respective "module".
   - [x] Rename all assets and asset references to use the format "<package>.<asset_type>.<name>". I.e. "Testbed.Texture.arch"
-    - [ ] REDO this! asset_handler_request("PackageName", ASSET_TYPE, "AssetName"). Assets that rely on other assets can optionally specify a
+    - [x] REDO this! asset_handler_request(kasset_type, kname package_name, kname asset_name). Assets that rely on other assets can optionally specify a
           package name. VFS will first look in the same package for a asset of the right type with a match name. If not found, then iterate
           all packages looking for one and use the first one found. If more than one package contains such an asset, the user should specify
-          the package in the asset reference.
+          the package in the asset reference. NOTE: This should use the new kname system.
   - [x] Setup one manifest file including a list of all these files in each "module.". Exclude "source" files (i.e. .obj and .mtl).
   - [ ] Asset type reworks:
+    - [ ] Folders
+      - [ ] Create/Destroy/Rename, etc., All happens on-disk.
+      - [ ] Manifest Updates as items are moved in/out.
     - [ ] Static meshes
       - [ ] Rework OBJ import process to take in package name as well as make material generation optional (so we don't overwrite the hand-rolled materials);
-      - [ ] Rework .mtl import process to use fully qualified names for textures (i.e. "Testbed.Texture.arch").
       - [ ] Regenerate all .ksm files.
-      - [ ] Create a "default static mesh" (named "Runtime.StaticMesh.Default") which is a cube with perhaps a warning material.
+      - [ ] Create a "default static mesh" (named "StaticMesh_Default") which is a cube with perhaps a warning material.
       - [x] Asset handler
       - [x] Importer from Wavefront OBJ
         - [x] OBJ Serializer
@@ -194,8 +197,11 @@ The items in this list are not in any particular order. This list will be update
   - [x] kvars (console variables)
   - [x] Console commands
 - [x] Application-level configuration
-- [ ] high-level string structure library (not c-strings)
-- [ ] I18n strings
+- [ ] Strings
+  - [ ] kname string hashing 
+    - [ ] compile-time hashing (Requires either custom preprocessor or using C++ compiler)
+  - [ ] high-level string structure library (not c-strings)
+  - [ ] I18n strings
 - [ ] resource hot reloading
 - [ ] prefabs
 - [x] Custom storage format (KSON - Kohi Storage Object Notation)

@@ -1,0 +1,70 @@
+version = 1
+depth_test=true
+depth_write=true
+colour_write=false
+cull_mode="none"
+
+stages = [
+    {
+        type = "vertex"
+        source_asset_name = "Shadow_Terrain_vert"
+        package_name = "Runtime"
+    }
+    {
+        type = "fragment"
+        source_asset_name = "Shadow_Terrain_frag"
+        package_name = "Runtime"
+    }
+]
+
+attributes = [
+    {
+        name = "in_position"
+        type = "vec3"
+    }
+    {
+        name = "in_normal"
+        type = "vec3"
+    }
+    {
+        name = "in_texcoord"
+        type = "vec2"
+    }
+    {
+        name = "in_colour"
+        type = "vec4"
+    }
+    {
+        name = "in_tangent"
+        type = "vec4"
+    }
+    {
+        name = "in_mat_weights"
+        type = "vec4"
+    }
+]
+
+uniforms = {
+    global = [
+        {
+            name = "projections"
+            type = "mat4[4]"
+        }
+        {
+            name = "views"
+            type = "mat4[4]"
+        }
+    ]
+    instance = [
+    ]
+    local = [
+        {
+            name = "model"
+            type = "mat4"
+        }
+        {
+            name = "cascade_index"
+            type = "u32"
+        }
+    ]
+}

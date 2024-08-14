@@ -13,7 +13,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.DB2X2_L01
+texture_name=DB2X2_L01
 [/map]
 [map]
 name=(null)
@@ -22,7 +22,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.DB2X2_L01_Spec
+texture_name=DB2X2_L01_Spec
 [/map]
 [prop]
 name=diffuse_colour

@@ -8,17 +8,16 @@ max_instances=256
 stages = [
     {
         type = "vertex"
-        source_asset_name = "PBR/StaticMesh_vert"
+        source_asset_name = "PBR_StaticMesh_vert"
         package_name = "Runtime"
     }
     {
         type = "fragment"
-        source_asset_name = "PBR/StaticMesh_frag"
+        source_asset_name = "PBR_StaticMesh_frag"
         package_name = "Runtime"
     }
 ]
 
-// Attributes: type,name
 attributes = [
     {
         name = "in_position"

@@ -8,6 +8,7 @@ struct vfs_state;
 typedef struct asset_handler {
     kasset_type type;
     const char* type_name;
+    b8 is_binary;
 
     /** @brief Cache a pointer to the VFS state for fast lookup. */
     struct vfs_state* vfs;

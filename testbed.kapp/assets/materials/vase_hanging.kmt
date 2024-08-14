@@ -11,7 +11,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.vase_hanging
+texture_name=vase_hanging
 [/map]
 
 [map]
@@ -21,7 +21,7 @@ filter_mag=linear
 repeat_u=repeat
 repeat_v=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.vase_hanging_combined
+texture_name=vase_hanging_combined
 [/map]
 
 [map]
@@ -31,7 +31,7 @@ filter_mag=linear
 repeat_v=repeat
 repeat_u=repeat
 repeat_w=repeat
-texture_name=Testbed.Texture.vase_hanging_ddn
+texture_name=vase_hanging_ddn
 [/map]
 
 [prop]

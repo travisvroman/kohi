@@ -298,22 +298,22 @@ void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, b8 is
 
 b8 vfs_asset_write(vfs_state* state, const kasset* asset, b8 is_binary, u64 size, const void* data) {
     u32 package_count = darray_length(state->packages);
-    if (asset->meta.package_name == 0) {
-        KERROR("Unable to write asset because it does not have a package name: '%s'.", kname_string_get(asset->meta.name));
+    if (asset->package_name == 0) {
+        KERROR("Unable to write asset because it does not have a package name: '%s'.", kname_string_get(asset->name));
         return false;
     }
     for (u32 i = 0; i < package_count; ++i) {
         kpackage* package = &state->packages[i];
-        if (package->name == asset->meta.package_name) {
+        if (package->name == asset->package_name) {
             if (is_binary) {
-                return kpackage_asset_bytes_write(package, asset->meta.name, size, data);
+                return kpackage_asset_bytes_write(package, asset->name, size, data);
             } else {
-                return kpackage_asset_text_write(package, asset->meta.name, size, data);
+                return kpackage_asset_text_write(package, asset->name, size, data);
             }
         }
     }
 
-    KERROR("vfs_asset_write: Unable to find package named '%s'.", kname_string_get(asset->meta.package_name));
+    KERROR("vfs_asset_write: Unable to find package named '%s'.", kname_string_get(asset->package_name));
     return false;
 }
 

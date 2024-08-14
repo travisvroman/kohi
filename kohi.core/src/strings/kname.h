@@ -25,6 +25,9 @@
 
 #include "defines.h"
 
+/** @brief Represents an invalid kname, which is essentially used to represent "no name". */
+#define INVALID_KNAME 0
+
 typedef u64 kname;
 
 /**
@@ -32,6 +35,7 @@ typedef u64 kname;
  * for quick comparisons. A copy of the original string is maintained within
  * an internal global lookup table, where the hash provided (i.e. kname) is
  * the lookup key.
+ * NOTE: A hash of 0 is never allowed here.
  */
 KAPI kname kname_create(const char* str);
 

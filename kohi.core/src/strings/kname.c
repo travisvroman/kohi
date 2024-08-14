@@ -1,6 +1,7 @@
 #include "kname.h"
 
 #include "containers/u64_bst.h"
+#include "debug/kassert.h"
 #include "logger.h"
 #include "strings/kstring.h"
 #include "utils/crc64.h"
@@ -17,6 +18,8 @@ kname kname_create(const char* str) {
 
     // Hash the lowercase string.
     kname name = crc64(0, (const u8*)copy, string_length(copy));
+    // NOTE: A hash of 0 is never allowed.
+    KASSERT_MSG(name != 0, string_format("kname_create - provided string '%s' hashed to 0, an invalid value. Please change the string to something else to avoid this.", str));
 
     // Dispose of the lowercase string.
     string_free(copy);
