@@ -23,6 +23,7 @@ Changelog
   - Added kname system, a system used to hash strings (to u64) for faster comparisons. Strings and thier hashes are stored in a global lookup table for reuse. These should be used 
     for any "named" item in Kohi, such as assets or resources.
   - Added u64_bst (Binary Search Tree) structure. Primarily for use with knames, but could be used for any u64-keyed data.
+  - Added typed arrays with iterators. See kohi.core, containers/array.h.
 
 - 0.7.1
   - Fixed window resizing issues in macOS

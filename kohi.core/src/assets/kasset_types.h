@@ -1,5 +1,6 @@
 #pragma once
 
+#include "containers/array.h"
 #include "core_render_types.h"
 #include "defines.h"
 #include "identifiers/identifier.h"
@@ -20,35 +21,6 @@
 
 // The maximum length of a fully-qualified asset name, including the '.' between parts.
 #define KASSET_FULLY_QUALIFIED_NAME_MAX_LENGTH = (KPACKAGE_NAME_MAX_LENGTH + KASSET_TYPE_MAX_LENGTH + KASSET_NAME_MAX_LENGTH + 2)
-
-/** @brief Indicates where an asset is in its lifecycle. */
-// FIXME: This is actually resource state. Move this.
-typedef enum kasset_state {
-    /**
-     * @brief No load operations have happened whatsoever
-     * for the asset.
-     * The asset is NOT in a drawable state.
-     */
-    KASSET_STATE_UNINITIALIZED,
-    /**
-     * @brief The CPU-side of the asset resources have been
-     * loaded, but no GPU uploads have happened.
-     * The asset is NOT in a drawable state.
-     */
-    KASSET_STATE_INITIALIZED,
-    /**
-     * @brief The GPU-side of the asset resources are in the
-     * process of being uploaded, but are not yet complete.
-     * The asset is NOT in a drawable state.
-     */
-    KASSET_STATE_LOADING,
-    /**
-     * @brief The GPU-side of the asset resources are finished
-     * with the process of being uploaded.
-     * The asset IS in a drawable state.
-     */
-    KASSET_STATE_LOADED
-} kasset_state;
 
 typedef enum kasset_type {
     KASSET_TYPE_UNKNOWN,
@@ -492,3 +464,46 @@ typedef struct kasset_system_font {
     u32 font_binary_size;
     void* font_binary;
 } kasset_system_font;
+
+#define KASSET_TYPE_NAME_BITMAP_FONT "BitmapFont"
+
+typedef struct kasset_bitmap_font_glyph {
+    i32 codepoint;
+    u16 x;
+    u16 y;
+    u16 width;
+    u16 height;
+    i16 x_offset;
+    i16 y_offset;
+    i16 x_advance;
+    u8 page_id;
+} kasset_bitmap_font_glyph;
+
+typedef struct kasset_bitmap_font_kerning {
+    i32 codepoint_0;
+    i32 codepoint_1;
+    i16 amount;
+} kasset_bitmap_font_kerning;
+
+typedef struct kasset_bitmap_font_page {
+    i8 id;
+    kname image_asset_name;
+} kasset_bitmap_font_page;
+
+ARRAY_TYPE(kasset_bitmap_font_glyph);
+ARRAY_TYPE(kasset_bitmap_font_kerning);
+ARRAY_TYPE(kasset_bitmap_font_page);
+
+typedef struct kasset_bitmap_font {
+    kasset base;
+    kname face;
+    u32 size;
+    i32 line_height;
+    i32 baseline;
+    i32 atlas_size_x;
+    i32 atlas_size_y;
+    kasset_bitmap_font_glyph_array glyphs;
+    kasset_bitmap_font_kerning_array kernings;
+    f32 tab_x_advance;
+    kasset_bitmap_font_page_array pages;
+} kasset_bitmap_font;

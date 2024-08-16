@@ -15,6 +15,7 @@ typedef union bt_node_value {
     u8 u8;
     i8 i8;
     b8 b8;
+    f32 f32;
 } bt_node_value;
 
 /**

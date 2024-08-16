@@ -2,6 +2,8 @@
 
 The items in this list are not in any particular order. This list will be updated occasionally as development progresses.
 
+# Future Releases:
+
 ## 0.8.0 Release
 
 - [x] KName system (string hashing)
@@ -20,9 +22,6 @@ The items in this list are not in any particular order. This list will be update
           the package in the asset reference. NOTE: This should use the new kname system.
   - [x] Setup one manifest file including a list of all these files in each "module.". Exclude "source" files (i.e. .obj and .mtl).
   - [ ] Asset type reworks:
-    - [ ] Folders
-      - [ ] Create/Destroy/Rename, etc., All happens on-disk.
-      - [ ] Manifest Updates as items are moved in/out.
     - [ ] Static meshes
       - [ ] Rework OBJ import process to take in package name as well as make material generation optional (so we don't overwrite the hand-rolled materials);
       - [ ] Regenerate all .ksm files.
@@ -35,19 +34,17 @@ The items in this list are not in any particular order. This list will be update
       - [x] Asset handler
       - [x] Importer
         - [x] Common formats (.bmp, .tga, .jpg, .png)
-        - [ ] Importer for KTX (future)
-        - [ ] Importer for PSD (future)
       - [x] Binary .kbi format
       - [x] Serializer
     - [ ] Shaders
       - [ ] Fix hot-reloading/change watches to be called from package/vfs
-      - [ ] Convert .shadercfg file to KSON-based .ksc (Kohi Shader Config)
+      - [x] Convert .shadercfg file to KSON-based .ksc (Kohi Shader Config)
       - [x] Asset handler
       - [x] Serializer
-    - [ ] Bitmap fonts
-      - [ ] Rename .fnt files to .kbf (Kohi Bitmap Font)
-      - [ ] Asset handler
-      - [ ] Serializer
+    - [x] Bitmap fonts
+      - [x] Rename .fnt files to .kbf (Kohi Bitmap Font)
+      - [x] Asset handler
+      - [x] Serializer
     - [x] System fonts
       - [x] Convert .fontcfg to KSON-based .ksf file (Kohi System Font)
       - [x] Asset handler
@@ -66,12 +63,12 @@ The items in this list are not in any particular order. This list will be update
     - [x] Scenes
       - [x] Asset handler
       - [x] Serializer
-    - [ ] Audio effects
+    - [ ] Audio effects (future?)
       - [ ] Binary container format (.kfx)
       - [ ] Asset handler
       - [ ] Importer
       - [ ] Serializer
-    - [ ] Music
+    - [ ] Music (future?)
       - [ ] Binary container format (.kmu)
       - [ ] Asset handler
       - [ ] Importer
@@ -97,19 +94,12 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Have material/texture system create the "combined" image at runtime instead of it being stored as a static asset (will make it easier to change in an editor without having to run a utility to do it).
   - [ ] Convert material configs to KSON
   - [ ] Material hot-reloading (should do the above first)
-- [ ] Handle refactoring
-  - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
-  - [ ] Convert material system to use handles
-  - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
-  - [ ] Convert shader system to use handles (everything that _isn't_ the renderer should use handles).
-  - [ ] Convert lighting system to use handles.
-  - [ ] Create skybox system that uses handles.
-  - [ ] Create scene system that uses handles.
 - [ ] BUG: Material map declaration order should not matter in material config files, but it seemingly does.
 - [ ] Flag for toggling debug items on/off in scene.
 - [ ] Flag for toggling grid on/off in scene.
 - [ ] Water plane: Add various properties to configuration.
 - [ ] Water plane: Fix frustum culling for reflections.
+- [ ] Remove calls to deprecated geometry functions in renderer.
 - [ ] Profiling and performance pass - a few quick things to consider:
   - [ ] Optional ability to set texture filtering to aniso, and level, or disable.
   - [ ] Reduce draw calls
@@ -129,6 +119,50 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Specular (scale specularity on non-metallic surfaces (0-1, default 0.5)) (PBR, Phong)
     - [ ] Clear coat (PBR)
     - [ ] Clear coat roughness. (PBR)
+- [x] Static-sized, type-safe array with iterator.
+- [ ] Dynamic-sized, type-safe darray with iterator.
+  - [ ] Mark old darray functions as deprecated.
+
+## 0.9.0 Release
+
+- [ ] Remove deprecated geometry functions in renderer.
+- [ ] Remove calls to deprecated darray functions.
+- [ ] Replace regular c arrays throughout the codebase with the new static-sized, type-safe array where it makes sense.
+- [ ] Replace all instances of old darray usage with new one (NOTE: darray_create and darray_reserve)
+- [ ] Replace all instances of typical C-style arrays and replace with new typed array from array.h
+- [ ] Asset System
+  - [ ] Asset type reworks:
+    - [ ] Folders (Future)
+      - [ ] Create/Destroy/Rename, etc., All happens on-disk.
+      - [ ] Manifest Updates as items are moved in/out.
+    - [x] Images
+      - [ ] Importers
+        - [ ] Importer for KTX (future)
+        - [ ] Importer for PSD (future)
+    - [ ] Materials
+      - [ ] Importer from MTL directly (as opposed to with an OBJ file).
+    - [ ] Audio effects
+      - [ ] Binary container format (.kfx)
+      - [ ] Asset handler
+      - [ ] Importer
+      - [ ] Serializer
+    - [ ] Music
+      - [ ] Binary container format (.kmu)
+      - [ ] Asset handler
+      - [ ] Importer
+      - [ ] Serializer
+- [ ] Handle refactoring
+  - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
+  - [ ] Convert material system to use handles
+  - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
+  - [ ] Convert shader system to use handles (everything that _isn't_ the renderer should use handles).
+  - [ ] Convert lighting system to use handles.
+  - [ ] Create skybox system that uses handles.
+  - [ ] Create scene system that uses handles.
+
+## 0.10.0 Release
+
+- [ ] Remove deprecated darray functions.
 
 ## Engine general:
 
@@ -163,6 +197,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] hashtable
   - [x] freelist
   - [x] dynamic arrays
+  - [x] static-sized array (with iterator)
   - [x] ring buffer
   - [x] queue
   - [ ] pool
@@ -198,7 +233,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] Console commands
 - [x] Application-level configuration
 - [ ] Strings
-  - [ ] kname string hashing 
+  - [ ] kname string hashing
     - [ ] compile-time hashing (Requires either custom preprocessor or using C++ compiler)
   - [ ] high-level string structure library (not c-strings)
   - [ ] I18n strings
@@ -254,68 +289,6 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Would provide an interface to the engine, and the implementation could either load from disk or binary blob.
 - [ ] For release builds, compile shaders to bytecode/SPIR-V and place into package binary.
 - [ ] Custom types capability for asset system.
-
-- [x] 0.7 Reorg
-  - [x] Split engine into "core" and "runtime"
-  - [x] Rename plugin libs to consistent format, update builds, etc.
-  - [x] Remove systems manager, and move all system init back to engine.
-  - [x] External systems registry
-  - [x] Plugin System implementation
-    - [x] kruntime_plugin structure
-    - [x] Convert Vulkan Plugin to kruntime_plugin
-    - [x] Convert OpenAL Plugin to kruntime_plugin
-    - [x] Convert Standard UI Plugin to kruntime_plugin
-  - [x] Implement windowing logic in platform layer.
-  - [x] Implement windowing logic in renderer front/backend
-  - [x] Ability to deprecate code (mark as deprecated/warn).
-  - [x] Deprecate "geometry" interface points in renderer frontend/
-  - [x] Move loading of application lib from app to engine (config-powered!)
-  - [x] frame/swapchain image count refactor:
-    - [x] Move anything that's aware of double/triple/5x buffering exclusively to the renderer backend. Nothing outside that should know or care about it.
-    - [x] Refactor renderer texture API to pass a new TEXTURE_FLAG_RENDERER_BUFFERING flag used to indicate to the backend that
-          resources should be created "per-frame" if this is set (i.e. 3 internal textures for triple-buffering)
-    - [x] Adjust render target logic to defer to the backend when reaching for a texture handle to use for the above case.
-    - [x] Renderpasses should no longer own render targets.
-    - [x] Framebuffers (i.e. render targets) should no longer require a renderpass to create. (i.e. use a dummy pass)
-    - [x] Shaders (graphics pipelines) should no longer require a renderpass to create. (i.e. use a dummy pass)
-- [x] 0.7 Scene refactor (see notes below):
-- [x] Rename simple scene to just "scene" and move to engine core.
-- [x] Create a unique-per-system handle for each system to identify a resource. These handles would be linked to
-      a resource array of some sort and an index element within that array via a structure that holds both.
-- [x] Create new "xform" structure and system that uses handles and can manage dependencies in updates internally.
-      NOTE: This system should be laid out in a data-oriented way.
-- [x] Create hierarchy graph that handles transform hierarchy and can provide a view of it. Also generating world matrices.
-- [x] Remove transform from mesh.
-- [x] Replace any and all transforms with xform handles.
-- [x] Update systems (and create some) that use handles:
-  - [x] Create xform system that uses handles
-- [x] (See KSON) Refactor scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
-- [x] Write "(de)serialization" routines for savable resources and use those in the above loader.
-      Scene Refactor notes: Refactor into node-based system using handles for various types.
-      A node should contain 3 (maybe 4) things: a unique identifier, a handle id (which is a
-      link into a scene-wide handle table, which itself points to an index into an array of resources),
-      a potential parent handle id (which can be INVALID*ID if unused), and potentially a name.
-      There would then be lists of resource types (think mesh, terrain, lights, skybox, etc) which would
-      each have lookup tables of handle ids to indices into these arrays. Additionally there would be a set
-      of a lookup table and transforms that would be used. Separating these would allow updates on these objects
-      in cache-coherent loops as well as any sorting/dependency lookup that would need to be done.
-      The above will require that meshes have transforms removed from them. The transform would then be
-      also referenced by the *node\* instead of the mesh. This would also facilitate batching of like meshes for
-      rendering in the future. Transforms would also have the parent pointer removed, and instead also use
-      handles. This would eliminate issues with invalid pointers when an array of a resource (i.e. transform) is
-      expanded and realloced. This should be done in a phased approach, and thus perhaps a new "xform" should be
-      created, and the "transform" structure could be deprecated. Note that the resource lookup for this would
-      likely be global, not just within a scene.
-
-        We could then have a few different "graphs" in the scene: one for transforms, one for visibility (i.e a flat
-        array of currently-visible objects would likely suffice here), and others.
-
-        We might also think about, at this point, reworking the scene parser to better handle object heirarchy in a more
-        expressive language fasion (perhaps using some sort of scoping syntax like "{}" to surround objects).
-
-- [x] Remove specialized rendergraphs. Replaced by app config.
-- [x] Separate debug shapes out to new debug_rendergraph_node.
-- [x] Separate editor gizmo out to new editor_gizmo_rendergraph_node.
 
 ## Renderer:
 
@@ -429,5 +402,71 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Continuous Integration
 - [x] Add git tags to mark version releases (https://github.com/travisvroman/kohi/issues/174)
 - [ ] Nix build compatability (https://github.com/travisvroman/kohi/issues/175)
+
+# Previous Release TODO lists:
+
+## 0.7.0 Release
+
+- [x] 0.7 Reorg
+  - [x] Split engine into "core" and "runtime"
+  - [x] Rename plugin libs to consistent format, update builds, etc.
+  - [x] Remove systems manager, and move all system init back to engine.
+  - [x] External systems registry
+  - [x] Plugin System implementation
+    - [x] kruntime_plugin structure
+    - [x] Convert Vulkan Plugin to kruntime_plugin
+    - [x] Convert OpenAL Plugin to kruntime_plugin
+    - [x] Convert Standard UI Plugin to kruntime_plugin
+  - [x] Implement windowing logic in platform layer.
+  - [x] Implement windowing logic in renderer front/backend
+  - [x] Ability to deprecate code (mark as deprecated/warn).
+  - [x] Deprecate "geometry" interface points in renderer frontend/
+  - [x] Move loading of application lib from app to engine (config-powered!)
+  - [x] frame/swapchain image count refactor:
+    - [x] Move anything that's aware of double/triple/5x buffering exclusively to the renderer backend. Nothing outside that should know or care about it.
+    - [x] Refactor renderer texture API to pass a new TEXTURE_FLAG_RENDERER_BUFFERING flag used to indicate to the backend that
+          resources should be created "per-frame" if this is set (i.e. 3 internal textures for triple-buffering)
+    - [x] Adjust render target logic to defer to the backend when reaching for a texture handle to use for the above case.
+    - [x] Renderpasses should no longer own render targets.
+    - [x] Framebuffers (i.e. render targets) should no longer require a renderpass to create. (i.e. use a dummy pass)
+    - [x] Shaders (graphics pipelines) should no longer require a renderpass to create. (i.e. use a dummy pass)
+- [x] 0.7 Scene refactor (see notes below):
+- [x] Rename simple scene to just "scene" and move to engine core.
+- [x] Create a unique-per-system handle for each system to identify a resource. These handles would be linked to
+      a resource array of some sort and an index element within that array via a structure that holds both.
+- [x] Create new "xform" structure and system that uses handles and can manage dependencies in updates internally.
+      NOTE: This system should be laid out in a data-oriented way.
+- [x] Create hierarchy graph that handles transform hierarchy and can provide a view of it. Also generating world matrices.
+- [x] Remove transform from mesh.
+- [x] Replace any and all transforms with xform handles.
+- [x] Update systems (and create some) that use handles:
+  - [x] Create xform system that uses handles
+- [x] (See KSON) Refactor scene loader to a version 2 that is more expressive and allows "{}" syntax to nest objects.
+- [x] Write "(de)serialization" routines for savable resources and use those in the above loader.
+      Scene Refactor notes: Refactor into node-based system using handles for various types.
+      A node should contain 3 (maybe 4) things: a unique identifier, a handle id (which is a
+      link into a scene-wide handle table, which itself points to an index into an array of resources),
+      a potential parent handle id (which can be INVALID*ID if unused), and potentially a name.
+      There would then be lists of resource types (think mesh, terrain, lights, skybox, etc) which would
+      each have lookup tables of handle ids to indices into these arrays. Additionally there would be a set
+      of a lookup table and transforms that would be used. Separating these would allow updates on these objects
+      in cache-coherent loops as well as any sorting/dependency lookup that would need to be done.
+      The above will require that meshes have transforms removed from them. The transform would then be
+      also referenced by the *node\* instead of the mesh. This would also facilitate batching of like meshes for
+      rendering in the future. Transforms would also have the parent pointer removed, and instead also use
+      handles. This would eliminate issues with invalid pointers when an array of a resource (i.e. transform) is
+      expanded and realloced. This should be done in a phased approach, and thus perhaps a new "xform" should be
+      created, and the "transform" structure could be deprecated. Note that the resource lookup for this would
+      likely be global, not just within a scene.
+
+        We could then have a few different "graphs" in the scene: one for transforms, one for visibility (i.e a flat
+        array of currently-visible objects would likely suffice here), and others.
+
+        We might also think about, at this point, reworking the scene parser to better handle object heirarchy in a more
+        expressive language fasion (perhaps using some sort of scoping syntax like "{}" to surround objects).
+
+- [x] Remove specialized rendergraphs. Replaced by app config.
+- [x] Separate debug shapes out to new debug_rendergraph_node.
+- [x] Separate editor gizmo out to new editor_gizmo_rendergraph_node.
 
 Back to [readme](readme.md)

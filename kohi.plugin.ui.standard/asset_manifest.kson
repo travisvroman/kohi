@@ -8,80 +8,65 @@ references = [
 assets = [
     {
         name = "UI"
-        type = "Shader"
         path = "./assets/shaders/UI.ksc"
     }
     {
         name = "UI_frag"
-        type = "Text"
         path = "./assets/shaders/UI_frag.glsl"
     }
     {
         name = "UI_vert"
-        type = "Text"
         path = "./assets/shaders/UI_vert.glsl"
     }
     {
         name = "Pick_UI"
-        type = "Shader"
         path = "./assets/shaders/Pick_UI.ksc"
     }
     {
         name = "Pick_UI_frag"
-        type = "Text"
         path = "./assets/shaders/Pick_UI_frag.glsl"
     }
     {
         name = "Pick_UI_vert"
-        type = "Text"
         path = "./assets/shaders/Pick_UI_vert.glsl"
     }
     {
         name = "StandardUIAtlas"
-        type = "Texture"
         path = "./assets/textures/StandardUIAtlas.kbi"
         source_path = "./assets/textures/StandardUIAtlas.png"
     }
     {
         name = "NotoSans21px"
-        type = "BitmapFont"
         path = "./assets/fonts/NotoSans21px.fnt"
     }
     {
         name = "NotoSans21px_0"
-        type = "Texture"
         path = "./assets/textures/NotoSans21px_0.kbi"
         source_path = "./assets/textures/NotoSans21px_0.png"
     }
     {
         name = "UbuntuMono21px"
-        type = "BitmapFont"
         path = "./assets/fonts/UbuntuMono21px.fnt"
     }
     {
         name = "UbuntuMono21px_0"
-        type = "Texture"
         path = "./assets/textures/UbuntuMono21px_0.kbi"
         source_path = "./assets/textures/UbuntuMono21px_0.png"
     }
     {
         name = "NotoSansCJK"
-        type = "SystemFont"
         path = "./assets/fonts/NotoSansCJK.ksf"
     }
     {
         name = "NotoSansCJK-Regular"
-        type = "Binary"
         path = "./assets/textures/NotoSansCJK-Regular.ttc"
     }
     {
         name = "UbuntuMono"
-        type = "SystemFont"
         path = "./assets/fonts/UbuntuMono.ksf"
     }
     {
         name = "UbuntuMono-R"
-        type = "Binary"
         path = "./assets/textures/UbuntuMono-R.ttf"
     }
 ]

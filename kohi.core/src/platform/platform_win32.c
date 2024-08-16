@@ -15,9 +15,9 @@
 
 #    define WIN32_LEAN_AND_MEAN
 #    include <stdlib.h>
+#    include <timeapi.h>
 #    include <windows.h>
 #    include <windowsx.h> // param input extraction
-#    include <timeapi.h>
 
 typedef struct win32_handle_info {
     HINSTANCE h_instance;
@@ -219,8 +219,7 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
     // but using the below does not...
     WCHAR wtitle[256];
     int len = MultiByteToWideChar(CP_UTF8, 0, window->title, -1, wtitle, 256);
-    if(!len) {
-
+    if (!len) {
     }
     window->platform_state->hwnd = CreateWindowExW(
         window_ex_style, L"kohi_window_class", wtitle,
@@ -321,7 +320,7 @@ b8 platform_window_title_set(struct kwindow* window, const char* title) {
         return false;
     }
 
-    LPCWSTR wtitle = cstr_to_wcstr(window->title);
+    LPCWSTR wtitle = cstr_to_wcstr(title);
 
     // If the function succeeds, the return value is nonzero.
     b8 result = (SetWindowText(window->platform_state->hwnd, wtitle) != 0);
@@ -406,11 +405,11 @@ void platform_sleep(u64 ms) {
 
     kclock_update(&clock);
     f64 observed = clock.elapsed * 1000.0;
-    f64 ms_remaining = (f64) ms - observed;
+    f64 ms_remaining = (f64)ms - observed;
 
     // spin lock
     kclock_start(&clock);
-    while(clock.elapsed * 1000.0 < ms_remaining) {
+    while (clock.elapsed * 1000.0 < ms_remaining) {
         _mm_pause();
         kclock_update(&clock);
     }
