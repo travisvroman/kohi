@@ -120,8 +120,11 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Clear coat (PBR)
     - [ ] Clear coat roughness. (PBR)
 - [x] Static-sized, dynamically-allocated, type-safe array with iterator.
+  - [x] Tests
 - [x] Static-sized, stack-allocated, type-safe array with iterator.
-- [ ] Dynamic-sized, type-safe darray with iterator.
+  - [x] Tests
+- [x] Dynamic-sized, type-safe darray with iterator.
+  - [x] Tests
   - [ ] Mark old darray functions as deprecated.
 
 ## 0.9.0 Release

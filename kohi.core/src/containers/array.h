@@ -24,38 +24,48 @@
 KAPI void _karray_init(u32 length, u32 stride, u32* out_length, u32* out_stride, void** block);
 KAPI void _karray_free(u32* length, u32* stride, void** block);
 
-#define ARRAY_TYPE_NAMED(type, name)                                                                         \
-    typedef struct name##_array {                                                                            \
-        u32 length;                                                                                          \
-        u32 stride;                                                                                          \
-        type* data;                                                                                          \
-    } name##_array;                                                                                          \
-    typedef struct name##_array_it {                                                                         \
-        name##_array* arr;                                                                                   \
-        u32 pos;                                                                                             \
-    } name##_array_it;                                                                                       \
-                                                                                                             \
-    KINLINE name##_array name##_array_create(u32 length) {                                                   \
-        name##_array arr;                                                                                    \
-        _karray_init(length, sizeof(type), &arr.length, &arr.stride, (void**)&arr.data);                     \
-        return arr;                                                                                          \
-    }                                                                                                        \
-                                                                                                             \
-    KINLINE void name##_array_destroy(name##_array* arr) {                                                   \
-        _karray_free(&arr->length, &arr->stride, (void**)&arr->data);                                        \
-    }                                                                                                        \
-                                                                                                             \
-    KINLINE name##_array_it name##_array_iterator_begin(name##_array* arr) {                                 \
-        name##_array_it it;                                                                                  \
-        it.arr = arr;                                                                                        \
-        it.pos = 0;                                                                                          \
-        return it;                                                                                           \
-    }                                                                                                        \
-                                                                                                             \
-    KINLINE b8 name##_array_iterator_end(const name##_array_it* it) { return it->pos >= it->arr->length; }   \
-    KINLINE type* name##_array_iterator_value(const name##_array_it* it) { return &it->arr->data[it->pos]; } \
-    KINLINE void name##_array_iterator_next(name##_array_it* it) { it->pos++; }                              \
-    KINLINE void name##_array_iterator_prev(name##_array_it* it) { it->pos--; }
+#define ARRAY_TYPE_NAMED(type, name)                                                                                                    \
+    typedef struct name##_array {                                                                                                       \
+        u32 length;                                                                                                                     \
+        u32 stride;                                                                                                                     \
+        type* data;                                                                                                                     \
+    } name##_array;                                                                                                                     \
+    typedef struct name##_array_it {                                                                                                    \
+        name##_array* arr;                                                                                                              \
+        i32 pos;                                                                                                                        \
+        i32 dir;                                                                                                                        \
+    } name##_array_it;                                                                                                                  \
+                                                                                                                                        \
+    KINLINE name##_array name##_array_create(u32 length) {                                                                              \
+        name##_array arr;                                                                                                               \
+        _karray_init(length, sizeof(type), &arr.length, &arr.stride, (void**)&arr.data);                                                \
+        return arr;                                                                                                                     \
+    }                                                                                                                                   \
+                                                                                                                                        \
+    KINLINE void name##_array_destroy(name##_array* arr) {                                                                              \
+        _karray_free(&arr->length, &arr->stride, (void**)&arr->data);                                                                   \
+    }                                                                                                                                   \
+                                                                                                                                        \
+    KINLINE name##_array_it name##_array_iterator_begin(name##_array* arr) {                                                            \
+        name##_array_it it;                                                                                                             \
+        it.arr = arr;                                                                                                                   \
+        it.pos = 0;                                                                                                                     \
+        it.dir = 1;                                                                                                                     \
+        return it;                                                                                                                      \
+    }                                                                                                                                   \
+                                                                                                                                        \
+    KINLINE name##_array_it name##_array_iterator_begin_reverse(name##_array* arr) {                                                    \
+        name##_array_it it;                                                                                                             \
+        it.arr = arr;                                                                                                                   \
+        it.pos = arr->length - 1;                                                                                                       \
+        it.dir = -1;                                                                                                                    \
+        return it;                                                                                                                      \
+    }                                                                                                                                   \
+                                                                                                                                        \
+    KINLINE b8 name##_array_iterator_end(const name##_array_it* it) { return it->dir == 1 ? it->pos >= it->arr->length : it->pos < 0; } \
+    KINLINE type* name##_array_iterator_value(const name##_array_it* it) { return &it->arr->data[it->pos]; }                            \
+    KINLINE void name##_array_iterator_next(name##_array_it* it) { it->pos += it->dir; }                                                \
+    KINLINE void name##_array_iterator_prev(name##_array_it* it) { it->pos -= it->dir; }
 
 // Create an array type of the given type. For advanced types or pointers, use ARRAY_TYPE_NAMED directly.
 #define ARRAY_TYPE(type) ARRAY_TYPE_NAMED(type, type)

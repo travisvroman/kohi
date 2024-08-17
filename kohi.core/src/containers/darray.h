@@ -221,12 +221,13 @@ KAPI void _kdarray_ensure_size(u32 required_length, u32 stride, u32* out_capacit
     } name##_darray;                                                                                                                                    \
     typedef struct name##_darray_it {                                                                                                                   \
         name##_darray* arr;                                                                                                                             \
-        u32 pos;                                                                                                                                        \
+        i32 pos;                                                                                                                                        \
+        i32 dir;                                                                                                                                        \
     } name##_darray_it;                                                                                                                                 \
                                                                                                                                                         \
     KINLINE name##_darray name##_darray_reserve_with_allocator(u32 capacity, struct frame_allocator_int* allocator) {                                   \
         name##_darray arr;                                                                                                                              \
-        _kdarray_init(capacity, sizeof(type), capacity, allocator, &arr.length, &arr.stride, &arr.capacity, (void**)&arr.data, &arr.allocator);         \
+        _kdarray_init(0, sizeof(type), capacity, allocator, &arr.length, &arr.stride, &arr.capacity, (void**)&arr.data, &arr.allocator);                \
         return arr;                                                                                                                                     \
     }                                                                                                                                                   \
                                                                                                                                                         \
@@ -255,31 +256,38 @@ KAPI void _kdarray_ensure_size(u32 required_length, u32 stride, u32* out_capacit
         return arr;                                                                                                                                     \
     }                                                                                                                                                   \
                                                                                                                                                         \
-    KINLINE type name##_darray_pop(name##_darray* arr) {                                                                                                \
-        type retval = arr->data[arr->length - 1];                                                                                                       \
+    KINLINE b8 name##_darray_pop(name##_darray* arr, type* out_value) {                                                                                 \
+        if (arr->length < 1) {                                                                                                                          \
+            return false;                                                                                                                               \
+        }                                                                                                                                               \
+        *out_value = arr->data[arr->length - 1];                                                                                                        \
         arr->length--;                                                                                                                                  \
-        return retval;                                                                                                                                  \
+        return true;                                                                                                                                    \
     }                                                                                                                                                   \
                                                                                                                                                         \
-    KINLINE type name##_darray_pop_at(name##_darray* arr, u32 index) {                                                                                  \
-        KASSERT_MSG(index < arr->length, "Index outside bounds of darray!");                                                                            \
-        type retval = arr->data[index];                                                                                                                 \
+    KINLINE b8 name##_darray_pop_at(name##_darray* arr, u32 index, type* out_value) {                                                                   \
+        if (index >= arr->length) {                                                                                                                     \
+            return false;                                                                                                                               \
+        }                                                                                                                                               \
+        *out_value = arr->data[index];                                                                                                                  \
         for (u32 i = index; i < arr->length; ++i) {                                                                                                     \
             arr->data[i] = arr->data[i + 1];                                                                                                            \
         }                                                                                                                                               \
         arr->length--;                                                                                                                                  \
-        return retval;                                                                                                                                  \
+        return true;                                                                                                                                    \
     }                                                                                                                                                   \
                                                                                                                                                         \
-    KINLINE name##_darray* name##_darray_insert_at(name##_darray* arr, u32 index, type data) {                                                          \
-        KASSERT_MSG(index < arr->length, "Index outside bounds of darray!");                                                                            \
+    KINLINE b8 name##_darray_insert_at(name##_darray* arr, u32 index, type data) {                                                                      \
+        if (index > arr->length) {                                                                                                                      \
+            return false;                                                                                                                               \
+        }                                                                                                                                               \
         _kdarray_ensure_size(arr->length + 1, arr->stride, &arr->capacity, arr->allocator, (void**)&arr->data);                                         \
         arr->length++;                                                                                                                                  \
         for (u32 i = arr->length; i > index; --i) {                                                                                                     \
             arr->data[i] = arr->data[i - 1];                                                                                                            \
         }                                                                                                                                               \
         arr->data[index] = data;                                                                                                                        \
-        return arr;                                                                                                                                     \
+        return true;                                                                                                                                    \
     }                                                                                                                                                   \
                                                                                                                                                         \
     KINLINE name##_darray* name##_darray_clear(name##_darray* arr) {                                                                                    \
@@ -295,13 +303,21 @@ KAPI void _kdarray_ensure_size(u32 required_length, u32 stride, u32* out_capacit
         name##_darray_it it;                                                                                                                            \
         it.arr = arr;                                                                                                                                   \
         it.pos = 0;                                                                                                                                     \
+        it.dir = 1;                                                                                                                                     \
+        return it;                                                                                                                                      \
+    }                                                                                                                                                   \
+    KINLINE name##_darray_it name##_darray_iterator_begin_reverse(name##_darray* arr) {                                                                 \
+        name##_darray_it it;                                                                                                                            \
+        it.arr = arr;                                                                                                                                   \
+        it.pos = arr->length - 1;                                                                                                                       \
+        it.dir = -1;                                                                                                                                    \
         return it;                                                                                                                                      \
     }                                                                                                                                                   \
                                                                                                                                                         \
-    KINLINE b8 name##_darray_iterator_end(const name##_darray_it* it) { return it->pos >= it->arr->length; }                                            \
+    KINLINE b8 name##_darray_iterator_end(const name##_darray_it* it) { return it->dir == 1 ? it->pos >= it->arr->length : it->pos < 0; }               \
     KINLINE type* name##_darray_iterator_value(const name##_darray_it* it) { return &it->arr->data[it->pos]; }                                          \
-    KINLINE void name##_darray_iterator_next(name##_darray_it* it) { it->pos++; }                                                                       \
-    KINLINE void name##_darray_iterator_prev(name##_darray_it* it) { it->pos--; }
+    KINLINE void name##_darray_iterator_next(name##_darray_it* it) { it->pos += it->dir; }                                                              \
+    KINLINE void name##_darray_iterator_prev(name##_darray_it* it) { it->pos -= it->dir; }
 
 // Create an array type of the given type. For advanced types or pointers, use ARRAY_TYPE_NAMED directly.
 #define DARRAY_TYPE(type) DARRAY_TYPE_NAMED(type, type)

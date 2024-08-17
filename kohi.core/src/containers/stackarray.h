@@ -22,36 +22,46 @@
 
 #include "defines.h"
 
-#define STACKARRAY_TYPE_NAMED(type, name, len)                                                                                         \
-    typedef struct name##_stackarray_##len {                                                                                           \
-        type data[len];                                                                                                                \
-    } name##_stackarray_##len;                                                                                                         \
-    typedef struct name##_stackarray_##len##_it {                                                                                      \
-        name##_stackarray_##len* arr;                                                                                                  \
-        u32 pos;                                                                                                                       \
-    } name##_stackarray_##len##_it;                                                                                                    \
-                                                                                                                                       \
-    KINLINE name##_stackarray_##len name##_stackarray_##len##_create(void) {                                                           \
-        name##_stackarray_##len arr;                                                                                                   \
-        kzero_memory(&arr, sizeof(name##_stackarray_##len));                                                                           \
-        return arr;                                                                                                                    \
-    }                                                                                                                                  \
-                                                                                                                                       \
-    KINLINE void name##_stackarray_##len##_destroy(name##_stackarray_##len* arr) {                                                     \
-        kzero_memory(arr, sizeof(name##_stackarray_##len));                                                                            \
-    }                                                                                                                                  \
-                                                                                                                                       \
-    KINLINE name##_stackarray_##len##_it name##_stackarray_##len##_iterator_begin(name##_stackarray_##len* arr) {                      \
-        name##_stackarray_##len##_it it;                                                                                               \
-        it.arr = arr;                                                                                                                  \
-        it.pos = 0;                                                                                                                    \
-        return it;                                                                                                                     \
-    }                                                                                                                                  \
-                                                                                                                                       \
-    KINLINE b8 name##_stackarray_##len##_iterator_end(const name##_stackarray_##len##_it* it) { return it->pos >= len; }               \
-    KINLINE type* name##_stackarray_##len##_iterator_value(const name##_stackarray_##len##_it* it) { return &it->arr->data[it->pos]; } \
-    KINLINE void name##_stackarray_##len##_iterator_next(name##_stackarray_##len##_it* it) { it->pos++; }                              \
-    KINLINE void name##_stackarray_##len##_iterator_prev(name##_stackarray_##len##_it* it) { it->pos--; }
+#define STACKARRAY_TYPE_NAMED(type, name, len)                                                                                                        \
+    typedef struct name##_stackarray_##len {                                                                                                          \
+        type data[len];                                                                                                                               \
+    } name##_stackarray_##len;                                                                                                                        \
+    typedef struct name##_stackarray_##len##_it {                                                                                                     \
+        name##_stackarray_##len* arr;                                                                                                                 \
+        i32 pos;                                                                                                                                      \
+        i32 dir;                                                                                                                                      \
+    } name##_stackarray_##len##_it;                                                                                                                   \
+                                                                                                                                                      \
+    KINLINE name##_stackarray_##len name##_stackarray_##len##_create(void) {                                                                          \
+        name##_stackarray_##len arr;                                                                                                                  \
+        kzero_memory(&arr, sizeof(name##_stackarray_##len));                                                                                          \
+        return arr;                                                                                                                                   \
+    }                                                                                                                                                 \
+                                                                                                                                                      \
+    KINLINE void name##_stackarray_##len##_destroy(name##_stackarray_##len* arr) {                                                                    \
+        kzero_memory(arr, sizeof(name##_stackarray_##len));                                                                                           \
+    }                                                                                                                                                 \
+                                                                                                                                                      \
+    KINLINE name##_stackarray_##len##_it name##_stackarray_##len##_iterator_begin(name##_stackarray_##len* arr) {                                     \
+        name##_stackarray_##len##_it it;                                                                                                              \
+        it.arr = arr;                                                                                                                                 \
+        it.pos = 0;                                                                                                                                   \
+        it.dir = 1;                                                                                                                                   \
+        return it;                                                                                                                                    \
+    }                                                                                                                                                 \
+                                                                                                                                                      \
+    KINLINE name##_stackarray_##len##_it name##_stackarray_##len##_iterator_begin_reverse(name##_stackarray_##len* arr) {                             \
+        name##_stackarray_##len##_it it;                                                                                                              \
+        it.arr = arr;                                                                                                                                 \
+        it.pos = len - 1;                                                                                                                             \
+        it.dir = -1;                                                                                                                                  \
+        return it;                                                                                                                                    \
+    }                                                                                                                                                 \
+                                                                                                                                                      \
+    KINLINE b8 name##_stackarray_##len##_iterator_end(const name##_stackarray_##len##_it* it) { return it->dir == 1 ? it->pos >= len : it->pos < 0; } \
+    KINLINE type* name##_stackarray_##len##_iterator_value(const name##_stackarray_##len##_it* it) { return &it->arr->data[it->pos]; }                \
+    KINLINE void name##_stackarray_##len##_iterator_next(name##_stackarray_##len##_it* it) { it->pos += it->dir; }                                    \
+    KINLINE void name##_stackarray_##len##_iterator_prev(name##_stackarray_##len##_it* it) { it->pos -= it->dir; }
 
 // Create an array type of the given type. For advanced types or pointers, use ARRAY_TYPE_NAMED directly.
 #define STACKARRAY_TYPE(type, length) STACKARRAY_TYPE_NAMED(type, type, length)

@@ -23,7 +23,10 @@ Changelog
   - Added kname system, a system used to hash strings (to u64) for faster comparisons. Strings and thier hashes are stored in a global lookup table for reuse. These should be used 
     for any "named" item in Kohi, such as assets or resources.
   - Added u64_bst (Binary Search Tree) structure. Primarily for use with knames, but could be used for any u64-keyed data.
-  - Added typed arrays with iterators. See kohi.core, containers/array.h.
+  - Added typed arrays with iterators. These are fixed-size but dynamically allocated array containers. See kohi.core, containers/array.h.
+  - Added typed stackarrays with iterators. These are fixed-size and stack-allocated array containers. See kohi.core, containers/stackarray.h.
+  - Added typed darrays with iterators. These are dynamic-size, dynamic resizing (and dynamically allocated) array containers that are a 
+    type-safe replacement to the old darrays. See kohi.core, containers/darray.h.
 
 - 0.7.1
   - Fixed window resizing issues in macOS

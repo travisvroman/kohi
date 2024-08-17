@@ -181,7 +181,11 @@ void _kdarray_init(u32 length, u32 stride, u32 capacity, struct frame_allocator_
 }
 
 void _kdarray_free(u32* length, u32* capacity, u32* stride, void** block, struct frame_allocator_int** out_allocator) {
-    kfree(*block, (*capacity) * (*stride), MEMORY_TAG_DARRAY);
+    if (*out_allocator) {
+        (*out_allocator)->free(*block, (*capacity) * (*stride));
+    } else {
+        kfree(*block, (*capacity) * (*stride), MEMORY_TAG_DARRAY);
+    }
     *length = 0;
     *capacity = 0;
     *stride = 0;
