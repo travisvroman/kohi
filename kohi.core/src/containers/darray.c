@@ -1,5 +1,6 @@
 #include "containers/darray.h"
 
+#include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 
@@ -164,4 +165,41 @@ void darray_length_set(void* array, u64 value) {
     u64 header_size = sizeof(darray_header);
     darray_header* header = (darray_header*)((u8*)array - header_size);
     header->length = value;
+}
+
+// NEW DARRAY
+void _kdarray_init(u32 length, u32 stride, u32 capacity, struct frame_allocator_int* allocator, u32* out_length, u32* out_stride, u32* out_capacity, void** block, struct frame_allocator_int** out_allocator) {
+    *out_length = length;
+    *out_stride = stride;
+    *out_capacity = capacity;
+    *out_allocator = allocator;
+    if (allocator) {
+        *block = allocator->allocate(capacity * stride);
+    } else {
+        *block = kallocate(capacity * stride, MEMORY_TAG_DARRAY);
+    }
+}
+
+void _kdarray_free(u32* length, u32* capacity, u32* stride, void** block, struct frame_allocator_int** out_allocator) {
+    kfree(*block, (*capacity) * (*stride), MEMORY_TAG_DARRAY);
+    *length = 0;
+    *capacity = 0;
+    *stride = 0;
+    *block = 0;
+    *out_allocator = 0;
+}
+
+void _kdarray_ensure_size(u32 required_length, u32 stride, u32* out_capacity, struct frame_allocator_int* allocator, void** block) {
+    if (required_length > *out_capacity) {
+        u32 new_capacity = KMAX(required_length, (*out_capacity) * DARRAY_RESIZE_FACTOR);
+        if (allocator) {
+            void* new_block = allocator->allocate(new_capacity * stride);
+            kcopy_memory(new_block, *block, (*out_capacity) * stride);
+            allocator->free(*block, (*out_capacity) * stride);
+            *block = new_block;
+        } else {
+            *block = kreallocate(*block, (*out_capacity) * stride, new_capacity * stride, MEMORY_TAG_DARRAY);
+        }
+        *out_capacity = new_capacity;
+    }
 }

@@ -3,6 +3,8 @@
 #include "defines.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
+// TODO: test, remove
+#include "containers/stackarray.h"
 
 typedef struct kresource_system_state {
     kresource_handler handlers[KRESOURCE_TYPE_COUNT];

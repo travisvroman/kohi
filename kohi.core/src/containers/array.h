@@ -10,7 +10,7 @@
  *   `ARRAY_TYPE_NAMED(const char*, string)`
  * Both of these types already exist (see the bottom of this file) but others may be easily created this way.
  *
- * @version 2.0
+ * @version 1.0
  * @date 2024-08-14
  *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2024

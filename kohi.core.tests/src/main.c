@@ -1,5 +1,6 @@
 #include <logger.h>
 
+#include "containers/darray_tests.h"
 #include "containers/freelist_tests.h"
 #include "containers/hashtable_tests.h"
 #include "memory/dynamic_allocator_tests.h"
@@ -17,6 +18,7 @@ int main(void) {
     hashtable_register_tests();
     freelist_register_tests();
     dynamic_allocator_register_tests();
+    darray_register_tests();
 
     KDEBUG("Starting tests...");
 

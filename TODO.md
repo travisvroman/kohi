@@ -119,7 +119,8 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Specular (scale specularity on non-metallic surfaces (0-1, default 0.5)) (PBR, Phong)
     - [ ] Clear coat (PBR)
     - [ ] Clear coat roughness. (PBR)
-- [x] Static-sized, type-safe array with iterator.
+- [x] Static-sized, dynamically-allocated, type-safe array with iterator.
+- [x] Static-sized, stack-allocated, type-safe array with iterator.
 - [ ] Dynamic-sized, type-safe darray with iterator.
   - [ ] Mark old darray functions as deprecated.
 
