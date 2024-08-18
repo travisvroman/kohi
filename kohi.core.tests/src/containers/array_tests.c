@@ -9,11 +9,11 @@
 static u8 all_array_tests_after_create(void) {
     // Test a basic type first.
 
-    u8_array arr = u8_array_create(6);
+    array_u8 arr = array_u8_create(6);
     // Verify that the memory was assigned.
     expect_should_not_be(arr.data, 0);
-    expect_should_be(6, arr.length);
-    expect_should_be(sizeof(u8), arr.stride);
+    expect_should_be(6, arr.base.length);
+    expect_should_be(sizeof(u8), arr.base.stride);
 
     // Set some values
     arr.data[0] = 69;
@@ -28,23 +28,23 @@ static u8 all_array_tests_after_create(void) {
     expect_should_be(0, arr.data[5]);
 
     // Verify that it has been destroyed.
-    u8_array_destroy(&arr);
+    array_u8_destroy(&arr);
     expect_should_be(0, arr.data);
-    expect_should_be(0, arr.length);
-    expect_should_be(0, arr.stride);
+    expect_should_be(0, arr.base.length);
+    expect_should_be(0, arr.base.stride);
 
     return true;
 }
 
 static u8 array_all_iterator_tests(void) {
 
-    u8_array_it it;
+    array_iterator it;
     u32 loop_count = 0;
-    u8_array arr = u8_array_create(6);
+    array_u8 arr = array_u8_create(6);
     // Verify that the memory was assigned.
     expect_should_not_be(arr.data, 0);
-    expect_should_be(6, arr.length);
-    expect_should_be(sizeof(u8), arr.stride);
+    expect_should_be(6, arr.base.length);
+    expect_should_be(sizeof(u8), arr.base.stride);
 
     // Set some values
     arr.data[0] = 69;
@@ -60,13 +60,13 @@ static u8 array_all_iterator_tests(void) {
 
     {
         // Try forwards iteration.
-        it = u8_array_iterator_begin(&arr);
-        expect_should_be(&arr, it.arr);
+        it = arr.begin(&arr.base);
+        expect_should_be(&arr.base, it.arr);
         expect_should_be(0, it.pos);
         expect_should_be(1, it.dir);
         loop_count = 0;
-        for (; !u8_array_iterator_end(&it); u8_array_iterator_next(&it)) {
-            u8* val = u8_array_iterator_value(&it);
+        for (; !it.end(&it); it.next(&it)) {
+            u8* val = it.value(&it);
             if (it.pos == 0) {
                 expect_should_be(69, *val);
             } else if (it.pos == 2) {
@@ -82,13 +82,13 @@ static u8 array_all_iterator_tests(void) {
         expect_should_be(6, loop_count);
 
         // Try reverse/backward iteration.
-        it = u8_array_iterator_begin_reverse(&arr);
-        expect_should_be(&arr, it.arr);
-        expect_should_be(arr.length - 1, it.pos);
+        it = arr.rbegin(&arr.base);
+        expect_should_be(&arr.base, it.arr);
+        expect_should_be(arr.base.length - 1, it.pos);
         expect_should_be(-1, it.dir);
         loop_count = 0;
-        for (; !u8_array_iterator_end(&it); u8_array_iterator_next(&it)) {
-            u8* val = u8_array_iterator_value(&it);
+        for (; !it.end(&it); it.next(&it)) {
+            u8* val = it.value(&it);
             if (it.pos == 0) {
                 expect_should_be(69, *val);
             } else if (it.pos == 2) {
@@ -104,18 +104,18 @@ static u8 array_all_iterator_tests(void) {
         expect_should_be(6, loop_count);
     }
 
-    u8_array_destroy(&arr);
+    array_u8_destroy(&arr);
 
     return true;
 }
 
 static u8 array_string_type_test(void) {
 
-    string_array arr = string_array_create(6);
+    array_string arr = array_string_create(6);
     // Verify that the memory was assigned.
     expect_should_not_be(arr.data, 0);
-    expect_should_be(6, arr.length);
-    expect_should_be(sizeof(const char*), arr.stride);
+    expect_should_be(6, arr.base.length);
+    expect_should_be(sizeof(const char*), arr.base.stride);
 
     // Set some data.
     arr.data[0] = "test";
@@ -130,18 +130,18 @@ static u8 array_string_type_test(void) {
     expect_string_to_be("ththth", arr.data[4]);
     expect_string_to_be(0, arr.data[5]);
 
-    string_array_destroy(&arr);
+    array_string_destroy(&arr);
 
     return true;
 }
 
 static u8 array_float_type_test(void) {
 
-    f32_array arr = f32_array_create(6);
+    array_f32 arr = array_f32_create(6);
     // Verify that the memory was assigned.
     expect_should_not_be(arr.data, 0);
-    expect_should_be(6, arr.length);
-    expect_should_be(sizeof(f32), arr.stride);
+    expect_should_be(6, arr.base.length);
+    expect_should_be(sizeof(f32), arr.base.stride);
 
     // Set some data.
     arr.data[0] = 0.1f;
@@ -156,7 +156,7 @@ static u8 array_float_type_test(void) {
     expect_float_to_be(0.3f, arr.data[4]);
     expect_float_to_be(0.0f, arr.data[5]);
 
-    f32_array_destroy(&arr);
+    array_f32_destroy(&arr);
 
     return true;
 }

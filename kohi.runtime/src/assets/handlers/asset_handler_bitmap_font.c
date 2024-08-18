@@ -49,9 +49,9 @@ void asset_handler_bitmap_font_release_asset(struct asset_handler* self, struct 
     } */
 
     // LEFTOFF: we now have this...
-    kasset_bitmap_font_page_array_destroy(&typed_asset->pages);
-    kasset_bitmap_font_glyph_array_destroy(&typed_asset->glyphs);
-    kasset_bitmap_font_kerning_array_destroy(&typed_asset->kernings);
+    array_kasset_bitmap_font_page_destroy(&typed_asset->pages);
+    array_kasset_bitmap_font_glyph_destroy(&typed_asset->glyphs);
+    array_kasset_bitmap_font_kerning_destroy(&typed_asset->kernings);
 
     kzero_memory(typed_asset, sizeof(kasset_bitmap_font));
 }

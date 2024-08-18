@@ -90,7 +90,7 @@ b8 kasset_bitmap_font_deserialize(const char* file_text, kasset* out_asset) {
                 // Allocate the pages array.
                 if (page_count > 0) {
                     if (!typed_asset->pages.data) {
-                        typed_asset->pages = kasset_bitmap_font_page_array_create(page_count);
+                        typed_asset->pages = array_kasset_bitmap_font_page_create(page_count);
                     }
                 } else {
                     KERROR("Pages is 0, which should not be possible. Font file reading aborted.");
@@ -105,7 +105,7 @@ b8 kasset_bitmap_font_deserialize(const char* file_text, kasset* out_asset) {
                     // Allocate the glyphs array.
                     if (glyph_count > 0) {
                         if (!typed_asset->glyphs.data) {
-                            typed_asset->glyphs = kasset_bitmap_font_glyph_array_create(glyph_count);
+                            typed_asset->glyphs = array_kasset_bitmap_font_glyph_create(glyph_count);
                         }
                     } else {
                         KERROR("Glyph count is 0, which should not be possible. Font file reading aborted.");
@@ -168,7 +168,7 @@ b8 kasset_bitmap_font_deserialize(const char* file_text, kasset* out_asset) {
                 // Allocate kernings array
                 if (kerning_count) {
                     if (!typed_asset->kernings.data) {
-                        typed_asset->kernings = kasset_bitmap_font_kerning_array_create(kerning_count);
+                        typed_asset->kernings = array_kasset_bitmap_font_kerning_create(kerning_count);
                     }
                 }
             } else if (line_buf[7] == ' ') {
@@ -195,9 +195,9 @@ b8 kasset_bitmap_font_deserialize(const char* file_text, kasset* out_asset) {
 
 cleanup:
     if (!success) {
-        kasset_bitmap_font_page_array_destroy(&typed_asset->pages);
-        kasset_bitmap_font_glyph_array_destroy(&typed_asset->glyphs);
-        kasset_bitmap_font_kerning_array_destroy(&typed_asset->kernings);
+        array_kasset_bitmap_font_page_destroy(&typed_asset->pages);
+        array_kasset_bitmap_font_glyph_destroy(&typed_asset->glyphs);
+        array_kasset_bitmap_font_kerning_destroy(&typed_asset->kernings);
     }
 
     return success;

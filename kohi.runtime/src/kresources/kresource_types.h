@@ -79,17 +79,17 @@ typedef struct kresource {
     kname* tags;
 } kresource;
 
-typedef struct kresource_request_asset_info {
+typedef struct kresource_asset_info {
     kname asset_name;
     kname package_name;
     kasset_type type;
-} kresource_request_asset_info;
+} kresource_asset_info;
 
-ARRAY_TYPE(kresource_request_asset_info);
+ARRAY_TYPE(kresource_asset_info);
 
 typedef struct kresource_request_info {
     // The list of assets to be loaded.
-    kresource_request_asset_info_array assets;
+    array_kresource_asset_info assets;
     // The callback made whenever one of the listed asset is loaded.
     PFN_kasset_on_result callback;
 

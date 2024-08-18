@@ -13,7 +13,7 @@ STACKARRAY_TYPE_NAMED(const char*, string, 6);
 static u8 all_stackarray_tests_after_create(void) {
     // Test a basic type first.
 
-    u8_stackarray_6 arr = u8_stackarray_6_create();
+    stackarray_u8_6 arr = stackarray_u8_6_create();
 
     // Set some values
     arr.data[0] = 69;
@@ -28,16 +28,16 @@ static u8 all_stackarray_tests_after_create(void) {
     expect_should_be(0, arr.data[5]);
 
     // Verify that it has been destroyed.
-    u8_stackarray_6_destroy(&arr);
+    stackarray_u8_6_destroy(&arr);
 
     return true;
 }
 
 static u8 stackarray_all_iterator_tests(void) {
 
-    u8_stackarray_6_it it;
+    stackarray_iterator it;
     u32 loop_count = 0;
-    u8_stackarray_6 arr = u8_stackarray_6_create();
+    stackarray_u8_6 arr = stackarray_u8_6_create();
 
     // Set some values
     arr.data[0] = 69;
@@ -53,13 +53,13 @@ static u8 stackarray_all_iterator_tests(void) {
 
     {
         // Try forwards iteration.
-        it = u8_stackarray_6_iterator_begin(&arr);
-        expect_should_be(&arr, it.arr);
+        it = arr.begin(&arr.base);
+        expect_should_be(&arr.base, it.arr);
         expect_should_be(0, it.pos);
         expect_should_be(1, it.dir);
         loop_count = 0;
-        for (; !u8_stackarray_6_iterator_end(&it); u8_stackarray_6_iterator_next(&it)) {
-            u8* val = u8_stackarray_6_iterator_value(&it);
+        for (; !it.end(&it); it.next(&it)) {
+            u8* val = it.value(&it);
             if (it.pos == 0) {
                 expect_should_be(69, *val);
             } else if (it.pos == 2) {
@@ -75,13 +75,13 @@ static u8 stackarray_all_iterator_tests(void) {
         expect_should_be(6, loop_count);
 
         // Try reverse/backward iteration.
-        it = u8_stackarray_6_iterator_begin_reverse(&arr);
-        expect_should_be(&arr, it.arr);
+        it = arr.rbegin(&arr.base);
+        expect_should_be(&arr.base, it.arr);
         expect_should_be(6 - 1, it.pos);
         expect_should_be(-1, it.dir);
         loop_count = 0;
-        for (; !u8_stackarray_6_iterator_end(&it); u8_stackarray_6_iterator_next(&it)) {
-            u8* val = u8_stackarray_6_iterator_value(&it);
+        for (; !it.end(&it); it.next(&it)) {
+            u8* val = it.value(&it);
             if (it.pos == 0) {
                 expect_should_be(69, *val);
             } else if (it.pos == 2) {
@@ -97,14 +97,14 @@ static u8 stackarray_all_iterator_tests(void) {
         expect_should_be(6, loop_count);
     }
 
-    u8_stackarray_6_destroy(&arr);
+    stackarray_u8_6_destroy(&arr);
 
     return true;
 }
 
 static u8 stackarray_string_type_test(void) {
 
-    string_stackarray_6 arr = string_stackarray_6_create();
+    stackarray_string_6 arr = stackarray_string_6_create();
 
     // Set some data.
     arr.data[0] = "test";
@@ -119,14 +119,14 @@ static u8 stackarray_string_type_test(void) {
     expect_string_to_be("ththth", arr.data[4]);
     expect_string_to_be(0, arr.data[5]);
 
-    string_stackarray_6_destroy(&arr);
+    stackarray_string_6_destroy(&arr);
 
     return true;
 }
 
 static u8 stackarray_float_type_test(void) {
 
-    f32_stackarray_6 arr = f32_stackarray_6_create();
+    stackarray_f32_6 arr = stackarray_f32_6_create();
 
     // Set some data.
     arr.data[0] = 0.1f;
@@ -141,7 +141,7 @@ static u8 stackarray_float_type_test(void) {
     expect_float_to_be(0.3f, arr.data[4]);
     expect_float_to_be(0.0f, arr.data[5]);
 
-    f32_stackarray_6_destroy(&arr);
+    stackarray_f32_6_destroy(&arr);
 
     return true;
 }

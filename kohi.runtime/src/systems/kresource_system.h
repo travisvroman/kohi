@@ -9,6 +9,7 @@ typedef struct kresource_system_config {
 } kresource_system_config;
 
 typedef struct kresource_handler {
+    struct asset_system_state* asset_system;
     b8 (*request)(struct kresource_handler* self, kresource* resource, kresource_request_info info);
     void (*release)(struct kresource_handler* self, kresource* resource);
 } kresource_handler;

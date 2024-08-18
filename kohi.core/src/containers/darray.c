@@ -193,7 +193,7 @@ void _kdarray_free(u32* length, u32* capacity, u32* stride, void** block, struct
     *out_allocator = 0;
 }
 
-void _kdarray_ensure_size(u32 required_length, u32 stride, u32* out_capacity, struct frame_allocator_int* allocator, void** block) {
+void _kdarray_ensure_size(u32 required_length, u32 stride, u32* out_capacity, struct frame_allocator_int* allocator, void** block, void** base_block) {
     if (required_length > *out_capacity) {
         u32 new_capacity = KMAX(required_length, (*out_capacity) * DARRAY_RESIZE_FACTOR);
         if (allocator) {
@@ -204,6 +204,47 @@ void _kdarray_ensure_size(u32 required_length, u32 stride, u32* out_capacity, st
         } else {
             *block = kreallocate(*block, (*out_capacity) * stride, new_capacity * stride, MEMORY_TAG_DARRAY);
         }
+        *base_block = *block;
         *out_capacity = new_capacity;
     }
+}
+
+darray_iterator darray_iterator_begin(darray_base* arr) {
+    darray_iterator it;
+    it.arr = arr;
+    it.pos = 0;
+    it.dir = 1;
+    it.end = darray_iterator_end;
+    it.value = darray_iterator_value;
+    it.next = darray_iterator_next;
+    it.prev = darray_iterator_prev;
+    return it;
+}
+
+darray_iterator darray_iterator_rbegin(darray_base* arr) {
+    darray_iterator it;
+    it.arr = arr;
+    it.pos = arr->length - 1;
+    it.dir = -1;
+    it.end = darray_iterator_end;
+    it.value = darray_iterator_value;
+    it.next = darray_iterator_next;
+    it.prev = darray_iterator_prev;
+    return it;
+}
+
+b8 darray_iterator_end(const darray_iterator* it) {
+    return it->dir == 1 ? it->pos >= it->arr->length : it->pos < 0;
+}
+
+void* darray_iterator_value(const darray_iterator* it) {
+    return (void*)(((u64)it->arr->p_data) + (it->arr->stride * it->pos));
+}
+
+void darray_iterator_next(darray_iterator* it) {
+    it->pos += it->dir;
+}
+
+void darray_iterator_prev(darray_iterator* it) {
+    it->pos -= it->dir;
 }
