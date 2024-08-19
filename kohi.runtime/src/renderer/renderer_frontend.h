@@ -26,9 +26,12 @@
 
 #pragma once
 
+#include <defines.h>
+#include <identifiers/khandle.h>
+#include <kresources/kresource_types.h>
+#include <strings/kname.h>
+
 #include "core/frame_data.h"
-#include "defines.h"
-#include "identifiers/khandle.h"
 #include "renderer_types.h"
 #include "resources/resource_types.h"
 
@@ -259,7 +262,25 @@ KAPI void renderer_set_stencil_write_mask(u32 write_mask);
  * @param out_renderer_texture_handle A pointer to hold the renderer texture handle, which points to the backing resource(s) of the texture.
  * @returns True on success, otherwise false;
  */
+KDEPRECATED("Old texture structure")
 KAPI b8 renderer_texture_resources_acquire(struct renderer_system_state* state, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, k_handle* out_renderer_texture_handle);
+
+/**
+ * Attempts to acquire renderer-specific resources to back a texture.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param name The name of the texture.
+ * @param type The type of texture.
+ * @param width The texture width in pixels.
+ * @param height The texture height in pixels.
+ * @param channel_count The number of channels in the texture (i.e. RGBA = 4)
+ * @param mip_levels The number of mip maps the internal texture has. Must always be at least 1.
+ * @param array_size For arrayed textures, how many "layers" there are. Otherwise this is 1.
+ * @param flags Various property flags to be used in creating this texture.
+ * @param out_renderer_texture_handle A pointer to hold the renderer texture handle, which points to the backing resource(s) of the texture.
+ * @returns True on success, otherwise false;
+ */
+KAPI b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* state, kname name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags, k_handle* out_renderer_texture_handle);
 
 /**
  * Releases backing renderer-specific resources for the given renderer_texture_id.

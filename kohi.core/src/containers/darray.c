@@ -234,7 +234,7 @@ darray_iterator darray_iterator_rbegin(darray_base* arr) {
 }
 
 b8 darray_iterator_end(const darray_iterator* it) {
-    return it->dir == 1 ? it->pos >= it->arr->length : it->pos < 0;
+    return it->dir == 1 ? it->pos >= (i32)it->arr->length : it->pos < 0;
 }
 
 void* darray_iterator_value(const darray_iterator* it) {

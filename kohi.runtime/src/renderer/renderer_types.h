@@ -1,11 +1,13 @@
 #pragma once
 
-#include "containers/freelist.h"
-#include "defines.h"
-#include "math/math_types.h"
-#include "resources/resource_types.h"
-
+#include <containers/freelist.h>
 #include <core_render_types.h>
+#include <defines.h>
+#include <kresources/kresource_types.h>
+#include <math/math_types.h>
+#include <strings/kname.h>
+
+#include "resources/resource_types.h"
 
 struct shader;
 struct shader_uniform;
@@ -467,7 +469,10 @@ typedef struct renderer_backend_interface {
     void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal);
     void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal, texture_flag_bits flags);
 
+    KDEPRECATED("Old texture structure")
     b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, struct texture_internal_data* data, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags);
+
+    b8 (*kresource_texture_resources_acquire)(struct renderer_backend_interface* backend, struct texture_internal_data* data, kname name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags);
     void (*texture_resources_release)(struct renderer_backend_interface* backend, struct texture_internal_data* data);
 
     /**

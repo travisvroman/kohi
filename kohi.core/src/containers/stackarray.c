@@ -25,7 +25,7 @@ stackarray_iterator stackarray_iterator_rbegin(stackarray_base* arr) {
 }
 
 b8 stackarray_iterator_end(const stackarray_iterator* it) {
-    return it->dir == 1 ? it->pos >= it->arr->length : it->pos < 0;
+    return it->dir == 1 ? it->pos >= (i32)it->arr->length : it->pos < 0;
 }
 
 void* stackarray_iterator_value(const stackarray_iterator* it) {

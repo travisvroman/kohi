@@ -42,7 +42,7 @@ array_iterator array_iterator_rbegin(array_base* arr) {
 }
 
 b8 array_iterator_end(const array_iterator* it) {
-    return it->dir == 1 ? it->pos >= it->arr->length : it->pos < 0;
+    return it->dir == 1 ? it->pos >= (i32)it->arr->length : it->pos < 0;
 }
 
 void* array_iterator_value(const array_iterator* it) {
