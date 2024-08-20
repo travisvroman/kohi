@@ -7,3 +7,5 @@ docs/
 *_version.h
 
 *compile_flags.txt
+
+*.DS_Store
