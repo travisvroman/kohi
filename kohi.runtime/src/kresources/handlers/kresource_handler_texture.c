@@ -3,6 +3,7 @@
 #include "containers/array.h"
 #include "core/engine.h"
 #include "kresources/kresource_types.h"
+#include "kresources/kresource_utils.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
@@ -81,11 +82,15 @@ static void texture_kasset_on_result(asset_request_result result, const struct k
             u8 mip_levels = listener->assets.data[0]->mip_levels;
 
             struct renderer_system_state* renderer = engine_systems_get()->renderer_system;
+            struct asset_system_state* asset_system = engine_systems_get()->asset_state;
+
+            // Flip to a "loading" state.
+            listener->typed_resource->base.state = KRESOURCE_STATE_LOADING;
 
             // Acquire GPU resources for the texture resource.
-            b8 result = renderer_texture_resources_acquire(
+            b8 result = renderer_kresource_texture_resources_acquire(
                 renderer,
-                "",
+                listener->typed_resource->base.name,
                 listener->typed_resource->type,
                 width,
                 height,
@@ -98,9 +103,19 @@ static void texture_kasset_on_result(asset_request_result result, const struct k
                 KWARN("Failed to acquire GPU resources for resource '%s'. Resource will not be available for use.", kname_string_get(listener->typed_resource->base.name));
             } else {
 
+                // Save off the properties of the first asset.
+                listener->typed_resource->width = width;
+                listener->typed_resource->height = height;
+                listener->typed_resource->format = image_format_to_texture_format(((kasset_image*)listener->assets.data[0])->format);
+                listener->typed_resource->mip_levels = mip_levels;
+                /* listener->typed_resource->type = // TODO: should be part of the request. */
+                /* listener->typed_resource->array_size = // TODO: should be part of the request. */
+                listener->typed_resource->flags = 0; // TODO: Should be part of request/maybe determined by image format?
+
                 // Iterate the assets and ensure the dimensions are all the same. This is because a texture that is using multiple assets is either
                 // using them one-per-layer OR is combining multiple image assets into one (i.e. the "combined" image for materials). In either case,
                 // all dimensions must be the same.
+                u32 asset_loaded_count = 0;
                 for (array_iterator it = listener->assets.begin(&listener->assets.base); !it.end(&it); it.next(&it)) {
                     b8 mismatch = false;
                     kasset_image* image = it.value(&it);
@@ -130,7 +145,19 @@ static void texture_kasset_on_result(asset_request_result result, const struct k
                             KERROR("Failed to write texture data from asset '%s'.", kname_string_get(image->base.name));
                             continue;
                         }
+
+                        // Release the asset reference as we are done with it.
+                        asset_system_release(asset_system, image->base.package_name, image->base.name);
+
+                        asset_loaded_count++;
                     }
+                }
+
+                // If all assets uploaded successfully, the resource can be have its state updated.
+                if (asset_loaded_count == listener->assets.base.length) {
+                    listener->typed_resource->base.state = KRESOURCE_STATE_LOADED;
+                    // Increase the generation also.
+                    listener->typed_resource->base.generation++;
                 }
             }
         }
