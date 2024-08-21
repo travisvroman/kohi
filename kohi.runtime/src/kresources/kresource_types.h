@@ -88,13 +88,11 @@ typedef struct kresource_asset_info {
 ARRAY_TYPE(kresource_asset_info);
 
 typedef struct kresource_request_info {
+    kresource_type type;
     // The list of assets to be loaded.
     array_kresource_asset_info assets;
     // The callback made whenever one of the listed asset is loaded.
     PFN_kasset_on_result callback;
-
-    u64 addl_data_size;
-    void* addl_data;
 } kresource_request_info;
 
 /**
@@ -156,3 +154,11 @@ typedef struct kresource_texture {
     /** @brief The the handle to renderer-specific texture data. */
     k_handle renderer_texture_handle;
 } kresource_texture;
+
+typedef struct kresource_texture_request_info {
+    kresource_request_info base;
+
+    kresource_texture_type texture_type;
+    u8 array_size;
+    kresource_texture_flag_bits flags;
+} kresource_texture_request_info;

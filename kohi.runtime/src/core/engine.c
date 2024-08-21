@@ -35,9 +35,10 @@
 #include "systems/font_system.h"
 #include "systems/geometry_system.h"
 #include "systems/job_system.h"
+#include "systems/kresource_system.h"
 #include "systems/light_system.h"
 #include "systems/material_system.h"
-#include "systems/resource_system.h"
+#include "systems/resource_system.h" // TODO: remove old resource system
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
 #include "systems/timeline_system.h"
@@ -238,6 +239,21 @@ b8 engine_create(application* game_inst) {
     {
         if (!kasset_importer_registry_initialize()) {
             KERROR("Failed to initialize asset importer registry. See logs for details.");
+            return false;
+        }
+    }
+
+    // Resource system
+    {
+
+        // TODO: deserialize from application config, if provided.
+        kresource_system_config resource_sys_config = {0};
+        resource_sys_config.dummy = 69;
+
+        kresource_system_initialize(&systems->kresource_system_memory_requirement, 0, &resource_sys_config);
+        systems->kresource_state = kallocate(systems->kresource_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!kresource_system_initialize(&systems->kresource_system_memory_requirement, systems->kresource_state, &resource_sys_config)) {
+            KERROR("Failed to initialize resource system (new).");
             return false;
         }
     }
@@ -852,6 +868,7 @@ b8 engine_run(application* game_inst) {
         renderer_system_shutdown(systems->renderer_system);
         job_system_shutdown(systems->job_system);
         resource_system_shutdown(systems->resource_system);
+        kresource_system_shutdown(systems->kresource_state);
         input_system_shutdown(systems->input_system);
         event_system_shutdown(systems->event_system);
         kvar_system_shutdown(systems->kvar_system);

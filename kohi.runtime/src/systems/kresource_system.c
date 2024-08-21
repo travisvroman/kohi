@@ -1,6 +1,7 @@
 #include "kresource_system.h"
 #include "debug/kassert.h"
 #include "defines.h"
+#include "kresources/handlers/kresource_handler_texture.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
 // TODO: test, remove
@@ -21,6 +22,16 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
 
     // TODO: configure state, etc.
 
+    // Register known handler types
+    kresource_handler texture_handler = {0};
+    texture_handler.release = kresource_handler_texture_release;
+    texture_handler.request = kresource_handler_texture_request;
+    if (!kresource_system_handler_register(state, KRESOURCE_TYPE_TEXTURE, texture_handler)) {
+        KERROR("Failed to register texture resource handler");
+        return false;
+    }
+
+    KINFO("Resource system (new) initialized.");
     return true;
 }
 
@@ -30,17 +41,17 @@ void kresource_system_shutdown(struct kresource_system_state* state) {
     }
 }
 
-b8 kresource_system_request(struct kresource_system_state* state, kname name, kresource_type type, kresource_request_info info, kresource* out_resource) {
-    KASSERT_MSG(state && out_resource, "Valid pointers to state and out_resource are required.");
+b8 kresource_system_request(struct kresource_system_state* state, kname name, const struct kresource_request_info* info, kresource* out_resource) {
+    KASSERT_MSG(state && info && out_resource, "Valid pointers to state, info, and out_resource are required.");
 
     out_resource->name = name;
-    out_resource->type = type;
+    out_resource->type = info->type;
     out_resource->state = KRESOURCE_STATE_UNINITIALIZED;
     out_resource->generation = INVALID_ID;
     out_resource->tag_count = 0;
     out_resource->tags = 0;
 
-    kresource_handler* h = &state->handlers[type];
+    kresource_handler* h = &state->handlers[info->type];
     if (!h->request) {
         KERROR("There is no handler setup for the asset type.");
         return false;
