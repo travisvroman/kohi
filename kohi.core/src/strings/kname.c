@@ -32,8 +32,11 @@ kname kname_create(const char* str) {
         // even though this is _not_ what is used for lookup.
         bt_node_value value;
         value.str = string_duplicate(str);
-        if (!u64_bst_insert(string_lookup, name, value)) {
+        bt_node* inserted = u64_bst_insert(string_lookup, name, value);
+        if (!inserted) {
             KERROR("Failed to save kname string '%s' to global lookup table.");
+        } else if (!string_lookup) {
+            string_lookup = inserted;
         }
     }
     return name;

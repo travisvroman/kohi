@@ -162,6 +162,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Replace regular c arrays throughout the codebase with the new static-sized, type-safe array where it makes sense.
 - [ ] Replace all instances of old darray usage with new one (NOTE: darray_create and darray_reserve)
 - [ ] Replace all instances of typical C-style arrays and replace with new typed array from array.h
+- [ ] Refactor handling of texture_map/texture resources in Vulkan renderer.
 - [ ] Asset System
   - [ ] Asset type reworks:
     - [ ] Folders (Future)

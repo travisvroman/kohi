@@ -17,6 +17,7 @@
 #include "defines.h"
 #include "identifiers/identifier.h"
 #include "input_types.h"
+#include "kresources/kresource_types.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
 #include "systems/xform_system.h"
@@ -38,7 +39,7 @@ typedef struct standard_ui_renderable {
 } standard_ui_renderable;
 
 typedef struct standard_ui_render_data {
-    texture_map* ui_atlas;
+    kresource_texture_map* ui_atlas;
     // darray
     standard_ui_renderable* renderables;
 } standard_ui_render_data;
@@ -129,7 +130,10 @@ typedef struct standard_ui_state {
     u32 inactive_control_count;
     sui_control** inactive_controls;
     sui_control root;
-    texture_map ui_atlas;
+    // texture_map ui_atlas;
+
+    kresource_texture atlas_texture;
+    kresource_texture_map atlas;
 
     u64 focused_id;
 

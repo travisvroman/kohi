@@ -76,8 +76,13 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
     backend->shader_instance_resources_release = vulkan_renderer_shader_instance_resources_release;
     backend->shader_uniform_set = vulkan_renderer_uniform_set;
 
+    // NOTE: old
     backend->texture_map_resources_acquire = vulkan_renderer_texture_map_resources_acquire;
     backend->texture_map_resources_release = vulkan_renderer_texture_map_resources_release;
+
+    // NOTE: new
+    backend->kresource_texture_map_resources_acquire = vulkan_renderer_kresource_texture_map_resources_acquire;
+    backend->kresource_texture_map_resources_release = vulkan_renderer_kresource_texture_map_resources_release;
 
     backend->is_multithreaded = vulkan_renderer_is_multithreaded;
     backend->flag_enabled_get = vulkan_renderer_flag_enabled_get;

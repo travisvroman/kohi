@@ -608,6 +608,21 @@ KAPI b8 renderer_texture_map_resources_acquire(struct texture_map* map);
 KAPI void renderer_texture_map_resources_release(struct texture_map* map);
 
 /**
+ * @brief Acquires internal resources for the given texture map.
+ *
+ * @param map A pointer to the texture map to obtain resources for.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 renderer_kresource_texture_map_resources_acquire(struct renderer_system_state* state, struct kresource_texture_map* map);
+
+/**
+ * @brief Releases internal resources for the given texture map.
+ *
+ * @param map A pointer to the texture map to release resources from.
+ */
+KAPI void renderer_kresource_texture_map_resources_release(struct renderer_system_state* state, struct kresource_texture_map* map);
+
+/**
  * @brief Indicates if the renderer is capable of multi-threading.
  */
 KAPI b8 renderer_is_multithreaded(void);

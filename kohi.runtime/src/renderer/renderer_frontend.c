@@ -465,6 +465,7 @@ b8 renderer_texture_resources_acquire(struct renderer_system_state* state, const
         state->textures = darray_create(texture_lookup);
     }
 
+    // TODO: Upon backend creation, setup a large contiguous array of some configured amount of these, and retrieve from there.
     struct texture_internal_data* data = kallocate(state->backend->texture_internal_data_size, MEMORY_TAG_RENDERER);
     b8 success;
     if (flags & TEXTURE_FLAG_IS_WRAPPED) {
@@ -1070,6 +1071,14 @@ b8 renderer_texture_map_resources_acquire(struct texture_map* map) {
 void renderer_texture_map_resources_release(struct texture_map* map) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     state_ptr->backend->texture_map_resources_release(state_ptr->backend, map);
+}
+
+b8 renderer_kresource_texture_map_resources_acquire(struct renderer_system_state* state, struct kresource_texture_map* map) {
+    return state->backend->kresource_texture_map_resources_acquire(state->backend, map);
+}
+
+void renderer_kresource_texture_map_resources_release(struct renderer_system_state* state, struct kresource_texture_map* map) {
+    state->backend->kresource_texture_map_resources_release(state->backend, map);
 }
 
 b8 renderer_is_multithreaded(void) {

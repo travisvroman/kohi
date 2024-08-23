@@ -33,6 +33,7 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
 
     kresource_texture* typed_resource = (kresource_texture*)resource;
     kresource_texture_request_info* typed_request = (kresource_texture_request_info*)info;
+    struct renderer_system_state* renderer = engine_systems_get()->renderer_system;
 
     b8 assets_required = true;
 
@@ -66,16 +67,37 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
     listener_inst->assets = array_kimage_ptr_create(info->assets.base.length);
 
     // Load all assets (might only be one).
-    for (array_iterator it = info->assets.begin(&info->assets.base); !it.end(&it); it.next(&it)) {
-        kresource_asset_info* asset_info = it.value(&it);
-        asset_system_request(
-            self->asset_system,
-            asset_info->type,
-            asset_info->package_name,
-            asset_info->asset_name,
-            true,
-            listener_inst,
-            texture_kasset_on_result);
+    if (info->assets.data) {
+        for (array_iterator it = info->assets.begin(&info->assets.base); !it.end(&it); it.next(&it)) {
+            kresource_asset_info* asset_info = it.value(&it);
+            if (asset_info->type == KASSET_TYPE_IMAGE) {
+                asset_system_request(
+                    self->asset_system,
+                    asset_info->type,
+                    asset_info->package_name,
+                    asset_info->asset_name,
+                    true,
+                    listener_inst,
+                    texture_kasset_on_result);
+            } else if (asset_info->type == KASSET_TYPE_UNKNOWN) {
+                // This means load pixel data.
+                kresource_texture_pixel_data* px = &typed_request->pixel_data.data[it.pos];
+                u32 texture_data_offset = 0; // NOTE: The only time this potentially could be nonzero is when explicitly loading a layer of texture data.
+                b8 write_result = renderer_texture_write_data(renderer, typed_resource->renderer_texture_handle, texture_data_offset, px->pixel_array_size, px->pixels);
+                if (!write_result) {
+                    KERROR("Failed to write renderer texture data resource '%s'.", kname_string_get(typed_resource->base.name));
+                }
+            }
+        }
+    } else if (typed_request->pixel_data.data) {
+        for (array_iterator it = typed_request->pixel_data.begin(&typed_request->pixel_data.base); !it.end(&it); it.next(&it)) {
+            kresource_texture_pixel_data* px = it.value(&it);
+            u32 texture_data_offset = 0; // NOTE: The only time this potentially could be nonzero is when explicitly loading a layer of texture data.
+            b8 write_result = renderer_texture_write_data(renderer, typed_resource->renderer_texture_handle, texture_data_offset, px->pixel_array_size, px->pixels);
+            if (!write_result) {
+                KERROR("Failed to write renderer texture data resource '%s'.", kname_string_get(typed_resource->base.name));
+            }
+        }
     }
 
     return true;

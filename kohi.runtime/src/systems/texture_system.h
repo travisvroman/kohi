@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "kresources/kresource_types.h"
 #include "renderer/renderer_types.h"
 
 /** @brief The texture system configuration */
@@ -61,6 +62,8 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
  * @param state The state block of memory for this system.
  */
 void texture_system_shutdown(void* state);
+
+KAPI b8 texture_system_request(kname name, kname package_name, void* listener, PFN_resource_loaded_user_callback callback, kresource_texture* out_resource);
 
 /**
  * @brief Attempts to acquire a texture with the given name. If it has not yet been loaded,
@@ -147,6 +150,8 @@ texture* texture_system_acquire_textures_as_arrayed(const char* name, u32 layer_
  */
 KAPI void texture_system_release(const char* name);
 
+KAPI void texture_system_release_resource(kresource_texture* t);
+
 /**
  * @brief Wraps the provided internal data in a texture structure using the parameters
  * provided. This is best used for when the renderer system creates internal resources
@@ -206,6 +211,12 @@ KAPI b8 texture_system_is_default_texture(texture* t);
 KAPI texture* texture_system_get_default_texture(void);
 
 /**
+ * @brief Gets a pointer to the default texture. No reference counting is
+ * done for default textures.
+ */
+KAPI kresource_texture* texture_system_get_default_kresource_texture(void);
+
+/**
  * @brief Gets a pointer to the default diffuse texture. No reference counting is
  * done for default textures.
  */
@@ -252,3 +263,5 @@ KAPI texture* texture_system_get_default_terrain_texture(void);
  * @returns A pointer to texture internal data if successful, otherwise 0/null.
  */
 KAPI struct texture_internal_data* texture_system_get_internal_or_default(texture* t, u8* out_generation);
+
+KAPI struct texture_internal_data* texture_system_resource_get_internal_or_default(kresource_texture* t, u32* out_generation);
