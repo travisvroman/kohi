@@ -968,7 +968,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
     for (u32 i = 0; i < node_count; ++i) {
         rendergraph_node* node = &state->forward_graph.nodes[i];
         if (strings_equali(node->name, "sui")) {
-            ui_rendergraph_node_set_atlas(node, &state->sui_state->ui_atlas);
+            ui_rendergraph_node_set_atlas(node, &state->sui_state->atlas);
 
             // We have the one.
             ui_rendergraph_node_set_viewport_and_matrices(
