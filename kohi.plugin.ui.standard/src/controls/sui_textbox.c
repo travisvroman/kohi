@@ -253,8 +253,8 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
     shader_instance_resource_config instance_resource_config = {0};
     // Map count for this type is known.
     shader_instance_uniform_texture_config atlas_texture = {0};
-    atlas_texture.texture_map_count = 1;
-    atlas_texture.texture_maps = maps;
+    atlas_texture.kresource_texture_map_count = 1;
+    atlas_texture.kresource_texture_maps = maps;
 
     instance_resource_config.uniform_config_count = 1;
     instance_resource_config.uniform_configs = &atlas_texture;

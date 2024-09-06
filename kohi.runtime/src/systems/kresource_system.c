@@ -1,11 +1,15 @@
 #include "kresource_system.h"
+#include "core/engine.h"
 #include "debug/kassert.h"
 #include "defines.h"
 #include "kresources/handlers/kresource_handler_texture.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
 
+struct asset_system_state;
+
 typedef struct kresource_system_state {
+    struct asset_system_state* asset_system;
     kresource_handler handlers[KRESOURCE_TYPE_COUNT];
 } kresource_system_state;
 
@@ -19,6 +23,7 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
     }
 
     // TODO: configure state, etc.
+    state->asset_system = engine_systems_get()->asset_state;
 
     // Register known handler types
     kresource_handler texture_handler = {0};
@@ -87,6 +92,7 @@ b8 kresource_system_handler_register(struct kresource_system_state* state, kreso
         return false;
     }
 
+    h->asset_system = state->asset_system;
     h->request = handler.request;
     h->release = handler.release;
 

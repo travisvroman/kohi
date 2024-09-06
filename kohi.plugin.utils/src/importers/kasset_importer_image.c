@@ -19,12 +19,20 @@ b8 kasset_importer_image_import(const struct kasset_importer* self, u64 data_siz
         return false;
     }
 
-    if (!params) {
-        KERROR("kasset_importer_image_import requires parameters to be present.");
-        return false;
-    }
+    // Defaults.
+    kasset_image_import_options default_options = {0};
+    default_options.flip_y = true;
+    default_options.format = KASSET_IMAGE_FORMAT_RGBA8;
 
-    kasset_image_import_options* options = (kasset_image_import_options*)params;
+    kasset_image_import_options* options = 0;
+    if (!params) {
+        /* KERROR("kasset_importer_image_import requires parameters to be present.");
+        return false; */
+        KWARN("kasset_importer_image_import - no params defined, using defaults.");
+        options = &default_options;
+    } else {
+        options = (kasset_image_import_options*)params;
+    }
     kasset_image* typed_asset = (kasset_image*)out_asset;
 
     // Determine channel count.
@@ -43,6 +51,10 @@ b8 kasset_importer_image_import(const struct kasset_importer* self, u64 data_siz
         break;
     }
 
+    // Set the "flip" as described in the options.
+    stbi_set_flip_vertically_on_load_thread(options->flip_y);
+
+    // Load the image.
     u8* pixels = stbi_load_from_memory(data, data_size, (i32*)&typed_asset->width, (i32*)&typed_asset->height, (i32*)&typed_asset->channel_count, required_channel_count);
     if (!pixels) {
         KERROR("Image importer failed to import image '%s'.", out_asset->meta.source_asset_path);
@@ -77,7 +89,7 @@ b8 kasset_importer_image_import(const struct kasset_importer* self, u64 data_siz
     }
 
     b8 success = true;
-    if (vfs_asset_write(vfs, out_asset, true, serialized_block_size, serialized_block)) {
+    if (!vfs_asset_write(vfs, out_asset, true, serialized_block_size, serialized_block)) {
         KERROR("Failed to write Binary Image asset data to VFS. See logs for details.");
         success = false;
     }

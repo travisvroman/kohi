@@ -33,7 +33,7 @@ typedef struct standard_ui_system_config {
 
 typedef struct standard_ui_renderable {
     u32* instance_id;
-    texture_map* atlas_override;
+    kresource_texture_map* atlas_override;
     geometry_render_data render_data;
     geometry_render_data* clip_mask_render_data;
 } standard_ui_renderable;

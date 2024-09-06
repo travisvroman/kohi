@@ -164,3 +164,12 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data as
         }
     }
 }
+
+u8 channel_count_from_image_format(kasset_image_format format) {
+    switch (format) {
+    case KASSET_IMAGE_FORMAT_RGBA8:
+        return 4;
+    default:
+        return 4;
+    }
+}

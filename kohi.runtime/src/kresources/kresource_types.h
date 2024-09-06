@@ -165,6 +165,8 @@ typedef struct kresource_texture_pixel_data {
     u32 width;
     u32 height;
     u32 channel_count;
+    kresource_texture_format format;
+    u8 mip_levels;
 } kresource_texture_pixel_data;
 
 ARRAY_TYPE(kresource_texture_pixel_data);

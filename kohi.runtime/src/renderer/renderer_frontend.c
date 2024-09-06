@@ -20,6 +20,7 @@
 #include "renderer/renderer_utils.h"
 #include "renderer/viewport.h"
 #include "resources/resource_types.h"
+#include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/material_system.h"
 #include "systems/plugin_system.h"
@@ -523,7 +524,23 @@ b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* st
         // count it as a success and proceed to get a handle.
         success = true;
     } else {
-        success = state->backend->kresource_texture_resources_acquire(state->backend, data, name, type, width, height, channel_count, mip_levels, array_size, flags);
+        // FIXME: Convert function call below to use the new type.
+        texture_type old_type = TEXTURE_TYPE_2D;
+        switch (type) {
+        default:
+            old_type = TEXTURE_TYPE_2D;
+            break;
+        case KRESOURCE_TEXTURE_TYPE_2D_ARRAY:
+            old_type = TEXTURE_TYPE_2D_ARRAY;
+            break;
+        case KRESOURCE_TEXTURE_TYPE_CUBE:
+            old_type = TEXTURE_TYPE_CUBE;
+            break;
+        case KRESOURCE_TEXTURE_TYPE_CUBE_ARRAY:
+            old_type = TEXTURE_TYPE_CUBE_ARRAY;
+            break;
+        }
+        success = state->backend->texture_resources_acquire(state->backend, data, kname_string_get(name), old_type, width, height, channel_count, mip_levels, array_size, flags);
     }
 
     // Only insert into the lookup table on success.

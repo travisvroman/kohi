@@ -77,14 +77,15 @@ b8 sui_label_control_create(standard_ui_state* state, const char* name, font_typ
 
     // Acquire resources for font texture map.
     // TODO: Should there be an override option for the shader?
-    texture_map* maps[1] = {&typed_data->data->atlas};
+    // FIXME: Convert fonts to use new texture resource type.
+    kresource_texture_map* maps[1] = {&state->atlas}; // {&typed_data->data->atlas};
     shader* s = shader_system_get("Shader.StandardUI");
     /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
     shader_instance_resource_config instance_resource_config = {0};
     // Map count for this type is known.
     shader_instance_uniform_texture_config atlas_texture = {0};
-    atlas_texture.texture_map_count = 1;
-    atlas_texture.texture_maps = maps;
+    atlas_texture.kresource_texture_map_count = 1;
+    atlas_texture.kresource_texture_maps = maps;
 
     instance_resource_config.uniform_config_count = 1;
     instance_resource_config.uniform_configs = &atlas_texture;
@@ -187,7 +188,8 @@ b8 sui_label_control_render(standard_ui_state* state, struct sui_control* self, 
         renderable.render_data.index_element_size = sizeof(u32);
 
         // NOTE: Override the default UI atlas and use that of the loaded font instead.
-        renderable.atlas_override = &typed_data->data->atlas;
+        // FIXME: Change to use kresource_texture in font refactor.
+        renderable.atlas_override = 0; // &typed_data->data->atlas;
 
         renderable.render_data.model = xform_world_get(self->xform);
         renderable.render_data.diffuse_colour = typed_data->colour;

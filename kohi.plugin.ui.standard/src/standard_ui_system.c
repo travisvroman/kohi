@@ -186,6 +186,8 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
         return true;
     }
 
+    state->renderer = engine_systems_get()->renderer_system;
+
     state->config = *config;
     state->active_controls = (void*)((u8*)state + struct_requirement);
     kzero_memory(state->active_controls, sizeof(sui_control) * config->max_control_count);
@@ -194,22 +196,7 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 
     sui_base_control_create(state, "__ROOT__", &state->root);
 
-    /*texture* atlas = texture_system_acquire("StandardUIAtlas", true);
-    if (!atlas) {
-        KWARN("Unable to load atlas texture, using default.");
-        atlas = texture_system_get_default_texture();
-    }*/
-
-    // Setup the texture map.
-    /*texture_map* map = &state->ui_atlas;
-    map->repeat_u = map->repeat_v = map->repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
-    map->filter_minify = map->filter_magnify = TEXTURE_FILTER_MODE_NEAREST;
-    map->texture = atlas;
-    if (!renderer_texture_map_resources_acquire(map)) {
-        return false;
-        KERROR("Unable to acquire texture map resources. StandardUI cannot be initialized.");
-    }*/
-
+    // Atlas texture.
     b8 request_result = texture_system_request(
         kname_create("StandardUIAtlas"),
         kname_create("PluginUiStandard"),
@@ -218,7 +205,18 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
         &state->atlas_texture);
     if (!request_result) {
         KERROR("Failed to request atlas texture for standard UI.");
+        // TODO: use default texture instead.
         return false;
+    }
+
+    // Atlas texture map.
+    kresource_texture_map* map = &state->atlas;
+    map->repeat_u = map->repeat_v = map->repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
+    map->filter_minify = map->filter_magnify = TEXTURE_FILTER_MODE_NEAREST;
+    map->texture = &state->atlas_texture;
+    if (!renderer_kresource_texture_map_resources_acquire(state->renderer, map)) {
+        return false;
+        KERROR("Unable to acquire atlas texture map resources. StandardUI cannot be initialized.");
     }
 
     // Listen for input events.
@@ -230,8 +228,6 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
     state->focused_id = INVALID_ID_U64;
 
     KTRACE("Initialized standard UI system (%s).", KVERSION);
-
-    state->renderer = engine_systems_get()->renderer_system;
 
     return true;
 }

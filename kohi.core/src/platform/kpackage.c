@@ -53,6 +53,7 @@ b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_p
         asset_entry new_entry = {0};
         new_entry.name = asset->name;
         new_entry.path = string_duplicate(asset->path);
+        new_entry.source_path = string_duplicate(asset->source_path);
         // NOTE: Size and offset don't get filled out/used with a manifest version of a package.
 
         // Allocate the entry type array if it isn't already.
@@ -140,15 +141,16 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
                 if (!asset_path) {
                     KERROR("Package '%s': No %s asset path exists for asset '%s'. Load operation failed.", package_name, get_source ? "source" : "primary", name_str);
                     result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
-                    goto get_data_cleanup;
+                    return result;
                 }
 
                 // Validate that the file exists.
                 if (!filesystem_exists(asset_path)) {
-                    KERROR("Package '%s': Invalid %s asset path for asset '%s'. Load operation failed.", package_name, get_source ? "source" : "primary", name_str);
+                    KERROR("Package '%s': Invalid %s asset path ('%s') for asset '%s'. Load operation failed.", package_name, get_source ? "source" : "primary", asset_path, name_str);
                     result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
-                    goto get_data_cleanup;
+                    return result;
                 }
+                void* data = 0;
 
                 // load the file content from disk.
                 file_handle f = {0};
@@ -166,7 +168,7 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
                     goto get_data_cleanup;
                 }
 
-                void* data = kallocate(file_size, MEMORY_TAG_ASSET);
+                data = kallocate(file_size, MEMORY_TAG_ASSET);
 
                 u64 read_size = 0;
                 if (is_binary) {
@@ -211,7 +213,7 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
                         kfree(data, file_size, MEMORY_TAG_ASSET);
                     }
                 } else {
-                    KERROR("Package '%s' does not contain asset '%s'.", package_name, name_str);
+                    // KERROR("Package '%s' does not contain asset '%s'.", package_name, name_str);
                 }
                 return result;
             }
@@ -297,6 +299,8 @@ static b8 kpackage_asset_write_file_internal(kpackage* package, kname name, u64 
                 KWARN("Asset bytes written/size mismatch: %llu/%llu", bytes_written, size);
             }
 
+            filesystem_close(&f);
+
             return true;
         }
     }
@@ -372,6 +376,16 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
         goto kpackage_parse_cleanup;
     }
 
+    // Take a copy of the file path.
+    out_manifest->file_path = string_duplicate(path);
+
+    // Take a copy of the directory to the file path.
+    char base_path[512];
+    kzero_memory(base_path, sizeof(char) * 512);
+    string_directory_from_path(base_path, path);
+    string_trim(base_path);
+    out_manifest->path = string_duplicate(base_path);
+
     // Process references.
     kson_array references = {0};
     b8 contains_references = kson_object_property_value_get_object(&tree.root, "references", &references);
@@ -445,17 +459,22 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
                 asset.name = kname_create(asset_name);
 
                 // Path
-                if (!kson_object_property_value_get_string(&asset_obj, "path", &asset.path)) {
+                const char* asset_path_temp = 0;
+                if (!kson_object_property_value_get_string(&asset_obj, "path", &asset_path_temp)) {
                     KWARN("Failed to get asset path at array index %u. Skipping.", i);
                     continue;
                 }
-                /* if (!kson_object_property_value_get_string(&asset_obj, "type", &asset.type)) {
-                    KWARN("Failed to get asset type at array index %u. Skipping.", i);
-                    if (asset.path) {
-                        string_free(asset.path);
-                    }
-                    continue;
-                } */
+                // Full path of the asset.
+                asset.path = string_format("%s/%s", out_manifest->path, asset_path_temp);
+                string_free(asset_path_temp);
+
+                // Source Path - optional
+                const char* asset_source_path_temp = 0;
+                if (kson_object_property_value_get_string(&asset_obj, "source_path", &asset_source_path_temp)) {
+                    // Full source path of the asset.
+                    asset.source_path = string_format("%s/%s", out_manifest->path, asset_source_path_temp);
+                    string_free(asset_source_path_temp);
+                }
 
                 // Add to assets
                 darray_push(out_manifest->assets, asset);
@@ -508,9 +527,9 @@ void kpackage_manifest_destroy(asset_manifest* manifest) {
                 if (asset->path) {
                     string_free(asset->path);
                 }
-                /* if (asset->type) {
-                    string_free(asset->type);
-                } */
+                if (asset->source_path) {
+                    string_free(asset->source_path);
+                }
             }
             darray_destroy(manifest->assets);
         }

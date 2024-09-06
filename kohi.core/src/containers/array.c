@@ -1,8 +1,14 @@
 #include "array.h"
 
+#include "debug/kassert.h"
 #include "memory/kmemory.h"
 
 void _karray_init(u32 length, u32 stride, u32* out_length, u32* out_stride, void** block) {
+    KASSERT_DEBUG(length);
+    KASSERT_DEBUG(stride);
+    KASSERT_DEBUG(out_length);
+    KASSERT_DEBUG(out_stride);
+    KASSERT_DEBUG(block);
     *out_length = length;
     *out_stride = stride;
     *block = kallocate_aligned(length * stride, 16, MEMORY_TAG_ARRAY);

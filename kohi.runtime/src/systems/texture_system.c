@@ -167,19 +167,23 @@ b8 texture_system_request(kname name, kname package_name, void* listener, PFN_re
     // TODO: Check that name is not the name of a default texture. If it is, immediately
     // make the callback with the appropriate default texture.
 
-    kresource_request_info request = {0};
-    request.type = KRESOURCE_TYPE_TEXTURE;
-    request.listener_inst = listener;
-    request.user_callback = callback;
+    kresource_texture_request_info request = {0};
+    request.base.type = KRESOURCE_TYPE_TEXTURE;
+    request.base.listener_inst = listener;
+    request.base.user_callback = callback;
 
-    request.assets = array_kresource_asset_info_create(1);
-    request.assets.data[0].type = KASSET_TYPE_IMAGE;
-    request.assets.data[0].package_name = package_name;
-    request.assets.data[0].asset_name = name;
+    request.base.assets = array_kresource_asset_info_create(1);
+    request.base.assets.data[0].type = KASSET_TYPE_IMAGE;
+    request.base.assets.data[0].package_name = package_name;
+    request.base.assets.data[0].asset_name = name;
+
+    request.array_size = 1;
+    request.texture_type = KRESOURCE_TEXTURE_TYPE_2D;
+    request.flags = 0;
 
     struct kresource_system_state* resource_state = engine_systems_get()->kresource_state;
 
-    b8 result = kresource_system_request(resource_state, name, &request, (kresource*)out_resource);
+    b8 result = kresource_system_request(resource_state, name, (kresource_request_info*)&request, (kresource*)out_resource);
     if (!result) {
         KERROR("Failed to properly request resource for texture '%s'.", kname_string_get(name));
     }
@@ -673,6 +677,7 @@ static b8 create_default_textures(texture_system_state* state) {
     create_default_texture(&state->default_texture, pixels, tex_dimension, DEFAULT_TEXTURE_NAME);
 
     // Request new resource texture.
+    KTRACE("Creating default resource texture...");
     struct kresource_system_state* kresource_system = engine_systems_get()->kresource_state;
     kresource_texture_request_info info = {0};
     kzero_memory(&info, sizeof(kresource_texture_request_info));
@@ -686,6 +691,8 @@ static b8 create_default_textures(texture_system_state* state) {
     px->width = tex_dimension;
     px->height = tex_dimension;
     px->channel_count = channels;
+    px->format = KRESOURCE_TEXTURE_FORMAT_RGBA8;
+    px->mip_levels = 1;
     kcopy_memory(px->pixels, pixels, px->pixel_array_size);
     info.base.type = KRESOURCE_TYPE_TEXTURE;
     if (!kresource_system_request(kresource_system, kname_create(DEFAULT_TEXTURE_NAME), (kresource_request_info*)&info, (kresource*)&state->default_kresource_texture)) {

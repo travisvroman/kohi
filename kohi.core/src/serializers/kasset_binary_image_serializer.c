@@ -1,6 +1,7 @@
 #include "kasset_binary_image_serializer.h"
 
 #include "assets/kasset_types.h"
+#include "assets/kasset_utils.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 
@@ -87,6 +88,7 @@ KAPI b8 kasset_binary_image_deserialize(u64 size, const void* block, kasset* out
     out_image->pixel_array_size = header->base.data_block_size;
     out_image->base.meta.version = header->base.version;
     out_image->base.type = type;
+    out_image->channel_count = channel_count_from_image_format(header->format);
 
     // Copy the actual image data block.
     out_image->pixels = kallocate(out_image->pixel_array_size, MEMORY_TAG_ASSET);

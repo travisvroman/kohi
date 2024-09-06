@@ -2579,7 +2579,7 @@ static b8 vulkan_descriptorset_update_and_bind(
                             // If not, the texture map resources should be regenerated.
                             if (t_generation != map->generation) {
                                 b8 refresh_required = t->mip_levels != map->mip_levels;
-                                KTRACE("A sampler refresh is%s required. Tex/map mips: %u/%u", refresh_required ? "" : " not", t->mip_levels, map->mip_levels);
+                                KTRACE("A sampler refresh is%s required (new). Tex/map mips: %u/%u", refresh_required ? "" : " not", t->mip_levels, map->mip_levels);
                                 if (refresh_required && !vulkan_renderer_kresource_texture_map_resources_refresh(backend, map)) {
                                     KWARN("Failed to refresh texture map resources. This means the sampler settings could be out of date.");
                                 } else {
@@ -2606,7 +2606,7 @@ static b8 vulkan_descriptorset_update_and_bind(
                             // If not, the texture map resources should be regenerated.
                             if (t_generation != map->generation) {
                                 b8 refresh_required = t->mip_levels != map->mip_levels;
-                                KTRACE("A sampler refresh is%s required. Tex/map mips: %u/%u", refresh_required ? "" : " not", t->mip_levels, map->mip_levels);
+                                KTRACE("A sampler refresh is%s required (old). Tex/map mips: %u/%u", refresh_required ? "" : " not", t->mip_levels, map->mip_levels);
                                 if (refresh_required && !vulkan_renderer_texture_map_resources_refresh(backend, map)) {
                                     KWARN("Failed to refresh texture map resources. This means the sampler settings could be out of date.");
                                 } else {
