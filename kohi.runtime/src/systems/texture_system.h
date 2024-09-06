@@ -99,18 +99,18 @@ KAPI texture* texture_system_acquire(const char* name, b8 auto_release);
 KAPI texture* texture_system_acquire_cube(const char* name, b8 auto_release);
 
 /**
- * @brief Attempts to acquire a writeable texture with the given name. This does not point to
- * nor attempt to load a texture file. Does also increment the reference counter.
- * NOTE: Writeable textures are not auto-released.
+ * @brief Requests a writeable texture with the given name. This does not point to
+ * nor attempt to load an image asset file.
  *
  * @param name The name of the texture to acquire.
  * @param width The texture width in pixels.
  * @param height The texture height in pixels.
- * @param channel_count The number of channels in the texture (typically 4 for RGBA)
+ * @param format The texture format.
  * @param has_transparency Indicates if the texture will have transparency.
- * @return A pointer to the generated texture.
+ * @param out_texture A pointer to hold the requested texture resource.
+ * @return True on success; otherwise false.
  */
-KAPI texture* texture_system_acquire_writeable(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency);
+KAPI b8 texture_system_request_writeable(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, kresource_texture* out_texture);
 
 /**
  * @brief Attempts to acquire a writeable array texture with the given name. This does not point to
@@ -120,13 +120,14 @@ KAPI texture* texture_system_acquire_writeable(const char* name, u32 width, u32 
  * @param name The name of the texture to acquire.
  * @param width The texture width in pixels.
  * @param height The texture height in pixels.
- * @param channel_count The number of channels in the texture (typically 4 for RGBA)
+ * @param format The texture format.
  * @param has_transparency Indicates if the texture will have transparency.
  * @param type The texture type.
  * @param array_size The number of "layers" in the texture.
- * @return A pointer to the generated texture.
+ * @param out_texture A pointer to hold the requested texture resource.
+ * @return True on success; otherwise false.
  */
-KAPI texture* texture_system_acquire_writeable_arrayed(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, texture_type type, u16 array_size);
+KAPI b8 texture_system_request_writeable_arrayed(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, kresource_texture_type type, u16 array_size, kresource_texture* out_texture);
 
 /**
  * @brief Attempts to acquire an array texture with the given name. This uses the provided array

@@ -143,6 +143,49 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
 
         // Flip to a "loaded" state.
         typed_resource->base.state = KRESOURCE_STATE_LOADED;
+    } else {
+        // No assets, no pixel data. Must be writeable or depth texture.
+        // Nothing to upload, so this is available immediately.
+
+        struct renderer_system_state* renderer = engine_systems_get()->renderer_system;
+
+        // Flip to a "loading" state.
+        typed_resource->base.state = KRESOURCE_STATE_LOADING;
+
+        // Apply properties taken from request.
+        typed_resource->type = typed_request->texture_type;
+        typed_resource->array_size = typed_request->array_size;
+        typed_resource->flags = typed_request->flags;
+
+        // Save off the properties of the first asset.
+        // Start by taking the dimensions of just the first pixel data.
+        typed_resource->width = typed_request->width;
+        typed_resource->height = typed_request->height;
+        typed_resource->format = typed_request->format;
+        typed_resource->mip_levels = typed_request->mip_levels;
+        typed_resource->array_size = typed_request->array_size;
+
+        // Acquire the resources for the texture.
+        b8 acquisition_result = renderer_kresource_texture_resources_acquire(
+            renderer,
+            resource->name,
+            typed_resource->type,
+            typed_resource->width,
+            typed_resource->height,
+            channel_count_from_texture_format(typed_resource->format),
+            typed_resource->mip_levels,
+            typed_resource->array_size,
+            typed_resource->flags,
+            &typed_resource->renderer_texture_handle);
+
+        if (!acquisition_result) {
+            KERROR("Failed to acquire renderer texture resources (from pixel data) for resource '%s'", kname_string_get(typed_resource->base.name));
+            return false;
+        }
+
+        typed_resource->base.state = KRESOURCE_STATE_LOADED;
+        // Increase the generation also.
+        typed_resource->base.generation++;
     }
 
     return true;
@@ -220,7 +263,7 @@ static void texture_kasset_on_result(asset_request_result result, const struct k
                 array_b8 mismatches = array_b8_create(listener->assets.base.length);
                 for (array_iterator it = listener->assets.begin((const array_base*)&listener->assets); !it.end(&it); it.next(&it)) {
                     b8 mismatch = false;
-                    const kasset_image* image = listener->assets.data[it.pos];// it.value(&it);
+                    const kasset_image* image = listener->assets.data[it.pos]; // it.value(&it);
 
                     // Verify and report any mismatches.
                     if (image->width != width) {
@@ -253,7 +296,7 @@ static void texture_kasset_on_result(asset_request_result result, const struct k
                             continue;
                         }
                         // kasset_image* image = it.value(&it);
-                        const kasset_image* image = listener->assets.data[it.pos];// it.value(&it);
+                        const kasset_image* image = listener->assets.data[it.pos]; // it.value(&it);
                         kcopy_memory(all_pixels + pixel_array_offset, image->pixels, image->pixel_array_size);
                         pixel_array_offset += image->pixel_array_size;
 

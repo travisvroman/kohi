@@ -20,17 +20,6 @@ b8 kplugin_create(struct kruntime_plugin* out_plugin) {
     out_plugin->plugin_state_size = 0;
     out_plugin->plugin_state = 0;
 
-    KINFO("Kohi Utils Plugin Creation successful (%s).", KVERSION);
-
-    return true;
-}
-
-b8 kplugin_initialize(struct kruntime_plugin* plugin) {
-    if (!plugin) {
-        KERROR("Cannot initialize a plugin without a pointer to it, ya dingus!");
-        return false;
-    }
-
     // TODO: Register known importer types.
 
     // Images - one per file extension.
@@ -54,6 +43,17 @@ b8 kplugin_initialize(struct kruntime_plugin* plugin) {
             KERROR("Failed to register static mesh Wavefront OBJ asset importer!");
             return false;
         }
+    }
+
+    KINFO("Kohi Utils Plugin Creation successful (%s).", KVERSION);
+
+    return true;
+}
+
+b8 kplugin_initialize(struct kruntime_plugin* plugin) {
+    if (!plugin) {
+        KERROR("Cannot initialize a plugin without a pointer to it, ya dingus!");
+        return false;
     }
 
     KINFO("Kohi Utils plugin initialized successfully.");

@@ -182,4 +182,15 @@ typedef struct kresource_texture_request_info {
     // Only used where asset at index has type of undefined.
     array_kresource_texture_pixel_data pixel_data;
 
+    // Texture width in pixels. Ignored unless there are no assets or pixel data.
+    u32 width;
+
+    // Texture height in pixels. Ignored unless there are no assets or pixel data.
+    u32 height;
+
+    // Texture format. Ignored unless there are no assets or pixel data.
+    kresource_texture_format format;
+
+    // The number of mip levels. Ignored unless there are no assets or pixel data.
+    u8 mip_levels;
 } kresource_texture_request_info;
