@@ -151,6 +151,10 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
     // Get the configured plugin.
     const engine_system_states* systems = engine_systems_get();
     state->backend_plugin = plugin_system_get(systems->plugin_system, config->backend_plugin_name);
+    if (!state->backend_plugin) {
+        KERROR("Failed to load required backend plugin for renderer. See logs for details.");
+        return false;
+    }
 
     // Cold-cast to the known type and keep a convenience pointer.
     state->backend = (renderer_backend_interface*)state->backend_plugin->plugin_state;

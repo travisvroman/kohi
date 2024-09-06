@@ -188,8 +188,10 @@ b8 sui_label_control_render(standard_ui_state* state, struct sui_control* self, 
         renderable.render_data.index_element_size = sizeof(u32);
 
         // NOTE: Override the default UI atlas and use that of the loaded font instead.
-        // FIXME: Change to use kresource_texture in font refactor.
-        renderable.atlas_override = 0; // &typed_data->data->atlas;
+        // TODO: At this point, should probably have a separate font shader anyway, since
+        // the future will require things like SDF, etc.
+        // FIXME: Fonts won't work until this is changed over.
+        renderable.atlas_override = 0; //&typed_data->data->atlas;
 
         renderable.render_data.model = xform_world_get(self->xform);
         renderable.render_data.diffuse_colour = typed_data->colour;
