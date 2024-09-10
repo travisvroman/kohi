@@ -438,7 +438,7 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
     }
 
     // Create command buffers.
-    create_command_buffers(context, window);
+    (context, window);
 
     // Create the depthbuffer.
     KDEBUG("Creating Vulkan depthbuffer for window '%s'...", window->name);
@@ -1430,7 +1430,7 @@ static void create_command_buffers(vulkan_context* context, kwindow* window) {
     u32 new_image_count = window_backend->swapchain.image_count;
     window_backend->graphics_command_buffers = kallocate(sizeof(vulkan_command_buffer) * new_image_count, MEMORY_TAG_ARRAY);
     // FIX: Should work faster.
-    kzero_memory(&window_backend->graphics_command_buffers, sizeof(vulkan_command_buffer) * new_image_count);
+    kzero_memory(window_backend->graphics_command_buffers, sizeof(vulkan_command_buffer) * new_image_count);
     
     for (u32 i = 0; i < new_image_count; ++i) {
         // kzero_memory(&window_backend->graphics_command_buffers[i], sizeof(vulkan_command_buffer));
