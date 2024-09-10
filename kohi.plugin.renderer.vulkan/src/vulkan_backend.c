@@ -1429,8 +1429,11 @@ static void create_command_buffers(vulkan_context* context, kwindow* window) {
     // Create new command buffers according to the new swapchain image count.
     u32 new_image_count = window_backend->swapchain.image_count;
     window_backend->graphics_command_buffers = kallocate(sizeof(vulkan_command_buffer) * new_image_count, MEMORY_TAG_ARRAY);
+    // FIX: Should work faster.
+    kzero_memory(&window_backend->graphics_command_buffers, sizeof(vulkan_command_buffer) * new_image_count);
+    
     for (u32 i = 0; i < new_image_count; ++i) {
-        kzero_memory(&window_backend->graphics_command_buffers[i], sizeof(vulkan_command_buffer));
+        // kzero_memory(&window_backend->graphics_command_buffers[i], sizeof(vulkan_command_buffer));
 
         // Allocate a new buffer.
         char* name = string_format("%s_command_buffer_%d", window->name, i);
