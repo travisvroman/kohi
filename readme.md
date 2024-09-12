@@ -91,8 +91,7 @@ sudo apt upgrade
 sudo apt install clang git make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev libopenal-dev
 ```
 
-Download and extract Vulkan SDK
-The following commands will automatically download and extract VulkanSDK 1.3.290.0
+Download and extract Vulkan SDK. The following commands will automatically download and extract VulkanSDK 1.3.290.0
 
 ```
 curl -o vulkansdk.tar.xz https://sdk.lunarg.com/sdk/download/1.3.290.0/linux/vulkansdk-linux-x86_64-1.3.290.0.tar.xz
@@ -120,6 +119,7 @@ Install these via homebrew or other package manager:
 - `make`
 - `openal-soft`
 
+The following commands will install the packaged using homebrew.
 ```
 brew install openal-soft
 brew install git
