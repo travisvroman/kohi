@@ -103,18 +103,6 @@
                 "cwd": "${workspaceFolder}"
             },
             "group": "build"
-        },
-        {
-            "type": "shell",
-            "label": "Post-Build",
-            "command": "${workspaceFolder}/post-build.sh",
-            "windows": {
-                "command": "${workspaceFolder}/post-build.bat",
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": "build"
         }
     ],
     "version": "2.0.0"
