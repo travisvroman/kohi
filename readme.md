@@ -64,6 +64,15 @@ Download and install the following utlities:
 - [OpenAL SDK](https://www.openal.org/downloads/)
 - [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) (acts as backend for clang), 2019+ is fine
 - [Vulkan SDK](https://vulkan.lunarg.com/sdk/home#windows)
+- [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/)
+
+Add the Make directory to your Path Environment Variable:
+ - Search for `Edit the system environment variables`
+ - Select `Enviroment Variables...` (near the bottom)
+ - Under `System variables`, double-click the `Path` option
+ - Click `New`
+ - Enter the Make `bin` directory (`C:\Program Files (x86)\GnuWin32\bin`)
+ - Press `OK` then `OK` then `OK`
 
 Clone the repositiory to your desired location
 ```
