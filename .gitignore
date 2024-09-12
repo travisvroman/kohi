@@ -7,3 +7,4 @@ docs/
 *_version.h
 
 *compile_flags.txt
+.vscode/settings.json
