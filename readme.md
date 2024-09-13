@@ -58,15 +58,14 @@ More information is available in [Kohi Episode 001](https://youtu.be/F6_WdnzQIQ4
 
 Download and install the following utlities:
 
-- [Clang/LLVM](https://releases.llvm.org/download.html)
+- [Clang/LLVM](https://releases.llvm.org/download.html) (Select `Add LLVM to system PATH for all users` during installation)
 - [Git for Windows](https://gitforwindows.org/)
-- [Make for Windows](https://gnuwin32.sourceforge.net/packages/make.htm) (Yes, the last update was in 2006. But if ain't broke, why fix it?)
+- [Make for Windows](https://gnuwin32.sourceforge.net/packages/make.htm)
 - [OpenAL SDK](https://www.openal.org/downloads/)
-- [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) (acts as backend for clang), 2019+ is fine
+- [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) (Select the `Desktop development with C++` workload)
 - [Vulkan SDK](https://vulkan.lunarg.com/sdk/home#windows)
-- [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/)
 
-Add the Make directory to your Path Environment Variable:
+Add the Make `bin` directory to your Path Environment Variable:
  - Search for `Edit the system environment variables`
  - Select `Enviroment Variables...` (near the bottom)
  - Under `System variables`, double-click the `Path` option
