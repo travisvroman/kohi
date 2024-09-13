@@ -211,6 +211,7 @@ KAPI void* platform_zero_memory(void* block, u64 size);
 
 /**
  * @brief Copies the bytes of memory in source to dest, of the given size.
+ * Memory regions cannot overlap, if they do, use platform_move_memory.
  *
  * @param dest The destination memory block.
  * @param source The source memory block.
@@ -218,6 +219,18 @@ KAPI void* platform_zero_memory(void* block, u64 size);
  * @return A pointer to the destination block of memory.
  */
 KAPI void* platform_copy_memory(void* dest, const void* source, u64 size);
+
+
+/**
+ * @brief Copies the bytes of memory in source to dest, of the given size.
+ * Memory regions may overlap.
+ *
+ * @param dest The destination memory block.
+ * @param source The source memory block.
+ * @param size The size of data to be copied.
+ * @return A pointer to the destination block of memory.
+ */
+KAPI void* platform_move_memory(void* dest, const void* source, u64 size);
 
 /**
  * @brief Sets the bytes of memory to the given value.
