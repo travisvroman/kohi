@@ -58,20 +58,31 @@ More information is available in [Kohi Episode 001](https://youtu.be/F6_WdnzQIQ4
 
 Download and install the following utlities:
 
-- [Clang/LLVM](https://releases.llvm.org/download.html) (Select `Add LLVM to system PATH for all users` during installation)
+- [Clang/LLVM](https://github.com/llvm/llvm-project/releases/latest)<sup>1</sup>
 - [Git for Windows](https://gitforwindows.org/)
-- [Make for Windows](https://gnuwin32.sourceforge.net/packages/make.htm)
-- [OpenAL SDK](https://www.openal.org/downloads/)
-- [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) (Select the `Desktop development with C++` workload during installation)
+- [Make for Windows](https://gnuwin32.sourceforge.net/downlinks/make.php)<sup>2</sup>
+- [OpenAL SDK](https://www.openal.org/downloads/OpenAL11CoreSDK.zip)
+- [Visual Studio Build Tools](https://aka.ms/vs/17/release/vs_BuildTools.exe)<sup>3</sup>
 - [Vulkan SDK](https://vulkan.lunarg.com/sdk/home#windows)
 
-Add the Make `bin` directory to your Path Environment Variable:
- - Search for `Edit the system environment variables`
- - Select `Enviroment Variables...` (near the bottom)
- - Under `System variables`, double-click the `Path` option
- - Click `New`
- - Enter the Make `bin` directory (`C:\Program Files (x86)\GnuWin32\bin`)
- - Press `OK` then `OK` then `OK`
+ ---
+
+- <sup>1</sup> Select `Add LLVM to system PATH for all users` during installation
+
+- <sup>2</sup> You will need to add the Make `bin` directory to your Path Environment Variable after installation:
+  - Use the Windows Search bar to search for `Edit the system environment variables` or run this command: `SystemPropertiesAdvanced`
+  - Select `Enviroment Variables...` (near the bottom)
+  - Under the `System variables` section, double-click the `Path` option
+  - Click `New`
+  - Enter the Make `bin` directory (which should be `C:\Program Files (x86)\GnuWin32\bin` by default)
+  - Press `OK` then `OK` then `OK`
+
+- <sup>3</sup> Select the `Desktop development with C++` workload during installation, or use this command to automatically install the minimum necessary Visual Studio Build Tools packages:
+```
+winget install Microsoft.VisualStudio.2022.BuildTools --force --override "--wait --passive --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows10SDK.20348"
+```
+
+---
 
 Clone the repositiory to your desired location
 ```
