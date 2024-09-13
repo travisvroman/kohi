@@ -77,7 +77,7 @@ Download and install the following utlities:
   - Enter the Make `bin` directory (which should be `C:\Program Files (x86)\GnuWin32\bin` by default)
   - Press `OK` then `OK` then `OK`
 
-- <sup>3</sup> Select the `Desktop development with C++` workload during installation, or use this command to automatically install the minimum necessary Visual Studio Build Tools packages:
+- <sup>3</sup> Select the `Desktop development with C++` workload during installation, or use this [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) command to automatically install the minimum necessary Visual Studio Build Tools packages:
 ```
 winget install Microsoft.VisualStudio.2022.BuildTools --force --override "--wait --passive --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows10SDK.20348"
 ```
