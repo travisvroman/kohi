@@ -349,7 +349,9 @@ void* platform_zero_memory(void* block, u64 size) {
 void* platform_copy_memory(void* dest, const void* source, u64 size) {
     return memcpy(dest, source, size);
 }
-
+void* platform_move_memory(void* dest, const void* source, u64 size) {
+    return memmove(dest, source, size);
+}
 void* platform_set_memory(void* dest, i32 value, u64 size) {
     return memset(dest, value, size);
 }
