@@ -62,7 +62,7 @@ Download and install the following utlities:
 - [Git for Windows](https://gitforwindows.org/)
 - [Make for Windows](https://gnuwin32.sourceforge.net/packages/make.htm)
 - [OpenAL SDK](https://www.openal.org/downloads/)
-- [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) (Select the `Desktop development with C++` workload)
+- [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) (Select the `Desktop development with C++` workload during installation)
 - [Vulkan SDK](https://vulkan.lunarg.com/sdk/home#windows)
 
 Add the Make `bin` directory to your Path Environment Variable:
