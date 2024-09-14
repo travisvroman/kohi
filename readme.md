@@ -96,6 +96,7 @@ More information is available in [Kohi Episode 002](https://youtu.be/NIv1mygBOcg
 Install the following utilities using your package manager:
 
 - `clang`
+- `gdb`
 - `git`
 - `make`
 - `libx11-dev`
@@ -107,7 +108,7 @@ The following commands will automatically install the required packages using ap
 ```
 sudo apt update
 sudo apt upgrade
-sudo apt install clang git make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev libopenal-dev
+sudo apt install clang git gdb make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev libopenal-dev
 ```
 
 Download and extract Vulkan SDK. The following commands will automatically download and extract VulkanSDK 1.3.290.0
