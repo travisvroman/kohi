@@ -412,7 +412,7 @@ KAPI b8 shader_system_apply_local(u32 shader_id);
  * @param out_instance_id A pointer to hold the instance id once resources are acquired.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, texture_map* maps, u32* out_instance_id);
+KAPI b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, kresource_texture_map* maps, u32* out_instance_id);
 
 /**
  * @brief Releases instance resources and texture map resources from the provided shader.
@@ -423,4 +423,4 @@ KAPI b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, text
  * @param maps An array of texture maps to be released.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_shader_instance_release(u32 shader_id, u32 instance_id, u32 map_count, texture_map* maps);
+KAPI b8 shader_system_shader_instance_release(u32 shader_id, u32 instance_id, u32 map_count, kresource_texture_map* maps);

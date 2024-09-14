@@ -154,7 +154,6 @@ void asset_system_request(struct asset_system_state* state, kasset_type type, kn
         // Valid entry found, increment the reference count and immediately make the callback.
         asset_lookup* lookup = &state->lookups[lookup_index];
         lookup->reference_count++;
-        lookup->asset.generation++;
         if (callback) {
             callback(ASSET_REQUEST_RESULT_SUCCESS, &lookup->asset, listener_instance);
         }

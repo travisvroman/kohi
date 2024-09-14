@@ -248,7 +248,7 @@ b8 engine_create(application* game_inst) {
 
         // TODO: deserialize from application config, if provided.
         kresource_system_config resource_sys_config = {0};
-        resource_sys_config.dummy = 69;
+        resource_sys_config.max_resource_count = 2000;
 
         kresource_system_initialize(&systems->kresource_system_memory_requirement, 0, &resource_sys_config);
         systems->kresource_state = kallocate(systems->kresource_system_memory_requirement, MEMORY_TAG_ENGINE);

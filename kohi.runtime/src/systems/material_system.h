@@ -21,6 +21,8 @@
 /** @brief The name of the default terrain material. */
 #define DEFAULT_TERRAIN_MATERIAL_NAME "default_terrain"
 
+struct material_system_state;
+
 /** @brief The configuration for the material system. */
 typedef struct material_system_config {
     /** @brief The maximum number of loaded materials. */
@@ -39,14 +41,14 @@ struct frame_data;
  * @param config The configuration (material_system_config) for this system.
  * @return True on success; otherwise false.
  */
-b8 material_system_initialize(u64* memory_requirement, void* state, void* config);
+b8 material_system_initialize(u64* memory_requirement, struct material_system_state* state, const material_system_config* config);
 
 /**
  * @brief Shuts down the material system.
  *
  * @param state The state block of memory.
  */
-void material_system_shutdown(void* state);
+void material_system_shutdown(struct material_system_state* state);
 
 /**
  * @brief Attempts to acquire a material with the given name. If it has not yet been loaded,

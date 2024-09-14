@@ -13,7 +13,9 @@
 
 #include "identifiers/identifier.h"
 #include "identifiers/khandle.h"
+#include "kresources/kresource_types.h"
 #include "math/math_types.h"
+#include "strings/kname.h"
 
 #include <core_render_types.h>
 
@@ -394,10 +396,12 @@ typedef struct material {
      * internal resources. */
     u32 internal_id;
     /** @brief The material name. */
-    char name[MATERIAL_NAME_MAX_LENGTH];
+    kname name;
+    /** @brief The name of the package containing this material. */
+    kname package_name;
 
     /** @brief An array of texture maps. */
-    struct texture_map* maps;
+    struct kresource_texture_map* maps;
 
     /** @brief property structure size. */
     u32 property_struct_size;
@@ -409,7 +413,7 @@ typedef struct material {
      * @brief An explicitly-set irradiance texture for this material. Should only be set
      * in limited circumstances. Ideally a scene should set it through material manager.
      */
-    texture* irradiance_texture;
+    kresource_texture* irradiance_texture;
 
     // /** @brief The diffuse colour. */
     // vec4 diffuse_colour;

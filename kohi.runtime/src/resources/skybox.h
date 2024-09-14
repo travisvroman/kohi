@@ -21,8 +21,8 @@ typedef enum skybox_state {
 typedef struct skybox {
     skybox_state state;
 
-    const char* cubemap_name;
-    texture_map cubemap;
+    kname cubemap_name;
+    kresource_texture_map cubemap;
 
     geometry_config g_config;
     geometry* g;

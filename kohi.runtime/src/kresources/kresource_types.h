@@ -9,6 +9,8 @@
 
 /** @brief Pre-defined resource types. */
 typedef enum kresource_type {
+    /** @brief Unassigned resource type */
+    KRESOURCE_TYPE_UNKNOWN,
     /** @brief Texture resource type. */
     KRESOURCE_TYPE_TEXTURE,
     /** @brief Material resource type. */

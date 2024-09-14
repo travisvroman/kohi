@@ -102,7 +102,7 @@ KAPI geometry* geometry_system_get_default(void);
  * @param material_name The name of the material to be used.
  * @return A geometry configuration which can then be fed into geometry_system_acquire_from_config().
  */
-KAPI geometry_config geometry_system_generate_plane_config(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, const char* name, const char* material_name);
+KAPI geometry_config geometry_system_generate_plane_config(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name, kname material_name);
 
 /**
  * @brief
@@ -116,4 +116,4 @@ KAPI geometry_config geometry_system_generate_plane_config(f32 width, f32 height
  * @param material_name
  * @return geometry_config
  */
-KAPI geometry_config geometry_system_generate_cube_config(f32 width, f32 height, f32 depth, f32 tile_x, f32 tile_y, const char* name, const char* material_name);
+KAPI geometry_config geometry_system_generate_cube_config(f32 width, f32 height, f32 depth, f32 tile_x, f32 tile_y, kname name, kname material_name);

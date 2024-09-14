@@ -16,7 +16,7 @@ typedef struct clear_depth_rendergraph_node_config {
 
 typedef struct clear_depth_rendergraph_node_internal_data {
     struct renderer_system_state* renderer;
-    struct texture* buffer_texture;
+    struct kresource_texture* buffer_texture;
     f32 depth_clear_value;
     u32 stencil_clear_value;
 } clear_depth_rendergraph_node_internal_data;

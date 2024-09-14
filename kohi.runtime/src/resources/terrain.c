@@ -2,18 +2,15 @@
 
 #include "defines.h"
 #include "identifiers/identifier.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
 #include "logger.h"
-#include "math/geometry.h"
 #include "math/kmath.h"
+#include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
-#include "systems/light_system.h"
+#include "strings/kstring.h"
 #include "systems/material_system.h"
 #include "systems/resource_system.h"
-#include "systems/shader_system.h"
 
 static void terrain_chunk_destroy(terrain* t, terrain_chunk* chunk);
 static void terrain_chunk_calculate_geometry(terrain* t, terrain_chunk* chunk, u32 chunk_offset_x, u32 chunk_offset_z);
@@ -314,7 +311,7 @@ b8 terrain_chunk_unload(terrain* t, terrain_chunk* chunk) {
     // This will allow for chunks to be unloaded/reloaded at will.
 
     // Release the material reference.
-    material_system_release(chunk->material->name);
+    material_system_release(kname_string_get(chunk->material->name));
     chunk->material = 0;
 
     if (chunk->vertices) {

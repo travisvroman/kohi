@@ -13,7 +13,7 @@ typedef struct clear_colour_rendergraph_node_config {
 
 typedef struct clear_colour_rendergraph_node_internal_data {
     struct renderer_system_state* renderer;
-    struct texture* buffer_texture;
+    struct kresource_texture* buffer_texture;
 } clear_colour_rendergraph_node_internal_data;
 
 static b8 deserialize_config(const char* source_str, clear_colour_rendergraph_node_config* out_config);

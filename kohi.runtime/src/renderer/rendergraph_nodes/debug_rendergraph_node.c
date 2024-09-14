@@ -1,16 +1,15 @@
 #include "debug_rendergraph_node.h"
 
 #include "core/engine.h"
-#include "identifiers/khandle.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "renderer/rendergraph.h"
+#include "renderer/viewport.h"
 #include "strings/kstring.h"
 #include "systems/material_system.h"
 #include "systems/shader_system.h"
-#include "renderer/viewport.h"
 
 typedef struct debug_shader_locations {
     u16 projection;
@@ -25,8 +24,8 @@ typedef struct debug_rendergraph_node_internal_data {
     shader* colour_shader;
     debug_shader_locations debug_locations;
 
-    struct texture* colourbuffer_texture;
-    struct texture* depthbuffer_texture;
+    struct kresource_texture* colourbuffer_texture;
+    struct kresource_texture* depthbuffer_texture;
 
     viewport vp;
     mat4 view;

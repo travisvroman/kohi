@@ -132,7 +132,7 @@ typedef struct standard_ui_state {
     sui_control root;
     // texture_map ui_atlas;
 
-    kresource_texture atlas_texture;
+    kresource_texture* atlas_texture;
     kresource_texture_map atlas;
 
     u64 focused_id;

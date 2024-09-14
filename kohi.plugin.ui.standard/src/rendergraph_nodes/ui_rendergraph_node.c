@@ -34,8 +34,8 @@ typedef struct ui_pass_internal_data {
     shader* sui_shader; // standard ui // TODO: different render pass?
     sui_shader_locations sui_locations;
 
-    struct texture* colourbuffer_texture;
-    struct texture* depthbuffer_texture;
+    struct kresource_texture* colourbuffer_texture;
+    struct kresource_texture* depthbuffer_texture;
     struct kresource_texture_map* ui_atlas;
     standard_ui_render_data render_data;
 

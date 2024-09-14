@@ -1,6 +1,7 @@
 #pragma once
 
 #include "math/math_types.h"
+#include "strings/kname.h"
 
 /** @brief The maximum length of a geometry name. */
 #define GEOMETRY_NAME_MAX_LENGTH 256
@@ -27,9 +28,9 @@ typedef struct geometry_config {
     vec3 max_extents;
 
     /** @brief The name of the geometry. */
-    char name[GEOMETRY_NAME_MAX_LENGTH]; // FIXME: Should probably just dynamically allocate this.
+    kname name;
     /** @brief The name of the material used by the geometry. */
-    char material_name[256]; // FIXME: Should probably just dynamically allocate this.
+    kname material_name;
 } geometry_config;
 
 /**
@@ -73,8 +74,8 @@ typedef struct geometry {
 
 #pragma once
 
-#include "math/math_types.h"
 #include "math/geometry.h"
+#include "math/math_types.h"
 
 struct frame_data;
 
@@ -87,7 +88,7 @@ struct frame_data;
  * @param index_count The number of indices.
  * @param indices An array of vertices.
  */
-KAPI void geometry_generate_normals(u32 vertex_count, vertex_3d *vertices, u32 index_count, u32 *indices);
+KAPI void geometry_generate_normals(u32 vertex_count, vertex_3d* vertices, u32 index_count, u32* indices);
 
 /**
  * @brief Calculates tangents for the given vertex and index data. Modifies
@@ -98,7 +99,7 @@ KAPI void geometry_generate_normals(u32 vertex_count, vertex_3d *vertices, u32 i
  * @param index_count The number of indices.
  * @param indices An array of vertices.
  */
-KAPI void geometry_generate_tangents(u32 vertex_count, vertex_3d *vertices, u32 index_count, u32 *indices);
+KAPI void geometry_generate_tangents(u32 vertex_count, vertex_3d* vertices, u32 index_count, u32* indices);
 
 /**
  * @brief De-duplicates vertices, leaving only unique ones. Leaves the original
@@ -114,7 +115,7 @@ KAPI void geometry_generate_tangents(u32 vertex_count, vertex_3d *vertices, u32 
  * @param out_vertex_count A pointer to hold the final vertex count.
  * @param out_vertices A pointer to hold the array of de-duplicated vertices.
  */
-KAPI void geometry_deduplicate_vertices(u32 vertex_count, vertex_3d *vertices, u32 index_count, u32 *indices, u32 *out_vertex_count, vertex_3d **out_vertices);
+KAPI void geometry_deduplicate_vertices(u32 vertex_count, vertex_3d* vertices, u32 index_count, u32* indices, u32* out_vertex_count, vertex_3d** out_vertices);
 
-KAPI void generate_uvs_from_image_coords(u32 img_width, u32 img_height, u32 px_x, u32 px_y, f32 *out_tx, f32 *out_ty);
-KAPI void generate_quad_2d(const char *name, f32 width, f32 height, f32 tx_min, f32 tx_max, f32 ty_min, f32 ty_max, geometry_config *out_config);
+KAPI void generate_uvs_from_image_coords(u32 img_width, u32 img_height, u32 px_x, u32 px_y, f32* out_tx, f32* out_ty);
+KAPI void generate_quad_2d(const char* name, f32 width, f32 height, f32 tx_min, f32 tx_max, f32 ty_min, f32 ty_max, geometry_config* out_config);

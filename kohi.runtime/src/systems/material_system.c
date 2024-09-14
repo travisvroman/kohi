@@ -5,12 +5,14 @@
 #include "core/console.h"
 #include "core/engine.h"
 #include "defines.h"
+#include "kresources/kresource_types.h"
 #include "logger.h"
 #include "math/kmath.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
+#include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
@@ -69,6 +71,7 @@ typedef struct material_system_state {
 
     // Keep a pointer to the renderer state for quick access.
     struct renderer_system_state* renderer;
+    struct texture_system_state* texture_system;
 
 } material_system_state;
 
@@ -78,17 +81,18 @@ typedef struct material_reference {
     b8 auto_release;
 } material_reference;
 
+// FIXME: Remove this and references to it.
 static material_system_state* state_ptr = 0;
 
 static b8 create_default_pbr_material(material_system_state* state);
 static b8 create_default_terrain_material(material_system_state* state);
-static b8 load_material(material_config* config, material* m);
+static b8 load_material(material_system_state* state, material_config* config, material* m);
 static void destroy_material(material* m);
 
-static b8 assign_map(texture_map* map, const material_map* config, const char* material_name, texture* default_tex);
+static b8 assign_map(material_system_state* state, kresource_texture_map* map, const material_map* config, kname material_name, const kresource_texture* default_tex);
 static void on_material_system_dump(console_command_context context);
 
-b8 material_system_initialize(u64* memory_requirement, void* state, void* config) {
+b8 material_system_initialize(u64* memory_requirement, material_system_state* state, const material_system_config* config) {
     material_system_config* typed_config = (material_system_config*)config;
     if (typed_config->max_material_count == 0) {
         KFATAL("material_system_initialize - config.max_material_count must be > 0.");
@@ -105,63 +109,65 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
         return true;
     }
 
+    // FIXME: remove this
     state_ptr = state;
 
     // Keep a pointer to the renderer system state for quick access.
-    state_ptr->renderer = engine_systems_get()->renderer_system;
+    state->renderer = engine_systems_get()->renderer_system;
+    state->texture_system = engine_systems_get()->texture_system;
 
-    state_ptr->config = *typed_config;
+    state->config = *typed_config;
 
-    state_ptr->pbr_shader_id = INVALID_ID;
+    state->pbr_shader_id = INVALID_ID;
 
     // The array block is after the state. Already allocated, so just set the pointer.
     void* array_block = state + struct_requirement;
-    state_ptr->registered_materials = array_block;
+    state->registered_materials = array_block;
 
     // Hashtable block is after array.
     void* hashtable_block = array_block + array_requirement;
 
     // Create a hashtable for material lookups.
-    hashtable_create(sizeof(material_reference), typed_config->max_material_count, hashtable_block, false, &state_ptr->registered_material_table);
+    hashtable_create(sizeof(material_reference), typed_config->max_material_count, hashtable_block, false, &state->registered_material_table);
 
     // Fill the hashtable with invalid references to use as a default.
     material_reference invalid_ref;
     invalid_ref.auto_release = false;
     invalid_ref.handle = INVALID_ID; // Primary reason for needing default values.
     invalid_ref.reference_count = 0;
-    hashtable_fill(&state_ptr->registered_material_table, &invalid_ref);
+    hashtable_fill(&state->registered_material_table, &invalid_ref);
 
     // Invalidate all materials in the array.
-    u32 count = state_ptr->config.max_material_count;
+    u32 count = state->config.max_material_count;
     for (u32 i = 0; i < count; ++i) {
-        state_ptr->registered_materials[i].id = INVALID_ID;
-        state_ptr->registered_materials[i].generation = INVALID_ID;
-        state_ptr->registered_materials[i].internal_id = INVALID_ID;
+        state->registered_materials[i].id = INVALID_ID;
+        state->registered_materials[i].generation = INVALID_ID;
+        state->registered_materials[i].internal_id = INVALID_ID;
     }
 
     // Get the uniform indices.
     // Save off the locations for known types for quick lookups.
-    state_ptr->pbr_shader = shader_system_get("Shader.PBRMaterial");
-    state_ptr->pbr_shader_id = state_ptr->pbr_shader->id;
+    state->pbr_shader = shader_system_get("Shader.PBRMaterial");
+    state->pbr_shader_id = state->pbr_shader->id;
 
-    state_ptr->terrain_shader = shader_system_get("Shader.Builtin.Terrain");
-    state_ptr->terrain_shader_id = state_ptr->terrain_shader->id;
+    state->terrain_shader = shader_system_get("Shader.Builtin.Terrain");
+    state->terrain_shader_id = state->terrain_shader->id;
 
     // Grab the default cubemap texture as the irradiance texture.
-    state_ptr->irradiance_cube_texture = texture_system_get_default_cube_texture();
+    state->irradiance_cube_texture = texture_system_get_default_cube_texture();
 
     // Assign some defaults.
     for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
-        state_ptr->directional_light_space[i] = mat4_identity();
+        state->directional_light_space[i] = mat4_identity();
     }
 
     // Load up some default materials.
-    if (!create_default_pbr_material(state_ptr)) {
+    if (!create_default_pbr_material(state)) {
         KFATAL("Failed to create default PBR material. Application cannot continue.");
         return false;
     }
 
-    if (!create_default_terrain_material(state_ptr)) {
+    if (!create_default_terrain_material(state)) {
         KFATAL("Failed to create default terrain material. Application cannot continue.");
         return false;
     }
@@ -172,20 +178,19 @@ b8 material_system_initialize(u64* memory_requirement, void* state, void* config
     return true;
 }
 
-void material_system_shutdown(void* state) {
-    material_system_state* s = (material_system_state*)state;
-    if (s) {
+void material_system_shutdown(struct material_system_state* state) {
+    if (state) {
         // Invalidate all materials in the array.
-        u32 count = s->config.max_material_count;
+        u32 count = state->config.max_material_count;
         for (u32 i = 0; i < count; ++i) {
-            if (s->registered_materials[i].id != INVALID_ID) {
-                destroy_material(&s->registered_materials[i]);
+            if (state->registered_materials[i].id != INVALID_ID) {
+                destroy_material(&state->registered_materials[i]);
             }
         }
 
         // Destroy the default material.
-        destroy_material(&s->default_pbr_material);
-        destroy_material(&s->default_terrain_material);
+        destroy_material(&state->default_pbr_material);
+        destroy_material(&state->default_terrain_material);
     }
 
     state_ptr = 0;
@@ -268,6 +273,8 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
         return &state_ptr->default_terrain_material;
     }
 
+    material_system_state* state = engine_systems_get()->material_system;
+
     b8 needs_creation = false;
     material* m = material_system_acquire_reference(material_name, auto_release, &needs_creation);
     if (!m) {
@@ -277,7 +284,7 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
 
     if (needs_creation) {
         // Gather material names.
-        const char** texture_names = kallocate(sizeof(const char*) * material_count * PBR_MATERIAL_TEXTURE_COUNT, MEMORY_TAG_ARRAY);
+        kname* texture_names = kallocate(sizeof(kname) * material_count * PBR_MATERIAL_TEXTURE_COUNT, MEMORY_TAG_ARRAY);
         for (u32 i = 0; i < material_count; ++i) {
             // Load material configuration from resource;
             resource material_resource;
@@ -296,7 +303,7 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
             // Extract the map names.
             for (u32 j = 0; j < PBR_MATERIAL_TEXTURE_COUNT; ++j) {
                 u32 index = (i * PBR_MATERIAL_TEXTURE_COUNT) + j;
-                texture_names[index] = string_duplicate(mat_config->maps[j].texture_name);
+                texture_names[index] = kname_create(mat_config->maps[j].texture_name);
             }
 
             // Clean up the resource.
@@ -306,7 +313,7 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
         // Create new material.
         // NOTE: terrain-specific load_material
         kzero_memory(m, sizeof(material));
-        string_ncopy(m->name, material_name, MATERIAL_NAME_MAX_LENGTH);
+        m->name = kname_create(material_name);
 
         shader* selected_shader = state_ptr->terrain_shader;
         m->shader_id = selected_shader->id;
@@ -327,20 +334,20 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
         // One map is needed for the entire material array.
         {
             u32 layer_count = PBR_MATERIAL_TEXTURE_COUNT * MAX_TERRAIN_MATERIAL_COUNT;
-            texture_map* map = &m->maps[SAMP_TERRAIN_MATERIAL_ARRAY_MAP];
+            kresource_texture_map* map = &m->maps[SAMP_TERRAIN_MATERIAL_ARRAY_MAP];
             // TODO: Read this from config.
             map->repeat_u = TEXTURE_REPEAT_REPEAT;
             map->repeat_v = TEXTURE_REPEAT_REPEAT;
             map->repeat_w = TEXTURE_REPEAT_REPEAT;
             map->filter_minify = TEXTURE_FILTER_MODE_LINEAR;
             map->filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-            map->texture = texture_system_acquire_textures_as_arrayed(m->name, layer_count, texture_names, true);
+            map->texture = texture_system_acquire_textures_as_arrayed(m->name, m->package_name, layer_count, texture_names, true, 0, 0);
             if (!map->texture) {
                 // Configured, but not found.
                 KWARN("Unable to load arrayed texture '%s' for material '%s', using default.", m->name, material_name);
-                map->texture = texture_system_get_default_terrain_texture();
+                map->texture = texture_system_get_default_kresource_terrain_texture(state->texture_system);
             }
-            if (!renderer_texture_map_resources_acquire(map)) {
+            if (!renderer_kresource_texture_map_resources_acquire(state->renderer, map)) {
                 KERROR("Unable to acquire resources for texture map.");
                 return false;
             }
@@ -361,7 +368,7 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
             map_config.repeat_u = map_config.repeat_v = map_config.repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
             map_config.name = "shadow_map";
             map_config.texture_name = "";
-            if (!assign_map(&m->maps[SAMP_TERRAIN_SHADOW_MAP], &map_config, m->name, texture_system_get_default_diffuse_texture())) {
+            if (!assign_map(state, &m->maps[SAMP_TERRAIN_SHADOW_MAP], &map_config, m->name, texture_system_get_default_kresource_diffuse_texture(state->texture_system))) {
                 KERROR("Failed to assign '%s' texture map for terrain shadow map.", map_config.name);
                 return false;
             }
@@ -375,7 +382,7 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
             map_config.name = "ibl_cube";
             map_config.texture_name = "";
             // Always assigned to the last index.
-            if (!assign_map(&m->maps[SAMP_TERRAIN_IRRADIANCE_MAP], &map_config, m->name, texture_system_get_default_cube_texture())) {
+            if (!assign_map(state, &m->maps[SAMP_TERRAIN_IRRADIANCE_MAP], &map_config, m->name, texture_system_get_default_kresource_cube_texture(state->texture_system))) {
                 KERROR("Failed to assign '%s' texture map for terrain irradiance map.", map_config.name);
                 return false;
             }
@@ -396,23 +403,23 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
         // resource creation to be fully in the renderer.
         shader_instance_uniform_texture_config* mat_textures = &instance_resource_config.uniform_configs[0];
         /* mat_textures->uniform_location = state_ptr->terrain_locations.material_texures; */
-        mat_textures->texture_map_count = 1;
-        mat_textures->texture_maps = kallocate(sizeof(texture_map*) * mat_textures->texture_map_count, MEMORY_TAG_ARRAY);
-        mat_textures->texture_maps[0] = &m->maps[SAMP_TERRAIN_MATERIAL_ARRAY_MAP];
+        mat_textures->kresource_texture_map_count = 1;
+        mat_textures->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * mat_textures->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+        mat_textures->kresource_texture_maps[0] = &m->maps[SAMP_TERRAIN_MATERIAL_ARRAY_MAP];
 
         // Shadow textures
         shader_instance_uniform_texture_config* shadow_textures = &instance_resource_config.uniform_configs[1];
         /* shadow_textures->uniform_location = state_ptr->terrain_locations.shadow_textures; */
-        shadow_textures->texture_map_count = 1;
-        shadow_textures->texture_maps = kallocate(sizeof(texture_map*) * shadow_textures->texture_map_count, MEMORY_TAG_ARRAY);
-        shadow_textures->texture_maps[0] = &m->maps[SAMP_TERRAIN_SHADOW_MAP];
+        shadow_textures->kresource_texture_map_count = 1;
+        shadow_textures->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * shadow_textures->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+        shadow_textures->kresource_texture_maps[0] = &m->maps[SAMP_TERRAIN_SHADOW_MAP];
 
         // IBL cube texture
         shader_instance_uniform_texture_config* ibl_cube_texture = &instance_resource_config.uniform_configs[2];
         /* ibl_cube_texture->uniform_location = state_ptr->terrain_locations.ibl_cube_texture; */
-        ibl_cube_texture->texture_map_count = 1;
-        ibl_cube_texture->texture_maps = kallocate(sizeof(texture_map*) * ibl_cube_texture->texture_map_count, MEMORY_TAG_ARRAY);
-        ibl_cube_texture->texture_maps[0] = &m->maps[SAMP_TERRAIN_IRRADIANCE_MAP];
+        ibl_cube_texture->kresource_texture_map_count = 1;
+        ibl_cube_texture->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * ibl_cube_texture->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+        ibl_cube_texture->kresource_texture_maps[0] = &m->maps[SAMP_TERRAIN_IRRADIANCE_MAP];
 
         // Acquire the resources
         b8 result = renderer_shader_instance_resources_acquire(state_ptr->renderer, selected_shader, &instance_resource_config, &m->internal_id);
@@ -423,8 +430,8 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
         // Clean up the uniform configs.
         for (u32 i = 0; i < instance_resource_config.uniform_config_count; ++i) {
             shader_instance_uniform_texture_config* ucfg = &instance_resource_config.uniform_configs[i];
-            kfree(ucfg->texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
-            ucfg->texture_maps = 0;
+            kfree(ucfg->kresource_texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+            ucfg->kresource_texture_maps = 0;
         }
         kfree(instance_resource_config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
 
@@ -455,8 +462,10 @@ material* material_system_acquire_from_config(material_config* config) {
     material* m = material_system_acquire_reference(config->name, config->auto_release, &needs_creation);
 
     if (needs_creation) {
+        material_system_state* state = engine_systems_get()->material_system;
+
         // Create new material.
-        if (!load_material(config, m)) {
+        if (!load_material(state, config, m)) {
             KERROR("Failed to load material '%s'.", config->name);
             return 0;
         }
@@ -546,36 +555,50 @@ void material_system_dump(void) {
     }
 }
 
-static b8 assign_map(texture_map* map, const material_map* config, const char* material_name, texture* default_tex) {
+static b8 assign_map(material_system_state* state, kresource_texture_map* map, const material_map* config, kname material_name, const kresource_texture* default_tex) {
     map->filter_minify = config->filter_min;
     map->filter_magnify = config->filter_mag;
     map->repeat_u = config->repeat_u;
     map->repeat_v = config->repeat_v;
     map->repeat_w = config->repeat_w;
 
-    if (string_length(config->texture_name) > 0) {
-        map->texture = texture_system_acquire(config->texture_name, true);
+    if (!config->texture_name || string_length(config->texture_name) > 0) {
+
+        map->texture = texture_system_request(
+            kname_create(config->texture_name),
+            INVALID_KNAME, // Use the resource from the package where it is first found. TODO: configurable within material config - include material's package name here first.
+            0,             // no listener
+            0              // no callback
+        );
         if (!map->texture) {
-            // Configured, but not found.
-            KWARN("Unable to load texture '%s' for material '%s', using default.", config->texture_name, material_name);
-            map->texture = default_tex;
+            // Use default texture instead if provided.
+            if (default_tex) {
+                KWARN("Failed to request material texture '%s'. Using default '%s'.", config->texture_name, kname_string_get(default_tex->base.name));
+                map->texture = default_tex;
+            } else {
+                KERROR("Failed to request material texture '%s', and no default was provided.", config->texture_name);
+                return false;
+            }
         }
+
     } else {
         // This is done when a texture is not configured, as opposed to when it is configured and not found (above).
         map->texture = default_tex;
     }
-    if (!renderer_texture_map_resources_acquire(map)) {
+
+    // Acquire texture map resources.
+    if (!renderer_kresource_texture_map_resources_acquire(state->renderer, map)) {
         KERROR("Unable to acquire resources for texture map.");
         return false;
     }
     return true;
 }
 
-static b8 load_material(material_config* config, material* m) {
+static b8 load_material(material_system_state* state, material_config* config, material* m) {
     kzero_memory(m, sizeof(material));
 
     // name
-    string_ncopy(m->name, config->name, MATERIAL_NAME_MAX_LENGTH);
+    m->name = kname_create(config->name);
 
     m->type = config->type;
     shader* selected_shader = 0;
@@ -618,10 +641,10 @@ static b8 load_material(material_config* config, material* m) {
         }
         b8 ibl_cube_assigned = false;
         const char* map_names[PBR_MATERIAL_TEXTURE_COUNT] = {"albedo", "normal", "combined"};
-        texture* default_textures[PBR_MATERIAL_TEXTURE_COUNT] = {
-            texture_system_get_default_diffuse_texture(),
-            texture_system_get_default_normal_texture(),
-            texture_system_get_default_combined_texture()};
+        const kresource_texture* default_textures[PBR_MATERIAL_TEXTURE_COUNT] = {
+            texture_system_get_default_kresource_diffuse_texture(state->texture_system),
+            texture_system_get_default_kresource_normal_texture(state->texture_system),
+            texture_system_get_default_kresource_combined_texture(state->texture_system)};
 
         // Attempt to match configured names to those required by PBR materials.
         // This also ensures the maps are in the proper order.
@@ -629,7 +652,7 @@ static b8 load_material(material_config* config, material* m) {
             b8 found = false;
             for (u32 tex_slot = 0; tex_slot < PBR_MATERIAL_TEXTURE_COUNT; ++tex_slot) {
                 if (strings_equali(config->maps[i].name, map_names[tex_slot])) {
-                    if (!assign_map(&m->maps[tex_slot], &config->maps[i], m->name, default_textures[tex_slot])) {
+                    if (!assign_map(state, &m->maps[tex_slot], &config->maps[i], m->name, default_textures[tex_slot])) {
                         return false;
                     }
                     mat_maps_assigned[tex_slot] = true;
@@ -644,7 +667,7 @@ static b8 load_material(material_config* config, material* m) {
             // TODO: May not want this to be configurable as a map, but rather provided by the scene from a reflection probe.
             if (strings_equali(config->maps[i].name, "ibl_cube")) {
                 // TODO: just loading a default cube map for now. Need to get this from the probe instead.
-                if (!assign_map(&m->maps[SAMP_IRRADIANCE_MAP], &config->maps[i], m->name, texture_system_get_default_cube_texture())) {
+                if (!assign_map(state, &m->maps[SAMP_IRRADIANCE_MAP], &config->maps[i], m->name, texture_system_get_default_kresource_cube_texture(state->texture_system))) {
                     return false;
                 }
                 ibl_cube_assigned = true;
@@ -662,7 +685,7 @@ static b8 load_material(material_config* config, material* m) {
                 map_config.repeat_u = map_config.repeat_v = map_config.repeat_w = TEXTURE_REPEAT_REPEAT;
                 map_config.name = string_duplicate(map_names[i]);
                 map_config.texture_name = "";
-                b8 assign_result = assign_map(&m->maps[i], &map_config, m->name, default_textures[i]);
+                b8 assign_result = assign_map(state, &m->maps[i], &map_config, m->name, default_textures[i]);
                 string_free(map_config.name);
                 if (!assign_result) {
                     return false;
@@ -678,7 +701,7 @@ static b8 load_material(material_config* config, material* m) {
             map_config.repeat_u = map_config.repeat_v = map_config.repeat_w = TEXTURE_REPEAT_REPEAT;
             map_config.name = "ibl_cube";
             map_config.texture_name = "";
-            if (!assign_map(&m->maps[SAMP_IRRADIANCE_MAP], &map_config, m->name, texture_system_get_default_cube_texture())) {
+            if (!assign_map(state, &m->maps[SAMP_IRRADIANCE_MAP], &map_config, m->name, texture_system_get_default_kresource_cube_texture(state->texture_system))) {
                 return false;
             }
         }
@@ -690,7 +713,7 @@ static b8 load_material(material_config* config, material* m) {
             map_config.repeat_u = map_config.repeat_v = map_config.repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
             map_config.name = "shadow_map";
             map_config.texture_name = "";
-            if (!assign_map(&m->maps[SAMP_SHADOW_MAP], &map_config, m->name, texture_system_get_default_diffuse_texture())) {
+            if (!assign_map(state, &m->maps[SAMP_SHADOW_MAP], &map_config, m->name, texture_system_get_default_kresource_diffuse_texture(state->texture_system))) {
                 return false;
             }
         }
@@ -704,25 +727,25 @@ static b8 load_material(material_config* config, material* m) {
         // Material textures
         shader_instance_uniform_texture_config* mat_textures = &instance_resource_config.uniform_configs[0];
         /* mat_textures->uniform_location = state_ptr->pbr_locations.material_texures; */
-        mat_textures->texture_map_count = PBR_MATERIAL_TEXTURE_COUNT;
-        mat_textures->texture_maps = kallocate(sizeof(texture_map*) * mat_textures->texture_map_count, MEMORY_TAG_ARRAY);
-        mat_textures->texture_maps[SAMP_ALBEDO] = &m->maps[SAMP_ALBEDO];
-        mat_textures->texture_maps[SAMP_NORMAL] = &m->maps[SAMP_NORMAL];
-        mat_textures->texture_maps[SAMP_COMBINED] = &m->maps[SAMP_COMBINED];
+        mat_textures->kresource_texture_map_count = PBR_MATERIAL_TEXTURE_COUNT;
+        mat_textures->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * mat_textures->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+        mat_textures->kresource_texture_maps[SAMP_ALBEDO] = &m->maps[SAMP_ALBEDO];
+        mat_textures->kresource_texture_maps[SAMP_NORMAL] = &m->maps[SAMP_NORMAL];
+        mat_textures->kresource_texture_maps[SAMP_COMBINED] = &m->maps[SAMP_COMBINED];
 
         // Shadow textures
         shader_instance_uniform_texture_config* shadow_textures = &instance_resource_config.uniform_configs[1];
         /* shadow_textures->uniform_location = state_ptr->pbr_locations.shadow_textures; */
-        shadow_textures->texture_map_count = 1;
-        shadow_textures->texture_maps = kallocate(sizeof(texture_map*) * shadow_textures->texture_map_count, MEMORY_TAG_ARRAY);
-        shadow_textures->texture_maps[0] = &m->maps[SAMP_SHADOW_MAP];
+        shadow_textures->kresource_texture_map_count = 1;
+        shadow_textures->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * shadow_textures->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+        shadow_textures->kresource_texture_maps[0] = &m->maps[SAMP_SHADOW_MAP];
 
         // IBL cube texture
         shader_instance_uniform_texture_config* ibl_cube_texture = &instance_resource_config.uniform_configs[2];
         /* ibl_cube_texture->uniform_location = state_ptr->pbr_locations.ibl_cube_texture; */
-        ibl_cube_texture->texture_map_count = 1;
-        ibl_cube_texture->texture_maps = kallocate(sizeof(texture_map*) * ibl_cube_texture->texture_map_count, MEMORY_TAG_ARRAY);
-        ibl_cube_texture->texture_maps[0] = &m->maps[SAMP_IRRADIANCE_MAP];
+        ibl_cube_texture->kresource_texture_map_count = 1;
+        ibl_cube_texture->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * ibl_cube_texture->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+        ibl_cube_texture->kresource_texture_maps[0] = &m->maps[SAMP_IRRADIANCE_MAP];
 
     } else if (config->type == MATERIAL_TYPE_CUSTOM) {
         // Gather a list of pointers to texture maps;
@@ -804,7 +827,7 @@ static b8 load_material(material_config* config, material* m) {
         for (u32 i = 0; i < map_count; ++i) {
             // No known mapping, so just map them in order.
             // Invalid textures will use the default texture because map type isn't known.
-            if (!assign_map(&m->maps[i], &config->maps[i], m->name, texture_system_get_default_texture())) {
+            if (!assign_map(state, &m->maps[i], &config->maps[i], m->name, texture_system_get_default_kresource_texture(state->texture_system))) {
                 return false;
             }
         }
@@ -826,10 +849,10 @@ static b8 load_material(material_config* config, material* m) {
             shader_uniform* u = &selected_shader->uniforms[selected_shader->instance_sampler_indices[i]];
             shader_instance_uniform_texture_config* uniform_config = &instance_resource_config.uniform_configs[i];
             /* uniform_config->uniform_location = u->location; */
-            uniform_config->texture_map_count = KMAX(u->array_length, 1);
-            uniform_config->texture_maps = kallocate(sizeof(texture_map*) * uniform_config->texture_map_count, MEMORY_TAG_ARRAY);
-            for (u32 j = 0; j < uniform_config->texture_map_count; ++j) {
-                uniform_config->texture_maps[j] = &m->maps[i + map_offset];
+            uniform_config->kresource_texture_map_count = KMAX(u->array_length, 1);
+            uniform_config->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * uniform_config->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+            for (u32 j = 0; j < uniform_config->kresource_texture_map_count; ++j) {
+                uniform_config->kresource_texture_maps[j] = &m->maps[i + map_offset];
             }
         }
     } else {
@@ -855,16 +878,17 @@ static b8 load_material(material_config* config, material* m) {
 }
 
 static void destroy_material(material* m) {
+    material_system_state* state = engine_systems_get()->material_system;
     // KTRACE("Destroying material '%s'...", m->name);
 
     u32 length = darray_length(m->maps);
     for (u32 i = 0; i < length; ++i) {
         // Release texture references.
         if (m->maps[i].texture) {
-            texture_system_release(m->maps[i].texture->name);
+            texture_system_release_resource((kresource_texture*)m->maps[i].texture);
         }
         // Release texture map resources.
-        renderer_texture_map_resources_release(&m->maps[i]);
+        renderer_kresource_texture_map_resources_release(state->renderer, &m->maps[i]);
     }
 
     // Release renderer resources.
@@ -890,7 +914,7 @@ static b8 create_default_pbr_material(material_system_state* state) {
     state->default_pbr_material.id = INVALID_ID;
     state->default_pbr_material.type = MATERIAL_TYPE_PBR;
     state->default_pbr_material.generation = INVALID_ID;
-    string_ncopy(state->default_pbr_material.name, DEFAULT_PBR_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
+    state->default_pbr_material.name = kname_create(DEFAULT_PBR_MATERIAL_NAME);
     // TODO: material PBR properties
     state->default_pbr_material.property_struct_size = sizeof(material_phong_properties);
     state->default_pbr_material.properties = kallocate(sizeof(material_phong_properties), MEMORY_TAG_MATERIAL_INSTANCE);
@@ -900,7 +924,7 @@ static b8 create_default_pbr_material(material_system_state* state) {
     state->default_pbr_material.maps = darray_reserve(texture_map, PBR_MAP_COUNT);
     darray_length_set(state->default_pbr_material.maps, PBR_MAP_COUNT);
     for (u32 i = 0; i < PBR_MAP_COUNT; ++i) {
-        texture_map* map = &state->default_pbr_material.maps[i];
+        kresource_texture_map* map = &state->default_pbr_material.maps[i];
         if (i == 0) {
             // NOTE: setting mode to nearest neighbor to make the chekerboard non-blurry.
             map->filter_magnify = map->filter_minify = TEXTURE_FILTER_MODE_NEAREST;
@@ -910,14 +934,14 @@ static b8 create_default_pbr_material(material_system_state* state) {
     }
 
     // Change the clamp mode on the default shadow map to border.
-    texture_map* ssm = &state->default_pbr_material.maps[SAMP_SHADOW_MAP];
+    kresource_texture_map* ssm = &state->default_pbr_material.maps[SAMP_SHADOW_MAP];
     ssm->repeat_u = ssm->repeat_v = ssm->repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
 
-    state->default_pbr_material.maps[SAMP_ALBEDO].texture = texture_system_get_default_texture();
-    state->default_pbr_material.maps[SAMP_NORMAL].texture = texture_system_get_default_normal_texture();
-    state->default_pbr_material.maps[SAMP_COMBINED].texture = texture_system_get_default_combined_texture();
-    state->default_pbr_material.maps[SAMP_SHADOW_MAP].texture = texture_system_get_default_diffuse_texture();
-    state->default_pbr_material.maps[SAMP_IRRADIANCE_MAP].texture = texture_system_get_default_cube_texture();
+    state->default_pbr_material.maps[SAMP_ALBEDO].texture = texture_system_get_default_kresource_texture(state->texture_system);
+    state->default_pbr_material.maps[SAMP_NORMAL].texture = texture_system_get_default_kresource_normal_texture(state->texture_system);
+    state->default_pbr_material.maps[SAMP_COMBINED].texture = texture_system_get_default_kresource_combined_texture(state->texture_system);
+    state->default_pbr_material.maps[SAMP_SHADOW_MAP].texture = texture_system_get_default_kresource_diffuse_texture(state->texture_system);
+    state->default_pbr_material.maps[SAMP_IRRADIANCE_MAP].texture = texture_system_get_default_kresource_cube_texture(state->texture_system);
 
     // Setup a configuration to get instance resources for this material.
     material* m = &state->default_pbr_material;
@@ -929,25 +953,25 @@ static b8 create_default_pbr_material(material_system_state* state) {
     // Material textures
     shader_instance_uniform_texture_config* mat_textures = &instance_resource_config.uniform_configs[0];
     /* mat_textures->uniform_location = state_ptr->pbr_locations.material_texures; */
-    mat_textures->texture_map_count = PBR_MATERIAL_TEXTURE_COUNT;
-    mat_textures->texture_maps = kallocate(sizeof(texture_map*) * mat_textures->texture_map_count, MEMORY_TAG_ARRAY);
-    mat_textures->texture_maps[SAMP_ALBEDO] = &m->maps[SAMP_ALBEDO];
-    mat_textures->texture_maps[SAMP_NORMAL] = &m->maps[SAMP_NORMAL];
-    mat_textures->texture_maps[SAMP_COMBINED] = &m->maps[SAMP_COMBINED];
+    mat_textures->kresource_texture_map_count = PBR_MATERIAL_TEXTURE_COUNT;
+    mat_textures->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * mat_textures->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+    mat_textures->kresource_texture_maps[SAMP_ALBEDO] = &m->maps[SAMP_ALBEDO];
+    mat_textures->kresource_texture_maps[SAMP_NORMAL] = &m->maps[SAMP_NORMAL];
+    mat_textures->kresource_texture_maps[SAMP_COMBINED] = &m->maps[SAMP_COMBINED];
 
     // Shadow textures
     shader_instance_uniform_texture_config* shadow_textures = &instance_resource_config.uniform_configs[1];
     /* shadow_textures->uniform_location = state_ptr->pbr_locations.shadow_textures; */
-    shadow_textures->texture_map_count = 1;
-    shadow_textures->texture_maps = kallocate(sizeof(texture_map*) * shadow_textures->texture_map_count, MEMORY_TAG_ARRAY);
-    shadow_textures->texture_maps[0] = &m->maps[SAMP_SHADOW_MAP];
+    shadow_textures->kresource_texture_map_count = 1;
+    shadow_textures->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * shadow_textures->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+    shadow_textures->kresource_texture_maps[0] = &m->maps[SAMP_SHADOW_MAP];
 
     // IBL cube texture
     shader_instance_uniform_texture_config* ibl_cube_texture = &instance_resource_config.uniform_configs[2];
     /* ibl_cube_texture->uniform_location = state_ptr->pbr_locations.ibl_cube_texture; */
-    ibl_cube_texture->texture_map_count = 1;
-    ibl_cube_texture->texture_maps = kallocate(sizeof(texture_map*) * ibl_cube_texture->texture_map_count, MEMORY_TAG_ARRAY);
-    ibl_cube_texture->texture_maps[0] = &m->maps[SAMP_IRRADIANCE_MAP];
+    ibl_cube_texture->kresource_texture_map_count = 1;
+    ibl_cube_texture->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * ibl_cube_texture->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+    ibl_cube_texture->kresource_texture_maps[0] = &m->maps[SAMP_IRRADIANCE_MAP];
 
     shader* s = shader_system_get_by_id(state_ptr->pbr_shader_id);
     if (!renderer_shader_instance_resources_acquire(state_ptr->renderer, s, &instance_resource_config, &state->default_pbr_material.internal_id)) {
@@ -958,7 +982,7 @@ static b8 create_default_pbr_material(material_system_state* state) {
     // Clean up the uniform configs.
     for (u32 i = 0; i < instance_resource_config.uniform_config_count; ++i) {
         shader_instance_uniform_texture_config* ucfg = &instance_resource_config.uniform_configs[i];
-        kfree(ucfg->texture_maps, sizeof(ucfg->texture_maps[0]) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
+        kfree(ucfg->kresource_texture_maps, sizeof(kresource_texture_map) * ucfg->kresource_texture_map_count, MEMORY_TAG_ARRAY);
         ucfg->texture_maps = 0;
     }
     kfree(instance_resource_config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
@@ -974,7 +998,7 @@ static b8 create_default_terrain_material(material_system_state* state) {
     state->default_terrain_material.id = INVALID_ID;
     state->default_terrain_material.type = MATERIAL_TYPE_TERRAIN;
     state->default_terrain_material.generation = INVALID_ID;
-    string_ncopy(state->default_terrain_material.name, DEFAULT_TERRAIN_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
+    state->default_terrain_material.name = kname_create(DEFAULT_TERRAIN_MATERIAL_NAME);
 
     // Should essentially be the same thing as the defualt material, just mapped to an "array" of one material.
     state->default_terrain_material.property_struct_size = sizeof(material_terrain_properties);
@@ -986,15 +1010,15 @@ static b8 create_default_terrain_material(material_system_state* state) {
     state->default_terrain_material.maps = darray_reserve(texture_map, TERRAIN_SAMP_COUNT);
     darray_length_set(state->default_terrain_material.maps, TERRAIN_SAMP_COUNT);
     // Material texture array.
-    texture_map* map = &state->default_terrain_material.maps[SAMP_TERRAIN_MATERIAL_ARRAY_MAP];
-    map->texture = texture_system_get_default_terrain_texture();
+    kresource_texture_map* map = &state->default_terrain_material.maps[SAMP_TERRAIN_MATERIAL_ARRAY_MAP];
+    map->texture = texture_system_get_default_kresource_terrain_texture(state->texture_system);
     // NOTE: setting mode to nearest neighbor to make the chekerboard non-blurry.
     map->filter_magnify = map->filter_minify = TEXTURE_FILTER_MODE_NEAREST;
 
-    state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP].texture = texture_system_get_default_diffuse_texture();
+    state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP].texture = texture_system_get_default_kresource_diffuse_texture(state->texture_system);
 
     // Change the clamp mode on the default shadow map to border.
-    texture_map* ssm = &state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP];
+    kresource_texture_map* ssm = &state->default_terrain_material.maps[SAMP_TERRAIN_SHADOW_MAP];
     ssm->repeat_u = ssm->repeat_v = ssm->repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
 
     // NOTE: PBR materials are required for terrains.
@@ -1012,23 +1036,23 @@ static b8 create_default_terrain_material(material_system_state* state) {
     material* m = &state_ptr->default_terrain_material;
     shader_instance_uniform_texture_config* mat_textures = &instance_resource_config.uniform_configs[0];
     /* mat_textures->uniform_location = state_ptr->terrain_locations.material_texures; */
-    mat_textures->texture_map_count = 1;
-    mat_textures->texture_maps = kallocate(sizeof(texture_map*) * mat_textures->texture_map_count, MEMORY_TAG_ARRAY);
-    mat_textures->texture_maps[SAMP_TERRAIN_MATERIAL_ARRAY_MAP] = &m->maps[SAMP_TERRAIN_MATERIAL_ARRAY_MAP];
+    mat_textures->kresource_texture_map_count = 1;
+    mat_textures->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * mat_textures->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+    mat_textures->kresource_texture_maps[SAMP_TERRAIN_MATERIAL_ARRAY_MAP] = &m->maps[SAMP_TERRAIN_MATERIAL_ARRAY_MAP];
 
     // Shadow textures
     shader_instance_uniform_texture_config* shadow_textures = &instance_resource_config.uniform_configs[1];
     /* shadow_textures->uniform_location = state_ptr->terrain_locations.shadow_textures; */
-    shadow_textures->texture_map_count = 1;
-    shadow_textures->texture_maps = kallocate(sizeof(texture_map*) * shadow_textures->texture_map_count, MEMORY_TAG_ARRAY);
-    shadow_textures->texture_maps[0] = &m->maps[SAMP_TERRAIN_SHADOW_MAP];
+    shadow_textures->kresource_texture_map_count = 1;
+    shadow_textures->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * shadow_textures->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+    shadow_textures->kresource_texture_maps[0] = &m->maps[SAMP_TERRAIN_SHADOW_MAP];
 
     // IBL cube texture
     shader_instance_uniform_texture_config* ibl_cube_texture = &instance_resource_config.uniform_configs[2];
     /* ibl_cube_texture->uniform_location = state_ptr->terrain_locations.ibl_cube_texture; */
-    ibl_cube_texture->texture_map_count = 1;
-    ibl_cube_texture->texture_maps = kallocate(sizeof(texture_map*) * ibl_cube_texture->texture_map_count, MEMORY_TAG_ARRAY);
-    ibl_cube_texture->texture_maps[0] = &m->maps[SAMP_TERRAIN_IRRADIANCE_MAP];
+    ibl_cube_texture->kresource_texture_map_count = 1;
+    ibl_cube_texture->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * ibl_cube_texture->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+    ibl_cube_texture->kresource_texture_maps[0] = &m->maps[SAMP_TERRAIN_IRRADIANCE_MAP];
 
     // Acquire the resources
     shader* s = shader_system_get_by_id(state_ptr->terrain_shader_id);
@@ -1040,7 +1064,7 @@ static b8 create_default_terrain_material(material_system_state* state) {
     // Clean up the uniform configs.
     for (u32 i = 0; i < instance_resource_config.uniform_config_count; ++i) {
         shader_instance_uniform_texture_config* ucfg = &instance_resource_config.uniform_configs[i];
-        kfree(ucfg->texture_maps, sizeof(ucfg->texture_maps[0]) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
+        kfree(ucfg->kresource_texture_maps, sizeof(kresource_texture_map) * ucfg->kresource_texture_map_count, MEMORY_TAG_ARRAY);
         ucfg->texture_maps = 0;
     }
     kfree(instance_resource_config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);

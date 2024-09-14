@@ -35,20 +35,20 @@ typedef struct water_plane {
 
     // Texture maps for reflect/refract normals.
     u32 map_count;
-    struct texture_map* maps;
+    struct kresource_texture_map* maps;
 
-    // Refraction target textures, owned by this plane.
-    texture refraction_colour;
-    texture refraction_depth;
-    // Reflection target textures, owned by this plane.
-    texture reflection_colour;
-    texture reflection_depth;
+    // Refraction target textures.
+    kresource_texture* refraction_colour;
+    kresource_texture* refraction_depth;
+    // Reflection target textures.
+    kresource_texture* reflection_colour;
+    kresource_texture* reflection_depth;
 
     // Pointer to dudv texture.
-    texture* dudv_texture;
+    kresource_texture* dudv_texture;
 
     // Pointer to normal texture.
-    texture* normal_texture;
+    kresource_texture* normal_texture;
 } water_plane;
 
 KAPI b8 water_plane_create(water_plane* out_plane);

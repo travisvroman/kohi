@@ -2564,7 +2564,7 @@ static b8 vulkan_descriptorset_update_and_bind(
                     u32 map_internal_id = INVALID_ID;
                     if (binding_sampler_state->uniform_kresource_texture_maps) {
                         kresource_texture_map* map = binding_sampler_state->uniform_kresource_texture_maps[d];
-                        kresource_texture* t = map->texture;
+                        const kresource_texture* t = map->texture;
 
                         // TODO: The renderer should not rely on the texture system.
                         u32 t_generation;
@@ -3046,7 +3046,7 @@ b8 vulkan_renderer_shader_instance_resources_acquire(renderer_backend_interface*
     }
 
     texture* default_texture = texture_system_get_default_texture();
-    kresource_texture* default_kresource_texture = texture_system_get_default_kresource_texture();
+    const kresource_texture* default_kresource_texture = texture_system_get_default_kresource_texture(engine_systems_get()->texture_system);
 
     // Map texture maps in the config to the correct uniforms
     vulkan_shader_instance_state* instance_state = &internal->instance_states[*out_instance_id];
