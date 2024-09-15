@@ -39,7 +39,7 @@ if "%PLATFORM%" == "windows" (
 
 REM Attempt to locate make
 set make=make
-%make% -v > nul
+%make% -v >nul 2>&1
 
 REM Check against errorlevel 9009 (MSG_DIR_BAD_COMMAND_OR_FILE)
 if "%ERRORLEVEL%"=="9009" (
@@ -54,7 +54,7 @@ echo Make not found in path. Checking default install location.
 	
 REM Attempt to locate make in default install location
 set make="%programfiles(x86)%\GnuWin32\bin\make.exe"
-%make% -v > nul
+%make% -v >nul 2>&1
 
 REM Check against errorlevel 9009 (MSG_DIR_BAD_COMMAND_OR_FILE)
 if "%ERRORLEVEL%"=="9009" (
