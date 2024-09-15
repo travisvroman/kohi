@@ -45,8 +45,8 @@ REM Check against errorlevel 9009 (MSG_DIR_BAD_COMMAND_OR_FILE)
 if "%ERRORLEVEL%"=="9009" (
     goto makenotfound
 ) else (
-	echo Make found in path.
-	goto makefound
+    echo Make found in path.
+    goto makefound
 )
 
 :makenotfound
