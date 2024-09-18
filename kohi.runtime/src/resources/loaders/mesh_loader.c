@@ -79,7 +79,7 @@ static b8 mesh_loader_load(struct resource_loader* self, const char* name,
     // Try each supported extension.
     for (u32 i = 0; i < SUPPORTED_FILETYPE_COUNT; ++i) {
         string_format_unsafe(full_file_path, format_str, resource_system_base_path(),
-                      self->type_path, name, supported_filetypes[i].extension);
+                             self->type_path, name, supported_filetypes[i].extension);
         // If the file exists, open it and stop looking.
         if (filesystem_exists(full_file_path)) {
             if (filesystem_open(full_file_path, FILE_MODE_READ,
@@ -106,7 +106,7 @@ static b8 mesh_loader_load(struct resource_loader* self, const char* name,
         // Generate the ksm filename.
         char ksm_file_name[512];
         string_format_unsafe(ksm_file_name, "%s/%s/%s%s", resource_system_base_path(),
-                      self->type_path, name, ".ksm");
+                             self->type_path, name, ".ksm");
         result = import_obj_file(&f, ksm_file_name, &resource_data);
         break;
     }
@@ -187,15 +187,19 @@ static b8 load_ksm_file(file_handle* ksm_file,
 
         // Name
         u32 g_name_length = 0;
+        char geometry_name[256];
+        kzero_memory(geometry_name, sizeof(char) * 256);
         filesystem_read(ksm_file, sizeof(u32), &g_name_length, &bytes_read);
-        filesystem_read(ksm_file, sizeof(char) * g_name_length, g.name,
-                        &bytes_read);
+        filesystem_read(ksm_file, sizeof(char) * g_name_length, geometry_name, &bytes_read);
+        g.name = kname_create(geometry_name);
 
         // Material Name
         u32 m_name_length = 0;
+        char mat_name[256];
+        kzero_memory(mat_name, sizeof(char) * 256);
         filesystem_read(ksm_file, sizeof(u32), &m_name_length, &bytes_read);
-        filesystem_read(ksm_file, sizeof(char) * m_name_length, g.material_name,
-                        &bytes_read);
+        filesystem_read(ksm_file, sizeof(char) * m_name_length, mat_name, &bytes_read);
+        g.material_name = kname_create(mat_name);
 
         // Handles backward compatability for
         // https://github.com/travisvroman/kohi/issues/130
@@ -262,15 +266,16 @@ static b8 write_ksm_file(const char* path, const char* name, u32 geometry_count,
         filesystem_write(&f, g->index_size * g->index_count, g->indices, &written);
 
         // Name
-        u32 g_name_length = string_length(g->name) + 1;
+        const char* geometry_name_str = kname_string_get(g->name);
+        u32 g_name_length = string_length(geometry_name_str) + 1;
         filesystem_write(&f, sizeof(u32), &g_name_length, &written);
-        filesystem_write(&f, sizeof(char) * g_name_length, g->name, &written);
+        filesystem_write(&f, sizeof(char) * g_name_length, geometry_name_str, &written);
 
         // Material Name
-        u32 m_name_length = string_length(g->material_name) + 1;
+        const char* mat_name_str = kname_string_get(g->material_name);
+        u32 m_name_length = string_length(mat_name_str) + 1;
         filesystem_write(&f, sizeof(u32), &m_name_length, &written);
-        filesystem_write(&f, sizeof(char) * m_name_length, g->material_name,
-                         &written);
+        filesystem_write(&f, sizeof(char) * m_name_length, mat_name_str, &written);
 
         // Center
         filesystem_write(&f, sizeof(vec3), &g->center, &written);
@@ -429,14 +434,18 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename,
             // Process each group as a subobject.
             for (u64 i = 0; i < group_count; ++i) {
                 geometry_config new_data = {};
-                string_ncopy(new_data.name, name, 255);
+                char* new_name = 0;
                 if (i > 0) {
-                    string_append_int(new_data.name, new_data.name, i);
+                    string_format("%s%d", name, i);
+                } else {
+                    new_name = string_duplicate(name);
                 }
-                string_ncopy(new_data.material_name, material_names[i], 255);
+                new_data.name = kname_create(new_name);
+                string_free(new_name);
 
-                process_subobject(positions, normals, tex_coords, groups[i].faces,
-                                  &new_data);
+                new_data.material_name = kname_create(material_names[i]);
+
+                process_subobject(positions, normals, tex_coords, groups[i].faces, &new_data);
                 new_data.vertex_count = darray_length(new_data.vertices);
                 new_data.vertex_size = sizeof(vertex_3d);
                 new_data.index_count = darray_length(new_data.indices);
@@ -470,11 +479,16 @@ static b8 import_obj_file(file_handle* obj_file, const char* out_ksm_filename,
     u64 group_count = darray_length(groups);
     for (u64 i = 0; i < group_count; ++i) {
         geometry_config new_data = {};
-        string_ncopy(new_data.name, name, 255);
+        char* new_name = 0;
         if (i > 0) {
-            string_append_int(new_data.name, new_data.name, i);
+            string_format("%s%d", name, i);
+        } else {
+            new_name = string_duplicate(name);
         }
-        string_ncopy(new_data.material_name, material_names[i], 255);
+        new_data.name = kname_create(new_name);
+        string_free(new_name);
+
+        new_data.material_name = kname_create(material_names[i]);
 
         process_subobject(positions, normals, tex_coords, groups[i].faces,
                           &new_data);
@@ -1006,22 +1020,22 @@ static b8 write_kmt_file(const char* mtl_file_path, material_config* config) {
             break;
         case SHADER_UNIFORM_TYPE_MATRIX_4:
             string_format_unsafe(line_buffer, "value=%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f ",
-                          config->properties[i].value_mat4.data[0],
-                          config->properties[i].value_mat4.data[1],
-                          config->properties[i].value_mat4.data[2],
-                          config->properties[i].value_mat4.data[3],
-                          config->properties[i].value_mat4.data[4],
-                          config->properties[i].value_mat4.data[5],
-                          config->properties[i].value_mat4.data[6],
-                          config->properties[i].value_mat4.data[7],
-                          config->properties[i].value_mat4.data[8],
-                          config->properties[i].value_mat4.data[9],
-                          config->properties[i].value_mat4.data[10],
-                          config->properties[i].value_mat4.data[11],
-                          config->properties[i].value_mat4.data[12],
-                          config->properties[i].value_mat4.data[13],
-                          config->properties[i].value_mat4.data[14],
-                          config->properties[i].value_mat4.data[15]);
+                                 config->properties[i].value_mat4.data[0],
+                                 config->properties[i].value_mat4.data[1],
+                                 config->properties[i].value_mat4.data[2],
+                                 config->properties[i].value_mat4.data[3],
+                                 config->properties[i].value_mat4.data[4],
+                                 config->properties[i].value_mat4.data[5],
+                                 config->properties[i].value_mat4.data[6],
+                                 config->properties[i].value_mat4.data[7],
+                                 config->properties[i].value_mat4.data[8],
+                                 config->properties[i].value_mat4.data[9],
+                                 config->properties[i].value_mat4.data[10],
+                                 config->properties[i].value_mat4.data[11],
+                                 config->properties[i].value_mat4.data[12],
+                                 config->properties[i].value_mat4.data[13],
+                                 config->properties[i].value_mat4.data[14],
+                                 config->properties[i].value_mat4.data[15]);
             break;
         case SHADER_UNIFORM_TYPE_CUSTOM:
         default:

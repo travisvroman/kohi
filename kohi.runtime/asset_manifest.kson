@@ -110,4 +110,14 @@ assets = [
         name = "Water_vert"
         path = "./assets/shaders/Water_vert.glsl"
     }
+    {
+        name = "Water_DUDV"
+        path = "./assets/images/Water_DUDV.kbi"
+        source_path = "./assets/images/source/Water_DUDV.png"
+    }
+    {
+        name = "Water_Normal"
+        path = "./assets/images/Water_Normal.kbi"
+        source_path = "./assets/images/source/Water_Normal.jpg"
+    }
 ]

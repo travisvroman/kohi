@@ -408,6 +408,10 @@ b8 shader_system_uniform_set_by_location_arrayed(u32 shader_id, u16 location, u3
 }
 
 b8 shader_system_bind_instance(u32 shader_id, u32 instance_id) {
+    if (instance_id == INVALID_ID) {
+        KERROR("Cannot bind shader instance INVALID_ID.");
+        return false;
+    }
     state_ptr->shaders[shader_id].bound_instance_id = instance_id;
     return true;
 }
@@ -471,8 +475,10 @@ b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, kresource
     if (instance_resource_config.uniform_configs) {
         for (u32 i = 0; i < instance_resource_config.uniform_config_count; ++i) {
             shader_instance_uniform_texture_config* ucfg = &instance_resource_config.uniform_configs[i];
-            kfree(ucfg->texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
-            ucfg->texture_maps = 0;
+            if (ucfg->texture_maps) {
+                kfree(ucfg->texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
+                ucfg->texture_maps = 0;
+            }
         }
         kfree(instance_resource_config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
     }

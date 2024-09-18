@@ -100,7 +100,7 @@ KAPI texture* texture_system_acquire(const char* name, b8 auto_release);
  * @param callback The callback to be made once the resource is loaded. Optional.
  * @return A pointer to the loaded texture. Can be a pointer to the default texture if not found.
  */
-KAPI kresource_texture* texture_system_request_cube(kname name, b8 auto_release, void* listener, PFN_resource_loaded_user_callback callback);
+KAPI kresource_texture* texture_system_request_cube(kname name, b8 auto_release, b8 multiframe_buffering, void* listener, PFN_resource_loaded_user_callback callback);
 
 /**
  * Requests a writeable cubemap texture.
@@ -110,7 +110,7 @@ KAPI kresource_texture* texture_system_request_cube(kname name, b8 auto_release,
  * @param auto_release Indicates if the resource will be released automatically once its reference count reaches 0.
  * @returns A pointer to the texture.
  */
-KAPI kresource_texture* texture_system_request_cube_writeable(kname name, u32 dimension, b8 auto_release);
+KAPI kresource_texture* texture_system_request_cube_writeable(kname name, u32 dimension, b8 auto_release, b8 multiframe_buffering);
 
 /**
  * Requests a depth cubemap texture.
@@ -120,7 +120,7 @@ KAPI kresource_texture* texture_system_request_cube_writeable(kname name, u32 di
  * @param auto_release Indicates if the resource will be released automatically once its reference count reaches 0.
  * @returns A pointer to the texture.
  */
-KAPI kresource_texture* texture_system_request_cube_depth(kname name, u32 dimension, b8 auto_release);
+KAPI kresource_texture* texture_system_request_cube_depth(kname name, u32 dimension, b8 auto_release, b8 multiframe_buffering);
 
 /**
  * @brief Requests a writeable texture with the given name. This does not point to
@@ -133,7 +133,7 @@ KAPI kresource_texture* texture_system_request_cube_depth(kname name, u32 dimens
  * @param has_transparency Indicates if the texture will have transparency.
  * @return A pointer to the texture resource on success; otherwise 0/null.
  */
-KAPI kresource_texture* texture_system_request_writeable(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency);
+KAPI kresource_texture* texture_system_request_writeable(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, b8 multiframe_buffering);
 
 /**
  * @brief Attempts to acquire a writeable array texture with the given name. This does not point to
@@ -148,7 +148,7 @@ KAPI kresource_texture* texture_system_request_writeable(kname name, u32 width, 
  * @param array_size The number of "layers" in the texture.
  * @return A pointer to the texture resource on success; otherwise 0/null.
  */
-KAPI kresource_texture* texture_system_request_writeable_arrayed(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, kresource_texture_type type, u16 array_size);
+KAPI kresource_texture* texture_system_request_writeable_arrayed(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, b8 multiframe_buffering, kresource_texture_type type, u16 array_size);
 
 /**
  * @brief Requests a depth texture with the given name.
@@ -158,7 +158,7 @@ KAPI kresource_texture* texture_system_request_writeable_arrayed(kname name, u32
  * @param height The texture height in pixels.
  * @return A pointer to the texture resource on success; otherwise 0/null.
  */
-KAPI kresource_texture* texture_system_request_depth(kname name, u32 width, u32 height);
+KAPI kresource_texture* texture_system_request_depth(kname name, u32 width, u32 height, b8 multiframe_buffering);
 
 /**
  * @brief Attempts to acquire a depth array texture with the given name.
@@ -169,7 +169,7 @@ KAPI kresource_texture* texture_system_request_depth(kname name, u32 width, u32 
  * @param array_size The number of "layers" in the texture.
  * @return A pointer to the texture resource on success; otherwise 0/null.
  */
-KAPI kresource_texture* texture_system_request_depth_arrayed(kname name, u32 width, u32 height, u16 array_size);
+KAPI kresource_texture* texture_system_request_depth_arrayed(kname name, u32 width, u32 height, u16 array_size, b8 multiframe_buffering);
 
 /**
  * @brief Attempts to acquire an array texture with the given name. This uses the provided array
@@ -185,7 +185,7 @@ KAPI kresource_texture* texture_system_request_depth_arrayed(kname name, u32 wid
  * @param callback A callback to be made once the resource is loaded. Optional.
  * @return A pointer to the generated texture.
  */
-KAPI kresource_texture* texture_system_acquire_textures_as_arrayed(kname name, kname package_name, u32 layer_count, kname* layer_asset_names, b8 auto_release, void* listener, PFN_resource_loaded_user_callback callback);
+KAPI kresource_texture* texture_system_acquire_textures_as_arrayed(kname name, kname package_name, u32 layer_count, kname* layer_asset_names, b8 auto_release, b8 multiframe_buffering, void* listener, PFN_resource_loaded_user_callback callback);
 
 /**
  * @brief Releases a texture with the given name. Ignores non-existant textures.

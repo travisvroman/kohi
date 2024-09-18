@@ -439,32 +439,32 @@ assets = [
     {
         name = "skybox_b"
         path = "./assets/images/skybox_b.kbi"
-        source_path = "./assets/images/source/skybox_b.png"
+        source_path = "./assets/images/source/skybox_b.jpg"
     }
     {
         name = "skybox_d"
         path = "./assets/images/skybox_d.kbi"
-        source_path = "./assets/images/source/skybox_d.png"
+        source_path = "./assets/images/source/skybox_d.jpg"
     }
     {
         name = "skybox_f"
         path = "./assets/images/skybox_f.kbi"
-        source_path = "./assets/images/source/skybox_f.png"
+        source_path = "./assets/images/source/skybox_f.jpg"
     }
     {
         name = "skybox_l"
         path = "./assets/images/skybox_l.kbi"
-        source_path = "./assets/images/source/skybox_l.png"
+        source_path = "./assets/images/source/skybox_l.jpg"
     }
     {
         name = "skybox_r"
         path = "./assets/images/skybox_r.kbi"
-        source_path = "./assets/images/source/skybox_r.png"
+        source_path = "./assets/images/source/skybox_r.jpg"
     }
     {
         name = "skybox_u"
         path = "./assets/images/skybox_u.kbi"
-        source_path = "./assets/images/source/skybox_u.png"
+        source_path = "./assets/images/source/skybox_u.jpg"
     }
     {
         name = "sponza_arch_combined"

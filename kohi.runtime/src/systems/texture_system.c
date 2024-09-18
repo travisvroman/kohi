@@ -103,7 +103,7 @@ static void increment_generation(kresource_texture* t);
 static void invalidate_texture(kresource_texture* t);
 
 static kresource_texture* default_texture_by_name(texture_system_state* state, kname name);
-static kresource_texture* request_writeable_arrayed(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, kresource_texture_type type, u16 array_size, b8 is_depth);
+static kresource_texture* request_writeable_arrayed(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, kresource_texture_type type, u16 array_size, b8 is_depth, b8 multiframe_buffering);
 
 b8 texture_system_initialize(u64* memory_requirement, void* state, void* config) {
     texture_system_config* typed_config = (texture_system_config*)config;
@@ -258,7 +258,7 @@ texture* texture_system_acquire(const char* name, b8 auto_release) {
     return t;
 }
 
-kresource_texture* texture_system_request_cube(kname name, b8 auto_release, void* listener, PFN_resource_loaded_user_callback callback) {
+kresource_texture* texture_system_request_cube(kname name, b8 auto_release, b8 multiframe_buffering, void* listener, PFN_resource_loaded_user_callback callback) {
     texture_system_state* state = engine_systems_get()->texture_system;
 
     // If requesting the default cube texture name, just return it.
@@ -300,7 +300,7 @@ kresource_texture* texture_system_request_cube(kname name, b8 auto_release, void
 
     request.array_size = 6;
     request.texture_type = KRESOURCE_TEXTURE_TYPE_CUBE;
-    request.flags = 0;
+    request.flags = multiframe_buffering ? KRESOURCE_TEXTURE_FLAG_RENDERER_BUFFERING : 0;
 
     kresource_texture* t = (kresource_texture*)kresource_system_request(state->kresource_system, name, (kresource_request_info*)&request);
     if (!t) {
@@ -310,7 +310,7 @@ kresource_texture* texture_system_request_cube(kname name, b8 auto_release, void
     return t;
 }
 
-kresource_texture* texture_system_request_cube_writeable(kname name, u32 dimension, b8 auto_release) {
+kresource_texture* texture_system_request_cube_writeable(kname name, u32 dimension, b8 auto_release, b8 multiframe_buffering) {
     texture_system_state* state = engine_systems_get()->texture_system;
     // If requesting the default cube texture name, just return it.
     if (name == state->default_kresource_cube_texture->base.name) {
@@ -320,10 +320,10 @@ kresource_texture* texture_system_request_cube_writeable(kname name, u32 dimensi
         KWARN("texture_system_request_cube - name supplied is invalid. Returning default cubemap instead.");
         return state->default_kresource_cube_texture;
     }
-    return request_writeable_arrayed(name, dimension, dimension, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, KRESOURCE_TEXTURE_TYPE_CUBE, 6, false);
+    return request_writeable_arrayed(name, dimension, dimension, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, KRESOURCE_TEXTURE_TYPE_CUBE, 6, false, multiframe_buffering);
 }
 
-kresource_texture* texture_system_request_cube_depth(kname name, u32 dimension, b8 auto_release) {
+kresource_texture* texture_system_request_cube_depth(kname name, u32 dimension, b8 auto_release, b8 multiframe_buffering) {
     texture_system_state* state = engine_systems_get()->texture_system;
     // If requesting the default cube texture name, just return it.
     if (name == state->default_kresource_cube_texture->base.name) {
@@ -333,26 +333,26 @@ kresource_texture* texture_system_request_cube_depth(kname name, u32 dimension, 
         KWARN("texture_system_request_cube - name supplied is invalid. Returning default cubemap instead.");
         return state->default_kresource_cube_texture;
     }
-    return request_writeable_arrayed(name, dimension, dimension, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, KRESOURCE_TEXTURE_TYPE_CUBE, 6, true);
+    return request_writeable_arrayed(name, dimension, dimension, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, KRESOURCE_TEXTURE_TYPE_CUBE, 6, true, multiframe_buffering);
 }
 
-kresource_texture* texture_system_request_writeable(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency) {
-    return request_writeable_arrayed(name, width, height, format, has_transparency, KRESOURCE_TEXTURE_TYPE_2D, 1, false);
+kresource_texture* texture_system_request_writeable(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, b8 multiframe_buffering) {
+    return request_writeable_arrayed(name, width, height, format, has_transparency, KRESOURCE_TEXTURE_TYPE_2D, 1, false, multiframe_buffering);
 }
 
-kresource_texture* texture_system_request_writeable_arrayed(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, kresource_texture_type type, u16 array_size) {
-    return request_writeable_arrayed(name, width, height, format, has_transparency, type, array_size, false);
+kresource_texture* texture_system_request_writeable_arrayed(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, b8 multiframe_buffering, kresource_texture_type type, u16 array_size) {
+    return request_writeable_arrayed(name, width, height, format, has_transparency, type, array_size, false, multiframe_buffering);
 }
 
-kresource_texture* texture_system_request_depth(kname name, u32 width, u32 height) {
-    return request_writeable_arrayed(name, width, height, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, KRESOURCE_TEXTURE_TYPE_2D, 1, true);
+kresource_texture* texture_system_request_depth(kname name, u32 width, u32 height, b8 multiframe_buffering) {
+    return request_writeable_arrayed(name, width, height, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, KRESOURCE_TEXTURE_TYPE_2D, 1, true, multiframe_buffering);
 }
 
-kresource_texture* texture_system_request_depth_arrayed(kname name, u32 width, u32 height, u16 array_size) {
-    return request_writeable_arrayed(name, width, height, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, KRESOURCE_TEXTURE_TYPE_2D_ARRAY, array_size, true);
+kresource_texture* texture_system_request_depth_arrayed(kname name, u32 width, u32 height, u16 array_size, b8 multiframe_buffering) {
+    return request_writeable_arrayed(name, width, height, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, KRESOURCE_TEXTURE_TYPE_2D_ARRAY, array_size, true, multiframe_buffering);
 }
 
-kresource_texture* texture_system_acquire_textures_as_arrayed(kname name, kname package_name, u32 layer_count, kname* layer_asset_names, b8 auto_release, void* listener, PFN_resource_loaded_user_callback callback) {
+kresource_texture* texture_system_acquire_textures_as_arrayed(kname name, kname package_name, u32 layer_count, kname* layer_asset_names, b8 auto_release, b8 multiframe_buffering, void* listener, PFN_resource_loaded_user_callback callback) {
     if (layer_count < 1) {
         KERROR("Must contain at least one layer.");
         return 0;
@@ -834,7 +834,7 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_texture = create_default_kresource_texture(state, kname_create(DEFAULT_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, channels, 1, pixel_array_size, pixels);
+        state->default_kresource_texture = create_default_kresource_texture(state, kname_create(DEFAULT_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, 1, channels, pixel_array_size, pixels);
         if (!state->default_kresource_texture) {
             KERROR("Failed to request resources for default texture");
             return false;
@@ -852,7 +852,7 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_diffuse_texture = create_default_kresource_texture(state, kname_create(DEFAULT_DIFFUSE_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, channels, 1, pixel_array_size, diff_pixels);
+        state->default_kresource_diffuse_texture = create_default_kresource_texture(state, kname_create(DEFAULT_DIFFUSE_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, 1, channels, pixel_array_size, diff_pixels);
         if (!state->default_kresource_diffuse_texture) {
             KERROR("Failed to request resources for default diffuse texture");
             return false;
@@ -869,7 +869,7 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_specular_texture = create_default_kresource_texture(state, kname_create(DEFAULT_SPECULAR_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, channels, 1, pixel_array_size, spec_pixels);
+        state->default_kresource_specular_texture = create_default_kresource_texture(state, kname_create(DEFAULT_SPECULAR_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, 1, channels, pixel_array_size, spec_pixels);
         if (!state->default_kresource_specular_texture) {
             KERROR("Failed to request resources for default specular texture");
             return false;
@@ -896,7 +896,7 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_normal_texture = create_default_kresource_texture(state, kname_create(DEFAULT_NORMAL_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, channels, 1, pixel_array_size, normal_pixels);
+        state->default_kresource_normal_texture = create_default_kresource_texture(state, kname_create(DEFAULT_NORMAL_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, 1, channels, pixel_array_size, normal_pixels);
         if (!state->default_kresource_normal_texture) {
             KERROR("Failed to request resources for default normal texture");
             return false;
@@ -1662,7 +1662,7 @@ static kresource_texture* default_texture_by_name(texture_system_state* state, k
     return 0;
 }
 
-static kresource_texture* request_writeable_arrayed(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, kresource_texture_type type, u16 array_size, b8 is_depth) {
+static kresource_texture* request_writeable_arrayed(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, kresource_texture_type type, u16 array_size, b8 is_depth, b8 multiframe_buffering) {
 
     struct kresource_system_state* kresource_system = engine_systems_get()->kresource_state;
     kresource_texture_request_info info = {0};
@@ -1672,6 +1672,7 @@ static kresource_texture* request_writeable_arrayed(kname name, u32 width, u32 h
     info.flags = KRESOURCE_TEXTURE_FLAG_IS_WRITEABLE;
     info.flags |= has_transparency ? KRESOURCE_TEXTURE_FLAG_HAS_TRANSPARENCY : 0;
     info.flags |= is_depth ? KRESOURCE_TEXTURE_FLAG_DEPTH : 0;
+    info.flags |= multiframe_buffering ? KRESOURCE_TEXTURE_FLAG_RENDERER_BUFFERING : 0;
     info.width = width;
     info.height = height;
     info.format = format;

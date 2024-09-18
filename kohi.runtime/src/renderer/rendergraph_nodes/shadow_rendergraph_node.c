@@ -207,7 +207,7 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
 
     // Create the depth attachment for the directional light shadow.
     // This should take renderer buffering into account.
-    internal_data->depth_texture = texture_system_request_depth_arrayed(kname_create("__shadow_rg_node_shadowmap__"), internal_data->config.resolution, internal_data->config.resolution, MAX_SHADOW_CASCADE_COUNT);
+    internal_data->depth_texture = texture_system_request_depth_arrayed(kname_create("__shadow_rg_node_shadowmap__"), internal_data->config.resolution, internal_data->config.resolution, MAX_SHADOW_CASCADE_COUNT, true);
     if (!internal_data->depth_texture) {
         KERROR("Failed to request layered shadow map texture for shadow rendergraph node.");
         return false;
@@ -270,7 +270,7 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
         u32 highest_id = 0;
         for (u32 i = 0; i < internal_data->geometry_count; ++i) {
             material* m = internal_data->geometries[i].material;
-            if (m->internal_id > highest_id) {
+            if (m && m->internal_id > highest_id) {
                 // NOTE: +1 to account for the first id being taken by the default instance.
                 highest_id = m->internal_id + 1;
             }

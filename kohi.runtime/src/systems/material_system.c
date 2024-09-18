@@ -341,7 +341,7 @@ material* material_system_acquire_terrain_material(const char* material_name, u3
             map->repeat_w = TEXTURE_REPEAT_REPEAT;
             map->filter_minify = TEXTURE_FILTER_MODE_LINEAR;
             map->filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-            map->texture = texture_system_acquire_textures_as_arrayed(m->name, m->package_name, layer_count, texture_names, true, 0, 0);
+            map->texture = texture_system_acquire_textures_as_arrayed(m->name, m->package_name, layer_count, texture_names, true, false, 0, 0);
             if (!map->texture) {
                 // Configured, but not found.
                 KWARN("Unable to load arrayed texture '%s' for material '%s', using default.", m->name, material_name);

@@ -443,7 +443,7 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
 
     // Create the depthbuffer.
     KDEBUG("Creating Vulkan depthbuffer for window '%s'...", window->name);
-    if (k_handle_is_invalid(window_internal->depthbuffer.renderer_texture_handle)) {
+    if (k_handle_is_invalid(window_internal->depthbuffer->renderer_texture_handle)) {
         // If invalid, then a new one needs to be created. This does not reach out to the
         // texture system to create this, but handles it internally instead. This is because
         // the process for this varies greatly between backends.
@@ -460,7 +460,7 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
                 // acquire the resources we already have here.
                 // Also flag as a depth texture
                 TEXTURE_FLAG_IS_WRAPPED | TEXTURE_FLAG_IS_WRITEABLE | TEXTURE_FLAG_RENDERER_BUFFERING | TEXTURE_FLAG_DEPTH,
-                &window_internal->depthbuffer.renderer_texture_handle)) {
+                &window_internal->depthbuffer->renderer_texture_handle)) {
             KFATAL("Failed to acquire internal texture resources for window.depthbuffer");
             return false;
         }
@@ -468,15 +468,15 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
 
     // Get the texture_internal_data based on the existing or newly-created handle above.
     // Use that to setup the internal images/views for the colourbuffer texture.
-    texture_internal_data* texture_data = renderer_texture_resources_get(backend->frontend_state, window_internal->depthbuffer.renderer_texture_handle);
+    texture_internal_data* texture_data = renderer_texture_resources_get(backend->frontend_state, window_internal->depthbuffer->renderer_texture_handle);
     if (!texture_data) {
         KFATAL("Unable to get internal data for depthbuffer image. Window creation failed.");
         return false;
     }
 
     // Name is meaningless here, but might be useful for debugging.
-    if (!window_internal->depthbuffer.name) {
-        window_internal->depthbuffer.name = string_duplicate("__window_depthbuffer_texture__");
+    if (window_internal->depthbuffer->base.name == INVALID_KNAME) {
+        window_internal->depthbuffer->base.name = kname_create("__window_depthbuffer_texture__");
     }
 
     texture_data->image_count = window_backend->swapchain.image_count;
@@ -513,7 +513,8 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
         string_free(formatted_name);
 
         // Doesn't really do anything... but track it anyways.
-        window->renderer_state->depthbuffer.channel_count = context->device.depth_channel_count;
+        // TODO: Does this need to be tracked?
+        // window->renderer_state->depthbuffer->format = context->device.depth_channel_count;
 
         // Setup a debug name for the image.
         VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE, image->handle, image->name);
@@ -581,15 +582,12 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
 
         // Destroy depthbuffer images/views.
 
-        texture_internal_data* texture_data = renderer_texture_resources_get(backend->frontend_state, window_internal->depthbuffer.renderer_texture_handle);
+        texture_internal_data* texture_data = renderer_texture_resources_get(backend->frontend_state, window_internal->depthbuffer->renderer_texture_handle);
         if (!texture_data) {
             KWARN("Unable to get internal data for depthbuffer image. Underlying resources may not be properly destroyed.");
         } else {
             // Free the name
-            if (window_internal->depthbuffer.name) {
-                string_free(window_internal->depthbuffer.name);
-                window_internal->depthbuffer.name = 0;
-            }
+            window_internal->depthbuffer->base.name = INVALID_KNAME;
 
             // Destroy each backing image.
             if (texture_data->images) {
@@ -601,7 +599,7 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
             }
 
             // Releasing the resources for the default depthbuffer should destroy backing resources too.
-            renderer_texture_resources_release(backend->frontend_state, &window->renderer_state->depthbuffer.renderer_texture_handle);
+            renderer_texture_resources_release(backend->frontend_state, &window->renderer_state->depthbuffer->renderer_texture_handle);
         }
     }
 
@@ -697,9 +695,9 @@ b8 vulkan_renderer_frame_prepare_window_surface(renderer_backend_interface* back
 
         // Resize depth buffer image.
         if (window_backend->skip_frames == window_backend->swapchain.max_frames_in_flight) {
-            if (!k_handle_is_invalid(window->renderer_state->depthbuffer.renderer_texture_handle)) {
+            if (!k_handle_is_invalid(window->renderer_state->depthbuffer->renderer_texture_handle)) {
                 /* vkQueueWaitIdle(context->device.graphics_queue); */
-                if (!renderer_texture_resize(backend->frontend_state, window->renderer_state->depthbuffer.renderer_texture_handle, window->width, window->height)) {
+                if (!renderer_texture_resize(backend->frontend_state, window->renderer_state->depthbuffer->renderer_texture_handle, window->width, window->height)) {
                     KERROR("Failed to resize depth buffer for window '%s'. See logs for details.", window->name);
                 }
             }
@@ -3242,6 +3240,10 @@ b8 vulkan_renderer_uniform_set(renderer_backend_interface* backend, shader* s, s
         if (uniform->scope == SHADER_SCOPE_GLOBAL) {
             return sampler_state_try_set(internal->global_sampler_uniforms, s->global_uniform_sampler_count, uniform->location, array_index, value);
         } else {
+            if (uniform->scope == SHADER_SCOPE_INSTANCE && s->bound_instance_id == INVALID_ID) {
+                KERROR("Trying to set an instance-level uniform without having bound an instance first.");
+                return false;
+            }
             vulkan_shader_instance_state* instance_state = &internal->instance_states[s->bound_instance_id];
             return sampler_state_try_set(instance_state->sampler_uniforms, s->instance_uniform_sampler_count, uniform->location, array_index, value);
         }

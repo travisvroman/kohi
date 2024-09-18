@@ -105,7 +105,7 @@ kresource* kresource_system_request(struct kresource_system_state* state, kname 
         // Resource doesn't exist. Create a new one and its lookup.
         // Look for an empty slot.
         for (u32 i = 0; i < state->max_resource_count; ++i) {
-            resource_lookup* lookup = &state->lookups[lookup_index];
+            resource_lookup* lookup = &state->lookups[i];
             if (lookup->r.name == INVALID_KNAME) {
                 // Add an entry to the bst for this node.
                 bt_node_value v;

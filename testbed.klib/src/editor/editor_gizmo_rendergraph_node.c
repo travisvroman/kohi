@@ -28,7 +28,7 @@ typedef struct editor_gizmo_rendergraph_node_internal_data {
     shader* colour_shader;
     debug_shader_locations debug_locations;
 
-    struct texture* colourbuffer_texture;
+    kresource_texture* colourbuffer_texture;
 
     viewport vp;
     mat4 view;

@@ -264,9 +264,12 @@ b8 renderer_on_window_created(struct renderer_system_state* state, struct kwindo
     // Create a new window state and register it.
     window->renderer_state = kallocate(sizeof(kwindow_renderer_state), MEMORY_TAG_RENDERER);
 
-    // Start with invalid colour/depth buffer texture handles.
-    window->renderer_state->colourbuffer.renderer_texture_handle = k_handle_invalid();
-    window->renderer_state->depthbuffer.renderer_texture_handle = k_handle_invalid();
+    window->renderer_state->colourbuffer = kallocate(sizeof(kresource_texture), MEMORY_TAG_RENDERER);
+    window->renderer_state->depthbuffer = kallocate(sizeof(kresource_texture), MEMORY_TAG_RENDERER);
+
+    // Start with invalid colour/depth buffer texture handles. // nocheckin
+    window->renderer_state->colourbuffer->renderer_texture_handle = k_handle_invalid();
+    window->renderer_state->depthbuffer->renderer_texture_handle = k_handle_invalid();
 
     // Create backend resources (i.e swapchain, surface, images, etc.).
     if (!state->backend->window_create(state->backend, window)) {

@@ -112,116 +112,106 @@ static asset_entry* asset_entry_get(const kpackage* package, kname name) {
         }
     }
 
-    KERROR("Package '%s': No entry called '%s' exists.", package->name, name);
+    KERROR("Package '%s': No entry called '%s' exists.", kname_string_get(package->name), kname_string_get(name));
     return 0;
 }
 
 static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kname name, b8 get_source, u64* out_size, const void** out_data) {
 
-    asset_entry* entry = asset_entry_get(package, name);
-    if (!entry) {
-    }
-
     const char* package_name = kname_string_get(package->name);
     const char* name_str = kname_string_get(name);
-
-    // Search the type lookup's entries for the matching name.
-    u32 entry_count = darray_length(package->internal_data->entries);
-    for (u32 j = 0; j < entry_count; ++j) {
-        asset_entry* entry = &package->internal_data->entries[j];
-        if (entry->name == name) {
-            if (package->is_binary) {
-                KERROR("binary packages not yet supported.");
-                return KPACKAGE_RESULT_INTERNAL_FAILURE;
-            } else {
-                kpackage_result result = KPACKAGE_RESULT_INTERNAL_FAILURE;
-
-                // Validate asset path.
-                const char* asset_path = get_source ? entry->source_path : entry->path;
-                if (!asset_path) {
-                    KERROR("Package '%s': No %s asset path exists for asset '%s'. Load operation failed.", package_name, get_source ? "source" : "primary", name_str);
-                    result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
-                    return result;
-                }
-
-                // Validate that the file exists.
-                if (!filesystem_exists(asset_path)) {
-                    KERROR("Package '%s': Invalid %s asset path ('%s') for asset '%s'. Load operation failed.", package_name, get_source ? "source" : "primary", asset_path, name_str);
-                    result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
-                    return result;
-                }
-                void* data = 0;
-
-                // load the file content from disk.
-                file_handle f = {0};
-                if (!filesystem_open(asset_path, FILE_MODE_READ, is_binary, &f)) {
-                    KERROR("Package '%s': Failed to open asset '%s' file at path: '%s'.", package_name, name_str, asset_path);
-                    result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
-                    goto get_data_cleanup;
-                }
-
-                // Get the file size.
-                u64 file_size = 0;
-                if (!filesystem_size(&f, &file_size)) {
-                    KERROR("Package '%s': Failed to get size for asset '%s' file at path: '%s'.", package_name, name_str, asset_path);
-                    result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
-                    goto get_data_cleanup;
-                }
-
-                data = kallocate(file_size, MEMORY_TAG_ASSET);
-
-                u64 read_size = 0;
-                if (is_binary) {
-                    // Load as binary
-                    if (!filesystem_read_all_bytes(&f, data, &read_size)) {
-                        KERROR("Package '%s': Failed to read asset '%s' as binary, at file at path: '%s'.", package_name, name_str, asset_path);
-                        goto get_data_cleanup;
-                    }
-                } else {
-                    // Load as text
-                    if (!filesystem_read_all_text(&f, data, &read_size)) {
-                        KERROR("Package '%s': Failed to read asset '%s' as text, at file at path: '%s'.", package_name, name_str, asset_path);
-                        goto get_data_cleanup;
-                    }
-                }
-
-                // Sanity check to make sure the bounds haven't been breached.
-                KASSERT_MSG(read_size <= file_size, "File read exceeded bounds of data allocation based on file size.");
-
-                // This means that data is bigger than it needs to be, and that a smaller block of memory can be used.
-                if (read_size < file_size) {
-                    KTRACE("Package '%s': asset '%s', file at path: '%s' - Read size/file size mismatch (%llu, %llu).", package_name, name_str, asset_path, read_size, file_size);
-                    void* temp = kallocate(read_size, MEMORY_TAG_ASSET);
-                    kcopy_memory(temp, data, read_size);
-                    kfree(data, file_size, MEMORY_TAG_ASSET);
-                    data = temp;
-                    file_size = read_size;
-                }
-
-                // Set the output.
-                *out_data = data;
-                *out_size = file_size;
-
-                // Success!
-                result = KPACKAGE_RESULT_SUCCESS;
-
-            get_data_cleanup:
-                filesystem_close(&f);
-
-                if (result != KPACKAGE_RESULT_SUCCESS) {
-                    if (data) {
-                        kfree(data, file_size, MEMORY_TAG_ASSET);
-                    }
-                } else {
-                    // KERROR("Package '%s' does not contain asset '%s'.", package_name, name_str);
-                }
-                return result;
-            }
-        }
+    asset_entry* entry = asset_entry_get(package, name);
+    if (!entry) {
+        return get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
     }
 
-    KERROR("Package '%s': No entry called '%s' exists.", package_name, name_str);
-    return 0;
+    if (package->is_binary) {
+        KERROR("binary packages not yet supported.");
+        return KPACKAGE_RESULT_INTERNAL_FAILURE;
+    } else {
+        kpackage_result result = KPACKAGE_RESULT_INTERNAL_FAILURE;
+
+        // Validate asset path.
+        const char* asset_path = get_source ? entry->source_path : entry->path;
+        if (!asset_path) {
+            KERROR("Package '%s': No %s asset path exists for asset '%s'. Load operation failed.", package_name, get_source ? "source" : "primary", name_str);
+            result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+            return result;
+        }
+
+        // Validate that the file exists.
+        if (!filesystem_exists(asset_path)) {
+            KERROR("Package '%s': Invalid %s asset path ('%s') for asset '%s'. Load operation failed.", package_name, get_source ? "source" : "primary", asset_path, name_str);
+            result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+            return result;
+        }
+        void* data = 0;
+
+        // load the file content from disk.
+        file_handle f = {0};
+        if (!filesystem_open(asset_path, FILE_MODE_READ, is_binary, &f)) {
+            KERROR("Package '%s': Failed to open asset '%s' file at path: '%s'.", package_name, name_str, asset_path);
+            result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+            goto get_data_cleanup;
+        }
+
+        // Get the file size.
+        u64 file_size = 0;
+        if (!filesystem_size(&f, &file_size)) {
+            KERROR("Package '%s': Failed to get size for asset '%s' file at path: '%s'.", package_name, name_str, asset_path);
+            result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+            goto get_data_cleanup;
+        }
+
+        data = kallocate(file_size, MEMORY_TAG_ASSET);
+
+        u64 read_size = 0;
+        if (is_binary) {
+            // Load as binary
+            if (!filesystem_read_all_bytes(&f, data, &read_size)) {
+                KERROR("Package '%s': Failed to read asset '%s' as binary, at file at path: '%s'.", package_name, name_str, asset_path);
+                goto get_data_cleanup;
+            }
+        } else {
+            // Load as text
+            if (!filesystem_read_all_text(&f, data, &read_size)) {
+                KERROR("Package '%s': Failed to read asset '%s' as text, at file at path: '%s'.", package_name, name_str, asset_path);
+                goto get_data_cleanup;
+            }
+        }
+
+        // Sanity check to make sure the bounds haven't been breached.
+        KASSERT_MSG(read_size <= file_size, "File read exceeded bounds of data allocation based on file size.");
+
+        // This means that data is bigger than it needs to be, and that a smaller block of memory can be used.
+        if (read_size < file_size) {
+            KTRACE("Package '%s': asset '%s', file at path: '%s' - Read size/file size mismatch (%llu, %llu).", package_name, name_str, asset_path, read_size, file_size);
+            void* temp = kallocate(read_size, MEMORY_TAG_ASSET);
+            kcopy_memory(temp, data, read_size);
+            kfree(data, file_size, MEMORY_TAG_ASSET);
+            data = temp;
+            file_size = read_size;
+        }
+
+        // Set the output.
+        *out_data = data;
+        *out_size = file_size;
+
+        // Success!
+        result = KPACKAGE_RESULT_SUCCESS;
+
+    get_data_cleanup:
+        filesystem_close(&f);
+
+        if (result != KPACKAGE_RESULT_SUCCESS) {
+            if (data) {
+                kfree(data, file_size, MEMORY_TAG_ASSET);
+            }
+        } else {
+            // KERROR("Package '%s' does not contain asset '%s'.", package_name, name_str);
+        }
+        return result;
+    }
 }
 
 kpackage_result kpackage_asset_bytes_get(const kpackage* package, kname name, b8 get_source, u64* out_size, const void** out_data) {

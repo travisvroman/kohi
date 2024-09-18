@@ -70,6 +70,7 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
 
     // Load all assets (might only be one).
     if (info->assets.data) {
+        kzero_memory(listener_inst->typed_resource, sizeof(kresource_texture));
         for (array_iterator it = info->assets.begin(&info->assets.base); !it.end(&it); it.next(&it)) {
             kresource_asset_info* asset_info = it.value(&it);
             if (asset_info->type == KASSET_TYPE_IMAGE) {
@@ -111,7 +112,6 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
         typed_resource->height = first_px_data->height;
         typed_resource->format = first_px_data->format;
         typed_resource->mip_levels = first_px_data->mip_levels;
-        typed_resource->array_size = typed_request->pixel_data.base.length;
 
         // Acquire the resources for the texture.
         b8 acquisition_result = renderer_kresource_texture_resources_acquire(
@@ -325,12 +325,17 @@ static void texture_kasset_on_result(asset_request_result result, const struct k
                 // Increase the generation also.
                 listener->typed_resource->base.generation++;
             }
+            goto destroy_request;
         }
         // TODO: Need to think about hot-reloading here, and how/where listening should happen. Maybe in the resource system?
+        
+        // Boot out so the request isn't destroyed.
+        return;
     } else {
         KERROR("Failed to load a required asset for texture resource '%s'. Resource may not appear correctly when rendered.", kname_string_get(listener->typed_resource->base.name));
     }
 
+destroy_request:
     // Destroy the request.
     array_kimage_ptr_destroy(&listener->assets);
     array_kresource_asset_info_destroy(&listener->request_info->base.assets);

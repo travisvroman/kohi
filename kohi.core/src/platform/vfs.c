@@ -119,15 +119,16 @@ void vfs_request_asset_sync(vfs_state* state, kname package_name, kname asset_na
         out_data->context = 0;
     }
 
-    const char* package_name_str = kname_string_get(package_name);
     const char* asset_name_str = kname_string_get(asset_name);
-    KDEBUG("Loading asset '%s' from package '%s'...", asset_name_str, package_name_str);
 
     u32 package_count = darray_length(state->packages);
     for (u32 i = 0; i < package_count; ++i) {
         kpackage* package = &state->packages[i];
 
-        if (package->name == package_name) {
+        if (package_name == INVALID_KNAME || package->name == package_name) {
+
+            const char* package_name_str = kname_string_get(package->name);
+            KDEBUG("Attempting to load asset '%s' from package '%s'...", asset_name_str, package_name_str);
 
             // Determine if the asset type is text.
             kpackage_result result = KPACKAGE_RESULT_INTERNAL_FAILURE;
@@ -145,7 +146,7 @@ void vfs_request_asset_sync(vfs_state* state, kname package_name, kname asset_na
 
             // Translate the result to VFS layer and send on up.
             if (result != KPACKAGE_RESULT_SUCCESS) {
-                KERROR("Failed to load binary asset. See logs for details.");
+                KTRACE("Failed to load binary asset. See logs for details.");
                 switch (result) {
                 case KPACKAGE_RESULT_PRIMARY_GET_FAILURE:
                     out_data->result = VFS_REQUEST_RESULT_FILE_DOES_NOT_EXIST;
@@ -162,18 +163,23 @@ void vfs_request_asset_sync(vfs_state* state, kname package_name, kname asset_na
                 out_data->result = VFS_REQUEST_RESULT_SUCCESS;
                 // Include a copy of the asset path.
                 if (get_source) {
+                    // Keep the package name in case an importer needs it later.
+                    out_data->package_name = package->name;
                     out_data->path = kpackage_source_string_for_asset(package, asset_name);
                 } else {
                     out_data->path = kpackage_path_for_asset(package, asset_name);
                 }
             }
 
-            return;
+            // Boot out only if success OR looking through all packages (no package name provided)
+            if (result == KPACKAGE_RESULT_SUCCESS || package_name != INVALID_KNAME) {
+                return;
+            }
         }
     }
 
-    KERROR("No package named '%s' exists. Nothing was done.", package_name_str);
-    out_data->result = VFS_REQUEST_RESULT_PACKAGE_DOES_NOT_EXIST;
+    KERROR("No asset named '%s' exists in any package. Nothing was done.", asset_name_str);
+    // out_data->result = VFS_REQUEST_RESULT_PACKAGE_DOES_NOT_EXIST;
     return;
 }
 

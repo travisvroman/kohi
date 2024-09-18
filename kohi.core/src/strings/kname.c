@@ -10,6 +10,9 @@
 static bt_node* string_lookup = 0;
 
 kname kname_create(const char* str) {
+    if (!str || string_length(str) == 0) {
+        return INVALID_KNAME;
+    }
 
     // Take a copy of the string to hash.
     char* copy = string_duplicate(str);

@@ -17,6 +17,7 @@ b8 skybox_create(skybox_config config, skybox* out_skybox) {
 
     out_skybox->cubemap_name = kname_create(config.cubemap_name);
     out_skybox->state = SKYBOX_STATE_CREATED;
+    out_skybox->cubemap.texture = 0;
 
     return true;
 }
@@ -34,7 +35,7 @@ b8 skybox_initialize(skybox* sb) {
 
     sb->g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, sb->cubemap_name, 0);
     // Clear out the material name.
-    sb->g_config.material_name[0] = 0;
+    sb->g_config.material_name = INVALID_KNAME;
     sb->state = SKYBOX_STATE_INITIALIZED;
 
     return true;
@@ -48,7 +49,7 @@ b8 skybox_load(skybox* sb) {
     sb->state = SKYBOX_STATE_LOADING;
 
     // LEFTOFF: cubemap_request
-    sb->cubemap.texture = texture_system_request_cube(sb->cubemap_name, true, 0, 0);
+    sb->cubemap.texture = texture_system_request_cube(sb->cubemap_name, true, false, 0, 0);
     if (!renderer_kresource_texture_map_resources_acquire(engine_systems_get()->renderer_system, &sb->cubemap)) {
         KFATAL("Unable to acquire resources for cube map texture.");
         return false;
