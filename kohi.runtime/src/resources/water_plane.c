@@ -29,7 +29,7 @@ b8 water_plane_create(water_plane* out_plane) {
 void water_plane_destroy(water_plane* plane) {
     if (plane) {
         if (plane->maps) {
-            kfree(plane->maps, sizeof(texture_map) * plane->map_count, MEMORY_TAG_ARRAY);
+            kfree(plane->maps, sizeof(kresource_texture_map) * plane->map_count, MEMORY_TAG_ARRAY);
         }
 
         kzero_memory(plane, sizeof(water_plane));
@@ -59,7 +59,7 @@ b8 water_plane_initialize(water_plane* plane) {
 
         // Maps array
         plane->map_count = WATER_PLANE_MAP_COUNT;
-        plane->maps = kallocate(sizeof(texture_map) * plane->map_count, MEMORY_TAG_ARRAY);
+        plane->maps = kallocate(sizeof(kresource_texture_map) * plane->map_count, MEMORY_TAG_ARRAY);
         for (u32 i = 0; i < plane->map_count; ++i) {
             kresource_texture_map* map = &plane->maps[i];
             map->filter_magnify = map->filter_minify = TEXTURE_FILTER_MODE_LINEAR;

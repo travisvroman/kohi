@@ -84,6 +84,9 @@ typedef struct vfs_asset_data {
 
     /** The context passed in from the original request. */
     void* context;
+
+    u32 import_params_size;
+    void* import_params;
 } vfs_asset_data;
 
 typedef void (*PFN_on_asset_loaded_callback)(struct vfs_state* vfs, vfs_asset_data asset_data);
@@ -118,7 +121,7 @@ KAPI void vfs_shutdown(vfs_state* state);
  * @param context A pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important.
  * @param callback The callback to be made once the asset load is complete. Required.
  */
-KAPI void vfs_request_asset(vfs_state* state, kname package_name, kname asset_name, b8 is_binary, b8 get_source, u32 context_size, const void* context, PFN_on_asset_loaded_callback callback);
+KAPI void vfs_request_asset(vfs_state* state, kname package_name, kname asset_name, b8 is_binary, b8 get_source, u32 context_size, const void* context, u32 import_params_size, void* import_params, PFN_on_asset_loaded_callback callback);
 
 /**
  * @brief Requests an asset from the VFS synchronously. NOTE: This should be used sparingly as it performs device I/O directly.
@@ -133,7 +136,7 @@ KAPI void vfs_request_asset(vfs_state* state, kname package_name, kname asset_na
  * @param context A pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important.
  * @param out_data A pointer to hold the loaded asset data. Required.
  */
-KAPI void vfs_request_asset_sync(vfs_state* state, kname package_name, kname asset_name, b8 is_binary, b8 get_source, u32 context_size, const void* context, vfs_asset_data* out_data);
+KAPI void vfs_request_asset_sync(vfs_state* state, kname package_name, kname asset_name, b8 is_binary, b8 get_source, u32 context_size, const void* context, u32 import_params_size, void* import_params, vfs_asset_data* out_data);
 
 /**
  * @brief Attempts to retrieve the path for the given asset, if it exists.

@@ -172,35 +172,6 @@ typedef enum texture_type {
     TEXTURE_TYPE_COUNT
 } texture_type;
 
-/**
- * @brief Represents a texture.
- */
-typedef struct texture {
-    /** @brief The unique texture identifier. */
-    // TODO: replace with uuid to match handle
-    u32 id;
-    /** @brief The texture type. */
-    texture_type type;
-    /** @brief The texture width. */
-    u32 width;
-    /** @brief The texture height. */
-    u32 height;
-    /** @brief The number of channels in the texture. */
-    u8 channel_count;
-    /** @brief For arrayed textures, how many "layers" there are. Otherwise this is 1. */
-    u16 array_size;
-    /** @brief Holds various flags for this texture. */
-    texture_flag_bits flags;
-    /** @brief The texture name. */
-    char* name;
-    /** @brief The number of mip maps the internal texture has. Must always be at least 1. */
-    u32 mip_levels;
-    /** @brief The the handle to renderer-specific texture data. */
-    k_handle renderer_texture_handle;
-    /** @brief A counter to keep track of texture updates. */
-    u8 generation;
-} texture;
-
 /** @brief The maximum length of a material name. */
 #define MATERIAL_NAME_MAX_LENGTH 256
 

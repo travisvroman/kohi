@@ -464,7 +464,7 @@ void renderer_set_stencil_write_mask(u32 write_mask) {
     state_ptr->backend->set_stencil_write_mask(state_ptr->backend, write_mask);
 }
 
-b8 renderer_texture_resources_acquire(struct renderer_system_state* state, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, k_handle* out_renderer_texture_handle) {
+/* b8 renderer_texture_resources_acquire(struct renderer_system_state* state, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, k_handle* out_renderer_texture_handle) {
     if (!state) {
         return false;
     }
@@ -512,7 +512,7 @@ b8 renderer_texture_resources_acquire(struct renderer_system_state* state, const
         kfree(data, state->backend->texture_internal_data_size, MEMORY_TAG_RENDERER);
     }
     return success;
-}
+} */
 
 b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* state, kname name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags, k_handle* out_renderer_texture_handle) {
     if (!state) {
@@ -531,23 +531,7 @@ b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* st
         // count it as a success and proceed to get a handle.
         success = true;
     } else {
-        // FIXME: Convert function call below to use the new type.
-        texture_type old_type = TEXTURE_TYPE_2D;
-        switch (type) {
-        default:
-            old_type = TEXTURE_TYPE_2D;
-            break;
-        case KRESOURCE_TEXTURE_TYPE_2D_ARRAY:
-            old_type = TEXTURE_TYPE_2D_ARRAY;
-            break;
-        case KRESOURCE_TEXTURE_TYPE_CUBE:
-            old_type = TEXTURE_TYPE_CUBE;
-            break;
-        case KRESOURCE_TEXTURE_TYPE_CUBE_ARRAY:
-            old_type = TEXTURE_TYPE_CUBE_ARRAY;
-            break;
-        }
-        success = state->backend->texture_resources_acquire(state->backend, data, kname_string_get(name), old_type, width, height, channel_count, mip_levels, array_size, flags);
+        success = state->backend->texture_resources_acquire(state->backend, data, kname_string_get(name), type, width, height, channel_count, mip_levels, array_size, flags);
     }
 
     // Only insert into the lookup table on success.
@@ -1085,16 +1069,6 @@ shader_uniform* renderer_shader_uniform_get(shader* s, const char* name) {
 b8 renderer_shader_uniform_set(struct renderer_system_state* state, shader* s, shader_uniform* uniform, u32 array_index, const void* value) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->shader_uniform_set(state_ptr->backend, s, uniform, array_index, value);
-}
-
-b8 renderer_texture_map_resources_acquire(struct texture_map* map) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->texture_map_resources_acquire(state_ptr->backend, map);
-}
-
-void renderer_texture_map_resources_release(struct texture_map* map) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->backend->texture_map_resources_release(state_ptr->backend, map);
 }
 
 b8 renderer_kresource_texture_map_resources_acquire(struct renderer_system_state* state, struct kresource_texture_map* map) {

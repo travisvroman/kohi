@@ -66,7 +66,7 @@ void vulkan_renderer_clear_depth_stencil(renderer_backend_interface* backend, st
 void vulkan_renderer_colour_texture_prepare_for_present(renderer_backend_interface* backend, struct texture_internal_data* tex_internal);
 void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* backend, struct texture_internal_data* tex_internal, texture_flag_bits flags);
 
-b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, struct texture_internal_data* texture_data, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags);
+b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, struct texture_internal_data* texture_data, const char* name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags);
 void vulkan_renderer_texture_resources_release(renderer_backend_interface* backend, struct texture_internal_data* texture_data);
 
 b8 vulkan_renderer_texture_resize(renderer_backend_interface* backend, struct texture_internal_data* texture_data, u32 new_width, u32 new_height);
@@ -87,10 +87,6 @@ b8 vulkan_renderer_shader_apply_local(renderer_backend_interface* backend, struc
 b8 vulkan_renderer_shader_instance_resources_acquire(renderer_backend_interface* backend, struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id);
 b8 vulkan_renderer_shader_instance_resources_release(renderer_backend_interface* backend, struct shader* s, u32 instance_id);
 b8 vulkan_renderer_uniform_set(renderer_backend_interface* backend, struct shader* frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
-
-b8 vulkan_renderer_texture_map_resources_acquire(renderer_backend_interface* backend, texture_map* map);
-void vulkan_renderer_texture_map_resources_release(renderer_backend_interface* backend, texture_map* map);
-b8 vulkan_renderer_texture_map_resources_refresh(renderer_backend_interface* backend, texture_map* map);
 
 b8 vulkan_renderer_kresource_texture_map_resources_acquire(renderer_backend_interface* backend, kresource_texture_map* map);
 void vulkan_renderer_kresource_texture_map_resources_release(renderer_backend_interface* backend, kresource_texture_map* map);

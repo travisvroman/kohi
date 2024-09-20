@@ -25,6 +25,10 @@ typedef struct texture_resource_handler_info {
 
 static void texture_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
 
+kresource* kresource_handler_texture_allocate(void) {
+    return (kresource*)kallocate(sizeof(kresource_texture), MEMORY_TAG_RESOURCE);
+}
+
 b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* resource, const struct kresource_request_info* info) {
     if (!self || !resource) {
         KERROR("kresource_handler_texture_request requires valid pointers to self and resource.");
@@ -68,9 +72,13 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
         listener_inst->assets = array_kimage_ptr_create(info->assets.base.length);
     }
 
+    // asset import params.
+    kasset_image_import_options import_params = {0};
+    import_params.flip_y = typed_request->flip_y;
+    import_params.format = KASSET_IMAGE_FORMAT_RGBA8; // TODO: configurable per asset?
+
     // Load all assets (might only be one).
     if (info->assets.data) {
-        kzero_memory(listener_inst->typed_resource, sizeof(kresource_texture));
         for (array_iterator it = info->assets.begin(&info->assets.base); !it.end(&it); it.next(&it)) {
             kresource_asset_info* asset_info = it.value(&it);
             if (asset_info->type == KASSET_TYPE_IMAGE) {
@@ -81,7 +89,9 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
                     asset_info->asset_name,
                     true,
                     listener_inst,
-                    texture_kasset_on_result);
+                    texture_kasset_on_result,
+                    sizeof(kasset_image_import_options),
+                    &import_params);
             } else if (asset_info->type == KASSET_TYPE_UNKNOWN) {
                 // This means load pixel data.
                 kresource_texture_pixel_data* px = &typed_request->pixel_data.data[it.pos];
@@ -116,7 +126,7 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
         // Acquire the resources for the texture.
         b8 acquisition_result = renderer_kresource_texture_resources_acquire(
             renderer,
-            resource->name,
+            typed_resource->base.name,
             typed_resource->type,
             typed_resource->width,
             typed_resource->height,
@@ -168,7 +178,7 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
         // Acquire the resources for the texture.
         b8 acquisition_result = renderer_kresource_texture_resources_acquire(
             renderer,
-            resource->name,
+            typed_resource->base.name,
             typed_resource->type,
             typed_resource->width,
             typed_resource->height,
@@ -193,7 +203,15 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
 
 void kresource_handler_texture_release(struct kresource_handler* self, kresource* resource) {
     if (resource) {
-        //
+        if (resource->type != KRESOURCE_TYPE_TEXTURE) {
+            KERROR("Attempted to release non-texture resource '%s' via texture resource handler. Resource not released.");
+            return;
+        }
+        // Release GPU resources
+        kresource_texture* t = (kresource_texture*)resource;
+        renderer_texture_resources_release(engine_systems_get()->renderer_system, &t->renderer_texture_handle);
+
+        kfree(resource, sizeof(kresource_texture), MEMORY_TAG_RESOURCE);
     }
 }
 
@@ -301,7 +319,7 @@ static void texture_kasset_on_result(asset_request_result result, const struct k
                         pixel_array_offset += image->pixel_array_size;
 
                         // Release the asset reference as we are done with it.
-                        asset_system_release(asset_system, image->base.package_name, image->base.name);
+                        asset_system_release(asset_system, image->base.name, image->base.package_name);
                     }
                     array_b8_destroy(&mismatches);
 
@@ -328,7 +346,7 @@ static void texture_kasset_on_result(asset_request_result result, const struct k
             goto destroy_request;
         }
         // TODO: Need to think about hot-reloading here, and how/where listening should happen. Maybe in the resource system?
-        
+
         // Boot out so the request isn't destroyed.
         return;
     } else {

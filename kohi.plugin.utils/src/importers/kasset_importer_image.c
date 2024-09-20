@@ -54,8 +54,10 @@ b8 kasset_importer_image_import(const struct kasset_importer* self, u64 data_siz
     // Set the "flip" as described in the options.
     stbi_set_flip_vertically_on_load_thread(options->flip_y);
 
-    // Load the image.
-    u8* pixels = stbi_load_from_memory(data, data_size, (i32*)&typed_asset->width, (i32*)&typed_asset->height, (i32*)&typed_asset->channel_count, required_channel_count);
+    // Load the image. NOTE: forcing 4 channels here for now.
+    i32 channel_count_rubbish = 0;
+    u8* pixels = stbi_load_from_memory(data, data_size, (i32*)&typed_asset->width, (i32*)&typed_asset->height, &channel_count_rubbish, required_channel_count);
+    typed_asset->channel_count = required_channel_count;
     if (!pixels) {
         KERROR("Image importer failed to import image '%s'.", out_asset->meta.source_asset_path);
         return false;

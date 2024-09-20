@@ -17,6 +17,7 @@
 typedef struct shader_system_state {
     // A pointer to the renderer system state.
     struct renderer_system_state* renderer;
+    struct texture_system_state* texture_system;
     // This system's configuration.
     shader_system_config config;
     // A lookup table for shader name->id
@@ -116,6 +117,7 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config)
 
     // Keep a pointer to the renderer state.
     state_ptr->renderer = engine_systems_get()->renderer_system;
+    state_ptr->texture_system = engine_systems_get()->texture_system;
 
     // Watch for file hot reloads in debug builds.
 #ifdef _DEBUG
@@ -160,7 +162,7 @@ b8 shader_system_create(const shader_config* config) {
     out_shader->attribute_stride = 0;
 
     // Setup arrays
-    out_shader->global_texture_maps = darray_create(texture_map*);
+    out_shader->global_texture_maps = darray_create(kresource_texture_map*);
     out_shader->uniforms = darray_create(shader_uniform);
     out_shader->attributes = darray_create(shader_attribute);
 
@@ -312,7 +314,7 @@ static void internal_shader_destroy(shader* s) {
 
     u32 sampler_count = darray_length(s->global_texture_maps);
     for (u32 i = 0; i < sampler_count; ++i) {
-        kfree(s->global_texture_maps[i], sizeof(texture_map), MEMORY_TAG_RENDERER);
+        kfree(s->global_texture_maps[i], sizeof(kresource_texture_map), MEMORY_TAG_RENDERER);
     }
     darray_destroy(s->global_texture_maps);
 
@@ -385,15 +387,15 @@ b8 shader_system_uniform_set_arrayed(u32 shader_id, const char* uniform_name, u3
     return shader_system_uniform_set_by_location_arrayed(shader_id, index, array_index, value);
 }
 
-b8 shader_system_sampler_set(u32 shader_id, const char* sampler_name, const texture* t) {
+b8 shader_system_sampler_set(u32 shader_id, const char* sampler_name, const kresource_texture* t) {
     return shader_system_sampler_set_arrayed(shader_id, sampler_name, 0, t);
 }
 
-b8 shader_system_sampler_set_arrayed(u32 shader_id, const char* sampler_name, u32 array_index, const texture* t) {
+b8 shader_system_sampler_set_arrayed(u32 shader_id, const char* sampler_name, u32 array_index, const kresource_texture* t) {
     return shader_system_uniform_set_arrayed(shader_id, sampler_name, array_index, t);
 }
 
-b8 shader_system_sampler_set_by_location(u32 shader_id, u16 location, const texture* t) {
+b8 shader_system_sampler_set_by_location(u32 shader_id, u16 location, const kresource_texture* t) {
     return shader_system_uniform_set_by_location_arrayed(shader_id, location, 0, t);
 }
 
@@ -475,9 +477,9 @@ b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, kresource
     if (instance_resource_config.uniform_configs) {
         for (u32 i = 0; i < instance_resource_config.uniform_config_count; ++i) {
             shader_instance_uniform_texture_config* ucfg = &instance_resource_config.uniform_configs[i];
-            if (ucfg->texture_maps) {
-                kfree(ucfg->texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
-                ucfg->texture_maps = 0;
+            if (ucfg->kresource_texture_maps) {
+                kfree(ucfg->kresource_texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+                ucfg->kresource_texture_maps = 0;
             }
         }
         kfree(instance_resource_config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
@@ -569,18 +571,18 @@ static b8 internal_sampler_add(shader* shader, shader_uniform_config* config) {
         location = global_texture_count;
 
         // NOTE: creating a default texture map to be used here. Can always be updated later.
-        texture_map default_map = {};
+        kresource_texture_map default_map = {};
         default_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
         default_map.filter_minify = TEXTURE_FILTER_MODE_LINEAR;
         default_map.repeat_u = default_map.repeat_v = default_map.repeat_w = TEXTURE_REPEAT_REPEAT;
 
         // Allocate a pointer assign the texture, and push into global texture maps.
         // NOTE: This allocation is only done for global texture maps.
-        texture_map* map = kallocate(sizeof(texture_map), MEMORY_TAG_RENDERER);
+        kresource_texture_map* map = kallocate(sizeof(kresource_texture_map), MEMORY_TAG_RENDERER);
         *map = default_map;
-        map->texture = texture_system_get_default_texture();
+        map->texture = texture_system_get_default_kresource_texture(state_ptr->texture_system);
 
-        if (!renderer_texture_map_resources_acquire(map)) {
+        if (!renderer_kresource_texture_map_resources_acquire(state_ptr->renderer, map)) {
             KERROR("Failed to acquire resources for global texture map during shader creation.");
             return false;
         }

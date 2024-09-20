@@ -39,7 +39,7 @@ void asset_handler_system_font_request_asset(struct asset_handler* self, struct 
     context.handler = self;
     context.listener_instance = listener_instance;
     context.user_callback = user_callback;
-    vfs_request_asset(self->vfs, asset->name, asset->package_name, false, false, sizeof(asset_handler_request_context), &context, asset_handler_system_font_on_asset_loaded);
+    vfs_request_asset(self->vfs, asset->name, asset->package_name, false, false, sizeof(asset_handler_request_context), &context, 0, 0, asset_handler_system_font_on_asset_loaded);
 }
 
 void asset_handler_system_font_release_asset(struct asset_handler* self, struct kasset* asset) {
@@ -109,7 +109,7 @@ static void asset_handler_system_font_on_asset_loaded(struct vfs_state* vfs, vfs
             vfs_asset_data font_file_data = {0};
             kasset_system_font* typed_asset = (kasset_system_font*)context.asset;
             // Request the asset synchronously.
-            vfs_request_asset_sync(vfs, typed_asset->ttf_asset_name, context.asset->package_name, true, false, 0, 0, &font_file_data);
+            vfs_request_asset_sync(vfs, typed_asset->ttf_asset_name, context.asset->package_name, true, false, 0, 0, 0, 0, &font_file_data);
             if (font_file_data.result == VFS_REQUEST_RESULT_SUCCESS) {
                 // Take a copy of the font binary data.
                 typed_asset->font_binary_size = font_file_data.size;
@@ -118,7 +118,7 @@ static void asset_handler_system_font_on_asset_loaded(struct vfs_state* vfs, vfs
 
             } else {
                 // NOTE: This could mean the asset doesn't exist in this package. Try all others by sending INVALID_KNAME as the package name.
-                vfs_request_asset_sync(vfs, typed_asset->ttf_asset_name, INVALID_KNAME, true, false, 0, 0, &font_file_data);
+                vfs_request_asset_sync(vfs, typed_asset->ttf_asset_name, INVALID_KNAME, true, false, 0, 0, 0, 0, &font_file_data);
 
                 // If it was found, take a copy of the data.
                 if (font_file_data.result == VFS_REQUEST_RESULT_SUCCESS) {

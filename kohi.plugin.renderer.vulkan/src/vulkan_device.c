@@ -116,7 +116,7 @@ b8 vulkan_device_create(vulkan_context* context) {
     kfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
 
     // Setup an array large enough to hold all, even if we don't use them all.
-    const char* extension_names[6];
+    const char* extension_names[6] = {0};
     u32 ext_idx = 0;
     extension_names[ext_idx] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
     ext_idx++;

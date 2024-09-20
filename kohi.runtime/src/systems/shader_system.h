@@ -143,7 +143,7 @@ typedef struct shader {
     u64 local_ubo_stride;
 
     /** @brief An array of global texture map pointers. Darray */
-    texture_map** global_texture_maps;
+    kresource_texture_map** global_texture_maps;
 
     /** @brief The number of instance textures. */
     u8 instance_texture_count;
@@ -313,7 +313,7 @@ KAPI b8 shader_system_uniform_set_arrayed(u32 shader_id, const char* uniform_nam
  * @param t A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set(u32 shader_id, const char* sampler_name, const texture* t);
+KAPI b8 shader_system_sampler_set(u32 shader_id, const char* sampler_name, const kresource_texture* t);
 
 /**
  * @brief Sets the texture of an arrayed sampler with the given name to the supplied texture.
@@ -324,7 +324,7 @@ KAPI b8 shader_system_sampler_set(u32 shader_id, const char* sampler_name, const
  * @param t A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set_arrayed(u32 shader_id, const char* sampler_name, u32 array_index, const texture* t);
+KAPI b8 shader_system_sampler_set_arrayed(u32 shader_id, const char* sampler_name, u32 array_index, const kresource_texture* t);
 
 /**
  * @brief Sets a uniform value by location.
@@ -355,7 +355,7 @@ KAPI b8 shader_system_uniform_set_by_location_arrayed(u32 shader_id, u16 locatio
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set_by_location(u32 shader_id, u16 location, const struct texture* t);
+KAPI b8 shader_system_sampler_set_by_location(u32 shader_id, u16 location, const struct kresource_texture* t);
 
 /**
  * @brief Sets a sampler value by location.
@@ -366,7 +366,7 @@ KAPI b8 shader_system_sampler_set_by_location(u32 shader_id, u16 location, const
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set_by_location_arrayed(u32 shader_id, u16 location, u32 array_index, const struct texture* t);
+KAPI b8 shader_system_sampler_set_by_location_arrayed(u32 shader_id, u16 location, u32 array_index, const struct kresource_texture* t);
 
 /**
  * @brief Binds the instance with the given id for use. Must be done before setting

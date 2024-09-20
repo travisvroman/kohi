@@ -206,10 +206,12 @@ static void destroy_geometry(geometry_system_state* state, geometry* g) {
     string_empty(g->name);
 
     // Release the material.
-    const char* name_str = kname_string_get(g->material->name);
-    if (g->material && string_length(name_str) > 0) {
-        material_system_release(name_str);
-        g->material = 0;
+    if (g->material) {
+        const char* name_str = kname_string_get(g->material->name);
+        if (string_length(name_str) > 0) {
+            material_system_release(name_str);
+            g->material = 0;
+        }
     }
 }
 

@@ -142,7 +142,7 @@ void asset_system_shutdown(struct asset_system_state* state) {
     }
 }
 
-void asset_system_request(struct asset_system_state* state, kasset_type type, kname package_name, kname asset_name, b8 auto_release, void* listener_instance, PFN_kasset_on_result callback) {
+void asset_system_request(struct asset_system_state* state, kasset_type type, kname package_name, kname asset_name, b8 auto_release, void* listener_instance, PFN_kasset_on_result callback, u32 import_params_size, void* import_params) {
     KASSERT(state);
     // Lookup the asset by fully-qualified name.
     u32 lookup_index = INVALID_ID;
@@ -198,6 +198,8 @@ void asset_system_request(struct asset_system_state* state, kasset_type type, kn
                         false,
                         sizeof(asset_handler_request_context),
                         &context,
+                        import_params_size,
+                        import_params,
                         asset_handler_base_on_asset_loaded);
                 } else {
                     // TODO: Jobify this call.

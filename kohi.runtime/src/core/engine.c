@@ -865,10 +865,10 @@ b8 engine_run(application* game_inst) {
         audio_system_shutdown(systems->audio_system);
         plugin_system_shutdown(systems->plugin_system);
         shader_system_shutdown(systems->shader_system);
+        kresource_system_shutdown(systems->kresource_state);
         renderer_system_shutdown(systems->renderer_system);
         job_system_shutdown(systems->job_system);
         resource_system_shutdown(systems->resource_system);
-        kresource_system_shutdown(systems->kresource_state);
         input_system_shutdown(systems->input_system);
         event_system_shutdown(systems->event_system);
         kvar_system_shutdown(systems->kvar_system);

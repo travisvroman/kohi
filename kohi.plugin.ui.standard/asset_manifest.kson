@@ -32,8 +32,8 @@ assets = [
     }
     {
         name = "StandardUIAtlas"
-        path = "./assets/textures/StandardUIAtlas.kbi"
-        source_path = "./assets/textures/StandardUIAtlas.png"
+        path = "./assets/images/StandardUIAtlas.kbi"
+        source_path = "./assets/images/source/StandardUIAtlas.png"
     }
     {
         name = "NotoSans21px"
@@ -41,8 +41,8 @@ assets = [
     }
     {
         name = "NotoSans21px_0"
-        path = "./assets/textures/NotoSans21px_0.kbi"
-        source_path = "./assets/textures/NotoSans21px_0.png"
+        path = "./assets/images/NotoSans21px_0.kbi"
+        source_path = "./assets/images/source/NotoSans21px_0.png"
     }
     {
         name = "UbuntuMono21px"
@@ -50,8 +50,8 @@ assets = [
     }
     {
         name = "UbuntuMono21px_0"
-        path = "./assets/textures/UbuntuMono21px_0.kbi"
-        source_path = "./assets/textures/UbuntuMono21px_0.png"
+        path = "./assets/images/UbuntuMono21px_0.kbi"
+        source_path = "./assets/images/source/UbuntuMono21px_0.png"
     }
     {
         name = "NotoSansCJK"
@@ -59,7 +59,7 @@ assets = [
     }
     {
         name = "NotoSansCJK-Regular"
-        path = "./assets/textures/NotoSansCJK-Regular.ttc"
+        path = "./assets/fonts/NotoSansCJK-Regular.ttc"
     }
     {
         name = "UbuntuMono"
@@ -67,6 +67,6 @@ assets = [
     }
     {
         name = "UbuntuMono-R"
-        path = "./assets/textures/UbuntuMono-R.ttf"
+        path = "./assets/fonts/UbuntuMono-R.ttf"
     }
 ]

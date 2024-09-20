@@ -201,12 +201,7 @@ static b8 load_ksm_file(file_handle* ksm_file,
         filesystem_read(ksm_file, sizeof(char) * m_name_length, mat_name, &bytes_read);
         g.material_name = kname_create(mat_name);
 
-        // Handles backward compatability for
-        // https://github.com/travisvroman/kohi/issues/130
         u64 extent_size = sizeof(vec3);
-        if (version == 0x0001U) {
-            extent_size = sizeof(vertex_3d);
-        }
 
         // Center
         filesystem_read(ksm_file, extent_size, &g.center, &bytes_read);

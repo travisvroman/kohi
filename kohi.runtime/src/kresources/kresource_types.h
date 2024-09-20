@@ -195,4 +195,7 @@ typedef struct kresource_texture_request_info {
 
     // The number of mip levels. Ignored unless there are no assets or pixel data.
     u8 mip_levels;
+
+    // Indicates if loaded image assets should be flipped on the y-axis when loaded. Ignored for non-asset-based textures.
+    b8 flip_y;
 } kresource_texture_request_info;

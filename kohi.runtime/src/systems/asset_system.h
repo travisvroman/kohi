@@ -65,16 +65,16 @@ KAPI void asset_system_shutdown(struct asset_system_state* state);
  * @param listener_inst A pointer to the listener instance that is awaiting the asset. Technically optional as perhaps nothing is interested in the result, but hwhy?
  * @param callback A pointer to the function to be called when the load is complete (or failed). Technically optional as perhaps nothing is interested in the result, but hwhy?
  */
-KAPI void asset_system_request(struct asset_system_state* state, kasset_type type, kname package_name, kname asset_name, b8 auto_release, void* listener_inst, PFN_kasset_on_result callback);
+KAPI void asset_system_request(struct asset_system_state* state, kasset_type type, kname package_name, kname asset_name, b8 auto_release, void* listener_inst, PFN_kasset_on_result callback, u32 import_params_size, void* import_params);
 
 /**
  * @brief Releases an asset via the fully-qualified name.
  *
  * @param A pointer to the asset system state. Required.
- * @param package_name The name of the package containing the asset.
  * @param asset_name The name of the asset to be released.
+ * @param package_name The name of the package containing the asset.
  */
-KAPI void asset_system_release(struct asset_system_state* state, kname package_name, kname asset_name);
+KAPI void asset_system_release(struct asset_system_state* state, kname asset_name, kname package_name);
 
 /**
  * @brief A callback function to be made from an asset handler when an asset is fully loaded and ready to go.

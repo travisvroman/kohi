@@ -183,10 +183,10 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
         // If invalid, then a new one needs to be created. This does not reach out to the
         // texture system to create this, but handles it internally instead. This is because
         // the process for this varies greatly between backends.
-        if (!renderer_texture_resources_acquire(
+        if (!renderer_kresource_texture_resources_acquire(
                 backend->frontend_state,
-                "__window_colourbuffer_texture__",
-                TEXTURE_TYPE_2D,
+                kname_create("__window_colourbuffer_texture__"),
+                KRESOURCE_TEXTURE_TYPE_2D,
                 swapchain_extent.width,
                 swapchain_extent.height,
                 4,

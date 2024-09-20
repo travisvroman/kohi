@@ -216,11 +216,8 @@ typedef struct shader_instance_uniform_texture_config {
     /** @brief The locaton of the uniform to map to. */
     /* u16 uniform_location; */
     /** @brief The number of texture maps bound to the uniform. */
-    u32 texture_map_count;
-    /** @brief An array of pointers to texture maps to be mapped to the uniform. */
-    struct texture_map** texture_maps;
-
     u32 kresource_texture_map_count;
+    /** @brief An array of pointers to texture maps to be mapped to the uniform. */
     struct kresource_texture_map** kresource_texture_maps;
 } shader_instance_uniform_texture_config;
 
@@ -252,39 +249,6 @@ typedef struct kwindow_renderer_state {
     /** @brief The internal state of the window containing renderer backend data. */
     struct kwindow_renderer_backend_state* backend_state;
 } kwindow_renderer_state;
-
-/**
- * @brief A structure which maps a texture, use and
- * other properties.
- */
-typedef struct texture_map {
-    /**
-     * @brief The cached generation of the assigned texture.
-     * Used to determine when to regenerate this texture map's
-     * resources when a texture's generation changes (as this could
-     * be required if, say, a texture's mip levels change).
-     * */
-    u8 generation;
-    /**
-     * @brief Cached mip map levels. Should match assigned
-     * texture. Must always be at least 1.
-     */
-    u32 mip_levels;
-    /** @brief A pointer to a texture. */
-    texture* texture;
-    /** @brief Texture filtering mode for minification. */
-    texture_filter filter_minify;
-    /** @brief Texture filtering mode for magnification. */
-    texture_filter filter_magnify;
-    /** @brief The repeat mode on the U axis (or X, or S) */
-    texture_repeat repeat_u;
-    /** @brief The repeat mode on the V axis (or Y, or T) */
-    texture_repeat repeat_v;
-    /** @brief The repeat mode on the W axis (or Z, or U) */
-    texture_repeat repeat_w;
-    /** @brief An identifier used for internal resource lookups/management. */
-    u32 internal_id;
-} texture_map;
 
 /**
  * @brief A structure which maps a texture, use and
@@ -506,7 +470,7 @@ typedef struct renderer_backend_interface {
     void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal);
     void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal, texture_flag_bits flags);
 
-    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, struct texture_internal_data* data, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags);
+    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, struct texture_internal_data* data, const char* name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags);
     void (*texture_resources_release)(struct renderer_backend_interface* backend, struct texture_internal_data* data);
 
     /**
@@ -680,23 +644,6 @@ typedef struct renderer_backend_interface {
      * @return b8 True on success; otherwise false.
      */
     b8 (*shader_uniform_set)(struct renderer_backend_interface* backend, struct shader* frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
-
-    /**
-     * @brief Acquires internal resources for the given texture map.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param map A pointer to the texture map to obtain resources for.
-     * @return True on success; otherwise false.
-     */
-    b8 (*texture_map_resources_acquire)(struct renderer_backend_interface* backend, struct texture_map* map);
-
-    /**
-     * @brief Releases internal resources for the given texture map.
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param map A pointer to the texture map to release resources from.
-     */
-    void (*texture_map_resources_release)(struct renderer_backend_interface* backend, struct texture_map* map);
 
     /**
      * @brief Acquires internal resources for the given texture map.

@@ -70,14 +70,14 @@ void vfs_shutdown(vfs_state* state) {
     }
 }
 
-void vfs_request_asset(vfs_state* state, kname package_name, kname asset_name, b8 is_binary, b8 get_source, u32 context_size, const void* context, PFN_on_asset_loaded_callback callback) {
+void vfs_request_asset(vfs_state* state, kname package_name, kname asset_name, b8 is_binary, b8 get_source, u32 context_size, const void* context, u32 import_params_size, void* import_params, PFN_on_asset_loaded_callback callback) {
     if (!state || !callback) {
         KERROR("vfs_request_asset requires state and callback to be provided.");
     }
 
     // TODO: Jobify this call.
     vfs_asset_data data = {0};
-    vfs_request_asset_sync(state, package_name, asset_name, is_binary, get_source, context_size, context, &data);
+    vfs_request_asset_sync(state, package_name, asset_name, is_binary, get_source, context_size, context, import_params_size, import_params, &data);
 
     // TODO: This should be the job result
     // Issue the callback with the data.
@@ -91,7 +91,7 @@ void vfs_request_asset(vfs_state* state, kname package_name, kname asset_name, b
     }
 }
 
-void vfs_request_asset_sync(vfs_state* state, kname package_name, kname asset_name, b8 is_binary, b8 get_source, u32 context_size, const void* context, vfs_asset_data* out_data) {
+void vfs_request_asset_sync(vfs_state* state, kname package_name, kname asset_name, b8 is_binary, b8 get_source, u32 context_size, const void* context, u32 import_params_size, void* import_params, vfs_asset_data* out_data) {
     if (!out_data) {
         KERROR("vfs_request_asset_sync requires a valid pointer to out_data. Nothing can or will be done.");
         return;
@@ -117,6 +117,17 @@ void vfs_request_asset_sync(vfs_state* state, kname package_name, kname asset_na
     } else {
         out_data->context_size = 0;
         out_data->context = 0;
+    }
+
+    // Take a copy of the import params. This will need to be freed by the caller.
+    if (import_params_size) {
+        KASSERT_MSG(context, "Called vfs_request_asset with a import_params_size, but not a import_params. Check yourself before you wreck yourself.");
+        out_data->import_params_size = context_size;
+        out_data->import_params = kallocate(context_size, MEMORY_TAG_PLATFORM);
+        kcopy_memory(out_data->import_params, import_params, out_data->import_params_size);
+    } else {
+        out_data->import_params_size = 0;
+        out_data->import_params = 0;
     }
 
     const char* asset_name_str = kname_string_get(asset_name);
