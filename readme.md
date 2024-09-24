@@ -119,10 +119,17 @@ mkdir vulkansdk
 tar xf vulkansdk.tar.xz -C vulkansdk
 ```
 
-Setup the environment variables for Vulkan SDK using the included script:
+Setup the environment variables for Vulkan SDK using the included script. You can do so by modifying your `.profile` file:
 ```
-source vulkansdk/1.3.290.0/setup-env.sh
+nano ~/.profile
 ```
+Add this line to the bottom:
+```
+source ~/vulkansdk/1.3.290.0/setup-env.sh
+```
+Save the file (`Ctrl` + `X`, then `Y`, then `Enter`)
+
+(**Note**: It may be necessary to log out, then log back in to apply this change)
 
 Clone the repositiory to your desired location
 ```
