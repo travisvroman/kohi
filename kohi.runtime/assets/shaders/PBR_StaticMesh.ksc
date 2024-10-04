@@ -79,19 +79,15 @@ uniforms = {
             name = "padding"
             type = "f32"
         }
+        {
+            name = "shadow_textures"
+            type = "sampler2DArray"
+        }
     ]
     instance = [
         {
             name = "material_textures"
             type = "sampler2D[3]"
-        }
-        {
-            name = "shadow_textures"
-            type = "sampler2DArray"
-        }
-        {
-            name = "ibl_cube_texture"
-            type = "samplerCube"
         }
         {
             name = "dir_light"
@@ -122,6 +118,10 @@ uniforms = {
         {
             name = "view_index"
             type = "i32"
+        }
+        {
+            name = "ibl_cube_texture"
+            type = "samplerCube"
         }
     ]
 }

@@ -1036,13 +1036,19 @@ b8 renderer_shader_apply_local(struct renderer_system_state* state, shader* s) {
 }
 
 b8 renderer_shader_instance_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_instance_resources_acquire(state_ptr->backend, s, config, out_instance_id);
+    return state->backend->shader_instance_resources_acquire(state->backend, s, config, out_instance_id);
 }
 
 b8 renderer_shader_instance_resources_release(struct renderer_system_state* state, shader* s, u32 instance_id) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_instance_resources_release(state_ptr->backend, s, instance_id);
+    return state->backend->shader_instance_resources_release(state->backend, s, instance_id);
+}
+
+b8 renderer_shader_local_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_instance_resource_config* config, u32* out_local_id) {
+    return state->backend->shader_local_resources_acquire(state->backend, s, config, out_local_id);
+}
+
+b8 renderer_shader_local_resources_release(struct renderer_system_state* state, struct shader* s, u32 local_id) {
+    return state->backend->shader_local_resources_release(state->backend, s, local_id);
 }
 
 shader_uniform* renderer_shader_uniform_get_by_location(shader* s, u16 location) {

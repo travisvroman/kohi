@@ -3,6 +3,7 @@
 #include "core/engine.h"
 #include "debug/kassert.h"
 #include "defines.h"
+#include "kresources/handlers/kresource_handler_material.h"
 #include "kresources/handlers/kresource_handler_texture.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
@@ -53,13 +54,28 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
     state->asset_system = engine_systems_get()->asset_state;
 
     // Register known handler types
-    kresource_handler texture_handler = {0};
-    texture_handler.allocate = kresource_handler_texture_allocate;
-    texture_handler.release = kresource_handler_texture_release;
-    texture_handler.request = kresource_handler_texture_request;
-    if (!kresource_system_handler_register(state, KRESOURCE_TYPE_TEXTURE, texture_handler)) {
-        KERROR("Failed to register texture resource handler");
-        return false;
+    // Texture handler
+    {
+        kresource_handler handler = {0};
+        handler.allocate = kresource_handler_texture_allocate;
+        handler.release = kresource_handler_texture_release;
+        handler.request = kresource_handler_texture_request;
+        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_TEXTURE, handler)) {
+            KERROR("Failed to register texture resource handler");
+            return false;
+        }
+    }
+
+    // Material handler.
+    {
+        kresource_handler handler = {0};
+        handler.allocate = kresource_handler_material_allocate;
+        handler.release = kresource_handler_material_release;
+        handler.request = kresource_handler_material_request;
+        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_MATERIAL, handler)) {
+            KERROR("Failed to register material resource handler");
+            return false;
+        }
     }
 
     KINFO("Resource system (new) initialized.");

@@ -15,7 +15,7 @@ properties = [
         value = "0.588000 0.588000 0.588000 1.000000"
     }
     {
-        name = "shininess"
+        name = "specular_strength"
         type = "f32"
         value = "10.000000"
     }

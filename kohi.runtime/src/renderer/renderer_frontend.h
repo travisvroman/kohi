@@ -563,6 +563,28 @@ KAPI b8 renderer_shader_instance_resources_acquire(struct renderer_system_state*
 KAPI b8 renderer_shader_instance_resources_release(struct renderer_system_state* state, struct shader* s, u32 instance_id);
 
 /**
+ * @brief Acquires internal local-level resources and provides an instance id.
+ *
+ * @param state A pointer to the renderer state.
+ * @param s A pointer to the shader to acquire resources from.
+ * @param texture_map_count The number of texture maps used.
+ * @param maps An array of pointers to texture maps. Must be one map per instance texture.
+ * @param out_local_id A pointer to hold the new local identifier.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 renderer_shader_local_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_instance_resource_config* config, u32* out_local_id);
+
+/**
+ * @brief Releases internal local-level resources for the given instance id.
+ *
+ * @param state A pointer to the renderer state.
+ * @param s A pointer to the shader to release resources from.
+ * @param instance_id The local identifier whose resources are to be released.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 renderer_shader_local_resources_release(struct renderer_system_state* state, struct shader* s, u32 local_id);
+
+/**
  * @brief Sets the uniform of the given shader to the provided value.
  *
  * @param state A pointer to the renderer state.

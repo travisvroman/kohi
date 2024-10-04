@@ -251,40 +251,6 @@ typedef struct kwindow_renderer_state {
 } kwindow_renderer_state;
 
 /**
- * @brief A structure which maps a texture, use and
- * other properties.
- */
-typedef struct kresource_texture_map {
-    /**
-     * @brief The cached generation of the assigned texture.
-     * Used to determine when to regenerate this texture map's
-     * resources when a texture's generation changes (as this could
-     * be required if, say, a texture's mip levels change).
-     * */
-    u32 generation;
-    /**
-     * @brief Cached mip map levels. Should match assigned
-     * texture. Must always be at least 1.
-     */
-    u32 mip_levels;
-    /** @brief A constant pointer to a texture resource. */
-    const kresource_texture* texture;
-    /** @brief Texture filtering mode for minification. */
-    texture_filter filter_minify;
-    /** @brief Texture filtering mode for magnification. */
-    texture_filter filter_magnify;
-    /** @brief The repeat mode on the U axis (or X, or S) */
-    texture_repeat repeat_u;
-    /** @brief The repeat mode on the V axis (or Y, or T) */
-    texture_repeat repeat_v;
-    /** @brief The repeat mode on the W axis (or Z, or U) */
-    texture_repeat repeat_w;
-    /** @brief An identifier used for internal resource lookups/management. */
-    // TODO: handle?
-    u32 internal_id;
-} kresource_texture_map;
-
-/**
  * @brief A generic "interface" for the renderer backend. The renderer backend
  * is what is responsible for making calls to the graphics API such as
  * Vulkan, OpenGL or DirectX. Each of these should implement this interface.
@@ -632,6 +598,28 @@ typedef struct renderer_backend_interface {
      * @return True on success; otherwise false.
      */
     b8 (*shader_instance_resources_release)(struct renderer_backend_interface* backend, struct shader* s, u32 instance_id);
+
+    /**
+     * @brief Acquires internal local-level resources and provides an instance id.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param s A pointer to the shader to acquire resources from.
+     * @param texture_map_count The number of texture maps used.
+     * @param maps An array of pointers to texture maps. Must be one map per instance texture.
+     * @param out_local_id A pointer to hold the new local identifier.
+     * @return True on success; otherwise false.
+     */
+    b8 (*shader_local_resources_acquire)(struct renderer_backend_interface* backend, struct shader* s, const shader_instance_resource_config* config, u32* out_local_id);
+
+    /**
+     * @brief Releases internal local-level resources for the given instance id.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param s A pointer to the shader to release resources from.
+     * @param instance_id The local identifier whose resources are to be released.
+     * @return True on success; otherwise false.
+     */
+    b8 (*shader_local_resources_release)(struct renderer_backend_interface* backend, struct shader* s, u32 local_id);
 
     /**
      * @brief Sets the uniform of the given shader to the provided value.

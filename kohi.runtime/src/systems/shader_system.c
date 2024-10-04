@@ -3,6 +3,8 @@
 #include "containers/darray.h"
 #include "core/engine.h"
 #include "core/event.h"
+#include "core_render_types.h"
+#include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
@@ -418,6 +420,15 @@ b8 shader_system_bind_instance(u32 shader_id, u32 instance_id) {
     return true;
 }
 
+b8 shader_system_bind_local(u32 shader_id, u32 local_id) {
+    if (local_id == INVALID_ID) {
+        KERROR("Cannot bind shader local id INVALID_ID.");
+        return false;
+    }
+    state_ptr->shaders[shader_id].bound_local_id = local_id;
+    return true;
+}
+
 b8 shader_system_apply_global(u32 shader_id) {
     shader* s = &state_ptr->shaders[shader_id];
     return renderer_shader_apply_globals(state_ptr->renderer, s);
@@ -433,29 +444,29 @@ b8 shader_system_apply_local(u32 shader_id) {
     return renderer_shader_apply_local(state_ptr->renderer, s);
 }
 
-b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, kresource_texture_map* maps, u32* out_instance_id) {
+static b8 instance_local_acquire(u32 shader_id, shader_scope scope, u32 map_count, kresource_texture_map** maps, u32* out_id) {
     shader* selected_shader = shader_system_get_by_id(shader_id);
 
     // Ensure that configs are setup for required texture maps.
-    shader_instance_resource_config instance_resource_config = {0};
-    u32 instance_sampler_count = selected_shader->instance_uniform_sampler_count;
+    shader_instance_resource_config config = {0};
+    u32 sampler_count = selected_shader->instance_uniform_sampler_count;
 
-    instance_resource_config.uniform_config_count = instance_sampler_count;
-    if (instance_sampler_count > 0) {
-        instance_resource_config.uniform_configs = kallocate(sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
+    config.uniform_config_count = sampler_count;
+    if (sampler_count > 0) {
+        config.uniform_configs = kallocate(sizeof(shader_instance_uniform_texture_config) * config.uniform_config_count, MEMORY_TAG_ARRAY);
     } else {
-        instance_resource_config.uniform_configs = 0;
+        config.uniform_configs = 0;
     }
 
     // Create a sampler config for each map.
-    for (u32 i = 0; i < instance_sampler_count; ++i) {
+    for (u32 i = 0; i < sampler_count; ++i) {
         shader_uniform* u = &selected_shader->uniforms[selected_shader->instance_sampler_indices[i]];
-        shader_instance_uniform_texture_config* uniform_config = &instance_resource_config.uniform_configs[i];
+        shader_instance_uniform_texture_config* uniform_config = &config.uniform_configs[i];
         /* uniform_config->uniform_location = u->location; */
         uniform_config->kresource_texture_map_count = KMAX(u->array_length, 1);
         uniform_config->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * uniform_config->kresource_texture_map_count, MEMORY_TAG_ARRAY);
         for (u32 j = 0; j < uniform_config->kresource_texture_map_count; ++j) {
-            uniform_config->kresource_texture_maps[j] = &maps[i];
+            uniform_config->kresource_texture_maps[j] = maps[i];
 
             // Acquire resources for the map, but only if a texture is assigned.
             if (uniform_config->kresource_texture_maps[j]->texture) {
@@ -468,27 +479,44 @@ b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, kresource
     }
 
     // Acquire the instance resources for this shader.
-    b8 result = renderer_shader_instance_resources_acquire(state_ptr->renderer, selected_shader, &instance_resource_config, out_instance_id);
+    b8 result = false;
+    if (scope == SHADER_SCOPE_INSTANCE) {
+        result = renderer_shader_instance_resources_acquire(state_ptr->renderer, selected_shader, &config, out_id);
+    } else if (scope == SHADER_SCOPE_LOCAL) {
+        result = renderer_shader_local_resources_acquire(state_ptr->renderer, selected_shader, &config, out_id);
+    } else {
+        KASSERT_MSG(false, "Global scope does not require resource acquisition, ya dingus.");
+        return false;
+    }
+
     if (!result) {
-        KERROR("Failed to acquire renderer resources for shader '%s'.", selected_shader->name);
+        KERROR("Failed to acquire %s renderer resources for shader '%s'.", scope == SHADER_SCOPE_INSTANCE ? "instance" : "local", selected_shader->name);
     }
 
     // Clean up the uniform configs.
-    if (instance_resource_config.uniform_configs) {
-        for (u32 i = 0; i < instance_resource_config.uniform_config_count; ++i) {
-            shader_instance_uniform_texture_config* ucfg = &instance_resource_config.uniform_configs[i];
+    if (config.uniform_configs) {
+        for (u32 i = 0; i < config.uniform_config_count; ++i) {
+            shader_instance_uniform_texture_config* ucfg = &config.uniform_configs[i];
             if (ucfg->kresource_texture_maps) {
                 kfree(ucfg->kresource_texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->kresource_texture_map_count, MEMORY_TAG_ARRAY);
                 ucfg->kresource_texture_maps = 0;
             }
         }
-        kfree(instance_resource_config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
+        kfree(config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * config.uniform_config_count, MEMORY_TAG_ARRAY);
     }
 
     return result;
 }
 
-b8 shader_system_shader_instance_release(u32 shader_id, u32 instance_id, u32 map_count, kresource_texture_map* maps) {
+b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, kresource_texture_map** maps, u32* out_instance_id) {
+    return instance_local_acquire(shader_id, SHADER_SCOPE_INSTANCE, map_count, maps, out_instance_id);
+}
+
+b8 shader_system_shader_local_acquire(u32 shader_id, u32 map_count, kresource_texture_map** maps, u32* out_local_id) {
+    return instance_local_acquire(shader_id, SHADER_SCOPE_LOCAL, map_count, maps, out_local_id);
+}
+
+static b8 instance_or_local_release(u32 shader_id, shader_scope scope, u32 id, u32 map_count, kresource_texture_map* maps) {
     shader* selected_shader = shader_system_get_by_id(shader_id);
 
     // Release texture map resources.
@@ -496,13 +524,28 @@ b8 shader_system_shader_instance_release(u32 shader_id, u32 instance_id, u32 map
         renderer_kresource_texture_map_resources_release(state_ptr->renderer, &maps[i]);
     }
 
-    // Release the instance resources for this shader.
-    b8 result = renderer_shader_instance_resources_release(state_ptr->renderer, selected_shader, instance_id);
+    b8 result = false;
+    if (scope == SHADER_SCOPE_INSTANCE) {
+        result = renderer_shader_instance_resources_release(state_ptr->renderer, selected_shader, id);
+    } else if (scope == SHADER_SCOPE_LOCAL) {
+        result = renderer_shader_local_resources_release(state_ptr->renderer, selected_shader, id);
+    } else {
+        KASSERT_MSG(false, "Global shader scope should not be used when releasing resources.");
+    }
+
     if (!result) {
-        KERROR("Failed to acquire renderer resources for shader '%s'.", selected_shader->name);
+        KERROR("Failed to acquire %s renderer resources for shader '%s'.", scope == SHADER_SCOPE_INSTANCE ? "instance" : "local", selected_shader->name);
     }
 
     return result;
+}
+
+b8 shader_system_shader_instance_release(u32 shader_id, u32 instance_id, u32 map_count, kresource_texture_map* maps) {
+    return instance_or_local_release(shader_id, SHADER_SCOPE_INSTANCE, instance_id, map_count, maps);
+}
+
+b8 shader_system_shader_local_release(u32 shader_id, u32 local_id, u32 map_count, kresource_texture_map* maps) {
+    return instance_or_local_release(shader_id, SHADER_SCOPE_LOCAL, local_id, map_count, maps);
 }
 
 static b8 internal_attribute_add(shader* shader, const shader_attribute_config* config) {

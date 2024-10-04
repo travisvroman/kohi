@@ -151,6 +151,12 @@ typedef struct shader {
     /** @brief The identifier of the currently bound instance. */
     u32 bound_instance_id;
 
+    /** @brief The number of local textures. */
+    u8 local_texture_count;
+
+    /** @brief The identifier of the currently bound local. */
+    u32 bound_local_id;
+
     /** @brief The block of memory used by the uniform hashtable. */
     void* hashtable_block;
     /** @brief A hashtable to store uniform index/locations by name. */
@@ -173,6 +179,10 @@ typedef struct shader {
     u32* instance_sampler_indices;
     /** @brief The number of local non-sampler uniforms. */
     u8 local_uniform_count;
+    /** @brief The number of local sampler uniforms. */
+    u8 local_uniform_sampler_count;
+    // darray Keeps the uniform indices of local samplers for fast lookups.
+    u32* local_sampler_indices;
 
     /** @brief An array of attributes. Darray. */
     shader_attribute* attributes;
@@ -379,6 +389,16 @@ KAPI b8 shader_system_sampler_set_by_location_arrayed(u32 shader_id, u16 locatio
 KAPI b8 shader_system_bind_instance(u32 shader_id, u32 instance_id);
 
 /**
+ * @brief Binds the local with the given id for use. Must be done before setting
+ * local-scoped uniforms.
+ *
+ * @param shader_id The identifier of the shader to update.
+ * @param local_id The identifier of the local to bind.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_bind_local(u32 shader_id, u32 local_id);
+
+/**
  * @brief Applies global-scoped uniforms.
  *
  * @param shader_id The identifier of the shader to update.
@@ -408,11 +428,11 @@ KAPI b8 shader_system_apply_local(u32 shader_id);
  *
  * @param shader_id The id of the shader to acquire instance resources for.
  * @param map_count The number of instance texture maps.
- * @param maps An array of instance texture maps.
+ * @param maps An array of pointers to instance texture maps.
  * @param out_instance_id A pointer to hold the instance id once resources are acquired.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, kresource_texture_map* maps, u32* out_instance_id);
+KAPI b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, kresource_texture_map** maps, u32* out_instance_id);
 
 /**
  * @brief Releases instance resources and texture map resources from the provided shader.
@@ -424,3 +444,26 @@ KAPI b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, kres
  * @return True on success; otherwise false.
  */
 KAPI b8 shader_system_shader_instance_release(u32 shader_id, u32 instance_id, u32 map_count, kresource_texture_map* maps);
+
+/**
+ * @brief Attempts to acquire new local resources from the given shader using the
+ * collection of maps passed.
+ *
+ * @param shader_id The id of the shader to acquire local resources for.
+ * @param map_count The number of local texture maps.
+ * @param maps An array of pointers to local texture maps.
+ * @param out_local_id A pointer to hold the local id once resources are acquired.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_shader_local_acquire(u32 shader_id, u32 map_count, kresource_texture_map** maps, u32* out_local_id);
+
+/**
+ * @brief Releases local resources and texture map resources from the provided shader.
+ *
+ * @param shader_id The id of the shader to release local resources for.
+ * @param local_id The identifier of the local to release.
+ * @param map_count The number of texture maps to release resources for.
+ * @param maps An array of texture maps to be released.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_shader_instance_release(u32 shader_id, u32 local_id, u32 map_count, kresource_texture_map* maps);

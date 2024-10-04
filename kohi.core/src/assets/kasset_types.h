@@ -235,7 +235,6 @@ typedef struct kasset_static_mesh {
 typedef enum kmaterial_type {
     KMATERIAL_TYPE_UNKNOWN = 0,
     KMATERIAL_TYPE_PBR,
-    KMATERIAL_TYPE_PBR_TERRAIN,
     KMATERIAL_TYPE_PBR_WATER,
     KMATERIAL_TYPE_UNLIT,
     KMATERIAL_TYPE_PHONG,

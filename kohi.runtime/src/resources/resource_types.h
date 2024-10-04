@@ -278,6 +278,9 @@ typedef struct shader_config {
     /** @brief The maximum number of instances allowed. */
     u32 max_instances;
 
+    /** @brief The maximum number of local thingies allowed. */
+    u32 max_local_count;
+
     /** @brief The flags set for this shader. */
     u32 flags;
 } shader_config;

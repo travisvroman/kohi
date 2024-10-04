@@ -888,6 +888,12 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                             KERROR("Failed to switch back to PBR shader. Render frame failed.");
                             return false;
                         }
+
+                        // Shadow Maps (global)
+                        const kresource_texture* shadow_map_texture = internal_data->shadowmap_source->value.t;
+                        m->maps[PBR_SAMP_IDX_SHADOW_MAP].texture = shadow_map_texture ? shadow_map_texture : texture_system_get_default_kresource_terrain_texture(internal_data->texture_system);
+                        UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.shadow_textures, &m->maps[PBR_SAMP_IDX_SHADOW_MAP]));
+
                         // Apply/upload them to the GPU
                         if (!shader_system_apply_global(internal_data->pbr_shader_id)) {
                             KERROR("Failed to apply global uniforms.");
@@ -901,11 +907,6 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.material_texures, PBR_SAMP_IDX_ALBEDO, &m->maps[PBR_SAMP_IDX_ALBEDO]));
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.material_texures, PBR_SAMP_IDX_NORMAL, &m->maps[PBR_SAMP_IDX_NORMAL]));
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.material_texures, PBR_SAMP_IDX_COMBINED, &m->maps[PBR_SAMP_IDX_COMBINED]));
-
-                    // Shadow Maps
-                    const kresource_texture* shadow_map_texture = internal_data->shadowmap_source->value.t;
-                    m->maps[PBR_SAMP_IDX_SHADOW_MAP].texture = shadow_map_texture ? shadow_map_texture : texture_system_get_default_kresource_terrain_texture(internal_data->texture_system);
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.shadow_textures, &m->maps[PBR_SAMP_IDX_SHADOW_MAP]));
 
                     // Irradience map - use the material-assigned one if exists, otherwise use the "global" assigned one.
                     m->maps[PBR_SAMP_IDX_IRRADIANCE_MAP].texture = m->irradiance_texture ? m->irradiance_texture : internal_data->irradiance_cube_texture;
