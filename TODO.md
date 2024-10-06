@@ -15,7 +15,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] Provide kresource structure which contains basic high-level items such as type, name, generation, etc.
   - [ ] Resource type reworks
     - [ ] Textures
-      - [ ] Handler - Does this also include GPU uploads? Thinking so, versus a different "gpu loader"
+      - [x] Handler - Does this also include GPU uploads? Thinking so, versus a different "gpu loader"
       - [ ] Possible elimination of texture system, as it's primary function was ref counting? What about default textures?
     - [ ] Material
       - [ ] Handler

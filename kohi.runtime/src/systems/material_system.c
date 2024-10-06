@@ -4,6 +4,7 @@
 #include "containers/hashtable.h"
 #include "core/console.h"
 #include "core/engine.h"
+#include "debug/kassert.h"
 #include "defines.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
@@ -133,6 +134,14 @@ kresource_material* material_system_acquire(material_system_state* state, kname 
     kresource_material_request_info request = {0};
     request.base.type = KRESOURCE_TYPE_MATERIAL;
     kresource* out_resource = kresource_system_request(state->resource_system, name, (kresource_request_info*)&request);
+    // TODO: In this case, the texture map should probably actually be stored on the "probe" itself,
+    // this would reduce the number of samplers required. Scenes can either have a probe or not.
+    // If there is no probe, whatever is rendering the scene (i.e the forward rendergraph node) should have
+    // a default sampler in this case.
+    // Additionally, the "IBL cubemap" should be converted to a sampler array with a max number of samplers
+    // (say, 4 for example), and a local index should be passed indicating which one should be used per render.
+    // The IBL cubemap sampler array should be global.
+    // This will eliminate the need for local samplers which were just added, but should work best.
     // LEFTOFF: If the resource is already loaded, then new local resources from the shader it is associated
     // with must be obtained here before returning. If the resource is not yet loaded, then this
     // should happen when the resource is finally loaded. This means the pointer to the local id
@@ -141,10 +150,12 @@ kresource_material* material_system_acquire(material_system_state* state, kname 
         kresource_material* typed_resource = (kresource_material*)out_resource;
         if (typed_resource->type == KRESOURCE_MATERIAL_TYPE_PBR) {
             u32 pbr_shader_id = shader_system_get_id("Shader.PBRMaterial");
-            // LEFTOFF:
-            if (!shader_system_shader_local_acquire(pbr_shader_id, 1, &, &m->instance_id)) {
+            // NOTE: No maps for this shader type.
+            if (!shader_system_shader_local_acquire(pbr_shader_id, 1, 0, out_local_id)) {
                 KASSERT_MSG(false, "Failed to acquire renderer resources for default PBR material. Application cannot continue.");
             }
+        } else {
+            KASSERT_MSG(false, "Unsupported material type - add local shader acquisition logic.");
         }
     }
     return (kresource_material*)out_resource;
