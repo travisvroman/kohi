@@ -1,9 +1,8 @@
-#material file
+version = 3
+type = pbr
 
-version=1
-name=paving2
-diffuse_colour=1.0 1.0 1.0 1.0
-shininess=32.0
-diffuse_map_name=paving2
-specular_map_name=paving2_SPEC
-normal_map_name=paving2_NRM
+maps = [
+]
+
+properties = [
+]

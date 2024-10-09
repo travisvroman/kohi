@@ -1,54 +1,45 @@
-#material file
+version = 3
+type = pbr
 
-version=2
-# Types can be phong,pbr,custom
-type=pbr
-name=beams
-# If custom, shader is required.
-shader=Shader.PBRMaterial
+maps = [
+	{
+		name = "albedo"
+		texture_name = "beams_and_sticks_bc"
+		filter_min = "linear"
+		filter_mag = "linear"
+		repeat_u = "repeat"
+		repeat_v = "repeat"
+		repeat_w = "repeat"
+	}
+	{
+		name = "combined"
+		texture_name = "beams_and_sticks_roughness"
+		filter_min = "linear"
+		filter_mag = "linear"
+		repeat_u = "repeat"
+		repeat_v = "repeat"
+		repeat_w = "repeat"
+	}
+	{
+		name = "normal"
+		texture_name = "beams_and_sticks_n"
+		filter_min = "linear"
+		filter_mag = "linear"
+		repeat_u = "repeat"
+		repeat_v = "repeat"
+		repeat_w = "repeat"
+	}
+]
 
-[map]
-name=albedo
-filter_min=linear
-filter_mag=linear
-repeat_u=repeat
-repeat_v=repeat
-repeat_w=repeat
-texture_name=beams_and_sticks_bc
-[/map]
-
-[map]
-name=combined
-filter_min=linear
-filter_mag=linear
-repeat_u=repeat
-repeat_v=repeat
-repeat_w=repeat
-texture_name=beams_and_sticks_roughness
-[/map]
-
-[map]
-name=normal
-filter_min=linear
-filter_mag=linear
-repeat_v=repeat
-repeat_u=repeat
-repeat_w=repeat
-texture_name=beams_and_sticks_n
-[/map]
-
-[prop]
-name=shininess
-type=f32
-value=96.078453
-[/prop]
-[prop]
-name=diffuse_colour
-type=vec4
-value=0.000000 0.000000 0.000000 0.000000
-[/prop]
-[prop]
-name=diffuse_colour
-type=vec4
-value=0.000000 0.000000 0.000000 0.000000
-[/prop]
+properties = [
+	{
+		name = "shininess"
+		type = "f32"
+		value = 96.078453
+	}
+	{
+		name = "diffuse_colour"
+		type = "vec4"
+		value = "0.000000 0.000000 0.000000 0.000000"
+	}
+]

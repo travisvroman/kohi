@@ -1,50 +1,45 @@
-#material file
+version = 3
+type = pbr
 
-version=2
-# types can be pbr,custom
-type=pbr
-name=cobblestone
+maps = [
+	{
+		name = "diffuse"
+		texture_name = "cobblestone"
+		filter_min = "linear"
+		filter_mag = "linear"
+		repeat_u = "repeat"
+		repeat_v = "repeat"
+		repeat_w = "repeat"
+	}
+	{
+		name = "specular"
+		texture_name = "cobblestone_SPEC"
+		filter_min = "linear"
+		filter_mag = "linear"
+		repeat_u = "repeat"
+		repeat_v = "repeat"
+		repeat_w = "repeat"
+	}
+	{
+		name = "normal"
+		texture_name = "cobblestone_NRM"
+		filter_min = "linear"
+		filter_mag = "linear"
+		repeat_u = "repeat"
+		repeat_v = "repeat"
+		repeat_w = "repeat"
+	}
+]
 
-[map]
-name=diffuse
-filter_min=linear
-filter_mag=linear
-repeat_u=repeat
-repeat_v=repeat
-repeat_w=repeat
-texture_name=cobblestone
-[/map]
-
-[map]
-name=specular
-filter_min=linear
-filter_mag=linear
-repeat_u=repeat
-repeat_v=repeat
-repeat_w=repeat
-texture_name=cobblestone_SPEC
-[/map]
-
-[map]
-name=normal
-filter_min=linear
-filter_mag=linear
-repeat_v=repeat
-repeat_u=repeat
-repeat_w=repeat
-texture_name=cobblestone_NRM
-[/map]
-
-[prop]
-name=diffuse_colour
-type=vec4
-value=1.0 1.0 1.0 1.0
-[/prop]
-
-[prop]
-name=shininess
-type=f32
-value=15.0
-[/prop]
-
-
+properties = [
+	{
+		name = "diffuse_colour"
+		type = "vec4"
+		value = "1.0 1.0 1.0 1.0"
+	}
+	{
+		name = "shininess"
+		type = "f32"
+		value = 15.0
+	}
+]
