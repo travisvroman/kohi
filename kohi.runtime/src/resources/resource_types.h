@@ -12,7 +12,6 @@
 #pragma once
 
 #include "identifiers/identifier.h"
-#include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
 #include "math/math_types.h"
 #include "strings/kname.h"
@@ -240,8 +239,8 @@ typedef struct shader_uniform_config {
     shader_uniform_type type;
     /** @brief The array length, if uniform is an array. */
     u32 array_length;
-    /** @brief The scope of the uniform. */
-    shader_scope scope;
+    /** @brief The update frequency of the uniform. */
+    shader_update_frequency frequency;
 } shader_uniform_config;
 
 /**

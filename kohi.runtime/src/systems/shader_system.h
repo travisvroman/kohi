@@ -14,6 +14,7 @@
 #pragma once
 
 #include "containers/hashtable.h"
+#include "core_render_types.h"
 #include "defines.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
@@ -24,10 +25,10 @@ typedef struct shader_system_config {
     u16 max_shader_count;
     /** @brief The maximum number of uniforms allowed in a single shader. */
     u8 max_uniform_count;
-    /** @brief The maximum number of global-scope textures allowed in a single shader. */
-    u8 max_global_textures;
-    /** @brief The maximum number of instance-scope textures allowed in a single shader. */
-    u8 max_instance_textures;
+    /** @brief The maximum number of per-frame textures allowed in a single shader. */
+    u8 max_per_frame_textures;
+    /** @brief The maximum number of per-group textures allowed in a single shader. */
+    u8 max_per_group_textures;
 } shader_system_config;
 
 /**
@@ -57,10 +58,10 @@ typedef struct shader_uniform {
     u16 index;
     /** @brief The size of the uniform, or 0 for samplers. */
     u16 size;
-    /** @brief The index of the descriptor set the uniform belongs to (0=global, 1=instance, INVALID_ID=local). */
+    /** @brief The index of the descriptor set the uniform belongs to (0=per_frame, 1=per_group, INVALID_ID=per_draw). */
     u8 set_index;
-    /** @brief The scope of the uniform. */
-    shader_scope scope;
+    /** @brief The update frequency of the uniform. */
+    shader_update_frequency frequency;
     /** @brief The type of uniform. */
     shader_uniform_type type;
     /** @brief The length of the array if it is one; otherwise 0 */
@@ -122,40 +123,40 @@ typedef struct shader {
      */
     u64 required_ubo_alignment;
 
-    /** @brief The actual size of the global uniform buffer object. */
-    u64 global_ubo_size;
-    /** @brief The stride of the global uniform buffer object. */
-    u64 global_ubo_stride;
+    /** @brief The actual size of the per_frame uniform buffer object. */
+    u64 per_frame_ubo_size;
+    /** @brief The stride of the per_frame uniform buffer object. */
+    u64 per_frame_ubo_stride;
     /**
-     * @brief The offset in bytes for the global UBO from the beginning
+     * @brief The offset in bytes for the per_frame UBO from the beginning
      * of the uniform buffer.
      */
-    u64 global_ubo_offset;
+    u64 per_frame_ubo_offset;
 
-    /** @brief The actual size of the instance uniform buffer object. */
-    u64 ubo_size;
+    /** @brief The actual size of the per_group uniform buffer object. */
+    u64 per_group_ubo_size;
 
-    /** @brief The stride of the instance uniform buffer object. */
-    u64 ubo_stride;
+    /** @brief The stride of the per_group uniform buffer object. */
+    u64 per_group_ubo_stride;
 
-    u64 local_ubo_offset;
-    u64 local_ubo_size;
-    u64 local_ubo_stride;
+    u64 per_draw_ubo_offset;
+    u64 per_draw_ubo_size;
+    u64 per_draw_ubo_stride;
 
-    /** @brief An array of global texture map pointers. Darray */
-    kresource_texture_map** global_texture_maps;
+    /** @brief An array of per_frame texture map pointers. Darray */
+    kresource_texture_map** per_frame_texture_maps;
 
-    /** @brief The number of instance textures. */
-    u8 instance_texture_count;
+    /** @brief The number of per_group textures. */
+    u8 per_group_texture_count;
 
-    /** @brief The identifier of the currently bound instance. */
-    u32 bound_instance_id;
+    /** @brief The identifier of the currently bound group. */
+    u32 bound_per_group_id;
 
-    /** @brief The number of local textures. */
-    u8 local_texture_count;
+    /** @brief The number of per_draw textures. */
+    u8 per_draw_texture_count;
 
-    /** @brief The identifier of the currently bound local. */
-    u32 bound_local_id;
+    /** @brief The identifier of the currently bound per_draw resource. */
+    u32 bound_per_draw_id;
 
     /** @brief The block of memory used by the uniform hashtable. */
     void* hashtable_block;
@@ -165,24 +166,26 @@ typedef struct shader {
     /** @brief An array of uniforms in this shader. Darray. */
     shader_uniform* uniforms;
 
-    /** @brief The number of global non-sampler uniforms. */
-    u8 global_uniform_count;
-    /** @brief The number of global sampler uniforms. */
-    u8 global_uniform_sampler_count;
-    // darray Keeps the uniform indices of global samplers for fast lookups.
-    u32* global_sampler_indices;
-    /** @brief The number of instance non-sampler uniforms. */
-    u8 instance_uniform_count;
-    /** @brief The number of instance sampler uniforms. */
-    u8 instance_uniform_sampler_count;
-    // darray Keeps the uniform indices of instance samplers for fast lookups.
-    u32* instance_sampler_indices;
-    /** @brief The number of local non-sampler uniforms. */
-    u8 local_uniform_count;
-    /** @brief The number of local sampler uniforms. */
-    u8 local_uniform_sampler_count;
-    // darray Keeps the uniform indices of local samplers for fast lookups.
-    u32* local_sampler_indices;
+    /** @brief The number of per_frame non-sampler uniforms. */
+    u8 per_frame_uniform_count;
+    /** @brief The number of per_frame sampler uniforms. */
+    u8 per_frame_uniform_sampler_count;
+    // darray Keeps the uniform indices of per_frame samplers for fast lookups.
+    u32* per_frame_sampler_indices;
+
+    /** @brief The number of per_group non-sampler uniforms. */
+    u8 per_group_uniform_count;
+    /** @brief The number of per_group sampler uniforms. */
+    u8 per_group_uniform_sampler_count;
+    // darray Keeps the uniform indices of per_group samplers for fast lookups.
+    u32* per_group_sampler_indices;
+
+    /** @brief The number of per_draw non-sampler uniforms. */
+    u8 per_draw_uniform_count;
+    /** @brief The number of per_draw sampler uniforms. */
+    u8 per_draw_uniform_sampler_count;
+    // darray Keeps the uniform indices of per_draw samplers for fast lookups.
+    u32* per_draw_sampler_indices;
 
     /** @brief An array of attributes. Darray. */
     shader_attribute* attributes;
@@ -386,7 +389,7 @@ KAPI b8 shader_system_sampler_set_by_location_arrayed(u32 shader_id, u16 locatio
  * @param instance_id The identifier of the instance to bind.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_bind_instance(u32 shader_id, u32 instance_id);
+KAPI b8 shader_system_bind_group(u32 shader_id, u32 instance_id);
 
 /**
  * @brief Binds the local with the given id for use. Must be done before setting
@@ -396,7 +399,7 @@ KAPI b8 shader_system_bind_instance(u32 shader_id, u32 instance_id);
  * @param local_id The identifier of the local to bind.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_bind_local(u32 shader_id, u32 local_id);
+KAPI b8 shader_system_bind_draw_id(u32 shader_id, u32 local_id);
 
 /**
  * @brief Applies global-scoped uniforms.
@@ -404,7 +407,7 @@ KAPI b8 shader_system_bind_local(u32 shader_id, u32 local_id);
  * @param shader_id The identifier of the shader to update.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_global(u32 shader_id);
+KAPI b8 shader_system_apply_per_frame(u32 shader_id);
 
 /**
  * @brief Applies instance-scoped uniforms.
@@ -412,7 +415,7 @@ KAPI b8 shader_system_apply_global(u32 shader_id);
  * @param shader_id The identifier of the shader to update.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_instance(u32 shader_id);
+KAPI b8 shader_system_apply_per_group(u32 shader_id);
 
 /**
  * @brief Applies local-scoped uniforms.
@@ -420,50 +423,50 @@ KAPI b8 shader_system_apply_instance(u32 shader_id);
  * @param shader_id The identifier of the shader to update.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_local(u32 shader_id);
+KAPI b8 shader_system_apply_per_draw(u32 shader_id);
 
 /**
- * @brief Attempts to acquire new instance resources from the given shader using the
+ * @brief Attempts to acquire new group resources from the given shader using the
  * collection of maps passed.
  *
- * @param shader_id The id of the shader to acquire instance resources for.
- * @param map_count The number of instance texture maps.
- * @param maps An array of pointers to instance texture maps.
- * @param out_instance_id A pointer to hold the instance id once resources are acquired.
+ * @param shader_id The id of the shader to acquire group resources for.
+ * @param map_count The number of group texture maps.
+ * @param maps An array of pointers to group texture maps.
+ * @param out_group_id A pointer to hold the group id once resources are acquired.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, kresource_texture_map** maps, u32* out_instance_id);
+KAPI b8 shader_system_shader_group_acquire(u32 shader_id, u32 map_count, kresource_texture_map** maps, u32* out_group_id);
 
 /**
- * @brief Releases instance resources and texture map resources from the provided shader.
+ * @brief Releases group resources and texture map resources from the provided shader.
  *
- * @param shader_id The id of the shader to release instance resources for.
- * @param instance_id The identifier of the instance to release.
+ * @param shader_id The id of the shader to release group resources for.
+ * @param instance_id The identifier of the group to release.
  * @param map_count The number of texture maps to release resources for.
  * @param maps An array of texture maps to be released.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_shader_instance_release(u32 shader_id, u32 instance_id, u32 map_count, kresource_texture_map* maps);
+KAPI b8 shader_system_shader_group_release(u32 shader_id, u32 instance_id, u32 map_count, kresource_texture_map* maps);
 
 /**
- * @brief Attempts to acquire new local resources from the given shader using the
+ * @brief Attempts to acquire new per-draw resources from the given shader using the
  * collection of maps passed.
  *
- * @param shader_id The id of the shader to acquire local resources for.
- * @param map_count The number of local texture maps.
- * @param maps An array of pointers to local texture maps.
- * @param out_local_id A pointer to hold the local id once resources are acquired.
+ * @param shader_id The id of the shader to acquire per-draw resources for.
+ * @param map_count The number of per-draw texture maps.
+ * @param maps An array of pointers to per-draw texture maps.
+ * @param out_per_draw_id A pointer to hold the per-draw id once resources are acquired.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_shader_local_acquire(u32 shader_id, u32 map_count, kresource_texture_map** maps, u32* out_local_id);
+KAPI b8 shader_system_shader_per_draw_acquire(u32 shader_id, u32 map_count, kresource_texture_map** maps, u32* out_per_draw_id);
 
 /**
- * @brief Releases local resources and texture map resources from the provided shader.
+ * @brief Releases per-draw resources and texture map resources from the provided shader.
  *
- * @param shader_id The id of the shader to release local resources for.
- * @param local_id The identifier of the local to release.
+ * @param shader_id The id of the shader to release per-draw resources for.
+ * @param per_draw_id The identifier of the per-draw to release.
  * @param map_count The number of texture maps to release resources for.
  * @param maps An array of texture maps to be released.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_shader_instance_release(u32 shader_id, u32 local_id, u32 map_count, kresource_texture_map* maps);
+KAPI b8 shader_system_shader_per_draw_release(u32 shader_id, u32 per_draw_id, u32 map_count, kresource_texture_map* maps);

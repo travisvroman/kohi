@@ -34,7 +34,7 @@ typedef struct renderbuffer_data {
 typedef struct geometry_render_data {
     mat4 model;
     // TODO: keep material id/handle instead.
-    struct material* material;
+    struct kresource_material* material;
     // geometry* geometry;
     u64 unique_id;
     b8 winding_inverted;
@@ -53,6 +53,9 @@ typedef struct geometry_render_data {
     u32 index_element_size;
     /** @brief The offset from the beginning of the index buffer. */
     u64 index_buffer_offset;
+
+    /** @brief The index of the IBL probe to use. */
+    u32 ibl_probe_index;
 } geometry_render_data;
 
 typedef enum renderer_debug_view_mode {

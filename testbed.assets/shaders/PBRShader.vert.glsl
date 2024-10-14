@@ -26,6 +26,7 @@ layout(push_constant) uniform push_constants {
 	mat4 model; // 64 bytes
 	vec4 clipping_plane;
 	int view_index;
+    int ibl_index;
 } u_push_constants;
 
 layout(location = 0) out int out_mode;

@@ -428,7 +428,7 @@ typedef struct kasset_shader_attribute {
 typedef struct kasset_shader_uniform {
     const char* name;
     shader_uniform_type type;
-    shader_scope scope;
+    shader_update_frequency frequency;
 } kasset_shader_uniform;
 
 typedef struct kasset_shader {

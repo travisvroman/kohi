@@ -447,13 +447,6 @@ static void material_kasset_on_result(asset_request_result result, const struct 
                 KASSERT_MSG(false, "Failed to acquire renderer resources for default PBR material. Application cannot continue.");
             }
 
-            // IBL cube texture - FIXME: This should also not be done here (but local-level), but be applied as part of the PBR pass.
-            shader_instance_uniform_texture_config* ibl_cube_texture = &instance_resource_config.uniform_configs[2];
-            /* ibl_cube_texture->uniform_location = state_ptr->pbr_locations.ibl_cube_texture; */
-            ibl_cube_texture->kresource_texture_map_count = 1;
-            ibl_cube_texture->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * ibl_cube_texture->kresource_texture_map_count, MEMORY_TAG_ARRAY);
-            ibl_cube_texture->kresource_texture_maps[0] = &m->maps[SAMP_IRRADIANCE_MAP];
-
         } break;
         case KMATERIAL_TYPE_CUSTOM:
             KASSERT_MSG(false, "custom material type not yet supported.");
@@ -468,7 +461,6 @@ static void material_kasset_on_result(asset_request_result result, const struct 
         KERROR("Failed to load a required asset for material resource '%s'. Resource may not appear correctly when rendered.", kname_string_get(listener->typed_resource->base.name));
     }
 
-destroy_request:
     // Destroy the request.
     array_kresource_asset_info_destroy(&listener->request_info->base.assets);
     kfree(listener->request_info, sizeof(kresource_material_request_info), MEMORY_TAG_RESOURCE);

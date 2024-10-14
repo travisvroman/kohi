@@ -238,7 +238,8 @@ typedef enum kresource_material_type {
     KRESOURCE_MATERIAL_TYPE_UNKNOWN,
     KRESOURCE_MATERIAL_TYPE_UNLIT,
     KRESOURCE_MATERIAL_TYPE_PHONG,
-    KRESOURCE_MATERIAL_TYPE_PBR
+    KRESOURCE_MATERIAL_TYPE_PBR,
+    KRESOURCE_MATERIAL_TYPE_LAYERED_PBR
 } kresource_material_type;
 
 typedef struct kresource_material {
@@ -253,11 +254,22 @@ typedef struct kresource_material {
     kresource_texture_map metallic_roughness_ao_map;
     kresource_texture_map emissive_map;
 
+    /** @brief The number of material layers. Only used for layered materials. */
+    u32 layer_count;
+    /** @brief A map used for a texture array. Only used for layered materials. */
+    kresource_texture_map layered_material_map;
+
     /** @brief (Phong-only) The material shininess, determines how concentrated the specular lighting is. */
     f32 specular_strength;
 
-    u32 instance_id;
+    u32 group_id;
 } kresource_material;
+
+typedef struct kresource_material_instance {
+    kresource_material* material;
+
+    u32 per_draw_id;
+} kresource_material_instance;
 
 typedef struct kresource_material_request_info {
     kresource_request_info base;

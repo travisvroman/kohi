@@ -68,8 +68,6 @@ typedef struct geometry {
 
     /** @brief The geometry name. */
     char name[GEOMETRY_NAME_MAX_LENGTH];
-    /** @brief A pointer to the material associated with this geometry.. */
-    struct material* material;
 } geometry;
 
 #pragma once

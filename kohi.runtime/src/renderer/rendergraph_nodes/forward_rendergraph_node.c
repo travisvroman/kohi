@@ -2,6 +2,7 @@
 
 #include "core/engine.h"
 #include "defines.h"
+#include "kresources/kresource_types.h"
 #include "logger.h"
 #include "math/kmath.h"
 #include "memory/kmemory.h"
@@ -48,7 +49,7 @@ typedef struct pbr_shader_uniform_locations {
     u16 cascade_splits;
     u16 view_positions;
     u16 properties;
-    u16 ibl_cube_texture;
+    u16 ibl_cube_textures;
     u16 material_texures;
     u16 shadow_textures;
     u16 light_space_0;
@@ -61,6 +62,7 @@ typedef struct pbr_shader_uniform_locations {
     u16 bias;
     u16 clipping_plane;
     u16 view_index;
+    u16 ibl_index;
     u16 dir_light;
     u16 p_lights;
     u16 num_p_lights;
@@ -193,6 +195,11 @@ typedef struct forward_rendergraph_node_internal_data {
     mat4 directional_light_projections[MAX_SHADOW_CASCADE_COUNT];
     // The multiplied view/projections
     mat4 directional_light_spaces[MAX_SHADOW_CASCADE_COUNT];
+
+    // An array of global scene-wide set of ibl cube textures from probes.
+    u32 ibl_cube_texture_count;
+    kresource_texture_map** ibl_cube_textures;
+
 } forward_rendergraph_node_internal_data;
 
 b8 forward_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node* self, const struct rendergraph_node_config* config) {
@@ -322,7 +329,7 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->pbr_locations.properties = shader_system_uniform_location(internal_data->pbr_shader_id, "properties");
     internal_data->pbr_locations.material_texures = shader_system_uniform_location(internal_data->pbr_shader_id, "material_textures");
     internal_data->pbr_locations.shadow_textures = shader_system_uniform_location(internal_data->pbr_shader_id, "shadow_textures");
-    internal_data->pbr_locations.ibl_cube_texture = shader_system_uniform_location(internal_data->pbr_shader_id, "ibl_cube_texture");
+    internal_data->pbr_locations.ibl_cube_textures = shader_system_uniform_location(internal_data->pbr_shader_id, "ibl_cube_textures");
     internal_data->pbr_locations.model = shader_system_uniform_location(internal_data->pbr_shader_id, "model");
     internal_data->pbr_locations.render_mode = shader_system_uniform_location(internal_data->pbr_shader_id, "mode");
     internal_data->pbr_locations.dir_light = shader_system_uniform_location(internal_data->pbr_shader_id, "dir_light");
@@ -332,6 +339,7 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->pbr_locations.bias = shader_system_uniform_location(internal_data->pbr_shader_id, "bias");
     internal_data->pbr_locations.clipping_plane = shader_system_uniform_location(internal_data->pbr_shader_id, "clipping_plane");
     internal_data->pbr_locations.view_index = shader_system_uniform_location(internal_data->pbr_shader_id, "view_index");
+    internal_data->pbr_locations.ibl_index = shader_system_uniform_location(internal_data->pbr_shader_id, "ibl_index");
 
     // Save off a pointer to the terrain shader as well as its uniform locations.
     internal_data->terrain_shader = shader_system_get("Shader.Builtin.Terrain");
@@ -490,7 +498,7 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
         // HACK: Read this in from somewhere (or have global setter?);
         f32 bias = 0.0005f;
         shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.bias, &bias);
-        shader_system_apply_global(internal_data->water_shader_id);
+        shader_system_apply_per_frame(internal_data->water_shader_id);
 
         // Draw each plane.
         for (u32 i = 0; i < plane_count; ++i) {
@@ -505,7 +513,7 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
             }
 
             // Instance uniforms
-            shader_system_bind_instance(internal_data->water_shader_id, plane->instance_id);
+            shader_system_bind_group(internal_data->water_shader_id, plane->instance_id);
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.dir_light, &internal_data->dir_light->data);
             // Point lights.
             u32 p_light_count = light_system_point_light_count();
@@ -555,11 +563,11 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
 
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.refract_depth_texture, &plane->maps[WATER_PLANE_MAP_REFRACT_DEPTH]);
             //
-            shader_system_apply_instance(internal_data->water_shader_id);
+            shader_system_apply_per_group(internal_data->water_shader_id);
 
             // Set model matrix.
             shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.model, &plane->model);
-            shader_system_apply_local(internal_data->water_shader_id);
+            shader_system_apply_per_draw(internal_data->water_shader_id);
 
             // Draw based on vert/index data.
             if (!renderer_renderbuffer_draw(internal_data->vertex_buffer, plane->vertex_buffer_offset, 4, true)) {
@@ -632,22 +640,22 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                 KERROR("Failed to apply skybox view(0) uniform.");
                 return false;
             }
-            shader_system_apply_global(internal_data->skybox_shader_id);
+            shader_system_apply_per_frame(internal_data->skybox_shader_id);
 
             // Instance
-            shader_system_bind_instance(internal_data->skybox_shader_id, internal_data->sb->instance_id);
+            shader_system_bind_group(internal_data->skybox_shader_id, internal_data->sb->instance_id);
             if (!shader_system_uniform_set_by_location(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.cube_map_location, &internal_data->sb->cubemap)) {
                 KERROR("Failed to apply skybox cube map uniform.");
                 return false;
             }
 
-            shader_system_apply_instance(internal_data->skybox_shader_id);
+            shader_system_apply_per_group(internal_data->skybox_shader_id);
 
             // Apply the locals
             {
                 int view_index = use_inverted ? 1 : 0;
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.view_index, &view_index));
-                shader_system_apply_local(internal_data->skybox_shader_id);
+                shader_system_apply_per_draw(internal_data->skybox_shader_id);
             }
 
             // Draw it.
@@ -725,7 +733,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
             UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.clipping_plane, &clipping_plane));
 
             // Apply/upload them to the GPU
-            if (!shader_system_apply_global(internal_data->terrain_shader_id)) {
+            if (!shader_system_apply_per_frame(internal_data->terrain_shader_id)) {
                 KERROR("Failed to apply global uniforms.");
                 return false;
             }
@@ -750,7 +758,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
             // Apply instance
             {
                 // Bind the instance.
-                if (!shader_system_bind_instance(internal_data->terrain_shader_id, m->internal_id)) {
+                if (!shader_system_bind_group(internal_data->terrain_shader_id, m->internal_id)) {
                     KERROR("Failed to bind instance for material: %d", m->internal_id);
                     return false;
                 }
@@ -789,7 +797,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.num_p_lights, &p_light_count));
 
                 // Apply/upload them to the GPU
-                if (!shader_system_apply_instance(internal_data->terrain_shader_id)) {
+                if (!shader_system_apply_per_group(internal_data->terrain_shader_id)) {
                     KERROR("Failed to apply instance-level uniforms for material '%s'.", m->name);
                 }
             }
@@ -799,7 +807,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.model, &internal_data->terrain_geometries[i].model));
                 int view_index = use_inverted ? 1 : 0;
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.view_index, &view_index));
-                shader_system_apply_local(internal_data->terrain_shader_id);
+                shader_system_apply_per_draw(internal_data->terrain_shader_id);
             }
 
             // Draw it.
@@ -852,7 +860,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.clipping_plane, &clipping_plane));
 
                 // Apply/upload them to the GPU
-                if (!shader_system_apply_global(internal_data->pbr_shader_id)) {
+                if (!shader_system_apply_per_frame(internal_data->pbr_shader_id)) {
                     KERROR("Failed to apply global uniforms.");
                     return false;
                 }
@@ -866,7 +874,8 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
             b8 transparency_started = false;
 
             for (u32 i = 0; i < count; ++i) {
-                material* m = internal_data->geometries[i].material;
+                geometry_render_data* render_data = &internal_data->geometries[i];
+                kresource_material* m = render_data->material;
                 if (!m) {
                     m = material_system_get_default();
                 }
@@ -890,27 +899,33 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                         }
 
                         // Shadow Maps (global)
-                        const kresource_texture* shadow_map_texture = internal_data->shadowmap_source->value.t;
-                        m->maps[PBR_SAMP_IDX_SHADOW_MAP].texture = shadow_map_texture ? shadow_map_texture : texture_system_get_default_kresource_terrain_texture(internal_data->texture_system);
-                        UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.shadow_textures, &m->maps[PBR_SAMP_IDX_SHADOW_MAP]));
+                        // TODO: does this need to be done?
+                        /* const kresource_texture* shadow_map_texture = internal_data->shadowmap_source->value.t;
+                        internal_data->shadow_map.texture = shadow_map_texture ? shadow_map_texture : texture_system_get_default_kresource_terrain_texture(internal_data->texture_system); */
+                        UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.shadow_textures, &internal_data->shadow_map));
+
+                        // Irradience maps provided by probes around in the world.
+                        for (u32 i = 0; i < internal_data->ibl_cube_texture_count; ++i) {
+                            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(
+                                internal_data->pbr_shader_id,
+                                internal_data->pbr_locations.ibl_cube_textures,
+                                i,
+                                &internal_data->ibl_cube_textures[i]));
+                        }
 
                         // Apply/upload them to the GPU
-                        if (!shader_system_apply_global(internal_data->pbr_shader_id)) {
+                        if (!shader_system_apply_per_frame(internal_data->pbr_shader_id)) {
                             KERROR("Failed to apply global uniforms.");
                             return false;
                         }
                     }
-                    shader_system_bind_instance(internal_data->pbr_shader_id, m->internal_id);
+                    shader_system_bind_group(internal_data->pbr_shader_id, m->internal_id);
                     // Properties
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.properties, m->properties));
                     // Maps
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.material_texures, PBR_SAMP_IDX_ALBEDO, &m->maps[PBR_SAMP_IDX_ALBEDO]));
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.material_texures, PBR_SAMP_IDX_NORMAL, &m->maps[PBR_SAMP_IDX_NORMAL]));
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.material_texures, PBR_SAMP_IDX_COMBINED, &m->maps[PBR_SAMP_IDX_COMBINED]));
-
-                    // Irradience map - use the material-assigned one if exists, otherwise use the "global" assigned one.
-                    m->maps[PBR_SAMP_IDX_IRRADIANCE_MAP].texture = m->irradiance_texture ? m->irradiance_texture : internal_data->irradiance_cube_texture;
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.ibl_cube_texture, &m->maps[PBR_SAMP_IDX_IRRADIANCE_MAP]));
 
                     // Directional light.
                     directional_light* dir_light = light_system_directional_light_get();
@@ -936,7 +951,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
 
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.num_p_lights, &p_light_count));
 
-                    UNIFORM_APPLY_OR_FAIL(shader_system_apply_instance(internal_data->pbr_shader_id));
+                    UNIFORM_APPLY_OR_FAIL(shader_system_apply_per_group(internal_data->pbr_shader_id));
 
                     // Update the current material id.
                     current_material_id = m->id;
@@ -947,7 +962,8 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.model, &internal_data->geometries[i].model));
                     int view_index = use_inverted ? 1 : 0;
                     UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.view_index, &view_index));
-                    shader_system_apply_local(internal_data->pbr_shader_id);
+                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.ibl_index, &render_data->ibl_probe_index));
+                    shader_system_apply_per_draw(internal_data->pbr_shader_id);
                 }
 
                 // Invert if needed

@@ -5,7 +5,6 @@
 #include "core_render_types.h"
 #include "defines.h"
 #include "logger.h"
-#include "math/kmath.h"
 #include "memory/kmemory.h"
 #include "parsers/kson_parser.h"
 #include "strings/kstring.h"
@@ -89,12 +88,12 @@ const char* kasset_shader_serialize(const kasset* asset) {
     if (typed_asset->uniform_count > 0) {
         kson_object uniforms_obj = kson_object_create();
 
-        kson_array global_array = kson_array_create();
-        kson_array instance_array = kson_array_create();
-        kson_array local_array = kson_array_create();
-        u32 global_count = 0;
-        u32 instance_count = 0;
-        u32 local_count = 0;
+        kson_array per_frame_array = kson_array_create();
+        kson_array per_group_array = kson_array_create();
+        kson_array per_draw_array = kson_array_create();
+        u32 per_frame_count = 0;
+        u32 per_group_count = 0;
+        u32 per_draw_count = 0;
         for (u32 i = 0; i < typed_asset->uniform_count; ++i) {
             kson_object uniform_obj = kson_object_create();
             kasset_shader_uniform* uniform = &typed_asset->uniforms[i];
@@ -102,29 +101,32 @@ const char* kasset_shader_serialize(const kasset* asset) {
             kson_object_value_add_string(&uniform_obj, "type", shader_uniform_type_to_string(uniform->type));
             kson_object_value_add_string(&uniform_obj, "name", uniform->name);
 
-            if (uniform->scope == SHADER_SCOPE_GLOBAL) {
-                kson_array_value_add_object(&global_array, uniform_obj);
-                global_count++;
-            } else if (uniform->scope == SHADER_SCOPE_INSTANCE) {
-                kson_array_value_add_object(&instance_array, uniform_obj);
-                instance_count++;
-            } else if (uniform->scope == SHADER_SCOPE_LOCAL) {
-                kson_array_value_add_object(&local_array, uniform_obj);
-                local_count++;
-            } else {
-                KERROR("Unknown shader scope... skipping.");
+            switch (uniform->frequency) {
+            default:
+            case SHADER_UPDATE_FREQUENCY_PER_FRAME:
+                kson_array_value_add_object(&per_frame_array, uniform_obj);
+                per_frame_count++;
+                break;
+            case SHADER_UPDATE_FREQUENCY_PER_GROUP:
+                kson_array_value_add_object(&per_group_array, uniform_obj);
+                per_group_count++;
+                break;
+            case SHADER_UPDATE_FREQUENCY_PER_DRAW:
+                kson_array_value_add_object(&per_draw_array, uniform_obj);
+                per_draw_count++;
+                break;
             }
+            if (per_frame_count) {
+                kson_object_value_add_array(&uniforms_obj, "global", per_frame_array);
+            }
+            if (per_group_count) {
+                kson_object_value_add_array(&uniforms_obj, "instance", per_group_array);
+            }
+            if (per_draw_count) {
+                kson_object_value_add_array(&uniforms_obj, "local", per_draw_array);
+            }
+            kson_object_value_add_object(&tree.root, "uniforms", uniforms_obj);
         }
-        if (global_count) {
-            kson_object_value_add_array(&uniforms_obj, "global", global_array);
-        }
-        if (instance_count) {
-            kson_object_value_add_array(&uniforms_obj, "instance", instance_array);
-        }
-        if (local_count) {
-            kson_object_value_add_array(&uniforms_obj, "local", local_array);
-        }
-        kson_object_value_add_object(&tree.root, "uniforms", uniforms_obj);
     }
 
     // Output to string.

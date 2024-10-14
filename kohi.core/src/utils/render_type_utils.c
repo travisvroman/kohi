@@ -1,6 +1,7 @@
 #include "render_type_utils.h"
 
 #include "assets/kasset_types.h"
+#include "core_render_types.h"
 #include "debug/kassert.h"
 #include "logger.h"
 #include "strings/kstring.h"
@@ -119,14 +120,14 @@ const char* shader_stage_to_string(shader_stage stage) {
     }
 }
 
-const char* shader_scope_to_string(shader_scope scope) {
-    switch (scope) {
-    case SHADER_SCOPE_GLOBAL:
-        return "global";
-    case SHADER_SCOPE_INSTANCE:
-        return "instance";
-    case SHADER_SCOPE_LOCAL:
-        return "local";
+const char* shader_scope_to_string(shader_update_frequency frequency) {
+    switch (frequency) {
+    case SHADER_UPDATE_FREQUENCY_PER_FRAME:
+        return "frame";
+    case SHADER_UPDATE_FREQUENCY_PER_GROUP:
+        return "group";
+    case SHADER_UPDATE_FREQUENCY_PER_DRAW:
+        return "draw";
     }
 }
 
@@ -245,16 +246,16 @@ shader_stage string_to_shader_stage(const char* str) {
     }
 }
 
-shader_scope string_to_shader_scope(const char* str) {
-    if (strings_equali("global", str)) {
-        return SHADER_SCOPE_GLOBAL;
-    } else if (strings_equali("instance", str)) {
-        return SHADER_SCOPE_INSTANCE;
-    } else if (strings_equali("local", str)) {
-        return SHADER_SCOPE_LOCAL;
+shader_update_frequency string_to_shader_scope(const char* str) {
+    if (strings_equali("frame", str)) {
+        return SHADER_UPDATE_FREQUENCY_PER_FRAME;
+    } else if (strings_equali("group", str)) {
+        return SHADER_UPDATE_FREQUENCY_PER_GROUP;
+    } else if (strings_equali("draw", str)) {
+        return SHADER_UPDATE_FREQUENCY_PER_DRAW;
     } else {
-        KERROR("Unknown shader scope '%s'. Defaulting to global.", str);
-        return SHADER_SCOPE_GLOBAL;
+        KERROR("Unknown shader scope '%s'. Defaulting to per-frame.", str);
+        return SHADER_UPDATE_FREQUENCY_PER_FRAME;
     }
 }
 

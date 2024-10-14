@@ -47,39 +47,41 @@ void material_system_shutdown(struct material_system_state* state);
  * this triggers it to load. If the material is not found, a pointer to the default material
  * is returned. If the material _is_ found and loaded, its reference counter is incremented.
  *
+ * @param state A pointer to the material system state.
  * @param name The name of the material to find.
- * @return A pointer to the loaded material if found; otherwise 0/null.
+ * @param out_instance A pointer to hold the loaded material instance if successful.
+ * @return True if material was found, otherwise false.
  */
-KAPI kresource_material* material_system_acquire(struct material_system_state* state, kname name);
+KAPI b8 material_system_acquire(struct material_system_state* state, kname name, kresource_material_instance* out_instance);
 
 /**
- * @brief Releases the given material.
+ * @brief Releases the given material instance.
  * Decreases the reference counter by 1. If the reference counter reaches 0
  * the material is unloaded, releasing internal resources.
  *
- * @param material A pointer to the material to unload.
+ * @param instance A pointer to the material instance to unload.
  */
-KAPI void material_system_release(struct material_system_state* state, kresource_material* material);
+KAPI void material_system_release_instance(struct material_system_state* state, kresource_material_instance* instance);
 
 /**
- * @brief Gets a constant pointer to the default unlit material. Does not reference count.
+ * @brief Gets an instance of the default unlit material. Does not reference count.
  */
-KAPI const kresource_material* material_system_get_default_unlit(struct material_system_state* state);
+KAPI kresource_material_instance material_system_get_default_unlit(struct material_system_state* state);
 
 /**
- * @brief Gets a constant pointer to the default phong material. Does not reference count.
+ * @brief Gets an instance of the default phong material. Does not reference count.
  */
-KAPI const kresource_material* material_system_get_default_phong(struct material_system_state* state);
+KAPI kresource_material_instance material_system_get_default_phong(struct material_system_state* state);
 
 /**
- * @brief Gets a constant pointer to the default PBR material. Does not reference count.
+ * @brief Gets an instance of the default PBR material. Does not reference count.
  */
-KAPI const kresource_material* material_system_get_default_pbr(struct material_system_state* state);
+KAPI kresource_material_instance material_system_get_default_pbr(struct material_system_state* state);
 
 /**
- * @brief Gets a constant pointer to the default terrain material. Does not reference count.
+ * @brief Gets an instance of the default terrain material. Does not reference count.
  */
-KAPI const kresource_material* material_system_get_default_terrain_pbr(struct material_system_state* state);
+KAPI kresource_material_instance material_system_get_default_terrain_pbr(struct material_system_state* state);
 
 /**
  * @brief Dumps all of the registered materials and their reference counts/handles.

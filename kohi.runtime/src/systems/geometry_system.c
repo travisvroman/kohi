@@ -1,5 +1,6 @@
 #include "geometry_system.h"
 
+#include "core/engine.h"
 #include "logger.h"
 #include "math/geometry.h"
 #include "memory/kmemory.h"
@@ -189,8 +190,9 @@ static b8 create_geometry(geometry_system_state* state, geometry_config config, 
 
     // Acquire the material
     if (config.material_name != INVALID_KNAME) {
-        g->material = material_system_acquire(kname_string_get(config.material_name));
-        if (!g->material) {
+        if (!material_system_acquire(engine_systems_get()->material_system, kname_string_get(config.material_name), &g->material_instance)) {
+            // FIXME: material instance
+            material_system_get_default_pbr(engine_systems_get()->material_system);
             g->material = material_system_get_default();
         }
     }

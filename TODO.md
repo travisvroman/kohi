@@ -19,10 +19,17 @@ The items in this list are not in any particular order. This list will be update
       - [ ] Possible elimination of texture system, as it's primary function was ref counting? What about default textures?
     - [ ] Material
       - [ ] Handler
+      - [x] Conversion of material .kmt files to version 3.
     - [ ] Shader
       - [ ] Handler
     - [ ] Static Mesh (formerly just Mesh)
       - [ ] Handler
+      - [ ] Refactor to have a static mesh contain just a single geometry with a single material.
+            This will remove the material instance from the geometry and instead place it on the mesh, which
+            makes more sense as not all geometries have materials, but all meshes would.
+            This will mean that imports of complex objects may need to be converted to a group or prefab, which isn't
+            a concept yet. This would require a way to group the outer object (i.e. the Sponza).
+            Perhaps a StaticMeshGroup?
     - [ ] Bitmap Font
       - [ ] Handler
     - [ ] System Font
