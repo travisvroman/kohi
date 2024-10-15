@@ -10,10 +10,12 @@ The items in this list are not in any particular order. This list will be update
 - [x] Virtual file system (VFS)
   - [x] Sits on top of and manages packages, doles out requests to loaded packages, etc.
 - [ ] New Resource System
+
   - [ ] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
         New system will make requests to new Asset System asynchronously, and be responsible for all reference counting and auto-releasing.
   - [x] Provide kresource structure which contains basic high-level items such as type, name, generation, etc.
   - [ ] Resource type reworks
+
     - [ ] Textures
       - [x] Handler - Does this also include GPU uploads? Thinking so, versus a different "gpu loader"
       - [ ] Possible elimination of texture system, as it's primary function was ref counting? What about default textures?
@@ -29,7 +31,9 @@ The items in this list are not in any particular order. This list will be update
             makes more sense as not all geometries have materials, but all meshes would.
             This will mean that imports of complex objects may need to be converted to a group or prefab, which isn't
             a concept yet. This would require a way to group the outer object (i.e. the Sponza).
-            Perhaps a StaticMeshGroup?
+            Perhaps a GroupActor?
+    - [ ] StaticMeshActor - represents the in-world "instance" of the mesh resource. Pairs this together with a material instance.
+
     - [ ] Bitmap Font
       - [ ] Handler
     - [ ] System Font
@@ -38,12 +42,15 @@ The items in this list are not in any particular order. This list will be update
       - [ ] Handler
     - [ ] Heightmap Terrain (formerly just Terrain)
       - [ ] Handler
+      - [ ] HeightmapTerrainActor - represents the in-world "instance" of the heightmap terrain resource. Pairs this together with a layered material instance.
     - [ ] Sound Effect
       - [ ] Handler
+      - [ ] SoundEffectActor - represents the location in-world where a sound is emitted from. Pairs together with a SoundEffect resource.
     - [ ] Music
       - [ ] Handler
     - [ ] Extensibility for user-defined resource types.
       - [ ] Handler?
+
 - [x] Split asset loading logic from Resource System to new Asset System
   - [x] New asset system will work with asynchronous nature of VFS and automatically handle asset parsing/processing, hot-reloading and interaction with systems where necessary (i.e. texture system).
   - [x] Provide kasset structure which contains basic high-level metadata such as name, type, size and pointer to data, as well as a general "asset state" that can be looked at by any system (i.e. Uninitialized->Initialized->Loading->Loaded->Unloading)
