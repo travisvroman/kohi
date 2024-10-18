@@ -24,7 +24,7 @@ The items in this list are not in any particular order. This list will be update
       - [x] Conversion of material .kmt files to version 3.
     - [ ] Shader
       - [ ] Handler
-    - [ ] Static Mesh (formerly just Mesh)
+    - [ ] Static Mesh (formerly just Mesh) (Actor-ActorComponent-ActorComponentSystem)
       - [ ] Handler
       - [ ] Refactor to have a static mesh contain just a single geometry with a single material.
             This will remove the material instance from the geometry and instead place it on the mesh, which
