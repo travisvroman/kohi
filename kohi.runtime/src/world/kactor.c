@@ -1,9 +1,11 @@
 #include "kactor.h"
+#include "defines.h"
 #include "kresources/kresource_types.h"
 #include "math/geometry.h"
 #include <debug/kassert.h>
 
 typedef struct kactor_staticmesh_system_state {
+    u32 max_components;
     geometry* geometries;
     kresource_material_instance* materials;
 } kactor_staticmesh_system_state;
@@ -18,8 +20,15 @@ b8 kactor_comp_staticmesh_system_initialize(u64* memory_requirement, void* state
     }
 
     kactor_staticmesh_system_state* state = (kactor_staticmesh_system_state*)state_block;
+    state->max_components = config->max_components;
     state->geometries = state_block + (sizeof(kactor_staticmesh_system_state));
     state->materials = (kresource_material_instance*)(((u8*)state->geometries) + (sizeof(geometry) * config->max_components));
+
+    // Invalidate all entries in the system.
+    for (u32 i = 0; i < state->max_components; ++i) {
+        state->geometries[i].id = INVALID_ID;
+        state->materials[i].per_draw_id = INVALID_ID;
+    }
 
     return true;
 }
