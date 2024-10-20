@@ -31,6 +31,7 @@ typedef struct renderbuffer_data {
     u64 buffer_offset;
 } renderbuffer_data;
 
+KDEPRECATED("geometry_render_data should be phased out.")
 typedef struct geometry_render_data {
     mat4 model;
     // TODO: keep material id/handle instead.
