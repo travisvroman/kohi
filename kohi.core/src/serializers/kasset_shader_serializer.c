@@ -116,17 +116,18 @@ const char* kasset_shader_serialize(const kasset* asset) {
                 per_draw_count++;
                 break;
             }
-            if (per_frame_count) {
-                kson_object_value_add_array(&uniforms_obj, "global", per_frame_array);
-            }
-            if (per_group_count) {
-                kson_object_value_add_array(&uniforms_obj, "instance", per_group_array);
-            }
-            if (per_draw_count) {
-                kson_object_value_add_array(&uniforms_obj, "local", per_draw_array);
-            }
-            kson_object_value_add_object(&tree.root, "uniforms", uniforms_obj);
         }
+
+        if (per_frame_count) {
+            kson_object_value_add_array(&uniforms_obj, "global", per_frame_array);
+        }
+        if (per_group_count) {
+            kson_object_value_add_array(&uniforms_obj, "instance", per_group_array);
+        }
+        if (per_draw_count) {
+            kson_object_value_add_array(&uniforms_obj, "local", per_draw_array);
+        }
+        kson_object_value_add_object(&tree.root, "uniforms", uniforms_obj);
     }
 
     // Output to string.

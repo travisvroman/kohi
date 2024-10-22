@@ -21,7 +21,7 @@
 /**
  * @brief Represents event contextual data to be sent along with an
  * event code when an event is fired.
- * It is a union that is 128 bits in size, meaning data can be mixed
+ * It is a union that is 128 bytes in size, meaning data can be mixed
  * and matched as required by the developer.
  * */
 typedef struct event_context {
@@ -53,8 +53,8 @@ typedef struct event_context {
         /** @brief An array of 16 8-bit unsigned integers. */
         u8 u8[16];
 
-        /** 
-         * @brief Allows a pointer to arbitrary data to be passed. Also includes size info. 
+        /**
+         * @brief Allows a pointer to arbitrary data to be passed. Also includes size info.
          * NOTE: If used, should be freed by the sender or listener.
          */
         union {
