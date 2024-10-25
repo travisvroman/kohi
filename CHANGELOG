@@ -1,6 +1,7 @@
 Changelog
 
 - 0.8.0
+  - Removed preferential VSCode settings from settings.json in the project. Only project-specific config is remaining. The rest now exists in user configuration and will be added to an external repo if wanted.
   - Added debug labels to all rendergraph nodes using "renderings".
   - Added dynamic state caching on the renderer frontend. These get automatically re-applied per "rendering".
     - There is a "per frame default" struct of settings that is automatically reapplied at the beginning of a frame.

@@ -1,19 +1,5 @@
 {
-    "debug.focusWindowOnBreak": false,
-    "workbench.colorTheme": "Gruvbox Dark (Hard)",
-    "xmlTools.enforcePrettySelfClosingTagOnFormat": true,
-    "editor.minimap.enabled": false,
-    "terminal.integrated.shell.windows": "c:/Program Files/PowerShell/7/pwsh.exe",
-    "terminal.integrated.fontWeight": "1",
-    "editor.fontSize": 16,
-    "editor.fontWeight": "1",
-    "workbench.editor.showTabs": "multiple",
-    "workbench.colorCustomizations": {
-        "editorCursor.foreground": "#00ff33",
-        "editor.lineHighlightBackground": "#111144"
-    },
-    "workbench.statusBar.visible": true,
-    "editor.lineNumbers": "on",
+    // Code formatting
     "C_Cpp.clang_format_style": "{ BasedOnStyle: LLVM, IndentWidth: 4, ColumnLimit: 0, NamespaceIndentation: All, BreakBeforeBraces: Attach, PointerAlignment: Left, IndentPPDirectives: AfterHash}",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.block": "sameLine",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.type": "sameLine",
@@ -22,42 +8,6 @@
     "C_Cpp.clang_format_sortIncludes": false,
     "C_Cpp.vcFormat.indent.namespaceContents": true,
     "C_Cpp.workspaceSymbols": "All",
-    "editor.cursorStyle": "block",
-    "window.zoomLevel": 1,
-    "editor.tabCompletion": "on",
-    "todohighlight.isEnable": true,
-    "todohighlight.keywords": [
-        {
-            "text": "TODO:",
-            "color": "red",
-            "backgroundColor": "rgba(0,0,0,0)",
-            "overviewRulerColor": "rgba(0,0,0,0)"
-        },
-        {
-            "text": "TODO(travis):",
-            "color": "red",
-            "backgroundColor": "rgba(0,0,0,0)",
-            "overviewRulerColor": "rgba(0,0,0,0)"
-        },
-        {
-            "text": "HACK:",
-            "color": "#ff6600",
-            "backgroundColor": "rgba(0,0,0,0)",
-            "overviewRulerColor": "rgba(0,0,0,0)"
-        },
-        {
-            "text": "NOTE:",
-            "color": "green",
-            "backgroundColor": "rgba(0,0,0,0)",
-            "overviewRulerColor": "rgba(0,0,0,0)"
-        }
-    ],
-    "todohighlight.defaultStyle": {
-        "color": "red",
-        //"backgroundColor": "#ffab00",
-        "overviewRulerColor": "rgba(0,0,0,0)",
-        "isWholeLine": false,
-    },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [
         "@copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-{year}"
@@ -77,11 +27,5 @@
         "copyright",
         "empty",
         "custom"
-    ],
-    "files.associations": {
-        "chrono": "c",
-        "text_encoding": "c",
-        "typeinfo": "c",
-        "stdlib.h": "c"
-    },
+    ]
 }
