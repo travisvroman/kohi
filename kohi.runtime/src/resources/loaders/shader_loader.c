@@ -1,9 +1,9 @@
 #include "shader_loader.h"
 
 #include "containers/darray.h"
+#include "core_render_types.h"
 #include "loader_utils.h"
 #include "logger.h"
-#include "math/kmath.h"
 #include "memory/kmemory.h"
 #include "platform/filesystem.h"
 #include "resources/resource_types.h"
@@ -382,17 +382,17 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
                     uniform.size = 4;
                 }
 
-                // Parse the scope
+                // Parse the update frequency
                 if (strings_equal(fields[1], "0")) {
-                    uniform.scope = SHADER_SCOPE_GLOBAL;
+                    uniform.frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
                 } else if (strings_equal(fields[1], "1")) {
-                    uniform.scope = SHADER_SCOPE_INSTANCE;
+                    uniform.frequency = SHADER_UPDATE_FREQUENCY_PER_GROUP;
                 } else if (strings_equal(fields[1], "2")) {
-                    uniform.scope = SHADER_SCOPE_LOCAL;
+                    uniform.frequency = SHADER_UPDATE_FREQUENCY_PER_DRAW;
                 } else {
-                    KERROR("shader_loader_load: Invalid file layout: Uniform scope must be 0 for global, 1 for instance or 2 for local.");
+                    KERROR("shader_loader_load: Invalid file layout: Uniform frequency must be 0 for per_frame, 1 for per_group or 2 for per_draw.");
                     KWARN("Defaulting to global.");
-                    uniform.scope = SHADER_SCOPE_GLOBAL;
+                    uniform.frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
                 }
 
                 // Take a copy of the attribute name.

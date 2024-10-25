@@ -6,6 +6,7 @@
 
 #include "assets/kasset_types.h"
 #include "identifiers/khandle.h"
+#include "math/geometry.h"
 
 /** @brief Pre-defined resource types. */
 typedef enum kresource_type {
@@ -266,7 +267,7 @@ typedef struct kresource_material {
 } kresource_material;
 
 typedef struct kresource_material_instance {
-    kresource_material* material;
+    const kresource_material* material;
 
     u32 per_draw_id;
 } kresource_material_instance;
@@ -276,3 +277,35 @@ typedef struct kresource_material_request_info {
     // Optionally include source text to be used as if it resided in a .kmt file.
     const char* material_source_text;
 } kresource_material_request_info;
+
+/*
+ * ==================================================
+ * Static mesh
+ * ==================================================
+ */
+
+/**
+ * Represents a single static mesh, which contains geometry.
+ */
+typedef struct static_mesh_submesh {
+    /** @brief The geometry data for this mesh. */
+    kgeometry geometry;
+    /** @brief The name of the material associated with this mesh. */
+    kname material_name;
+} static_mesh_submesh;
+
+/**
+ * @brief A mesh resource that is static in nature (i.e. it does not change over time).
+ */
+typedef struct kresource_static_mesh {
+    kresource base;
+
+    /** @brief The number of submeshes in this static mesh resource. */
+    u16 submesh_count;
+    /** @brief The array of submeshes in this static mesh resource. */
+    static_mesh_submesh* submeshes;
+} kresource_static_mesh;
+
+typedef struct kresource_static_mesh_request_info {
+    kresource_request_info base;
+} kresource_static_mesh_request_info;

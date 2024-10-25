@@ -443,8 +443,8 @@ static void material_kasset_on_result(asset_request_result result, const struct 
                                                                                 &m->metallic_roughness_ao_map};
 
             u32 pbr_shader_id = shader_system_get_id("Shader.PBRMaterial");
-            if (!shader_system_shader_instance_acquire(pbr_shader_id, PBR_MATERIAL_CHANNEL_COUNT, material_maps, &m->instance_id)) {
-                KASSERT_MSG(false, "Failed to acquire renderer resources for default PBR material. Application cannot continue.");
+            if (!shader_system_shader_group_acquire(pbr_shader_id, PBR_MATERIAL_CHANNEL_COUNT, material_maps, &m->group_id)) {
+                KASSERT_MSG(false, "Failed to group acquire renderer resources for default PBR material. Application cannot continue.");
             }
 
         } break;

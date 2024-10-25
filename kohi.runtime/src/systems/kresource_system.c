@@ -4,6 +4,7 @@
 #include "debug/kassert.h"
 #include "defines.h"
 #include "kresources/handlers/kresource_handler_material.h"
+#include "kresources/handlers/kresource_handler_static_mesh.h"
 #include "kresources/handlers/kresource_handler_texture.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
@@ -36,7 +37,7 @@ typedef struct kresource_system_state {
 
 } kresource_system_state;
 
-static void kresource_system_release_internal(struct kresource_system_state* state, kresource* resource, b8 force_release);
+static void kresource_system_release_internal(struct kresource_system_state* state, kname resource_name, b8 force_release);
 
 b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_state* state, const kresource_system_config* config) {
     KASSERT_MSG(memory_requirement, "Valid pointer to memory_requirement is required.");
@@ -78,6 +79,18 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
         }
     }
 
+    // Static mesh handler.
+    {
+        kresource_handler handler = {0};
+        handler.allocate = kresource_handler_static_mesh_allocate;
+        handler.release = kresource_handler_static_mesh_release;
+        handler.request = kresource_handler_static_mesh_request;
+        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_STATIC_MESH, handler)) {
+            KERROR("Failed to register static mesh resource handler");
+            return false;
+        }
+    }
+
     KINFO("Resource system (new) initialized.");
     return true;
 }
@@ -87,7 +100,7 @@ void kresource_system_shutdown(struct kresource_system_state* state) {
         // release resources, etc.
         for (u32 i = 0; i < state->max_resource_count; ++i) {
             if (state->lookups[i].r) {
-                kresource_system_release_internal(state, state->lookups[i].r, true);
+                kresource_system_release_internal(state, state->lookups[i].r->name, true);
             }
         }
 
@@ -179,10 +192,10 @@ kresource* kresource_system_request(struct kresource_system_state* state, kname 
     }
 }
 
-void kresource_system_release(struct kresource_system_state* state, kresource* resource) {
-    KASSERT_MSG(state && resource, "kresource_system_release requires valid pointers to state and resource.");
+void kresource_system_release(struct kresource_system_state* state, kname resource_name) {
+    KASSERT_MSG(state, "kresource_system_release requires a valid pointer to state.");
 
-    kresource_system_release_internal(state, resource, false);
+    kresource_system_release_internal(state, resource_name, false);
 }
 
 b8 kresource_system_handler_register(struct kresource_system_state* state, kresource_type type, kresource_handler handler) {
@@ -205,11 +218,11 @@ b8 kresource_system_handler_register(struct kresource_system_state* state, kreso
     return true;
 }
 
-static void kresource_system_release_internal(struct kresource_system_state* state, kresource* resource, b8 force_release) {
-    KASSERT_MSG(state && resource, "kresource_system_release requires valid pointers to state and resource.");
+static void kresource_system_release_internal(struct kresource_system_state* state, kname resource_name, b8 force_release) {
+    KASSERT_MSG(state, "kresource_system_release requires a valid pointer to state.");
 
     u32 lookup_index = INVALID_ID;
-    const bt_node* node = u64_bst_find(state->lookup_tree, resource->name);
+    const bt_node* node = u64_bst_find(state->lookup_tree, resource_name);
     if (node) {
         lookup_index = node->value.u32;
     }
@@ -234,6 +247,12 @@ static void kresource_system_release_internal(struct kresource_system_state* sta
                 handler->release(handler, lookup->r);
             }
 
+            // Release tags, if they exist.
+            if (lookup->r->tags) {
+                KFREE_TYPE_CARRAY(lookup->r->tags, kname, lookup->r->tag_count);
+                lookup->r->tags = 0;
+            }
+
             lookup->r = 0;
 
             // Ensure the lookup is invalidated.
@@ -242,6 +261,6 @@ static void kresource_system_release_internal(struct kresource_system_state* sta
         }
     } else {
         // Entry not found, nothing to do.
-        KWARN("kresource_system_release: Attempted to release resource '%s', which does not exist or is not already loaded. Nothing to do.", kname_string_get(resource->name));
+        KWARN("kresource_system_release: Attempted to release resource '%s', which does not exist or is not already loaded. Nothing to do.", kname_string_get(resource_name));
     }
 }

@@ -122,8 +122,8 @@ void material_system_shutdown(struct material_system_state* state) {
     if (state) {
 
         // Release default materials.
-        kresource_system_release(state->resource_system, (kresource*)state->default_pbr_material);
-        kresource_system_release(state->resource_system, (kresource*)state->default_layered_material);
+        kresource_system_release(state->resource_system, state->default_pbr_material->base.name);
+        kresource_system_release(state->resource_system, state->default_layered_material->base.name);
     }
 }
 
@@ -200,7 +200,7 @@ void material_system_release_instance(material_system_state* state, kresource_ma
 
         // Only release if not a default material.
         if (do_release) {
-            kresource_system_release(state->resource_system, (kresource*)instance->material);
+            kresource_system_release(state->resource_system, instance->material->base.name);
         }
 
         instance->material = 0;

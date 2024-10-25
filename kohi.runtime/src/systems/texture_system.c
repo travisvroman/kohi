@@ -310,7 +310,7 @@ void texture_system_release_resource(kresource_texture* t) {
         return;
     }
 
-    kresource_system_release(resource_system, (kresource*)t);
+    kresource_system_release(resource_system, t->base.name);
 }
 
 b8 texture_system_resize(kresource_texture* t, u32 width, u32 height, b8 regenerate_internal_data) {
@@ -784,13 +784,13 @@ static b8 create_default_textures(texture_system_state* state) {
 
 static void release_default_textures(texture_system_state* state) {
     if (state) {
-        kresource_system_release(state->kresource_system, (kresource*)state->default_kresource_texture);
-        kresource_system_release(state->kresource_system, (kresource*)state->default_kresource_diffuse_texture);
-        kresource_system_release(state->kresource_system, (kresource*)state->default_kresource_specular_texture);
-        kresource_system_release(state->kresource_system, (kresource*)state->default_kresource_normal_texture);
-        kresource_system_release(state->kresource_system, (kresource*)state->default_kresource_combined_texture);
-        kresource_system_release(state->kresource_system, (kresource*)state->default_kresource_cube_texture);
-        kresource_system_release(state->kresource_system, (kresource*)state->default_kresource_terrain_texture);
+        kresource_system_release(state->kresource_system, state->default_kresource_texture->base.name);
+        kresource_system_release(state->kresource_system, state->default_kresource_diffuse_texture->base.name);
+        kresource_system_release(state->kresource_system, state->default_kresource_specular_texture->base.name);
+        kresource_system_release(state->kresource_system, state->default_kresource_normal_texture->base.name);
+        kresource_system_release(state->kresource_system, state->default_kresource_combined_texture->base.name);
+        kresource_system_release(state->kresource_system, state->default_kresource_cube_texture->base.name);
+        kresource_system_release(state->kresource_system, state->default_kresource_terrain_texture->base.name);
     }
 }
 

@@ -37,7 +37,7 @@ struct xform_system_state;
 struct texture_system_state;
 struct font_system_state;
 struct material_system_state;
-struct geometry_system_state;
+struct static_mesh_system_state;
 struct light_system_state;
 struct camera_system_state;
 struct plugin_system_state;
@@ -92,8 +92,8 @@ typedef struct engine_system_states {
     u64 material_system_memory_requirement;
     struct material_system_state* material_system;
 
-    u64 geometry_system_memory_requirement;
-    struct geometry_system_state* geometry_system;
+    u64 static_mesh_system_memory_requirement;
+    struct static_mesh_system_state* static_mesh_system;
 
     u64 light_system_memory_requirement;
     struct light_system_state* light_system;

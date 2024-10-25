@@ -5,7 +5,6 @@
 #include "identifiers/khandle.h"
 #include "math/geometry.h"
 #include "math/math_types.h"
-#include "resources/resource_types.h"
 
 typedef struct debug_line3d {
     identifier id;
@@ -17,10 +16,7 @@ typedef struct debug_line3d {
     k_handle xform_parent;
     b8 is_dirty;
 
-    u32 vertex_count;
-    colour_vertex_3d* vertices;
-
-    geometry geo;
+    kgeometry geometry;
 } debug_line3d;
 
 struct frame_data;

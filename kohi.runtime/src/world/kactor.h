@@ -1,8 +1,9 @@
 #pragma once
 
+#include <strings/kname.h>
+
 #include "kresources/kresource_types.h"
-#include "math/geometry.h"
-#include "strings/kname.h"
+#include "systems/static_mesh_system.h"
 
 /**
  * An actor is an in-world representation of something which exists in or can be spawned in
@@ -20,60 +21,80 @@ typedef struct kactor {
 } kactor;
 
 // staticmesh system
-struct kactor_staticmesh_system_state;
+struct kactor_staticmesh_comp_system_state;
 
 typedef struct kactor_staticmesh_system_config {
+    // The max number of static mesh actor components that can be loaded at any one time.
     u32 max_components;
 } kactor_staticmesh_system_config;
 
-typedef enum staticmesh_render_data_flag {
-    /** @brief Indicates that the winding order for the given static mesh should be inverted. */
-    STATICMESH_RENDER_DATA_FLAG_WINDING_INVERTED_BIT = 0x0001
-} staticmesh_render_data_flag;
+KAPI b8 kactor_comp_staticmesh_system_initialize(u64* memory_requirement, void* state, const kactor_staticmesh_system_config* config);
+KAPI void kactor_comp_staticmesh_system_shutdown(struct kactor_staticmesh_comp_system_state* state);
+
+KAPI u32 kactor_comp_staticmesh_create(struct kactor_staticmesh_comp_system_state* state, u64 actor_id, kname name, kname static_mesh_resource_name);
+KAPI u32 kactor_comp_staticmesh_get_id(struct kactor_staticmesh_comp_system_state* state, u64 actor_id, kname name);
 
 /**
- * @brief Collection of flags for a static mesh to be rendered.
- * @see staticmesh_render_data_flag
+ * @brief Attempts to get the name of a static mesh component with the given id.
+ *
+ * @param state A pointer to the kactor static mesh component system state.
+ * @param comp_id The component identifier.
+ * @returns The component name on success; otherwise INVALID_KNAME.
  */
-typedef u32 staticmesh_render_data_flag_bits;
+KAPI kname kactor_comp_staticmesh_name_get(struct kactor_staticmesh_comp_system_state* state, u32 comp_id);
 
-typedef struct kactor_comp_staticmesh_render_data {
-    const kresource_material_instance* material;
-    // TODO: Should there be another way to represent this? (note: used in pick shader for flat-colour rendering)
-    u64 unique_id;
+/**
+ * Attempts to set the name of a static mesh component with the given id.
+ *
+ * @param state A pointer to the kactor static mesh component system state.
+ * @param comp_id The component identifier.
+ * @param name The name to be set.
+ * @returns True on success; otherwise false.
+ */
+KAPI b8 kactor_comp_staticmesh_name_set(struct kactor_staticmesh_comp_system_state* state, u32 comp_id, kname name);
 
-    /** @brief Flags for the static mesh to be rendered. */
-    staticmesh_render_data_flag_bits flags;
+/**
+ * @brief Attempts to get the tint of a static mesh component with the given id.
+ *
+ * @param state A pointer to the kactor static mesh component system state.
+ * @param comp_id The component identifier.
+ * @returns The component tint on success; otherwise a default of vec4_one (white).
+ */
+KAPI vec4 kactor_comp_staticmesh_tint_get(struct kactor_staticmesh_comp_system_state* state, u32 comp_id);
 
-    /** @brief Additional tint to be applied to the static mesh when rendered. */
-    vec4 tint;
+/**
+ * Attempts to set the tint of a static mesh component with the given id.
+ *
+ * @param state A pointer to the kactor static mesh component system state.
+ * @param comp_id The component identifier.
+ * @param name The tint to be set.
+ * @returns True on success; otherwise false.
+ */
+KAPI b8 kactor_comp_staticmesh_tint_set(struct kactor_staticmesh_comp_system_state* state, u32 comp_id, vec4 tint);
 
-    /** @brief The vertex count. */
-    u32 vertex_count;
-    /** @brief The offset from the beginning of the vertex buffer. */
-    u64 vertex_buffer_offset;
+/**
+ * @brief Obtains a list of static mesh component ids for a given actor.
+ *
+ * NOTE: This function is designed to be called twice; once to obtain a count (passing 0/null to out_ids) and a
+ * second time, passing allocated memory to hold the count of ids * sizeof(u32).
+ *
+ * @param state A pointer to the kactor static mesh component system state.
+ * @param actor_id The identifier of the actor from which to obtain ids.
+ * @param out_count A pointer to hold the number of ids of static meshes owned by the given actor.
+ * @param out_comp_ids An array of u32s large enough to hold the count of actors obtained via the first call to this function.
+ * @returns True if the provided actor is valid and contains static meshes; otherwise false.
+ */
+KAPI b8 kactor_comp_staticmesh_get_ids_for_actor(struct kactor_staticmesh_comp_system_state* state, u64 actor_id, u32* out_count, u32* out_comp_ids);
 
-    /** @brief The index count. */
-    u32 index_count;
-    /** @brief The offset from the beginning of the index buffer. */
-    u64 index_buffer_offset;
+/**
+ * @brief Destroys the actor with the given identifier.
+ *
+ * @param state A pointer to the kactor static mesh component system state.
+ * @param comp_id The identifier of the component to destroy.
+ */
+KAPI void kactor_comp_staticmesh_destroy(struct kactor_staticmesh_comp_system_state* state, u32 comp_id);
 
-    /** @brief The index of the IBL probe to use. */
-    u32 ibl_probe_index;
-} kactor_comp_staticmesh_render_data;
+KAPI b8 kactor_comp_staticmesh_load(struct kactor_staticmesh_comp_system_state* state, u32 comp_id);
+KAPI b8 kactor_comp_staticmesh_unload(struct kactor_staticmesh_comp_system_state* state, u32 comp_id);
 
-KAPI b8 kactor_comp_staticmesh_system_initialize(u64* memory_requirement, void* state, const kactor_staticmesh_system_config* config);
-KAPI void kactor_comp_staticmesh_system_shutdown(struct kactor_staticmesh_system_state* state);
-
-KAPI u32 kactor_comp_staticmesh_create(struct kactor_staticmesh_system_state* state, u64 actor_id, kname name, geometry g, kresource_material_instance material);
-KAPI u32 kactor_comp_staticmesh_get_id(struct kactor_staticmesh_system_state* state, u64 actor_id, kname name);
-KAPI void kactor_comp_staticmesh_destroy(struct kactor_staticmesh_system_state* state, u32 id);
-
-KAPI b8 kactor_comp_staticmesh_load(u32 actor_id);
-KAPI b8 kactor_comp_staticmesh_unload(u32 actor_id);
-
-KAPI geometry* kactor_comp_staticmesh_get_geometry(struct kactor_staticmesh_system_state* state, u32 id);
-KAPI kresource_material_instance* kactor_comp_staticmesh_get_material(struct kactor_staticmesh_system_state* state, u32 id);
-KAPI b8 kactor_comp_staticmesh_get_geometry_material(struct kactor_staticmesh_system_state* state, u32 id, geometry** out_geometry, kresource_material_instance** out_material);
-
-KAPI b8 kactor_comp_staticmesh_get_render_data(struct kactor_staticmesh_system_state* state, u32 id, struct kactor_comp_staticmesh_render_data* out_render_data);
+KAPI static_mesh_instance* kactor_comp_staticmesh_get_mesh_instance(struct kactor_staticmesh_comp_system_state* state, u32 comp_id);

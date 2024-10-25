@@ -1,9 +1,7 @@
 #pragma once
 
-#include "math/math_types.h"
-#include "renderer/renderer_types.h"
-#include "resources/resource_types.h"
-#include "systems/geometry_system.h"
+#include "kresources/kresource_types.h"
+#include "math/geometry.h"
 
 typedef struct skybox_config {
     /** @brief The name of the cubemap to be used for the skybox. */
@@ -24,8 +22,7 @@ typedef struct skybox {
     kname cubemap_name;
     kresource_texture_map cubemap;
 
-    geometry_config g_config;
-    geometry* g;
+    kgeometry geometry;
     u32 instance_id;
     /** @brief Synced to the renderer's current frame number when the material has been applied that frame. */
     u64 render_frame_number;

@@ -95,6 +95,43 @@ KAPI void memory_system_shutdown(void);
 KAPI void* kallocate(u64 size, memory_tag tag);
 
 /**
+ * @brief Dynamically allocates memory for the given type. Also casts to type*.
+ *
+ * @param type The type to be used when determining allocation size.
+ * @param mem_tag The memory tag to be used for the allocation.
+ */
+#define KALLOC_TYPE(type, mem_tag) (type*)kallocate(sizeof(type), mem_tag)
+
+/**
+ * @brief Frees the given dynamically-allocated memory of the provided type,
+ * using the given tag.
+ *
+ * @param block The block of memory to be freed.
+ * @param type The type to be used when determining allocation size.
+ * @param mem_tag The memory tag to be used for the deallocation.
+ */
+#define KFREE_TYPE(block, type, mem_tag) kfree(block, sizeof(type), mem_tag)
+
+/**
+ * @brief Dynamically allocates memory for a standard C array of the given type.
+ * Also casts to type*. Memory is tagged as MEMORY_TAG_ARRAY.
+ *
+ * @param type The type to be used when determining allocation size.
+ * @param count The number of elements existing in the array.
+ */
+#define KALLOC_TYPE_CARRAY(type, count) (type*)kallocate(sizeof(type) * count, MEMORY_TAG_ARRAY)
+
+/**
+ * @brief Frees the given dynamically-allocated array of the provided type,
+ * using MEMORY_TAG_ARRAY.
+ *
+ * @param block The block of memory to be freed.
+ * @param type The type to be used when determining allocation size.
+ * @param count The number of elements in the array to be freed.
+ */
+#define KFREE_TYPE_CARRAY(block, type, count) kfree(block, sizeof(type) * count, MEMORY_TAG_ARRAY)
+
+/**
  * @brief Performs an aligned memory allocation from the host of the given size and alignment.
  * The allocation is tracked for the provided tag. NOTE: Memory allocated this way must be freed
  * using kfree_aligned.
@@ -204,6 +241,9 @@ KAPI void* kzero_memory(void* block, u64 size);
  * @returns A pointer to the block of memory copied to.
  */
 KAPI void* kcopy_memory(void* dest, const void* source, u64 size);
+
+#define KCOPY_TYPE(dest, source, type) kcopy_memory(dest, source, sizeof(type))
+#define KCOPY_TYPE_CARRAY(dest, source, type, count) kcopy_memory(dest, source, sizeof(type) * count)
 
 /**
  * @brief Sets the bytes of memory located at dest to value over the given size.

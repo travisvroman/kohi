@@ -347,28 +347,13 @@ KAPI struct texture_internal_data* renderer_texture_internal_get(struct renderer
 KAPI renderbuffer* renderer_renderbuffer_get(renderbuffer_type type);
 
 /**
- * @brief Creates geometry, taking a copy of the provided data and setting up the data structure.
- *
- * @param geometry A pointer to the geometry to create.
- * @param vertex_size The size of each vertex.
- * @param vertex_count The number of vertices.
- * @param vertices The vertex array.
- * @param index_size The size of each index.
- * @param index_count The number of indices.
- * @param indices The index array.
- * @return True on success; otherwise false.
- */
-KDEPRECATED("The renderer frontend geometry functions will be removed in a future pass. Upload directly to renderbuffers instead.")
-KAPI b8 renderer_geometry_create(struct geometry* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
-
-/**
  * @brief Acquires GPU resources and uploads geometry data.
  *
  * @param geometry A pointer to the geometry to upload.
  * @return True on success; otherwise false.
  */
 KDEPRECATED("The renderer frontend geometry functions will be removed in a future pass. Upload directly to renderbuffers instead.")
-KAPI b8 renderer_geometry_upload(struct geometry* geometry);
+KAPI b8 renderer_geometry_upload(kgeometry* geometry);
 
 /**
  * @brief Updates vertex data in the given geometry with the provided data in the given range.
@@ -379,7 +364,7 @@ KAPI b8 renderer_geometry_upload(struct geometry* geometry);
  * @param vertices The vertex data.
  */
 KDEPRECATED("The renderer frontend geometry functions will be removed in a future pass. Upload directly to renderbuffers instead.")
-KAPI void renderer_geometry_vertex_update(struct geometry* g, u32 offset, u32 vertex_count, void* vertices, b8 include_in_frame_workload);
+KAPI void renderer_geometry_vertex_update(kgeometry* g, u32 offset, u32 vertex_count, void* vertices, b8 include_in_frame_workload);
 
 /**
  * @brief Destroys the given geometry, releasing GPU resources.
@@ -387,7 +372,7 @@ KAPI void renderer_geometry_vertex_update(struct geometry* g, u32 offset, u32 ve
  * @param geometry A pointer to the geometry to be destroyed.
  */
 KDEPRECATED("The renderer frontend geometry functions will be removed in a future pass. Upload directly to renderbuffers instead.")
-KAPI void renderer_geometry_destroy(struct geometry* geometry);
+KAPI void renderer_geometry_destroy(kgeometry* geometry);
 
 /**
  * @brief Draws the given geometry.

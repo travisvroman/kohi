@@ -9,6 +9,92 @@ The items in this list are not in any particular order. This list will be update
 - [x] KName system (string hashing)
 - [x] Virtual file system (VFS)
   - [x] Sits on top of and manages packages, doles out requests to loaded packages, etc.
+- [x] Remove geometry system
+  - [x] Rename geometry->kgeometry
+  - [x] Move creation of geometries to geometry.h/c
+  - [x] Add geometry_type:
+    - [x] 2D_STATIC - Used for 2d geometry that doesn't change
+    - [x] 2D_DYNAMIC - Used for 2d geometry that changes often (NOTE: initially not supported)
+    - [x] 3D_STATIC - Used for 3d geometry that doesn't change
+    - [x] 3D_HEIGHTMAP_TERRAIN - Used for heightmap terrain-specific geometry that rarely (if ever) changes - includes material index/weight data
+    - [x] 3D_SKINNED - Used for skinned 3d geometry that changes potentially every frame, and includes bone/weight data
+    - [x] 3D_DYNAMIC - Used for 3d geometry that changes often (NOTE: initially not supported)
+    - [x] CUSTOM - User-defined geometry type. Vertex/index size will only be looked at for this type.
+- [ ] Actor-ActorComponent-ActorComponentSystem
+
+  - [ ] Actor: Represents the base of something that can exist or be spawned into the world. It is similar in
+        concept to the current scene "node".
+
+    - Contains properties:
+      - u64 actor_id: A unique generated identifier of an actor upon creation.
+      - kname: The name of the actor.
+      - khandle hierarchy_handle: Holds handle to hierarchy id if used with a hierarchy graph (which scenes do)
+      - khandle xform_handle: NOTE: Not sure if this is really needed since it can be retrieved using the hierarchy_handle,
+        but it might be useful for anyone using actors without hierarchy.
+    - NOTE: For actors _not_ using hierarchy, the hierarchy would need to be managed some other way.
+    - Can have any number of kactor_comps attached to it (see ActorComponent)
+      - Each ActorComponentSystem will be responsible for maintaining this relationship (i.e. the system maintains a
+        list of components to actor_ids). Better for memory, but might make it tricky to obtain a list of all actor types
+        associated with a given actor.
+
+  - [ ] ActorComponent: Used to control an actor (i.e. how it's rendered, moved, etc.). An actor can hold many of these.
+  - [ ] ActorComponentSystem: Used to manage actors of a given type.
+  - [ ] Types:
+    - [ ] kactor_comp_static_mesh
+      - Holds a copy of a static_mesh_instance
+        - Contains a pointer to the backing mesh resource, which has an array of submeshes with geometries.
+        - Contains array of obtained kresource_material_instances (matches resource submesh array, including duplicates for flexibiliy)
+      - system used to generate static_mesh_render_data, which contains:
+        - IBL probe index
+        - mesh count
+        - tint override (applies to all sub-meshes)
+        - An array of static_mesh_submesh_render_data, each including:
+          - vertex and index count
+          - vertex and index buffer offsets
+          - NOTE: size is known based on the type of render data
+          - copy of kresource_material_instance
+          - render data flags (i.e. invert winding for negative-scale meshes)
+          - model matrix (per-sub-mesh for flexibility, in case an imported "scene" i.e. OBJ/GLTF has them)
+    - [ ] kactor_comp_skybox
+    - [ ] kactor_comp_water_plane
+    - [ ] kactor_comp_heightmap_terrain
+      - Holds pointer to kresource_heightmap_terrain
+        - Contains array of geometries (3D_HEIGHTMAP_TERRAIN type, see above).
+      - Holds kresource_material_instance of layered terrain material.
+      - system used to generate kactor_comp_heightmap_terrain_render_data, which contains:
+        - An array of heightmap_terrain_chunk_render_data (per terrain chunk), each containing:
+          - vertex and index count
+          - vertex and index buffer offsets
+          - NOTE: size is known based on the type of render data
+          - NOTE: material info is passed once at the per_group level as a layered material.
+    - [ ] kactor_comp_directional_light
+      - Holds a pointer to generated shadow map layered texture (NOTE: remove this from the forward render node)
+      - Has a xform of its own, with the following caveats:
+        - Scale does nothing.
+        - Position is only used by the editor/debug displays to show a gizmo.
+        - Rotation is used to derive light direction when obtaining render data.
+      - system used to generate kactor_comp_directional_light_render_data, which contains:
+        - vec4 light colour
+        - vec4 light direction (derived from xform)
+        - pointer to shadow map resource
+        - NOTE: For debug views, this can be used to determine the rendering of a "line" or something indicating world direction and colour
+    - [ ] kactor_comp_point_light
+      - Holds a pointer to generated shadow map layered texture (NOTE: Not yet implemented, but this is where it will go)
+      - Has a xform of its own, with the following caveats:
+        - Scale does nothing.
+        - Position is used for render data generation.
+        - Rotation does nothing.
+      - system used to generate kactor_comp_point_light_render_data, which contains:
+        - vec4 light colour
+        - vec3 light position
+        - constant, linear and quadratic (TODO: Can we simplify these properties to be more user-friendly?)
+        - pointer to shadow map resource (NOTE: when implemented)
+        - NOTE: For debug views, this can be used to determine the rendering of a "box" or something indicating world position, size and colour
+    - [ ] kactor_comp_sound_effect
+      - Holds pointer to sound effect resource
+      - Holds position
+    - [ ] kactor_music
+
 - [ ] New Resource System
 
   - [ ] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
@@ -22,32 +108,34 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Material
       - [ ] Handler
       - [x] Conversion of material .kmt files to version 3.
+      - [ ] Material instances
     - [ ] Shader
       - [ ] Handler
-    - [ ] Static Mesh (formerly just Mesh) (Actor-ActorComponent-ActorComponentSystem)
+      - [ ] Conversion of scopes to update_frequency (global/instance/local -> per_frame/per_group/per_draw)
+    - [ ] Scene
       - [ ] Handler
-      - [ ] Refactor to have a static mesh contain just a single geometry with a single material.
-            This will remove the material instance from the geometry and instead place it on the mesh, which
-            makes more sense as not all geometries have materials, but all meshes would.
-            This will mean that imports of complex objects may need to be converted to a group or prefab, which isn't
-            a concept yet. This would require a way to group the outer object (i.e. the Sponza).
-            Perhaps a GroupActor?
-    - [ ] StaticMeshActor - represents the in-world "instance" of the mesh resource. Pairs this together with a material instance.
+      - [ ] Convert nodes->Actors.
+      - [ ] Convert attachments->ActorComponents.
+    - [ ] Static Mesh (formerly just Mesh) (Actor-ActorComponent-ActorComponentSystem)
+
+      - [ ] Handler
+      - [ ] kresource_static_mesh structure
+        - [ ] holds (and owns) static_geometry structure
+        - [ ] Actor - see Actor-ActorComponent-ActorComponentSystem section.
 
     - [ ] Bitmap Font
       - [ ] Handler
     - [ ] System Font
       - [ ] Handler
-    - [ ] Scene
-      - [ ] Handler
     - [ ] Heightmap Terrain (formerly just Terrain)
       - [ ] Handler
-      - [ ] HeightmapTerrainActor - represents the in-world "instance" of the heightmap terrain resource. Pairs this together with a layered material instance.
+      - [ ] Actor - see Actor-ActorComponent-ActorComponentSystem section.
     - [ ] Sound Effect
       - [ ] Handler
-      - [ ] SoundEffectActor - represents the location in-world where a sound is emitted from. Pairs together with a SoundEffect resource.
+      - [ ] Actor - see Actor-ActorComponent-ActorComponentSystem section.
     - [ ] Music
       - [ ] Handler
+      - [ ] Actor - see Actor-ActorComponent-ActorComponentSystem section.
     - [ ] Extensibility for user-defined resource types.
       - [ ] Handler?
 
@@ -136,6 +224,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Have material/texture system create the "combined" image at runtime instead of it being stored as a static asset (will make it easier to change in an editor without having to run a utility to do it).
   - [ ] Convert material configs to KSON
   - [ ] Material hot-reloading (should do the above first)
+  - [ ] Layered materials - probably done using a set of array textures for each map type.
 - [ ] BUG: Material map declaration order should not matter in material config files, but it seemingly does.
 - [ ] Flag for toggling debug items on/off in scene.
 - [ ] Flag for toggling grid on/off in scene.
@@ -168,6 +257,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Dynamic-sized, type-safe darray with iterator.
   - [x] Tests
   - [ ] Mark old darray functions as deprecated.
+- [ ] BUG: Hierarchy graph destroy does not release xforms. Should optionally do so.
 
 ## 0.9.0 Release
 
@@ -206,6 +296,11 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Convert lighting system to use handles.
   - [ ] Create skybox system that uses handles.
   - [ ] Create scene system that uses handles.
+- [ ] Break out kresource_static_mesh to be a single geometry with a single material.
+  - Import process should ask about combining meshes. If so, all objects in an OBJ/GLTF/etc. would be imported as a
+    single kresource_static_mesh. Materials would be combined into a single layered material. NOTE: This would probably
+    require a limitation somewhere on the number of materials a "imported scene" can have.
+- [ ] Rework hashtable to better handle collisions.
 
 ## 0.10.0 Release
 

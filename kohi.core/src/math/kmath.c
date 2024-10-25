@@ -4,9 +4,13 @@
 #include <stdlib.h>
 
 #include "math/math_types.h"
+#include "math/mtwister.h" // for 64-bit RNG
 #include "platform/platform.h"
 
 static b8 rand_seeded = false;
+static mtrand_state rng_u64 = {0}; // State for unsigned 64-bit RNG
+
+static void seed_randoms(void);
 
 /**
  * Note that these are here in order to prevent having to import the
@@ -36,18 +40,23 @@ f32 kpow(f32 x, f32 y) { return powf(x, y); }
 
 i32 krandom(void) {
     if (!rand_seeded) {
-        srand((u32)platform_get_absolute_time());
-        rand_seeded = true;
+        seed_randoms();
     }
     return rand();
 }
 
 i32 krandom_in_range(i32 min, i32 max) {
     if (!rand_seeded) {
-        srand((u32)platform_get_absolute_time());
-        rand_seeded = true;
+        seed_randoms();
     }
     return (rand() % (max - min + 1)) + min;
+}
+
+u64 krandom_u64(void) {
+    if (!rand_seeded) {
+        seed_randoms();
+    }
+    return mtrand_generate(&rng_u64);
 }
 
 f32 kfrandom(void) { return (float)krandom() / (f32)RAND_MAX; }
@@ -61,8 +70,8 @@ f32 kattenuation_min_max(f32 min, f32 max, f32 x) {
     // so if the range was 0.4 to 0.8 with a falloff of 1.0, weight for x between
     // 0.5 and 0.7 would be 1.0, with it dwindling to 0 as it approaches 0.4 or 0.8.
     f32 half_range = kabs(max - min) * 0.5;
-    f32 mid = min + half_range;    // midpoint
-    f32 distance = kabs(x - mid);  // dist from mid
+    f32 mid = min + half_range;   // midpoint
+    f32 distance = kabs(x - mid); // dist from mid
     // scale dist from midpoint to halfrange
     f32 att = KCLAMP((half_range - distance) / half_range, 0, 1);
     return att;
@@ -80,7 +89,7 @@ frustum frustum_from_view_projection(mat4 view_projection) {
 
     // Get the inverse of the view_projection matrix.
     mat4 inv = mat4_inverse(view_projection);
-    f32 *md = inv.data;
+    f32* md = inv.data;
 
     // Extract the rows.
     vec4 mat0 = {md[0], md[1], md[2], md[3]};
@@ -106,8 +115,8 @@ frustum frustum_from_view_projection(mat4 view_projection) {
     return f;
 }
 
-frustum frustum_create(const vec3 *position, const vec3 *forward,
-                       const vec3 *right, const vec3 *up, f32 aspect, f32 fov,
+frustum frustum_create(const vec3* position, const vec3* forward,
+                       const vec3* right, const vec3* up, f32 aspect, f32 fov,
                        f32 near, f32 far) {
     frustum f;
 
@@ -129,15 +138,15 @@ frustum frustum_create(const vec3 *position, const vec3 *forward,
     return f;
 }
 
-f32 plane_signed_distance(const plane_3d *p, const vec3 *position) {
+f32 plane_signed_distance(const plane_3d* p, const vec3* position) {
     return vec3_dot(p->normal, *position) - p->distance;
 }
 
-b8 plane_intersects_sphere(const plane_3d *p, const vec3 *center, f32 radius) {
+b8 plane_intersects_sphere(const plane_3d* p, const vec3* center, f32 radius) {
     return plane_signed_distance(p, center) > -radius;
 }
 
-b8 frustum_intersects_sphere(const frustum *f, const vec3 *center, f32 radius) {
+b8 frustum_intersects_sphere(const frustum* f, const vec3* center, f32 radius) {
     for (u8 i = 0; i < 6; ++i) {
         if (!plane_intersects_sphere(&f->sides[i], center, radius)) {
             return false;
@@ -146,7 +155,7 @@ b8 frustum_intersects_sphere(const frustum *f, const vec3 *center, f32 radius) {
     return true;
 }
 
-b8 plane_intersects_aabb(const plane_3d *p, const vec3 *center, const vec3 *extents) {
+b8 plane_intersects_aabb(const plane_3d* p, const vec3* center, const vec3* extents) {
     f32 r = extents->x * kabs(p->normal.x) +
             extents->y * kabs(p->normal.y) +
             extents->z * kabs(p->normal.z);
@@ -154,7 +163,7 @@ b8 plane_intersects_aabb(const plane_3d *p, const vec3 *center, const vec3 *exte
     return -r <= plane_signed_distance(p, center);
 }
 
-b8 frustum_intersects_aabb(const frustum *f, const vec3 *center, const vec3 *extents) {
+b8 frustum_intersects_aabb(const frustum* f, const vec3* center, const vec3* extents) {
     for (u8 i = 0; i < 6; ++i) {
         if (!plane_intersects_aabb(&f->sides[i], center, extents)) {
             return false;
@@ -163,7 +172,7 @@ b8 frustum_intersects_aabb(const frustum *f, const vec3 *center, const vec3 *ext
     return true;
 }
 
-void frustum_corner_points_world_space(mat4 projection_view, vec4 *corners) {
+void frustum_corner_points_world_space(mat4 projection_view, vec4* corners) {
     mat4 inverse_view_proj = mat4_inverse(projection_view);
 
     corners[0] = (vec4){-1.0f, -1.0f, 0.0f, 1.0f};
@@ -185,4 +194,27 @@ void frustum_corner_points_world_space(mat4 projection_view, vec4 *corners) {
 f32 vec3_distance_to_line(vec3 point, vec3 line_start, vec3 line_direction) {
     f32 magnitude = vec3_length(vec3_cross(vec3_sub(point, line_start), line_direction));
     return magnitude / vec3_length(line_direction);
+}
+
+static void seed_randoms(void) {
+    u32 ptime_u32;
+    u32 ptime_u64;
+#ifdef KOHI_DEBUG
+    // NOTE: Use a predetermined seed for debug builds for testing purposes.
+    ptime_u32 = 42;
+    ptime_u64 = 42;
+#else
+    // TODO: Might need to use current date/time for this in case this
+    // as using the absolute time is the application _run_ time, which
+    // might not be random _enough_ for this to be truly useful.
+    ptime_u32 = (u32)platform_get_absolute_time();
+    ptime_u64 = (u64)platform_get_absolute_time();
+#endif
+
+    // Seed standard random number generator.
+    srand(ptime_u32);
+    // 64-bit RNG
+    rng_u64 = mtrand_create(ptime_u64);
+
+    rand_seeded = true;
 }

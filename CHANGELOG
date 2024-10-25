@@ -27,6 +27,7 @@ Changelog
   - Added typed stackarrays with iterators. These are fixed-size and stack-allocated array containers. See kohi.core, containers/stackarray.h.
   - Added typed darrays with iterators. These are dynamic-size, dynamic resizing (and dynamically allocated) array containers that are a 
     type-safe replacement to the old darrays. See kohi.core, containers/darray.h.
+  - Added additional public API to hierarchy_graph to further avoid having to access the internal structure.
 
 - 0.7.1
   - Fixed window resizing issues in macOS
