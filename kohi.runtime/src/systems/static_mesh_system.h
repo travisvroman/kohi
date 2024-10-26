@@ -1,6 +1,7 @@
 #pragma once
 
 #include "kresources/kresource_types.h"
+#include "systems/material_system.h"
 
 /**
  * @brief Represents an instance of a static mesh resource. This is to be
@@ -20,7 +21,7 @@ typedef struct static_mesh_instance {
      * Elements match up to mesh_resource->submeshes index-wise. Thus the
      * count of this array is the same as mesh_resource->submesh_count.
      */
-    kresource_material_instance* material_instances;
+    material_instance* material_instances;
 
     vec4 tint;
 } static_mesh_instance;
@@ -56,7 +57,7 @@ typedef struct static_mesh_submesh_render_data {
     u64 index_buffer_offset;
 
     /** @brief The instance of the material to use with this static mesh when rendering. */
-    kresource_material_instance material;
+    material_instance material;
 } static_mesh_submesh_render_data;
 
 /**

@@ -243,6 +243,11 @@ typedef enum kresource_material_type {
     KRESOURCE_MATERIAL_TYPE_LAYERED_PBR
 } kresource_material_type;
 
+typedef struct kresource_material_layer {
+    kname name;
+
+} kresource_material_layer;
+
 typedef struct kresource_material {
     kresource base;
     kresource_material_type type;
@@ -265,12 +270,6 @@ typedef struct kresource_material {
 
     u32 group_id;
 } kresource_material;
-
-typedef struct kresource_material_instance {
-    const kresource_material* material;
-
-    u32 per_draw_id;
-} kresource_material_instance;
 
 typedef struct kresource_material_request_info {
     kresource_request_info base;

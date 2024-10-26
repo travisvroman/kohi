@@ -23,6 +23,12 @@ typedef struct material_system_config {
     u32 max_material_count;
 } material_system_config;
 
+typedef struct material_instance {
+    const kresource_material* material;
+
+    u32 per_draw_id;
+} material_instance;
+
 /**
  * @brief Initializes the material system.
  * Should be called twice; once to get the memory requirement (passing state=0), and a second
@@ -52,7 +58,7 @@ void material_system_shutdown(struct material_system_state* state);
  * @param out_instance A pointer to hold the loaded material instance if successful.
  * @return True if material was found, otherwise false.
  */
-KAPI b8 material_system_acquire(struct material_system_state* state, kname name, kresource_material_instance* out_instance);
+KAPI b8 material_system_acquire(struct material_system_state* state, kname name, material_instance* out_instance);
 
 /**
  * @brief Releases the given material instance.
@@ -61,27 +67,27 @@ KAPI b8 material_system_acquire(struct material_system_state* state, kname name,
  *
  * @param instance A pointer to the material instance to unload.
  */
-KAPI void material_system_release_instance(struct material_system_state* state, kresource_material_instance* instance);
+KAPI void material_system_release_instance(struct material_system_state* state, material_instance* instance);
 
 /**
  * @brief Gets an instance of the default unlit material. Does not reference count.
  */
-KAPI kresource_material_instance material_system_get_default_unlit(struct material_system_state* state);
+KAPI material_instance material_system_get_default_unlit(struct material_system_state* state);
 
 /**
  * @brief Gets an instance of the default phong material. Does not reference count.
  */
-KAPI kresource_material_instance material_system_get_default_phong(struct material_system_state* state);
+KAPI material_instance material_system_get_default_phong(struct material_system_state* state);
 
 /**
  * @brief Gets an instance of the default PBR material. Does not reference count.
  */
-KAPI kresource_material_instance material_system_get_default_pbr(struct material_system_state* state);
+KAPI material_instance material_system_get_default_pbr(struct material_system_state* state);
 
 /**
  * @brief Gets an instance of the default terrain material. Does not reference count.
  */
-KAPI kresource_material_instance material_system_get_default_terrain_pbr(struct material_system_state* state);
+KAPI material_instance material_system_get_default_terrain_pbr(struct material_system_state* state);
 
 /**
  * @brief Dumps all of the registered materials and their reference counts/handles.
