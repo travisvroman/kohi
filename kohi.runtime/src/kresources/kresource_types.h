@@ -235,13 +235,28 @@ typedef struct kresource_texture_map {
     u32 internal_id;
 } kresource_texture_map;
 
-typedef enum kresource_material_type {
-    KRESOURCE_MATERIAL_TYPE_UNKNOWN,
-    KRESOURCE_MATERIAL_TYPE_UNLIT,
-    KRESOURCE_MATERIAL_TYPE_PHONG,
-    KRESOURCE_MATERIAL_TYPE_PBR,
-    KRESOURCE_MATERIAL_TYPE_LAYERED_PBR
-} kresource_material_type;
+typedef enum kresource_material_model {
+    KRESOURCE_MATERIAL_MODEL_UNKNOWN,
+    /** @brief A material which only contains colour information. Does not respond to light. */
+    KRESOURCE_MATERIAL_MODEL_UNLIT,
+    /** @brief The "default" shading model for materials. Ideal for solid objects. Responds to lighting. */
+    KRESOURCE_MATERIAL_MODEL_PBR,
+    /** @brief Similar to PBR, but essentially contains multiple materials in one (i.e. in "layers") that are blended together in the shader. Great for terrains. Expensive if overused. Responds to lighting. */
+    KRESOURCE_MATERIAL_MODEL_LAYERED_PBR
+} kresource_material_model;
+
+typedef enum kresource_material_blend_mode {
+    /** @brief Material is fully opaque with no transparency. Recieves lighting. */
+    KRESOURCE_MATERIAL_BLEND_MODE_OPAQUE,
+    /** @brief Material has transparency via a mask. If opacity_mask <= opacity_mask_clip, fragment is discarded. Recieves lighting. */
+    KRESOURCE_MATERIAL_BLEND_MODE_MASKED,
+    /** @brief Material is blended with background (1 - opacity). Does NOT recieve lighting. */
+    KRESOURCE_MATERIAL_BLEND_MODE_TRANSLUCENT,
+    /** @brief Material is blended with background (colour + background). Does NOT recieve lighting. */
+    KRESOURCE_MATERIAL_BLEND_MODE_ADDITIVE,
+    /** @brief Material is blended with background (colour * background). Does NOT recieve lighting. */
+    KRESOURCE_MATERIAL_BLEND_MODE_MULTIPLY,
+} kresource_material_blend_mode;
 
 typedef struct kresource_material_layer {
     kname name;
@@ -250,15 +265,18 @@ typedef struct kresource_material_layer {
 
 typedef struct kresource_material {
     kresource base;
-    kresource_material_type type;
+    kresource_material_model shading_model;
+    kresource_material_blend_mode blend_mode;
 
-    /** @brief The diffuse colour. */
-    vec4 diffuse_colour;
     kresource_texture_map albedo_diffuse_map;
     kresource_texture_map normal_map;
     kresource_texture_map specular_map;
     kresource_texture_map metallic_roughness_ao_map;
     kresource_texture_map emissive_map;
+    /** @brief Defines an opacity map for the material. Only used for the KRESOURCE_MATERIAL_BLEND_MODE_TRANSLUCENT blend mode. */
+    kresource_texture_map opacity_map;
+    /** @brief Defines an opacity clip map. If opacity_mask <= opacity_mask_clip, fragment is discarded. Only used for the KRESOURCE_MATERIAL_BLEND_MODE_MASKED blend mode. */
+    kresource_texture_map opacity_mask_map;
 
     /** @brief The number of material layers. Only used for layered materials. */
     u32 layer_count;

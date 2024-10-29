@@ -602,36 +602,77 @@ static b8 create_default_pbr_material(material_system_state* state) {
     request.material_source_text = "\
 version = 3\
 type = \"pbr\"\
+blend_mode = \"translucent\"\
+\
+inputs = [\
+    {\
+        name = \"albedo\"\
+        type = \"colour\"\
+    }\
+    {\
+        name = \"normal\"\
+        type = \"colour\"\
+    }\
+    {\
+        name = \"metallic\"\
+        type = \"scalar\"\
+    }\
+    {\
+        name = \"roughness\"\
+        type = \"scalar\"\
+    }\
+    {\
+        name = \"ao\"\
+        type = \"scalar\"\
+    }\
+    {\
+        name = \"emissive\"\
+        type = \"colour\"\
+    }\
+]\
 \
 maps = [\
     {\
         name = \"albedo\"\
-        channel = \"albedo\"\
+        input = \"albedo\"\
         texture_name = \"default_diffuse\"\
     }\
     {\
         name = \"normal\"\
-        channel = \"normal\"\
+        input = \"normal\"\
         texture_name = \"default_normal\"\
     }\
     {\
         name = \"metallic\"\
-        channel = \"metallic\"\
+        input = \"metallic\"\
+        channel = \"r\"\
         texture_name = \"default_metallic\"\
     }\
     {\
         name = \"roughness\"\
-        channel = \"roughness\"\
+        input = \"roughness\"\
+        channel = \"r\"\
         texture_name = \"default_roughness\"\
     }\
     {\
         name = \"ao\"\
-        channel = \"ao\"\
+        input = \"ao\"\
+        channel = \"r\"\
         texture_name = \"default_ao\"\
     }\
     {\
+        name = \"opacity\"\
+        input = \"opacity\"\
+        texture_name = \"default_opacity\"\
+    }\
+    {\
+        name = \"opacity_mask\"\
+        input = \"opacity_mask\"\
+        texture_name = \"default_opacity_mask\"\
+    }\
+    {\
         name = \"emissive\"\
-        channel = \"emissive\"\
+        input = \"emissive\"\
         texture_name = \"default_emissive\"\
     }\
 ]\
@@ -665,9 +706,30 @@ static b8 create_default_layered_material(material_system_state* state) {
     kresource_material_request_info request = {0};
     request.base.type = KRESOURCE_TYPE_MATERIAL;
     // FIXME: figure out how the layers should look for this material type.
+    //
+    // TODO: Need to add "channel" property to each map separate from the name of
+    // the map to indicate its usage.
+    //
+    // TODO: Layered materials will work somewhat differently than standard (see below
+    // for example). Each "channel" will be represented by a arrayed texture whose number
+    // of elements is equal to the number of layers in the material. This keeps the sampler
+    // count low and also allows the loading of many textures for the terrain at once. The
+    // mesh using this material should indicate the layer to be used at the vertex level (as
+    // sampling this from an image limits to 4 layers (RGBA)).
+    //
+    // TODO: The size of all layers is determined by the channel_size_x/y in the material config,
+    // OR by not specifying it and using the default of 1024. Texture data will be loaded into the
+    // array by copying when the dimensions of the source texture match the channel_size_x/y, or by
+    // blitting the texture onto the layer when it does not match. This gets around the requirement
+    // of having all textures be the same size in an arrayed texture.
+    //
+    // TODO: This process will also be utilized by the metallic_roughness_ao_map (formerly "combined"),
+    // but instead targeting a single channel of the target texture as opposed to a layer of it.
     request.material_source_text = "\
 version = 3\
 type = \"layered_pbr\"\
+channel_size_x = 1024\
+channel_size_y = 1024\
 \
 layers = [\
     {\
@@ -685,7 +747,8 @@ layers = [\
             }\
             {\
                 name = \"metallic\"\
-                channel = \"metallic\"\
+                channel = \"mra\"\
+                source_channel = \"r\"\
                 texture_name = \"default_metallic\"\
             }\
             {\
@@ -697,6 +760,11 @@ layers = [\
                 name = \"ao\"\
                 channel = \"ao\"\
                 texture_name = \"default_ao\"\
+            }\
+            {\
+                name = \"emissive\"\
+                channel = \"emissive\"\
+                texture_name = \"default_emissive\"\
             }\
         ]\
     }\
@@ -728,6 +796,11 @@ layers = [\
                 channel = \"ao\"\
                 texture_name = \"default_ao\"\
             }\
+            {\
+                name = \"emissive\"\
+                channel = \"emissive\"\
+                texture_name = \"default_emissive\"\
+            }\
         ]\
     }\
     {\
@@ -758,6 +831,11 @@ layers = [\
                 channel = \"ao\"\
                 texture_name = \"default_ao\"\
             }\
+            {\
+                name = \"emissive\"\
+                channel = \"emissive\"\
+                texture_name = \"default_emissive\"\
+            }\
         ]\
     }\
     {\
@@ -787,6 +865,11 @@ layers = [\
                 name = \"ao\"\
                 channel = \"ao\"\
                 texture_name = \"default_ao\"\
+            }\
+            {\
+                name = \"emissive\"\
+                channel = \"emissive\"\
+                texture_name = \"default_emissive\"\
             }\
         ]\
     }\
