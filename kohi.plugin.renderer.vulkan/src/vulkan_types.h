@@ -438,23 +438,23 @@ typedef struct vulkan_uniform_sampler_state {
     vulkan_descriptor_state* descriptor_states;
 } vulkan_uniform_sampler_state;
 /**
- * @brief The instance-level state for a shader.
+ * @brief The frequency-level state for a shader (i.e. per-frame, per-group, per-draw).
  */
-typedef struct vulkan_shader_instance_state {
-    /** @brief The instance id. INVALID_ID if not used. */
+typedef struct vulkan_shader_frequency_state {
+    /** @brief The frequency id. INVALID_ID if not used. */
     u32 id;
-    /** @brief The offset in bytes in the instance uniform buffer. */
+    /** @brief The offset in bytes in the frequency uniform buffer. */
     u64 offset;
 
-    /** @brief The descriptor sets for this instance, one per frame. */
+    /** @brief The descriptor sets for this frequency, one per frame. */
     VkDescriptorSet* descriptor_sets;
 
     // UBO descriptor
     vulkan_descriptor_state ubo_descriptor_state;
 
     // A mapping of sampler uniforms to descriptors and texture maps.
-    vulkan_uniform_sampler_state* sampler_uniforms;
-} vulkan_shader_instance_state;
+    vulkan_uniform_sampler_state* sampler_states;
+} vulkan_shader_frequency_state;
 
 /**
  * @brief Represents a generic Vulkan shader. This uses a set of inputs
@@ -465,7 +465,7 @@ typedef struct vulkan_shader {
     /** @brief The block of memory mapped to the each per-swapchain-image uniform buffer. */
     void** mapped_uniform_buffer_blocks;
     /** @brief The block of memory used for push constants, 128B. */
-    void* local_push_constant_block;
+    void* per_draw_push_constant_block;
 
     /** @brief The shader identifier. */
     u32 id;
@@ -490,9 +490,9 @@ typedef struct vulkan_shader {
     /** @brief Face culling mode, provided by the front end. */
     face_cull_mode cull_mode;
 
-    u32 max_instances;
+    u32 max_groups;
 
-    u32 max_local_count;
+    u32 max_per_draw_count;
 
     /** @brief The number of shader stages in this shader. */
     u8 stage_count;
@@ -503,22 +503,22 @@ typedef struct vulkan_shader {
     u32 pool_size_count;
 
     /** @brief An array of descriptor pool sizes. */
-    VkDescriptorPoolSize pool_sizes[2];
+    VkDescriptorPoolSize pool_sizes[3];
 
     /** @brief The descriptor pool used for this shader. */
     VkDescriptorPool descriptor_pool;
 
-    /** @brief Descriptor set layouts, max of 2. Index 0=global, 1=instance, 2=local (samplers only). */
+    /** @brief Descriptor set layouts, max of 2. Index 0=per-frame, 1=per-group, 2=per-draw (samplers only). */
     VkDescriptorSetLayout descriptor_set_layouts[3];
 
-    /** @brief Global descriptor sets, one per swapchain image. */
-    VkDescriptorSet* global_descriptor_sets;
+    /** @brief Per-frame descriptor sets, one per swapchain image. */
+    /* VkDescriptorSet* per_frame_descriptor_sets; */
 
-    // UBO descriptor
-    vulkan_descriptor_state global_ubo_descriptor_state;
+    // Per-frame UBO descriptor
+    /* vulkan_descriptor_state per_frame_ubo_descriptor_state; */
 
     // A mapping of sampler uniforms to descriptors and texture maps.
-    vulkan_uniform_sampler_state* global_sampler_uniforms;
+    /* vulkan_uniform_sampler_state* per_frame_sampler_uniforms; */
 
     /** @brief The uniform buffers used by this shader, one per swapchain image. */
     renderbuffer* uniform_buffers;
@@ -534,11 +534,14 @@ typedef struct vulkan_shader {
     /** @brief The currently-selected topology. */
     VkPrimitiveTopology current_topology;
 
-    /** @brief The instance states for all instances. */
-    vulkan_shader_instance_state* instance_states;
+    /** @brief The per-frame frequency state. */
+    vulkan_shader_frequency_state per_frame_state;
 
-    /** @brief The states for all local things/entities/actors/whatever. */
-    vulkan_shader_instance_state* local_states;
+    /** @brief The per-group frequency states for all groups. */
+    vulkan_shader_frequency_state* group_states;
+
+    /** @brief The per-draw states for all local things/entities/actors/whatever. */
+    vulkan_shader_frequency_state* per_draw_states;
 
 } vulkan_shader;
 
@@ -589,6 +592,12 @@ typedef struct kwindow_renderer_backend_state {
 
     u8 skip_frames;
 } kwindow_renderer_backend_state;
+
+typedef struct vulkan_sampler_handle_data {
+    // Used for handle validation.
+    u64 handle_uniqueid;
+    VkSampler sampler;
+} vulkan_sampler_handle_data;
 
 /**
  * @brief The overall Vulkan context for the backend. Holds and maintains
@@ -650,7 +659,7 @@ typedef struct vulkan_context {
     b8 multithreading_enabled;
 
     /** @brief Collection of samplers. darray */
-    VkSampler* samplers;
+    vulkan_sampler_handle_data* samplers;
 
     /**
      * @brief A function pointer to find a memory index of the given type and with the given properties.

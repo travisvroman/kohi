@@ -274,11 +274,11 @@ typedef struct shader_config {
     /** @brief The collection of stage configs. */
     shader_stage_config* stage_configs;
 
-    /** @brief The maximum number of instances allowed. */
-    u32 max_instances;
+    /** @brief The maximum number of groups allowed. */
+    u32 max_groups;
 
-    /** @brief The maximum number of local thingies allowed. */
-    u32 max_local_count;
+    /** @brief The maximum number of per-draw instances allowed. */
+    u32 max_per_draw_count;
 
     /** @brief The flags set for this shader. */
     u32 flags;

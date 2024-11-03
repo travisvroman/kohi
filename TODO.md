@@ -258,6 +258,9 @@ The items in this list are not in any particular order. This list will be update
   - [x] Tests
   - [ ] Mark old darray functions as deprecated.
 - [ ] BUG: Hierarchy graph destroy does not release xforms. Should optionally do so.
+- [ ] Vulkan backend:
+  - [ ] Move descriptor pools to be global to the backend instead of one per shader.
+  - [ ] Support for separate image descriptors and sampler descriptors as well as combined image sampler descriptors.
 
 ## 0.9.0 Release
 

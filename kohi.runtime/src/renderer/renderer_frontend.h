@@ -535,7 +535,7 @@ KAPI b8 renderer_shader_apply_local(struct renderer_system_state* state, struct 
  * @param out_instance_id A pointer to hold the new instance identifier.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_instance_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id);
+KAPI b8 renderer_shader_instance_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_texture_resource_config* config, u32* out_instance_id);
 
 /**
  * @brief Releases internal instance-level resources for the given instance id.
@@ -557,7 +557,7 @@ KAPI b8 renderer_shader_instance_resources_release(struct renderer_system_state*
  * @param out_local_id A pointer to hold the new local identifier.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_local_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_instance_resource_config* config, u32* out_local_id);
+KAPI b8 renderer_shader_local_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_texture_resource_config* config, u32* out_local_id);
 
 /**
  * @brief Releases internal local-level resources for the given instance id.

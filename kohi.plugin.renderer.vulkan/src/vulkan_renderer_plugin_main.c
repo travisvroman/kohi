@@ -70,13 +70,13 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
     backend->shader_use = vulkan_renderer_shader_use;
     backend->shader_supports_wireframe = vulkan_renderer_shader_supports_wireframe;
 
-    backend->shader_apply_globals = vulkan_renderer_shader_apply_globals;
-    backend->shader_apply_instance = vulkan_renderer_shader_apply_instance;
-    backend->shader_apply_local = vulkan_renderer_shader_apply_local;
+    backend->shader_apply_globals = vulkan_renderer_shader_apply_per_frame;
+    backend->shader_apply_instance = vulkan_renderer_shader_apply_per_group;
+    backend->shader_apply_local = vulkan_renderer_shader_apply_per_draw;
     backend->shader_instance_resources_acquire = vulkan_renderer_shader_instance_resources_acquire;
     backend->shader_instance_resources_release = vulkan_renderer_shader_instance_resources_release;
     backend->shader_local_resources_acquire = vulkan_renderer_shader_local_resources_acquire;
-    backend->shader_local_resources_release = vulkan_renderer_shader_local_resources_release;
+    backend->shader_local_resources_release = vulkan_renderer_shader_per_draw_resources_release;
     backend->shader_uniform_set = vulkan_renderer_uniform_set;
 
     backend->kresource_texture_map_resources_acquire = vulkan_renderer_kresource_texture_map_resources_acquire;

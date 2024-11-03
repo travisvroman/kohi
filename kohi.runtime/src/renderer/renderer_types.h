@@ -214,27 +214,27 @@ typedef enum renderer_winding {
 } renderer_winding;
 
 /**
- * @brief Maps a uniform to a texture map/maps when acquiring instance resources.
+ * @brief Maps a uniform to a texture map/maps when acquiring frequency-level resources.
  */
-typedef struct shader_instance_uniform_texture_config {
+typedef struct shader_frequency_uniform_texture_config {
     /** @brief The locaton of the uniform to map to. */
     /* u16 uniform_location; */
     /** @brief The number of texture maps bound to the uniform. */
     u32 kresource_texture_map_count;
     /** @brief An array of pointers to texture maps to be mapped to the uniform. */
     struct kresource_texture_map** kresource_texture_maps;
-} shader_instance_uniform_texture_config;
+} shader_frequency_uniform_texture_config;
 
 /**
  * @brief Represents the configuration of texture map resources and mappings to uniforms
- * required for instance-level shader data.
+ * required for frequency-level shader data.
  */
-typedef struct shader_instance_resource_config {
+typedef struct shader_texture_resource_config {
     /** @brief The number of uniform configurations */
     u32 uniform_config_count;
     /** @brief An array of uniform configurations. */
-    shader_instance_uniform_texture_config* uniform_configs;
-} shader_instance_resource_config;
+    shader_frequency_uniform_texture_config* uniform_configs;
+} shader_texture_resource_config;
 
 /**
  * @brief The internal state of a window for the renderer frontend.
@@ -591,7 +591,7 @@ typedef struct renderer_backend_interface {
      * @param out_instance_id A pointer to hold the new instance identifier.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_instance_resources_acquire)(struct renderer_backend_interface* backend, struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id);
+    b8 (*shader_instance_resources_acquire)(struct renderer_backend_interface* backend, struct shader* s, const shader_texture_resource_config* config, u32* out_instance_id);
 
     /**
      * @brief Releases internal instance-level resources for the given instance id.
@@ -613,7 +613,7 @@ typedef struct renderer_backend_interface {
      * @param out_local_id A pointer to hold the new local identifier.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_local_resources_acquire)(struct renderer_backend_interface* backend, struct shader* s, const shader_instance_resource_config* config, u32* out_local_id);
+    b8 (*shader_local_resources_acquire)(struct renderer_backend_interface* backend, struct shader* s, const shader_texture_resource_config* config, u32* out_local_id);
 
     /**
      * @brief Releases internal local-level resources for the given instance id.

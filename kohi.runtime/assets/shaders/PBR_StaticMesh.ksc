@@ -3,7 +3,7 @@ version = 1
 depth_test=true
 depth_write=true
 supports_wireframe=true
-max_instances=256
+max_groups=256
 
 stages = [
     {

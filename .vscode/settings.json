@@ -27,5 +27,8 @@
         "copyright",
         "empty",
         "custom"
-    ]
+    ],
+    "files.associations": {
+        "core_render_types.h": "c"
+    }
 }
