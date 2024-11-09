@@ -119,7 +119,7 @@ mkdir vulkansdk
 tar xf vulkansdk.tar.xz -C vulkansdk
 ```
 
-Setup the environment variables for Vulkan SDK using the included script. You can do so by modifying your `.profile` file:
+Setup the environment variables for Vulkan SDK using the included script. You can do so by modifying your `.profile` file with nano:
 ```
 nano ~/.profile
 ```
@@ -146,7 +146,7 @@ Install these via homebrew or other package manager:
 - `make`
 - `openal-soft`
 
-The following commands will install the packaged using homebrew.
+The following commands will install the packages using homebrew:
 ```
 brew install openal-soft
 brew install git
@@ -164,13 +164,13 @@ There are 2 build types available, Debug and Release. Debug includes debug symbo
 
 ### Building for Windows
 
-Open up a command prompt or Powershell instance and run the `build-debug.bat` file for a debug build, or `build-release.bat` for a release build.
+Open up a Command Prompt or Powershell instance and run the `build-debug.bat` file for a debug build, or `build-release.bat` for a release build.
 There is also a `clean.bat` available.
 
 Alternatively, there are tasks available for Visual Studio Code (`Ctrl+Shift+B`)
 
 ### Building for Linux/macOS
-Open up a terminal and run the `build-debug.sh` file for a debug build, or `build-release.sh` for a release build.
+Open up a terminal isntance and run the `build-debug.sh` file for a debug build, or `build-release.sh` for a release build.
 There is also a `clean.sh` available.
 
 Alternatively, there are tasks available for Visual Studio Code (`Ctrl+Shift+B`)
