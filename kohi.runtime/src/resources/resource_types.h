@@ -109,31 +109,6 @@ typedef struct image_resource_params {
     b8 flip_y;
 } image_resource_params;
 
-/** @brief Determines face culling mode during rendering. */
-typedef enum face_cull_mode {
-    /** @brief No faces are culled. */
-    FACE_CULL_MODE_NONE = 0x0,
-    /** @brief Only front faces are culled. */
-    FACE_CULL_MODE_FRONT = 0x1,
-    /** @brief Only back faces are culled. */
-    FACE_CULL_MODE_BACK = 0x2,
-    /** @brief Both front and back faces are culled. */
-    FACE_CULL_MODE_FRONT_AND_BACK = 0x3
-} face_cull_mode;
-
-typedef enum primitive_topology_type {
-    /** Topology type not defined. Not valid for shader creation. */
-    PRIMITIVE_TOPOLOGY_TYPE_NONE = 0x00,
-    /** A list of triangles. The default if nothing is defined. */
-    PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST = 0x01,
-    PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP = 0x02,
-    PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN = 0x04,
-    PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST = 0x08,
-    PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP = 0x10,
-    PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST = 0x20,
-    PRIMITIVE_TOPOLOGY_TYPE_MAX = PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST << 1
-} primitive_topology_type;
-
 /**
  * @brief The maximum length of a texture name.
  */
@@ -204,85 +179,6 @@ typedef struct mesh {
     extents_3d extents;
     void* debug_data;
 } mesh;
-
-typedef struct shader_stage_config {
-    shader_stage stage;
-    const char* name;
-    const char* filename;
-    u32 source_length;
-    char* source;
-} shader_stage_config;
-
-/** @brief Configuration for an attribute. */
-typedef struct shader_attribute_config {
-    /** @brief The length of the name. */
-    u8 name_length;
-    /** @brief The name of the attribute. */
-    char* name;
-    /** @brief The size of the attribute. */
-    u8 size;
-    /** @brief The type of the attribute. */
-    shader_attribute_type type;
-} shader_attribute_config;
-
-/** @brief Configuration for a uniform. */
-typedef struct shader_uniform_config {
-    /** @brief The length of the name. */
-    u8 name_length;
-    /** @brief The name of the uniform. */
-    char* name;
-    /** @brief The size of the uniform. If arrayed, this is the per-element size */
-    u16 size;
-    /** @brief The location of the uniform. */
-    u32 location;
-    /** @brief The type of the uniform. */
-    shader_uniform_type type;
-    /** @brief The array length, if uniform is an array. */
-    u32 array_length;
-    /** @brief The update frequency of the uniform. */
-    shader_update_frequency frequency;
-} shader_uniform_config;
-
-/**
- * @brief Configuration for a shader. Typically created and
- * destroyed by the shader resource loader, and set to the
- * properties found in a .shadercfg resource file.
- */
-typedef struct shader_config {
-    /** @brief The name of the shader to be created. */
-    char* name;
-
-    /** @brief The face cull mode to be used. Default is BACK if not supplied. */
-    face_cull_mode cull_mode;
-
-    /** @brief The topology types for the shader pipeline. See primitive_topology_type. Defaults to "triangle list" if unspecified. */
-    u32 topology_types;
-
-    /** @brief The count of attributes. */
-    u8 attribute_count;
-    /** @brief The collection of attributes. Darray. */
-    shader_attribute_config* attributes;
-
-    /** @brief The count of uniforms. */
-    u8 uniform_count;
-    /** @brief The collection of uniforms. Darray. */
-    shader_uniform_config* uniforms;
-
-    /** @brief The number of stages present in the shader. */
-    u8 stage_count;
-
-    /** @brief The collection of stage configs. */
-    shader_stage_config* stage_configs;
-
-    /** @brief The maximum number of groups allowed. */
-    u32 max_groups;
-
-    /** @brief The maximum number of per-draw instances allowed. */
-    u32 max_per_draw_count;
-
-    /** @brief The flags set for this shader. */
-    u32 flags;
-} shader_config;
 
 typedef enum material_type {
     // Invalid.

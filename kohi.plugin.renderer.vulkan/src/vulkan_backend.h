@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "core_render_types.h"
 #include "renderer/renderer_types.h"
 #include "resources/resource_types.h"
 
@@ -90,9 +91,9 @@ b8 vulkan_renderer_shader_local_resources_acquire(renderer_backend_interface* ba
 b8 vulkan_renderer_shader_per_draw_resources_release(renderer_backend_interface* backend, struct shader* s, u32 local_id);
 b8 vulkan_renderer_uniform_set(renderer_backend_interface* backend, struct shader* frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
 
-b8 vulkan_renderer_kresource_texture_map_resources_acquire(renderer_backend_interface* backend, kresource_texture_map* map);
-void vulkan_renderer_kresource_texture_map_resources_release(renderer_backend_interface* backend, kresource_texture_map* map);
-b8 vulkan_renderer_kresource_texture_map_resources_refresh(renderer_backend_interface* backend, kresource_texture_map* map);
+k_handle vulkan_renderer_sampler_acquire(renderer_backend_interface* backend, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
+void vulkan_renderer_sampler_release(renderer_backend_interface* backend, k_handle* sampler);
+b8 vulkan_renderer_sampler_refresh(renderer_backend_interface* backend, k_handle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
 
 b8 vulkan_renderer_is_multithreaded(renderer_backend_interface* backend);
 

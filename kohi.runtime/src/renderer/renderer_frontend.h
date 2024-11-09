@@ -506,7 +506,7 @@ KAPI b8 renderer_shader_set_wireframe(struct renderer_system_state* state, struc
  * @param s A pointer to the shader to apply the global data for.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_globals(struct renderer_system_state* state, struct shader* s);
+KAPI b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, struct shader* s);
 
 /**
  * @brief Applies data for the currently bound instance.
@@ -515,7 +515,7 @@ KAPI b8 renderer_shader_apply_globals(struct renderer_system_state* state, struc
  * @param s A pointer to the shader to apply the instance data for.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_instance(struct renderer_system_state* state, struct shader* s);
+KAPI b8 renderer_shader_apply_per_group(struct renderer_system_state* state, struct shader* s);
 
 /**
  * @brief Triggers the upload of local uniform data to the GPU.
@@ -524,50 +524,50 @@ KAPI b8 renderer_shader_apply_instance(struct renderer_system_state* state, stru
  * @param s A ponter to the shader.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_local(struct renderer_system_state* state, struct shader* s);
+KAPI b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, struct shader* s);
 
 /**
- * @brief Acquires internal instance-level resources and provides an instance id.
+ * @brief Acquires internal per-group resources and provides a group id.
  *
  * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to acquire resources from.
- * @param config A constant pointer to the configuration of the instance to be used while acquiring resources.
- * @param out_instance_id A pointer to hold the new instance identifier.
+ * @param config A constant pointer to the configuration of the group to be used while acquiring resources.
+ * @param out_group_id A pointer to hold the new per-group identifier.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_instance_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_texture_resource_config* config, u32* out_instance_id);
+KAPI b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_texture_resource_config* config, u32* out_group_id);
 
 /**
- * @brief Releases internal instance-level resources for the given instance id.
+ * @brief Releases internal per-group resources for the given group id.
  *
  * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to release resources from.
- * @param instance_id The instance identifier whose resources are to be released.
+ * @param group_id The per-group identifier whose resources are to be released.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_instance_resources_release(struct renderer_system_state* state, struct shader* s, u32 instance_id);
+KAPI b8 renderer_shader_per_group_resources_release(struct renderer_system_state* state, struct shader* s, u32 group_id);
 
 /**
- * @brief Acquires internal local-level resources and provides an instance id.
+ * @brief Acquires internal per-draw resources and provides a per-draw id.
  *
  * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to acquire resources from.
  * @param texture_map_count The number of texture maps used.
- * @param maps An array of pointers to texture maps. Must be one map per instance texture.
- * @param out_local_id A pointer to hold the new local identifier.
+ * @param maps An array of pointers to texture maps. Must be one map for each per-group texture.
+ * @param out_draw_id A pointer to hold the new per-draw identifier.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_local_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_texture_resource_config* config, u32* out_local_id);
+KAPI b8 renderer_shader_per_draw_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_texture_resource_config* config, u32* out_draw_id);
 
 /**
- * @brief Releases internal local-level resources for the given instance id.
+ * @brief Releases internal per-draw resources for the given per-draw id.
  *
  * @param state A pointer to the renderer state.
  * @param s A pointer to the shader to release resources from.
- * @param instance_id The local identifier whose resources are to be released.
+ * @param draw_id The per-draw identifier whose resources are to be released.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_local_resources_release(struct renderer_system_state* state, struct shader* s, u32 local_id);
+KAPI b8 renderer_shader_per_draw_resources_release(struct renderer_system_state* state, struct shader* s, u32 draw_id);
 
 /**
  * @brief Sets the uniform of the given shader to the provided value.
@@ -582,19 +582,46 @@ KAPI b8 renderer_shader_local_resources_release(struct renderer_system_state* st
 KAPI b8 renderer_shader_uniform_set(struct renderer_system_state* state, struct shader* s, struct shader_uniform* uniform, u32 array_index, const void* value);
 
 /**
- * @brief Acquires internal resources for the given texture map.
+ * @brief Gets a handle to a generic sampler of the given type.
  *
- * @param map A pointer to the texture map to obtain resources for.
- * @return True on success; otherwise false.
+ * @param state A pointer to the renderer state.
+ * @param sampler The shader sampler to get a handle to.
+ * @returns A handle to a generic sampler of the given type.
  */
-KAPI b8 renderer_kresource_texture_map_resources_acquire(struct renderer_system_state* state, struct kresource_texture_map* map);
+KAPI k_handle renderer_generic_sampler_get(struct renderer_system_state* state, shader_generic_sampler sampler);
 
 /**
- * @brief Releases internal resources for the given texture map.
+ * @brief Acquires a internal sampler and returns a handle to it.
  *
- * @param map A pointer to the texture map to release resources from.
+ * @param state A pointer to the renderer state.
+ * @param filter The min/mag filter.
+ * @param repeat The repeat mode.
+ * @param anisotropy The anisotropy level, if needed; otherwise 0.
+ * @param mip_levels The mip levels, if used; otherwise 0.
+ * @return A handle to the sampler on success; otherwise an invalid handle.
  */
-KAPI void renderer_kresource_texture_map_resources_release(struct renderer_system_state* state, struct kresource_texture_map* map);
+KAPI k_handle renderer_sampler_acquire(struct renderer_system_state* state, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
+
+/**
+ * @brief Releases the internal sampler for the given handle.
+ *
+ * @param state A pointer to the renderer state.
+ * @param map A pointer to the handle whose sampler is to be released. Handle is invalidated upon release.
+ */
+KAPI void renderer_sampler_release(struct renderer_system_state* state, k_handle* sampler);
+
+/**
+ * @brief Recreates the internal sampler pointed to by the given handle. Modifies the handle.
+ *
+ * @param state A pointer to the renderer state.
+ * @param sampler A pointer to the handle of the sampler to be refreshed.
+ * @param filter The min/mag filter.
+ * @param repeat The repeat mode.
+ * @param anisotropy The anisotropy level, if needed; otherwise 0.
+ * @param mip_levels The mip levels, if used; otherwise 0.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 renderer_sampler_refresh(struct renderer_system_state* state, k_handle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
 
 /**
  * @brief Indicates if the renderer is capable of multi-threading.

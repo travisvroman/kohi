@@ -259,8 +259,18 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Mark old darray functions as deprecated.
 - [ ] BUG: Hierarchy graph destroy does not release xforms. Should optionally do so.
 - [ ] Vulkan backend:
-  - [ ] Move descriptor pools to be global to the backend instead of one per shader.
-  - [ ] Support for separate image descriptors and sampler descriptors as well as combined image sampler descriptors.
+  - [ ] Support for separate image descriptors and sampler descriptors. Remove support for combined image sampler descriptors.
+  - [x] Add generic samplers usable everywhere (linear repeat, nearest repeat, linear border, linear clamp etc.)
+    - [ ] Add tracking to shader system as to whether these are used.
+    - [ ] Default texture "maps" to use these.
+    - [ ] Add 16 sampler/texture limitation to shader system. (see required limits doc)
+    - [ ] Allow custom samplers to be defined in shader config.
+  - [x] Change samplers to use k_handles
+  - [x] Bubble up sampler functions to renderer frontend.
+  - [ ] Remove concept of texture maps in favour of separate samplers and images
+  - [ ] Change shader system to set "texture" instead of "sampler".
+  - [ ] Change shader system to no longer hold string names for uniforms, but use knames instead.
+  - [?] Move descriptor pools to be global to the backend instead of one per shader.
 
 ## 0.9.0 Release
 

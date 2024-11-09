@@ -7,6 +7,7 @@
 #include "core/event.h"
 #include "core/frame_data.h"
 #include "core/kvar.h"
+#include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
 #include "identifiers/khandle.h"
@@ -22,7 +23,6 @@
 #include "resources/resource_types.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
-#include "systems/material_system.h"
 #include "systems/plugin_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
@@ -85,6 +85,9 @@ typedef struct renderer_system_state {
     renderer_dynamic_state dynamic_state;
     // Frame defaults - dynamic state settings that are reapplied at the beginning of every frame.
     renderer_dynamic_state frame_default_dynamic_state;
+
+    // Generic samplers.
+    k_handle generic_samplers[SHADER_GENERIC_SAMPLER_COUNT];
 } renderer_system_state;
 
 static void reapply_dynamic_state(renderer_system_state* state, const renderer_dynamic_state* dynamic_state);
@@ -195,6 +198,16 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
         return false;
     }
 
+    // Create "generic" samplers for reuse.
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_REPEAT] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_REPEAT, 0, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_REPEAT_MIRRORED] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_MIRRORED_REPEAT, 0, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_CLAMP_TO_EDGE, 0, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP_BORDER] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_CLAMP_TO_BORDER, 0, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_NEAREST_REPEAT] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_REPEAT, 0, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_NEAREST_REPEAT_MIRRORED] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_MIRRORED_REPEAT, 0, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_CLAMP_TO_EDGE, 0, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP_BORDER] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_CLAMP_TO_BORDER, 0, 0);
+
     // Default dynamic state settings.
     state->dynamic_state.viewport = (vec4){0, 0, 1280, 720};
     state->dynamic_state.scissor = (vec4){0, 0, 1280, 720};
@@ -242,6 +255,11 @@ void renderer_system_shutdown(renderer_system_state* state) {
         // Destroy buffers.
         renderer_renderbuffer_destroy(&typed_state->geometry_vertex_buffer);
         renderer_renderbuffer_destroy(&typed_state->geometry_index_buffer);
+
+        // Destroy generic samplers.
+        for (u32 i = 0; i < SHADER_GENERIC_SAMPLER_COUNT; ++i) {
+            renderer_sampler_release(state, &state->generic_samplers[i]);
+        }
 
         // Shutdown the plugin
         typed_state->backend->shutdown(typed_state->backend);
@@ -698,7 +716,7 @@ b8 renderer_geometry_upload(kgeometry* g) {
     return true;
 }
 
-void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, void* vertices, b8 include_in_frame_workload) {
+void renderer_geometry_vertex_update(kgeometry* g, u32 offset, u32 vertex_count, void* vertices, b8 include_in_frame_workload) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     // Load the data.
     u32 size = g->vertex_element_size * vertex_count;
@@ -707,7 +725,7 @@ void renderer_geometry_vertex_update(geometry* g, u32 offset, u32 vertex_count, 
     }
 }
 
-void renderer_geometry_destroy(geometry* g) {
+void renderer_geometry_destroy(kgeometry* g) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
 
     if (g->generation != INVALID_ID_U16) {
@@ -815,102 +833,11 @@ void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, 
 }
 
 b8 renderer_shader_create(struct renderer_system_state* state, shader* s, const shader_config* config) {
-
-    // Get the uniform counts.
-    s->global_uniform_count = 0;
-    // Number of samplers in the shader, per frame. NOT the number of descriptors needed (i.e could be an array).
-    s->global_uniform_sampler_count = 0;
-    s->global_sampler_indices = darray_create(u32);
-    s->instance_uniform_count = 0;
-    // Number of samplers in the shader, per instance, per frame. NOT the number of descriptors needed (i.e could be an array).
-    s->instance_uniform_sampler_count = 0;
-    s->instance_sampler_indices = darray_create(u32);
-    s->local_uniform_count = 0;
-
-    s->shader_stage_count = config->stage_count;
-
-    // Examine the uniforms and determine scope as well as a count of samplers.
-    u32 total_count = darray_length(config->uniforms);
-    for (u32 i = 0; i < total_count; ++i) {
-        switch (config->uniforms[i].scope) {
-        case SHADER_SCOPE_GLOBAL:
-            if (uniform_type_is_sampler(config->uniforms[i].type)) {
-                s->global_uniform_sampler_count++;
-                darray_push(s->global_sampler_indices, i);
-            } else {
-                s->global_uniform_count++;
-            }
-            break;
-        case SHADER_SCOPE_INSTANCE:
-            if (uniform_type_is_sampler(config->uniforms[i].type)) {
-                s->instance_uniform_sampler_count++;
-                darray_push(s->instance_sampler_indices, i);
-            } else {
-                s->instance_uniform_count++;
-            }
-            break;
-        case SHADER_SCOPE_LOCAL:
-            s->local_uniform_count++;
-            break;
-        }
-    }
-
-    // Examine shader stages and load shader source as required. This source is
-    // then fed to the backend renderer, which stands up any shader program resources
-    // as required.
-    // TODO: Implement #include directives here at this level so it's handled the same
-    // regardless of what backend is being used.
-
-    s->stage_configs = kallocate(sizeof(shader_stage_config) * config->stage_count, MEMORY_TAG_ARRAY);
-
-#ifdef _DEBUG
-    // NOTE: Only watch module files for debug builds.
-    s->module_watch_ids = kallocate(sizeof(u32) * config->stage_count, MEMORY_TAG_ARRAY);
-#endif
-    // Each stage.
-    for (u8 i = 0; i < config->stage_count; ++i) {
-        s->stage_configs[i].stage = config->stage_configs[i].stage;
-        s->stage_configs[i].filename = string_duplicate(config->stage_configs[i].filename);
-        // Read the resource.
-        resource text_resource;
-        if (!resource_system_load(s->stage_configs[i].filename, RESOURCE_TYPE_TEXT, 0, &text_resource)) {
-            KERROR("Unable to read shader file: %s.", s->stage_configs[i].filename);
-            return false;
-        }
-        // Take a copy of the source and length, then release the resource.
-        s->stage_configs[i].source_length = text_resource.data_size;
-        s->stage_configs[i].source = string_duplicate(text_resource.data);
-        // TODO: Implement recursive #include directives here at this level so it's handled the same
-        // regardless of what backend is being used.
-        // This should recursively replace #includes with the file content in-place and adjust the source
-        // length along the way.
-
-#ifdef _DEBUG
-        // Allow shader hot-reloading in debug builds.
-        if (!platform_watch_file(text_resource.full_path, &s->module_watch_ids[i])) {
-            // If this fails, warn about it but there's no need to crash over it.
-            KWARN("Failed to watch shader source file '%s'.", text_resource.full_path);
-        }
-
-#endif
-        // Release the resource as it isn't needed anymore at this point.
-        resource_system_unload(&text_resource);
-    }
-
     return state->backend->shader_create(state->backend, s, config);
 }
 
 void renderer_shader_destroy(struct renderer_system_state* state, shader* s) {
-#ifdef _DEBUG
-    if (s->module_watch_ids) {
-        // Unwatch the shader files.
-        for (u8 i = 0; i < s->shader_stage_count; ++i) {
-            platform_unwatch_file(s->module_watch_ids[i]);
-        }
-
-        state->backend->shader_destroy(state->backend, s);
-    }
-#endif
+    state->backend->shader_destroy(state->backend, s);
 }
 
 b8 renderer_shader_initialize(struct renderer_system_state* state, shader* s) {
@@ -918,57 +845,6 @@ b8 renderer_shader_initialize(struct renderer_system_state* state, shader* s) {
 }
 
 b8 renderer_shader_reload(struct renderer_system_state* state, struct shader* s) {
-
-    // Examine shader stages and load shader source as required. This source is
-    // then fed to the backend renderer, which stands up any shader program resources
-    // as required.
-    // TODO: Implement #include directives here at this level so it's handled the same
-    // regardless of what backend is being used.
-
-    // Make a copy of the stage configs in case a file fails to load.
-    b8 has_error = false;
-    shader_stage_config* new_stage_configs = kallocate(sizeof(shader_stage_config) * s->shader_stage_count, MEMORY_TAG_ARRAY);
-    for (u8 i = 0; i < s->shader_stage_count; ++i) {
-        // Read the resource.
-        resource text_resource;
-        if (!resource_system_load(s->stage_configs[i].filename, RESOURCE_TYPE_TEXT, 0, &text_resource)) {
-            KERROR("Unable to read shader file: %s.", s->stage_configs[i].filename);
-            has_error = true;
-            break;
-        }
-
-        // Free the old source.
-        if (s->stage_configs[i].source) {
-            string_free(s->stage_configs[i].source);
-        }
-
-        // Take a copy of the source and length, then release the resource.
-        new_stage_configs[i].source_length = text_resource.data_size;
-        new_stage_configs[i].source = string_duplicate(text_resource.data);
-        // TODO: Implement recursive #include directives here at this level so it's handled the same
-        // regardless of what backend is being used.
-        // This should recursively replace #includes with the file content in-place and adjust the source
-        // length along the way.
-
-        // Release the resource as it isn't needed anymore at this point.
-        resource_system_unload(&text_resource);
-    }
-
-    for (u8 i = 0; i < s->shader_stage_count; ++i) {
-        if (has_error) {
-            if (new_stage_configs[i].source) {
-                string_free(new_stage_configs[i].source);
-            }
-        } else {
-            s->stage_configs[i].source = new_stage_configs[i].source;
-            s->stage_configs[i].source_length = new_stage_configs[i].source_length;
-        }
-    }
-    kfree(new_stage_configs, sizeof(shader_stage_config) * s->shader_stage_count, MEMORY_TAG_ARRAY);
-    if (has_error) {
-        return false;
-    }
-
     return state->backend->shader_reload(state->backend, s);
 }
 
@@ -987,32 +863,32 @@ b8 renderer_shader_set_wireframe(struct renderer_system_state* state, shader* s,
     return true;
 }
 
-b8 renderer_shader_apply_globals(struct renderer_system_state* state, shader* s) {
-    return state->backend->shader_apply_globals(state->backend, s, state->frame_number);
+b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, shader* s) {
+    return state->backend->shader_apply_per_frame(state->backend, s, state->frame_number);
 }
 
-b8 renderer_shader_apply_instance(struct renderer_system_state* state, shader* s) {
-    return state->backend->shader_apply_instance(state->backend, s, state->frame_number);
+b8 renderer_shader_apply_per_group(struct renderer_system_state* state, shader* s) {
+    return state->backend->shader_apply_per_group(state->backend, s, state->frame_number);
 }
 
-b8 renderer_shader_apply_local(struct renderer_system_state* state, shader* s) {
-    return state->backend->shader_apply_local(state->backend, s, state->frame_number);
+b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, shader* s) {
+    return state->backend->shader_apply_per_draw(state->backend, s, state->frame_number);
 }
 
-b8 renderer_shader_instance_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id) {
-    return state->backend->shader_instance_resources_acquire(state->backend, s, config, out_instance_id);
+b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_texture_resource_config* config, u32* out_group_id) {
+    return state->backend->shader_per_group_resources_acquire(state->backend, s, config, out_group_id);
 }
 
-b8 renderer_shader_instance_resources_release(struct renderer_system_state* state, shader* s, u32 instance_id) {
-    return state->backend->shader_instance_resources_release(state->backend, s, instance_id);
+b8 renderer_shader_per_group_resources_release(struct renderer_system_state* state, shader* s, u32 group_id) {
+    return state->backend->shader_per_group_resources_release(state->backend, s, group_id);
 }
 
-b8 renderer_shader_local_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_instance_resource_config* config, u32* out_local_id) {
-    return state->backend->shader_local_resources_acquire(state->backend, s, config, out_local_id);
+b8 renderer_shader_per_draw_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_texture_resource_config* config, u32* out_draw_id) {
+    return state->backend->shader_per_draw_resources_acquire(state->backend, s, config, out_draw_id);
 }
 
-b8 renderer_shader_local_resources_release(struct renderer_system_state* state, struct shader* s, u32 local_id) {
-    return state->backend->shader_local_resources_release(state->backend, s, local_id);
+b8 renderer_shader_per_draw_resources_release(struct renderer_system_state* state, struct shader* s, u32 draw_id) {
+    return state->backend->shader_per_draw_resources_release(state->backend, s, draw_id);
 }
 
 shader_uniform* renderer_shader_uniform_get_by_location(shader* s, u16 location) {
@@ -1041,12 +917,24 @@ b8 renderer_shader_uniform_set(struct renderer_system_state* state, shader* s, s
     return state_ptr->backend->shader_uniform_set(state_ptr->backend, s, uniform, array_index, value);
 }
 
-b8 renderer_kresource_texture_map_resources_acquire(struct renderer_system_state* state, struct kresource_texture_map* map) {
-    return state->backend->kresource_texture_map_resources_acquire(state->backend, map);
+k_handle renderer_generic_sampler_get(struct renderer_system_state* state, shader_generic_sampler sampler) {
+    if (!state || sampler == SHADER_GENERIC_SAMPLER_COUNT) {
+        KERROR("No state or invalid sampler passed, ya dingus!");
+        return k_handle_invalid();
+    }
+    return state->generic_samplers[sampler];
 }
 
-void renderer_kresource_texture_map_resources_release(struct renderer_system_state* state, struct kresource_texture_map* map) {
-    state->backend->kresource_texture_map_resources_release(state->backend, map);
+k_handle renderer_sampler_acquire(struct renderer_system_state* state, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels) {
+    return state->backend->sampler_acquire(state->backend, filter, repeat, anisotropy, mip_levels);
+}
+
+void renderer_sampler_release(struct renderer_system_state* state, k_handle* sampler) {
+    state->backend->sampler_release(state->backend, sampler);
+}
+
+b8 renderer_sampler_refresh(struct renderer_system_state* state, k_handle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels) {
+    return state->backend->sampler_refresh(state->backend, sampler, filter, repeat, anisotropy, mip_levels);
 }
 
 b8 renderer_is_multithreaded(void) {

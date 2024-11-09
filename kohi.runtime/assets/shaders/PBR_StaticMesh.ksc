@@ -42,7 +42,7 @@ attributes = [
 ]
 
 uniforms = {
-    global = [
+    per_frame = [
         {
             name = "projection"
             type = "mat4"
@@ -84,10 +84,11 @@ uniforms = {
             type = "sampler2DArray"
         }
     ]
-    instance = [
+    per_group = [
         {
             name = "material_textures"
-            type = "sampler2D[3]"
+            type = "texture2D[3]"
+            sampler = "generic.nearest"
         }
         {
             name = "dir_light"
@@ -106,7 +107,7 @@ uniforms = {
             type = "i32"
         }
     ]
-    local = [
+    per_draw = [
         {
             name = "model"
             type = "mat4"
@@ -125,3 +126,22 @@ uniforms = {
         }
     ]
 }
+
+samplers = [
+    {
+        name = "custom_01"
+        // Shorthand that sets both filter modes
+        filter = "linear"
+        // Overrides shorthand
+        filter_mag = "linear"
+        filter_min = "linear"
+        // Shorthand that sets all 3 repeat modes.
+        repeat = "repeat"
+        // More specific version overrides shorthand
+        repeat_u = "repeat"
+        repeat_v = "repeat"
+        repeat_w = "repeat"
+        // If true, uses mipmaps based on image dimensions.
+        use_mipmaps = true
+    }
+]

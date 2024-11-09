@@ -61,6 +61,14 @@ static f64 clock_frequency;
 static UINT min_period;
 static LARGE_INTEGER start_time;
 
+// FIXME: Brought up by a comment on YT - Check this on other platforms as well. Absolute time should be based on application start time.
+// 1. Here and also in the more recent code updates I see you query the static start_time with QueryPerformanceCounter()
+// but you don't use it anywhere? Do you want as in this case the absolute time since the system started counting, and
+// not the time since the engine was initialized ( returning    (now_time.QuadPart - start_time.QuadPart) * clock_frequency
+// in platform_get_absolute_time() ) ?
+// 2. Is the clock_frequency the right name since it assigns the inverse of frequency.QuadPart, maybe it should be
+// something like tick_duration ?
+
 static void platform_update_watches(void);
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
 static LPCWSTR cstr_to_wcstr(const char* str);

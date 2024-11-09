@@ -8,6 +8,7 @@
 #include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
+#include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_utils.h"
 #include "resources/resource_types.h"
@@ -157,17 +158,55 @@ b8 shader_system_create(const shader_config* config) {
     }
     out_shader->state = SHADER_STATE_NOT_CREATED;
     out_shader->name = string_duplicate(config->name);
-    out_shader->per_draw_ubo_offset = 0;
-    out_shader->per_draw_ubo_size = 0;
-    out_shader->per_draw_ubo_stride = 0;
-    out_shader->bound_per_group_id = INVALID_ID;
-    out_shader->bound_per_draw_id = INVALID_ID;
     out_shader->attribute_stride = 0;
-
-    // Setup arrays
-    out_shader->per_frame_texture_maps = darray_create(kresource_texture_map*);
+    out_shader->shader_stage_count = config->stage_count;
+    out_shader->stage_configs = kallocate(sizeof(shader_stage_config) * config->stage_count, MEMORY_TAG_ARRAY);
     out_shader->uniforms = darray_create(shader_uniform);
     out_shader->attributes = darray_create(shader_attribute);
+
+    out_shader->per_frame.uniform_count = 0;
+    out_shader->per_frame.uniform_sampler_count = 0;
+    out_shader->per_frame.sampler_indices = darray_create(u32);
+
+    out_shader->per_group.bound_id = INVALID_ID;
+    // Number of samplers in the shader, per frame. NOT the number of descriptors needed (i.e could be an array).
+    out_shader->per_group.uniform_count = 0;
+    // Number of samplers in the shader, per group, per frame. NOT the number of descriptors needed (i.e could be an array).
+    out_shader->per_group.uniform_sampler_count = 0;
+    out_shader->per_group.sampler_indices = darray_create(u32);
+
+    out_shader->per_draw.uniform_count = 0;
+    out_shader->per_draw.ubo_offset = 0;
+    out_shader->per_draw.ubo_size = 0;
+    out_shader->per_draw.ubo_stride = 0;
+    out_shader->per_draw.bound_id = INVALID_ID;
+
+    // Examine the uniforms and determine scope as well as a count of samplers.
+    u32 total_count = darray_length(config->uniforms);
+    for (u32 i = 0; i < total_count; ++i) {
+        switch (config->uniforms[i].frequency) {
+        case SHADER_UPDATE_FREQUENCY_PER_FRAME:
+            // TODO: also track texture uniforms.
+            if (uniform_type_is_sampler(config->uniforms[i].type)) {
+                out_shader->per_frame.uniform_sampler_count++;
+                darray_push(out_shader->per_frame.sampler_indices, i);
+            } else {
+                out_shader->per_frame.uniform_count++;
+            }
+            break;
+        case SHADER_UPDATE_FREQUENCY_PER_GROUP:
+            if (uniform_type_is_sampler(config->uniforms[i].type)) {
+                out_shader->per_group.uniform_sampler_count++;
+                darray_push(out_shader->per_group.sampler_indices, i);
+            } else {
+                out_shader->per_group.uniform_count++;
+            }
+            break;
+        case SHADER_UPDATE_FREQUENCY_PER_DRAW:
+            out_shader->per_draw.uniform_count++;
+            break;
+        }
+    }
 
     // Create a hashtable to store uniform array indexes. This provides a direct index into the
     // 'uniforms' array stored in the shader for quick lookups by name.
@@ -181,19 +220,60 @@ b8 shader_system_create(const shader_config* config) {
     hashtable_fill(&out_shader->uniform_lookup, &invalid);
 
     // A running total of the actual global uniform buffer object size.
-    out_shader->per_frame_ubo_size = 0;
+    out_shader->per_frame.ubo_size = 0;
     // A running total of the actual instance uniform buffer object size.
-    out_shader->per_group_ubo_size = 0;
+    out_shader->per_group.ubo_size = 0;
     // NOTE: UBO alignment requirement set in renderer backend.
 
     // FIXME: This is hard-coded because the Vulkan spec only guarantees that a _minimum_ 128 bytes of space are available,
     // and it's up to the driver to determine how much is available. Therefore, to avoid complexity, only the
     // lowest common denominator of 128B will be used.
     // Should be determined by the backend and reported thusly.
-    out_shader->per_draw_ubo_stride = 128;
+    out_shader->per_draw.ubo_stride = 128;
 
     // Take a copy of the flags.
     out_shader->flags = config->flags;
+
+#ifdef _DEBUG
+    // NOTE: Only watch module files for debug builds.
+    out_shader->module_watch_ids = kallocate(sizeof(u32) * config->stage_count, MEMORY_TAG_ARRAY);
+#endif
+
+    // Examine shader stages and load shader source as required. This source is
+    // then fed to the backend renderer, which stands up any shader program resources
+    // as required.
+    // TODO: Implement #include directives here at this level so it's handled the same
+    // regardless of what backend is being used.
+    // Each stage.
+    for (u8 i = 0; i < config->stage_count; ++i) {
+        out_shader->stage_configs[i].stage = config->stage_configs[i].stage;
+        out_shader->stage_configs[i].filename = string_duplicate(config->stage_configs[i].filename);
+        // FIXME: Convert to use the new resource system.
+        // Read the resource.
+        resource text_resource;
+        if (!resource_system_load(out_shader->stage_configs[i].filename, RESOURCE_TYPE_TEXT, 0, &text_resource)) {
+            KERROR("Unable to read shader file: %s.", out_shader->stage_configs[i].filename);
+            return false;
+        }
+        // Take a copy of the source and length, then release the resource.
+        out_shader->stage_configs[i].source_length = text_resource.data_size;
+        out_shader->stage_configs[i].source = string_duplicate(text_resource.data);
+        // TODO: Implement recursive #include directives here at this level so it's handled the same
+        // regardless of what backend is being used.
+        // This should recursively replace #includes with the file content in-place and adjust the source
+        // length along the way.
+
+#ifdef _DEBUG
+        // Allow shader hot-reloading in debug builds.
+        if (!platform_watch_file(text_resource.full_path, &out_shader->module_watch_ids[i])) {
+            // If this fails, warn about it but there's no need to crash over it.
+            KWARN("Failed to watch shader source file '%s'.", text_resource.full_path);
+        }
+
+#endif
+        // Release the resource as it isn't needed anymore at this point.
+        resource_system_unload(&text_resource);
+    }
 
     if (!renderer_shader_create(state_ptr->renderer, out_shader, config)) {
         KERROR("Error creating shader.");
@@ -252,6 +332,55 @@ b8 shader_system_reload(u32 shader_id) {
     }
 
     shader* s = &state_ptr->shaders[shader_id];
+
+    // Examine shader stages and load shader source as required. This source is
+    // then fed to the backend renderer, which stands up any shader program resources
+    // as required.
+    // TODO: Implement #include directives here at this level so it's handled the same
+    // regardless of what backend is being used.
+
+    // Make a copy of the stage configs in case a file fails to load.
+    b8 has_error = false;
+    shader_stage_config* new_stage_configs = kallocate(sizeof(shader_stage_config) * s->shader_stage_count, MEMORY_TAG_ARRAY);
+    for (u8 i = 0; i < s->shader_stage_count; ++i) {
+        // Read the resource.
+        resource text_resource;
+        if (!resource_system_load(s->stage_configs[i].filename, RESOURCE_TYPE_TEXT, 0, &text_resource)) {
+            KERROR("Unable to read shader file: %s.", s->stage_configs[i].filename);
+            has_error = true;
+            break;
+        }
+
+        // Free the old source.
+        if (s->stage_configs[i].source) {
+            string_free(s->stage_configs[i].source);
+        }
+
+        // Take a copy of the source and length, then release the resource.
+        new_stage_configs[i].source = string_duplicate(text_resource.data);
+        // TODO: Implement recursive #include directives here at this level so it's handled the same
+        // regardless of what backend is being used.
+        // This should recursively replace #includes with the file content in-place and adjust the source
+        // length along the way.
+
+        // Release the resource as it isn't needed anymore at this point.
+        resource_system_unload(&text_resource);
+    }
+
+    for (u8 i = 0; i < s->shader_stage_count; ++i) {
+        if (has_error) {
+            if (new_stage_configs[i].source) {
+                string_free(new_stage_configs[i].source);
+            }
+        } else {
+            s->stage_configs[i].source = new_stage_configs[i].source;
+        }
+    }
+    kfree(new_stage_configs, sizeof(shader_stage_config) * s->shader_stage_count, MEMORY_TAG_ARRAY);
+    if (has_error) {
+        return false;
+    }
+
     return renderer_shader_reload(state_ptr->renderer, s);
 }
 
@@ -316,18 +445,21 @@ static void internal_shader_destroy(shader* s) {
     // Set it to be unusable right away.
     s->state = SHADER_STATE_NOT_CREATED;
 
-    u32 sampler_count = darray_length(s->per_frame_texture_maps);
-    for (u32 i = 0; i < sampler_count; ++i) {
-        kfree(s->per_frame_texture_maps[i], sizeof(kresource_texture_map), MEMORY_TAG_RENDERER);
-    }
-    darray_destroy(s->per_frame_texture_maps);
-
     // Free the name.
     if (s->name) {
         u32 length = string_length(s->name);
         kfree(s->name, length + 1, MEMORY_TAG_STRING);
     }
     s->name = 0;
+
+#ifdef _DEBUG
+    if (s->module_watch_ids) {
+        // Unwatch the shader files.
+        for (u8 i = 0; i < s->shader_stage_count; ++i) {
+            platform_unwatch_file(s->module_watch_ids[i]);
+        }
+    }
+#endif
 }
 
 void shader_system_destroy(const char* shader_name) {
@@ -418,7 +550,7 @@ b8 shader_system_bind_group(u32 shader_id, u32 group_id) {
         KERROR("Cannot bind shader instance INVALID_ID.");
         return false;
     }
-    state_ptr->shaders[shader_id].bound_per_group_id = group_id;
+    state_ptr->shaders[shader_id].per_group.bound_id = group_id;
     return true;
 }
 
@@ -427,43 +559,43 @@ b8 shader_system_bind_draw_id(u32 shader_id, u32 draw_id) {
         KERROR("Cannot bind shader local id INVALID_ID.");
         return false;
     }
-    state_ptr->shaders[shader_id].bound_per_draw_id = draw_id;
+    state_ptr->shaders[shader_id].per_draw.bound_id = draw_id;
     return true;
 }
 
 b8 shader_system_apply_per_frame(u32 shader_id) {
     shader* s = &state_ptr->shaders[shader_id];
-    return renderer_shader_apply_globals(state_ptr->renderer, s);
+    return renderer_shader_apply_per_frame(state_ptr->renderer, s);
 }
 
 b8 shader_system_apply_per_group(u32 shader_id) {
     shader* s = &state_ptr->shaders[shader_id];
-    return renderer_shader_apply_instance(state_ptr->renderer, s);
+    return renderer_shader_apply_per_group(state_ptr->renderer, s);
 }
 
 b8 shader_system_apply_per_draw(u32 shader_id) {
     shader* s = &state_ptr->shaders[shader_id];
-    return renderer_shader_apply_local(state_ptr->renderer, s);
+    return renderer_shader_apply_per_draw(state_ptr->renderer, s);
 }
 
 static b8 per_group_or_per_draw_acquire(u32 shader_id, shader_update_frequency frequency, u32 map_count, kresource_texture_map** maps, u32* out_id) {
     shader* selected_shader = shader_system_get_by_id(shader_id);
 
     // Ensure that configs are setup for required texture maps.
-    shader_instance_resource_config config = {0};
-    u32 sampler_count = selected_shader->per_group_uniform_sampler_count;
+    shader_texture_resource_config config = {0};
+    u32 sampler_count = selected_shader->per_group.uniform_sampler_count;
 
     config.uniform_config_count = sampler_count;
     if (sampler_count > 0) {
-        config.uniform_configs = kallocate(sizeof(shader_instance_uniform_texture_config) * config.uniform_config_count, MEMORY_TAG_ARRAY);
+        config.uniform_configs = kallocate(sizeof(shader_frequency_uniform_texture_config) * config.uniform_config_count, MEMORY_TAG_ARRAY);
     } else {
         config.uniform_configs = 0;
     }
 
     // Create a sampler config for each map.
     for (u32 i = 0; i < sampler_count; ++i) {
-        shader_uniform* u = &selected_shader->uniforms[selected_shader->per_group_sampler_indices[i]];
-        shader_instance_uniform_texture_config* uniform_config = &config.uniform_configs[i];
+        shader_uniform* u = &selected_shader->uniforms[selected_shader->per_group.sampler_indices[i]];
+        shader_frequency_uniform_texture_config* uniform_config = &config.uniform_configs[i];
         /* uniform_config->uniform_location = u->location; */
         uniform_config->kresource_texture_map_count = KMAX(u->array_length, 1);
         uniform_config->kresource_texture_maps = kallocate(sizeof(kresource_texture_map*) * uniform_config->kresource_texture_map_count, MEMORY_TAG_ARRAY);
@@ -484,9 +616,9 @@ static b8 per_group_or_per_draw_acquire(u32 shader_id, shader_update_frequency f
     b8 result = false;
     if (frequency == SHADER_UPDATE_FREQUENCY_PER_GROUP) {
         // FIXME: rename these
-        result = renderer_shader_instance_resources_acquire(state_ptr->renderer, selected_shader, &config, out_id);
+        result = renderer_shader_per_group_resources_acquire(state_ptr->renderer, selected_shader, &config, out_id);
     } else if (frequency == SHADER_UPDATE_FREQUENCY_PER_DRAW) {
-        result = renderer_shader_local_resources_acquire(state_ptr->renderer, selected_shader, &config, out_id);
+        result = renderer_shader_per_draw_resources_acquire(state_ptr->renderer, selected_shader, &config, out_id);
     } else {
         KASSERT_MSG(false, "Global scope does not require resource acquisition, ya dingus.");
         return false;
@@ -499,13 +631,13 @@ static b8 per_group_or_per_draw_acquire(u32 shader_id, shader_update_frequency f
     // Clean up the uniform configs.
     if (config.uniform_configs) {
         for (u32 i = 0; i < config.uniform_config_count; ++i) {
-            shader_instance_uniform_texture_config* ucfg = &config.uniform_configs[i];
+            shader_frequency_uniform_texture_config* ucfg = &config.uniform_configs[i];
             if (ucfg->kresource_texture_maps) {
-                kfree(ucfg->kresource_texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->kresource_texture_map_count, MEMORY_TAG_ARRAY);
+                kfree(ucfg->kresource_texture_maps, sizeof(shader_frequency_uniform_texture_config) * ucfg->kresource_texture_map_count, MEMORY_TAG_ARRAY);
                 ucfg->kresource_texture_maps = 0;
             }
         }
-        kfree(config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * config.uniform_config_count, MEMORY_TAG_ARRAY);
+        kfree(config.uniform_configs, sizeof(shader_frequency_uniform_texture_config) * config.uniform_config_count, MEMORY_TAG_ARRAY);
     }
 
     return result;
@@ -530,9 +662,9 @@ static b8 per_group_or_per_draw_release(u32 shader_id, shader_update_frequency f
     b8 result = false;
     if (frequency == SHADER_UPDATE_FREQUENCY_PER_GROUP) {
         // FIXME: rename these
-        result = renderer_shader_instance_resources_release(state_ptr->renderer, selected_shader, id);
+        result = renderer_shader_per_group_resources_release(state_ptr->renderer, selected_shader, id);
     } else if (frequency == SHADER_UPDATE_FREQUENCY_PER_DRAW) {
-        result = renderer_shader_local_resources_release(state_ptr->renderer, selected_shader, id);
+        result = renderer_shader_per_draw_resources_release(state_ptr->renderer, selected_shader, id);
     } else {
         KASSERT_MSG(false, "Per-frame shader update frequency should not be used when releasing resources.");
     }
@@ -611,13 +743,15 @@ static b8 internal_sampler_add(shader* shader, shader_uniform_config* config) {
     // If per-frame, push into the per-frame list.
     u32 location = 0;
     if (config->frequency == SHADER_UPDATE_FREQUENCY_PER_FRAME) {
-        u32 per_frame_texture_count = darray_length(shader->per_frame_texture_maps);
-        if (per_frame_texture_count + 1 > state_ptr->config.max_per_frame_textures) {
-            KERROR("Shader per-frame texture count %i exceeds max of %i", per_frame_texture_count, state_ptr->config.max_per_frame_textures);
+        shader->per_frame.texture_count = darray_length(shader->per_frame_texture_maps);
+        if (shader->per_frame.texture_count + 1 > state_ptr->config.max_per_frame_textures) {
+            KERROR("Shader per-frame texture count %i exceeds max of %i", shader->per_frame.texture_count, state_ptr->config.max_per_frame_textures);
             return false;
         }
-        location = per_frame_texture_count;
+        location = shader->per_frame.texture_count;
+        shader->per_draw.texture_count++;
 
+        // FIXME: Convert to use sampler instead of texture map.
         // NOTE: creating a default texture map to be used here. Can always be updated later.
         kresource_texture_map default_map = {};
         default_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
@@ -636,14 +770,22 @@ static b8 internal_sampler_add(shader* shader, shader_uniform_config* config) {
         }
 
         darray_push(shader->per_frame_texture_maps, map);
-    } else {
-        // Otherwise, it's instance-level, so keep count of how many need to be added during the resource acquisition.
-        if (shader->per_group_texture_count + 1 > state_ptr->config.max_per_group_textures) {
-            KERROR("Shader per_group texture count %i exceeds max of %i", shader->per_group_texture_count, state_ptr->config.max_per_group_textures);
+    } else if (config->frequency == SHADER_UPDATE_FREQUENCY_PER_GROUP) {
+        // Per-group, so keep count of how many need to be added during the resource acquisition.
+        if (shader->per_group.texture_count + 1 > state_ptr->config.max_per_group_textures) {
+            KERROR("Shader per_group texture count %i exceeds max of %i", shader->per_group.texture_count, state_ptr->config.max_per_group_textures);
             return false;
         }
-        location = shader->per_group_texture_count;
-        shader->per_group_texture_count++;
+        location = shader->per_group.texture_count;
+        shader->per_group.texture_count++;
+    } else if (config->frequency == SHADER_UPDATE_FREQUENCY_PER_DRAW) {
+        // Per-draw, so keep count of how many need to be added during the resource acquisition.
+        if (shader->per_group.texture_count + 1 > state_ptr->config.max_per_draw_textures) {
+            KERROR("Shader per_draw texture count %i exceeds max of %i", shader->per_draw.texture_count, state_ptr->config.max_per_draw_textures);
+            return false;
+        }
+        location = shader->per_draw.texture_count;
+        shader->per_draw.texture_count++;
     }
 
     // Treat it like a uniform. NOTE: In the case of samplers, out_location is used to determine the
@@ -692,12 +834,12 @@ static b8 internal_uniform_add(shader* shader, const shader_uniform_config* conf
 
     if (config->frequency == SHADER_UPDATE_FREQUENCY_PER_DRAW) {
         entry.set_index = 2; // NOTE: set 2 doesn't exist in Vulkan, it's a push constant.
-        entry.offset = shader->per_draw_ubo_size;
+        entry.offset = shader->per_draw.ubo_size;
         entry.size = config->size;
     } else {
         entry.set_index = (u32)config->frequency;
-        entry.offset = is_sampler ? 0 : is_global ? shader->per_frame_ubo_size
-                                                  : shader->per_group_ubo_size;
+        entry.offset = is_sampler ? 0 : is_global ? shader->per_frame.ubo_size
+                                                  : shader->per_group.ubo_size;
         entry.size = is_sampler ? 0 : config->size;
     }
 
@@ -709,11 +851,11 @@ static b8 internal_uniform_add(shader* shader, const shader_uniform_config* conf
 
     if (!is_sampler) {
         if (entry.frequency == SHADER_UPDATE_FREQUENCY_PER_FRAME) {
-            shader->per_frame_ubo_size += (entry.size * entry.array_length);
+            shader->per_frame.ubo_size += (entry.size * entry.array_length);
         } else if (entry.frequency == SHADER_UPDATE_FREQUENCY_PER_GROUP) {
-            shader->per_group_ubo_size += (entry.size * entry.array_length);
+            shader->per_group.ubo_size += (entry.size * entry.array_length);
         } else if (entry.frequency == SHADER_UPDATE_FREQUENCY_PER_DRAW) {
-            shader->per_draw_ubo_size += (entry.size * entry.array_length);
+            shader->per_draw.ubo_size += (entry.size * entry.array_length);
         }
     }
 

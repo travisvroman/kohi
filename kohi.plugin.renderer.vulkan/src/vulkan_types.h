@@ -14,6 +14,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
 #include "renderer/renderer_types.h"
@@ -423,7 +424,7 @@ typedef struct vulkan_descriptor_state {
 } vulkan_descriptor_state;
 
 typedef struct vulkan_uniform_sampler_state {
-    struct shader_uniform* uniform;
+    shader_uniform uniform;
 
     /**
      * @brief Instance texture map pointers, which are used during rendering. These

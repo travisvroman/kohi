@@ -58,20 +58,22 @@ const char* shader_uniform_type_to_string(shader_uniform_type type) {
         return "u32";
     case SHADER_UNIFORM_TYPE_MATRIX_4:
         return "mat4";
-    case SHADER_UNIFORM_TYPE_SAMPLER_1D:
-        return "sampler1d";
-    case SHADER_UNIFORM_TYPE_SAMPLER_2D:
-        return "sampler2d";
-    case SHADER_UNIFORM_TYPE_SAMPLER_3D:
-        return "sampler3d";
-    case SHADER_UNIFORM_TYPE_SAMPLER_1D_ARRAY:
-        return "sampler1dArray";
-    case SHADER_UNIFORM_TYPE_SAMPLER_2D_ARRAY:
-        return "sampler2dArray";
-    case SHADER_UNIFORM_TYPE_SAMPLER_CUBE:
-        return "samplerCube";
-    case SHADER_UNIFORM_TYPE_SAMPLER_CUBE_ARRAY:
-        return "samplerCubeArray";
+    case SHADER_UNIFORM_TYPE_TEXTURE_1D:
+        return "texture1d";
+    case SHADER_UNIFORM_TYPE_TEXTURE_2D:
+        return "texture2d";
+    case SHADER_UNIFORM_TYPE_TEXTURE_3D:
+        return "texture3d";
+    case SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY:
+        return "texture1dArray";
+    case SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY:
+        return "texture2dArray";
+    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE:
+        return "textureCube";
+    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY:
+        return "textureCubeArray";
+    case SHADER_UNIFORM_TYPE_SAMPLER:
+        return "sampler";
     case SHADER_UNIFORM_TYPE_CUSTOM:
         return "custom";
     default:
@@ -181,19 +183,21 @@ shader_uniform_type string_to_shader_uniform_type(const char* str) {
     } else if (strings_equali("mat4", str)) {
         return SHADER_UNIFORM_TYPE_MATRIX_4;
     } else if (strings_equali("sampler1d", str)) {
-        return SHADER_UNIFORM_TYPE_SAMPLER_1D;
-    } else if (strings_equali("sampler2d", str)) {
-        return SHADER_UNIFORM_TYPE_SAMPLER_2D;
-    } else if (strings_equali("sampler3d", str)) {
-        return SHADER_UNIFORM_TYPE_SAMPLER_3D;
-    } else if (strings_equali("sampler1dArray", str)) {
-        return SHADER_UNIFORM_TYPE_SAMPLER_1D_ARRAY;
-    } else if (strings_equali("sampler2dArray", str)) {
-        return SHADER_UNIFORM_TYPE_SAMPLER_2D_ARRAY;
-    } else if (strings_equali("samplerCube", str)) {
-        return SHADER_UNIFORM_TYPE_SAMPLER_CUBE;
-    } else if (strings_equali("samplerCubeArray", str)) {
-        return SHADER_UNIFORM_TYPE_SAMPLER_CUBE_ARRAY;
+        return SHADER_UNIFORM_TYPE_TEXTURE_1D;
+    } else if (strings_equali("texture2d", str)) {
+        return SHADER_UNIFORM_TYPE_TEXTURE_2D;
+    } else if (strings_equali("texture3d", str)) {
+        return SHADER_UNIFORM_TYPE_TEXTURE_3D;
+    } else if (strings_equali("texture1dArray", str)) {
+        return SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY;
+    } else if (strings_equali("texture2dArray", str)) {
+        return SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY;
+    } else if (strings_equali("textureCube", str)) {
+        return SHADER_UNIFORM_TYPE_TEXTURE_CUBE;
+    } else if (strings_equali("textureCubeArray", str)) {
+        return SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY;
+    } else if (strings_equali("sampler", str)) {
+        return SHADER_UNIFORM_TYPE_SAMPLER;
     } else if (strings_equali("custom", str)) {
         return SHADER_UNIFORM_TYPE_CUSTOM;
     } else {
@@ -290,61 +294,31 @@ kmaterial_type string_to_kmaterial_type(const char* str) {
     }
 }
 
-const char* material_map_channel_to_string(kasset_material_map_channel channel) {
+const char* material_map_channel_to_string(kasset_material_texture_map_channel channel) {
     switch (channel) {
-    case KASSET_MATERIAL_MAP_CHANNEL_NORMAL:
-        return "normal";
-    case KASSET_MATERIAL_MAP_CHANNEL_ALBEDO:
-        return "albedo";
-    case KASSET_MATERIAL_MAP_CHANNEL_METALLIC:
-        return "metallic";
-    case KASSET_MATERIAL_MAP_CHANNEL_ROUGHNESS:
-        return "roughness";
-    case KASSET_MATERIAL_MAP_CHANNEL_AO:
-        return "ao";
-    case KASSET_MATERIAL_MAP_CHANNEL_EMISSIVE:
-        return "emissive";
-    case KASSET_MATERIAL_MAP_CHANNEL_CLEAR_COAT:
-        return "clearcoat";
-    case KASSET_MATERIAL_MAP_CHANNEL_CLEAR_COAT_ROUGHNESS:
-        return "clearcoat_roughness";
-    case KASSET_MATERIAL_MAP_CHANNEL_WATER_DUDV:
-        return "dudv";
-    case KASSET_MATERIAL_MAP_CHANNEL_DIFFUSE:
-        return "diffuse";
-    case KASSET_MATERIAL_MAP_CHANNEL_SPECULAR:
-        return "specular";
     default:
-        KASSERT_MSG(false, "map channel not supported for material type.");
-        return 0;
+    case KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R:
+        return "r";
+    case KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_G:
+        return "g";
+    case KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_B:
+        return "b";
+    case KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_A:
+        return "a";
     }
 }
 
-kasset_material_map_channel string_to_material_map_channel(const char* str) {
-    if (strings_equali(str, "albedo")) {
-        return KASSET_MATERIAL_MAP_CHANNEL_ALBEDO;
-    } else if (strings_equali(str, "normal")) {
-        return KASSET_MATERIAL_MAP_CHANNEL_NORMAL;
-    } else if (strings_equali(str, "metallic")) {
-        return KASSET_MATERIAL_MAP_CHANNEL_METALLIC;
-    } else if (strings_equali(str, "roughness")) {
-        return KASSET_MATERIAL_MAP_CHANNEL_ROUGHNESS;
-    } else if (strings_equali(str, "ao")) {
-        return KASSET_MATERIAL_MAP_CHANNEL_AO;
-    } else if (strings_equali(str, "emissive")) {
-        return KASSET_MATERIAL_MAP_CHANNEL_EMISSIVE;
-    } else if (strings_equali(str, "clearcoat")) {
-        return KASSET_MATERIAL_MAP_CHANNEL_CLEAR_COAT;
-    } else if (strings_equali(str, "clearcoat_roughness")) {
-        return KASSET_MATERIAL_MAP_CHANNEL_CLEAR_COAT_ROUGHNESS;
-    } else if (strings_equali(str, "dudv")) {
-        return KASSET_MATERIAL_MAP_CHANNEL_WATER_DUDV;
-    } else if (strings_equali(str, "diffuse")) {
-        return KASSET_MATERIAL_MAP_CHANNEL_DIFFUSE;
-    } else if (strings_equali(str, "specular")) {
-        return KASSET_MATERIAL_MAP_CHANNEL_SPECULAR;
+kasset_material_texture_map_channel string_to_material_map_channel(const char* str) {
+    if (strings_equali(str, "r")) {
+        return KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R;
+    } else if (strings_equali(str, "g")) {
+        return KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_G;
+    } else if (strings_equali(str, "b")) {
+        return KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_B;
+    } else if (strings_equali(str, "a")) {
+        return KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_A;
     } else {
-        KASSERT_MSG(false, "map channel not supported for material type.");
-        return KASSET_MATERIAL_MAP_CHANNEL_DIFFUSE;
+        KASSERT_MSG(false, "Texture map channel not supported.");
+        return KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R;
     }
 }

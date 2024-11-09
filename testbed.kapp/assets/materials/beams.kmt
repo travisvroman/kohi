@@ -1,45 +1,39 @@
 version = 3
 type = pbr
 
-maps = [
-	{
-		name = "albedo"
-		texture_name = "beams_and_sticks_bc"
+inputs = {
+    base_colour = {
+		value = "1.000000 1.000000 1.000000 1.000000"
+        sampler = "custom_sampler"
+    }
+    metallic = {
+        value = 0.5
+        source_channel = "r"
+    }
+    roughness = {
+        map = "beams_and_sticks_bc"
+        source_channel = "g"
+    }
+    ao = {
+        map = "beams_and_sticks_bc"
+        source_channel = "g"
+    }
+    mra = {
+        map = "beams_and_sticks_bc"
+    }
+    emissive = {
+		value = "1.000000 0.000000 0.000000 1.000000"
+    }
+}
+
+samplers = [
+    {
+        name = "custom_sampler"
 		filter_min = "linear"
 		filter_mag = "linear"
 		repeat_u = "repeat"
 		repeat_v = "repeat"
 		repeat_w = "repeat"
-	}
-	{
-		name = "combined"
-		texture_name = "beams_and_sticks_roughness"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-	{
-		name = "normal"
-		texture_name = "beams_and_sticks_n"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
+    }
 ]
 
-properties = [
-	{
-		name = "shininess"
-		type = "f32"
-		value = 96.078453
-	}
-	{
-		name = "diffuse_colour"
-		type = "vec4"
-		value = "0.000000 0.000000 0.000000 0.000000"
-	}
-]

@@ -13,6 +13,10 @@
 // The current version of the material file format.
 #define MATERIAL_FILE_VERSION 3
 
+static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, const char* input_name, kasset_material_texture_map map, kasset_material_texture* out_texture, kasset_material_texture_map_channel* out_source_channel, f32* out_value, f32 default_value);
+static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const char* input_name, kasset_material_texture_map map, kasset_material_texture* out_map, vec4* out_value, vec4 default_value);
+static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const char* input_name, kasset_material_texture_map map, kasset_material_texture* out_map, vec3* out_value, vec3 default_value);
+
 const char* kasset_material_serialize(const kasset* asset) {
     if (!asset) {
         KERROR("kasset_material_serialize requires a valid pointer to a material.");
@@ -201,16 +205,13 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
 
     i64 file_format_version = 0;
     if (!kson_object_property_value_get_int(&tree.root, "version", &file_format_version)) {
-        KERROR("Unable to find file format version, a required file. Material will not be processed.");
+        KERROR("Unable to find file format version, a required field. Material will not be processed.");
         goto cleanup;
     }
     // Validate version
     if (file_format_version != MATERIAL_FILE_VERSION) {
-        if (file_format_version == 1) {
-            KERROR("Material file format version 1 no longer supported. File should be manually converted to at least version 3. Material will not be processed.");
-            goto cleanup;
-        } else if (file_format_version == 2) {
-            KERROR("Material file format version 2 no longer supported. File should be manually converted to at least version 3. Material will not be processed.");
+        if (file_format_version < 3) {
+            KERROR("Material file format version %u no longer supported. File should be manually converted to at least version 3. Material will not be processed.", file_format_version);
             goto cleanup;
         }
 
@@ -220,120 +221,61 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
         }
     }
 
-    // Extract properties. These are optional, so skip if not included.
+    // Extract inputs. The array of inputs is required, but the actual inputs themselves are optional.
+    // While technically this means no inputs could be provided, should probably warn about it since it
+    // doesn't make much actual sense.
     {
-        kson_array properties_array = {0};
-        if (kson_object_property_value_get_object(&tree.root, "properties", &properties_array)) {
-            if (kson_array_element_count_get(&properties_array, &out_material->property_count)) {
-                out_material->properties = darray_create(kasset_material_property);
-                for (u32 i = 0; i < out_material->property_count; ++i) {
-                    kson_object prop = {0};
-                    if (kson_array_element_value_get_object(&properties_array, i, &prop)) {
-                        // Extract attributes
-                        kasset_material_property p = {0};
+        kson_object inputs_obj = {0};
+        if (kson_object_property_value_get_object(&tree.root, "inputs", &inputs_obj)) {
+            u32 input_count = 0;
 
-                        // Name is required.
-                        const char* prop_name_str = 0;
-                        if (!kson_object_property_value_get_string(&prop, "name", &prop_name_str)) {
-                            KWARN("Material property has no name, but is required. Skipping property.");
-                            continue;
-                        }
-                        p.name = kname_create(prop_name_str);
-                        string_free(prop_name_str);
+            // Get known inputs
 
-                        // Type is required.
-                        const char* prop_type_str = 0;
-                        if (!kson_object_property_value_get_string(&prop, "type", &prop_type_str)) {
-                            KWARN("Material property has no type, but is required. Skipping property.");
-                            continue;
-                        }
-                        // Convert type string into type.
-                        p.type = string_to_shader_uniform_type(prop_type_str);
-                        string_free(prop_type_str);
+            // base_colour
+            if (extract_input_map_channel_or_vec4(&inputs_obj, "base_colour", KASSET_MATERIAL_TEXTURE_MAP_BASE_COLOUR, &out_material->base_colour_map, &out_material->base_colour, vec4_one())) {
+                // Only count values actually included in config, as a validation check later.
+                input_count++;
+            }
 
-                        // NOTE: Value is optional. Attempt parsing if it is there.
-                        i64 i_value = 0;
-                        switch (p.type) {
-                        case SHADER_UNIFORM_TYPE_FLOAT32:
-                            kson_object_property_value_get_float(&prop, "value", &p.value.f32);
-                            break;
-                        case SHADER_UNIFORM_TYPE_FLOAT32_2: {
-                            if (!kson_object_property_value_get_vec2(&prop, "value", &p.value.v2)) {
-                                KWARN("Failed to extract vec2 from property. Defaulting to vec2_zero.");
-                                p.value.v2 = vec2_zero();
-                            }
-                        } break;
-                        case SHADER_UNIFORM_TYPE_FLOAT32_3: {
-                            if (!kson_object_property_value_get_vec3(&prop, "value", &p.value.v3)) {
-                                KWARN("Failed to extract vec3 from property. Defaulting to vec3_zero.");
-                                p.value.v3 = vec3_zero();
-                            }
-                        } break;
-                        case SHADER_UNIFORM_TYPE_FLOAT32_4: {
-                            if (!kson_object_property_value_get_vec4(&prop, "value", &p.value.v4)) {
-                                KWARN("Failed to extract vec4 from property. Defaulting to vec4_zero.");
-                                p.value.v4 = vec4_zero();
-                            }
-                        } break;
-                        case SHADER_UNIFORM_TYPE_MATRIX_4: {
-                            if (!kson_object_property_value_get_mat4(&prop, "value", &p.value.mat4)) {
-                                KWARN("Failed to extract mat4 from property. Defaulting to mat4_identity.");
-                                p.value.mat4 = mat4_identity();
-                            }
-                        } break;
-                        case SHADER_UNIFORM_TYPE_UINT32:
-                            if (kson_object_property_value_get_int(&prop, "value", &i_value)) {
-                                p.value.u32 = (u32)i_value;
-                            }
-                            break;
-                        case SHADER_UNIFORM_TYPE_UINT16:
-                            if (kson_object_property_value_get_int(&prop, "value", &i_value)) {
-                                p.value.u16 = (u16)i_value;
-                            }
-                            break;
-                        case SHADER_UNIFORM_TYPE_UINT8:
-                            if (kson_object_property_value_get_int(&prop, "value", &i_value)) {
-                                p.value.u8 = (u8)i_value;
-                            }
-                            break;
-                        case SHADER_UNIFORM_TYPE_INT32:
-                            if (kson_object_property_value_get_int(&prop, "value", &i_value)) {
-                                p.value.i32 = (i32)i_value;
-                            }
-                            break;
-                        case SHADER_UNIFORM_TYPE_INT16:
-                            if (kson_object_property_value_get_int(&prop, "value", &i_value)) {
-                                p.value.i16 = (i16)i_value;
-                            }
-                            break;
-                        case SHADER_UNIFORM_TYPE_INT8:
-                            if (kson_object_property_value_get_int(&prop, "value", &i_value)) {
-                                p.value.i8 = (i8)i_value;
-                            }
-                            break;
-                        case SHADER_UNIFORM_TYPE_SAMPLER_1D:
-                        case SHADER_UNIFORM_TYPE_SAMPLER_2D:
-                        case SHADER_UNIFORM_TYPE_SAMPLER_3D:
-                        case SHADER_UNIFORM_TYPE_SAMPLER_1D_ARRAY:
-                        case SHADER_UNIFORM_TYPE_SAMPLER_2D_ARRAY:
-                        case SHADER_UNIFORM_TYPE_SAMPLER_CUBE:
-                        case SHADER_UNIFORM_TYPE_SAMPLER_CUBE_ARRAY:
-                            KWARN("Samplers cannot be a material property. Use a map instead. Skipping this one.");
-                            break;
-                        case SHADER_UNIFORM_TYPE_CUSTOM:
-                            KWARN("There is no currently-implemented way to (de)serialize a custom type property. Skipping this one.");
-                            break;
-                        }
+            // mra
+            if (extract_input_map_channel_or_vec3(&inputs_obj, "mra", KASSET_MATERIAL_TEXTURE_MAP_MRA, &out_material->mra_map, &out_material->mra, (vec3){0.0f, 0.5f, 1.0f})) {
+                // Only count values actually included in config, as a validation check later.
+                input_count++;
+                // Flag to use MRA
+                out_material->use_mra = true;
+            }
 
-                        // Push to prop array
-                        darray_push(out_material->properties, p);
-                    }
-                }
+            // metallic
+            if (extract_input_map_channel_or_float(&inputs_obj, "metallic", KASSET_MATERIAL_TEXTURE_MAP_METALLIC, &out_material->metallic_map, &out_material->metallic_map_source_channel, &out_material->metallic, 0.0f)) {
+                // Only count values actually included in config, as a validation check later.
+                input_count++;
+            }
+
+            // roughness
+            if (extract_input_map_channel_or_float(&inputs_obj, "roughness", KASSET_MATERIAL_TEXTURE_MAP_ROUGHNESS, &out_material->roughness_map, &out_material->roughness_map_source_channel, &out_material->roughness, 0.5f)) {
+                // Only count values actually included in config, as a validation check later.
+                input_count++;
+            }
+
+            // ao
+            if (extract_input_map_channel_or_float(&inputs_obj, "ao", KASSET_MATERIAL_TEXTURE_MAP_AO, &out_material->ambient_occlusion_map, &out_material->ambient_occlusion_map_source_channel, &out_material->ambient_occlusion, 1.0f)) {
+                // Only count values actually included in config, as a validation check later.
+                input_count++;
+            }
+
+            // emissive
+            if (extract_input_map_channel_or_vec4(&inputs_obj, "emissive", KASSET_MATERIAL_TEXTURE_MAP_EMISSIVE, &out_material->emissive_map, &out_material->emissive, vec4_zero())) {
+                // Only count values actually included in config, as a validation check later.
+                input_count++;
+            }
+
+            if (input_count < 1) {
+                KWARN("This material has no inputs, which is strange. Why would you do that?");
             }
         }
     }
 
-    // Extract maps.
+    // Extract samplers.
     {
         kson_array maps_array = {0};
         if (kson_object_property_value_get_object(&tree.root, "maps", &maps_array)) {
@@ -353,24 +295,6 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
                         }
                         m.name = kname_create(map_name_str);
                         string_free(map_name_str);
-
-                        // image_asset_name
-                        const char* image_asset_name_str = 0;
-                        if (!kson_object_property_value_get_string(&map, "image_asset_name", &image_asset_name_str)) {
-                            KERROR("image_asset_name, a required map field, was not found. Skipping map.");
-                            continue;
-                        }
-                        m.image_asset_name = kname_create(image_asset_name_str);
-                        string_free(image_asset_name_str);
-
-                        // channel
-                        const char* channel_str = 0;
-                        if (!kson_object_property_value_get_string(&map, "channel", &channel_str)) {
-                            KERROR("channel, a required map field, was not found. Skipping map.");
-                            continue;
-                        }
-                        m.channel = string_to_material_map_channel(channel_str);
-                        string_free(channel_str);
 
                         // The rest of the fields are all optional.
                         const char* value_str = 0;
@@ -414,4 +338,133 @@ cleanup:
     kson_tree_cleanup(&tree);
 
     return success;
+}
+
+static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, const char* input_name, kasset_material_texture_map map, kasset_material_texture* out_texture, kasset_material_texture_map_channel* out_source_channel, f32* out_value, f32 default_value) {
+    kson_object input = {0};
+    b8 input_found = false;
+    if (kson_object_property_value_get_object(inputs_obj, input_name, &input)) {
+        b8 has_map = kson_object_property_value_get_kname(&input, "map", &out_texture->resource_name);
+        b8 has_value = kson_object_property_value_get_float(&input, "value", out_value);
+        if (has_map && has_value) {
+            KWARN("Input '%s' specified both a value and a map. The map will be used.", input_name);
+            *out_value = default_value;
+            has_value = false;
+            input_found = true;
+        } else if (!has_map && !has_value) {
+            KWARN("Input '%s' specified neither a value nor a map. A default value will be used.", input_name);
+            *out_value = default_value;
+            has_value = true;
+        } else {
+            // Valid case where only a map OR value was provided. Only count provided inputs.
+            input_found = true;
+        }
+
+        // Texture input.
+        if (has_map) {
+            out_texture->map_name = kname_create(input_name);
+            out_texture->map = map;
+            // Optional property, so it doesn't matter if we get it or not.
+            out_texture->sampler_name = INVALID_KNAME;
+            kson_object_property_value_get_kname(&input, "sampler", &out_texture->sampler_name);
+
+            // For floats, a source channel must be chosen. Default is red.
+            const char* channel = 0;
+            kson_object_property_value_get_string(&input, "source_channel", &channel);
+            if (channel) {
+                if (strings_equali(channel, "r")) {
+                    *out_source_channel = KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R;
+                } else if (strings_equali(channel, "g")) {
+                    *out_source_channel = KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_G;
+                } else if (strings_equali(channel, "b")) {
+                    *out_source_channel = KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_B;
+                } else if (strings_equali(channel, "a")) {
+                    *out_source_channel = KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_A;
+                } else {
+                    KWARN("Input '%s' specified an invalid source_channel '%s'. A default value will be used.", input_name, channel);
+                    *out_source_channel = KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R;
+                }
+            } else {
+                // Use default of r.
+                *out_source_channel = KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R;
+            }
+        }
+    } else {
+        // If nothing is specified, use the default for this.
+        *out_value = default_value;
+    }
+
+    return input_found;
+}
+
+static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const char* input_name, kasset_material_texture_map map, kasset_material_texture* out_map, vec4* out_value, vec4 default_value) {
+    kson_object input = {0};
+    b8 input_found = false;
+    if (kson_object_property_value_get_object(inputs_obj, input_name, &input)) {
+        b8 has_map = kson_object_property_value_get_kname(&input, "map", &out_map->resource_name);
+        b8 has_value = kson_object_property_value_get_vec4(&input, "value", out_value);
+        if (has_map && has_value) {
+            KWARN("Input '%s' specified both a value and a map. The map will be used.", input_name);
+            *out_value = default_value;
+            has_value = false;
+            input_found = true;
+        } else if (!has_map && !has_value) {
+            KWARN("Input '%s' specified neither a value nor a map. A default value will be used.", input_name);
+            *out_value = default_value;
+            has_value = true;
+        } else {
+            // Valid case where only a map OR value was provided. Only count provided inputs.
+            input_found = true;
+        }
+
+        // Texture input.
+        if (has_map) {
+            out_map->map_name = kname_create(input_name);
+            out_map->map = map;
+            // Optional property, so it doesn't matter if we get it or not.
+            out_map->sampler_name = INVALID_KNAME;
+            kson_object_property_value_get_kname(&input, "sampler", &out_map->sampler_name);
+        }
+    } else {
+        // If nothing is specified, use the default for this.
+        *out_value = default_value;
+    }
+
+    return input_found;
+}
+
+static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const char* input_name, kasset_material_texture_map map, kasset_material_texture* out_map, vec3* out_value, vec3 default_value) {
+    kson_object input = {0};
+    b8 input_found = false;
+    if (kson_object_property_value_get_object(inputs_obj, input_name, &input)) {
+        b8 has_map = kson_object_property_value_get_kname(&input, "map", &out_map->resource_name);
+        b8 has_value = kson_object_property_value_get_vec3(&input, "value", out_value);
+        if (has_map && has_value) {
+            KWARN("Input '%s' specified both a value and a map. The map will be used.", input_name);
+            *out_value = default_value;
+            has_value = false;
+            input_found = true;
+        } else if (!has_map && !has_value) {
+            KWARN("Input '%s' specified neither a value nor a map. A default value will be used.", input_name);
+            *out_value = default_value;
+            has_value = true;
+        } else {
+            // Valid case where only a map OR value was provided. Only count provided inputs.
+            input_found = true;
+        }
+
+        // Texture input.
+        if (has_map) {
+            out_map->map_name = kname_create(input_name);
+            out_map->map = map;
+            // Optional property, so it doesn't matter if we get it or not.
+            out_map->sampler_name = INVALID_KNAME;
+            kson_object_property_value_get_kname(&input, "sampler", &out_map->sampler_name);
+        }
+    } else {
+        // If nothing is specified, use the default for this.
+        *out_value = default_value;
+    }
+
+    return input_found;
 }

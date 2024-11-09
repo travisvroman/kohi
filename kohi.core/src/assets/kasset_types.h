@@ -242,36 +242,41 @@ typedef enum kmaterial_type {
     KMATERIAL_TYPE_CUSTOM = 99
 } kmaterial_type;
 
-typedef enum kasset_material_map_channel {
-    KASSET_MATERIAL_MAP_CHANNEL_ALBEDO,
-    KASSET_MATERIAL_MAP_CHANNEL_NORMAL,
-    KASSET_MATERIAL_MAP_CHANNEL_METALLIC,
-    KASSET_MATERIAL_MAP_CHANNEL_ROUGHNESS,
-    KASSET_MATERIAL_MAP_CHANNEL_AO,
-    KASSET_MATERIAL_MAP_CHANNEL_EMISSIVE,
-    KASSET_MATERIAL_MAP_CHANNEL_CLEAR_COAT,
-    KASSET_MATERIAL_MAP_CHANNEL_CLEAR_COAT_ROUGHNESS,
-    KASSET_MATERIAL_MAP_CHANNEL_WATER_DUDV,
-    KASSET_MATERIAL_MAP_CHANNEL_DIFFUSE,
-    KASSET_MATERIAL_MAP_CHANNEL_SPECULAR,
-} kasset_material_map_channel;
+typedef enum kasset_material_texture_map {
+    KASSET_MATERIAL_TEXTURE_MAP_BASE_COLOUR,
+    KASSET_MATERIAL_TEXTURE_MAP_NORMAL,
+    KASSET_MATERIAL_TEXTURE_MAP_METALLIC,
+    KASSET_MATERIAL_TEXTURE_MAP_ROUGHNESS,
+    KASSET_MATERIAL_TEXTURE_MAP_AO,
+    KASSET_MATERIAL_TEXTURE_MAP_MRA,
+    KASSET_MATERIAL_TEXTURE_MAP_EMISSIVE,
+} kasset_material_texture_map;
 
-typedef struct kasset_material_map {
-    // Material map name.
+typedef enum kasset_material_texture_map_channel {
+    KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R = 0,
+    KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_G = 1,
+    KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_B = 2,
+    KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_A = 3
+} kasset_material_texture_map_channel;
+
+typedef struct kasset_material_texture {
+    kname resource_name;
+    kname sampler_name;
+    kname map_name;
+    kasset_material_texture_map map;
+    kasset_material_texture_map_channel channel;
+} kasset_material_texture;
+
+typedef struct kasset_material_sampler {
     kname name;
-    // Image asset name.
-    kname image_asset_name;
-    // Name of the package containing the image asset.
-    kname image_asset_package_name;
-    kasset_material_map_channel channel;
     texture_filter filter_min;
     texture_filter filter_mag;
     texture_repeat repeat_u;
     texture_repeat repeat_v;
     texture_repeat repeat_w;
-} kasset_material_map;
+} kasset_material_sampler;
 
-typedef struct kasset_material_property {
+/* typedef struct kasset_material_property {
     kname name;
     shader_uniform_type type;
     u32 size;
@@ -288,19 +293,41 @@ typedef struct kasset_material_property {
         i8 i8;
         mat4 mat4;
     } value;
-} kasset_material_property;
+} kasset_material_property; */
 
 typedef struct kasset_material {
     kasset base;
     kmaterial_type type;
     // The asset name for a custom shader. Optional.
-    char* custom_shader_name;
+    kname custom_shader_name;
 
-    u32 map_count;
-    kasset_material_map* maps;
+    vec4 base_colour;
+    kasset_material_texture base_colour_map;
 
-    u32 property_count;
-    kasset_material_property* properties;
+    f32 metallic;
+    kasset_material_texture metallic_map;
+    kasset_material_texture_map_channel metallic_map_source_channel;
+
+    f32 roughness;
+    kasset_material_texture roughness_map;
+    kasset_material_texture_map_channel roughness_map_source_channel;
+
+    f32 ambient_occlusion;
+    kasset_material_texture ambient_occlusion_map;
+    kasset_material_texture_map_channel ambient_occlusion_map_source_channel;
+
+    // Combined metallic/roughness/ao value.
+    vec3 mra;
+    kasset_material_texture mra_map;
+    // Indicates if the mra combined value/map should be used instead of the separate ones.
+    b8 use_mra;
+
+    vec4 emissive;
+    kasset_material_texture emissive_map;
+
+    u32 custom_sampler_count;
+    kasset_material_sampler* custom_samplers;
+
 } kasset_material;
 
 #define KASSET_TYPE_NAME_TEXT "Text"
