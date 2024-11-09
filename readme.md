@@ -37,71 +37,147 @@ Kohi has been a 3D engine from the start, with most of it built from scratch. Th
 
 Windows, Linux and macOS are all officially supported. Android and iOS runtime support may also be added down the road.
 
+# Getting Started
+
 ## Prerequisites
 
-While the highest effort is made to reduce dependencies, each platform has things that _must_ be installed for this to work.
+While the highest effort is made to reduce dependencies, each platform requires utilities that _must_ be configured prior to building:
 
-### Prerequisites for Windows
+- [Clang](https://clang.llvm.org/)
+- [Git](https://git-scm.com/)
+- [Make](https://www.gnu.org/software/make/)
+- [OpenAL](https://www.openal.org/)
+- [Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
 
-- Make for Windows: https://gnuwin32.sourceforge.net/packages/make.htm (Yes, the last update was in 2006. But if ain't broke, why fix it?)
-- Visual Studio Community (acts as backend for clang), 2019+ is fine: https://visualstudio.microsoft.com/vs/community/
-- Git for Windows: https://gitforwindows.org/
+Each platform's section will breifly cover getting set up with these prerequisites.
 
-### Prerequisites for Linux
+Note that you are free to use other compilers (such as gcc), but they are not officially supported at this time.
 
-Install these via package manager:
+### Preparing the build environment for Windows
+More information is available in [Kohi Episode 001](https://youtu.be/F6_WdnzQIQ4)
 
+Download and install the following utlities:
+
+- [Clang/LLVM](https://github.com/llvm/llvm-project/releases/latest)<sup>1</sup>
+- [Git for Windows](https://gitforwindows.org/)
+- [Make for Windows](https://gnuwin32.sourceforge.net/downlinks/make.php)<sup>2</sup>
+- [OpenAL SDK](https://www.openal.org/downloads/OpenAL11CoreSDK.zip)
+- [Visual Studio Build Tools](https://aka.ms/vs/17/release/vs_BuildTools.exe)<sup>3</sup>
+- [Vulkan SDK](https://vulkan.lunarg.com/sdk/home#windows)
+
+ ---
+
+- <sup>1</sup> Select `Add LLVM to system PATH for all users` during installation
+
+- <sup>2</sup> You will need to add the Make `bin` directory to your Path Environment Variable after installation:
+  - Use the Windows Search bar to search for `Edit the system environment variables` or run this command: `SystemPropertiesAdvanced`
+  - Select `Enviroment Variables...` (near the bottom)
+  - Under the `System variables` section, double-click the `Path` option
+  - Click `New`
+  - Enter the Make `bin` directory (which should be `C:\Program Files (x86)\GnuWin32\bin` by default)
+  - Press `OK` then `OK` then `OK`
+
+- <sup>3</sup> Select the `Desktop development with C++` workload during installation, or use this [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) command to automatically install the minimum necessary Visual Studio Build Tools packages:
+```
+winget install Microsoft.VisualStudio.2022.BuildTools --force --override "--wait --passive --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows10SDK.20348"
+```
+
+---
+
+Clone the repositiory to your desired location
+```
+cd Documents
+git clone https://github.com/travisvroman/kohi.git
+```
+
+### Preparing the build environment for Linux
+More information is available in [Kohi Episode 002](https://youtu.be/NIv1mygBOcg)
+
+Install the following utilities using your package manager:
+
+- `clang`
+- `gdb`
 - `git`
 - `make`
 - `libx11-dev`
 - `libxkbcommon-x11-dev`
 - `libx11-xcb-dev`
+- `libopenal-dev`
 
-### Prerequisites for macOS
+The following commands will automatically install the required packages using apt
+```
+sudo apt update
+sudo apt upgrade
+sudo apt install clang git gdb make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev libopenal-dev
+```
+
+Download and extract Vulkan SDK. The following commands will automatically download and extract VulkanSDK 1.3.290.0
+
+```
+curl -o vulkansdk.tar.xz https://sdk.lunarg.com/sdk/download/1.3.290.0/linux/vulkansdk-linux-x86_64-1.3.290.0.tar.xz
+mkdir vulkansdk
+tar xf vulkansdk.tar.xz -C vulkansdk
+```
+
+Setup the environment variables for Vulkan SDK using the included script. You can do so by modifying your `.profile` file with nano:
+```
+nano ~/.profile
+```
+Add this line to the bottom:
+```
+source ~/vulkansdk/1.3.290.0/setup-env.sh
+```
+Save the file (`Ctrl` + `X`, then `Y`, then `Enter`)
+
+(**Note**: It may be necessary to log out, then log back in to apply this change)
+
+Clone the repositiory to your desired location
+```
+cd Documents
+git clone https://github.com/travisvroman/kohi.git
+```
+
+### Preparing the build environment for macOS
+More information is available in [Kohi Episode 076](https://youtu.be/g9tvP4qf5sA)
 
 Install these via homebrew or other package manager:
 
 - `git`
 - `make`
+- `openal-soft`
 
-### Cross-Platform Prerequisites:
+The following commands will install the packages using homebrew:
+```
+brew install openal-soft
+brew install git
+brew install make
+```
 
-You will need to have Clang 13+ and the Vulkan SDK installed:
+Clone the repositiory to your desired location
+```
+cd Documents
+git clone https://github.com/travisvroman/kohi.git
+```
 
-- Clang: https://releases.llvm.org/download.html
-- Vulkan SDK: https://vulkan.lunarg.com/
+## Building
+There are 2 build types available, Debug and Release. Debug includes debug symbols and is optimal for development and exploration, while Release is ideal for performance. There is also a "clean" utility available to clean out the built files, which is useful when switching between Debug/Release, or when strange linking errors occur because of missing files (i.e. switching branches).
 
-## Audio Plugin Prerequisites
+### Building for Windows
 
-The audio plugin requires an installatiion of OpenAL.
+Open up a Command Prompt or Powershell instance and run the `build-debug.bat` file for a debug build, or `build-release.bat` for a release build.
+There is also a `clean.bat` available.
 
-- Linux: use a package manager to install OpenAL, if not already installed (i.e. `sudo apt install openal` for Ubuntu or `sudo pacman -S openal` on Arch)
-- macOS: install openal-soft via homebrew: `brew install openal-soft`. Note on M1 macs this installs to `/opt/homebrew/opt/openal-soft/`, where the `include`, `lib`, and `'bin` directories can be found. The `build-all.sh` script accounts for this version of the install.
-- Windows: Install the SDK from here: https://www.openal.org/downloads/
+Alternatively, there are tasks available for Visual Studio Code (`Ctrl+Shift+B`)
 
-# Start
+### Building for Linux/macOS
+Open up a terminal isntance and run the `build-debug.sh` file for a debug build, or `build-release.sh` for a release build.
+There is also a `clean.sh` available.
 
-To get started, get all of the prerequisites for your current platform (see above). After this, clone the repository: `git clone https://github.com/travisvroman/kohi`.
+Alternatively, there are tasks available for Visual Studio Code (`Ctrl+Shift+B`)
 
-Note that you are free to use other compilers (such as gcc), but they are not officially supported at this time (although it shouldn't be much work to get them setup).
+## Running
 
-See the setup videos in the series for Windows or Linux for details. macOS setup happens significantly later in the series at video 76, when support is officially added for that platform.
-
-# Building
-
-There are 2 build types available, Debug and Release. Debug includes debug symbols and is optimal for development and exploration, while Release is ideal for performance. There is also a "clean" available to clean out the built files, which is useful when switching between Debug/Release, or when strange linking errors occur because of missing files (i.e. switching branches).
-
-## Building: Windows
-
-Open up a command prompt or Powershell instance and run the `build-debug.bat` file for a debug build, or `build-release.bat` for a release build. There is also a `clean.bat` available.
-
-## Building: Linux/macOS
-
-Open up a terminal and run the `build-debug.sh` file for a debug build, or `build-release.sh` for a release build. There is also a `clean.sh` available.
-
-# Running
-
-At the moment, "Testbed" is the executable that uses Kohi. It should be run with the working directory of `/bin`. In command prompt/Powershell in Windows, or a terminal in Linux/macOS, `cd bin` to get into the bin folder, then run `testbed.exe` on Windows or just `testbed` for Linux/macOS.
+At the moment, "Testbed" is the executable that uses Kohi. It should be run with the working directory of `bin`. In your terminal, use `cd bin` to navigate to the bin folder, then run `testbed.exe` on Windows or `./testbed.kapp` for Linux/macOS.
 
 # Project Structure
 
