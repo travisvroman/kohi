@@ -895,13 +895,13 @@ const engine_system_states* engine_systems_get(void) {
     return &engine_state->systems;
 }
 
-k_handle engine_external_system_register(u64 system_state_memory_requirement) {
+khandle engine_external_system_register(u64 system_state_memory_requirement) {
     // Don't pass a block of memory here since the system should call "get state" next for it.
     // This keeps memory ownership inside the engine and its registry.
     return kregistry_add_entry(&engine_state->external_systems_registry, 0, system_state_memory_requirement, true);
 }
 
-void* engine_external_system_state_get(k_handle system_handle) {
+void* engine_external_system_state_get(khandle system_handle) {
     // Acquire the system state, but without any listener/callback.
     return kregistry_entry_acquire(&engine_state->external_systems_registry, system_handle, 0, 0);
 }

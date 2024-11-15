@@ -179,7 +179,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
     }
 
     // Swapchain images are stored in the backend data of the window.colourbuffer.
-    if (k_handle_is_invalid(window_internal->colourbuffer->renderer_texture_handle)) {
+    if (khandle_is_invalid(window_internal->colourbuffer->renderer_texture_handle)) {
         // If invalid, then a new one needs to be created. This does not reach out to the
         // texture system to create this, but handles it internally instead. This is because
         // the process for this varies greatly between backends.

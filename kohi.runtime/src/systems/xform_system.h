@@ -25,7 +25,7 @@ b8 xform_system_update(void* state, struct frame_data* p_frame_data);
  * by default.
  * @return A handle to the new xform.
  */
-KAPI k_handle xform_create(void);
+KAPI khandle xform_create(void);
 
 /**
  * @brief Creates a xform from the given position.
@@ -34,7 +34,7 @@ KAPI k_handle xform_create(void);
  * @param position The position to be used.
  * @return A handle to the new xform.
  */
-KAPI k_handle xform_from_position(vec3 position);
+KAPI khandle xform_from_position(vec3 position);
 
 /**
  * @brief Creates a xform from the given rotation.
@@ -43,7 +43,7 @@ KAPI k_handle xform_from_position(vec3 position);
  * @param rotation The rotation to be used.
  * @return A handle to the new xform.
  */
-KAPI k_handle xform_from_rotation(quat rotation);
+KAPI khandle xform_from_rotation(quat rotation);
 
 /**
  * @brief Creates a xform from the given position and rotation.
@@ -53,7 +53,7 @@ KAPI k_handle xform_from_rotation(quat rotation);
  * @param rotation The rotation to be used.
  * @return A handle to the new xform.
  */
-KAPI k_handle xform_from_position_rotation(vec3 position, quat rotation);
+KAPI khandle xform_from_position_rotation(vec3 position, quat rotation);
 
 /**
  * @brief Creates a xform from the given position, rotation and scale.
@@ -63,7 +63,7 @@ KAPI k_handle xform_from_position_rotation(vec3 position, quat rotation);
  * @param scale The scale to be used.
  * @return A handle to the new xform.
  */
-KAPI k_handle xform_from_position_rotation_scale(vec3 position, quat rotation, vec3 scale);
+KAPI khandle xform_from_position_rotation_scale(vec3 position, quat rotation, vec3 scale);
 
 /**
  * @brief Creates a xform from the provided matrix.
@@ -71,13 +71,13 @@ KAPI k_handle xform_from_position_rotation_scale(vec3 position, quat rotation, v
  * @param m The matrix to decompose and extract a transform from.
  * @return A handle to the new xform.
  */
-KAPI k_handle xform_from_matrix(mat4 m);
+KAPI khandle xform_from_matrix(mat4 m);
 
 /**
  * @brief Destroys the xform with the given handle, and frees the handle.
  * @param t A pointer to a handle to the transform to be destroyed. The handle itself is also invalidated.
  */
-KAPI void xform_destroy(k_handle* t);
+KAPI void xform_destroy(khandle* t);
 
 /**
  * @brief Returns the position of the given xform.
@@ -85,7 +85,7 @@ KAPI void xform_destroy(k_handle* t);
  * @param t A handle whose position to get.
  * @return A copy of the position.
  */
-KAPI vec3 xform_position_get(k_handle t);
+KAPI vec3 xform_position_get(khandle t);
 
 /**
  * @brief Sets the position of the given xform.
@@ -93,7 +93,7 @@ KAPI vec3 xform_position_get(k_handle t);
  * @param t A handle to the xform to be updated.
  * @param position The position to be set.
  */
-KAPI void xform_position_set(k_handle t, vec3 position);
+KAPI void xform_position_set(khandle t, vec3 position);
 
 /**
  * @brief Applies a translation to the given xform. Not the
@@ -102,7 +102,7 @@ KAPI void xform_position_set(k_handle t, vec3 position);
  * @param t A handle to the xform to be updated.
  * @param translation The translation to be applied.
  */
-KAPI void xform_translate(k_handle t, vec3 translation);
+KAPI void xform_translate(khandle t, vec3 translation);
 
 /**
  * @brief Returns the rotation of the given xform.
@@ -110,7 +110,7 @@ KAPI void xform_translate(k_handle t, vec3 translation);
  * @param t A handle whose rotation to get.
  * @return A copy of the rotation.
  */
-KAPI quat xform_rotation_get(k_handle t);
+KAPI quat xform_rotation_get(khandle t);
 
 /**
  * @brief Sets the rotation of the given xform.
@@ -118,7 +118,7 @@ KAPI quat xform_rotation_get(k_handle t);
  * @param t A handle to the xform to be updated.
  * @param rotation The rotation to be set.
  */
-KAPI void xform_rotation_set(k_handle t, quat rotation);
+KAPI void xform_rotation_set(khandle t, quat rotation);
 
 /**
  * @brief Applies a rotation to the given xform. Not the
@@ -127,7 +127,7 @@ KAPI void xform_rotation_set(k_handle t, quat rotation);
  * @param t A handle to the xform to be updated.
  * @param rotation The rotation to be applied.
  */
-KAPI void xform_rotate(k_handle t, quat rotation);
+KAPI void xform_rotate(khandle t, quat rotation);
 
 /**
  * @brief Returns the scale of the given xform.
@@ -135,7 +135,7 @@ KAPI void xform_rotate(k_handle t, quat rotation);
  * @param t A handle whose scale to get.
  * @return A copy of the scale.
  */
-KAPI vec3 xform_scale_get(k_handle t);
+KAPI vec3 xform_scale_get(khandle t);
 
 /**
  * @brief Sets the scale of the given xform.
@@ -143,7 +143,7 @@ KAPI vec3 xform_scale_get(k_handle t);
  * @param t A handle to the xform to be updated.
  * @param scale The scale to be set.
  */
-KAPI void xform_scale_set(k_handle t, vec3 scale);
+KAPI void xform_scale_set(khandle t, vec3 scale);
 
 /**
  * @brief Applies a scale to the given xform. Not the
@@ -152,7 +152,7 @@ KAPI void xform_scale_set(k_handle t, vec3 scale);
  * @param t A handle to the xform to be updated.
  * @param scale The scale to be applied.
  */
-KAPI void xform_scale(k_handle t, vec3 scale);
+KAPI void xform_scale(khandle t, vec3 scale);
 
 /**
  * @brief Sets the position and rotation of the given xform.
@@ -161,7 +161,7 @@ KAPI void xform_scale(k_handle t, vec3 scale);
  * @param position The position to be set.
  * @param rotation The rotation to be set.
  */
-KAPI void xform_position_rotation_set(k_handle t, vec3 position, quat rotation);
+KAPI void xform_position_rotation_set(khandle t, vec3 position, quat rotation);
 
 /**
  * @brief Sets the position, rotation and scale of the given xform.
@@ -171,7 +171,7 @@ KAPI void xform_position_rotation_set(k_handle t, vec3 position, quat rotation);
  * @param rotation The rotation to be set.
  * @param scale The scale to be set.
  */
-KAPI void xform_position_rotation_scale_set(k_handle t, vec3 position, quat rotation, vec3 scale);
+KAPI void xform_position_rotation_scale_set(khandle t, vec3 position, quat rotation, vec3 scale);
 
 /**
  * @brief Applies translation and rotation to the given xform.
@@ -181,12 +181,12 @@ KAPI void xform_position_rotation_scale_set(k_handle t, vec3 position, quat rota
  * @param rotation The rotation to be applied.
  * @return KAPI
  */
-KAPI void xform_translate_rotate(k_handle t, vec3 translation, quat rotation);
+KAPI void xform_translate_rotate(khandle t, vec3 translation, quat rotation);
 
 /**
  * Recalculates the local matrix for the transform with the given handle.
  */
-KAPI void xform_calculate_local(k_handle t);
+KAPI void xform_calculate_local(khandle t);
 
 /**
  * @brief Retrieves the local xformation matrix from the provided xform.
@@ -196,9 +196,9 @@ KAPI void xform_calculate_local(k_handle t);
  * @param t A handle to the xform whose matrix to retrieve.
  * @return A copy of the local xformation matrix.
  */
-KAPI mat4 xform_local_get(k_handle t);
+KAPI mat4 xform_local_get(khandle t);
 
-KAPI void xform_world_set(k_handle t, mat4 world);
+KAPI void xform_world_set(khandle t, mat4 world);
 
 /**
  * @brief Obtains the world matrix of the given xform.
@@ -206,7 +206,7 @@ KAPI void xform_world_set(k_handle t, mat4 world);
  * @param t A handle to the xform whose world matrix to retrieve.
  * @return A copy of the world matrix.
  */
-KAPI mat4 xform_world_get(k_handle t);
+KAPI mat4 xform_world_get(khandle t);
 
 /**
  * @brief Returns a string representation of the xform pointed to by the given handle.
@@ -214,6 +214,6 @@ KAPI mat4 xform_world_get(k_handle t);
  * @param t A handle to the xform to retrieve as a string.
  * @return The xform in string format.
  */
-KAPI const char* xform_to_string(k_handle t);
+KAPI const char* xform_to_string(khandle t);
 
 #endif

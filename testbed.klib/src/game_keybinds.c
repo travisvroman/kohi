@@ -22,7 +22,7 @@
 #include "renderer/renderer_types.h"
 
 static f32 get_engine_delta_time(void) {
-    k_handle engine = timeline_system_get_engine();
+    khandle engine = timeline_system_get_engine();
     return timeline_system_delta_get(engine);
 }
 

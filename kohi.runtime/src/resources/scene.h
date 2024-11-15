@@ -42,9 +42,9 @@ typedef enum scene_state {
 typedef struct scene_attachment {
     scene_node_attachment_type attachment_type;
     // Handle into the hierarchy graph.
-    k_handle hierarchy_node_handle;
+    khandle hierarchy_node_handle;
     // A handle indexing into the resource array of the given type (i.e. meshes).
-    k_handle resource_handle;
+    khandle resource_handle;
 } scene_attachment;
 
 typedef enum scene_flag {

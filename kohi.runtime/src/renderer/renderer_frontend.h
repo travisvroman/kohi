@@ -224,7 +224,7 @@ KAPI void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_
  * @param depth_stencil_target A handle to a depth stencil target to render to.
  * @param depth_stencil_layer For layered depth targets, the layer index to render to. Ignored otherwise.
  */
-KAPI void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, k_handle* colour_targets, k_handle depth_stencil_target, u32 depth_stencil_layer);
+KAPI void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer);
 
 /**
  *
@@ -262,7 +262,7 @@ KAPI void renderer_set_stencil_write_mask(u32 write_mask);
  * @param out_renderer_texture_handle A pointer to hold the renderer texture handle, which points to the backing resource(s) of the texture.
  * @returns True on success, otherwise false;
  */
-KAPI b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* state, kname name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags, k_handle* out_renderer_texture_handle);
+KAPI b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* state, kname name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags, khandle* out_renderer_texture_handle);
 
 /**
  * Releases backing renderer-specific resources for the given renderer_texture_id.
@@ -270,7 +270,7 @@ KAPI b8 renderer_kresource_texture_resources_acquire(struct renderer_system_stat
  * @param state A pointer to the renderer system state.
  * @param handle A pointer to the handle of the renderer texture whose resources are to be released. Handle is automatically invalidated.
  */
-KAPI void renderer_texture_resources_release(struct renderer_system_state* state, k_handle* handle);
+KAPI void renderer_texture_resources_release(struct renderer_system_state* state, khandle* handle);
 
 /**
  * @brief Gets an opaque pointer to renderer-specific resource data. Typically only used by a renderer backend.
@@ -279,7 +279,7 @@ KAPI void renderer_texture_resources_release(struct renderer_system_state* state
  * @param renderer_texture_id The handle of the renderer texture whose resources to get.
  * @returns A pointer to internal resources on success; otherwise 0/null.
  */
-KAPI struct texture_internal_data* renderer_texture_resources_get(struct renderer_system_state* state, k_handle renderer_texture_handle);
+KAPI struct texture_internal_data* renderer_texture_resources_get(struct renderer_system_state* state, khandle renderer_texture_handle);
 
 /**
  * @brief Resizes a texture. There is no check at this level to see if the
@@ -292,7 +292,7 @@ KAPI struct texture_internal_data* renderer_texture_resources_get(struct rendere
  * @param new_height The new height in pixels.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_texture_resize(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 new_width, u32 new_height);
+KAPI b8 renderer_texture_resize(struct renderer_system_state* state, khandle renderer_texture_handle, u32 new_width, u32 new_height);
 
 /**
  * @brief Writes the given data to the provided texture.
@@ -304,7 +304,7 @@ KAPI b8 renderer_texture_resize(struct renderer_system_state* state, k_handle re
  * @param pixels The raw image data to be written.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_texture_write_data(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 offset, u32 size, const u8* pixels);
+KAPI b8 renderer_texture_write_data(struct renderer_system_state* state, khandle renderer_texture_handle, u32 offset, u32 size, const u8* pixels);
 
 /**
  * @brief Reads the given data from the provided texture.
@@ -316,7 +316,7 @@ KAPI b8 renderer_texture_write_data(struct renderer_system_state* state, k_handl
  * @param out_pixels A pointer to a block of memory to write the read data to.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_texture_read_data(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 offset, u32 size, u8** out_memory);
+KAPI b8 renderer_texture_read_data(struct renderer_system_state* state, khandle renderer_texture_handle, u32 offset, u32 size, u8** out_memory);
 
 /**
  * @brief Reads a pixel from the provided texture at the given x/y coordinate.
@@ -328,7 +328,7 @@ KAPI b8 renderer_texture_read_data(struct renderer_system_state* state, k_handle
  * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_texture_read_pixel(struct renderer_system_state* state, k_handle renderer_texture_handle, u32 x, u32 y, u8** out_rgba);
+KAPI b8 renderer_texture_read_pixel(struct renderer_system_state* state, khandle renderer_texture_handle, u32 x, u32 y, u8** out_rgba);
 
 /**
  * @brief Attempts to return a pointer to the internal texture data associated with the provided handle.
@@ -337,7 +337,7 @@ KAPI b8 renderer_texture_read_pixel(struct renderer_system_state* state, k_handl
  * @param renderer_texture_handle A handle to the texture to be read from.
  * @returns A pointer to the internal texture data on success; otherwise null/0.
  */
-KAPI struct texture_internal_data* renderer_texture_internal_get(struct renderer_system_state* state, k_handle renderer_texture_handle);
+KAPI struct texture_internal_data* renderer_texture_internal_get(struct renderer_system_state* state, khandle renderer_texture_handle);
 
 /**
  * @brief Attempts retrieve the renderer's internal buffer of the given type.
@@ -413,7 +413,7 @@ KAPI void renderer_clear_stencil_set(struct renderer_system_state* state, u32 st
  * @param texture_handle A handle to the texture to clear.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 renderer_clear_colour(struct renderer_system_state* state, k_handle texture_handle);
+KAPI b8 renderer_clear_colour(struct renderer_system_state* state, khandle texture_handle);
 
 /**
  * @brief Clears the depth/stencil buffer using the previously set clear values.
@@ -422,7 +422,7 @@ KAPI b8 renderer_clear_colour(struct renderer_system_state* state, k_handle text
  * @param texture_handle A handle to the texture to clear.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_handle texture_handle);
+KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, khandle texture_handle);
 
 /**
  * @brief Performs operations required on the supplied colour texture before presentation.
@@ -430,7 +430,7 @@ KAPI b8 renderer_clear_depth_stencil(struct renderer_system_state* state, k_hand
  * @param state A pointer to the renderer system state.
  * @param texture_handle A handle to the texture to prepare for presentation.
  */
-KAPI void renderer_colour_texture_prepare_for_present(struct renderer_system_state* state, k_handle texture_handle);
+KAPI void renderer_colour_texture_prepare_for_present(struct renderer_system_state* state, khandle texture_handle);
 
 /**
  * @brief Performs operations required on the supplied texture before being used for sampling.
@@ -439,7 +439,7 @@ KAPI void renderer_colour_texture_prepare_for_present(struct renderer_system_sta
  * @param texture_handle A handle to the texture to prepare for sampling.
  * @param flags Texture flags from the texture itself, used to determine format/layout, etc.
  */
-KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, k_handle texture_handle, texture_flag_bits flags);
+KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, khandle texture_handle, texture_flag_bits flags);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.
@@ -588,7 +588,7 @@ KAPI b8 renderer_shader_uniform_set(struct renderer_system_state* state, struct 
  * @param sampler The shader sampler to get a handle to.
  * @returns A handle to a generic sampler of the given type.
  */
-KAPI k_handle renderer_generic_sampler_get(struct renderer_system_state* state, shader_generic_sampler sampler);
+KAPI khandle renderer_generic_sampler_get(struct renderer_system_state* state, shader_generic_sampler sampler);
 
 /**
  * @brief Acquires a internal sampler and returns a handle to it.
@@ -600,7 +600,7 @@ KAPI k_handle renderer_generic_sampler_get(struct renderer_system_state* state, 
  * @param mip_levels The mip levels, if used; otherwise 0.
  * @return A handle to the sampler on success; otherwise an invalid handle.
  */
-KAPI k_handle renderer_sampler_acquire(struct renderer_system_state* state, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
+KAPI khandle renderer_sampler_acquire(struct renderer_system_state* state, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
 
 /**
  * @brief Releases the internal sampler for the given handle.
@@ -608,7 +608,7 @@ KAPI k_handle renderer_sampler_acquire(struct renderer_system_state* state, text
  * @param state A pointer to the renderer state.
  * @param map A pointer to the handle whose sampler is to be released. Handle is invalidated upon release.
  */
-KAPI void renderer_sampler_release(struct renderer_system_state* state, k_handle* sampler);
+KAPI void renderer_sampler_release(struct renderer_system_state* state, khandle* sampler);
 
 /**
  * @brief Recreates the internal sampler pointed to by the given handle. Modifies the handle.
@@ -621,7 +621,7 @@ KAPI void renderer_sampler_release(struct renderer_system_state* state, k_handle
  * @param mip_levels The mip levels, if used; otherwise 0.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_sampler_refresh(struct renderer_system_state* state, k_handle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
+KAPI b8 renderer_sampler_refresh(struct renderer_system_state* state, khandle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
 
 /**
  * @brief Indicates if the renderer is capable of multi-threading.

@@ -398,7 +398,7 @@ struct texture_internal_data* texture_system_resource_get_internal_or_default(co
     }
     texture_system_state* state = engine_systems_get()->texture_system;
 
-    k_handle tex_handle = t->renderer_texture_handle;
+    khandle tex_handle = t->renderer_texture_handle;
 
     // Texture isn't loaded yet, use a default.
     if (t->base.generation == INVALID_ID) {
@@ -461,7 +461,7 @@ struct texture_internal_data* texture_system_resource_get_internal_or_default(co
         // invalidate_texture
         kzero_memory(t, sizeof(texture));
         t->generation = INVALID_ID_U8;
-        t->renderer_texture_handle = k_handle_invalid();
+        t->renderer_texture_handle = khandle_invalid();
         // invalidate_texture(t);
         return false;
     }
@@ -477,7 +477,7 @@ struct texture_internal_data* texture_system_resource_get_internal_or_default(co
         // invalidate_texture
         kzero_memory(t, sizeof(texture));
         t->generation = INVALID_ID_U8;
-        t->renderer_texture_handle = k_handle_invalid();
+        t->renderer_texture_handle = khandle_invalid();
         // invalidate_texture(t);
 
         return false;
@@ -1219,7 +1219,7 @@ static b8 create_texture(texture* t, texture_type type, u32 width, u32 height, u
     // Set some values regardless of texture type.
     t->type = type;
     t->array_size = array_size;
-    t->renderer_texture_handle = k_handle_invalid();
+    t->renderer_texture_handle = khandle_invalid();
     t->generation = INVALID_ID_U8;
     if (is_writeable) {
         t->flags |= TEXTURE_FLAG_IS_WRITEABLE;
@@ -1399,7 +1399,7 @@ static void invalidate_texture(kresource_texture* t) {
     if (t) {
         kzero_memory(t, sizeof(kresource_texture));
         t->base.generation = INVALID_ID_U8;
-        t->renderer_texture_handle = k_handle_invalid();
+        t->renderer_texture_handle = khandle_invalid();
     }
 }
 

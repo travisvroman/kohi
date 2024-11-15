@@ -62,14 +62,14 @@ typedef struct sui_keyboard_event {
 
 typedef struct sui_clip_mask {
     u32 reference_id;
-    k_handle clip_xform;
+    khandle clip_xform;
     struct geometry* clip_geometry;
     geometry_render_data render_data;
 } sui_clip_mask;
 
 typedef struct sui_control {
     identifier id;
-    k_handle xform;
+    khandle xform;
     char* name;
     // TODO: Convert to flags.
     b8 is_active;

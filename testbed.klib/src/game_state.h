@@ -25,9 +25,9 @@ struct debug_line3d;
 struct debug_box3d;
 
 typedef struct selected_object {
-    k_handle xform_handle;
-    k_handle node_handle;
-    k_handle xform_parent_handle;
+    khandle xform_handle;
+    khandle node_handle;
+    khandle xform_parent_handle;
 } selected_object;
 
 typedef struct testbed_game_state {

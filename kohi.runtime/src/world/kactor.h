@@ -17,7 +17,7 @@
 typedef struct kactor {
     u64 id;
     kname name;
-    k_handle xform;
+    khandle xform;
 } kactor;
 
 // staticmesh system

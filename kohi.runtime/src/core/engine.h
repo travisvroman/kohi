@@ -151,8 +151,8 @@ KAPI const struct frame_data* engine_frame_data_get(void);
  */
 KAPI const engine_system_states* engine_systems_get(void);
 
-KAPI k_handle engine_external_system_register(u64 system_state_memory_requirement);
+KAPI khandle engine_external_system_register(u64 system_state_memory_requirement);
 
-KAPI void* engine_external_system_state_get(k_handle system_handle);
+KAPI void* engine_external_system_state_get(khandle system_handle);
 
 KAPI struct kwindow* engine_active_window_get(void);

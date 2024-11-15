@@ -11,7 +11,7 @@
 
 static void update_vert_colour(debug_box3d* box);
 
-b8 debug_box3d_create(vec3 size, k_handle parent_xform, debug_box3d* out_box) {
+b8 debug_box3d_create(vec3 size, khandle parent_xform, debug_box3d* out_box) {
     if (!out_box) {
         return false;
     }
@@ -33,7 +33,7 @@ void debug_box3d_destroy(debug_box3d* box) {
     box->id.uniqueid = INVALID_ID_U64;
 }
 
-void debug_box3d_parent_set(debug_box3d* box, k_handle parent_xform) {
+void debug_box3d_parent_set(debug_box3d* box, khandle parent_xform) {
     if (box) {
         box->parent_xform = parent_xform;
     }

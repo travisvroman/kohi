@@ -467,7 +467,7 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
 
     if (plane_count) {
         // Calculate movement based on the total game time.
-        k_handle game_timeline = timeline_system_get_game();
+        khandle game_timeline = timeline_system_get_game();
         f32 delta_time = timeline_system_delta_get(game_timeline);
 
         // Bind the viewport

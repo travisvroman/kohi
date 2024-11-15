@@ -265,7 +265,7 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Default texture "maps" to use these.
     - [ ] Add 16 sampler/texture limitation to shader system. (see required limits doc)
     - [ ] Allow custom samplers to be defined in shader config.
-  - [x] Change samplers to use k_handles
+  - [x] Change samplers to use khandles
   - [x] Bubble up sampler functions to renderer frontend.
   - [ ] Remove concept of texture maps in favour of separate samplers and images
   - [ ] Change shader system to set "texture" instead of "sampler".

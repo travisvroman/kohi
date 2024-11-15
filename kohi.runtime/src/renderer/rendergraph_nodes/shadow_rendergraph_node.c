@@ -28,7 +28,7 @@ typedef struct shadow_shader_locations {
 
 typedef struct cascade_resources {
     // FIXME: not used - delete?
-    k_handle framebuffer_handle;
+    khandle framebuffer_handle;
 } cascade_resources;
 
 typedef struct shadow_shader_instance_data {

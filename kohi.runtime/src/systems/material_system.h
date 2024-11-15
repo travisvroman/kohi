@@ -105,7 +105,7 @@ typedef struct material_data {
 
 typedef struct material_instance_data {
     // A handle to the material to which this instance references.
-    k_handle material;
+    khandle material;
     // A unique id used for handle validation.
     u64 unique_id;
     // Shader draw id for per-draw uniforms.
@@ -129,7 +129,7 @@ typedef struct multimaterial_data {
 } multimaterial_data;
 
 typedef struct mulitmaterial_instance_data {
-    k_handle instance;
+    khandle instance;
     u8 submaterial_count;
     material_instance_data* instance_datas;
 } multimaterial_instance_data;
@@ -166,55 +166,55 @@ void material_system_shutdown(struct material_system_state* state);
  * @param out_material_handle A pointer to hold the material handle.
  * @return True if the material was found; otherwise false if the default material was returned.
  */
-KAPI b8 material_system_get_handle(struct material_system_state* state, kname name, k_handle* out_material_handle);
+KAPI b8 material_system_get_handle(struct material_system_state* state, kname name, khandle* out_material_handle);
 
-KAPI const kresource_texture* material_texture_get(struct material_system_state* state, k_handle material, material_texture_param tex_param);
-KAPI void material_texture_set(struct material_system_state* state, k_handle material, material_texture_param tex_param, const kresource_texture* texture);
+KAPI const kresource_texture* material_texture_get(struct material_system_state* state, khandle material, material_texture_param tex_param);
+KAPI void material_texture_set(struct material_system_state* state, khandle material, material_texture_param tex_param, const kresource_texture* texture);
 
-KAPI texture_channel material_metallic_texture_channel_get(struct material_system_state* state, k_handle material);
-KAPI void material_metallic_texture_channel_set(struct material_system_state* state, k_handle material, texture_channel value);
+KAPI texture_channel material_metallic_texture_channel_get(struct material_system_state* state, khandle material);
+KAPI void material_metallic_texture_channel_set(struct material_system_state* state, khandle material, texture_channel value);
 
-KAPI texture_channel material_roughness_texture_channel_get(struct material_system_state* state, k_handle material);
-KAPI void material_roughness_texture_channel_set(struct material_system_state* state, k_handle material, texture_channel value);
+KAPI texture_channel material_roughness_texture_channel_get(struct material_system_state* state, khandle material);
+KAPI void material_roughness_texture_channel_set(struct material_system_state* state, khandle material, texture_channel value);
 
-KAPI texture_channel material_ao_texture_channel_get(struct material_system_state* state, k_handle material);
-KAPI void material_ao_texture_channel_set(struct material_system_state* state, k_handle material, texture_channel value);
+KAPI texture_channel material_ao_texture_channel_get(struct material_system_state* state, khandle material);
+KAPI void material_ao_texture_channel_set(struct material_system_state* state, khandle material, texture_channel value);
 
-KAPI material_texture_filter material_texture_filter_get(struct material_system_state* state, k_handle material);
-KAPI void material_texture_filter_set(struct material_system_state* state, k_handle material, material_texture_filter value);
+KAPI material_texture_filter material_texture_filter_get(struct material_system_state* state, khandle material);
+KAPI void material_texture_filter_set(struct material_system_state* state, khandle material, material_texture_filter value);
 
-KAPI material_texture_mode material_texture_mode_get(struct material_system_state* state, k_handle material);
-KAPI void material_texture_mode_set(struct material_system_state* state, k_handle material, material_texture_mode value);
+KAPI material_texture_mode material_texture_mode_get(struct material_system_state* state, khandle material);
+KAPI void material_texture_mode_set(struct material_system_state* state, khandle material, material_texture_mode value);
 
-KAPI b8 material_has_transparency_get(struct material_system_state* state, k_handle material);
-KAPI void material_has_transparency_set(struct material_system_state* state, k_handle material, b8 value);
+KAPI b8 material_has_transparency_get(struct material_system_state* state, khandle material);
+KAPI void material_has_transparency_set(struct material_system_state* state, khandle material, b8 value);
 
-KAPI b8 material_double_sided_get(struct material_system_state* state, k_handle material);
-KAPI void material_double_sided_set(struct material_system_state* state, k_handle material, b8 value);
+KAPI b8 material_double_sided_get(struct material_system_state* state, khandle material);
+KAPI void material_double_sided_set(struct material_system_state* state, khandle material, b8 value);
 
-KAPI b8 material_recieves_shadow_get(struct material_system_state* state, k_handle material);
-KAPI void material_recieves_shadow_set(struct material_system_state* state, k_handle material, b8 value);
+KAPI b8 material_recieves_shadow_get(struct material_system_state* state, khandle material);
+KAPI void material_recieves_shadow_set(struct material_system_state* state, khandle material, b8 value);
 
-KAPI b8 material_casts_shadow_get(struct material_system_state* state, k_handle material);
-KAPI void material_casts_shadow_set(struct material_system_state* state, k_handle material, b8 value);
+KAPI b8 material_casts_shadow_get(struct material_system_state* state, khandle material);
+KAPI void material_casts_shadow_set(struct material_system_state* state, khandle material, b8 value);
 
-KAPI b8 material_normal_enabled_get(struct material_system_state* state, k_handle material);
-KAPI void material_normal_enabled_set(struct material_system_state* state, k_handle material, b8 value);
+KAPI b8 material_normal_enabled_get(struct material_system_state* state, khandle material);
+KAPI void material_normal_enabled_set(struct material_system_state* state, khandle material, b8 value);
 
-KAPI b8 material_ao_enabled_get(struct material_system_state* state, k_handle material);
-KAPI void material_ao_enabled_set(struct material_system_state* state, k_handle material, b8 value);
+KAPI b8 material_ao_enabled_get(struct material_system_state* state, khandle material);
+KAPI void material_ao_enabled_set(struct material_system_state* state, khandle material, b8 value);
 
-KAPI b8 material_emissive_enabled_get(struct material_system_state* state, k_handle material);
-KAPI void material_emissive_enabled_set(struct material_system_state* state, k_handle material, b8 value);
+KAPI b8 material_emissive_enabled_get(struct material_system_state* state, khandle material);
+KAPI void material_emissive_enabled_set(struct material_system_state* state, khandle material, b8 value);
 
-KAPI b8 material_refraction_enabled_get(struct material_system_state* state, k_handle material);
-KAPI void material_refraction_enabled_set(struct material_system_state* state, k_handle material, b8 value);
+KAPI b8 material_refraction_enabled_get(struct material_system_state* state, khandle material);
+KAPI void material_refraction_enabled_set(struct material_system_state* state, khandle material, b8 value);
 
-KAPI f32 material_refraction_scale_get(struct material_system_state* state, k_handle material);
-KAPI void material_refraction_scale_set(struct material_system_state* state, k_handle material, f32 value);
+KAPI f32 material_refraction_scale_get(struct material_system_state* state, khandle material);
+KAPI void material_refraction_scale_set(struct material_system_state* state, khandle material, f32 value);
 
-KAPI b8 material_use_vertex_colour_as_albedo_get(struct material_system_state* state, k_handle material);
-KAPI void material_use_vertex_colour_as_albedo_set(struct material_system_state* state, k_handle material, b8 value);
+KAPI b8 material_use_vertex_colour_as_albedo_get(struct material_system_state* state, khandle material);
+KAPI void material_use_vertex_colour_as_albedo_set(struct material_system_state* state, khandle material, b8 value);
 
 /**
  * @brief Sets the given material flag's state.
@@ -225,7 +225,7 @@ KAPI void material_use_vertex_colour_as_albedo_set(struct material_system_state*
  * @param value The value of the flag.
  * @returns True if successfully set; otherwise false.
  */
-KAPI b8 material_flag_set(struct material_system_state* state, k_handle material, material_flag_bits flag, b8 value);
+KAPI b8 material_flag_set(struct material_system_state* state, khandle material, material_flag_bits flag, b8 value);
 
 /**
  * @brief Gets value of the given material flag's state.
@@ -235,7 +235,7 @@ KAPI b8 material_flag_set(struct material_system_state* state, k_handle material
  * @param material_flag_bits The flag whose value to get.
  * @returns True if the flag is set; otherwise false.
  */
-KAPI b8 material_flag_get(struct material_system_state* state, k_handle material, material_flag_bits flag);
+KAPI b8 material_flag_get(struct material_system_state* state, khandle material, material_flag_bits flag);
 
 // -------------------------------------------------
 // ------------- MATERIAL INSTANCE -----------------
@@ -249,7 +249,7 @@ KAPI b8 material_flag_get(struct material_system_state* state, k_handle material
  * @param name The handle of the material to acquire an instance for.
  * @return A handle to a material instance the material with the given handle is found and valid; otherwise an invalid handle.
  */
-KAPI k_handle material_acquire_instance(struct material_system_state* state, k_handle material);
+KAPI khandle material_acquire_instance(struct material_system_state* state, khandle material);
 
 /**
  * @brief Releases the given material instance.
@@ -260,7 +260,7 @@ KAPI k_handle material_acquire_instance(struct material_system_state* state, k_h
  * @param material A handle to the owning material.
  * @param instance A handle to the material instance to unload.
  */
-KAPI void material_release_instance(struct material_system_state* state, k_handle material, k_handle instance);
+KAPI void material_release_instance(struct material_system_state* state, khandle material, khandle instance);
 
 /**
  * @brief Sets the given material instance flag's state.
@@ -272,7 +272,7 @@ KAPI void material_release_instance(struct material_system_state* state, k_handl
  * @param value The value of the flag.
  * @returns True if successfully set; otherwise false.
  */
-KAPI b8 material_instance_flag_set(struct material_system_state* state, k_handle material, k_handle instance, material_flag_bits flag, b8 value);
+KAPI b8 material_instance_flag_set(struct material_system_state* state, khandle material, khandle instance, material_flag_bits flag, b8 value);
 
 /**
  * @brief Gets value of the given material instance flag's state.
@@ -283,21 +283,21 @@ KAPI b8 material_instance_flag_set(struct material_system_state* state, k_handle
  * @param material_flag_bits The flag whose value to get.
  * @returns True if the flag is set; otherwise false.
  */
-KAPI b8 material_instance_flag_get(struct material_system_state* state, k_handle material, k_handle instance, material_flag_bits flag);
+KAPI b8 material_instance_flag_get(struct material_system_state* state, khandle material, khandle instance, material_flag_bits flag);
 
-KAPI vec4 material_instance_albedo_colour_get(struct material_system_state* state, k_handle material, k_handle instance);
-KAPI void material_instance_albedo_colour_set(struct material_system_state* state, k_handle material, k_handle instance, vec4 value);
+KAPI vec4 material_instance_albedo_colour_get(struct material_system_state* state, khandle material, khandle instance);
+KAPI void material_instance_albedo_colour_set(struct material_system_state* state, khandle material, khandle instance, vec4 value);
 
-KAPI vec3 material_instance_uv_offset_get(struct material_system_state* state, k_handle material, k_handle instance);
-KAPI void material_instance_uv_offset_set(struct material_system_state* state, k_handle material, k_handle instance, vec3 value);
+KAPI vec3 material_instance_uv_offset_get(struct material_system_state* state, khandle material, khandle instance);
+KAPI void material_instance_uv_offset_set(struct material_system_state* state, khandle material, khandle instance, vec3 value);
 
-KAPI vec3 material_instance_uv_scale_get(struct material_system_state* state, k_handle material, k_handle instance);
-KAPI void material_instance_uv_scale_set(struct material_system_state* state, k_handle material, k_handle instance, vec3 value);
+KAPI vec3 material_instance_uv_scale_get(struct material_system_state* state, khandle material, khandle instance);
+KAPI void material_instance_uv_scale_set(struct material_system_state* state, khandle material, khandle instance, vec3 value);
 
 /**
  * @brief Gets an instance of the default material.
  */
-KAPI k_handle material_get_default(struct material_system_state* state);
+KAPI khandle material_get_default(struct material_system_state* state);
 
 /**
  * @brief Dumps all of the registered materials and their reference counts/handles.

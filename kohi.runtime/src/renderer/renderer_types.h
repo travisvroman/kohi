@@ -647,14 +647,14 @@ typedef struct renderer_backend_interface {
      * @param mip_levels The mip levels, if used; otherwise 0.
      * @return A handle to the sampler on success; otherwise an invalid handle.
      */
-    k_handle (*sampler_acquire)(struct renderer_backend_interface* backend, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
+    khandle (*sampler_acquire)(struct renderer_backend_interface* backend, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
     /**
      * @brief Releases the internal sampler for the given handle.
      *
      * @param backend A pointer to the renderer backend interface.
      * @param map A pointer to the handle whose sampler is to be released. Handle is invalidated upon release.
      */
-    void (*sampler_release)(struct renderer_backend_interface* backend, k_handle* sampler);
+    void (*sampler_release)(struct renderer_backend_interface* backend, khandle* sampler);
     /**
      * @brief Recreates the internal sampler pointed to by the given handle. Modifies the handle.
      *
@@ -666,7 +666,7 @@ typedef struct renderer_backend_interface {
      * @param mip_levels The mip levels, if used; otherwise 0.
      * @return True on success; otherwise false.
      */
-    b8 (*sampler_refresh)(struct renderer_backend_interface* backend, k_handle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
+    b8 (*sampler_refresh)(struct renderer_backend_interface* backend, khandle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
 
     /**
      * @brief Indicates if the renderer is capable of multi-threading.
