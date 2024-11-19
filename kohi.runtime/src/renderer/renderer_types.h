@@ -17,7 +17,6 @@ struct viewport;
 struct camera;
 struct material;
 struct kwindow_renderer_backend_state;
-struct texture_internal_data;
 struct texture_map;
 
 typedef struct renderbuffer_data {
@@ -214,29 +213,6 @@ typedef enum renderer_winding {
 } renderer_winding;
 
 /**
- * @brief Maps a uniform to a texture map/maps when acquiring frequency-level resources.
- */
-typedef struct shader_frequency_uniform_texture_config {
-    /** @brief The locaton of the uniform to map to. */
-    /* u16 uniform_location; */
-    /** @brief The number of texture maps bound to the uniform. */
-    u32 kresource_texture_map_count;
-    /** @brief An array of pointers to texture maps to be mapped to the uniform. */
-    struct kresource_texture_map** kresource_texture_maps;
-} shader_frequency_uniform_texture_config;
-
-/**
- * @brief Represents the configuration of texture map resources and mappings to uniforms
- * required for frequency-level shader data.
- */
-typedef struct shader_texture_resource_config {
-    /** @brief The number of uniform configurations */
-    u32 uniform_config_count;
-    /** @brief An array of uniform configurations. */
-    shader_frequency_uniform_texture_config* uniform_configs;
-} shader_texture_resource_config;
-
-/**
  * @brief The internal state of a window for the renderer frontend.
  */
 typedef struct kwindow_renderer_state {
@@ -264,9 +240,6 @@ typedef struct kwindow_renderer_state {
 typedef struct renderer_backend_interface {
     // A pointer to the frontend state in case the backend needs to communicate with it.
     struct renderer_system_state* frontend_state;
-
-    // The size needed by the renderer backend to hold texture data.
-    u64 texture_internal_data_size;
 
     /**
      * @brief The size of the backend-specific renderer context.
@@ -413,7 +386,7 @@ typedef struct renderer_backend_interface {
      */
     void (*set_stencil_op)(struct renderer_backend_interface* backend, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
 
-    void (*begin_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, struct texture_internal_data** colour_targets, struct texture_internal_data* depth_stencil_target, u32 depth_stencil_layer);
+    void (*begin_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer);
     void (*end_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data);
 
     /**
@@ -435,13 +408,13 @@ typedef struct renderer_backend_interface {
     void (*clear_colour_set)(struct renderer_backend_interface* backend, vec4 clear_colour);
     void (*clear_depth_set)(struct renderer_backend_interface* backend, f32 depth);
     void (*clear_stencil_set)(struct renderer_backend_interface* backend, u32 stencil);
-    void (*clear_colour)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal);
-    void (*clear_depth_stencil)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal);
-    void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal);
-    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal, texture_flag_bits flags);
+    void (*clear_colour)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
+    void (*clear_depth_stencil)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
+    void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
+    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, texture_flag_bits flags);
 
-    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, struct texture_internal_data* data, const char* name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags);
-    void (*texture_resources_release)(struct renderer_backend_interface* backend, struct texture_internal_data* data);
+    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, const char* name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags, khandle* out_renderer_texture_handle);
+    void (*texture_resources_release)(struct renderer_backend_interface* backend, khandle* renderer_texture_handle);
 
     /**
      * @brief Resizes a texture. There is no check at this level to see if the
@@ -454,7 +427,7 @@ typedef struct renderer_backend_interface {
      * @param new_height The new height in pixels.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_resize)(struct renderer_backend_interface* backend, struct texture_internal_data* data, u32 new_width, u32 new_height);
+    b8 (*texture_resize)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 new_width, u32 new_height);
 
     /**
      * @brief Writes the given data to the provided texture.
@@ -469,7 +442,7 @@ typedef struct renderer_backend_interface {
      * @param pixels The raw image data to be written.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_write_data)(struct renderer_backend_interface* backend, struct texture_internal_data* data, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
+    b8 (*texture_write_data)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
 
     /**
      * @brief Reads the given data from the provided texture.
@@ -481,7 +454,7 @@ typedef struct renderer_backend_interface {
      * @param out_pixels A pointer to a block of memory to write the read data to.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_read_data)(struct renderer_backend_interface* backend, struct texture_internal_data* data, u32 offset, u32 size, u8** out_pixels);
+    b8 (*texture_read_data)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 offset, u32 size, u8** out_pixels);
 
     /**
      * @brief Reads a pixel from the provided texture at the given x/y coordinate.
@@ -493,7 +466,7 @@ typedef struct renderer_backend_interface {
      * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_read_pixel)(struct renderer_backend_interface* backend, struct texture_internal_data* data, u32 x, u32 y, u8** out_rgba);
+    b8 (*texture_read_pixel)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 x, u32 y, u8** out_rgba);
 
     /**
      * @brief Creates internal shader resources using the provided parameters.
@@ -503,7 +476,7 @@ typedef struct renderer_backend_interface {
      * @param config A constant pointer to the shader config.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct renderer_backend_interface* backend, struct shader* shader, const shader_config* config);
+    b8 (*shader_create)(struct renderer_backend_interface* backend, khandle shader, const shader_config* config);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
@@ -511,7 +484,7 @@ typedef struct renderer_backend_interface {
      * @param backend A pointer to the renderer backend interface.
      * @param s A pointer to the shader to be destroyed.
      */
-    void (*shader_destroy)(struct renderer_backend_interface* backend, struct shader* shader);
+    void (*shader_destroy)(struct renderer_backend_interface* backend, khandle shader);
 
     /**
      * @brief Initializes a configured shader. Will be automatically destroyed if this step fails.
@@ -521,7 +494,7 @@ typedef struct renderer_backend_interface {
      * @param s A pointer to the shader to be initialized.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_initialize)(struct renderer_backend_interface* backend, struct shader* shader);
+    b8 (*shader_initialize)(struct renderer_backend_interface* backend, khandle shader);
 
     /**
      * @brief Reloads the internals of the given shader.
@@ -530,7 +503,7 @@ typedef struct renderer_backend_interface {
      * @param s A pointer to the shader to be reloaded.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_reload)(struct renderer_backend_interface* backend, struct shader* s);
+    b8 (*shader_reload)(struct renderer_backend_interface* backend, khandle s);
 
     /**
      * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
@@ -540,7 +513,7 @@ typedef struct renderer_backend_interface {
      * @param s A pointer to the shader to be used.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_use)(struct renderer_backend_interface* backend, struct shader* shader);
+    b8 (*shader_use)(struct renderer_backend_interface* backend, khandle shader);
 
     /**
      * @brief Indicates if the supplied shader supports wireframe mode.
@@ -549,7 +522,7 @@ typedef struct renderer_backend_interface {
      * @param s A constant pointer to the shader to be used.
      * @return True if supported; otherwise false.
      */
-    b8 (*shader_supports_wireframe)(const struct renderer_backend_interface* backend, const struct shader* s);
+    b8 (*shader_supports_wireframe)(const struct renderer_backend_interface* backend, khandle* s);
 
     /**
      * @brief Applies global data to the uniform buffer.
@@ -559,7 +532,7 @@ typedef struct renderer_backend_interface {
      * @param renderer_frame_number The current renderer frame number provided by the frontend.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_per_frame)(struct renderer_backend_interface* backend, struct shader* s, u64 renderer_frame_number);
+    b8 (*shader_apply_per_frame)(struct renderer_backend_interface* backend, khandle s, u64 renderer_frame_number);
 
     /**
      * @brief Applies data for the currently bound instance.
@@ -569,7 +542,7 @@ typedef struct renderer_backend_interface {
      * @param renderer_frame_number The current renderer frame number provided by the frontend.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_per_group)(struct renderer_backend_interface* backend, struct shader* s, u64 renderer_frame_number);
+    b8 (*shader_apply_per_group)(struct renderer_backend_interface* backend, khandle s, u64 renderer_frame_number);
 
     /**
      * @brief Applies local data to the uniform buffer.
@@ -579,19 +552,17 @@ typedef struct renderer_backend_interface {
      * @param renderer_frame_number The current renderer frame number provided by the frontend.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_per_draw)(struct renderer_backend_interface* backend, struct shader* s, u64 renderer_frame_number);
+    b8 (*shader_apply_per_draw)(struct renderer_backend_interface* backend, khandle s, u64 renderer_frame_number);
 
     /**
      * @brief Acquires internal instance-level resources and provides an instance id.
      *
      * @param backend A pointer to the renderer backend interface.
      * @param s A pointer to the shader to acquire resources from.
-     * @param texture_map_count The number of texture maps used.
-     * @param maps An array of pointers to texture maps. Must be one map per instance texture.
      * @param out_instance_id A pointer to hold the new instance identifier.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_per_group_resources_acquire)(struct renderer_backend_interface* backend, struct shader* s, const shader_texture_resource_config* config, u32* out_instance_id);
+    b8 (*shader_per_group_resources_acquire)(struct renderer_backend_interface* backend, khandle s, u32* out_instance_id);
 
     /**
      * @brief Releases internal instance-level resources for the given instance id.
@@ -601,7 +572,7 @@ typedef struct renderer_backend_interface {
      * @param instance_id The instance identifier whose resources are to be released.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_per_group_resources_release)(struct renderer_backend_interface* backend, struct shader* s, u32 instance_id);
+    b8 (*shader_per_group_resources_release)(struct renderer_backend_interface* backend, khandle s, u32 instance_id);
 
     /**
      * @brief Acquires internal local-level resources and provides an instance id.
@@ -613,7 +584,7 @@ typedef struct renderer_backend_interface {
      * @param out_local_id A pointer to hold the new local identifier.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_per_draw_resources_acquire)(struct renderer_backend_interface* backend, struct shader* s, const shader_texture_resource_config* config, u32* out_local_id);
+    b8 (*shader_per_draw_resources_acquire)(struct renderer_backend_interface* backend, khandle s, u32* out_local_id);
 
     /**
      * @brief Releases internal local-level resources for the given instance id.
@@ -623,7 +594,7 @@ typedef struct renderer_backend_interface {
      * @param instance_id The local identifier whose resources are to be released.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_per_draw_resources_release)(struct renderer_backend_interface* backend, struct shader* s, u32 local_id);
+    b8 (*shader_per_draw_resources_release)(struct renderer_backend_interface* backend, khandle s, u32 local_id);
 
     /**
      * @brief Sets the uniform of the given shader to the provided value.
@@ -635,7 +606,7 @@ typedef struct renderer_backend_interface {
      * @param value A pointer to the value to be set.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_uniform_set)(struct renderer_backend_interface* backend, struct shader* frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
+    b8 (*shader_uniform_set)(struct renderer_backend_interface* backend, khandle frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
 
     /**
      * @brief Acquires a internal sampler and returns a handle to it.

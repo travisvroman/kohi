@@ -232,25 +232,22 @@ typedef struct kasset_static_mesh {
 
 #define KASSET_TYPE_NAME_MATERIAL "Material"
 
-typedef enum kmaterial_type {
-    KMATERIAL_TYPE_UNKNOWN = 0,
-    KMATERIAL_TYPE_PBR,
-    KMATERIAL_TYPE_PBR_WATER,
-    KMATERIAL_TYPE_UNLIT,
-    KMATERIAL_TYPE_PHONG,
-    KMATERIAL_TYPE_COUNT,
-    KMATERIAL_TYPE_CUSTOM = 99
-} kmaterial_type;
+typedef enum kasset_material_type {
+    KASSET_MATERIAL_TYPE_UNKNOWN = 0,
+    KASSET_MATERIAL_TYPE_STANDARD,
+    KASSET_MATERIAL_TYPE_WATER,
+    KASSET_MATERIAL_TYPE_BLENDED,
+    KASSET_MATERIAL_TYPE_COUNT,
+    KASSET_MATERIAL_TYPE_CUSTOM = 99
+} kasset_material_type;
 
-typedef enum kasset_material_texture_map {
-    KASSET_MATERIAL_TEXTURE_MAP_BASE_COLOUR,
-    KASSET_MATERIAL_TEXTURE_MAP_NORMAL,
-    KASSET_MATERIAL_TEXTURE_MAP_METALLIC,
-    KASSET_MATERIAL_TEXTURE_MAP_ROUGHNESS,
-    KASSET_MATERIAL_TEXTURE_MAP_AO,
-    KASSET_MATERIAL_TEXTURE_MAP_MRA,
-    KASSET_MATERIAL_TEXTURE_MAP_EMISSIVE,
-} kasset_material_texture_map;
+typedef enum kasset_material_model {
+    KASSET_MATERIAL_MODEL_UNLIT = 0,
+    KASSET_MATERIAL_MODEL_PBR,
+    KASSET_MATERIAL_MODEL_PHONG,
+    KASSET_MATERIAL_MODEL_COUNT,
+    KASSET_MATERIAL_MODEL_CUSTOM = 99
+} kasset_material_model;
 
 typedef enum kasset_material_texture_map_channel {
     KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R = 0,
@@ -261,9 +258,8 @@ typedef enum kasset_material_texture_map_channel {
 
 typedef struct kasset_material_texture {
     kname resource_name;
+    kname package_name;
     kname sampler_name;
-    kname map_name;
-    kasset_material_texture_map map;
     kasset_material_texture_map_channel channel;
 } kasset_material_texture;
 
@@ -276,33 +272,27 @@ typedef struct kasset_material_sampler {
     texture_repeat repeat_w;
 } kasset_material_sampler;
 
-/* typedef struct kasset_material_property {
-    kname name;
-    shader_uniform_type type;
-    u32 size;
-    union {
-        vec4 v4;
-        vec3 v3;
-        vec2 v2;
-        f32 f32;
-        u32 u32;
-        u16 u16;
-        u8 u8;
-        i32 i32;
-        i16 i16;
-        i8 i8;
-        mat4 mat4;
-    } value;
-} kasset_material_property; */
-
 typedef struct kasset_material {
     kasset base;
-    kmaterial_type type;
+    kasset_material_type type;
+    // Shading model
+    kasset_material_model model;
+
+    b8 has_transparency;
+    b8 double_sided;
+    b8 recieves_shadow;
+    b8 casts_shadow;
+    b8 use_vertex_colour_as_base_colour;
+
     // The asset name for a custom shader. Optional.
     kname custom_shader_name;
 
     vec4 base_colour;
     kasset_material_texture base_colour_map;
+
+    b8 normal_enabled;
+    vec3 normal;
+    kasset_material_texture normal_map;
 
     f32 metallic;
     kasset_material_texture metallic_map;
@@ -312,6 +302,7 @@ typedef struct kasset_material {
     kasset_material_texture roughness_map;
     kasset_material_texture_map_channel roughness_map_source_channel;
 
+    b8 ambient_occlusion_enabled;
     f32 ambient_occlusion;
     kasset_material_texture ambient_occlusion_map;
     kasset_material_texture_map_channel ambient_occlusion_map_source_channel;
@@ -322,6 +313,7 @@ typedef struct kasset_material {
     // Indicates if the mra combined value/map should be used instead of the separate ones.
     b8 use_mra;
 
+    b8 emissive_enabled;
     vec4 emissive;
     kasset_material_texture emissive_map;
 

@@ -177,14 +177,16 @@ typedef u32 shader_flag_bits;
  * @brief Represents data required for a particular update frequency within a shader.
  */
 typedef struct shader_frequency_data {
-    /** @brief The number of texture uniforms for this frequency. */
-    u8 uniform_texture_count;
     /** @brief The number of non-sampler and non-texture uniforms for this frequency. */
     u8 uniform_count;
     /** @brief The number of sampler uniforms for this frequency. */
     u8 uniform_sampler_count;
     // darray Keeps the uniform indices of samplers for fast lookups.
     u32* sampler_indices;
+    /** @brief The number of texture uniforms for this frequency. */
+    u8 uniform_texture_count;
+    // darray Keeps the uniform indices of textures for fast lookups.
+    u32* texture_indices;
     /** @brief The actual size of the uniform buffer object for this frequency. */
     u64 ubo_size;
     /** @brief The stride of the uniform buffer object for this frequency. */
@@ -292,11 +294,11 @@ typedef struct shader_config {
 /**
  * @brief Represents a shader on the frontend.
  */
-typedef struct shader {
-    /** @brief The shader identifier */
-    u32 id;
+typedef struct kshader {
+    /** @brief unique identifier that is compared against a handle. */
+    u64 uniqueid;
 
-    char* name;
+    kname name;
 
     shader_flag_bits flags;
 
@@ -346,4 +348,38 @@ typedef struct shader {
 #ifdef _DEBUG
     u32* module_watch_ids;
 #endif
-} shader;
+} kshader;
+
+typedef enum kmaterial_type {
+    KMATERIAL_TYPE_UNKNOWN = 0,
+    KMATERIAL_TYPE_STANDARD,
+    KMATERIAL_TYPE_WATER,
+    KMATERIAL_TYPE_BLENDED,
+    KMATERIAL_TYPE_COUNT,
+    KMATERIAL_TYPE_CUSTOM = 99
+} kmaterial_type;
+
+typedef enum kmaterial_model {
+    KMATERIAL_MODEL_UNLIT = 0,
+    KMATERIAL_MODEL_PBR,
+    KMATERIAL_MODEL_PHONG,
+    KMATERIAL_MODEL_COUNT,
+    KMATERIAL_MODEL_CUSTOM = 99
+} kmaterial_model;
+
+typedef enum kmaterial_texture_map {
+    KMATERIAL_TEXTURE_MAP_BASE_COLOUR,
+    KMATERIAL_TEXTURE_MAP_NORMAL,
+    KMATERIAL_TEXTURE_MAP_METALLIC,
+    KMATERIAL_TEXTURE_MAP_ROUGHNESS,
+    KMATERIAL_TEXTURE_MAP_AO,
+    KMATERIAL_TEXTURE_MAP_MRA,
+    KMATERIAL_TEXTURE_MAP_EMISSIVE,
+} kmaterial_texture_map;
+
+typedef enum kmaterial_texture_map_channel {
+    KMATERIAL_TEXTURE_MAP_CHANNEL_R = 0,
+    KMATERIAL_TEXTURE_MAP_CHANNEL_G = 1,
+    KMATERIAL_TEXTURE_MAP_CHANNEL_B = 2,
+    KMATERIAL_TEXTURE_MAP_CHANNEL_A = 3
+} kmaterial_texture_map_channel;

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "assets/kasset_types.h"
 #include "core_render_types.h"
 
 /** @brief Returns the string representation of the given texture repeat. */
@@ -38,13 +37,3 @@ KAPI shader_stage string_to_shader_stage(const char* str);
 
 /** @brief Converts the given string into a shader update frequency. Case-insensitive. */
 KAPI shader_update_frequency string_to_shader_update_frequency(const char* str);
-
-/** @brief Returns the string representation of the given material type. */
-KAPI const char* kmaterial_type_to_string(kmaterial_type type);
-
-/** @brief Converts the given string into a material type. Case-insensitive. */
-KAPI kmaterial_type string_to_kmaterial_type(const char* str);
-
-KAPI const char* material_map_channel_to_string(kasset_material_texture_map_channel channel);
-
-KAPI kasset_material_texture_map_channel string_to_material_map_channel(const char* str);

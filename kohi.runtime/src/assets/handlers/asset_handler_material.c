@@ -13,9 +13,6 @@
 #include <serializers/kasset_material_serializer.h>
 #include <strings/kstring.h>
 
-#include "systems/asset_system.h"
-#include "systems/material_system.h"
-
 void asset_handler_material_create(struct asset_handler* self, struct vfs_state* vfs) {
     KASSERT_MSG(self && vfs, "Valid pointers are required for 'self' and 'vfs'.");
 
@@ -45,14 +42,8 @@ void asset_handler_material_request_asset(struct asset_handler* self, struct kas
 
 void asset_handler_material_release_asset(struct asset_handler* self, struct kasset* asset) {
     kasset_material* typed_asset = (kasset_material*)asset;
-    if (typed_asset->map_count && typed_asset->maps) {
-        kfree(typed_asset->maps, sizeof(kasset_material_map) * typed_asset->map_count, MEMORY_TAG_ARRAY);
-        typed_asset->maps = 0;
-        typed_asset->map_count = 0;
-    }
-    if (typed_asset->property_count && typed_asset->properties) {
-        kfree(typed_asset->properties, sizeof(kasset_material_property) * typed_asset->property_count, MEMORY_TAG_ARRAY);
-        typed_asset->properties = 0;
-        typed_asset->property_count = 0;
+
+    if (typed_asset->custom_sampler_count && typed_asset->custom_samplers) {
+        KFREE_TYPE_CARRAY(typed_asset->custom_samplers, kasset_material_sampler, typed_asset->custom_sampler_count);
     }
 }

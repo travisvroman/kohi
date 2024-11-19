@@ -34,3 +34,28 @@ u8 channel_count_from_texture_format(kresource_texture_format format) {
         return 4;
     }
 }
+
+texture_channel kresource_texture_map_channel_to_texture_channel(kresource_material_texture_map_channel channel) {
+    switch (channel) {
+    case KRESOURCE_MATERIAL_TEXTURE_MAP_CHANNEL_R:
+        return TEXTURE_CHANNEL_R;
+    case KRESOURCE_MATERIAL_TEXTURE_MAP_CHANNEL_G:
+        return TEXTURE_CHANNEL_G;
+    case KRESOURCE_MATERIAL_TEXTURE_MAP_CHANNEL_B:
+        return TEXTURE_CHANNEL_B;
+    case KRESOURCE_MATERIAL_TEXTURE_MAP_CHANNEL_A:
+        return TEXTURE_CHANNEL_A;
+    }
+}
+kresource_material_texture_map_channel texture_channel_to_kresource_texture_map_channel(texture_channel channel) {
+    switch (channel) {
+    case TEXTURE_CHANNEL_R:
+        return KRESOURCE_MATERIAL_TEXTURE_MAP_CHANNEL_R;
+    case TEXTURE_CHANNEL_G:
+        return KRESOURCE_MATERIAL_TEXTURE_MAP_CHANNEL_G;
+    case TEXTURE_CHANNEL_B:
+        return KRESOURCE_MATERIAL_TEXTURE_MAP_CHANNEL_B;
+    case TEXTURE_CHANNEL_A:
+        return KRESOURCE_MATERIAL_TEXTURE_MAP_CHANNEL_A;
+    }
+}

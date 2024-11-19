@@ -17,6 +17,8 @@
 #include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
+#include "identifiers/khandle.h"
+#include "kresources/kresource_types.h"
 #include "renderer/renderer_types.h"
 #include "vulkan/vulkan_core.h"
 
@@ -176,16 +178,6 @@ typedef struct vulkan_image {
     u32 mip_levels;
     b8 has_view;
 } vulkan_image;
-
-// Struct definition for renderer-specific texture data.
-typedef struct texture_internal_data {
-    // Number of vulkan_images in the array. This is typically 1 unless the texture
-    // requires the frame_count to be taken into account.
-    u32 image_count;
-    // Array of images.
-    vulkan_image* images;
-
-} texture_internal_data;
 
 // Struct definition for renderer-specific framebuffer data.
 typedef struct framebuffer_internal_data {
@@ -427,10 +419,9 @@ typedef struct vulkan_uniform_sampler_state {
     shader_uniform uniform;
 
     /**
-     * @brief Instance texture map pointers, which are used during rendering. These
-     * are set by calls to set_sampler.
+     * @brief An array of sampler handles.
      */
-    kresource_texture_map** uniform_kresource_texture_maps;
+    khandle* sampler_handles;
 
     /**
      * @brief A descriptor state per descriptor, which in turn handles frames.
@@ -438,6 +429,21 @@ typedef struct vulkan_uniform_sampler_state {
      */
     vulkan_descriptor_state* descriptor_states;
 } vulkan_uniform_sampler_state;
+
+typedef struct vulkan_uniform_texture_state {
+    shader_uniform uniform;
+
+    /**
+     * @brief An array of handles to texture resources.
+     */
+    khandle* texture_handles;
+
+    /**
+     * @brief A descriptor state per descriptor, which in turn handles frames.
+     * Count is managed in shader config.
+     */
+    vulkan_descriptor_state* descriptor_states;
+} vulkan_uniform_texture_state;
 /**
  * @brief The frequency-level state for a shader (i.e. per-frame, per-group, per-draw).
  */
@@ -453,8 +459,10 @@ typedef struct vulkan_shader_frequency_state {
     // UBO descriptor
     vulkan_descriptor_state ubo_descriptor_state;
 
-    // A mapping of sampler uniforms to descriptors and texture maps.
+    // A mapping of sampler uniforms to descriptors.
     vulkan_uniform_sampler_state* sampler_states;
+    // A mapping of texture uniforms to descriptors.
+    vulkan_uniform_texture_state* texture_states;
 } vulkan_shader_frequency_state;
 
 /**
@@ -482,7 +490,7 @@ typedef struct vulkan_shader {
      * Is 1 if only using global uniforms/samplers; otherwise 2.
      */
     u8 descriptor_set_count;
-    /** @brief Descriptor sets, max of 3. Index 0=global, 1=instance, 2=local */
+    /** @brief Descriptor sets, max of 3. Index 0=per_frame, 1=per_group, 2=per_draw */
     vulkan_descriptor_set_config descriptor_sets[3];
 
     /** @brief An array of attribute descriptions for this shader. */
@@ -588,6 +596,12 @@ typedef struct kwindow_renderer_backend_state {
     /** @brief Resusable staging buffers (one per frame in flight) to transfer data from a resource to a GPU-only buffer. */
     renderbuffer* staging;
 
+    /**
+     * @brief Array of darrays of handles to textures that were updated as part of a frame's workload.
+     * One list per frame in flight.
+     */
+    khandle** frame_texture_updated_list;
+
     u64 framebuffer_size_generation;
     u64 framebuffer_previous_size_generation;
 
@@ -599,6 +613,23 @@ typedef struct vulkan_sampler_handle_data {
     u64 handle_uniqueid;
     VkSampler sampler;
 } vulkan_sampler_handle_data;
+
+/**
+ * @brief Represents Vulkan-specific texture data.
+ */
+typedef struct vulkan_texture_handle_data {
+    // Unique identifier for this texture.
+    u64 uniqueid;
+
+    // The generation of the internal texture. Incremented every time the texture is changed.
+    u32 generation;
+
+    // Number of vulkan_images in the array. This is typically 1 unless the texture
+    // requires the frame_count to be taken into account.
+    u32 image_count;
+    // Array of images. See image_count.
+    vulkan_image* images;
+} vulkan_texture_handle_data;
 
 /**
  * @brief The overall Vulkan context for the backend. Holds and maintains
@@ -661,6 +692,9 @@ typedef struct vulkan_context {
 
     /** @brief Collection of samplers. darray */
     vulkan_sampler_handle_data* samplers;
+
+    /** @brief Collection of textures. darray. */
+    vulkan_texture_handle_data* textures;
 
     /**
      * @brief A function pointer to find a memory index of the given type and with the given properties.

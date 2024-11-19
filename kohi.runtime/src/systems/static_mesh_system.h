@@ -17,11 +17,11 @@ typedef struct static_mesh_instance {
     const kresource_static_mesh* mesh_resource;
 
     /**
-     * @brief An array of material instances associated with the submeshes.
+     * @brief An array of handles to material instances associated with the submeshes.
      * Elements match up to mesh_resource->submeshes index-wise. Thus the
      * count of this array is the same as mesh_resource->submesh_count.
      */
-    material_instance* material_instances;
+    khandle* material_instances;
 
     vec4 tint;
 } static_mesh_instance;
@@ -57,7 +57,9 @@ typedef struct static_mesh_submesh_render_data {
     u64 index_buffer_offset;
 
     /** @brief The instance of the material to use with this static mesh when rendering. */
-    material_instance material;
+    // FIXME: Provide a copy of relevant material/material instance data here, not just a handle to it.
+    /* material_instance material; */
+
 } static_mesh_submesh_render_data;
 
 /**

@@ -1,27 +1,51 @@
 version = 3
-type = pbr
+type = standard
+model = pbr
+
+has_transparency = false
+double_sided = false
+recieves_shadow = true
+casts_shadow = true;
+use_vertex_colour_as_base_colour = false
 
 inputs = {
     base_colour = {
-		value = "1.000000 1.000000 1.000000 1.000000"
-        sampler = "custom_sampler"
+        map = {
+            resource_name = "beams_and_sticks"
+            package_name = "testbed"
+            sampler = "custom_sampler"
+        }
+    }
+    normal = {
+        enabled = true
+        map = {
+            resource_name = "beams_and_sticks_n"
+            package_name = "testbed"
+        }
     }
     metallic = {
         value = 0.5
-        source_channel = "r"
     }
     roughness = {
-        map = "beams_and_sticks_bc"
-        source_channel = "g"
+        map = {
+            resource_name = "beams_and_sticks_bc"
+            source_channel = "g"
+        }
     }
     ao = {
-        map = "beams_and_sticks_bc"
-        source_channel = "g"
+        enabled = true
+        map = {
+            resource_name = "beams_and_sticks_bc"
+            source_channel = "b"
+        }
     }
     mra = {
-        map = "beams_and_sticks_bc"
+        map = {
+            resource_name = "beams_and_sticks_bc"
+        }
     }
     emissive = {
+        enabled = false
 		value = "1.000000 0.000000 0.000000 1.000000"
     }
 }

@@ -392,9 +392,9 @@ const kresource_texture* texture_system_get_default_kresource_terrain_texture(st
     return state->default_kresource_terrain_texture;
 }
 
-struct texture_internal_data* texture_system_resource_get_internal_or_default(const kresource_texture* t, u32* out_generation) {
+khandle texture_system_resource_get_internal_or_default(const kresource_texture* t, u32* out_generation) {
     if (!t || !out_generation) {
-        return 0;
+        return khandle_invalid();
     }
     texture_system_state* state = engine_systems_get()->texture_system;
 
@@ -437,7 +437,7 @@ struct texture_internal_data* texture_system_resource_get_internal_or_default(co
         *out_generation = t->base.generation;
     }
 
-    return renderer_texture_internal_get(state_ptr->renderer, tex_handle);
+    return tex_handle;
 }
 
 /* static b8 create_and_upload_texture(texture* t, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, u32 offset, u8* pixels) {

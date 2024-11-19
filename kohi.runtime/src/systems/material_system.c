@@ -1,10 +1,14 @@
 #include "material_system.h"
 
+#include "assets/kasset_types.h"
+#include "containers/darray.h"
 #include "core/console.h"
 #include "core/engine.h"
 #include "debug/kassert.h"
 #include "defines.h"
+#include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
+#include "kresources/kresource_utils.h"
 #include "logger.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/resource_types.h"
@@ -14,47 +18,32 @@
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
 
-#ifndef PBR_MAP_COUNT
-#    define PBR_MAP_COUNT 5
-#endif
-
-#define MAX_SHADOW_CASCADE_COUNT 4
-
-// Samplers
-const u32 SAMP_ALBEDO = 0;
-const u32 SAMP_NORMAL = 1;
-const u32 SAMP_COMBINED = 2;
-const u32 SAMP_SHADOW_MAP = 3;
-const u32 SAMP_IRRADIANCE_MAP = 4;
-
-// The number of texture maps for a PBR material
-#define PBR_MATERIAL_MAP_COUNT 3
-
-// Number of texture maps for a layered PBR material
-#define LAYERED_PBR_MATERIAL_MAP_COUNT 1
-
-// Terrain materials are now all loaded into a single array texture.
-const u32 SAMP_TERRAIN_MATERIAL_ARRAY_MAP = 0;
-const u32 SAMP_TERRAIN_SHADOW_MAP = 1 + SAMP_TERRAIN_MATERIAL_ARRAY_MAP;
-const u32 SAMP_TERRAIN_IRRADIANCE_MAP = 1 + SAMP_TERRAIN_SHADOW_MAP;
-// 1 array map for terrain materials, 1 for shadow map, 1 for irradiance map
-const u32 TERRAIN_SAMP_COUNT = 3;
-
-#define MAX_TERRAIN_MATERIAL_COUNT 4
+// LEFTOFF: Rewrite the material in general. Needs to include a way to lookup base material
+// khandle via the material instance khandle. this system should also orchestrate the gathering
+// of resources (i.e. textures, shaders, samplers, etc.) for materials and material instances
+// as well as setting uniforms, etc.
+//
+// TODO: Strip out and re-do the old "terrain" material type and replace with a new "blended"
+// material type after the base material type is refactored.
 
 typedef struct material_system_state {
     material_system_config config;
 
-    kresource_material* default_unlit_material;
-    kresource_material* default_phong_material;
-    kresource_material* default_pbr_material;
-    kresource_material* default_layered_material;
+    // darray of materials, indexed by material khandle resource index.
+    material_data* materials;
+    // darray of material instances, indexed first by material khandle index, then by instance khandle index.
+    material_instance_data** instances;
 
-    // FIXME: remove these
-    u32 terrain_shader_id;
-    shader* terrain_shader;
-    u32 pbr_shader_id;
-    shader* pbr_shader;
+    // A default material for each "model" of material.
+    material_data* default_unlit_material;
+    material_data* default_phong_material;
+    material_data* default_pbr_material;
+    material_data* default_blended_material;
+
+    // Cached ids for various material types' shaders.
+    u32 standard_shader_id;
+    u32 water_shader_id;
+    u32 blended_shader_id;
 
     // Keep a pointer to the renderer state for quick access.
     struct renderer_system_state* renderer;
@@ -70,6 +59,100 @@ static void destroy_material(kresource_material* m);
 
 static b8 assign_map(material_system_state* state, kresource_texture_map* map, const material_map* config, kname material_name, const kresource_texture* default_tex);
 static void on_material_system_dump(console_command_context context);
+
+// NEW
+
+static khandle material_create(material_system_state* state, const kresource_material* typed_resource) {
+    u32 resource_index = INVALID_ID;
+
+    // Attempt to find a free "slot", or create a new entry if there isn't one.
+    u32 material_count = darray_length(state->materials);
+    for (u32 i = 0; i < material_count; ++i) {
+        if (state->materials[i].unique_id == INVALID_ID_U64) {
+            // free slot. An array should already exists for instances here.
+            resource_index = i;
+            break;
+        }
+    }
+    if (resource_index == INVALID_ID) {
+        resource_index = material_count;
+        darray_push(state->materials, (material_data){0});
+        // This also means a new entry needs to be created at this index for instances.
+        material_instance_data* new_inst_array = darray_create(material_instance_data);
+        darray_push(state->instances, new_inst_array);
+    }
+
+    material_data* material = &state->materials[resource_index];
+
+    // Setup a handle first.
+    khandle handle = khandle_create(resource_index);
+    material->unique_id = handle.unique_id.uniqueid;
+
+    // Base colour map or value
+    if (typed_resource->base_colour_map.resource_name) {
+        material->base_colour_texture = texture_system_request(typed_resource->base_colour_map.resource_name, typed_resource->base_colour_map.package_name, 0, 0);
+    } else {
+        material->base_colour = typed_resource->base_colour;
+    }
+
+    // Normal map
+    if (typed_resource->normal_map.resource_name) {
+        material->normal_texture = texture_system_request(typed_resource->normal_map.resource_name, typed_resource->normal_map.package_name, 0, 0);
+    }
+    material->flags |= typed_resource->normal_enabled ? MATERIAL_FLAG_NORMAL_ENABLED_BIT : 0;
+
+    // Metallic map or value
+    if (typed_resource->metallic_map.resource_name) {
+        material->metallic_texture = texture_system_request(typed_resource->metallic_map.resource_name, typed_resource->metallic_map.package_name, 0, 0);
+        material->metallic_texture_channel = kresource_texture_map_channel_to_texture_channel(typed_resource->metallic_map.channel);
+    } else {
+        material->metallic = typed_resource->metallic;
+    }
+    // Roughness map or value
+    if (typed_resource->roughness_map.resource_name) {
+        material->roughness_texture = texture_system_request(typed_resource->roughness_map.resource_name, typed_resource->roughness_map.package_name, 0, 0);
+        material->roughness_texture_channel = kresource_texture_map_channel_to_texture_channel(typed_resource->roughness_map.channel);
+    } else {
+        material->roughness = typed_resource->roughness;
+    }
+    // Ambient occlusion map or value
+    if (typed_resource->ambient_occlusion_map.resource_name) {
+        material->ao_texture = texture_system_request(typed_resource->ambient_occlusion_map.resource_name, typed_resource->ambient_occlusion_map.package_name, 0, 0);
+        material->ao_texture_channel = kresource_texture_map_channel_to_texture_channel(typed_resource->ambient_occlusion_map.channel);
+    } else {
+        material->ao = typed_resource->ambient_occlusion;
+    }
+    material->flags |= typed_resource->ambient_occlusion_enabled ? MATERIAL_FLAG_AO_ENABLED_BIT : 0;
+
+    // MRA (combined metallic/roughness/ao) map or value
+    if (typed_resource->mra_map.resource_name) {
+        material->mra_texture = texture_system_request(typed_resource->mra_map.resource_name, typed_resource->mra_map.package_name, 0, 0);
+    } else {
+        material->mra = typed_resource->mra;
+    }
+    material->flags |= typed_resource->use_mra ? MATERIAL_FLAG_MRA_ENABLED_BIT : 0;
+
+    // Emissive map or value
+    if (typed_resource->emissive_map.resource_name) {
+        material->emissive_texture = texture_system_request(typed_resource->emissive_map.resource_name, typed_resource->emissive_map.package_name, 0, 0);
+    } else {
+        material->emissive = typed_resource->emissive;
+    }
+    material->flags |= typed_resource->emissive_enabled ? MATERIAL_FLAG_EMISSIVE_ENABLED_BIT : 0;
+
+    // Set remaining flags
+    material->flags |= typed_resource->has_transparency ? MATERIAL_FLAG_HAS_TRANSPARENCY : 0;
+    material->flags |= typed_resource->double_sided ? MATERIAL_FLAG_DOUBLE_SIDED_BIT : 0;
+    material->flags |= typed_resource->recieves_shadow ? MATERIAL_FLAG_RECIEVES_SHADOW_BIT : 0;
+    material->flags |= typed_resource->casts_shadow ? MATERIAL_FLAG_CASTS_SHADOW_BIT : 0;
+    material->flags |= typed_resource->use_vertex_colour_as_base_colour ? MATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR : 0;
+
+    // LEFTOFF: Setup shader resources, etc.
+    //
+    // Create a group for the material.
+
+    return handle;
+}
 
 b8 material_system_initialize(u64* memory_requirement, material_system_state* state, const material_system_config* config) {
     material_system_config* typed_config = (material_system_config*)config;
@@ -92,6 +175,10 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
     state->texture_system = states->texture_system;
 
     state->config = *typed_config;
+
+    state->materials = darray_create(material_data);
+    // An array for each material will be created when a material is created.
+    state->instances = darray_create(material_instance_data*);
 
     // FIXME: remove these
     // Get the uniform indices.

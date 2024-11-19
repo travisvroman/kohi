@@ -1,6 +1,5 @@
 #include "render_type_utils.h"
 
-#include "assets/kasset_types.h"
 #include "core_render_types.h"
 #include "debug/kassert.h"
 #include "logger.h"
@@ -119,6 +118,8 @@ const char* shader_stage_to_string(shader_stage stage) {
         return "fragment";
     case SHADER_STAGE_COMPUTE:
         return "compute";
+    default:
+        return "";
     }
 }
 
@@ -260,65 +261,5 @@ shader_update_frequency string_to_shader_scope(const char* str) {
     } else {
         KERROR("Unknown shader scope '%s'. Defaulting to per-frame.", str);
         return SHADER_UPDATE_FREQUENCY_PER_FRAME;
-    }
-}
-
-const char* kmaterial_type_to_string(kmaterial_type type) {
-    switch (type) {
-    case KMATERIAL_TYPE_PBR:
-        return "pbr";
-    case KMATERIAL_TYPE_PBR_WATER:
-        return "pbr_water";
-    case KMATERIAL_TYPE_UNLIT:
-        return "unlit";
-    case KMATERIAL_TYPE_CUSTOM:
-        return "custom";
-    default:
-        KASSERT_MSG(false, "Unrecognized material type.");
-        return "unlit";
-    }
-}
-
-kmaterial_type string_to_kmaterial_type(const char* str) {
-    if (strings_equali(str, "pbr")) {
-        return KMATERIAL_TYPE_PBR;
-    } else if (strings_equali(str, "pbr_water")) {
-        return KMATERIAL_TYPE_PBR_WATER;
-    } else if (strings_equali(str, "unlit")) {
-        return KMATERIAL_TYPE_UNLIT;
-    } else if (strings_equali(str, "custom")) {
-        return KMATERIAL_TYPE_CUSTOM;
-    } else {
-        KASSERT_MSG(false, "Unrecognized material type.");
-        return KMATERIAL_TYPE_UNLIT;
-    }
-}
-
-const char* material_map_channel_to_string(kasset_material_texture_map_channel channel) {
-    switch (channel) {
-    default:
-    case KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R:
-        return "r";
-    case KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_G:
-        return "g";
-    case KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_B:
-        return "b";
-    case KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_A:
-        return "a";
-    }
-}
-
-kasset_material_texture_map_channel string_to_material_map_channel(const char* str) {
-    if (strings_equali(str, "r")) {
-        return KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R;
-    } else if (strings_equali(str, "g")) {
-        return KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_G;
-    } else if (strings_equali(str, "b")) {
-        return KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_B;
-    } else if (strings_equali(str, "a")) {
-        return KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_A;
-    } else {
-        KASSERT_MSG(false, "Texture map channel not supported.");
-        return KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R;
     }
 }

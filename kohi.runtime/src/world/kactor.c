@@ -25,7 +25,6 @@ b8 kactor_comp_staticmesh_system_initialize(u64* memory_requirement, void* state
     *memory_requirement = sizeof(kactor_staticmesh_comp_system_state) +
                           (sizeof(u64) * config->max_components) +
                           (sizeof(static_mesh_instance) * config->max_components) +
-                          (sizeof(material_instance) * config->max_components) +
                           (sizeof(kname) * config->max_components) +
                           (sizeof(vec4) * config->max_components) +
                           (sizeof(kname) * config->max_components);
