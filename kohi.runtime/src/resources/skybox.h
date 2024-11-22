@@ -20,10 +20,10 @@ typedef struct skybox {
     skybox_state state;
 
     kname cubemap_name;
-    kresource_texture_map cubemap;
+    kresource_texture* cubemap;
 
     kgeometry geometry;
-    u32 instance_id;
+    u32 group_id;
     /** @brief Synced to the renderer's current frame number when the material has been applied that frame. */
     u64 render_frame_number;
     /** @brief Synced to the renderer's current draw index when the material has been applied that frame. */

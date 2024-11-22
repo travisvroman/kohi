@@ -43,10 +43,19 @@ KAPI khandle khandle_create_with_u64_identifier(u32 handle_index, u64 uniqueid);
 /** @brief Creates and returns an invalid handle. */
 KAPI khandle khandle_invalid(void);
 
+/** @brief Indicates if the provided handle is valid. */
+KAPI b8 khandle_is_valid(khandle handle);
+
 /** @brief Indicates if the provided handle is invalid. */
 KAPI b8 khandle_is_invalid(khandle handle);
 
 /** @brief Invalidates the provided handle. */
 KAPI void khandle_invalidate(khandle* handle);
+
+/** @brief Indicates if the handle is stale/outdated). */
+KAPI b8 khandle_is_stale(khandle handle, u64 uniqueid);
+
+/** @brief Indicates if the handle is pristine (i.e. not stale/outdated). */
+KAPI b8 khandle_is_pristine(khandle handle, u64 uniqueid);
 
 #endif

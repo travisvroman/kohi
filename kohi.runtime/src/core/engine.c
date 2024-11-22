@@ -501,8 +501,6 @@ b8 engine_create(application* game_inst) {
         shader_system_config shader_sys_config;
         shader_sys_config.max_shader_count = 1024;
         shader_sys_config.max_uniform_count = 128;
-        shader_sys_config.max_per_frame_textures = 31;
-        shader_sys_config.max_per_group_textures = 31;
         shader_system_initialize(&systems->shader_system_memory_requirement, 0, &shader_sys_config);
         systems->shader_system = kallocate(systems->shader_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!shader_system_initialize(&systems->shader_system_memory_requirement, systems->shader_system, &shader_sys_config)) {

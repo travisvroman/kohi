@@ -1,4 +1,5 @@
 #include "static_mesh_system.h"
+
 #include "assets/kasset_types.h"
 #include "core/engine.h"
 #include "defines.h"
@@ -82,7 +83,7 @@ void static_mesh_system_instance_release(struct static_mesh_system_state* state,
 
     // Release material instances.
     for (u32 i = 0; i < instance->mesh_resource->submesh_count; ++i) {
-        material_release_instance(material_system, &instance->material_instances[i]);
+        material_system_release(material_system, &instance->material_instances[i]);
     }
 
     // Cleanup the instance itself.

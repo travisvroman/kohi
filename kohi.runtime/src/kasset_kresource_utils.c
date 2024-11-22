@@ -68,43 +68,6 @@ kasset_material_model kresource_material_model_to_kasset(kresource_material_mode
     }
 }
 
-kresource_material_texture_map kasset_material_tex_map_to_kresource(kasset_material_texture_map map) {
-    switch (map) {
-    case KASSET_MATERIAL_TEXTURE_MAP_BASE_COLOUR:
-        return KRESOURCE_MATERIAL_TEXTURE_MAP_BASE_COLOUR;
-    case KASSET_MATERIAL_TEXTURE_MAP_NORMAL:
-        return KRESOURCE_MATERIAL_TEXTURE_MAP_NORMAL;
-    case KASSET_MATERIAL_TEXTURE_MAP_METALLIC:
-        return KRESOURCE_MATERIAL_TEXTURE_MAP_METALLIC;
-    case KASSET_MATERIAL_TEXTURE_MAP_ROUGHNESS:
-        return KRESOURCE_MATERIAL_TEXTURE_MAP_ROUGHNESS;
-    case KASSET_MATERIAL_TEXTURE_MAP_AO:
-        return KRESOURCE_MATERIAL_TEXTURE_MAP_AO;
-    case KASSET_MATERIAL_TEXTURE_MAP_MRA:
-        return KRESOURCE_MATERIAL_TEXTURE_MAP_MRA;
-    case KASSET_MATERIAL_TEXTURE_MAP_EMISSIVE:
-        return KRESOURCE_MATERIAL_TEXTURE_MAP_EMISSIVE;
-    }
-}
-kasset_material_texture_map kresource_material_tex_map_to_kasset(kresource_material_texture_map map) {
-    switch (map) {
-    case KRESOURCE_MATERIAL_TEXTURE_MAP_BASE_COLOUR:
-        return KASSET_MATERIAL_TEXTURE_MAP_BASE_COLOUR;
-    case KRESOURCE_MATERIAL_TEXTURE_MAP_NORMAL:
-        return KASSET_MATERIAL_TEXTURE_MAP_NORMAL;
-    case KRESOURCE_MATERIAL_TEXTURE_MAP_METALLIC:
-        return KASSET_MATERIAL_TEXTURE_MAP_METALLIC;
-    case KRESOURCE_MATERIAL_TEXTURE_MAP_ROUGHNESS:
-        return KASSET_MATERIAL_TEXTURE_MAP_ROUGHNESS;
-    case KRESOURCE_MATERIAL_TEXTURE_MAP_AO:
-        return KASSET_MATERIAL_TEXTURE_MAP_AO;
-    case KRESOURCE_MATERIAL_TEXTURE_MAP_MRA:
-        return KASSET_MATERIAL_TEXTURE_MAP_MRA;
-    case KRESOURCE_MATERIAL_TEXTURE_MAP_EMISSIVE:
-        return KASSET_MATERIAL_TEXTURE_MAP_EMISSIVE;
-    }
-}
-
 kresource_material_texture_map_channel kasset_material_tex_map_channel_to_kresource(kasset_material_texture_map_channel channel) {
     switch (channel) {
     case KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R:

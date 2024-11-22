@@ -35,9 +35,21 @@ b8 khandle_is_invalid(khandle handle) {
     return handle.handle_index == INVALID_ID || handle.unique_id.uniqueid == INVALID_ID_U64;
 }
 
+b8 khandle_is_valid(khandle handle) {
+    return handle.handle_index != INVALID_ID && handle.unique_id.uniqueid != INVALID_ID_U64;
+}
+
 void khandle_invalidate(khandle* handle) {
     if (handle) {
         handle->handle_index = INVALID_ID;
         handle->unique_id.uniqueid = INVALID_ID_U64;
     }
+}
+
+b8 khandle_is_pristine(khandle handle, u64 uniqueid) {
+    return handle.unique_id.uniqueid == uniqueid;
+}
+
+b8 khandle_is_stale(khandle handle, u64 uniqueid) {
+    return handle.unique_id.uniqueid != uniqueid;
 }

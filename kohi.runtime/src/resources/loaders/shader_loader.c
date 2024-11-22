@@ -9,24 +9,23 @@
 #include "resources/resource_types.h"
 #include "strings/kstring.h"
 #include "systems/resource_system.h"
-#include "systems/shader_system.h"
 
 static b8 shader_loader_load(struct resource_loader* self, const char* name, void* params, resource* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
 
-    char* format_str = "%s/%s/%s%s";
-    char full_file_path[512];
-    string_format_unsafe(full_file_path, format_str, resource_system_base_path(), self->type_path, name, ".shadercfg");
+    char* full_file_path = string_format("%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".shadercfg");
 
     file_handle f;
     if (!filesystem_open(full_file_path, FILE_MODE_READ, false, &f)) {
         KERROR("shader_loader_load - unable to open shader file for reading: '%s'.", full_file_path);
+        string_free(full_file_path);
         return false;
     }
 
     out_resource->full_path = string_duplicate(full_file_path);
+    string_free(full_file_path);
 
     shader_config* resource_data = kallocate(sizeof(shader_config), MEMORY_TAG_RESOURCE);
     // Set some defaults, create arrays.
@@ -40,7 +39,7 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
     resource_data->topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST;
     resource_data->stage_count = 0;
     // NOTE: This directly influences how much resources are available.
-    resource_data->max_instances = 1;
+    resource_data->max_groups = 1;
 
     // NOTE: By default, all shaders write to the colour buffer unless otherwise specified.
     resource_data->flags = SHADER_FLAG_COLOUR_WRITE;
@@ -68,7 +67,7 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
         // Split into var/value
         i32 equal_index = string_index_of(trimmed, '=');
         if (equal_index == -1) {
-            KWARN("Potential formatting issue found in file '%s': '=' token not found. Skipping line %ui.", full_file_path, line_number);
+            KWARN("Potential formatting issue found in file '%s': '=' token not found. Skipping line %ui.", out_resource->full_path, line_number);
             line_number++;
             continue;
         }
@@ -94,8 +93,8 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
             // resource_data->renderpass_name = string_duplicate(trimmed_value);
             // Ignore this now.
         } else if (strings_equali(trimmed_var_name, "max_instances")) {
-            if (!string_to_u32(trimmed_value, &resource_data->max_instances)) {
-                KERROR("Invalid value for max_instances. Cannot be parsed to u32. Defaulting to &u", resource_data->max_instances);
+            if (!string_to_u32(trimmed_value, &resource_data->max_groups)) {
+                KERROR("Invalid value for max_instances. Cannot be parsed to u32. Defaulting to &u", resource_data->max_groups);
             }
         } else if (strings_equali(trimmed_var_name, "stages")) {
             // Parse the stages
@@ -111,7 +110,6 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
             }
             // Parse the stage names.
             for (u32 sn_idx = 0; sn_idx < count; ++sn_idx) {
-                resource_data->stage_configs[sn_idx].name = string_duplicate(stage_names[sn_idx]);
                 // Parse the stage name and determine the actual configured stage.
                 if (strings_equali(stage_names[sn_idx], "frag") || strings_equali(stage_names[sn_idx], "fragment")) {
                     resource_data->stage_configs[sn_idx].stage = SHADER_STAGE_FRAGMENT;
@@ -328,31 +326,40 @@ static b8 shader_loader_load(struct resource_loader* self, const char* name, voi
                     uniform.type = SHADER_UNIFORM_TYPE_MATRIX_4;
                     uniform.size = 64;
                 } else if (string_starts_with(fields[0], "samp")) {
-                    // Sampler uniforms are handled entirely different from other uniforms, but
-                    // share a lot of logic among each other.
-
-                    // No shorthand for new sampler types.
-                    if (strings_equali(base_type, "sampler1d")) {
-                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_1D;
-                    } else if (strings_equali(base_type, "sampler2d") || strings_equali(base_type, "samp") || strings_equali(base_type, "sampler")) {
-                        // NOTE: Auto-converting samp/sampler to sampler2D for backward compatability.
-                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_2D;
-                    } else if (strings_equali(base_type, "sampler3d")) {
-                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_3D;
-                    } else if (strings_equali(base_type, "samplercube")) {
-                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_CUBE;
-                    } else if (strings_equali(base_type, "sampler1darray")) {
-                        // NOTE: array textures are different from _an array __of__ textures_
-                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_1D_ARRAY;
-                    } else if (strings_equali(base_type, "sampler2darray")) {
-                        // NOTE: array textures are different from _an array __of__ textures_
-                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_2D_ARRAY;
-                    } else if (strings_equali(base_type, "samplercubearray")) {
-                        // NOTE: array textures are different from _an array __of__ textures_
-                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER_CUBE_ARRAY;
+                    if (strings_equali(base_type, "samp") || strings_equali(base_type, "sampler")) {
+                        uniform.type = SHADER_UNIFORM_TYPE_SAMPLER;
                     } else {
                         // List out the entire unparsed field to make the error more useful.
-                        KERROR("Error in shader file: Unsupported sampler type '%s' found. %s:%u", fields[0], full_file_path, line_number);
+                        KERROR("Error in shader file: Unsupported sampler type '%s' found. %s:%u", fields[0], out_resource->full_path, line_number);
+                        return false;
+                    }
+
+                } else if (string_starts_with(fields[0], "tex")) {
+                    // Texture uniforms are handled entirely different from other uniforms, but
+                    // share a lot of logic among each other.
+
+                    // No shorthand for new texture types.
+                    if (strings_equali(base_type, "texture1d")) {
+                        uniform.type = SHADER_UNIFORM_TYPE_TEXTURE_1D;
+                    } else if (strings_equali(base_type, "texture2d") || strings_equali(base_type, "tex") || strings_equali(base_type, "texture")) {
+                        // NOTE: Auto-converting tex/texture to texture2D for backward compatability.
+                        uniform.type = SHADER_UNIFORM_TYPE_TEXTURE_2D;
+                    } else if (strings_equali(base_type, "texture3d")) {
+                        uniform.type = SHADER_UNIFORM_TYPE_TEXTURE_3D;
+                    } else if (strings_equali(base_type, "texturecube")) {
+                        uniform.type = SHADER_UNIFORM_TYPE_TEXTURE_CUBE;
+                    } else if (strings_equali(base_type, "texture1darray")) {
+                        // NOTE: array textures are different from _an array __of__ textures_
+                        uniform.type = SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY;
+                    } else if (strings_equali(base_type, "texture2darray")) {
+                        // NOTE: array textures are different from _an array __of__ textures_
+                        uniform.type = SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY;
+                    } else if (strings_equali(base_type, "texturecubearray")) {
+                        // NOTE: array textures are different from _an array __of__ textures_
+                        uniform.type = SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY;
+                    } else {
+                        // List out the entire unparsed field to make the error more useful.
+                        KERROR("Error in shader file: Unsupported texture type '%s' found. %s:%u", fields[0], out_resource->full_path, line_number);
                         return false;
                     }
 

@@ -819,6 +819,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
     b8 water_drawn = false;
 
     // Static geometries.
+    // TODO: this should essentially turn into a "material system apply" here.
     {
         u32 geometry_count = internal_data->geometry_count;
         if (geometry_count > 0) {

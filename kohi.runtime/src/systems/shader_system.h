@@ -23,10 +23,6 @@ typedef struct shader_system_config {
     u16 max_shader_count;
     /** @brief The maximum number of uniforms allowed in a single shader. */
     u8 max_uniform_count;
-    /** @brief The maximum number of per-frame textures allowed in a single shader. */
-    u8 max_per_frame_textures;
-    /** @brief The maximum number of per-group textures allowed in a single shader. */
-    u8 max_per_group_textures;
 } shader_system_config;
 
 /**
@@ -69,16 +65,16 @@ KAPI b8 shader_system_reload(khandle shader);
  * Attempts to load the shader if not already loaded.
  *
  * @param shader_name The kname to search for.
- * @return A handle to a shader, if found/loaded; otherwise 0.
+ * @return A handle to a shader, if found/loaded; otherwise an invalid handle.
  */
 KAPI khandle shader_system_get(kname name);
 
 /**
- * @brief Attempts to destroy the shader with the given handle.
+ * @brief Attempts to destroy the shader with the given handle. Handle will be invalidated.
  *
- * @param shader_name A handle to the shader to destroy.
+ * @param shader_name A pointer to a handle to the shader to destroy. Handle will be invalidated.
  */
-KAPI void shader_system_destroy(khandle shader);
+KAPI void shader_system_destroy(khandle* shader);
 
 /**
  * @brief Attempts to set wireframe mode on the given shader. If the renderer backend, or the shader
@@ -178,7 +174,7 @@ KAPI b8 shader_system_uniform_set_by_location_arrayed(khandle shader, u16 locati
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set_by_location(khandle shader, u16 location, const struct kresource_texture* t);
+KAPI b8 shader_system_texture_set_by_location(khandle shader, u16 location, const struct kresource_texture* t);
 
 /**
  * @brief Sets a sampler value by location.
@@ -191,6 +187,15 @@ KAPI b8 shader_system_sampler_set_by_location(khandle shader, u16 location, cons
  */
 KAPI b8 shader_system_sampler_set_by_location_arrayed(khandle shader, u16 location, u32 array_index, const struct kresource_texture* t);
 
+/**
+ * @brief Binds the shader at per-frame frequency for use. Must be done before setting
+ * frame-scoped uniforms.
+ *
+ * @param shader A handle to the shader to update.
+ * @param instance_id The identifier of the instance to bind.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_bind_frame(khandle shader);
 /**
  * @brief Binds the instance with the given id for use. Must be done before setting
  * instance-scoped uniforms.

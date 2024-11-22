@@ -378,15 +378,6 @@ b8 font_system_bitmap_font_load(bitmap_font_config* config) {
         font->atlas_texture = texture_system_get_default_kresource_texture(engine_systems_get()->texture_system);
     }
 
-    // Resource isn't technically loaded yet here, but that's ok.
-    kresource_texture_map* map = &font->atlas;
-    map->repeat_u = map->repeat_v = map->repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
-    map->filter_minify = map->filter_magnify = TEXTURE_FILTER_MODE_NEAREST;
-    map->texture = font->atlas_texture;
-    if (!renderer_kresource_texture_map_resources_acquire(engine_systems_get()->renderer_system, map)) {
-        KERROR("Unable to acquire texture map resources. Bitmap font cannot be initialized.");
-    }
-
     b8 result = setup_font_data(&lookup->font.resource_data->data);
 
     // Set the entry id here last before updating the hashtable.
@@ -641,14 +632,12 @@ static b8 setup_font_data(font_data* font) {
 }
 
 static void cleanup_font_data(font_data* font) {
-    // Release the texture map resources.
-    renderer_kresource_texture_map_resources_release(engine_systems_get()->renderer_system, &font->atlas);
 
     // If a bitmap font, release the reference to the texture.
-    if (font->type == FONT_TYPE_BITMAP && font->atlas.texture) {
-        texture_system_release_resource((kresource_texture*)font->atlas.texture);
+    if (font->type == FONT_TYPE_BITMAP && font->atlas_texture) {
+        texture_system_release_resource((kresource_texture*)font->atlas_texture);
     }
-    font->atlas.texture = 0;
+    font->atlas_texture = 0;
 }
 
 static b8 create_system_font_variant(system_font_lookup* lookup, u16 size, const char* font_name, font_data* out_variant) {
@@ -683,15 +672,6 @@ static b8 create_system_font_variant(system_font_lookup* lookup, u16 size, const
         false);
     string_free(font_tex_name);
     font_tex_name = 0;
-
-    // Create map resources
-    out_variant->atlas.filter_magnify = out_variant->atlas.filter_minify = TEXTURE_FILTER_MODE_LINEAR;
-    out_variant->atlas.repeat_u = out_variant->atlas.repeat_v = out_variant->atlas.repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
-    out_variant->atlas.texture = out_variant->atlas_texture;
-    if (!renderer_kresource_texture_map_resources_acquire(engine_systems_get()->renderer_system, &out_variant->atlas)) {
-        KERROR("Unable to acquire resources for font atlas texture map.");
-        return false;
-    }
 
     if (out_variant->atlas_texture) {
         // Obtain some metrics

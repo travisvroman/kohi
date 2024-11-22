@@ -9,7 +9,6 @@
 #include "resources/loaders/binary_loader.h"
 #include "resources/loaders/bitmap_font_loader.h"
 #include "resources/loaders/image_loader.h"
-#include "resources/loaders/material_loader.h"
 #include "resources/loaders/scene_loader.h"
 #include "resources/loaders/shader_loader.h"
 #include "resources/loaders/system_font_loader.h"
@@ -61,7 +60,6 @@ b8 resource_system_initialize(u64* memory_requirement, void* state,
     resource_system_loader_register(text_resource_loader_create());
     resource_system_loader_register(binary_resource_loader_create());
     resource_system_loader_register(image_resource_loader_create());
-    resource_system_loader_register(material_resource_loader_create());
     resource_system_loader_register(shader_resource_loader_create());
     /* resource_system_loader_register(mesh_resource_loader_create()); */
     resource_system_loader_register(bitmap_font_resource_loader_create());

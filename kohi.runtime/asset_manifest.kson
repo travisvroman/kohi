@@ -15,16 +15,16 @@ assets = [
         path = "./assets/shaders/Colour3D_vert.glsl"
     }
     {
-        name = "PBR_StaticMesh"
-        path = "./assets/shaders/PBR_StaticMesh.ksc"
+        name = "Shader.MaterialStandard"
+        path = "./assets/shaders/MaterialStandard.ksc"
     }
     {
-        name = "PBR_StaticMesh_frag"
-        path = "./assets/shaders/PBR_StaticMesh_frag.glsl"
+        name = "MaterialStandard_frag"
+        path = "./assets/shaders/MaterialStandard_frag.glsl"
     }
     {
-        name = "PBR_StaticMesh_vert"
-        path = "./assets/shaders/PBR_StaticMesh_vert.glsl"
+        name = "MaterialStandard_vert"
+        path = "./assets/shaders/MaterialStandard_vert.glsl"
     }
     {
         name = "PBR_Terrain"

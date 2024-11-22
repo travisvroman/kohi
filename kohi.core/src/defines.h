@@ -278,3 +278,17 @@ KINLINE range get_aligned_range(u64 offset, u64 size, u64 granularity) {
 
 #define KMIN(x, y) (x < y ? x : y)
 #define KMAX(x, y) (x > y ? x : y)
+
+/**
+ * @brief Indicates if the provided flag is set in the given flags int.
+ */
+#define FLAG_GET(flags, flag) ((flags | flag) == flag)
+
+/**
+ * @brief Sets a flag within the flags int to enabled/disabled.
+ *
+ * @param flags The flags int to write to.
+ * @param flag The flag to set.
+ * @param enabled Indicates if the flag is enabled or not.
+ */
+#define FLAG_SET(flags, flag, enabled) (enabled ? (flags | flag) : (flags & ~flag))

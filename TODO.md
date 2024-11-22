@@ -271,6 +271,8 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Change shader system to set "texture" instead of "sampler".
   - [ ] Change shader system to no longer hold string names for uniforms, but use knames instead.
   - [?] Move descriptor pools to be global to the backend instead of one per shader.
+- [ ] Handle refactoring
+  - [x] Convert shader system to use handles
 
 ## 0.9.0 Release
 
@@ -305,7 +307,6 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
   - [ ] Convert material system to use handles
   - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
-  - [ ] Convert shader system to use handles (everything that _isn't_ the renderer should use handles).
   - [ ] Convert lighting system to use handles.
   - [ ] Create skybox system that uses handles.
   - [ ] Create scene system that uses handles.

@@ -397,8 +397,6 @@ typedef struct vulkan_descriptor_set_config {
     u8 binding_count;
     /** @brief An array of binding layouts for this set. */
     VkDescriptorSetLayoutBinding* bindings;
-    /** @brief The start index of the sampler bindings. */
-    u8 sampler_binding_index_start;
 } vulkan_descriptor_set_config;
 
 /**
@@ -466,11 +464,42 @@ typedef struct vulkan_shader_frequency_state {
 } vulkan_shader_frequency_state;
 
 /**
+ * @brief Contains vulkan shader frequency specific info for UBOs.
+ */
+typedef struct vulkan_shader_frequency_info {
+    /** @brief The actual size of the uniform buffer object for this frequency. */
+    u64 ubo_size;
+    /** @brief The stride of the uniform buffer object for this frequency. */
+    u64 ubo_stride;
+    /**
+     * @brief The offset in bytes for the UBO from the beginning
+     * of the uniform buffer for this frequency.
+     */
+    u64 ubo_offset;
+
+    /** @brief The number of non-sampler and non-texture uniforms for this frequency. */
+    u8 uniform_count;
+    /** @brief The number of sampler uniforms for this frequency. */
+    u8 uniform_sampler_count;
+    // Darray. Keeps the uniform indices of samplers for fast lookups.
+    u32* sampler_indices;
+    /** @brief The number of texture uniforms for this frequency. */
+    u8 uniform_texture_count;
+    // Darray. Keeps the uniform indices of textures for fast lookups.
+    u32* texture_indices;
+
+    // The currently-bound id for this frequency.
+    u32 bound_id;
+} vulkan_shader_frequency_info;
+
+/**
  * @brief Represents a generic Vulkan shader. This uses a set of inputs
  * and parameters, as well as the shader programs contained in SPIR-V
  * files to construct a shader for use in rendering.
  */
 typedef struct vulkan_shader {
+    // The name of the shader (mostly kept for debugging purposes).
+    kname name;
     /** @brief The block of memory mapped to the each per-swapchain-image uniform buffer. */
     void** mapped_uniform_buffer_blocks;
     /** @brief The block of memory used for push constants, 128B. */
@@ -493,11 +522,25 @@ typedef struct vulkan_shader {
     /** @brief Descriptor sets, max of 3. Index 0=per_frame, 1=per_group, 2=per_draw */
     vulkan_descriptor_set_config descriptor_sets[3];
 
+    /** @brief The number of vertex attributes in the shader. */
+    u8 attribute_count;
     /** @brief An array of attribute descriptions for this shader. */
     VkVertexInputAttributeDescription attributes[VULKAN_SHADER_MAX_ATTRIBUTES];
 
+    /** @brief The number of uniforms in the shader. */
+    u32 uniform_count;
+
+    /** @brief An array of uniforms in the shader. */
+    shader_uniform* uniforms;
+
+    /** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
+    u32 attribute_stride;
+
     /** @brief Face culling mode, provided by the front end. */
     face_cull_mode cull_mode;
+
+    /** @brief The topology types for the shader pipeline. See primitive_topology_type. Defaults to "triangle list" if unspecified. */
+    u32 topology_types;
 
     u32 max_groups;
 
@@ -519,15 +562,6 @@ typedef struct vulkan_shader {
 
     /** @brief Descriptor set layouts, max of 2. Index 0=per-frame, 1=per-group, 2=per-draw (samplers only). */
     VkDescriptorSetLayout descriptor_set_layouts[3];
-
-    /** @brief Per-frame descriptor sets, one per swapchain image. */
-    /* VkDescriptorSet* per_frame_descriptor_sets; */
-
-    // Per-frame UBO descriptor
-    /* vulkan_descriptor_state per_frame_ubo_descriptor_state; */
-
-    // A mapping of sampler uniforms to descriptors and texture maps.
-    /* vulkan_uniform_sampler_state* per_frame_sampler_uniforms; */
 
     /** @brief The uniform buffers used by this shader, one per swapchain image. */
     renderbuffer* uniform_buffers;
@@ -551,6 +585,23 @@ typedef struct vulkan_shader {
 
     /** @brief The per-draw states for all local things/entities/actors/whatever. */
     vulkan_shader_frequency_state* per_draw_states;
+
+    /**
+     * @brief The amount of bytes that are required for UBO alignment.
+     *
+     * This is used along with the UBO size to determine the ultimate
+     * stride, which is how much the UBOs are spaced out in the buffer.
+     * For example, a required alignment of 256 means that the stride
+     * must be a multiple of 256 (true for some nVidia cards).
+     */
+    u64 required_ubo_alignment;
+
+    vulkan_shader_frequency_info per_frame_info;
+    vulkan_shader_frequency_info per_group_info;
+    vulkan_shader_frequency_info per_draw_info;
+
+    // Shader flags
+    shader_flag_bits flags;
 
 } vulkan_shader;
 
@@ -696,6 +747,9 @@ typedef struct vulkan_context {
     /** @brief Collection of textures. darray. */
     vulkan_texture_handle_data* textures;
 
+    /** @brief Collection of vulkan shaders (internal shader data). Matches size of shader array in shader system. */
+    vulkan_shader* shaders;
+
     /**
      * @brief A function pointer to find a memory index of the given type and with the given properties.
      * @param context A pointer to the renderer context.
@@ -715,8 +769,8 @@ typedef struct vulkan_context {
     PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR;
     PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR;
 
-    /** @brief A pointer to the currently bound shader. */
-    struct shader* bound_shader;
+    /** @brief A pointer to the currently bound vulkan shader. */
+    vulkan_shader* bound_shader;
 
     /**
      * Used for dynamic compilation of vulkan shaders (using the shaderc lib.)

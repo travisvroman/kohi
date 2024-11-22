@@ -116,24 +116,36 @@ typedef enum shader_generic_sampler {
     SHADER_GENERIC_SAMPLER_COUNT,
 } shader_generic_sampler;
 
+typedef enum renderer_default_texture {
+    // Used as a default for material base colours
+    RENDERER_DEFAULT_TEXTURE_BASE_COLOUR = 0,
+    RENDERER_DEFAULT_TEXTURE_ALBEDO = RENDERER_DEFAULT_TEXTURE_BASE_COLOUR,
+    RENDERER_DEFAULT_TEXTURE_DIFFUSE = RENDERER_DEFAULT_TEXTURE_BASE_COLOUR,
+    RENDERER_DEFAULT_TEXTURE_NORMAL = 1,
+    RENDERER_DEFAULT_TEXTURE_METALLIC = 2,
+    RENDERER_DEFAULT_TEXTURE_ROUGHNESS = 3,
+    RENDERER_DEFAULT_TEXTURE_AMBIENT_OCCLUSION = 4,
+    RENDERER_DEFAULT_TEXTURE_EMISSIVE = 5,
+    RENDERER_DEFAULT_TEXTURE_DUDV = 6,
+
+    RENDERER_DEFAULT_TEXTURE_COUNT
+} renderer_default_texture;
+
 /**
  * @brief Represents a single entry in the internal uniform array.
  */
 typedef struct shader_uniform {
     kname name;
-    /** @brief The offset in bytes from the beginning of the uniform set (global/instance/local) */
+    /** @brief The offset in bytes from the beginning of the uniform set (per-frame/per-group/per-draw) */
     u64 offset;
     /**
-     * @brief The location to be used as a lookup. Typically the same as the index except for samplers,
-     * which is used to lookup texture index within the internal array at the given scope (global/instance).
+     * @brief The location to be used as a lookup.
+     * For samplers and textures, this is the index within the internal sampler/texture array at the given frequency (per-frame/per-group/per-draw).
+     * Otherwise, index into the uniform array within the shader.
      */
     u16 location;
-    /** @brief Index into the internal uniform array. */
-    u16 index;
     /** @brief The size of the uniform, or 0 for samplers. */
     u16 size;
-    /** @brief The index of the descriptor set the uniform belongs to (0=per_frame, 1=per_group, INVALID_ID=per_draw). */
-    u8 set_index;
     /** @brief The update frequency of the uniform. */
     shader_update_frequency frequency;
     /** @brief The type of uniform. */
@@ -181,21 +193,14 @@ typedef struct shader_frequency_data {
     u8 uniform_count;
     /** @brief The number of sampler uniforms for this frequency. */
     u8 uniform_sampler_count;
-    // darray Keeps the uniform indices of samplers for fast lookups.
+    // Keeps the uniform indices of samplers for fast lookups.
     u32* sampler_indices;
     /** @brief The number of texture uniforms for this frequency. */
     u8 uniform_texture_count;
-    // darray Keeps the uniform indices of textures for fast lookups.
+    // Keeps the uniform indices of textures for fast lookups.
     u32* texture_indices;
     /** @brief The actual size of the uniform buffer object for this frequency. */
     u64 ubo_size;
-    /** @brief The stride of the uniform buffer object for this frequency. */
-    u64 ubo_stride;
-    /**
-     * @brief The offset in bytes for the UBO from the beginning
-     * of the uniform buffer for this frequency.
-     */
-    u64 ubo_offset;
 
     /** @brief The identifier of the currently bound group/per_draw. Ignored for per_frame */
     u32 bound_id;
@@ -290,65 +295,6 @@ typedef struct shader_config {
     /** @brief The flags set for this shader. */
     u32 flags;
 } shader_config;
-
-/**
- * @brief Represents a shader on the frontend.
- */
-typedef struct kshader {
-    /** @brief unique identifier that is compared against a handle. */
-    u64 uniqueid;
-
-    kname name;
-
-    shader_flag_bits flags;
-
-    /** @brief The types of topologies used by the shader and its pipeline. See primitive_topology_type. */
-    u32 topology_types;
-
-    /**
-     * @brief The amount of bytes that are required for UBO alignment.
-     *
-     * This is used along with the UBO size to determine the ultimate
-     * stride, which is how much the UBOs are spaced out in the buffer.
-     * For example, a required alignment of 256 means that the stride
-     * must be a multiple of 256 (true for some nVidia cards).
-     */
-    u64 required_ubo_alignment;
-
-    /** @brief An array of uniforms in this shader. Darray. */
-    shader_uniform* uniforms;
-
-    /** @brief An array of attributes. Darray. */
-    shader_attribute* attributes;
-
-    /** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
-    u16 attribute_stride;
-
-    u8 shader_stage_count;
-    shader_stage_config* stage_configs;
-
-    /** @brief Per-frame frequency data. */
-    shader_frequency_data per_frame;
-
-    /** @brief Per-group frequency data. */
-    shader_frequency_data per_group;
-
-    /** @brief Per-draw frequency data. */
-    shader_frequency_data per_draw;
-
-    /** @brief The internal state of the shader. */
-    shader_state state;
-
-    /** @brief Indicates if the shader is currently flagged to use wireframe. */
-    b8 is_wireframe;
-
-    /** @brief An opaque pointer to hold renderer API specific data. Renderer is responsible for creation and destruction of this.  */
-    void* internal_data;
-
-#ifdef _DEBUG
-    u32* module_watch_ids;
-#endif
-} kshader;
 
 typedef enum kmaterial_type {
     KMATERIAL_TYPE_UNKNOWN = 0,

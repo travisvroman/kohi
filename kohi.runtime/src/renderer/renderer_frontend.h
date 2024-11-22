@@ -32,10 +32,10 @@
 #include <strings/kname.h>
 
 #include "core/frame_data.h"
+#include "core_render_types.h"
 #include "renderer_types.h"
 #include "resources/resource_types.h"
 
-struct shader;
 struct shader_uniform;
 struct frame_data;
 struct viewport;
@@ -322,13 +322,22 @@ KAPI b8 renderer_texture_read_data(struct renderer_system_state* state, khandle 
 KAPI b8 renderer_texture_read_pixel(struct renderer_system_state* state, khandle renderer_texture_handle, u32 x, u32 y, u8** out_rgba);
 
 /**
- * @brief Attempts to return a pointer to the internal texture data associated with the provided handle.
+ * @brief Registers a texture with the given handle to the default texture slot specified.
  *
  * @param state A pointer to the renderer system state.
- * @param renderer_texture_handle A handle to the texture to be read from.
- * @returnshader A handle to the internal texture data on success; otherwise null/0.
+ * @param default_texture The texture slot to register to.
+ * @param renderer_texture_handle A handle to the texture to be registered.
  */
-KAPI struct texture_internal_data* renderer_texture_internal_get(struct renderer_system_state* state, khandle renderer_texture_handle);
+KAPI void renderer_default_texture_register(struct renderer_system_state* state, renderer_default_texture default_texture, khandle renderer_texture_handle);
+
+/**
+ * @brief Gets a texture handle with the default texture slot specified.
+ *
+ * @param state A pointer to the renderer system state.
+ * @param default_texture The texture slot to register to.
+ * @returns A handle to the default texture.
+ */
+KAPI khandle renderer_default_texture_get(struct renderer_system_state* state, renderer_default_texture default_texture);
 
 /**
  * @brief Attempts retrieve the renderer's internal buffer of the given type.
@@ -451,23 +460,15 @@ KAPI b8 renderer_shader_create(struct renderer_system_state* state, khandle shad
 KAPI void renderer_shader_destroy(struct renderer_system_state* state, khandle shader);
 
 /**
- * @brief Initializes a configured shader. Will be automatically destroyed if this step fails.
- * Must be done after vulkan_shader_create().
- *
- * @param state A pointer to the renderer state.
- * @param shader A handle to the shader to be initialized.
- * @return True on success; otherwise false.
- */
-KAPI b8 renderer_shader_initialize(struct renderer_system_state* state, khandle shader);
-
-/**
  * @brief Reloads the internals of the given shader.
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader to be reloaded.
+ * @param shader_stage_count The number of shader stages.
+ * @param shader_stages An array of shader stages configs.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader);
+KAPI b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 shader_stage_count, shader_stage_config* shader_stages);
 
 /**
  * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
@@ -480,15 +481,62 @@ KAPI b8 renderer_shader_reload(struct renderer_system_state* state, khandle shad
 KAPI b8 renderer_shader_use(struct renderer_system_state* state, khandle shader);
 
 /**
- * @brief Attempts to set wireframe mode on the given shader. If the backend, or the shader
- * does not support this , it will fail when attempting to enable. Disabling will always succeed.
+ * @brief Determines if the given shader supports wireframe mode.
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader to be used.
- * @param wireframe_enabled Indicates if wireframe mode should be enabled.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_set_wireframe(struct renderer_system_state* state, khandle shader, b8 wireframe_enabled);
+KAPI b8 renderer_shader_supports_wireframe(struct renderer_system_state* state, khandle shader);
+
+/**
+ * @brief Indicates if the given shader flag is set.
+ *
+ * @param state A pointer to the renderer state.
+ * @param shader A handle to the shader to be used.
+ * @param flag The flag to check.
+ * @return True if set; otherwise false.
+ */
+KAPI b8 renderer_shader_flag_get(struct renderer_system_state* state, khandle shader, shader_flags flag);
+
+/**
+ * @brief Sets the given shader flag.
+ *
+ * @param state A pointer to the renderer state.
+ * @param shader A handle to the shader to be used.
+ * @param flag The flag to set.
+ * @param enabled Indicates whether the flag should be set or unset.
+ */
+KAPI void renderer_shader_flag_set(struct renderer_system_state* state, khandle shader, shader_flags flag, b8 enabled);
+
+/**
+ * @brief Binds the per-frame frequency.
+ *
+ * @param state A pointer to the renderer state.
+ * @param shader A handle to the shader to be used.
+ * @returns True on success; otherwise false.
+ */
+KAPI b8 renderer_shader_bind_per_frame(struct renderer_system_state* state, khandle shader);
+
+/**
+ * @brief Binds the given per-group frequency id.
+ *
+ * @param state A pointer to the renderer state.
+ * @param shader A handle to the shader to be used.
+ * @param group_id The per-group frequency id.
+ * @returns True on success; otherwise false.
+ */
+KAPI b8 renderer_shader_bind_per_group(struct renderer_system_state* state, khandle shader, u32 group_id);
+
+/**
+ * @brief Binds the given per-draw frequency id.
+ *
+ * @param state A pointer to the renderer state.
+ * @param shader A handle to the shader to be used.
+ * @param draw_id The per-draw frequency id.
+ * @returns True on success; otherwise false.
+ */
+KAPI b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, khandle shader, u32 draw_id);
 
 /**
  * @brief Applies global data to the uniform buffer.
@@ -809,3 +857,13 @@ KAPI void renderer_wait_for_idle(void);
  * Indicates if PCF filtering is enabled for shadow maps.
  */
 KAPI b8 renderer_pcf_enabled(struct renderer_system_state* state);
+
+/**
+ * @brief Returns the max number of textures that can be bound at once for a single draw call.
+ */
+KAPI u16 renderer_max_bound_texture_count_get(struct renderer_system_state* state);
+
+/**
+ * @brief Returns the max number of samplers that can be bound at once for a single draw call.
+ */
+KAPI u16 renderer_max_bound_sampler_count_get(struct renderer_system_state* state);

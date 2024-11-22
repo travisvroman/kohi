@@ -1,8 +1,6 @@
 #include "renderer_frontend.h"
 
-#include "containers/darray.h"
 #include "containers/freelist.h"
-#include "containers/hashtable.h"
 #include "core/engine.h"
 #include "core/event.h"
 #include "core/frame_data.h"
@@ -18,16 +16,11 @@
 #include "parsers/kson_parser.h"
 #include "platform/platform.h"
 #include "renderer/renderer_types.h"
-#include "renderer/renderer_utils.h"
 #include "renderer/viewport.h"
 #include "resources/resource_types.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/plugin_system.h"
-#include "systems/resource_system.h"
-#include "systems/shader_system.h"
-
-struct texture_internal_data;
 
 typedef struct renderer_dynamic_state {
     vec4 viewport;
@@ -80,6 +73,9 @@ typedef struct renderer_system_state {
 
     // Generic samplers.
     khandle generic_samplers[SHADER_GENERIC_SAMPLER_COUNT];
+
+    // Default textures. Registered from the texture system.
+    khandle default_textures[RENDERER_DEFAULT_TEXTURE_COUNT];
 } renderer_system_state;
 
 static void reapply_dynamic_state(renderer_system_state* state, const renderer_dynamic_state* dynamic_state);
@@ -199,6 +195,11 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
     state->generic_samplers[SHADER_GENERIC_SAMPLER_NEAREST_REPEAT_MIRRORED] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_MIRRORED_REPEAT, 0, 0);
     state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_CLAMP_TO_EDGE, 0, 0);
     state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP_BORDER] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_CLAMP_TO_BORDER, 0, 0);
+
+    // Invalidate default texture handles, the should be registered from the texture system via renderer_default_texture_register().
+    for (u32 i = 0; i < RENDERER_DEFAULT_TEXTURE_COUNT; ++i) {
+        state->default_textures[i] = khandle_invalid();
+    }
 
     // Default dynamic state settings.
     state->dynamic_state.viewport = (vec4){0, 0, 1280, 720};
@@ -426,34 +427,21 @@ void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_op pa
 }
 
 void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer) {
-    struct texture_internal_data** colour_datas = 0;
     KASSERT_MSG(render_area.width != 0 && render_area.height != 0, "renderer_begin_rendering must have a width and height.");
+
+// Verify handles in debug builds, but not release.
+#ifdef KOHI_DEBUG
+    // If colour targets are used, none should be invalid.
     if (colour_target_count) {
-        if (colour_target_count == 1) {
-            // Optimization: Skip array allocation and just pass through the address of it.
+        for (u32 i = 0; i < colour_target_count; ++i) {
             if (khandle_is_invalid(colour_targets[0])) {
-                KFATAL("Passed invalid handle to texture target when beginning rendering. Null is used, and will likely cause a failure.");
-            } else {
-                colour_datas = &state->textures[colour_targets[0].handle_index].data;
-            }
-        } else {
-            colour_datas = p_frame_data->allocator.allocate(sizeof(struct texture_internal_data*) * colour_target_count);
-            for (u32 i = 0; i < colour_target_count; ++i) {
-                if (khandle_is_invalid(colour_targets[i])) {
-                    KFATAL("Passed invalid handle to texture target when beginning rendering. Null is used, and will likely cause a failure.");
-                    colour_datas[i] = 0;
-                } else {
-                    colour_datas[i] = state->textures[colour_targets[i].handle_index].data;
-                }
+                KFATAL("Passed invalid handle to texture target (index=%u) when beginning rendering. Null is used, and will likely cause a failure.", i);
             }
         }
     }
+#endif
 
-    struct texture_internal_data* depth_data = 0;
-    if (!khandle_is_invalid(depth_stencil_target)) {
-        depth_data = state->textures[depth_stencil_target.handle_index].data;
-    }
-    state->backend->begin_rendering(state->backend, p_frame_data, render_area, colour_target_count, colour_datas, depth_data, depth_stencil_layer);
+    state->backend->begin_rendering(state->backend, p_frame_data, render_area, colour_target_count, colour_targets, depth_stencil_target, depth_stencil_layer);
 
     // Dynamic state needs to be reapplied here in case the backend needs it.
     reapply_dynamic_state(state, &state->dynamic_state);
@@ -521,6 +509,20 @@ b8 renderer_texture_read_pixel(struct renderer_system_state* state, khandle rend
         return state->backend->texture_read_pixel(state->backend, renderer_texture_handle, x, y, out_rgba);
     }
     return false;
+}
+
+void renderer_default_texture_register(struct renderer_system_state* state, renderer_default_texture default_texture, khandle renderer_texture_handle) {
+    if (state && !khandle_is_invalid(renderer_texture_handle)) {
+        state->default_textures[default_texture] = renderer_texture_handle;
+    }
+}
+
+khandle renderer_default_texture_get(struct renderer_system_state* state, renderer_default_texture default_texture) {
+    if (state) {
+        return state->default_textures[default_texture];
+    }
+
+    return khandle_invalid();
 }
 
 b8 renderer_texture_resize(struct renderer_system_state* state, khandle renderer_texture_handle, u32 new_width, u32 new_height) {
@@ -670,8 +672,7 @@ void renderer_clear_stencil_set(struct renderer_system_state* state, u32 stencil
 
 b8 renderer_clear_colour(struct renderer_system_state* state, khandle texture_handle) {
     if (state && !khandle_is_invalid(texture_handle)) {
-        struct texture_internal_data* data = state->textures[texture_handle.handle_index].data;
-        state->backend->clear_colour(state->backend, data);
+        state->backend->clear_colour(state->backend, texture_handle);
         return true;
     }
 
@@ -681,8 +682,7 @@ b8 renderer_clear_colour(struct renderer_system_state* state, khandle texture_ha
 
 b8 renderer_clear_depth_stencil(struct renderer_system_state* state, khandle texture_handle) {
     if (state && !khandle_is_invalid(texture_handle)) {
-        struct texture_internal_data* data = state->textures[texture_handle.handle_index].data;
-        state->backend->clear_depth_stencil(state->backend, data);
+        state->backend->clear_depth_stencil(state->backend, texture_handle);
         return true;
     }
 
@@ -692,8 +692,7 @@ b8 renderer_clear_depth_stencil(struct renderer_system_state* state, khandle tex
 
 void renderer_colour_texture_prepare_for_present(struct renderer_system_state* state, khandle texture_handle) {
     if (state && !khandle_is_invalid(texture_handle)) {
-        struct texture_internal_data* data = state->textures[texture_handle.handle_index].data;
-        state->backend->colour_texture_prepare_for_present(state->backend, data);
+        state->backend->colour_texture_prepare_for_present(state->backend, texture_handle);
         return;
     }
 
@@ -702,97 +701,84 @@ void renderer_colour_texture_prepare_for_present(struct renderer_system_state* s
 
 void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, khandle texture_handle, texture_flag_bits flags) {
     if (state && !khandle_is_invalid(texture_handle)) {
-        struct texture_internal_data* data = state->textures[texture_handle.handle_index].data;
-        state->backend->texture_prepare_for_sampling(state->backend, data, flags);
+        state->backend->texture_prepare_for_sampling(state->backend, texture_handle, flags);
         return;
     }
 
     KERROR("renderer_texture_prepare_for_sampling requires a valid handle to a texture. Nothing was done.");
 }
 
-b8 renderer_shader_create(struct renderer_system_state* state, kshader* s, const shader_config* config) {
-    return state->backend->shader_create(state->backend, s, config);
+b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, const shader_config* config) {
+    return state->backend->shader_create(state->backend, shader, config);
 }
 
-void renderer_shader_destroy(struct renderer_system_state* state, kshader* s) {
-    state->backend->shader_destroy(state->backend, s);
+void renderer_shader_destroy(struct renderer_system_state* state, khandle shader) {
+    state->backend->shader_destroy(state->backend, shader);
 }
 
-b8 renderer_shader_initialize(struct renderer_system_state* state, kshader* s) {
-    return state->backend->shader_initialize(state->backend, s);
+b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 shader_stage_count, shader_stage_config* shader_stages) {
+    return state->backend->shader_reload(state->backend, shader, shader_stage_count, shader_stages);
 }
 
-b8 renderer_shader_reload(struct renderer_system_state* state, struct shader* s) {
-    return state->backend->shader_reload(state->backend, s);
+b8 renderer_shader_use(struct renderer_system_state* state, khandle shader) {
+    return state->backend->shader_use(state->backend, shader);
 }
 
-b8 renderer_shader_use(struct renderer_system_state* state, kshader* s) {
-    return state->backend->shader_use(state->backend, s);
+b8 renderer_shader_supports_wireframe(struct renderer_system_state* state, khandle shader) {
+    return state->backend->shader_supports_wireframe(state->backend, shader);
 }
 
-b8 renderer_shader_set_wireframe(struct renderer_system_state* state, kshader* s, b8 wireframe_enabled) {
-    // Ensure that this shader has the ability to go wireframe before changing.
-    if (!state->backend->shader_supports_wireframe(state->backend, s)) {
-        // Not supported, don't enable. Bleat about it.
-        KWARN("Shader does not support wireframe mode: '%s'.", s->name);
-        return false;
-    }
-    s->is_wireframe = wireframe_enabled;
-    return true;
+b8 renderer_shader_flag_get(struct renderer_system_state* state, khandle shader, shader_flags flag) {
+    return state->backend->shader_flag_get(state->backend, shader, flag);
 }
 
-b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, kshader* s) {
-    return state->backend->shader_apply_per_frame(state->backend, s, state->frame_number);
+void renderer_shader_flag_set(struct renderer_system_state* state, khandle shader, shader_flags flag, b8 enabled) {
+    state->backend->shader_flag_set(state->backend, shader, flag, enabled);
 }
 
-b8 renderer_shader_apply_per_group(struct renderer_system_state* state, kshader* s) {
-    return state->backend->shader_apply_per_group(state->backend, s, state->frame_number);
+b8 renderer_shader_bind_per_frame(struct renderer_system_state* state, khandle shader) {
+    return state->backend->shader_bind_per_frame(state->backend, shader);
 }
 
-b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, kshader* s) {
-    return state->backend->shader_apply_per_draw(state->backend, s, state->frame_number);
+b8 renderer_shader_bind_per_group(struct renderer_system_state* state, khandle shader, u32 group_id) {
+    return state->backend->shader_bind_per_group(state->backend, shader, group_id);
 }
 
-b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_texture_resource_config* config, u32* out_group_id) {
-    return state->backend->shader_per_group_resources_acquire(state->backend, s, config, out_group_id);
+b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, khandle shader, u32 draw_id) {
+    return state->backend->shader_bind_per_draw(state->backend, shader, draw_id);
 }
 
-b8 renderer_shader_per_group_resources_release(struct renderer_system_state* state, kshader* s, u32 group_id) {
-    return state->backend->shader_per_group_resources_release(state->backend, s, group_id);
+b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, khandle shader) {
+    return state->backend->shader_apply_per_frame(state->backend, shader, state->frame_number);
 }
 
-b8 renderer_shader_per_draw_resources_acquire(struct renderer_system_state* state, struct shader* s, const shader_texture_resource_config* config, u32* out_draw_id) {
-    return state->backend->shader_per_draw_resources_acquire(state->backend, s, config, out_draw_id);
+b8 renderer_shader_apply_per_group(struct renderer_system_state* state, khandle shader) {
+    return state->backend->shader_apply_per_group(state->backend, shader, state->frame_number);
 }
 
-b8 renderer_shader_per_draw_resources_release(struct renderer_system_state* state, struct shader* s, u32 draw_id) {
-    return state->backend->shader_per_draw_resources_release(state->backend, s, draw_id);
+b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, khandle shader) {
+    return state->backend->shader_apply_per_draw(state->backend, shader, state->frame_number);
 }
 
-shader_uniform* renderer_shader_uniform_get_by_location(kshader* s, u16 location) {
-    if (!s) {
-        return 0;
-    }
-    return &s->uniforms[location];
+b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state* state, khandle shader, u32* out_group_id) {
+    return state->backend->shader_per_group_resources_acquire(state->backend, shader, out_group_id);
 }
 
-shader_uniform* renderer_shader_uniform_get(kshader* s, const char* name) {
-    if (!s || !name) {
-        return 0;
-    }
-
-    u16 uniform_index;
-    if (!hashtable_get(&s->uniform_lookup, name, &uniform_index)) {
-        KERROR("Shader '%s' does not contain a uniform named '%s'.", s->name, name);
-        return false;
-    }
-
-    return &s->uniforms[uniform_index];
+b8 renderer_shader_per_group_resources_release(struct renderer_system_state* state, khandle shader, u32 group_id) {
+    return state->backend->shader_per_group_resources_release(state->backend, shader, group_id);
 }
 
-b8 renderer_shader_uniform_set(struct renderer_system_state* state, kshader* s, shader_uniform* uniform, u32 array_index, const void* value) {
+b8 renderer_shader_per_draw_resources_acquire(struct renderer_system_state* state, khandle shader, u32* out_draw_id) {
+    return state->backend->shader_per_draw_resources_acquire(state->backend, shader, out_draw_id);
+}
+
+b8 renderer_shader_per_draw_resources_release(struct renderer_system_state* state, khandle shader, u32 draw_id) {
+    return state->backend->shader_per_draw_resources_release(state->backend, shader, draw_id);
+}
+
+b8 renderer_shader_uniform_set(struct renderer_system_state* state, khandle shader, shader_uniform* uniform, u32 array_index, const void* value) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->backend->shader_uniform_set(state_ptr->backend, s, uniform, array_index, value);
+    return state_ptr->backend->shader_uniform_set(state_ptr->backend, shader, uniform, array_index, value);
 }
 
 khandle renderer_generic_sampler_get(struct renderer_system_state* state, shader_generic_sampler sampler) {
@@ -1055,6 +1041,16 @@ b8 renderer_pcf_enabled(struct renderer_system_state* state) {
         return false;
     }
     return state->use_pcf;
+}
+
+u16 renderer_max_bound_texture_count_get(struct renderer_system_state* state) {
+    // NOTE: while the backend could allow for more, most "non-bindless" APIs have a limit of 16.
+    return 16;
+}
+
+u16 renderer_max_bound_sampler_count_get(struct renderer_system_state* state) {
+    // NOTE: while the backend could allow for more, most "non-bindless" APIs have a limit of 16.
+    return 16;
 }
 
 static void reapply_dynamic_state(renderer_system_state* state, const renderer_dynamic_state* dynamic_state) {

@@ -8,12 +8,12 @@ max_groups=256
 stages = [
     {
         type = "vertex"
-        source_asset_name = "PBR_StaticMesh_vert"
+        source_asset_name = "MaterialStandard_vert"
         package_name = "Runtime"
     }
     {
         type = "fragment"
-        source_asset_name = "PBR_StaticMesh_frag"
+        source_asset_name = "MaterialStandard_frag"
         package_name = "Runtime"
     }
 ]
