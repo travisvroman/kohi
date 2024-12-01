@@ -2,7 +2,6 @@
 
 #include "assets/kasset_types.h"
 #include "defines.h"
-#include "kasset_kresource_utils.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
 #include "memory/kmemory.h"
@@ -85,7 +84,7 @@ void kresource_handler_material_release(kresource_handler* self, kresource* reso
         kresource_material* typed_resource = (kresource_material*)resource;
 
         if (typed_resource->custom_sampler_count && typed_resource->custom_samplers) {
-            KFREE_TYPE_CARRAY(typed_resource->custom_samplers, kasset_material_sampler, typed_resource->custom_sampler_count);
+            KFREE_TYPE_CARRAY(typed_resource->custom_samplers, kmaterial_sampler_config, typed_resource->custom_sampler_count);
         }
 
         KFREE_TYPE(typed_resource, kresource_material, MEMORY_TAG_RESOURCE);
@@ -113,8 +112,8 @@ static void material_kasset_on_result(asset_request_result result, const struct 
 static void asset_to_resource(const kasset_material* asset, kresource_material* out_material) {
     // Take a copy of all of the asset properties.
 
-    out_material->type = kasset_material_type_to_kresource(asset->type);
-    out_material->model = kasset_material_model_to_kresource(asset->model);
+    out_material->type = asset->type;
+    out_material->model = asset->model;
 
     out_material->has_transparency = asset->has_transparency;
     out_material->double_sided = asset->double_sided;
@@ -125,39 +124,39 @@ static void asset_to_resource(const kasset_material* asset, kresource_material* 
     out_material->custom_shader_name = asset->custom_shader_name;
 
     out_material->base_colour = asset->base_colour;
-    out_material->base_colour_map = kasset_material_texture_to_kresource(asset->base_colour_map);
+    out_material->base_colour_map = asset->base_colour_map;
 
     out_material->normal_enabled = asset->normal_enabled;
     out_material->normal = asset->normal;
-    out_material->normal_map = kasset_material_texture_to_kresource(asset->normal_map);
+    out_material->normal_map = asset->normal_map;
 
     out_material->metallic = asset->metallic;
-    out_material->metallic_map = kasset_material_texture_to_kresource(asset->metallic_map);
-    out_material->metallic_map_source_channel = kasset_material_tex_map_channel_to_kresource(asset->metallic_map_source_channel);
+    out_material->metallic_map = asset->metallic_map;
+    out_material->metallic_map_source_channel = asset->metallic_map_source_channel;
 
     out_material->roughness = asset->roughness;
-    out_material->roughness_map = kasset_material_texture_to_kresource(asset->roughness_map);
-    out_material->roughness_map_source_channel = kasset_material_tex_map_channel_to_kresource(asset->roughness_map_source_channel);
+    out_material->roughness_map = asset->roughness_map;
+    out_material->roughness_map_source_channel = asset->roughness_map_source_channel;
 
     out_material->ambient_occlusion_enabled = asset->ambient_occlusion_enabled;
     out_material->ambient_occlusion = asset->ambient_occlusion;
-    out_material->ambient_occlusion_map = kasset_material_texture_to_kresource(asset->ambient_occlusion_map);
-    out_material->ambient_occlusion_map_source_channel = kasset_material_tex_map_channel_to_kresource(asset->ambient_occlusion_map_source_channel);
+    out_material->ambient_occlusion_map = asset->ambient_occlusion_map;
+    out_material->ambient_occlusion_map_source_channel = asset->ambient_occlusion_map_source_channel;
 
     out_material->mra = asset->mra;
-    out_material->mra_map = kasset_material_texture_to_kresource(asset->mra_map);
+    out_material->mra_map = asset->mra_map;
     out_material->use_mra = asset->use_mra;
 
     out_material->emissive_enabled = asset->emissive_enabled;
     out_material->emissive = asset->emissive;
-    out_material->emissive_map = kasset_material_texture_to_kresource(asset->emissive_map);
+    out_material->emissive_map = asset->emissive_map;
 
     out_material->custom_sampler_count = asset->custom_sampler_count;
-    KALLOC_TYPE_CARRAY(kasset_material_sampler, out_material->custom_sampler_count);
+    KALLOC_TYPE_CARRAY(kmaterial_sampler_config, out_material->custom_sampler_count);
     KCOPY_TYPE_CARRAY(
         out_material->custom_samplers,
         asset->custom_samplers,
-        kasset_material_sampler,
+        kmaterial_sampler_config,
         out_material->custom_sampler_count);
 
     out_material->base.state = KRESOURCE_STATE_LOADED;

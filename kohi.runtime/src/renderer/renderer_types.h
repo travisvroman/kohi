@@ -17,7 +17,6 @@ struct viewport;
 struct camera;
 struct material;
 struct kwindow_renderer_backend_state;
-struct texture_map;
 
 typedef struct renderbuffer_data {
     /** @brief The element count. */
@@ -569,30 +568,30 @@ typedef struct renderer_backend_interface {
      *
      * @param backend A pointer to the renderer backend interface.
      * @param shader A handle to the shader to apply the global data for.
-     * @param renderer_frame_number The current renderer frame number provided by the frontend.
+     * @param generation The current generation of the group's data. Used for synchronization by the backend.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_per_frame)(struct renderer_backend_interface* backend, khandle shader, u64 renderer_frame_number);
+    b8 (*shader_apply_per_frame)(struct renderer_backend_interface* backend, khandle shader, u16 generation);
 
     /**
      * @brief Applies data for the currently bound instance.
      *
      * @param backend A pointer to the renderer backend interface.
      * @param shader A handle to the shader to apply the instance data for.
-     * @param renderer_frame_number The current renderer frame number provided by the frontend.
+     * @param generation The current generation of the group's data. Used for synchronization by the backend.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_per_group)(struct renderer_backend_interface* backend, khandle shader, u64 renderer_frame_number);
+    b8 (*shader_apply_per_group)(struct renderer_backend_interface* backend, khandle shader, u16 generation);
 
     /**
      * @brief Applies local data to the uniform buffer.
      *
      * @param backend A pointer to the renderer backend interface.
      * @param shader A handle to the shader to apply the instance data for.
-     * @param renderer_frame_number The current renderer frame number provided by the frontend.
+     * @param generation The current generation of the group's data. Used for synchronization by the backend.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_per_draw)(struct renderer_backend_interface* backend, khandle shader, u64 renderer_frame_number);
+    b8 (*shader_apply_per_draw)(struct renderer_backend_interface* backend, khandle shader, u16 generation);
 
     /**
      * @brief Acquires internal instance-level resources and provides an instance id.
@@ -678,6 +677,15 @@ typedef struct renderer_backend_interface {
      * @return True on success; otherwise false.
      */
     b8 (*sampler_refresh)(struct renderer_backend_interface* backend, khandle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
+
+    /**
+     * @brief Attempts to obtain the name of a sampler with the given handle. Returns INVALID_KNAME if not found.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param sampler A handle to the sampler whose name to get.
+     * @return The name of the sampler on success; otherwise INVALID_KNAME.
+     */
+    kname (*sampler_name_get)(struct renderer_backend_interface* backend, khandle sampler);
 
     /**
      * @brief Indicates if the renderer is capable of multi-threading.

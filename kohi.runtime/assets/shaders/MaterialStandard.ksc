@@ -44,104 +44,51 @@ attributes = [
 uniforms = {
     per_frame = [
         {
-            name = "projection"
-            type = "mat4"
-        }
-        {
-            name = "views"
-            type = "mat4[2]"
-        }
-        {
-            name = "light_spaces"
-            type = "mat4[4]"
-        }
-        {
-            name = "cascade_splits"
-            type = "vec4"
-        }
-        {
-            name = "view_positions"
-            type = "vec4[2]"
-        }
-        {
-            name = "mode"
-            type = "u32"
-        }
-        {
-            name = "use_pcf"
-            type = "u32"
-        }
-        {
-            name = "bias"
-            type = "f32"
-        }
-        {
-            name = "padding"
-            type = "f32"
+            name = "material_frame_ubo"
+            type = "struct"
+            size = 388
         }
         {
             name = "shadow_textures"
-            type = "sampler2DArray"
+            type = "texture2DArray"
+        }
+        {
+            name = "ibl_cube_textures"
+            type = "textureCube"
+            array_size = 4
+        }
+        {
+            name = "shadow_sampler"
+            type = "sampler"
+        }
+        {
+            name = "ibl_sampler"
+            type = "sampler"
         }
     ]
     per_group = [
         {
             name = "material_textures"
-            type = "texture2D[3]"
-            sampler = "generic.nearest"
+            type = "texture2D"
+            array_size = 7
         }
         {
-            name = "dir_light"
-            type = "struct48"
+            name = "material_samplers"
+            type = "sampler"
+            array_size = 7
         }
         {
-            name = "p_lights"
-            type = "struct480"
-        }
-        {
-            name = "properties"
-            type = "struct32"
-        }
-        {
-            name = "num_p_lights"
-            type = "i32"
+            name = "material_group_ubo"
+            type = "struct"
+            size = 656
         }
     ]
     per_draw = [
         {
-            name = "model"
-            type = "mat4"
-        }
-        {
-            name = "clipping_plane"
-            type = "vec4"
-        }
-        {
-            name = "view_index"
-            type = "i32"
-        }
-        {
-            name = "ibl_cube_texture"
-            type = "samplerCube"
+            name = "material_draw_ubo"
+            type = "struct"
+            size = 84
         }
     ]
 }
 
-samplers = [
-    {
-        name = "custom_01"
-        // Shorthand that sets both filter modes
-        filter = "linear"
-        // Overrides shorthand
-        filter_mag = "linear"
-        filter_min = "linear"
-        // Shorthand that sets all 3 repeat modes.
-        repeat = "repeat"
-        // More specific version overrides shorthand
-        repeat_u = "repeat"
-        repeat_v = "repeat"
-        repeat_w = "repeat"
-        // If true, uses mipmaps based on image dimensions.
-        use_mipmaps = true
-    }
-]

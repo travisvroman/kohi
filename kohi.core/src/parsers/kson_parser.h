@@ -4,6 +4,7 @@
 #include "defines.h"
 #include "math/math_types.h"
 #include "strings/kname.h"
+#include "strings/kstring_id.h"
 
 typedef enum kson_token_type {
     KSON_TOKEN_TYPE_UNKNOWN,
@@ -95,8 +96,8 @@ typedef union kson_property_value {
 typedef struct kson_property {
     // The type of property.
     kson_property_type type;
-    // The name of the property. If this belongs to an array, it should be null.
-    char* name;
+    // The name of the property. If this belongs to an array, it should be INVALID_KSTRING_ID.
+    kstring_id name;
     // The property value.
     kson_property_value value;
 } kson_property;
@@ -106,6 +107,14 @@ typedef struct kson_tree {
     // The root object, which always must exist.
     kson_object root;
 } kson_tree;
+
+/**
+ * @brief Gets the given property type as a constant string. NOTE: Caller should *NOT* attempt to free this string.
+ *
+ * @param type The KSON property type.
+ * @returns A constant string representation of the property type. NOTE: Caller should *NOT* attempt to free this string.
+ */
+KAPI const char* kson_property_type_to_string(kson_property_type type);
 
 /**
  * @brief Creates a kson parser. Note that it is generally recommended to use the
@@ -570,10 +579,20 @@ KAPI b8 kson_object_property_type_get(const kson_object* object, const char* nam
 KAPI b8 kson_object_property_count_get(const kson_object* object, u32* out_count);
 
 /**
+ * @brief Attempts to retrieve the given object's property value type by name. Fails if not found.
+ *
+ * @param object A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_type A pointer to hold the object property's type.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_type_get(const kson_object* object, const char* name, kson_property_type* out_type);
+
+/**
  * @brief Attempts to retrieve the given object's property value by name as a signed integer. Fails if not found
  * or on type mismatch.
  *
- * @param A constant pointer to the object to search. Required.
+ * @param object A constant pointer to the object to search. Required.
  * @param name The property name to search for. Required.
  * @param out_value A pointer to hold the object property's value.
  * @return True on success; otherwise false.
@@ -584,7 +603,7 @@ KAPI b8 kson_object_property_value_get_int(const kson_object* object, const char
  * @brief Attempts to retrieve the given object's property value by name as a floating-point number. Fails if not found
  * or on type mismatch.
  *
- * @param A constant pointer to the object to search. Required.
+ * @param object A constant pointer to the object to search. Required.
  * @param name The property name to search for. Required.
  * @param out_value A pointer to hold the object property's value.
  * @return True on success; otherwise false.
@@ -595,7 +614,7 @@ KAPI b8 kson_object_property_value_get_float(const kson_object* object, const ch
  * @brief Attempts to retrieve the given object's property value by name as a boolean. Fails if not found
  * or on type mismatch.
  *
- * @param A constant pointer to the object to search. Required.
+ * @param object A constant pointer to the object to search. Required.
  * @param name The property name to search for. Required.
  * @param out_value A pointer to hold the object property's value.
  * @return True on success; otherwise false.
@@ -606,7 +625,7 @@ KAPI b8 kson_object_property_value_get_bool(const kson_object* object, const cha
  * @brief Attempts to retrieve the given object's property value by name as a string. Fails if not found
  * or on type mismatch. NOTE: This function always allocates new memory, so the string should be released afterward.
  *
- * @param A constant pointer to the object to search. Required.
+ * @param object A constant pointer to the object to search. Required.
  * @param name The property name to search for. Required.
  * @param out_value A pointer to hold the object property's value.
  * @return True on success; otherwise false.
@@ -617,7 +636,7 @@ KAPI b8 kson_object_property_value_get_string(const kson_object* object, const c
  * @brief Attempts to retrieve the given object's property value by name as a mat4. Fails if not found
  * or on type mismatch (these are always stored as strings).
  *
- * @param A constant pointer to the object to search. Required.
+ * @param object A constant pointer to the object to search. Required.
  * @param name The property name to search for. Required.
  * @param out_value A pointer to hold the object property's value.
  * @return True on success; otherwise false.
@@ -628,7 +647,7 @@ KAPI b8 kson_object_property_value_get_mat4(const kson_object* object, const cha
  * @brief Attempts to retrieve the given object's property value by name as a vec4. Fails if not found
  * or on type mismatch (these are always stored as strings).
  *
- * @param A constant pointer to the object to search. Required.
+ * @param object A constant pointer to the object to search. Required.
  * @param name The property name to search for. Required.
  * @param out_value A pointer to hold the object property's value.
  * @return True on success; otherwise false.
@@ -639,7 +658,7 @@ KAPI b8 kson_object_property_value_get_vec4(const kson_object* object, const cha
  * @brief Attempts to retrieve the given object's property value by name as a vec3. Fails if not found
  * or on type mismatch (these are always stored as strings).
  *
- * @param A constant pointer to the object to search. Required.
+ * @param object A constant pointer to the object to search. Required.
  * @param name The property name to search for. Required.
  * @param out_value A pointer to hold the object property's value.
  * @return True on success; otherwise false.
@@ -650,7 +669,7 @@ KAPI b8 kson_object_property_value_get_vec3(const kson_object* object, const cha
  * @brief Attempts to retrieve the given object's property value by name as a vec2. Fails if not found
  * or on type mismatch (these are always stored as strings).
  *
- * @param A constant pointer to the object to search. Required.
+ * @param object A constant pointer to the object to search. Required.
  * @param name The property name to search for. Required.
  * @param out_value A pointer to hold the object property's value.
  * @return True on success; otherwise false.
@@ -661,7 +680,7 @@ KAPI b8 kson_object_property_value_get_vec2(const kson_object* object, const cha
  * @brief Attempts to retrieve the given object's property value by name as a kname. Fails if not found
  * or on type mismatch. knames are always stored as thier original text format.
  *
- * @param A constant pointer to the object to search. Required.
+ * @param object A constant pointer to the object to search. Required.
  * @param name The property name to search for. Required.
  * @param out_value A pointer to hold the object property's value.
  * @return True on success; otherwise false.
@@ -669,12 +688,12 @@ KAPI b8 kson_object_property_value_get_vec2(const kson_object* object, const cha
 KAPI b8 kson_object_property_value_get_kname(const kson_object* object, const char* name, kname* out_value);
 
 /**
- * @brief Attempts to retrieve the given object's property value by name as an object. Fails if not found
+ * @brief Attempts to retrieve the a copy given object's property value by name as an object. Fails if not found
  * or on type mismatch.
  *
- * @param A constant pointer to the object to search. Required.
+ * @param object A constant pointer to the object to search. Required.
  * @param name The property name to search for. Required.
- * @param out_value A pointer to hold the object property's value.
+ * @param out_value A pointer to hold a copy of the object property's value.
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_object_property_value_get_object(const kson_object* object, const char* name, kson_object* out_value);

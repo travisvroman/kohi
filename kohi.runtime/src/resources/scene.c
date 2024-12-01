@@ -4,6 +4,7 @@
 #include "core/console.h"
 #include "core/engine.h"
 #include "core/frame_data.h"
+#include "core_render_types.h"
 #include "defines.h"
 #include "graphs/hierarchy_graph.h"
 #include "identifiers/identifier.h"
@@ -25,6 +26,7 @@
 #include "resources/water_plane.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
+#include "strings/kstring_id.h"
 #include "systems/light_system.h"
 #include "systems/material_system.h"
 #include "systems/static_mesh_system.h"
@@ -1146,7 +1148,7 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
                 // Check if transparent. If so, put into a separate, temp array to be
                 // sorted by distance from the camera. Otherwise, put into the
                 // out_geometries array directly.
-                b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m->material_instances[j].material, MATERIAL_FLAG_HAS_TRANSPARENCY);
+                b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m->material_instances[j].material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
 
                 if (has_transparency) {
                     // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
@@ -1326,7 +1328,7 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
                     // Check if transparent. If so, put into a separate, temp array to be
                     // sorted by distance from the camera. Otherwise, put into the
                     // out_geometries array directly.
-                    b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m->material_instances[j].material, MATERIAL_FLAG_HAS_TRANSPARENCY);
+                    b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m->material_instances[j].material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
                     if (has_transparency) {
                         // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
                         // Get the center, extract the global position from the model matrix and add it to the center,
@@ -1607,7 +1609,7 @@ static b8 scene_serialize_node(const scene* s, const hierarchy_graph_view* view,
     // Attachments
     kson_property attachments_prop = {0};
     attachments_prop.type = KSON_PROPERTY_TYPE_ARRAY;
-    attachments_prop.name = string_duplicate("attachments");
+    attachments_prop.name = kstring_id_create("attachments");
     attachments_prop.value.o.type = KSON_OBJECT_TYPE_ARRAY;
     attachments_prop.value.o.properties = darray_create(kson_property);
 
@@ -1746,7 +1748,7 @@ static b8 scene_serialize_node(const scene* s, const hierarchy_graph_view* view,
             // Only create the children property if the node actually has them.
             kson_property children_prop = {0};
             children_prop.type = KSON_PROPERTY_TYPE_ARRAY;
-            children_prop.name = string_duplicate("children");
+            children_prop.name = kstring_id_create("children");
             children_prop.value.o.type = KSON_OBJECT_TYPE_ARRAY;
             children_prop.value.o.properties = darray_create(kson_property);
             for (u32 i = 0; i < child_count; ++i) {

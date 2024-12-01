@@ -1,7 +1,6 @@
 #include "kasset_material_serializer.h"
 
 #include "assets/kasset_types.h"
-#include "assets/kasset_utils.h"
 #include "containers/darray.h"
 #include "core_render_types.h"
 #include "logger.h"
@@ -33,12 +32,12 @@
 
 #define SAMPLERS "samplers"
 
-static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kasset_material_texture* out_texture, kasset_material_texture_map_channel* out_source_channel, f32* out_value, f32 default_value);
-static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kasset_material_texture* out_texture, vec4* out_value, vec4 default_value);
-static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kasset_material_texture* out_texture, vec3* out_value, vec3 default_value);
+static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, texture_channel* out_source_channel, f32* out_value, f32 default_value);
+static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, vec4* out_value, vec4 default_value);
+static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, vec3* out_value, vec3 default_value);
 
-static void add_map_obj(kson_object* base_obj, const char* source_channel, kasset_material_texture* texture);
-static b8 extract_map(const kson_object* map_obj, kasset_material_texture* out_texture, kasset_material_texture_map_channel* out_source_channel);
+static void add_map_obj(kson_object* base_obj, const char* source_channel, kmaterial_texture_input* texture);
+static b8 extract_map(const kson_object* map_obj, kmaterial_texture_input* out_texture, texture_channel* out_source_channel);
 
 const char* kasset_material_serialize(const kasset* asset) {
     if (!asset) {
@@ -56,10 +55,10 @@ const char* kasset_material_serialize(const kasset* asset) {
     kson_object_value_add_int(&tree.root, "version", MATERIAL_FILE_VERSION);
 
     // Material type
-    kson_object_value_add_string(&tree.root, "type", kasset_material_type_to_string(material->type));
+    kson_object_value_add_string(&tree.root, "type", kmaterial_type_to_string(material->type));
 
     // Material model
-    kson_object_value_add_string(&tree.root, "model", kasset_material_model_to_string(material->model));
+    kson_object_value_add_string(&tree.root, "model", kmaterial_model_to_string(material->model));
 
     // Various flags
     kson_object_value_add_boolean(&tree.root, "has_transparency", material->has_transparency);
@@ -93,7 +92,7 @@ const char* kasset_material_serialize(const kasset* asset) {
     // Metallic
     kson_object metallic = kson_object_create();
     if (material->metallic_map.resource_name) {
-        const char* channel = kasset_material_texture_map_channel_to_string(material->metallic_map_source_channel);
+        const char* channel = texture_channel_to_string(material->metallic_map_source_channel);
         add_map_obj(&base_colour, channel, &material->metallic_map);
     } else {
         kson_object_value_add_float(&metallic, INPUT_VALUE, material->metallic);
@@ -103,7 +102,7 @@ const char* kasset_material_serialize(const kasset* asset) {
     // Roughness
     kson_object roughness = kson_object_create();
     if (material->roughness_map.resource_name) {
-        const char* channel = kasset_material_texture_map_channel_to_string(material->roughness_map_source_channel);
+        const char* channel = texture_channel_to_string(material->roughness_map_source_channel);
         add_map_obj(&base_colour, channel, &material->roughness_map);
     } else {
         kson_object_value_add_float(&roughness, INPUT_VALUE, material->roughness);
@@ -113,7 +112,7 @@ const char* kasset_material_serialize(const kasset* asset) {
     // Roughness
     kson_object ao = kson_object_create();
     if (material->ambient_occlusion_map.resource_name) {
-        const char* channel = kasset_material_texture_map_channel_to_string(material->ambient_occlusion_map_source_channel);
+        const char* channel = texture_channel_to_string(material->ambient_occlusion_map_source_channel);
         add_map_obj(&base_colour, channel, &material->ambient_occlusion_map);
     } else {
         kson_object_value_add_float(&ao, INPUT_VALUE, material->ambient_occlusion);
@@ -147,7 +146,7 @@ const char* kasset_material_serialize(const kasset* asset) {
 
         // Each sampler
         for (u32 i = 0; i < material->custom_sampler_count; ++i) {
-            kasset_material_sampler* custom_sampler = &material->custom_samplers[i];
+            kmaterial_sampler_config* custom_sampler = &material->custom_samplers[i];
 
             kson_object sampler = {0};
             sampler.type = KSON_OBJECT_TYPE_OBJECT;
@@ -207,14 +206,15 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
         KERROR("failed to obtain type from material file, which is a required field.");
         goto cleanup;
     }
-    out_material->type = string_to_kasset_material_type(type_str);
+    out_material->type = string_to_kmaterial_type(type_str);
 
     // Material model. Optional, defaults to PBR
     const char* model_str = 0;
     if (!kson_object_property_value_get_string(&tree.root, "model", &model_str)) {
-        out_material->model = KASSET_MATERIAL_MODEL_PBR;
+        out_material->model = KMATERIAL_MODEL_PBR;
+    } else {
+        out_material->model = string_to_kmaterial_model(model_str);
     }
-    out_material->model = string_to_kasset_material_model(model_str);
 
     // Format version.
     i64 file_format_version = 0;
@@ -225,12 +225,12 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
     // Validate version
     if (file_format_version != MATERIAL_FILE_VERSION) {
         if (file_format_version < 3) {
-            KERROR("Material file format version %u no longer supported. File should be manually converted to at least version 3. Material will not be processed.", file_format_version);
+            KERROR("Material file format version %u no longer supported. File should be manually converted to at least version %u. Material will not be processed.", file_format_version, MATERIAL_FILE_VERSION);
             goto cleanup;
         }
 
         if (file_format_version > MATERIAL_FILE_VERSION) {
-            KERROR("Cannot process a file material version that is newer than the current version, ya dingus!");
+            KERROR("Cannot process a file material version that is newer (%u) than the current version (%u), ya dingus!", file_format_version, MATERIAL_FILE_VERSION);
             goto cleanup;
         }
     }
@@ -243,10 +243,10 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
         out_material->double_sided = false;
     }
     if (!kson_object_property_value_get_bool(&tree.root, "recieves_shadow", &out_material->recieves_shadow)) {
-        out_material->recieves_shadow = out_material->model != KASSET_MATERIAL_MODEL_UNLIT;
+        out_material->recieves_shadow = out_material->model != KMATERIAL_MODEL_UNLIT;
     }
     if (!kson_object_property_value_get_bool(&tree.root, "casts_shadow", &out_material->casts_shadow)) {
-        out_material->casts_shadow = out_material->model != KASSET_MATERIAL_MODEL_UNLIT;
+        out_material->casts_shadow = out_material->model != KMATERIAL_MODEL_UNLIT;
     }
     if (!kson_object_property_value_get_bool(&tree.root, "use_vertex_colour_as_base_colour", &out_material->use_vertex_colour_as_base_colour)) {
         out_material->use_vertex_colour_as_base_colour = false;
@@ -317,12 +317,12 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
         kson_array samplers_array = {0};
         if (kson_object_property_value_get_object(&tree.root, "samplers", &samplers_array)) {
             if (kson_array_element_count_get(&samplers_array, &out_material->custom_sampler_count)) {
-                out_material->custom_samplers = darray_create(kasset_material_sampler);
+                out_material->custom_samplers = darray_create(kmaterial_sampler_config);
                 for (u32 i = 0; i < out_material->custom_sampler_count; ++i) {
                     kson_object sampler = {0};
                     if (kson_array_element_value_get_object(&samplers_array, i, &sampler)) {
                         // Extract sampler attributes
-                        kasset_material_sampler custom_sampler = {0};
+                        kmaterial_sampler_config custom_sampler = {0};
 
                         // name
                         if (!kson_object_property_value_get_kname(&sampler, "name", &custom_sampler.name)) {
@@ -386,7 +386,7 @@ cleanup:
     return success;
 }
 
-static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kasset_material_texture* out_texture, kasset_material_texture_map_channel* out_source_channel, f32* out_value, f32 default_value) {
+static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, texture_channel* out_source_channel, f32* out_value, f32 default_value) {
     kson_object input = {0};
     b8 input_found = false;
     if (kson_object_property_value_get_object(inputs_obj, input_name, &input)) {
@@ -424,7 +424,7 @@ static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, cons
     return input_found;
 }
 
-static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kasset_material_texture* out_texture, vec4* out_value, vec4 default_value) {
+static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, vec4* out_value, vec4 default_value) {
     kson_object input = {0};
     b8 input_found = false;
     if (kson_object_property_value_get_object(inputs_obj, input_name, &input)) {
@@ -462,7 +462,7 @@ static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const
     return input_found;
 }
 
-static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kasset_material_texture* out_texture, vec3* out_value, vec3 default_value) {
+static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, vec3* out_value, vec3 default_value) {
     kson_object input = {0};
     b8 input_found = false;
     if (kson_object_property_value_get_object(inputs_obj, input_name, &input)) {
@@ -500,7 +500,7 @@ static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const
     return input_found;
 }
 
-static void add_map_obj(kson_object* base_obj, const char* source_channel, kasset_material_texture* texture) {
+static void add_map_obj(kson_object* base_obj, const char* source_channel, kmaterial_texture_input* texture) {
 
     // Add map object.
     kson_object map_obj = kson_object_create();
@@ -520,7 +520,7 @@ static void add_map_obj(kson_object* base_obj, const char* source_channel, kasse
     kson_object_value_add_object(base_obj, INPUT_MAP, map_obj);
 }
 
-static b8 extract_map(const kson_object* map_obj, kasset_material_texture* out_texture, kasset_material_texture_map_channel* out_source_channel) {
+static b8 extract_map(const kson_object* map_obj, kmaterial_texture_input* out_texture, texture_channel* out_source_channel) {
 
     // Extract the resource_name. Required.
     if (!kson_object_property_value_get_kname(map_obj, INPUT_MAP_RESOURCE_NAME, &out_texture->resource_name)) {
@@ -543,10 +543,10 @@ static b8 extract_map(const kson_object* map_obj, kasset_material_texture* out_t
         const char* channel = 0;
         kson_object_property_value_get_string(map_obj, INPUT_MAP_SOURCE_CHANNEL, &channel);
         if (channel) {
-            *out_source_channel = string_to_kasset_material_texture_map_channel(channel);
+            *out_source_channel = string_to_texture_channel(channel);
         } else {
             // Use default of r.
-            *out_source_channel = KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R;
+            *out_source_channel = TEXTURE_CHANNEL_R;
         }
     }
 

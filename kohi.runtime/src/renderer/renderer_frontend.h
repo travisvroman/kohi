@@ -115,7 +115,7 @@ KAPI b8 renderer_frame_prepare(struct renderer_system_state* state, struct frame
 /**
  * @brief Prepares a window's surface for drawing.
  * @param p_frame_data A pointer to the current frame's data.
- * @return True if successful; otherwise false.
+ d @return True if successful; otherwise false.
  */
 KAPI b8 renderer_frame_prepare_window_surface(struct renderer_system_state* state, struct kwindow* window, struct frame_data* p_frame_data);
 
@@ -543,27 +543,30 @@ KAPI b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, khand
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader to apply the global data for.
+ * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, khandle shader);
+KAPI b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, khandle shader, u16 generation);
 
 /**
  * @brief Applies data for the currently bound instance.
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader to apply the instance data for.
+ * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_per_group(struct renderer_system_state* state, khandle shader);
+KAPI b8 renderer_shader_apply_per_group(struct renderer_system_state* state, khandle shader, u16 generation);
 
 /**
  * @brief Triggers the upload of local uniform data to the GPU.
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader.
+ * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, khandle shader);
+KAPI b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, khandle shader, u16 generation);
 
 /**
  * @brief Acquires internal per-group resources and provides a group id.
@@ -661,6 +664,15 @@ KAPI void renderer_sampler_release(struct renderer_system_state* state, khandle*
  * @return True on success; otherwise false.
  */
 KAPI b8 renderer_sampler_refresh(struct renderer_system_state* state, khandle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
+
+/**
+ * @brief Attempts to obtain the name of a sampler with the given handle. Returns INVALID_KNAME if not found.
+ *
+ * @param state A pointer to the renderer state.
+ * @param sampler A handle to the sampler whose name to get.
+ * @return The name of the sampler on success; otherwise INVALID_KNAME.
+ */
+KAPI kname renderer_sampler_name_get(struct renderer_system_state* state, khandle sampler);
 
 /**
  * @brief Indicates if the renderer is capable of multi-threading.

@@ -3,19 +3,9 @@
 #include <assets/kasset_types.h>
 
 #include "kresource_types.h"
-#include "resources/resource_types.h"
 
 KAPI kresource_texture_format image_format_to_texture_format(kasset_image_format format);
 
 KAPI kasset_image_format texture_format_to_image_format(kresource_texture_format format);
 
 KAPI u8 channel_count_from_texture_format(kresource_texture_format format);
-
-KAPI texture_channel kresource_texture_map_channel_to_texture_channel(kresource_material_texture_map_channel channel);
-KAPI kresource_material_texture_map_channel texture_channel_to_kresource_texture_map_channel(texture_channel channel);
-
-KAPI material_type kresource_material_type_to_material_type(kresource_material_type type);
-KAPI kresource_material_type material_type_to_kresource_material_type(kresource_material_type type);
-
-KAPI material_model kresource_material_model_to_material_model(kresource_material_model model);
-KAPI kresource_material_model material_model_to_kresource_material_model(material_model model);

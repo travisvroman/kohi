@@ -390,3 +390,20 @@ u64 get_memory_alloc_count(void) {
     }
     return 0;
 }
+
+u32 pack_u8_into_u32(u8 x, u8 y, u8 z, u8 w) {
+    return (x << 24) | (y << 16) | (z << 8) | (w);
+}
+
+b8 unpack_u8_from_u32(u32 n, u8* x, u8* y, u8* z, u8* w) {
+    if (!x || !y || !z || !w) {
+        return false;
+    }
+
+    *x = (n >> 24) & 0xFF;
+    *y = (n >> 16) & 0xFF;
+    *z = (n >> 8) & 0xFF;
+    *w = n & 0xFF;
+
+    return true;
+}

@@ -232,51 +232,11 @@ typedef struct kasset_static_mesh {
 
 #define KASSET_TYPE_NAME_MATERIAL "Material"
 
-typedef enum kasset_material_type {
-    KASSET_MATERIAL_TYPE_UNKNOWN = 0,
-    KASSET_MATERIAL_TYPE_STANDARD,
-    KASSET_MATERIAL_TYPE_WATER,
-    KASSET_MATERIAL_TYPE_BLENDED,
-    KASSET_MATERIAL_TYPE_COUNT,
-    KASSET_MATERIAL_TYPE_CUSTOM = 99
-} kasset_material_type;
-
-typedef enum kasset_material_model {
-    KASSET_MATERIAL_MODEL_UNLIT = 0,
-    KASSET_MATERIAL_MODEL_PBR,
-    KASSET_MATERIAL_MODEL_PHONG,
-    KASSET_MATERIAL_MODEL_COUNT,
-    KASSET_MATERIAL_MODEL_CUSTOM = 99
-} kasset_material_model;
-
-typedef enum kasset_material_texture_map_channel {
-    KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_R = 0,
-    KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_G = 1,
-    KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_B = 2,
-    KASSET_MATERIAL_TEXTURE_MAP_CHANNEL_A = 3
-} kasset_material_texture_map_channel;
-
-typedef struct kasset_material_texture {
-    kname resource_name;
-    kname package_name;
-    kname sampler_name;
-    kasset_material_texture_map_channel channel;
-} kasset_material_texture;
-
-typedef struct kasset_material_sampler {
-    kname name;
-    texture_filter filter_min;
-    texture_filter filter_mag;
-    texture_repeat repeat_u;
-    texture_repeat repeat_v;
-    texture_repeat repeat_w;
-} kasset_material_sampler;
-
 typedef struct kasset_material {
     kasset base;
-    kasset_material_type type;
+    kmaterial_type type;
     // Shading model
-    kasset_material_model model;
+    kmaterial_model model;
 
     b8 has_transparency;
     b8 double_sided;
@@ -288,37 +248,37 @@ typedef struct kasset_material {
     kname custom_shader_name;
 
     vec4 base_colour;
-    kasset_material_texture base_colour_map;
+    kmaterial_texture_input base_colour_map;
 
     b8 normal_enabled;
     vec3 normal;
-    kasset_material_texture normal_map;
+    kmaterial_texture_input normal_map;
 
     f32 metallic;
-    kasset_material_texture metallic_map;
-    kasset_material_texture_map_channel metallic_map_source_channel;
+    kmaterial_texture_input metallic_map;
+    texture_channel metallic_map_source_channel;
 
     f32 roughness;
-    kasset_material_texture roughness_map;
-    kasset_material_texture_map_channel roughness_map_source_channel;
+    kmaterial_texture_input roughness_map;
+    texture_channel roughness_map_source_channel;
 
     b8 ambient_occlusion_enabled;
     f32 ambient_occlusion;
-    kasset_material_texture ambient_occlusion_map;
-    kasset_material_texture_map_channel ambient_occlusion_map_source_channel;
+    kmaterial_texture_input ambient_occlusion_map;
+    texture_channel ambient_occlusion_map_source_channel;
 
     // Combined metallic/roughness/ao value.
     vec3 mra;
-    kasset_material_texture mra_map;
+    kmaterial_texture_input mra_map;
     // Indicates if the mra combined value/map should be used instead of the separate ones.
     b8 use_mra;
 
     b8 emissive_enabled;
     vec4 emissive;
-    kasset_material_texture emissive_map;
+    kmaterial_texture_input emissive_map;
 
     u32 custom_sampler_count;
-    kasset_material_sampler* custom_samplers;
+    kmaterial_sampler_config* custom_samplers;
 
 } kasset_material;
 
@@ -444,9 +404,19 @@ typedef struct kasset_shader_attribute {
     shader_attribute_type type;
 } kasset_shader_attribute;
 
+/**
+ * @brief Represents a shader uniform within a shader asset.
+ */
 typedef struct kasset_shader_uniform {
+    /** @brief The uniform name */
     const char* name;
+    /** @brief The uniform type. */
     shader_uniform_type type;
+    /** @brief The uniform size. Only used for struct type uniforms, ignored otherwise. */
+    u32 size;
+    /** @brief The number of elements for array uniforms. Treated as an array if > 1. */
+    u32 array_size;
+    /** @brief The uniform update frequency (i.e. per-frame, per-group, per-draw) */
     shader_update_frequency frequency;
 } kasset_shader_uniform;
 
@@ -458,7 +428,7 @@ typedef struct kasset_shader {
     b8 depth_write;
     b8 stencil_test;
     b8 stencil_write;
-    u16 max_instances;
+    u16 max_groups;
 
     u32 attribute_count;
     kasset_shader_attribute* attributes;

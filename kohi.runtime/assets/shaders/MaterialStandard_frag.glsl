@@ -1,4 +1,4 @@
-#version 450
+#version 460
 
 layout(location = 0) out vec4 out_colour;
 
@@ -26,11 +26,6 @@ struct point_light {
 const int MAX_POINT_LIGHTS = 10;
 const int MAX_SHADOW_CASCADES = 4;
 
-struct pbr_properties {
-    vec4 diffuse_colour;
-    vec3 padding;
-    float shininess;
-};
 
 layout(set = 0, binding = 0) uniform global_uniform_object {
     mat4 projection;
@@ -47,7 +42,6 @@ layout(set = 0, binding = 0) uniform global_uniform_object {
 layout(set = 1, binding = 0) uniform instance_uniform_object {
     directional_light dir_light;
     point_light p_lights[MAX_POINT_LIGHTS]; // TODO: move after props
-    pbr_properties properties;
     int num_p_lights;
 } instance_ubo;
 
@@ -142,6 +136,13 @@ float geometry_schlick_ggx(float normal_dot_direction, float roughness) {
     roughness += 1.0;
     float k = (roughness * roughness) / 8.0;
     return normal_dot_direction / (normal_dot_direction * (1.0 - k) + k);
+}
+
+void unpack_u32(uint n, out uint x, out uint y, out uint z, out uint w) {
+    x = (n >> 24) & 0xFF;
+    y = (n >> 16) & 0xFF;
+    z = (n >> 8) & 0xFF;
+    w = n & 0xFF;
 }
 
 vec3 calculate_point_light_radiance(point_light light, vec3 view_direction, vec3 frag_position_xyz);

@@ -12,6 +12,8 @@
 
 #define SHADER_ASSET_VERSION 1
 
+static b8 extract_frequency_uniforms(shader_update_frequency frequency, u32 frequency_uniform_count, kson_array* frequency_array, kasset_shader* typed_asset, u32* uniform_index);
+
 const char* kasset_shader_serialize(const kasset* asset) {
     if (!asset) {
         KERROR("kasset_shader_serialize requires an asset to serialize, ya dingus!");
@@ -38,8 +40,8 @@ const char* kasset_shader_serialize(const kasset* asset) {
         goto cleanup_kson;
     }
 
-    // max_instances
-    kson_object_value_add_int(&tree.root, "max_instances", typed_asset->max_instances);
+    // max_groups
+    kson_object_value_add_int(&tree.root, "max_groups", typed_asset->max_groups);
 
     // Depth test
     kson_object_value_add_boolean(&tree.root, "depth_test", typed_asset->depth_test);
@@ -101,6 +103,16 @@ const char* kasset_shader_serialize(const kasset* asset) {
             kson_object_value_add_string(&uniform_obj, "type", shader_uniform_type_to_string(uniform->type));
             kson_object_value_add_string(&uniform_obj, "name", uniform->name);
 
+            // Add size if uniform is a struct.
+            if (uniform->type == SHADER_UNIFORM_TYPE_STRUCT) {
+                kson_object_value_add_int(&uniform_obj, "size", (i64)uniform->size);
+            }
+
+            // Add array size if relevant (i.e. more than one).
+            if (uniform->array_size > 1) {
+                kson_object_value_add_int(&uniform_obj, "array_size", (i64)uniform->size);
+            }
+
             switch (uniform->frequency) {
             default:
             case SHADER_UPDATE_FREQUENCY_PER_FRAME:
@@ -119,13 +131,13 @@ const char* kasset_shader_serialize(const kasset* asset) {
         }
 
         if (per_frame_count) {
-            kson_object_value_add_array(&uniforms_obj, "global", per_frame_array);
+            kson_object_value_add_array(&uniforms_obj, "per_frame", per_frame_array);
         }
         if (per_group_count) {
-            kson_object_value_add_array(&uniforms_obj, "instance", per_group_array);
+            kson_object_value_add_array(&uniforms_obj, "per_group", per_group_array);
         }
         if (per_draw_count) {
-            kson_object_value_add_array(&uniforms_obj, "local", per_draw_array);
+            kson_object_value_add_array(&uniforms_obj, "per_draw", per_draw_array);
         }
         kson_object_value_add_object(&tree.root, "uniforms", uniforms_obj);
     }
@@ -160,10 +172,10 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
             goto cleanup_kson;
         }
 
-        // max_instances
-        i64 max_instances = 0;
-        kson_object_property_value_get_int(&tree.root, "max_instances", &max_instances);
-        typed_asset->max_instances = (u16)max_instances;
+        // max_groups
+        i64 max_groups = 0;
+        kson_object_property_value_get_int(&tree.root, "max_groups", &max_groups);
+        typed_asset->max_groups = (u16)max_groups;
 
         // Depth test
         typed_asset->depth_test = false;
@@ -236,73 +248,43 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
         kson_object uniforms_obj = {0};
         if (kson_object_property_value_get_object(&tree.root, "uniforms", &uniforms_obj)) {
 
-            kson_array global_array = {0};
-            kson_array instance_array = {0};
-            kson_array local_array = {0};
-            u32 global_count = 0;
-            u32 instance_count = 0;
-            u32 local_count = 0;
+            kson_array per_frame_array = {0};
+            kson_array per_group_array = {0};
+            kson_array per_draw_array = {0};
+            u32 per_frame_count = 0;
+            u32 per_group_count = 0;
+            u32 per_draw_count = 0;
 
-            if (kson_object_property_value_get_object(&uniforms_obj, "global", &global_array)) {
-                kson_array_element_count_get(&global_array, &global_count);
+            if (kson_object_property_value_get_object(&uniforms_obj, "per_frame", &per_frame_array)) {
+                kson_array_element_count_get(&per_frame_array, &per_frame_count);
             }
-            if (kson_object_property_value_get_object(&uniforms_obj, "instance", &instance_array)) {
-                kson_array_element_count_get(&instance_array, &instance_count);
+            if (kson_object_property_value_get_object(&uniforms_obj, "per_group", &per_group_array)) {
+                kson_array_element_count_get(&per_group_array, &per_group_count);
             }
-            if (kson_object_property_value_get_object(&uniforms_obj, "local", &local_array)) {
-                kson_array_element_count_get(&local_array, &local_count);
+            if (kson_object_property_value_get_object(&uniforms_obj, "per_draw", &per_draw_array)) {
+                kson_array_element_count_get(&per_draw_array, &per_draw_count);
             }
 
-            typed_asset->uniform_count = global_count + instance_count + local_count;
+            typed_asset->uniform_count = per_frame_count + per_group_count + per_draw_count;
             typed_asset->uniforms = kallocate(sizeof(kasset_shader_uniform) * typed_asset->uniform_count, MEMORY_TAG_ARRAY);
             u32 uniform_index = 0;
 
-            // Globals
-            for (u32 i = 0; i < global_count; ++i) {
-                kson_object uniform_obj = {0};
-                kson_array_element_value_get_object(&global_array, i, &uniforms_obj);
-                kasset_shader_uniform* uniform = &typed_asset->uniforms[uniform_index];
-
-                const char* temp = 0;
-                kson_object_property_value_get_string(&uniform_obj, "type", &temp);
-                uniform->type = string_to_shader_uniform_type(temp);
-                string_free(temp);
-
-                kson_object_property_value_get_string(&uniform_obj, "name", &uniform->name);
-
-                uniform_index++;
+            // Per-frame
+            if (!extract_frequency_uniforms(SHADER_UPDATE_FREQUENCY_PER_FRAME, per_frame_count, &per_frame_array, typed_asset, &uniform_index)) {
+                KERROR("Failed to extract per-frame uniforms. See logs for details.");
+                return false;
             }
 
-            // Instance
-            for (u32 i = 0; i < instance_count; ++i) {
-                kson_object uniform_obj = {0};
-                kson_array_element_value_get_object(&instance_array, i, &uniforms_obj);
-                kasset_shader_uniform* uniform = &typed_asset->uniforms[uniform_index];
-
-                const char* temp = 0;
-                kson_object_property_value_get_string(&uniform_obj, "type", &temp);
-                uniform->type = string_to_shader_uniform_type(temp);
-                string_free(temp);
-
-                kson_object_property_value_get_string(&uniform_obj, "name", &uniform->name);
-
-                uniform_index++;
+            // per-group
+            if (!extract_frequency_uniforms(SHADER_UPDATE_FREQUENCY_PER_GROUP, per_group_count, &per_group_array, typed_asset, &uniform_index)) {
+                KERROR("Failed to extract per-group uniforms. See logs for details.");
+                return false;
             }
 
-            // Local
-            for (u32 i = 0; i < local_count; ++i) {
-                kson_object uniform_obj = {0};
-                kson_array_element_value_get_object(&local_array, i, &uniforms_obj);
-                kasset_shader_uniform* uniform = &typed_asset->uniforms[uniform_index];
-
-                const char* temp = 0;
-                kson_object_property_value_get_string(&uniform_obj, "type", &temp);
-                uniform->type = string_to_shader_uniform_type(temp);
-                string_free(temp);
-
-                kson_object_property_value_get_string(&uniform_obj, "name", &uniform->name);
-
-                uniform_index++;
+            // per-draw
+            if (!extract_frequency_uniforms(SHADER_UPDATE_FREQUENCY_PER_DRAW, per_draw_count, &per_draw_array, typed_asset, &uniform_index)) {
+                KERROR("Failed to extract per-draw uniforms. See logs for details.");
+                return false;
             }
         }
 
@@ -314,4 +296,55 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
 
     KERROR("kasset_shader_deserialize serializer requires an asset to deserialize to, ya dingus!");
     return false;
+}
+
+static b8 extract_frequency_uniforms(shader_update_frequency frequency, u32 frequency_uniform_count, kson_array* frequency_array, kasset_shader* typed_asset, u32* uniform_index) {
+    for (u32 i = 0; i < frequency_uniform_count; ++i) {
+        kson_object uniform_obj = {0};
+        kson_array_element_value_get_object(frequency_array, i, &uniform_obj);
+        kasset_shader_uniform* uniform = &typed_asset->uniforms[(*uniform_index)];
+
+        // Type is required.
+        const char* temp = 0;
+        if (!kson_object_property_value_get_string(&uniform_obj, "type", &temp)) {
+            KERROR("Uniform type is required (uniform index=%u, freq=%s, freq index=%u)", *uniform_index, shader_update_frequency_to_string(frequency), i);
+            return false;
+        }
+        uniform->type = string_to_shader_uniform_type(temp);
+        string_free(temp);
+
+        // For struct types, the size is also required.
+        if (uniform->type == SHADER_UNIFORM_TYPE_STRUCT) {
+            i64 temp_size = 0;
+            if (!kson_object_property_value_get_int(&uniform_obj, "size", &temp_size)) {
+                KERROR("Size is required for struct uniform types (uniform index=%u, freq=%s, freq index=%u)", *uniform_index, shader_update_frequency_to_string(frequency), i);
+                return false;
+            }
+            if (temp_size < 0) {
+                KERROR("Struct size must be positive. Struct uniform cannot be processed. (uniform index=%u, freq=%s, freq index=%u, size=%lli.)", *uniform_index, shader_update_frequency_to_string(frequency), i, temp_size);
+                return false;
+            }
+            uniform->size = (u32)temp_size;
+        }
+
+        // Check for an optional array size.
+        i64 temp_array_size = 0;
+
+        kson_object_property_value_get_int(&uniform_obj, "array_size", &temp_array_size);
+        if (temp_array_size < 0) {
+            KERROR("array_size must be positive. Value will be ignored, and uniform will be treated as a non-array. (uniform index=%u, freq=%s, freq index=%u, array_size=%lli.)", *uniform_index, shader_update_frequency_to_string(frequency), i, temp_array_size);
+            temp_array_size = 0;
+        }
+        uniform->array_size = (u32)temp_array_size;
+
+        // Uniform name.
+        kson_object_property_value_get_string(&uniform_obj, "name", &uniform->name);
+
+        // Also set frequency itself.
+        uniform->frequency = frequency;
+
+        (*uniform_index)++;
+    }
+
+    return true;
 }

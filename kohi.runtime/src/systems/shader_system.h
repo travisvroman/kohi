@@ -220,25 +220,28 @@ KAPI b8 shader_system_bind_draw_id(khandle shader, u32 local_id);
  * @brief Applies global-scoped uniforms.
  *
  * @param shader A handle to the shader to update.
+ * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_per_frame(khandle shader);
+KAPI b8 shader_system_apply_per_frame(khandle shader, u16 generation);
 
 /**
  * @brief Applies instance-scoped uniforms.
  *
  * @param shader A handle to the shader to update.
+ * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_per_group(khandle shader);
+KAPI b8 shader_system_apply_per_group(khandle shader, u16 generation);
 
 /**
  * @brief Applies local-scoped uniforms.
  *
  * @param shader A handle to the shader to update.
+ * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_per_draw(khandle shader);
+KAPI b8 shader_system_apply_per_draw(khandle shader, u16 generation);
 
 /**
  * @brief Attempts to acquire new group resources from the given shader using the

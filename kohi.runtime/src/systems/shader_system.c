@@ -10,12 +10,12 @@
 #include "memory/kmemory.h"
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
-#include "renderer/renderer_utils.h"
 #include "resources/resource_types.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/resource_system.h"
 #include "systems/texture_system.h"
+#include "utils/render_type_utils.h"
 
 /**
  * @brief Represents a shader on the frontend. This is internal to the shader system.
@@ -597,16 +597,16 @@ b8 shader_system_bind_draw_id(khandle shader, u32 draw_id) {
     return renderer_shader_bind_per_draw(state_ptr->renderer, shader, draw_id);
 }
 
-b8 shader_system_apply_per_frame(khandle shader) {
-    return renderer_shader_apply_per_frame(state_ptr->renderer, shader);
+b8 shader_system_apply_per_frame(khandle shader, u16 generation) {
+    return renderer_shader_apply_per_frame(state_ptr->renderer, shader, generation);
 }
 
-b8 shader_system_apply_per_group(khandle shader) {
-    return renderer_shader_apply_per_group(state_ptr->renderer, shader);
+b8 shader_system_apply_per_group(khandle shader, u16 generation) {
+    return renderer_shader_apply_per_group(state_ptr->renderer, shader, generation);
 }
 
-b8 shader_system_apply_per_draw(khandle shader) {
-    return renderer_shader_apply_per_draw(state_ptr->renderer, shader);
+b8 shader_system_apply_per_draw(khandle shader, u16 generation) {
+    return renderer_shader_apply_per_draw(state_ptr->renderer, shader, generation);
 }
 
 b8 shader_system_shader_group_acquire(khandle shader, u32* out_group_id) {

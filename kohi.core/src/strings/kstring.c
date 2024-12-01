@@ -1,30 +1,51 @@
 #include "strings/kstring.h"
 
-#include <ctype.h> // isspace
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <stdarg.h> // For variadic functions
+#include <stdio.h>  // vsnprintf, sscanf, sprintf
 
 #include "containers/darray.h"
+#include "containers/u64_bst.h"
+#include "debug/kassert.h"
+#include "defines.h"
 #include "logger.h"
-#include "math/kmath.h"
 #include "memory/kmemory.h"
-
-#ifndef _MSC_VER
-#    include <strings.h>
-#endif
+#include "utils/crc64.h"
 
 u64 string_length(const char* str) {
-    if (!str) {
-        return 0;
+    u32 length = string_nlength(str, U32_MAX);
+    if (length == U32_MAX) {
+        KWARN("string_length is returning U32_MAX. Is it possible the string has no null terminator?")
     }
-    return strlen(str);
+    return length;
 }
 
 u32 string_utf8_length(const char* str) {
+    u32 length = string_utf8_nlength(str, U32_MAX);
+    if (length == U32_MAX) {
+        KWARN("kstring string_utf8_length is returning U32_MAX. Is it possible the string has no null terminator?")
+    }
+    return length;
+}
+
+u64 string_nlength(const char* str, u32 max_len) {
+    if (!str) {
+        return 0;
+    }
     u32 length = 0;
-    for (u32 i = 0; i < __UINT32_MAX__; ++i, ++length) {
+    for (; length < max_len; ++length) {
+        if (!str[length]) {
+            break;
+        }
+    }
+    if (length == U32_MAX) {
+        KWARN("string_nlength is returning U32_MAX. Is it possible the string has no null terminator?")
+    }
+    return length;
+}
+
+u32 string_utf8_nlength(const char* str, u32 max_len) {
+    u32 length = 0;
+    for (u64 i = 0; length < max_len; ++i, ++length) {
         i32 c = (i32)str[i];
         if (c == 0) {
             break;
@@ -43,9 +64,13 @@ u32 string_utf8_length(const char* str) {
             i += 3;
         } else {
             // NOTE: Not supporting 5 and 6-byte characters; return as invalid UTF-8.
-            KERROR("kstring string_utf8_length() - Not supporting 5 and 6-byte characters; Invalid UTF-8.");
+            KERROR("kstring string_utf8_nlength() - Not supporting 5 and 6-byte characters; Invalid UTF-8.");
             return 0;
         }
+    }
+
+    if (length == U32_MAX) {
+        KWARN("kstring string_utf8_nlength is returning U32_MAX. Is it possible the string has no null terminator?")
     }
 
     return length;
@@ -147,6 +172,10 @@ b8 codepoint_is_whitespace(i32 codepoint) {
 }
 
 char* string_duplicate(const char* str) {
+    if (!str) {
+        KWARN("string_duplicate called with an empty string. 0/null will be returned.");
+        return 0;
+    }
     u64 length = string_length(str);
     char* copy = kallocate(length + 1, MEMORY_TAG_STRING);
     kcopy_memory(copy, str, length);
@@ -161,55 +190,79 @@ void string_free(const char* str) {
         u64 length = string_length(str);
         kfree((char*)str, length + 1, MEMORY_TAG_STRING);
     } else {
-        // TODO: report null ptr?
+        KWARN("string_free called with an empty string. Nothing to be done.");
     }
+}
+
+static i64 kstr_ncmp(const char* str0, const char* str1, u32 max_len) {
+    if (!str0 && !str1) {
+        return 0; // Technically equal since both are null.
+    } else if (!str0 && str1) {
+        // Count the first string as 0 and compare against the second, non-empty string.
+        return 0 - str1[0];
+    } else if (str0 && !str1) {
+        // Count the second string as 0. In this case, just return the value of the
+        // first char of the first string as str[0] - 0 would just be str[0] anyway.
+        return str0[0];
+    }
+
+    // Get string lengths, including null terminators.
+    u32 length_0 = string_nlength(str0, max_len) + 1;
+    u32 length_1 = string_nlength(str1, max_len) + 1;
+
+    // Can only loop through the smallest string's length.
+    // Ensure a max of U32_MAX also.
+    u32 min_length = KMIN(KMIN(max_len + 1, U32_MAX), KMIN(length_0, length_1));
+
+    for (u32 i = 0; i < min_length; ++i) {
+        i64 result = str0[i] - str1[i];
+        if (result) {
+            return result;
+        }
+    }
+
+    // If at the end and no differences were found, should be safe to say they are the same.
+    return 0;
+}
+
+static i64 kstr_ncmpi(const char* str0, const char* str1, u32 max_len) {
+    char* lower_0 = 0;
+    char* lower_1 = 0;
+    // Lowercase both strings and use them for comparison.
+    if (str0) {
+        lower_0 = string_duplicate(str0);
+        string_to_lower(lower_0);
+    }
+    if (str1) {
+        lower_1 = string_duplicate(str1);
+        string_to_lower(lower_1);
+    }
+    i64 result = kstr_ncmp(lower_0, lower_1, U32_MAX);
+    if (lower_0) {
+        string_free(lower_0);
+    }
+    if (lower_1) {
+        string_free(lower_1);
+    }
+    return result;
 }
 
 // Case-sensitive string comparison. True if the same, otherwise false.
 b8 strings_equal(const char* str0, const char* str1) {
-    if (!str0 && !str1) {
-        return true; // Technically equal since both are null.
-    } else if (!str0 || !str1) {
-        return false; // If only one is null, they can never be equal.
-    }
-
-    return strcmp(str0, str1) == 0;
+    return kstr_ncmp(str0, str1, U32_MAX) == 0;
 }
 
 // Case-insensitive string comparison. True if the same, otherwise false.
 b8 strings_equali(const char* str0, const char* str1) {
-    if (!str0 && !str1) {
-        return true; // Technically equal since both are null.
-    } else if (!str0 || !str1) {
-        return false; // If only one is null, they can never be equal.
-    }
-#if defined(__GNUC__)
-    return strcasecmp(str0, str1) == 0;
-#elif (defined _MSC_VER)
-    return _strcmpi(str0, str1) == 0;
-#endif
+    return kstr_ncmpi(str0, str1, U32_MAX) == 0;
 }
 
-b8 strings_nequal(const char* str0, const char* str1, u64 length) {
-    if (!str0 && !str1) {
-        return true; // Technically equal since both are null.
-    } else if (!str0 || !str1) {
-        return false; // If only one is null, they can never be equal.
-    }
-    return strncmp(str0, str1, length) == 0;
+b8 strings_nequal(const char* str0, const char* str1, u32 max_len) {
+    return kstr_ncmp(str0, str1, max_len) == 0;
 }
 
-b8 strings_nequali(const char* str0, const char* str1, u64 length) {
-    if (!str0 && !str1) {
-        return true; // Technically equal since both are null.
-    } else if (!str0 || !str1) {
-        return false; // If only one is null, they can never be equal.
-    }
-#if defined(__GNUC__)
-    return strncasecmp(str0, str1, length) == 0;
-#elif (defined _MSC_VER)
-    return _strnicmp(str0, str1, length) == 0;
-#endif
+b8 strings_nequali(const char* str0, const char* str1, u32 max_len) {
+    return kstr_ncmpi(str0, str1, max_len) == 0;
 }
 
 char* string_format(const char* format, ...) {
@@ -285,15 +338,40 @@ char* string_empty(char* str) {
 }
 
 char* string_copy(char* dest, const char* source) {
-    return strcpy(dest, source);
+    return string_ncopy(dest, source, U32_MAX);
 }
 
-char* string_ncopy(char* dest, const char* source, i64 length) {
-    return strncpy(dest, source, length);
+char* string_ncopy(char* dest, const char* source, u32 max_len) {
+    if (!dest) {
+        KERROR("string_copy called without dest, which is required. 0/null will be returned.");
+        return 0;
+    }
+    if (!source) {
+        KERROR("string_copy called without source, which is required. Unmodified dest will be returned.");
+        return dest;
+    }
+    // zero length is technically valid, return unmodified dest.
+    if (!max_len) {
+        return dest;
+    }
+
+    // Make sure to account for null terminator.
+    u32 source_length = KMIN(string_length(source) + 1, max_len);
+    kcopy_memory(dest, source, source_length);
+
+    // Don't zero pad if max_len is U32_MAX.
+    if (max_len != U32_MAX) {
+        i64 diff = max_len - source_length;
+        if (diff > 0) {
+            kset_memory(dest + max_len, 0, diff);
+        }
+    }
+
+    return dest;
 }
 
 char* string_trim(char* str) {
-    while (isspace((unsigned char)*str)) {
+    while (codepoint_is_space(*str)) {
         str++;
     }
     if (*str) {
@@ -301,7 +379,7 @@ char* string_trim(char* str) {
         while (*p) {
             p++;
         }
-        while (isspace((unsigned char)*(--p)))
+        while (codepoint_is_space(*(--p)))
             ;
 
         p[1] = '\0';
@@ -502,10 +580,8 @@ b8 string_to_mat4(const char* str, mat4* out_mat) {
 }
 
 const char* mat4_to_string(mat4 m) {
-    char buffer[512];
-    kzero_memory(buffer, sizeof(char) * 512);
     f32* d = m.data;
-    string_format_unsafe(buffer, "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
+    return string_format("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
                          d[0],
                          d[1],
                          d[2],
@@ -522,7 +598,6 @@ const char* mat4_to_string(mat4 m) {
                          d[13],
                          d[14],
                          d[15]);
-    return string_duplicate(buffer);
 }
 
 b8 string_to_vec4(const char* str, vec4* out_vector) {
@@ -536,10 +611,7 @@ b8 string_to_vec4(const char* str, vec4* out_vector) {
 }
 
 const char* vec4_to_string(vec4 v) {
-    char buffer[100];
-    kzero_memory(buffer, sizeof(char) * 100);
-    string_format_unsafe(buffer, "%f %f %f %f", v.x, v.y, v.z, v.w);
-    return string_duplicate(buffer);
+    return string_format("%f %f %f %f", v.x, v.y, v.z, v.w);
 }
 
 b8 string_to_vec3(const char* str, vec3* out_vector) {
@@ -553,10 +625,7 @@ b8 string_to_vec3(const char* str, vec3* out_vector) {
 }
 
 const char* vec3_to_string(vec3 v) {
-    char buffer[75];
-    kzero_memory(buffer, sizeof(char) * 75);
-    string_format_unsafe(buffer, "%f %f %f", v.x, v.y, v.z);
-    return string_duplicate(buffer);
+    return string_format("%f %f %f", v.x, v.y, v.z);
 }
 
 b8 string_to_vec2(const char* str, vec2* out_vector) {
@@ -570,10 +639,7 @@ b8 string_to_vec2(const char* str, vec2* out_vector) {
 }
 
 const char* vec2_to_string(vec2 v) {
-    char buffer[50];
-    kzero_memory(buffer, sizeof(char) * 50);
-    string_format_unsafe(buffer, "%f %f", v.x, v.y);
-    return string_duplicate(buffer);
+    return string_format("%f %f", v.x, v.y);
 }
 
 b8 string_to_f32(const char* str, f32* f) {
@@ -587,10 +653,7 @@ b8 string_to_f32(const char* str, f32* f) {
 }
 
 const char* f32_to_string(f32 f) {
-    char buffer[20];
-    kzero_memory(buffer, sizeof(char) * 20);
-    string_format_unsafe(buffer, "%f", f);
-    return string_duplicate(buffer);
+    return string_format("%f", f);
 }
 
 b8 string_to_f64(const char* str, f64* f) {
@@ -604,10 +667,7 @@ b8 string_to_f64(const char* str, f64* f) {
 }
 
 const char* f64_to_string(f64 f) {
-    char buffer[25];
-    kzero_memory(buffer, sizeof(char) * 25);
-    string_format_unsafe(buffer, "%f", f);
-    return string_duplicate(buffer);
+    return string_format("%f", f);
 }
 
 b8 string_to_i8(const char* str, i8* i) {
@@ -621,10 +681,7 @@ b8 string_to_i8(const char* str, i8* i) {
 }
 
 const char* i8_to_string(i8 i) {
-    char buffer[25];
-    kzero_memory(buffer, sizeof(char) * 25);
-    string_format_unsafe(buffer, "%hhi", i);
-    return string_duplicate(buffer);
+    return string_format("%hhi", i);
 }
 
 b8 string_to_i16(const char* str, i16* i) {
@@ -638,10 +695,7 @@ b8 string_to_i16(const char* str, i16* i) {
 }
 
 const char* i16_to_string(i16 i) {
-    char buffer[25];
-    kzero_memory(buffer, sizeof(char) * 25);
-    string_format_unsafe(buffer, "%hi", i);
-    return string_duplicate(buffer);
+    return string_format("%hi", i);
 }
 
 b8 string_to_i32(const char* str, i32* i) {
@@ -655,10 +709,7 @@ b8 string_to_i32(const char* str, i32* i) {
 }
 
 const char* i32_to_string(i32 i) {
-    char buffer[25];
-    kzero_memory(buffer, sizeof(char) * 25);
-    string_format_unsafe(buffer, "%i", i);
-    return string_duplicate(buffer);
+    return string_format("%i", i);
 }
 
 b8 string_to_i64(const char* str, i64* i) {
@@ -672,10 +723,7 @@ b8 string_to_i64(const char* str, i64* i) {
 }
 
 const char* i64_to_string(i64 i) {
-    char buffer[25];
-    kzero_memory(buffer, sizeof(char) * 25);
-    string_format_unsafe(buffer, "%lli", i);
-    return string_duplicate(buffer);
+    return string_format("%lli", i);
 }
 
 b8 string_to_u8(const char* str, u8* u) {
@@ -689,10 +737,7 @@ b8 string_to_u8(const char* str, u8* u) {
 }
 
 const char* u8_to_string(u8 u) {
-    char buffer[25];
-    kzero_memory(buffer, sizeof(char) * 25);
-    string_format_unsafe(buffer, "%hhu", u);
-    return string_duplicate(buffer);
+    return string_format("%hhu", u);
 }
 
 b8 string_to_u16(const char* str, u16* u) {
@@ -706,10 +751,7 @@ b8 string_to_u16(const char* str, u16* u) {
 }
 
 const char* u16_to_string(u16 u) {
-    char buffer[25];
-    kzero_memory(buffer, sizeof(char) * 25);
-    string_format_unsafe(buffer, "%hu", u);
-    return string_duplicate(buffer);
+    return string_format("%hu", u);
 }
 
 b8 string_to_u32(const char* str, u32* u) {
@@ -723,10 +765,7 @@ b8 string_to_u32(const char* str, u32* u) {
 }
 
 const char* u32_to_string(u32 u) {
-    char buffer[25];
-    kzero_memory(buffer, sizeof(char) * 25);
-    string_format_unsafe(buffer, "%u", u);
-    return string_duplicate(buffer);
+    return string_format("%u", u);
 }
 
 b8 string_to_u64(const char* str, u64* u) {
@@ -740,10 +779,7 @@ b8 string_to_u64(const char* str, u64* u) {
 }
 
 const char* u64_to_string(u64 u) {
-    char buffer[25];
-    kzero_memory(buffer, sizeof(char) * 25);
-    string_format_unsafe(buffer, "%llu", u);
-    return string_duplicate(buffer);
+    return string_format("%llu", u);
 }
 
 b8 string_to_bool(const char* str, b8* b) {
@@ -870,11 +906,11 @@ void string_append_char(char* dest, const char* source, char c) {
 }
 
 void string_directory_from_path(char* dest, const char* path) {
-    u64 length = strlen(path);
+    u64 length = string_length(path);
     for (i32 i = length; i >= 0; --i) {
         char c = path[i];
         if (c == '/' || c == '\\') {
-            strncpy(dest, path, i + 1);
+            string_ncopy(dest, path, i + i);
             dest[i + 2] = 0;
             return;
         }
@@ -882,18 +918,18 @@ void string_directory_from_path(char* dest, const char* path) {
 }
 
 void string_filename_from_path(char* dest, const char* path) {
-    u64 length = strlen(path);
+    u64 length = string_length(path);
     for (i32 i = length; i >= 0; --i) {
         char c = path[i];
         if (c == '/' || c == '\\') {
-            strcpy(dest, path + i + 1);
+            string_copy(dest, path + i + 1);
             return;
         }
     }
 }
 
 void string_filename_no_extension_from_path(char* dest, const char* path) {
-    u64 length = strlen(path);
+    u64 length = string_length(path);
     u64 start = 0;
     u64 end = 0;
     for (i32 i = length; i >= 0; --i) {
@@ -987,6 +1023,20 @@ b8 codepoint_is_alpha(i32 codepoint) {
 
 b8 codepoint_is_numeric(i32 codepoint) {
     return (codepoint <= '9' && codepoint >= '0');
+}
+
+b8 codepoint_is_space(i32 codepoint) {
+    switch (codepoint) {
+    case ' ':  // regular space
+    case '\n': // newline
+    case '\r': // carriage return
+    case '\f': // form feed
+    case '\t': // horizontal tab
+    case '\v': // vertical tab
+        return true;
+    default:
+        return false;
+    }
 }
 
 void string_to_lower(char* str) {

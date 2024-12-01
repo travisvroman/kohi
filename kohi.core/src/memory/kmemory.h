@@ -267,3 +267,26 @@ KAPI char* get_memory_usage_str(void);
  * @returns The total count of allocations since the system's initialization.
  */
 KAPI u64 get_memory_alloc_count(void);
+
+/**
+ * @brief Packs the values of 4 u8s into a single u32.
+ *
+ * @param x The first u8 to pack.
+ * @param y The second u8 to pack.
+ * @param z The third u8 to pack.
+ * @param w The fourth u8 to pack.
+ * @returns The packed u32.
+ */
+KAPI u32 pack_u8_into_u32(u8 x, u8 y, u8 z, u8 w);
+
+/**
+ * @brief Attempts to unpack 4 u8s from a u32.
+ *
+ * @param n The u32 to extract from.
+ * @param x The first u8 to extract to. Required.
+ * @param y The second u8 to extract to. Required.
+ * @param z The third u8 to extract to. Required.
+ * @param w The fourth u8 to extract to. Required.
+ * @returns True if success, otherwise false.
+ */
+KAPI b8 unpack_u8_from_u32(u32 n, u8* x, u8* y, u8* z, u8* w);

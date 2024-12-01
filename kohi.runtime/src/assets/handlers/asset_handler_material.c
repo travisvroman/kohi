@@ -44,6 +44,6 @@ void asset_handler_material_release_asset(struct asset_handler* self, struct kas
     kasset_material* typed_asset = (kasset_material*)asset;
 
     if (typed_asset->custom_sampler_count && typed_asset->custom_samplers) {
-        KFREE_TYPE_CARRAY(typed_asset->custom_samplers, kasset_material_sampler, typed_asset->custom_sampler_count);
+        KFREE_TYPE_CARRAY(typed_asset->custom_samplers, kmaterial_sampler_config, typed_asset->custom_sampler_count);
     }
 }

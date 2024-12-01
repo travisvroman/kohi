@@ -44,6 +44,13 @@ typedef enum texture_repeat {
     TEXTURE_REPEAT_COUNT
 } texture_repeat;
 
+typedef enum texture_channel {
+    TEXTURE_CHANNEL_R,
+    TEXTURE_CHANNEL_G,
+    TEXTURE_CHANNEL_B,
+    TEXTURE_CHANNEL_A,
+} texture_channel;
+
 /** @brief Shader stages available in the system. */
 typedef enum shader_stage {
     SHADER_STAGE_VERTEX = 0x00000001,
@@ -92,14 +99,16 @@ typedef enum shader_uniform_type {
     SHADER_UNIFORM_TYPE_INT32 = 8U,
     SHADER_UNIFORM_TYPE_UINT32 = 9U,
     SHADER_UNIFORM_TYPE_MATRIX_4 = 10U,
-    SHADER_UNIFORM_TYPE_TEXTURE_1D = 11U,
-    SHADER_UNIFORM_TYPE_TEXTURE_2D = 12U,
-    SHADER_UNIFORM_TYPE_TEXTURE_3D = 13U,
-    SHADER_UNIFORM_TYPE_TEXTURE_CUBE = 14U,
-    SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY = 15U,
-    SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY = 16U,
-    SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY = 17U,
-    SHADER_UNIFORM_TYPE_SAMPLER = 18U,
+    // Struct uniform type. Requires size to be used.
+    SHADER_UNIFORM_TYPE_STRUCT = 11U,
+    SHADER_UNIFORM_TYPE_TEXTURE_1D = 12U,
+    SHADER_UNIFORM_TYPE_TEXTURE_2D = 13U,
+    SHADER_UNIFORM_TYPE_TEXTURE_3D = 14U,
+    SHADER_UNIFORM_TYPE_TEXTURE_CUBE = 15U,
+    SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY = 16U,
+    SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY = 17U,
+    SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY = 18U,
+    SHADER_UNIFORM_TYPE_SAMPLER = 19U,
     SHADER_UNIFORM_TYPE_CUSTOM = 255U
 } shader_uniform_type;
 
@@ -323,9 +332,49 @@ typedef enum kmaterial_texture_map {
     KMATERIAL_TEXTURE_MAP_EMISSIVE,
 } kmaterial_texture_map;
 
-typedef enum kmaterial_texture_map_channel {
-    KMATERIAL_TEXTURE_MAP_CHANNEL_R = 0,
-    KMATERIAL_TEXTURE_MAP_CHANNEL_G = 1,
-    KMATERIAL_TEXTURE_MAP_CHANNEL_B = 2,
-    KMATERIAL_TEXTURE_MAP_CHANNEL_A = 3
-} kmaterial_texture_map_channel;
+typedef enum kmaterial_flag_bits {
+    // Material is marked as having transparency. If not set, alpha of albedo will not be used.
+    KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT = 0x0001,
+    // Material is double-sided.
+    KMATERIAL_FLAG_DOUBLE_SIDED_BIT = 0x0002,
+    // Material recieves shadows.
+    KMATERIAL_FLAG_RECIEVES_SHADOW_BIT = 0x0004,
+    // Material casts shadows.
+    KMATERIAL_FLAG_CASTS_SHADOW_BIT = 0x0008,
+    // Material normal map enabled. A default z-up value will be used if not set.
+    KMATERIAL_FLAG_NORMAL_ENABLED_BIT = 0x0010,
+    // Material AO map is enabled. A default of 1.0 (white) will be used if not set.
+    KMATERIAL_FLAG_AO_ENABLED_BIT = 0x0020,
+    // Material emissive map is enabled. Emissive map is ignored if not set.
+    KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT = 0x0040,
+    // Material combined MRA (metallic/roughness/ao) map is enabled. MRA map is ignored if not set.
+    KMATERIAL_FLAG_MRA_ENABLED_BIT = 0x0080,
+    // Material refraction map is enabled. Refraction map is ignored if not set.
+    KMATERIAL_FLAG_REFRACTION_ENABLED_BIT = 0x0100,
+    // Material uses vertex colour data as the base colour.
+    KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT = 0x0200
+} kmaterial_flag_bits;
+
+typedef u32 kmaterial_flags;
+
+// Configuration for a material texture input.
+typedef struct kmaterial_texture_input {
+    // Name of the resource.
+    kname resource_name;
+    // Name of the package containing the resource.
+    kname package_name;
+    // Name of the custom sampler, if one.
+    kname sampler_name;
+    // The texture channel to sample, if relevant.
+    texture_channel channel;
+} kmaterial_texture_input;
+
+// The configuration for a custom material sampler.
+typedef struct kmaterial_sampler_config {
+    kname name;
+    texture_filter filter_min;
+    texture_filter filter_mag;
+    texture_repeat repeat_u;
+    texture_repeat repeat_v;
+    texture_repeat repeat_w;
+} kmaterial_sampler_config;

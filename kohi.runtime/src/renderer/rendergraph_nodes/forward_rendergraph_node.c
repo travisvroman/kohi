@@ -43,31 +43,6 @@ const u32 TERRAIN_SAMP_IDX_MATERIAL_ARRAY_MAP = 0;
 const u32 TERRAIN_SAMP_IDX_SHADOW_MAP = 1 + TERRAIN_SAMP_IDX_MATERIAL_ARRAY_MAP;
 const u32 TERRAIN_SAMP_IDX_IRRADIANCE_MAP = 1 + TERRAIN_SAMP_IDX_SHADOW_MAP;
 
-typedef struct pbr_shader_uniform_locations {
-    u16 projection;
-    u16 views;
-    u16 cascade_splits;
-    u16 view_positions;
-    u16 properties;
-    u16 ibl_cube_textures;
-    u16 material_texures;
-    u16 shadow_textures;
-    u16 light_space_0;
-    u16 light_space_1;
-    u16 light_space_2;
-    u16 light_space_3;
-    u16 model;
-    u16 render_mode;
-    u16 use_pcf;
-    u16 bias;
-    u16 clipping_plane;
-    u16 view_index;
-    u16 ibl_index;
-    u16 dir_light;
-    u16 p_lights;
-    u16 num_p_lights;
-} pbr_shader_uniform_locations;
-
 typedef struct terrain_shader_locations {
     b8 loaded;
     u16 projection;
@@ -138,23 +113,9 @@ typedef struct forward_rendergraph_node_internal_data {
     struct kresource_texture* colourbuffer_texture;
     struct kresource_texture* depthbuffer_texture;
 
-    shader* pbr_shader;
-    u32 pbr_shader_id;
-    // Known locations for the PBR shader.
-    pbr_shader_uniform_locations pbr_locations;
-
-    shader* terrain_shader;
-    u32 terrain_shader_id;
-    // Known locations for terrain shader.
-    terrain_shader_locations terrain_locations;
-
-    u32 water_shader_id;
-    shader* water_shader;
     // Known locations for water shader.
     water_shader_locations water_shader_locations;
 
-    shader* skybox_shader;
-    u32 skybox_shader_id;
     // Known locations for skybox shader.
     skybox_shader_locations skybox_shader_locations;
 
@@ -164,7 +125,7 @@ typedef struct forward_rendergraph_node_internal_data {
     rendergraph_source* shadowmap_source;
 
     // Obtained from source.
-    kresource_texture_map shadow_map;
+    kresource_texture* shadow_map;
 
     // Execution data
 
@@ -198,7 +159,7 @@ typedef struct forward_rendergraph_node_internal_data {
 
     // An array of global scene-wide set of ibl cube textures from probes.
     u32 ibl_cube_texture_count;
-    kresource_texture_map** ibl_cube_textures;
+    kresource_texture** ibl_cube_textures;
 
 } forward_rendergraph_node_internal_data;
 
@@ -316,57 +277,8 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     forward_rendergraph_node_internal_data* internal_data = self->internal_data;
 
     // Save off a pointer to the PBR shader as well as its uniform locations.
-    internal_data->pbr_shader = shader_system_get("Shader.PBRMaterial");
-    internal_data->pbr_shader_id = internal_data->pbr_shader->id;
-    internal_data->pbr_locations.projection = shader_system_uniform_location(internal_data->pbr_shader_id, "projection");
-    internal_data->pbr_locations.views = shader_system_uniform_location(internal_data->pbr_shader_id, "views");
-    internal_data->pbr_locations.light_space_0 = shader_system_uniform_location(internal_data->pbr_shader_id, "light_space_0");
-    internal_data->pbr_locations.light_space_1 = shader_system_uniform_location(internal_data->pbr_shader_id, "light_space_1");
-    internal_data->pbr_locations.light_space_2 = shader_system_uniform_location(internal_data->pbr_shader_id, "light_space_2");
-    internal_data->pbr_locations.light_space_3 = shader_system_uniform_location(internal_data->pbr_shader_id, "light_space_3");
-    internal_data->pbr_locations.cascade_splits = shader_system_uniform_location(internal_data->pbr_shader_id, "cascade_splits");
-    internal_data->pbr_locations.view_positions = shader_system_uniform_location(internal_data->pbr_shader_id, "view_positions");
-    internal_data->pbr_locations.properties = shader_system_uniform_location(internal_data->pbr_shader_id, "properties");
-    internal_data->pbr_locations.material_texures = shader_system_uniform_location(internal_data->pbr_shader_id, "material_textures");
-    internal_data->pbr_locations.shadow_textures = shader_system_uniform_location(internal_data->pbr_shader_id, "shadow_textures");
-    internal_data->pbr_locations.ibl_cube_textures = shader_system_uniform_location(internal_data->pbr_shader_id, "ibl_cube_textures");
-    internal_data->pbr_locations.model = shader_system_uniform_location(internal_data->pbr_shader_id, "model");
-    internal_data->pbr_locations.render_mode = shader_system_uniform_location(internal_data->pbr_shader_id, "mode");
-    internal_data->pbr_locations.dir_light = shader_system_uniform_location(internal_data->pbr_shader_id, "dir_light");
-    internal_data->pbr_locations.p_lights = shader_system_uniform_location(internal_data->pbr_shader_id, "p_lights");
-    internal_data->pbr_locations.num_p_lights = shader_system_uniform_location(internal_data->pbr_shader_id, "num_p_lights");
-    internal_data->pbr_locations.use_pcf = shader_system_uniform_location(internal_data->pbr_shader_id, "use_pcf");
-    internal_data->pbr_locations.bias = shader_system_uniform_location(internal_data->pbr_shader_id, "bias");
-    internal_data->pbr_locations.clipping_plane = shader_system_uniform_location(internal_data->pbr_shader_id, "clipping_plane");
-    internal_data->pbr_locations.view_index = shader_system_uniform_location(internal_data->pbr_shader_id, "view_index");
-    internal_data->pbr_locations.ibl_index = shader_system_uniform_location(internal_data->pbr_shader_id, "ibl_index");
 
-    // Save off a pointer to the terrain shader as well as its uniform locations.
-    internal_data->terrain_shader = shader_system_get("Shader.Builtin.Terrain");
-    internal_data->terrain_shader_id = internal_data->terrain_shader->id;
-    internal_data->terrain_locations.projection = shader_system_uniform_location(internal_data->terrain_shader_id, "projection");
-    internal_data->terrain_locations.views = shader_system_uniform_location(internal_data->terrain_shader_id, "views");
-    internal_data->terrain_locations.light_space_0 = shader_system_uniform_location(internal_data->terrain_shader_id, "light_space_0");
-    internal_data->terrain_locations.light_space_1 = shader_system_uniform_location(internal_data->terrain_shader_id, "light_space_1");
-    internal_data->terrain_locations.light_space_2 = shader_system_uniform_location(internal_data->terrain_shader_id, "light_space_2");
-    internal_data->terrain_locations.light_space_3 = shader_system_uniform_location(internal_data->terrain_shader_id, "light_space_3");
-    internal_data->terrain_locations.cascade_splits = shader_system_uniform_location(internal_data->terrain_shader_id, "cascade_splits");
-    internal_data->terrain_locations.view_positions = shader_system_uniform_location(internal_data->terrain_shader_id, "view_positions");
-    internal_data->terrain_locations.model = shader_system_uniform_location(internal_data->terrain_shader_id, "model");
-    internal_data->terrain_locations.render_mode = shader_system_uniform_location(internal_data->terrain_shader_id, "mode");
-    internal_data->terrain_locations.dir_light = shader_system_uniform_location(internal_data->terrain_shader_id, "dir_light");
-    internal_data->terrain_locations.p_lights = shader_system_uniform_location(internal_data->terrain_shader_id, "p_lights");
-    internal_data->terrain_locations.num_p_lights = shader_system_uniform_location(internal_data->terrain_shader_id, "num_p_lights");
-    internal_data->terrain_locations.properties = shader_system_uniform_location(internal_data->terrain_shader_id, "properties");
-    internal_data->terrain_locations.material_texures = shader_system_uniform_location(internal_data->terrain_shader_id, "material_textures");
-    internal_data->terrain_locations.shadow_textures = shader_system_uniform_location(internal_data->terrain_shader_id, "shadow_textures");
-    internal_data->terrain_locations.ibl_cube_texture = shader_system_uniform_location(internal_data->terrain_shader_id, "ibl_cube_texture");
-    internal_data->terrain_locations.use_pcf = shader_system_uniform_location(internal_data->terrain_shader_id, "use_pcf");
-    internal_data->terrain_locations.bias = shader_system_uniform_location(internal_data->terrain_shader_id, "bias");
-    internal_data->terrain_locations.clipping_plane = shader_system_uniform_location(internal_data->terrain_shader_id, "clipping_plane");
-    internal_data->terrain_locations.view_index = shader_system_uniform_location(internal_data->terrain_shader_id, "view_index");
-
-    // Load Water plane shader and get shader uniform locations.
+    /* // Load Water plane shader and get shader uniform locations.
     internal_data->water_shader = shader_system_get("Runtime.Shader.Water");
     internal_data->water_shader_id = internal_data->water_shader->id;
     // global uniforms
@@ -402,7 +314,7 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->skybox_shader_locations.projection_location = shader_system_uniform_location(internal_data->skybox_shader_id, "projection");
     internal_data->skybox_shader_locations.views_location = shader_system_uniform_location(internal_data->skybox_shader_id, "views");
     internal_data->skybox_shader_locations.cube_map_location = shader_system_uniform_location(internal_data->skybox_shader_id, "cube_texture");
-    internal_data->skybox_shader_locations.view_index = shader_system_uniform_location(internal_data->skybox_shader_id, "view_index");
+    internal_data->skybox_shader_locations.view_index = shader_system_uniform_location(internal_data->skybox_shader_id, "view_index"); */
 
     internal_data->vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
     internal_data->index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
@@ -443,18 +355,6 @@ b8 forward_rendergraph_node_load_resources(struct rendergraph_node* self) {
 
     if (!internal_data->shadowmap_source) {
         KERROR("Required '%s' source not hooked up to forward pass. Creation fails.", "shadowmap");
-        return false;
-    }
-
-    // Need a texture map (i.e. sampler) to use the shadowmap source texture.
-    kresource_texture_map* sm = &internal_data->shadow_map;
-    sm->repeat_u = sm->repeat_v = sm->repeat_w = TEXTURE_REPEAT_CLAMP_TO_BORDER;
-    sm->filter_minify = sm->filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-    sm->texture = internal_data->shadowmap_source->value.t;
-    sm->generation = INVALID_ID_U8;
-
-    if (!renderer_kresource_texture_map_resources_acquire(internal_data->renderer, sm)) {
-        KERROR("Failed to acquire texture map resources for shadow map in forward pass. Initialize failed.");
         return false;
     }
 
@@ -1058,9 +958,6 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
 void forward_rendergraph_node_destroy(struct rendergraph_node* self) {
     if (self && self->internal_data) {
         forward_rendergraph_node_internal_data* internal_data = self->internal_data;
-
-        // Destroy the texture maps/samplers.
-        renderer_kresource_texture_map_resources_release(internal_data->renderer, &internal_data->shadow_map);
 
         kfree(self->internal_data, sizeof(forward_rendergraph_node_internal_data), MEMORY_TAG_RENDERER);
         self->internal_data = 0;

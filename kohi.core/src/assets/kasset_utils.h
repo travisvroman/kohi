@@ -32,19 +32,3 @@ const char* kasset_type_to_string(kasset_type type);
 KAPI void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data asset_data);
 
 KAPI u8 channel_count_from_image_format(kasset_image_format format);
-
-KAPI const char* kasset_material_texture_map_channel_to_string(kasset_material_texture_map_channel channel);
-
-KAPI kasset_material_texture_map_channel string_to_kasset_material_texture_map_channel(const char* str);
-
-/** @brief Returns the string representation of the given material type. */
-KAPI const char* kasset_material_type_to_string(kasset_material_type type);
-
-/** @brief Converts the given string into a material type. Case-insensitive. */
-KAPI kasset_material_type string_to_kasset_material_type(const char* str);
-
-/** @brief Returns the string representation of the given material model. */
-KAPI const char* kasset_material_model_to_string(kasset_material_model model);
-
-/** @brief Converts the given string into a material model. Case-insensitive. */
-KAPI kasset_material_model string_to_kasset_material_model(const char* str);

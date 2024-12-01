@@ -22,15 +22,18 @@ Changelog
   - Added `kson_object_create()` and `kson_array_create()` to enhance the KSON API's usability.
   - Added gets/sets to kson for mat4, vec4/3/2 types to enhance the KSON API's usability.
   - Added kname system, a system used to hash strings (to u64) for faster comparisons. Strings and thier hashes are stored in a global lookup table for reuse. These should be used 
-    for any "named" item in Kohi, such as assets or resources.
+    for any "named" item in Kohi, such as assets or resources. knames are case-insensitive.
+  - Added kstring_id system, a system used to hash strings (to u64) for faster comparisons. Strings and thier hashes are stored in a global lookup table for reuse. These should be used 
+    for any case-sensitive string in Kohi.
   - Added u64_bst (Binary Search Tree) structure. Primarily for use with knames, but could be used for any u64-keyed data.
   - Added typed arrays with iterators. These are fixed-size but dynamically allocated array containers. See kohi.core, containers/array.h.
   - Added typed stackarrays with iterators. These are fixed-size and stack-allocated array containers. See kohi.core, containers/stackarray.h.
   - Added typed darrays with iterators. These are dynamic-size, dynamic resizing (and dynamically allocated) array containers that are a 
     type-safe replacement to the old darrays. See kohi.core, containers/darray.h.
   - Added additional public API to hierarchy_graph to further avoid having to access the internal structure.
-  - k_handle -> khandle.
-  - shader -> kshader.
+  - Renamed k_handle -> khandle.
+  - Renamed shader -> kshader.
+  - Overhauled kson parser internals to use kstring_ids instead of strings for faster lookups.
 
 - 0.7.1
   - Fixed window resizing issues in macOS

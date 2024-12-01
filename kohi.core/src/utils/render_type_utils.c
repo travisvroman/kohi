@@ -5,6 +5,30 @@
 #include "logger.h"
 #include "strings/kstring.h"
 
+b8 uniform_type_is_sampler(shader_uniform_type type) {
+    switch (type) {
+    case SHADER_UNIFORM_TYPE_SAMPLER:
+        return true;
+    default:
+        return false;
+    }
+}
+
+b8 uniform_type_is_texture(shader_uniform_type type) {
+    switch (type) {
+    case SHADER_UNIFORM_TYPE_TEXTURE_1D:
+    case SHADER_UNIFORM_TYPE_TEXTURE_2D:
+    case SHADER_UNIFORM_TYPE_TEXTURE_3D:
+    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE:
+    case SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY:
+    case SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY:
+    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY:
+        return true;
+    default:
+        return false;
+    }
+}
+
 const char* texture_repeat_to_string(texture_repeat repeat) {
     switch (repeat) {
     case TEXTURE_REPEAT_REPEAT:
@@ -21,6 +45,21 @@ const char* texture_repeat_to_string(texture_repeat repeat) {
     }
 }
 
+texture_repeat string_to_texture_repeat(const char* str) {
+    if (strings_equali("repeat", str)) {
+        return TEXTURE_REPEAT_REPEAT;
+    } else if (strings_equali("clamp_to_edge", str)) {
+        return TEXTURE_REPEAT_CLAMP_TO_EDGE;
+    } else if (strings_equali("clamp_to_border", str)) {
+        return TEXTURE_REPEAT_CLAMP_TO_BORDER;
+    } else if (strings_equali("mirrored_repeat", str)) {
+        return TEXTURE_REPEAT_MIRRORED_REPEAT;
+    } else {
+        KASSERT_MSG(false, "Unrecognized texture repeat.");
+        return TEXTURE_REPEAT_REPEAT;
+    }
+}
+
 const char* texture_filter_mode_to_string(texture_filter filter) {
     switch (filter) {
     case TEXTURE_FILTER_MODE_LINEAR:
@@ -30,6 +69,46 @@ const char* texture_filter_mode_to_string(texture_filter filter) {
     default:
         KASSERT_MSG(false, "Unrecognized texture filter type.");
         return 0;
+    }
+}
+
+texture_filter string_to_texture_filter_mode(const char* str) {
+    if (strings_equali("linear", str)) {
+        return TEXTURE_FILTER_MODE_LINEAR;
+    } else if (strings_equali("nearest", str)) {
+        return TEXTURE_FILTER_MODE_LINEAR;
+    } else {
+        KASSERT_MSG(false, "Unrecognized texture filter type.");
+        return TEXTURE_FILTER_MODE_LINEAR;
+    }
+}
+
+const char* texture_channel_to_string(texture_channel channel) {
+    switch (channel) {
+    default:
+    case TEXTURE_CHANNEL_R:
+        return "r";
+    case TEXTURE_CHANNEL_G:
+        return "g";
+    case TEXTURE_CHANNEL_B:
+        return "b";
+    case TEXTURE_CHANNEL_A:
+        return "a";
+    }
+}
+
+texture_channel string_to_texture_channel(const char* str) {
+    if (strings_equali(str, "r")) {
+        return TEXTURE_CHANNEL_R;
+    } else if (strings_equali(str, "g")) {
+        return TEXTURE_CHANNEL_G;
+    } else if (strings_equali(str, "b")) {
+        return TEXTURE_CHANNEL_B;
+    } else if (strings_equali(str, "a")) {
+        return TEXTURE_CHANNEL_A;
+    } else {
+        KASSERT_MSG(false, "Texture channel not supported.");
+        return TEXTURE_CHANNEL_R;
     }
 }
 
@@ -57,6 +136,8 @@ const char* shader_uniform_type_to_string(shader_uniform_type type) {
         return "u32";
     case SHADER_UNIFORM_TYPE_MATRIX_4:
         return "mat4";
+    case SHADER_UNIFORM_TYPE_STRUCT:
+        return "struct";
     case SHADER_UNIFORM_TYPE_TEXTURE_1D:
         return "texture1d";
     case SHADER_UNIFORM_TYPE_TEXTURE_2D:
@@ -78,74 +159,6 @@ const char* shader_uniform_type_to_string(shader_uniform_type type) {
     default:
         KASSERT_MSG(false, "Unrecognized uniform type.");
         return 0;
-    }
-}
-
-const char* shader_attribute_type_to_string(shader_attribute_type type) {
-    switch (type) {
-    case SHADER_ATTRIB_TYPE_FLOAT32:
-        return "f32";
-    case SHADER_ATTRIB_TYPE_FLOAT32_2:
-        return "vec2";
-    case SHADER_ATTRIB_TYPE_FLOAT32_3:
-        return "vec3";
-    case SHADER_ATTRIB_TYPE_FLOAT32_4:
-        return "vec4";
-    case SHADER_ATTRIB_TYPE_MATRIX_4:
-        return "mat4";
-    case SHADER_ATTRIB_TYPE_INT8:
-        return "i8";
-    case SHADER_ATTRIB_TYPE_UINT8:
-        return "u8";
-    case SHADER_ATTRIB_TYPE_INT16:
-        return "i16";
-    case SHADER_ATTRIB_TYPE_UINT16:
-        return "u16";
-    case SHADER_ATTRIB_TYPE_INT32:
-        return "i32";
-    case SHADER_ATTRIB_TYPE_UINT32:
-        return "u32";
-    }
-}
-
-const char* shader_stage_to_string(shader_stage stage) {
-    switch (stage) {
-    case SHADER_STAGE_VERTEX:
-        return "vertex";
-    case SHADER_STAGE_GEOMETRY:
-        return "geometry";
-    case SHADER_STAGE_FRAGMENT:
-        return "fragment";
-    case SHADER_STAGE_COMPUTE:
-        return "compute";
-    default:
-        return "";
-    }
-}
-
-texture_repeat string_to_texture_repeat(const char* str) {
-    if (strings_equali("repeat", str)) {
-        return TEXTURE_REPEAT_REPEAT;
-    } else if (strings_equali("clamp_to_edge", str)) {
-        return TEXTURE_REPEAT_CLAMP_TO_EDGE;
-    } else if (strings_equali("clamp_to_border", str)) {
-        return TEXTURE_REPEAT_CLAMP_TO_BORDER;
-    } else if (strings_equali("mirrored_repeat", str)) {
-        return TEXTURE_REPEAT_MIRRORED_REPEAT;
-    } else {
-        KASSERT_MSG(false, "Unrecognized texture repeat.");
-        return TEXTURE_REPEAT_REPEAT;
-    }
-}
-
-texture_filter string_to_texture_filter_mode(const char* str) {
-    if (strings_equali("linear", str)) {
-        return TEXTURE_FILTER_MODE_LINEAR;
-    } else if (strings_equali("nearest", str)) {
-        return TEXTURE_FILTER_MODE_LINEAR;
-    } else {
-        KASSERT_MSG(false, "Unrecognized texture filter type.");
-        return TEXTURE_FILTER_MODE_LINEAR;
     }
 }
 
@@ -186,13 +199,42 @@ shader_uniform_type string_to_shader_uniform_type(const char* str) {
         return SHADER_UNIFORM_TYPE_TEXTURE_CUBE;
     } else if (strings_equali("textureCubeArray", str)) {
         return SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY;
+    } else if (string_starts_withi(str, "struct")) {
+        return SHADER_UNIFORM_TYPE_STRUCT;
     } else if (strings_equali("sampler", str)) {
         return SHADER_UNIFORM_TYPE_SAMPLER;
     } else if (strings_equali("custom", str)) {
         return SHADER_UNIFORM_TYPE_CUSTOM;
     } else {
-        KASSERT_MSG(false, "Unrecognized uniform type.");
+        KERROR(false, "Unrecognized uniform type '%s'. Defaulting to float.");
         return SHADER_UNIFORM_TYPE_FLOAT32;
+    }
+}
+
+const char* shader_attribute_type_to_string(shader_attribute_type type) {
+    switch (type) {
+    case SHADER_ATTRIB_TYPE_FLOAT32:
+        return "f32";
+    case SHADER_ATTRIB_TYPE_FLOAT32_2:
+        return "vec2";
+    case SHADER_ATTRIB_TYPE_FLOAT32_3:
+        return "vec3";
+    case SHADER_ATTRIB_TYPE_FLOAT32_4:
+        return "vec4";
+    case SHADER_ATTRIB_TYPE_MATRIX_4:
+        return "mat4";
+    case SHADER_ATTRIB_TYPE_INT8:
+        return "i8";
+    case SHADER_ATTRIB_TYPE_UINT8:
+        return "u8";
+    case SHADER_ATTRIB_TYPE_INT16:
+        return "i16";
+    case SHADER_ATTRIB_TYPE_UINT16:
+        return "u16";
+    case SHADER_ATTRIB_TYPE_INT32:
+        return "i32";
+    case SHADER_ATTRIB_TYPE_UINT32:
+        return "u32";
     }
 }
 
@@ -222,6 +264,21 @@ shader_attribute_type string_to_shader_attribute_type(const char* str) {
     } else {
         KERROR("Unrecognized attribute type '%s'. Defaulting to i32", str);
         return SHADER_ATTRIB_TYPE_INT32;
+    }
+}
+
+const char* shader_stage_to_string(shader_stage stage) {
+    switch (stage) {
+    case SHADER_STAGE_VERTEX:
+        return "vertex";
+    case SHADER_STAGE_GEOMETRY:
+        return "geometry";
+    case SHADER_STAGE_FRAGMENT:
+        return "fragment";
+    case SHADER_STAGE_COMPUTE:
+        return "compute";
+    default:
+        return "";
     }
 }
 
@@ -261,5 +318,67 @@ shader_update_frequency string_to_shader_update_frequency(const char* str) {
     } else {
         KERROR("Unknown shader scope '%s'. Defaulting to per-frame.", str);
         return SHADER_UPDATE_FREQUENCY_PER_FRAME;
+    }
+}
+
+const char* kmaterial_type_to_string(kmaterial_type type) {
+    switch (type) {
+    case KMATERIAL_TYPE_STANDARD:
+        return "standard";
+    case KMATERIAL_TYPE_WATER:
+        return "water";
+    case KMATERIAL_TYPE_BLENDED:
+        return "blended";
+    case KMATERIAL_TYPE_CUSTOM:
+        return "custom";
+    default:
+        KASSERT_MSG(false, "Unrecognized material type.");
+        return "standard";
+    }
+}
+
+kmaterial_type string_to_kmaterial_type(const char* str) {
+    if (strings_equali(str, "standard")) {
+        return KMATERIAL_TYPE_STANDARD;
+    } else if (strings_equali(str, "water")) {
+        return KMATERIAL_TYPE_WATER;
+    } else if (strings_equali(str, "blended")) {
+        return KMATERIAL_TYPE_BLENDED;
+    } else if (strings_equali(str, "custom")) {
+        return KMATERIAL_TYPE_CUSTOM;
+    } else {
+        KASSERT_MSG(false, "Unrecognized material type.");
+        return KMATERIAL_TYPE_STANDARD;
+    }
+}
+
+const char* kmaterial_model_to_string(kmaterial_model model) {
+    switch (model) {
+    case KMATERIAL_MODEL_UNLIT:
+        return "unlit";
+    case KMATERIAL_MODEL_PBR:
+        return "pbr";
+    case KMATERIAL_MODEL_PHONG:
+        return "phong";
+    case KMATERIAL_MODEL_CUSTOM:
+        return "custom";
+    default:
+        KASSERT_MSG(false, "Unrecognized material model");
+        return 0;
+    }
+}
+
+kmaterial_model string_to_kmaterial_model(const char* str) {
+    if (strings_equali(str, "pbr")) {
+        return KMATERIAL_MODEL_PBR;
+    } else if (strings_equali(str, "unlit")) {
+        return KMATERIAL_MODEL_UNLIT;
+    } else if (strings_equali(str, "phong")) {
+        return KMATERIAL_MODEL_PHONG;
+    } else if (strings_equali(str, "custom")) {
+        return KMATERIAL_MODEL_CUSTOM;
+    } else {
+        KASSERT_MSG(false, "Unrecognized material model.");
+        return KMATERIAL_MODEL_PBR;
     }
 }

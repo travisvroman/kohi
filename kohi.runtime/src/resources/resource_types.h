@@ -180,67 +180,6 @@ typedef struct mesh {
     void* debug_data;
 } mesh;
 
-typedef enum material_type {
-    MATERIAL_TYPE_UNKNOWN = 0,
-    MATERIAL_TYPE_STANDARD,
-    MATERIAL_TYPE_WATER,
-    MATERIAL_TYPE_BLENDED,
-    MATERIAL_TYPE_COUNT,
-    MATERIAL_TYPE_CUSTOM = 99
-} material_type;
-
-typedef enum material_model {
-    MATERIAL_MODEL_UNLIT = 0,
-    MATERIAL_MODEL_PBR,
-    MATERIAL_MODEL_PHONG,
-    MATERIAL_MODEL_COUNT,
-    MATERIAL_MODEL_CUSTOM = 99
-} material_model;
-
-typedef struct material_config_prop {
-    char* name;
-    shader_uniform_type type;
-    u32 size;
-    // FIXME: This seems like a colossal waste of memory... perhaps a union or
-    // something better?
-    vec4 value_v4;
-    vec3 value_v3;
-    vec2 value_v2;
-    f32 value_f32;
-    u32 value_u32;
-    u16 value_u16;
-    u8 value_u8;
-    i32 value_i32;
-    i16 value_i16;
-    i8 value_i8;
-    mat4 value_mat4;
-} material_config_prop;
-
-typedef struct material_map {
-    char* name;
-    char* texture_name;
-    texture_filter filter_min;
-    texture_filter filter_mag;
-    texture_repeat repeat_u;
-    texture_repeat repeat_v;
-    texture_repeat repeat_w;
-} material_map;
-
-typedef struct material_config {
-    u8 version;
-    char* name;
-    material_type type;
-    material_model model;
-    char* shader_name;
-    // darray
-    material_config_prop* properties;
-    // darray
-    material_map* maps;
-    /** @brief Indicates if the material should be automatically released when no
-     * references to it remain. */
-    b8 auto_release;
-} material_config;
-
 /**
  * @brief A material, which represents various properties
  * of a surface in the world such as texture, colour,

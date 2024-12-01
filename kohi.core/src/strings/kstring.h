@@ -15,19 +15,44 @@
 #include "math/math_types.h"
 
 /**
- * @brief Gets the length of the given string.
+ * @brief Gets the number of bytes of the given string, minus the null terminator.
+ *
+ * NOTE: For strings without a null terminator, use string_nlength instead.
+ *
  * @param str The string whose length to obtain.
  * @returns The length of the string.
  */
 KAPI u64 string_length(const char* str);
 
 /**
- * @brief Gets the length of a string in UTF-8 (potentially multibyte) characters.
+ * @brief Gets the length of a string in UTF-8 (potentially multibyte) characters, minus the null terminator.
+ *
+ * NOTE: For strings without a null terminator, use string_utf8_nlength instead.
  *
  * @param str The string to examine.
  * @return The UTF-8 length of the string.
  */
 KAPI u32 string_utf8_length(const char* str);
+
+/**
+ * @brief Gets the number of bytes of the given string, minus the null terminator, but at most max_len.
+ * This function only ever looks at the bytes pointed to in str up until, but never beyond, max_len - 1.
+ *
+ * @param str The string whose length to obtain.
+ * @param max_len The maximum number of bytes to examine in the string.
+ * @returns The length of the string, at most max_len.
+ */
+KAPI u64 string_nlength(const char* str, u32 max_len);
+
+/**
+ * @brief Gets the number of characters (multibyte = 1 character) of a string in UTF-8 (potentially multibyte) characters, minus the null terminator, but at most max_len.
+ * This function only ever looks at the characters pointed to in str up until, but never beyond, max_len - 1.
+ *
+ * @param str The string to examine.
+ * @param max_len The maximum number of characters to examine in the string.
+ * @return The number of multibyte characters in the string, at most max_len.
+ */
+KAPI u32 string_utf8_nlength(const char* str, u32 max_len);
 
 /**
  * @brief Obtains bytes needed from the byte array to form a UTF-8 codepoint,
@@ -89,24 +114,24 @@ KAPI b8 strings_equal(const char* str0, const char* str1);
 KAPI b8 strings_equali(const char* str0, const char* str1);
 
 /**
- * @brief Case-sensitive string comparison for a number of characters.
+ * @brief Case-sensitive string comparison, where comparison stops at max_len.
  *
  * @param str0 The first string to be compared.
  * @param str1 The second string to be compared.
- * @param length The maximum number of characters to be compared.
+ * @param max_len The maximum number of bytes to be compared.
  * @return True if the same, otherwise false.
  */
-KAPI b8 strings_nequal(const char* str0, const char* str1, u64 length);
+KAPI b8 strings_nequal(const char* str0, const char* str1, u32 max_len);
 
 /**
- * @brief Case-insensitive string comparison for a number of characters.
+ * @brief Case-insensitive string comparison, where comparison stops at max_len.
  *
  * @param str0 The first string to be compared.
  * @param str1 The second string to be compared.
- * @param length The maximum number of characters to be compared.
+ * @param max_len The maximum number of bytes to be compared.
  * @return True if the same, otherwise false.
  */
-KAPI b8 strings_nequali(const char* str0, const char* str1, u64 length);
+KAPI b8 strings_nequali(const char* str0, const char* str1, u32 max_len);
 
 /**
  * @brief Performs string formatting against the given format string and parameters.
@@ -169,13 +194,15 @@ KAPI char* string_empty(char* str);
 KAPI char* string_copy(char* dest, const char* source);
 
 /**
- * @brief Copies the string in source to dest up to the given length. Does not perform any allocations.
- * @param dest The destination string.
- * @param source The source string.
- * @param length The maximum length to be copied.
+ * @brief Copies the bytes in the source buffer into the dest buffer up to the given length. Does not perform any allocations.
+ * Any remaining length after a 0 terminator will be zero-padded unless max_len is U32_MAX.
+ *
+ * @param dest A pointer to the destination buffer. Must be at least max_len large.
+ * @param source A constant pointer to the source buffer.
+ * @param length The maximum number of bytes to be copied.
  * @returns A pointer to the destination string.
  */
-KAPI char* string_ncopy(char* dest, const char* source, i64 length);
+KAPI char* string_ncopy(char* dest, const char* source, u32 max_len);
 
 /**
  * @brief Performs an in-place trim of the provided string.
@@ -635,6 +662,8 @@ KAPI b8 codepoint_is_upper(i32 codepoint);
 KAPI b8 codepoint_is_alpha(i32 codepoint);
 /** Indicates if provided codepoint is numeric. Regular ASCII and western European high-ascii characters only. */
 KAPI b8 codepoint_is_numeric(i32 codepoint);
+/** Indicates if the given codepoint is considered to be a space. Includes ' ', \f \r \n \t and \v. */
+KAPI b8 codepoint_is_space(i32 codepoint);
 
 /**
  * Converts string in-place to uppercase. Regular ASCII and western European high-ascii characters only.

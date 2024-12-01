@@ -13,7 +13,7 @@ inputs = {
         map = {
             resource_name = "beams_and_sticks"
             package_name = "testbed"
-            sampler = "custom_sampler"
+            sampler = "custom_01"
         }
     }
     normal = {
@@ -52,12 +52,20 @@ inputs = {
 
 samplers = [
     {
-        name = "custom_sampler"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
+        name = "custom_01"
+        // Shorthand that sets both filter modes
+        filter = "linear"
+        // Overrides shorthand
+        filter_mag = "linear"
+        filter_min = "linear"
+        // Shorthand that sets all 3 repeat modes.
+        repeat = "repeat"
+        // More specific version overrides shorthand
+        repeat_u = "repeat"
+        repeat_v = "repeat"
+        repeat_w = "repeat"
+        // If true, uses mipmaps based on image dimensions.
+        use_mipmaps = true
     }
 ]
 
