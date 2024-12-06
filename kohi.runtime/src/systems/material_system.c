@@ -5,6 +5,7 @@
 #include "core/console.h"
 #include "core/engine.h"
 #include "core/frame_data.h"
+#include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
 #include "identifiers/khandle.h"
@@ -15,6 +16,7 @@
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph_nodes/shadow_rendergraph_node.h"
 #include "serializers/kasset_material_serializer.h"
+#include "serializers/kasset_shader_serializer.h"
 #include "strings/kname.h"
 #include "systems/kresource_system.h"
 #include "systems/light_system.h"
@@ -326,7 +328,105 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
     state->instances = darray_create(material_instance_data*);
 
     // Get default material shaders.
-    state->material_standard_shader = shader_system_get(kname_create(MATERIAL_SHADER_NAME_STANDARD));
+    kasset_shader mat_std_shader = {0};
+    kname mat_std_shader_name = kname_create(MATERIAL_SHADER_NAME_STANDARD);
+    mat_std_shader.base.name = mat_std_shader_name;
+    mat_std_shader.base.package_name = kname_create("Runtime");
+    mat_std_shader.base.generation = INVALID_ID;
+    mat_std_shader.base.type = KASSET_TYPE_SHADER;
+    mat_std_shader.base.meta.version = 1;
+    mat_std_shader.depth_test = true;
+    mat_std_shader.depth_write = true;
+    mat_std_shader.stencil_test = false;
+    mat_std_shader.stencil_write = false;
+    mat_std_shader.colour_write = true;
+    mat_std_shader.colour_read = false;
+    mat_std_shader.supports_wireframe = true;
+    mat_std_shader.cull_mode = FACE_CULL_MODE_BACK;
+    mat_std_shader.max_groups = state->config.max_material_count;
+    mat_std_shader.max_draw_ids = state->config.max_instance_count;
+    mat_std_shader.topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
+
+    mat_std_shader.stage_count = 2;
+    mat_std_shader.stages = KALLOC_TYPE_CARRAY(kasset_shader_stage, mat_std_shader.stage_count);
+    mat_std_shader.stages[0].type = SHADER_STAGE_VERTEX;
+    mat_std_shader.stages[0].package_name = "Runtime";
+    mat_std_shader.stages[0].source_asset_name = "MaterialStandard_vert";
+    mat_std_shader.stages[1].type = SHADER_STAGE_FRAGMENT;
+    mat_std_shader.stages[1].package_name = "Runtime";
+    mat_std_shader.stages[1].source_asset_name = "MaterialStandard_frag";
+
+    mat_std_shader.attribute_count = 5;
+    mat_std_shader.attributes = KALLOC_TYPE_CARRAY(kasset_shader_attribute, mat_std_shader.attribute_count);
+    mat_std_shader.attributes[0].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
+    mat_std_shader.attributes[0].name = "in_position";
+
+    mat_std_shader.attributes[1].name = "in_normal";
+    mat_std_shader.attributes[1].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
+    mat_std_shader.attributes[2].name = "in_texcoord";
+    mat_std_shader.attributes[2].type = SHADER_ATTRIB_TYPE_FLOAT32_2;
+    mat_std_shader.attributes[3].name = "in_colour";
+    mat_std_shader.attributes[3].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
+    mat_std_shader.attributes[4].name = "in_tangent";
+    mat_std_shader.attributes[4].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
+
+    mat_std_shader.uniform_count = 9;
+    mat_std_shader.uniforms = KALLOC_TYPE_CARRAY(kasset_shader_uniform, mat_std_shader.uniform_count);
+
+    // per_frame
+    mat_std_shader.uniforms[0].name = "material_frame_ubo";
+    mat_std_shader.uniforms[0].type = SHADER_UNIFORM_TYPE_STRUCT;
+    mat_std_shader.uniforms[0].size = 388;
+    mat_std_shader.uniforms[0].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
+
+    mat_std_shader.uniforms[1].name = "shadow_textures";
+    mat_std_shader.uniforms[1].type = SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY;
+    mat_std_shader.uniforms[1].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
+
+    mat_std_shader.uniforms[2].name = "ibl_cube_textures";
+    mat_std_shader.uniforms[2].type = SHADER_UNIFORM_TYPE_TEXTURE_CUBE;
+    mat_std_shader.uniforms[2].array_size = 4;
+    mat_std_shader.uniforms[2].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
+
+    mat_std_shader.uniforms[3].name = "shadow_sampler";
+    mat_std_shader.uniforms[3].type = SHADER_UNIFORM_TYPE_SAMPLER;
+    mat_std_shader.uniforms[3].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
+
+    mat_std_shader.uniforms[4].name = "ibl_sampler";
+    mat_std_shader.uniforms[4].type = SHADER_UNIFORM_TYPE_SAMPLER;
+    mat_std_shader.uniforms[4].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
+    // per_group
+    mat_std_shader.uniforms[5].name = "material_textures";
+    mat_std_shader.uniforms[5].type = SHADER_UNIFORM_TYPE_TEXTURE_2D;
+    mat_std_shader.uniforms[5].array_size = 7;
+    mat_std_shader.uniforms[5].frequency = SHADER_UPDATE_FREQUENCY_PER_GROUP;
+
+    mat_std_shader.uniforms[6].name = "material_samplers";
+    mat_std_shader.uniforms[6].type = SHADER_UNIFORM_TYPE_SAMPLER;
+    mat_std_shader.uniforms[6].array_size = 7;
+    mat_std_shader.uniforms[6].frequency = SHADER_UPDATE_FREQUENCY_PER_GROUP;
+
+    mat_std_shader.uniforms[7].name = "material_group_ubo";
+    mat_std_shader.uniforms[7].type = SHADER_UNIFORM_TYPE_STRUCT;
+    mat_std_shader.uniforms[7].size = 656;
+    mat_std_shader.uniforms[7].frequency = SHADER_UPDATE_FREQUENCY_PER_GROUP;
+    // per_draw
+    mat_std_shader.uniforms[8].name = "material_draw_ubo";
+    mat_std_shader.uniforms[8].type = SHADER_UNIFORM_TYPE_STRUCT;
+    mat_std_shader.uniforms[8].size = 84;
+    mat_std_shader.uniforms[8].frequency = SHADER_UPDATE_FREQUENCY_PER_DRAW;
+
+    // Serialize
+    const char* config_source = kasset_shader_serialize((kasset*)&mat_std_shader);
+
+    // Destroy the temp asset.
+    KFREE_TYPE_CARRAY(mat_std_shader.stages, kasset_shader_stage, mat_std_shader.stage_count);
+    KFREE_TYPE_CARRAY(mat_std_shader.attributes, kasset_shader_attribute, mat_std_shader.attribute_count);
+    KFREE_TYPE_CARRAY(mat_std_shader.uniforms, kasset_shader_uniform, mat_std_shader.uniform_count);
+    kzero_memory(&mat_std_shader, sizeof(kasset_shader));
+
+    // Create/load the shader from the serialized source.
+    state->material_standard_shader = shader_system_get_from_source(mat_std_shader_name, config_source);
     default_standard_material_locations_get(state);
     // Setup per-frame data for the standard shader.
     state->standard_frame_data.projection = mat4_perspective(deg_to_rad(45.0f), 720.0f / 1280.0f, 0.01f, 1000.0f);

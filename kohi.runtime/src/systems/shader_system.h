@@ -62,6 +62,16 @@ KAPI b8 shader_system_reload(khandle shader);
 KAPI khandle shader_system_get(kname name);
 
 /**
+ * @brief Returns a handle to a shader with the given name based on the provided config source.
+ * Attempts to load the shader if not already loaded.
+ *
+ * @param shader_name The name of the new shader.
+ * @param shader_config_source A string containing the shader's configuration source as if it were loaded from an asset.
+ * @return A handle to a shader, if loaded; otherwise an invalid handle.
+ */
+KAPI khandle shader_system_get_from_source(kname name, const char* shader_config_source);
+
+/**
  * @brief Attempts to destroy the shader with the given handle. Handle will be invalidated.
  *
  * @param shader_name A pointer to a handle to the shader to destroy. Handle will be invalidated.

@@ -1,4 +1,5 @@
 // Kohi shader config file
+// NOTE: This file is no longer required. Loaded directly in code in material system.
 version = 1
 depth_test=true
 depth_write=true
@@ -7,7 +8,7 @@ max_groups=256
 cull_mode = "back"
 
 topology_types [
-    "triangle_strip"
+    "triangle_list"
 ]
 
 stages = [
