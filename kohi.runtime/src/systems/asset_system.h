@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include "strings/kname.h"
 #include <assets/kasset_types.h>
+#include <strings/kname.h>
 
 typedef struct asset_system_config {
     // The maximum number of assets which may be loaded at once.
@@ -23,6 +23,31 @@ typedef struct asset_system_config {
 } asset_system_config;
 
 struct asset_system_state;
+
+typedef struct asset_request_info {
+    /** @param type The asset type. */
+    kasset_type type;
+    /** @param package_name The name of the package. */
+    kname package_name;
+    /** @param asset_name The name of the asset. */
+    kname asset_name;
+    // If true, request is synchronous and does not return until asset is read and processed.
+    b8 synchronous;
+    /** @param auto_release Indicates if the asset should be released automatically when its internal reference counter reaches 0. Only has an effect the first time the asset is requested. */
+    b8 auto_release;
+    /** @param listener_inst A pointer to the listener instance that is awaiting the asset. Technically optional as perhaps nothing is interested in the result, but hwhy? */
+    void* listener_inst;
+    /** @param callback A pointer to the function to be called when the load is complete (or failed). Technically optional as perhaps nothing is interested in the result, but hwhy? */
+    PFN_kasset_on_result callback;
+    /** @param import_params_size Size of the import params, if used; otherwise 0. */
+    u32 import_params_size;
+    /** @param import_params A pointer to the inport params, if used; otherwise 0; */
+    void* import_params;
+    /** @param hot_reload_callback A callback to be made if the asset is hot-reloaded. Pass 0 if not used. Hot-reloaded assets are not auto-released. */
+    PFN_kasset_on_hot_reload hot_reload_callback;
+    /** @param hot_reload_listener A pointer to the listener data for an asset hot-reload. */
+    void* hot_reload_context;
+} asset_request_info;
 
 /**
  * @brief Deserializes configuration for the asset system from the provided string.
@@ -58,14 +83,9 @@ KAPI void asset_system_shutdown(struct asset_system_state* state);
  * count reaches 0.
  *
  * @param A pointer to the asset system state. Required.
- * @param type The asset type.
- * @param package_name The name of the package.
- * @param asset_name The name of the asset.
- * @param auto_release Indicates if the asset should be released automatically when its internal reference counter reaches 0. Only has an effect the first time the asset is requested.
- * @param listener_inst A pointer to the listener instance that is awaiting the asset. Technically optional as perhaps nothing is interested in the result, but hwhy?
- * @param callback A pointer to the function to be called when the load is complete (or failed). Technically optional as perhaps nothing is interested in the result, but hwhy?
+ * @param info The information about the asset request.
  */
-KAPI void asset_system_request(struct asset_system_state* state, kasset_type type, kname package_name, kname asset_name, b8 auto_release, void* listener_inst, PFN_kasset_on_result callback, u32 import_params_size, void* import_params);
+KAPI void asset_system_request(struct asset_system_state* state, asset_request_info info);
 
 /**
  * @brief Releases an asset via the fully-qualified name.

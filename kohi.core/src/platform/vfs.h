@@ -10,17 +10,14 @@
  */
 #pragma once
 
+#include "assets/kasset_types.h"
 #include "defines.h"
 #include "strings/kname.h"
 
 struct kpackage;
 struct kasset;
 struct kasset_metadata;
-
-typedef struct vfs_state {
-    // darray
-    struct kpackage* packages;
-} vfs_state;
+struct vfs_state;
 
 typedef struct vfs_config {
     const char** text_user_types;
@@ -87,9 +84,59 @@ typedef struct vfs_asset_data {
 
     u32 import_params_size;
     void* import_params;
+
+    b8 watch_for_hot_reload;
+
+    /** The file watch id if used during a hot-reload; otherwise INVALID_ID; */
+    u32 file_watch_id;
 } vfs_asset_data;
 
 typedef void (*PFN_on_asset_loaded_callback)(struct vfs_state* vfs, vfs_asset_data asset_data);
+
+typedef void (*PFN_asset_hot_reloaded_callback)(struct vfs_state* vfs, const vfs_asset_data* asset_data);
+typedef void (*PFN_asset_deleted_callback)(struct vfs_state* vfs, u32 file_watch_id);
+
+typedef struct vfs_state {
+    // darray
+    struct kpackage* packages;
+
+    // darray
+    vfs_asset_data* watched_assets;
+
+    // A callback to be made when an asset is hot-reloaded from the VFS.
+    // Typically handled within the asset system.
+    PFN_asset_hot_reloaded_callback hot_reloaded_callback;
+
+    // A callback to be made when an asset is deleted from the VFS.
+    // Typically handled within the asset system.
+    PFN_asset_deleted_callback deleted_callback;
+} vfs_state;
+
+/**
+ * @brief The request options for getting an asset from the VFS.
+ */
+typedef struct vfs_request_info {
+    /** @brief The name of the package to load the asset from. */
+    kname package_name;
+    /** @brief The name of the asset to request. */
+    kname asset_name;
+    /** @brief Indicates if the asset is binary. If not, the asset is loaded as text. */
+    b8 is_binary;
+    /** @brief Indicates if the VFS should try to retrieve the source asset instead of the primary one if it exists. */
+    b8 get_source;
+    /** @brief Indicates if the asset's file on-disk should be watched for hot-reload. */
+    b8 watch_for_hot_reload;
+    /** @brief The size of the context in bytes. */
+    u32 context_size;
+    /** @param context A constant pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important. */
+    const void* context;
+    /** @brief The size of the import parameters in bytes, if used. */
+    u32 import_params_size;
+    /** @param context A constant pointer to the import parameters to be used for this call. NOTE: A copy of this is taken immediately, so lifetime of this isn't important. */
+    void* import_params;
+
+    PFN_on_asset_loaded_callback vfs_callback;
+} vfs_request_info;
 
 /**
  * @brief Initializes the Virtual File System (VFS). Call twice; once to get memory requirement
@@ -110,33 +157,32 @@ KAPI b8 vfs_initialize(u64* memory_requirement, vfs_state* out_state, const vfs_
 KAPI void vfs_shutdown(vfs_state* state);
 
 /**
+ * @brief Register callbacks for hot-reloading from the VFS.
+ *
+ * @param state A pointer to the system state. Required.
+ * @param hot_reloaded_callback A callback to be made when an asset is hot-reloaded from the VFS.
+ * @param deleted_callback A callback to be made when an asset is deleted from the VFS.
+ */
+KAPI void vfs_hot_reload_callbacks_register(vfs_state* state, PFN_asset_hot_reloaded_callback hot_reloaded_callback, PFN_asset_deleted_callback deleted_callback);
+
+/**
  * @brief Requests an asset from the VFS, issuing the callback when complete. This call is asynchronous.
  *
  * @param state A pointer to the system state. Required.
- * @param package_name The package name to request from. If INVALID_KNAME is provided, all packages are searched until an asset with a matching name is found (the first result is returned).
- * @param asset_name The name of the asset to request.
- * @param is_binary Indicates if the asset is binary. Otherwise is loaded as text.
- * @param get_source Indicates if the VFS should try to retrieve the source asset instead of the primary one if it exists.
- * @param context_size The size of the context in bytes.
- * @param context A pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important.
+ * @param info The information detailing specifics about the VFS asset request.
  * @param callback The callback to be made once the asset load is complete. Required.
  */
-KAPI void vfs_request_asset(vfs_state* state, kname package_name, kname asset_name, b8 is_binary, b8 get_source, u32 context_size, const void* context, u32 import_params_size, void* import_params, PFN_on_asset_loaded_callback callback);
+KAPI void vfs_request_asset(vfs_state* state, vfs_request_info info);
 
 /**
  * @brief Requests an asset from the VFS synchronously. NOTE: This should be used sparingly as it performs device I/O directly.
  * NOTE: Caller should also check out_data context to see if it needs freeing, as this is _not_ handled automatically as it is in the async version.
  *
  * @param state A pointer to the system state. Required.
- * @param package_name The package name to request from.
- * @param asset_name The name of the asset to request.
- * @param is_binary Indicates if the asset is binary. Otherwise is loaded as text.
- * @param get_source Indicates if the VFS should try to retrieve the source asset instead of the primary one if it exists.
- * @param context_size The size of the context in bytes.
- * @param context A pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important.
+ * @param info The information detailing specifics about the VFS asset request.
  * @param out_data A pointer to hold the loaded asset data. Required.
  */
-KAPI void vfs_request_asset_sync(vfs_state* state, kname package_name, kname asset_name, b8 is_binary, b8 get_source, u32 context_size, const void* context, u32 import_params_size, void* import_params, vfs_asset_data* out_data);
+KAPI vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info);
 
 /**
  * @brief Attempts to retrieve the path for the given asset, if it exists.

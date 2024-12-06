@@ -12,6 +12,7 @@
 #include "assets/handlers/asset_handler_static_mesh.h"
 #include "assets/handlers/asset_handler_system_font.h"
 #include "assets/handlers/asset_handler_text.h"
+#include "platform/vfs.h"
 
 #include <assets/asset_handler_types.h>
 #include <assets/kasset_types.h>
@@ -34,6 +35,10 @@ typedef struct asset_lookup {
     i32 reference_count;
     // Indicates if the asset will be released when the reference_count reaches 0.
     b8 auto_release;
+
+    u32 file_watch_id;
+    PFN_kasset_on_hot_reload hot_reload_callback;
+    void* hot_reload_context;
 } asset_lookup;
 
 typedef struct asset_system_state {
@@ -142,11 +147,11 @@ void asset_system_shutdown(struct asset_system_state* state) {
     }
 }
 
-void asset_system_request(struct asset_system_state* state, kasset_type type, kname package_name, kname asset_name, b8 auto_release, void* listener_instance, PFN_kasset_on_result callback, u32 import_params_size, void* import_params) {
+void asset_system_request(struct asset_system_state* state, asset_request_info info) {
     KASSERT(state);
     // Lookup the asset by fully-qualified name.
     u32 lookup_index = INVALID_ID;
-    const bt_node* node = u64_bst_find(state->lookup_tree, asset_name);
+    const bt_node* node = u64_bst_find(state->lookup_tree, info.asset_name);
     if (node) {
         lookup_index = node->value.u32;
     }
@@ -154,8 +159,8 @@ void asset_system_request(struct asset_system_state* state, kasset_type type, kn
         // Valid entry found, increment the reference count and immediately make the callback.
         asset_lookup* lookup = &state->lookups[lookup_index];
         lookup->reference_count++;
-        if (callback) {
-            callback(ASSET_REQUEST_RESULT_SUCCESS, &lookup->asset, listener_instance);
+        if (info.callback) {
+            info.callback(ASSET_REQUEST_RESULT_SUCCESS, &lookup->asset, info.listener_inst);
         }
     } else {
         // Before requesting the new asset, get it registered in the lookup in case anything
@@ -166,7 +171,7 @@ void asset_system_request(struct asset_system_state* state, kasset_type type, kn
             if (lookup->asset.id.uniqueid == INVALID_ID_U64) {
                 bt_node_value v;
                 v.u32 = i;
-                bt_node* new_node = u64_bst_insert(state->lookup_tree, asset_name, v);
+                bt_node* new_node = u64_bst_insert(state->lookup_tree, info.asset_name, v);
                 // Save as root if this is the first asset. Otherwise it'll be part of the tree automatically.
                 if (!state->lookup_tree) {
                     state->lookup_tree = new_node;
@@ -174,10 +179,13 @@ void asset_system_request(struct asset_system_state* state, kasset_type type, kn
 
                 // Found a free slot, setup the asset.
                 lookup->asset.id = identifier_create();
-                lookup->asset.type = type;
-                lookup->asset.name = asset_name;
-                lookup->asset.package_name = package_name;
-                lookup->auto_release = auto_release;
+                lookup->asset.type = info.type;
+                lookup->asset.name = info.asset_name;
+                lookup->asset.package_name = info.package_name;
+                lookup->auto_release = info.auto_release;
+                lookup->file_watch_id = INVALID_ID_U32;
+                lookup->hot_reload_callback = info.hot_reload_callback;
+                lookup->hot_reload_context = info.hot_reload_context;
 
                 // Get the appropriate asset handler for the type and request the asset.
                 asset_handler* handler = &state->handlers[lookup->asset.type];
@@ -188,22 +196,28 @@ void asset_system_request(struct asset_system_state* state, kasset_type type, kn
                     asset_handler_request_context context = {0};
                     context.asset = &lookup->asset;
                     context.handler = handler;
-                    context.listener_instance = listener_instance;
-                    context.user_callback = callback;
-                    vfs_request_asset(
-                        state->vfs,
-                        lookup->asset.package_name,
-                        lookup->asset.name,
-                        handler->is_binary,
-                        false,
-                        sizeof(asset_handler_request_context),
-                        &context,
-                        import_params_size,
-                        import_params,
-                        asset_handler_base_on_asset_loaded);
+                    context.listener_instance = info.listener_inst;
+                    context.user_callback = info.callback;
+
+                    vfs_request_info request_info = {0};
+                    request_info.watch_for_hot_reload = lookup->hot_reload_callback ? true : false;
+                    request_info.asset_name = lookup->asset.name;
+                    request_info.package_name = lookup->asset.package_name;
+                    request_info.import_params = info.import_params;
+                    request_info.import_params_size = info.import_params_size;
+                    request_info.is_binary = handler->is_binary;
+                    request_info.context = &context;
+                    request_info.context_size = sizeof(asset_handler_request_context);
+                    request_info.get_source = false;
+                    request_info.vfs_callback = 0;
+                    if (info.synchronous) {
+                        vfs_asset_data out_data = vfs_request_asset_sync(state->vfs, request_info);
+                        asset_handler_base_on_asset_loaded(state->vfs, out_data);
+                    } else {
+                        vfs_request_asset(state->vfs, request_info);
+                    }
                 } else {
-                    // TODO: Jobify this call.
-                    handler->request_asset(handler, &lookup->asset, listener_instance, callback);
+                    handler->request_asset(handler, &lookup->asset, info.listener_inst, info.callback);
                 }
                 return;
             }
@@ -211,7 +225,7 @@ void asset_system_request(struct asset_system_state* state, kasset_type type, kn
         // If this point is reached, it is not possible to register any more assets. Config should be adjusted
         // to handle more entries.
         KFATAL("The asset system has reached maximum capacity of allowed assets (%d). Please adjust configuration to allow for more if needed.", state->max_asset_count);
-        callback(ASSET_REQUEST_RESULT_INTERNAL_FAILURE, 0, listener_instance);
+        info.callback(ASSET_REQUEST_RESULT_INTERNAL_FAILURE, 0, info.listener_inst);
     }
 }
 

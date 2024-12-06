@@ -103,8 +103,6 @@ static void frame_allocator_free_all(void) {
 
 // Event handlers
 static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context);
-static void engine_on_filewatcher_file_deleted(u32 watcher_id);
-static void engine_on_filewatcher_file_written(u32 watcher_id);
 static void engine_on_window_closed(const struct kwindow* window);
 static void engine_on_window_resized(const struct kwindow* window);
 static void engine_on_process_key(keys key, b8 pressed);
@@ -301,9 +299,7 @@ b8 engine_create(application* game_inst) {
             return false;
         }
 
-        // After event system, register watcher and input callbacks.
-        platform_register_watcher_deleted_callback(engine_on_filewatcher_file_deleted);
-        platform_register_watcher_written_callback(engine_on_filewatcher_file_written);
+        // After event system, register input callbacks.
         platform_register_window_closed_callback(engine_on_window_closed);
         platform_register_window_resized_callback(engine_on_window_resized);
     }
@@ -919,18 +915,6 @@ static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_con
     }
 
     return false;
-}
-
-static void engine_on_filewatcher_file_deleted(u32 watcher_id) {
-    event_context context = {0};
-    context.data.u32[0] = watcher_id;
-    event_fire(EVENT_CODE_WATCHED_FILE_DELETED, 0, context);
-}
-
-static void engine_on_filewatcher_file_written(u32 watcher_id) {
-    event_context context = {0};
-    context.data.u32[0] = watcher_id;
-    event_fire(EVENT_CODE_WATCHED_FILE_WRITTEN, 0, context);
 }
 
 static void engine_on_window_closed(const struct kwindow* window) {

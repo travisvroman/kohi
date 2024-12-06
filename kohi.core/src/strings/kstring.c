@@ -871,7 +871,7 @@ u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_en
     return entry_count;
 }
 
-void string_cleanup_split_array(char** str_darray) {
+void string_cleanup_split_darray(char** str_darray) {
     if (str_darray) {
         u32 count = darray_length(str_darray);
         // Free each string.
@@ -882,6 +882,81 @@ void string_cleanup_split_array(char** str_darray) {
 
         // Clear the darray
         darray_clear(str_darray);
+    }
+}
+
+u32 string_nsplit(const char* str, char delimiter, u32 max_count, char** str_array, b8 trim_entries, b8 include_empty) {
+    if (!str || !str_array) {
+        return 0;
+    }
+
+    char* result = 0;
+    u32 trimmed_length = 0;
+    u32 entry_count = 0;
+    u32 length = string_length(str);
+    char buffer[16384] = {0}; // If a single entry goes beyond this, well... just don't do that.
+    u32 current_length = 0;
+    // Iterate each character until a delimiter is reached.
+    for (u32 i = 0; i < length; ++i) {
+        char c = str[i];
+
+        // Found delimiter, finalize string.
+        if (c == delimiter) {
+            buffer[current_length] = 0;
+            result = buffer;
+            trimmed_length = current_length;
+            // Trim if applicable
+            if (trim_entries && current_length > 0) {
+                result = string_trim(result);
+                trimmed_length = string_length(result);
+            }
+            // Add new entry
+            if (trimmed_length > 0 || include_empty) {
+                str_array[entry_count] = string_duplicate(result);
+                entry_count++;
+            }
+
+            // Ensure this doesn't go beyond the allowed max count.
+            if (entry_count == max_count) {
+                return entry_count;
+            }
+
+            // Clear the buffer.
+            kzero_memory(buffer, sizeof(char) * 16384);
+            current_length = 0;
+            continue;
+        }
+
+        buffer[current_length] = c;
+        current_length++;
+    }
+
+    // At the end of the string. If any chars are queued up, read them.
+    result = buffer;
+    trimmed_length = current_length;
+    // Trim if applicable
+    if (trim_entries && current_length > 0) {
+        result = string_trim(result);
+        trimmed_length = string_length(result);
+    }
+    // Add new entry
+    if (trimmed_length > 0 || include_empty) {
+        trimmed_length = string_length(result);
+        entry_count++;
+    }
+
+    return entry_count;
+}
+
+void string_cleanup_split_array(char** str_array, u32 max_count) {
+    if (str_array) {
+        // Free each string.
+        for (u32 i = 0; i < max_count; ++i) {
+            string_free(str_array[i]);
+        }
+
+        // Zero the array
+        kzero_memory(str_array, sizeof(char*) * max_count);
     }
 }
 

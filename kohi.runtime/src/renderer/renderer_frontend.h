@@ -446,10 +446,10 @@ KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* st
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader.
- * @param config A constant pointer to the shader config.
+ * @param shader_resource A constant pointer to the shader shader_resource.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, const shader_config* config);
+KAPI b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, const kresource_shader* shader_resource);
 
 /**
  * @brief Destroys the given shader and releases any resources held by it.

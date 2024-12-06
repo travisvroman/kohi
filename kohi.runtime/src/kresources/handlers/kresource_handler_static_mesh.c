@@ -11,7 +11,6 @@
 #include "math/math_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
-#include "resources/resource_types.h"
 #include "strings/kname.h"
 #include "systems/asset_system.h"
 
@@ -49,17 +48,21 @@ b8 kresource_handler_static_mesh_request(struct kresource_handler* self, kresour
         static_mesh_asset_request_listener* listener = KALLOC_TYPE(static_mesh_asset_request_listener, MEMORY_TAG_RESOURCE);
         listener->mesh_resource = (kresource_static_mesh*)resource;
 
+        asset_request_info request_info = {0};
+        request_info.type = asset_info->type;
+        request_info.asset_name = asset_info->asset_name;
+        request_info.package_name = asset_info->package_name;
+        request_info.auto_release = true;
+        request_info.listener_inst = listener;
+        request_info.callback = kasset_static_mesh_on_result;
+        request_info.synchronous = false;
+        request_info.hot_reload_callback = 0; // No hot-reloading for this
+        request_info.hot_reload_context = 0;
+        request_info.import_params_size = 0;
+        request_info.import_params = 0;
+
         // Request the asset.
-        asset_system_request(
-            asset_system,
-            asset_info->type,
-            asset_info->package_name,
-            asset_info->asset_name,
-            true,
-            listener,
-            kasset_static_mesh_on_result,
-            0,  // import params size
-            0); // import params
+        asset_system_request(asset_system, request_info);
     } else {
         KERROR("Unexpected asset type in asset listing: %u", asset_info->type);
         return false;

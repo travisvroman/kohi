@@ -546,8 +546,8 @@ KAPI const char* bool_to_string(b8 b);
 
 /**
  * @brief Splits the given string by the delimiter provided and stores in the
- * provided darray. Optionally trims each entry. NOTE: A string allocation
- * occurs for each entry, and must be freed by the caller.
+ * provided darray. Optionally trims each entry.
+ * NOTE: A string allocation occurs for each entry, and MUST be freed by the caller.
  *
  * @param str The string to be split.
  * @param delimiter The character to split by.
@@ -564,7 +564,31 @@ KAPI u32 string_split(const char* str, char delimiter, char*** str_darray, b8 tr
  *
  * @param str_darray The darray to be cleaned up.
  */
-KAPI void string_cleanup_split_array(char** str_darray);
+KAPI void string_cleanup_split_darray(char** str_darray);
+
+/**
+ * @brief Splits the given string by the delimiter provided and stores in the
+ * provided fixed-size array. Optionally trims each entry.
+ * NOTE: A string allocation occurs for each entry, and MUST be freed by the caller.
+ *
+ * @param str The string to be split.
+ * @param delimiter The character to split by.
+ * @param max_count The maximum number of entries to split.
+ * @param str_darray A fixed-size array of char arrays. Must be large enough to hold max_count entries.
+ * @param trim_entries Trims each entry if true.
+ * @param include_empty Indicates if empty entries should be included.
+ * @return The number of entries yielded by the split operation.
+ */
+KAPI u32 string_nsplit(const char* str, char delimiter, u32 max_count, char** str_array, b8 trim_entries, b8 include_empty);
+
+/**
+ * @brief Cleans up string allocations in the fixed-size str_array, but does not
+ * free the array itself.
+ *
+ * @param str_darray The fixed-size array to be cleaned up.
+ * @param max_count The number of entries (and thus the size) of the fixed-size array.
+ */
+KAPI void string_cleanup_split_array(char** str_array, u32 max_count);
 
 /**
  * Appends append to source and returns a new string.

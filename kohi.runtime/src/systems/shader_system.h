@@ -45,14 +45,6 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config)
 void shader_system_shutdown(void* state);
 
 /**
- * @brief Creates a new shader with the given config.
- *
- * @param config The configuration to be used when creating the shader.
- * @return A handle to the created shader, or invalid handle on failure.
- */
-KAPI khandle shader_system_create(const shader_config* config);
-
-/**
  * @brief Reloads the given shader.
  *
  * @param shader A handle to the shader to reload.

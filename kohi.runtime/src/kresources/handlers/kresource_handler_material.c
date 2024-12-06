@@ -1,12 +1,14 @@
+#include "kresource_handler_material.h"
 
+#include <assets/kasset_types.h>
+#include <defines.h>
+#include <logger.h>
+#include <memory/kmemory.h>
+#include <serializers/kasset_material_serializer.h>
+#include <strings/kname.h>
 
-#include "assets/kasset_types.h"
-#include "defines.h"
+#include "debug/kassert.h"
 #include "kresources/kresource_types.h"
-#include "logger.h"
-#include "memory/kmemory.h"
-#include "serializers/kasset_material_serializer.h"
-#include "strings/kname.h"
 #include "systems/asset_system.h"
 #include "systems/kresource_system.h"
 
@@ -19,6 +21,7 @@ typedef struct material_resource_handler_info {
 
 static void material_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
 static void asset_to_resource(const kasset_material* asset, kresource_material* out_material);
+static void material_kasset_on_hot_reload(asset_request_result result, const struct kasset* asset, void* listener_inst);
 
 kresource* kresource_handler_material_allocate(void) {
     return (kresource*)KALLOC_TYPE(kresource_material, MEMORY_TAG_RESOURCE);
@@ -65,16 +68,20 @@ b8 kresource_handler_material_request(kresource_handler* self, kresource* resour
     typed_resource->base.state = KRESOURCE_STATE_LOADING;
 
     kresource_asset_info* asset_info = &info->assets.data[0];
-    asset_system_request(
-        self->asset_system,
-        asset_info->type,
-        asset_info->package_name,
-        asset_info->asset_name,
-        true,
-        listener_inst,
-        material_kasset_on_result,
-        0,
-        0);
+
+    asset_request_info request_info = {0};
+    request_info.type = asset_info->type;
+    request_info.asset_name = asset_info->asset_name;
+    request_info.package_name = asset_info->package_name;
+    request_info.auto_release = true;
+    request_info.listener_inst = listener_inst;
+    request_info.callback = material_kasset_on_result;
+    request_info.synchronous = false;
+    request_info.hot_reload_callback = material_kasset_on_hot_reload;
+    request_info.hot_reload_context = typed_resource;
+    request_info.import_params_size = 0;
+    request_info.import_params = 0;
+    asset_system_request(self->asset_system, request_info);
 
     return true;
 }
@@ -107,6 +114,18 @@ static void material_kasset_on_result(asset_request_result result, const struct 
     kfree(listener->request_info, sizeof(kresource_material_request_info), MEMORY_TAG_RESOURCE);
     // Free the listener itself.
     kfree(listener, sizeof(material_resource_handler_info), MEMORY_TAG_RESOURCE);
+}
+
+static void material_kasset_on_hot_reload(asset_request_result result, const struct kasset* asset, void* listener_inst) {
+    kresource_material* listener = (kresource_material*)listener_inst;
+    if (result == ASSET_REQUEST_RESULT_SUCCESS) {
+        asset_to_resource((kasset_material*)asset, listener);
+
+        // TODO: Notify the material system of the resource update.
+        KASSERT_MSG(false, "Not yet implemented");
+    } else {
+        KWARN("Hot reload was triggered for material resource '%s', but was unsuccessful. See logs for details.", kname_string_get(listener->base.name));
+    }
 }
 
 static void asset_to_resource(const kasset_material* asset, kresource_material* out_material) {

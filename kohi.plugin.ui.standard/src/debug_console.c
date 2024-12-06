@@ -37,7 +37,7 @@ b8 debug_console_consumer_write(void* inst, log_level level, const char* message
         // NOTE: The lack of cleanup on the strings is intentional
         // here because the strings need to live on so that they can
         // be accessed by this debug console. Ordinarily a cleanup
-        // via string_cleanup_split_array would be warranted.
+        // via string_cleanup_split_darray would be warranted.
         char** split_message = darray_create(char*);
         u32 count = string_split(message, '\n', &split_message, true, false);
         // Push each to the array as a new line.

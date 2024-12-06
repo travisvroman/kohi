@@ -201,7 +201,7 @@ b8 rendergraph_node_resolve(rendergraph* graph, rendergraph_node* node) {
         u32 parts_count = string_split(sink->configured_source_name, '.', &source_name_parts, true, false);
         if (parts_count != 2) {
             KERROR("node source name must contain node name and source name. Format: <node_name>.<source_name>.");
-            string_cleanup_split_array(source_name_parts);
+            string_cleanup_split_darray(source_name_parts);
             return false;
         }
 
@@ -209,7 +209,7 @@ b8 rendergraph_node_resolve(rendergraph* graph, rendergraph_node* node) {
         rendergraph_node* source_node = rendergraph_node_get(graph, source_name_parts[0]);
         if (!source_node) {
             KERROR("Unable to find source node called '%s' for sink '%s->%s'", source_name_parts[0], node->name, sink->name);
-            string_cleanup_split_array(source_name_parts);
+            string_cleanup_split_darray(source_name_parts);
             return false;
         }
 
@@ -224,7 +224,7 @@ b8 rendergraph_node_resolve(rendergraph* graph, rendergraph_node* node) {
                 // found it - verify source/sink types match.
                 if (sink->type != source->type) {
                     KERROR("Sink/source type mismatch. Sink: '%s.%s', source: '%s'", node->name, sink->name, sink->configured_source_name);
-                    string_cleanup_split_array(source_name_parts);
+                    string_cleanup_split_darray(source_name_parts);
                     return false;
                 }
 
@@ -234,14 +234,14 @@ b8 rendergraph_node_resolve(rendergraph* graph, rendergraph_node* node) {
 
                 // Notify the dependency graph of the connection.
                 dep_node_connection_add(graph->dep_graph, node->index, source_node->index);
-                string_cleanup_split_array(source_name_parts);
+                string_cleanup_split_darray(source_name_parts);
                 found = true;
                 break;
             }
         }
         if (!found) {
             KERROR("Failed to find source sink '%s.%s'. Expected source: '%s'", node->name, sink->name, sink->configured_source_name);
-            string_cleanup_split_array(source_name_parts);
+            string_cleanup_split_darray(source_name_parts);
             return false;
         }
     }

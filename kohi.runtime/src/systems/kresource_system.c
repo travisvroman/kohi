@@ -5,6 +5,7 @@
 #include "defines.h"
 #include "kresources/handlers/kresource_handler_material.h"
 #include "kresources/handlers/kresource_handler_static_mesh.h"
+#include "kresources/handlers/kresource_handler_text.h"
 #include "kresources/handlers/kresource_handler_texture.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
@@ -55,6 +56,19 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
     state->asset_system = engine_systems_get()->asset_state;
 
     // Register known handler types
+
+    // Text handler
+    {
+        kresource_handler handler = {0};
+        handler.allocate = kresource_handler_text_allocate;
+        handler.release = kresource_handler_text_release;
+        handler.request = kresource_handler_text_request;
+        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_TEXT, handler)) {
+            KERROR("Failed to register text resource handler");
+            return false;
+        }
+    }
+
     // Texture handler
     {
         kresource_handler handler = {0};
@@ -140,14 +154,14 @@ kresource* kresource_system_request(struct kresource_system_state* state, kname 
             resource_lookup* lookup = &state->lookups[i];
             if (!lookup->r) {
                 // Grab a handler for the resource type, if there is one.
-                kresource_handler* h = &state->handlers[info->type];
-                if (!h->allocate) {
+                kresource_handler* handler = &state->handlers[info->type];
+                if (!handler->allocate) {
                     KERROR("There is no handler setup for the asset type. Null/0 will be returned.");
                     return 0;
                 }
 
                 // Have the handler allocate memory for the resource.
-                lookup->r = h->allocate();
+                lookup->r = handler->allocate();
                 if (!lookup->r) {
                     KERROR("Resource handler failed to allocate resource. Null/0 will be returned.");
                     return 0;
@@ -172,7 +186,7 @@ kresource* kresource_system_request(struct kresource_system_state* state, kname 
                 lookup->reference_count = 0;
 
                 // Make the actual request.
-                b8 result = h->request(h, lookup->r, info);
+                b8 result = handler->request(handler, lookup->r, info);
                 if (result) {
                     // Increment reference count.
                     lookup->reference_count++;

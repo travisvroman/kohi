@@ -9,6 +9,7 @@
 #include "debug/kassert.h"
 #include "defines.h"
 #include "identifiers/khandle.h"
+#include "kresources/kresource_types.h"
 #include "logger.h"
 #include "math/geometry.h"
 #include "math/math_types.h"
@@ -708,8 +709,8 @@ void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, 
     KERROR("renderer_texture_prepare_for_sampling requires a valid handle to a texture. Nothing was done.");
 }
 
-b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, const shader_config* config) {
-    return state->backend->shader_create(state->backend, shader, config);
+b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, const kresource_shader* shader_resource) {
+    return state->backend->shader_create(state->backend, shader, shader_resource);
 }
 
 void renderer_shader_destroy(struct renderer_system_state* state, khandle shader) {

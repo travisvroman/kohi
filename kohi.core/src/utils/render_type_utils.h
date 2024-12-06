@@ -58,6 +58,24 @@ KAPI const char* shader_update_frequency_to_string(shader_update_frequency frequ
 /** @brief Converts the given string into a shader update frequency. Case-insensitive. */
 KAPI shader_update_frequency string_to_shader_update_frequency(const char* str);
 
+/** @brief Returns the string representation of the given cull mode. */
+KAPI const char* face_cull_mode_to_string(face_cull_mode mode);
+
+/** @brief Converts the given string to a face cull mode. */
+KAPI face_cull_mode string_to_face_cull_mode(const char* str);
+
+/** @brief Returns the string representation of the given primitive topology type. */
+KAPI const char* topology_type_to_string(primitive_topology_type_bits type);
+
+/** @brief Converts the given string to a primitive topology type. */
+KAPI primitive_topology_type_bits string_to_topology_type(const char* str);
+
+/** @brief Returns the size in bytes of the attribute type. */
+KAPI u16 size_from_shader_attribute_type(shader_attribute_type type);
+
+/** @brief Returns the size in bytes of the uniform type. */
+KAPI u16 size_from_shader_uniform_type(shader_uniform_type type);
+
 /** @brief Returns the string representation of the given material type. */
 KAPI const char* kmaterial_type_to_string(kmaterial_type type);
 

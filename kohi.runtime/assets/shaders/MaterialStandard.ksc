@@ -4,6 +4,11 @@ depth_test=true
 depth_write=true
 supports_wireframe=true
 max_groups=256
+cull_mode = "back"
+
+topology_types [
+    "triangle_strip"
+]
 
 stages = [
     {

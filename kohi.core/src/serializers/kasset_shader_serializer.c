@@ -43,6 +43,10 @@ const char* kasset_shader_serialize(const kasset* asset) {
     // max_groups
     kson_object_value_add_int(&tree.root, "max_groups", typed_asset->max_groups);
 
+    kson_object_value_add_int(&tree.root, "max_draw_ids", typed_asset->max_draw_ids);
+
+    kson_object_value_add_int(&tree.root, "supports_wireframe", typed_asset->supports_wireframe);
+
     // Depth test
     kson_object_value_add_boolean(&tree.root, "depth_test", typed_asset->depth_test);
 
@@ -55,6 +59,49 @@ const char* kasset_shader_serialize(const kasset* asset) {
     // Stencil write
     kson_object_value_add_boolean(&tree.root, "stencil_write", typed_asset->stencil_write);
 
+    // Colour read
+    kson_object_value_add_boolean(&tree.root, "colour_read", typed_asset->colour_read);
+
+    // Colour write
+    kson_object_value_add_boolean(&tree.root, "colour_write", typed_asset->colour_write);
+
+    // Cull mode
+    kson_object_value_add_string(&tree.root, "cull_mode", face_cull_mode_to_string(typed_asset->cull_mode));
+
+    // Topology types
+    {
+        kson_array topology_types_array = kson_array_create();
+        if (typed_asset->topology_types == PRIMITIVE_TOPOLOGY_TYPE_NONE_BIT) {
+            // If no types are included, default to triangle list. Bleat about it though.
+            KWARN("Incoming shader asset has no topology_types set. Defaulting to triangle_list.");
+            kson_array_value_add_string(&topology_types_array, topology_type_to_string(PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT));
+
+        } else {
+
+            // NOTE: "none" and "max" aren't valid types, so they are never written.
+            if (FLAG_GET(typed_asset->topology_types, PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT)) {
+                kson_array_value_add_string(&topology_types_array, topology_type_to_string(PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT));
+            }
+            if (FLAG_GET(typed_asset->topology_types, PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP_BIT)) {
+                kson_array_value_add_string(&topology_types_array, topology_type_to_string(PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP_BIT));
+            }
+            if (FLAG_GET(typed_asset->topology_types, PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN_BIT)) {
+                kson_array_value_add_string(&topology_types_array, topology_type_to_string(PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN_BIT));
+            }
+            if (FLAG_GET(typed_asset->topology_types, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT)) {
+                kson_array_value_add_string(&topology_types_array, topology_type_to_string(PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT));
+            }
+            if (FLAG_GET(typed_asset->topology_types, PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP_BIT)) {
+                kson_array_value_add_string(&topology_types_array, topology_type_to_string(PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP_BIT));
+            }
+            if (FLAG_GET(typed_asset->topology_types, PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT)) {
+                kson_array_value_add_string(&topology_types_array, topology_type_to_string(PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT));
+            }
+        }
+
+        kson_object_value_add_array(&tree.root, "topology_types", topology_types_array);
+    }
+
     // Stages
     {
         kson_array stages_array = kson_array_create();
@@ -63,8 +110,12 @@ const char* kasset_shader_serialize(const kasset* asset) {
             kasset_shader_stage* stage = &typed_asset->stages[i];
 
             kson_object_value_add_string(&stage_obj, "type", shader_stage_to_string(stage->type));
-            kson_object_value_add_string(&stage_obj, "source_asset_name", stage->source_asset_name);
-            kson_object_value_add_string(&stage_obj, "package_name", stage->package_name);
+            if (stage->source_asset_name) {
+                kson_object_value_add_string(&stage_obj, "source_asset_name", stage->source_asset_name);
+            }
+            if (stage->package_name) {
+                kson_object_value_add_string(&stage_obj, "package_name", stage->package_name);
+            }
 
             kson_array_value_add_object(&stages_array, stage_obj);
         }
@@ -177,6 +228,11 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
         kson_object_property_value_get_int(&tree.root, "max_groups", &max_groups);
         typed_asset->max_groups = (u16)max_groups;
 
+        // max_draw_ids
+        i64 max_draw_ids = 0;
+        kson_object_property_value_get_int(&tree.root, "max_draw_ids", &max_draw_ids);
+        typed_asset->max_draw_ids = (u16)max_draw_ids;
+
         // Depth test
         typed_asset->depth_test = false;
         kson_object_property_value_get_bool(&tree.root, "depth_test", &typed_asset->depth_test);
@@ -192,6 +248,55 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
         // Stencil write
         typed_asset->stencil_write = false;
         kson_object_property_value_get_bool(&tree.root, "stencil_write", &typed_asset->stencil_write);
+
+        // Supports wireframe
+        typed_asset->supports_wireframe = false;
+        kson_object_property_value_get_bool(&tree.root, "supports_wireframe", &typed_asset->supports_wireframe);
+
+        // Colour read.
+        typed_asset->colour_read = false;
+        kson_object_property_value_get_bool(&tree.root, "colour_read", &typed_asset->colour_read);
+
+        // Colour write.
+        typed_asset->colour_write = true; // NOTE: colour write is on by default if not specified.
+        kson_object_property_value_get_bool(&tree.root, "colour_write", &typed_asset->colour_write);
+
+        // Cull mode.
+        const char* cull_mode = 0;
+        if (kson_object_property_value_get_string(&tree.root, "cull_mode", &cull_mode) && cull_mode) {
+            typed_asset->cull_mode = string_to_face_cull_mode(cull_mode);
+        } else {
+            // Defaults to backface culling when not provided.
+            typed_asset->cull_mode = FACE_CULL_MODE_BACK;
+        }
+
+        // Topology type flags
+        kson_array topology_types_array;
+        if (kson_object_property_value_get_object(&tree.root, "topology_types", &topology_types_array)) {
+            u32 topology_type_count = 0;
+            if (!kson_array_element_count_get(&topology_types_array, &topology_type_count) || topology_type_count == 0) {
+                // If nothing exists, default to triangle list
+                typed_asset->topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
+            } else {
+                for (u32 i = 0; i < topology_type_count; ++i) {
+                    const char* topology_type_str = 0;
+                    if (!kson_array_element_value_get_string(&topology_types_array, i, &topology_type_str)) {
+                        KERROR("Possible format error - unable to extract topology type at index %u. Skipping.", i);
+                        continue;
+                    }
+                    primitive_topology_type_bits topology_type = string_to_topology_type(topology_type_str);
+                    if (topology_type == PRIMITIVE_TOPOLOGY_TYPE_NONE_BIT || topology_type >= PRIMITIVE_TOPOLOGY_TYPE_MAX_BIT) {
+                        KERROR("Invalid topology type found. See logs for details. Skipping.");
+                        continue;
+                    }
+
+                    typed_asset->topology_types = FLAG_SET(typed_asset->topology_types, topology_type, true);
+                }
+            }
+        } else {
+            // If nothing exists, default to triangle list
+            typed_asset->topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
+        }
 
         // Stages
         kson_array stages_array;

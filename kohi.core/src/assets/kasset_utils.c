@@ -152,13 +152,30 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data as
             }
         }
 
+        // Take a copy of the file watch id.
+        if (result == ASSET_REQUEST_RESULT_SUCCESS) {
+            context.asset->file_watch_id = asset_data.file_watch_id;
+        }
+
         // Send over the result.
         context.user_callback(result, context.asset, context.listener_instance);
     } else {
         // If primary file doesn't exist, try importing the source file instead.
         if (asset_data.result == VFS_REQUEST_RESULT_FILE_DOES_NOT_EXIST) {
             // Request the source asset. Can reuse the passed-in context.
-            vfs_request_asset(vfs, context.asset->package_name, context.asset->name, true, true, sizeof(asset_handler_request_context), &context, asset_data.import_params_size, asset_data.import_params, asset_handler_base_on_asset_loaded);
+            vfs_request_info request_info = {0};
+            request_info.package_name = context.asset->package_name;
+            request_info.asset_name = context.asset->name;
+            request_info.is_binary = true;
+            request_info.get_source = true;
+            request_info.context_size = sizeof(asset_handler_request_context);
+            request_info.context = &context;
+            request_info.import_params_size = asset_data.import_params_size;
+            request_info.import_params = asset_data.import_params;
+            request_info.watch_for_hot_reload = asset_data.watch_for_hot_reload;
+            request_info.vfs_callback = asset_handler_base_on_asset_loaded;
+            // FIXME: If the original request was synchronous, this probably should be too.
+            vfs_request_asset(vfs, request_info);
         } else if (asset_data.result == VFS_REQUEST_RESULT_SOURCE_FILE_DOES_NOT_EXIST) {
             KERROR("Source file does not exist to be imported. Asset handler failed to load anything for asset '%s'", kname_string_get(asset_data.asset_name));
             context.user_callback(ASSET_REQUEST_RESULT_VFS_REQUEST_FAILED, context.asset, context.listener_instance);

@@ -37,7 +37,21 @@ void asset_handler_material_request_asset(struct asset_handler* self, struct kas
     context.handler = self;
     context.listener_instance = listener_instance;
     context.user_callback = user_callback;
-    vfs_request_asset(vfs_state, asset->name, asset->package_name, false, false, sizeof(asset_handler_request_context), &context, 0, 0, asset_handler_base_on_asset_loaded);
+
+    vfs_request_info request_info = {0};
+    request_info.package_name = asset->package_name;
+    request_info.asset_name = asset->name;
+    request_info.is_binary = false;
+    request_info.get_source = false;
+    request_info.context_size = sizeof(asset_handler_request_context);
+    request_info.context = &context;
+    request_info.import_params = 0;
+    request_info.import_params_size = 0;
+    request_info.vfs_callback = asset_handler_base_on_asset_loaded;
+    // TODO: Material resource hot reloading.
+    request_info.watch_for_hot_reload = false;
+
+    vfs_request_asset(vfs_state, request_info);
 }
 
 void asset_handler_material_release_asset(struct asset_handler* self, struct kasset* asset) {

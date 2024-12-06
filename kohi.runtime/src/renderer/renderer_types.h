@@ -471,10 +471,10 @@ typedef struct renderer_backend_interface {
      *
      * @param backend A pointer to the renderer backend interface.
      * @param shader A handle to the shader.
-     * @param config A constant pointer to the shader config.
+     * @param shader_resource A constant pointer to the shader shader_resource.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct renderer_backend_interface* backend, khandle shader, const shader_config* config);
+    b8 (*shader_create)(struct renderer_backend_interface* backend, khandle shader, const kresource_shader* shader_resource);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.

@@ -600,7 +600,7 @@ typedef struct vulkan_shader {
     vulkan_shader_frequency_info per_draw_info;
 
     // Shader flags
-    shader_flag_bits flags;
+    shader_flags flags;
 
 } vulkan_shader;
 

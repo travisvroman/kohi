@@ -6,10 +6,12 @@ The items in this list are not in any particular order. This list will be update
 
 ## 0.8.0 Release
 
-- [x] KName system (string hashing)
+- [x] KName system (case-insensitve string hashing)
+- [x] KString Id system (case-sensitive string hashing)
 - [x] Virtual file system (VFS)
   - [x] Sits on top of and manages packages, doles out requests to loaded packages, etc.
 - [x] Remove geometry system
+
   - [x] Rename geometry->kgeometry
   - [x] Move creation of geometries to geometry.h/c
   - [x] Add geometry_type:
@@ -20,6 +22,232 @@ The items in this list are not in any particular order. This list will be update
     - [x] 3D_SKINNED - Used for skinned 3d geometry that changes potentially every frame, and includes bone/weight data
     - [x] 3D_DYNAMIC - Used for 3d geometry that changes often (NOTE: initially not supported)
     - [x] CUSTOM - User-defined geometry type. Vertex/index size will only be looked at for this type.
+
+- [ ] New Resource System
+
+  - [ ] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
+        New system will make requests to new Asset System asynchronously, and be responsible for all reference counting and auto-releasing.
+  - [x] Provide kresource structure which contains basic high-level items such as type, name, generation, etc.
+  - [ ] Resource type reworks
+
+    - [x] Text (Simple, generic loading of a text file)
+      - [x] Handler
+    - [ ] Binary (Simple loading of all bytes in a file)
+      - [ ] Handler
+    - [x] Textures
+      - [x] Handler - Does this also include GPU uploads? Thinking so, versus a different "gpu loader"
+    - [ ] Material
+      - [x] Handler
+      - [x] Conversion of material .kmt files to version 3.
+      - [x] Material instances
+      - [ ] Standard materials
+      - [ ] Water materials
+      - [ ] Blended materials (can move off to a future release _if_ we don't use terrains)
+    - [x] Shader
+      - [x] Handler
+      - [x] Conversion of scopes to update_frequency (global/instance/local -> per_frame/per_group/per_draw)
+    - [ ] Scene
+      - [ ] Handler
+    - [ ] Static Mesh (formerly just Mesh)
+
+      - [ ] Handler
+      - [ ] kresource_static_mesh structure
+        - [ ] holds (and owns) static_geometry structure
+
+    - [ ] Bitmap Font
+      - [ ] Resource Handler
+    - [ ] System Font
+      - [ ] Resource Handler
+    - [ ] Heightmap Terrain (formerly just Terrain)
+      - [ ] Resource Handler
+    - [ ] Sound Effect
+      - [ ] Resource Handler
+    - [ ] Music
+      - [ ] Resource Handler
+
+- [x] Split asset loading logic from Resource System to new Asset System
+  - [x] New asset system will work with asynchronous nature of VFS and automatically handle asset parsing/processing, hot-reloading and interaction with systems where necessary (i.e. texture system).
+  - [x] Provide kasset structure which contains basic high-level metadata such as name, type, size and pointer to data, as well as a general "asset state" that can be looked at by any system (i.e. Uninitialized->Initialized->Loading->Loaded->Unloading)
+  - [x] When an asset is requested, a name and callback are provided. The name and a asset-type-specific handler callback are provided to the VFS, which responds in kind when the asset is loaded. In the event more than one VFS call is required, the asset handler will be responsible for managing this and will ultimately invoke the original callback provided when the top-level asset was requested.
+- [ ] Asset packaging (kpackage)
+  - [x] Reorganize assets from testbed.assets folder to go along with the respective "module".
+  - [x] Rename all assets and asset references to use the format "<package>.<asset_type>.<name>". I.e. "Testbed.Texture.arch"
+  - [x] Setup one manifest file including a list of all these files in each "module.". Exclude "source" files (i.e. .obj and .mtl).
+  - [ ] Asset type reworks:
+    - [ ] Static meshes
+      - [ ] Rework OBJ import process to take in package name as well as make material generation optional (so we don't overwrite the hand-rolled materials);
+      - [ ] Regenerate all .ksm files.
+      - [ ] Create a "default static mesh" (named "StaticMesh_Default") which is a cube with perhaps a warning material.
+      - [x] Asset handler
+      - [x] Importer from Wavefront OBJ
+        - [x] OBJ Serializer
+      - [x] Serializer
+    - [x] Images
+      - [x] Asset handler
+      - [x] Importer
+        - [x] Common formats (.bmp, .tga, .jpg, .png)
+      - [x] Binary .kbi format
+      - [x] Serializer
+    - [ ] Shaders
+      - [x] Fix hot-reloading/change watches to be called from package/vfs
+      - [x] Convert .shadercfg file to KSON-based .ksc (Kohi Shader Config)
+      - [x] Asset handler
+      - [x] Serializer
+    - [x] Bitmap fonts
+      - [x] Rename .fnt files to .kbf (Kohi Bitmap Font)
+      - [x] Asset handler
+      - [x] Serializer
+    - [x] System fonts
+      - [x] Convert .fontcfg to KSON-based .ksf file (Kohi System Font)
+      - [x] Asset handler
+      - [x] Primary format Serializer
+    - [ ] Materials
+      - [ ] Add a default "warning" material that stands out, to use in place of a non-existent material.
+      - [x] Convert .kmt to KSON
+      - [ ] Importer from MTL directly (as opposed to with an OBJ file).
+        - [x] MTL Serializer
+      - [x] Asset handler
+      - [x] Serializer
+    - [x] Terrains -> HeightmapTerrains
+      - [x] Convert .kterrain to KSON-based .kht file (Kohi Heightmap Terrain)
+      - [x] Asset handler
+      - [x] Serializer
+    - [x] Scenes
+      - [x] Asset handler
+      - [x] Serializer
+    - [ ] Audio effects (future?)
+      - [ ] Binary container format (.kfx)
+      - [ ] Asset handler
+      - [ ] Importer
+      - [ ] Serializer
+    - [ ] Music (future?)
+      - [ ] Binary container format (.kmu)
+      - [ ] Asset handler
+      - [ ] Importer
+      - [ ] Serializer
+  - [x] Create kpackage interface in kohi.core.
+  - [x] Point kpackage to files on disk for "debug" builds.
+  - [x] Asset hot reloading
+  - [ ] Jobify VFS asset loading
+  - [ ] Manifest file generator (utility that looks at directory structure and auto-creates manifest.kson file from that)
+  - [ ] Create binary blob format (.kpackage file) and read/write.
+  - [ ] Point kpackage to .kpackage file for "release" builds.
+  - [ ] Rename all references to "mesh" in the engine to "static_mesh" to separate it from later mesh types.
+- [x] BUG: Fix release build hang on startup (creating logical device).
+- [x] BUG: Fix macOS window resizing.
+- [x] Fix release build hang on startup (creating logical device).
+- [ ] Combine duplicated platform code (such as device_pixel_ratio and callback assignments) to a general platform.c file.
+- [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
+  - [ ] Make this configurable
+- [ ] Change rendergraph to gather required resources at the beginning of a frame (i.e. global.colourbuffer from current window's render target).
+- [ ] Separate colourbuffer to its own texture separate from the swapchain/blit to swapchain image just before present.
+  - [ ] (Should probably be switchable for potential performance reasons i.e. mobile?)
+- [ ] Material system refactor
+  - [ ] Have material/texture system create the "combined" image at runtime instead of it being stored as a static asset (will make it easier to change in an editor without having to run a utility to do it).
+  - [x] Convert material configs to KSON
+  - [ ] Material hot-reloading (should do the above first)
+- [ ] Flag for toggling debug items on/off in scene.
+- [ ] Flag for toggling grid on/off in scene.
+- [ ] Water plane: Add various properties to configuration.
+- [ ] Water plane: Fix frustum culling for reflections.
+- [ ] Remove calls to deprecated geometry functions in renderer.
+- [ ] Profiling and performance pass - a few quick things to consider:
+  - [ ] Optional ability to set texture filtering to aniso, and level, or disable.
+  - [ ] Reduce draw calls
+  - [ ] Occlusion queries/blocking volumes
+- [ ] Material redux:
+  - [ ] Shading models:
+    - [ ] PBR (default now)
+    - [ ] Phong
+    - [ ] Unlit
+    - [ ] Custom (requires shader asset name OR eventually one generated by shader graph)
+  - [ ] Two-sided support
+  - [ ] Transparency flag (turning off ignores alpha on albedo). Also used for material sorting during deferred/forward passes.
+  - [ ] Additional texture channels:
+    - [ ] Emissive (PBR, Phong)
+    - [ ] Specular (scale specularity on non-metallic surfaces (0-1, default 0.5)) (PBR, Phong)
+- [x] Static-sized, dynamically-allocated, type-safe array with iterator.
+  - [x] Tests
+- [x] Static-sized, stack-allocated, type-safe array with iterator.
+  - [x] Tests
+- [x] Dynamic-sized, type-safe darray with iterator.
+  - [x] Tests
+  - [ ] Mark old darray functions as deprecated.
+- [ ] BUG: Hierarchy graph destroy does not release xforms. Should optionally do so.
+- [ ] Vulkan backend:
+  - [x] Support for separate image descriptors and sampler descriptors. Remove support for combined image sampler descriptors.
+  - [x] Add generic samplers usable everywhere (linear repeat, nearest repeat, linear border, linear clamp etc.)
+    - [ ] Add tracking to shader system as to whether these are used.
+    - [x] Default sampler uniforms to use these.
+    - [x] Add 16 sampler/texture limitation to shader system. (see required limits doc)
+  - [x] Change samplers to use khandles
+  - [x] Bubble up sampler functions to renderer frontend.
+  - [x] Remove concept of texture maps in favour of separate samplers and images
+  - [x] Change shader system to set "texture" instead of "sampler".
+  - [x] Change shader system to no longer hold string names for uniforms, but use knames instead.
+- [x] Handle refactoring
+  - [x] Convert shader system to use handles
+  - [x] Convert material system to use handles
+
+## 0.9.0 Release
+
+- [ ] Remove deprecated geometry functions in renderer.
+- [ ] Remove calls to deprecated darray functions.
+- [ ] Replace regular c arrays throughout the codebase with the new static-sized, type-safe array where it makes sense.
+- [ ] Replace all instances of old darray usage with new one (NOTE: darray_create and darray_reserve)
+- [ ] Replace all instances of typical C-style arrays and replace with new typed array from array.h
+- [ ] Refactor handling of texture_map/texture resources in Vulkan renderer.
+- [ ] Asset System
+  - [ ] Asset type reworks:
+    - [ ] Folders (Future)
+      - [ ] Create/Destroy/Rename, etc., All happens on-disk.
+      - [ ] Manifest Updates as items are moved in/out.
+    - [x] Images
+      - [ ] Importers
+        - [ ] Importer for KTX (future)
+        - [ ] Importer for PSD (future)
+    - [ ] Materials
+      - [ ] Importer from MTL directly (as opposed to with an OBJ file).
+    - [ ] Audio effects
+      - [ ] Binary container format (.kfx)
+      - [ ] Asset handler
+      - [ ] Importer
+      - [ ] Serializer
+    - [ ] Music
+      - [ ] Binary container format (.kmu)
+      - [ ] Asset handler
+      - [ ] Importer
+      - [ ] Serializer
+- [ ] Handle refactoring
+  - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
+  - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
+  - [ ] Convert lighting system to use handles.
+  - [ ] Create skybox system that uses handles.
+  - [ ] Create scene system that uses handles.
+- [ ] Break out kresource_static_mesh to be a single geometry with a single material.
+  - Import process should ask about combining meshes. If so, all objects in an OBJ/GLTF/etc. would be imported as a
+    single kresource_static_mesh. Materials would be combined into a single layered material. NOTE: This would probably
+    require a limitation somewhere on the number of materials a "imported scene" can have.
+- [ ] Rework hashtable to better handle collisions.
+- [ ] Custom cursor
+  - [ ] Hardware cursor (i.e. from the windowing system)
+  - [ ] Software cursor (i.e. a texture drawn at cursor pos)
+  - [ ] Option to set cursor image (and change on the fly)
+
+## 0.10.0 Release
+
+- [?] Move descriptor pools to be global to the backend instead of one per shader.
+- [ ] Remove deprecated darray functions.
+- [ ] Material redux:
+  - [ ] Additional texture channels:
+    - [ ] Clear coat (PBR)
+    - [ ] Clear coat roughness. (PBR)
+- [ ] Resource type reworks
+  - [ ] Scene
+    - [ ] Convert nodes->Actors.
+    - [ ] Convert attachments->ActorComponents.
+  - [ ] Extensibility for user-defined resource types.
+    - [ ] Handler?
 - [ ] Actor-ActorComponent-ActorComponentSystem
 
   - [ ] Actor: Represents the base of something that can exist or be spawned into the world. It is similar in
@@ -94,231 +322,6 @@ The items in this list are not in any particular order. This list will be update
       - Holds pointer to sound effect resource
       - Holds position
     - [ ] kactor_music
-
-- [ ] New Resource System
-
-  - [ ] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
-        New system will make requests to new Asset System asynchronously, and be responsible for all reference counting and auto-releasing.
-  - [x] Provide kresource structure which contains basic high-level items such as type, name, generation, etc.
-  - [ ] Resource type reworks
-
-    - [ ] Textures
-      - [x] Handler - Does this also include GPU uploads? Thinking so, versus a different "gpu loader"
-      - [ ] Possible elimination of texture system, as it's primary function was ref counting? What about default textures?
-    - [ ] Material
-      - [ ] Handler
-      - [x] Conversion of material .kmt files to version 3.
-      - [ ] Material instances
-    - [ ] Shader
-      - [ ] Handler
-      - [ ] Conversion of scopes to update_frequency (global/instance/local -> per_frame/per_group/per_draw)
-    - [ ] Scene
-      - [ ] Handler
-      - [ ] Convert nodes->Actors.
-      - [ ] Convert attachments->ActorComponents.
-    - [ ] Static Mesh (formerly just Mesh) (Actor-ActorComponent-ActorComponentSystem)
-
-      - [ ] Handler
-      - [ ] kresource_static_mesh structure
-        - [ ] holds (and owns) static_geometry structure
-        - [ ] Actor - see Actor-ActorComponent-ActorComponentSystem section.
-
-    - [ ] Bitmap Font
-      - [ ] Handler
-    - [ ] System Font
-      - [ ] Handler
-    - [ ] Heightmap Terrain (formerly just Terrain)
-      - [ ] Handler
-      - [ ] Actor - see Actor-ActorComponent-ActorComponentSystem section.
-    - [ ] Sound Effect
-      - [ ] Handler
-      - [ ] Actor - see Actor-ActorComponent-ActorComponentSystem section.
-    - [ ] Music
-      - [ ] Handler
-      - [ ] Actor - see Actor-ActorComponent-ActorComponentSystem section.
-    - [ ] Extensibility for user-defined resource types.
-      - [ ] Handler?
-
-- [x] Split asset loading logic from Resource System to new Asset System
-  - [x] New asset system will work with asynchronous nature of VFS and automatically handle asset parsing/processing, hot-reloading and interaction with systems where necessary (i.e. texture system).
-  - [x] Provide kasset structure which contains basic high-level metadata such as name, type, size and pointer to data, as well as a general "asset state" that can be looked at by any system (i.e. Uninitialized->Initialized->Loading->Loaded->Unloading)
-  - [ ] When an asset is requested, a name and callback are provided. The name and a asset-type-specific handler callback are provided to the VFS, which responds in kind when the asset is loaded. In the event more than one VFS call is required, the asset handler will be responsible for managing this and will ultimately invoke the original callback provided when the top-level asset was requested.
-- [ ] Asset packaging (kpackage)
-  - [x] Reorganize assets from testbed.assets folder to go along with the respective "module".
-  - [x] Rename all assets and asset references to use the format "<package>.<asset_type>.<name>". I.e. "Testbed.Texture.arch"
-    - [x] REDO this! asset_handler_request(kasset_type, kname package_name, kname asset_name). Assets that rely on other assets can optionally specify a
-          package name. VFS will first look in the same package for a asset of the right type with a match name. If not found, then iterate
-          all packages looking for one and use the first one found. If more than one package contains such an asset, the user should specify
-          the package in the asset reference. NOTE: This should use the new kname system.
-  - [x] Setup one manifest file including a list of all these files in each "module.". Exclude "source" files (i.e. .obj and .mtl).
-  - [ ] Asset type reworks:
-    - [ ] Static meshes
-      - [ ] Rework OBJ import process to take in package name as well as make material generation optional (so we don't overwrite the hand-rolled materials);
-      - [ ] Regenerate all .ksm files.
-      - [ ] Create a "default static mesh" (named "StaticMesh_Default") which is a cube with perhaps a warning material.
-      - [x] Asset handler
-      - [x] Importer from Wavefront OBJ
-        - [x] OBJ Serializer
-      - [x] Serializer
-    - [x] Images
-      - [x] Asset handler
-      - [x] Importer
-        - [x] Common formats (.bmp, .tga, .jpg, .png)
-      - [x] Binary .kbi format
-      - [x] Serializer
-    - [ ] Shaders
-      - [ ] Fix hot-reloading/change watches to be called from package/vfs
-      - [x] Convert .shadercfg file to KSON-based .ksc (Kohi Shader Config)
-      - [x] Asset handler
-      - [x] Serializer
-    - [x] Bitmap fonts
-      - [x] Rename .fnt files to .kbf (Kohi Bitmap Font)
-      - [x] Asset handler
-      - [x] Serializer
-    - [x] System fonts
-      - [x] Convert .fontcfg to KSON-based .ksf file (Kohi System Font)
-      - [x] Asset handler
-      - [x] Primary format Serializer
-    - [ ] Materials
-      - [ ] Add a default "warning" material that stands out, to use in place of a non-existent material.
-      - [x] Convert .kmt to KSON
-      - [ ] Importer from MTL directly (as opposed to with an OBJ file).
-        - [x] MTL Serializer
-      - [x] Asset handler
-      - [x] Serializer
-    - [x] Terrains -> HeightmapTerrains
-      - [x] Convert .kterrain to KSON-based .kht file (Kohi Heightmap Terrain)
-      - [x] Asset handler
-      - [x] Serializer
-    - [x] Scenes
-      - [x] Asset handler
-      - [x] Serializer
-    - [ ] Audio effects (future?)
-      - [ ] Binary container format (.kfx)
-      - [ ] Asset handler
-      - [ ] Importer
-      - [ ] Serializer
-    - [ ] Music (future?)
-      - [ ] Binary container format (.kmu)
-      - [ ] Asset handler
-      - [ ] Importer
-      - [ ] Serializer
-  - [x] Create kpackage interface in kohi.core.
-  - [x] Point kpackage to files on disk for "debug" builds.
-  - [ ] Asset hot reloading
-  - [ ] Jobify VFS asset loading
-  - [ ] Manifest file generator (utility that looks at directory structure and auto-creates manifest.kson file from that)
-  - [ ] Create binary blob format (.kpackage file) and read/write.
-  - [ ] Point kpackage to .kpackage file for "release" builds.
-  - [ ] Rename all references to "mesh" in the engine to "static_mesh" to separate it from later mesh types.
-- [x] BUG: Fix release build hang on startup (creating logical device).
-- [x] BUG: Fix macOS window resizing.
-- [x] Fix release build hang on startup (creating logical device).
-- [ ] Combine duplicated platform code (such as device_pixel_ratio and callback assignments) to a general platform.c file.
-- [ ] Split out MAX_SHADOW_CASCADE_COUNT to a global of some sort (kvar?);
-  - [ ] Make this configurable
-- [ ] Change rendergraph to gather required resources at the beginning of a frame (i.e. global.colourbuffer from current window's render target).
-- [ ] Separate colourbuffer to its own texture separate from the swapchain/blit to swapchain image just before present.
-  - [ ] (Should probably be switchable for potential performance reasons i.e. mobile?)
-- [ ] Material system refactor
-  - [ ] Have material/texture system create the "combined" image at runtime instead of it being stored as a static asset (will make it easier to change in an editor without having to run a utility to do it).
-  - [ ] Convert material configs to KSON
-  - [ ] Material hot-reloading (should do the above first)
-  - [ ] Layered materials - probably done using a set of array textures for each map type.
-- [ ] BUG: Material map declaration order should not matter in material config files, but it seemingly does.
-- [ ] Flag for toggling debug items on/off in scene.
-- [ ] Flag for toggling grid on/off in scene.
-- [ ] Water plane: Add various properties to configuration.
-- [ ] Water plane: Fix frustum culling for reflections.
-- [ ] Remove calls to deprecated geometry functions in renderer.
-- [ ] Profiling and performance pass - a few quick things to consider:
-  - [ ] Optional ability to set texture filtering to aniso, and level, or disable.
-  - [ ] Reduce draw calls
-  - [ ] Occlusion queries/blocking volumes
-- [ ] Material redux:
-  - [ ] Shading models:
-    - [ ] PBR (default now)
-    - [ ] Phong
-    - [ ] Unlit
-    - [ ] PBR Water (convert current water shader to act as material)
-    - [ ] Custom (requires shader asset name OR eventually one generated by shader graph)
-  - [ ] Two-sided support
-  - [ ] Split "combined" material map back out to Metallic(to r)/Roughness(to g)/AO(to b), instead combining them into a single texture within the renderer instead (so it only uses one sampler).
-  - [ ] Transparency flag (turning off ignores alpha on albedo). Also used for material sorting during deferred/forward passes.
-  - [ ] Additional texture channels:
-    - [ ] Emissive (PBR, Phong)
-    - [ ] Specular (scale specularity on non-metallic surfaces (0-1, default 0.5)) (PBR, Phong)
-    - [ ] Clear coat (PBR)
-    - [ ] Clear coat roughness. (PBR)
-- [x] Static-sized, dynamically-allocated, type-safe array with iterator.
-  - [x] Tests
-- [x] Static-sized, stack-allocated, type-safe array with iterator.
-  - [x] Tests
-- [x] Dynamic-sized, type-safe darray with iterator.
-  - [x] Tests
-  - [ ] Mark old darray functions as deprecated.
-- [ ] BUG: Hierarchy graph destroy does not release xforms. Should optionally do so.
-- [ ] Vulkan backend:
-  - [ ] Support for separate image descriptors and sampler descriptors. Remove support for combined image sampler descriptors.
-  - [x] Add generic samplers usable everywhere (linear repeat, nearest repeat, linear border, linear clamp etc.)
-    - [ ] Add tracking to shader system as to whether these are used.
-    - [ ] Default texture "maps" to use these.
-    - [ ] Add 16 sampler/texture limitation to shader system. (see required limits doc)
-    - [ ] Allow custom samplers to be defined in shader config.
-  - [x] Change samplers to use khandles
-  - [x] Bubble up sampler functions to renderer frontend.
-  - [ ] Remove concept of texture maps in favour of separate samplers and images
-  - [ ] Change shader system to set "texture" instead of "sampler".
-  - [ ] Change shader system to no longer hold string names for uniforms, but use knames instead.
-  - [?] Move descriptor pools to be global to the backend instead of one per shader.
-- [ ] Handle refactoring
-  - [x] Convert shader system to use handles
-  - [x] Convert material system to use handles
-
-## 0.9.0 Release
-
-- [ ] Remove deprecated geometry functions in renderer.
-- [ ] Remove calls to deprecated darray functions.
-- [ ] Replace regular c arrays throughout the codebase with the new static-sized, type-safe array where it makes sense.
-- [ ] Replace all instances of old darray usage with new one (NOTE: darray_create and darray_reserve)
-- [ ] Replace all instances of typical C-style arrays and replace with new typed array from array.h
-- [ ] Refactor handling of texture_map/texture resources in Vulkan renderer.
-- [ ] Asset System
-  - [ ] Asset type reworks:
-    - [ ] Folders (Future)
-      - [ ] Create/Destroy/Rename, etc., All happens on-disk.
-      - [ ] Manifest Updates as items are moved in/out.
-    - [x] Images
-      - [ ] Importers
-        - [ ] Importer for KTX (future)
-        - [ ] Importer for PSD (future)
-    - [ ] Materials
-      - [ ] Importer from MTL directly (as opposed to with an OBJ file).
-    - [ ] Audio effects
-      - [ ] Binary container format (.kfx)
-      - [ ] Asset handler
-      - [ ] Importer
-      - [ ] Serializer
-    - [ ] Music
-      - [ ] Binary container format (.kmu)
-      - [ ] Asset handler
-      - [ ] Importer
-      - [ ] Serializer
-- [ ] Handle refactoring
-  - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
-  - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
-  - [ ] Convert lighting system to use handles.
-  - [ ] Create skybox system that uses handles.
-  - [ ] Create scene system that uses handles.
-- [ ] Break out kresource_static_mesh to be a single geometry with a single material.
-  - Import process should ask about combining meshes. If so, all objects in an OBJ/GLTF/etc. would be imported as a
-    single kresource_static_mesh. Materials would be combined into a single layered material. NOTE: This would probably
-    require a limitation somewhere on the number of materials a "imported scene" can have.
-- [ ] Rework hashtable to better handle collisions.
-
-## 0.10.0 Release
-
-- [ ] Remove deprecated darray functions.
 
 ## Engine general:
 

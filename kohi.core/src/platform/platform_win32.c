@@ -759,12 +759,14 @@ const char* platform_dynamic_library_prefix(void) {
     return "";
 }
 
-void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback) {
+void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback, void* context) {
     state_ptr->watcher_deleted_callback = callback;
+    state_ptr->watcher_deleted_context = context;
 }
 
-void platform_register_watcher_written_callback(platform_filewatcher_file_written_callback callback) {
+void platform_register_watcher_written_callback(platform_filewatcher_file_written_callback callback, void* context) {
     state_ptr->watcher_written_callback = callback;
+    state_ptr->watcher_written_context = context;
 }
 
 void platform_register_window_closed_callback(platform_window_closed_callback callback) {
@@ -904,7 +906,7 @@ static void platform_update_watches(void) {
             if (file_handle == INVALID_HANDLE_VALUE) {
                 // This means the file has been deleted, remove from watch.
                 if (state_ptr->watcher_deleted_callback) {
-                    state_ptr->watcher_deleted_callback(f->id);
+                    state_ptr->watcher_deleted_callback(f->id, state_ptr->watcher_deleted_context);
                 } else {
                     KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_deleted_callback()");
                 }
@@ -922,7 +924,7 @@ static void platform_update_watches(void) {
                 f->last_write_time = data.ftLastWriteTime;
                 // Notify listeners.
                 if (state_ptr->watcher_written_callback) {
-                    state_ptr->watcher_written_callback(f->id);
+                    state_ptr->watcher_written_callback(f->id, state_ptr->watcher_written_context);
                 } else {
                     KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_written_callback()");
                 }

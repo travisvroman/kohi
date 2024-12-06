@@ -2,12 +2,12 @@
 #include "assets/kasset_types.h"
 #include "containers/array.h"
 #include "core/engine.h"
+#include "debug/kassert.h"
 #include "kresources/kresource_types.h"
 #include "kresources/kresource_utils.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
-#include "renderer/renderer_types.h"
 #include "strings/kname.h"
 #include "systems/asset_system.h"
 #include "systems/kresource_system.h"
@@ -24,6 +24,7 @@ typedef struct texture_resource_handler_info {
 } texture_resource_handler_info;
 
 static void texture_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
+static void texture_kasset_on_hot_reload(asset_request_result result, const struct kasset* asset, void* listener_inst);
 
 kresource* kresource_handler_texture_allocate(void) {
     return (kresource*)kallocate(sizeof(kresource_texture), MEMORY_TAG_RESOURCE);
@@ -82,16 +83,22 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
         for (array_iterator it = info->assets.begin(&info->assets.base); !it.end(&it); it.next(&it)) {
             kresource_asset_info* asset_info = it.value(&it);
             if (asset_info->type == KASSET_TYPE_IMAGE) {
-                asset_system_request(
-                    self->asset_system,
-                    asset_info->type,
-                    asset_info->package_name,
-                    asset_info->asset_name,
-                    true,
-                    listener_inst,
-                    texture_kasset_on_result,
-                    sizeof(kasset_image_import_options),
-                    &import_params);
+
+                asset_request_info request_info = {0};
+                request_info.type = asset_info->type;
+                request_info.asset_name = asset_info->asset_name;
+                request_info.package_name = asset_info->package_name;
+                request_info.auto_release = true;
+                request_info.listener_inst = listener_inst;
+                request_info.callback = texture_kasset_on_result;
+                request_info.synchronous = false;
+                request_info.hot_reload_callback = texture_kasset_on_hot_reload;
+                // TODO: Context needs to include pointer to the resource and a copy of the import params.
+                request_info.hot_reload_context = 0;
+                request_info.import_params_size = sizeof(kasset_image_import_options);
+                request_info.import_params = &import_params;
+
+                asset_system_request(self->asset_system, request_info);
             } else if (asset_info->type == KASSET_TYPE_UNKNOWN) {
                 // This means load pixel data.
                 kresource_texture_pixel_data* px = &typed_request->pixel_data.data[it.pos];
@@ -360,4 +367,8 @@ destroy_request:
     kfree(listener->request_info, sizeof(kresource_texture_request_info), MEMORY_TAG_RESOURCE);
     // Free the listener itself.
     kfree(listener, sizeof(texture_resource_handler_info), MEMORY_TAG_RESOURCE);
+}
+
+static void texture_kasset_on_hot_reload(asset_request_result result, const struct kasset* asset, void* listener_inst) {
+    KASSERT_MSG(false, "Not yet implemented.");
 }

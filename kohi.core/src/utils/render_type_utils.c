@@ -2,7 +2,9 @@
 
 #include "core_render_types.h"
 #include "debug/kassert.h"
+#include "defines.h"
 #include "logger.h"
+#include "memory/kmemory.h"
 #include "strings/kstring.h"
 
 b8 uniform_type_is_sampler(shader_uniform_type type) {
@@ -318,6 +320,152 @@ shader_update_frequency string_to_shader_update_frequency(const char* str) {
     } else {
         KERROR("Unknown shader scope '%s'. Defaulting to per-frame.", str);
         return SHADER_UPDATE_FREQUENCY_PER_FRAME;
+    }
+}
+
+const char* face_cull_mode_to_string(face_cull_mode mode) {
+    switch (mode) {
+    default:
+    case FACE_CULL_MODE_NONE:
+        return "none";
+    case FACE_CULL_MODE_FRONT:
+        return "front";
+    case FACE_CULL_MODE_BACK:
+        return "back";
+    case FACE_CULL_MODE_FRONT_AND_BACK:
+        return "front_and_back";
+    }
+}
+
+face_cull_mode string_to_face_cull_mode(const char* str) {
+    if (strings_equali(str, "front")) {
+        return FACE_CULL_MODE_FRONT;
+    } else if (strings_equali(str, "back")) {
+        return FACE_CULL_MODE_BACK;
+    } else if (strings_equali(str, "front_and_back")) {
+        return FACE_CULL_MODE_FRONT_AND_BACK;
+    } else if (strings_equali(str, "none")) {
+        return FACE_CULL_MODE_NONE;
+    } else {
+        KERROR("Unknown face cull mode '%s'. Defaulting to FACE_CULL_MODE_NONE.");
+        return FACE_CULL_MODE_NONE;
+    }
+}
+
+const char* topology_type_to_string(primitive_topology_type_bits type) {
+    switch (type) {
+    case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT:
+        return "triangle_list";
+    case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP_BIT:
+        return "triangle_strip";
+    case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN_BIT:
+        return "triangle_fan";
+    case PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT:
+        return "line_list";
+    case PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP_BIT:
+        return "line_strip";
+    case PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT:
+        return "point_list";
+    default:
+    case PRIMITIVE_TOPOLOGY_TYPE_NONE_BIT:
+        return "none";
+    }
+}
+
+primitive_topology_type_bits string_to_topology_type(const char* str) {
+
+    if (strings_equali(str, "triangle_list")) {
+        return PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
+    } else if (strings_equali(str, "triangle_strip")) {
+        return PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP_BIT;
+    } else if (strings_equali(str, "triangle_fan")) {
+        return PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN_BIT;
+    } else if (strings_equali(str, "line_list")) {
+        return PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT;
+    } else if (strings_equali(str, "line_strip")) {
+        return PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP_BIT;
+    } else if (strings_equali(str, "point_list")) {
+        return PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT;
+    } else if (strings_equali(str, "none")) {
+        return PRIMITIVE_TOPOLOGY_TYPE_NONE_BIT;
+    } else {
+        KERROR("Unrecognized topology type '%s'. Returning default of triangle_list.", str);
+        return PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
+    }
+}
+
+u16 size_from_shader_attribute_type(shader_attribute_type type) {
+    switch (type) {
+    case SHADER_ATTRIB_TYPE_FLOAT32:
+        return 4;
+    case SHADER_ATTRIB_TYPE_FLOAT32_2:
+        return 8;
+    case SHADER_ATTRIB_TYPE_FLOAT32_3:
+        return 12;
+    case SHADER_ATTRIB_TYPE_FLOAT32_4:
+        return 16;
+    case SHADER_ATTRIB_TYPE_UINT8:
+        return 1;
+    case SHADER_ATTRIB_TYPE_UINT16:
+        return 2;
+    case SHADER_ATTRIB_TYPE_UINT32:
+        return 4;
+    case SHADER_ATTRIB_TYPE_INT8:
+        return 1;
+    case SHADER_ATTRIB_TYPE_INT16:
+        return 2;
+    case SHADER_ATTRIB_TYPE_INT32:
+        return 4;
+    case SHADER_ATTRIB_TYPE_MATRIX_4:
+        return 64;
+    default:
+        KFATAL("Attribute type not handled. Check enums.");
+        return 0;
+    }
+}
+
+u16 size_from_shader_uniform_type(shader_uniform_type type) {
+    switch (type) {
+    case SHADER_UNIFORM_TYPE_FLOAT32:
+        return 4;
+    case SHADER_UNIFORM_TYPE_FLOAT32_2:
+        return 8;
+    case SHADER_UNIFORM_TYPE_FLOAT32_3:
+        return 12;
+    case SHADER_UNIFORM_TYPE_FLOAT32_4:
+        return 16;
+    case SHADER_UNIFORM_TYPE_UINT8:
+        return 1;
+    case SHADER_UNIFORM_TYPE_UINT16:
+        return 2;
+    case SHADER_UNIFORM_TYPE_UINT32:
+        return 4;
+    case SHADER_UNIFORM_TYPE_INT8:
+        return 1;
+    case SHADER_UNIFORM_TYPE_INT16:
+        return 2;
+    case SHADER_UNIFORM_TYPE_INT32:
+        return 4;
+    case SHADER_UNIFORM_TYPE_MATRIX_4:
+        return 64;
+    case SHADER_UNIFORM_TYPE_STRUCT:
+    case SHADER_UNIFORM_TYPE_CUSTOM:
+        KERROR("size_from_shader_uniform_type(): Uniform size cannot be extracted directly from struct or custom types. 0 will be returned.");
+        return 0;
+    case SHADER_UNIFORM_TYPE_TEXTURE_1D:
+    case SHADER_UNIFORM_TYPE_TEXTURE_2D:
+    case SHADER_UNIFORM_TYPE_TEXTURE_3D:
+    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE:
+    case SHADER_UNIFORM_TYPE_TEXTURE_1D_ARRAY:
+    case SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY:
+    case SHADER_UNIFORM_TYPE_TEXTURE_CUBE_ARRAY:
+    case SHADER_UNIFORM_TYPE_SAMPLER:
+        // These don't occupy any "space", so return 0.
+        return 0;
+        break;
+    default:
+        KFATAL("Uniform type not handled. Check enums.");
+        return 0;
     }
 }
 

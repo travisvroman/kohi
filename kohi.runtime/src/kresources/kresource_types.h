@@ -13,6 +13,10 @@
 typedef enum kresource_type {
     /** @brief Unassigned resource type */
     KRESOURCE_TYPE_UNKNOWN,
+    /** @brief Plain text resource type. */
+    KRESOURCE_TYPE_TEXT,
+    /** @brief Plain binary resource type. */
+    KRESOURCE_TYPE_BINARY,
     /** @brief Texture resource type. */
     KRESOURCE_TYPE_TEXTURE,
     /** @brief Material resource type. */
@@ -81,12 +85,16 @@ typedef struct kresource {
 
     /** @brief An array of tags. */
     kname* tags;
+
+    // darray of file watches, if relevant.
+    u32* asset_file_watch_ids;
 } kresource;
 
 typedef struct kresource_asset_info {
     kname asset_name;
     kname package_name;
     kasset_type type;
+    b8 watch_for_hot_reload;
 } kresource_asset_info;
 
 ARRAY_TYPE(kresource_asset_info);
@@ -101,6 +109,9 @@ typedef struct kresource_request_info {
     PFN_resource_loaded_user_callback user_callback;
     // Listener user data.
     void* listener_inst;
+    // Force the request to be synchronous, returning a loaded and ready resource immediately.
+    // NOTE: This should be used sparingly, as it is a blocking operation.
+    b8 synchronous;
 } kresource_request_info;
 
 /**
@@ -203,6 +214,50 @@ typedef struct kresource_texture_request_info {
 } kresource_texture_request_info;
 
 /**
+ * @brief A shader resource.
+ */
+typedef struct kresource_shader {
+    kresource base;
+
+    /** @brief The face cull mode to be used. Default is BACK if not supplied. */
+    face_cull_mode cull_mode;
+
+    /** @brief The topology types for the shader pipeline. See primitive_topology_type. Defaults to "triangle list" if unspecified. */
+    primitive_topology_types topology_types;
+
+    /** @brief The count of attributes. */
+    u8 attribute_count;
+    /** @brief The collection of attributes.*/
+    shader_attribute_config* attributes;
+
+    /** @brief The count of uniforms. */
+    u8 uniform_count;
+    /** @brief The collection of uniforms.*/
+    shader_uniform_config* uniforms;
+
+    /** @brief The number of stages present in the shader. */
+    u8 stage_count;
+    /** @brief The collection of stage configs. */
+    shader_stage_config* stage_configs;
+
+    /** @brief The maximum number of groups allowed. */
+    u32 max_groups;
+
+    /** @brief The maximum number of per-draw instances allowed. */
+    u32 max_per_draw_count;
+
+    /** @brief The flags set for this shader. */
+    shader_flags flags;
+} kresource_shader;
+
+/** @brief Used to request a shader resource. */
+typedef struct kresource_shader_request_info {
+    kresource_request_info base;
+    // Optionally include shader config source text to be used as if it resided in a .ksc file.
+    const char* shader_config_source_text;
+} kresource_shader_request_info;
+
+/**
  * @brief A kresource_material is really nothing more than a configuration
  * of a material to hand off to the material system. Once a material is loaded,
  * this can just be released.
@@ -257,6 +312,7 @@ typedef struct kresource_material {
     kmaterial_sampler_config* custom_samplers;
 } kresource_material;
 
+/** @brief Used to request a material resource. */
 typedef struct kresource_material_request_info {
     kresource_request_info base;
     // Optionally include source text to be used as if it resided in a .kmt file.
@@ -294,3 +350,20 @@ typedef struct kresource_static_mesh {
 typedef struct kresource_static_mesh_request_info {
     kresource_request_info base;
 } kresource_static_mesh_request_info;
+
+#define KRESOURCE_TYPE_NAME_TEXT "Text"
+
+typedef struct kresource_text {
+    kresource base;
+
+    const char* text;
+} kresource_text;
+
+#define KRESOURCE_TYPE_NAME_BINARY "Binary"
+
+typedef struct kresource_binary {
+    kresource base;
+
+    u32 size;
+    const void* bytes;
+} kresource_binary;

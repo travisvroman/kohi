@@ -97,6 +97,8 @@ typedef enum asset_request_result {
  */
 typedef void (*PFN_kasset_on_result)(asset_request_result result, const struct kasset* asset, void* listener_inst);
 
+typedef void (*PFN_kasset_on_hot_reload)(asset_request_result result, const struct kasset* asset, void* listener_inst);
+
 /**
  * @brief Imports an asset according to the provided params and the importer's internal logic.
  * NOTE: Some importers (i.e. .obj for static meshes) can also trigger imports of other assets. Those assets are immediately
@@ -167,6 +169,8 @@ typedef struct kasset {
     kasset_type type;
     /** @brief Metadata for the asset */
     kasset_metadata meta;
+    /** @brief The file watch id, if the asset is being watched. Otherwise INVALID_ID. */
+    u32 file_watch_id;
 } kasset;
 
 #define KASSET_TYPE_NAME_HEIGHTMAP_TERRAIN "HeightmapTerrain"
@@ -420,15 +424,27 @@ typedef struct kasset_shader_uniform {
     shader_update_frequency frequency;
 } kasset_shader_uniform;
 
+/**
+ * @brief Represents a shader asset, typically loaded from disk.
+ */
 typedef struct kasset_shader {
     kasset base;
-    u32 stage_count;
-    kasset_shader_stage* stages;
     b8 depth_test;
     b8 depth_write;
     b8 stencil_test;
     b8 stencil_write;
+    b8 colour_read;
+    b8 colour_write;
+    b8 supports_wireframe;
+    primitive_topology_types topology_types;
+
+    face_cull_mode cull_mode;
+
     u16 max_groups;
+    u16 max_draw_ids;
+
+    u32 stage_count;
+    kasset_shader_stage* stages;
 
     u32 attribute_count;
     kasset_shader_attribute* attributes;

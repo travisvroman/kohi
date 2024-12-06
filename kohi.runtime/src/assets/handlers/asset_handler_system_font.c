@@ -39,7 +39,19 @@ void asset_handler_system_font_request_asset(struct asset_handler* self, struct 
     context.handler = self;
     context.listener_instance = listener_instance;
     context.user_callback = user_callback;
-    vfs_request_asset(self->vfs, asset->name, asset->package_name, false, false, sizeof(asset_handler_request_context), &context, 0, 0, asset_handler_system_font_on_asset_loaded);
+
+    vfs_request_info request_info = {0};
+    request_info.package_name = asset->package_name;
+    request_info.asset_name = asset->name;
+    request_info.is_binary = false;
+    request_info.get_source = false;
+    request_info.context_size = sizeof(asset_handler_request_context);
+    request_info.context = &context;
+    request_info.import_params = 0;
+    request_info.import_params_size = 0;
+    request_info.vfs_callback = asset_handler_system_font_on_asset_loaded;
+    request_info.watch_for_hot_reload = false; // Fonts don't need hot reloading.
+    vfs_request_asset(self->vfs, request_info);
 }
 
 void asset_handler_system_font_release_asset(struct asset_handler* self, struct kasset* asset) {
@@ -109,7 +121,18 @@ static void asset_handler_system_font_on_asset_loaded(struct vfs_state* vfs, vfs
             vfs_asset_data font_file_data = {0};
             kasset_system_font* typed_asset = (kasset_system_font*)context.asset;
             // Request the asset synchronously.
-            vfs_request_asset_sync(vfs, typed_asset->ttf_asset_name, context.asset->package_name, true, false, 0, 0, 0, 0, &font_file_data);
+            vfs_request_info request_info = {0};
+            request_info.package_name = context.asset->package_name;
+            request_info.asset_name = typed_asset->ttf_asset_name;
+            request_info.is_binary = true;
+            request_info.get_source = false;
+            request_info.context_size = 0;
+            request_info.context = 0;
+            request_info.import_params = 0;
+            request_info.import_params_size = 0;
+            request_info.vfs_callback = asset_handler_system_font_on_asset_loaded;
+            request_info.watch_for_hot_reload = false; // Fonts don't need hot reloading.
+            font_file_data = vfs_request_asset_sync(vfs, request_info);
             if (font_file_data.result == VFS_REQUEST_RESULT_SUCCESS) {
                 // Take a copy of the font binary data.
                 typed_asset->font_binary_size = font_file_data.size;
@@ -117,8 +140,20 @@ static void asset_handler_system_font_on_asset_loaded(struct vfs_state* vfs, vfs
                 kcopy_memory(typed_asset->font_binary, font_file_data.bytes, font_file_data.size);
 
             } else {
+
                 // NOTE: This could mean the asset doesn't exist in this package. Try all others by sending INVALID_KNAME as the package name.
-                vfs_request_asset_sync(vfs, typed_asset->ttf_asset_name, INVALID_KNAME, true, false, 0, 0, 0, 0, &font_file_data);
+                vfs_request_info any_package_request_info = {0};
+                any_package_request_info.package_name = INVALID_KNAME;
+                any_package_request_info.asset_name = typed_asset->ttf_asset_name;
+                any_package_request_info.is_binary = true;
+                any_package_request_info.get_source = false;
+                any_package_request_info.context_size = 0;
+                any_package_request_info.context = 0;
+                any_package_request_info.import_params = 0;
+                any_package_request_info.import_params_size = 0;
+                any_package_request_info.vfs_callback = asset_handler_system_font_on_asset_loaded;
+                any_package_request_info.watch_for_hot_reload = false; // Fonts don't need hot reloading.
+                vfs_request_asset_sync(vfs, any_package_request_info);
 
                 // If it was found, take a copy of the data.
                 if (font_file_data.result == VFS_REQUEST_RESULT_SUCCESS) {
