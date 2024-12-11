@@ -145,7 +145,7 @@ KAPI b8 shader_system_texture_set(khandle shader, kname sampler_name, const kres
  * @param t A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_texture_set_arrayed(khandle shader, kname sampler_name, u32 array_index, const kresource_texture* t);
+KAPI b8 shader_system_texture_set_arrayed(khandle shader, kname uniform_name, u32 array_index, const kresource_texture* t);
 
 /**
  * @brief Sets a uniform value by location.
@@ -169,7 +169,7 @@ KAPI b8 shader_system_uniform_set_by_location(khandle shader, u16 location, cons
 KAPI b8 shader_system_uniform_set_by_location_arrayed(khandle shader, u16 location, u32 array_index, const void* value);
 
 /**
- * @brief Sets a sampler value by location.
+ * @brief Sets a texture value by location.
  *
  * @param shader A handle to the shader to update.
  * @param location The location of the uniform.
@@ -177,6 +177,17 @@ KAPI b8 shader_system_uniform_set_by_location_arrayed(khandle shader, u16 locati
  * @return True on success; otherwise false.
  */
 KAPI b8 shader_system_texture_set_by_location(khandle shader, u16 location, const struct kresource_texture* t);
+
+/**
+ * @brief Sets a texture value by location.
+ *
+ * @param shader A handle to the shader to update.
+ * @param location The location of the uniform.
+ * @param array_index The index into the uniform array, if the uniform is in fact an array. Otherwise ignored.
+ * @param value A pointer to the texture to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 shader_system_texture_set_by_location_arrayed(khandle shader, u16 location, u32 array_index, const struct kresource_texture* value);
 
 /**
  * @brief Sets a sampler value by location.
@@ -203,32 +214,31 @@ KAPI b8 shader_system_bind_frame(khandle shader);
  * instance-scoped uniforms.
  *
  * @param shader A handle to the shader to update.
- * @param instance_id The identifier of the instance to bind.
+ * @param group_id The identifier of the group to bind.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_bind_group(khandle shader, u32 instance_id);
+KAPI b8 shader_system_bind_group(khandle shader, u32 group_id);
 
 /**
  * @brief Binds the local with the given id for use. Must be done before setting
  * local-scoped uniforms.
  *
  * @param shader A handle to the shader to update.
- * @param local_id The identifier of the local to bind.
+ * @param draw_id The identifier of the per-draw resources to bind.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_bind_draw_id(khandle shader, u32 local_id);
+KAPI b8 shader_system_bind_draw_id(khandle shader, u32 draw_id);
 
 /**
- * @brief Applies global-scoped uniforms.
+ * @brief Applies per-frame uniforms.
  *
  * @param shader A handle to the shader to update.
- * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_per_frame(khandle shader, u16 generation);
+KAPI b8 shader_system_apply_per_frame(khandle shader);
 
 /**
- * @brief Applies instance-scoped uniforms.
+ * @brief Applies per-group uniforms.
  *
  * @param shader A handle to the shader to update.
  * @param generation The data generation for this frequency.
@@ -237,7 +247,7 @@ KAPI b8 shader_system_apply_per_frame(khandle shader, u16 generation);
 KAPI b8 shader_system_apply_per_group(khandle shader, u16 generation);
 
 /**
- * @brief Applies local-scoped uniforms.
+ * @brief Applies per-draw uniforms. Updates the generation pointed to.
  *
  * @param shader A handle to the shader to update.
  * @param generation The data generation for this frequency.

@@ -16,9 +16,10 @@ typedef struct sui_textbox_internal_data {
     vec2i size;
     vec4 colour;
     nine_slice nslice;
-    u32 instance_id;
-    u64 frame_number;
-    u8 draw_index;
+    u32 group_id;
+    u16 group_generation;
+    u32 draw_id;
+    u16 draw_generation;
     sui_control content_label;
     sui_control cursor;
     sui_control highlight_box;

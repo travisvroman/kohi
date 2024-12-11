@@ -44,8 +44,8 @@ typedef struct renderer_dynamic_state {
 } renderer_dynamic_state;
 
 typedef struct renderer_system_state {
-    /** @brief The current frame number. */
-    u64 frame_number;
+    /** @brief The current frame number. Rolls over about every 18 minutes at 60FPS. */
+    u16 frame_number;
     // The viewport information for the given window.
     struct viewport* active_viewport;
 
@@ -260,9 +260,9 @@ void renderer_system_shutdown(renderer_system_state* state) {
     }
 }
 
-u64 renderer_system_frame_number_get(struct renderer_system_state* state) {
+u16 renderer_system_frame_number_get(struct renderer_system_state* state) {
     if (!state) {
-        return INVALID_ID_U64;
+        return INVALID_ID_U16;
     }
     return state->frame_number;
 }
@@ -749,8 +749,8 @@ b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, khandle sh
     return state->backend->shader_bind_per_draw(state->backend, shader, draw_id);
 }
 
-b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, khandle shader, u16 generation) {
-    return state->backend->shader_apply_per_frame(state->backend, shader, generation);
+b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, khandle shader) {
+    return state->backend->shader_apply_per_frame(state->backend, shader, state->frame_number);
 }
 
 b8 renderer_shader_apply_per_group(struct renderer_system_state* state, khandle shader, u16 generation) {

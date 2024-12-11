@@ -7,10 +7,11 @@ struct geometry;
 typedef struct sui_panel_internal_data {
     vec4 rect;
     vec4 colour;
-    struct geometry* g;
-    u32 instance_id;
-    u64 frame_number;
-    u8 draw_index;
+    kgeometry g;
+    u32 group_id;
+    u16 group_generation;
+    u32 draw_id;
+    u16 draw_generation;
     b8 is_dirty;
 } sui_panel_internal_data;
 

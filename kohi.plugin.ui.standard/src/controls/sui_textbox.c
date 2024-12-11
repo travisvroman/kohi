@@ -13,13 +13,14 @@
 #include <resources/resource_types.h>
 #include <strings/kstring.h>
 #include <systems/font_system.h>
-#include <systems/geometry_system.h>
 #include <systems/shader_system.h>
 #include <systems/xform_system.h>
 
 #include "../standard_ui_system.h"
 #include "controls/sui_label.h"
 #include "controls/sui_panel.h"
+#include "standard_ui_defines.h"
+#include "strings/kname.h"
 
 static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context);
 
@@ -224,45 +225,44 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
     // Setup textbox clipping mask geometry.
     typed_data->clip_mask.reference_id = 1; // TODO: move creation/reference_id assignment.
 
-    geometry_config clip_config;
-    generate_quad_2d("textbox_clipping_box", typed_data->size.x - (corner_size.x * 2), typed_data->size.y, 0, 0, 0, 0, &clip_config);
-    typed_data->clip_mask.clip_geometry = geometry_system_acquire_from_config(clip_config, false);
+    kgeometry quad = geometry_generate_quad(typed_data->size.x - (corner_size.x * 2), typed_data->size.y, 0, 0, 0, 0, kname_create("textbox_clipping_box"));
+    if (!renderer_geometry_upload(&quad)) {
+        KERROR("sui_textbox_control_load - Failed to upload geometry quad");
+        return false;
+    }
 
     typed_data->clip_mask.render_data.model = mat4_identity();
-    // LEFTOFF: Convert this to generate just verts/indices, and upload via the new
+    // FIXME: Convert this to generate just verts/indices, and upload via the new
     // renderer api functions instead of deprecated geometry functions.
-    typed_data->clip_mask.render_data.material = 0;
     typed_data->clip_mask.render_data.unique_id = typed_data->clip_mask.reference_id;
 
-    typed_data->clip_mask.render_data.vertex_count = typed_data->clip_mask.clip_geometry->vertex_count;
-    typed_data->clip_mask.render_data.vertex_element_size = typed_data->clip_mask.clip_geometry->vertex_element_size;
-    typed_data->clip_mask.render_data.vertex_buffer_offset = typed_data->clip_mask.clip_geometry->vertex_buffer_offset;
+    typed_data->clip_mask.render_data.vertex_count = typed_data->clip_mask.clip_geometry.vertex_count;
+    typed_data->clip_mask.render_data.vertex_element_size = typed_data->clip_mask.clip_geometry.vertex_element_size;
+    typed_data->clip_mask.render_data.vertex_buffer_offset = typed_data->clip_mask.clip_geometry.vertex_buffer_offset;
 
-    typed_data->clip_mask.render_data.index_count = typed_data->clip_mask.clip_geometry->index_count;
-    typed_data->clip_mask.render_data.index_element_size = typed_data->clip_mask.clip_geometry->index_element_size;
-    typed_data->clip_mask.render_data.index_buffer_offset = typed_data->clip_mask.clip_geometry->index_buffer_offset;
+    typed_data->clip_mask.render_data.index_count = typed_data->clip_mask.clip_geometry.index_count;
+    typed_data->clip_mask.render_data.index_element_size = typed_data->clip_mask.clip_geometry.index_element_size;
+    typed_data->clip_mask.render_data.index_buffer_offset = typed_data->clip_mask.clip_geometry.index_buffer_offset;
 
     typed_data->clip_mask.render_data.diffuse_colour = vec4_zero(); // transparent;
 
     typed_data->clip_mask.clip_xform = xform_from_position((vec3){corner_size.x, 0.0f, 0.0f});
 
-    // Acquire instance resources for this control.
-    kresource_texture_map* maps[1] = {&state->atlas};
-    shader* s = shader_system_get("Shader.StandardUI");
-    /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
-    shader_instance_resource_config instance_resource_config = {0};
-    // Map count for this type is known.
-    shader_instance_uniform_texture_config atlas_texture = {0};
-    atlas_texture.kresource_texture_map_count = 1;
-    atlas_texture.kresource_texture_maps = maps;
+    // Acquire group resources for this control.
+    khandle sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME));
 
-    instance_resource_config.uniform_config_count = 1;
-    instance_resource_config.uniform_configs = &atlas_texture;
-
-    if (!renderer_shader_instance_resources_acquire(state->renderer, s, &instance_resource_config, &typed_data->instance_id)) {
-        KFATAL("Unable to acquire shader resources for textbox texture map.");
+    if (!shader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
+        KFATAL("Unable to acquire shader group resources for textbox.");
         return false;
     }
+    typed_data->group_generation = INVALID_ID_U16;
+
+    // Also acquire per-draw resources.
+    if (!shader_system_shader_per_draw_acquire(sui_shader, &typed_data->draw_id)) {
+        KFATAL("Unable to acquire shader per-draw resources for textbox.");
+        return false;
+    }
+    typed_data->draw_generation = INVALID_ID_U16;
 
     // Load up a label control to use as the text.
     if (!typed_data->content_label.load(state, &typed_data->content_label)) {
@@ -382,8 +382,6 @@ b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self
     if (typed_data->nslice.vertex_data.elements) {
         standard_ui_renderable renderable = {0};
         renderable.render_data.unique_id = self->id.uniqueid;
-        // FIXME: Do we need material here?
-        renderable.render_data.material = 0; // typed_data->nslice.g->material;
         renderable.render_data.vertex_count = typed_data->nslice.vertex_data.element_count;
         renderable.render_data.vertex_element_size = typed_data->nslice.vertex_data.element_size;
         renderable.render_data.vertex_buffer_offset = typed_data->nslice.vertex_data.buffer_offset;
@@ -393,7 +391,10 @@ b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self
         renderable.render_data.model = xform_world_get(self->xform);
         renderable.render_data.diffuse_colour = typed_data->colour;
 
-        renderable.instance_id = &typed_data->instance_id;
+        renderable.group_id = &typed_data->group_id;
+        renderable.group_generation = &typed_data->group_generation;
+        renderable.per_draw_id = &typed_data->draw_id;
+        renderable.per_draw_generation = &typed_data->draw_generation;
 
         darray_push(render_data->renderables, renderable);
     }

@@ -1,12 +1,13 @@
 #include "sui_panel.h"
+#include "standard_ui_defines.h"
 
 #include <containers/darray.h>
+#include <logger.h>
 #include <math/geometry.h>
 #include <math/kmath.h>
 #include <renderer/renderer_frontend.h>
 #include <resources/resource_types.h>
 #include <strings/kstring.h>
-#include <systems/geometry_system.h>
 #include <systems/shader_system.h>
 
 static void sui_panel_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data);
@@ -54,25 +55,26 @@ b8 sui_panel_control_load(standard_ui_state* state, struct sui_control* self) {
     generate_uvs_from_image_coords(512, 512, 73, 36, &xmax, &ymax);
 
     // Create a simple plane.
-    geometry_config ui_config = {0};
-    generate_quad_2d(self->name, typed_data->rect.width, typed_data->rect.height, xmin, xmax, ymin, ymax, &ui_config);
-    // Get UI geometry from config. NOTE: this uploads to GPU
-    typed_data->g = geometry_system_acquire_from_config(ui_config, true);
+    typed_data->g = geometry_generate_quad(typed_data->rect.width, typed_data->rect.height, xmin, xmax, ymin, ymax, kname_create(self->name));
+    if (!renderer_geometry_upload(&typed_data->g)) {
+        KERROR("sui_panel_control_load - Failed to upload geometry quad");
+        return false;
+    }
 
-    // Acquire instance resources for this control.
-    kresource_texture_map* maps[1] = {&state->atlas};
-    shader* s = shader_system_get("Shader.StandardUI");
-    /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
-    shader_instance_resource_config instance_resource_config = {0};
-    // Map count for this type is known.
-    shader_instance_uniform_texture_config atlas_texture = {0};
-    atlas_texture.kresource_texture_map_count = 1;
-    atlas_texture.kresource_texture_maps = maps;
+    khandle sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME));
+    // Acquire group resources for this control.
+    if (!shader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
+        KFATAL("Unable to acquire shader group resources for button.");
+        return false;
+    }
+    typed_data->group_generation = INVALID_ID_U16;
 
-    instance_resource_config.uniform_config_count = 1;
-    instance_resource_config.uniform_configs = &atlas_texture;
-
-    renderer_shader_instance_resources_acquire(state->renderer, s, &instance_resource_config, &typed_data->instance_id);
+    // Also acquire per-draw resources.
+    if (!shader_system_shader_per_draw_acquire(sui_shader, &typed_data->draw_id)) {
+        KFATAL("Unable to acquire shader per-draw resources for button.");
+        return false;
+    }
+    typed_data->draw_generation = INVALID_ID_U16;
 
     return true;
 }
@@ -96,20 +98,22 @@ b8 sui_panel_control_render(standard_ui_state* state, struct sui_control* self, 
     }
 
     sui_panel_internal_data* typed_data = self->internal_data;
-    if (typed_data->g) {
+    if (typed_data->g.vertices) {
         standard_ui_renderable renderable = {0};
         renderable.render_data.unique_id = self->id.uniqueid;
-        renderable.render_data.material = typed_data->g->material;
-        renderable.render_data.vertex_count = typed_data->g->vertex_count;
-        renderable.render_data.vertex_element_size = typed_data->g->vertex_element_size;
-        renderable.render_data.vertex_buffer_offset = typed_data->g->vertex_buffer_offset;
-        renderable.render_data.index_count = typed_data->g->index_count;
-        renderable.render_data.index_element_size = typed_data->g->index_element_size;
-        renderable.render_data.index_buffer_offset = typed_data->g->index_buffer_offset;
+        renderable.render_data.vertex_count = typed_data->g.vertex_count;
+        renderable.render_data.vertex_element_size = typed_data->g.vertex_element_size;
+        renderable.render_data.vertex_buffer_offset = typed_data->g.vertex_buffer_offset;
+        renderable.render_data.index_count = typed_data->g.index_count;
+        renderable.render_data.index_element_size = typed_data->g.index_element_size;
+        renderable.render_data.index_buffer_offset = typed_data->g.index_buffer_offset;
         renderable.render_data.model = xform_world_get(self->xform);
         renderable.render_data.diffuse_colour = typed_data->colour;
 
-        renderable.instance_id = &typed_data->instance_id;
+        renderable.group_id = &typed_data->group_id;
+        renderable.group_generation = &typed_data->group_generation;
+        renderable.per_draw_id = &typed_data->draw_id;
+        renderable.per_draw_generation = &typed_data->draw_generation;
 
         darray_push(render_data->renderables, renderable);
     }
@@ -134,7 +138,7 @@ b8 sui_panel_control_resize(standard_ui_state* state, struct sui_control* self, 
 
     typed_data->rect.width = new_size.x;
     typed_data->rect.height = new_size.y;
-    vertex_2d* vertices = typed_data->g->vertices;
+    vertex_2d* vertices = typed_data->g.vertices;
     vertices[1].position.y = new_size.y;
     vertices[1].position.x = new_size.x;
     vertices[2].position.y = new_size.y;
@@ -148,7 +152,7 @@ static void sui_panel_control_render_frame_prepare(standard_ui_state* state, str
     if (self) {
         sui_panel_internal_data* typed_data = self->internal_data;
         if (typed_data->is_dirty) {
-            renderer_geometry_vertex_update(typed_data->g, 0, typed_data->g->vertex_count, typed_data->g->vertices, true);
+            renderer_geometry_vertex_update(&typed_data->g, 0, typed_data->g.vertex_count, typed_data->g.vertices, true);
             typed_data->is_dirty = false;
         }
     }

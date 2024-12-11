@@ -23,6 +23,11 @@
 #define MATERIAL_DEFAULT_NAME_WATER "Material.DefaultWater"
 #define MATERIAL_DEFAULT_NAME_BLENDED "Material.DefaultBlended"
 
+#define MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT 4
+#define MATERIAL_MAX_SHADOW_CASCADES 4
+#define MATERIAL_MAX_POINT_LIGHTS 10
+#define MATERIAL_MAX_VIEWS 4
+
 struct material_system_state;
 struct frame_data;
 
@@ -35,26 +40,33 @@ typedef struct material_system_config {
     u32 max_instance_count;
 } material_system_config;
 
-typedef enum material_texture_param {
-    // Albedo for PBR, sometimes known as a "diffuse" colour. Specifies per-pixel colour.
-    MATERIAL_TEXTURE_PARAM_ALBEDO = 0,
+typedef enum material_texture_input {
+    // Forms the base colour of a material. Albedo for PBR, sometimes known as a "diffuse" colour. Specifies per-pixel colour.
+    MATERIAL_TEXTURE_INPUT_BASE_COLOUR,
     // Texture specifying per-pixel normal vector.
-    MATERIAL_TEXTURE_PARAM_NORMAL = 1,
+    MATERIAL_TEXTURE_INPUT_NORMAL,
     // Texture specifying per-pixel metallic value.
-    MATERIAL_TEXTURE_PARAM_METALLIC = 2,
+    MATERIAL_TEXTURE_INPUT_METALLIC,
     // Texture specifying per-pixel roughness value.
-    MATERIAL_TEXTURE_PARAM_ROUGHNESS = 3,
+    MATERIAL_TEXTURE_INPUT_ROUGHNESS,
     // Texture specifying per-pixel ambient occlusion value.
-    MATERIAL_TEXTURE_PARAM_AMBIENT_OCCLUSION = 4,
+    MATERIAL_TEXTURE_INPUT_AMBIENT_OCCLUSION,
     // Texture specifying per-pixel emissive value.
-    MATERIAL_TEXTURE_PARAM_EMISSIVE = 5,
+    MATERIAL_TEXTURE_INPUT_EMISSIVE,
+    // Texture specifying the reflection (only used for water materials)
+    MATERIAL_TEXTURE_INPUT_REFLECTION,
     // Texture specifying per-pixel refraction strength.
-    MATERIAL_TEXTURE_INPUT_REFRACTION = 6,
+    MATERIAL_TEXTURE_INPUT_REFRACTION,
+    // Texture specifying the reflection depth (only used for water materials)
+    MATERIAL_TEXTURE_INPUT_REFLECTION_DEPTH,
+    // Texture specifying the refraction depth.
+    MATERIAL_TEXTURE_INPUT_REFRACTION_DEPTH,
+    MATERIAL_TEXTURE_INPUT_DUDV,
     // Texture holding per-pixel metallic (r), roughness (g) and ambient occlusion (b) value.
-    MATERIAL_TEXTURE_MRA = 7,
-    // The size of the material_texture_param enumeration.
-    MATERIAL_TEXTURE_COUNT
-} material_texture_param;
+    MATERIAL_TEXTURE_INPUT_MRA,
+    // The size of the material_texture_input enumeration.
+    MATERIAL_TEXTURE_INPUT_COUNT
+} material_texture_input;
 
 /**
  * @brief A material instance, which contains handles to both
@@ -103,8 +115,8 @@ void material_system_shutdown(struct material_system_state* state);
  */
 KAPI b8 material_system_get_handle(struct material_system_state* state, kname name, khandle* out_material_handle);
 
-KAPI const kresource_texture* material_texture_get(struct material_system_state* state, khandle material, material_texture_param tex_param);
-KAPI void material_texture_set(struct material_system_state* state, khandle material, material_texture_param tex_param, const kresource_texture* texture);
+KAPI kresource_texture* material_texture_get(struct material_system_state* state, khandle material, material_texture_input tex_input);
+KAPI void material_texture_set(struct material_system_state* state, khandle material, material_texture_input tex_input, kresource_texture* texture);
 
 KAPI texture_channel material_metallic_texture_channel_get(struct material_system_state* state, khandle material);
 KAPI void material_metallic_texture_channel_set(struct material_system_state* state, khandle material, texture_channel value);
@@ -148,8 +160,8 @@ KAPI void material_refraction_enabled_set(struct material_system_state* state, k
 KAPI f32 material_refraction_scale_get(struct material_system_state* state, khandle material);
 KAPI void material_refraction_scale_set(struct material_system_state* state, khandle material, f32 value);
 
-KAPI b8 material_use_vertex_colour_as_albedo_get(struct material_system_state* state, khandle material);
-KAPI void material_use_vertex_colour_as_albedo_set(struct material_system_state* state, khandle material, b8 value);
+KAPI b8 material_use_vertex_colour_as_base_colour_get(struct material_system_state* state, khandle material);
+KAPI void material_use_vertex_colour_as_base_colour_set(struct material_system_state* state, khandle material, b8 value);
 
 /**
  * @brief Sets the given material flag's state.
@@ -195,11 +207,35 @@ KAPI b8 material_system_acquire(struct material_system_state* state, kname name,
  */
 KAPI void material_system_release(struct material_system_state* state, material_instance* instance);
 
-b8 material_system_prepare_frame(struct material_system_state* state, struct frame_data* p_frame_data);
+/**
+ * Holds internal state for per-frame data (i.e across all standard materials);
+ */
+typedef struct material_frame_data {
+    // Light space for shadow mapping. Per cascade
+    mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES];
+    mat4 projection;
+    mat4 views[MATERIAL_MAX_VIEWS];
+    vec4 view_positions[MATERIAL_MAX_VIEWS];
+    u32 render_mode;
+    f32 cascade_splits[MATERIAL_MAX_SHADOW_CASCADES];
+    f32 shadow_bias;
+    f32 delta_time;
+    f32 game_time;
+
+    kresource_texture* shadow_map_texture;
+    kresource_texture* irradiance_cubemap_textures[MATERIAL_MAX_SHADOW_CASCADES];
+} material_frame_data;
+b8 material_system_prepare_frame(struct material_system_state* state, material_frame_data mat_frame_data, struct frame_data* p_frame_data);
 
 b8 material_system_apply(struct material_system_state* state, khandle material, struct frame_data* p_frame_data);
 
-b8 material_system_apply_instance(struct material_system_state* state, const material_instance* instance, struct frame_data* p_frame_data);
+typedef struct material_instance_draw_data {
+    mat4 model;
+    vec4 clipping_plane;
+    u32 irradiance_cubemap_index;
+    u32 view_index;
+} material_instance_draw_data;
+b8 material_system_apply_instance(struct material_system_state* state, const material_instance* instance, struct material_instance_draw_data draw_data, struct frame_data* p_frame_data);
 
 /**
  * @brief Sets the given material instance flag's state.

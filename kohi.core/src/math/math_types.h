@@ -195,6 +195,16 @@ typedef struct vertex_2d {
     vec2 texcoord;
 } vertex_2d;
 
+/**
+ * @brief Represents a single vertex in 3D space with position and colour data only.
+ */
+typedef struct colour_vertex_3d {
+    /** @brief The position of the vertex. w is ignored. */
+    vec4 position;
+    /** @brief The colour of the vertex. */
+    vec4 colour;
+} colour_vertex_3d;
+
 typedef struct plane_3d {
     vec3 normal;
     f32 distance;

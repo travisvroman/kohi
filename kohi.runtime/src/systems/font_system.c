@@ -375,7 +375,7 @@ b8 font_system_bitmap_font_load(bitmap_font_config* config) {
     if (!font->atlas_texture) {
         KWARN("Failed to request bitmap font texture. Using a default texture instead, but text will not render correctly.");
         // Use default texture instead.
-        font->atlas_texture = texture_system_get_default_kresource_texture(engine_systems_get()->texture_system);
+        font->atlas_texture = texture_system_request(kname_create(DEFAULT_TEXTURE_NAME), INVALID_KNAME, 0, 0);
     }
 
     b8 result = setup_font_data(&lookup->font.resource_data->data);

@@ -291,4 +291,4 @@ KINLINE range get_aligned_range(u64 offset, u64 size, u64 granularity) {
  * @param flag The flag to set.
  * @param enabled Indicates if the flag is enabled or not.
  */
-#define FLAG_SET(flags, flag, enabled) (enabled ? (flags | flag) : (flags & ~flag))
+#define FLAG_SET(flags, flag, enabled) (flags = (enabled ? (flags | flag) : (flags & ~flag)))

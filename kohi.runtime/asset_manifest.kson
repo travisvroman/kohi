@@ -111,13 +111,13 @@ assets = [
         path = "./assets/shaders/Water_vert.glsl"
     }
     {
-        name = "Water_DUDV"
-        path = "./assets/images/Water_DUDV.kbi"
-        source_path = "./assets/images/source/Water_DUDV.png"
+        name = "Texture.DefaultWaterDUDV"
+        path = "./assets/images/Texture.DefaultWaterDUDV.kbi"
+        source_path = "./assets/images/source/Texture.DefaultWaterDUDV.png"
     }
     {
-        name = "Water_Normal"
-        path = "./assets/images/Water_Normal.kbi"
-        source_path = "./assets/images/source/Water_Normal.jpg"
+        name = "Texture.DefaultWaterNormal"
+        path = "./assets/images/Texture.DefaultWaterNormal.kbi"
+        source_path = "./assets/images/source/Texture.DefaultWaterNormal.jpg"
     }
 ]

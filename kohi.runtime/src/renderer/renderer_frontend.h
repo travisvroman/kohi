@@ -72,7 +72,7 @@ KAPI b8 renderer_system_initialize(u64* memory_requirement, struct renderer_syst
  */
 KAPI void renderer_system_shutdown(struct renderer_system_state* state);
 
-KAPI u64 renderer_system_frame_number_get(struct renderer_system_state* state);
+KAPI u16 renderer_system_frame_number_get(struct renderer_system_state* state);
 
 KAPI b8 renderer_on_window_created(struct renderer_system_state* state, struct kwindow* window);
 KAPI void renderer_on_window_destroyed(struct renderer_system_state* state, struct kwindow* window);
@@ -539,17 +539,16 @@ KAPI b8 renderer_shader_bind_per_group(struct renderer_system_state* state, khan
 KAPI b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, khandle shader, u32 draw_id);
 
 /**
- * @brief Applies global data to the uniform buffer.
+ * @brief Applies per-frame data to the uniform buffer.
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader to apply the global data for.
- * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, khandle shader, u16 generation);
+KAPI b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, khandle shader);
 
 /**
- * @brief Applies data for the currently bound instance.
+ * @brief Applies data for the currently bound group.
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader to apply the instance data for.
@@ -559,7 +558,7 @@ KAPI b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, kha
 KAPI b8 renderer_shader_apply_per_group(struct renderer_system_state* state, khandle shader, u16 generation);
 
 /**
- * @brief Triggers the upload of local uniform data to the GPU.
+ * @brief Triggers the upload of per-draw uniform data to the GPU.
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader.

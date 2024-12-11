@@ -1,29 +1,32 @@
 #include "vulkan_backend.h"
 
-#include <renderer/renderer_types.h>
-#include <utils/render_type_utils.h>
 #include <vulkan/vulkan_core.h>
+// For runtime shader compilation.
+#include <shaderc/shaderc.h>
+#include <shaderc/status.h>
 
-#include "containers/darray.h"
-#include "core/engine.h"
-#include "core/event.h"
-#include "core/frame_data.h"
-#include "core_render_types.h"
-#include "debug/kassert.h"
-#include "defines.h"
-#include "identifiers/khandle.h"
-#include "kresources/kresource_types.h"
-#include "logger.h"
-#include "math/kmath.h"
-#include "math/math_types.h"
-#include "memory/kmemory.h"
-#include "platform/platform.h"
-#include "platform/vulkan_platform.h"
-#include "renderer/renderer_frontend.h"
-#include "resources/resource_types.h"
-#include "strings/kname.h"
-#include "strings/kstring.h"
-#include "systems/texture_system.h"
+#include <containers/darray.h>
+#include <core/engine.h>
+#include <core/event.h>
+#include <core/frame_data.h>
+#include <core_render_types.h>
+#include <debug/kassert.h>
+#include <defines.h>
+#include <identifiers/khandle.h>
+#include <kresources/kresource_types.h>
+#include <logger.h>
+#include <math/kmath.h>
+#include <math/math_types.h>
+#include <memory/kmemory.h>
+#include <platform/platform.h>
+#include <platform/vulkan_platform.h>
+#include <renderer/renderer_frontend.h>
+#include <renderer/renderer_types.h>
+#include <resources/resource_types.h>
+#include <strings/kname.h>
+#include <strings/kstring.h>
+#include <utils/render_type_utils.h>
+
 #include "vulkan_command_buffer.h"
 #include "vulkan_device.h"
 #include "vulkan_image.h"
@@ -31,9 +34,6 @@
 #include "vulkan_types.h"
 #include "vulkan_utils.h"
 
-// For runtime shader compilation.
-#include <shaderc/shaderc.h>
-#include <shaderc/status.h>
 // NOTE: If wanting to trace allocations, uncomment this.
 // #ifndef KVULKAN_ALLOCATOR_TRACE
 // #define KVULKAN_ALLOCATOR_TRACE 1
@@ -2103,7 +2103,6 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     u32 attribute_count = shader_resource->attribute_count;
     u32 offset = 0;
     for (u32 i = 0; i < attribute_count; ++i) {
-        shader_attribute_config* attribute_config = &shader_resource->attributes[i];
         // Setup the new attribute.
         VkVertexInputAttributeDescription attribute;
         attribute.location = i;
@@ -2471,7 +2470,7 @@ b8 vulkan_renderer_shader_bind_per_draw(renderer_backend_interface* backend, kha
     return true;
 }
 
-b8 vulkan_renderer_shader_apply_per_frame(renderer_backend_interface* backend, khandle shader, u16 generation) {
+b8 vulkan_renderer_shader_apply_per_frame(renderer_backend_interface* backend, khandle shader, u16 renderer_frame_number) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     vulkan_shader* internal_shader = &context->shaders[shader.handle_index];
     vulkan_shader_frequency_info* frequency_info = &internal_shader->per_frame_info;
@@ -2489,7 +2488,7 @@ b8 vulkan_renderer_shader_apply_per_frame(renderer_backend_interface* backend, k
 
     if (!vulkan_descriptorset_update_and_bind(
             context,
-            generation,
+            renderer_frame_number, // Frame number is used as the generation for per-frame data.
             internal_shader,
             frequency_info,
             per_frame_state,
@@ -2516,7 +2515,6 @@ b8 vulkan_renderer_shader_apply_per_group(renderer_backend_interface* backend, k
         KERROR("This shader does not use groups.");
         return false;
     }
-    u32 image_index = get_current_image_index(context);
 
     // Obtain group data.
     vulkan_shader_frequency_state* group_state = &internal_shader->group_states[frequency_info->bound_id];
@@ -2565,7 +2563,6 @@ b8 vulkan_renderer_shader_apply_per_draw(renderer_backend_interface* backend, kh
 
     // Update local descriptor set if there are local samplers to be updated.
     if (internal_shader->per_draw_info.uniform_sampler_count > 0) {
-        u32 image_index = get_current_image_index(context);
 
         // Obtain local data.
         vulkan_shader_frequency_state* per_draw_state = &internal_shader->per_draw_states[frequency_info->bound_id];
@@ -2621,7 +2618,7 @@ static b8 sampler_create_internal(vulkan_context* context, texture_filter filter
     sampler_info.addressModeW = mode;
 
     // TODO: Fix this anywhere it's being used for a depth texture.
-    b8 use_anisotropy = context->device.features.samplerAnisotropy;
+    // b8 use_anisotropy = context->device.features.samplerAnisotropy;
     if (false) {
         // Disable anisotropy for depth texture sampling because AMD has a fit over it.
         sampler_info.anisotropyEnable = VK_FALSE;
@@ -3866,8 +3863,6 @@ static b8 setup_frequency_state(renderer_backend_interface* backend, vulkan_shad
         }
         frequency_state = &frequency_states[*out_frequency_id];
     }
-
-    const kresource_texture* default_kresource_texture = texture_system_get_default_kresource_texture(engine_systems_get()->texture_system);
 
     // Setup sampler uniform states. Only setup if the shader actually requires it.
     if (frequency_info->uniform_sampler_count > 0) {

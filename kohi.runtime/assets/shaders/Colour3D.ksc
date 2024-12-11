@@ -34,7 +34,7 @@ attributes = [
 ]
 
 uniforms = {
-    global = [
+    per_frame = [
         {
             name = "projection"
             type = "mat4"
@@ -44,9 +44,9 @@ uniforms = {
             type = "mat4"
         }
     ]
-    instance = [
+    per_group = [
     ]
-    local = [
+    per_draw = [
         {
             name = "model"
             type = "mat4"
@@ -54,8 +54,3 @@ uniforms = {
     ]
 }
 
-# Uniforms: type,scope,name
-# NOTE: For scope: 0=global, 1=instance, 2=local
-uniform=mat4,0,projection
-uniform=mat4,0,view
-uniform=mat4,2,model

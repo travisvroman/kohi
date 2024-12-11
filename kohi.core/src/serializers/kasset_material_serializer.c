@@ -20,6 +20,7 @@
 #define INPUT_AO "ao"
 #define INPUT_MRA "mra"
 #define INPUT_EMISSIVE "emissive"
+#define INPUT_DUDV "dudv"
 
 #define INPUT_MAP "map"
 #define INPUT_VALUE "value"
@@ -70,6 +71,8 @@ const char* kasset_material_serialize(const kasset* asset) {
     // Material inputs
     kson_object inputs = kson_object_create();
 
+    // Properties and maps used in all material types.
+
     // Base colour
     kson_object base_colour = kson_object_create();
     if (material->base_colour_map.resource_name) {
@@ -89,55 +92,73 @@ const char* kasset_material_serialize(const kasset* asset) {
     kson_object_value_add_boolean(&normal, INPUT_ENABLED, material->normal_enabled);
     kson_object_value_add_object(&inputs, INPUT_NORMAL, base_colour);
 
-    // Metallic
-    kson_object metallic = kson_object_create();
-    if (material->metallic_map.resource_name) {
-        const char* channel = texture_channel_to_string(material->metallic_map_source_channel);
-        add_map_obj(&base_colour, channel, &material->metallic_map);
-    } else {
-        kson_object_value_add_float(&metallic, INPUT_VALUE, material->metallic);
-    }
-    kson_object_value_add_object(&inputs, INPUT_METALLIC, metallic);
+    // Properties and maps only used in standard materials.
+    if (material->type == KMATERIAL_TYPE_STANDARD) {
+        // Metallic
+        kson_object metallic = kson_object_create();
+        if (material->metallic_map.resource_name) {
+            const char* channel = texture_channel_to_string(material->metallic_map_source_channel);
+            add_map_obj(&metallic, channel, &material->metallic_map);
+        } else {
+            kson_object_value_add_float(&metallic, INPUT_VALUE, material->metallic);
+        }
+        kson_object_value_add_object(&inputs, INPUT_METALLIC, metallic);
 
-    // Roughness
-    kson_object roughness = kson_object_create();
-    if (material->roughness_map.resource_name) {
-        const char* channel = texture_channel_to_string(material->roughness_map_source_channel);
-        add_map_obj(&base_colour, channel, &material->roughness_map);
-    } else {
-        kson_object_value_add_float(&roughness, INPUT_VALUE, material->roughness);
-    }
-    kson_object_value_add_object(&inputs, INPUT_ROUGHNESS, roughness);
+        // Roughness
+        kson_object roughness = kson_object_create();
+        if (material->roughness_map.resource_name) {
+            const char* channel = texture_channel_to_string(material->roughness_map_source_channel);
+            add_map_obj(&roughness, channel, &material->roughness_map);
+        } else {
+            kson_object_value_add_float(&roughness, INPUT_VALUE, material->roughness);
+        }
+        kson_object_value_add_object(&inputs, INPUT_ROUGHNESS, roughness);
 
-    // Roughness
-    kson_object ao = kson_object_create();
-    if (material->ambient_occlusion_map.resource_name) {
-        const char* channel = texture_channel_to_string(material->ambient_occlusion_map_source_channel);
-        add_map_obj(&base_colour, channel, &material->ambient_occlusion_map);
-    } else {
-        kson_object_value_add_float(&ao, INPUT_VALUE, material->ambient_occlusion);
-    }
-    kson_object_value_add_boolean(&ao, INPUT_ENABLED, material->ambient_occlusion_enabled);
-    kson_object_value_add_object(&inputs, INPUT_AO, ao);
+        // Roughness
+        kson_object ao = kson_object_create();
+        if (material->ambient_occlusion_map.resource_name) {
+            const char* channel = texture_channel_to_string(material->ambient_occlusion_map_source_channel);
+            add_map_obj(&ao, channel, &material->ambient_occlusion_map);
+        } else {
+            kson_object_value_add_float(&ao, INPUT_VALUE, material->ambient_occlusion);
+        }
+        kson_object_value_add_boolean(&ao, INPUT_ENABLED, material->ambient_occlusion_enabled);
+        kson_object_value_add_object(&inputs, INPUT_AO, ao);
 
-    // Metallic/roughness/ao combined value (mra)
-    kson_object mra = kson_object_create();
-    if (material->mra_map.resource_name) {
-        add_map_obj(&base_colour, 0, &material->mra_map);
-    } else {
-        kson_object_value_add_vec3(&mra, INPUT_VALUE, material->mra);
-    }
-    kson_object_value_add_object(&inputs, INPUT_MRA, mra);
+        // Metallic/roughness/ao combined value (mra)
+        kson_object mra = kson_object_create();
+        if (material->mra_map.resource_name) {
+            add_map_obj(&mra, 0, &material->mra_map);
+        } else {
+            kson_object_value_add_vec3(&mra, INPUT_VALUE, material->mra);
+        }
+        kson_object_value_add_object(&inputs, INPUT_MRA, mra);
 
-    // Emissive
-    kson_object emissive = kson_object_create();
-    if (material->emissive_map.resource_name) {
-        add_map_obj(&base_colour, 0, &material->emissive_map);
-    } else {
-        kson_object_value_add_vec4(&emissive, INPUT_VALUE, material->emissive);
+        // Emissive
+        kson_object emissive = kson_object_create();
+        if (material->emissive_map.resource_name) {
+            add_map_obj(&emissive, 0, &material->emissive_map);
+        } else {
+            kson_object_value_add_vec4(&emissive, INPUT_VALUE, material->emissive);
+        }
+        kson_object_value_add_boolean(&emissive, INPUT_ENABLED, material->emissive_enabled);
+        kson_object_value_add_object(&inputs, INPUT_EMISSIVE, emissive);
     }
-    kson_object_value_add_boolean(&emissive, INPUT_ENABLED, material->emissive_enabled);
-    kson_object_value_add_object(&inputs, INPUT_EMISSIVE, emissive);
+
+    // Properties only used in water materials.
+    if (material->type == KMATERIAL_TYPE_WATER) {
+        // Top-level material properties.
+        kson_object_value_add_float(&tree.root, "tiling", material->tiling);
+        kson_object_value_add_float(&tree.root, "wave_strength", material->wave_strength);
+        kson_object_value_add_float(&tree.root, "wave_speed", material->wave_speed);
+
+        // Besides normal, DUDV is also configurable.
+        kson_object dudv = kson_object_create();
+        if (material->dudv_map.resource_name) {
+            add_map_obj(&base_colour, 0, &material->dudv_map);
+            kson_object_value_add_object(&inputs, INPUT_DUDV, dudv);
+        }
+    }
 
     // Samplers
     if (material->custom_samplers && material->custom_sampler_count) {
@@ -252,6 +273,20 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
         out_material->use_vertex_colour_as_base_colour = false;
     }
 
+    // Properties only used in water materials.
+    if (out_material->type == KMATERIAL_TYPE_WATER) {
+        // Top-level material properties - use defaults if not provided.
+        if (!kson_object_property_value_get_float(&tree.root, "tiling", &out_material->tiling)) {
+            out_material->tiling = 0.25f;
+        }
+        if (!kson_object_property_value_get_float(&tree.root, "wave_strength", &out_material->wave_strength)) {
+            out_material->wave_strength = 0.02f;
+        }
+        if (!kson_object_property_value_get_float(&tree.root, "wave_speed", &out_material->wave_speed)) {
+            out_material->wave_speed = 0.03f;
+        }
+    }
+
     // Extract inputs. The array of inputs is required, but the actual inputs themselves are optional.
     // While technically this means no inputs could be provided, should probably warn about it since it
     // doesn't make much actual sense.
@@ -268,42 +303,55 @@ b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
                 input_count++;
             }
 
-            // mra
+            // normal
             if (extract_input_map_channel_or_vec3(&inputs_obj, INPUT_NORMAL, &out_material->normal_enabled, &out_material->normal_map, &out_material->normal, (vec3){0.0f, 0.0f, 1.0f})) {
                 // Only count values actually included in config, as a validation check later.
                 input_count++;
             }
 
-            // mra
-            if (extract_input_map_channel_or_vec3(&inputs_obj, "mra", 0, &out_material->mra_map, &out_material->mra, (vec3){0.0f, 0.5f, 1.0f})) {
-                // Only count values actually included in config, as a validation check later.
-                input_count++;
-                // Flag to use MRA
-                out_material->use_mra = true;
+            // Inputs only used in standard materials.
+            if (out_material->type == KMATERIAL_TYPE_STANDARD) {
+                // mra
+                if (extract_input_map_channel_or_vec3(&inputs_obj, "mra", 0, &out_material->mra_map, &out_material->mra, (vec3){0.0f, 0.5f, 1.0f})) {
+                    // Only count values actually included in config, as a validation check later.
+                    input_count++;
+                    // Flag to use MRA
+                    out_material->use_mra = true;
+                }
+
+                // metallic
+                if (extract_input_map_channel_or_float(&inputs_obj, "metallic", 0, &out_material->metallic_map, &out_material->metallic_map_source_channel, &out_material->metallic, 0.0f)) {
+                    // Only count values actually included in config, as a validation check later.
+                    input_count++;
+                }
+
+                // roughness
+                if (extract_input_map_channel_or_float(&inputs_obj, "roughness", 0, &out_material->roughness_map, &out_material->roughness_map_source_channel, &out_material->roughness, 0.5f)) {
+                    // Only count values actually included in config, as a validation check later.
+                    input_count++;
+                }
+
+                // ao
+                if (extract_input_map_channel_or_float(&inputs_obj, "ao", &out_material->ambient_occlusion_enabled, &out_material->ambient_occlusion_map, &out_material->ambient_occlusion_map_source_channel, &out_material->ambient_occlusion, 1.0f)) {
+                    // Only count values actually included in config, as a validation check later.
+                    input_count++;
+                }
+
+                // emissive
+                if (extract_input_map_channel_or_vec4(&inputs_obj, "emissive", &out_material->emissive_enabled, &out_material->emissive_map, &out_material->emissive, vec4_zero())) {
+                    // Only count values actually included in config, as a validation check later.
+                    input_count++;
+                }
             }
 
-            // metallic
-            if (extract_input_map_channel_or_float(&inputs_obj, "metallic", 0, &out_material->metallic_map, &out_material->metallic_map_source_channel, &out_material->metallic, 0.0f)) {
-                // Only count values actually included in config, as a validation check later.
-                input_count++;
-            }
+            // Inputs only used in water materials.
+            if (out_material->type == KMATERIAL_TYPE_WATER) {
 
-            // roughness
-            if (extract_input_map_channel_or_float(&inputs_obj, "roughness", 0, &out_material->roughness_map, &out_material->roughness_map_source_channel, &out_material->roughness, 0.5f)) {
-                // Only count values actually included in config, as a validation check later.
-                input_count++;
-            }
-
-            // ao
-            if (extract_input_map_channel_or_float(&inputs_obj, "ao", &out_material->ambient_occlusion_enabled, &out_material->ambient_occlusion_map, &out_material->ambient_occlusion_map_source_channel, &out_material->ambient_occlusion, 1.0f)) {
-                // Only count values actually included in config, as a validation check later.
-                input_count++;
-            }
-
-            // emissive
-            if (extract_input_map_channel_or_vec4(&inputs_obj, "emissive", &out_material->emissive_enabled, &out_material->emissive_map, &out_material->emissive, vec4_zero())) {
-                // Only count values actually included in config, as a validation check later.
-                input_count++;
+                // Besides normal, DUDV is also configurable.
+                if (extract_input_map_channel_or_vec4(&inputs_obj, INPUT_DUDV, 0, &out_material->dudv_map, 0, vec4_zero())) {
+                    // Only count values actually included in config, as a validation check later.
+                    input_count++;
+                }
             }
 
             if (input_count < 1) {
@@ -395,15 +443,19 @@ static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, cons
             kson_object_property_value_get_bool(&input, INPUT_ENABLED, out_enabled);
         }
         b8 has_map = kson_object_property_value_get_object(&input, INPUT_MAP, &map_obj);
-        b8 has_value = kson_object_property_value_get_float(&input, INPUT_VALUE, out_value);
+        b8 has_value = out_value ? kson_object_property_value_get_float(&input, INPUT_VALUE, out_value) : false;
         if (has_map && has_value) {
             KWARN("Input '%s' specified both a value and a map. The map will be used.", input_name);
-            *out_value = default_value;
+            if (out_value) {
+                *out_value = default_value;
+            }
             has_value = false;
             input_found = true;
         } else if (!has_map && !has_value) {
             KWARN("Input '%s' specified neither a value nor a map. A default value will be used.", input_name);
-            *out_value = default_value;
+            if (out_value) {
+                *out_value = default_value;
+            }
             has_value = true;
         } else {
             // Valid case where only a map OR value was provided. Only count provided inputs.
@@ -418,7 +470,9 @@ static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, cons
         }
     } else {
         // If nothing is specified, use the default for this.
-        *out_value = default_value;
+        if (out_value) {
+            *out_value = default_value;
+        }
     }
 
     return input_found;
@@ -433,15 +487,19 @@ static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const
             kson_object_property_value_get_bool(&input, INPUT_ENABLED, out_enabled);
         }
         b8 has_map = kson_object_property_value_get_object(&input, INPUT_MAP, &map_obj);
-        b8 has_value = kson_object_property_value_get_vec4(&input, INPUT_VALUE, out_value);
+        b8 has_value = out_value ? kson_object_property_value_get_vec4(&input, INPUT_VALUE, out_value) : false;
         if (has_map && has_value) {
             KWARN("Input '%s' specified both a value and a map. The map will be used.", input_name);
-            *out_value = default_value;
+            if (out_value) {
+                *out_value = default_value;
+            }
             has_value = false;
             input_found = true;
         } else if (!has_map && !has_value) {
             KWARN("Input '%s' specified neither a value nor a map. A default value will be used.", input_name);
-            *out_value = default_value;
+            if (out_value) {
+                *out_value = default_value;
+            }
             has_value = true;
         } else {
             // Valid case where only a map OR value was provided. Only count provided inputs.
@@ -456,7 +514,9 @@ static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const
         }
     } else {
         // If nothing is specified, use the default for this.
-        *out_value = default_value;
+        if (out_value) {
+            *out_value = default_value;
+        }
     }
 
     return input_found;
@@ -471,15 +531,19 @@ static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const
             kson_object_property_value_get_bool(&input, INPUT_ENABLED, out_enabled);
         }
         b8 has_map = kson_object_property_value_get_object(&input, INPUT_MAP, &map_obj);
-        b8 has_value = kson_object_property_value_get_vec3(&input, INPUT_VALUE, out_value);
+        b8 has_value = out_value ? kson_object_property_value_get_vec3(&input, INPUT_VALUE, out_value) : false;
         if (has_map && has_value) {
             KWARN("Input '%s' specified both a value and a map. The map will be used.", input_name);
-            *out_value = default_value;
+            if (out_value) {
+                *out_value = default_value;
+            }
             has_value = false;
             input_found = true;
         } else if (!has_map && !has_value) {
             KWARN("Input '%s' specified neither a value nor a map. A default value will be used.", input_name);
-            *out_value = default_value;
+            if (out_value) {
+                *out_value = default_value;
+            }
             has_value = true;
         } else {
             // Valid case where only a map OR value was provided. Only count provided inputs.
@@ -494,7 +558,9 @@ static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const
         }
     } else {
         // If nothing is specified, use the default for this.
-        *out_value = default_value;
+        if (out_value) {
+            *out_value = default_value;
+        }
     }
 
     return input_found;

@@ -17,12 +17,13 @@ typedef struct texture_system_state {
     texture_system_config config;
 
     kresource_texture* default_kresource_texture;
-    kresource_texture* default_kresource_diffuse_texture;
+    kresource_texture* default_kresource_base_colour_texture;
     kresource_texture* default_kresource_specular_texture;
     kresource_texture* default_kresource_normal_texture;
-    kresource_texture* default_kresource_combined_texture;
+    kresource_texture* default_kresource_mra_texture;
     kresource_texture* default_kresource_cube_texture;
-    kresource_texture* default_kresource_terrain_texture;
+    kresource_texture* default_kresource_water_normal_texture;
+    kresource_texture* default_kresource_water_dudv_texture;
 
     // A convenience pointer to the renderer system state.
     struct renderer_system_state* renderer;
@@ -68,7 +69,7 @@ static b8 create_default_textures(texture_system_state* state);
 static void release_default_textures(texture_system_state* state);
 static void increment_generation(kresource_texture* t);
 static void invalidate_texture(kresource_texture* t);
-static b8 texture_system_is_default_texture(kresource_texture* t);
+static b8 is_default_texture(texture_system_state* state, kresource_texture* t);
 
 static kresource_texture* default_texture_by_name(texture_system_state* state, kname name);
 static kresource_texture* request_writeable_arrayed(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, kresource_texture_type type, u16 array_size, b8 is_depth, b8 multiframe_buffering);
@@ -293,14 +294,7 @@ void texture_system_release_resource(kresource_texture* t) {
     texture_system_state* state = engine_systems_get()->texture_system;
 
     // Do nothing if this is a default texture.
-    if (
-        t->base.name == state->default_kresource_texture->base.name ||
-        t->base.name == state->default_kresource_diffuse_texture->base.name ||
-        t->base.name == state->default_kresource_specular_texture->base.name ||
-        t->base.name == state->default_kresource_normal_texture->base.name ||
-        t->base.name == state->default_kresource_combined_texture->base.name ||
-        t->base.name == state->default_kresource_cube_texture->base.name ||
-        t->base.name == state->default_kresource_terrain_texture->base.name) {
+    if (is_default_texture(state, t)) {
         return;
     }
 
@@ -345,206 +339,19 @@ b8 texture_system_write_data(kresource_texture* t, u32 offset, u32 size, void* d
     KERROR("%s called before texture system initialization! Null pointer returned.", func_name); \
     return 0;
 
-static b8 texture_system_is_default_texture(kresource_texture* t) {
+static b8 is_default_texture(texture_system_state* state, kresource_texture* t) {
     if (!state_ptr) {
         return false;
     }
-    return (t == state_ptr->default_kresource_texture) ||
-           (t == state_ptr->default_kresource_diffuse_texture) ||
-           (t == state_ptr->default_kresource_normal_texture) ||
-           (t == state_ptr->default_kresource_specular_texture) ||
-           (t == state_ptr->default_kresource_combined_texture) ||
-           (t == state_ptr->default_kresource_terrain_texture) ||
-           (t == state_ptr->default_kresource_cube_texture);
+    return (t == state->default_kresource_texture) ||
+           (t == state->default_kresource_base_colour_texture) ||
+           (t == state->default_kresource_specular_texture) ||
+           (t == state->default_kresource_normal_texture) ||
+           (t == state->default_kresource_mra_texture) ||
+           (t == state->default_kresource_cube_texture) ||
+           (t == state->default_kresource_water_normal_texture) ||
+           (t == state->default_kresource_water_dudv_texture);
 }
-
-const kresource_texture* texture_system_get_default_kresource_texture(struct texture_system_state* state) {
-    return state->default_kresource_texture;
-}
-
-const kresource_texture* texture_system_get_default_kresource_diffuse_texture(struct texture_system_state* state) {
-    return state->default_kresource_diffuse_texture;
-}
-
-const kresource_texture* texture_system_get_default_kresource_specular_texture(struct texture_system_state* state) {
-    return state->default_kresource_specular_texture;
-}
-
-const kresource_texture* texture_system_get_default_kresource_normal_texture(struct texture_system_state* state) {
-    return state->default_kresource_normal_texture;
-}
-
-const kresource_texture* texture_system_get_default_kresource_combined_texture(struct texture_system_state* state) {
-    return state->default_kresource_combined_texture;
-}
-
-const kresource_texture* texture_system_get_default_kresource_cube_texture(struct texture_system_state* state) {
-    return state->default_kresource_cube_texture;
-}
-
-const kresource_texture* texture_system_get_default_kresource_terrain_texture(struct texture_system_state* state) {
-    return state->default_kresource_terrain_texture;
-}
-
-khandle texture_system_resource_get_internal_or_default(const kresource_texture* t, u32* out_generation) {
-    if (!t || !out_generation) {
-        return khandle_invalid();
-    }
-    texture_system_state* state = engine_systems_get()->texture_system;
-
-    khandle tex_handle = t->renderer_texture_handle;
-
-    // Texture isn't loaded yet, use a default.
-    if (t->base.generation == INVALID_ID) {
-        // Texture generations are always invalid for default textures, so
-        // check first if already using one.
-        // TODO: Default texture for kresource_texture
-        // if (!texture_system_is_default_texture(t)) {
-
-        // If not using one, grab the default by type. This is only here as a failsafe
-        // and to be used while assets are loading.
-        switch (t->type) {
-        case TEXTURE_TYPE_2D:
-            tex_handle = texture_system_get_default_kresource_texture(state)->renderer_texture_handle;
-            break;
-        case TEXTURE_TYPE_2D_ARRAY:
-            // TODO: Making the assumption this is a terrain.
-            // Should probably acquire a new default texture with the
-            // corresponding number of layers instead.
-            tex_handle = texture_system_get_default_kresource_terrain_texture(state)->renderer_texture_handle;
-            break;
-        case TEXTURE_TYPE_CUBE:
-            tex_handle = texture_system_get_default_kresource_cube_texture(state)->renderer_texture_handle;
-            break;
-        default:
-            KWARN("Texture system failed to determine texture type while getting internal data. Falling back to 2D.");
-            tex_handle = texture_system_get_default_kresource_texture(state)->renderer_texture_handle;
-            break;
-        }
-        //}
-
-        // Since using a default texture, set the outward generation to invalid id
-        *out_generation = INVALID_ID;
-
-    } else {
-        // Set the actual texture generation.
-        *out_generation = t->base.generation;
-    }
-
-    return tex_handle;
-}
-
-/* static b8 create_and_upload_texture(texture* t, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, u32 offset, u8* pixels) {
-    // Setup basic texture properties.
-    t->width = width;
-    t->height = height;
-    t->channel_count = channel_count;
-    t->flags = flags;
-    t->type = type;
-    t->mip_levels = mip_levels;
-    t->array_size = array_size;
-
-    // Take a copy of the name.
-    t->name = string_duplicate(name);
-
-    // Acquire backing renderer resources.
-    if (!renderer_texture_resources_acquire(state_ptr->renderer, t->name, t->type, t->width, t->height, t->channel_count, t->mip_levels, t->array_size, t->flags, &t->renderer_texture_handle)) {
-        string_free(t->name);
-        KERROR("Failed to acquire renderer resources for default texture '%s'. See logs for details.", name);
-
-        // invalidate_texture
-        kzero_memory(t, sizeof(texture));
-        t->generation = INVALID_ID_U8;
-        t->renderer_texture_handle = khandle_invalid();
-        // invalidate_texture(t);
-        return false;
-    }
-
-    // Upload the texture data.
-    u32 size = t->width * t->height * t->channel_count * t->array_size;
-    if (!renderer_texture_write_data(state_ptr->renderer, t->renderer_texture_handle, 0, size, pixels)) {
-        KERROR("Failed to write texture data for default texture '%s'", name);
-        string_free(t->name);
-        t->name = 0;
-        // Since this failed, make sure to release the texture's backing renderer resources.
-        renderer_texture_resources_release(state_ptr->renderer, &t->renderer_texture_handle);
-        // invalidate_texture
-        kzero_memory(t, sizeof(texture));
-        t->generation = INVALID_ID_U8;
-        t->renderer_texture_handle = khandle_invalid();
-        // invalidate_texture(t);
-
-        return false;
-    }
-
-    if (texture_system_is_default_texture(t)) {
-        // Default textures always have an invalid generation.
-        t->generation = INVALID_ID_U8;
-    } else {
-        // TODO: Check for upload success before incrementing. If successful (or pending success on frame workload),
-        // update texture generation.
-        //
-        // increment_generation(t);
-        t->generation++;
-    }
-
-    return true;
-} */
-
-/* static b8 create_default_texture(texture* t, u8* pixels, u32 tex_dimension, const char* name) {
-    // Acquire internal texture resources and upload to GPU.
-    return create_and_upload_texture(t, name, TEXTURE_TYPE_2D, tex_dimension, tex_dimension, 4, 1, 1, 0, 0, pixels);
-} */
-
-/* static b8 create_default_cube_texture(texture* t, const char* name) {
-    const u32 tex_dimension = 16;
-    const u32 channels = 4;
-    const u32 layers = 6; // one per side.
-    const u32 pixel_count = tex_dimension * tex_dimension;
-    u8 cube_side_pixels[16 * 16 * 4];
-    kset_memory(cube_side_pixels, 255, sizeof(u8) * pixel_count * channels);
-
-    // Each pixel.
-    for (u64 row = 0; row < tex_dimension; ++row) {
-        for (u64 col = 0; col < tex_dimension; ++col) {
-            u64 index = (row * tex_dimension) + col;
-            u64 index_bpp = index * channels;
-            if (row % 2) {
-                if (col % 2) {
-                    cube_side_pixels[index_bpp + 1] = 0;
-                    cube_side_pixels[index_bpp + 2] = 0;
-                }
-            } else {
-                if (!(col % 2)) {
-                    cube_side_pixels[index_bpp + 1] = 0;
-                    cube_side_pixels[index_bpp + 2] = 0;
-                }
-            }
-        }
-    }
-
-    // Copy the image side data (same on all sides) to the relevant portion of the pixel array.
-    u64 layer_size = sizeof(u8) * tex_dimension * tex_dimension * channels;
-    u64 image_size = layer_size * layers;
-    u8* pixels = kallocate(image_size, MEMORY_TAG_ARRAY);
-    for (u8 i = 0; i < layers; ++i) {
-        kcopy_memory(pixels + layer_size * i, cube_side_pixels, layer_size);
-    }
-
-    // Acquire internal texture resources and upload to GPU.
-    b8 result = create_and_upload_texture(t, name, TEXTURE_TYPE_CUBE, tex_dimension, tex_dimension, channels, 1, layers, 0, 0, pixels);
-
-    // Cleanup pixels array.
-    kfree(pixels, image_size, MEMORY_TAG_ARRAY);
-    pixels = 0;
-
-    return result;
-} */
-
-/* static b8 create_default_layered_texture(texture* t, u32 layer_count, u8* all_layer_pixels, u32 tex_dimension, const char* name) {
-    // Acquire internal texture resources and upload to GPU.
-    return create_and_upload_texture(t, name, TEXTURE_TYPE_2D_ARRAY, tex_dimension, tex_dimension, 4, 1, layer_count, 0, 0, all_layer_pixels);
-} */
 
 kresource_texture* create_default_kresource_texture(texture_system_state* state, kname name, kresource_texture_type type, u32 tex_dimension, u8 layer_count, u8 channel_count, u32 pixel_array_size, u8* pixels) {
     kresource_texture_request_info request = {0};
@@ -612,9 +419,9 @@ static b8 create_default_textures(texture_system_state* state) {
         }
     }
 
-    // Diffuse texture.
+    // Base colour texture.
     {
-        KTRACE("Creating default diffuse texture...");
+        KTRACE("Creating default base colour texture...");
 
         u8 diff_pixels[16 * 16 * 4];
         // Default diffuse map is all white.
@@ -622,9 +429,9 @@ static b8 create_default_textures(texture_system_state* state) {
         // Request new resource texture.
 
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_diffuse_texture = create_default_kresource_texture(state, kname_create(DEFAULT_DIFFUSE_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, 1, channels, pixel_array_size, diff_pixels);
-        if (!state->default_kresource_diffuse_texture) {
-            KERROR("Failed to request resources for default diffuse texture");
+        state->default_kresource_base_colour_texture = create_default_kresource_texture(state, kname_create(DEFAULT_BASE_COLOUR_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, 1, channels, pixel_array_size, diff_pixels);
+        if (!state->default_kresource_base_colour_texture) {
+            KERROR("Failed to request resources for default base colour texture");
             return false;
         }
     }
@@ -657,8 +464,8 @@ static b8 create_default_textures(texture_system_state* state) {
                 u64 index = (row * 16) + col;
                 u64 index_bpp = index * channels;
                 // Set blue, z-axis by default and alpha.
-                normal_pixels[index_bpp + 0] = 128;
-                normal_pixels[index_bpp + 1] = 128;
+                normal_pixels[index_bpp + 2] = 128;
+                normal_pixels[index_bpp + 3] = 128;
             }
         }
 
@@ -671,28 +478,28 @@ static b8 create_default_textures(texture_system_state* state) {
         }
     }
 
-    // Combined texture
-    u8 combined_pixels[16 * 16 * 4]; // w * h * channels
+    // MRA texture
+    u8 mra_pixels[16 * 16 * 4]; // w * h * channels
     {
-        KTRACE("Creating default combined (metallic, roughness, AO) texture...");
-        kset_memory(combined_pixels, 255, sizeof(u8) * 16 * 16 * 4);
+        KTRACE("Creating default MRA (metallic, roughness, AO) texture...");
+        kset_memory(mra_pixels, 255, sizeof(u8) * 16 * 16 * 4);
 
         // Each pixel.
         for (u64 row = 0; row < 16; ++row) {
             for (u64 col = 0; col < 16; ++col) {
                 u64 index = (row * 16) + col;
                 u64 index_bpp = index * channels;
-                combined_pixels[index_bpp + 0] = 0;   // Default for metallic is black.
-                combined_pixels[index_bpp + 1] = 128; // Default for roughness is medium grey
-                combined_pixels[index_bpp + 2] = 255; // Default for AO is white.
+                mra_pixels[index_bpp + 0] = 0;   // Default for metallic is black.
+                mra_pixels[index_bpp + 1] = 128; // Default for roughness is medium grey
+                mra_pixels[index_bpp + 2] = 255; // Default for AO is white.
             }
         }
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_combined_texture = create_default_kresource_texture(state, kname_create(DEFAULT_COMBINED_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, 1, channels, pixel_array_size, combined_pixels);
-        if (!state->default_kresource_combined_texture) {
-            KERROR("Failed to request resources for default combined texture");
+        state->default_kresource_mra_texture = create_default_kresource_texture(state, kname_create(DEFAULT_MRA_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_2D, tex_dimension, 1, channels, pixel_array_size, mra_pixels);
+        if (!state->default_kresource_mra_texture) {
+            KERROR("Failed to request resources for default MRA texture");
             return false;
         }
     }
@@ -736,7 +543,7 @@ static b8 create_default_textures(texture_system_state* state) {
             kcopy_memory(pixels + layer_size * i, cube_side_pixels, layer_size);
         }
 
-        // Request new resource texture.
+        // Request new resource texture.?
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
         state->default_kresource_cube_texture = create_default_kresource_texture(state, kname_create(DEFAULT_CUBE_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_CUBE, tex_dimension, 6, channels, pixel_array_size, pixels);
         if (!state->default_kresource_cube_texture) {
@@ -746,9 +553,13 @@ static b8 create_default_textures(texture_system_state* state) {
         kfree(pixels, image_size, MEMORY_TAG_ARRAY);
     }
 
-    // Default terrain textures. 4 materials, 3 maps per, for 12 layers.
+    // FIXME: Should there even _be_ a default layered texture, or should they just
+    // be created on the fly as needed?
+    //
+    // Default layered textures. 4 materials, 3 maps per, for 12 layers.
     // TODO: This should be a default layered texture of n layers, if anything.
-    {
+    //
+    /* {
         u32 layer_size = sizeof(u8) * 16 * 16 * 4;
         u32 terrain_material_count = 4;
         u32 terrain_per_material_map_count = 3;
@@ -761,7 +572,7 @@ static b8 create_default_textures(texture_system_state* state) {
             // Normal
             kcopy_memory(terrain_pixels + (material_size * i) + (layer_size * 1), normal_pixels, layer_size);
             // Combined
-            kcopy_memory(terrain_pixels + (material_size * i) + (layer_size * 2), combined_pixels, layer_size);
+            kcopy_memory(terrain_pixels + (material_size * i) + (layer_size * 2), mra_pixels, layer_size);
         }
 
         // Request new resource texture.
@@ -771,7 +582,7 @@ static b8 create_default_textures(texture_system_state* state) {
             return false;
         }
         kfree(terrain_pixels, layer_size * layer_count, MEMORY_TAG_ARRAY);
-    }
+    } */
 
     return true;
 }
@@ -779,12 +590,13 @@ static b8 create_default_textures(texture_system_state* state) {
 static void release_default_textures(texture_system_state* state) {
     if (state) {
         kresource_system_release(state->kresource_system, state->default_kresource_texture->base.name);
-        kresource_system_release(state->kresource_system, state->default_kresource_diffuse_texture->base.name);
+        kresource_system_release(state->kresource_system, state->default_kresource_base_colour_texture->base.name);
         kresource_system_release(state->kresource_system, state->default_kresource_specular_texture->base.name);
         kresource_system_release(state->kresource_system, state->default_kresource_normal_texture->base.name);
-        kresource_system_release(state->kresource_system, state->default_kresource_combined_texture->base.name);
+        kresource_system_release(state->kresource_system, state->default_kresource_mra_texture->base.name);
         kresource_system_release(state->kresource_system, state->default_kresource_cube_texture->base.name);
-        kresource_system_release(state->kresource_system, state->default_kresource_terrain_texture->base.name);
+        kresource_system_release(state->kresource_system, state->default_kresource_water_normal_texture->base.name);
+        kresource_system_release(state->kresource_system, state->default_kresource_water_dudv_texture->base.name);
     }
 }
 
@@ -809,18 +621,20 @@ static void invalidate_texture(kresource_texture* t) {
 static kresource_texture* default_texture_by_name(texture_system_state* state, kname name) {
     if (name == state->default_kresource_texture->base.name) {
         return state->default_kresource_texture;
-    } else if (name == state->default_kresource_diffuse_texture->base.name) {
-        return state->default_kresource_diffuse_texture;
+    } else if (name == state->default_kresource_base_colour_texture->base.name) {
+        return state->default_kresource_base_colour_texture;
     } else if (name == state->default_kresource_normal_texture->base.name) {
         return state->default_kresource_normal_texture;
     } else if (name == state->default_kresource_specular_texture->base.name) {
         return state->default_kresource_specular_texture;
-    } else if (name == state->default_kresource_combined_texture->base.name) {
-        return state->default_kresource_combined_texture;
+    } else if (name == state->default_kresource_mra_texture->base.name) {
+        return state->default_kresource_mra_texture;
     } else if (name == state->default_kresource_cube_texture->base.name) {
         return state->default_kresource_cube_texture;
-    } else if (name == state->default_kresource_terrain_texture->base.name) {
-        return state->default_kresource_terrain_texture;
+    } else if (name == state->default_kresource_water_normal_texture->base.name) {
+        return state->default_kresource_water_normal_texture;
+    } else if (name == state->default_kresource_water_dudv_texture->base.name) {
+        return state->default_kresource_water_dudv_texture;
     }
 
     return 0;

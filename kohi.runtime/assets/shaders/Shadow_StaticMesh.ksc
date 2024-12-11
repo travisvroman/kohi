@@ -42,20 +42,26 @@ attributes = [
 ]
 
 uniforms = {
-    global = [
+    per_frame = [
         {
             name = "projections"
-            type = "mat4[4]"
+            type = "mat4"
+            array_size = 4
         }
         {
             name = "views"
-            type = "mat4[4]"
+            type = "mat4"
+            array_size = 4
         }
     ]
-    instance = [
+    per_group = [
         {
-            name = "colour_map"
-            type = "sampler2D"
+            name = "base_colour_texture"
+            type = "texture2D"
+        }
+        {
+            name = "base_colour_sampler"
+            type = "sampler"
         }
     ]
     local = [

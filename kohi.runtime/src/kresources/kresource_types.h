@@ -308,6 +308,9 @@ typedef struct kresource_material {
     vec4 emissive;
     kmaterial_texture_input emissive_map;
 
+    // Derivative (dudv) map. Only used for water materials.
+    kmaterial_texture_input dudv_map;
+
     u32 custom_sampler_count;
     kmaterial_sampler_config* custom_samplers;
 } kresource_material;

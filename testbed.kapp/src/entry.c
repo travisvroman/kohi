@@ -61,7 +61,7 @@ b8 load_game_lib(application* app) {
 }
 
 b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_context context) {
-    if (code == EVENT_CODE_WATCHED_FILE_WRITTEN) {
+    if (code == EVENT_CODE_RESOURCE_HOT_RELOADED) {
         application* app = (application*)listener_inst;
         if (context.data.u32[0] == app->game_library.watch_id) {
             KINFO("Hot-Reloading game library.");
@@ -139,7 +139,7 @@ b8 create_application(application* out_application) {
 }
 
 b8 initialize_application(application* app) {
-    if (!event_register(EVENT_CODE_WATCHED_FILE_WRITTEN, app, watched_file_updated)) {
+    if (!event_register(EVENT_CODE_RESOURCE_HOT_RELOADED, app, watched_file_updated)) {
         return false;
     }
 

@@ -2,7 +2,7 @@
 
 #include "defines.h"
 #include "math/math_types.h"
-#include "resources/resource_types.h"
+#include "systems/material_system.h"
 
 struct texture_map;
 
@@ -16,24 +16,10 @@ typedef struct water_plane {
     u32 indices[6];
     u64 index_buffer_offset;
     u64 vertex_buffer_offset;
-    u32 group_id;
 
-    f32 tiling;
-    f32 wave_strength;
-    f32 wave_speed;
+    // Instance of water material.
+    material_instance material;
 
-    // Refraction target textures.
-    kresource_texture* refraction_colour;
-    kresource_texture* refraction_depth;
-    // Reflection target textures.
-    kresource_texture* reflection_colour;
-    kresource_texture* reflection_depth;
-
-    // Pointer to dudv texture.
-    kresource_texture* dudv_texture;
-
-    // Pointer to normal texture.
-    kresource_texture* normal_texture;
 } water_plane;
 
 KAPI b8 water_plane_create(water_plane* out_plane);

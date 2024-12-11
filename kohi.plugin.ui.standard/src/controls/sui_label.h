@@ -7,9 +7,10 @@
 typedef struct sui_label_internal_data {
     vec2i size;
     vec4 colour;
-    u32 instance_id;
-    u64 frame_number;
-    u8 draw_index;
+    u32 group_id;
+    u16 group_generation;
+    u32 draw_id;
+    u16 draw_generation;
 
     font_type type;
     struct font_data* data;

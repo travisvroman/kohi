@@ -1,4 +1,5 @@
 #include "sui_label.h"
+#include "standard_ui_defines.h"
 
 #include <containers/darray.h>
 #include <debug/kassert.h>
@@ -72,28 +73,20 @@ b8 sui_label_control_create(standard_ui_state* state, const char* name, font_typ
         sui_label_text_set(state, out_control, "");
     }
 
-    typed_data->instance_id = INVALID_ID;
-    typed_data->frame_number = INVALID_ID_U64;
-
-    // Acquire resources for font texture map.
-    // TODO: Should there be an override option for the shader?
-    // FIXME: Convert fonts to use new texture resource type.
-    kresource_texture_map* maps[1] = {&typed_data->data->atlas}; // {&state->atlas}; // {&typed_data->data->atlas};
-    shader* s = shader_system_get("Shader.StandardUI");
-    /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
-    shader_instance_resource_config instance_resource_config = {0};
-    // Map count for this type is known.
-    shader_instance_uniform_texture_config atlas_texture = {0};
-    atlas_texture.kresource_texture_map_count = 1;
-    atlas_texture.kresource_texture_maps = maps;
-
-    instance_resource_config.uniform_config_count = 1;
-    instance_resource_config.uniform_configs = &atlas_texture;
-
-    if (!renderer_shader_instance_resources_acquire(state->renderer, s, &instance_resource_config, &typed_data->instance_id)) {
-        KFATAL("Unable to acquire shader resources for font texture map.");
+    khandle sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME));
+    // Acquire group resources for this control.
+    if (!shader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
+        KFATAL("Unable to acquire shader group resources for button.");
         return false;
     }
+    typed_data->group_generation = INVALID_ID_U16;
+
+    // Also acquire per-draw resources.
+    if (!shader_system_shader_per_draw_acquire(sui_shader, &typed_data->draw_id)) {
+        KFATAL("Unable to acquire shader per-draw resources for button.");
+        return false;
+    }
+    typed_data->draw_generation = INVALID_ID_U16;
 
     // Verify atlas has the glyphs needed.
     if (!font_system_verify_atlas(typed_data->data, text)) {
@@ -151,12 +144,16 @@ void sui_label_control_unload(standard_ui_state* state, struct sui_control* self
         typed_data->index_buffer_offset = INVALID_ID_U64;
     }
 
-    // Release resources for font texture map.
-    shader* ui_shader = shader_system_get("Shader.StandardUI"); // TODO: text shader.
-    if (!renderer_shader_instance_resources_release(state->renderer, ui_shader, typed_data->instance_id)) {
-        KFATAL("Unable to release shader resources for font texture map.");
+    // Release group/draw resources.
+    khandle sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME));
+    if (!shader_system_shader_group_release(sui_shader, typed_data->group_id)) {
+        KFATAL("Unable to release group shader resources.");
     }
-    typed_data->instance_id = INVALID_ID;
+    typed_data->group_id = INVALID_ID;
+    if (!shader_system_shader_per_draw_release(sui_shader, typed_data->draw_id)) {
+        KFATAL("Unable to release group shader resources.");
+    }
+    typed_data->draw_id = INVALID_ID;
 }
 
 b8 sui_label_control_update(standard_ui_state* state, struct sui_control* self, struct frame_data* p_frame_data) {
@@ -179,7 +176,6 @@ b8 sui_label_control_render(standard_ui_state* state, struct sui_control* self, 
     if (typed_data->quad_count && typed_data->vertex_buffer_offset != INVALID_ID_U64) {
         standard_ui_renderable renderable = {0};
         renderable.render_data.unique_id = self->id.uniqueid;
-        renderable.render_data.material = 0;
         renderable.render_data.vertex_count = typed_data->quad_count * 4;
         renderable.render_data.vertex_buffer_offset = typed_data->vertex_buffer_offset;
         renderable.render_data.vertex_element_size = sizeof(vertex_2d);
@@ -189,17 +185,20 @@ b8 sui_label_control_render(standard_ui_state* state, struct sui_control* self, 
 
         // FIXME: For some reason, this isn't assigned correctly in some cases for
         // system fonts. Doing this assignment fixes it.
-        typed_data->data->atlas.texture = typed_data->data->atlas_texture;
+        /* typed_data->data->atlas.texture = typed_data->data->atlas_texture; */
 
         // NOTE: Override the default UI atlas and use that of the loaded font instead.
         // TODO: At this point, should probably have a separate font shader anyway, since
         // the future will require things like SDF, etc.
-        renderable.atlas_override = &typed_data->data->atlas;
+        renderable.atlas_override = typed_data->data->atlas_texture;
 
         renderable.render_data.model = xform_world_get(self->xform);
         renderable.render_data.diffuse_colour = typed_data->colour;
 
-        renderable.instance_id = &typed_data->instance_id;
+        renderable.group_id = &typed_data->group_id;
+        renderable.group_generation = &typed_data->group_generation;
+        renderable.per_draw_id = &typed_data->draw_id;
+        renderable.per_draw_generation = &typed_data->draw_generation;
 
         darray_push(render_data->renderables, renderable);
     }

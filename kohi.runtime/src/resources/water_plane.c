@@ -1,20 +1,11 @@
 #include "water_plane.h"
 
 #include "core/engine.h"
-#include "core/event.h"
-#include "kresources/kresource_types.h"
 #include "logger.h"
 #include "math/kmath.h"
 #include "memory/kmemory.h"
-#include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
-#include "strings/kname.h"
-#include "systems/shader_system.h"
-#include "systems/texture_system.h"
-
-// FIXME: Convert this to use a water material type instead.
-
-static b8 water_plane_on_event(u16 code, void* sender, void* listener_inst, event_context data);
+#include "systems/material_system.h"
 
 b8 water_plane_create(water_plane* out_plane) {
     if (!out_plane) {
@@ -36,9 +27,6 @@ void water_plane_destroy(water_plane* plane) {
 
 b8 water_plane_initialize(water_plane* plane) {
     if (plane) {
-        plane->tiling = 0.25f;        // TODO: configurable.
-        plane->wave_strength = 0.02f; // TODO: configurable.
-        plane->wave_speed = 0.03f;    // TODO: configurable.
 
         // Create the geometry, but don't load it yet.
         // TODO: should probably be based on some size.
@@ -63,6 +51,10 @@ b8 water_plane_initialize(water_plane* plane) {
 b8 water_plane_load(water_plane* plane) {
     if (plane) {
 
+        // Get water material.
+        // FIXME: Make this configurable.
+        plane->material = material_system_get_default_water(engine_systems_get()->material_system);
+
         renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
         renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
         // Allocate space
@@ -85,58 +77,6 @@ b8 water_plane_load(water_plane* plane) {
             return false;
         }
 
-        // Get the current window size as the dimensions of these textures will be based on this.
-        kwindow* window = engine_active_window_get();
-        // TODO: should probably cut this in half.
-        u32 tex_width = window->width;
-        u32 tex_height = window->height;
-
-        // Create reflection textures.
-        plane->reflection_colour = texture_system_request_writeable(kname_create("__waterplane_reflection_colour__"), tex_width, tex_height, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, true);
-        if (!plane->reflection_colour) {
-            return false;
-        }
-        plane->reflection_depth = texture_system_request_depth(kname_create("__waterplane_reflection_depth__"), tex_width, tex_height, true);
-        if (!plane->reflection_depth) {
-            return false;
-        }
-
-        // Create refraction textures.
-        plane->refraction_colour = texture_system_request_writeable(kname_create("__waterplane_refraction_colour__"), tex_width, tex_height, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, true);
-        if (!plane->refraction_colour) {
-            return false;
-        }
-        plane->refraction_depth = texture_system_request_depth(kname_create("__waterplane_refraction_depth__"), tex_width, tex_height, true);
-        if (!plane->refraction_depth) {
-            return false;
-        }
-
-        // Get dudv texture.
-        plane->dudv_texture = texture_system_request(kname_create("Water_DUDV"), kname_create("Runtime"), 0, 0);
-        if (!plane->dudv_texture) {
-            KERROR("Failed to load default DUDV texture for water plane. Water planes won't render correctly.");
-        }
-
-        // Get normal texture.
-        plane->normal_texture = texture_system_request(kname_create("Water_Normal"), kname_create("Runtime"), 0, 0);
-        if (!plane->normal_texture) {
-            KERROR("Failed to load default Normal texture for water plane. Water planes won't render correctly.");
-        }
-
-        // Acquire group resources for this plane. TODO: Convert this to water material type
-        khandle shader = shader_system_get(kname_create("Runtime.Shader.Water"));
-        if (!shader_system_shader_group_acquire(shader, &plane->group_id)) {
-            KERROR("Failed to acquire instance resources for water plane.");
-            return false;
-        }
-
-        // Listen for window resizes, as these must trigger a resize of our reflect/refract
-        // texture render targets. This should only be active while the plane is loaded.
-        if (!event_register(EVENT_CODE_WINDOW_RESIZED, plane, water_plane_on_event)) {
-            KERROR("Unable to register water plane for resize event. See logs for details.");
-            return false;
-        }
-
         return true;
     }
     return false;
@@ -144,11 +84,6 @@ b8 water_plane_load(water_plane* plane) {
 
 b8 water_plane_unload(water_plane* plane) {
     if (plane) {
-        // Immediately stop listening for resize events.
-        if (!event_unregister(EVENT_CODE_WINDOW_RESIZED, plane, water_plane_on_event)) {
-            // Nothing to really do about it, but warn the user.
-            KWARN("Unable to unregister water plane for resize event. See logs for details.");
-        }
 
         renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
         renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
@@ -162,23 +97,8 @@ b8 water_plane_unload(water_plane* plane) {
             return false;
         }
 
-        // Destroy generated textures.
-        texture_system_release_resource(plane->reflection_colour);
-        texture_system_release_resource(plane->reflection_depth);
-        texture_system_release_resource(plane->refraction_colour);
-        texture_system_release_resource(plane->refraction_depth);
-
-        plane->reflection_colour = 0;
-        plane->reflection_depth = 0;
-        plane->refraction_colour = 0;
-        plane->refraction_depth = 0;
-
-        // Release instance resources for this plane.
-        khandle shader = shader_system_get(kname_create("Runtime.Shader.Water"));
-        if (!shader_system_shader_group_release(shader, plane->group_id)) {
-            KERROR("Failed to release instance resources for water plane.");
-            return false;
-        }
+        // Release material instance resources for this plane.
+        material_system_release(engine_systems_get()->material_system, &plane->material);
         return true;
     }
     return false;
@@ -189,41 +109,5 @@ b8 water_plane_update(water_plane* plane) {
         //
         return true;
     }
-    return false;
-}
-
-static b8 water_plane_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
-    if (code == EVENT_CODE_WINDOW_RESIZED) {
-        // Resize textures to match new frame buffer.
-        u16 width = context.data.u16[0] / 8;
-        u16 height = context.data.u16[1] / 8;
-
-        // const kwindow* window = sender;
-        water_plane* plane = listener_inst;
-
-        if (plane->reflection_colour->base.generation != INVALID_ID_U8) {
-            if (!texture_system_resize(plane->reflection_colour, width, height, true)) {
-                KERROR("Failed to resize reflection colour texture for water plane.");
-            }
-        }
-        if (plane->reflection_depth->base.generation != INVALID_ID_U8) {
-            if (!texture_system_resize(plane->reflection_depth, width, height, true)) {
-                KERROR("Failed to resize reflection depth texture for water plane.");
-            }
-        }
-
-        if (plane->refraction_colour->base.generation != INVALID_ID_U8) {
-            if (!texture_system_resize(plane->refraction_colour, width, height, true)) {
-                KERROR("Failed to resize refraction colour texture for water plane.");
-            }
-        }
-        if (plane->refraction_depth->base.generation != INVALID_ID_U8) {
-            if (!texture_system_resize(plane->refraction_depth, width, height, true)) {
-                KERROR("Failed to resize refraction depth texture for water plane.");
-            }
-        }
-    }
-
-    // Allow other systems to pick up event.
     return false;
 }

@@ -1,17 +1,18 @@
 #include "kasset_importer_static_mesh_obj.h"
 
-#include "memory/kmemory.h"
-#include "platform/vfs.h"
-#include "serializers/obj_mtl_serializer.h"
-#include "serializers/obj_serializer.h"
-#include "strings/kname.h"
-
 #include <assets/kasset_types.h>
 #include <core/engine.h>
+#include <core_render_types.h>
 #include <logger.h>
+#include <memory/kmemory.h>
+#include <platform/vfs.h>
 #include <serializers/kasset_binary_static_mesh_serializer.h>
 #include <serializers/kasset_material_serializer.h>
+#include <strings/kname.h>
 #include <strings/kstring.h>
+
+#include "serializers/obj_mtl_serializer.h"
+#include "serializers/obj_serializer.h"
 
 b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u64 data_size, const void* data, void* params, struct kasset* out_asset) {
     if (!self || !data_size || !data) {
@@ -151,86 +152,74 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                         new_material.type = m_src->type;
 
                         // Material maps.
-                        new_material.map_count = m_src->texture_map_count;
-                        new_material.maps = kallocate(sizeof(kasset_material_map) * new_material.map_count, MEMORY_TAG_ARRAY);
-                        for (u32 j = 0; j < new_material.map_count; ++j) {
-                            kasset_material_map* map = &new_material.maps[j];
+                        for (u32 j = 0; j < m_src->texture_map_count; ++j) {
                             obj_mtl_source_texture_map* map_src = &m_src->maps[j];
 
-                            // Name of the map (really just for informational purposes)
-                            map->name = map_src->name;
-
-                            // Name for the image asset.
-                            map->image_asset_name = map_src->image_asset_name;
-
-                            // Name of the package containing the asset. In this case (import), it will always be the same package.
-                            map->image_asset_package_name = out_asset->package_name;
+                            kmaterial_texture_input* texture_input = 0;
 
                             // Map channel. NOTE: OBJ format _can_ specify different channels per material type. Kohi doesn't, so just use the "base" type.
                             switch (map_src->channel) {
                             case OBJ_TEXTURE_MAP_CHANNEL_PBR_NORMAL:
                             case OBJ_TEXTURE_MAP_CHANNEL_PHONG_NORMAL:
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_NORMAL;
+                                texture_input = &new_material.normal_map;
+                                new_material.normal_enabled = true;
                                 break;
                             case OBJ_TEXTURE_MAP_CHANNEL_PBR_ALBEDO:
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_ALBEDO;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_METALLIC:
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_METALLIC;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_ROUGHNESS:
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_ROUGHNESS;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_AO:
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_AO;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_EMISSIVE:
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_EMISSIVE;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_CLEAR_COAT:
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_CLEAR_COAT;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_CLEAR_COAT_ROUGHNESS:
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_CLEAR_COAT_ROUGHNESS;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_WATER:
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_WATER_DUDV;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PHONG_SPECULAR:
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_SPECULAR;
-                                break;
                             case OBJ_TEXTURE_MAP_CHANNEL_PHONG_DIFFUSE:
                             case OBJ_TEXTURE_MAP_CHANNEL_UNLIT_COLOUR:
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_DIFFUSE;
+                                texture_input = &new_material.base_colour_map;
                                 break;
-                            default:
-                                KWARN("Unsupported map type listed. Defaulting to diffuse.");
-                                map->channel = KASSET_MATERIAL_MAP_CHANNEL_DIFFUSE;
+                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_METALLIC:
+                                texture_input = &new_material.metallic_map;
+                                // Assume red.
+                                texture_input->channel = TEXTURE_CHANNEL_R;
+                                break;
+                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_ROUGHNESS:
+                                texture_input = &new_material.roughness_map;
+                                // Assume red.
+                                texture_input->channel = TEXTURE_CHANNEL_R;
+                                break;
+                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_AO:
+                                texture_input = &new_material.ambient_occlusion_map;
+                                // Assume red.
+                                texture_input->channel = TEXTURE_CHANNEL_R;
+                                new_material.ambient_occlusion_enabled = true;
+                                break;
+                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_EMISSIVE:
+                                texture_input = &new_material.emissive_map;
+                                new_material.emissive_enabled = true;
+                                break;
+                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_CLEAR_COAT:
+                                // TODO: support clear coat
+                                // texture_input = &new_material.clear_coat_map;
+                                KWARN("PBR clear coat not supported. Skipping.");
+                                break;
+                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_CLEAR_COAT_ROUGHNESS:
+                                // TODO: support clear coat roughness
+                                // texture_input = &new_material.clear_coat_roughness_map;
+                                KWARN("PBR clear coat roughness not supported. Skipping.");
+                                break;
+                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_WATER:
+                                texture_input = &new_material.dudv_map;
+                                break;
+                            case OBJ_TEXTURE_MAP_CHANNEL_PHONG_SPECULAR:
+                                // TODO: Phong/specular support.
+                                // texture_input = &new_material.specular;
+                                KWARN("Phong specular not supported. Skipping.");
                                 break;
                             }
 
-                            // Repeats
-                            map->repeat_u = map_src->repeat_u;
-                            map->repeat_v = map_src->repeat_v;
-                            map->repeat_w = map_src->repeat_w;
-
-                            // Filters
-                            map->filter_min = map_src->filter_min;
-                            map->filter_mag = map_src->filter_mag;
+                            if (texture_input) {
+                                texture_input->resource_name = map_src->image_asset_name;
+                                // Assume the same package name.
+                                texture_input->package_name = out_asset->package_name;
+                            }
                         }
 
-                        // Material properties.
-                        new_material.property_count = m_src->property_count;
-                        new_material.properties = kallocate(sizeof(kasset_material_property) * new_material.property_count, MEMORY_TAG_ARRAY);
-                        for (u32 j = 0; j < new_material.property_count; ++j) {
-                            kasset_material_property* prop = &new_material.properties[j];
-                            obj_mtl_source_property* prop_src = &m_src->properties[j];
-
-                            prop->name = prop_src->name;
-                            prop->type = prop_src->type;
-                            prop->size = prop_src->size;
-                            // NOTE: Not sure if this is the best way of handling this...
-                            kcopy_memory(&prop->value, &prop_src->value, sizeof(mat4));
+                        // If metallic, roughness and ao all point to the same texture, switch to MRA instead.
+                        if (new_material.metallic_map.resource_name == new_material.roughness_map.resource_name == new_material.ambient_occlusion_map.resource_name) {
+                            new_material.mra_map.resource_name = new_material.metallic_map.resource_name;
+                            new_material.mra_map.package_name = new_material.metallic_map.resource_name;
                         }
 
                         // Serialize the material.
@@ -253,15 +242,6 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                             kfree(m_src->properties, sizeof(obj_mtl_source_property) * m_src->property_count, MEMORY_TAG_ARRAY);
                         }
 
-                        // Cleanup kmt from memory since there is no mechanic from here to load it.
-                        // This will just be loaded from disk later.
-                        {
-                            // Maps
-                            kfree(new_material.maps, sizeof(obj_mtl_source_material) * new_material.map_count, MEMORY_TAG_ARRAY);
-
-                            // Properties
-                            kfree(new_material.properties, sizeof(obj_mtl_source_property) * new_material.property_count, MEMORY_TAG_ARRAY);
-                        }
                     } // each material
                 }
             } // success

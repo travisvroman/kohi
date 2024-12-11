@@ -1,10 +1,8 @@
-// Kohi shader config file
-// NOTE: This file is no longer required. Loaded directly in code in material system.
 version = 1
 depth_test=true
 depth_write=true
 supports_wireframe=true
-max_groups=256
+max_groups=16
 cull_mode = "back"
 
 topology_types [
@@ -14,12 +12,12 @@ topology_types [
 stages = [
     {
         type = "vertex"
-        source_asset_name = "MaterialStandard_vert"
+        source_asset_name = "MaterialWater_vert"
         package_name = "Runtime"
     }
     {
         type = "fragment"
-        source_asset_name = "MaterialStandard_frag"
+        source_asset_name = "MaterialWater_frag"
         package_name = "Runtime"
     }
 ]
@@ -27,23 +25,7 @@ stages = [
 attributes = [
     {
         name = "in_position"
-        type = "vec3"
-    }
-    {
-        name = "in_normal"
-        type = "vec3"
-    }
-    {
-        name = "in_texcoord"
-        type = "vec2"
-    }
-    {
-        name = "in_colour"
         type = "vec4"
-    }
-    {
-        name = "in_tangent"
-        type = "vec3"
     }
 ]
 
@@ -52,14 +34,14 @@ uniforms = {
         {
             name = "material_frame_ubo"
             type = "struct"
-            size = 388
+            size = sizeof
         }
         {
             name = "shadow_texture"
             type = "texture2DArray"
         }
         {
-            name = "irradiance_textures"
+            name = "ibl_cube_textures"
             type = "textureCube"
             array_size = 4
         }
@@ -68,33 +50,32 @@ uniforms = {
             type = "sampler"
         }
         {
-            name = "irradiance_sampler"
+            name = "ibl_cube_sampler"
             type = "sampler"
         }
     ]
     per_group = [
         {
+            name = "material_group_ubo"
+            type = "struct"
+            size = sizeof
+        }
+        {
             name = "material_textures"
             type = "texture2D"
-            array_size = 7
+            array_size = 5
         }
         {
             name = "material_samplers"
             type = "sampler"
-            array_size = 7
-        }
-        {
-            name = "material_group_ubo"
-            type = "struct"
-            size = 656
+            array_size = 5
         }
     ]
     per_draw = [
         {
             name = "material_draw_ubo"
             type = "struct"
-            size = 84
+            size = sizeof
         }
     ]
 }
-

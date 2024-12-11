@@ -1,14 +1,14 @@
 #pragma once
 
 #include <defines.h>
-#include <math/math_types.h>
 #include <math/geometry.h>
+#include <math/math_types.h>
 #include <resources/resource_types.h>
 
 #include "identifiers/khandle.h"
 
 #ifdef _DEBUG
-#include <resources/debug/debug_line3d.h>
+#    include <resources/debug/debug_line3d.h>
 #endif
 
 struct ray;
@@ -39,7 +39,7 @@ typedef struct editor_gizmo_mode_data {
     u32 index_count;
     u32* indices;
 
-    geometry geo;
+    kgeometry geo;
 
     u32 extents_count;
     extents_3d* mode_extents;

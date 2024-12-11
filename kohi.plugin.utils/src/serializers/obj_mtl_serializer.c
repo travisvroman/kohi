@@ -1,6 +1,6 @@
 #include "obj_mtl_serializer.h"
 
-#include "assets/kasset_types.h"
+#include "core_render_types.h"
 
 #include <containers/darray.h>
 #include <debug/kassert.h>
@@ -127,9 +127,6 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
             sscanf(line, "%s %s", substr, texture_file_name);
 
             obj_mtl_source_texture_map map = {0};
-            // NOTE: Making some assumptions about filtering and repeat modes.
-            map.filter_min = map.filter_mag = TEXTURE_FILTER_MODE_LINEAR;
-            map.repeat_u = map.repeat_v = map.repeat_w = TEXTURE_REPEAT_REPEAT;
 
             // Texture name
             char tex_name_buf[512] = {0};
@@ -184,8 +181,10 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
                 if (hit_name) {
                     // Push a new material to the collection and move on.
                     obj_mtl_source_material new_material = {0};
+                    // Assuming standard material type.
+                    new_material.type = KMATERIAL_TYPE_STANDARD;
                     // NOTE: forcing PBR on there.
-                    new_material.type = KMATERIAL_TYPE_PBR;
+                    new_material.model = KMATERIAL_MODEL_PBR;
                     // Take a copy of the properties array.
                     new_material.property_count = darray_length(current_properties);
                     new_material.properties = kallocate(sizeof(obj_mtl_source_property) * new_material.property_count, MEMORY_TAG_ARRAY);
@@ -222,8 +221,10 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
 
     // Write out the remaining material.
     obj_mtl_source_material new_material = {0};
+    // Assuming standard material type.
+    new_material.type = KMATERIAL_TYPE_STANDARD;
     // NOTE: forcing PBR on there.
-    new_material.type = KMATERIAL_TYPE_PBR;
+    new_material.model = KMATERIAL_MODEL_PBR;
     // Take a copy of the properties array.
     new_material.property_count = darray_length(current_properties);
     new_material.properties = kallocate(sizeof(obj_mtl_source_property) * new_material.property_count, MEMORY_TAG_ARRAY);

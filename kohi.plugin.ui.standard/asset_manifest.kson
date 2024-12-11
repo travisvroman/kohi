@@ -7,7 +7,7 @@ references = [
 ]
 assets = [
     {
-        name = "UI"
+        name = "StandardUI"
         path = "./assets/shaders/UI.ksc"
     }
     {

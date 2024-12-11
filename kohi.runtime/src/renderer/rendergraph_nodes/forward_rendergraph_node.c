@@ -1,7 +1,9 @@
 #include "forward_rendergraph_node.h"
 
 #include "core/engine.h"
+#include "core_render_types.h"
 #include "defines.h"
+#include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
 #include "math/kmath.h"
@@ -9,14 +11,11 @@
 #include "renderer/camera.h"
 #include "renderer/renderer_types.h"
 #include "renderer/viewport.h"
+#include "strings/kname.h"
 #include "strings/kstring.h"
-
-// FIXME: Kinda dumb to have to include this to get MAX_SHADOW_CASCADE_COUNT...
-#include "renderer/rendergraph_nodes/shadow_rendergraph_node.h"
 
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
-#include "resources/resource_types.h"
 #include "resources/skybox.h"
 #include "resources/water_plane.h"
 #include "systems/light_system.h"
@@ -108,6 +107,7 @@ typedef struct skybox_shader_locations {
 typedef struct forward_rendergraph_node_internal_data {
     struct renderer_system_state* renderer;
     struct texture_system_state* texture_system;
+    struct material_system_state* material_system;
     /* forward_rendergraph_node_config config; */
 
     struct kresource_texture* colourbuffer_texture;
@@ -151,15 +151,18 @@ typedef struct forward_rendergraph_node_internal_data {
     const struct kresource_texture* irradiance_cube_texture;
     const struct directional_light* dir_light;
 
-    f32 cascade_splits[MAX_SHADOW_CASCADE_COUNT];
-    mat4 directional_light_views[MAX_SHADOW_CASCADE_COUNT];
-    mat4 directional_light_projections[MAX_SHADOW_CASCADE_COUNT];
+    f32 cascade_splits[MATERIAL_MAX_SHADOW_CASCADES];
+    mat4 directional_light_views[MATERIAL_MAX_SHADOW_CASCADES];
+    mat4 directional_light_projections[MATERIAL_MAX_SHADOW_CASCADES];
     // The multiplied view/projections
-    mat4 directional_light_spaces[MAX_SHADOW_CASCADE_COUNT];
+    mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES];
 
     // An array of global scene-wide set of ibl cube textures from probes.
     u32 ibl_cube_texture_count;
     kresource_texture** ibl_cube_textures;
+
+    // Skybox shader.
+    khandle skybox_shader;
 
 } forward_rendergraph_node_internal_data;
 
@@ -276,54 +279,21 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     forward_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Save off a pointer to the PBR shader as well as its uniform locations.
-
-    /* // Load Water plane shader and get shader uniform locations.
-    internal_data->water_shader = shader_system_get("Runtime.Shader.Water");
-    internal_data->water_shader_id = internal_data->water_shader->id;
-    // global uniforms
-    internal_data->water_shader_locations.projection = shader_system_uniform_location(internal_data->water_shader_id, "projection");
-    internal_data->water_shader_locations.view = shader_system_uniform_location(internal_data->water_shader_id, "view");
-    internal_data->water_shader_locations.light_space = shader_system_uniform_location(internal_data->water_shader_id, "light_space");
-    internal_data->water_shader_locations.cascade_splits = shader_system_uniform_location(internal_data->water_shader_id, "cascade_splits");
-    internal_data->water_shader_locations.view_position = shader_system_uniform_location(internal_data->water_shader_id, "view_position");
-    internal_data->water_shader_locations.mode = shader_system_uniform_location(internal_data->water_shader_id, "mode");
-    internal_data->water_shader_locations.use_pcf = shader_system_uniform_location(internal_data->water_shader_id, "use_pcf");
-    internal_data->water_shader_locations.bias = shader_system_uniform_location(internal_data->water_shader_id, "bias");
-    // instance uniforms
-    internal_data->water_shader_locations.dir_light = shader_system_uniform_location(internal_data->water_shader_id, "dir_light");
-    internal_data->water_shader_locations.p_lights = shader_system_uniform_location(internal_data->water_shader_id, "p_lights");
-    internal_data->water_shader_locations.tiling = shader_system_uniform_location(internal_data->water_shader_id, "tiling");
-    internal_data->water_shader_locations.wave_strength = shader_system_uniform_location(internal_data->water_shader_id, "wave_strength");
-    internal_data->water_shader_locations.move_factor = shader_system_uniform_location(internal_data->water_shader_id, "move_factor");
-    internal_data->water_shader_locations.num_p_lights = shader_system_uniform_location(internal_data->water_shader_id, "num_p_lights");
-    // instance samplers
-    internal_data->water_shader_locations.reflection_texture = shader_system_uniform_location(internal_data->water_shader_id, "reflection_texture");
-    internal_data->water_shader_locations.refraction_texture = shader_system_uniform_location(internal_data->water_shader_id, "refraction_texture");
-    internal_data->water_shader_locations.dudv_texture = shader_system_uniform_location(internal_data->water_shader_id, "dudv_texture");
-    internal_data->water_shader_locations.normal_texture = shader_system_uniform_location(internal_data->water_shader_id, "normal_texture");
-    internal_data->water_shader_locations.shadow_textures = shader_system_uniform_location(internal_data->water_shader_id, "shadow_textures");
-    internal_data->water_shader_locations.ibl_cube_texture = shader_system_uniform_location(internal_data->water_shader_id, "ibl_cube_texture");
-    internal_data->water_shader_locations.refract_depth_texture = shader_system_uniform_location(internal_data->water_shader_id, "refract_depth_texture");
-    // local
-    internal_data->water_shader_locations.model = shader_system_uniform_location(internal_data->water_shader_id, "model");
-
     // Load Skybox shader and get shader uniform locations.
-    internal_data->skybox_shader = shader_system_get("Shader.Builtin.Skybox");
-    internal_data->skybox_shader_id = internal_data->skybox_shader->id;
-    internal_data->skybox_shader_locations.projection_location = shader_system_uniform_location(internal_data->skybox_shader_id, "projection");
-    internal_data->skybox_shader_locations.views_location = shader_system_uniform_location(internal_data->skybox_shader_id, "views");
-    internal_data->skybox_shader_locations.cube_map_location = shader_system_uniform_location(internal_data->skybox_shader_id, "cube_texture");
-    internal_data->skybox_shader_locations.view_index = shader_system_uniform_location(internal_data->skybox_shader_id, "view_index"); */
+    internal_data->skybox_shader = shader_system_get(kname_create("Shader.Builtin.Skybox"));
+    internal_data->skybox_shader_locations.projection_location = shader_system_uniform_location(internal_data->skybox_shader, kname_create("projection"));
+    internal_data->skybox_shader_locations.views_location = shader_system_uniform_location(internal_data->skybox_shader, kname_create("views"));
+    internal_data->skybox_shader_locations.cube_map_location = shader_system_uniform_location(internal_data->skybox_shader, kname_create("cube_texture"));
+    internal_data->skybox_shader_locations.view_index = shader_system_uniform_location(internal_data->skybox_shader, kname_create("view_index"));
 
     internal_data->vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
     internal_data->index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
 
     // Grab the default cubemap texture as the irradiance texture.
-    internal_data->irradiance_cube_texture = texture_system_get_default_kresource_cube_texture(internal_data->texture_system);
+    internal_data->irradiance_cube_texture = texture_system_request(kname_create(DEFAULT_CUBE_TEXTURE_NAME), INVALID_KNAME, 0, 0);
 
     // Assign some defaults.
-    for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+    for (u32 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
         internal_data->directional_light_spaces[i] = mat4_identity();
     }
 
@@ -366,108 +336,65 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
     renderer_begin_debug_label("water planes", (vec3){0, 0, 1});
 
     if (plane_count) {
-        // Calculate movement based on the total game time.
         khandle game_timeline = timeline_system_get_game();
         f32 delta_time = timeline_system_delta_get(game_timeline);
+        f32 game_time = timeline_system_total_get(game_timeline);
+        mat4 view_matrix = camera_view_get(internal_data->current_camera);
+        vec4 view_position = vec4_from_vec3(camera_position_get(internal_data->current_camera), 1.0);
 
         // Bind the viewport
         renderer_active_viewport_set(&internal_data->vp);
 
-        shader_system_use_by_id(internal_data->water_shader_id);
+        // Set the per-frame material data (i.e. view, projection, etc.) before the below call.
+        {
+            material_frame_data mat_frame_data = {0};
+            mat_frame_data.delta_time = delta_time;
+            mat_frame_data.game_time = game_time;
+            mat_frame_data.projection = internal_data->projection_matrix;
+            mat_frame_data.views[0] = view_matrix;
+            mat_frame_data.view_positions[0] = view_position;
+            mat_frame_data.render_mode = internal_data->render_mode;
+            // Cascade splits and light space matrices for shadow mapping. One per cascade.
+            kcopy_memory(mat_frame_data.cascade_splits, internal_data->cascade_splits, sizeof(vec4) * MATERIAL_MAX_SHADOW_CASCADES);
+            kcopy_memory(mat_frame_data.directional_light_spaces, internal_data->directional_light_spaces, sizeof(mat4) * MATERIAL_MAX_SHADOW_CASCADES);
 
-        // Ensure wireframe mode is (un)set.
-        if (internal_data->render_mode == RENDERER_VIEW_MODE_WIREFRAME) {
-            shader_system_set_wireframe(internal_data->water_shader_id, true);
-        } else {
-            shader_system_set_wireframe(internal_data->water_shader_id, false);
-        }
+            // HACK: Read this in from somewhere (or have global setter?);
+            mat_frame_data.shadow_bias = 0.0005f;
 
-        // Globals
-        mat4 view_matrix = camera_view_get(internal_data->current_camera);
-        vec3 view_position = camera_position_get(internal_data->current_camera);
-        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.projection, &internal_data->projection_matrix);
-        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.view, &view_matrix);
-        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.view_position, &view_position);
-        for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
-            shader_system_uniform_set_by_location_arrayed(internal_data->water_shader_id, internal_data->water_shader_locations.light_space, i, &internal_data->directional_light_spaces[i]);
+            // Shadow Maps (global)
+            mat_frame_data.shadow_map_texture = internal_data->shadow_map;
+
+            // Irradience maps provided by probes around in the world.
+            for (u32 i = 0; i < internal_data->ibl_cube_texture_count; ++i) {
+                mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i];
+            }
+
+            // Update per-frame data for materials.
+            material_system_prepare_frame(internal_data->material_system, mat_frame_data, p_frame_data);
         }
-        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.cascade_splits, &internal_data->cascade_splits);
-        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.mode, &internal_data->render_mode);
-        i32 use_pcf = (i32)renderer_pcf_enabled(internal_data->renderer);
-        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.use_pcf, &use_pcf);
-        // HACK: Read this in from somewhere (or have global setter?);
-        f32 bias = 0.0005f;
-        shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.bias, &bias);
-        shader_system_apply_per_frame(internal_data->water_shader_id);
 
         // Draw each plane.
         for (u32 i = 0; i < plane_count; ++i) {
 
             water_plane* plane = planes[i];
+            material_instance* inst = &plane->material;
 
-            // Move factor is based on wave speed * total game time, wrap around at 1.
-            static f32 move_factor = 0;
-            move_factor += (plane->wave_speed * delta_time);
-            if (move_factor > 1) {
-                move_factor -= 1;
+            // Apply material-level (i.e. group-level) data.
+            if (!material_system_apply(internal_data->material_system, inst->material, p_frame_data)) {
+                KERROR("Error applying material. See logs for details.");
+                return false;
             }
 
-            // Instance uniforms
-            shader_system_bind_group(internal_data->water_shader_id, plane->instance_id);
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.dir_light, &internal_data->dir_light->data);
-            // Point lights.
-            u32 p_light_count = light_system_point_light_count();
-            if (p_light_count) {
-                point_light* p_lights = p_frame_data->allocator.allocate(sizeof(point_light) * p_light_count);
-                light_system_point_lights_get(p_lights);
-
-                point_light_data* p_light_datas = p_frame_data->allocator.allocate(sizeof(point_light_data) * p_light_count);
-                for (u32 i = 0; i < p_light_count; ++i) {
-                    p_light_datas[i] = p_lights[i].data;
-                }
-
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.p_lights, p_light_datas));
+            // Apply material-instance-level (i.e. per-draw-level) data.
+            material_instance_draw_data instance_draw_data = {0};
+            instance_draw_data.model = plane->model;
+            instance_draw_data.view_index = 0; // FIXME: This should be passed in.
+            instance_draw_data.clipping_plane = clipping_plane;
+            instance_draw_data.irradiance_cubemap_index = 0; // FIXME: Get this passed in as well.
+            if (!material_system_apply_instance(internal_data->material_system, inst, instance_draw_data, p_frame_data)) {
+                KERROR("Failed to apply per-instance material data. See logs for details.");
+                return false;
             }
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.tiling, &plane->tiling);
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.wave_strength, &plane->wave_strength);
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.move_factor, &move_factor);
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.num_p_lights, &p_light_count);
-            // Instance samplers
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.reflection_texture, &plane->maps[WATER_PLANE_MAP_REFLECTION]);
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.refraction_texture, &plane->maps[WATER_PLANE_MAP_REFRACTION]);
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.dudv_texture, &plane->maps[WATER_PLANE_MAP_DUDV]);
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.normal_texture, &plane->maps[WATER_PLANE_MAP_NORMAL]);
-
-            // Shadow maps
-            const kresource_texture* shadow_map_texture = internal_data->shadowmap_source->value.t;
-            plane->maps[WATER_PLANE_MAP_SHADOW].texture = shadow_map_texture ? shadow_map_texture : texture_system_get_default_kresource_terrain_texture(internal_data->texture_system);
-            // Ensure there are valid resources acquired first.
-            if (plane->maps[WATER_PLANE_MAP_SHADOW].internal_id == INVALID_ID) {
-                if (!renderer_kresource_texture_map_resources_acquire(internal_data->renderer, &plane->maps[WATER_PLANE_MAP_SHADOW])) {
-                    KERROR("Unable to acquire resources for texture map.");
-                    return false;
-                }
-            }
-            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.shadow_textures, &plane->maps[WATER_PLANE_MAP_SHADOW]));
-
-            // Irradience map - use the "global" assigned one.
-            plane->maps[WATER_PLANE_MAP_IBL_CUBE].texture = internal_data->irradiance_cube_texture;
-            // Ensure there are valid resources acquired first.
-            if (plane->maps[WATER_PLANE_MAP_IBL_CUBE].internal_id == INVALID_ID) {
-                if (!renderer_kresource_texture_map_resources_acquire(internal_data->renderer, &plane->maps[WATER_PLANE_MAP_IBL_CUBE])) {
-                    KERROR("Unable to acquire resources for texture map.");
-                    return false;
-                }
-            }
-            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.ibl_cube_texture, &plane->maps[WATER_PLANE_MAP_IBL_CUBE]));
-
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.refract_depth_texture, &plane->maps[WATER_PLANE_MAP_REFRACT_DEPTH]);
-            //
-            shader_system_apply_per_group(internal_data->water_shader_id);
-
-            // Set model matrix.
-            shader_system_uniform_set_by_location(internal_data->water_shader_id, internal_data->water_shader_locations.model, &plane->model);
-            shader_system_apply_per_draw(internal_data->water_shader_id);
 
             // Draw based on vert/index data.
             if (!renderer_renderbuffer_draw(internal_data->vertex_buffer, plane->vertex_buffer_offset, 4, true)) {
@@ -488,9 +415,14 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
 
 b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource_texture* colour, kresource_texture* depth, u32 plane_count, water_plane** planes, b8 include_water_plane, vec4 clipping_plane, camera* cam, camera* inverted_cam, b8 use_inverted, struct frame_data* p_frame_data) {
     mat4 view_matrix = camera_view_get(cam);
-    vec3 view_position = camera_position_get(cam);
+    vec4 view_position = vec4_from_vec3(camera_position_get(cam), 1.0);
     mat4 inverted_view_matrix = camera_view_get(inverted_cam);
-    vec3 inverted_view_position = camera_position_get(inverted_cam);
+    vec4 inverted_view_position = vec4_from_vec3(camera_position_get(inverted_cam), 1.0);
+    u32 view_index = use_inverted ? 1 : 0;
+
+    khandle game_timeline = timeline_system_get_game();
+    f32 delta_time = timeline_system_delta_get(game_timeline);
+    f32 game_time = timeline_system_total_get(game_timeline);
 
     // Begin rendering the scene
     renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, depth->renderer_texture_handle, 0);
@@ -513,8 +445,8 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
         renderer_set_depth_test_enabled(false);
         renderer_set_depth_write_enabled(false);
 
-        if (internal_data->sb->g->generation != INVALID_ID_U16) {
-            shader_system_use_by_id(internal_data->skybox_shader_id);
+        if (internal_data->sb->geometry.generation != INVALID_ID_U16) {
+            shader_system_use(internal_data->skybox_shader);
 
             // Get the view matrix, but zero out the position so the skybox stays put on screen.
             mat4 view_matrix_skybox = view_matrix;
@@ -527,46 +459,44 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
             inverted_view_matrix_skybox.data[13] = 0.0f;
             inverted_view_matrix_skybox.data[14] = 0.0f;
 
-            // Apply globals
-            if (!shader_system_uniform_set_by_location(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.projection_location, &internal_data->projection_matrix)) {
+            // Apply per-frame
+            if (!shader_system_uniform_set_by_location(internal_data->skybox_shader, internal_data->skybox_shader_locations.projection_location, &internal_data->projection_matrix)) {
                 KERROR("Failed to apply skybox projection uniform.");
                 return false;
             }
-            if (!shader_system_uniform_set_by_location_arrayed(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.views_location, 0, &view_matrix_skybox)) {
+            if (!shader_system_uniform_set_by_location_arrayed(internal_data->skybox_shader, internal_data->skybox_shader_locations.views_location, 0, &view_matrix_skybox)) {
                 KERROR("Failed to apply skybox view(0) uniform.");
                 return false;
             }
-            if (!shader_system_uniform_set_by_location_arrayed(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.views_location, 1, &inverted_view_matrix_skybox)) {
+            if (!shader_system_uniform_set_by_location_arrayed(internal_data->skybox_shader, internal_data->skybox_shader_locations.views_location, 1, &inverted_view_matrix_skybox)) {
                 KERROR("Failed to apply skybox view(0) uniform.");
                 return false;
             }
-            shader_system_apply_per_frame(internal_data->skybox_shader_id);
 
             // Instance
-            shader_system_bind_group(internal_data->skybox_shader_id, internal_data->sb->instance_id);
-            if (!shader_system_uniform_set_by_location(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.cube_map_location, &internal_data->sb->cubemap)) {
+            shader_system_bind_group(internal_data->skybox_shader, internal_data->sb->group_id);
+            if (!shader_system_uniform_set_by_location(internal_data->skybox_shader, internal_data->skybox_shader_locations.cube_map_location, &internal_data->sb->cubemap)) {
                 KERROR("Failed to apply skybox cube map uniform.");
                 return false;
             }
 
-            shader_system_apply_per_group(internal_data->skybox_shader_id);
+            shader_system_apply_per_group(internal_data->skybox_shader, internal_data->sb->skybox_shader_group_data_generation);
 
             // Apply the locals
             {
                 int view_index = use_inverted ? 1 : 0;
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->skybox_shader_id, internal_data->skybox_shader_locations.view_index, &view_index));
-                shader_system_apply_per_draw(internal_data->skybox_shader_id);
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->skybox_shader, internal_data->skybox_shader_locations.view_index, &view_index));
+                shader_system_apply_per_draw(internal_data->skybox_shader, internal_data->sb->draw_index);
             }
 
             // Draw it.
             geometry_render_data render_data = {};
-            render_data.material = internal_data->sb->g->material;
-            render_data.vertex_count = internal_data->sb->g->vertex_count;
-            render_data.vertex_element_size = internal_data->sb->g->vertex_element_size;
-            render_data.vertex_buffer_offset = internal_data->sb->g->vertex_buffer_offset;
-            render_data.index_count = internal_data->sb->g->index_count;
-            render_data.index_element_size = internal_data->sb->g->index_element_size;
-            render_data.index_buffer_offset = internal_data->sb->g->index_buffer_offset;
+            render_data.vertex_count = internal_data->sb->geometry.vertex_count;
+            render_data.vertex_element_size = internal_data->sb->geometry.vertex_element_size;
+            render_data.vertex_buffer_offset = internal_data->sb->geometry.vertex_buffer_offset;
+            render_data.index_count = internal_data->sb->geometry.index_count;
+            render_data.index_element_size = internal_data->sb->geometry.index_element_size;
+            render_data.index_buffer_offset = internal_data->sb->geometry.index_buffer_offset;
 
             renderer_geometry_draw(&render_data);
         }
@@ -579,12 +509,13 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
     }
 
     // Calculate light-space matrices for each shadow cascade.
-    for (u8 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+    for (u8 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
         internal_data->directional_light_spaces[i] = mat4_mul(internal_data->directional_light_views[i], internal_data->directional_light_projections[i]);
     }
 
     // Use the appropriate shader and apply the global uniforms.
-    u32 terrain_geometry_count = internal_data->terrain_geometry_count;
+    // FIXME: Replace "terrain" material with "blended" material and re-enable.
+    /* u32 terrain_geometry_count = internal_data->terrain_geometry_count;
     if (terrain_geometry_count > 0) {
         if (!shader_system_use_by_id(internal_data->terrain_shader->id)) {
             KERROR("Failed to use terrain pbr shader.");
@@ -713,7 +644,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
             // Draw it.
             renderer_geometry_draw(&internal_data->terrain_geometries[i]);
         }
-    }
+    } */
 
     // Tracker for water being drawn.
     b8 water_drawn = false;
@@ -723,51 +654,38 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
     {
         u32 geometry_count = internal_data->geometry_count;
         if (geometry_count > 0) {
-            // Update globals for material and PBR shaders.
-            if (!shader_system_use_by_id(internal_data->pbr_shader_id)) {
-                KERROR("Failed to use PBR shader. Render frame failed.");
-                return false;
-            }
 
-            if (internal_data->render_mode == RENDERER_VIEW_MODE_WIREFRAME) {
-                shader_system_set_wireframe(internal_data->pbr_shader_id, true);
-            } else {
-                shader_system_set_wireframe(internal_data->pbr_shader_id, false);
-            }
-
-            // Apply globals
+            // Set the per-frame material data (i.e. view, projection, etc.) before the below call.
             {
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.projection, &internal_data->projection_matrix));
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.views, 0, &view_matrix));
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.view_positions, 0, &view_position));
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.views, 1, &inverted_view_matrix));
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.view_positions, 1, &inverted_view_position));
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.render_mode, &internal_data->render_mode));
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.cascade_splits, &internal_data->cascade_splits));
-
-                // Light space for shadow mapping. Per cascade
-                for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.light_space_0 + i, &internal_data->directional_light_spaces[i]));
-                }
-
-                // Global shader options.
-                i32 use_pcf = (i32)renderer_pcf_enabled(internal_data->renderer);
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.use_pcf, &use_pcf));
+                material_frame_data mat_frame_data = {0};
+                mat_frame_data.delta_time = delta_time;
+                mat_frame_data.game_time = game_time;
+                mat_frame_data.projection = internal_data->projection_matrix;
+                mat_frame_data.views[0] = view_matrix;
+                mat_frame_data.views[1] = inverted_view_matrix;
+                mat_frame_data.view_positions[0] = view_position;
+                mat_frame_data.view_positions[1] = inverted_view_position;
+                mat_frame_data.render_mode = internal_data->render_mode;
+                // Cascade splits and light space matrices for shadow mapping. One per cascade.
+                kcopy_memory(mat_frame_data.cascade_splits, internal_data->cascade_splits, sizeof(vec4) * MATERIAL_MAX_SHADOW_CASCADES);
+                kcopy_memory(mat_frame_data.directional_light_spaces, internal_data->directional_light_spaces, sizeof(mat4) * MATERIAL_MAX_SHADOW_CASCADES);
 
                 // HACK: Read this in from somewhere (or have global setter?);
-                f32 bias = 0.0005f;
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.bias, &bias));
+                mat_frame_data.shadow_bias = 0.0005f;
 
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.clipping_plane, &clipping_plane));
+                // Shadow Maps (global)
+                mat_frame_data.shadow_map_texture = internal_data->shadow_map;
 
-                // Apply/upload them to the GPU
-                if (!shader_system_apply_per_frame(internal_data->pbr_shader_id)) {
-                    KERROR("Failed to apply global uniforms.");
-                    return false;
+                // Irradience maps provided by probes around in the world.
+                for (u32 i = 0; i < internal_data->ibl_cube_texture_count; ++i) {
+                    mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i];
                 }
+
+                // Update per-frame data for materials.
+                material_system_prepare_frame(internal_data->material_system, mat_frame_data, p_frame_data);
             }
 
-            u32 current_material_id = INVALID_ID - 1;
+            khandle current_material = khandle_invalid();
             // Draw geometries.
             u32 count = internal_data->geometry_count;
             // Keep track of when transparent rendering begins. The water plane, if drawn,
@@ -776,15 +694,13 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
 
             for (u32 i = 0; i < count; ++i) {
                 geometry_render_data* render_data = &internal_data->geometries[i];
-                kresource_material* m = render_data->material;
-                if (!m) {
-                    m = material_system_get_default();
-                }
+                material_instance* inst = &render_data->material;
 
-                // Only rebind/update the material if it's a new material. Duplicates can reuse the already-bound material.
-                if (m->internal_id != current_material_id) {
-                    // If the new material has transparency, pause rendering if water planes are to be rendered.
-                    if (include_water_plane && !transparency_started && m->maps[0].texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) {
+                // Only rebind/update the material if it's a different material. Duplicates can reuse the already-bound material.
+                if (inst->material.handle_index != current_material.handle_index) {
+                    // If the material has transparency, pause rendering if water planes are to be rendered.
+                    b8 has_transparency = material_flag_get(internal_data->material_system, inst->material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
+                    if (include_water_plane && !transparency_started && has_transparency) {
                         if (!render_water_planes(internal_data, plane_count, planes, colour, depth, vec4_zero(), cam, p_frame_data)) {
                             KERROR("Failed to draw water plane! See logs for details.");
                             return false;
@@ -793,78 +709,26 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                             transparency_started = true;
                         }
 
-                        // Switch back to the PBR shader.
-                        if (!shader_system_use_by_id(internal_data->pbr_shader_id)) {
-                            KERROR("Failed to switch back to PBR shader. Render frame failed.");
-                            return false;
-                        }
-
-                        // Shadow Maps (global)
-                        // TODO: does this need to be done?
-                        /* const kresource_texture* shadow_map_texture = internal_data->shadowmap_source->value.t;
-                        internal_data->shadow_map.texture = shadow_map_texture ? shadow_map_texture : texture_system_get_default_kresource_terrain_texture(internal_data->texture_system); */
-                        UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.shadow_textures, &internal_data->shadow_map));
-
-                        // Irradience maps provided by probes around in the world.
-                        for (u32 i = 0; i < internal_data->ibl_cube_texture_count; ++i) {
-                            UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(
-                                internal_data->pbr_shader_id,
-                                internal_data->pbr_locations.ibl_cube_textures,
-                                i,
-                                &internal_data->ibl_cube_textures[i]));
-                        }
-
-                        // Apply/upload them to the GPU
-                        if (!shader_system_apply_per_frame(internal_data->pbr_shader_id)) {
-                            KERROR("Failed to apply global uniforms.");
+                        // Apply material-level (i.e. group-level) data.
+                        if (!material_system_apply(internal_data->material_system, inst->material, p_frame_data)) {
+                            KERROR("Error applying material. See logs for details.");
                             return false;
                         }
                     }
-                    shader_system_bind_group(internal_data->pbr_shader_id, m->internal_id);
-                    // Properties
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.properties, m->properties));
-                    // Maps
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.material_texures, PBR_SAMP_IDX_ALBEDO, &m->maps[PBR_SAMP_IDX_ALBEDO]));
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.material_texures, PBR_SAMP_IDX_NORMAL, &m->maps[PBR_SAMP_IDX_NORMAL]));
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location_arrayed(internal_data->pbr_shader_id, internal_data->pbr_locations.material_texures, PBR_SAMP_IDX_COMBINED, &m->maps[PBR_SAMP_IDX_COMBINED]));
 
-                    // Directional light.
-                    directional_light* dir_light = light_system_directional_light_get();
-                    if (dir_light) {
-                        UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.dir_light, &dir_light->data));
-                    } else {
-                        directional_light_data data = {0};
-                        UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.dir_light, &data));
-                    }
-                    // Point lights.
-                    u32 p_light_count = light_system_point_light_count();
-                    if (p_light_count) {
-                        point_light* p_lights = p_frame_data->allocator.allocate(sizeof(point_light) * p_light_count);
-                        light_system_point_lights_get(p_lights);
-
-                        point_light_data* p_light_datas = p_frame_data->allocator.allocate(sizeof(point_light_data) * p_light_count);
-                        for (u32 i = 0; i < p_light_count; ++i) {
-                            p_light_datas[i] = p_lights[i].data;
-                        }
-
-                        UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.p_lights, p_light_datas));
-                    }
-
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.num_p_lights, &p_light_count));
-
-                    UNIFORM_APPLY_OR_FAIL(shader_system_apply_per_group(internal_data->pbr_shader_id));
-
-                    // Update the current material id.
-                    current_material_id = m->id;
+                    // Update the current material handle.
+                    current_material = inst->material;
                 }
 
-                // Apply the locals
-                {
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.model, &internal_data->geometries[i].model));
-                    int view_index = use_inverted ? 1 : 0;
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.view_index, &view_index));
-                    UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->pbr_shader_id, internal_data->pbr_locations.ibl_index, &render_data->ibl_probe_index));
-                    shader_system_apply_per_draw(internal_data->pbr_shader_id);
+                // Apply the per-draw (material instance)
+                material_instance_draw_data instance_draw_data = {0};
+                instance_draw_data.model = render_data->model;
+                instance_draw_data.view_index = view_index;
+                instance_draw_data.clipping_plane = clipping_plane;
+                instance_draw_data.irradiance_cubemap_index = 0; // FIXME: Get this passed in as well.
+                if (!material_system_apply_instance(internal_data->material_system, &render_data->material, instance_draw_data, p_frame_data)) {
+                    KERROR("Failed to apply per-instance material data. See logs for details.");
+                    return false;
                 }
 
                 // Invert if needed
@@ -922,25 +786,29 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
         // Refraction, clip above plane. Don't render the water plane itself. Uses bound camera
         // TODO: clipping plane should be based on position/orientation of water plane.
         vec4 refract_plane = (vec4){0, -1, 0, 0 + 1.0f}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
-        renderer_clear_colour(internal_data->renderer, plane->refraction_colour->renderer_texture_handle);
-        renderer_clear_depth_stencil(internal_data->renderer, plane->refraction_depth->renderer_texture_handle);
-        if (!render_scene(internal_data, plane->refraction_colour, plane->refraction_depth, 0, 0, false, refract_plane, internal_data->current_camera, &inverted_camera, false, p_frame_data)) {
+        kresource_texture* refraction_colour = material_texture_get(internal_data->material_system, plane->material.material, MATERIAL_TEXTURE_INPUT_REFRACTION);
+        kresource_texture* refraction_depth = material_texture_get(internal_data->material_system, plane->material.material, MATERIAL_TEXTURE_INPUT_REFRACTION_DEPTH);
+        renderer_clear_colour(internal_data->renderer, refraction_colour->renderer_texture_handle);
+        renderer_clear_depth_stencil(internal_data->renderer, refraction_depth->renderer_texture_handle);
+        if (!render_scene(internal_data, refraction_colour, refraction_depth, 0, 0, false, refract_plane, internal_data->current_camera, &inverted_camera, false, p_frame_data)) {
             KERROR("Failed to render scene.");
             return false;
         }
 
         // Reflection, clip below plane. Don't render the water plane itself.
-        renderer_clear_colour(internal_data->renderer, plane->reflection_colour->renderer_texture_handle);
-        renderer_clear_depth_stencil(internal_data->renderer, plane->reflection_depth->renderer_texture_handle);
+        kresource_texture* reflection_colour = material_texture_get(internal_data->material_system, plane->material.material, MATERIAL_TEXTURE_INPUT_REFLECTION);
+        kresource_texture* reflection_depth = material_texture_get(internal_data->material_system, plane->material.material, MATERIAL_TEXTURE_INPUT_REFLECTION_DEPTH);
+        renderer_clear_colour(internal_data->renderer, reflection_colour->renderer_texture_handle);
+        renderer_clear_depth_stencil(internal_data->renderer, reflection_depth->renderer_texture_handle);
         vec4 reflect_plane = (vec4){0, 1, 0, 0}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
-        if (!render_scene(internal_data, plane->reflection_colour, plane->reflection_depth, 0, 0, false, reflect_plane, internal_data->current_camera, &inverted_camera, true, p_frame_data)) {
+        if (!render_scene(internal_data, reflection_colour, reflection_depth, 0, 0, false, reflect_plane, internal_data->current_camera, &inverted_camera, true, p_frame_data)) {
             KERROR("Failed to render scene.");
             return false;
         }
 
-        renderer_texture_prepare_for_sampling(internal_data->renderer, plane->reflection_colour->renderer_texture_handle, plane->reflection_colour->flags);
-        renderer_texture_prepare_for_sampling(internal_data->renderer, plane->refraction_colour->renderer_texture_handle, plane->refraction_colour->flags);
-        renderer_texture_prepare_for_sampling(internal_data->renderer, plane->refraction_depth->renderer_texture_handle, plane->refraction_depth->flags);
+        renderer_texture_prepare_for_sampling(internal_data->renderer, reflection_colour->renderer_texture_handle, reflection_colour->flags);
+        renderer_texture_prepare_for_sampling(internal_data->renderer, refraction_colour->renderer_texture_handle, refraction_colour->flags);
+        renderer_texture_prepare_for_sampling(internal_data->renderer, refraction_depth->renderer_texture_handle, refraction_depth->flags);
     }
 
     // Finally, draw the scene normally with no clipping. Include the water plane rendering. Uses bound camera.
@@ -957,8 +825,6 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
 
 void forward_rendergraph_node_destroy(struct rendergraph_node* self) {
     if (self && self->internal_data) {
-        forward_rendergraph_node_internal_data* internal_data = self->internal_data;
-
         kfree(self->internal_data, sizeof(forward_rendergraph_node_internal_data), MEMORY_TAG_RENDERER);
         self->internal_data = 0;
     }
@@ -994,8 +860,8 @@ b8 forward_rendergraph_node_directional_light_set(struct rendergraph_node* self,
 
 b8 forward_rendergraph_node_cascade_data_set(struct rendergraph_node* self, f32 split, mat4 dir_light_view, mat4 dir_light_projection, u8 cascade_index) {
     if (self && self->internal_data) {
-        if (cascade_index >= MAX_SHADOW_CASCADE_COUNT) {
-            KERROR("Shadow cascade index out of bounds: %d is not in range [0-%s]", cascade_index, MAX_SHADOW_CASCADE_COUNT - 1);
+        if (cascade_index >= MATERIAL_MAX_SHADOW_CASCADES) {
+            KERROR("Shadow cascade index out of bounds: %d is not in range [0-%s]", cascade_index, MATERIAL_MAX_SHADOW_CASCADES - 1);
             return false;
         }
         forward_rendergraph_node_internal_data* internal_data = self->internal_data;

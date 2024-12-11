@@ -281,8 +281,18 @@ typedef struct kasset_material {
     vec4 emissive;
     kmaterial_texture_input emissive_map;
 
+    // DUDV map - only used for water materials.
+    kmaterial_texture_input dudv_map;
+
     u32 custom_sampler_count;
     kmaterial_sampler_config* custom_samplers;
+
+    // Only used in water materials.
+    f32 tiling;
+    // Only used in water materials.
+    f32 wave_strength;
+    // Only used in water materials.
+    f32 wave_speed;
 
 } kasset_material;
 

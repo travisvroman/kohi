@@ -25,25 +25,28 @@ typedef struct texture_system_config {
 } texture_system_config;
 
 /** @brief The default texture name. */
-#define DEFAULT_TEXTURE_NAME "default"
+#define DEFAULT_TEXTURE_NAME "Texture.Default"
 
-/** @brief The default diffuse texture name. */
-#define DEFAULT_DIFFUSE_TEXTURE_NAME "default_DIFF"
+/** @brief The default base colour texture name. */
+#define DEFAULT_BASE_COLOUR_TEXTURE_NAME "Texture.DefaultBase"
 
 /** @brief The default specular texture name. */
-#define DEFAULT_SPECULAR_TEXTURE_NAME "default_SPEC"
+#define DEFAULT_SPECULAR_TEXTURE_NAME "Texture.DefaultSpecular"
 
 /** @brief The default normal texture name. */
-#define DEFAULT_NORMAL_TEXTURE_NAME "default_NORM"
+#define DEFAULT_NORMAL_TEXTURE_NAME "Texture.DefaultNormal"
 
 /** @brief The default combined (metallic, roughness, AO) texture name. */
-#define DEFAULT_COMBINED_TEXTURE_NAME "default_COMBINED"
+#define DEFAULT_MRA_TEXTURE_NAME "Texture.DefaultMRA"
 
 /** @brief The default cube texture name. */
-#define DEFAULT_CUBE_TEXTURE_NAME "default_cube"
+#define DEFAULT_CUBE_TEXTURE_NAME "Texture.DefaultCube"
 
-/** @brief The default terrain texture name. */
-#define DEFAULT_TERRAIN_TEXTURE_NAME "default_TERRAIN"
+/** @brief The default water normal texture name. */
+#define DEFAULT_WATER_NORMAL_TEXTURE_NAME "Texture.DefaultWaterNormal"
+
+/** @brief The default water derivative (dudv) texture name. */
+#define DEFAULT_WATER_DUDV_TEXTURE_NAME "Texture.DefaultWaterDUDV"
 
 /**
  * @brief Initializes the texture system.
@@ -199,64 +202,3 @@ KAPI b8 texture_system_resize(kresource_texture* t, u32 width, u32 height, b8 re
  * @return True on success; otherwise false.
  */
 KAPI b8 texture_system_write_data(kresource_texture* t, u32 offset, u32 size, void* data);
-
-/**
- * @brief Gets a pointer to the default texture.
- * @param state A pointer to the texture system state.
- * @returns A pointer to the texture.
- */
-KAPI const kresource_texture* texture_system_get_default_kresource_texture(struct texture_system_state* state);
-
-/**
- * @brief Gets a pointer to the default diffuse texture.
- * @param state A pointer to the texture system state.
- * @returns A pointer to the texture.
- */
-KAPI const kresource_texture* texture_system_get_default_kresource_diffuse_texture(struct texture_system_state* state);
-
-/**
- * @brief Gets a pointer to the default specular texture.
- * @param state A pointer to the texture system state.
- * @returns A pointer to the texture.
- */
-KAPI const kresource_texture* texture_system_get_default_kresource_specular_texture(struct texture_system_state* state);
-
-/**
- * @brief Gets a pointer to the default normal texture.
- * @param state A pointer to the texture system state.
- * @returns A pointer to the texture.
- */
-KAPI const kresource_texture* texture_system_get_default_kresource_normal_texture(struct texture_system_state* state);
-
-/**
- * @brief Gets a pointer to the default combined (metallic, roughness, AO) texture.
- * @param state A pointer to the texture system state.
- * @returns A pointer to the texture.
- */
-KAPI const kresource_texture* texture_system_get_default_kresource_combined_texture(struct texture_system_state* state);
-
-/**
- * @brief Gets a pointer to the default cube texture.
- * @param state A pointer to the texture system state.
- * @returns A pointer to the texture.
- */
-KAPI const kresource_texture* texture_system_get_default_kresource_cube_texture(struct texture_system_state* state);
-
-/**
- * @brief Gets a pointer to the default terrain texture.
- * @param state A pointer to the texture system state.
- * @returns A pointer to the texture.
- */
-KAPI const kresource_texture* texture_system_get_default_kresource_terrain_texture(struct texture_system_state* state);
-
-/**
- * @brief Gets a pointer to either the internal data of the supplied texture if loaded,
- * or one to the internal of a default texture of the appropriate type. If a default texture
- * is used, out_generation will be set to INVALID_ID. If an invalid texture is passed, 0/null
- * will be returned.
- *
- * @param t A pointer to the texture whose internal data will be fetched.
- * @param out_generation A pointer to hold the generation of the texture.
- * @returns A handle to texture internal data if successful, otherwise invalid handle.
- */
-KAPI khandle texture_system_resource_get_internal_or_default(const kresource_texture* t, u32* out_generation);
