@@ -105,6 +105,8 @@ b8 vulkan_renderer_is_multithreaded(renderer_backend_interface* backend);
 b8 vulkan_renderer_flag_enabled_get(renderer_backend_interface* backend, renderer_config_flags flag);
 void vulkan_renderer_flag_enabled_set(renderer_backend_interface* backend, renderer_config_flags flag, b8 enabled);
 
+f32 vulkan_renderer_max_anisotropy_get(renderer_backend_interface* backend);
+
 b8 vulkan_buffer_create_internal(renderer_backend_interface* backend, renderbuffer* buffer);
 void vulkan_buffer_destroy_internal(renderer_backend_interface* backend, renderbuffer* buffer);
 b8 vulkan_buffer_resize(renderer_backend_interface* backend, renderbuffer* buffer, u64 new_size);

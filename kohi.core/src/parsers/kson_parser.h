@@ -1,3 +1,14 @@
+/**
+ * @file kson_parser.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief This file contains the parser implementation for the KSON (Kohi Storage Object Notation) file format.
+ * @version 2.0
+ * @date 2024-12-10
+ * 
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2024
+ * 
+ */
+
 #ifndef _KSON_H_
 #define _KSON_H_
 
@@ -258,13 +269,22 @@ KAPI b8 kson_array_value_add_vec3(kson_array* array, vec3 value);
 KAPI b8 kson_array_value_add_vec2(kson_array* array, vec2 value);
 
 /**
- * @brief Adds an unnamed kname value to the provided array.
+ * @brief Adds an unnamed kname value as a string to the provided array.
  *
  * @param array A pointer to the array to add the property to.
  * @param value The value to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 kson_array_value_add_kname(kson_array* array, kname value);
+KAPI b8 kson_array_value_add_kname_as_string(kson_array* array, kname value);
+
+/**
+ * @brief Adds an unnamed kstring_id value as a string to the provided array.
+ *
+ * @param array A pointer to the array to add the property to.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_value_add_kstring_id_as_string(kson_array* array, kstring_id value);
 
 /**
  * @brief Adds an unnamed object value to the provided array.
@@ -383,14 +403,24 @@ KAPI b8 kson_object_value_add_vec3(kson_object* object, const char* name, vec3 v
 KAPI b8 kson_object_value_add_vec2(kson_object* object, const char* name, vec2 value);
 
 /**
- * @brief Adds a named kname value to the provided object.
+ * @brief Adds a named kname value as a string to the provided object.
  *
  * @param object A pointer to the object to add the property to.
  * @param name A constant pointer to the name to be used. Required.
  * @param value The value to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 kson_object_value_add_kname(kson_object* object, const char* name, kname value);
+KAPI b8 kson_object_value_add_kname_as_string(kson_object* object, const char* name, kname value);
+
+/**
+ * @brief Adds a named kstring_id value as a string to the provided object.
+ *
+ * @param object A pointer to the object to add the property to.
+ * @param name A constant pointer to the name to be used. Required.
+ * @param value The value to be set.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_value_add_kstring_id_as_string(kson_object* object, const char* name, kstring_id value);
 
 /**
  * @brief Adds a named object value to the provided object.
@@ -546,7 +576,18 @@ KAPI b8 kson_array_element_value_get_vec2(const kson_array* array, u32 index, ve
  * @param out_value A pointer to hold the object property's value.
  * @return True on success; otherwise false.
  */
-KAPI b8 kson_array_element_value_get_kname(const kson_array* array, u32 index, kname* out_value);
+KAPI b8 kson_array_element_value_get_string_as_kname(const kson_array* array, u32 index, kname* out_value);
+
+/**
+ * @brief Attempts to retrieve the array element's value at the provided index as a kstring_id. Fails if out of range
+ * or on type mismatch. kstring_ids are always stored as strings.
+ *
+ * @param array A constant pointer to the array to search. Required.
+ * @param index The array index to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_element_value_get_string_as_kstring_id(const kson_array* array, u32 index, kstring_id* out_value);
 
 /**
  * @brief Attempts to retrieve the array element's value at the provided index as an object. Fails if out of range.
@@ -558,6 +599,17 @@ KAPI b8 kson_array_element_value_get_kname(const kson_array* array, u32 index, k
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_array_element_value_get_object(const kson_array* array, u32 index, kson_object* out_value);
+
+/**
+ * @brief Attempts to retrieve the array element's value at the provided index as an array. Fails if out of range.
+ * or on type mismatch.
+ *
+ * @param array A constant pointer to the array to search. Required.
+ * @param index The array index to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_array_element_value_get_array(const kson_array* array, u32 index, kson_array* out_value);
 
 /**
  * Obtains the type of the property with the given name. Fails if the name is not found.
@@ -685,7 +737,18 @@ KAPI b8 kson_object_property_value_get_vec2(const kson_object* object, const cha
  * @param out_value A pointer to hold the object property's value.
  * @return True on success; otherwise false.
  */
-KAPI b8 kson_object_property_value_get_kname(const kson_object* object, const char* name, kname* out_value);
+KAPI b8 kson_object_property_value_get_string_as_kname(const kson_object* object, const char* name, kname* out_value);
+
+/**
+ * @brief Attempts to retrieve the given object's property value by name as a kstring_id. Fails if not found
+ * or on type mismatch. kstring_ids are always stored as thier original text format.
+ *
+ * @param object A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_string_as_kstring_id(const kson_object* object, const char* name, kstring_id* out_value);
 
 /**
  * @brief Attempts to retrieve the a copy given object's property value by name as an object. Fails if not found
@@ -697,6 +760,17 @@ KAPI b8 kson_object_property_value_get_kname(const kson_object* object, const ch
  * @return True on success; otherwise false.
  */
 KAPI b8 kson_object_property_value_get_object(const kson_object* object, const char* name, kson_object* out_value);
+
+/**
+ * @brief Attempts to retrieve the a copy given object's property value by name as an array. Fails if not found
+ * or on type mismatch.
+ *
+ * @param object A constant pointer to the object to search. Required.
+ * @param name The property name to search for. Required.
+ * @param out_value A pointer to hold a copy of the object property's value.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 kson_object_property_value_get_array(const kson_object* object, const char* name, kson_array* out_value);
 
 /**
  * Creates and returns a new property of the object type.

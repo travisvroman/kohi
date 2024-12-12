@@ -1,6 +1,5 @@
 #version 450
 
-
 // TODO: All these types should be defined in some #include file when #includes are implemented.
 
 const uint MATERIAL_MAX_SHADOW_CASCADES = 4;
@@ -158,3 +157,4 @@ void unpack_u32(uint n, out uint x, out uint y, out uint z, out uint w) {
     z = (n >> 8) & 0xFF;
     w = n & 0xFF;
 }
+

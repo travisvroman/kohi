@@ -1,12 +1,12 @@
 package_name = "Testbed"
 references = [
     {
-        name = "Runtime"
-        path = "../kohi.runtime/asset_manifest.kson"
+        name = "Kohi.Runtime"
+        path = "../kohi.runtime/"
     }
     {
-        name = "PluginStandardUi"
-        path = "../kohi.plugin.ui.standard/asset_manifest.kson"
+        name = "Kohi.Plugin.Ui.Standard"
+        path = "../kohi.plugin.ui.standard/"
     }
 ]
 assets = [

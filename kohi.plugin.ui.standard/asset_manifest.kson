@@ -1,7 +1,7 @@
-package_name = "PluginUiStandard"
+package_name = "Kohi.Plugin.Ui.Standard"
 references = [
     {
-        name = "Runtime"
+        name = "Kohi.Runtime"
         path = "../kohi.runtime/"
     }
 ]

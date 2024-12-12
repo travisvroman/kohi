@@ -187,15 +187,28 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
         return false;
     }
 
-    // Create "generic" samplers for reuse.
-    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_REPEAT] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_REPEAT, 0, 0);
-    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_REPEAT_MIRRORED] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_MIRRORED_REPEAT, 0, 0);
-    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_CLAMP_TO_EDGE, 0, 0);
-    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP_BORDER] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_CLAMP_TO_BORDER, 0, 0);
-    state->generic_samplers[SHADER_GENERIC_SAMPLER_NEAREST_REPEAT] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_REPEAT, 0, 0);
-    state->generic_samplers[SHADER_GENERIC_SAMPLER_NEAREST_REPEAT_MIRRORED] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_MIRRORED_REPEAT, 0, 0);
-    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_CLAMP_TO_EDGE, 0, 0);
-    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP_BORDER] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_CLAMP_TO_BORDER, 0, 0);
+    // Create "generic" samplers for reuse WITH anisotropy.
+    // NOTE: This should probably be configurable instead of just maxing out anisotropy
+    f32 max_aniotropy = renderer_max_anisotropy_get();
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_REPEAT] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_REPEAT, max_aniotropy);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_REPEAT_MIRRORED] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_MIRRORED_REPEAT, max_aniotropy);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_CLAMP_TO_EDGE, max_aniotropy);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP_BORDER] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_CLAMP_TO_BORDER, max_aniotropy);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_NEAREST_REPEAT] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_REPEAT, max_aniotropy);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_NEAREST_REPEAT_MIRRORED] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_MIRRORED_REPEAT, max_aniotropy);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_CLAMP_TO_EDGE, max_aniotropy);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP_BORDER] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_CLAMP_TO_BORDER, max_aniotropy);
+
+    // Same as above, but variants WITHOUT anisotropy. Used for sampling depth textures, for example.
+    // This is required since AMD cards tend to not like anisotropy when sampling depth textures.
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_REPEAT_NO_ANISOTROPY] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_REPEAT, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_REPEAT_MIRRORED_NO_ANISOTROPY] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_MIRRORED_REPEAT, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP_NO_ANISOTROPY] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_CLAMP_TO_EDGE, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP_BORDER_NO_ANISOTROPY] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_LINEAR, TEXTURE_REPEAT_CLAMP_TO_BORDER, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_NEAREST_REPEAT_NO_ANISOTROPY] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_REPEAT, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_NEAREST_REPEAT_MIRRORED_NO_ANISOTROPY] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_MIRRORED_REPEAT, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP_NO_ANISOTROPY] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_CLAMP_TO_EDGE, 0);
+    state->generic_samplers[SHADER_GENERIC_SAMPLER_LINEAR_CLAMP_BORDER_NO_ANISOTROPY] = renderer_sampler_acquire(state, TEXTURE_FILTER_MODE_NEAREST, TEXTURE_REPEAT_CLAMP_TO_BORDER, 0);
 
     // Invalidate default texture handles, the should be registered from the texture system via renderer_default_texture_register().
     for (u32 i = 0; i < RENDERER_DEFAULT_TEXTURE_COUNT; ++i) {
@@ -488,7 +501,7 @@ void renderer_texture_resources_release(struct renderer_system_state* state, kha
 
 b8 renderer_texture_write_data(struct renderer_system_state* state, khandle renderer_texture_handle, u32 offset, u32 size, const u8* pixels) {
     if (state && !khandle_is_invalid(renderer_texture_handle)) {
-        b8 include_in_frame_workload = true;
+        b8 include_in_frame_workload = (state->frame_number > 0);
         b8 result = state->backend->texture_write_data(state->backend, renderer_texture_handle, offset, size, pixels, include_in_frame_workload);
         if (!include_in_frame_workload) {
             // TODO: update generation?
@@ -790,8 +803,8 @@ khandle renderer_generic_sampler_get(struct renderer_system_state* state, shader
     return state->generic_samplers[sampler];
 }
 
-khandle renderer_sampler_acquire(struct renderer_system_state* state, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels) {
-    return state->backend->sampler_acquire(state->backend, filter, repeat, anisotropy, mip_levels);
+khandle renderer_sampler_acquire(struct renderer_system_state* state, texture_filter filter, texture_repeat repeat, f32 anisotropy) {
+    return state->backend->sampler_acquire(state->backend, filter, repeat, anisotropy);
 }
 
 void renderer_sampler_release(struct renderer_system_state* state, khandle* sampler) {
@@ -819,6 +832,11 @@ b8 renderer_flag_enabled_get(renderer_config_flags flag) {
 void renderer_flag_enabled_set(renderer_config_flags flag, b8 enabled) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     state_ptr->backend->flag_enabled_set(state_ptr->backend, flag, enabled);
+}
+
+f32 renderer_max_anisotropy_get(void) {
+    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    return state_ptr->backend->max_anisotropy_get(state_ptr->backend);
 }
 
 b8 renderer_renderbuffer_create(const char* name, renderbuffer_type type, u64 total_size, renderbuffer_track_type track_type, renderbuffer* out_buffer) {

@@ -638,10 +638,9 @@ KAPI khandle renderer_generic_sampler_get(struct renderer_system_state* state, s
  * @param filter The min/mag filter.
  * @param repeat The repeat mode.
  * @param anisotropy The anisotropy level, if needed; otherwise 0.
- * @param mip_levels The mip levels, if used; otherwise 0.
  * @return A handle to the sampler on success; otherwise an invalid handle.
  */
-KAPI khandle renderer_sampler_acquire(struct renderer_system_state* state, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
+KAPI khandle renderer_sampler_acquire(struct renderer_system_state* state, texture_filter filter, texture_repeat repeat, f32 anisotropy);
 
 /**
  * @brief Releases the internal sampler for the given handle.
@@ -694,6 +693,11 @@ KAPI b8 renderer_flag_enabled_get(renderer_config_flags flag);
  * @param enabled Indicates whether or not to enable the flag(s).
  */
 KAPI void renderer_flag_enabled_set(renderer_config_flags flag, b8 enabled);
+
+/**
+ * @brief Obtains the max anisotropy level available from the renderer. 0 means not available.
+ */
+KAPI f32 renderer_max_anisotropy_get(void);
 
 /**
  * @brief Creates a new renderbuffer to hold data for a given purpose/use. Backed by a

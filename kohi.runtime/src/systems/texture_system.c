@@ -544,7 +544,7 @@ static b8 create_default_textures(texture_system_state* state) {
         }
 
         // Request new resource texture.?
-        u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
+        u32 pixel_array_size = image_size;
         state->default_kresource_cube_texture = create_default_kresource_texture(state, kname_create(DEFAULT_CUBE_TEXTURE_NAME), KRESOURCE_TEXTURE_TYPE_CUBE, tex_dimension, 6, channels, pixel_array_size, pixels);
         if (!state->default_kresource_cube_texture) {
             KERROR("Failed to request resources for default cube texture");

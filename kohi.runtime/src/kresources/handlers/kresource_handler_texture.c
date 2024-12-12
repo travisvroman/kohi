@@ -112,8 +112,6 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
     } else if (typed_request->pixel_data.data) {
         // Pixel data is available immediately and can be loaded thusly.
 
-        struct renderer_system_state* renderer = engine_systems_get()->renderer_system;
-
         // Flip to a "loading" state.
         typed_resource->base.state = KRESOURCE_STATE_LOADING;
 
@@ -129,6 +127,7 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
         typed_resource->height = first_px_data->height;
         typed_resource->format = first_px_data->format;
         typed_resource->mip_levels = first_px_data->mip_levels;
+        typed_resource->renderer_texture_handle = khandle_invalid();
 
         // Acquire the resources for the texture.
         b8 acquisition_result = renderer_kresource_texture_resources_acquire(

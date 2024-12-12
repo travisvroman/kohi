@@ -4,7 +4,8 @@ version = 1
 depth_test=true
 depth_write=true
 supports_wireframe=true
-max_groups=256
+max_groups=69
+max_instances=69
 cull_mode = "back"
 
 topology_types [

@@ -272,7 +272,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
 
         // Topology type flags
         kson_array topology_types_array;
-        if (kson_object_property_value_get_object(&tree.root, "topology_types", &topology_types_array)) {
+        if (kson_object_property_value_get_array(&tree.root, "topology_types", &topology_types_array)) {
             u32 topology_type_count = 0;
             if (!kson_array_element_count_get(&topology_types_array, &topology_type_count) || topology_type_count == 0) {
                 // If nothing exists, default to triangle list
@@ -300,7 +300,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
 
         // Stages
         kson_array stages_array;
-        if (kson_object_property_value_get_object(&tree.root, "stages", &stages_array)) {
+        if (kson_object_property_value_get_array(&tree.root, "stages", &stages_array)) {
             if (!kson_array_element_count_get(&stages_array, &typed_asset->stage_count) || typed_asset->stage_count == 0) {
                 KERROR("Stages are required for shader configurations. Make sure at least one exists.");
                 return false;
@@ -328,7 +328,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
 
         // Attributes
         kson_array attributes_array = {0};
-        if (kson_object_property_value_get_object(&tree.root, "attributes", &attributes_array)) {
+        if (kson_object_property_value_get_array(&tree.root, "attributes", &attributes_array)) {
             if (!kson_array_element_count_get(&attributes_array, &typed_asset->attribute_count)) {
                 KERROR("Failed to get attributes_array count. See logs for details.");
                 return false;
@@ -360,13 +360,13 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
             u32 per_group_count = 0;
             u32 per_draw_count = 0;
 
-            if (kson_object_property_value_get_object(&uniforms_obj, "per_frame", &per_frame_array)) {
+            if (kson_object_property_value_get_array(&uniforms_obj, "per_frame", &per_frame_array)) {
                 kson_array_element_count_get(&per_frame_array, &per_frame_count);
             }
-            if (kson_object_property_value_get_object(&uniforms_obj, "per_group", &per_group_array)) {
+            if (kson_object_property_value_get_array(&uniforms_obj, "per_group", &per_group_array)) {
                 kson_array_element_count_get(&per_group_array, &per_group_count);
             }
-            if (kson_object_property_value_get_object(&uniforms_obj, "per_draw", &per_draw_array)) {
+            if (kson_object_property_value_get_array(&uniforms_obj, "per_draw", &per_draw_array)) {
                 kson_array_element_count_get(&per_draw_array, &per_draw_count);
             }
 

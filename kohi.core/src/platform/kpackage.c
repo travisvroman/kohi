@@ -58,7 +58,9 @@ b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_p
         asset_entry new_entry = {0};
         new_entry.name = asset->name;
         new_entry.path = string_duplicate(asset->path);
-        new_entry.source_path = string_duplicate(asset->source_path);
+        if (asset->source_path) {
+            new_entry.source_path = string_duplicate(asset->source_path);
+        }
         // NOTE: Size and offset don't get filled out/used with a manifest version of a package.
 
         // Allocate the entry type array if it isn't already.
@@ -171,14 +173,20 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
         }
 
         // Get the file size.
-        u64 file_size = 0;
-        if (!filesystem_size(&f, &file_size)) {
+        u64 original_file_size = 0;
+        if (!filesystem_size(&f, &original_file_size)) {
             KERROR("Package '%s': Failed to get size for asset '%s' file at path: '%s'.", package_name, name_str, asset_path);
             result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
             goto get_data_cleanup;
         }
 
-        data = kallocate(file_size, MEMORY_TAG_ASSET);
+        // Account for the null terminator for text files.
+        u64 actual_file_size = original_file_size;
+        if (!is_binary) {
+            actual_file_size++;
+        }
+
+        data = kallocate(actual_file_size, MEMORY_TAG_ASSET);
 
         u64 read_size = 0;
         if (is_binary) {
@@ -196,21 +204,21 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
         }
 
         // Sanity check to make sure the bounds haven't been breached.
-        KASSERT_MSG(read_size <= file_size, "File read exceeded bounds of data allocation based on file size.");
+        KASSERT_MSG(read_size <= actual_file_size, "File read exceeded bounds of data allocation based on file size.");
 
         // This means that data is bigger than it needs to be, and that a smaller block of memory can be used.
-        if (read_size < file_size) {
-            KTRACE("Package '%s': asset '%s', file at path: '%s' - Read size/file size mismatch (%llu, %llu).", package_name, name_str, asset_path, read_size, file_size);
+        if (read_size < original_file_size) {
+            KTRACE("Package '%s': asset '%s', file at path: '%s' - Read size/file size mismatch (%llu, %llu).", package_name, name_str, asset_path, read_size, original_file_size);
             void* temp = kallocate(read_size, MEMORY_TAG_ASSET);
             kcopy_memory(temp, data, read_size);
-            kfree(data, file_size, MEMORY_TAG_ASSET);
+            kfree(data, actual_file_size, MEMORY_TAG_ASSET);
             data = temp;
-            file_size = read_size;
+            actual_file_size = read_size;
         }
 
         // Set the output.
         *out_data = data;
-        *out_size = file_size;
+        *out_size = actual_file_size;
 
         // Success!
         result = KPACKAGE_RESULT_SUCCESS;
@@ -220,7 +228,7 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
 
         if (result != KPACKAGE_RESULT_SUCCESS) {
             if (data) {
-                kfree(data, file_size, MEMORY_TAG_ASSET);
+                kfree(data, original_file_size, MEMORY_TAG_ASSET);
             }
         } else {
             // KERROR("Package '%s' does not contain asset '%s'.", package_name, name_str);
@@ -404,7 +412,7 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
     }
 
     // Extract properties from file.
-    if (!kson_object_property_value_get_kname(&tree.root, "package_name", &out_manifest->name)) {
+    if (!kson_object_property_value_get_string_as_kname(&tree.root, "package_name", &out_manifest->name)) {
         KERROR("Asset manifest format - 'package_name' is required but not found.");
         goto kpackage_parse_cleanup;
     }
@@ -421,7 +429,7 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
 
     // Process references.
     kson_array references = {0};
-    b8 contains_references = kson_object_property_value_get_object(&tree.root, "references", &references);
+    b8 contains_references = kson_object_property_value_get_array(&tree.root, "references", &references);
     if (contains_references) {
         u32 reference_array_count = 0;
         if (!kson_array_element_count_get(&references, &reference_array_count)) {
@@ -464,7 +472,7 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
 
     // Process assets.
     kson_array assets = {0};
-    b8 contains_assets = kson_object_property_value_get_object(&tree.root, "assets", &assets);
+    b8 contains_assets = kson_object_property_value_get_array(&tree.root, "assets", &assets);
     if (contains_assets) {
         u32 asset_array_count = 0;
         if (!kson_array_element_count_get(&assets, &asset_array_count)) {

@@ -187,9 +187,9 @@ shader_uniform_type string_to_shader_uniform_type(const char* str) {
         return SHADER_UNIFORM_TYPE_UINT32;
     } else if (strings_equali("mat4", str)) {
         return SHADER_UNIFORM_TYPE_MATRIX_4;
-    } else if (strings_equali("sampler1d", str)) {
+    } else if (strings_equali("texture1d", str)) {
         return SHADER_UNIFORM_TYPE_TEXTURE_1D;
-    } else if (strings_equali("texture2d", str)) {
+    } else if (strings_equali("texture2d", str) || strings_equali("texture", str)) {
         return SHADER_UNIFORM_TYPE_TEXTURE_2D;
     } else if (strings_equali("texture3d", str)) {
         return SHADER_UNIFORM_TYPE_TEXTURE_3D;

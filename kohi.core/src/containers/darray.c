@@ -3,6 +3,7 @@
 #include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
+#include "debug/kassert.h"
 
 void* _darray_create(u64 length, u64 stride, frame_allocator_int* allocator) {
     u64 header_size = sizeof(darray_header);
@@ -58,6 +59,7 @@ void* _darray_resize(void* array) {
 }
 
 void* _darray_push(void* array, const void* value_ptr) {
+    KASSERT_DEBUG(array);
     u64 header_size = sizeof(darray_header);
     darray_header* header = (darray_header*)((u8*)array - header_size);
     if (header->length >= header->capacity) {

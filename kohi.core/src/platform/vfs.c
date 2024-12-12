@@ -31,6 +31,7 @@ b8 vfs_initialize(u64* memory_requirement, vfs_state* state, const vfs_config* c
     }
 
     state->packages = darray_create(kpackage);
+    state->watched_assets = darray_create(vfs_asset_data);
 
     // TODO: For release builds, look at binary file.
     // FIXME: hardcoded rubbish. Add to app config, pass to config and read in here.
@@ -382,13 +383,17 @@ static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest
                     exists = true;
                     break;
                 }
+                // TODO: Should probably also check the reference manifest's path against existing in case the name is wrong.
             }
             if (exists) {
                 continue;
             }
 
             asset_manifest new_manifest = {0};
-            if (!kpackage_parse_manifest_file_content(ref->path, &new_manifest)) {
+            const char* manifest_file_path = string_format("%sasset_manifest.kson", ref->path);
+            b8 manifest_result = kpackage_parse_manifest_file_content(manifest_file_path, &new_manifest);
+            string_free(manifest_file_path);
+            if (!manifest_result) {
                 KERROR("Failed to parse asset manifest. See logs for details.");
                 return false;
             }

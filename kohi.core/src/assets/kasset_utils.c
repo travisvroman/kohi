@@ -120,6 +120,9 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data as
                     KWARN("Failed to write asset data to disk after automatic import.");
                 }
                 result = ASSET_REQUEST_RESULT_SUCCESS;
+            } else {
+                // Every handler must have some sort of serializer, even if it's not much more than a passthough.
+                KERROR("No serializer configured for asset type '%s'.", kasset_type_to_string(context.asset->type));
             }
 
         from_source_cleanup:
@@ -149,6 +152,9 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data as
                 } else {
                     result = ASSET_REQUEST_RESULT_SUCCESS;
                 }
+            } else {
+                // Every handler must have some sort of deserializer, even if it's not much more than a passthough.
+                KERROR("No deserializer configured for asset type '%s'.", kasset_type_to_string(context.asset->type));
             }
         }
 

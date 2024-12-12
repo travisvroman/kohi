@@ -3,20 +3,26 @@
 #include <stdarg.h> // For variadic functions
 #include <stdio.h>  // vsnprintf, sscanf, sprintf
 
+#define USE_STD_STR 1
+#if USE_STD_STR
+#    include <string.h>
+#endif
+
 #include "containers/darray.h"
-#include "containers/u64_bst.h"
-#include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
-#include "utils/crc64.h"
 
 u64 string_length(const char* str) {
+#if USE_STD_STR
+    return strlen(str);
+#else
     u32 length = string_nlength(str, U32_MAX);
     if (length == U32_MAX) {
         KWARN("string_length is returning U32_MAX. Is it possible the string has no null terminator?")
     }
     return length;
+#endif
 }
 
 u32 string_utf8_length(const char* str) {
@@ -194,7 +200,20 @@ void string_free(const char* str) {
     }
 }
 
-static i64 kstr_ncmp(const char* str0, const char* str1, u32 max_len) {
+i64 kstr_ncmp(const char* str0, const char* str1, u32 max_len) {
+    if (!str0 && !str1) {
+        return 0; // Technically equal since both are null.
+    } else if (!str0 && str1) {
+        // Count the first string as 0 and compare against the second, non-empty string.
+        return 0 - str1[0];
+    } else if (str0 && !str1) {
+        // Count the second string as 0. In this case, just return the value of the
+        // first char of the first string as str[0] - 0 would just be str[0] anyway.
+        return str0[0];
+    }
+#if USE_STD_STR
+    return strncmp(str0, str1, max_len);
+#else
     if (!str0 && !str1) {
         return 0; // Technically equal since both are null.
     } else if (!str0 && str1) {
@@ -206,15 +225,24 @@ static i64 kstr_ncmp(const char* str0, const char* str1, u32 max_len) {
         return str0[0];
     }
 
-    // Get string lengths, including null terminators.
-    u32 length_0 = string_nlength(str0, max_len) + 1;
-    u32 length_1 = string_nlength(str1, max_len) + 1;
+    // Get string lengths, excluding null terminators.
+    u32 length_0 = string_nlength(str0, max_len);
+    u32 length_1 = string_nlength(str1, max_len);
 
     // Can only loop through the smallest string's length.
     // Ensure a max of U32_MAX also.
-    u32 min_length = KMIN(KMIN(max_len + 1, U32_MAX), KMIN(length_0, length_1));
+    u32 min_length = KMIN(KMIN(max_len, U32_MAX), KMIN(length_0, length_1));
+    // LEFTOFF: This causes failures in some cases but blocks successes in others.
+    // Ideally this should always take the null terminator into account in the comparison.
 
-    for (u32 i = 0; i < min_length; ++i) {
+    u32 count = min_length;
+    if (min_length < U32_MAX) {
+        count += 1;
+    }
+    for (u32 i = 0; i < count; ++i) {
+        if ((!str0[i] || !str1[i]) && i == max_len) {
+            return 0;
+        }
         i64 result = str0[i] - str1[i];
         if (result) {
             return result;
@@ -223,9 +251,10 @@ static i64 kstr_ncmp(const char* str0, const char* str1, u32 max_len) {
 
     // If at the end and no differences were found, should be safe to say they are the same.
     return 0;
+#endif
 }
 
-static i64 kstr_ncmpi(const char* str0, const char* str1, u32 max_len) {
+i64 kstr_ncmpi(const char* str0, const char* str1, u32 max_len) {
     char* lower_0 = 0;
     char* lower_1 = 0;
     // Lowercase both strings and use them for comparison.
@@ -237,7 +266,7 @@ static i64 kstr_ncmpi(const char* str0, const char* str1, u32 max_len) {
         lower_1 = string_duplicate(str1);
         string_to_lower(lower_1);
     }
-    i64 result = kstr_ncmp(lower_0, lower_1, U32_MAX);
+    i64 result = kstr_ncmp(lower_0, lower_1, max_len);
     if (lower_0) {
         string_free(lower_0);
     }
@@ -985,8 +1014,8 @@ void string_directory_from_path(char* dest, const char* path) {
     for (i32 i = length; i >= 0; --i) {
         char c = path[i];
         if (c == '/' || c == '\\') {
-            string_ncopy(dest, path, i + i);
-            dest[i + 2] = 0;
+            string_ncopy(dest, path, i + 1);
+            dest[i + 1] = 0;
             return;
         }
     }

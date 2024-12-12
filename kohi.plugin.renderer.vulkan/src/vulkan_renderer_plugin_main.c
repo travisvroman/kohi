@@ -57,6 +57,9 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
     backend->texture_resources_acquire = vulkan_renderer_texture_resources_acquire;
     backend->texture_resources_release = vulkan_renderer_texture_resources_release;
 
+    backend->sampler_acquire = vulkan_renderer_sampler_acquire;
+    backend->sampler_release = vulkan_renderer_sampler_release;
+
     backend->texture_resize = vulkan_renderer_texture_resize;
     backend->texture_write_data = vulkan_renderer_texture_write_data;
     backend->texture_read_data = vulkan_renderer_texture_read_data;
@@ -81,6 +84,8 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
     backend->is_multithreaded = vulkan_renderer_is_multithreaded;
     backend->flag_enabled_get = vulkan_renderer_flag_enabled_get;
     backend->flag_enabled_set = vulkan_renderer_flag_enabled_set;
+
+    backend->max_anisotropy_get = vulkan_renderer_max_anisotropy_get;
 
     backend->renderbuffer_internal_create = vulkan_buffer_create_internal;
     backend->renderbuffer_internal_destroy = vulkan_buffer_destroy_internal;

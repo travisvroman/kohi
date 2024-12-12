@@ -97,6 +97,10 @@ KAPI char* string_duplicate(const char* str);
  */
 KAPI void string_free(const char* str);
 
+KAPI i64 kstr_ncmp(const char* str0, const char* str1, u32 max_len);
+
+KAPI i64 kstr_ncmpi(const char* str0, const char* str1, u32 max_len);
+
 /**
  * @brief Case-sensitive string comparison.
  * @param str0 The first string to be compared.

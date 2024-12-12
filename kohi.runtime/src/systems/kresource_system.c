@@ -4,10 +4,12 @@
 #include "debug/kassert.h"
 #include "defines.h"
 #include "kresources/handlers/kresource_handler_material.h"
+#include "kresources/handlers/kresource_handler_shader.h"
 #include "kresources/handlers/kresource_handler_static_mesh.h"
 #include "kresources/handlers/kresource_handler_text.h"
 #include "kresources/handlers/kresource_handler_texture.h"
 #include "kresources/kresource_types.h"
+#include "kresources/kresource_utils.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "strings/kname.h"
@@ -16,8 +18,6 @@ struct asset_system_state;
 
 typedef struct resource_lookup {
     // The resource itself, owned by this lookup.
-    // FIXME: need a pointer to kresource here, or void* to hold whatever
-    // as writing actual resource types here clobbers memory afterward.
     kresource* r;
     // The current number of references to the resource.
     i32 reference_count;
@@ -105,6 +105,18 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
         }
     }
 
+    // Shader handler.
+    {
+        kresource_handler handler = {0};
+        handler.allocate = kresource_handler_shader_allocate;
+        handler.release = kresource_handler_shader_release;
+        handler.request = kresource_handler_shader_request;
+        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_SHADER, handler)) {
+            KERROR("Failed to register shader resource handler");
+            return false;
+        }
+    }
+
     KINFO("Resource system (new) initialized.");
     return true;
 }
@@ -156,7 +168,7 @@ kresource* kresource_system_request(struct kresource_system_state* state, kname 
                 // Grab a handler for the resource type, if there is one.
                 kresource_handler* handler = &state->handlers[info->type];
                 if (!handler->allocate) {
-                    KERROR("There is no handler setup for the asset type. Null/0 will be returned.");
+                    KERROR("There is no handler setup for the resource type '%s'. Null/0 will be returned.", kresource_type_to_string(info->type));
                     return 0;
                 }
 

@@ -171,12 +171,14 @@ static void asset_to_resource(const kasset_material* asset, kresource_material* 
     out_material->emissive_map = asset->emissive_map;
 
     out_material->custom_sampler_count = asset->custom_sampler_count;
-    KALLOC_TYPE_CARRAY(kmaterial_sampler_config, out_material->custom_sampler_count);
-    KCOPY_TYPE_CARRAY(
-        out_material->custom_samplers,
-        asset->custom_samplers,
-        kmaterial_sampler_config,
-        out_material->custom_sampler_count);
+    if (out_material->custom_sampler_count) {
+        KALLOC_TYPE_CARRAY(kmaterial_sampler_config, out_material->custom_sampler_count);
+        KCOPY_TYPE_CARRAY(
+            out_material->custom_samplers,
+            asset->custom_samplers,
+            kmaterial_sampler_config,
+            out_material->custom_sampler_count);
+    }
 
     out_material->base.state = KRESOURCE_STATE_LOADED;
 }
