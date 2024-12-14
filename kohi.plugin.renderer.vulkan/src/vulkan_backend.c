@@ -26,6 +26,7 @@
 #include <resources/resource_types.h>
 #include <strings/kname.h>
 #include <strings/kstring.h>
+#include <utils/ksort.h>
 #include <utils/render_type_utils.h>
 
 #include "vulkan_command_buffer.h"
@@ -81,7 +82,6 @@ static b8 vulkan_descriptorset_update_and_bind(
     const vulkan_shader_frequency_info* info,
     vulkan_shader_frequency_state* frequency_state,
     u32 descriptor_set_index);
-static u8 frequency_descriptor_set_count(const vulkan_shader_frequency_info* frequency_info);
 
 // FIXME: May want to have this as a configurable option instead.
 // Forward declarations of custom vulkan allocator functions.
@@ -335,7 +335,7 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
     context->samplers = darray_create(vulkan_sampler_handle_data);
 
     // Shaders array.
-    context->shaders = darray_create(vulkan_shader);
+    context->shaders = darray_reserve(vulkan_shader, config->max_shader_count);
 
     // Create a shader compiler to be used.
     context->shader_compiler = shaderc_compiler_initialize();
@@ -2018,9 +2018,9 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     u32 max_ubo_count = per_frame_ubo_count + per_group_ubo_count + per_draw_ubo_count;
 
     // Calculate the max number of descriptor sets needed.
-    u32 per_frame_desc_set_count = frequency_descriptor_set_count(&internal_shader->per_frame_info) * 1 * image_count; // NOTE: only one set of these is ever needed for per-frame frequency.
-    u32 per_group_desc_set_count = frequency_descriptor_set_count(&internal_shader->per_group_info) * internal_shader->max_groups * image_count;
-    u32 per_draw_desc_set_count = frequency_descriptor_set_count(&internal_shader->per_draw_info) * internal_shader->max_per_draw_count * image_count;
+    u32 per_frame_desc_set_count = 1 * image_count;                                  // NOTE: only one set of these is ever needed for per-frame frequency, per swapchain image.
+    u32 per_group_desc_set_count = internal_shader->max_groups * image_count;        // 1 per group, per swapchain image.
+    u32 per_draw_desc_set_count = internal_shader->max_per_draw_count * image_count; // 1 per draw, per swapchain image.
     internal_shader->max_descriptor_set_count = per_frame_desc_set_count + per_group_desc_set_count + per_draw_desc_set_count;
 
     // For now, shaders will only ever have these 2 types of descriptor pools. One is for unifrom buffers,
@@ -2074,15 +2074,19 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     internal_shader->per_frame_state.id = INVALID_ID;
 
     // Invalidate all per-group states.
-    internal_shader->group_states = kallocate(sizeof(vulkan_shader_frequency_state) * internal_shader->max_groups, MEMORY_TAG_ARRAY);
-    for (u32 i = 0; i < internal_shader->max_groups; ++i) {
-        internal_shader->group_states[i].id = INVALID_ID;
+    if (internal_shader->max_groups) {
+        internal_shader->group_states = kallocate(sizeof(vulkan_shader_frequency_state) * internal_shader->max_groups, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < internal_shader->max_groups; ++i) {
+            internal_shader->group_states[i].id = INVALID_ID;
+        }
     }
 
     // Invalidate per-draw states.
-    internal_shader->per_draw_states = kallocate(sizeof(vulkan_shader_frequency_state) * internal_shader->max_per_draw_count, MEMORY_TAG_ARRAY);
-    for (u32 i = 0; i < internal_shader->max_per_draw_count; ++i) {
-        internal_shader->per_draw_states[i].id = INVALID_ID;
+    if (internal_shader->max_per_draw_count) {
+        internal_shader->per_draw_states = kallocate(sizeof(vulkan_shader_frequency_state) * internal_shader->max_per_draw_count, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < internal_shader->max_per_draw_count; ++i) {
+            internal_shader->per_draw_states[i].id = INVALID_ID;
+        }
     }
 
     // Keep a copy of the cull mode.
@@ -2113,9 +2117,9 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     }
 
     // Process attributes
-    u32 attribute_count = shader_resource->attribute_count;
+    internal_shader->attribute_count = shader_resource->attribute_count;
     u32 offset = 0;
-    for (u32 i = 0; i < attribute_count; ++i) {
+    for (u32 i = 0; i < internal_shader->attribute_count; ++i) {
         // Setup the new attribute.
         VkVertexInputAttributeDescription attribute;
         attribute.location = i;
@@ -3979,30 +3983,28 @@ static b8 setup_frequency_state(renderer_backend_interface* backend, vulkan_shad
         }
     }
 
-    // Get the number of descriptor sets needed for this frequency.
-    u32 descriptor_set_count = frequency_descriptor_set_count(frequency_info);
-
     b8 final_result = true;
-    VkDescriptorSetAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-    alloc_info.descriptorPool = internal->descriptor_pool;
-    alloc_info.descriptorSetCount = descriptor_set_count;
-    alloc_info.pSetLayouts = layouts;
-    VkResult result = vkAllocateDescriptorSets(context->device.logical_device, &alloc_info, frequency_state->descriptor_sets);
-    if (result != VK_SUCCESS) {
-        KERROR("Error allocating %s descriptor sets in shader: '%s'.", frequency_text, vulkan_result_string(result, true));
-        final_result = false;
-    }
+    if (layouts) {
+        VkDescriptorSetAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+        alloc_info.descriptorPool = internal->descriptor_pool;
+        alloc_info.descriptorSetCount = image_count;
+        alloc_info.pSetLayouts = layouts;
+        VkResult result = vkAllocateDescriptorSets(context->device.logical_device, &alloc_info, frequency_state->descriptor_sets);
+        if (result != VK_SUCCESS) {
+            KERROR("Error allocating %s descriptor sets in shader: '%s'.", frequency_text, vulkan_result_string(result, true));
+            final_result = false;
+        }
 
 #ifdef KOHI_DEBUG
-    // Assign a debug name to the descriptor set.
-    for (u32 i = 0; i < image_count; ++i) {
-        char* desc_set_object_name = string_format("desc_set_shader_%s_%s_%u_frame_%u", shader_name, frequency_text, *out_frequency_id, i);
-        VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DESCRIPTOR_SET, frequency_state->descriptor_sets[i], desc_set_object_name);
-        string_free(desc_set_object_name);
-    }
+        // Assign a debug name to the descriptor set.
+        for (u32 i = 0; i < image_count; ++i) {
+            u32 fid = (frequency == SHADER_UPDATE_FREQUENCY_PER_FRAME ? INVALID_ID : *out_frequency_id);
+            char* desc_set_object_name = string_format("desc_set_shader_%s_%s_%u_frame_%u", shader_name, frequency_text, fid, i);
+            VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DESCRIPTOR_SET, frequency_state->descriptor_sets[i], desc_set_object_name);
+            string_free(desc_set_object_name);
+        }
 #endif
 
-    if (layouts) {
         // Clean up temp array.
         KFREE_TYPE_CARRAY(layouts, VkDescriptorSetLayout, image_count);
     }
@@ -4312,7 +4314,8 @@ static void setup_frequency_descriptors(b8 do_ubo, vulkan_shader_frequency_info*
     // Total bindings are 1 UBO for per_frame (if needed), plus per_frame sampler count.
     // This is dynamically allocated now.
     u32 ubo_count = do_ubo ? (frequency_info->uniform_count ? 1 : 0) : 0;
-    set_config->binding_count = ubo_count + frequency_info->uniform_sampler_count;
+    u32 sampler_and_image_count = frequency_info->uniform_sampler_count + frequency_info->uniform_texture_count;
+    set_config->binding_count = ubo_count + sampler_and_image_count;
     set_config->bindings = kallocate(sizeof(VkDescriptorSetLayoutBinding) * set_config->binding_count, MEMORY_TAG_ARRAY);
 
     // per_frame UBO binding is first, if present.
@@ -4325,30 +4328,40 @@ static void setup_frequency_descriptors(b8 do_ubo, vulkan_shader_frequency_info*
         frequency_binding_index++;
     }
 
-    // Add a binding for each configured sampler.
-    if (frequency_info->uniform_sampler_count > 0) {
-        for (u32 i = 0; i < frequency_info->uniform_sampler_count; ++i) {
-            // Look up by the sampler indices collected above.
-            shader_uniform_config* u = &config->uniforms[frequency_info->sampler_indices[i]];
-            set_config->bindings[frequency_binding_index].binding = frequency_binding_index;
-            set_config->bindings[frequency_binding_index].descriptorCount = KMAX(u->array_length, 1); // Either treat as an array or a single texture, depending on what is passed in.
-            set_config->bindings[frequency_binding_index].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-            set_config->bindings[frequency_binding_index].stageFlags = VK_SHADER_STAGE_ALL;
-            frequency_binding_index++;
-        }
-    }
+    // Need to iterate these in uniform order, which can mix the order between samplers and images if configured that way.
+    // This means a combined list of both types is required, which should then be iterated (checking the type along the way).
+    if (sampler_and_image_count) {
+        u32* sorted_list = KALLOC_TYPE_CARRAY(u32, sampler_and_image_count);
 
-    // Add a binding for each configured texture.
-    if (frequency_info->uniform_texture_count > 0) {
+        // Add all indices, unsorted.
+        u32 count = 0;
+        for (u32 i = 0; i < frequency_info->uniform_sampler_count; ++i) {
+            sorted_list[count] = frequency_info->sampler_indices[i];
+            count++;
+        }
         for (u32 i = 0; i < frequency_info->uniform_texture_count; ++i) {
-            // Look up by the texture indices collected above.
-            shader_uniform_config* u = &config->uniforms[frequency_info->texture_indices[i]];
+            sorted_list[count] = frequency_info->texture_indices[i];
+            count++;
+        }
+
+        KASSERT_DEBUG(count == sampler_and_image_count);
+
+        // Sort them.
+        kquick_sort(sizeof(u32), sorted_list, 0, count - 1, kquicksort_compare_u32);
+
+        // Traverse the sorted list.
+        for (u32 i = 0; i < count; ++i) {
+            shader_uniform_config* u = &config->uniforms[sorted_list[i]];
+            VkDescriptorType type = uniform_type_is_texture(u->type) ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_SAMPLER;
             set_config->bindings[frequency_binding_index].binding = frequency_binding_index;
             set_config->bindings[frequency_binding_index].descriptorCount = KMAX(u->array_length, 1); // Either treat as an array or a single texture, depending on what is passed in.
-            set_config->bindings[frequency_binding_index].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            set_config->bindings[frequency_binding_index].descriptorType = type;
             set_config->bindings[frequency_binding_index].stageFlags = VK_SHADER_STAGE_ALL;
             frequency_binding_index++;
         }
+
+        // Clean up.
+        KFREE_TYPE_CARRAY(sorted_list, u32, count);
     }
 }
 
@@ -4363,6 +4376,7 @@ static b8 vulkan_descriptorset_update_and_bind(
     u32 image_index = get_current_image_index(context);
 
     const frame_data* p_frame_data = engine_frame_data_get();
+    vulkan_descriptor_set_config set_config = internal_shader->descriptor_sets[descriptor_set_index];
 
     // Allocate enough descriptor writes to handle one UBO, all samplers and all textures.
     u32 max_desc_write_count = 1 + info->uniform_sampler_count + info->uniform_texture_count;
@@ -4373,7 +4387,7 @@ static b8 vulkan_descriptorset_update_and_bind(
     u32 descriptor_write_count = 0;
     u32 binding_index = 0;
 
-    // Update UBO, if needed.
+    // Update UBO, if needed. UBO is always first.
     VkDescriptorBufferInfo ubo_buffer_info = {0};
     if (info->uniform_count > 0 && frequency_state->ubo_descriptor_state.generations[image_index] != ubo_generation) {
 
@@ -4399,8 +4413,131 @@ static b8 vulkan_descriptorset_update_and_bind(
         frequency_state->ubo_descriptor_state.generations[image_index] = ubo_generation;
     }
 
+    // TODO: Should probably cache this count and sorted array when done the first time.
+    //
+    // Need to iterate these in uniform order, which can mix the order between samplers and images if configured that way.
+    // This means a combined list of both types is required, which should then be iterated (checking the type along the way).
+    u32 sampler_and_image_count = info->uniform_sampler_count + info->uniform_texture_count;
+    if (sampler_and_image_count) {
+        // Use frame allocator for speed and avoiding cleanup.
+        u32* sorted_list = p_frame_data->allocator.allocate(sizeof(u32) * sampler_and_image_count);
+
+        // Add all indices, unsorted.
+        u32 count = 0;
+        for (u32 i = 0; i < info->uniform_sampler_count; ++i) {
+            sorted_list[count] = info->sampler_indices[i];
+            count++;
+        }
+        for (u32 i = 0; i < info->uniform_texture_count; ++i) {
+            sorted_list[count] = info->texture_indices[i];
+            count++;
+        }
+
+        KASSERT_DEBUG(count == sampler_and_image_count);
+
+        // Sort them.
+        kquick_sort(sizeof(u32), sorted_list, 0, count - 1, kquicksort_compare_u32);
+
+        // Allocate enough space to hold all the descriptor image infos needed for this scope (one array per sampler/image binding).
+        // NOTE: Using the frame allocator, so this does not have to be freed as it's handled automatically at the end of the frame on allocator reset.
+        VkDescriptorImageInfo** binding_image_infos = p_frame_data->allocator.allocate(sizeof(VkDescriptorImageInfo*) * count);
+
+        // Traverse the sorted list of sampler/texture uniforms. Each of these is one binding.
+        u32 sampler_binding_index = 0;
+        u32 texture_binding_index = 0;
+        for (u32 i = 0; i < count; ++i) {
+            u32 binding_descriptor_count = set_config.bindings[binding_index].descriptorCount;
+            u32 update_count = 0;
+            shader_uniform* u = &internal_shader->uniforms[sorted_list[i]];
+            b8 is_texture = uniform_type_is_texture(u->type);
+            VkDescriptorType type = is_texture ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_SAMPLER;
+
+            // Build image infos for the binding, enough for all of them to have descriptor updates.
+            binding_image_infos[i] = p_frame_data->allocator.allocate(sizeof(VkDescriptorImageInfo) * binding_descriptor_count);
+
+            // Each descriptor within the binding.
+            for (u32 d = 0; d < binding_descriptor_count; ++i) {
+                khandle resource_handle = khandle_invalid();
+                vulkan_descriptor_state* descriptor_state = 0;
+                if (is_texture) {
+                    vulkan_uniform_texture_state* binding_texture_state = &frequency_state->texture_states[texture_binding_index];
+                    resource_handle = binding_texture_state->texture_handles[d];
+                    descriptor_state = &binding_texture_state->descriptor_states[d];
+
+                    if (khandle_is_invalid(resource_handle)) {
+                        KERROR("Invalid sampler handle found while trying to update/bind descriptor set.");
+                        return false;
+                    }
+
+                    vulkan_texture_handle_data* texture = &context->textures[resource_handle.handle_index];
+
+                    u32 image_index = texture->image_count > 1 ? get_current_image_index(context) : 0;
+                    vulkan_image* image = &texture->images[image_index];
+
+                    // Only update if the texture generations don't match.
+                    if (texture->generation != descriptor_state->generations[image_index]) {
+                        binding_image_infos[i][update_count].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        binding_image_infos[i][update_count].imageView = image->view;
+                        // NOTE: Not using sampler in this descriptor.
+                        binding_image_infos[i][update_count].sampler = 0;
+
+                        update_count++;
+
+                        // Sync the generation.
+                        descriptor_state->generations[image_index] = texture->generation;
+                    }
+
+                    texture_binding_index++;
+                } else {
+                    vulkan_uniform_sampler_state* binding_sampler_state = &frequency_state->sampler_states[sampler_binding_index];
+                    resource_handle = binding_sampler_state->sampler_handles[d];
+                    descriptor_state = &binding_sampler_state->descriptor_states[d];
+
+                    if (khandle_is_invalid(resource_handle)) {
+                        KERROR("Invalid sampler handle found while trying to update/bind descriptor set.");
+                        return false;
+                    }
+
+                    vulkan_sampler_handle_data* sampler = &context->samplers[resource_handle.handle_index];
+
+                    // Only update if the sampler generations don't match.
+                    if (sampler->generation != descriptor_state->generations[image_index]) {
+
+                        // Not using image for sampler updates.
+                        binding_image_infos[i][update_count].imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                        binding_image_infos[i][update_count].imageView = 0;
+                        // NOTE: Only the sampler is set here.
+                        binding_image_infos[i][update_count].sampler = sampler->sampler;
+
+                        update_count++;
+
+                        // Sync the generation.
+                        descriptor_state->generations[image_index] = sampler->generation;
+                    }
+
+                    sampler_binding_index++;
+                }
+            }
+
+            VkWriteDescriptorSet desc_set_write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            desc_set_write.dstSet = frequency_state->descriptor_sets[image_index];
+            desc_set_write.dstBinding = binding_index;
+            desc_set_write.descriptorType = type;
+            desc_set_write.descriptorCount = update_count;
+            desc_set_write.pImageInfo = binding_image_infos[i];
+
+            descriptor_writes[descriptor_write_count] = desc_set_write;
+            descriptor_write_count++;
+
+            binding_index++;
+        }
+    }
+
+    // Iterate remaining samplers and textures
+
+    // OLD TODO: remove
     // Iterate samplers.
-    if (info->uniform_sampler_count > 0) {
+    /* if (info->uniform_sampler_count > 0) {
         vulkan_descriptor_set_config set_config = internal_shader->descriptor_sets[descriptor_set_index];
 
         // Allocate enough space to hold all the descriptor image infos needed for this scope (one array per binding).
@@ -4505,19 +4642,19 @@ static b8 vulkan_descriptorset_update_and_bind(
                 }
             }
 
-            VkWriteDescriptorSet sampler_descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-            sampler_descriptor.dstSet = frequency_state->descriptor_sets[image_index];
-            sampler_descriptor.dstBinding = binding_index;
-            sampler_descriptor.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            sampler_descriptor.descriptorCount = update_texture_count;
-            sampler_descriptor.pImageInfo = binding_image_infos[tb];
+            VkWriteDescriptorSet image_descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            image_descriptor.dstSet = frequency_state->descriptor_sets[image_index];
+            image_descriptor.dstBinding = binding_index;
+            image_descriptor.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            image_descriptor.descriptorCount = update_texture_count;
+            image_descriptor.pImageInfo = binding_image_infos[tb];
 
-            descriptor_writes[descriptor_write_count] = sampler_descriptor;
+            descriptor_writes[descriptor_write_count] = image_descriptor;
             descriptor_write_count++;
 
             binding_index++;
         }
-    }
+    } */
 
     // Immediately update the descriptor set's data.
     if (descriptor_write_count > 0) {
@@ -4535,12 +4672,6 @@ static b8 vulkan_descriptorset_update_and_bind(
                             &frequency_state->descriptor_sets[image_index], 0, 0);
 
     return true;
-}
-
-static u8 frequency_descriptor_set_count(const vulkan_shader_frequency_info* frequency_info) {
-    return (frequency_info->uniform_count > 0 ? 1 : 0) +
-           (frequency_info->uniform_sampler_count > 0 ? 1 : 0) +
-           (frequency_info->uniform_texture_count > 0 ? 1 : 0);
 }
 
 /**

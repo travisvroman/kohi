@@ -99,16 +99,16 @@ assets = [
         path = "assets/shaders/Skybox_vert.glsl"
     }
     {
-        name = "Water"
-        path = "assets/shaders/Water.ksc"
+        name = "MaterialWater"
+        path = "assets/shaders/MaterialWater.ksc"
     }
     {
-        name = "Water_frag"
-        path = "assets/shaders/Water_frag.glsl"
+        name = "MaterialWater_frag"
+        path = "assets/shaders/MaterialWater_frag.glsl"
     }
     {
-        name = "Water_vert"
-        path = "assets/shaders/Water_vert.glsl"
+        name = "MaterialWater_vert"
+        path = "assets/shaders/MaterialWater_vert.glsl"
     }
     {
         name = "Texture.DefaultWaterDUDV"
@@ -119,5 +119,39 @@ assets = [
         name = "Texture.DefaultWaterNormal"
         path = "assets/images/Texture.DefaultWaterNormal.kbi"
         source_path = "assets/images/source/Texture.DefaultWaterNormal.jpg"
+    }
+    {
+        name = "BitmapFont.NotoSans21px"
+        path = "./assets/fonts/BitmapFont.NotoSans21px.kbf"
+    }
+    {
+        name = "Texture.BitmapFont.NotoSans21px_0"
+        path = "./assets/images/Texture.BitmapFont.NotoSans21px_0.kbi"
+        source_path = "./assets/images/source/Texture.BitmapFont.NotoSans21px_0.png"
+    }
+    {
+        name = "BitmapFont.UbuntuMono21px"
+        path = "./assets/fonts/BitmapFont.UbuntuMono21px.kbf"
+    }
+    {
+        name = "Texture.BitmapFont.UbuntuMono21px_0"
+        path = "./assets/images/Texture.BitmapFont.UbuntuMono21px_0.kbi"
+        source_path = "./assets/images/source/Texture.BitmapFont.UbuntuMono21px_0.png"
+    }
+    {
+        name = "SystemFont.NotoSansCJK"
+        path = "./assets/fonts/SystemFont.NotoSansCJK.ksf"
+    }
+    {
+        name = "Binary.SystemFont.NotoSansCJK-Regular"
+        path = "./assets/fonts/Binary.SystemFont.NotoSansCJK-Regular.ttc"
+    }
+    {
+        name = "SystemFont.UbuntuMono"
+        path = "./assets/fonts/SystemFont.UbuntuMono.ksf"
+    }
+    {
+        name = "Binary.SystemFont.UbuntuMono-R"
+        path = "./assets/fonts/Binary.SystemFont.UbuntuMono-R.ttf"
     }
 ]

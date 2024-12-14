@@ -56,12 +56,12 @@ systems = [
             default_bitmap_font = {
                 name = "Ubuntu Mono 21px"
                 size = 21
-                resource_name = "UbuntuMono21px"
+                resource_name = "BitmapFont.UbuntuMono21px"
             }
             default_system_font = {
                 name = "Noto Sans"
                 size = 20
-                resource_name = "NotoSansCJK"
+                resource_name = "SystemFont.NotoSansCJK"
             }
         }
     }

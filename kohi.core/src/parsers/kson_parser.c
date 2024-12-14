@@ -648,6 +648,9 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
             kson_property prop = {0};
             prop.type = KSON_PROPERTY_TYPE_UNKNOWN;
             prop.name = kstring_id_create(buf);
+#ifdef KOHI_DEBUG
+            prop.name_str = string_duplicate(buf);
+#endif
 
             // Push the new property and set the current property to it.
             if (!current_object->properties) {
@@ -962,11 +965,20 @@ static void kson_tree_object_to_string(const kson_object* obj, char* out_source,
 
             // If named, it is a property being defined. Otherwise it is an array element.
             if (p->name) {
-                // write the name, then a space, then =, then another space.
-                write_string(out_source, position, kstring_id_string_get(p->name));
-                write_spaces(out_source, position, 1);
-                write_string(out_source, position, "=");
-                write_spaces(out_source, position, 1);
+                // Try as a stringid first, then kname if nothing is returned.
+                const char* name_str = kstring_id_string_get(p->name);
+                if (!name_str) {
+                    name_str = kname_string_get(p->name);
+                }
+
+                // Only actually write out the name if it exists.
+                if (name_str) {
+                    // write the name, then a space, then =, then another space.
+                    write_string(out_source, position, name_str);
+                    write_spaces(out_source, position, 1);
+                    write_string(out_source, position, "=");
+                    write_spaces(out_source, position, 1);
+                }
             }
 
             // Write the value
@@ -1013,7 +1025,7 @@ static void kson_tree_object_to_string(const kson_object* obj, char* out_source,
             } break;
             default:
             case KSON_PROPERTY_TYPE_UNKNOWN: {
-                KWARN("kson_tree_object_cleanup encountered an unknown property type.");
+                KWARN("kson_tree_object_to_string encountered an unknown property type.");
             } break;
             }
         }
@@ -1061,11 +1073,12 @@ void kson_object_cleanup(kson_object* obj) {
             default:
             case KSON_PROPERTY_TYPE_UNKNOWN: {
                 KWARN("kson_tree_object_cleanup encountered an unknown property type.");
+                KWARN("Ensure the same object wasn't added more than once somewhere in code.");
             } break;
             }
         }
         darray_destroy(obj->properties);
-        obj->properties = 0;
+        kzero_memory(obj, sizeof(kson_object));
     }
 }
 
@@ -1094,13 +1107,55 @@ static b8 kson_object_property_add(kson_object* obj, kson_property_type type, co
         return false;
     }
 
+    kstring_id new_name = kstring_id_create(name);
+
     if (!obj->properties) {
         obj->properties = darray_create(kson_property);
+    } else {
+        // Check the object's properties and see if an object with that
+        // name already exists. If it does, replace it.
+        u32 property_count = darray_length(obj->properties);
+        for (u32 i = 0; i < property_count; ++i) {
+            kson_property* p = &obj->properties[i];
+            if (p->name == new_name) {
+                KTRACE("Property '%s' already exists in object, and will be overwritten. Was this intentional?", name);
+                // Replace the property. Start by cleaning up the old one.
+                switch (p->type) {
+                case KSON_PROPERTY_TYPE_STRING:
+                    if (p->value.s) {
+                        string_free(p->value.s);
+                        p->value.s = 0;
+                    }
+                    break;
+                case KSON_PROPERTY_TYPE_OBJECT:
+                case KSON_PROPERTY_TYPE_ARRAY:
+                    kson_object_cleanup(&p->value.o);
+                    break;
+                default:
+                    // Nothing to cleanup for other types.
+                    break;
+                }
+                kzero_memory(&p->value, sizeof(kson_property_value));
+
+                // Assign new values.
+                p->type = type;
+                p->name = new_name;
+#ifdef KOHI_DEBUG
+                p->name_str = string_duplicate(name);
+#endif
+                p->value = value;
+
+                return true;
+            }
+        }
     }
 
     kson_property new_prop = {0};
     new_prop.type = type;
-    new_prop.name = kstring_id_create(name);
+    new_prop.name = new_name;
+#ifdef KOHI_DEBUG
+    new_prop.name_str = string_duplicate(name);
+#endif
     new_prop.value = value;
 
     darray_push(obj->properties, new_prop);
@@ -1900,6 +1955,9 @@ kson_property kson_object_property_create(const char* name) {
     obj.name = INVALID_KSTRING_ID;
     if (name) {
         obj.name = kstring_id_create(name);
+#ifdef KOHI_DEBUG
+        obj.name_str = string_duplicate(name);
+#endif
     }
     obj.value.o.type = KSON_OBJECT_TYPE_OBJECT;
     obj.value.o.properties = darray_create(kson_property);
@@ -1913,6 +1971,9 @@ kson_property kson_array_property_create(const char* name) {
     arr.name = INVALID_KSTRING_ID;
     if (name) {
         arr.name = kstring_id_create(name);
+#ifdef KOHI_DEBUG
+        arr.name_str = string_duplicate(name);
+#endif
     }
     arr.value.o.type = KSON_OBJECT_TYPE_ARRAY;
     arr.value.o.properties = darray_create(kson_property);

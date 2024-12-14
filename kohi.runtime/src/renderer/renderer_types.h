@@ -206,6 +206,8 @@ typedef struct renderer_backend_config {
     const char* application_name;
     /** @brief Various configuration flags for renderer backend setup. */
     renderer_config_flags flags;
+    /** @brief The max number of shaders that be be held. Should match shader system config. */
+    u16 max_shader_count;
 } renderer_backend_config;
 
 /** @brief The winding order of vertices, used to determine what is the front-face of a triangle. */

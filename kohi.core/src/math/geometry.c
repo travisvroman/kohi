@@ -136,7 +136,7 @@ kgeometry geometry_generate_quad(f32 width, f32 height, f32 tx_min, f32 tx_max, 
 
     out_geometry.name = name;
     out_geometry.type = KGEOMETRY_TYPE_2D_STATIC;
-    out_geometry.generation = 0; // NOTE: generation is 0 because this is technically the first "update"
+    out_geometry.generation = INVALID_ID_U16;
     out_geometry.extents.min = (vec3){-width * 0.5f, -height * 0.5f, 0.0f};
     out_geometry.extents.max = (vec3){width * 0.5f, height * 0.5f, 0.0f};
     // Always half width/height since upper left is 0,0 and lower right is width/height
@@ -183,7 +183,7 @@ kgeometry geometry_generate_line2d(vec2 point_0, vec2 point_1, kname name) {
     kgeometry out_geometry = {0};
     out_geometry.name = name;
     out_geometry.type = KGEOMETRY_TYPE_2D_STATIC;
-    out_geometry.generation = 0;
+    out_geometry.generation = INVALID_ID_U16;
     out_geometry.center = vec3_from_vec2(vec2_mid(point_0, point_1), 0.0f);
     out_geometry.extents.min = (vec3){
         KMIN(point_0.x, point_1.x),
@@ -212,7 +212,7 @@ kgeometry geometry_generate_line3d(vec3 point_0, vec3 point_1, kname name) {
     kgeometry out_geometry = {0};
     out_geometry.name = name;
     out_geometry.type = KGEOMETRY_TYPE_3D_STATIC;
-    out_geometry.generation = 0;
+    out_geometry.generation = INVALID_ID_U16;
     out_geometry.center = vec3_mid(point_0, point_1);
     out_geometry.extents.min = (vec3){
         KMIN(point_0.x, point_1.x),
@@ -270,7 +270,7 @@ kgeometry geometry_generate_plane(f32 width, f32 height, u32 x_segment_count, u3
     kgeometry out_geometry = {0};
     out_geometry.name = name;
     out_geometry.type = KGEOMETRY_TYPE_3D_STATIC;
-    out_geometry.generation = 0; // NOTE: generation is 0 because this is technically the first "update"
+    out_geometry.generation = INVALID_ID_U16; // NOTE: generation is 0 because this is technically the first "update"
     out_geometry.extents.min = (vec3){-half_width, -half_height, 0.0f};
     out_geometry.extents.max = (vec3){half_width, half_height, 0.0f};
     // Always 0 since min/max of each axis are -/+ half of the size.
@@ -452,7 +452,7 @@ kgeometry geometry_generate_line_box3d(vec3 size, kname name) {
     kgeometry out_geometry = {0};
     out_geometry.name = name;
     out_geometry.type = KGEOMETRY_TYPE_3D_STATIC;
-    out_geometry.generation = 0; // NOTE: generation is 0 because this is technically the first "update"
+    out_geometry.generation = INVALID_ID_U16; // NOTE: generation is 0 because this is technically the first "update"
     out_geometry.extents.min = (vec3){-half_width, -half_height, -half_depth};
     out_geometry.extents.max = (vec3){half_width, half_height, half_depth};
     // Always 0 since min/max of each axis are -/+ half of the size.
@@ -508,7 +508,7 @@ kgeometry geometry_generate_cube(f32 width, f32 height, f32 depth, f32 tile_x, f
     kgeometry out_geometry = {0};
     out_geometry.name = name;
     out_geometry.type = KGEOMETRY_TYPE_3D_STATIC;
-    out_geometry.generation = 0; // NOTE: generation is 0 because this is technically the first "update"
+    out_geometry.generation = INVALID_ID_U16;
     out_geometry.extents.min = (vec3){-half_width, -half_height, -half_depth};
     out_geometry.extents.max = (vec3){half_width, half_height, half_depth};
     // Always 0 since min/max of each axis are -/+ half of the size.
@@ -642,7 +642,7 @@ kgeometry geometry_generate_grid(grid_orientation orientation, u32 segment_count
     kgeometry out_geometry = {0};
     out_geometry.name = name;
     out_geometry.type = KGEOMETRY_TYPE_3D_STATIC;
-    out_geometry.generation = 0; // NOTE: generation is 0 because this is technically the first "update"
+    out_geometry.generation = INVALID_ID_U16;
     //
     f32 max_0 = segment_count_dim_0 * segment_scale;
     f32 min_0 = -max_0;

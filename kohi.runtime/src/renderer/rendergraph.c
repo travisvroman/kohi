@@ -485,7 +485,7 @@ static b8 rendergraph_config_deserialize(const char* source_string, rendergraph_
 
     // nodes
     kson_array nodes;
-    if (kson_object_property_value_get_object(&tree.root, "nodes", &nodes)) {
+    if (kson_object_property_value_get_array(&tree.root, "nodes", &nodes)) {
 
         if (!kson_array_element_count_get(&nodes, &out_config->node_count)) {
             KERROR("Failed to get node count from nodes array.");
@@ -530,7 +530,7 @@ static b8 rendergraph_config_deserialize(const char* source_string, rendergraph_
 
                 // Sink configs.
                 kson_array sinks_array;
-                if (kson_object_property_value_get_object(&node, "sinks", &sinks_array)) {
+                if (kson_object_property_value_get_array(&node, "sinks", &sinks_array)) {
                     // Property is optional, so process it if found.
 
                     if (!kson_array_element_count_get(&sinks_array, &node_config->sink_count)) {

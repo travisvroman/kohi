@@ -559,7 +559,7 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
         mat_water_shader.attributes[0].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
         mat_water_shader.attributes[0].name = "in_position";
 
-        mat_water_shader.uniform_count = 17;
+        mat_water_shader.uniform_count = 9;
         mat_water_shader.uniforms = KALLOC_TYPE_CARRAY(kasset_shader_uniform, mat_water_shader.uniform_count);
 
         // per_frame
@@ -647,7 +647,11 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
         }
     }
 
-    state->material_blended_shader = shader_system_get(kname_create(MATERIAL_SHADER_NAME_BLENDED));
+    // Blended material shader.
+    {
+        // TODO: blended materials.
+        // state->material_blended_shader = shader_system_get(kname_create(MATERIAL_SHADER_NAME_BLENDED));
+    }
 
     // Load up some default materials.
     if (!create_default_standard_material(state)) {
@@ -660,10 +664,11 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
         return false;
     }
 
-    if (!create_default_blended_material(state)) {
-        KFATAL("Failed to create default blended material. Application cannot continue.");
-        return false;
-    }
+    // TODO: blended materials.
+    // if (!create_default_blended_material(state)) {
+    //     KFATAL("Failed to create default blended material. Application cannot continue.");
+    //     return false;
+    // }
 
     // Register a console command to dump list of materials/references.
     console_command_register("material_system_dump", 0, on_material_system_dump);
@@ -1486,6 +1491,7 @@ void material_system_dump(material_system_state* state) {
 }
 
 static b8 create_default_standard_material(material_system_state* state) {
+    KTRACE("Creating default standard material...");
     kname material_name = kname_create(MATERIAL_DEFAULT_NAME_STANDARD);
 
     // Create a fake material "asset" that can be serialized into a string.
@@ -1494,16 +1500,18 @@ static b8 create_default_standard_material(material_system_state* state) {
     asset.base.type = KASSET_TYPE_MATERIAL;
     asset.type = KMATERIAL_TYPE_STANDARD;
     asset.model = KMATERIAL_MODEL_PBR;
-    asset.has_transparency = false;
-    asset.double_sided = false;
-    asset.recieves_shadow = true;
-    asset.casts_shadow = true;
-    asset.use_vertex_colour_as_base_colour = false;
-    asset.base_colour = vec4_one(); // white
-    asset.normal = vec3_create(0.0f, 0.0f, 1.0f);
-    asset.normal_enabled = true;
-    asset.mra = vec3_create(0.0f, 0.5f, 1.0f);
-    asset.use_mra = true;
+    asset.has_transparency = MATERIAL_DEFAULT_HAS_TRANSPARENCY;
+    asset.double_sided = MATERIAL_DEFAULT_DOUBLE_SIDED;
+    asset.recieves_shadow = MATERIAL_DEFAULT_RECIEVES_SHADOW;
+    asset.casts_shadow = MATERIAL_DEFAULT_CASTS_SHADOW;
+    asset.use_vertex_colour_as_base_colour = MATERIAL_DEFAULT_USE_VERTEX_COLOUR_AS_BASE_COLOUR;
+    asset.base_colour = MATERIAL_DEFAULT_BASE_COLOUR_VALUE; // white
+    asset.normal = MATERIAL_DEFAULT_NORMAL_VALUE;
+    asset.normal_enabled = MATERIAL_DEFAULT_NORMAL_ENABLED;
+    asset.ambient_occlusion_enabled = MATERIAL_DEFAULT_AO_ENABLED;
+    asset.mra = MATERIAL_DEFAULT_MRA_VALUE;
+    asset.use_mra = MATERIAL_DEFAULT_MRA_ENABLED;
+    asset.custom_shader_name = 0;
 
     // Setup a listener.
     material_request_listener* listener = KALLOC_TYPE(material_request_listener, MEMORY_TAG_MATERIAL_INSTANCE);
@@ -1523,10 +1531,12 @@ static b8 create_default_standard_material(material_system_state* state) {
         return false;
     }
 
+    KTRACE("Done.");
     return true;
 }
 
 static b8 create_default_water_material(material_system_state* state) {
+    KTRACE("Creating default water material...");
     kname material_name = kname_create(MATERIAL_DEFAULT_NAME_WATER);
 
     // Create a fake material "asset" that can be serialized into a string.
@@ -1540,9 +1550,13 @@ static b8 create_default_water_material(material_system_state* state) {
     asset.recieves_shadow = true;
     asset.casts_shadow = false;
     asset.use_vertex_colour_as_base_colour = false;
+    asset.base_colour = vec4_one(); // white
+    asset.normal = vec3_create(0.0f, 0.0f, 1.0f);
+    asset.normal_enabled = true;
     asset.tiling = 0.25f;
     asset.wave_strength = 0.02f;
     asset.wave_speed = 0.03f;
+    asset.custom_shader_name = 0;
 
     // Use default DUDV texture.
     asset.dudv_map.resource_name = kname_create(DEFAULT_WATER_DUDV_TEXTURE_NAME);
@@ -1575,6 +1589,7 @@ static b8 create_default_water_material(material_system_state* state) {
         return false;
     }
 
+    KTRACE("Done.");
     return true;
 }
 

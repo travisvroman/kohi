@@ -40,13 +40,13 @@ b8 kresource_handler_material_request(kresource_handler* self, kresource* resour
     if (info->assets.base.length != 1) {
         if (info->assets.base.length == 0 && typed_request->material_source_text) {
             // Deserialize material asset from provided source.
-            kasset material_from_source = {0};
-            if (!kasset_material_deserialize(typed_request->material_source_text, &material_from_source)) {
+            kasset_material material_from_source = {0};
+            if (!kasset_material_deserialize(typed_request->material_source_text, (kasset*)&material_from_source)) {
                 KERROR("Failed to deserialize material from direct source upon resource request.");
                 return false;
             }
 
-            asset_to_resource((kasset_material*)&material_from_source, typed_resource);
+            asset_to_resource(&material_from_source, typed_resource);
             return true;
         } else {
             KERROR("kresource_handler_material_request requires exactly one asset OR zero assets and material source text.");

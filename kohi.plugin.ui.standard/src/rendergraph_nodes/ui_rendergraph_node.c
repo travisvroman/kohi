@@ -12,6 +12,7 @@
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/shader_system.h"
+#include <standard_ui_defines.h>
 
 typedef struct ui_shader_locations {
     u16 projection;
@@ -134,7 +135,7 @@ b8 ui_rendergraph_node_initialize(struct rendergraph_node* self) {
     // Load the StandardUI shader.
 
     // Get either the custom shader override or the defined default.
-    internal_data->sui_shader = shader_system_get(kname_create("StandardUI"));
+    internal_data->sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME));
     internal_data->sui_locations.projection = shader_system_uniform_location(internal_data->sui_shader, kname_create("projection"));
     internal_data->sui_locations.view = shader_system_uniform_location(internal_data->sui_shader, kname_create("view"));
     internal_data->sui_locations.properties = shader_system_uniform_location(internal_data->sui_shader, kname_create("properties"));

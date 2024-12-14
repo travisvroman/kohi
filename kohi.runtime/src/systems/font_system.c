@@ -17,6 +17,7 @@
 // For system fonts.
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "vendor/stb_truetype.h"
+#include <runtime_defines.h>
 
 typedef struct bitmap_font_internal_data {
     resource loaded_resource;
@@ -369,7 +370,7 @@ b8 font_system_bitmap_font_load(bitmap_font_config* config) {
     font->atlas_texture = texture_system_request(
         // NOTE: Might have to address this by using the new font resource type.
         kname_create(lookup->font.resource_data->pages[0].file),
-        kname_create("PluginUiStandard"), // TODO: configurable
+        kname_create(PACKAGE_NAME_RUNTIME), // TODO: configurable
         0,
         0);
     if (!font->atlas_texture) {

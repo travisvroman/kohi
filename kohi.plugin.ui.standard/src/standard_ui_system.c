@@ -26,6 +26,7 @@
 #include "kohi.plugin.ui.standard_version.h"
 #include "kresources/kresource_types.h"
 #include "strings/kname.h"
+#include "sui_defines.h"
 
 static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
     standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
@@ -189,8 +190,8 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 
     // Atlas texture.
     state->atlas_texture = texture_system_request(
-        kname_create("StandardUIAtlas"),
-        kname_create("PluginUiStandard"),
+        kname_create(STANDARD_UI_DEFAULT_ATLAS_NAME),
+        kname_create(PACKAGE_NAME_STANDARD_UI),
         state,
         texture_resource_loaded);
     if (!state->atlas_texture) {

@@ -4,9 +4,9 @@
  * @brief This file contains the parser implementation for the KSON (Kohi Storage Object Notation) file format.
  * @version 2.0
  * @date 2024-12-10
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2024
- * 
+ *
  */
 
 #ifndef _KSON_H_
@@ -109,6 +109,10 @@ typedef struct kson_property {
     kson_property_type type;
     // The name of the property. If this belongs to an array, it should be INVALID_KSTRING_ID.
     kstring_id name;
+#ifdef KOHI_DEBUG
+    // The original named string. Only used in debug builds.
+    const char* name_str;
+#endif
     // The property value.
     kson_property_value value;
 } kson_property;

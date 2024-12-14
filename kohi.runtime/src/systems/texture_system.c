@@ -9,6 +9,7 @@
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/resource_types.h"
+#include "runtime_defines.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/kresource_system.h"
@@ -584,6 +585,12 @@ static b8 create_default_textures(texture_system_state* state) {
         kfree(terrain_pixels, layer_size * layer_count, MEMORY_TAG_ARRAY);
     } */
 
+    // Default water normal texture is part of the runtime package - request it.
+    state->default_kresource_water_normal_texture = texture_system_request(kname_create(DEFAULT_WATER_NORMAL_TEXTURE_NAME), kname_create(PACKAGE_NAME_RUNTIME), 0, 0);
+
+    // Default water dudv texture is part of the runtime package - request it.
+    state->default_kresource_water_dudv_texture = texture_system_request(kname_create(DEFAULT_WATER_DUDV_TEXTURE_NAME), kname_create(PACKAGE_NAME_RUNTIME), 0, 0);
+
     return true;
 }
 
@@ -631,9 +638,9 @@ static kresource_texture* default_texture_by_name(texture_system_state* state, k
         return state->default_kresource_mra_texture;
     } else if (name == state->default_kresource_cube_texture->base.name) {
         return state->default_kresource_cube_texture;
-    } else if (name == state->default_kresource_water_normal_texture->base.name) {
+    } else if (state->default_kresource_water_normal_texture && name == state->default_kresource_water_normal_texture->base.name) {
         return state->default_kresource_water_normal_texture;
-    } else if (name == state->default_kresource_water_dudv_texture->base.name) {
+    } else if (state->default_kresource_water_dudv_texture && name == state->default_kresource_water_dudv_texture->base.name) {
         return state->default_kresource_water_dudv_texture;
     }
 

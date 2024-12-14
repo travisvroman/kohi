@@ -114,6 +114,13 @@ b8 renderer_system_deserialize_config(const char* config_str, renderer_system_co
         out_config->power_saving = true;
     }
 
+    i64 max_shader_count = 0;
+    if (!kson_object_property_value_get_int(&tree.root, "max_shader_count", &max_shader_count)) {
+        max_shader_count = 1024;
+    }
+
+    out_config->max_shader_count = max_shader_count;
+
     kson_tree_cleanup(&tree);
 
     return true;
@@ -160,6 +167,7 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
     renderer_backend_config renderer_config = {};
     renderer_config.application_name = config->application_name;
     renderer_config.flags = 0;
+    renderer_config.max_shader_count = config->max_shader_count;
     if (config->vsync) {
         renderer_config.flags |= RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT;
     }
@@ -483,6 +491,11 @@ b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* st
 
     if (!out_renderer_texture_handle) {
         KERROR("renderer_kresource_texture_resources_acquire requires a valid pointer to a handle.");
+        return false;
+    }
+
+    if (!width || !height) {
+        KERROR("Unable to acquire renderer resources for a texture with invalid dimensions; width (%u) and height (%u) must both be nonzero.", width, height);
         return false;
     }
 

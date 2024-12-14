@@ -46,6 +46,9 @@ typedef struct renderer_system_config {
     b8 vsync;
     b8 enable_validation;
     b8 power_saving;
+
+    // The max number of shaders that can be held. Must match the shader system's count.
+    u16 max_shader_count;
 } renderer_system_config;
 
 struct renderer_system_state;

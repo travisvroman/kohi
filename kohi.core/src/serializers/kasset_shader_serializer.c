@@ -161,7 +161,7 @@ const char* kasset_shader_serialize(const kasset* asset) {
 
             // Add array size if relevant (i.e. more than one).
             if (uniform->array_size > 1) {
-                kson_object_value_add_int(&uniform_obj, "array_size", (i64)uniform->size);
+                kson_object_value_add_int(&uniform_obj, "array_size", (i64)uniform->array_size);
             }
 
             switch (uniform->frequency) {
