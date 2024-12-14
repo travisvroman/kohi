@@ -8,197 +8,115 @@
 
 #include <stdio.h>
 
-#define VERIFY_LINE(line_type, line_num, expected, actual)                                                                                     \
-    if (actual != expected) {                                                                                                                  \
-        KERROR("Error in file format reading type '%s', line %u. Expected %d element(s) but read %d.", line_type, line_num, expected, actual); \
-        goto cleanup;                                                                                                                          \
+typedef struct bitmap_font_header {
+    // The base binary asset header. Must always be the first member.
+    binary_asset_header base;
+
+    u32 font_size;
+    i32 line_height;
+    i32 baseline;
+    i32 atlas_size_x;
+    i32 atlas_size_y;
+    u32 glyph_count;
+    u32 kerning_count;
+    u32 page_count;
+    u32 face_name_len;
+} bitmap_font_header;
+
+void* kasset_bitmap_font_serialize(const kasset* asset, u64* out_size) {
+    if (!asset) {
+        KERROR("Cannot serialize without an asset, ya dingus!");
+        return 0;
     }
 
-b8 kasset_bitmap_font_deserialize(const char* file_text, kasset* out_asset) {
-    b8 success = false;
-    if (!file_text || !out_asset) {
-        KERROR("kasset_kson_deserialize requires valid pointers to file_text and out_asset.");
-        return success;
+    if (asset->type != KASSET_TYPE_BITMAP_FONT) {
+        KERROR("Cannot serialize a non-bitmap_font asset using the bitmap_font serializer.");
+        return 0;
     }
 
-    if (out_asset->type != KASSET_TYPE_BITMAP_FONT) {
-        KERROR("kasset_bitmap_font_serialize requires a kson asset to serialize.");
-        return success;
+    /**
+     * File layout is header, face name string, glyphs, kernings, pages
+     */
+    bitmap_font_header header = {0};
+
+    // Base attributes.
+    header.base.magic = ASSET_MAGIC;
+    header.base.type = (u32)asset->type;
+    header.base.data_block_size = 0;
+    // Always write the most current version.
+    header.base.version = 1;
+
+    kasset_bitmap_font* typed_asset = (kasset_bitmap_font*)asset;
+
+    const char* face_str = kname_string_get(typed_asset->face);
+    header.face_name_len = string_length(face_str);
+
+    header.font_size = typed_asset->size;
+    header.line_height = typed_asset->line_height;
+    header.baseline = typed_asset->baseline;
+    header.atlas_size_x = typed_asset->atlas_size_x;
+    header.atlas_size_y = typed_asset->atlas_size_y;
+    header.glyph_count = typed_asset->glyphs.base.length;
+    header.kerning_count = typed_asset->kernings.base.length;
+    header.page_count = typed_asset->pages.base.length;
+
+    // Calculate the total required size first (for everything after the header.
+    header.base.data_block_size += header.face_name_len;
+    header.base.data_block_size += (typed_asset->glyphs.base.stride * typed_asset->glyphs.base.length);
+    header.base.data_block_size += (typed_asset->kernings.base.stride * typed_asset->kernings.base.length);
+
+    // Iterate pages and save the length, then the string asset name for each.
+    for (u32 i = 0; i < typed_asset->pages.base.length; ++i) {
+        const char* str = kname_string_get(typed_asset->pages.data[i].image_asset_name);
+        u32 len = string_length(str);
+        header.base.data_block_size += sizeof(u32); // For the length
+        header.base.data_block_size += len;         // For the actual string.
     }
 
-    kasset_bitmap_font* typed_asset = (kasset_bitmap_font*)out_asset;
+    // The total space required for the data block.
+    *out_size = sizeof(bitmap_font_header) + header.base.data_block_size;
 
-    u32 page_count = 0;
-    u32 glyph_count = 0;
-    u32 kerning_count = 0;
+    // Allocate said block.
+    void* block = kallocate(*out_size, MEMORY_TAG_SERIALIZER);
+    // Write the header.
+    kcopy_memory(block, &header, sizeof(bitmap_font_header));
 
-    kzero_memory(typed_asset, sizeof(kasset_bitmap_font));
-    char line_buf[512] = "";
-    char* p = &line_buf[0];
-    u32 line_length = 0;
-    u32 line_num = 0;
-    u32 glyphs_read = 0;
-    u8 pages_read = 0;
-    u32 kernings_read = 0;
-    u32 start_from = 0;
-    while (true) {
-        start_from += line_length; // TODO: might need +1 for \n?
-        if (!string_line_get(file_text, 511, start_from, &p, &line_length)) {
-            /* if (!filesystem_read_line(mtl_file, 511, &p, &line_length)) { */
-            break;
-        }
+    // For this asset, it's not quite a simple manner of just using the byte block.
+    // Start by moving past the header.
+    u64 offset = sizeof(bitmap_font_header);
 
-        // Skip blank lines.
-        if (line_length < 1) {
-            continue;
-        }
+    // Face name.
+    kcopy_memory(block + offset, face_str, header.face_name_len);
+    offset += header.face_name_len;
 
-        char first_char = line_buf[0];
-        switch (first_char) {
-        case 'i': {
-            // 'info' line
+    // Glyphs can be written as-is
+    u64 glyph_size = (typed_asset->glyphs.base.stride * typed_asset->glyphs.base.length);
+    kcopy_memory(block + offset, typed_asset->glyphs.data, glyph_size);
+    offset += glyph_size;
 
-            // NOTE: only extract the face and size, ignore the rest.
-            char face_buf[512];
-            kzero_memory(face_buf, sizeof(char) * 512);
-            i32 elements_read = sscanf(
-                line_buf,
-                "info face=\"%[^\"]\" size=%u",
-                face_buf,
-                &typed_asset->size);
-            VERIFY_LINE("info", line_num, 2, elements_read);
+    // Kernings can be written as-is
+    u64 kerning_size = (typed_asset->kernings.base.stride * typed_asset->kernings.base.length);
+    kcopy_memory(block + offset, typed_asset->kernings.data, kerning_size);
+    offset += kerning_size;
 
-            typed_asset->face = kname_create(face_buf);
+    // Pages need to write asset name string length, then the actual string.
+    for (u32 i = 0; i < typed_asset->pages.base.length; ++i) {
+        const char* str = kname_string_get(typed_asset->pages.data[i].image_asset_name);
+        u32 len = string_length(str);
 
-            break;
-        }
-        case 'c': {
-            // 'common', 'char' or 'chars' line
-            if (line_buf[1] == 'o') {
-                // common
-                i32 elements_read = sscanf(
-                    line_buf,
-                    "common lineHeight=%d base=%u scaleW=%d scaleH=%d pages=%d", // ignore everything else.
-                    &typed_asset->line_height,
-                    &typed_asset->baseline,
-                    &typed_asset->atlas_size_x,
-                    &typed_asset->atlas_size_y,
-                    &page_count);
+        kcopy_memory(block + offset, &len, sizeof(u32));
+        offset += sizeof(u32);
 
-                VERIFY_LINE("common", line_num, 5, elements_read);
-
-                // Allocate the pages array.
-                if (page_count > 0) {
-                    if (!typed_asset->pages.data) {
-                        typed_asset->pages = array_kasset_bitmap_font_page_create(page_count);
-                    }
-                } else {
-                    KERROR("Pages is 0, which should not be possible. Font file reading aborted.");
-                    goto cleanup;
-                }
-            } else if (line_buf[1] == 'h') {
-                if (line_buf[4] == 's') {
-                    // chars line
-                    i32 elements_read = sscanf(line_buf, "chars count=%u", &glyph_count);
-                    VERIFY_LINE("chars", line_num, 1, elements_read);
-
-                    // Allocate the glyphs array.
-                    if (glyph_count > 0) {
-                        if (!typed_asset->glyphs.data) {
-                            typed_asset->glyphs = array_kasset_bitmap_font_glyph_create(glyph_count);
-                        }
-                    } else {
-                        KERROR("Glyph count is 0, which should not be possible. Font file reading aborted.");
-                        goto cleanup;
-                    }
-                } else {
-                    // Assume 'char' line
-                    kasset_bitmap_font_glyph* g = &typed_asset->glyphs.data[glyphs_read];
-
-                    i32 elements_read = sscanf(
-                        line_buf,
-                        "char id=%d x=%hu y=%hu width=%hu height=%hu xoffset=%hd yoffset=%hd xadvance=%hd page=%hhu chnl=%*u",
-                        &g->codepoint,
-                        &g->x,
-                        &g->y,
-                        &g->width,
-                        &g->height,
-                        &g->x_offset,
-                        &g->y_offset,
-                        &g->x_advance,
-                        &g->page_id);
-
-                    VERIFY_LINE("char", line_num, 9, elements_read);
-
-                    glyphs_read++;
-                }
-            } else {
-                // invalid, ignore
-            }
-            break;
-        }
-        case 'p': {
-            // 'page' line
-            kasset_bitmap_font_page* page = &typed_asset->pages.data[pages_read];
-            char file_buf[512];
-            kzero_memory(file_buf, sizeof(char) * 512);
-            i32 elements_read = sscanf(
-                line_buf,
-                "page id=%hhi file=\"%[^\"]\"",
-                &page->id,
-                file_buf);
-
-            // Strip the extension.
-            string_filename_no_extension_from_path(file_buf, file_buf);
-
-            page->image_asset_name = kname_create(file_buf);
-
-            VERIFY_LINE("page", line_num, 2, elements_read);
-
-            break;
-        }
-        case 'k': {
-            // 'kernings' or 'kerning' line
-            if (line_buf[7] == 's') {
-                // Kernings
-                i32 elements_read = sscanf(line_buf, "kernings count=%u", &kerning_count);
-
-                VERIFY_LINE("kernings", line_num, 1, elements_read);
-
-                // Allocate kernings array
-                if (kerning_count) {
-                    if (!typed_asset->kernings.data) {
-                        typed_asset->kernings = array_kasset_bitmap_font_kerning_create(kerning_count);
-                    }
-                }
-            } else if (line_buf[7] == ' ') {
-                // Kerning record
-                kasset_bitmap_font_kerning* k = &typed_asset->kernings.data[kernings_read];
-                i32 elements_read = sscanf(
-                    line_buf,
-                    "kerning first=%i  second=%i amount=%hi",
-                    &k->codepoint_0,
-                    &k->codepoint_1,
-                    &k->amount);
-
-                VERIFY_LINE("kerning", line_num, 3, elements_read);
-            }
-            break;
-        }
-        default:
-            // Skip the line.
-            break;
-        }
+        kcopy_memory(block + offset, str, sizeof(char) * len);
+        offset += len;
     }
 
-    success = true;
+    // Return the serialized block of memory.
+    return block;
+}
 
-cleanup:
-    if (!success) {
-        array_kasset_bitmap_font_page_destroy(&typed_asset->pages);
-        array_kasset_bitmap_font_glyph_destroy(&typed_asset->glyphs);
-        array_kasset_bitmap_font_kerning_destroy(&typed_asset->kernings);
-    }
-
-    return success;
+b8 kasset_bitmap_font_deserialize(const void* data, kasset* out_asset) {
+    // LEFTOFF: Undo the above. Also hook this up to a bitmap font importer, then a bitmap
+    // font resource handler, and finally change the font system to use resource requests
+    // to get the actual font resources. Then repeat all of this for system fonts.
 }

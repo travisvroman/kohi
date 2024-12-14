@@ -73,7 +73,7 @@ b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_s
     char prev_first_chars[2] = {0, 0};
     u32 start_from = 0;
     while (true) {
-        start_from += line_length; // TODO: might need +1 for \n?
+        start_from += line_length; // todo: might need +1 for \n?
         if (!string_line_get(obj_file_text, 511, start_from, &p, &line_length)) {
             /* if (!filesystem_read_line(obj_file, 511, &p, &line_length)) { */
             break;

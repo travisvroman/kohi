@@ -123,6 +123,7 @@ assets = [
     {
         name = "BitmapFont.NotoSans21px"
         path = "./assets/fonts/BitmapFont.NotoSans21px.kbf"
+        source_path = "./assets/fonts/source/BitmapFont.NotoSans21px.fnt"
     }
     {
         name = "Texture.BitmapFont.NotoSans21px_0"
@@ -132,6 +133,7 @@ assets = [
     {
         name = "BitmapFont.UbuntuMono21px"
         path = "./assets/fonts/BitmapFont.UbuntuMono21px.kbf"
+        source_path = "./assets/fonts/source/BitmapFont.UbuntuMono21px.kbf"
     }
     {
         name = "Texture.BitmapFont.UbuntuMono21px_0"

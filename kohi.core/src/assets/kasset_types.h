@@ -518,6 +518,5 @@ typedef struct kasset_bitmap_font {
     i32 atlas_size_y;
     array_kasset_bitmap_font_glyph glyphs;
     array_kasset_bitmap_font_kerning kernings;
-    f32 tab_x_advance;
     array_kasset_bitmap_font_page pages;
 } kasset_bitmap_font;
