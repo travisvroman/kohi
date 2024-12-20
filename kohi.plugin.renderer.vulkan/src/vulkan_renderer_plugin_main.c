@@ -72,6 +72,10 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
     backend->shader_use = vulkan_renderer_shader_use;
     backend->shader_supports_wireframe = vulkan_renderer_shader_supports_wireframe;
 
+    backend->shader_bind_per_frame = vulkan_renderer_shader_bind_per_frame;
+    backend->shader_bind_per_group = vulkan_renderer_shader_bind_per_group;
+    backend->shader_bind_per_draw = vulkan_renderer_shader_bind_per_draw;
+
     backend->shader_apply_per_frame = vulkan_renderer_shader_apply_per_frame;
     backend->shader_apply_per_group = vulkan_renderer_shader_apply_per_group;
     backend->shader_apply_per_draw = vulkan_renderer_shader_apply_per_draw;

@@ -1,0 +1,101 @@
+// Kohi shader config file
+// NOTE: This file is no longer required. Loaded directly in code in material system.
+version = 1
+depth_test=true
+depth_write=true
+supports_wireframe=true
+max_groups=69
+max_groups=69
+cull_mode = "back"
+
+topology_types [
+    "triangle_list"
+]
+
+stages = [
+    {
+        type = "vertex"
+        source_asset_name = "Shader.MaterialStandard_vert"
+        package_name = "Kohi.Runtime"
+    }
+    {
+        type = "fragment"
+        source_asset_name = "Shader.MaterialStandard_frag"
+        package_name = "Kohi.Runtime"
+    }
+]
+
+attributes = [
+    {
+        name = "in_position"
+        type = "vec3"
+    }
+    {
+        name = "in_normal"
+        type = "vec3"
+    }
+    {
+        name = "in_texcoord"
+        type = "vec2"
+    }
+    {
+        name = "in_colour"
+        type = "vec4"
+    }
+    {
+        name = "in_tangent"
+        type = "vec3"
+    }
+]
+
+uniforms = {
+    per_frame = [
+        {
+            name = "material_frame_ubo"
+            type = "struct"
+            size = 388
+        }
+        {
+            name = "shadow_texture"
+            type = "texture2DArray"
+        }
+        {
+            name = "irradiance_textures"
+            type = "textureCube"
+            array_size = 4
+        }
+        {
+            name = "shadow_sampler"
+            type = "sampler"
+        }
+        {
+            name = "irradiance_sampler"
+            type = "sampler"
+        }
+    ]
+    per_group = [
+        {
+            name = "material_textures"
+            type = "texture2D"
+            array_size = 7
+        }
+        {
+            name = "material_samplers"
+            type = "sampler"
+            array_size = 7
+        }
+        {
+            name = "material_group_ubo"
+            type = "struct"
+            size = 656
+        }
+    ]
+    per_draw = [
+        {
+            name = "material_draw_ubo"
+            type = "struct"
+            size = 84
+        }
+    ]
+}
+

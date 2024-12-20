@@ -21,34 +21,15 @@ void asset_handler_bitmap_font_create(struct asset_handler* self, struct vfs_sta
     self->release_asset = asset_handler_bitmap_font_release_asset;
     self->type = KASSET_TYPE_BITMAP_FONT;
     self->type_name = KASSET_TYPE_NAME_BITMAP_FONT;
-    self->binary_serialize = 0;
-    self->binary_deserialize = 0;
-    self->text_serialize = 0; // NOTE: Intentionally not set as serializing to this format makes no sense.
-    self->text_deserialize = kasset_bitmap_font_deserialize;
+    self->binary_serialize = kasset_bitmap_font_serialize;
+    self->binary_deserialize = kasset_bitmap_font_deserialize;
+    self->text_serialize = 0;
+    self->text_deserialize = 0;
 }
 
 void asset_handler_bitmap_font_release_asset(struct asset_handler* self, struct kasset* asset) {
     kasset_bitmap_font* typed_asset = (kasset_bitmap_font*)asset;
 
-    // LEFTOFF: Instead of this....
-    //
-    /* if (typed_asset->pages && typed_asset->page_count) {
-        kfree(typed_asset->pages, sizeof(kasset_bitmap_font_page) * typed_asset->page_count, MEMORY_TAG_ARRAY);
-        typed_asset->pages = 0;
-        typed_asset->page_count = 0;
-    }
-    if (typed_asset->glyphs && typed_asset->glyph_count) {
-        kfree(typed_asset->glyphs, sizeof(kasset_bitmap_font_glyph) * typed_asset->glyph_count, MEMORY_TAG_ARRAY);
-        typed_asset->glyphs = 0;
-        typed_asset->glyph_count = 0;
-    }
-    if (typed_asset->kernings && typed_asset->kerning_count) {
-        kfree(typed_asset->kernings, sizeof(kasset_bitmap_font_kerning) * typed_asset->kerning_count, MEMORY_TAG_ARRAY);
-        typed_asset->kernings = 0;
-        typed_asset->kerning_count = 0;
-    } */
-
-    // LEFTOFF: we now have this...
     array_kasset_bitmap_font_page_destroy(&typed_asset->pages);
     array_kasset_bitmap_font_glyph_destroy(&typed_asset->glyphs);
     array_kasset_bitmap_font_kerning_destroy(&typed_asset->kernings);

@@ -1,5 +1,4 @@
 #include "obj_serializer.h"
-#include "assets/kasset_types.h"
 
 #include <containers/darray.h>
 #include <debug/kassert.h>
@@ -68,13 +67,14 @@ b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_s
     char line_buf[512] = "";
     char* p = &line_buf[0];
     u32 line_length = 0;
+    u8 addl_advance = 0;
 
     // index 0 is previous, 1 is previous before that.
     char prev_first_chars[2] = {0, 0};
     u32 start_from = 0;
     while (true) {
-        start_from += line_length; // todo: might need +1 for \n?
-        if (!string_line_get(obj_file_text, 511, start_from, &p, &line_length)) {
+        start_from += line_length + addl_advance;
+        if (!string_line_get(obj_file_text, 511, start_from, &p, &line_length, &addl_advance)) {
             /* if (!filesystem_read_line(obj_file, 511, &p, &line_length)) { */
             break;
         }

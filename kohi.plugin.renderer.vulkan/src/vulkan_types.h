@@ -461,6 +461,10 @@ typedef struct vulkan_shader_frequency_state {
     vulkan_uniform_sampler_state* sampler_states;
     // A mapping of texture uniforms to descriptors.
     vulkan_uniform_texture_state* texture_states;
+#ifdef KOHI_DEBUG
+    u32 descriptor_set_index;
+    shader_update_frequency frequency;
+#endif
 } vulkan_shader_frequency_state;
 
 /**

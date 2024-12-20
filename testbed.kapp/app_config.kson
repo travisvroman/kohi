@@ -12,8 +12,8 @@ windows = [
 ]
 package_config = {
     packages = [
-        "Runtime"
-        "PluginStandardUi"
+        "Kohi.Runtime"
+        "Kohi.Plugin.Ui.Standard"
         "Testbed"
     ]
     process_as_text [
@@ -52,17 +52,30 @@ systems = [
     {
         name = "font"
         config = {
-            auto_release = false
-            default_bitmap_font = {
-                name = "Ubuntu Mono 21px"
-                size = 21
-                resource_name = "BitmapFont.UbuntuMono21px"
-            }
-            default_system_font = {
-                name = "Noto Sans"
-                size = 20
-                resource_name = "SystemFont.NotoSansCJK"
-            }
+            max_bitmap_font_count = 5
+            max_system_font_count = 25
+            bitmap_fonts = [
+                {
+                    resource_name = "BitmapFont.NotoSans21px"
+                    package_name = "Kohi.Runtime"
+                }
+                {
+                    resource_name = "BitmapFont.UbuntuMono21px"
+                    package_name = "Kohi.Runtime"
+                }
+            ]
+            system_fonts = [
+                {
+                    resource_name = "SystemFont.NotoSansCJK"
+                    package_name = "Kohi.Runtime"
+                    default_size = 20
+                }
+                {
+                    resource_name = "SystemFont.UbuntuMono"
+                    package_name = "Kohi.Runtime"
+                    default_size = 20
+                }
+            ]
         }
     }
     {

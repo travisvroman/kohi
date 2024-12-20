@@ -5,7 +5,7 @@
 #include <defines.h>
 #include <renderer/nine_slice.h>
 #include <renderer/renderer_types.h>
-#include <resources/font_types.h>
+#include <systems/font_system.h>
 
 /*
  * TODO: Textbox items
@@ -28,13 +28,16 @@ typedef struct sui_textbox_internal_data {
     f32 text_view_offset;
     sui_clip_mask clip_mask;
 
+    // Cached copy of the internal label's line height (taken in turn from its font.)
+    f32 label_line_height;
+
     // HACK: Need to store a pointer to the standard ui state here because
     // the event system can only pass a single pointer, which is already occupied
     // by "self". Should probably re-think this before adding too many more controls.
     struct standard_ui_state* state;
 } sui_textbox_internal_data;
 
-KAPI b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control);
+KAPI b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text, struct sui_control* out_control);
 
 KAPI void sui_textbox_control_destroy(standard_ui_state* state, struct sui_control* self);
 

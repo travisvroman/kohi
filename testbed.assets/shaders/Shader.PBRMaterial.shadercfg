@@ -6,7 +6,7 @@ stagefiles=shaders/PBRShader.vert.glsl,shaders/PBRShader.frag.glsl
 depth_test=1
 depth_write=1
 supports_wireframe=1
-max_instances=256
+max_groups=256
 
 # Attributes: type,name
 attribute=vec3,in_position

@@ -42,10 +42,11 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
     char line_buffer[512];
     char* p = &line_buffer[0];
     u32 line_length = 0;
+    u8 addl_advance = 0;
     u32 start_from = 0;
     while (true) {
-        start_from += line_length; // TODO: might need +1 for \n?
-        if (!string_line_get(mtl_file_text, 511, start_from, &p, &line_length)) {
+        start_from += line_length + addl_advance;
+        if (!string_line_get(mtl_file_text, 511, start_from, &p, &line_length, &addl_advance)) {
             /* if (!filesystem_read_line(mtl_file, 511, &p, &line_length)) { */
             break;
         }

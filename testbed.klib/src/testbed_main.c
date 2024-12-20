@@ -540,15 +540,9 @@ b8 application_initialize(struct application* game_inst) {
     /* editor_rendergraph_gizmo_set(&state->editor_graph, &state->gizmo); */
     // World meshes
 
-    // Invalidate all meshes.
-    for (u32 i = 0; i < 10; ++i) {
-        state->meshes[i].generation = INVALID_ID_U8;
-        state->ui_meshes[i].generation = INVALID_ID_U8;
-    }
-
     // Create test ui text objects
     // black background text
-    if (!sui_label_control_create(sui_state, "testbed_mono_test_text_black", FONT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "test text 123,\n\tyo!", &state->test_text_black)) {
+    if (!sui_label_control_create(sui_state, "testbed_mono_test_text_black", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "test text 123,\n\tyo!", &state->test_text_black)) {
         KERROR("Failed to load basic ui bitmap text.");
         return false;
     } else {
@@ -570,7 +564,7 @@ b8 application_initialize(struct application* game_inst) {
             }
         }
     }
-    if (!sui_label_control_create(sui_state, "testbed_mono_test_text", FONT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "test text 123,\n\tyo!", &state->test_text)) {
+    if (!sui_label_control_create(sui_state, "testbed_mono_test_text", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "test text 123,\n\tyo!", &state->test_text)) {
         KERROR("Failed to load basic ui bitmap text.");
         return false;
     } else {
@@ -646,7 +640,7 @@ b8 application_initialize(struct application* game_inst) {
         }
     }
 
-    if (!sui_label_control_create(sui_state, "testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Press 'L' to load a \n\tscene!\n\n\tこんにちは 한", &state->test_sys_text)) {
+    if (!sui_label_control_create(sui_state, "testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), 31, "Press 'L' to load a \n\tscene!\n\n\tこんにちは 한", &state->test_sys_text)) {
         KERROR("Failed to load basic ui system text.");
         return false;
     } else {

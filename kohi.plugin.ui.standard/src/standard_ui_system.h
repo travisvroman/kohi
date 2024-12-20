@@ -125,6 +125,7 @@ typedef struct sui_control {
 
 typedef struct standard_ui_state {
     struct renderer_system_state* renderer;
+    struct font_system_state* font_system;
     standard_ui_system_config config;
     // Array of pointers to controls, the system does not own these. The application does.
     u32 total_control_count;

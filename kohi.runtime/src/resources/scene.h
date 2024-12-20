@@ -14,7 +14,6 @@ struct directional_light;
 struct point_light;
 struct skybox;
 struct water_plane;
-struct geometry_config;
 struct camera;
 struct scene_config;
 struct terrain;

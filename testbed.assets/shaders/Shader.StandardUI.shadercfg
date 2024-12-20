@@ -9,7 +9,7 @@ depth_test=0
 depth_write=0
 stencil_test=1
 stencil_write=1
-max_instances=512
+max_groups=512
 
 # Attributes: type,name
 attribute=vec2,in_position

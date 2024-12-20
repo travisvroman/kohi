@@ -169,6 +169,8 @@ typedef struct shader_uniform {
      * Otherwise, index into the uniform array within the shader.
      */
     u16 location;
+    /** @brief Index into the internal sampler/texture array depending on type. */
+    u16 tex_samp_index;
     /** @brief The size of the uniform, or 0 for samplers. */
     u16 size;
     /** @brief The update frequency of the uniform. */
@@ -267,8 +269,6 @@ typedef struct shader_attribute_config {
 
 /** @brief Configuration for a uniform. */
 typedef struct shader_uniform_config {
-    /** @brief The length of the name. */
-    u8 name_length;
     /** @brief The name of the uniform. */
     kname name;
     /** @brief The size of the uniform. If arrayed, this is the per-element size */

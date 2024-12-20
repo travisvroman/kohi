@@ -1,7 +1,6 @@
 
 #pragma once
 
-#include "resources/font_types.h"
 #include <assets/kasset_types.h>
 #include <defines.h>
 #include <math/math_types.h>
@@ -19,13 +18,13 @@ typedef struct fnt_source_asset {
     u32 atlas_size_y;
 
     u32 glyph_count;
-    font_glyph* glyphs;
+    kasset_bitmap_font_glyph* glyphs;
 
     u32 kerning_count;
-    font_kerning* kernings;
+    kasset_bitmap_font_kerning* kernings;
 
     u32 page_count;
-    bitmap_font_page* pages;
+    kasset_bitmap_font_page* pages;
 } fnt_source_asset;
 
 KAPI b8 fnt_serializer_serialize(const fnt_source_asset* source_asset, const char** out_file_text);

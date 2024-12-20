@@ -3,9 +3,11 @@
 #include "core/engine.h"
 #include "debug/kassert.h"
 #include "defines.h"
+#include "kresources/handlers/kresource_handler_bitmap_font.h"
 #include "kresources/handlers/kresource_handler_material.h"
 #include "kresources/handlers/kresource_handler_shader.h"
 #include "kresources/handlers/kresource_handler_static_mesh.h"
+#include "kresources/handlers/kresource_handler_system_font.h"
 #include "kresources/handlers/kresource_handler_text.h"
 #include "kresources/handlers/kresource_handler_texture.h"
 #include "kresources/kresource_types.h"
@@ -113,6 +115,30 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
         handler.request = kresource_handler_shader_request;
         if (!kresource_system_handler_register(state, KRESOURCE_TYPE_SHADER, handler)) {
             KERROR("Failed to register shader resource handler");
+            return false;
+        }
+    }
+
+    // Bitmap font handler.
+    {
+        kresource_handler handler = {0};
+        handler.allocate = kresource_handler_bitmap_font_allocate;
+        handler.release = kresource_handler_bitmap_font_release;
+        handler.request = kresource_handler_bitmap_font_request;
+        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_BITMAP_FONT, handler)) {
+            KERROR("Failed to register bitmap font resource handler");
+            return false;
+        }
+    }
+
+    // System font handler.
+    {
+        kresource_handler handler = {0};
+        handler.allocate = kresource_handler_system_font_allocate;
+        handler.release = kresource_handler_system_font_release;
+        handler.request = kresource_handler_system_font_request;
+        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_SYSTEM_FONT, handler)) {
+            KERROR("Failed to register system font resource handler");
             return false;
         }
     }

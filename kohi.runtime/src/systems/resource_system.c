@@ -6,13 +6,8 @@
 #include "strings/kstring.h"
 
 // Known resource loaders.
-#include "resources/loaders/binary_loader.h"
-#include "resources/loaders/bitmap_font_loader.h"
-#include "resources/loaders/image_loader.h"
 #include "resources/loaders/scene_loader.h"
-#include "resources/loaders/system_font_loader.h"
 #include "resources/loaders/terrain_loader.h"
-#include "resources/loaders/text_loader.h"
 #include "resources/resource_types.h"
 
 typedef struct resource_system_state {
@@ -56,12 +51,6 @@ b8 resource_system_initialize(u64* memory_requirement, void* state,
     }
 
     // NOTE: Auto-register known loader types here.
-    resource_system_loader_register(text_resource_loader_create());
-    resource_system_loader_register(binary_resource_loader_create());
-    resource_system_loader_register(image_resource_loader_create());
-    /* resource_system_loader_register(mesh_resource_loader_create()); */
-    resource_system_loader_register(bitmap_font_resource_loader_create());
-    resource_system_loader_register(system_font_resource_loader_create());
     resource_system_loader_register(terrain_resource_loader_create());
     resource_system_loader_register(scene_resource_loader_create());
 

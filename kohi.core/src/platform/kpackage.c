@@ -129,7 +129,7 @@ static asset_entry* asset_entry_get(const kpackage* package, kname name) {
         }
     }
 
-    KERROR("Package '%s': No entry called '%s' exists.", kname_string_get(package->name), kname_string_get(name));
+    KTRACE("Package '%s': No entry called '%s' exists.", kname_string_get(package->name), kname_string_get(name));
     return 0;
 }
 

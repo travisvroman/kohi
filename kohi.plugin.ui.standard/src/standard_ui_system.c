@@ -1,6 +1,7 @@
 #include "standard_ui_system.h"
 
 #include <containers/darray.h>
+#include <core/engine.h>
 #include <core/event.h>
 #include <core/input.h>
 #include <core/systems_manager.h>
@@ -8,6 +9,7 @@
 #include <identifiers/identifier.h>
 #include <identifiers/khandle.h>
 #include <input_types.h>
+#include <kresources/kresource_types.h>
 #include <logger.h>
 #include <math/geometry.h>
 #include <math/kmath.h>
@@ -16,16 +18,14 @@
 #include <renderer/renderer_frontend.h>
 #include <renderer/renderer_types.h>
 #include <resources/resource_types.h>
+#include <strings/kname.h>
 #include <strings/kstring.h>
 #include <systems/font_system.h>
 #include <systems/shader_system.h>
 #include <systems/texture_system.h>
 #include <systems/xform_system.h>
 
-#include "core/engine.h"
 #include "kohi.plugin.ui.standard_version.h"
-#include "kresources/kresource_types.h"
-#include "strings/kname.h"
 #include "sui_defines.h"
 
 static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
@@ -179,6 +179,7 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
     }
 
     state->renderer = engine_systems_get()->renderer_system;
+    state->font_system = engine_systems_get()->font_system;
 
     state->config = *config;
     state->active_controls = (void*)((u8*)state + struct_requirement);

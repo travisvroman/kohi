@@ -499,6 +499,8 @@ b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* st
         return false;
     }
 
+    *out_renderer_texture_handle = khandle_invalid();
+
     if (!state->backend->texture_resources_acquire(state->backend, kname_string_get(name), type, width, height, channel_count, mip_levels, array_size, flags, out_renderer_texture_handle)) {
         KERROR("Failed to acquire texture resources. See logs for details.");
         return false;

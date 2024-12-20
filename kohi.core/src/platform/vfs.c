@@ -349,6 +349,7 @@ void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, b8 is
 }
 
 b8 vfs_asset_write(vfs_state* state, const kasset* asset, b8 is_binary, u64 size, const void* data) {
+    KASSERT_DEBUG(state);
     u32 package_count = darray_length(state->packages);
     if (asset->package_name == 0) {
         KERROR("Unable to write asset because it does not have a package name: '%s'.", kname_string_get(asset->name));

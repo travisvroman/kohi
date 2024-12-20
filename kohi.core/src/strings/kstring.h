@@ -680,7 +680,7 @@ KAPI const char* string_extension_from_path(const char* path, b8 include_dot);
  */
 KAPI b8 string_parse_array_length(const char* str, u32* out_length);
 
-KAPI b8 string_line_get(const char* source_str, u16 max_line_length, u32 start_from, char** out_buffer, u32* out_line_length);
+KAPI b8 string_line_get(const char* source_str, u16 max_line_length, u32 start_from, char** out_buffer, u32* out_line_length, u8* out_addl_advance);
 
 /** Indicates if provided codepoint is lower-case. Regular ASCII and western European high-ascii characters only. */
 KAPI b8 codepoint_is_lower(i32 codepoint);

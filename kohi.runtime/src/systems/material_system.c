@@ -27,9 +27,12 @@
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
 
-#define MATERIAL_SHADER_NAME_STANDARD "Shader.MaterialStandard"
-#define MATERIAL_SHADER_NAME_WATER "Shader.MaterialWater"
-#define MATERIAL_SHADER_NAME_BLENDED "Shader.MaterialBlended"
+#define MATERIAL_STANDARD_NAME_FRAG "Shader.MaterialStandard_frag"
+#define MATERIAL_STANDARD_NAME_VERT "Shader.MaterialStandard_vert"
+#define MATERIAL_WATER_NAME_FRAG "Shader.MaterialWater_frag"
+#define MATERIAL_WATER_NAME_VERT "Shader.MaterialWater_vert"
+#define MATERIAL_BLENDED_NAME_FRAG "Shader.MaterialBlended_frag"
+#define MATERIAL_BLENDED_NAME_VERT "Shader.MaterialBlended_vert"
 
 // Texture indices
 
@@ -405,7 +408,7 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
 
     // Standard material shader.
     {
-        kname mat_std_shader_name = kname_create(MATERIAL_SHADER_NAME_STANDARD);
+        kname mat_std_shader_name = kname_create(SHADER_NAME_RUNTIME_MATERIAL_STANDARD);
         kasset_shader mat_std_shader = {0};
         mat_std_shader.base.name = mat_std_shader_name;
         mat_std_shader.base.package_name = state->runtime_package_name;
@@ -428,10 +431,10 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
         mat_std_shader.stages = KALLOC_TYPE_CARRAY(kasset_shader_stage, mat_std_shader.stage_count);
         mat_std_shader.stages[0].type = SHADER_STAGE_VERTEX;
         mat_std_shader.stages[0].package_name = PACKAGE_NAME_RUNTIME;
-        mat_std_shader.stages[0].source_asset_name = "MaterialStandard_vert";
+        mat_std_shader.stages[0].source_asset_name = MATERIAL_STANDARD_NAME_VERT;
         mat_std_shader.stages[1].type = SHADER_STAGE_FRAGMENT;
         mat_std_shader.stages[1].package_name = PACKAGE_NAME_RUNTIME;
-        mat_std_shader.stages[1].source_asset_name = "MaterialStandard_frag";
+        mat_std_shader.stages[1].source_asset_name = MATERIAL_STANDARD_NAME_FRAG;
 
         mat_std_shader.attribute_count = 5;
         mat_std_shader.attributes = KALLOC_TYPE_CARRAY(kasset_shader_attribute, mat_std_shader.attribute_count);
@@ -526,7 +529,7 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
 
     // Water material shader.
     {
-        kname mat_water_shader_name = kname_create(MATERIAL_SHADER_NAME_WATER);
+        kname mat_water_shader_name = kname_create(SHADER_NAME_RUNTIME_MATERIAL_WATER);
         kasset_shader mat_water_shader = {0};
         mat_water_shader.base.name = mat_water_shader_name;
         mat_water_shader.base.package_name = state->runtime_package_name;
@@ -549,10 +552,10 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
         mat_water_shader.stages = KALLOC_TYPE_CARRAY(kasset_shader_stage, mat_water_shader.stage_count);
         mat_water_shader.stages[0].type = SHADER_STAGE_VERTEX;
         mat_water_shader.stages[0].package_name = PACKAGE_NAME_RUNTIME;
-        mat_water_shader.stages[0].source_asset_name = "MaterialWater_vert";
+        mat_water_shader.stages[0].source_asset_name = MATERIAL_WATER_NAME_VERT;
         mat_water_shader.stages[1].type = SHADER_STAGE_FRAGMENT;
         mat_water_shader.stages[1].package_name = PACKAGE_NAME_RUNTIME;
-        mat_water_shader.stages[1].source_asset_name = "MaterialWater_frag";
+        mat_water_shader.stages[1].source_asset_name = MATERIAL_WATER_NAME_FRAG;
 
         mat_water_shader.attribute_count = 1;
         mat_water_shader.attributes = KALLOC_TYPE_CARRAY(kasset_shader_attribute, mat_water_shader.attribute_count);
@@ -650,7 +653,7 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
     // Blended material shader.
     {
         // TODO: blended materials.
-        // state->material_blended_shader = shader_system_get(kname_create(MATERIAL_SHADER_NAME_BLENDED));
+        // state->material_blended_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_MATERIAL_BLENDED));
     }
 
     // Load up some default materials.

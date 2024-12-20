@@ -25,11 +25,10 @@ The items in this list are not in any particular order. This list will be update
 
 - [ ] New Resource System
 
-  - [ ] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
+  - [x] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
         New system will make requests to new Asset System asynchronously, and be responsible for all reference counting and auto-releasing.
   - [x] Provide kresource structure which contains basic high-level items such as type, name, generation, etc.
   - [ ] Resource type reworks
-
     - [x] Text (Simple, generic loading of a text file)
       - [x] Handler
     - [ ] Binary (Simple loading of all bytes in a file)
@@ -40,26 +39,22 @@ The items in this list are not in any particular order. This list will be update
       - [x] Handler
       - [x] Conversion of material .kmt files to version 3.
       - [x] Material instances
-      - [ ] Standard materials
-      - [ ] Water materials
+      - [x] Standard materials
+      - [x] Water materials
       - [ ] Blended materials (can move off to a future release _if_ we don't use terrains)
     - [x] Shader
       - [x] Handler
       - [x] Conversion of scopes to update_frequency (global/instance/local -> per_frame/per_group/per_draw)
     - [ ] Scene
       - [ ] Handler
-    - [ ] Static Mesh (formerly just Mesh)
-
-      - [ ] Handler
-      - [ ] kresource_static_mesh structure
-        - [ ] holds (and owns) static_geometry structure
-
-    - [ ] Bitmap Font
-      - [ ] Resource Handler
-    - [ ] System Font
-      - [ ] Resource Handler
-    - [ ] Heightmap Terrain (formerly just Terrain)
-      - [ ] Resource Handler
+    - [x] Static Mesh (formerly just Mesh)
+      - [x] Handler
+      - [x] kresource_static_mesh structure
+        - [x] holds (and owns) static_geometry structure
+    - [x] Bitmap Font
+      - [x] Resource Handler
+    - [x] System Font
+      - [x] Resource Handler
     - [ ] Sound Effect
       - [ ] Resource Handler
     - [ ] Music
@@ -76,7 +71,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Asset type reworks:
     - [ ] Static meshes
       - [ ] Rework OBJ import process to take in package name as well as make material generation optional (so we don't overwrite the hand-rolled materials);
-      - [ ] Regenerate all .ksm files.
+      - [x] Regenerate all .ksm files.
       - [ ] Create a "default static mesh" (named "StaticMesh_Default") which is a cube with perhaps a warning material.
       - [x] Asset handler
       - [x] Importer from Wavefront OBJ
@@ -88,7 +83,7 @@ The items in this list are not in any particular order. This list will be update
         - [x] Common formats (.bmp, .tga, .jpg, .png)
       - [x] Binary .kbi format
       - [x] Serializer
-    - [ ] Shaders
+    - [x] Shaders
       - [x] Fix hot-reloading/change watches to be called from package/vfs
       - [x] Convert .shadercfg file to KSON-based .ksc (Kohi Shader Config)
       - [x] Asset handler
@@ -104,7 +99,6 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Materials
       - [ ] Add a default "warning" material that stands out, to use in place of a non-existent material.
       - [x] Convert .kmt to KSON
-      - [ ] Importer from MTL directly (as opposed to with an OBJ file).
         - [x] MTL Serializer
       - [x] Asset handler
       - [x] Serializer
@@ -218,6 +212,11 @@ The items in this list are not in any particular order. This list will be update
       - [ ] Asset handler
       - [ ] Importer
       - [ ] Serializer
+- [ ] Resources
+  - [ ] Materials
+    - [ ] Importer from MTL directly (as opposed to with an OBJ file).
+  - [ ] Heightmap Terrain (formerly just Terrain)
+    - [ ] Resource Handler
 - [ ] Handle refactoring
   - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
   - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).

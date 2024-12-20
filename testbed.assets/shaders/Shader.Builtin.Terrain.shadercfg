@@ -6,7 +6,7 @@ stagefiles=shaders/Builtin.TerrainShader.vert.glsl,shaders/Builtin.TerrainShader
 depth_test=1
 depth_write=1
 supports_wireframe=1
-max_instances=5
+max_groups=5
 cull_mode=back
 
 # Attributes: type,name

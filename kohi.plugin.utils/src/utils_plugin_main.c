@@ -1,5 +1,6 @@
 #include "utils_plugin_main.h"
 
+#include "importers/kasset_importer_bitmap_font_fnt.h"
 #include "importers/kasset_importer_image.h"
 #include "importers/kasset_importer_static_mesh_obj.h"
 #include "kohi.plugin.utils_version.h"
@@ -41,6 +42,16 @@ b8 kplugin_create(struct kruntime_plugin* out_plugin) {
         obj_importer.import = kasset_importer_static_mesh_obj_import;
         if (!kasset_importer_registry_register(KASSET_TYPE_IMAGE, "obj", obj_importer)) {
             KERROR("Failed to register static mesh Wavefront OBJ asset importer!");
+            return false;
+        }
+    }
+
+    // Bitmaps fonts - FNT.
+    {
+        kasset_importer fnt_importer = {0};
+        fnt_importer.import = kasset_importer_bitmap_font_fnt;
+        if (!kasset_importer_registry_register(KASSET_TYPE_BITMAP_FONT, "fnt", fnt_importer)) {
+            KERROR("Failed to register bitmap font FNT asset importer!");
             return false;
         }
     }

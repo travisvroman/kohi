@@ -61,16 +61,18 @@ KAPI void array_iterator_prev(array_iterator* it);
     KINLINE array_##name array_##name##_create(u32 length) {                                                             \
         array_##name arr;                                                                                                \
         _karray_init(length, sizeof(type), &arr.base.length, &arr.base.stride, (void**)&arr.data);                       \
-        arr.base.p_data = (void*)arr.data;                                                                                      \
+        arr.base.p_data = (void*)arr.data;                                                                               \
         arr.begin = array_iterator_begin;                                                                                \
         arr.rbegin = array_iterator_rbegin;                                                                              \
         return arr;                                                                                                      \
     }                                                                                                                    \
                                                                                                                          \
     KINLINE void array_##name##_destroy(array_##name* arr) {                                                             \
-        _karray_free(&arr->base.length, &arr->base.stride, (void**)&arr->data);                                          \
-        arr->begin = 0;                                                                                                  \
-        arr->rbegin = 0;                                                                                                 \
+        if (arr) {                                                                                                       \
+            _karray_free(&arr->base.length, &arr->base.stride, (void**)&arr->data);                                      \
+            arr->begin = 0;                                                                                              \
+            arr->rbegin = 0;                                                                                             \
+        }                                                                                                                \
     }
 
 /**

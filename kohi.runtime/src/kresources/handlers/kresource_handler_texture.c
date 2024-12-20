@@ -180,6 +180,7 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
         typed_resource->format = typed_request->format;
         typed_resource->mip_levels = typed_request->mip_levels;
         typed_resource->array_size = typed_request->array_size;
+        typed_resource->renderer_texture_handle = khandle_invalid();
 
         // Acquire the resources for the texture.
         b8 acquisition_result = renderer_kresource_texture_resources_acquire(
@@ -251,6 +252,7 @@ static void texture_kasset_on_result(asset_request_result result, const struct k
             // is the number of frames-in-flight) and more importantly after the reference is switched in the renderer backend. Suspect
             // this will require extensive testing, especially when jobifyed/multithreaded.
 
+            listener->typed_resource->renderer_texture_handle = khandle_invalid();
             // Acquire GPU resources for the texture resource.
             b8 result = renderer_kresource_texture_resources_acquire(
                 renderer,

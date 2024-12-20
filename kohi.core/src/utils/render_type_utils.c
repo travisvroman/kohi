@@ -57,7 +57,7 @@ texture_repeat string_to_texture_repeat(const char* str) {
     } else if (strings_equali("mirrored_repeat", str)) {
         return TEXTURE_REPEAT_MIRRORED_REPEAT;
     } else {
-        KASSERT_MSG(false, "Unrecognized texture repeat.");
+        KERROR("Unrecognized texture repeat '%s'. Defaulting to TEXTURE_REPEAT_REPEAT", str);
         return TEXTURE_REPEAT_REPEAT;
     }
 }
@@ -80,7 +80,7 @@ texture_filter string_to_texture_filter_mode(const char* str) {
     } else if (strings_equali("nearest", str)) {
         return TEXTURE_FILTER_MODE_LINEAR;
     } else {
-        KASSERT_MSG(false, "Unrecognized texture filter type.");
+        KERROR("Unrecognized texture filter type '%s'. Defaulting to TEXTURE_FILTER_MODE_LINEAR.", str);
         return TEXTURE_FILTER_MODE_LINEAR;
     }
 }
@@ -109,7 +109,7 @@ texture_channel string_to_texture_channel(const char* str) {
     } else if (strings_equali(str, "a")) {
         return TEXTURE_CHANNEL_A;
     } else {
-        KASSERT_MSG(false, "Texture channel not supported.");
+        KERROR("Texture channel not supported: '%s'. Defaulting to TEXTURE_CHANNEL_R.", str);
         return TEXTURE_CHANNEL_R;
     }
 }
@@ -208,7 +208,7 @@ shader_uniform_type string_to_shader_uniform_type(const char* str) {
     } else if (strings_equali("custom", str)) {
         return SHADER_UNIFORM_TYPE_CUSTOM;
     } else {
-        KERROR(false, "Unrecognized uniform type '%s'. Defaulting to float.");
+        KERROR("Unrecognized uniform type '%s'. Defaulting to float.", str);
         return SHADER_UNIFORM_TYPE_FLOAT32;
     }
 }
@@ -347,7 +347,7 @@ face_cull_mode string_to_face_cull_mode(const char* str) {
     } else if (strings_equali(str, "none")) {
         return FACE_CULL_MODE_NONE;
     } else {
-        KERROR("Unknown face cull mode '%s'. Defaulting to FACE_CULL_MODE_NONE.");
+        KERROR("Unknown face cull mode '%s'. Defaulting to FACE_CULL_MODE_NONE.", str);
         return FACE_CULL_MODE_NONE;
     }
 }
@@ -495,7 +495,7 @@ kmaterial_type string_to_kmaterial_type(const char* str) {
     } else if (strings_equali(str, "custom")) {
         return KMATERIAL_TYPE_CUSTOM;
     } else {
-        KASSERT_MSG(false, "Unrecognized material type.");
+        KERROR("Unrecognized material type '%s'. Defaulting to KMATERIAL_TYPE_STANDARD.", str);
         return KMATERIAL_TYPE_STANDARD;
     }
 }
@@ -526,7 +526,7 @@ kmaterial_model string_to_kmaterial_model(const char* str) {
     } else if (strings_equali(str, "custom")) {
         return KMATERIAL_MODEL_CUSTOM;
     } else {
-        KASSERT_MSG(false, "Unrecognized material model.");
+        KERROR("Unrecognized material model '%s'. Defaulting to KMATERIAL_MODEL_PBR.", str);
         return KMATERIAL_MODEL_PBR;
     }
 }

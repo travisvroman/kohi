@@ -1,0 +1,67 @@
+version = 1
+cull_mode="front"
+depth_test=true
+depth_write=true
+
+stages = [
+    {
+        type = "vertex"
+        source_asset_name = "Shader.Skybox_vert"
+        package_name = "Kohi.Runtime"
+    }
+    {
+        type = "fragment"
+        source_asset_name = "Shader.Skybox_frag"
+        package_name = "Kohi.Runtime"
+    }
+]
+
+attributes = [
+    {
+        name = "in_position"
+        type = "vec3"
+    }
+    {
+        name = "in_normal"
+        type = "vec3"
+    }
+    {
+        name = "in_texcoord"
+        type = "vec2"
+    }
+    {
+        name = "in_colour"
+        type = "vec4"
+    }
+    {
+        name = "in_tangent"
+        type = "vec3"
+    }
+]
+
+uniforms = {
+    per_frame = [
+        {
+            name = "projections"
+            type = "mat4"
+            array_size = 4
+        }
+        {
+            name = "views"
+            type = "mat4"
+            array_size = 4
+        }
+    ]
+    per_group = [
+        {
+            name = "cube_texture"
+            type = "texture2D"
+        }
+        {
+            name = "cube_sampler"
+            type = "sampler"
+        }
+    ]
+    per_draw = [
+    ]
+}

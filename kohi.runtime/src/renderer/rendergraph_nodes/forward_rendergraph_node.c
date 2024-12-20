@@ -23,6 +23,7 @@
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
 #include "systems/timeline_system.h"
+#include <runtime_defines.h>
 
 #define UNIFORM_APPLY_OR_FAIL(expr)                   \
     if (!expr) {                                      \
@@ -280,7 +281,7 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     forward_rendergraph_node_internal_data* internal_data = self->internal_data;
 
     // Load Skybox shader and get shader uniform locations.
-    internal_data->skybox_shader = shader_system_get(kname_create("Shader.Builtin.Skybox"));
+    internal_data->skybox_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME));
     internal_data->skybox_shader_locations.projection_location = shader_system_uniform_location(internal_data->skybox_shader, kname_create("projection"));
     internal_data->skybox_shader_locations.views_location = shader_system_uniform_location(internal_data->skybox_shader, kname_create("views"));
     internal_data->skybox_shader_locations.cube_map_location = shader_system_uniform_location(internal_data->skybox_shader, kname_create("cube_texture"));

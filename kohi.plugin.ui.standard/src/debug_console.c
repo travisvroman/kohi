@@ -5,7 +5,6 @@
 #include <core/event.h>
 #include <core/input.h>
 #include <memory/kmemory.h>
-#include <resources/font_types.h>
 #include <resources/resource_types.h>
 #include <strings/kstring.h>
 
@@ -121,7 +120,7 @@ b8 debug_console_load(debug_console_state* state) {
     }
 
     // Create a ui text control for rendering.
-    if (!sui_label_control_create(state->sui_state, "debug_console_log_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->text_control)) {
+    if (!sui_label_control_create(state->sui_state, "debug_console_log_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), font_size, "", &state->text_control)) {
         KFATAL("Unable to create text control for debug console.");
         return false;
     } else {
@@ -148,7 +147,7 @@ b8 debug_console_load(debug_console_state* state) {
     // Create another ui text control for rendering typed text.
 
     // new one
-    if (!sui_textbox_control_create(state->sui_state, "debug_console_entry_textbox", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->entry_textbox)) {
+    if (!sui_textbox_control_create(state->sui_state, "debug_console_entry_textbox", FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), font_size, "", &state->entry_textbox)) {
         KFATAL("Unable to create entry textbox control for debug console.");
         return false;
     } else {

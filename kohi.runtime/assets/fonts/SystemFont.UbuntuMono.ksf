@@ -1,4 +1,5 @@
 // Font configuration file
+version=1
 ttf_asset_name = "Binary.SystemFont.UbuntuMono-R"
 ttf_asset_package_name = "Kohi.Runtime"
 // Font faces provide names for each index, which are loaded into a lookup table.

@@ -794,7 +794,6 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
             if (!string_to_bool(token_string, &bool_value)) {
                 KERROR("Failed to parse boolean from token. Position: %u", current_token->start);
             }
-            // LEFTOFF: Something is causing a segfault here. Memory getting trampled?
             string_free(token_string);
 
             if (current_object->type == KSON_OBJECT_TYPE_ARRAY) {
@@ -1518,7 +1517,7 @@ b8 kson_array_element_value_get_int(const kson_array* array, u32 index, i64* out
         return false;
     }
 
-    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_INT, "Array element is not an int.");
+    KASSERT_MSG(array->properties[index].type == KSON_PROPERTY_TYPE_INT, "Array element is not an int.");
 
     *out_value = array->properties[index].value.i;
     return true;
@@ -1529,7 +1528,7 @@ b8 kson_array_element_value_get_float(const kson_array* array, u32 index, f32* o
         return false;
     }
 
-    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_FLOAT, "Array element is not a float.");
+    KASSERT_MSG(array->properties[index].type == KSON_PROPERTY_TYPE_FLOAT, "Array element is not a float.");
 
     *out_value = array->properties[index].value.f;
     return true;
@@ -1540,7 +1539,7 @@ b8 kson_array_element_value_get_bool(const kson_array* array, u32 index, b8* out
         return false;
     }
 
-    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_BOOLEAN, "Array element is not a boolean.");
+    KASSERT_MSG(array->properties[index].type == KSON_PROPERTY_TYPE_BOOLEAN, "Array element is not a boolean.");
 
     *out_value = array->properties[index].value.b;
     return true;
@@ -1566,7 +1565,7 @@ b8 kson_array_element_value_get_mat4(const kson_array* array, u32 index, mat4* o
         return false;
     }
 
-    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
+    KASSERT_MSG(array->properties[index].type == KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
 
     const char* str = array->properties[index].value.s;
     return string_to_mat4(str, out_value);
@@ -1577,7 +1576,7 @@ b8 kson_array_element_value_get_vec4(const kson_array* array, u32 index, vec4* o
         return false;
     }
 
-    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
+    KASSERT_MSG(array->properties[index].type == KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
 
     const char* str = array->properties[index].value.s;
     return string_to_vec4(str, out_value);
@@ -1588,7 +1587,7 @@ b8 kson_array_element_value_get_vec3(const kson_array* array, u32 index, vec3* o
         return false;
     }
 
-    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
+    KASSERT_MSG(array->properties[index].type == KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
 
     const char* str = array->properties[index].value.s;
     return string_to_vec3(str, out_value);
@@ -1599,7 +1598,7 @@ b8 kson_array_element_value_get_vec2(const kson_array* array, u32 index, vec2* o
         return false;
     }
 
-    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
+    KASSERT_MSG(array->properties[index].type == KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
 
     const char* str = array->properties[index].value.s;
     return string_to_vec2(str, out_value);
@@ -1610,7 +1609,7 @@ b8 kson_array_element_value_get_string_as_kname(const kson_array* array, u32 ind
         return false;
     }
 
-    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
+    KASSERT_MSG(array->properties[index].type == KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
 
     const char* str = array->properties[index].value.s;
     *out_value = kname_create(str);
@@ -1622,7 +1621,7 @@ b8 kson_array_element_value_get_string_as_kstring_id(const kson_array* array, u3
         return false;
     }
 
-    KASSERT_MSG(array->properties[index].type != KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
+    KASSERT_MSG(array->properties[index].type == KSON_PROPERTY_TYPE_STRING, "Array element is not stored as a string.");
 
     const char* str = array->properties[index].value.s;
     *out_value = kstring_id_create(str);

@@ -11,7 +11,7 @@
 
 #include <stdio.h> // sscanf
 
-static b8 import_fnt_material_library_file(const char* mtl_file_text, fnt_source_asset* out_mtl_source_asset);
+static b8 import_fnt_file(const char* fnt_file_text, fnt_source_asset* out_mtl_source_asset);
 
 b8 fnt_serializer_serialize(const fnt_source_asset* source_asset, const char** out_file_text) {
     KASSERT_MSG(false, "Not yet implemented");
@@ -24,7 +24,7 @@ b8 fnt_serializer_deserialize(const char* fnt_file_text, fnt_source_asset* out_f
         return false;
     }
 
-    return import_fnt_material_library_file(fnt_file_text, out_fnt_source_asset);
+    return import_fnt_file(fnt_file_text, out_fnt_source_asset);
 }
 
 #define VERIFY_LINE(line_type, line_num, expected, actual)                                                                                     \
@@ -33,50 +33,59 @@ b8 fnt_serializer_deserialize(const char* fnt_file_text, fnt_source_asset* out_f
         return false;                                                                                                                          \
     }
 
-static b8 import_fnt_material_library_file(const char* mtl_file_text, fnt_source_asset* out_asset) {
-    KDEBUG("Importing source bitmap .fnt file ...");
+static b8 import_fnt_file(const char* fnt_file_text, fnt_source_asset* out_asset) {
+    KDEBUG("Importing source bitmap font .fnt file ...");
 
     kzero_memory(out_asset, sizeof(fnt_source_asset));
-    char line_buf[512] = "";
-    char* p = &line_buf[0];
+    char* line = 0;
+    char line_buffer[512];
+    char* p = &line_buffer[0];
     u32 line_length = 0;
+    u8 addl_advance = 0; // To skip \n, or \r\n, etc.
     u32 line_num = 0;
     u32 glyphs_read = 0;
     u8 pages_read = 0;
     u32 kernings_read = 0;
     u32 start_from = 0;
     while (true) {
-        start_from += line_length;
+        start_from += line_length + addl_advance;
         ++line_num; // Increment the number right away, since most text editors' line display is 1-indexed.
-        if (!string_line_get(mtl_file_text, 511, start_from, &p, &line_length)) {
+        kzero_memory(line_buffer, 512);
+        if (!string_line_get(fnt_file_text, 511, start_from, &p, &line_length, &addl_advance)) {
             break;
         }
+
+        // Trim the line first.
+        line = string_trim(line_buffer);
 
         // Skip blank lines.
         if (line_length < 1) {
             continue;
         }
 
-        char first_char = line_buf[0];
+        char first_char = line[0];
         switch (first_char) {
         case 'i': {
             // 'info' line
 
             // NOTE: only extract the face and size, ignore the rest.
+            char face_name_buf[512] = {0};
+            kzero_memory(face_name_buf, sizeof(char) * 512);
             i32 elements_read = sscanf(
-                line_buf,
+                line_buffer,
                 "info face=\"%[^\"]\" size=%u",
-                out_asset->face_name,
+                face_name_buf,
                 &out_asset->size);
             VERIFY_LINE("info", line_num, 2, elements_read);
+            out_asset->face_name = string_duplicate(face_name_buf);
             break;
         }
         case 'c': {
             // 'common', 'char' or 'chars' line
-            if (line_buf[1] == 'o') {
+            if (line[1] == 'o') {
                 // common
                 i32 elements_read = sscanf(
-                    line_buf,
+                    line,
                     "common lineHeight=%d base=%u scaleW=%d scaleH=%d pages=%d", // ignore everything else.
                     &out_asset->line_height,
                     &out_asset->baseline,
@@ -89,22 +98,22 @@ static b8 import_fnt_material_library_file(const char* mtl_file_text, fnt_source
                 // Allocate the pages array.
                 if (out_asset->page_count > 0) {
                     if (!out_asset->pages) {
-                        out_asset->pages = kallocate(sizeof(bitmap_font_page) * out_asset->page_count, MEMORY_TAG_ARRAY);
+                        out_asset->pages = KALLOC_TYPE_CARRAY(kasset_bitmap_font_page, out_asset->page_count);
                     }
                 } else {
                     KERROR("Pages is 0, which should not be possible. Font file reading aborted.");
                     return false;
                 }
-            } else if (line_buf[1] == 'h') {
-                if (line_buf[4] == 's') {
+            } else if (line[1] == 'h') {
+                if (line[4] == 's') {
                     // chars line
-                    i32 elements_read = sscanf(line_buf, "chars count=%u", &out_asset->glyph_count);
+                    i32 elements_read = sscanf(line, "chars count=%u", &out_asset->glyph_count);
                     VERIFY_LINE("chars", line_num, 1, elements_read);
 
                     // Allocate the glyphs array.
                     if (out_asset->glyph_count > 0) {
                         if (!out_asset->glyphs) {
-                            out_asset->glyphs = kallocate(sizeof(font_glyph) * out_asset->glyph_count, MEMORY_TAG_ARRAY);
+                            out_asset->glyphs = KALLOC_TYPE_CARRAY(kasset_bitmap_font_glyph, out_asset->glyph_count);
                         }
                     } else {
                         KERROR("Glyph count is 0, which should not be possible. Font file reading aborted.");
@@ -112,10 +121,10 @@ static b8 import_fnt_material_library_file(const char* mtl_file_text, fnt_source
                     }
                 } else {
                     // Assume 'char' line
-                    font_glyph* g = &out_asset->glyphs[glyphs_read];
+                    kasset_bitmap_font_glyph* g = &out_asset->glyphs[glyphs_read];
 
                     i32 elements_read = sscanf(
-                        line_buf,
+                        line,
                         "char id=%d x=%hu y=%hu width=%hu height=%hu xoffset=%hd yoffset=%hd xadvance=%hd page=%hhu chnl=%*u",
                         &g->codepoint,
                         &g->x,
@@ -138,37 +147,37 @@ static b8 import_fnt_material_library_file(const char* mtl_file_text, fnt_source
         }
         case 'p': {
             // 'page' line
-            bitmap_font_page* page = &out_asset->pages[pages_read];
+            kasset_bitmap_font_page* page = &out_asset->pages[pages_read];
+            char page_file_str[200] = {0};
             i32 elements_read = sscanf(
-                line_buf,
+                line,
                 "page id=%hhi file=\"%[^\"]\"",
                 &page->id,
-                page->file);
-
-            // Strip the extension.
-            string_filename_no_extension_from_path(page->file, page->file);
+                page_file_str);
 
             VERIFY_LINE("page", line_num, 2, elements_read);
+
+            page->image_asset_name = kname_create(page_file_str);
 
             break;
         }
         case 'k': {
             // 'kernings' or 'kerning' line
-            if (line_buf[7] == 's') {
+            if (line[7] == 's') {
                 // Kernings
-                i32 elements_read = sscanf(line_buf, "kernings count=%u", &out_asset->kerning_count);
+                i32 elements_read = sscanf(line, "kernings count=%u", &out_asset->kerning_count);
 
                 VERIFY_LINE("kernings", line_num, 1, elements_read);
 
                 // Allocate kernings array
                 if (!out_asset->kernings) {
-                    out_asset->kernings = kallocate(sizeof(font_kerning) * out_asset->kerning_count, MEMORY_TAG_ARRAY);
+                    out_asset->kernings = KALLOC_TYPE_CARRAY(kasset_bitmap_font_kerning, out_asset->kerning_count);
                 }
-            } else if (line_buf[7] == ' ') {
+            } else if (line[7] == ' ') {
                 // Kerning record
-                font_kerning* k = &out_asset->kernings[kernings_read];
+                kasset_bitmap_font_kerning* k = &out_asset->kernings[kernings_read];
                 i32 elements_read = sscanf(
-                    line_buf,
+                    line,
                     "kerning first=%i  second=%i amount=%hi",
                     &k->codepoint_0,
                     &k->codepoint_1,

@@ -57,9 +57,10 @@ KAPI b8 shader_system_reload(khandle shader);
  * Attempts to load the shader if not already loaded.
  *
  * @param shader_name The kname to search for.
+ * @param package_name The package to get the shader from if not already loaded. Pass INVALID_KNAME to search all packages.
  * @return A handle to a shader, if found/loaded; otherwise an invalid handle.
  */
-KAPI khandle shader_system_get(kname name);
+KAPI khandle shader_system_get(kname name, kname package_name);
 
 /**
  * @brief Returns a handle to a shader with the given name based on the provided config source.

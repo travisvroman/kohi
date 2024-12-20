@@ -51,11 +51,8 @@ typedef struct testbed_game_state {
     scene main_scene;
     b8 main_scene_unload_triggered;
 
-    mesh meshes[10];
-
     point_light* p_light_1;
 
-    mesh ui_meshes[10];
     sui_control test_text;
     sui_control test_text_black;
     sui_control test_sys_text;

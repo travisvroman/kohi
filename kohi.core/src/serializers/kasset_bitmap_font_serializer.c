@@ -6,8 +6,6 @@
 #include "strings/kname.h"
 #include "strings/kstring.h"
 
-#include <stdio.h>
-
 typedef struct bitmap_font_header {
     // The base binary asset header. Must always be the first member.
     binary_asset_header base;
@@ -115,8 +113,87 @@ void* kasset_bitmap_font_serialize(const kasset* asset, u64* out_size) {
     return block;
 }
 
-b8 kasset_bitmap_font_deserialize(const void* data, kasset* out_asset) {
-    // LEFTOFF: Undo the above. Also hook this up to a bitmap font importer, then a bitmap
-    // font resource handler, and finally change the font system to use resource requests
-    // to get the actual font resources. Then repeat all of this for system fonts.
+b8 kasset_bitmap_font_deserialize(u64 size, const void* block, kasset* out_asset) {
+    if (!size || !block || !out_asset) {
+        KERROR("Cannot deserialize without a nonzero size, block of memory and an static_mesh to write to.");
+        return false;
+    }
+
+    const bitmap_font_header* header = block;
+    if (header->base.magic != ASSET_MAGIC) {
+        KERROR("Memory is not a Kohi binary asset.");
+        return false;
+    }
+
+    kasset_type type = (kasset_type)header->base.type;
+    if (type != KASSET_TYPE_BITMAP_FONT) {
+        KERROR("Memory is not a Kohi bitmap font asset.");
+        return false;
+    }
+
+    out_asset->meta.version = header->base.version;
+    out_asset->type = type;
+
+    kasset_bitmap_font* typed_asset = (kasset_bitmap_font*)out_asset;
+    typed_asset->baseline = header->baseline;
+    typed_asset->line_height = header->line_height;
+    typed_asset->size = header->font_size;
+    typed_asset->atlas_size_x = header->atlas_size_x;
+    typed_asset->atlas_size_y = header->atlas_size_y;
+    if (header->kerning_count) {
+        typed_asset->kernings = array_kasset_bitmap_font_kerning_create(header->kerning_count);
+    }
+    if (header->page_count) {
+        typed_asset->pages = array_kasset_bitmap_font_page_create(header->page_count);
+    }
+
+    u64 offset = sizeof(bitmap_font_header);
+
+    // Face name.
+    char* face_str = kallocate(header->face_name_len + 1, MEMORY_TAG_STRING);
+    kcopy_memory(face_str, block + offset, header->face_name_len);
+    typed_asset->face = kname_create(face_str);
+    string_free(face_str);
+    offset += header->face_name_len;
+
+    // Glyphs - at least one is required.
+    if (header->glyph_count) {
+        typed_asset->glyphs = array_kasset_bitmap_font_glyph_create(header->glyph_count);
+        KCOPY_TYPE_CARRAY(typed_asset->glyphs.data, block + offset, kasset_bitmap_font_glyph, header->glyph_count);
+        offset += sizeof(kasset_bitmap_font_glyph) * header->glyph_count;
+    } else {
+        KERROR("Attempting to load a bitmap font asset that has no glyphs. But why?");
+        return false;
+    }
+
+    // Kernings - optional.
+    if (header->kerning_count) {
+        typed_asset->kernings = array_kasset_bitmap_font_kerning_create(header->kerning_count);
+        KCOPY_TYPE_CARRAY(typed_asset->kernings.data, block + offset, kasset_bitmap_font_kerning, header->kerning_count);
+        offset += sizeof(kasset_bitmap_font_kerning) * header->kerning_count;
+    }
+
+    // Pages - at least one is required.
+    if (header->page_count) {
+        typed_asset->pages = array_kasset_bitmap_font_page_create(header->page_count);
+        for (u32 i = 0; i < header->page_count; ++i) {
+            // String length.
+            u32 len = 0;
+            kcopy_memory(&len, block + offset, sizeof(u32));
+            offset += sizeof(u32);
+
+            char* str = kallocate(sizeof(char) * len, MEMORY_TAG_STRING);
+            kcopy_memory(str, block + offset, sizeof(char) * len);
+            offset += len;
+
+            typed_asset->pages.data[i].id = i;
+            typed_asset->pages.data[i].image_asset_name = kname_create(str);
+            string_free(str);
+        }
+    } else {
+        KERROR("Attempting to load a bitmap font asset that has no pages. But why?");
+        return false;
+    }
+
+    return true;
 }

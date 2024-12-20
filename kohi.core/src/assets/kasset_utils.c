@@ -87,6 +87,7 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data as
             }
 
             context.asset->package_name = asset_data.package_name;
+            context.asset->name = asset_data.asset_name;
             if (!importer->import(importer, asset_data.size, asset_data.bytes, asset_data.import_params, context.asset)) {
                 KERROR("Automatic asset import failed. See logs for details.");
                 result = ASSET_REQUEST_RESULT_AUTO_IMPORT_FAILED;

@@ -214,7 +214,7 @@ b8 scene_node_config_deserialize_kson(const kson_object* node_object, scene_node
 
     // Process attachments, if any.
     kson_object attachments_array = {0};
-    if (kson_object_property_value_get_object(node_object, "attachments", &attachments_array)) {
+    if (kson_object_property_value_get_array(node_object, "attachments", &attachments_array)) {
         // Make sure it is actually an array.
         if (attachments_array.type == KSON_OBJECT_TYPE_ARRAY) {
             u32 attachment_count = 0;
@@ -313,7 +313,7 @@ b8 scene_node_config_deserialize_kson(const kson_object* node_object, scene_node
 
     // Process children, if any.
     kson_object children_array = {0};
-    if (kson_object_property_value_get_object(node_object, "children", &children_array)) {
+    if (kson_object_property_value_get_array(node_object, "children", &children_array)) {
         // Make sure it is actually an array.
         if (children_array.type == KSON_OBJECT_TYPE_ARRAY) {
             u32 child_count = 0;
@@ -377,7 +377,7 @@ b8 scene_config_deserialize_kson(const kson_tree* source_tree, scene_config* sce
 
     // Extract and process nodes.
     kson_object scene_nodes_array;
-    if (kson_object_property_value_get_object(&source_tree->root, "nodes", &scene_nodes_array)) {
+    if (kson_object_property_value_get_array(&source_tree->root, "nodes", &scene_nodes_array)) {
         // Only process if array.
         if (scene_nodes_array.type != KSON_OBJECT_TYPE_ARRAY) {
             KERROR("Unexpected object named 'nodes' found. Expected array instead. Section will be skipped.");

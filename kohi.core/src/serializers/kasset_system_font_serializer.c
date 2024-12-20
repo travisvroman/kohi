@@ -6,7 +6,6 @@
 #include "memory/kmemory.h"
 #include "parsers/kson_parser.h"
 #include "strings/kname.h"
-#include "strings/kstring.h"
 
 #define SYSTEM_FONT_FORMAT_VERSION 1
 
@@ -78,10 +77,12 @@ b8 kasset_system_font_deserialize(const char* file_text, kasset* out_asset) {
         }
 
         // version
-        if (!kson_object_property_value_get_int(&tree.root, "version", (i64*)(&typed_asset->base.meta.version))) {
+        i64 version = 0;
+        if (!kson_object_property_value_get_int(&tree.root, "version", &version)) {
             KERROR("Failed to parse version, which is a required field.");
             goto cleanup_kson;
         }
+        typed_asset->base.meta.version = (u32)version;
 
         // ttf_asset_name
         if (!kson_object_property_value_get_string_as_kname(&tree.root, "ttf_asset_name", &typed_asset->ttf_asset_name)) {
@@ -97,7 +98,7 @@ b8 kasset_system_font_deserialize(const char* file_text, kasset* out_asset) {
 
         // Faces array
         kson_array face_array = {0};
-        if (!kson_object_property_value_get_object(&tree.root, "faces", &face_array)) {
+        if (!kson_object_property_value_get_array(&tree.root, "faces", &face_array)) {
             KERROR("Failed to parse faces, which is a required field.");
             goto cleanup_kson;
         }

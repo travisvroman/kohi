@@ -30,6 +30,7 @@
     ],
     "files.associations": {
         "core_render_types.h": "c",
-        "logger.h": "c"
+        "logger.h": "c",
+        "vfs.h": "c"
     }
 }

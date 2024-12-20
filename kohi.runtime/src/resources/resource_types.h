@@ -82,38 +82,6 @@ typedef struct resource {
     void* data;
 } resource;
 
-/**
- * @brief A structure to hold image resource data.
- */
-typedef struct image_resource_data {
-    /** @brief The number of channels. */
-    u8 channel_count;
-    /** @brief The width of the image. */
-    u32 width;
-    /** @brief The height of the image. */
-    u32 height;
-    /** @brief The pixel data of the image. */
-    u8* pixels;
-    /**
-     * @brief The number of mip levels to be generated for this
-     * image resource. Should be passed on to the texture using it.
-     * Must always be at least 1.
-     */
-    u32 mip_levels;
-} image_resource_data;
-
-/** @brief Parameters used when loading an image. */
-typedef struct image_resource_params {
-    /** @brief Indicates if the image should be flipped on the y-axis when loaded.
-     */
-    b8 flip_y;
-} image_resource_params;
-
-/**
- * @brief The maximum length of a texture name.
- */
-#define TEXTURE_NAME_MAX_LENGTH 512
-
 typedef enum texture_flag {
     /** @brief Indicates if the texture has transparency. */
     TEXTURE_FLAG_HAS_TRANSPARENCY = 0x01,
@@ -145,84 +113,6 @@ typedef enum texture_type {
     TEXTURE_TYPE_CUBE_ARRAY,
     TEXTURE_TYPE_COUNT
 } texture_type;
-
-/** @brief The maximum length of a material name. */
-#define MATERIAL_NAME_MAX_LENGTH 256
-
-struct material;
-
-struct geometry_config;
-typedef struct mesh_config {
-    char* resource_name;
-    u16 geometry_count;
-    struct geometry_config* g_configs;
-} mesh_config;
-
-typedef enum mesh_state {
-    MESH_STATE_UNDEFINED,
-    MESH_STATE_CREATED,
-    MESH_STATE_INITIALIZED,
-    MESH_STATE_LOADING,
-    MESH_STATE_LOADED
-} mesh_state;
-
-struct geometry;
-typedef struct mesh {
-    char* name;
-    char* resource_name;
-    mesh_state state;
-    identifier id;
-    u8 generation;
-    u16 geometry_count;
-    kgeometry* geometries;
-    extents_3d extents;
-    void* debug_data;
-} mesh;
-
-/**
- * @brief A material, which represents various properties
- * of a surface in the world such as texture, colour,
- * bumpiness, shininess and more.
- */
-typedef struct material {
-    /** @brief The material id. */
-    u32 id;
-    /** @brief The material generation. Incremented every time the material is
-     * changed. */
-    u32 generation;
-    /** @brief The internal material id. Used by the renderer backend to map to
-     * internal resources. */
-    u32 internal_id;
-    /** @brief The material name. */
-    kname name;
-    /** @brief The name of the package containing this material. */
-    kname package_name;
-
-    /** @brief An array of texture maps. */
-    struct kresource_texture_map* maps;
-
-    /** @brief property structure size. */
-    u32 property_struct_size;
-
-    /** @brief array of material property structures, which varies based on material type. e.g. material_phong_properties */
-    void* properties;
-
-    /**
-     * @brief An explicitly-set irradiance texture for this material. Should only be set
-     * in limited circumstances. Ideally a scene should set it through material manager.
-     */
-    kresource_texture* irradiance_texture;
-
-    // /** @brief The diffuse colour. */
-    // vec4 diffuse_colour;
-
-    // /** @brief The material shininess, determines how concentrated the specular
-    //  * lighting is. */
-    // f32 shininess;
-
-    u32 shader_id;
-
-} material;
 
 typedef enum scene_node_attachment_type {
     SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN,
