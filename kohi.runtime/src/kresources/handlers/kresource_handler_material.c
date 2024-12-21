@@ -47,6 +47,11 @@ b8 kresource_handler_material_request(kresource_handler* self, kresource* resour
             }
 
             asset_to_resource(&material_from_source, typed_resource);
+
+            // Make the user callback if set.
+            if (info->user_callback) {
+                info->user_callback((kresource*)typed_resource, info->listener_inst);
+            }
             return true;
         } else {
             KERROR("kresource_handler_material_request requires exactly one asset OR zero assets and material source text.");
@@ -105,6 +110,11 @@ static void material_kasset_on_result(asset_request_result result, const struct 
         listener->asset = (kasset_material*)asset;
 
         asset_to_resource(listener->asset, listener->typed_resource);
+
+        // Make the user callback if set.
+        if (listener->request_info->base.user_callback) {
+            listener->request_info->base.user_callback((kresource*)listener->typed_resource, listener->request_info->base.listener_inst);
+        }
     } else {
         KERROR("Failed to load a required asset for material resource '%s'. Resource may not appear correctly when rendered.", kname_string_get(listener->typed_resource->base.name));
     }

@@ -262,11 +262,13 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
         }
 
         // Apply group
+        // LEFTOFF: try eliminating the group and just putting the diffuse_colour in the per-draw instead (where it probably should be anyway).
+        // Will need to remove group references from the sui controls.
         {
             shader_system_bind_group(internal_data->sui_shader, *renderable->group_id);
             // Set UBO data
             sui_per_group_ubo group_data = {0};
-            group_data.diffuse_colour = vec4_one(); // renderable->render_data.diffuse_colour;
+            group_data.diffuse_colour = renderable->render_data.diffuse_colour;
             shader_system_uniform_set_by_location(internal_data->sui_shader, internal_data->sui_locations.sui_group_ubo, &group_data);
             // Atlas texture
             kresource_texture* atlas = renderable->atlas_override ? renderable->atlas_override : internal_data->ui_atlas;

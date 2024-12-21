@@ -182,8 +182,9 @@ b8 kasset_bitmap_font_deserialize(u64 size, const void* block, kasset* out_asset
             kcopy_memory(&len, block + offset, sizeof(u32));
             offset += sizeof(u32);
 
-            char* str = kallocate(sizeof(char) * len, MEMORY_TAG_STRING);
-            kcopy_memory(str, block + offset, sizeof(char) * len);
+            u64 alloc_size = sizeof(char) * len;
+            char* str = kallocate(alloc_size + 1, MEMORY_TAG_STRING);
+            kcopy_memory(str, block + offset, alloc_size);
             offset += len;
 
             typed_asset->pages.data[i].id = i;

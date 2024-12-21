@@ -4414,8 +4414,9 @@ static b8 vulkan_descriptorset_update_and_bind(
 
         // Only do this if the descriptor has not yet been updated.
         ubo_buffer_info.buffer = ((vulkan_buffer*)internal_shader->uniform_buffers[image_index].internal_data)->handle;
-        KASSERT_MSG((info->ubo_offset % context->device.properties.limits.minUniformBufferOffsetAlignment) == 0, "Ubo offset must be a multiple of device.properties.limits.minUniformBufferOffsetAlignment.");
-        ubo_buffer_info.offset = info->ubo_offset;
+        // HACK: Verify this - the next 2 lines were using info->ubo_offset previously.
+        KASSERT_MSG((frequency_state->offset % context->device.properties.limits.minUniformBufferOffsetAlignment) == 0, "Ubo offset must be a multiple of device.properties.limits.minUniformBufferOffsetAlignment.");
+        ubo_buffer_info.offset = frequency_state->offset;
         ubo_buffer_info.range = info->ubo_stride;
 
         VkWriteDescriptorSet ubo_descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
