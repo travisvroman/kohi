@@ -874,7 +874,7 @@ b8 material_flag_get(struct material_system_state* state, khandle material, kmat
 
     material_data* data = &state->materials[material.handle_index];
 
-    return FLAG_GET(data->flags, flag);
+    return FLAG_GET(data->flags, (u32)flag);
 }
 
 b8 material_system_acquire(material_system_state* state, kname name, material_instance* out_instance) {
@@ -1389,7 +1389,7 @@ b8 material_instance_flag_get(struct material_system_state* state, material_inst
         return false;
     }
 
-    return FLAG_GET(data->flags, flag);
+    return FLAG_GET(data->flags, (u32)flag);
 }
 
 b8 material_instance_base_colour_get(struct material_system_state* state, material_instance instance, vec4* out_value) {

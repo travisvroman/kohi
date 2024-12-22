@@ -312,25 +312,25 @@ typedef enum kmaterial_texture_map {
 
 typedef enum kmaterial_flag_bits {
     // Material is marked as having transparency. If not set, alpha of albedo will not be used.
-    KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT = 0x0001,
+    KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT = 0x0001U,
     // Material is double-sided.
-    KMATERIAL_FLAG_DOUBLE_SIDED_BIT = 0x0002,
+    KMATERIAL_FLAG_DOUBLE_SIDED_BIT = 0x0002U,
     // Material recieves shadows.
-    KMATERIAL_FLAG_RECIEVES_SHADOW_BIT = 0x0004,
+    KMATERIAL_FLAG_RECIEVES_SHADOW_BIT = 0x0004U,
     // Material casts shadows.
-    KMATERIAL_FLAG_CASTS_SHADOW_BIT = 0x0008,
+    KMATERIAL_FLAG_CASTS_SHADOW_BIT = 0x0008U,
     // Material normal map enabled. A default z-up value will be used if not set.
-    KMATERIAL_FLAG_NORMAL_ENABLED_BIT = 0x0010,
+    KMATERIAL_FLAG_NORMAL_ENABLED_BIT = 0x0010U,
     // Material AO map is enabled. A default of 1.0 (white) will be used if not set.
-    KMATERIAL_FLAG_AO_ENABLED_BIT = 0x0020,
+    KMATERIAL_FLAG_AO_ENABLED_BIT = 0x0020U,
     // Material emissive map is enabled. Emissive map is ignored if not set.
-    KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT = 0x0040,
+    KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT = 0x0040U,
     // Material combined MRA (metallic/roughness/ao) map is enabled. MRA map is ignored if not set.
-    KMATERIAL_FLAG_MRA_ENABLED_BIT = 0x0080,
+    KMATERIAL_FLAG_MRA_ENABLED_BIT = 0x0080U,
     // Material refraction map is enabled. Refraction map is ignored if not set.
-    KMATERIAL_FLAG_REFRACTION_ENABLED_BIT = 0x0100,
+    KMATERIAL_FLAG_REFRACTION_ENABLED_BIT = 0x0100U,
     // Material uses vertex colour data as the base colour.
-    KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT = 0x0200
+    KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT = 0x0200U
 } kmaterial_flag_bits;
 
 typedef u32 kmaterial_flags;
