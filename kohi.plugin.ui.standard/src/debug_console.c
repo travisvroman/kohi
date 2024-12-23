@@ -209,7 +209,7 @@ void debug_console_unload(debug_console_state* state) {
     }
 }
 
-#define DEBUG_CONSOLE_BUFFER_LENGTH 16384
+#define DEBUG_CONSOLE_BUFFER_LENGTH 32768
 
 void debug_console_update(debug_console_state* state) {
     if (state && state->loaded && state->dirty) {

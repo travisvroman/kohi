@@ -16,7 +16,7 @@ void asset_handler_bitmap_font_create(struct asset_handler* self, struct vfs_sta
     KASSERT_MSG(self && vfs, "Valid pointers are required for 'self' and 'vfs'.");
 
     self->vfs = vfs;
-    self->is_binary = false;
+    self->is_binary = true;
     self->request_asset = 0;
     self->release_asset = asset_handler_bitmap_font_release_asset;
     self->type = KASSET_TYPE_BITMAP_FONT;

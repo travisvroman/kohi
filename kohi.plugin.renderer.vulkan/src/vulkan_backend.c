@@ -2875,6 +2875,8 @@ static b8 create_shader_module(vulkan_context* context, vulkan_shader* internal_
 
     KDEBUG("Compiling stage '%s' for shader '%s'...", shader_stage_to_string(stage), kname_string_get(internal_shader->name));
 
+    KTRACE("Source:\n%s", source);
+
     // Attempt to compile the shader.
     shaderc_compile_options_t options = shaderc_compile_options_initialize();
     shaderc_compile_options_set_target_env(options, shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);

@@ -209,11 +209,16 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
         // This means that data is bigger than it needs to be, and that a smaller block of memory can be used.
         if (read_size < original_file_size) {
             KTRACE("Package '%s': asset '%s', file at path: '%s' - Read size/file size mismatch (%llu, %llu).", package_name, name_str, asset_path, read_size, original_file_size);
-            void* temp = kallocate(read_size, MEMORY_TAG_ASSET);
+            void* temp = kallocate(read_size + (is_binary ? 1 : 0), MEMORY_TAG_ASSET);
             kcopy_memory(temp, data, read_size);
             kfree(data, actual_file_size, MEMORY_TAG_ASSET);
             data = temp;
             actual_file_size = read_size;
+            // Account for the null terminator for text files.
+            if (!is_binary) {
+                actual_file_size++;
+                ((char*)data)[actual_file_size - 1] = 0;
+            }
         }
 
         // Set the output.
