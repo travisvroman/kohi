@@ -26,8 +26,10 @@ typedef struct skybox {
     u32 group_id;
     /** @brief The skybox shader's group data generation. */
     u16 skybox_shader_group_data_generation;
-    /** @brief Synced to the renderer's current draw index when the material has been applied that frame. */
-    u8 draw_index;
+
+    u32 draw_id;
+    /** @brief The skybox shader's draw data generation. */
+    u16 skybox_shader_draw_data_generation;
 } skybox;
 
 /**

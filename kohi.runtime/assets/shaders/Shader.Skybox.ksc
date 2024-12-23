@@ -3,6 +3,9 @@ cull_mode="front"
 depth_test=true
 depth_write=true
 
+max_groups=1
+max_draw_ids=1
+
 stages = [
     {
         type = "vertex"
@@ -42,14 +45,9 @@ attributes = [
 uniforms = {
     per_frame = [
         {
-            name = "projections"
-            type = "mat4"
-            array_size = 4
-        }
-        {
-            name = "views"
-            type = "mat4"
-            array_size = 4
+            name = "skybox_frame_ubo"
+            type = "struct"
+            size = 80
         }
     ]
     per_group = [
@@ -63,5 +61,10 @@ uniforms = {
         }
     ]
     per_draw = [
+        {
+            name = "skybox_draw_ubo"
+            type = "struct"
+            size = 16
+        }
     ]
 }

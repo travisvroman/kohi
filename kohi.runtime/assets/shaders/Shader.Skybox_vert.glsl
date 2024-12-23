@@ -1,5 +1,7 @@
 #version 450
 
+const uint SKYBOX_MAX_VIEWS = 4;
+
 // =========================================================
 // Inputs
 // =========================================================
@@ -13,13 +15,17 @@ layout(location = 4) in vec4 in_tangent;
 
 // per frame
 layout(set = 0, binding = 0) uniform per_frame_ubo {
+	mat4 views[SKYBOX_MAX_VIEWS];
     mat4 projection;
-	mat4 view;
-} frame_ubo;
+} skybox_frame_ubo;
 
 // per group NOTE: No per-group UBO for this shader
 
-// per draw NOTE: No per-draw UBO for this shader
+// per draw 
+layout(push_constant) uniform per_draw_ubo {
+    uint view_index;
+    vec3 padding;
+} skybox_draw_ubo;
 
 // =========================================================
 // Outputs
@@ -32,5 +38,5 @@ layout(location = 0) out dto {
 
 void main() {
 	out_dto.tex_coord = in_position;
-	gl_Position = frame_ubo.projection * frame_ubo.view * vec4(in_position, 1.0);
+	gl_Position = skybox_frame_ubo.projection * skybox_frame_ubo.views[skybox_draw_ubo.view_index] * vec4(in_position, 1.0);
 } 

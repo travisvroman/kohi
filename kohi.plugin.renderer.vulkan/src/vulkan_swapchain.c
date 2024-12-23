@@ -69,6 +69,14 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
         swapchain->image_format = context->device.swapchain_support.formats[0];
     }
 
+    // Query swapchain image format properties to see if it can be a src/destination for blitting.
+    VkFormatProperties format_properties = {0};
+    vkGetPhysicalDeviceFormatProperties(context->device.physical_device, swapchain->image_format.format, &format_properties);
+    swapchain->supports_blit_dest = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT) != 0;
+    swapchain->supports_blit_src = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT) != 0;
+    KDEBUG("Swapchain image format %s be a blit destination.", swapchain->supports_blit_dest ? "CAN" : "CANNOT");
+    KDEBUG("Swapchain image format %s be a blit source.", swapchain->supports_blit_src ? "CAN" : "CANNOT");
+
     // FIFO and MAILBOX support vsync, IMMEDIATE does not.
     // TODO: vsync seems to hold up the game update for some reason.
     // It theoretically should be post-update and pre-render where that happens.

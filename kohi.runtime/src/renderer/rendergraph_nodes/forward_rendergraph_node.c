@@ -99,11 +99,25 @@ typedef struct water_shader_locations {
 } water_shader_locations;
 
 typedef struct skybox_shader_locations {
-    u16 projection_location;
-    u16 views_location;
-    u16 cube_map_location;
-    u16 view_index;
+    u16 frame_ubo;
+    u16 cube_texture;
+    u16 cube_sampler;
+    u16 draw_ubo;
 } skybox_shader_locations;
+
+#define SKYBOX_MAX_VIEWS 4
+
+// per frame UBO
+typedef struct skybox_frame_ubo {
+    mat4 views[SKYBOX_MAX_VIEWS];
+    mat4 projection;
+} skybox_frame_ubo;
+
+// per draw UBO
+typedef struct skybox_draw_ubo {
+    u32 view_index;
+    vec3 padding;
+} skybox_draw_ubo;
 
 typedef struct forward_rendergraph_node_internal_data {
     struct renderer_system_state* renderer;
@@ -182,6 +196,7 @@ b8 forward_rendergraph_node_create(struct rendergraph* graph, struct rendergraph
     forward_rendergraph_node_internal_data* internal_data = self->internal_data;
     internal_data->renderer = engine_systems_get()->renderer_system;
     internal_data->texture_system = engine_systems_get()->texture_system;
+    internal_data->material_system = engine_systems_get()->material_system;
 
     self->name = string_duplicate(config->name);
 
@@ -282,10 +297,29 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     // Load Skybox shader and get shader uniform locations.
     internal_data->skybox_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME));
-    internal_data->skybox_shader_locations.projection_location = shader_system_uniform_location(internal_data->skybox_shader, kname_create("projection"));
-    internal_data->skybox_shader_locations.views_location = shader_system_uniform_location(internal_data->skybox_shader, kname_create("views"));
-    internal_data->skybox_shader_locations.cube_map_location = shader_system_uniform_location(internal_data->skybox_shader, kname_create("cube_texture"));
-    internal_data->skybox_shader_locations.view_index = shader_system_uniform_location(internal_data->skybox_shader, kname_create("view_index"));
+    internal_data->skybox_shader_locations.frame_ubo = shader_system_uniform_location(internal_data->skybox_shader, kname_create("skybox_frame_ubo"));
+    if (internal_data->skybox_shader_locations.frame_ubo == INVALID_ID_U16) {
+        KERROR("Failed to shader get uniform location for skybox_frame_ubo.");
+        return false;
+    }
+
+    internal_data->skybox_shader_locations.cube_texture = shader_system_uniform_location(internal_data->skybox_shader, kname_create("cube_texture"));
+    if (internal_data->skybox_shader_locations.cube_texture == INVALID_ID_U16) {
+        KERROR("Failed to shader get uniform location for cube_texture.");
+        return false;
+    }
+
+    internal_data->skybox_shader_locations.cube_sampler = shader_system_uniform_location(internal_data->skybox_shader, kname_create("cube_sampler"));
+    if (internal_data->skybox_shader_locations.cube_sampler == INVALID_ID_U16) {
+        KERROR("Failed to shader get uniform location for cube_sampler.");
+        return false;
+    }
+
+    internal_data->skybox_shader_locations.draw_ubo = shader_system_uniform_location(internal_data->skybox_shader, kname_create("skybox_draw_ubo"));
+    if (internal_data->skybox_shader_locations.draw_ubo == INVALID_ID_U16) {
+        KERROR("Failed to shader get uniform location for skybox_draw_ubo.");
+        return false;
+    }
 
     internal_data->vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
     internal_data->index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
@@ -366,8 +400,13 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
             mat_frame_data.shadow_map_texture = internal_data->shadow_map;
 
             // Irradience maps provided by probes around in the world.
-            for (u32 i = 0; i < internal_data->ibl_cube_texture_count; ++i) {
-                mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i];
+            kzero_memory(mat_frame_data.irradiance_cubemap_textures, sizeof(kresource_texture*) * MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
+            if (internal_data->ibl_cube_texture_count == 0) {
+                mat_frame_data.irradiance_cubemap_textures[0] = texture_system_request_cube(kname_create(DEFAULT_CUBE_TEXTURE_NAME), false, false, 0, 0);
+            } else {
+                for (u32 i = 0; i < internal_data->ibl_cube_texture_count; ++i) {
+                    mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i];
+                }
             }
 
             // Update per-frame data for materials.
@@ -461,33 +500,41 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
             inverted_view_matrix_skybox.data[14] = 0.0f;
 
             // Apply per-frame
-            if (!shader_system_uniform_set_by_location(internal_data->skybox_shader, internal_data->skybox_shader_locations.projection_location, &internal_data->projection_matrix)) {
-                KERROR("Failed to apply skybox projection uniform.");
-                return false;
-            }
-            if (!shader_system_uniform_set_by_location_arrayed(internal_data->skybox_shader, internal_data->skybox_shader_locations.views_location, 0, &view_matrix_skybox)) {
-                KERROR("Failed to apply skybox view(0) uniform.");
-                return false;
-            }
-            if (!shader_system_uniform_set_by_location_arrayed(internal_data->skybox_shader, internal_data->skybox_shader_locations.views_location, 1, &inverted_view_matrix_skybox)) {
-                KERROR("Failed to apply skybox view(0) uniform.");
-                return false;
-            }
-
-            // Instance
-            shader_system_bind_group(internal_data->skybox_shader, internal_data->sb->group_id);
-            if (!shader_system_uniform_set_by_location(internal_data->skybox_shader, internal_data->skybox_shader_locations.cube_map_location, &internal_data->sb->cubemap)) {
-                KERROR("Failed to apply skybox cube map uniform.");
-                return false;
-            }
-
-            shader_system_apply_per_group(internal_data->skybox_shader, internal_data->sb->skybox_shader_group_data_generation);
-
-            // Apply the locals
             {
-                int view_index = use_inverted ? 1 : 0;
-                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->skybox_shader, internal_data->skybox_shader_locations.view_index, &view_index));
-                shader_system_apply_per_draw(internal_data->skybox_shader, internal_data->sb->draw_index);
+                shader_system_bind_frame(internal_data->skybox_shader);
+
+                skybox_frame_ubo frame_ubo = {0};
+                frame_ubo.projection = internal_data->projection_matrix;
+                frame_ubo.views[0] = view_matrix_skybox;
+                frame_ubo.views[1] = inverted_view_matrix_skybox;
+
+                if (!shader_system_uniform_set_by_location(internal_data->skybox_shader, internal_data->skybox_shader_locations.frame_ubo, &frame_ubo)) {
+                    KERROR("Failed to apply skybox frame ubo.");
+                    return false;
+                }
+
+                shader_system_apply_per_frame(internal_data->skybox_shader);
+            }
+
+            // per-group
+            {
+                shader_system_bind_group(internal_data->skybox_shader, internal_data->sb->group_id);
+
+                if (!shader_system_texture_set_by_location(internal_data->skybox_shader, internal_data->skybox_shader_locations.cube_texture, internal_data->sb->cubemap)) {
+                    KERROR("Failed to apply skybox cube map uniform.");
+                    return false;
+                }
+
+                shader_system_apply_per_group(internal_data->skybox_shader, internal_data->sb->skybox_shader_group_data_generation);
+            }
+
+            // Apply the per-draw
+            {
+                shader_system_bind_draw_id(internal_data->skybox_shader, internal_data->sb->draw_id);
+                skybox_draw_ubo draw_ubo = {0};
+                draw_ubo.view_index = use_inverted ? 1 : 0;
+                UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->skybox_shader, internal_data->skybox_shader_locations.draw_ubo, &draw_ubo));
+                shader_system_apply_per_draw(internal_data->skybox_shader, internal_data->sb->skybox_shader_draw_data_generation);
             }
 
             // Draw it.
@@ -678,8 +725,13 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                 mat_frame_data.shadow_map_texture = internal_data->shadow_map;
 
                 // Irradience maps provided by probes around in the world.
-                for (u32 i = 0; i < internal_data->ibl_cube_texture_count; ++i) {
-                    mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i];
+                kzero_memory(mat_frame_data.irradiance_cubemap_textures, sizeof(kresource_texture*) * MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
+                if (internal_data->ibl_cube_texture_count == 0) {
+                    mat_frame_data.irradiance_cubemap_textures[0] = texture_system_request_cube(kname_create(DEFAULT_CUBE_TEXTURE_NAME), false, false, 0, 0);
+                } else {
+                    for (u32 i = 0; i < internal_data->ibl_cube_texture_count; ++i) {
+                        mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i];
+                    }
                 }
 
                 // Update per-frame data for materials.
