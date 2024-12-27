@@ -194,7 +194,7 @@ b8 debug_rendergraph_node_execute(struct rendergraph_node* self, struct frame_da
 
             // Set model matrix.
             shader_system_uniform_set_by_location(internal_data->colour_shader, internal_data->debug_locations.model, &render_data->model);
-            if (!shader_system_apply_per_draw(internal_data->colour_shader, render_data->draw_generation)) {
+            if (!shader_system_apply_per_draw(internal_data->colour_shader)) {
                 KERROR("Failed to apply per-draw uniforms in debug shader. Geometry will not be drawn.");
                 continue;
             }

@@ -516,7 +516,7 @@ void renderer_texture_resources_release(struct renderer_system_state* state, kha
 
 b8 renderer_texture_write_data(struct renderer_system_state* state, khandle renderer_texture_handle, u32 offset, u32 size, const u8* pixels) {
     if (state && !khandle_is_invalid(renderer_texture_handle)) {
-        b8 include_in_frame_workload = false; //(state->frame_number > 0); // FIXME: Perhaps it's time to move this to its own queue.
+        b8 include_in_frame_workload = (state->frame_number > 0); // FIXME: Perhaps it's time to move this to its own queue.
         b8 result = state->backend->texture_write_data(state->backend, renderer_texture_handle, offset, size, pixels, include_in_frame_workload);
         if (!include_in_frame_workload) {
             // TODO: update generation?
@@ -781,12 +781,12 @@ b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, khandle 
     return state->backend->shader_apply_per_frame(state->backend, shader, state->frame_number);
 }
 
-b8 renderer_shader_apply_per_group(struct renderer_system_state* state, khandle shader, u16 generation) {
-    return state->backend->shader_apply_per_group(state->backend, shader, generation);
+b8 renderer_shader_apply_per_group(struct renderer_system_state* state, khandle shader) {
+    return state->backend->shader_apply_per_group(state->backend, shader, state->frame_number);
 }
 
-b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, khandle shader, u16 generation) {
-    return state->backend->shader_apply_per_draw(state->backend, shader, generation);
+b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, khandle shader) {
+    return state->backend->shader_apply_per_draw(state->backend, shader, state->frame_number);
 }
 
 b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state* state, khandle shader, u32* out_group_id) {

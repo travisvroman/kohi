@@ -36,9 +36,6 @@ typedef struct geometry_render_data {
 
     // The per-draw id to be used when applying this data. Used for draws that don't use materials.
     u32 draw_id;
-    // The per-draw generation. This should be incremented by the owner of the data that is
-    // fed into this structure to indicate when an update is required. Used for draws that don't use materials.
-    u16 draw_generation;
 
     u64 unique_id;
     b8 winding_inverted;
@@ -722,7 +719,7 @@ typedef struct renderer_backend_interface {
 
     /**
      * @brief Obtains the max anisotropy level available from the renderer. 0 means not available.
-     * 
+     *
      * @param backend A pointer to the renderer backend interface.
      */
     f32 (*max_anisotropy_get)(struct renderer_backend_interface* backend);

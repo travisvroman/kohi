@@ -416,8 +416,8 @@ typedef struct vulkan_descriptor_set_config {
  * per frame (with a max of 3).
  */
 typedef struct vulkan_descriptor_state {
-    /** @brief The descriptor generation, per swapchain image. INVALID_ID_U16 if never loaded. */
-    u16* generations;
+    /** @brief The renderer frame number on which this descriptor was last updated. One per swapchain image. INVALID_ID_U16 if never loaded. */
+    u16* renderer_frame_number;
 } vulkan_descriptor_state;
 
 typedef struct vulkan_uniform_sampler_state {

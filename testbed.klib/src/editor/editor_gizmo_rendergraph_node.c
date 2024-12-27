@@ -39,7 +39,6 @@ typedef struct editor_gizmo_rendergraph_node_internal_data {
     b8 enabled;
 
     u32 draw_id;
-    u16 draw_generation;
 } editor_gizmo_rendergraph_node_internal_data;
 
 b8 editor_gizmo_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node* self, const struct rendergraph_node_config* config) {
@@ -125,8 +124,6 @@ b8 editor_gizmo_rendergraph_node_initialize(struct rendergraph_node* self) {
         return false;
     }
 
-    internal_data->draw_generation = INVALID_ID_U16;
-
     return true;
 }
 
@@ -203,8 +200,7 @@ b8 editor_gizmo_rendergraph_node_execute(struct rendergraph_node* self, struct f
         // Set model matrix.
         shader_system_bind_draw_id(internal_data->colour_shader, internal_data->draw_id);
         shader_system_uniform_set_by_location(internal_data->colour_shader, internal_data->debug_locations.model, &model);
-        shader_system_apply_per_draw(internal_data->colour_shader, internal_data->draw_generation);
-        internal_data->draw_generation++;
+        shader_system_apply_per_draw(internal_data->colour_shader);
 
         // Draw it.
         renderer_geometry_draw(&render_data);

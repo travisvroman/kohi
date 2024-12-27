@@ -47,7 +47,7 @@ uniforms = {
         {
             name = "skybox_frame_ubo"
             type = "struct"
-            size = 80
+            size = 320
         }
     ]
     per_group = [

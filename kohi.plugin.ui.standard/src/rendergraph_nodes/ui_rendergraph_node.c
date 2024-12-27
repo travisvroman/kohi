@@ -3,7 +3,6 @@
 #include "containers/darray.h"
 #include "core/engine.h"
 #include "logger.h"
-#include "math/kmath.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
@@ -238,11 +237,9 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
                 sui_per_draw_ubo draw_data = {0};
                 draw_data.model = renderable->clip_mask_render_data->model;
                 shader_system_uniform_set_by_location(internal_data->sui_shader, internal_data->sui_locations.sui_draw_ubo, &draw_data);
-                shader_system_apply_per_draw(internal_data->sui_shader, *renderable->per_draw_generation);
+                shader_system_apply_per_draw(internal_data->sui_shader);
             }
 
-            // Increment the generation.
-            (*renderable->per_draw_generation)++;
             // Draw the clip mask geometry.
             renderer_geometry_draw(renderable->clip_mask_render_data);
 
@@ -274,7 +271,7 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
             kresource_texture* atlas = renderable->atlas_override ? renderable->atlas_override : internal_data->ui_atlas;
             shader_system_uniform_set_by_location(internal_data->sui_shader, internal_data->sui_locations.atlas_texture, atlas);
 
-            shader_system_apply_per_group(internal_data->sui_shader, *renderable->group_generation);
+            shader_system_apply_per_group(internal_data->sui_shader);
         }
 
         // Apply per-draw
@@ -283,7 +280,7 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
             sui_per_draw_ubo draw_data = {0};
             draw_data.model = renderable->render_data.model;
             shader_system_uniform_set_by_location(internal_data->sui_shader, internal_data->sui_locations.sui_draw_ubo, &draw_data);
-            shader_system_apply_per_draw(internal_data->sui_shader, *renderable->per_draw_generation);
+            shader_system_apply_per_draw(internal_data->sui_shader);
         }
 
         // Draw

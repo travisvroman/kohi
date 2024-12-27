@@ -555,20 +555,18 @@ KAPI b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, kha
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader to apply the instance data for.
- * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_per_group(struct renderer_system_state* state, khandle shader, u16 generation);
+KAPI b8 renderer_shader_apply_per_group(struct renderer_system_state* state, khandle shader);
 
 /**
  * @brief Triggers the upload of per-draw uniform data to the GPU.
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader.
- * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, khandle shader, u16 generation);
+KAPI b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, khandle shader);
 
 /**
  * @brief Acquires internal per-group resources and provides a group id.

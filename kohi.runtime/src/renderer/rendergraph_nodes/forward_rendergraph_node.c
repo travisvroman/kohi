@@ -142,6 +142,8 @@ typedef struct forward_rendergraph_node_internal_data {
     // Obtained from source.
     kresource_texture* shadow_map;
 
+    kresource_texture* default_ibl_cubemap;
+
     // Execution data
 
     u32 render_mode;
@@ -358,6 +360,10 @@ b8 forward_rendergraph_node_load_resources(struct rendergraph_node* self) {
         internal_data->shadowmap_source = self->sinks[2].bound_source;
     }
 
+    internal_data->shadow_map = internal_data->shadowmap_source->value.t;
+    internal_data->default_ibl_cubemap = texture_system_request_cube(kname_create(DEFAULT_CUBE_TEXTURE_NAME), false, false, 0, 0);
+    internal_data->ibl_cube_textures = KALLOC_TYPE_CARRAY(kresource_texture*, MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
+
     if (!internal_data->shadowmap_source) {
         KERROR("Required '%s' source not hooked up to forward pass. Creation fails.", "shadowmap");
         return false;
@@ -401,12 +407,8 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
 
             // Irradience maps provided by probes around in the world.
             kzero_memory(mat_frame_data.irradiance_cubemap_textures, sizeof(kresource_texture*) * MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
-            if (internal_data->ibl_cube_texture_count == 0) {
-                mat_frame_data.irradiance_cubemap_textures[0] = texture_system_request_cube(kname_create(DEFAULT_CUBE_TEXTURE_NAME), false, false, 0, 0);
-            } else {
-                for (u32 i = 0; i < internal_data->ibl_cube_texture_count; ++i) {
-                    mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i];
-                }
+            for (u32 i = 0; i < MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT; ++i) {
+                mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i] ? internal_data->ibl_cube_textures[i] : internal_data->default_ibl_cubemap;
             }
 
             // Update per-frame data for materials.
@@ -464,9 +466,6 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
     f32 delta_time = timeline_system_delta_get(game_timeline);
     f32 game_time = timeline_system_total_get(game_timeline);
 
-    // Begin rendering the scene
-    renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, depth->renderer_texture_handle, 0);
-
     // Bind the viewport
     if (include_water_plane) {
         renderer_active_viewport_set(&internal_data->vp);
@@ -478,6 +477,9 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
         rect_2d scissor_rect = (vec4){0, 0, (f32)colour->width, (f32)colour->height};
         renderer_scissor_set(scissor_rect);
     }
+
+    // Begin rendering the scene
+    renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, depth->renderer_texture_handle, 0);
 
     // Skybox first.
     if (internal_data->sb && internal_data->sb->state == SKYBOX_STATE_LOADED) {
@@ -525,7 +527,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                     return false;
                 }
 
-                shader_system_apply_per_group(internal_data->skybox_shader, internal_data->sb->skybox_shader_group_data_generation);
+                shader_system_apply_per_group(internal_data->skybox_shader);
             }
 
             // Apply the per-draw
@@ -534,7 +536,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                 skybox_draw_ubo draw_ubo = {0};
                 draw_ubo.view_index = use_inverted ? 1 : 0;
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->skybox_shader, internal_data->skybox_shader_locations.draw_ubo, &draw_ubo));
-                shader_system_apply_per_draw(internal_data->skybox_shader, internal_data->sb->skybox_shader_draw_data_generation);
+                shader_system_apply_per_draw(internal_data->skybox_shader);
             }
 
             // Draw it.
@@ -726,12 +728,8 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
 
                 // Irradience maps provided by probes around in the world.
                 kzero_memory(mat_frame_data.irradiance_cubemap_textures, sizeof(kresource_texture*) * MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
-                if (internal_data->ibl_cube_texture_count == 0) {
-                    mat_frame_data.irradiance_cubemap_textures[0] = texture_system_request_cube(kname_create(DEFAULT_CUBE_TEXTURE_NAME), false, false, 0, 0);
-                } else {
-                    for (u32 i = 0; i < internal_data->ibl_cube_texture_count; ++i) {
-                        mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i];
-                    }
+                for (u32 i = 0; i < MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT; ++i) {
+                    mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i] ? internal_data->ibl_cube_textures[i] : internal_data->default_ibl_cubemap;
                 }
 
                 // Update per-frame data for materials.
@@ -866,6 +864,7 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
 
     // Finally, draw the scene normally with no clipping. Include the water plane rendering. Uses bound camera.
     vec4 clipping_plane = vec4_zero(); // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
+    // LEFTOFF: This is seemingly causing issues with vkUpdateDescriptorSets vs the command queue being built up.
     if (!render_scene(internal_data, internal_data->colourbuffer_texture, internal_data->depthbuffer_texture, internal_data->water_plane_count, internal_data->water_planes, true, clipping_plane, internal_data->current_camera, &inverted_camera, false, p_frame_data)) {
         KERROR("Failed to render scene.");
         return false;

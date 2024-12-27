@@ -242,19 +242,17 @@ KAPI b8 shader_system_apply_per_frame(khandle shader);
  * @brief Applies per-group uniforms.
  *
  * @param shader A handle to the shader to update.
- * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_per_group(khandle shader, u16 generation);
+KAPI b8 shader_system_apply_per_group(khandle shader);
 
 /**
  * @brief Applies per-draw uniforms. Updates the generation pointed to.
  *
  * @param shader A handle to the shader to update.
- * @param generation The data generation for this frequency.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_per_draw(khandle shader, u16 generation);
+KAPI b8 shader_system_apply_per_draw(khandle shader);
 
 /**
  * @brief Attempts to acquire new group resources from the given shader using the

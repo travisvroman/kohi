@@ -148,9 +148,7 @@ b8 sui_button_control_render(standard_ui_state* state, struct sui_control* self,
         renderable.render_data.diffuse_colour = vec4_one(); // white. TODO: pull from object properties.
 
         renderable.group_id = &typed_data->group_id;
-        renderable.group_generation = &typed_data->group_generation;
         renderable.per_draw_id = &typed_data->draw_id;
-        renderable.per_draw_generation = &typed_data->draw_generation;
 
         darray_push(render_data->renderables, renderable);
     }
