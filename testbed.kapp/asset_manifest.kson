@@ -173,7 +173,7 @@ assets = [
     {
         name = "falcon"
         path = "./assets/models/falcon.ksm"
-        source_path = "./assets/models/falcon.obj"
+        source_path = "./assets/models/source/falcon.obj"
     }
     {
         name = "sponza"

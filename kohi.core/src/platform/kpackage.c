@@ -8,7 +8,6 @@
 #include "parsers/kson_parser.h"
 #include "platform/filesystem.h"
 #include "platform/platform.h"
-#include "platform/vfs.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 

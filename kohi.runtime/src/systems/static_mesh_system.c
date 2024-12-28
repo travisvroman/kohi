@@ -56,6 +56,7 @@ b8 static_mesh_system_instance_acquire(struct static_mesh_system_state* state, k
 
     // Setup a listener.
     static_mesh_resource_request_listener* listener = KALLOC_TYPE(static_mesh_resource_request_listener, MEMORY_TAG_RESOURCE);
+    listener->instance = out_instance;
 
     kresource_request_info request = {0};
     request.type = KRESOURCE_TYPE_STATIC_MESH;
@@ -74,6 +75,7 @@ b8 static_mesh_system_instance_acquire(struct static_mesh_system_state* state, k
         &request);
     out_instance->instance_id = krandom_u64();
     out_instance->tint = vec4_one(); // white
+    out_instance->material_instances = 0;
 
     return true;
 }
@@ -142,6 +144,8 @@ static void static_mesh_on_resource_loaded(kresource* resource, void* listener) 
         KERROR("Static mesh resource has no submeshes. Nothing to be done.");
         return;
     }
+
+    typed_listener->instance->mesh_resource = typed_resource;
 
     // Request material instances for this static mesh instance.
     typed_listener->instance->material_instances = KALLOC_TYPE_CARRAY(material_instance, typed_listener->instance->mesh_resource->submesh_count);

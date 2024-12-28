@@ -20,6 +20,9 @@
 typedef struct static_mesh_asset_request_listener {
     // A pointer to the mesh resource associated with the request.
     kresource_static_mesh* mesh_resource;
+    // User callback to be made once all resource assets are loaded.
+    PFN_resource_loaded_user_callback user_callback;
+    void* listener_inst;
 } static_mesh_asset_request_listener;
 
 // Callback for when an asset loads.
@@ -35,10 +38,13 @@ b8 kresource_handler_static_mesh_request(struct kresource_handler* self, kresour
     const engine_system_states* states = engine_systems_get();
     struct asset_system_state* asset_system = states->asset_state;
 
+    typed_resource->base.state = KRESOURCE_STATE_INITIALIZED;
+
     // Exactly one asset is required.
     // TODO: Perhaps additional info to pass geometry written in code would be useful here too.
     if (info->assets.base.length != 1) {
         KERROR("A static mesh resource request must have exactly one asset listed.");
+        typed_resource->base.state = KRESOURCE_STATE_UNINITIALIZED;
         return false;
     }
 
@@ -47,6 +53,8 @@ b8 kresource_handler_static_mesh_request(struct kresource_handler* self, kresour
         // Setup a listener.
         static_mesh_asset_request_listener* listener = KALLOC_TYPE(static_mesh_asset_request_listener, MEMORY_TAG_RESOURCE);
         listener->mesh_resource = (kresource_static_mesh*)resource;
+        listener->user_callback = info->user_callback;
+        listener->listener_inst = info->listener_inst;
 
         asset_request_info request_info = {0};
         request_info.type = asset_info->type;
@@ -61,10 +69,13 @@ b8 kresource_handler_static_mesh_request(struct kresource_handler* self, kresour
         request_info.import_params_size = 0;
         request_info.import_params = 0;
 
+        typed_resource->base.state = KRESOURCE_STATE_LOADING;
+
         // Request the asset.
         asset_system_request(asset_system, request_info);
     } else {
         KERROR("Unexpected asset type in asset listing: %u", asset_info->type);
+        typed_resource->base.state = KRESOURCE_STATE_UNINITIALIZED;
         return false;
     }
 
@@ -119,9 +130,9 @@ void kresource_handler_static_mesh_release(struct kresource_handler* self, kreso
 }
 
 static void kasset_static_mesh_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst) {
+    static_mesh_asset_request_listener* typed_listener = listener_inst;
+    kasset_static_mesh* typed_asset = (kasset_static_mesh*)asset;
     if (result == ASSET_REQUEST_RESULT_SUCCESS) {
-        static_mesh_asset_request_listener* typed_listener = listener_inst;
-        kasset_static_mesh* typed_asset = (kasset_static_mesh*)asset;
 
         if (typed_asset->geometry_count < 1) {
             KERROR("Provided static mesh asset (package='%s', name='%s') has no geometries, thus there is nothing to be loaded.", kname_string_get(asset->package_name), kname_string_get(asset->name));
@@ -140,6 +151,7 @@ static void kasset_static_mesh_on_result(asset_request_result result, const stru
 
             kasset_static_mesh_geometry* source_geometry = &typed_asset->geometries[i];
             static_mesh_submesh* submesh = &typed_listener->mesh_resource->submeshes[i];
+            submesh->material_name = source_geometry->material_asset_name;
 
             // Take a copy of the geometry data from the asset.
             kgeometry* submesh_geometry = &submesh->geometry;
@@ -217,9 +229,16 @@ static void kasset_static_mesh_on_result(asset_request_result result, const stru
 
             submesh_geometry->generation++;
         }
+
+        if (typed_listener->user_callback) {
+            typed_listener->user_callback((kresource*)typed_listener->mesh_resource, typed_listener->listener_inst);
+        }
+
+        typed_listener->mesh_resource->base.state = KRESOURCE_STATE_LOADED;
     } else {
         // TODO: Handle imports?
         KERROR("Failed to load static mesh asset with the given reason: %u", result);
+        typed_listener->mesh_resource->base.state = KRESOURCE_STATE_UNINITIALIZED;
     }
 
     // Cleanup listener.

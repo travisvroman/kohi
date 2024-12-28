@@ -907,6 +907,12 @@ b8 material_system_acquire(material_system_state* state, kname name, material_in
     request.base.type = KRESOURCE_TYPE_MATERIAL;
     request.base.user_callback = material_resource_loaded;
     request.base.listener_inst = listener;
+    request.base.assets = array_kresource_asset_info_create(1);
+    kresource_asset_info* asset = &request.base.assets.data[0];
+    asset->type = KASSET_TYPE_MATERIAL;
+    asset->asset_name = name;
+    asset->package_name = INVALID_KNAME; // TODO: Perhaps allow this to be configurable.
+    asset->watch_for_hot_reload = false;
     kresource* r = kresource_system_request(state->resource_system, name, (kresource_request_info*)&request);
     return r != 0;
 }

@@ -40,7 +40,7 @@ b8 kplugin_create(struct kruntime_plugin* out_plugin) {
     {
         kasset_importer obj_importer = {0};
         obj_importer.import = kasset_importer_static_mesh_obj_import;
-        if (!kasset_importer_registry_register(KASSET_TYPE_IMAGE, "obj", obj_importer)) {
+        if (!kasset_importer_registry_register(KASSET_TYPE_STATIC_MESH, "obj", obj_importer)) {
             KERROR("Failed to register static mesh Wavefront OBJ asset importer!");
             return false;
         }

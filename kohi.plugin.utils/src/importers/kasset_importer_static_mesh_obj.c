@@ -13,6 +13,7 @@
 
 #include "serializers/obj_mtl_serializer.h"
 #include "serializers/obj_serializer.h"
+#include "strings/kstring_id.h"
 
 b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u64 data_size, const void* data, void* params, struct kasset* out_asset) {
     if (!self || !data_size || !data) {
@@ -92,7 +93,7 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
             }
 
             if (g_src->vertex_count && g_src->vertices) {
-                kfree(g_src->indices, sizeof(vertex_3d) * g_src->index_count, MEMORY_TAG_ARRAY);
+                kfree(g_src->vertices, sizeof(vertex_3d) * g_src->vertex_count, MEMORY_TAG_ARRAY);
             }
         }
         kfree(obj_asset.geometries, sizeof(obj_source_geometry) * obj_asset.geometry_count, MEMORY_TAG_ARRAY);
@@ -111,7 +112,7 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
         }
 
         // Write out .ksm file.
-        if (!vfs_asset_write(0, out_asset, true, serialized_size, serialized_data)) {
+        if (!vfs_asset_write(vfs, out_asset, true, serialized_size, serialized_data)) {
             KWARN("Failed to write .ksm file. See logs for details. Static mesh asset still imported and can be used, though.");
         }
     }
@@ -121,7 +122,7 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
         obj_mtl_source_asset mtl_asset = {0};
         if (material_file_name) {
             // Build path based on OBJ file path. The files should sit together on disk.
-            const char* obj_path = kname_string_get(out_asset->meta.source_asset_path);
+            const char* obj_path = kstring_id_string_get(out_asset->meta.source_asset_path);
             char path_buf[512] = {0};
             string_directory_from_path(path_buf, obj_path);
             const char* mtl_path = string_format("%s%s", path_buf, material_file_name);
@@ -144,7 +145,7 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                         new_material.base.name = m_src->name;
                         new_material.base.package_name = out_asset->package_name;
                         // Since it's an import, make note of the source asset path as well.
-                        new_material.base.meta.source_asset_path = kname_create(mtl_path);
+                        new_material.base.meta.source_asset_path = kstring_id_create(mtl_path);
 
                         // Imports do not use a custom shader.
                         new_material.custom_shader_name = 0;

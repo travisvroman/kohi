@@ -59,7 +59,7 @@ b8 kasset_importer_image_import(const struct kasset_importer* self, u64 data_siz
     u8* pixels = stbi_load_from_memory(data, data_size, (i32*)&typed_asset->width, (i32*)&typed_asset->height, &channel_count_rubbish, required_channel_count);
     typed_asset->channel_count = required_channel_count;
     if (!pixels) {
-        KERROR("Image importer failed to import image '%s'.", out_asset->meta.source_asset_path);
+        KERROR("Image importer failed to import image '%s'.", kstring_id_string_get(out_asset->meta.source_asset_path));
         return false;
     }
 

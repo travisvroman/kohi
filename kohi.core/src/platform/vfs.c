@@ -194,13 +194,14 @@ vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
                 }
             } else {
                 out_data.result = VFS_REQUEST_RESULT_SUCCESS;
-                // Include a copy of the asset path.
+                // Keep the package name in case an importer needs it later.
+                out_data.package_name = package->name;
                 if (info.get_source) {
-                    // Keep the package name in case an importer needs it later.
-                    out_data.package_name = package->name;
                     out_data.path = kpackage_source_path_for_asset(package, info.asset_name);
+                    out_data.source_asset_path = kpackage_source_path_for_asset(package, info.asset_name);
                 } else {
                     out_data.path = kpackage_path_for_asset(package, info.asset_name);
+                    out_data.source_asset_path = kpackage_source_path_for_asset(package, info.asset_name);
                 }
             }
 
@@ -208,6 +209,7 @@ vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
             if (result == KPACKAGE_RESULT_SUCCESS && info.watch_for_hot_reload) {
 
                 // Watch the asset.
+                // FIXME: Should be able to watch either the source or primary asset path.
                 if (out_data.path) {
                     kpackage_asset_watch(package, out_data.path, &out_data.file_watch_id);
                     KTRACE("Watching asset for hot reload: package='%s', name='%s', file_watch_id=%u, path='%s'", package_name_str, kname_string_get(info.asset_name), out_data.file_watch_id, out_data.path);

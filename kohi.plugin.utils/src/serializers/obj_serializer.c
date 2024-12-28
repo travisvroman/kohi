@@ -62,6 +62,7 @@ b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_s
     char name[512];
     kzero_memory(name, sizeof(char) * 512);
     u8 current_mat_name_count = 0;
+    // FIXME: This limitation is dumb.
     char material_names[32][64];
 
     char line_buf[512] = "";
@@ -215,7 +216,7 @@ b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_s
         prev_first_chars[0] = first_char;
     } // each line
 
-    // Process the remaining group since the last one will not have been trigged
+    // Process the remaining group since the last one will not have been triggered
     // by the finding of a new name.
     // Process each group as a subobject.
     u64 group_count = darray_length(groups);

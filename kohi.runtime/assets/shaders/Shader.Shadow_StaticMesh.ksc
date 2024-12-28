@@ -4,6 +4,7 @@ depth_write=true
 colour_write=false
 cull_mode="none"
 max_groups=256
+max_draw_ids=256
 
 stages = [
     {

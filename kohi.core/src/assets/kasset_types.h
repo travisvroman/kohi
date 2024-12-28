@@ -138,8 +138,10 @@ typedef struct kasset_importer {
 typedef struct kasset_metadata {
     // The asset version.
     u32 version;
-    /** @brief The path of the originally imported file used to create this asset, stored as a kname */
-    kname source_asset_path;
+    /** @brief The path of the asset, stored as a kstring_id */
+    kstring_id asset_path;
+    /** @brief The path of the originally imported file used to create this asset, stored as a kstring_id */
+    kstring_id source_asset_path;
 
     /** @brief The number of tags. */
     u32 tag_count;

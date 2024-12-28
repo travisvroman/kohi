@@ -5,7 +5,7 @@ depth_test=true
 depth_write=true
 supports_wireframe=true
 max_groups=69
-max_groups=69
+max_draw_ids=1024
 cull_mode = "back"
 
 topology_types [

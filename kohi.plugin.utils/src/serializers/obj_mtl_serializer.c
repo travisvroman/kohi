@@ -34,6 +34,9 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
 
     obj_mtl_source_property* current_properties = darray_create(obj_mtl_source_property);
     obj_mtl_source_texture_map* current_maps = darray_create(obj_mtl_source_texture_map);
+
+    obj_mtl_source_material* materials = darray_create(obj_mtl_source_material);
+
     const char* current_name = 0;
 
     b8 hit_name = false;
@@ -152,7 +155,7 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
                     map.name = kname_create("normal");
                     map.channel = OBJ_TEXTURE_MAP_CHANNEL_PBR_NORMAL;
                 } else {
-                    KERROR("Unrecognized token. Skipping.");
+                    KWARN("Unrecognized token. Skipping.");
                     continue;
                 }
             } else if (first_char == 'b') {
@@ -160,11 +163,11 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
                     map.name = kname_create("normal");
                     map.channel = OBJ_TEXTURE_MAP_CHANNEL_PBR_NORMAL;
                 } else {
-                    KERROR("Unrecognized token. Skipping.");
+                    KWARN("Unrecognized token. Skipping.");
                     continue;
                 }
             } else {
-                KERROR("Unrecognized token. Skipping.");
+                KWARN("Unrecognized token. Skipping.");
                 continue;
             }
 
@@ -188,12 +191,16 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
                     new_material.model = KMATERIAL_MODEL_PBR;
                     // Take a copy of the properties array.
                     new_material.property_count = darray_length(current_properties);
-                    new_material.properties = kallocate(sizeof(obj_mtl_source_property) * new_material.property_count, MEMORY_TAG_ARRAY);
-                    kcopy_memory(new_material.properties, current_properties, sizeof(obj_mtl_source_property) * new_material.property_count);
+                    if (new_material.property_count) {
+                        new_material.properties = kallocate(sizeof(obj_mtl_source_property) * new_material.property_count, MEMORY_TAG_ARRAY);
+                        kcopy_memory(new_material.properties, current_properties, sizeof(obj_mtl_source_property) * new_material.property_count);
+                    }
                     // Take a copy of the maps array.
                     new_material.texture_map_count = darray_length(current_maps);
-                    new_material.maps = kallocate(sizeof(obj_mtl_source_property) * new_material.texture_map_count, MEMORY_TAG_ARRAY);
-                    kcopy_memory(new_material.maps, current_maps, sizeof(obj_mtl_source_property) * new_material.texture_map_count);
+                    if (new_material.texture_map_count) {
+                        new_material.maps = kallocate(sizeof(obj_mtl_source_property) * new_material.texture_map_count, MEMORY_TAG_ARRAY);
+                        kcopy_memory(new_material.maps, current_maps, sizeof(obj_mtl_source_property) * new_material.texture_map_count);
+                    }
                     // Take a copy of the name.
                     if (current_name) {
                         new_material.name = kname_create(current_name);
@@ -201,7 +208,7 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
                         // TODO: generate random name - maybe based on guid?
                         KASSERT_MSG(false, "Not yet implemented.");
                     }
-                    darray_push(out_mtl_source_asset->materials, new_material);
+                    darray_push(materials, new_material);
 
                     // Cleanup and reset for the next material.
                     darray_clear(current_properties);
@@ -228,12 +235,16 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
     new_material.model = KMATERIAL_MODEL_PBR;
     // Take a copy of the properties array.
     new_material.property_count = darray_length(current_properties);
-    new_material.properties = kallocate(sizeof(obj_mtl_source_property) * new_material.property_count, MEMORY_TAG_ARRAY);
-    kcopy_memory(new_material.properties, current_properties, sizeof(obj_mtl_source_property) * new_material.property_count);
+    if (new_material.property_count) {
+        new_material.properties = kallocate(sizeof(obj_mtl_source_property) * new_material.property_count, MEMORY_TAG_ARRAY);
+        kcopy_memory(new_material.properties, current_properties, sizeof(obj_mtl_source_property) * new_material.property_count);
+    }
     // Take a copy of the maps array.
     new_material.texture_map_count = darray_length(current_maps);
-    new_material.maps = kallocate(sizeof(obj_mtl_source_property) * new_material.texture_map_count, MEMORY_TAG_ARRAY);
-    kcopy_memory(new_material.maps, current_maps, sizeof(obj_mtl_source_property) * new_material.texture_map_count);
+    if (new_material.texture_map_count) {
+        new_material.maps = kallocate(sizeof(obj_mtl_source_property) * new_material.texture_map_count, MEMORY_TAG_ARRAY);
+        kcopy_memory(new_material.maps, current_maps, sizeof(obj_mtl_source_property) * new_material.texture_map_count);
+    }
     // Take a copy of the name.
     if (current_name) {
         new_material.name = kname_create(current_name);
@@ -241,11 +252,17 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
         // TODO: generate random name - maybe based on guid?
         KASSERT_MSG(false, "Not yet implemented.");
     }
-    darray_push(out_mtl_source_asset->materials, new_material);
+    darray_push(materials, new_material);
+
+    // Take a copy of the materials darray.
+    out_mtl_source_asset->material_count = darray_length(materials);
+    out_mtl_source_asset->materials = KALLOC_TYPE_CARRAY(obj_mtl_source_material, out_mtl_source_asset->material_count);
+    KCOPY_TYPE_CARRAY(out_mtl_source_asset->materials, materials, obj_mtl_source_material, out_mtl_source_asset->material_count);
 
     // Cleanup
     darray_destroy(current_properties);
     darray_destroy(current_maps);
+    darray_destroy(materials);
     if (current_name) {
         string_free(current_name);
         current_name = 0;

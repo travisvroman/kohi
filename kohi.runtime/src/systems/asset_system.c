@@ -274,31 +274,6 @@ void asset_system_release(struct asset_system_state* state, kname asset_name, kn
     asset_system_release_internal(state, asset_name, package_name, false);
 }
 
-/* static void on_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data) {
-    asset_handler_request_context* context = asset_data.context;
-    if (asset_data.result == VFS_REQUEST_RESULT_SUCCESS) {
-        asset_request_result result = ASSET_REQUEST_RESULT_SUCCESS;
-        if (context->handler->text_deserialize) {
-            if (!context->handler->text_deserialize(asset_data.text, context->asset)) {
-                KERROR("Text deserialization of asset failed. See logs for details.");
-                result = ASSET_REQUEST_RESULT_PARSE_FAILED;
-            }
-        } else if (context->handler->binary_deserialize) {
-            if (!context->handler->binary_deserialize(asset_data.size, asset_data.bytes, context->asset)) {
-                KERROR("Binary deserialization of asset failed. See logs for details.");
-                result = ASSET_REQUEST_RESULT_PARSE_FAILED;
-            }
-        } else {
-            // TODO: pass on as-is?
-        }
-        if (context->user_callback) {
-            // TODO: Should this always be success?
-            context->user_callback(result, context->asset, context->listener_instance);
-        }
-    } else if (asset_data.result == VFS_REQUEST_RESULT_FILE_DOES_NOT_EXIST) {
-        // TODO: load source asset?
-    }
-} */
 void asset_system_on_handler_result(struct asset_system_state* state, asset_request_result result, kasset* asset, void* listener_instance, PFN_kasset_on_result callback) {
     if (state && asset) {
         switch (result) {

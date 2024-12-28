@@ -61,6 +61,8 @@ typedef struct vfs_asset_data {
     kname package_name;
     /** @brief A copy of the asset/source asset path. */
     const char* path;
+    /** @brief A copy of the source asset path (if the asset itself is not a source asset, otherwise 0). */
+    const char* source_asset_path;
 
     /** @brief The size of the asset in bytes. */
     u64 size;
