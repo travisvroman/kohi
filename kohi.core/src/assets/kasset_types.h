@@ -256,6 +256,9 @@ typedef struct kasset_material {
     vec4 base_colour;
     kmaterial_texture_input base_colour_map;
 
+    vec4 specular_colour;
+    kmaterial_texture_input specular_colour_map;
+
     b8 normal_enabled;
     vec3 normal;
     kmaterial_texture_input normal_map;

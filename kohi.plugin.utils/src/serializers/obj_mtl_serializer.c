@@ -32,9 +32,6 @@ b8 obj_mtl_serializer_deserialize(const char* mtl_file_text, obj_mtl_source_asse
 static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_source_asset* out_mtl_source_asset) {
     KDEBUG("Importing obj .mtl file ...");
 
-    obj_mtl_source_property* current_properties = darray_create(obj_mtl_source_property);
-    obj_mtl_source_texture_map* current_maps = darray_create(obj_mtl_source_texture_map);
-
     obj_mtl_source_material* materials = darray_create(obj_mtl_source_material);
 
     const char* current_name = 0;
@@ -47,6 +44,9 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
     u32 line_length = 0;
     u8 addl_advance = 0;
     u32 start_from = 0;
+
+    obj_mtl_source_material current_material = {0};
+
     while (true) {
         start_from += line_length + addl_advance;
         if (!string_line_get(mtl_file_text, 511, start_from, &p, &line_length, &addl_advance)) {
@@ -70,32 +70,29 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
         case 'K': {
             char second_char = line[1];
             switch (second_char) {
-            case 'a':
-            case 'd': {
-                // Ambient/Diffuse colour are treated the same at this level.
-                // ambient colour is determined by the level.
+            case 'a': {
+                // Ambient colour.
                 char t[2];
-                obj_mtl_source_property prop = {0};
-                prop.name = kname_create("diffuse_colour");
-                prop.type = SHADER_UNIFORM_TYPE_FLOAT32_4;
-                prop.size = sizeof(vec4);
-
-                sscanf(line, "%s %f %f %f", t, &prop.value.v4.r, &prop.value.v4.g, &prop.value.v4.b);
-
-                // NOTE: This is only used by the colour shader, and will set to
-                // max_norm by default. Transparency could be added as a material
-                // property all its own at a later time.
-                prop.value.v4.a = 1.0f;
-
-                darray_push(current_properties, prop);
+                vec3* prop = &current_material.ambient_colour;
+                sscanf(line, "%s %f %f %f", t, &prop->r, &prop->g, &prop->b);
+            }
+            case 'd': {
+                // Diffuse colour.
+                char t[2];
+                vec3* prop = &current_material.diffuse_colour;
+                sscanf(line, "%s %f %f %f", t, &prop->r, &prop->g, &prop->b);
             } break;
             case 's': {
-                // Specular colour
+                // Specular colour.
                 char t[2];
-
-                // NOTE: Not using this for now.
-                f32 spec_rubbish = 0.0f;
-                sscanf(line, "%s %f %f %f", t, &spec_rubbish, &spec_rubbish, &spec_rubbish);
+                vec3* prop = &current_material.specular_colour;
+                sscanf(line, "%s %f %f %f", t, &prop->r, &prop->g, &prop->b);
+            } break;
+            case 'e': {
+                // Emissive colour.
+                char t[2];
+                vec3* prop = &current_material.emissive_colour;
+                sscanf(line, "%s %f %f %f", t, &prop->r, &prop->g, &prop->b);
             } break;
             }
         } break;
@@ -105,24 +102,34 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
             case 's': {
                 // Specular exponent
                 char t[2];
+                sscanf(line, "%s %f", t, &current_material.specular_exponent);
 
-                obj_mtl_source_property prop = {0};
-                prop.name = kname_create("shininess");
-                prop.type = SHADER_UNIFORM_TYPE_FLOAT32;
-                prop.size = sizeof(f32);
-
-                sscanf(line, "%s %f", t, &prop.value.f32);
                 // NOTE: Need to make sure this is nonzero as this will cause
                 // artefacts in the rendering of objects.
-                if (prop.value.f32 == 0) {
-                    prop.value.f32 = 8.0f;
+                if (current_material.specular_exponent == 0) {
+                    current_material.specular_exponent = 8.0f;
                 }
-
-                darray_push(current_properties, prop);
             } break;
             }
         } break;
-        case 'b': // NOTE: Some implementations use 'bump' instead of 'map_bump'.
+        case 'b': {
+            // NOTE: Some implementations use 'bump' instead of 'map_bump'.
+            char substr[10];
+            char texture_file_name[512];
+
+            sscanf(line, "%s %s", substr, texture_file_name);
+
+            // Texture name
+            char tex_name_buf[512] = {0};
+            string_filename_no_extension_from_path(tex_name_buf, texture_file_name);
+
+            if (strings_nequali(substr, "bump", 4)) {
+                current_material.normal_image_asset_name = kname_create(tex_name_buf);
+            } else {
+                KWARN("Unrecognized token (expected 'bump'). Skipping.");
+                continue;
+            }
+        } break;
         case 'm': {
             // map
             char substr[10];
@@ -130,48 +137,33 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
 
             sscanf(line, "%s %s", substr, texture_file_name);
 
-            obj_mtl_source_texture_map map = {0};
-
             // Texture name
             char tex_name_buf[512] = {0};
             string_filename_no_extension_from_path(tex_name_buf, texture_file_name);
-            map.image_asset_name = kname_create(tex_name_buf);
+            kname image_asset_name = kname_create(tex_name_buf);
 
             // map name/type
-            if (first_char == 'm') {
-                if (strings_nequali(substr, "map_Kd", 6)) {
-                    map.name = kname_create("albedo");
-                    map.channel = OBJ_TEXTURE_MAP_CHANNEL_PBR_ALBEDO;
-                } else if (strings_nequali(substr, "map_Pm", 6)) {
-                    map.name = kname_create("metallic");
-                    map.channel = OBJ_TEXTURE_MAP_CHANNEL_PBR_METALLIC;
-                } else if (strings_nequali(substr, "map_Pr", 6)) {
-                    map.name = kname_create("rougness");
-                    map.channel = OBJ_TEXTURE_MAP_CHANNEL_PBR_ROUGHNESS;
-                } else if (strings_nequali(substr, "map_Ke", 6)) {
-                    map.name = kname_create("emissive");
-                    map.channel = OBJ_TEXTURE_MAP_CHANNEL_PBR_EMISSIVE;
-                } else if (strings_nequali(substr, "map_bump", 8)) {
-                    map.name = kname_create("normal");
-                    map.channel = OBJ_TEXTURE_MAP_CHANNEL_PBR_NORMAL;
-                } else {
-                    KWARN("Unrecognized token. Skipping.");
-                    continue;
-                }
-            } else if (first_char == 'b') {
-                if (strings_nequali(substr, "bump", 4)) {
-                    map.name = kname_create("normal");
-                    map.channel = OBJ_TEXTURE_MAP_CHANNEL_PBR_NORMAL;
-                } else {
-                    KWARN("Unrecognized token. Skipping.");
-                    continue;
-                }
+            if (strings_nequali(substr, "map_ka", 6)) {
+                current_material.ambient_image_asset_name = image_asset_name;
+            } else if (strings_nequali(substr, "map_kd", 6)) {
+                current_material.diffuse_image_asset_name = image_asset_name;
+            } else if (strings_nequali(substr, "map_ks", 6)) {
+                current_material.specular_image_asset_name = image_asset_name;
+            } else if (strings_nequali(substr, "map_Pm", 6)) {
+                current_material.metallic_image_asset_name = image_asset_name;
+            } else if (strings_nequali(substr, "map_Pr", 6)) {
+                current_material.roughness_image_asset_name = image_asset_name;
+            } else if (strings_nequali(substr, "map_Ke", 6)) {
+                current_material.emissive_image_asset_name = image_asset_name;
+            } else if (strings_nequali(substr, "map_bump", 8)) {
+                current_material.normal_image_asset_name = image_asset_name;
+            } else if (strings_nequali(substr, "map_rma", 7) || strings_nequali(substr, "map_orm", 7) || strings_nequali(substr, "map_mra", 7)) {
+                // NOTE: Treating RMA (roughness/metallic/ao), ORM and MRA as the same MRA for now.
+                current_material.mra_image_asset_name = image_asset_name;
             } else {
                 KWARN("Unrecognized token. Skipping.");
                 continue;
             }
-
-            darray_push(current_maps, map);
         } break;
         case 'n': {
             char substr[10];
@@ -183,36 +175,25 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
 
                 // If there is already a material name, then this is a new material.
                 if (hit_name) {
-                    // Push a new material to the collection and move on.
-                    obj_mtl_source_material new_material = {0};
+                    // Push the current material to the collection and move on.
                     // Assuming standard material type.
-                    new_material.type = KMATERIAL_TYPE_STANDARD;
-                    // NOTE: forcing PBR on there.
-                    new_material.model = KMATERIAL_MODEL_PBR;
-                    // Take a copy of the properties array.
-                    new_material.property_count = darray_length(current_properties);
-                    if (new_material.property_count) {
-                        new_material.properties = kallocate(sizeof(obj_mtl_source_property) * new_material.property_count, MEMORY_TAG_ARRAY);
-                        kcopy_memory(new_material.properties, current_properties, sizeof(obj_mtl_source_property) * new_material.property_count);
-                    }
-                    // Take a copy of the maps array.
-                    new_material.texture_map_count = darray_length(current_maps);
-                    if (new_material.texture_map_count) {
-                        new_material.maps = kallocate(sizeof(obj_mtl_source_property) * new_material.texture_map_count, MEMORY_TAG_ARRAY);
-                        kcopy_memory(new_material.maps, current_maps, sizeof(obj_mtl_source_property) * new_material.texture_map_count);
+                    current_material.type = KMATERIAL_TYPE_STANDARD;
+                    current_material.model = KMATERIAL_MODEL_PBR; // FIXME: Defaulting to PBR, might want to find a better way to handle this.
+                    // If using a PBR property, assume PBR.
+                    if (current_material.roughness_image_asset_name || current_material.metallic_image_asset_name || current_material.mra_image_asset_name || current_material.metallic || current_material.roughness) {
+                        current_material.model = KMATERIAL_MODEL_PBR;
                     }
                     // Take a copy of the name.
                     if (current_name) {
-                        new_material.name = kname_create(current_name);
+                        current_material.name = kname_create(current_name);
                     } else {
                         // TODO: generate random name - maybe based on guid?
                         KASSERT_MSG(false, "Not yet implemented.");
                     }
-                    darray_push(materials, new_material);
+                    darray_push(materials, current_material);
 
                     // Cleanup and reset for the next material.
-                    darray_clear(current_properties);
-                    darray_clear(current_maps);
+                    kzero_memory(&current_material, sizeof(obj_mtl_source_material));
                     if (current_name) {
                         string_free(current_name);
                         current_name = 0;
@@ -228,31 +209,29 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
     } // each line
 
     // Write out the remaining material.
-    obj_mtl_source_material new_material = {0};
     // Assuming standard material type.
-    new_material.type = KMATERIAL_TYPE_STANDARD;
-    // NOTE: forcing PBR on there.
-    new_material.model = KMATERIAL_MODEL_PBR;
-    // Take a copy of the properties array.
-    new_material.property_count = darray_length(current_properties);
-    if (new_material.property_count) {
-        new_material.properties = kallocate(sizeof(obj_mtl_source_property) * new_material.property_count, MEMORY_TAG_ARRAY);
-        kcopy_memory(new_material.properties, current_properties, sizeof(obj_mtl_source_property) * new_material.property_count);
-    }
-    // Take a copy of the maps array.
-    new_material.texture_map_count = darray_length(current_maps);
-    if (new_material.texture_map_count) {
-        new_material.maps = kallocate(sizeof(obj_mtl_source_property) * new_material.texture_map_count, MEMORY_TAG_ARRAY);
-        kcopy_memory(new_material.maps, current_maps, sizeof(obj_mtl_source_property) * new_material.texture_map_count);
+    current_material.type = KMATERIAL_TYPE_STANDARD;
+    current_material.model = KMATERIAL_MODEL_PBR; // FIXME: Defaulting to PBR, might want to find a better way to handle this.
+    // If using a PBR property, assume PBR.
+    if (current_material.roughness_image_asset_name || current_material.metallic_image_asset_name || current_material.mra_image_asset_name || current_material.metallic || current_material.roughness) {
+        current_material.model = KMATERIAL_MODEL_PBR;
     }
     // Take a copy of the name.
     if (current_name) {
-        new_material.name = kname_create(current_name);
+        current_material.name = kname_create(current_name);
     } else {
         // TODO: generate random name - maybe based on guid?
         KASSERT_MSG(false, "Not yet implemented.");
     }
-    darray_push(materials, new_material);
+    darray_push(materials, current_material);
+
+    // Cleanup and reset for the next material.
+    kzero_memory(&current_material, sizeof(obj_mtl_source_material));
+    if (current_name) {
+        string_free(current_name);
+        current_name = 0;
+    }
+    darray_push(materials, current_material);
 
     // Take a copy of the materials darray.
     out_mtl_source_asset->material_count = darray_length(materials);
@@ -260,8 +239,6 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
     KCOPY_TYPE_CARRAY(out_mtl_source_asset->materials, materials, obj_mtl_source_material, out_mtl_source_asset->material_count);
 
     // Cleanup
-    darray_destroy(current_properties);
-    darray_destroy(current_maps);
     darray_destroy(materials);
     if (current_name) {
         string_free(current_name);

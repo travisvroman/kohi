@@ -11,6 +11,7 @@
 #include <strings/kname.h>
 #include <strings/kstring.h>
 
+#include "math/kmath.h"
 #include "serializers/obj_mtl_serializer.h"
 #include "serializers/obj_serializer.h"
 #include "strings/kstring_id.h"
@@ -151,77 +152,96 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                         new_material.custom_shader_name = 0;
 
                         new_material.type = m_src->type;
+                        new_material.model = m_src->model;
 
                         // Material maps.
-                        for (u32 j = 0; j < m_src->texture_map_count; ++j) {
-                            obj_mtl_source_texture_map* map_src = &m_src->maps[j];
+                        // Base colour.
+                        if (new_material.model == KMATERIAL_MODEL_PBR) {
+                            // Base colour translates from diffuse only for PBR.
+                            if (m_src->diffuse_image_asset_name) {
+                                new_material.base_colour_map.resource_name = m_src->diffuse_image_asset_name;
+                                new_material.base_colour_map.package_name = out_asset->package_name;
+                            }
+                            new_material.base_colour = vec4_from_vec3(m_src->diffuse_colour, 1.0f);
 
-                            kmaterial_texture_input* texture_input = 0;
+                            // Metallic
+                            if (m_src->metallic_image_asset_name) {
+                                new_material.metallic_map.resource_name = m_src->metallic_image_asset_name;
+                                new_material.metallic_map.package_name = out_asset->package_name;
+                                // NOTE: Always assume red channel for OBJ MTL imports.
+                                new_material.metallic_map.channel = TEXTURE_CHANNEL_R;
+                            }
+                            new_material.metallic = m_src->metallic;
 
-                            // Map channel. NOTE: OBJ format _can_ specify different channels per material type. Kohi doesn't, so just use the "base" type.
-                            switch (map_src->channel) {
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_NORMAL:
-                            case OBJ_TEXTURE_MAP_CHANNEL_PHONG_NORMAL:
-                                texture_input = &new_material.normal_map;
-                                new_material.normal_enabled = true;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_ALBEDO:
-                            case OBJ_TEXTURE_MAP_CHANNEL_PHONG_DIFFUSE:
-                            case OBJ_TEXTURE_MAP_CHANNEL_UNLIT_COLOUR:
-                                texture_input = &new_material.base_colour_map;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_METALLIC:
-                                texture_input = &new_material.metallic_map;
-                                // Assume red.
-                                texture_input->channel = TEXTURE_CHANNEL_R;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_ROUGHNESS:
-                                texture_input = &new_material.roughness_map;
-                                // Assume red.
-                                texture_input->channel = TEXTURE_CHANNEL_R;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_AO:
-                                texture_input = &new_material.ambient_occlusion_map;
-                                // Assume red.
-                                texture_input->channel = TEXTURE_CHANNEL_R;
+                            // Roughness
+                            if (m_src->roughness_image_asset_name) {
+                                new_material.roughness_map.resource_name = m_src->roughness_image_asset_name;
+                                new_material.roughness_map.package_name = out_asset->package_name;
+                                // NOTE: Always assume red channel for OBJ MTL imports.
+                                new_material.roughness_map.channel = TEXTURE_CHANNEL_R;
+                            }
+                            new_material.roughness = m_src->roughness;
+
+                            // Ambient occlusion NOTE: not supported for OBJ MTL imports.
+                            new_material.ambient_occlusion_enabled = false;
+                            new_material.ambient_occlusion = 1.0;
+
+                            // MRA (combined Metallic/Roughness/AO maps)
+                            if (m_src->mra_image_asset_name) {
+                                new_material.mra_map.resource_name = m_src->mra_image_asset_name;
+                                new_material.mra_map.package_name = out_asset->package_name;
+                                new_material.use_mra = true;
+
+                                // In this one scenario, enable AO since the MRA map can provide it.
                                 new_material.ambient_occlusion_enabled = true;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_EMISSIVE:
-                                texture_input = &new_material.emissive_map;
-                                new_material.emissive_enabled = true;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_CLEAR_COAT:
-                                // TODO: support clear coat
-                                // texture_input = &new_material.clear_coat_map;
-                                KWARN("PBR clear coat not supported. Skipping.");
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_CLEAR_COAT_ROUGHNESS:
-                                // TODO: support clear coat roughness
-                                // texture_input = &new_material.clear_coat_roughness_map;
-                                KWARN("PBR clear coat roughness not supported. Skipping.");
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PBR_WATER:
-                                texture_input = &new_material.dudv_map;
-                                break;
-                            case OBJ_TEXTURE_MAP_CHANNEL_PHONG_SPECULAR:
-                                // TODO: Phong/specular support.
-                                // texture_input = &new_material.specular;
-                                KWARN("Phong specular not supported. Skipping.");
-                                break;
-                            }
 
-                            if (texture_input) {
-                                texture_input->resource_name = map_src->image_asset_name;
-                                // Assume the same package name.
-                                texture_input->package_name = out_asset->package_name;
+                            } else if (new_material.metallic_map.resource_name == new_material.roughness_map.resource_name == new_material.ambient_occlusion_map.resource_name) {
+                                // If metallic, roughness and ao all point to the same texture, switch to MRA instead.
+                                new_material.mra_map.resource_name = new_material.metallic_map.resource_name;
+                                new_material.mra_map.package_name = new_material.metallic_map.resource_name;
+                                new_material.use_mra = true;
+
+                                // In this one scenario, enable AO since the MRA map can provide it.
+                                new_material.ambient_occlusion_enabled = true;
+
+                            } else {
+                                new_material.use_mra = false;
                             }
+                        } else if (new_material.model == KMATERIAL_MODEL_PHONG) {
+                            // TODO: make use of the ambient colour map.
+                            if (m_src->ambient_image_asset_name) {
+                                KWARN("Material has ambient colour map set, but will not be imported due to engine limitations.");
+                            }
+                            if (m_src->diffuse_image_asset_name) {
+                                new_material.base_colour_map.resource_name = m_src->diffuse_image_asset_name;
+                                new_material.base_colour_map.package_name = out_asset->package_name;
+                            }
+                            // For phong, base colour is ambient + diffuse.
+                            new_material.base_colour = vec4_from_vec3(vec3_add(m_src->ambient_colour, m_src->diffuse_colour), 1.0f);
+
+                            // Specular - only used for phong.
+                            if (m_src->specular_image_asset_name) {
+                                new_material.specular_colour_map.resource_name = m_src->specular_image_asset_name;
+                                new_material.specular_colour_map.package_name = out_asset->package_name;
+                            }
+                            new_material.specular_colour = vec4_from_vec3(m_src->specular_colour, 1.0f);
                         }
 
-                        // If metallic, roughness and ao all point to the same texture, switch to MRA instead.
-                        if (new_material.metallic_map.resource_name == new_material.roughness_map.resource_name == new_material.ambient_occlusion_map.resource_name) {
-                            new_material.mra_map.resource_name = new_material.metallic_map.resource_name;
-                            new_material.mra_map.package_name = new_material.metallic_map.resource_name;
+                        // Normal
+                        if (m_src->normal_image_asset_name) {
+                            new_material.normal_map.resource_name = m_src->normal_image_asset_name;
+                            new_material.normal_map.package_name = out_asset->package_name;
+                            new_material.normal_enabled = true;
+                        } else {
+                            new_material.normal_enabled = false;
                         }
+
+                        // Emissive
+                        if (m_src->emissive_image_asset_name) {
+                            new_material.emissive_map.resource_name = m_src->emissive_image_asset_name;
+                            new_material.emissive_map.package_name = out_asset->package_name;
+                        }
+                        new_material.emissive = vec4_from_vec3(m_src->emissive_colour, 1.0f);
 
                         // Serialize the material.
                         const char* serialized_text = kasset_material_serialize((kasset*)&new_material);
@@ -234,16 +254,12 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                             KERROR("Failed to write serialized material to disk.");
                         }
 
-                        // Cleanup MTL asset.
-                        {
-                            // Maps
-                            kfree(m_src->maps, sizeof(obj_mtl_source_material) * m_src->texture_map_count, MEMORY_TAG_ARRAY);
-
-                            // Properties
-                            kfree(m_src->properties, sizeof(obj_mtl_source_property) * m_src->property_count, MEMORY_TAG_ARRAY);
-                        }
-
                     } // each material
+
+                    // Cleanup materials
+                    if (mtl_asset.material_count) {
+                        KFREE_TYPE_CARRAY(mtl_asset.materials, obj_mtl_source_material, mtl_asset.material_count);
+                    }
                 }
             } // success
         }
