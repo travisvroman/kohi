@@ -759,12 +759,12 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                             water_drawn = true;
                             transparency_started = true;
                         }
+                    }
 
-                        // Apply material-level (i.e. group-level) data.
-                        if (!material_system_apply(internal_data->material_system, inst->material, p_frame_data)) {
-                            KERROR("Error applying material. See logs for details.");
-                            return false;
-                        }
+                    // Apply material-level (i.e. group-level) data.
+                    if (!material_system_apply(internal_data->material_system, inst->material, p_frame_data)) {
+                        KERROR("Error applying material. See logs for details.");
+                        return false;
                     }
 
                     // Update the current material handle.

@@ -1118,6 +1118,10 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
         if (m->mesh_resource->base.state < KRESOURCE_STATE_LOADED) {
             continue;
         }
+        if (!m->material_instances) {
+            continue;
+        }
+
         scene_attachment* attachment = &scene->mesh_attachments[i];
         khandle xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
         mat4 model = xform_world_get(xform_handle);
@@ -1129,6 +1133,7 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
         for (u32 j = 0; j < m->mesh_resource->submesh_count; ++j) {
             static_mesh_submesh* submesh = &m->mesh_resource->submeshes[j];
             kgeometry* g = &submesh->geometry;
+            material_instance m_inst = m->material_instances[j];
 
             // TODO: cache this somewhere...
             //
@@ -1147,7 +1152,7 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
                 // Add it to the list to be rendered.
                 geometry_render_data data = {0};
                 data.model = model;
-                data.material = m->material_instances ? m->material_instances[j] : (material_instance){khandle_invalid(), khandle_invalid()};
+                data.material = m_inst;
                 data.vertex_count = g->vertex_count;
                 data.vertex_buffer_offset = g->vertex_buffer_offset;
                 data.index_count = g->index_count;
@@ -1158,11 +1163,7 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
                 // Check if transparent. If so, put into a separate, temp array to be
                 // sorted by distance from the camera. Otherwise, put into the
                 // out_geometries array directly.
-                b8 has_transparency = false;
-                if (m->material_instances) {
-                    has_transparency = material_flag_get(engine_systems_get()->material_system, m->material_instances[j].material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
-                }
-
+                b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst.material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
                 if (has_transparency) {
                     // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
                     // Get the center, extract the global position from the model matrix and add it to the center,
@@ -1274,6 +1275,9 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
         if (m->mesh_resource->base.state < KRESOURCE_STATE_LOADED) {
             continue;
         }
+        if (!m->material_instances) {
+            continue;
+        }
         // Attachment lookup - by resource index.
         scene_attachment* attachment = &scene->mesh_attachments[resource_index];
         khandle xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
@@ -1286,6 +1290,7 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
         for (u32 j = 0; j < m->mesh_resource->submesh_count; ++j) {
             static_mesh_submesh* submesh = &m->mesh_resource->submeshes[j];
             kgeometry* g = &submesh->geometry;
+            material_instance m_inst = m->material_instances[j];
 
             // TODO: Distance-from-line detection per object (e.g. light direction and center pos, then distance check from that line.)
             //
@@ -1335,7 +1340,7 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
                     // Add it to the list to be rendered.
                     geometry_render_data data = {0};
                     data.model = model;
-                    data.material = m->material_instances ? m->material_instances[j] : (material_instance){khandle_invalid(), khandle_invalid()};
+                    data.material = m_inst;
                     data.vertex_count = g->vertex_count;
                     data.vertex_buffer_offset = g->vertex_buffer_offset;
                     data.index_count = g->index_count;
@@ -1346,10 +1351,7 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
                     // Check if transparent. If so, put into a separate, temp array to be
                     // sorted by distance from the camera. Otherwise, put into the
                     // out_geometries array directly.
-                    b8 has_transparency = false;
-                    if (m->material_instances) {
-                        has_transparency = material_flag_get(engine_systems_get()->material_system, m->material_instances[j].material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
-                    }
+                    b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst.material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
                     if (has_transparency) {
                         // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
                         // Get the center, extract the global position from the model matrix and add it to the center,

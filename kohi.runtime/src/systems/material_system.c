@@ -896,10 +896,16 @@ b8 material_system_acquire(material_system_state* state, kname name, material_in
     }
 
     // Material is not yet loaded, request it.
+    KTRACE("Material system - '%s' not yet loaded. Requesting...", kname_string_get(name));
+
+    // Setup a new handle for the material.
+    khandle new_handle = material_handle_create(state, name);
+    out_instance->material = new_handle;
+
     // Setup a listener.
     material_request_listener* listener = KALLOC_TYPE(material_request_listener, MEMORY_TAG_MATERIAL_INSTANCE);
     listener->state = state;
-    listener->material_handle = material_handle_create(state, name);
+    listener->material_handle = new_handle;
     listener->instance_handle = &out_instance->instance;
 
     // Request the resource.
@@ -1048,7 +1054,7 @@ b8 material_system_prepare_frame(material_system_state* state, material_frame_da
             shader_system_texture_set_by_location(shader, state->water_material_locations.shadow_texture, mat_frame_data.shadow_map_texture);
         }
 
-        // Irradience textures provided by probes around in the world.
+        // Irradiance textures provided by probes around in the world.
         for (u32 i = 0; i < MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT; ++i) {
             kresource_texture* t = mat_frame_data.irradiance_cubemap_textures[i] ? mat_frame_data.irradiance_cubemap_textures[i] : state->default_ibl_cubemap;
             shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.irradiance_cube_textures, i, t);
@@ -1087,7 +1093,7 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
         // per-group - ensure this is done once per frame per material
 
         // bind per-group
-        if (!shader_system_bind_group(material, base_material->group_id)) {
+        if (!shader_system_bind_group(shader, base_material->group_id)) {
             KERROR("Failed to bind material shader group.");
             return false;
         }
@@ -1149,6 +1155,9 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
                 group_ubo.normal = base_material->normal;
                 shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, state->default_texture);
             }
+        } else {
+            // Still need this set.
+            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, state->default_texture);
         }
 
         // MRA
@@ -1226,7 +1235,7 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
         // per-group - ensure this is done once per frame per material
 
         // bind per-group
-        if (!shader_system_bind_group(material, base_material->group_id)) {
+        if (!shader_system_bind_group(shader, base_material->group_id)) {
             KERROR("Failed to bind water material shader group.");
             return false;
         }
@@ -1333,6 +1342,7 @@ b8 material_system_apply_instance(material_system_state* state, const material_i
         return false;
     case KMATERIAL_TYPE_STANDARD: {
         shader = state->material_standard_shader;
+        shader_system_use(shader);
 
         // per-draw - this gets run every time apply is called
         // bind per-draw
@@ -1356,6 +1366,7 @@ b8 material_system_apply_instance(material_system_state* state, const material_i
     }
     case KMATERIAL_TYPE_WATER: {
         shader = state->material_water_shader;
+        shader_system_use(shader);
 
         // per-draw - this gets run every time apply is called
         // bind per-draw
@@ -1714,6 +1725,8 @@ static khandle material_handle_create(material_system_state* state, kname name) 
     material->unique_id = handle.unique_id.uniqueid;
     material->name = name;
 
+    KTRACE("Material system - new handle created at index: '%d'.", resource_index);
+
     return handle;
 }
 
@@ -1748,6 +1761,7 @@ static b8 material_create(material_system_state* state, khandle material_handle,
     material_data* material = &state->materials[material_handle.handle_index];
 
     material->index = material_handle.handle_index;
+    KTRACE("Material system - Creating material at index '%d'...", material_handle.handle_index);
 
     // Validate the material type and model.
     material->type = typed_resource->type;
@@ -2020,6 +2034,8 @@ static void material_resource_loaded(kresource* resource, void* listener) {
     kresource_material* typed_resource = (kresource_material*)resource;
     material_request_listener* listener_inst = (material_request_listener*)listener;
     material_system_state* state = listener_inst->state;
+
+    KTRACE("Material system - Resource '%s' loaded. Creating material...", kname_string_get(resource->name));
 
     // Create the base material.
     if (!material_create(state, listener_inst->material_handle, typed_resource)) {

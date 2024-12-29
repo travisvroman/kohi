@@ -75,7 +75,6 @@ b8 static_mesh_system_instance_acquire(struct static_mesh_system_state* state, k
         &request);
     out_instance->instance_id = krandom_u64();
     out_instance->tint = vec4_one(); // white
-    out_instance->material_instances = 0;
 
     return true;
 }
@@ -149,6 +148,7 @@ static void static_mesh_on_resource_loaded(kresource* resource, void* listener) 
 
     // Request material instances for this static mesh instance.
     typed_listener->instance->material_instances = KALLOC_TYPE_CARRAY(material_instance, typed_listener->instance->mesh_resource->submesh_count);
+    KTRACE("Material instances array created.");
 
     // Process submeshes.
     for (u32 i = 0; i < typed_resource->submesh_count; ++i) {

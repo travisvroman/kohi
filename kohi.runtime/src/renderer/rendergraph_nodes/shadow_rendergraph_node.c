@@ -230,50 +230,6 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
     // Clear the image first.
     renderer_clear_depth_stencil(engine_systems_get()->renderer_system, internal_data->depth_texture->renderer_texture_handle);
 
-    // Apply per-frame updates first.
-    // Static mesh shadowmap shader
-    {
-        renderer_begin_debug_label("shadow_rendergraph_staticmesh_per_frame", (vec3){1.0f, 0.0f, 0.0f});
-
-        // Use the standard shadowmap shader.
-        shader_system_use(internal_data->shadow_staticmesh_shader);
-        shader_system_bind_frame(internal_data->shadow_staticmesh_shader);
-
-        for (u32 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
-            if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_staticmesh_shader, internal_data->staticmesh_shader_locations.projections, i, &internal_data->cascade_data[i].projection)) {
-                KERROR("Failed to apply static mesh shadowmap projection uniform (index=%u).", i);
-                return false;
-            }
-            if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_staticmesh_shader, internal_data->staticmesh_shader_locations.views, i, &internal_data->cascade_data[i].view)) {
-                KERROR("Failed to apply static mesh shadowmap view uniform (index=%u).", i);
-                return false;
-            }
-        }
-        // Apply per-frame uniforms.
-        shader_system_apply_per_frame(internal_data->shadow_staticmesh_shader);
-
-        renderer_end_debug_label();
-    }
-    // per-frame Terrain shadowmap shader
-    {
-        shader_system_use(internal_data->shadow_terrain_shader);
-
-        shader_system_bind_frame(internal_data->shadow_terrain_shader);
-
-        for (u32 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
-            // NOTE: using the internal projection matrix, not one passed in.
-            if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_terrain_shader, internal_data->terrain_shader_locations.projections, i, &internal_data->cascade_data[i].projection)) {
-                KERROR("Failed to apply terrain shadowmap projection uniform (index=%u).", i);
-                return false;
-            }
-            if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_terrain_shader, internal_data->terrain_shader_locations.views, i, &internal_data->cascade_data[i].view)) {
-                KERROR("Failed to apply terrain shadowmap view uniform (index=%u).", i);
-                return false;
-            }
-        }
-        shader_system_apply_per_frame(internal_data->shadow_terrain_shader);
-    }
-
     // One renderpass per cascade - directional light.
     for (u32 p = 0; p < MATERIAL_MAX_SHADOW_CASCADES; ++p) {
         {
@@ -288,10 +244,29 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
         // Bind the internal viewport - do not use one provided in pass data.
         renderer_active_viewport_set(&internal_data->camera_viewport);
 
-        // Use the standard shadowmap shader.
-        shader_system_use(internal_data->shadow_staticmesh_shader);
+        // Apply per-frame updates first.
+        {
+            renderer_begin_debug_label("shadow_rendergraph_staticmesh_per_frame", (vec3){1.0f, 0.0f, 0.0f});
 
-        // LEFTOFF: The per-frame update used to sit here. Note sure if this still needs to be _within_ the "begin/end" render?
+            // Use the standard shadowmap shader.
+            shader_system_use(internal_data->shadow_staticmesh_shader);
+            shader_system_bind_frame(internal_data->shadow_staticmesh_shader);
+
+            for (u32 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
+                if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_staticmesh_shader, internal_data->staticmesh_shader_locations.projections, i, &internal_data->cascade_data[i].projection)) {
+                    KERROR("Failed to apply static mesh shadowmap projection uniform (index=%u).", i);
+                    return false;
+                }
+                if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_staticmesh_shader, internal_data->staticmesh_shader_locations.views, i, &internal_data->cascade_data[i].view)) {
+                    KERROR("Failed to apply static mesh shadowmap view uniform (index=%u).", i);
+                    return false;
+                }
+            }
+            // Apply per-frame uniforms.
+            shader_system_apply_per_frame(internal_data->shadow_staticmesh_shader);
+
+            renderer_end_debug_label();
+        }
 
         // Reset material handle group data for all entries. _NOT_ the group_ids though!
         {
@@ -316,24 +291,6 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
                         return false;
                     }
                     darray_push(internal_data->staticmesh_per_draw_data, new_per_draw);
-                }
-            }
-        }
-
-        // Ensure there are enough terrain per-draw resources for the frame.
-        {
-            i64 required_per_draw_count = internal_data->terrain_geometry_count;
-            u32 current_per_draw_count = darray_length(internal_data->terrain_per_draw_data);
-            i64 per_draw_diff = current_per_draw_count - required_per_draw_count;
-            if (per_draw_diff < 0) {
-                // Add the new entries for the difference, requesting draw resources along the way.
-                for (u32 i = current_per_draw_count; i < required_per_draw_count; ++i) {
-                    shader_per_draw_data new_per_draw = {0};
-                    if (!shader_system_shader_per_draw_acquire(internal_data->shadow_terrain_shader, &new_per_draw.draw_id)) {
-                        KERROR("Failed to acquire per-draw resources from the terrain shadow shader. See logs for details.");
-                        return false;
-                    }
-                    darray_push(internal_data->terrain_per_draw_data, new_per_draw);
                 }
             }
         }
@@ -440,6 +397,45 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
         }
 
         // Terrain - use the terrain shadowmap shader.
+        //
+        // per-frame Terrain shadowmap shader
+        {
+            shader_system_use(internal_data->shadow_terrain_shader);
+
+            shader_system_bind_frame(internal_data->shadow_terrain_shader);
+
+            for (u32 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
+                // NOTE: using the internal projection matrix, not one passed in.
+                if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_terrain_shader, internal_data->terrain_shader_locations.projections, i, &internal_data->cascade_data[i].projection)) {
+                    KERROR("Failed to apply terrain shadowmap projection uniform (index=%u).", i);
+                    return false;
+                }
+                if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_terrain_shader, internal_data->terrain_shader_locations.views, i, &internal_data->cascade_data[i].view)) {
+                    KERROR("Failed to apply terrain shadowmap view uniform (index=%u).", i);
+                    return false;
+                }
+            }
+            shader_system_apply_per_frame(internal_data->shadow_terrain_shader);
+        }
+
+        // Ensure there are enough terrain per-draw resources for the frame.
+        {
+            i64 required_per_draw_count = internal_data->terrain_geometry_count;
+            u32 current_per_draw_count = darray_length(internal_data->terrain_per_draw_data);
+            i64 per_draw_diff = current_per_draw_count - required_per_draw_count;
+            if (per_draw_diff < 0) {
+                // Add the new entries for the difference, requesting draw resources along the way.
+                for (u32 i = current_per_draw_count; i < required_per_draw_count; ++i) {
+                    shader_per_draw_data new_per_draw = {0};
+                    if (!shader_system_shader_per_draw_acquire(internal_data->shadow_terrain_shader, &new_per_draw.draw_id)) {
+                        KERROR("Failed to acquire per-draw resources from the terrain shadow shader. See logs for details.");
+                        return false;
+                    }
+                    darray_push(internal_data->terrain_per_draw_data, new_per_draw);
+                }
+            }
+        }
+
         {
 
             for (u32 i = 0; i < internal_data->terrain_geometry_count; ++i) {
