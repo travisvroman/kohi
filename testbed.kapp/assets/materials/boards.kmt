@@ -1,45 +1,44 @@
 version = 3
-type = "pbr"
-
-maps = [
-	{
-		name = "albedo"
-		texture_name = "boards_and_planks_bc"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-	{
-		name = "combined"
-		texture_name = "boards_and_planks_roughness"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-	{
-		name = "normal"
-		texture_name = "boards_and_planks_n"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-]
-
-properties = [
-	{
-		name = "shininess"
-		type = "f32"
-		value = 96.078453
-	}
-	{
-		name = "diffuse_colour"
-		type = "vec4"
-		value = "0.000000 0.000000 0.000000 0.000000"
-	}
-]
+type = "standard"
+model = "pbr"
+has_transparency = false
+double_sided = false
+recieves_shadow = true
+casts_shadow = true
+use_vertex_colour_as_base_colour = false
+inputs = {
+    base_colour = {
+        map = {
+            resource_name = "boards_and_planks_bc"
+            package_name = "Testbed"
+        }
+    }
+    normal = {
+        map = {
+            resource_name = "boards_and_planks_n"
+            package_name = "Testbed"
+        }
+        enabled = true
+    }
+    metallic = {
+        value = 0.000000
+    }
+    roughness = {
+        map = {
+            resource_name = "boards_and_planks_roughness"
+            package_name = "Testbed"
+            source_channel = "r"
+        }
+    }
+    ao = {
+        value = 1.000000
+        enabled = true
+    }
+    mra = {
+        value = "0.000000 0.000000 0.000000"
+    }
+    emissive = {
+        value = "0.000000 0.000000 0.000000 1.000000"
+        enabled = false
+    }
+}

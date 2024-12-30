@@ -1,71 +1,44 @@
 version = 3
 type = "standard"
 model = "pbr"
-
 has_transparency = false
 double_sided = false
 recieves_shadow = true
 casts_shadow = true
 use_vertex_colour_as_base_colour = false
-
 inputs = {
     base_colour = {
         map = {
-            resource_name = "beams_and_sticks"
-            package_name = "testbed"
-            sampler = "custom_01"
+            resource_name = "beams_and_sticks_bc"
+            package_name = "Testbed"
         }
     }
     normal = {
-        enabled = true
         map = {
             resource_name = "beams_and_sticks_n"
-            package_name = "testbed"
+            package_name = "Testbed"
         }
+        enabled = true
     }
     metallic = {
-        value = 0.5
+        value = 0.000000
     }
     roughness = {
         map = {
-            resource_name = "beams_and_sticks_bc"
-            source_channel = "g"
+            resource_name = "beams_and_sticks_roughness"
+            package_name = "Testbed"
+            source_channel = "r"
         }
     }
     ao = {
+        value = 1.000000
         enabled = true
-        map = {
-            resource_name = "beams_and_sticks_bc"
-            source_channel = "b"
-        }
     }
     mra = {
-        map = {
-            resource_name = "beams_and_sticks_bc"
-        }
+        value = "0.000000 0.000000 0.000000"
     }
     emissive = {
+        value = "0.000000 0.000000 0.000000 1.000000"
         enabled = false
-		value = "1.000000 0.000000 0.000000 1.000000"
     }
 }
-
-samplers = [
-    {
-        name = "custom_01"
-        // Shorthand that sets both filter modes
-        filter = "linear"
-        // Overrides shorthand
-        filter_mag = "linear"
-        filter_min = "linear"
-        // Shorthand that sets all 3 repeat modes.
-        repeat = "repeat"
-        // More specific version overrides shorthand
-        repeat_u = "repeat"
-        repeat_v = "repeat"
-        repeat_w = "repeat"
-        // If true, uses mipmaps based on image dimensions.
-        use_mipmaps = true
-    }
-]
-

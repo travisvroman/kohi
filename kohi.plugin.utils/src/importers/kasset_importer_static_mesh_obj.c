@@ -154,6 +154,15 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                         new_material.type = m_src->type;
                         new_material.model = m_src->model;
 
+                        // Force defaults for things not considered in OBJ MTL files.
+                        new_material.casts_shadow = true;
+                        new_material.recieves_shadow = true;
+
+                        // NOTE: Transparency for Kohi materials is determined by the 
+                        // base_colour transparency, and must be enabled manually after 
+                        // import if it is wanted.
+                        new_material.has_transparency = false;
+
                         // Material maps.
                         // Base colour.
                         if (new_material.model == KMATERIAL_MODEL_PBR) {

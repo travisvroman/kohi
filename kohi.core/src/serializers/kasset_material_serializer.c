@@ -122,7 +122,7 @@ const char* kasset_material_serialize(const kasset* asset) {
             kson_object_value_add_object(&inputs, INPUT_ROUGHNESS, roughness);
         }
 
-        // Roughness
+        // Ambient Occlusion
         {
             kson_object ao = kson_object_create();
             if (material->ambient_occlusion_map.resource_name) {
@@ -135,8 +135,8 @@ const char* kasset_material_serialize(const kasset* asset) {
             kson_object_value_add_object(&inputs, INPUT_AO, ao);
         }
 
-        // Metallic/roughness/ao combined value (mra)
-        {
+        // Metallic/roughness/ao combined value (mra) - only written out if used.
+        if (material->use_mra) {
             kson_object mra = kson_object_create();
             if (material->mra_map.resource_name) {
                 add_map_obj(&mra, 0, &material->mra_map);
