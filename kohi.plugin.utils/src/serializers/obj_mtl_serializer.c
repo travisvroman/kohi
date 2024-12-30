@@ -186,6 +186,8 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
                     // Take a copy of the name.
                     if (current_name) {
                         current_material.name = kname_create(current_name);
+                        string_free(current_name);
+                        current_name = 0;
                     } else {
                         // TODO: generate random name - maybe based on guid?
                         KASSERT_MSG(false, "Not yet implemented.");
@@ -194,10 +196,6 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
 
                     // Cleanup and reset for the next material.
                     kzero_memory(&current_material, sizeof(obj_mtl_source_material));
-                    if (current_name) {
-                        string_free(current_name);
-                        current_name = 0;
-                    }
                 }
 
                 // Take a copy of the name for the next material.
@@ -219,6 +217,8 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
     // Take a copy of the name.
     if (current_name) {
         current_material.name = kname_create(current_name);
+        string_free(current_name);
+        current_name = 0;
     } else {
         // TODO: generate random name - maybe based on guid?
         KASSERT_MSG(false, "Not yet implemented.");
@@ -227,11 +227,6 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
 
     // Cleanup and reset for the next material.
     kzero_memory(&current_material, sizeof(obj_mtl_source_material));
-    if (current_name) {
-        string_free(current_name);
-        current_name = 0;
-    }
-    darray_push(materials, current_material);
 
     // Take a copy of the materials darray.
     out_mtl_source_asset->material_count = darray_length(materials);
