@@ -1,50 +1,43 @@
 version = 3
-type = pbr
-
-maps = [
-	{
-		name = "albedo"
-		texture_name = "falc_wreck_low_DefaultMaterial_AlbedoTransparency"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-	{
-		name = "combined"
-		texture_name = "falc_wreck_low_DefaultMaterial_combined"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-	{
-		name = "normal"
-		texture_name = "falc_wreck_low_DefaultMaterial_Normal"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-]
-
-properties = [
-	{
-		name = "diffuse_colour"
-		type = "vec4"
-		value = "0.800000 0.800000 0.800000 1.000000"
-	}
-	{
-		name = "padding"
-		type = "vec3"
-		value = "0.000000 0.000000 0.000000"
-	}
-	{
-		name = "shininess"
-		type = "f32"
-		value = 8.0
-	}
-]
+type = "standard"
+model = "pbr"
+has_transparency = false
+double_sided = false
+recieves_shadow = true
+casts_shadow = true
+use_vertex_colour_as_base_colour = false
+inputs = {
+    base_colour = {
+        map = {
+            resource_name = "falc_wreck_low_DefaultMaterial_AlbedoTransparency"
+            package_name = "Testbed"
+        }
+    }
+    normal = {
+        map = {
+            resource_name = "falc_wreck_low_DefaultMaterial_Normal"
+            package_name = "Testbed"
+        }
+        enabled = true
+    }
+    metallic = {
+        value = 0.000000
+    }
+    roughness = {
+        value = 0.000000
+    }
+    ao = {
+        value = 1.000000
+        enabled = true
+    }
+    mra = {
+        map = {
+            resource_name = "falc_wreck_low_DefaultMaterial_combined"
+            package_name = "Testbed"
+        }
+    }
+    emissive = {
+        value = "0.000000 0.000000 0.000000 1.000000"
+        enabled = false
+    }
+}

@@ -63,7 +63,7 @@ layout(set = 0, binding = 0) uniform per_frame_ubo {
     uint use_pcf;
     float delta_time;
     float game_time;
-    vec3 padding;
+    vec2 padding;
 } material_frame_ubo;
 
 // per-group

@@ -42,10 +42,9 @@
 // #endif
 
 // NOTE: To disable the custom allocator, comment this out or set to 0.
-// TODO: re-enable this // nocheckin
-// #ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
-// #    define KVULKAN_USE_CUSTOM_ALLOCATOR 1
-// #endif
+#ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
+#    define KVULKAN_USE_CUSTOM_ALLOCATOR 1
+#endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
@@ -55,7 +54,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
 static i32 find_memory_index(vulkan_context* context, u32 type_filter,
                              u32 property_flags);
 
-static void create_command_buffers(vulkan_context* context, kwindow* window);
 static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* window);
 static b8 create_shader_module(vulkan_context* context, vulkan_shader* internal_shader, shader_stage stage, const char* source, const char* filename, vulkan_shader_stage* out_stage);
 static b8 vulkan_buffer_copy_range_internal(vulkan_context* context,
@@ -341,6 +339,8 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
     // Create a shader compiler to be used.
     context->shader_compiler = shaderc_compiler_initialize();
 
+    KINFO("Renderer config requests %s-buffering to be used.", config->use_triple_buffering ? "triple" : "double");
+
     KINFO("Vulkan renderer initialized successfully.");
     return true;
 }
@@ -416,24 +416,33 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
         return false;
     }
 
+    // Setup initial max frames in flight based on config. This may be overridden if the max number of swapchain images < 3.
+    window_backend->max_frames_in_flight = context->triple_buffering_enabled ? 2 : 1;
+
+    // Ensure there are enough swapchain images to use triple buffering, if requested. If not, scale it back
+    // but warn about it.
+    if (window_backend->max_frames_in_flight == 2 && window_backend->swapchain.image_count < 3) {
+        KWARN("Vulkan backend was requested to use triple buffering, but only double-buffering is supported via the swapchain. Switching to double-buffering.");
+        window_backend->max_frames_in_flight = 1;
+    }
+
     // Create per-frame-in-flight resources.
     {
-        u8 max_frames_in_flight = window_backend->swapchain.max_frames_in_flight;
-
         // Sync objects are owned by the window since they go hand-in-hand
         // with the swapchain and window resources.
-        window_backend->image_available_semaphores = KALLOC_TYPE_CARRAY(VkSemaphore, max_frames_in_flight);
-        window_backend->queue_complete_semaphores = KALLOC_TYPE_CARRAY(VkSemaphore, max_frames_in_flight);
-        window_backend->in_flight_fences = KALLOC_TYPE_CARRAY(VkFence, max_frames_in_flight);
+        window_backend->image_available_semaphores = KALLOC_TYPE_CARRAY(VkSemaphore, window_backend->max_frames_in_flight);
+        window_backend->queue_complete_semaphores = KALLOC_TYPE_CARRAY(VkSemaphore, window_backend->max_frames_in_flight);
+        window_backend->in_flight_fences = KALLOC_TYPE_CARRAY(VkFence, window_backend->max_frames_in_flight);
 
-        window_backend->frame_texture_updated_list = KALLOC_TYPE_CARRAY(khandle*, max_frames_in_flight);
+        window_backend->frame_texture_updated_list = KALLOC_TYPE_CARRAY(khandle*, window_backend->max_frames_in_flight);
+        window_backend->graphics_command_buffers = KALLOC_TYPE_CARRAY(vulkan_command_buffer, window_backend->max_frames_in_flight);
 
         // The staging buffer also goes here since it is tied to the frame.
         // TODO: Reduce this to a single buffer split by max_frames_in_flight.
         const u64 staging_buffer_size = MEBIBYTES(768); // FIXME: This is huge. Need to queue updates per frame in flight to shrink this down.
-        window_backend->staging = kallocate(sizeof(renderbuffer) * max_frames_in_flight, MEMORY_TAG_ARRAY);
+        window_backend->staging = kallocate(sizeof(renderbuffer) * window_backend->max_frames_in_flight, MEMORY_TAG_ARRAY);
 
-        for (u8 i = 0; i < max_frames_in_flight; ++i) {
+        for (u8 i = 0; i < window_backend->max_frames_in_flight; ++i) {
             VkSemaphoreCreateInfo semaphore_create_info = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
             vkCreateSemaphore(context->device.logical_device, &semaphore_create_info, context->allocator, &window_backend->image_available_semaphores[i]);
             vkCreateSemaphore(context->device.logical_device, &semaphore_create_info, context->allocator, &window_backend->queue_complete_semaphores[i]);
@@ -456,11 +465,24 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
 
             // Create the per-frame list of updated texture handles.
             window_backend->frame_texture_updated_list[i] = darray_create(khandle);
+
+            // Command buffer.
+            vulkan_command_buffer* primary_buffer = &window_backend->graphics_command_buffers[i];
+            kzero_memory(primary_buffer, sizeof(vulkan_command_buffer));
+
+            // Allocate a new buffer.
+            char* name = string_format("%s_command_buffer_%d", window->name, i);
+
+            // Primary command buffers have secondary command buffers to facilitate "passes", of sorts.
+            // TODO: should this be configurable?
+            const u32 secondary_count = 16;
+
+            vulkan_command_buffer_allocate(context, context->device.graphics_command_pool, true, name, primary_buffer, secondary_count);
+            string_free(name);
+
+            KDEBUG("Vulkan command buffers created.")
         }
     }
-
-    // Create command buffers.
-    create_command_buffers(context, window);
 
     // Create the depthbuffer.
     KDEBUG("Creating Vulkan depthbuffer for window '%s'...", window->name);
@@ -556,11 +578,9 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
     kwindow_renderer_state* window_internal = window->renderer_state;
     kwindow_renderer_backend_state* window_backend = window_internal->backend_state;
 
-    u32 max_frames_in_flight = window_backend->swapchain.max_frames_in_flight;
-
     // Destroy per-frame-in-flight resources.
     {
-        for (u32 i = 0; i < window_backend->swapchain.max_frames_in_flight; ++i) {
+        for (u32 i = 0; i < window_backend->max_frames_in_flight; ++i) {
             // Destroy staging buffers
             renderer_renderbuffer_destroy(&window_backend->staging[i]);
 
@@ -575,31 +595,31 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
             }
 
             vkDestroyFence(context->device.logical_device, window_backend->in_flight_fences[i], context->allocator);
-        }
-        kfree(window_backend->image_available_semaphores, sizeof(VkSemaphore) * max_frames_in_flight, MEMORY_TAG_ARRAY);
-        window_backend->image_available_semaphores = 0;
 
-        kfree(window_backend->queue_complete_semaphores, sizeof(VkSemaphore) * max_frames_in_flight, MEMORY_TAG_ARRAY);
-        window_backend->queue_complete_semaphores = 0;
-
-        kfree(window_backend->in_flight_fences, sizeof(VkFence) * max_frames_in_flight, MEMORY_TAG_ARRAY);
-        window_backend->in_flight_fences = 0;
-
-        kfree(window_backend->staging, sizeof(renderbuffer) * max_frames_in_flight, MEMORY_TAG_ARRAY);
-        window_backend->staging = 0;
-    }
-
-    // Destroy per-swapchain-image resources.
-    {
-        for (u32 i = 0; i < window_backend->swapchain.image_count; ++i) {
             // Command buffers
             if (window_backend->graphics_command_buffers[i].handle) {
                 vulkan_command_buffer_free(context, context->device.graphics_command_pool, &window_backend->graphics_command_buffers[i]);
                 window_backend->graphics_command_buffers[i].handle = 0;
             }
         }
-        kfree(window_backend->graphics_command_buffers, sizeof(vulkan_command_buffer) * window_backend->swapchain.image_count, MEMORY_TAG_ARRAY);
+        KFREE_TYPE_CARRAY(window_backend->image_available_semaphores, VkSemaphore, window_backend->max_frames_in_flight);
+        window_backend->image_available_semaphores = 0;
+
+        KFREE_TYPE_CARRAY(window_backend->queue_complete_semaphores, VkSemaphore, window_backend->max_frames_in_flight);
+        window_backend->queue_complete_semaphores = 0;
+
+        KFREE_TYPE_CARRAY(window_backend->in_flight_fences, VkFence, window_backend->max_frames_in_flight);
+        window_backend->in_flight_fences = 0;
+
+        KFREE_TYPE_CARRAY(window_backend->staging, renderbuffer, window_backend->max_frames_in_flight);
+        window_backend->staging = 0;
+
+        KFREE_TYPE_CARRAY(window_backend->graphics_command_buffers, vulkan_command_buffer, window_backend->max_frames_in_flight);
         window_backend->graphics_command_buffers = 0;
+    }
+
+    // Destroy per-swapchain-image resources.
+    {
 
         // Destroy depthbuffer images/views.
         vulkan_texture_handle_data* texture_data = &context->textures[window_internal->depthbuffer->renderer_texture_handle.handle_index];
@@ -714,7 +734,7 @@ b8 vulkan_renderer_frame_prepare_window_surface(renderer_backend_interface* back
         window_backend->skip_frames++;
 
         // Resize depth buffer image.
-        if (window_backend->skip_frames == window_backend->swapchain.max_frames_in_flight) {
+        if (window_backend->skip_frames == window_backend->max_frames_in_flight) {
             if (!khandle_is_invalid(window->renderer_state->depthbuffer->renderer_texture_handle)) {
                 /* vkQueueWaitIdle(context->device.graphics_queue); */
                 if (!renderer_texture_resize(backend->frontend_state, window->renderer_state->depthbuffer->renderer_texture_handle, window->width, window->height)) {
@@ -727,7 +747,7 @@ b8 vulkan_renderer_frame_prepare_window_surface(renderer_backend_interface* back
             window_backend->skip_frames = 0;
         }
 
-        KINFO("Resized, booting.");
+        KINFO("Resized, booting. (frame=%u, image_index=%u)", window_backend->current_frame, window_backend->image_index);
         return false;
     }
 
@@ -816,48 +836,28 @@ b8 vulkan_renderer_frame_submit(struct renderer_backend_interface* backend, stru
     kwindow_renderer_backend_state* window_backend = context->current_window->renderer_state->backend_state;
     vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
 
-    // Submit the queue and wait for the operation to complete.
-    // Begin queue submission
-    VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-
-    // Command buffer(s) to be executed.
-    submit_info.commandBufferCount = 1;
-    // Update the state of the secondary buffers.
-    for (u32 i = 0; i < command_buffer->secondary_count; ++i) {
-        vulkan_command_buffer* secondary = &command_buffer->secondary_buffers[i];
-        if (secondary->state == COMMAND_BUFFER_STATE_RECORDING_ENDED) {
-            secondary->state = COMMAND_BUFFER_STATE_SUBMITTED;
-        }
-    }
-    submit_info.pCommandBuffers = &command_buffer->handle;
-
-    // The semaphore(s) to be signaled when the queue is complete.
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &window_backend->queue_complete_semaphores[window_backend->current_frame];
-
-    // Wait semaphore ensures that the operation cannot begin until the image is
-    // available.
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = &window_backend->image_available_semaphores[window_backend->current_frame];
-
-    // Each semaphore waits on the corresponding pipeline stage to complete. 1:1
-    // ratio. VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT prevents subsequent
-    // colour attachment writes from executing until the semaphore signals (i.e.
-    // one frame is presented at a time)
-    VkPipelineStageFlags flags[1] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    submit_info.pWaitDstStageMask = flags;
-
-    VkResult result = vkQueueSubmit(
-        context->device.graphics_queue,
-        1,
-        &submit_info,
-        window_backend->in_flight_fences[window_backend->current_frame]);
-    if (result != VK_SUCCESS) {
-        KERROR("vkQueueSubmit failed with result: %s", vulkan_result_string(result, true));
+    // Only a primary command buffer should be submitted.
+    if (!command_buffer->is_primary) {
+        KFATAL("vulkan_renderer_frame_submit tried to submit Secondary command buffers. This must not happen.");
         return false;
     }
 
-    vulkan_command_buffer_update_submitted(command_buffer);
+    // Submit the command buffer for execution.
+    b8 result = vulkan_command_buffer_submit(
+        command_buffer,
+        context->device.graphics_queue,
+        1,
+        // The semaphore(s) to be signaled when the queue is complete.
+        &window_backend->queue_complete_semaphores[window_backend->current_frame],
+        1,
+        // Wait semaphore ensures that the operation cannot begin until the image is available.
+        &window_backend->image_available_semaphores[window_backend->current_frame],
+        window_backend->in_flight_fences[window_backend->current_frame]);
+
+    if (!result) {
+        KERROR("Failed to submit vulkan command buffer successfully. See logs for details");
+        return false;
+    }
 
     // Loop back to the first index.
     command_buffer->secondary_buffer_index = 0;
@@ -892,7 +892,7 @@ b8 vulkan_renderer_frame_present(renderer_backend_interface* backend, struct kwi
     }
 
     // Increment (and loop) the index.
-    window_backend->current_frame = (window_backend->current_frame + 1) % window_backend->swapchain.max_frames_in_flight;
+    window_backend->current_frame = (window_backend->current_frame + 1) % window_backend->max_frames_in_flight;
 
     return true;
 }
@@ -1080,8 +1080,8 @@ void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend,
     vulkan_command_buffer* primary = get_current_command_buffer(context);
     u32 image_index = context->current_window->renderer_state->backend_state->image_index;
 
-    // Anytime we "begin" a render, update the "in-render" state and get the appropriate secondary.
-    primary->in_render = true;
+    // Anytime we "begin" a render, update the "in-secondary" state and get the appropriate secondary buffer.
+    primary->in_secondary = true;
     vulkan_command_buffer* secondary = get_current_command_buffer(context);
     vulkan_command_buffer_begin(secondary, false, false, false);
 
@@ -1153,22 +1153,19 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     // Since ending a rendering, will be in a secondary buffer.
     vulkan_command_buffer* secondary = get_current_command_buffer(context);
-    vulkan_command_buffer* primary = secondary->parent;
 
+    // End rendering
     if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) {
         vkCmdEndRendering(secondary->handle);
     } else {
         context->vkCmdEndRenderingKHR(secondary->handle);
     }
 
-    // End the secondary buffer.
+    // End secondary command buffer.
     vulkan_command_buffer_end(secondary);
-    // Execute the secondary command buffer via the primary buffer.
-    vkCmdExecuteCommands(primary->handle, 1, &secondary->handle);
 
-    // Move on to the next buffer index
-    primary->secondary_buffer_index++;
-    primary->in_render = false;
+    // Execute secondary command buffer.
+    vulkan_command_buffer_execute_secondary(secondary);
 }
 
 void vulkan_renderer_set_stencil_compare_mask(struct renderer_backend_interface* backend, u32 compare_mask) {
@@ -1440,41 +1437,6 @@ static i32 find_memory_index(vulkan_context* context, u32 type_filter, u32 prope
     return -1;
 }
 
-static void create_command_buffers(vulkan_context* context, kwindow* window) {
-    kwindow_renderer_backend_state* window_backend = window->renderer_state->backend_state;
-
-    // Create new command buffers according to the new swapchain image count.
-    u32 new_image_count = window_backend->swapchain.image_count;
-    window_backend->graphics_command_buffers = kallocate(sizeof(vulkan_command_buffer) * new_image_count, MEMORY_TAG_ARRAY);
-    for (u32 i = 0; i < new_image_count; ++i) {
-        vulkan_command_buffer* primary_buffer = &window_backend->graphics_command_buffers[i];
-        kzero_memory(primary_buffer, sizeof(vulkan_command_buffer));
-
-        // Allocate a new buffer.
-        char* name = string_format("%s_command_buffer_%d", window->name, i);
-        vulkan_command_buffer_allocate(context, context->device.graphics_command_pool, true, name, primary_buffer);
-        string_free(name);
-
-        // Allocate new secondary command buffers.
-        // TODO: should this be configurable?
-        primary_buffer->secondary_count = 16;
-        primary_buffer->secondary_buffers = kallocate(sizeof(vulkan_command_buffer) * primary_buffer->secondary_count, MEMORY_TAG_ARRAY);
-        for (u32 j = 0; j < primary_buffer->secondary_count; ++j) {
-            vulkan_command_buffer* secondary_buffer = &primary_buffer->secondary_buffers[j];
-            char* secondary_name = string_format("%s_command_buffer_%d_secondary_%d", window->name, i, j);
-            vulkan_command_buffer_allocate(context, context->device.graphics_command_pool, false, secondary_name, secondary_buffer);
-            string_free(secondary_name);
-            // Set the primary buffer pointer.
-            secondary_buffer->parent = primary_buffer;
-        }
-
-        primary_buffer->secondary_buffer_index = 0; // Start at the first secondary buffer.
-        primary_buffer->in_render = false;          // start off as "not in render".
-    }
-
-    KDEBUG("Vulkan command buffers created.");
-}
-
 static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* window) {
     vulkan_context* context = backend->internal_context;
     kwindow_renderer_state* window_internal = window->renderer_state;
@@ -1495,8 +1457,9 @@ static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* windo
     // Mark as recreating if the dimensions are valid.
     window_backend->recreating_swapchain = true;
 
+    // FIXME: remove this? // nocheckin
     // Use the old swapchain count to free swapchain-image-count related items.
-    u32 old_swapchain_image_count = window_backend->swapchain.image_count;
+    // u32 old_swapchain_image_count = window_backend->swapchain.image_count;
 
     // Wait for any operations to complete.
     vkDeviceWaitIdle(context->device.logical_device);
@@ -1511,24 +1474,9 @@ static b8 recreate_swapchain(renderer_backend_interface* backend, kwindow* windo
         return false;
     }
 
-    // Free old command buffers.
-    if (window_backend->graphics_command_buffers) {
-        // Free the old command buffers first. Use the old image count for this, if it changed.
-        for (u32 i = 0; i < old_swapchain_image_count; ++i) {
-            if (window_backend->graphics_command_buffers[i].handle) {
-                vulkan_command_buffer_free(context, context->device.graphics_command_pool, &window_backend->graphics_command_buffers[i]);
-            }
-        }
-
-        kfree(window_backend->graphics_command_buffers, sizeof(vulkan_command_buffer) * old_swapchain_image_count, MEMORY_TAG_ARRAY);
-        window_backend->graphics_command_buffers = 0;
-    }
-
     // Indicate to listeners that a render target refresh is required.
     // TODO: Might remove this.
     event_fire(EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED, 0, (event_context){0});
-
-    create_command_buffers(context, window);
 
     // Clear the recreating flag.
     window_backend->recreating_swapchain = false;
@@ -3487,10 +3435,10 @@ void vulkan_renderer_wait_for_idle(renderer_backend_interface* backend) {
 
 static vulkan_command_buffer* get_current_command_buffer(vulkan_context* context) {
     kwindow_renderer_backend_state* window_backend = context->current_window->renderer_state->backend_state;
-    vulkan_command_buffer* primary = &window_backend->graphics_command_buffers[window_backend->image_index];
+    vulkan_command_buffer* primary = &window_backend->graphics_command_buffers[window_backend->current_frame];
 
     // If inside a "render", return the secondary buffer at the current index.
-    if (primary->in_render) {
+    if (primary->in_secondary) {
         if (!primary->secondary_buffers) {
             KWARN("get_current_command_buffer requested draw index, but no secondary buffers exist.");
             return primary;

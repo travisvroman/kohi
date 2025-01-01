@@ -34,6 +34,8 @@ Changelog
   - Renamed k_handle -> khandle.
   - Renamed shader -> kshader.
   - Overhauled kson parser internals to use kstring_ids instead of strings for faster lookups.
+  - Added PBR field support to MTL serializer for material imports from Wavefront OBJs.
+  - Added "triple_buffering_enabled" option to renderer config. This gets passed on to the renderer during creation. May get ignored by the backend if not supported for some reason.
 
 - 0.7.1
   - Fixed window resizing issues in macOS

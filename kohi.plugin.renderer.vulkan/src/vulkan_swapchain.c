@@ -126,8 +126,6 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
         image_count = context->device.swapchain_support.capabilities.maxImageCount;
     }
 
-    swapchain->max_frames_in_flight = image_count - 1;
-
     // Swapchain create info
     VkSwapchainCreateInfoKHR swapchain_create_info = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
     swapchain_create_info.surface = window_backend->surface;

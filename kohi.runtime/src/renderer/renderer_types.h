@@ -205,6 +205,8 @@ typedef struct renderer_backend_config {
     renderer_config_flags flags;
     /** @brief The max number of shaders that be be held. Should match shader system config. */
     u16 max_shader_count;
+    /** @brief Indicates if triple buffering should be used. Otherwise, double-buffering is used. */
+    b8 use_triple_buffering;
 } renderer_backend_config;
 
 /** @brief The winding order of vertices, used to determine what is the front-face of a triangle. */

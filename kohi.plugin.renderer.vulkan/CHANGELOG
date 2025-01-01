@@ -3,6 +3,10 @@ Kohi Vulkan Renderer Plugin Changelog
 - 0.8.0
   - Intentionally skipped 0.7 to sync with base engine version.
   - Samplers no longer require knowledge of mip levels, and thus no longer clamp LODs.
+  - Separated image and sampler descriptors in renderer backend.
+  - Fixed an issue where command buffers were created/managed based on swapchain image count, not max frames in flight.
+  - Updated backend to only ever use double- or triple-buffering, checked against swapchain image count.
+  - Added some verification logic to command buffers.
 
 - 0.6.0
   - Added support for secondary command buffers.

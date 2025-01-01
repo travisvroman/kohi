@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define K_USE_CUSTOM_MEMORY_ALLOCATOR 0
+#define K_USE_CUSTOM_MEMORY_ALLOCATOR 1
 
 #if !K_USE_CUSTOM_MEMORY_ALLOCATOR
 #    if _MSC_VER
