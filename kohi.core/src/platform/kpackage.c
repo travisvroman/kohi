@@ -503,6 +503,17 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
                 }
                 asset.name = kname_create(asset_name);
 
+                // Verify that the asset name doesn't already exist in the manifest.
+                u32 asset_count = darray_length(out_manifest->assets);
+                for (u32 a = 0; a < asset_count; ++a) {
+                    if (out_manifest->assets[a].name == asset.name) {
+                        // A collision exists. This makes the manifest invalid, and
+                        // should fail the process completely.
+                        KERROR("Failed to process asset manifest for package '%s'. An asset named '%s' already exists.", kname_string_get(out_manifest->name), asset_name);
+                        return false;
+                    }
+                }
+
                 // Path
                 const char* asset_path_temp = 0;
                 if (!kson_object_property_value_get_string(&asset_obj, "path", &asset_path_temp)) {

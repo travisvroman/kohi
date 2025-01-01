@@ -30,8 +30,8 @@ newmtl vase_round
 	Kd 0.5880 0.5880 0.5880
 	Ks 0.0000 0.0000 0.0000
 	Ke 0.0000 0.0000 0.0000
-	map_Ka textures\vase_round.tga
-	map_Kd textures\vase_round.tga
+	map_Ka textures\vase_round_bc.tga
+	map_Kd textures\vase_round_bc.tga
 	map_Ks textures\vase_round_spec.tga
 	map_bump textures\vase_round_ddn.tga
 	bump textures\vase_round_ddn.tga
@@ -47,8 +47,8 @@ newmtl Material__57
 	Kd 0.5880 0.5880 0.5880
 	Ks 0.0000 0.0000 0.0000
 	Ke 0.0000 0.0000 0.0000
-	map_Ka textures\vase_plant.tga
-	map_Kd textures\vase_plant.tga
+	map_Ka textures\vase_plant_bc.tga
+	map_Kd textures\vase_plant_bc.tga
 	map_Ks textures\vase_plant_spec.tga
 	map_d textures\vase_plant_mask.tga
 	map_bump textures\vase_plant_ddn.tga
@@ -96,11 +96,11 @@ newmtl bricks
 	Kd 0.5880 0.5880 0.5880
 	Ks 0.0000 0.0000 0.0000
 	Ke 0.0000 0.0000 0.0000
-	map_Ka textures\spnza_bricks_a_diff.tga
-	map_Kd textures\spnza_bricks_a_diff.tga
-	map_Ks textures\spnza_bricks_a_spec.tga
-	map_bump textures\spnza_bricks_a_ddn.tga
-	bump textures\spnza_bricks_a_ddn.tga
+	map_Ka textures\sponza_bricks_a_diff.tga
+	map_Kd textures\sponza_bricks_a_diff.tga
+	map_Ks textures\sponza_bricks_a_spec.tga
+	map_bump textures\sponza_bricks_a_ddn.tga
+	bump textures\sponza_bricks_a_ddn.tga
 
 newmtl arch
 	Ns 10.0000
@@ -382,8 +382,8 @@ newmtl vase_hanging
 	Kd 0.5880 0.5880 0.5880
 	Ks 0.0000 0.0000 0.0000
 	Ke 0.0000 0.0000 0.0000
-	map_Ka textures\vase_hanging.tga
-	map_Kd textures\vase_hanging.tga
+	map_Ka textures\vase_hanging_bc.tga
+	map_Kd textures\vase_hanging_bc.tga
 	map_Ks textures\vase_hanging_spec.tga
 	map_bump textures\vase_hanging_ddn.tga
 	bump textures\vase_hanging_ddn.tga

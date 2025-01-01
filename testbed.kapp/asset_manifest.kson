@@ -47,10 +47,6 @@ assets = [
         path = "./assets/materials/column_a.kmt"
     }
     {
-        name = "column_a"
-        path = "./assets/materials/column_a.kmt"
-    }
-    {
         name = "column_b"
         path = "./assets/materials/column_b.kmt"
     }
@@ -297,9 +293,9 @@ assets = [
         source_path = "./assets/images/source/chain_texture_combined.png"
     }
     {
-        name = "cobblestone"
-        path = "./assets/images/cobblestone.kbi"
-        source_path = "./assets/images/source/cobblestone.png"
+        name = "cobblestone_bc"
+        path = "./assets/images/cobblestone_bc.kbi"
+        source_path = "./assets/images/source/cobblestone_bc.png"
     }
     {
         name = "cobblestone_NRM"
@@ -392,9 +388,9 @@ assets = [
         source_path = "./assets/images/source/orange_lines_512_SPEC.png"
     }
     {
-        name = "paving"
-        path = "./assets/images/paving.kbi"
-        source_path = "./assets/images/source/paving.png"
+        name = "paving_bc"
+        path = "./assets/images/paving_bc.kbi"
+        source_path = "./assets/images/source/paving_bc.png"
     }
     {
         name = "paving_NRM"
@@ -407,9 +403,9 @@ assets = [
         source_path = "./assets/images/source/paving_SPEC.png"
     }
     {
-        name = "paving2"
-        path = "./assets/images/paving2.kbi"
-        source_path = "./assets/images/source/paving2.png"
+        name = "paving2_bc"
+        path = "./assets/images/paving2_bc.kbi"
+        source_path = "./assets/images/source/paving2_bc.png"
     }
     {
         name = "paving2_NRM"
@@ -702,9 +698,9 @@ assets = [
         source_path = "./assets/images/source/terrain_heightmap_512.png"
     }
     {
-        name = "test"
-        path = "./assets/images/test.kbi"
-        source_path = "./assets/images/source/test.tga"
+        name = "test_bc"
+        path = "./assets/images/test_bc.kbi"
+        source_path = "./assets/images/source/test_bc.tga"
     }
     {
         name = "test512"
@@ -737,9 +733,9 @@ assets = [
         source_path = "./assets/images/source/vase_ddn.tga"
     }
     {
-        name = "vase_hanging"
-        path = "./assets/images/vase_hanging.kbi"
-        source_path = "./assets/images/source/vase_hanging.tga"
+        name = "vase_hanging_bc"
+        path = "./assets/images/vase_hanging_bc.kbi"
+        source_path = "./assets/images/source/vase_hanging_bc.tga"
     }
     {
         name = "vase_hanging_combined"
@@ -752,9 +748,9 @@ assets = [
         source_path = "./assets/images/source/vase_hanging_ddn.tga"
     }
     {
-        name = "vase_plant"
-        path = "./assets/images/vase_plant.kbi"
-        source_path = "./assets/images/source/vase_plant.tga"
+        name = "vase_plant_bc"
+        path = "./assets/images/vase_plant_bc.kbi"
+        source_path = "./assets/images/source/vase_plant_bc.tga"
     }
     {
         name = "vase_plant_combined"
@@ -767,9 +763,9 @@ assets = [
         source_path = "./assets/images/source/vase_plant_ddn.tga"
     }
     {
-        name = "vase_round"
-        path = "./assets/images/vase_round.kbi"
-        source_path = "./assets/images/source/vase_round.tga"
+        name = "vase_round_bc"
+        path = "./assets/images/vase_round_bc.kbi"
+        source_path = "./assets/images/source/vase_round_bc.tga"
     }
     {
         name = "vase_round_combined"

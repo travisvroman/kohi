@@ -1,45 +1,35 @@
 version = 3
-type = pbr
-
-maps = [
-	{
-		name = "diffuse"
-		texture_name = "cobblestone"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-	{
-		name = "specular"
-		texture_name = "cobblestone_SPEC"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-	{
-		name = "normal"
-		texture_name = "cobblestone_NRM"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-]
-
-properties = [
-	{
-		name = "diffuse_colour"
-		type = "vec4"
-		value = "1.0 1.0 1.0 1.0"
-	}
-	{
-		name = "shininess"
-		type = "f32"
-		value = 15.0
-	}
-]
+type = "standard"
+model = "phong"
+has_transparency = false
+double_sided = false
+recieves_shadow = true
+casts_shadow = true
+use_vertex_colour_as_base_colour = false
+inputs = {
+    base_colour = {
+        map = {
+            resource_name = "cobblestone_bc"
+            package_name = "Testbed"
+        }
+    }
+	specular = {
+        map = {
+            resource_name = "cobblestone_SPEC"
+            package_name = "Testbed"
+        }
+        enabled = true
+    }
+	specular_exponent = 15.0
+    normal = {
+        map = {
+            resource_name = "cobblestone_NRM"
+            package_name = "Testbed"
+        }
+        enabled = true
+    }
+    emissive = {
+        value = "0.000000 0.000000 0.000000 1.000000"
+        enabled = false
+    }
+}

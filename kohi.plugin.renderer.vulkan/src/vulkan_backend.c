@@ -42,9 +42,9 @@
 // #endif
 
 // NOTE: To disable the custom allocator, comment this out or set to 0.
-#ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
-#    define KVULKAN_USE_CUSTOM_ALLOCATOR 1
-#endif
+// #ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
+// #    define KVULKAN_USE_CUSTOM_ALLOCATOR 1
+// #endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,

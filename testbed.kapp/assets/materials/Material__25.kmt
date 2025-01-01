@@ -1,50 +1,37 @@
 version = 3
-type = pbr
-
-maps = [
-	{
-		name = "albedo"
-		texture_name = "lion"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-	{
-		name = "combined"
-		texture_name = "lion_combined"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-	{
-		name = "normal"
-		texture_name = "lion_ddn"
-		filter_min = "linear"
-		filter_mag = "linear"
-		repeat_u = "repeat"
-		repeat_v = "repeat"
-		repeat_w = "repeat"
-	}
-]
-
-properties = [
-	{
-		name = "diffuse_colour"
-		type = "vec4"
-		value = "0.588000 0.588000 0.588000 1.000000"
-	}
-	{
-		name = "padding"
-		type = "vec3"
-		value = "0.000000 0.000000 0.000000"
-	}
-	{
-		name = "shininess"
-		type = "f32"
-		value = 10.0
-	}
-]
+type = "standard"
+model = "pbr"
+has_transparency = false
+double_sided = false
+recieves_shadow = true
+casts_shadow = true
+use_vertex_colour_as_base_colour = false
+inputs = {
+    base_colour = {
+        map = {
+            resource_name = "lion"
+            package_name = "Testbed"
+        }
+    }
+    normal = {
+        map = {
+            resource_name = "lion_ddn"
+            package_name = "Testbed"
+        }
+        enabled = true
+    }
+    metallic = {
+        value = 0.000000
+    }
+    roughness = {
+        value = 0.000000
+    }
+    ao = {
+        value = 1.000000
+        enabled = false
+    }
+    emissive = {
+        value = "0.000000 0.000000 0.000000 1.000000"
+        enabled = false
+    }
+}
