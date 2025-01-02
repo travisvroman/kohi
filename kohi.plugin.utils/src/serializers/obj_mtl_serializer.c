@@ -71,7 +71,7 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
             char second_char = line[1];
             switch (second_char) {
             case 'a': {
-                // Ambient colour.
+                // ambient colour.
                 char t[2];
                 vec3* prop = &current_material.ambient_colour;
                 sscanf(line, "%s %f %f %f", t, &prop->r, &prop->g, &prop->b);
@@ -160,6 +160,8 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
             } else if (strings_nequali(substr, "map_rma", 7) || strings_nequali(substr, "map_orm", 7) || strings_nequali(substr, "map_mra", 7)) {
                 // NOTE: Treating RMA (roughness/metallic/ao), ORM and MRA as the same MRA for now.
                 current_material.mra_image_asset_name = image_asset_name;
+            } else if (strings_nequali(substr, "map_d", 5)) {
+                current_material.diffuse_transparency_image_asset_name = image_asset_name;
             } else {
                 KWARN("Unrecognized token. Skipping.");
                 continue;
@@ -202,7 +204,19 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
                 hit_name = true;
                 current_name = string_duplicate(material_name);
             }
-        }
+        } break;
+        case 'T': {
+            // Transparency - 1.0 - d.
+            char t[2];
+            f32 d = 0;
+            sscanf(line, "%s %f", t, &d);
+            current_material.diffuse_transparency = 1.0f - d;
+        } break;
+        case 'd': {
+            // "diffused" transparency, use as-is.
+            char t[2];
+            sscanf(line, "%s %f", t, &current_material.diffuse_transparency);
+        } break;
         } // end switch
     } // each line
 

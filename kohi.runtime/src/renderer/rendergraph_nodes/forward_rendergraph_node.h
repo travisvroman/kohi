@@ -31,7 +31,7 @@ KAPI b8 forward_rendergraph_node_static_geometries_set(struct rendergraph_node* 
 KAPI void forward_rendergraph_node_set_skybox(struct rendergraph_node* self, struct skybox* sb);
 KAPI b8 forward_rendergraph_node_terrain_geometries_set(struct rendergraph_node* self, struct frame_data* p_frame_data, u32 geometry_count, const struct geometry_render_data* geometries);
 KAPI b8 forward_rendergraph_node_water_planes_set(struct rendergraph_node* self, struct frame_data* p_frame_data, u32 count, struct water_plane** planes);
-KAPI b8 forward_rendergraph_node_irradiance_texture_set(struct rendergraph_node* self, struct frame_data* p_frame_data, const struct kresource_texture* irradiance_cube_texture);
+KAPI b8 forward_rendergraph_node_irradiance_texture_set(struct rendergraph_node* self, struct frame_data* p_frame_data, kresource_texture* irradiance_cube_texture);
 
 KAPI b8 forward_rendergraph_node_viewport_set(struct rendergraph_node* self, viewport v);
 KAPI b8 forward_rendergraph_node_camera_projection_set(struct rendergraph_node* self, struct camera* view_camera, mat4 projection_matrix);

@@ -185,6 +185,9 @@ The items in this list are not in any particular order. This list will be update
 
 ## 0.9.0 Release
 
+- [ ] Rework freelist to take alignment into account.
+  - [ ] Rework renderbuffer to take alignment in during creation, and use said alignment for allocations.
+  - [ ] Change Vulkan backend to use actual uniform size instead of stride when allocating from renderbuffer.
 - [ ] Remove deprecated geometry functions in renderer.
 - [ ] Remove calls to deprecated darray functions.
 - [ ] Replace regular c arrays throughout the codebase with the new static-sized, type-safe array where it makes sense.

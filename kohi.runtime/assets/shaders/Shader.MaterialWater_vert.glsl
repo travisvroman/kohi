@@ -50,19 +50,19 @@ const mat4 ndc_to_uvw = mat4(
 layout(location = 0) in vec4 in_position; // NOTE: w is ignored.
 
 // per-frame
-layout(set = 0, binding = 0) uniform per_frame_ubo {
+layout(std140, set = 0, binding = 0) uniform per_frame_ubo {
     // Light space for shadow mapping. Per cascade
     mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 projection;
     mat4 views[MATERIAL_MAX_VIEWS];
-    float cascade_splits[MATERIAL_MAX_SHADOW_CASCADES];
+    mat4 projection;
     vec4 view_positions[MATERIAL_MAX_VIEWS];
-    float shadow_bias;
-    uint render_mode;
-    uint use_pcf;
-    float delta_time;
-    float game_time;
-    vec3 padding;
+    vec4 cascade_splits;// TODO: support for something other than 4[MATERIAL_MAX_SHADOW_CASCADES];
+
+    // [shadow_bias, delta_time, game_time, padding]
+    vec4 params;
+    // [render_mode, use_pcf, padding, padding]
+    uvec4 options;
+    vec4 padding;  // 16 bytes
 } material_frame_ubo;
 
 // per-group

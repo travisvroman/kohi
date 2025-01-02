@@ -158,10 +158,9 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                         new_material.casts_shadow = true;
                         new_material.recieves_shadow = true;
 
-                        // NOTE: Transparency for Kohi materials is determined by the 
-                        // base_colour transparency, and must be enabled manually after 
-                        // import if it is wanted.
-                        new_material.has_transparency = false;
+                        // Transparency - if there is a transparency "map" (which is usually the same as the ambient/diffuse map) or
+                        // the material is non-opaque (i.e ) less than 1.0f, then it should be marked as transparent.
+                        new_material.has_transparency = m_src->diffuse_transparency_image_asset_name || m_src->diffuse_transparency < 1.0f;
 
                         // Material maps.
                         // Base colour.
@@ -204,8 +203,8 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
                                 // In this one scenario, enable AO since the MRA map can provide it.
                                 new_material.ambient_occlusion_enabled = true;
 
-                            } else if (new_material.metallic_map.resource_name == new_material.roughness_map.resource_name == new_material.ambient_occlusion_map.resource_name) {
-                                // If metallic, roughness and ao all point to the same texture, switch to MRA instead.
+                            } else if (new_material.metallic_map.resource_name != INVALID_KNAME && new_material.metallic_map.resource_name == new_material.roughness_map.resource_name == new_material.ambient_occlusion_map.resource_name) {
+                                // If metallic, roughness and ao all point to the same texture (and there _is_ a texture), switch to MRA instead.
                                 new_material.mra_map.resource_name = new_material.metallic_map.resource_name;
                                 new_material.mra_map.package_name = new_material.metallic_map.resource_name;
                                 new_material.use_mra = true;

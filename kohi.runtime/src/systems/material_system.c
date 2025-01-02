@@ -45,6 +45,18 @@ const u32 MAT_STANDARD_IDX_AO = 4;
 const u32 MAT_STANDARD_IDX_MRA = 5;
 const u32 MAT_STANDARD_IDX_EMISSIVE = 6;
 
+// Option indices
+const u32 MAT_OPTION_IDX_RENDER_MODE = 0;
+const u32 MAT_OPTION_IDX_USE_PCF = 1;
+const u32 MAT_OPTION_IDX_UNUSED_0 = 2;
+const u32 MAT_OPTION_IDX_UNUSED_1 = 3;
+
+// Param indices
+const u32 MAT_PARAM_IDX_SHADOW_BIAS = 0;
+const u32 MAT_PARAM_IDX_DELTA_TIME = 1;
+const u32 MAT_PARAM_IDX_GAME_TIME = 2;
+const u32 MAT_PARAM_IDX_UNUSED_0 = 3;
+
 #define MATERIAL_STANDARD_TEXTURE_COUNT 7
 #define MATERIAL_STANDARD_SAMPLER_COUNT 7
 
@@ -196,16 +208,16 @@ typedef struct material_standard_shader_locations {
 typedef struct material_standard_frame_uniform_data {
     // Light space for shadow mapping. Per cascade
     mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 projection;
-    mat4 views[MATERIAL_MAX_VIEWS];
-    vec4 view_positions[MATERIAL_MAX_VIEWS];
-    f32 cascade_splits[MATERIAL_MAX_SHADOW_CASCADES];
-    f32 shadow_bias;
-    u32 render_mode;
-    u32 use_pcf;
-    f32 delta_time;
-    f32 game_time;
-    vec2 padding;
+    mat4 views[MATERIAL_MAX_VIEWS];                              // 256 bytes
+    mat4 projection;                                             // 64 bytes
+    vec4 view_positions[MATERIAL_MAX_VIEWS];                     // 64 bytes
+    vec4 cascade_splits;                                         // 16 bytes TODO: support more splits? [MATERIAL_MAX_SHADOW_CASCADES];
+
+    // [shadow_bias, delta_time, game_time, padding]
+    vec4 params; // 16 bytes
+    // [render_mode, use_pcf, padding, padding]
+    uvec4 options; // 16 bytes
+    vec4 padding;  // 16 bytes
 } material_standard_frame_uniform_data;
 
 // Standard Material Per-group UBO
@@ -238,6 +250,9 @@ typedef struct material_standard_group_uniform_data {
     // Packed texture channels for various maps requiring it.
     u32 texture_channels; // [metallic, roughness, ao, unused]
     vec2 padding;
+    vec4 padding2;
+    vec4 padding3;
+    vec4 padding4;
 } material_standard_group_uniform_data;
 
 // Standard Material Per-draw UBO
@@ -257,16 +272,16 @@ typedef struct material_standard_draw_uniform_data {
 typedef struct material_water_frame_uniform_data {
     // Light space for shadow mapping. Per cascade
     mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 projection;
-    mat4 views[MATERIAL_MAX_VIEWS];
-    f32 cascade_splits[MATERIAL_MAX_SHADOW_CASCADES];
-    vec4 view_positions[MATERIAL_MAX_VIEWS];
-    f32 shadow_bias;
-    u32 render_mode;
-    u32 use_pcf;
-    f32 delta_time;
-    f32 game_time;
-    vec3 padding;
+    mat4 views[MATERIAL_MAX_VIEWS];                              // 256 bytes
+    mat4 projection;                                             // 64 bytes
+    vec4 view_positions[MATERIAL_MAX_VIEWS];                     // 64 bytes
+    vec4 cascade_splits;                                         // 16 bytes TODO: support more splits? [MATERIAL_MAX_SHADOW_CASCADES];
+
+    // [shadow_bias, delta_time, game_time, padding]
+    vec4 params; // 16 bytes
+    // [render_mode, use_pcf, padding, padding]
+    uvec4 options; // 16 bytes
+    vec4 padding;  // 16 bytes
 } material_water_frame_uniform_data;
 
 // Water Material Per-group UBO
@@ -974,28 +989,35 @@ b8 material_system_prepare_frame(material_system_state* state, material_frame_da
             frame_ubo.view_positions[i] = mat_frame_data.view_positions[i];
         }
         for (u8 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
-            frame_ubo.cascade_splits[i] = mat_frame_data.cascade_splits[i];
+            frame_ubo.cascade_splits.elements[i] = mat_frame_data.cascade_splits[i];
             frame_ubo.directional_light_spaces[i] = mat_frame_data.directional_light_spaces[i];
         }
 
-        // Get "use pcf" option
-        i32 iuse_pcf = 0;
-        kvar_i32_get("use_pcf", &iuse_pcf);
-        frame_ubo.use_pcf = (u32)iuse_pcf;
+        // Set options
+        {
+            // Get "use pcf" option
+            i32 iuse_pcf = 0;
+            kvar_i32_get("use_pcf", &iuse_pcf);
+            frame_ubo.options.elements[MAT_OPTION_IDX_USE_PCF] = (u32)iuse_pcf;
 
-        frame_ubo.delta_time = mat_frame_data.delta_time;
-        frame_ubo.game_time = mat_frame_data.game_time;
+            frame_ubo.options.elements[MAT_OPTION_IDX_RENDER_MODE] = mat_frame_data.render_mode;
+        }
 
-        // TODO: These properties below should be pulled in from global settings somewhere instead of this way.
-        frame_ubo.shadow_bias = mat_frame_data.shadow_bias;
-        frame_ubo.render_mode = mat_frame_data.render_mode;
+        // Set params
+        {
+            frame_ubo.params.elements[MAT_PARAM_IDX_DELTA_TIME] = mat_frame_data.delta_time;
+            frame_ubo.params.elements[MAT_PARAM_IDX_GAME_TIME] = mat_frame_data.game_time;
+
+            // TODO: These params below should be pulled in from global settings somewhere instead of this way.
+            frame_ubo.params.elements[MAT_PARAM_IDX_SHADOW_BIAS] = mat_frame_data.shadow_bias;
+        }
 
         if (!shader_system_bind_frame(shader)) {
             KERROR("Failed to bind frame frequency for standard material shader.");
             return false;
         }
 
-        // Set the whole UNO at once.
+        // Set the whole UBO at once.
         shader_system_uniform_set_by_location(shader, state->standard_material_locations.material_frame_ubo, &frame_ubo);
 
         // Texture maps
@@ -1036,28 +1058,34 @@ b8 material_system_prepare_frame(material_system_state* state, material_frame_da
             frame_ubo.view_positions[i] = mat_frame_data.view_positions[i];
         }
         for (u8 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
-            frame_ubo.cascade_splits[i] = mat_frame_data.cascade_splits[i];
+            frame_ubo.cascade_splits.elements[i] = mat_frame_data.cascade_splits[i];
             frame_ubo.directional_light_spaces[i] = mat_frame_data.directional_light_spaces[i];
         }
 
-        // Get "use pcf" option
-        i32 iuse_pcf = 0;
-        kvar_i32_get("use_pcf", &iuse_pcf);
-        frame_ubo.use_pcf = (u32)iuse_pcf;
+        // Set options
+        {
+            // Get "use pcf" option
+            i32 iuse_pcf = 0;
+            kvar_i32_get("use_pcf", &iuse_pcf);
+            frame_ubo.options.elements[MAT_OPTION_IDX_USE_PCF] = (u32)iuse_pcf;
+            frame_ubo.options.elements[MAT_OPTION_IDX_RENDER_MODE] = mat_frame_data.render_mode;
+        }
 
-        frame_ubo.delta_time = mat_frame_data.delta_time;
-        frame_ubo.game_time = mat_frame_data.game_time;
+        // Set params
+        {
+            frame_ubo.params.elements[MAT_PARAM_IDX_DELTA_TIME] = mat_frame_data.delta_time;
+            frame_ubo.params.elements[MAT_PARAM_IDX_GAME_TIME] = mat_frame_data.game_time;
 
-        // TODO: These properties below should be pulled in from global settings somewhere instead of this way.
-        frame_ubo.shadow_bias = mat_frame_data.shadow_bias;
-        frame_ubo.render_mode = mat_frame_data.render_mode;
+            // TODO: These properties below should be pulled in from global settings somewhere instead of this way.
+            frame_ubo.params.elements[MAT_PARAM_IDX_SHADOW_BIAS] = mat_frame_data.shadow_bias;
+        }
 
         if (!shader_system_bind_frame(shader)) {
             KERROR("Failed to bind frame frequency for water material shader.");
             return false;
         }
 
-        // Set the whole UNO at once.
+        // Set the whole UBO at once.
         shader_system_uniform_set_by_location(shader, state->water_material_locations.material_frame_ubo, &frame_ubo);
 
         // Texture maps
@@ -1101,6 +1129,11 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
     case KMATERIAL_TYPE_STANDARD: {
         shader = state->material_standard_shader;
         shader_system_use(shader);
+
+        if (!shader_system_apply_per_frame(shader)) {
+            KERROR("Failed to apply per-frame uniforms.");
+            return false;
+        }
 
         // per-group - ensure this is done once per frame per material
 
@@ -1248,6 +1281,12 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
     case KMATERIAL_TYPE_WATER: {
         shader = state->material_water_shader;
         shader_system_use(shader);
+
+        // Need to reapply per-frame so descriptors are bound, etc.
+        if (!shader_system_apply_per_frame(shader)) {
+            KERROR("Failed to apply per-frame uniforms.");
+            return false;
+        }
 
         // per-group - ensure this is done once per frame per material
 
@@ -1908,6 +1947,11 @@ static b8 material_create(material_system_state* state, khandle material_handle,
             KERROR("Unable to register material for window resize event. See logs for details.");
             return false;
         }
+
+        // Additional properties.
+        material->tiling = typed_resource->tiling;
+        material->wave_speed = typed_resource->wave_speed;
+        material->wave_strength = typed_resource->wave_strength;
     }
 
     // Set remaining flags

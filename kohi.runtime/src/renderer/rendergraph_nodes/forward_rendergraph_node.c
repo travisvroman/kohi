@@ -165,7 +165,6 @@ typedef struct forward_rendergraph_node_internal_data {
 
     skybox* sb;
 
-    const struct kresource_texture* irradiance_cube_texture;
     const struct directional_light* dir_light;
 
     f32 cascade_splits[MATERIAL_MAX_SHADOW_CASCADES];
@@ -327,7 +326,8 @@ b8 forward_rendergraph_node_initialize(struct rendergraph_node* self) {
     internal_data->index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
 
     // Grab the default cubemap texture as the irradiance texture.
-    internal_data->irradiance_cube_texture = texture_system_request(kname_create(DEFAULT_CUBE_TEXTURE_NAME), INVALID_KNAME, 0, 0);
+    internal_data->ibl_cube_textures = KALLOC_TYPE_CARRAY(kresource_texture*, MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
+    internal_data->ibl_cube_textures[0] = texture_system_request(kname_create(DEFAULT_CUBE_TEXTURE_NAME), INVALID_KNAME, 0, 0);
 
     // Assign some defaults.
     for (u32 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
@@ -377,16 +377,17 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
     renderer_begin_debug_label("water planes", (vec3){0, 0, 1});
 
     if (plane_count) {
-        khandle game_timeline = timeline_system_get_game();
-        f32 delta_time = timeline_system_delta_get(game_timeline);
-        f32 game_time = timeline_system_total_get(game_timeline);
-        mat4 view_matrix = camera_view_get(internal_data->current_camera);
-        vec4 view_position = vec4_from_vec3(camera_position_get(internal_data->current_camera), 1.0);
+        /* khandle game_timeline = timeline_system_get_game(); */
+        /* f32 delta_time = timeline_system_delta_get(game_timeline); */
+        /* f32 game_time = timeline_system_total_get(game_timeline); */
+        /* mat4 view_matrix = camera_view_get(internal_data->current_camera); */
+        /* vec4 view_position = vec4_from_vec3(camera_position_get(internal_data->current_camera), 1.0); */
 
         // Bind the viewport
         renderer_active_viewport_set(&internal_data->vp);
 
-        // Set the per-frame material data (i.e. view, projection, etc.) before the below call.
+        // FIXME: delete this rubbish
+        /* // Set the per-frame material data (i.e. view, projection, etc.) before the below call.
         {
             material_frame_data mat_frame_data = {0};
             mat_frame_data.delta_time = delta_time;
@@ -396,7 +397,7 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
             mat_frame_data.view_positions[0] = view_position;
             mat_frame_data.render_mode = internal_data->render_mode;
             // Cascade splits and light space matrices for shadow mapping. One per cascade.
-            kcopy_memory(mat_frame_data.cascade_splits, internal_data->cascade_splits, sizeof(vec4) * MATERIAL_MAX_SHADOW_CASCADES);
+            kcopy_memory(mat_frame_data.cascade_splits, internal_data->cascade_splits, sizeof(f32) * MATERIAL_MAX_SHADOW_CASCADES);
             kcopy_memory(mat_frame_data.directional_light_spaces, internal_data->directional_light_spaces, sizeof(mat4) * MATERIAL_MAX_SHADOW_CASCADES);
 
             // HACK: Read this in from somewhere (or have global setter?);
@@ -413,7 +414,7 @@ b8 render_water_planes(forward_rendergraph_node_internal_data* internal_data, u3
 
             // Update per-frame data for materials.
             material_system_prepare_frame(internal_data->material_system, mat_frame_data, p_frame_data);
-        }
+        } */
 
         // Draw each plane.
         for (u32 i = 0; i < plane_count; ++i) {
@@ -717,7 +718,7 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
                 mat_frame_data.view_positions[1] = inverted_view_position;
                 mat_frame_data.render_mode = internal_data->render_mode;
                 // Cascade splits and light space matrices for shadow mapping. One per cascade.
-                kcopy_memory(mat_frame_data.cascade_splits, internal_data->cascade_splits, sizeof(vec4) * MATERIAL_MAX_SHADOW_CASCADES);
+                kcopy_memory(mat_frame_data.cascade_splits, internal_data->cascade_splits, sizeof(f32) * MATERIAL_MAX_SHADOW_CASCADES);
                 kcopy_memory(mat_frame_data.directional_light_spaces, internal_data->directional_light_spaces, sizeof(mat4) * MATERIAL_MAX_SHADOW_CASCADES);
 
                 // HACK: Read this in from somewhere (or have global setter?);
@@ -833,41 +834,86 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
     // Render to reflect/refract textures for each plane.
     for (u32 i = 0; i < internal_data->water_plane_count; ++i) {
         water_plane* plane = internal_data->water_planes[i];
-
-        // Refraction, clip above plane. Don't render the water plane itself. Uses bound camera
-        // TODO: clipping plane should be based on position/orientation of water plane.
-        vec4 refract_plane = (vec4){0, -1, 0, 0 + 1.0f}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
         kresource_texture* refraction_colour = material_texture_get(internal_data->material_system, plane->material.material, MATERIAL_TEXTURE_INPUT_REFRACTION);
         kresource_texture* refraction_depth = material_texture_get(internal_data->material_system, plane->material.material, MATERIAL_TEXTURE_INPUT_REFRACTION_DEPTH);
-        renderer_clear_colour(internal_data->renderer, refraction_colour->renderer_texture_handle);
-        renderer_clear_depth_stencil(internal_data->renderer, refraction_depth->renderer_texture_handle);
-        if (!render_scene(internal_data, refraction_colour, refraction_depth, 0, 0, false, refract_plane, internal_data->current_camera, &inverted_camera, false, p_frame_data)) {
-            KERROR("Failed to render scene.");
-            return false;
+        kresource_texture* reflection_colour = material_texture_get(internal_data->material_system, plane->material.material, MATERIAL_TEXTURE_INPUT_REFLECTION);
+        kresource_texture* reflection_depth = material_texture_get(internal_data->material_system, plane->material.material, MATERIAL_TEXTURE_INPUT_REFLECTION_DEPTH);
+
+        // Refraction, clip above plane. Don't render the water plane itself. Uses bound camera
+        {
+#ifdef KOHI_DEBUG
+            {
+                char* reflect_label = string_format("%s refraction pass %u", self->name, i);
+                renderer_begin_debug_label(reflect_label, (vec3){0.9f, 0.4f, 0});
+                string_free(reflect_label);
+            }
+#endif
+
+            // TODO: clipping plane should be based on position/orientation of water plane.
+            vec4 refract_plane = (vec4){0, -1, 0, 0 + 1.0f}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
+
+            renderer_clear_colour(internal_data->renderer, refraction_colour->renderer_texture_handle);
+            renderer_clear_depth_stencil(internal_data->renderer, refraction_depth->renderer_texture_handle);
+            if (!render_scene(internal_data, refraction_colour, refraction_depth, 0, 0, false, refract_plane, internal_data->current_camera, &inverted_camera, false, p_frame_data)) {
+                KERROR("Failed to render scene.");
+                return false;
+            }
+
+#ifdef KOHI_DEBUG
+            renderer_end_debug_label();
+#endif
         }
 
         // Reflection, clip below plane. Don't render the water plane itself.
-        kresource_texture* reflection_colour = material_texture_get(internal_data->material_system, plane->material.material, MATERIAL_TEXTURE_INPUT_REFLECTION);
-        kresource_texture* reflection_depth = material_texture_get(internal_data->material_system, plane->material.material, MATERIAL_TEXTURE_INPUT_REFLECTION_DEPTH);
-        renderer_clear_colour(internal_data->renderer, reflection_colour->renderer_texture_handle);
-        renderer_clear_depth_stencil(internal_data->renderer, reflection_depth->renderer_texture_handle);
-        vec4 reflect_plane = (vec4){0, 1, 0, 0}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
-        if (!render_scene(internal_data, reflection_colour, reflection_depth, 0, 0, false, reflect_plane, internal_data->current_camera, &inverted_camera, true, p_frame_data)) {
-            KERROR("Failed to render scene.");
-            return false;
+        {
+#ifdef KOHI_DEBUG
+            {
+                char* reflect_label = string_format("%s reflection pass %u", self->name, i);
+                renderer_begin_debug_label(reflect_label, (vec3){0.8f, 0.3f, 0});
+                string_free(reflect_label);
+            }
+#endif
+
+            renderer_clear_colour(internal_data->renderer, reflection_colour->renderer_texture_handle);
+            renderer_clear_depth_stencil(internal_data->renderer, reflection_depth->renderer_texture_handle);
+            vec4 reflect_plane = (vec4){0, 1, 0, 0}; // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
+            if (!render_scene(internal_data, reflection_colour, reflection_depth, 0, 0, false, reflect_plane, internal_data->current_camera, &inverted_camera, true, p_frame_data)) {
+                KERROR("Failed to render scene.");
+                return false;
+            }
+
+#ifdef KOHI_DEBUG
+            renderer_end_debug_label();
+#endif
         }
 
+        // Prepare the textures to be sampled from.
         renderer_texture_prepare_for_sampling(internal_data->renderer, reflection_colour->renderer_texture_handle, reflection_colour->flags);
         renderer_texture_prepare_for_sampling(internal_data->renderer, refraction_colour->renderer_texture_handle, refraction_colour->flags);
         renderer_texture_prepare_for_sampling(internal_data->renderer, refraction_depth->renderer_texture_handle, refraction_depth->flags);
     }
 
-    // Finally, draw the scene normally with no clipping. Include the water plane rendering. Uses bound camera.
-    vec4 clipping_plane = vec4_zero(); // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
-    // LEFTOFF: This is seemingly causing issues with vkUpdateDescriptorSets vs the command queue being built up.
-    if (!render_scene(internal_data, internal_data->colourbuffer_texture, internal_data->depthbuffer_texture, internal_data->water_plane_count, internal_data->water_planes, true, clipping_plane, internal_data->current_camera, &inverted_camera, false, p_frame_data)) {
-        KERROR("Failed to render scene.");
-        return false;
+    // Standard pass, including water plane(s) if present.
+    {
+#ifdef KOHI_DEBUG
+        {
+            char* reflect_label = string_format("%s standard pass", self->name);
+            renderer_begin_debug_label(reflect_label, (vec3){0.7f, 0.2f, 0});
+            string_free(reflect_label);
+        }
+#endif
+
+        // Finally, draw the scene normally with no clipping. Include the water plane rendering. Uses bound camera.
+        vec4 clipping_plane = vec4_zero(); // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
+        // LEFTOFF: This is seemingly causing issues with vkUpdateDescriptorSets vs the command queue being built up.
+        if (!render_scene(internal_data, internal_data->colourbuffer_texture, internal_data->depthbuffer_texture, internal_data->water_plane_count, internal_data->water_planes, true, clipping_plane, internal_data->current_camera, &inverted_camera, false, p_frame_data)) {
+            KERROR("Failed to render scene.");
+            return false;
+        }
+
+#ifdef KOHI_DEBUG
+        renderer_end_debug_label();
+#endif
     }
 
     renderer_end_debug_label();
@@ -969,10 +1015,12 @@ b8 forward_rendergraph_node_water_planes_set(struct rendergraph_node* self, stru
     return false;
 }
 
-b8 forward_rendergraph_node_irradiance_texture_set(struct rendergraph_node* self, struct frame_data* p_frame_data, const struct kresource_texture* irradiance_cube_texture) {
+b8 forward_rendergraph_node_irradiance_texture_set(struct rendergraph_node* self, struct frame_data* p_frame_data, kresource_texture* irradiance_cube_texture) {
     if (self && self->internal_data) {
         forward_rendergraph_node_internal_data* internal_data = self->internal_data;
-        internal_data->irradiance_cube_texture = irradiance_cube_texture;
+        // HACK: Just set one for now. Will need to refactor this when multiples are supported.
+        internal_data->ibl_cube_texture_count = 1;
+        internal_data->ibl_cube_textures[0] = irradiance_cube_texture;
         return true;
     }
     return false;

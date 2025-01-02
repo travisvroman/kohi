@@ -32,10 +32,7 @@ inputs = {
     }
     ao = {
         value = 1.000000
-        enabled = true
-    }
-    mra = {
-        value = "0.000000 0.000000 0.000000"
+        enabled = false
     }
     emissive = {
         value = "0.000000 0.000000 0.000000 1.000000"

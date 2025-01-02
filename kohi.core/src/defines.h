@@ -282,7 +282,7 @@ KINLINE range get_aligned_range(u64 offset, u64 size, u64 granularity) {
 /**
  * @brief Indicates if the provided flag is set in the given flags int.
  */
-#define FLAG_GET(flags, flag) ((flags | flag) == flag)
+#define FLAG_GET(flags, flag) ((flags & flag) == flag)
 
 /**
  * @brief Sets a flag within the flags int to enabled/disabled.

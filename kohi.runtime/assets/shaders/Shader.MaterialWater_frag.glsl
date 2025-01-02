@@ -1,4 +1,4 @@
-#version 460
+#version 450
 
 layout(location = 0) out vec4 out_colour;
 
@@ -18,6 +18,18 @@ const uint MAT_WATER_IDX_REFRACTION = 1;
 const uint MAT_WATER_IDX_REFRACTION_DEPTH = 2;
 const uint MAT_WATER_IDX_DUDV = 3;
 const uint MAT_WATER_IDX_NORMAL = 4;
+
+// Option indices
+const uint MAT_OPTION_IDX_RENDER_MODE = 0;
+const uint MAT_OPTION_IDX_USE_PCF = 1;
+const uint MAT_OPTION_IDX_UNUSED_0 = 2;
+const uint MAT_OPTION_IDX_UNUSED_1 = 3;
+
+// Param indices
+const uint MAT_PARAM_IDX_SHADOW_BIAS = 0;
+const uint MAT_PARAM_IDX_DELTA_TIME = 1;
+const uint MAT_PARAM_IDX_GAME_TIME = 2;
+const uint MAT_PARAM_IDX_UNUSED_0 = 3;
 
 struct directional_light {
     vec4 colour;
@@ -45,19 +57,18 @@ struct point_light {
 // =========================================================
 
 // per-frame
-layout(set = 0, binding = 0) uniform per_frame_ubo {
+layout(std140, set = 0, binding = 0) uniform per_frame_ubo {
     // Light space for shadow mapping. Per cascade
     mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 projection;
     mat4 views[MATERIAL_MAX_VIEWS];
-    float cascade_splits[MATERIAL_MAX_SHADOW_CASCADES];
+    mat4 projection;
     vec4 view_positions[MATERIAL_MAX_VIEWS];
-    float shadow_bias;
-    uint render_mode;
-    uint use_pcf;
-    float delta_time;
-    float game_time;
-    vec3 padding;
+    vec4 cascade_splits;// TODO: support for something other than 4[MATERIAL_MAX_SHADOW_CASCADES];
+    // [shadow_bias, delta_time, game_time, padding]
+    vec4 params;
+    // [render_mode, use_pcf, padding, padding]
+    uvec4 options;
+    vec4 padding;  // 16 bytes
 } material_frame_ubo;
 layout(set = 0, binding = 1) uniform texture2DArray shadow_texture;
 layout(set = 0, binding = 2) uniform textureCube irradiance_textures[MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT];
@@ -103,18 +114,20 @@ layout(location = 0) in dto {
 } in_dto;
 
 
-vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal);
+vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal, uint render_mode);
 vec3 calculate_reflectance(vec3 albedo, vec3 normal, vec3 view_direction, vec3 light_direction, float metallic, float roughness, vec3 base_reflectivity, vec3 radiance);
 vec3 calculate_point_light_radiance(point_light light, vec3 view_direction, vec3 frag_position_xyz);
 vec3 calculate_directional_light_radiance(directional_light light, vec3 view_direction);
-float calculate_pcf(vec3 projected, int cascade_index);
-float calculate_unfiltered(vec3 projected, int cascade_index);
+float calculate_pcf(vec3 projected, int cascade_index, float shadow_bias);
+float calculate_unfiltered(vec3 projected, int cascade_index, float shadow_bias);
 float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, directional_light light, int cascade_index);
 float geometry_schlick_ggx(float normal_dot_direction, float roughness);
 
 // Entry point
 void main() {
-    float move_factor = material_draw_ubo.wave_speed * material_frame_ubo.game_time;
+    uint render_mode = material_frame_ubo.options[MAT_OPTION_IDX_RENDER_MODE];
+    float game_time = material_frame_ubo.params[MAT_PARAM_IDX_GAME_TIME];
+    float move_factor = material_draw_ubo.wave_speed * game_time;
     // Calculate surface distortion and bring it into [-1.0 - 1.0] range
     vec2 distorted_texcoords = texture(sampler2D(material_textures[MAT_WATER_IDX_DUDV], material_samplers[MAT_WATER_IDX_DUDV]), vec2(in_dto.texcoord.x + move_factor, in_dto.texcoord.y)).rg * 0.1;
     distorted_texcoords = in_dto.texcoord + vec2(distorted_texcoords.x, distorted_texcoords.y + move_factor);
@@ -134,7 +147,7 @@ void main() {
 
     float water_depth = 0;
 
-    if(material_frame_ubo.render_mode == 0) {
+    if(render_mode == 0) {
         // Perspective division to NDC for texture projection, then to screen space.
         vec2 ndc = (in_dto.clip_space.xy / in_dto.clip_space.w) / 2.0 + 0.5;
         vec2 reflect_texcoord = vec2(ndc.x, ndc.y);
@@ -181,17 +194,17 @@ void main() {
     }
 
     // Apply lighting
-    vec4 lighting = do_lighting(material_frame_ubo.views[material_draw_ubo.view_index], in_dto.frag_position.xyz, out_colour.rgb, normal);
+    vec4 lighting = do_lighting(material_frame_ubo.views[material_draw_ubo.view_index], in_dto.frag_position.xyz, out_colour.rgb, normal, render_mode);
     out_colour = lighting;
 
-    if(material_frame_ubo.render_mode == 0) {
+    if(render_mode == 0) {
         // Falloff depth of the water at the edge.
         float edge_depth_falloff = 4.0; // TODO: configurable
         out_colour.a = clamp(water_depth / edge_depth_falloff, 0.0, 1.0);
     }
 }
 
-vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal) {
+vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal, uint render_mode) {
     vec4 light_colour;
 
     // These can be hardcoded for water surfaces.
@@ -233,7 +246,7 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal) {
     vec3 base_reflectivity = vec3(0.04); 
     base_reflectivity = mix(base_reflectivity, albedo, metallic);
 
-    if(material_frame_ubo.render_mode == 0 || material_frame_ubo.render_mode == 1 || material_frame_ubo.render_mode == 3) {
+    if(render_mode == 0 || render_mode == 1 || render_mode == 3) {
         vec3 view_direction = normalize(material_frame_ubo.view_positions[material_draw_ubo.view_index].xyz - frag_position);
 
         // Don't include albedo in mode 1 (lighting-only). Do this by using white 
@@ -241,7 +254,7 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal) {
         // then add this colour to albedo and clamp it. This will result in pure 
         // white for the albedo in mode 1, and normal albedo in mode 0, all without
         // branching.
-        albedo += (vec3(1.0) * material_frame_ubo.render_mode);         
+        albedo += (vec3(1.0) * render_mode);         
         albedo = clamp(albedo, vec3(0.0), vec3(1.0));
 
         // This is based off the Cook-Torrance BRDF (Bidirectional Reflective Distribution Function).
@@ -284,7 +297,7 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal) {
         // Gamma correction
         colour = pow(colour, vec3(1.0 / 2.2));
 
-        if(material_frame_ubo.render_mode == 3) {
+        if(render_mode == 3) {
             switch(cascade_index) {
                 case 0:
                     colour *= vec3(1.0, 0.25, 0.25);
@@ -303,9 +316,9 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal) {
 
         // Don't add alpha, that will be taken from the water itself.
         light_colour = vec4(colour, 1.0);
-    } else if(material_frame_ubo.render_mode == 2) {
+    } else if(render_mode == 2) {
         light_colour = vec4(abs(normal), 1.0);
-    } else if(material_frame_ubo.render_mode == 4) {
+    } else if(render_mode == 4) {
         // wireframe, just render a solid colour.
         light_colour = vec4(0.0, 0.0, 1.0, 1.0); // blue
     }
@@ -372,27 +385,26 @@ vec3 calculate_directional_light_radiance(directional_light light, vec3 view_dir
     return light.colour.rgb;
 }
 
-
 // Percentage-Closer Filtering
-float calculate_pcf(vec3 projected, int cascade_index) {
+float calculate_pcf(vec3 projected, int cascade_index, float shadow_bias) {
     float shadow = 0.0;
     vec2 texel_size = 1.0 / textureSize(sampler2DArray(shadow_texture, shadow_sampler), 0).xy;
     for(int x = -1; x <= 1; ++x) {
         for(int y = -1; y <= 1; ++y) {
             float pcf_depth = texture(sampler2DArray(shadow_texture, shadow_sampler), vec3(projected.xy + vec2(x, y) * texel_size, cascade_index)).r;
-            shadow += projected.z - material_frame_ubo.shadow_bias > pcf_depth ? 1.0 : 0.0;
+            shadow += projected.z - shadow_bias > pcf_depth ? 1.0 : 0.0;
         }
     }
     shadow /= 9;
     return 1.0 - shadow;
 }
 
-float calculate_unfiltered(vec3 projected, int cascade_index) {
+float calculate_unfiltered(vec3 projected, int cascade_index, float shadow_bias) {
     // Sample the shadow map.
     float map_depth = texture(sampler2DArray(shadow_texture, shadow_sampler), vec3(projected.xy, cascade_index)).r;
 
     // TODO: cast/get rid of branch.
-    float shadow = projected.z - material_frame_ubo.shadow_bias > map_depth ? 0.0 : 1.0;
+    float shadow = projected.z - shadow_bias > map_depth ? 0.0 : 1.0;
     return shadow;
 }
 
@@ -408,11 +420,13 @@ float calculate_shadow(vec4 light_space_frag_pos, vec3 normal, directional_light
     // NOTE: Transform to NDC not needed for Vulkan, but would be for OpenGL.
     // projected.xy = projected.xy * 0.5 + 0.5;
 
-    if(material_frame_ubo.use_pcf == 1) {
-        return calculate_pcf(projected, cascade_index);
+    uint use_pcf = material_frame_ubo.options[MAT_OPTION_IDX_USE_PCF];
+    float shadow_bias = material_frame_ubo.params[MAT_PARAM_IDX_SHADOW_BIAS];
+    if(use_pcf == 1) {
+        return calculate_pcf(projected, cascade_index, shadow_bias);
     } 
 
-    return calculate_unfiltered(projected, cascade_index);
+    return calculate_unfiltered(projected, cascade_index, shadow_bias);
 }
 
 // Based on a combination of GGX and Schlick-Beckmann approximation to calculate probability

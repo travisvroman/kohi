@@ -1,7 +1,7 @@
 version = 3
 type = "standard"
 model = "pbr"
-has_transparency = false
+has_transparency = true
 double_sided = false
 recieves_shadow = true
 casts_shadow = true

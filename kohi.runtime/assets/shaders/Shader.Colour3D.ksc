@@ -4,7 +4,7 @@ depth_test=true
 depth_write=true
 max_draw_ids = 256
 
-supported_topologies = [
+topology_types = [
     "line_list"
     "triangle_list"
 ]

@@ -6,6 +6,18 @@ const uint MATERIAL_MAX_SHADOW_CASCADES = 4;
 const uint MATERIAL_MAX_POINT_LIGHTS = 10;
 const uint MATERIAL_MAX_VIEWS = 4;
 
+// Option indices
+const uint MAT_OPTION_IDX_RENDER_MODE = 0;
+const uint MAT_OPTION_IDX_USE_PCF = 1;
+const uint MAT_OPTION_IDX_UNUSED_0 = 2;
+const uint MAT_OPTION_IDX_UNUSED_1 = 3;
+
+// Param indices
+const uint MAT_PARAM_IDX_SHADOW_BIAS = 0;
+const uint MAT_PARAM_IDX_DELTA_TIME = 1;
+const uint MAT_PARAM_IDX_GAME_TIME = 2;
+const uint MAT_PARAM_IDX_UNUSED_0 = 3;
+
 struct directional_light {
     vec4 colour;
     vec4 direction;
@@ -51,19 +63,19 @@ layout(location = 3) in vec4 in_colour;
 layout(location = 4) in vec3 in_tangent;
 
 // per-frame
-layout(set = 0, binding = 0) uniform per_frame_ubo {
+layout(std140, set = 0, binding = 0) uniform per_frame_ubo {
     // Light space for shadow mapping. Per cascade
     mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 projection;
     mat4 views[MATERIAL_MAX_VIEWS];
+    mat4 projection;
     vec4 view_positions[MATERIAL_MAX_VIEWS];
-    float cascade_splits[MATERIAL_MAX_SHADOW_CASCADES];
-    float shadow_bias;
-    uint render_mode;
-    uint use_pcf;
-    float delta_time;
-    float game_time;
-    vec2 padding;
+    vec4 cascade_splits;// TODO: support for something other than 4[MATERIAL_MAX_SHADOW_CASCADES];
+
+    // [shadow_bias, delta_time, game_time, padding]
+    vec4 params;
+    // [render_mode, use_pcf, padding, padding]
+    uvec4 options;
+    vec4 padding;  // 16 bytes
 } material_frame_ubo;
 
 // per-group
@@ -96,6 +108,9 @@ layout(set = 1, binding = 0) uniform per_group_ubo {
     // Packed texture channels for various maps requiring it.
     uint texture_channels; // [metallic, roughness, ao, unused]
     vec2 padding;
+    vec4 padding2;
+    vec4 padding3;
+    vec4 padding4;
 } material_group_ubo;
 
 // per-draw

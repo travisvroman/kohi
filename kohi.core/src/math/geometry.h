@@ -19,12 +19,14 @@ typedef enum kgeometry_type {
     KGEOMETRY_TYPE_2D_DYNAMIC = 0x02,
     /** @brief Used for 3d geometry that doesn't change. */
     KGEOMETRY_TYPE_3D_STATIC = 0x03,
+    /** @brief Used for 3d geometry that doesn't change, and only contains colour data. */
+    KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY = 0x04,
     /** @brief Used for 3d geometry that changes often. */
-    KGEOMETRY_TYPE_3D_DYNAMIC = 0x04,
+    KGEOMETRY_TYPE_3D_DYNAMIC = 0x05,
     /** @brief Used for skinned 3d geometry that changes potentially every frame, and includes bone/weight data. */
-    KGEOMETRY_TYPE_3D_SKINNED = 0x05,
+    KGEOMETRY_TYPE_3D_SKINNED = 0x06,
     /** @brief Used for heightmap terrain-specific geometry that rarely (if ever) changes - includes material index/weight data. */
-    KGEOMETRY_TYPE_3D_HEIGHTMAP_TERRAIN = 0x06,
+    KGEOMETRY_TYPE_3D_HEIGHTMAP_TERRAIN = 0x07,
     /** @brief User-defined geometry type. Vertex/index size will only be looked at for this type. */
     KGEOMETRY_TYPE_CUSTOM = 0xFF,
 } kgeometry_type;

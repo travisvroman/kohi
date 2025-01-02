@@ -271,13 +271,15 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
         }
 
         // Topology type flags
+        // Default to triangle list
+        typed_asset->topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
+
         kson_array topology_types_array;
         if (kson_object_property_value_get_array(&tree.root, "topology_types", &topology_types_array)) {
             u32 topology_type_count = 0;
-            if (!kson_array_element_count_get(&topology_types_array, &topology_type_count) || topology_type_count == 0) {
-                // If nothing exists, default to triangle list
-                typed_asset->topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
-            } else {
+            if (kson_array_element_count_get(&topology_types_array, &topology_type_count) || topology_type_count == 0) {
+                // If specified, clear it and process each one.
+                typed_asset->topology_types = PRIMITIVE_TOPOLOGY_TYPE_NONE_BIT;
                 for (u32 i = 0; i < topology_type_count; ++i) {
                     const char* topology_type_str = 0;
                     if (!kson_array_element_value_get_string(&topology_types_array, i, &topology_type_str)) {

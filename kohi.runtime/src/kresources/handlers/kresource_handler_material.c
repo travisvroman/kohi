@@ -180,6 +180,12 @@ static void asset_to_resource(const kasset_material* asset, kresource_material* 
     out_material->emissive = asset->emissive;
     out_material->emissive_map = asset->emissive_map;
 
+    if (out_material->type == KMATERIAL_TYPE_WATER) {
+        out_material->tiling = asset->tiling;
+        out_material->wave_speed = asset->wave_speed;
+        out_material->wave_strength = asset->wave_strength;
+    }
+
     out_material->custom_sampler_count = asset->custom_sampler_count;
     if (out_material->custom_sampler_count) {
         KALLOC_TYPE_CARRAY(kmaterial_sampler_config, out_material->custom_sampler_count);

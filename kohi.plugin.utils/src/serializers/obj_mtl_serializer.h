@@ -19,6 +19,8 @@ typedef struct obj_mtl_source_material {
     kname ambient_image_asset_name;
     vec3 diffuse_colour;
     kname diffuse_image_asset_name;
+    f32 diffuse_transparency;
+    kname diffuse_transparency_image_asset_name;
 
     f32 roughness;
     kname roughness_image_asset_name;
