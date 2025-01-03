@@ -498,6 +498,9 @@ typedef struct vulkan_shader_frequency_info {
     // Darray. Keeps the uniform indices of textures for fast lookups.
     u32* texture_indices;
 
+    // Array of sorted texture/sampler indices for quick lookups.
+    u32* sorted_indices;
+
     // The currently-bound id for this frequency.
     u32 bound_id;
 } vulkan_shader_frequency_info;

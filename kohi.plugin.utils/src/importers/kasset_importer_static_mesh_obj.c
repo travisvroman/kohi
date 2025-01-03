@@ -160,7 +160,9 @@ b8 kasset_importer_static_mesh_obj_import(const struct kasset_importer* self, u6
 
                         // Transparency - if there is a transparency "map" (which is usually the same as the ambient/diffuse map) or
                         // the material is non-opaque (i.e ) less than 1.0f, then it should be marked as transparent.
-                        new_material.has_transparency = m_src->diffuse_transparency_image_asset_name || m_src->diffuse_transparency < 1.0f;
+                        // FIXME: Find a reliable way to tell from the material definition if transparency should be supported for the material
+                        // _without_ looking up the "alpha" texture map. Assuming false always for now instead.
+                        new_material.has_transparency = false; // m_src->diffuse_transparency_image_asset_name || m_src->diffuse_transparency < 1.0f;
 
                         // Material maps.
                         // Base colour.

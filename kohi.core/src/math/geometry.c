@@ -619,6 +619,10 @@ kgeometry geometry_generate_cube(f32 width, f32 height, f32 depth, f32 tile_x, f
     verts[(5 * 4) + 2].normal = (vec3){0.0f, 1.0f, 0.0f};
     verts[(5 * 4) + 3].normal = (vec3){0.0f, 1.0f, 0.0f};
 
+    for (u32 i = 0; i < 24; ++i) {
+        verts[i].colour = vec4_one();
+    }
+
     kcopy_memory(out_geometry.vertices, verts, out_geometry.vertex_element_size * out_geometry.vertex_count);
 
     for (u32 i = 0; i < 6; ++i) {

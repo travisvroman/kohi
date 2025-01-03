@@ -30,6 +30,7 @@ b8 skybox_initialize(skybox* sb) {
     }
 
     sb->group_id = INVALID_ID;
+    sb->draw_id = INVALID_ID;
 
     sb->state = SKYBOX_STATE_INITIALIZED;
 

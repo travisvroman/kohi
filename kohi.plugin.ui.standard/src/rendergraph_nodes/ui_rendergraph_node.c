@@ -259,7 +259,7 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
         }
 
         // Apply group
-        // LEFTOFF: try eliminating the group and just putting the diffuse_colour in the per-draw instead (where it probably should be anyway).
+        // TODO: try eliminating the group and just putting the diffuse_colour in the per-draw instead (where it probably should be anyway).
         // Will need to remove group references from the sui controls.
         {
             shader_system_bind_group(internal_data->sui_shader, *renderable->group_id);

@@ -53,7 +53,7 @@ uniforms = {
     per_group = [
         {
             name = "cube_texture"
-            type = "texture2D"
+            type = "textureCube"
         }
         {
             name = "cube_sampler"

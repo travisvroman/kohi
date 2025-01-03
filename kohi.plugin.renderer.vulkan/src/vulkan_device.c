@@ -172,7 +172,7 @@ b8 vulkan_device_create(vulkan_context* context) {
     // VK_EXT_descriptor_indexing
     VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT};
     // Partial binding is required for descriptor aliasing.
-    descriptor_indexing_features.descriptorBindingPartiallyBound = VK_TRUE; // TODO: Check if supported?
+    descriptor_indexing_features.descriptorBindingPartiallyBound = VK_FALSE;// VK_TRUE; // TODO: Check if supported?
     extended_dynamic_state.pNext = &descriptor_indexing_features;
 
 #if defined(VK_USE_PLATFORM_MACOS_MVK)
