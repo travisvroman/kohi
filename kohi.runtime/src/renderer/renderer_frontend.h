@@ -637,12 +637,13 @@ KAPI khandle renderer_generic_sampler_get(struct renderer_system_state* state, s
  * @brief Acquires a internal sampler and returns a handle to it.
  *
  * @param state A pointer to the renderer state.
+ * @param name The name of the sampler.
  * @param filter The min/mag filter.
  * @param repeat The repeat mode.
  * @param anisotropy The anisotropy level, if needed; otherwise 0.
  * @return A handle to the sampler on success; otherwise an invalid handle.
  */
-KAPI khandle renderer_sampler_acquire(struct renderer_system_state* state, texture_filter filter, texture_repeat repeat, f32 anisotropy);
+KAPI khandle renderer_sampler_acquire(struct renderer_system_state* state, kname name, texture_filter filter, texture_repeat repeat, f32 anisotropy);
 
 /**
  * @brief Releases the internal sampler for the given handle.

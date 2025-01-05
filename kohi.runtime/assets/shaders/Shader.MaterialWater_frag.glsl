@@ -178,7 +178,7 @@ void main() {
         vec4 reflect_colour = texture(sampler2D(material_textures[MAT_WATER_IDX_REFLECTION], material_samplers[MAT_WATER_IDX_REFLECTION]), reflect_texcoord);
         vec4 refract_colour = texture(sampler2D(material_textures[MAT_WATER_IDX_REFRACTION], material_samplers[MAT_WATER_IDX_REFRACTION]), refract_texcoord);
         // Refract should be slightly darker since it's wet.
-        refract_colour.rgb = clamp(refract_colour.rgb - vec3(0.2), vec3(0.0), vec3(1.0));
+        refract_colour.rgb = clamp(reflect_colour.rgb - vec3(0.2), vec3(0.0), vec3(1.0));
 
         // Calculate the fresnel effect.
         float fresnel_factor = dot(normalize(in_dto.world_to_camera), normal);

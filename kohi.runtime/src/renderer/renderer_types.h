@@ -658,12 +658,13 @@ typedef struct renderer_backend_interface {
      * @brief Acquires a internal sampler and returns a handle to it.
      *
      * @param backend A pointer to the renderer backend interface.
+     * @param name The name of the sampler.
      * @param filter The min/mag filter.
      * @param repeat The repeat mode.
      * @param anisotropy The anisotropy level, if needed; otherwise 0.
      * @return A handle to the sampler on success; otherwise an invalid handle.
      */
-    khandle (*sampler_acquire)(struct renderer_backend_interface* backend, texture_filter filter, texture_repeat repeat, f32 anisotropy);
+    khandle (*sampler_acquire)(struct renderer_backend_interface* backend, kname name, texture_filter filter, texture_repeat repeat, f32 anisotropy);
     /**
      * @brief Releases the internal sampler for the given handle.
      *

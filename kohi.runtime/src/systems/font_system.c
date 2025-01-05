@@ -951,7 +951,7 @@ static b8 create_system_font_variant(system_font_lookup* lookup, u16 size, kname
         kname_create(font_tex_name),
         out_variant->data.atlas_size_x,
         out_variant->data.atlas_size_y,
-        KRESOURCE_TEXTURE_FORMAT_RGB8,
+        KRESOURCE_TEXTURE_FORMAT_RGBA8,
         true,
         false);
     string_free(font_tex_name);

@@ -45,7 +45,7 @@ systems = [
         config = {
             vsync=true
             power_saving=true
-            enable_validation=false
+            enable_validation=true
             backend_plugin_name = "kohi.plugin.renderer.vulkan"
             triple_buffering_enabled = true
         }

@@ -7,6 +7,11 @@ Kohi Vulkan Renderer Plugin Changelog
   - Fixed an issue where command buffers were created/managed based on swapchain image count, not max frames in flight.
   - Updated backend to only ever use double- or triple-buffering, checked against swapchain image count.
   - Added some verification logic to command buffers.
+  - Changed all "per-image" resources to use an array size of 3 to allow for triple-buffering to be toggled without having to rebuild resources.
+  - Changed window colourbuffer render targets to not use swapchain images directly. These are now drawn to 2 (double-buffering) 
+    or 3 (triple-buffering) images and later blitted to the swapchain images. In addition, the internal swapchain image index 
+    is maintained separately from the "colour buffer index". Colour buffer index should be used internally for all render 
+    operations, wereas the swapchain image index should only be used for acquiring swapchain images and presentation purposes.
 
 - 0.6.0
   - Added support for secondary command buffers.
