@@ -668,7 +668,7 @@ typedef struct vulkan_texture_handle_data {
     // requires the frame_count to be taken into account.
     u32 image_count;
     // Array of images. See image_count.
-    vulkan_image images[VULKAN_RESOURCE_IMAGE_COUNT];
+    vulkan_image* images;
 } vulkan_texture_handle_data;
 
 /**

@@ -232,6 +232,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
     }
 
     texture_data->image_count = swapchain->image_count;
+    texture_data->images = KALLOC_TYPE_CARRAY(vulkan_image, texture_data->image_count);
 
     // Set initial parameters for each.
     for (u32 i = 0; i < texture_data->image_count; ++i) {
@@ -296,6 +297,8 @@ static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapc
         vulkan_image* image = &texture_data->images[i];
         vkDestroyImageView(context->device.logical_device, image->view, context->allocator);
     }
+    KFREE_TYPE_CARRAY(texture_data->images, vulkan_image, swapchain->image_count);
+    texture_data->images = 0;
 
     vkDestroySwapchainKHR(context->device.logical_device, swapchain->handle, context->allocator);
 }
