@@ -12,6 +12,8 @@ Kohi Vulkan Renderer Plugin Changelog
     or 3 (triple-buffering) images and later blitted to the swapchain images. In addition, the internal swapchain image index 
     is maintained separately from the "colour buffer index". Colour buffer index should be used internally for all render 
     operations, wereas the swapchain image index should only be used for acquiring swapchain images and presentation purposes.
+  - Fixed a long-standing bug that was adding colour attachment data to pipelines regardless if there were any.
+    This fixes the "Some things don't render unless validation layers are enabled" bug.
 
 - 0.6.0
   - Added support for secondary command buffers.

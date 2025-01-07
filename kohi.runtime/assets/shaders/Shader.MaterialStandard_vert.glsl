@@ -60,7 +60,7 @@ layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_normal;
 layout(location = 2) in vec2 in_texcoord;
 layout(location = 3) in vec4 in_colour;
-layout(location = 4) in vec3 in_tangent;
+layout(location = 4) in vec4 in_tangent;
 
 // per-frame
 layout(std140, set = 0, binding = 0) uniform per_frame_ubo {
@@ -150,7 +150,7 @@ void main() {
 	// Copy the normal over.
 	mat3 m3_model = mat3(material_draw_ubo.model);
 	out_dto.normal = normalize(m3_model * in_normal);
-	out_dto.tangent = normalize(m3_model * in_tangent);
+	out_dto.tangent = normalize(m3_model * vec3(in_tangent));
     gl_Position = material_frame_ubo.projection * material_frame_ubo.views[material_draw_ubo.view_index] * material_draw_ubo.model * vec4(in_position, 1.0);
 
 	// Apply clipping plane

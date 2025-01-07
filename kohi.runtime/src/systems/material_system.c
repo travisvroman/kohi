@@ -465,7 +465,7 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
         mat_std_shader.attributes[3].name = "in_colour";
         mat_std_shader.attributes[3].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
         mat_std_shader.attributes[4].name = "in_tangent";
-        mat_std_shader.attributes[4].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
+        mat_std_shader.attributes[4].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
 
         mat_std_shader.uniform_count = 9;
         mat_std_shader.uniforms = KALLOC_TYPE_CARRAY(kasset_shader_uniform, mat_std_shader.uniform_count);
@@ -1922,21 +1922,21 @@ static b8 material_create(material_system_state* state, khandle material_handle,
         u32 tex_height = window->height;
 
         // Create reflection textures.
-        material->reflection_texture = texture_system_request_writeable(kname_create("__waterplane_reflection_colour__"), tex_width, tex_height, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, true);
+        material->reflection_texture = texture_system_request_writeable(kname_create("__waterplane_reflection_colour__"), tex_width, tex_height, TEXTURE_FORMAT_RGBA8, false, true);
         if (!material->reflection_texture) {
             return false;
         }
-        material->reflection_depth_texture = texture_system_request_depth(kname_create("__waterplane_reflection_depth__"), tex_width, tex_height, true);
+        material->reflection_depth_texture = texture_system_request_depth(kname_create("__waterplane_reflection_depth__"), tex_width, tex_height, false, true);
         if (!material->reflection_depth_texture) {
             return false;
         }
 
         // Create refraction textures.
-        material->refraction_texture = texture_system_request_writeable(kname_create("__waterplane_refraction_colour__"), tex_width, tex_height, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, true);
+        material->refraction_texture = texture_system_request_writeable(kname_create("__waterplane_refraction_colour__"), tex_width, tex_height, TEXTURE_FORMAT_RGBA8, false, true);
         if (!material->refraction_texture) {
             return false;
         }
-        material->refraction_depth_texture = texture_system_request_depth(kname_create("__waterplane_refraction_depth__"), tex_width, tex_height, true);
+        material->refraction_depth_texture = texture_system_request_depth(kname_create("__waterplane_refraction_depth__"), tex_width, tex_height, false, true);
         if (!material->reflection_depth_texture) {
             return false;
         }

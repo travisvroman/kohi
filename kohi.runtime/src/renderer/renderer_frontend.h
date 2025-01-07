@@ -34,7 +34,6 @@
 #include "core/frame_data.h"
 #include "core_render_types.h"
 #include "renderer_types.h"
-#include "resources/resource_types.h"
 
 struct shader_uniform;
 struct frame_data;
@@ -180,6 +179,13 @@ KAPI void renderer_scissor_reset(void);
 KAPI void renderer_winding_set(renderer_winding winding);
 
 /**
+ * @brief Set the renderer to use the given cull mode.
+ *
+ * @param cull_mode The cull mode.
+ */
+KAPI void renderer_cull_mode_set(renderer_cull_mode cull_mode);
+
+/**
  * @brief Set stencil testing enabled/disabled.
  *
  * @param enabled Indicates if stencil testing should be enabled/disabled for subsequent draws.
@@ -266,7 +272,7 @@ KAPI void renderer_set_stencil_write_mask(u32 write_mask);
  * @param out_renderer_texture_handle A pointer to hold the renderer texture handle, which points to the backing resource(s) of the texture.
  * @returns True on success, otherwise false;
  */
-KAPI b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* state, kname name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags, khandle* out_renderer_texture_handle);
+KAPI b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* state, kname name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle);
 
 /**
  * Releases backing renderer-specific resources for the given renderer_texture_id.

@@ -7,7 +7,6 @@
 #include <math/math_types.h>
 #include <strings/kname.h>
 
-#include "resources/resource_types.h"
 #include "systems/material_system.h"
 
 struct shader_uniform;
@@ -17,6 +16,11 @@ struct viewport;
 struct camera;
 struct material;
 struct kwindow_renderer_backend_state;
+
+// The max number of "frames" for which data can exist. This would be 2 if
+// only double-buffering was supported, but since triple-buffering is supported
+// this must be always taken into account.
+#define RENDERER_MAX_FRAME_COUNT 3
 
 typedef struct renderbuffer_data {
     /** @brief The element count. */
@@ -165,6 +169,16 @@ typedef enum renderbuffer_track_type {
     RENDERBUFFER_TRACK_TYPE_LINEAR = 2
 } renderbuffer_track_type;
 
+/**
+ * @brief Represents a queued renderbuffer deletion.
+ */
+typedef struct renderbuffer_queued_deletion {
+    /** @brief The number of frames remaining until the deletion occurs. */
+    u8 frames_until_delete;
+    /** @brief The range to be deleted. Considered a "free" slot if range's values are 0. */
+    krange range;
+} renderbuffer_queued_deletion;
+
 typedef struct renderbuffer {
     /** @brief The name of the buffer, used for debugging purposes. */
     char* name;
@@ -184,6 +198,14 @@ typedef struct renderbuffer {
     void* internal_data;
     /** @brief The byte offset used for linear tracking. */
     u64 offset;
+
+    /**
+     * @brief Queue of ranges to be deleted in this buffer. This is to ensure that the
+     * data isn't being used before being marked as free and potentially overwritten.
+     * Used for all buffer types, including those without tracking. Zeroed out if the
+     * queue is cleared.
+     */
+    renderbuffer_queued_deletion* delete_queue;
 } renderbuffer;
 
 typedef enum renderer_config_flag_bits {
@@ -216,6 +238,18 @@ typedef enum renderer_winding {
     /** @brief Counter-clockwise vertex winding. */
     RENDERER_WINDING_CLOCKWISE = 1
 } renderer_winding;
+
+/** @brief The face cull mode. */
+typedef enum renderer_cull_mode {
+    /** @brief No faces are culled. */
+    RENDERER_CULL_MODE_NONE = 0,
+    /** @brief Only front faces are culled. */
+    RENDERER_CULL_MODE_FRONT = 1,
+    /** @brief Only back faces are culled. */
+    RENDERER_CULL_MODE_BACK = 2,
+    /** @brief Both front and back faces are culled. */
+    RENDERER_CULL_MODE_FRONT_AND_BACK = 3
+} renderer_cull_mode;
 
 /**
  * @brief The internal state of a window for the renderer frontend.
@@ -349,6 +383,14 @@ typedef struct renderer_backend_interface {
     void (*winding_set)(struct renderer_backend_interface* backend, renderer_winding winding);
 
     /**
+     * @brief Set the renderer to use the given cull mode.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param cull_mode The cull mode.
+     */
+    void (*cull_mode_set)(struct renderer_backend_interface* backend, renderer_cull_mode cull_mode);
+
+    /**
      * @brief Set stencil testing enabled/disabled.
      *
      * @param backend A pointer to the renderer backend interface.
@@ -418,7 +460,7 @@ typedef struct renderer_backend_interface {
     void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
     void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, texture_flag_bits flags);
 
-    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, const char* name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags, khandle* out_renderer_texture_handle);
+    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle);
     void (*texture_resources_release)(struct renderer_backend_interface* backend, khandle* renderer_texture_handle);
 
     /**

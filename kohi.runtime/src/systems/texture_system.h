@@ -67,6 +67,17 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
  */
 void texture_system_shutdown(void* state);
 
+/**
+ * @brief Attempts to acquire a texture with the given name. If it has not yet been loaded,
+ * this triggers it to load. If the texture is not found, a pointer to the default texture
+ * is returned. If the texture _is_ found and loaded, its reference counter is incremented.
+ *
+ * @param name The name of the texture resource to find.
+ * @param package_name The name of the package to search.
+ * @param listener The object listening for the callback to be made once the resource is loaded. Optional.
+ * @param callback The callback to be made once the resource is loaded. Optional.
+ * @return A pointer to the loaded texture resource. Can be a pointer to the default texture if not found.
+ */
 KAPI kresource_texture* texture_system_request(kname name, kname package_name, void* listener, PFN_resource_loaded_user_callback callback);
 
 /**
@@ -84,8 +95,7 @@ KAPI kresource_texture* texture_system_request(kname name, kname package_name, v
  * For example, "skybox_f.png", "skybox_b.png", etc. where name is "skybox".
  *
  * @param name The name of the texture to find. Used as a base string for actual texture names.
- * @param auto_release Indicates if the texture should auto-release when its reference count is 0.
- * Only takes effect the first time the texture is acquired.
+ * @param auto_release Indicates if the texture should auto-release when its reference count is 0. Only takes effect the first time the texture is acquired.
  * @param listener The object listening for the callback to be made once the resource is loaded. Optional.
  * @param callback The callback to be made once the resource is loaded. Optional.
  * @return A pointer to the loaded texture. Can be a pointer to the default texture if not found.
@@ -98,6 +108,7 @@ KAPI kresource_texture* texture_system_request_cube(kname name, b8 auto_release,
  * @param name The name of the texture.
  * @param dimension The size of each side of the cubemap. Used for both width and height.
  * @param auto_release Indicates if the resource will be released automatically once its reference count reaches 0.
+ * @param multiframe_buffering Indicates if the texture should take multiframe buffering (i.e. double- and triple-buffering) into account.
  * @returns A pointer to the texture.
  */
 KAPI kresource_texture* texture_system_request_cube_writeable(kname name, u32 dimension, b8 auto_release, b8 multiframe_buffering);
@@ -108,9 +119,11 @@ KAPI kresource_texture* texture_system_request_cube_writeable(kname name, u32 di
  * @param name The name of the texture.
  * @param dimension The size of each side of the cubemap. Used for both width and height.
  * @param auto_release Indicates if the resource will be released automatically once its reference count reaches 0.
+ * @param include_stencil Indicates if the depth texture should also include a stencil channel.
+ * @param multiframe_buffering Indicates if the texture should take multiframe buffering (i.e. double- and triple-buffering) into account.
  * @returns A pointer to the texture.
  */
-KAPI kresource_texture* texture_system_request_cube_depth(kname name, u32 dimension, b8 auto_release, b8 multiframe_buffering);
+KAPI kresource_texture* texture_system_request_cube_depth(kname name, u32 dimension, b8 auto_release, b8 include_stencil, b8 multiframe_buffering);
 
 /**
  * @brief Requests a writeable texture with the given name. This does not point to
@@ -121,9 +134,10 @@ KAPI kresource_texture* texture_system_request_cube_depth(kname name, u32 dimens
  * @param height The texture height in pixels.
  * @param format The texture format.
  * @param has_transparency Indicates if the texture will have transparency.
+ * @param multiframe_buffering Indicates if the texture should take multiframe buffering (i.e. double- and triple-buffering) into account.
  * @return A pointer to the texture resource on success; otherwise 0/null.
  */
-KAPI kresource_texture* texture_system_request_writeable(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, b8 multiframe_buffering);
+KAPI kresource_texture* texture_system_request_writeable(kname name, u32 width, u32 height, texture_format format, b8 has_transparency, b8 multiframe_buffering);
 
 /**
  * @brief Attempts to acquire a writeable array texture with the given name. This does not point to
@@ -138,7 +152,7 @@ KAPI kresource_texture* texture_system_request_writeable(kname name, u32 width, 
  * @param array_size The number of "layers" in the texture.
  * @return A pointer to the texture resource on success; otherwise 0/null.
  */
-KAPI kresource_texture* texture_system_request_writeable_arrayed(kname name, u32 width, u32 height, kresource_texture_format format, b8 has_transparency, b8 multiframe_buffering, kresource_texture_type type, u16 array_size);
+KAPI kresource_texture* texture_system_request_writeable_arrayed(kname name, u32 width, u32 height, texture_format format, b8 has_transparency, b8 multiframe_buffering, texture_type type, u16 array_size);
 
 /**
  * @brief Requests a depth texture with the given name.
@@ -146,9 +160,10 @@ KAPI kresource_texture* texture_system_request_writeable_arrayed(kname name, u32
  * @param name The name of the texture to acquire.
  * @param width The texture width in pixels.
  * @param height The texture height in pixels.
+ * @param multiframe_buffering Indicates if the texture should take multiframe buffering (i.e. double- and triple-buffering) into account.
  * @return A pointer to the texture resource on success; otherwise 0/null.
  */
-KAPI kresource_texture* texture_system_request_depth(kname name, u32 width, u32 height, b8 multiframe_buffering);
+KAPI kresource_texture* texture_system_request_depth(kname name, u32 width, u32 height, b8 include_stencil, b8 multiframe_buffering);
 
 /**
  * @brief Attempts to acquire a depth array texture with the given name.
@@ -157,9 +172,11 @@ KAPI kresource_texture* texture_system_request_depth(kname name, u32 width, u32 
  * @param width The texture width in pixels.
  * @param height The texture height in pixels.
  * @param array_size The number of "layers" in the texture.
+ * @param include_stencil Indicates if the depth texture should also include a stencil channel.
+ * @param multiframe_buffering Indicates if the texture should take multiframe buffering (i.e. double- and triple-buffering) into account.
  * @return A pointer to the texture resource on success; otherwise 0/null.
  */
-KAPI kresource_texture* texture_system_request_depth_arrayed(kname name, u32 width, u32 height, u16 array_size, b8 multiframe_buffering);
+KAPI kresource_texture* texture_system_request_depth_arrayed(kname name, u32 width, u32 height, u16 array_size, b8 include_stencil, b8 multiframe_buffering);
 
 /**
  * @brief Attempts to acquire an array texture with the given name. This uses the provided array
@@ -171,12 +188,18 @@ KAPI kresource_texture* texture_system_request_depth_arrayed(kname name, u32 wid
  * @param layer_count The number of layers in the array texture (Must be at least 1)
  * @param layer_asset_names The names of the image assets to load, one per layer. All image assets must be the same dimension. Size of array must match layer_count.
  * @param auto_release Indicates if the texture will have its resources automatically released when the last reference is released.
+ * @param multiframe_buffering Indicates if the texture should take multiframe buffering (i.e. double- and triple-buffering) into account.
  * @param listener A pointer to something that requires the callback to be made once the resource is loaded. Optional.
  * @param callback A callback to be made once the resource is loaded. Optional.
  * @return A pointer to the generated texture.
  */
 KAPI kresource_texture* texture_system_acquire_textures_as_arrayed(kname name, kname package_name, u32 layer_count, kname* layer_asset_names, b8 auto_release, b8 multiframe_buffering, void* listener, PFN_resource_loaded_user_callback callback);
 
+/**
+ * @brief Releases resources for the given texture.
+ *
+ * @param t A pointer to the texture to be released.
+ */
 KAPI void texture_system_release_resource(kresource_texture* t);
 
 /**

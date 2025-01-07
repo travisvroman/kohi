@@ -33,9 +33,15 @@ Changelog
   - Added additional public API to hierarchy_graph to further avoid having to access the internal structure.
   - Renamed k_handle -> khandle.
   - Renamed shader -> kshader.
+  - Renamed range -> krange.
   - Overhauled kson parser internals to use kstring_ids instead of strings for faster lookups.
   - Added PBR field support to MTL serializer for material imports from Wavefront OBJs.
   - Added "triple_buffering_enabled" option to renderer config. This gets passed on to the renderer during creation. May get ignored by the backend if not supported for some reason.
+  - Enhanced renderbuffer deletions to now be queued for a few frames before actually freeing the data in the buffer. This eliminates read/write race conditiions.
+  - Synchronized all shaders using vertex_3d-like vertex information to actually use the same data structure (involved changing in_tangent vec3-vec4 in some cases)
+  - Added ability to dynamically set face cull mode in renderer.
+  - KNOWN ISSUES:
+    - Terrains do not work due to the dependance on blended materials, which do not yet exist. These will be re-added in a future version.
 
 - 0.7.1
   - Fixed window resizing issues in macOS

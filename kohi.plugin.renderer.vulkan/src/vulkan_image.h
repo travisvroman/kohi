@@ -33,7 +33,7 @@
  */
 void vulkan_image_create(
     vulkan_context* context,
-    kresource_texture_type type,
+    texture_type type,
     u32 width,
     u32 height,
     u16 layer_count,

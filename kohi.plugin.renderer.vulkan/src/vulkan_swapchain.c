@@ -202,7 +202,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
         if (!renderer_kresource_texture_resources_acquire(
                 backend->frontend_state,
                 kname_create("__swapchain_colour_texture__"),
-                KRESOURCE_TEXTURE_TYPE_2D,
+                TEXTURE_TYPE_2D,
                 swapchain_extent.width,
                 swapchain_extent.height,
                 4,

@@ -15,8 +15,8 @@
 
 #include "core_render_types.h"
 #include "identifiers/khandle.h"
+#include "kresources/kresource_types.h"
 #include "renderer/renderer_types.h"
-#include "resources/resource_types.h"
 
 struct shader_uniform;
 struct frame_data;
@@ -47,6 +47,7 @@ void vulkan_renderer_scissor_set(renderer_backend_interface* backend, vec4 rect)
 void vulkan_renderer_scissor_reset(renderer_backend_interface* backend);
 
 void vulkan_renderer_winding_set(struct renderer_backend_interface* backend, renderer_winding winding);
+void vulkan_renderer_cull_mode_set(struct renderer_backend_interface* backend, renderer_cull_mode cull_mode);
 void vulkan_renderer_set_stencil_test_enabled(struct renderer_backend_interface* backend, b8 enabled);
 void vulkan_renderer_set_depth_test_enabled(struct renderer_backend_interface* backend, b8 enabled);
 void vulkan_renderer_set_depth_write_enabled(struct renderer_backend_interface* backend, b8 enabled);
@@ -67,7 +68,7 @@ void vulkan_renderer_clear_depth_stencil(renderer_backend_interface* backend, kh
 void vulkan_renderer_colour_texture_prepare_for_present(renderer_backend_interface* backend, khandle texture_handle);
 void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* backend, khandle texture_handle, texture_flag_bits flags);
 
-b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, const char* name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags, khandle* out_texture_handle);
+b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_texture_handle);
 void vulkan_renderer_texture_resources_release(renderer_backend_interface* backend, khandle* texture_handle);
 
 b8 vulkan_renderer_texture_resize(renderer_backend_interface* backend, khandle texture_handle, u32 new_width, u32 new_height);

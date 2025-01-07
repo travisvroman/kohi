@@ -1,5 +1,6 @@
 #include "renderer_frontend.h"
 
+#include "containers/darray.h"
 #include "containers/freelist.h"
 #include "core/engine.h"
 #include "core/event.h"
@@ -18,7 +19,6 @@
 #include "platform/platform.h"
 #include "renderer/renderer_types.h"
 #include "renderer/viewport.h"
-#include "resources/resource_types.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/plugin_system.h"
@@ -42,21 +42,23 @@ typedef struct renderer_dynamic_state {
     renderer_compare_op compare_op;
 
     renderer_winding winding;
+    renderer_cull_mode cull_mode;
 } renderer_dynamic_state;
 
 typedef struct renderer_system_state {
     /** @brief The current frame number. Rolls over about every 18 minutes at 60FPS. */
     u16 frame_number;
-    // The viewport information for the given window.
+    /** @brief The viewport information for the given window. */
     struct viewport* active_viewport;
 
-    // The actual loaded plugin obtained from the plugin system.
+    /** @brief The actual loaded plugin obtained from the plugin system. */
     kruntime_plugin* backend_plugin;
-    // The interface to the backend plugin. This is a cold-cast from backend_plugin->plugin_state.
+    /** @brief The interface to the backend plugin. This is a cold-cast from backend_plugin->plugin_state. */
     renderer_backend_interface* backend;
 
-    // The number of render targets. Typically lines up with the amount of swapchain images.
-    // NOTE: Standardizing the rule here that all windows should have the same number here.
+    /** @brief The number of render targets. Typically lines up with the amount of swapchain images.
+     *  NOTE: Standardizing the rule here that all windows should have the same number here.
+     */
     u8 render_target_count;
 
     /** @brief The object vertex buffer, used to hold geometry vertices. */
@@ -64,19 +66,26 @@ typedef struct renderer_system_state {
     /** @brief The object index buffer, used to hold geometry indices. */
     renderbuffer geometry_index_buffer;
 
+    /**
+     * @brief A darray of pointers to renderbuffers that are considered "registered". These are
+     * checked every frame for deletions automatically.
+     */
+    renderbuffer** registered_renderbuffers;
+
     // Renderer options.
-    // Use PCF filtering
+
+    /** @brief Use PCF filtering */
     b8 use_pcf;
 
-    // Current dynamic state settings.
+    /** @brief Current dynamic state settings. */
     renderer_dynamic_state dynamic_state;
-    // Frame defaults - dynamic state settings that are reapplied at the beginning of every frame.
+    /** @brief Frame defaults - dynamic state settings that are reapplied at the beginning of every frame. */
     renderer_dynamic_state frame_default_dynamic_state;
 
-    // Generic samplers.
+    /** @brief Generic samplers. */
     khandle generic_samplers[SHADER_GENERIC_SAMPLER_COUNT];
 
-    // Default textures. Registered from the texture system.
+    /** @brief Default textures. Registered from the texture system. */
     khandle default_textures[RENDERER_DEFAULT_TEXTURE_COUNT];
 } renderer_system_state;
 
@@ -243,9 +252,13 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
     state->dynamic_state.depth_fail_op = RENDERER_STENCIL_OP_KEEP;
     state->dynamic_state.compare_op = RENDERER_COMPARE_OP_ALWAYS;
     state->dynamic_state.winding = RENDERER_WINDING_COUNTER_CLOCKWISE;
+    state->dynamic_state.cull_mode = RENDERER_CULL_MODE_NONE;
 
     // Take a copy as the frame default.
     state->frame_default_dynamic_state = state->dynamic_state;
+
+    // Setup a default-sized array to hold registered renderbuffers.
+    state->registered_renderbuffers = darray_reserve(renderbuffer*, 50);
 
     // Geometry vertex buffer
     // TODO: make this configurable.
@@ -313,8 +326,8 @@ b8 renderer_on_window_created(struct renderer_system_state* state, struct kwindo
     // Request writeable images that are the size of the window. These are used as render targets and
     // are later blitted to swapchain images.
     // LEFTOFF: These can't be requested until the renderer backend is setup.
-    window->renderer_state->colourbuffer = texture_system_request_writeable(kname_create("__window_colourbuffer_texture__"), window->width, window->height, KRESOURCE_TEXTURE_FORMAT_RGBA8, false, true);
-    window->renderer_state->depthbuffer = texture_system_request_depth(kname_create("__window_depthbuffer_texture__"), window->width, window->height, true);
+    window->renderer_state->colourbuffer = texture_system_request_writeable(kname_create("__window_colourbuffer_texture__"), window->width, window->height, TEXTURE_FORMAT_RGBA8, false, true);
+    window->renderer_state->depthbuffer = texture_system_request_depth(kname_create("__window_depthbuffer_texture__"), window->width, window->height, true, true);
 
     return true;
 }
@@ -384,6 +397,51 @@ b8 renderer_frame_prepare_window_surface(struct renderer_system_state* state, st
 }
 
 b8 renderer_frame_command_list_begin(struct renderer_system_state* state, struct frame_data* p_frame_data) {
+    // Before the frame starts, check registered renderbuffers to see if deletes are needed.
+    u32 registered_renderbuffer_count = darray_length(state->registered_renderbuffers);
+    for (u32 i = 0; i < registered_renderbuffer_count; ++i) {
+        renderbuffer* pr = state->registered_renderbuffers[i];
+        if (pr) {
+            u32 delete_count = darray_length(pr->delete_queue);
+            for (u32 d = 0; d < delete_count; ++d) {
+                renderbuffer_queued_deletion* q = &pr->delete_queue[d];
+                if (q->frames_until_delete > 0) {
+                    // If there are wait frames, decrement it and check again next frame.
+                    q->frames_until_delete--;
+                } else {
+                    // If the frame wait count is 0, then it may be up for deletion or may be empty,
+                    // depending on the range. Only ranges with a size are considered.
+                    if (q->range.size > 0) {
+                        // If there is a size, then this needs deletion. If there isn't, it's already deleted.
+                        switch (pr->track_type) {
+                        case RENDERBUFFER_TRACK_TYPE_FREELIST: {
+                            if (!freelist_free_block(&pr->buffer_freelist, q->range.size, q->range.offset)) {
+                                // If this fails, something may be wrong. Throw an error and skip for now.
+                                // If the issue persists, it's likely something went terribly wrong.
+                                KERROR("Failed to free from renderbuffer freelist. See logs for details.");
+
+                                // Put the frame count back first.
+                                q->frames_until_delete++;
+                                continue;
+                            }
+                        } break;
+                        case RENDERBUFFER_TRACK_TYPE_NONE:
+                        case RENDERBUFFER_TRACK_TYPE_LINEAR:
+                            // NOTE: nothing to do for these types, but placing them here anyways so if this changes,
+                            // all the other bits of logic around this don't also have to change.
+                            break;
+                        }
+
+                        // Reset the entry. This makes it a "free" slot which can be taken in a future frame.
+                        q->range.size = 0;
+                        q->range.offset = 0;
+                    }
+                }
+            }
+        }
+    }
+
+    // Now actually begin the command list in the renderer backend.
     b8 result = state->backend->frame_commands_begin(state->backend, p_frame_data);
 
     // Reapply frame defaults if successful.
@@ -434,6 +492,12 @@ void renderer_winding_set(renderer_winding winding) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     state_ptr->dynamic_state.winding = winding;
     state_ptr->backend->winding_set(state_ptr->backend, winding);
+}
+
+void renderer_cull_mode_set(renderer_cull_mode cull_mode) {
+    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    state_ptr->dynamic_state.cull_mode = cull_mode;
+    state_ptr->backend->cull_mode_set(state_ptr->backend, cull_mode);
 }
 
 void renderer_set_stencil_test_enabled(b8 enabled) {
@@ -504,10 +568,11 @@ void renderer_set_stencil_compare_mask(u32 compare_mask) {
 
 void renderer_set_stencil_write_mask(u32 write_mask) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    state_ptr->dynamic_state.stencil_write_mask = write_mask;
     state_ptr->backend->set_stencil_write_mask(state_ptr->backend, write_mask);
 }
 
-b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* state, kname name, kresource_texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, kresource_texture_flag_bits flags, khandle* out_renderer_texture_handle) {
+b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* state, kname name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle) {
     if (!state) {
         return false;
     }
@@ -874,7 +939,7 @@ f32 renderer_max_anisotropy_get(void) {
 }
 
 b8 renderer_renderbuffer_create(const char* name, renderbuffer_type type, u64 total_size, renderbuffer_track_type track_type, renderbuffer* out_buffer) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    renderer_system_state* state = engine_systems_get()->renderer_system;
     if (!out_buffer) {
         KERROR("renderer_renderbuffer_create requires a valid pointer to hold the created buffer.");
         return false;
@@ -902,17 +967,48 @@ b8 renderer_renderbuffer_create(const char* name, renderbuffer_type type, u64 to
     }
 
     // Create the internal buffer from the backend.
-    if (!state_ptr->backend->renderbuffer_internal_create(state_ptr->backend, out_buffer)) {
+    if (!state->backend->renderbuffer_internal_create(state->backend, out_buffer)) {
         KFATAL("Unable to create backing buffer for renderbuffer. Application cannot continue.");
         return false;
     }
+
+    // Setup the deletion queue.
+    out_buffer->delete_queue = darray_reserve(renderbuffer_queued_deletion, 20);
+
+    // Register the renderbuffer to have its deletes checked for every frame.
+    // Start by searching for an empty slot. Use it if found.
+    u32 registered_renderbuffer_count = darray_length(state->registered_renderbuffers);
+    for (u32 i = 0; i < registered_renderbuffer_count; ++i) {
+        if (!state->registered_renderbuffers[i]) {
+            KTRACE("Found free slot %u, using to register renderbuffer.", i);
+            state->registered_renderbuffers[i] = out_buffer;
+            return true;
+        }
+    }
+
+    // If one isn't found, push a new one.
+    KTRACE("Did not find free slot to register renderbuffer, pushing new entry.");
+    darray_push(state->registered_renderbuffers, out_buffer);
 
     return true;
 }
 
 void renderer_renderbuffer_destroy(renderbuffer* buffer) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    renderer_system_state* state = engine_systems_get()->renderer_system;
     if (buffer) {
+        // Immediately unregister it from per-frame deletion checks.
+        u32 registered_renderbuffer_count = darray_length(state->registered_renderbuffers);
+        for (u32 i = 0; i < registered_renderbuffer_count; ++i) {
+            renderbuffer* pr = state->registered_renderbuffers[i];
+            if (pr && pr == buffer) {
+                // Found it. Unregister it.
+                KTRACE("Unregistering renderbuffer '%s'.", pr->name);
+                // Just setting the array entry to null removes it from registration.
+                state->registered_renderbuffers[i] = 0;
+                break;
+            }
+        }
+
         if (buffer->track_type == RENDERBUFFER_TRACK_TYPE_FREELIST) {
             freelist_destroy(&buffer->buffer_freelist);
             kfree(buffer->freelist_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
@@ -927,8 +1023,12 @@ void renderer_renderbuffer_destroy(renderbuffer* buffer) {
             buffer->name = 0;
         }
 
+        // Cleanup the deletion queue.
+        darray_destroy(buffer->delete_queue);
+        buffer->delete_queue = 0;
+
         // Free up the backend resources.
-        state_ptr->backend->renderbuffer_internal_destroy(state_ptr->backend, buffer);
+        state->backend->renderbuffer_internal_destroy(state->backend, buffer);
         buffer->internal_data = 0;
     }
 }
@@ -1028,11 +1128,40 @@ b8 renderer_renderbuffer_free(renderbuffer* buffer, u64 size, u64 offset) {
         return false;
     }
 
-    if (buffer->track_type != RENDERBUFFER_TRACK_TYPE_FREELIST) {
-        KWARN("renderer_render_buffer_free called on a buffer not using freelists. Nothing was done.");
-        return true;
+    // Validate the deletion before doing anything.
+    if (size < 1) {
+        KERROR("renderer_renderbuffer_free(): Free failed because size was provided as 0 - nothing will be done. (size=%llu, offset=%llu, renderbuffer_total_size=%llu)", size, offset, buffer->total_size);
+        return false;
     }
-    return freelist_free_block(&buffer->buffer_freelist, size, offset);
+
+    if (offset >= buffer->total_size || size > buffer->total_size || (offset + size) > buffer->total_size) {
+        KERROR("renderer_renderbuffer_free(): Free failed because size or offset is out of range - nothing will be done. (size=%llu, offset=%llu, renderbuffer_total_size=%llu)", size, offset, buffer->total_size);
+        return false;
+    }
+
+    // NOTE: Don't actually perform the free, register it for deletion on a later frame.
+
+    // Start by searching for a free slot.
+    u32 delete_count = darray_length(buffer->delete_queue);
+    for (u32 i = 0; i < delete_count; ++i) {
+        renderbuffer_queued_deletion* deletion = &buffer->delete_queue[i];
+        if (!deletion->range.size) {
+            // Found one, use it.
+            deletion->frames_until_delete = RENDERER_MAX_FRAME_COUNT;
+            deletion->range.offset = offset;
+            deletion->range.size = size;
+            return true;
+        }
+    }
+
+    // If one wasn't found, create and push a new entry.
+    renderbuffer_queued_deletion new_deletion = {0};
+    new_deletion.frames_until_delete = RENDERER_MAX_FRAME_COUNT;
+    new_deletion.range.offset = offset;
+    new_deletion.range.size = size;
+    darray_push(buffer->delete_queue, new_deletion);
+
+    return true;
 }
 
 b8 renderer_renderbuffer_clear(renderbuffer* buffer, b8 zero_memory) {
@@ -1046,6 +1175,9 @@ b8 renderer_renderbuffer_clear(renderbuffer* buffer, b8 zero_memory) {
     } else if (buffer->track_type == RENDERBUFFER_TRACK_TYPE_LINEAR) {
         buffer->offset = 0;
     }
+
+    // Clear the queued deletions.
+    darray_clear(buffer->delete_queue);
 
     if (zero_memory) {
         // TODO: zero memory
@@ -1124,6 +1256,7 @@ static void reapply_dynamic_state(renderer_system_state* state, const renderer_d
         dynamic_state->depth_fail_op,
         dynamic_state->compare_op);
     renderer_winding_set(dynamic_state->winding);
+    renderer_cull_mode_set(dynamic_state->cull_mode);
     renderer_viewport_set(dynamic_state->viewport);
     renderer_scissor_set(dynamic_state->scissor);
 }

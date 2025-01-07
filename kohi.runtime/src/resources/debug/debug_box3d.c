@@ -22,6 +22,7 @@ b8 debug_box3d_create(vec3 size, khandle parent_xform, debug_box3d* out_box) {
     out_box->id = identifier_create();
     out_box->colour = vec4_one(); // Default to white.
 
+    out_box->geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
     out_box->geometry.generation = INVALID_ID_U16;
     out_box->is_dirty = true;
 
@@ -45,7 +46,7 @@ void debug_box3d_colour_set(debug_box3d* box, vec4 colour) {
             colour.a = 1.0f;
         }
         box->colour = colour;
-        if (box->geometry.generation != INVALID_ID_U16 && box->geometry.vertex_count && ((vertex_3d*)box->geometry.vertices)) {
+        if (box->geometry.generation != INVALID_ID_U16 && box->geometry.vertex_count && ((colour_vertex_3d*)box->geometry.vertices)) {
             update_vert_colour(box);
             box->is_dirty = true;
         }
@@ -54,7 +55,7 @@ void debug_box3d_colour_set(debug_box3d* box, vec4 colour) {
 
 void debug_box3d_extents_set(debug_box3d* box, extents_3d extents) {
     if (box) {
-        if (box->geometry.generation != INVALID_ID_U16 && box->geometry.vertex_count && ((vertex_3d*)box->geometry.vertices)) {
+        if (box->geometry.generation != INVALID_ID_U16 && box->geometry.vertex_count && ((colour_vertex_3d*)box->geometry.vertices)) {
             geometry_recalculate_line_box3d_by_extents(&box->geometry, extents);
             box->is_dirty = true;
         }
@@ -128,7 +129,7 @@ static void update_vert_colour(debug_box3d* box) {
     if (box) {
         if (box->geometry.vertex_count && box->geometry.vertices) {
             for (u32 i = 0; i < box->geometry.vertex_count; ++i) {
-                ((vertex_3d*)box->geometry.vertices)[i].colour = box->colour;
+                ((colour_vertex_3d*)box->geometry.vertices)[i].colour = box->colour;
             }
         }
     }

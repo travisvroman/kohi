@@ -1,6 +1,7 @@
 #version 450
 
 const uint SKYBOX_MAX_VIEWS = 4;
+const uint SKYBOX_OPTION_IDX_VIEW_INDEX = 0;
 
 // =========================================================
 // Inputs
@@ -19,8 +20,7 @@ layout(set = 1, binding = 1) uniform sampler cube_sampler;
 
 // per draw 
 layout(push_constant) uniform per_draw_ubo {
-    uint view_index;
-    vec3 padding;
+    uvec4 options;
 } skybox_draw_ubo;
 
 // Data Transfer Object from vertex shader.
@@ -34,5 +34,6 @@ layout(location = 0) in dto {
 layout(location = 0) out vec4 out_colour;
 
 void main() {
-    out_colour = texture(samplerCube(cube_texture, cube_sampler), in_dto.tex_coord);
+    // out_colour = texture(samplerCube(cube_texture, cube_sampler), in_dto.tex_coord);
+    out_colour = vec4(1.0); // HACK: remove this // nocheckin
 } 

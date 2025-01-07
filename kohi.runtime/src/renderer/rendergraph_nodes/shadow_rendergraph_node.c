@@ -206,7 +206,7 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
 
     // Create the depth attachment for the directional light shadow.
     // This should take renderer buffering into account.
-    internal_data->depth_texture = texture_system_request_depth_arrayed(kname_create("__shadow_rg_node_shadowmap__"), internal_data->config.resolution, internal_data->config.resolution, MATERIAL_MAX_SHADOW_CASCADES, true);
+    internal_data->depth_texture = texture_system_request_depth_arrayed(kname_create("__shadow_rg_node_shadowmap__"), internal_data->config.resolution, internal_data->config.resolution, MATERIAL_MAX_SHADOW_CASCADES, false, true);
     if (!internal_data->depth_texture) {
         KERROR("Failed to request layered shadow map texture for shadow rendergraph node.");
         return false;

@@ -1,6 +1,7 @@
 #version 450
 
 const uint SKYBOX_MAX_VIEWS = 4;
+const uint SKYBOX_OPTION_IDX_VIEW_INDEX = 0;
 
 // =========================================================
 // Inputs
@@ -23,8 +24,7 @@ layout(set = 0, binding = 0) uniform per_frame_ubo {
 
 // per draw 
 layout(push_constant) uniform per_draw_ubo {
-    uint view_index;
-    vec3 padding;
+    uvec4 options;
 } skybox_draw_ubo;
 
 // =========================================================
@@ -38,5 +38,6 @@ layout(location = 0) out dto {
 
 void main() {
 	out_dto.tex_coord = in_position;
-	gl_Position = skybox_frame_ubo.projection * skybox_frame_ubo.views[skybox_draw_ubo.view_index] * vec4(in_position, 1.0);
+	const uint view_index = skybox_draw_ubo.options[SKYBOX_OPTION_IDX_VIEW_INDEX];
+	gl_Position = skybox_frame_ubo.projection * skybox_frame_ubo.views[view_index] * vec4(in_position, 1.0);
 } 

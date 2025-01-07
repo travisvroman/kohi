@@ -38,6 +38,8 @@ const u32 PBR_SAMP_IDX_COMBINED = 2;
 const u32 PBR_SAMP_IDX_SHADOW_MAP = 3;
 const u32 PBR_SAMP_IDX_IRRADIANCE_MAP = 4;
 
+#define SKYBOX_OPTION_IDX_VIEW_INDEX 0
+
 // Terrain materials are now all loaded into a single array texture.
 const u32 TERRAIN_SAMP_IDX_MATERIAL_ARRAY_MAP = 0;
 const u32 TERRAIN_SAMP_IDX_SHADOW_MAP = 1 + TERRAIN_SAMP_IDX_MATERIAL_ARRAY_MAP;
@@ -115,8 +117,7 @@ typedef struct skybox_frame_ubo {
 
 // per draw UBO
 typedef struct skybox_draw_ubo {
-    u32 view_index;
-    vec3 padding;
+    uvec4 options;
 } skybox_draw_ubo;
 
 typedef struct forward_rendergraph_node_internal_data {
@@ -480,16 +481,19 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
     }
 
     // Begin rendering the scene
-    renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, depth->renderer_texture_handle, 0);
 
     // Skybox first.
     if (internal_data->sb && internal_data->sb->state == SKYBOX_STATE_LOADED) {
-        renderer_begin_debug_label("skybox", (vec3){0.5f, 0.5f, 1.0});
-        renderer_set_depth_test_enabled(false);
-        renderer_set_depth_write_enabled(false);
 
         if (internal_data->sb->geometry.generation != INVALID_ID_U16) {
+            renderer_begin_debug_label("skybox", (vec3){0.5f, 0.5f, 1.0});
+
+            renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, khandle_invalid(), 0);
+
             shader_system_use(internal_data->skybox_shader);
+            renderer_set_depth_test_enabled(false);
+            renderer_set_depth_write_enabled(false);
+            renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
             // Get the view matrix, but zero out the position so the skybox stays put on screen.
             mat4 view_matrix_skybox = view_matrix;
@@ -534,9 +538,11 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
             // Apply the per-draw
             {
                 shader_system_bind_draw_id(internal_data->skybox_shader, internal_data->sb->draw_id);
+
                 skybox_draw_ubo draw_ubo = {0};
-                draw_ubo.view_index = use_inverted ? 1 : 0;
+                draw_ubo.options.elements[SKYBOX_OPTION_IDX_VIEW_INDEX] = use_inverted ? 1 : 0;
                 UNIFORM_APPLY_OR_FAIL(shader_system_uniform_set_by_location(internal_data->skybox_shader, internal_data->skybox_shader_locations.draw_ubo, &draw_ubo));
+
                 shader_system_apply_per_draw(internal_data->skybox_shader);
             }
 
@@ -550,14 +556,19 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
             render_data.index_buffer_offset = internal_data->sb->geometry.index_buffer_offset;
 
             renderer_geometry_draw(&render_data);
+
+            renderer_end_rendering(internal_data->renderer, p_frame_data);
+
+            // Restore depth state.
+            renderer_set_depth_test_enabled(true);
+            renderer_set_depth_write_enabled(true);
+            renderer_cull_mode_set(RENDERER_CULL_MODE_BACK);
+            renderer_end_debug_label();
         }
-
-        // Restore depth state.
-        renderer_set_depth_test_enabled(true);
-        renderer_set_depth_write_enabled(true);
-
-        renderer_end_debug_label();
     }
+
+    // Begin rendering the scene
+    renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, depth->renderer_texture_handle, 0);
 
     // Calculate light-space matrices for each shadow cascade.
     for (u8 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
@@ -819,6 +830,23 @@ b8 forward_rendergraph_node_execute(struct rendergraph_node* self, struct frame_
     forward_rendergraph_node_internal_data* internal_data = self->internal_data;
 
     renderer_begin_debug_label(self->name, (vec3){1.0f, 0.5f, 0});
+
+    // // Dynamic state - set to reasonable defaults
+    // renderer_set_depth_test_enabled(true);
+    // renderer_set_depth_write_enabled(true);
+    // renderer_set_stencil_test_enabled(false);
+    // renderer_set_stencil_reference(0);
+    // renderer_set_stencil_write_mask(0);
+    // renderer_set_stencil_compare_mask(0xFF);
+    // renderer_set_stencil_op(
+    //     RENDERER_STENCIL_OP_KEEP,
+    //     RENDERER_STENCIL_OP_REPLACE,
+    //     RENDERER_STENCIL_OP_KEEP,
+    //     RENDERER_COMPARE_OP_ALWAYS);
+    // renderer_winding_set(RENDERER_WINDING_COUNTER_CLOCKWISE);
+    // renderer_active_viewport_set(&internal_data->vp);
+    // rect_2d scissor_rect = (vec4){0, 0, (f32)internal_data->colourbuffer_texture->width, (f32)internal_data->colourbuffer_texture->height};
+    // renderer_scissor_set(scissor_rect);
 
     // Create and use an inverted camera
     camera inverted_camera = camera_copy(*internal_data->current_camera);

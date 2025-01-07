@@ -45,7 +45,7 @@ b8 skybox_load(skybox* sb) {
     }
     sb->state = SKYBOX_STATE_LOADING;
 
-    sb->geometry = geometry_generate_cube(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, sb->cubemap_name);
+    sb->geometry = geometry_generate_cube(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, sb->cubemap_name);
     if (!renderer_geometry_upload(&sb->geometry)) {
         KERROR("Failed to upload skybox geometry.");
     }

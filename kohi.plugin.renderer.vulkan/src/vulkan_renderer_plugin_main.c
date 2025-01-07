@@ -42,6 +42,7 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
     backend->texture_prepare_for_sampling = vulkan_renderer_texture_prepare_for_sampling;
 
     backend->winding_set = vulkan_renderer_winding_set;
+    backend->cull_mode_set = vulkan_renderer_cull_mode_set;
     backend->set_stencil_test_enabled = vulkan_renderer_set_stencil_test_enabled;
     backend->set_depth_test_enabled = vulkan_renderer_set_depth_test_enabled;
     backend->set_depth_write_enabled = vulkan_renderer_set_depth_write_enabled;

@@ -1,10 +1,10 @@
 version = 1
-cull_mode="front"
-depth_test=true
-depth_write=true
+cull_mode="none"
+depth_test=false
+depth_write=false
 
-max_groups=1
-max_draw_ids=1
+max_groups=2
+max_draw_ids=2
 
 stages = [
     {
@@ -38,7 +38,7 @@ attributes = [
     }
     {
         name = "in_tangent"
-        type = "vec3"
+        type = "vec4"
     }
 ]
 

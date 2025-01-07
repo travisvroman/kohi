@@ -34,7 +34,7 @@ attributes = [
     }
     {
         name = "in_tangent"
-        type = "vec3"
+        type = "vec4"
     }
 ]
 

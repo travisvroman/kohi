@@ -14,7 +14,6 @@
 #include "identifiers/identifier.h"
 #include "kresources/kresource_types.h"
 #include "math/math_types.h"
-#include "strings/kname.h"
 
 #include <core_render_types.h>
 
@@ -81,38 +80,6 @@ typedef struct resource {
     /** @brief The resource data. */
     void* data;
 } resource;
-
-typedef enum texture_flag {
-    /** @brief Indicates if the texture has transparency. */
-    TEXTURE_FLAG_HAS_TRANSPARENCY = 0x01,
-    /** @brief Indicates if the texture can be written (rendered) to. */
-    TEXTURE_FLAG_IS_WRITEABLE = 0x02,
-    /** @brief Indicates if the texture was created via wrapping vs traditional
-       creation. */
-    TEXTURE_FLAG_IS_WRAPPED = 0x04,
-    /** @brief Indicates the texture is a depth texture. */
-    TEXTURE_FLAG_DEPTH = 0x08,
-    /** @brief Indicates that this texture should account for renderer buffering (i.e. double/triple buffering) */
-    TEXTURE_FLAG_RENDERER_BUFFERING = 0x10,
-} texture_flag;
-
-/** @brief Holds bit flags for textures.. */
-typedef u8 texture_flag_bits;
-
-/**
- * @brief Represents various types of textures.
- */
-typedef enum texture_type {
-    /** @brief A standard two-dimensional texture. */
-    TEXTURE_TYPE_2D,
-    /** @brief A 2d array texture. */
-    TEXTURE_TYPE_2D_ARRAY,
-    /** @brief A cube texture, used for cubemaps. */
-    TEXTURE_TYPE_CUBE,
-    /** @brief A cube array texture, used for arrays of cubemaps. */
-    TEXTURE_TYPE_CUBE_ARRAY,
-    TEXTURE_TYPE_COUNT
-} texture_type;
 
 typedef enum scene_node_attachment_type {
     SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN,

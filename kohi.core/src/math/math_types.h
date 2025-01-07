@@ -230,7 +230,7 @@ typedef struct vertex_3d {
     /** @brief The colour of the vertex. */
     vec4 colour;
     /** @brief The tangent of the vertex. */
-    vec3 tangent;
+    vec4 tangent;
 } vertex_3d;
 
 /**
