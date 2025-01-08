@@ -575,6 +575,37 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
         internal_data->directional_light_spaces[i] = mat4_mul(internal_data->directional_light_views[i], internal_data->directional_light_projections[i]);
     }
 
+    // Set the per-frame material data (i.e. view, projection, etc.).
+    {
+        material_frame_data mat_frame_data = {0};
+        mat_frame_data.delta_time = delta_time;
+        mat_frame_data.game_time = game_time;
+        mat_frame_data.projection = internal_data->projection_matrix;
+        mat_frame_data.views[0] = view_matrix;
+        mat_frame_data.views[1] = inverted_view_matrix;
+        mat_frame_data.view_positions[0] = view_position;
+        mat_frame_data.view_positions[1] = inverted_view_position;
+        mat_frame_data.render_mode = internal_data->render_mode;
+        // Cascade splits and light space matrices for shadow mapping. One per cascade.
+        kcopy_memory(mat_frame_data.cascade_splits, internal_data->cascade_splits, sizeof(f32) * MATERIAL_MAX_SHADOW_CASCADES);
+        kcopy_memory(mat_frame_data.directional_light_spaces, internal_data->directional_light_spaces, sizeof(mat4) * MATERIAL_MAX_SHADOW_CASCADES);
+
+        // HACK: Read this in from somewhere (or have global setter?);
+        mat_frame_data.shadow_bias = 0.0005f;
+
+        // Shadow Maps (global)
+        mat_frame_data.shadow_map_texture = internal_data->shadow_map;
+
+        // Irradience maps provided by probes around in the world.
+        kzero_memory(mat_frame_data.irradiance_cubemap_textures, sizeof(kresource_texture*) * MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
+        for (u32 i = 0; i < MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT; ++i) {
+            mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i] ? internal_data->ibl_cube_textures[i] : internal_data->default_ibl_cubemap;
+        }
+
+        // Update per-frame data for materials.
+        material_system_prepare_frame(internal_data->material_system, mat_frame_data, p_frame_data);
+    }
+
     // Use the appropriate shader and apply the global uniforms.
     // FIXME: Replace "terrain" material with "blended" material and re-enable.
     /* u32 terrain_geometry_count = internal_data->terrain_geometry_count;
@@ -716,37 +747,6 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
     {
         u32 geometry_count = internal_data->geometry_count;
         if (geometry_count > 0) {
-
-            // Set the per-frame material data (i.e. view, projection, etc.) before the below call.
-            {
-                material_frame_data mat_frame_data = {0};
-                mat_frame_data.delta_time = delta_time;
-                mat_frame_data.game_time = game_time;
-                mat_frame_data.projection = internal_data->projection_matrix;
-                mat_frame_data.views[0] = view_matrix;
-                mat_frame_data.views[1] = inverted_view_matrix;
-                mat_frame_data.view_positions[0] = view_position;
-                mat_frame_data.view_positions[1] = inverted_view_position;
-                mat_frame_data.render_mode = internal_data->render_mode;
-                // Cascade splits and light space matrices for shadow mapping. One per cascade.
-                kcopy_memory(mat_frame_data.cascade_splits, internal_data->cascade_splits, sizeof(f32) * MATERIAL_MAX_SHADOW_CASCADES);
-                kcopy_memory(mat_frame_data.directional_light_spaces, internal_data->directional_light_spaces, sizeof(mat4) * MATERIAL_MAX_SHADOW_CASCADES);
-
-                // HACK: Read this in from somewhere (or have global setter?);
-                mat_frame_data.shadow_bias = 0.0005f;
-
-                // Shadow Maps (global)
-                mat_frame_data.shadow_map_texture = internal_data->shadow_map;
-
-                // Irradience maps provided by probes around in the world.
-                kzero_memory(mat_frame_data.irradiance_cubemap_textures, sizeof(kresource_texture*) * MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
-                for (u32 i = 0; i < MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT; ++i) {
-                    mat_frame_data.irradiance_cubemap_textures[i] = internal_data->ibl_cube_textures[i] ? internal_data->ibl_cube_textures[i] : internal_data->default_ibl_cubemap;
-                }
-
-                // Update per-frame data for materials.
-                material_system_prepare_frame(internal_data->material_system, mat_frame_data, p_frame_data);
-            }
 
             khandle current_material = khandle_invalid();
             // Draw geometries.

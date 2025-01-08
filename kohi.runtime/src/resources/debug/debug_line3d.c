@@ -103,11 +103,7 @@ b8 debug_line3d_initialize(debug_line3d* line) {
 
 b8 debug_line3d_load(debug_line3d* line) {
     // Send the geometry off to the renderer to be uploaded to the GPU.
-    if (!renderer_geometry_upload(&line->geometry)) {
-        return false;
-    }
-    line->geometry.generation++;
-    return true;
+    return renderer_geometry_upload(&line->geometry);
 }
 
 b8 debug_line3d_unload(debug_line3d* line) {
@@ -122,16 +118,18 @@ b8 debug_line3d_update(debug_line3d* line) {
 
 static void recalculate_points(debug_line3d* line) {
     if (line) {
-        ((colour_vertex_3d*)line->geometry.vertices)[0].position = vec4_from_vec3(line->point_0, 1.0f);
-        ((colour_vertex_3d*)line->geometry.vertices)[1].position = vec4_from_vec3(line->point_1, 1.0f);
+        colour_vertex_3d* verts = (colour_vertex_3d*)line->geometry.vertices;;
+        verts[0].position = vec4_from_vec3(line->point_0, 1.0f);
+        verts[1].position = vec4_from_vec3(line->point_1, 1.0f);
     }
 }
 
 static void update_vert_colour(debug_line3d* line) {
     if (line) {
         if (line->geometry.vertex_count && line->geometry.vertices) {
+            colour_vertex_3d* verts = (colour_vertex_3d*)line->geometry.vertices;
             for (u32 i = 0; i < line->geometry.vertex_count; ++i) {
-                ((colour_vertex_3d*)line->geometry.vertices)[i].colour = line->colour;
+                verts[i].colour = line->colour;
             }
         }
     }

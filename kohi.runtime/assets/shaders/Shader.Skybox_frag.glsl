@@ -34,6 +34,5 @@ layout(location = 0) in dto {
 layout(location = 0) out vec4 out_colour;
 
 void main() {
-    // out_colour = texture(samplerCube(cube_texture, cube_sampler), in_dto.tex_coord);
-    out_colour = vec4(1.0); // HACK: remove this // nocheckin
+    out_colour = texture(samplerCube(cube_texture, cube_sampler), in_dto.tex_coord);
 } 

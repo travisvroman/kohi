@@ -155,6 +155,8 @@ b8 editor_gizmo_rendergraph_node_execute(struct rendergraph_node* self, struct f
 
     renderer_begin_debug_label(self->name, (vec3){0.5f, 1.0f, 0.5});
     if (internal_data->enabled) {
+        editor_gizmo_render_frame_prepare(gizmo, p_frame_data);
+
         renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, khandle_invalid(), 0);
 
         // Bind the viewport
@@ -167,10 +169,6 @@ b8 editor_gizmo_rendergraph_node_execute(struct rendergraph_node* self, struct f
         shader_system_uniform_set_by_location(internal_data->colour_shader, internal_data->debug_locations.projection, &internal_data->projection);
         shader_system_uniform_set_by_location(internal_data->colour_shader, internal_data->debug_locations.view, &internal_data->view);
         shader_system_apply_per_frame(internal_data->colour_shader);
-
-        if (gizmo) {
-            editor_gizmo_render_frame_prepare(gizmo, p_frame_data);
-        }
 
         kgeometry* g = &gizmo->mode_data[gizmo->mode].geo;
 
@@ -193,8 +191,10 @@ b8 editor_gizmo_rendergraph_node_execute(struct rendergraph_node* self, struct f
         render_data.model = model;
         render_data.vertex_count = g->vertex_count;
         render_data.vertex_buffer_offset = g->vertex_buffer_offset;
+        render_data.vertex_element_size = g->vertex_element_size;
         render_data.index_count = g->index_count;
         render_data.index_buffer_offset = g->index_buffer_offset;
+        render_data.index_element_size = g->index_element_size;
         render_data.unique_id = INVALID_ID;
 
         // Set model matrix.

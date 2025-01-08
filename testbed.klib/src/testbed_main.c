@@ -1241,6 +1241,8 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
                 // Make sure the count is correct before pushing.
                 darray_length_set(debug_geometries, debug_geometry_count);
+            } else {
+                debug_geometries = darray_create_with_allocator(geometry_render_data, &p_frame_data->allocator);
             }
 
             // TODO: Move this to the scene.
@@ -1253,8 +1255,10 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 kgeometry* g = &state->test_lines[i].geometry;
                 rd.vertex_count = g->vertex_count;
                 rd.vertex_buffer_offset = g->vertex_buffer_offset;
+                rd.vertex_element_size = g->vertex_element_size;
                 rd.index_count = g->index_count;
                 rd.index_buffer_offset = g->index_buffer_offset;
+                rd.index_element_size = g->index_element_size;
                 rd.unique_id = INVALID_ID_U16;
                 darray_push(debug_geometries, rd);
                 debug_geometry_count++;
@@ -1266,8 +1270,10 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 kgeometry* g = &state->test_boxes[i].geometry;
                 rd.vertex_count = g->vertex_count;
                 rd.vertex_buffer_offset = g->vertex_buffer_offset;
+                rd.vertex_element_size = g->vertex_element_size;
                 rd.index_count = g->index_count;
                 rd.index_buffer_offset = g->index_buffer_offset;
+                rd.index_element_size = g->index_element_size;
                 rd.unique_id = INVALID_ID_U16;
                 darray_push(debug_geometries, rd);
                 debug_geometry_count++;
