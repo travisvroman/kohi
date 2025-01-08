@@ -451,12 +451,16 @@ vec3 calculate_point_light_radiance(point_light light, vec3 view_direction, vec3
     // Per-light radiance based on the point light's attenuation.
     float distance = length(light.position.xyz - frag_position_xyz);
     float attenuation = 1.0 / (light.constant_f + light.linear * distance + light.quadratic * (distance * distance));
-    return light.colour.rgb * attenuation;
+    // PBR lights are energy-based, so convert to a scale of 0-100.
+    float energy_multiplier = 100.0;
+    return (light.colour.rgb * energy_multiplier) * attenuation;
 }
 
 vec3 calculate_directional_light_radiance(directional_light light, vec3 view_direction) {
     // For directional lights, radiance is just the same as the light colour itself.
-    return light.colour.rgb;
+    // PBR lights are energy-based, so convert to a scale of 0-100.
+    float energy_multiplier = 100.0;
+    return light.colour.rgb * energy_multiplier;
 }
 
 // Percentage-Closer Filtering

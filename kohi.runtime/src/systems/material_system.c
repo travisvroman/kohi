@@ -715,12 +715,6 @@ void material_system_shutdown(struct material_system_state* state) {
         material_destroy(state, state->default_water_material, 1);
         // TODO: destroy this when it's implemented.
         /* material_destroy(state, state->default_blended_material, 2); */
-
-        // Release shaders for the default materials.
-        shader_system_destroy(&state->material_standard_shader);
-        shader_system_destroy(&state->material_water_shader);
-        // TODO: release this when it's implemented.
-        shader_system_destroy(&state->material_blended_shader);
     }
 }
 

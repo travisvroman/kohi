@@ -2611,6 +2611,7 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, khandle
         for (u32 i = 0; i < internal_shader->stage_count; ++i) {
             vkDestroyShaderModule(context->device.logical_device, internal_shader->stages[i].handle, context->allocator);
         }
+        internal_shader->stage_count = 0;
 
         // Internal shader arrays, etc.
         // Per frame

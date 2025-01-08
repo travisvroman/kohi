@@ -46,6 +46,7 @@ void debug_box3d_colour_set(debug_box3d* box, vec4 colour) {
             colour.a = 1.0f;
         }
         box->colour = colour;
+        vec4_clamp(&box->colour, 0.0f, 1.0f);
         if (box->geometry.generation != INVALID_ID_U16 && box->geometry.vertex_count && box->geometry.vertices) {
             update_vert_colour(box);
             box->is_dirty = true;
@@ -132,6 +133,7 @@ static void update_vert_colour(debug_box3d* box) {
             for (u32 i = 0; i < box->geometry.vertex_count; ++i) {
                 verts[i].colour = box->colour;
             }
+            box->is_dirty = true;
         }
     }
 }

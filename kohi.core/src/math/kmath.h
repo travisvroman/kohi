@@ -1054,6 +1054,34 @@ KINLINE b8 vec4_compare(vec4 vector_0, vec4 vector_1, f32 tolerance) {
 }
 
 /**
+ * @brief Clamps the provided vector in-place to the given min/max values.
+ *
+ * @param vector A pointer to the vector to be clamped.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ */
+KINLINE void vec4_clamp(vec4* vector, f32 min, f32 max) {
+    if (vector) {
+        for (u8 i = 0; i < 4; ++i) {
+            vector->elements[i] = KCLAMP(vector->elements[i], min, max);
+        }
+    }
+}
+
+/**
+ * @brief Returns a clamped copy of the provided vector.
+ *
+ * @param vector The vector to clamp.
+ * @param min The minimum value.
+ * @param max The maximum value.
+ * @return A clamped copy of the provided vector.
+ */
+KINLINE vec4 vec4_clamped(vec4 vector, f32 min, f32 max) {
+    vec4_clamp(&vector, min, max);
+    return vector;
+}
+
+/**
  * @brief Creates and returns an identity matrix:
  *
  * {

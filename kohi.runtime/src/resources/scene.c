@@ -424,7 +424,7 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
                     if (!debug_box3d_initialize(&debug->box)) {
                         KERROR("Failed to create debug box for point light.");
                     } else {
-                        // Find a free skybox slot and take it, or push a new one.
+                        // Find a free point light slot and take it, or push a new one.
                         u32 index = INVALID_ID;
                         u32 point_light_count = darray_length(s->point_lights);
                         for (u32 i = 0; i < point_light_count; ++i) {
@@ -1017,27 +1017,29 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
 
     // Directional light.
     {
-        if (debug_geometries && scene->dir_lights) {
+        if (scene->dir_lights) {
             u32 directional_light_count = darray_length(scene->dir_lights);
             for (u32 i = 0; i < directional_light_count; ++i) {
                 if (scene->dir_lights[i].debug_data) {
-                    scene_debug_data* debug = scene->dir_lights[i].debug_data;
+                    if (debug_geometries) {
+                        scene_debug_data* debug = scene->dir_lights[i].debug_data;
 
-                    // Debug line 3d
-                    geometry_render_data data = {0};
-                    data.model = xform_world_get(debug->line.xform);
-                    kgeometry* g = &debug->line.geometry;
-                    data.material.material = khandle_invalid(); // debug geometries don't need a material.
-                    data.material.instance = khandle_invalid(); // debug geometries don't need a material.
-                    data.vertex_count = g->vertex_count;
-                    data.vertex_buffer_offset = g->vertex_buffer_offset;
-                    data.index_count = g->index_count;
-                    data.index_buffer_offset = g->index_buffer_offset;
-                    data.unique_id = debug->line.id.uniqueid;
+                        // Debug line 3d
+                        geometry_render_data data = {0};
+                        data.model = xform_world_get(debug->line.xform);
+                        kgeometry* g = &debug->line.geometry;
+                        data.material.material = khandle_invalid(); // debug geometries don't need a material.
+                        data.material.instance = khandle_invalid(); // debug geometries don't need a material.
+                        data.vertex_count = g->vertex_count;
+                        data.vertex_buffer_offset = g->vertex_buffer_offset;
+                        data.index_count = g->index_count;
+                        data.index_buffer_offset = g->index_buffer_offset;
+                        data.unique_id = debug->line.id.uniqueid;
 
-                    (*debug_geometries)[(*data_count)] = data;
+                        (*debug_geometries)[(*data_count)] = data;
+                    }
+                    (*data_count)++;
                 }
-                (*data_count)++;
             }
         }
     }

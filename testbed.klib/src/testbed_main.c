@@ -314,10 +314,12 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
                         debug_box3d_initialize(&test_box);
                         debug_box3d_load(&test_box);
 
-                        extents_3d ext;
-                        ext.min = vec3_create(hit->position.x - 0.05f, hit->position.y - 0.05f, hit->position.z - 0.05f);
-                        ext.max = vec3_create(hit->position.x + 0.05f, hit->position.y + 0.05f, hit->position.z + 0.05f);
-                        debug_box3d_extents_set(&test_box, ext);
+                        // These aren't parented to anything, so the local transform _is_ the world transform.
+                        // TODO: Need to think of a way to make this more automatic.
+                        test_box.xform = xform_from_position(hit->position);
+                        test_box.parent_xform = khandle_invalid();
+                        xform_calculate_local(test_box.xform);
+                        xform_world_set(test_box.xform, xform_local_get(test_box.xform));
 
                         darray_push(state->test_boxes, test_box);
 
@@ -1246,13 +1248,13 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             }
 
             // TODO: Move this to the scene.
-            // HACK: Inject raycast debug geometries into scene pass data.
-            // FIXME: Add this to the debug node below.
             u32 line_count = darray_length(state->test_lines);
             for (u32 i = 0; i < line_count; ++i) {
+                debug_line3d* line = &state->test_lines[i];
+                debug_line3d_render_frame_prepare(line, p_frame_data);
                 geometry_render_data rd = {0};
-                rd.model = xform_world_get(state->test_lines[i].xform);
-                kgeometry* g = &state->test_lines[i].geometry;
+                rd.model = xform_world_get(line->xform);
+                kgeometry* g = &line->geometry;
                 rd.vertex_count = g->vertex_count;
                 rd.vertex_buffer_offset = g->vertex_buffer_offset;
                 rd.vertex_element_size = g->vertex_element_size;
@@ -1265,9 +1267,11 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             }
             u32 box_count = darray_length(state->test_boxes);
             for (u32 i = 0; i < box_count; ++i) {
+                debug_box3d* box = &state->test_boxes[i];
+                debug_box3d_render_frame_prepare(box, p_frame_data);
                 geometry_render_data rd = {0};
-                rd.model = xform_world_get(state->test_boxes[i].xform);
-                kgeometry* g = &state->test_boxes[i].geometry;
+                rd.model = xform_world_get(box->xform);
+                kgeometry* g = &box->geometry;
                 rd.vertex_count = g->vertex_count;
                 rd.vertex_buffer_offset = g->vertex_buffer_offset;
                 rd.vertex_element_size = g->vertex_element_size;
@@ -1279,7 +1283,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 debug_geometry_count++;
             }
 
-            // TODO: set geometries
+            // Set geometries in the debug rg node.
             if (!debug_rendergraph_node_debug_geometries_set(node, p_frame_data, debug_geometry_count, debug_geometries)) {
                 // NOTE: Not going to abort the whole graph for this failure, but will bleat about it loudly.
                 KERROR("Failed to set geometries for debug rendergraph node.");

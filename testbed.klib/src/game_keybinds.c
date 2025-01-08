@@ -150,22 +150,23 @@ void game_on_set_gizmo_mode(keys key, keymap_entry_bind_type type, keymap_modifi
     application* game_inst = (application*)user_data;
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
+    editor_gizmo_mode mode;
     switch (key) {
     case KEY_1:
-        state->gizmo.mode = EDITOR_GIZMO_MODE_NONE;
+    default:
+        mode = EDITOR_GIZMO_MODE_NONE;
         break;
     case KEY_2:
-        state->gizmo.mode = EDITOR_GIZMO_MODE_MOVE;
+        mode = EDITOR_GIZMO_MODE_MOVE;
         break;
     case KEY_3:
-        state->gizmo.mode = EDITOR_GIZMO_MODE_ROTATE;
+        mode = EDITOR_GIZMO_MODE_ROTATE;
         break;
     case KEY_4:
-        state->gizmo.mode = EDITOR_GIZMO_MODE_SCALE;
-        break;
-    default:
+        mode = EDITOR_GIZMO_MODE_SCALE;
         break;
     }
+    editor_gizmo_mode_set(&state->gizmo, mode);
 }
 
 void game_on_gizmo_orientation_set(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
