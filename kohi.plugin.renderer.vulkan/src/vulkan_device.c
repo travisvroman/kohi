@@ -225,7 +225,7 @@ b8 vulkan_device_create(vulkan_context* context) {
         context->vkCmdSetFrontFaceEXT = (PFN_vkCmdSetFrontFaceEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetFrontFaceEXT");
 
         // Dynamic cull mode
-        context->vkCmdSetCullModeEXT = (PFN_vkCmdSetFrontFaceEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetCullModeEXT");
+        context->vkCmdSetCullModeEXT = (PFN_vkCmdSetCullModeEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetCullModeEXT");
 
         // Dynamic depth/stencil state
         context->vkCmdSetStencilOpEXT = (PFN_vkCmdSetStencilOpEXT)vkGetInstanceProcAddr(context->instance, "vkCmdSetStencilOpEXT");
