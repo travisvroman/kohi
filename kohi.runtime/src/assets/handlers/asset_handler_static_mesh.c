@@ -2,8 +2,6 @@
 
 #include "math/kmath.h"
 #include "memory/kmemory.h"
-#include "strings/kstring.h"
-#include "systems/asset_system.h"
 
 #include <assets/kasset_importer_registry.h>
 #include <assets/kasset_types.h>

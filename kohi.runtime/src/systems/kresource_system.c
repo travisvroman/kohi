@@ -3,6 +3,7 @@
 #include "core/engine.h"
 #include "debug/kassert.h"
 #include "defines.h"
+#include "kresources/handlers/kresource_handler_binary.h"
 #include "kresources/handlers/kresource_handler_bitmap_font.h"
 #include "kresources/handlers/kresource_handler_material.h"
 #include "kresources/handlers/kresource_handler_shader.h"
@@ -67,6 +68,18 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
         handler.request = kresource_handler_text_request;
         if (!kresource_system_handler_register(state, KRESOURCE_TYPE_TEXT, handler)) {
             KERROR("Failed to register text resource handler");
+            return false;
+        }
+    }
+
+    // Binary handler
+    {
+        kresource_handler handler = {0};
+        handler.allocate = kresource_handler_binary_allocate;
+        handler.release = kresource_handler_binary_release;
+        handler.request = kresource_handler_binary_request;
+        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_BINARY, handler)) {
+            KERROR("Failed to register binary resource handler");
             return false;
         }
     }
