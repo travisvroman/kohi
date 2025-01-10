@@ -1,12 +1,8 @@
 #include "kasset_kson_serializer.h"
 
 #include "assets/kasset_types.h"
-#include "containers/darray.h"
-#include "core_render_types.h"
 #include "logger.h"
 #include "parsers/kson_parser.h"
-#include "strings/kstring.h"
-#include "utils/render_type_utils.h"
 
 const char* kasset_kson_serialize(const kasset* asset) {
     if (asset->type != KASSET_TYPE_KSON) {

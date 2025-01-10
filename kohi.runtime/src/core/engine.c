@@ -37,7 +37,6 @@
 #include "systems/kresource_system.h"
 #include "systems/light_system.h"
 #include "systems/material_system.h"
-#include "systems/resource_system.h" // TODO: remove old resource system
 #include "systems/shader_system.h"
 #include "systems/static_mesh_system.h"
 #include "systems/texture_system.h"
@@ -318,19 +317,6 @@ b8 engine_create(application* game_inst) {
         platform_register_process_mouse_button_callback(engine_on_process_mouse_button);
         platform_register_process_mouse_move_callback(engine_on_process_mouse_move);
         platform_register_process_mouse_wheel_callback(engine_on_process_mouse_wheel);
-    }
-
-    // Resource system.
-    {
-        resource_system_config resource_sys_config = {0};
-        resource_sys_config.asset_base_path = "../testbed.assets"; // TODO: The application should probably configure this.
-        resource_sys_config.max_loader_count = 32;
-        resource_system_initialize(&systems->resource_system_memory_requirement, 0, &resource_sys_config);
-        systems->resource_system = kallocate(systems->resource_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!resource_system_initialize(&systems->resource_system_memory_requirement, systems->resource_system, &resource_sys_config)) {
-            KERROR("Failed to iniitialize resource system.");
-            return false;
-        }
     }
 
     // Renderer system
@@ -862,7 +848,6 @@ b8 engine_run(application* game_inst) {
         kresource_system_shutdown(systems->kresource_state);
         renderer_system_shutdown(systems->renderer_system);
         job_system_shutdown(systems->job_system);
-        resource_system_shutdown(systems->resource_system);
         input_system_shutdown(systems->input_system);
         event_system_shutdown(systems->event_system);
         kvar_system_shutdown(systems->kvar_system);

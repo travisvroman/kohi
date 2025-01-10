@@ -56,6 +56,19 @@ b8 kplugin_create(struct kruntime_plugin* out_plugin) {
         }
     }
 
+    // Audio - one per file extension.
+    {
+        const char* audio_types[] = {"mp3", "ogg", "wav"};
+        for (u8 i = 0; i < 3; ++i) {
+            kasset_importer image_importer = {0};
+            image_importer.import = kasset_importer_image_import;
+            if (!kasset_importer_registry_register(KASSET_TYPE_IMAGE, audio_types[i], image_importer)) {
+                KERROR("Failed to register image asset importer!");
+                return false;
+            }
+        }
+    }
+
     KINFO("Kohi Utils Plugin Creation successful (%s).", KVERSION);
 
     return true;

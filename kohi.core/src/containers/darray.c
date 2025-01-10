@@ -1,9 +1,9 @@
 #include "containers/darray.h"
 
+#include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
-#include "debug/kassert.h"
 
 void* _darray_create(u64 length, u64 stride, frame_allocator_int* allocator) {
     u64 header_size = sizeof(darray_header);
@@ -139,6 +139,28 @@ void* _darray_insert_at(void* array, u64 index, void* value_ptr) {
 
     darray_length_set(array, length + 1);
     return array;
+}
+
+void* _darray_duplicate(u64 stride, void* array) {
+    u64 header_size = sizeof(darray_header);
+    darray_header* source_header = (darray_header*)((u8*)array - header_size);
+
+    KASSERT_MSG(stride == source_header->stride, "_darray_duplicate: target and source stride mismatch.");
+
+    // "reserve" by passing current capacity, using the source allocator if there is one.
+    void* copy = _darray_create(source_header->capacity, stride, source_header->allocator);
+    darray_header* target_header = (darray_header*)((u8*)copy - header_size);
+    KASSERT_MSG(target_header->capacity == source_header->capacity, "capacity mismatch while duplicating darray.");
+
+    // Copy internal header fields.
+    target_header->stride = source_header->stride;
+    target_header->length = source_header->length;
+    target_header->allocator = source_header->allocator;
+
+    // Copy internal memory.
+    kcopy_memory(copy, array, target_header->capacity * target_header->stride);
+
+    return copy;
 }
 
 void darray_clear(void* array) {

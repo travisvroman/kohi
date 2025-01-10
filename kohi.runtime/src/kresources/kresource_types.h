@@ -445,3 +445,64 @@ typedef struct kresource_system_font {
 typedef struct kresource_system_font_request_info {
     kresource_request_info base;
 } kresource_system_font_request_info;
+
+/**
+ * @brief Represents a scene resource.
+ */
+typedef struct kresource_scene {
+    kresource base;
+    const char* description;
+    u32 node_count;
+    scene_node_config* nodes;
+} kresource_scene;
+
+typedef struct kresource_scene_request_info {
+    kresource_request_info base;
+} kresource_scene_request_info;
+
+/**
+ * @brief Represents a heightmap terrain resource.
+ */
+typedef struct kresource_heightmap_terrain {
+    kresource base;
+    kname heightmap_asset_name;
+    kname heightmap_asset_package_name;
+    u16 chunk_size;
+    vec3 tile_scale;
+    u8 material_count;
+    kname* material_names;
+} kresource_heightmap_terrain;
+
+typedef struct kresource_heightmap_terrain_request_info {
+    kresource_request_info base;
+} kresource_heightmap_terrain_request_info;
+
+/**
+ * Represents a Kohi Audio resource.
+ */
+typedef struct kresource_audio {
+    kresource base;
+    // The number of channels (i.e. 1 for mono or 2 for stereo)
+    i32 channels;
+    // The sample rate of the sound/music (i.e. 44100)
+    u32 sample_rate;
+
+    u32 total_sample_count;
+
+    u64 pcm_data_size;
+    /** Pulse-code modulation buffer, or raw data to be fed into a buffer. */
+    i16* pcm_data;
+
+    // The format (i.e. 16 bit stereo)
+    u32 format;
+    // Used to track samples in streaming type files.
+    // FIXME: Should be tracked internally by the audio system.
+    u32 total_samples_left;
+
+    /** @brief A handle to the audio internal resource. */
+    khandle internal_resource;
+} kresource_audio;
+
+typedef struct kresource_audio_request_info {
+    kresource_request_info base;
+} kresource_audio_request_info;

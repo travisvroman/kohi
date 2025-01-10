@@ -27,11 +27,14 @@ const char* kasset_heightmap_terrain_serialize(const kasset* asset) {
         goto cleanup_kson;
     }
 
-    // heightmap_filename
-    if (!kson_object_value_add_string(&tree.root, "heightmap_asset_name", kname_string_get(typed_asset->heightmap_asset_name))) {
+    // heightmap_asset_name
+    if (!kson_object_value_add_kname_as_string(&tree.root, "heightmap_asset_name", typed_asset->heightmap_asset_name)) {
         KERROR("Failed to add heightmap_asset_name, which is a required field.");
         goto cleanup_kson;
     }
+
+    // heightmap_asset_package_name - optional
+    kson_object_value_add_kname_as_string(&tree.root, "heightmap_asset_package_name", typed_asset->heightmap_asset_package_name);
 
     // chunk_size
     if (!kson_object_value_add_int(&tree.root, "chunk_size", typed_asset->chunk_size)) {
@@ -87,13 +90,13 @@ b8 kasset_heightmap_terrain_deserialize(const char* file_text, kasset* out_asset
         }
 
         // heightmap_asset_name
-        const char* heightmap_asset_name_str = 0;
-        if (!kson_object_property_value_get_string(&tree.root, "heightmap_asset_name", &heightmap_asset_name_str)) {
+        if (!kson_object_property_value_get_string_as_kname(&tree.root, "heightmap_asset_name", &typed_asset->heightmap_asset_name)) {
             KERROR("Failed to parse heightmap_asset_name, which is a required field.");
             goto cleanup_kson;
         }
-        typed_asset->heightmap_asset_name = kname_create(heightmap_asset_name_str);
-        string_free(heightmap_asset_name_str);
+
+        // heightmap_asset_package_name - optional, can be found automatically.
+        kson_object_property_value_get_string_as_kname(&tree.root, "heightmap_asset_package_name", &typed_asset->heightmap_asset_package_name);
 
         // chunk_size
         if (!kson_object_property_value_get_int(&tree.root, "chunk_size", (i64*)(&typed_asset->chunk_size))) {

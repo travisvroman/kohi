@@ -65,9 +65,6 @@ typedef struct engine_system_states {
     u64 timeline_system_memory_requirement;
     struct timeline_system_state* timeline_system;
 
-    u64 resource_system_memory_requirement;
-    struct resource_state* resource_system;
-
     u64 shader_system_memory_requirement;
     struct shader_system_state* shader_system;
 

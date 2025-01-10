@@ -25,7 +25,7 @@ The items in this list are not in any particular order. This list will be update
 
 - [ ] New Resource System
 
-  - [ ] Remove old resource system after it is decomissioned.
+  - [x] Remove old resource system after it is decomissioned.
   - [x] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
         New system will make requests to new Asset System asynchronously, and be responsible for all reference counting and auto-releasing.
   - [x] Provide kresource structure which contains basic high-level items such as type, name, generation, etc.
@@ -46,8 +46,8 @@ The items in this list are not in any particular order. This list will be update
     - [x] Shader
       - [x] Handler
       - [x] Conversion of scopes to update_frequency (global/instance/local -> per_frame/per_group/per_draw)
-    - [ ] Scene
-      - [ ] Handler
+    - [x] Scene
+      - [x] Handler
     - [x] Static Mesh (formerly just Mesh)
       - [x] Handler
       - [x] kresource_static_mesh structure
@@ -56,6 +56,8 @@ The items in this list are not in any particular order. This list will be update
       - [x] Resource Handler
     - [x] System Font
       - [x] Resource Handler
+  - [ ] Audio Resource
+    - [ ] Resource Handler
 
 - [x] Split asset loading logic from Resource System to new Asset System
   - [x] New asset system will work with asynchronous nature of VFS and automatically handle asset parsing/processing, hot-reloading and interaction with systems where necessary (i.e. texture system).
@@ -103,6 +105,13 @@ The items in this list are not in any particular order. This list will be update
     - [x] Scenes
       - [x] Asset handler
       - [x] Serializer
+    - [ ] Music/Audio effects
+      - [ ] Binary container format (.kaf - Kohi Audio File)
+      - [ ] Asset handler
+      - [ ] Importers
+        - [ ] mp3
+        - [ ] ogg vorbis
+      - [ ] Serializer
   - [x] Create kpackage interface in kohi.core.
   - [x] Point kpackage to files on disk for "debug" builds.
   - [x] Asset hot reloading
@@ -166,16 +175,6 @@ The items in this list are not in any particular order. This list will be update
       - [ ] Create a "default static mesh" (named "StaticMesh_Default") which is a cube with perhaps a warning material.
     - [ ] Materials
       - [ ] Importer from MTL directly (as opposed to with an OBJ file).
-    - [ ] Audio effects
-      - [ ] Binary container format (.kfx)
-      - [ ] Asset handler
-      - [ ] Importer
-      - [ ] Serializer
-    - [ ] Music
-      - [ ] Binary container format (.kmu)
-      - [ ] Asset handler
-      - [ ] Importer
-      - [ ] Serializer
 - [ ] Asset Packaging
   - [ ] Manifest file generator (utility that looks at directory structure and auto-creates manifest.kson file from that)
   - [ ] Create binary blob format (.kpackage file) and read/write.
@@ -185,11 +184,8 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Materials
     - [ ] Importer from MTL directly (as opposed to with an OBJ file).
   - [ ] Heightmap Terrain (formerly just Terrain)
-    - [ ] Resource Handler
-  - [ ] Sound Effect
-    - [ ] Resource Handler
-  - [ ] Music
-    - [ ] Resource Handler
+    - [ ] Refactor to encode a "material index" into an unused int/float within the vertex data, and eliminate the need to have "terrain vertex data" entirely.
+    - [ ] Resource Handler - finish
 - [ ] Handle refactoring
   - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
   - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
@@ -225,6 +221,8 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Reduce draw calls
   - [ ] Occlusion queries/blocking volumes
 - [ ] Combine duplicated platform code (such as device_pixel_ratio and callback assignments) to a general platform.c file.
+- [ ] billboards
+- [ ] particles
 
 ## 0.10.0 Release
 
@@ -367,12 +365,10 @@ The items in this list are not in any particular order. This list will be update
 - [x] ThreadPools
 - [ ] Multi-threaded logger
 - [x] Textures
-  - [ ] binary file format (.kbt)
+  - [x] binary file format (.kbi)
 - [x] Renderable (writeable) textures
 - [x] Static geometry
 - [x] Materials
-- [ ] billboards
-- [ ] particles
 - [ ] Input:
   - [x] desktop
   - [ ] touch
@@ -386,8 +382,8 @@ The items in this list are not in any particular order. This list will be update
   - [x] kvars (console variables)
   - [x] Console commands
 - [x] Application-level configuration
-- [ ] Strings
-  - [ ] kname string hashing
+- [x] Strings
+  - [x] kname string hashing
     - [ ] compile-time hashing (Requires either custom preprocessor or using C++ compiler)
   - [ ] high-level string structure library (not c-strings)
   - [ ] I18n strings

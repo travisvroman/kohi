@@ -17,7 +17,7 @@ b8 skybox_create(skybox_config config, skybox* out_skybox) {
         return false;
     }
 
-    out_skybox->cubemap_name = kname_create(config.cubemap_name);
+    out_skybox->cubemap_name = config.cubemap_name;
     out_skybox->state = SKYBOX_STATE_CREATED;
     out_skybox->cubemap = 0;
 

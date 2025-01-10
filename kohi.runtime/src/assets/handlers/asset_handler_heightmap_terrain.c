@@ -12,9 +12,6 @@
 #include <serializers/kasset_heightmap_terrain_serializer.h>
 #include <strings/kstring.h>
 
-#include "systems/asset_system.h"
-#include "systems/material_system.h"
-
 void asset_handler_heightmap_terrain_create(struct asset_handler* self, struct vfs_state* vfs) {
     KASSERT_MSG(self && vfs, "Valid pointers are required for 'self' and 'vfs'.");
 

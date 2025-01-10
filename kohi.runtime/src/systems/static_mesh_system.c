@@ -47,7 +47,7 @@ void static_mesh_system_shutdown(struct static_mesh_system_state* state) {
     }
 }
 
-b8 static_mesh_system_instance_acquire(struct static_mesh_system_state* state, kname name, kname resource_name, static_mesh_instance* out_instance) {
+b8 static_mesh_system_instance_acquire(struct static_mesh_system_state* state, kname resource_name, kname package_name, static_mesh_instance* out_instance) {
     if (!state || resource_name == INVALID_KNAME || !out_instance) {
         return false;
     }
@@ -63,7 +63,7 @@ b8 static_mesh_system_instance_acquire(struct static_mesh_system_state* state, k
     request.assets = array_kresource_asset_info_create(1);
     request.assets.data[0].type = KASSET_TYPE_STATIC_MESH;
     request.assets.data[0].asset_name = resource_name;
-    request.assets.data[0].package_name = INVALID_KNAME;
+    request.assets.data[0].package_name = package_name;
     // Setup a listener and callback.
     request.listener_inst = listener;
     request.user_callback = static_mesh_on_resource_loaded;

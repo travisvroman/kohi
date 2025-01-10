@@ -85,7 +85,7 @@ struct static_mesh_system_state;
 KAPI b8 static_mesh_system_initialize(u64* memory_requirement, struct static_mesh_system_state* state);
 KAPI void static_mesh_system_shutdown(struct static_mesh_system_state* state);
 
-KAPI b8 static_mesh_system_instance_acquire(struct static_mesh_system_state* state, kname name, kname resource_name, static_mesh_instance* out_instance);
+KAPI b8 static_mesh_system_instance_acquire(struct static_mesh_system_state* state, kname resource_name, kname package_name, static_mesh_instance* out_instance);
 KAPI void static_mesh_system_instance_release(struct static_mesh_system_state* state, static_mesh_instance* instance);
 
 KAPI b8 static_mesh_system_render_data_generate(const static_mesh_instance* instance, static_mesh_render_data_flag_bits flags, static_mesh_render_data* out_render_data);

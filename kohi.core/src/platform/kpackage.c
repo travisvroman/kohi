@@ -312,7 +312,10 @@ const char* kpackage_source_path_for_asset(const kpackage* package, kname name) 
                 KERROR("binary packages not yet supported.");
                 return 0;
             } else {
-                return string_duplicate(entry->source_path);
+                if (entry->source_path) {
+                    return string_duplicate(entry->source_path);
+                }
+                return 0;
             }
         }
     }

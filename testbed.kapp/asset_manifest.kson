@@ -188,35 +188,42 @@ assets = [
     }
     {
         name = "Woodland Fantasy"
-        path = "./assets/music/Woodland Fantasy.mp3"
+        path = "./assets/music/Woodland Fantasy.kaf"
+        source_path = "./assets/music/source/Woodland Fantasy.mp3"
     }
     {
         name = "Woodland Fantasy mono"
-        path = "./assets/music/Woodland Fantasy mono.mp3"
+        path = "./assets/music/Woodland Fantasy mono.kaf"
+        source_path = "./assets/music/source/Woodland Fantasy mono.mp3"
     }
     {
         name = "FireLoop"
-        path = "./assets/music/FireLoop.mp3"
+        path = "./assets/music/FireLoop.kaf"
+        source_path = "./assets/music/source/FireLoop.mp3"
+    }
+    {
+        name = "Fire_loop"
+        path = "./assets/sounds/Fire_loop.kaf"
+        source_path = "./assets/sounds/source/Fire_loop.ogg"
+    }
+    {
+        name = "Fire_loop_2"
+        path = "./assets/sounds/Fire_loop_2.kaf"
+        source_path = "./assets/sounds/source/Fire_loop_2.ogg"
+    }
+    {
+        name = "Test_Audio"
+        path = "./assets/sounds/Test.kaf"
+        source_path = "./assets/sounds/source/Test.ogg"
+    }
+    {
+        name = "Unlock"
+        path = "./assets/sounds/Unlock.kaf"
+        source_path = "./assets/sounds/source/Unlock.ogg"
     }
     {
         name = "test_scene"
         path = "./assets/scenes/test_scene.ksn"
-    }
-    {
-        name = "Fire_loop"
-        path = "./assets/sounds/Fire_loop.ogg"
-    }
-    {
-        name = "Fire_loop_2"
-        path = "./assets/sounds/Fire_loop_2.ogg"
-    }
-    {
-        name = "Test"
-        path = "./assets/sounds/Test.ogg"
-    }
-    {
-        name = "Unlock"
-        path = "./assets/sounds/Unlock.ogg"
     }
     {
         name = "test_terrain"

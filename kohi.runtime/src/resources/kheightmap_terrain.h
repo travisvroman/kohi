@@ -3,9 +3,6 @@
 #include "defines.h"
 #include "math/math_types.h"
 
-#include "assets/kasset_heightmap_terrain.h"
-#include "assets/kasset_types.h"
-
 #define HEIGHTMAP_TERRAIN_MAX_MATERIAL_COUNT
 
 /** @brief Represents a single vertex of a heightmap terrain. */
@@ -51,7 +48,7 @@ typedef struct heightmap_terrain_chunk {
     u32 total_vertex_count;
 
     // The vertex data.
-    heightmap_terrain_vertex* vertices;
+    kheightmap_terrain_vertex* vertices;
     // The offset in bytes into the vertex buffer.
     u64 vertex_buffer_offset;
 

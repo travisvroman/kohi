@@ -111,7 +111,7 @@ b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* s
 
     state->vfs = engine_systems_get()->vfs_system_state;
 
-    // TODO: Setup handlers for known types.
+    // Setup handlers for known types.
     asset_handler_heightmap_terrain_create(&state->handlers[KASSET_TYPE_HEIGHTMAP_TERRAIN], state->vfs);
     asset_handler_image_create(&state->handlers[KASSET_TYPE_IMAGE], state->vfs);
     asset_handler_static_mesh_create(&state->handlers[KASSET_TYPE_STATIC_MESH], state->vfs);

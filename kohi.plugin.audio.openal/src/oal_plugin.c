@@ -17,11 +17,9 @@
 #include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
-#include "resources/loaders/audio_loader.h"
 #include "resources/resource_types.h"
 #include "systems/audio_system.h"
 #include "systems/job_system.h"
-#include "systems/resource_system.h"
 
 // OpenAL
 #ifdef KPLATFORM_WINDOWS

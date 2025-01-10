@@ -2,8 +2,10 @@
 
 #include "defines.h"
 #include "identifiers/identifier.h"
+#include "kresources/kresource_types.h"
 #include "math/math_types.h"
 #include "resources/resource_types.h"
+#include "strings/kname.h"
 #include "systems/material_system.h"
 
 /*
@@ -35,30 +37,6 @@ typedef struct terrain_vertex {
 typedef struct terrain_vertex_data {
     f32 height;
 } terrain_vertex_data;
-
-typedef struct terrain_config {
-    char* name;
-    char* resource_name;
-} terrain_config;
-
-typedef struct terrain_resource {
-    char* name;
-    u32 chunk_size;
-    u32 tile_count_x;
-    u32 tile_count_z;
-    // How large each tile is on the x axis.
-    f32 tile_scale_x;
-    // How large each tile is on the z axis.
-    f32 tile_scale_z;
-    // The max height of the generated terrain.
-    f32 scale_y;
-
-    u32 vertex_data_length;
-    terrain_vertex_data* vertex_datas;
-
-    u32 material_count;
-    char** material_names;
-} terrain_resource;
 
 typedef struct terrain_chunk_lod {
     /** @brief The index count for the chunk surface. */
@@ -105,8 +83,8 @@ typedef struct terrain {
     identifier id;
     u32 generation;
     terrain_state state;
-    char* name;
-    char* resource_name;
+    kname name;
+    kresource_heightmap_terrain* terrain_resource;
     kname material_name;
     u32 tile_count_x;
     u32 tile_count_z;
@@ -135,10 +113,10 @@ typedef struct terrain {
     u8 lod_count;
 
     u32 material_count;
-    char** material_names;
+    kname* material_names;
 } terrain;
 
-KAPI b8 terrain_create(const terrain_config* config, terrain* out_terrain);
+KAPI b8 terrain_create(kresource_heightmap_terrain* terrain_resource, terrain* out_terrain);
 KAPI void terrain_destroy(terrain* t);
 
 KAPI b8 terrain_initialize(terrain* t);

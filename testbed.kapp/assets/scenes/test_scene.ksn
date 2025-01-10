@@ -1,19 +1,19 @@
-properties = {
-    name = "test_scene"
-    description = "A simple test scene, yo."
-}
+version = 2
+name = "test_scene"
+description = "A simple test scene, yo."
 nodes = [
     {
         name = "environment"
         attachments = [
             {
                 type = "skybox"
-                cubemap_name = "skybox"
+                cubemap_image_asset_name = "skybox"
+                package_name = "Testbed"
             }
             {
                 type = "directional_light"
-                colour = "40.000000 40.000000 30.000000 1.000000"
-                direction = "-0.57735 -0.57735 0.57735 0.0"
+                colour = "0.400000 0.400000 0.300000 1.000000"
+                direction = "-0.577350 -0.577350 0.577350 0.000000"
                 shadow_distance = 100.000000
                 shadow_fade_distance = 5.000000
                 shadow_split_mult = 0.750000
@@ -26,7 +26,8 @@ nodes = [
         attachments = [
             {
                 type = "static_mesh"
-                resource_name = "Testbed.StaticMesh.sponza"
+                asset_name = "sponza"
+                package_name = "Testbed"
             }
         ]
         children = [
@@ -36,7 +37,8 @@ nodes = [
                 attachments = [
                     {
                         type = "static_mesh"
-                        resource_name = "Testbed.StaticMesh.Tree"
+                        asset_name = "Tree"
+                        package_name = "Testbed"
                     }
                 ]
             }
@@ -48,7 +50,8 @@ nodes = [
         attachments = [
             {
                 type = "static_mesh"
-                resource_name = "Testbed.StaticMesh.v_simple_hut_LOD0"
+                asset_name = "v_simple_hut_LOD0"
+                package_name = "Testbed"
             }
         ]
     }
@@ -58,21 +61,23 @@ nodes = [
         attachments = [
             {
                 type = "static_mesh"
-                resource_name = "Testbed.StaticMesh.Tree"
+                asset_name = "Tree"
+                package_name = "Testbed"
             }
         ]
     }
     {
         name = "falcon"
-        xform = "2.234540 0.536942 10.002614 0.036997 0.602169 -0.032698 0.796844 0.350000 0.350000 0.350000"
+        xform = "7.685925 -0.363394 5.845236 0.065921 0.919960 -0.104160 0.372138 0.350000 0.350000 0.350000"
         attachments = [
             {
                 type = "static_mesh"
-                resource_name = "Testbed.StaticMesh.falcon"
+                asset_name = "falcon"
+                package_name = "Testbed"
             }
             {
                 type = "point_light"
-                colour = "100.000000 0.000000 0.000000 1.000000"
+                colour = "1.000000 0.000000 0.000000 1.000000"
                 position = "2.500000 1.250000 -8.000000 0.000000"
                 constant_f = 1.000000
                 linear = 0.350000
@@ -85,9 +90,10 @@ nodes = [
         xform = "-50.000000 -3.900000 -50.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
         attachments = [
             {
-                type = "terrain"
+                type = "heightmap_terrain"
                 name = "test_terrain"
-                resource_name = "Testbed.Terrain.test_terrain"
+                asset_name = "test_terrain"
+                package_name = "Testbed"
             }
         ]
     }
@@ -97,7 +103,6 @@ nodes = [
         attachments = [
             {
                 type = "water_plane"
-                reserved = 42
             }
         ]
     }

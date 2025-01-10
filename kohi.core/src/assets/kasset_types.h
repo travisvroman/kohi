@@ -2,6 +2,7 @@
 
 #include "containers/array.h"
 #include "core_render_types.h"
+#include "core_resource_types.h"
 #include "defines.h"
 #include "identifiers/identifier.h"
 #include "math/math_types.h"
@@ -38,7 +39,6 @@ typedef enum kasset_type {
     KASSET_TYPE_VOXEL_TERRAIN,
     KASSET_TYPE_SKELETAL_MESH,
     KASSET_TYPE_AUDIO,
-    KASSET_TYPE_MUSIC,
     KASSET_TYPE_SHADER,
     KASSET_TYPE_MAX
 } kasset_type;
@@ -180,6 +180,7 @@ typedef struct kasset {
 typedef struct kasset_heightmap_terrain {
     kasset base;
     kname heightmap_asset_name;
+    kname heightmap_asset_package_name;
     u16 chunk_size;
     vec3 tile_scale;
     u8 material_count;
@@ -326,88 +327,11 @@ typedef struct kasset_kson {
 
 #define KASSET_TYPE_NAME_SCENE "Scene"
 
-typedef enum kasset_scene_node_attachment_type {
-    KASSET_SCENE_NODE_ATTACHMENT_TYPE_SKYBOX,
-    KASSET_SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT,
-    KASSET_SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT,
-    KASSET_SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH,
-    KASSET_SCENE_NODE_ATTACHMENT_TYPE_HEIGHTMAP_TERRAIN,
-    KASSET_SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE,
-    KASSET_SCENE_NODE_ATTACHMENT_TYPE_COUNT
-} kasset_scene_node_attachment_type;
-
-static const char* kasset_scene_node_attachment_type_strings[KASSET_SCENE_NODE_ATTACHMENT_TYPE_COUNT] = {
-    "Skybox",           // KASSET_SCENE_NODE_ATTACHMENT_TYPE_SKYBOX,
-    "DirectionalLight", // KASSET_SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT,
-    "PointLight",       // KASSET_SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT,
-    "StaticMesh",       // KASSET_SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH,
-    "HeightmapTerrain", // KASSET_SCENE_NODE_ATTACHMENT_TYPE_STATIC_HEIGHTMAP_TERRAIN,
-    "WaterPlane"        // KASSET_SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE,
-};
-
-// Ensure changes to scene attachment types break this if it isn't also updated.
-STATIC_ASSERT(KASSET_SCENE_NODE_ATTACHMENT_TYPE_COUNT == (sizeof(kasset_scene_node_attachment_type_strings) / sizeof(*kasset_scene_node_attachment_type_strings)), "Scene attachment type count does not match string lookup table count.");
-
-//////////////////////
-
-typedef struct kasset_scene_node_attachment {
-    kasset_scene_node_attachment_type type;
-    const char* name;
-} kasset_scene_node_attachment;
-
-typedef struct kasset_scene_node_attachment_skybox {
-    kasset_scene_node_attachment base;
-    const char* cubemap_image_asset_name;
-} kasset_scene_node_attachment_skybox;
-
-typedef struct kasset_scene_node_attachment_directional_light {
-    kasset_scene_node_attachment base;
-    vec4 colour;
-    vec4 direction;
-    f32 shadow_distance;
-    f32 shadow_fade_distance;
-    f32 shadow_split_mult;
-} kasset_scene_node_attachment_directional_light;
-
-typedef struct kasset_scene_node_attachment_point_light {
-    kasset_scene_node_attachment base;
-    vec4 colour;
-    vec4 position;
-    f32 constant_f;
-    f32 linear;
-    f32 quadratic;
-} kasset_scene_node_attachment_point_light;
-
-typedef struct kasset_scene_node_attachment_static_mesh {
-    kasset_scene_node_attachment base;
-    const char* asset_name;
-} kasset_scene_node_attachment_static_mesh;
-
-typedef struct kasset_scene_node_attachment_heightmap_terrain {
-    kasset_scene_node_attachment base;
-    const char* asset_name;
-} kasset_scene_node_attachment_heightmap_terrain;
-
-typedef struct kasset_scene_node_attachment_water_plane {
-    kasset_scene_node_attachment base;
-    // TODO: expand configurable properties.
-} kasset_scene_node_attachment_water_plane;
-
-typedef struct kasset_scene_node {
-    const char* name;
-    u32 attachment_count;
-    kasset_scene_node_attachment* attachments;
-    u32 child_count;
-    struct kasset_scene_node* children;
-    // String representation of xform, processed by the scene when needed.
-    const char* xform_source;
-} kasset_scene_node;
-
 typedef struct kasset_scene {
     kasset base;
     const char* description;
     u32 node_count;
-    kasset_scene_node* nodes;
+    scene_node_config* nodes;
 } kasset_scene;
 
 #define KASSET_TYPE_NAME_SHADER "Shader"
@@ -525,3 +449,20 @@ typedef struct kasset_bitmap_font {
     array_kasset_bitmap_font_kerning kernings;
     array_kasset_bitmap_font_page pages;
 } kasset_bitmap_font;
+
+/**
+ * Represents a Kohi Audio asset.
+ */
+typedef struct kasset_audio {
+    kasset base;
+    // The number of channels (i.e. 1 for mono or 2 for stereo)
+    i32 channels;
+    // The sample rate of the sound/music (i.e. 44100)
+    u32 sample_rate;
+
+    u32 total_sample_count;
+
+    u64 pcm_data_size;
+    /** Pulse-code modulation buffer, or raw data to be fed into a buffer. */
+    i16* pcm_data;
+} kasset_audio;

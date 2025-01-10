@@ -118,7 +118,7 @@ static void shader_kasset_on_result(asset_request_result result, const struct ka
 
         asset_to_resource(listener->asset, listener->typed_resource);
     } else {
-        KERROR("Failed to load a required asset for shader resource '%s'. Resource may be correct.", kname_string_get(listener->typed_resource->base.name));
+        KERROR("Failed to load a required asset for shader resource '%s'. Resource may be incorrect.", kname_string_get(listener->typed_resource->base.name));
     }
 
     // Destroy the request.

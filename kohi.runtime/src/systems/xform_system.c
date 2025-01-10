@@ -1,5 +1,7 @@
 #include "xform_system.h"
 
+#include <stdio.h>
+
 #include "core/engine.h"
 #include "debug/kassert.h"
 #include "defines.h"
@@ -399,24 +401,95 @@ const char* xform_to_string(khandle t) {
         vec3 scale = state->scales[index];
         quat rotation = state->rotations[index];
 
-        char buffer[512] = {0};
-        kzero_memory(buffer, sizeof(char) * 512);
-        string_format_unsafe(buffer, "%f %f %f %f %f %f %f %f %f %f",
-                      position.x,
-                      position.y,
-                      position.z,
-                      rotation.x,
-                      rotation.y,
-                      rotation.z,
-                      rotation.w,
-                      scale.x,
-                      scale.y,
-                      scale.z);
-        return string_duplicate(buffer);
+        return string_format(
+            "%f %f %f %f %f %f %f %f %f %f",
+            position.x,
+            position.y,
+            position.z,
+            rotation.x,
+            rotation.y,
+            rotation.z,
+            rotation.w,
+            scale.x,
+            scale.y,
+            scale.z);
     }
 
     KERROR("Invalid handle passed to xform_to_string. Returning null.");
     return 0;
+}
+
+b8 xform_from_string(const char* str, khandle* out_xform) {
+    if (!out_xform) {
+        KERROR("string_to_scene_xform_config requires a valid pointer to out_xform.");
+        return false;
+    }
+
+    b8 result = true;
+
+    vec3 position = vec3_zero();
+    quat rotation = quat_identity();
+    vec3 scale = vec3_one();
+
+    if (!str) {
+        KWARN("Format error: invalid string provided. Identity transform will be used.");
+        result = false;
+    } else {
+        f32 values[7] = {0};
+
+        i32 count = sscanf(
+            str,
+            "%f %f %f %f %f %f %f %f %f %f",
+            &position.x, &position.y, &position.z,
+            &values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6]);
+
+        if (count == 10) {
+            // Treat as quat, load directly.
+            rotation.x = values[0];
+            rotation.y = values[1];
+            rotation.z = values[2];
+            rotation.w = values[3];
+
+            // Set scale
+            scale.x = values[4];
+            scale.y = values[5];
+            scale.z = values[6];
+        } else if (count == 9) {
+            quat x_rot = quat_from_axis_angle((vec3){1.0f, 0, 0}, deg_to_rad(values[0]), true);
+            quat y_rot = quat_from_axis_angle((vec3){0, 1.0f, 0}, deg_to_rad(values[1]), true);
+            quat z_rot = quat_from_axis_angle((vec3){0, 0, 1.0f}, deg_to_rad(values[2]), true);
+            rotation = quat_mul(x_rot, quat_mul(y_rot, z_rot));
+
+            // Set scale
+            scale.x = values[3];
+            scale.y = values[4];
+            scale.z = values[5];
+        } else {
+            KWARN("Format error: invalid xform provided. Identity transform will be used.");
+            result = false;
+        }
+    }
+
+    khandle handle = {0};
+    xform_system_state* state = engine_systems_get()->xform_system;
+    if (state) {
+        handle = handle_create(state);
+        u32 i = handle.handle_index;
+        state->positions[i] = position;
+        state->rotations[i] = rotation;
+        state->scales[i] = scale;
+        state->local_matrices[i] = mat4_identity();
+        state->world_matrices[i] = mat4_identity();
+        // Add to the dirty list.
+        dirty_list_add(state, handle);
+    } else {
+        KERROR("Attempted to create a xform before the system was initialized.");
+        *out_xform = khandle_invalid();
+        return false;
+    }
+
+    *out_xform = handle;
+    return result;
 }
 
 static void ensure_allocated(xform_system_state* state, u32 slot_count) {
