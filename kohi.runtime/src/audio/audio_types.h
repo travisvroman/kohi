@@ -9,15 +9,15 @@ struct audio_plugin_state;
 struct frame_data;
 
 struct audio_system_config;
-struct audio_file_internal;
-struct audio_file_plugin_data;
 struct resource;
 
+// TODO: delete this
 typedef enum audio_file_type {
     AUDIO_FILE_TYPE_SOUND_EFFECT,
     AUDIO_FILE_TYPE_MUSIC_STREAM
 } audio_file_type;
 
+// TODO: delete this
 typedef struct audio_file {
     // The type of audio file.
     audio_file_type type;
@@ -39,6 +39,7 @@ typedef struct audio_file {
 
 } audio_file;
 
+// TODO: delete this
 typedef struct audio_emitter {
     vec3 position;
     f32 volume;
