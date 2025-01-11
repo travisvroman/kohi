@@ -73,7 +73,7 @@ typedef struct kaudio_backend_interface {
 
     b8 (*channel_looping_set)(struct kaudio_backend_interface* backend, u8 channel_id, b8 looping);
 
-    b8 (*resource_load)(struct kaudio_backend_interface* backend, const kresource_audio* resource, khandle resource_handle);
+    b8 (*resource_load)(struct kaudio_backend_interface* backend, const kresource_audio* resource, b8 is_stream, khandle resource_handle);
     void (*resource_unload)(struct kaudio_backend_interface* backend, khandle resource_handle);
 
     // Play whatever is currently bound to the channel.

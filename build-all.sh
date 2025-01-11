@@ -74,9 +74,9 @@ fi
 # Vulkan Renderer Lib
 if [ $PLATFORM = 'macos' ]
 then
-   VULKAN_SDK=/usr/local/
+   VULKAN_SDK=~/VulkanSDK/1.3.296.0/macOS/lib/
 fi
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.renderer.vulkan DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="$LNK_CORE_RT -lvulkan -lshaderc_shared -L$VULKAN_SDK/lib"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.renderer.vulkan DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="$LNK_CORE_RT -lvulkan -lshaderc_shared -L$VULKAN_SDK/lib "
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then

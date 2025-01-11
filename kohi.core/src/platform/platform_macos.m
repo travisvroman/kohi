@@ -54,7 +54,9 @@ typedef struct platform_state {
     // darray of pointers to created windows (owned by the application);
     kwindow** windows;
     platform_filewatcher_file_deleted_callback watcher_deleted_callback;
+    void* watcher_deleted_context;
     platform_filewatcher_file_written_callback watcher_written_callback;
+    void* watcher_written_context;
     platform_window_closed_callback window_closed_callback;
     platform_window_resized_callback window_resized_callback;
     platform_process_key process_key;
