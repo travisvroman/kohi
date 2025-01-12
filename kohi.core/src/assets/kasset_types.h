@@ -450,6 +450,8 @@ typedef struct kasset_bitmap_font {
     array_kasset_bitmap_font_page pages;
 } kasset_bitmap_font;
 
+#define KASSET_TYPE_NAME_AUDIO "Audio"
+
 /**
  * Represents a Kohi Audio asset.
  */

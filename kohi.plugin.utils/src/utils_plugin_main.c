@@ -1,5 +1,6 @@
 #include "utils_plugin_main.h"
 
+#include "importers/kasset_importer_audio.h"
 #include "importers/kasset_importer_bitmap_font_fnt.h"
 #include "importers/kasset_importer_image.h"
 #include "importers/kasset_importer_static_mesh_obj.h"
@@ -60,10 +61,10 @@ b8 kplugin_create(struct kruntime_plugin* out_plugin) {
     {
         const char* audio_types[] = {"mp3", "ogg", "wav"};
         for (u8 i = 0; i < 3; ++i) {
-            kasset_importer image_importer = {0};
-            image_importer.import = kasset_importer_image_import;
-            if (!kasset_importer_registry_register(KASSET_TYPE_IMAGE, audio_types[i], image_importer)) {
-                KERROR("Failed to register image asset importer!");
+            kasset_importer audio_importer = {0};
+            audio_importer.import = kasset_importer_audio_import;
+            if (!kasset_importer_registry_register(KASSET_TYPE_AUDIO, audio_types[i], audio_importer)) {
+                KERROR("Failed to register audio asset importer!");
                 return false;
             }
         }

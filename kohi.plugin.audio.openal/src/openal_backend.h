@@ -24,3 +24,7 @@ b8 openal_backend_channel_play_resource(kaudio_backend_interface* backend, khand
 b8 openal_backend_channel_stop(kaudio_backend_interface* backend, u8 channel_id);
 b8 openal_backend_channel_pause(kaudio_backend_interface* backend, u8 channel_id);
 b8 openal_backend_channel_resume(kaudio_backend_interface* backend, u8 channel_id);
+
+b8 openal_backend_channel_is_playing(kaudio_backend_interface* backend, u8 channel_id);
+b8 openal_backend_channel_is_paused(kaudio_backend_interface* backend, u8 channel_id);
+b8 openal_backend_channel_is_stopped(kaudio_backend_interface* backend, u8 channel_id);

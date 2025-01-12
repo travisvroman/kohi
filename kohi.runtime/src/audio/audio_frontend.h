@@ -70,6 +70,8 @@ KAPI b8 kaudio_channel_pause(struct kaudio_system_state* state, u8 channel_index
 KAPI b8 kaudio_channel_resume(struct kaudio_system_state* state, u8 channel_index);
 KAPI b8 kaudio_channel_stop(struct kaudio_system_state* state, u8 channel_index);
 KAPI b8 kaudio_channel_is_playing(struct kaudio_system_state* state, u8 channel_index);
+KAPI b8 kaudio_channel_is_paused(struct kaudio_system_state* state, u8 channel_index);
+KAPI b8 kaudio_channel_is_stopped(struct kaudio_system_state* state, u8 channel_index);
 KAPI b8 kaudio_channel_looping_get(struct kaudio_system_state* state, u8 channel_index);
 KAPI b8 kaudio_channel_looping_set(struct kaudio_system_state* state, u8 channel_index, b8 looping);
 KAPI f32 kaudio_channel_volume_get(struct kaudio_system_state* state, u8 channel_index);

@@ -84,4 +84,8 @@ typedef struct kaudio_backend_interface {
     b8 (*channel_pause)(struct kaudio_backend_interface* backend, u8 channel_id);
     b8 (*channel_resume)(struct kaudio_backend_interface* backend, u8 channel_id);
 
+    b8 (*channel_is_playing)(struct kaudio_backend_interface* backend, u8 channel_id);
+    b8 (*channel_is_paused)(struct kaudio_backend_interface* backend, u8 channel_id);
+    b8 (*channel_is_stopped)(struct kaudio_backend_interface* backend, u8 channel_id);
+
 } kaudio_backend_interface;

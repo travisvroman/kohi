@@ -2,24 +2,17 @@
 #include "assets/kasset_types.h"
 #include "containers/array.h"
 #include "core/engine.h"
-#include "debug/kassert.h"
 #include "kresources/kresource_types.h"
-#include "kresources/kresource_utils.h"
 #include "logger.h"
 #include "memory/kmemory.h"
-#include "renderer/renderer_frontend.h"
 #include "strings/kname.h"
 #include "systems/asset_system.h"
 #include "systems/kresource_system.h"
-
-// TODO: move this to kasset_types?
-ARRAY_TYPE_NAMED(const kasset_image*, kimage_ptr);
 
 typedef struct audio_resource_handler_info {
     kresource_audio* typed_resource;
     kresource_handler* handler;
     kresource_audio_request_info* request_info;
-    array_kimage_ptr assets;
     u32 loaded_count;
 } audio_resource_handler_info;
 
@@ -37,9 +30,6 @@ b8 kresource_handler_audio_request(struct kresource_handler* self, kresource* re
 
     kresource_audio* typed_resource = (kresource_audio*)resource;
     kresource_audio_request_info* typed_request = (kresource_audio_request_info*)info;
-    struct renderer_system_state* renderer = engine_systems_get()->renderer_system;
-
-    b8 assets_required = true;
 
     // NOTE: dynamically allocating this so lifetime isn't a concern.
     audio_resource_handler_info* listener_inst = kallocate(sizeof(audio_resource_handler_info), MEMORY_TAG_RESOURCE);
@@ -49,9 +39,6 @@ b8 kresource_handler_audio_request(struct kresource_handler* self, kresource* re
     listener_inst->typed_resource = typed_resource;
     listener_inst->handler = self;
     listener_inst->loaded_count = 0;
-    if (assets_required) {
-        listener_inst->assets = array_kimage_ptr_create(info->assets.base.length);
-    }
 
     if (info->assets.base.length != 1) {
         KERROR("kresource_handler_audio requires exactly one asset. Request failed.");
@@ -104,7 +91,21 @@ void kresource_handler_audio_release(struct kresource_handler* self, kresource* 
 static void audio_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst) {
     audio_resource_handler_info* listener = (audio_resource_handler_info*)listener_inst;
     if (result == ASSET_REQUEST_RESULT_SUCCESS) {
-        // TODO: send to audio system to get resources, etc.
+        kasset_audio* typed_asset = (kasset_audio*)asset;
+        // Convert asset to resource.
+        listener->typed_resource->channels = typed_asset->channels;
+        listener->typed_resource->sample_rate = typed_asset->sample_rate;
+        listener->typed_resource->total_sample_count = typed_asset->total_sample_count;
+        listener->typed_resource->pcm_data_size = typed_asset->pcm_data_size;
+        listener->typed_resource->pcm_data = kallocate(listener->typed_resource->pcm_data_size, MEMORY_TAG_AUDIO);
+        kcopy_memory(listener->typed_resource->pcm_data, typed_asset->pcm_data, listener->typed_resource->pcm_data_size);
+
+        listener->typed_resource->base.state = KRESOURCE_STATE_LOADED;
+
+        // Invoke the user callback if provided.
+        if (listener->request_info->base.user_callback) {
+            listener->request_info->base.user_callback((kresource*)listener->typed_resource, listener->request_info->base.listener_inst);
+        }
 
         // Release the asset reference as we are done with it.
         asset_system_release(engine_systems_get()->asset_state, asset->name, asset->package_name);
@@ -112,9 +113,7 @@ static void audio_kasset_on_result(asset_request_result result, const struct kas
         KERROR("Failed to load a required asset for audio resource '%s'. Resource may not work correctly when used.", kname_string_get(listener->typed_resource->base.name));
     }
 
-destroy_request:
     // Destroy the request.
-    array_kimage_ptr_destroy(&listener->assets);
     array_kresource_asset_info_destroy(&listener->request_info->base.assets);
     kfree(listener->request_info, sizeof(kresource_audio_request_info), MEMORY_TAG_RESOURCE);
     // Free the listener itself.

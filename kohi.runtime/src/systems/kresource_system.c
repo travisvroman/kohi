@@ -3,6 +3,7 @@
 #include "core/engine.h"
 #include "debug/kassert.h"
 #include "defines.h"
+#include "kresources/handlers/kresource_handler_audio.h"
 #include "kresources/handlers/kresource_handler_binary.h"
 #include "kresources/handlers/kresource_handler_bitmap_font.h"
 #include "kresources/handlers/kresource_handler_heightmap_terrain.h"
@@ -182,6 +183,18 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
         }
     }
 
+    // Audio handler.
+    {
+        kresource_handler handler = {0};
+        handler.allocate = kresource_handler_audio_allocate;
+        handler.release = kresource_handler_audio_release;
+        handler.request = kresource_handler_audio_request;
+        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_AUDIO, handler)) {
+            KERROR("Failed to register audio resource handler");
+            return false;
+        }
+    }
+
     KINFO("Resource system (new) initialized.");
     return true;
 }
@@ -233,7 +246,7 @@ kresource* kresource_system_request(struct kresource_system_state* state, kname 
                 // Grab a handler for the resource type, if there is one.
                 kresource_handler* handler = &state->handlers[info->type];
                 if (!handler->allocate) {
-                    KERROR("There is no handler setup for the resource type '%s'. Null/0 will be returned.", kresource_type_to_string(info->type));
+                    KERROR("There is no resource handler setup for the resource type '%s'. Null/0 will be returned.", kresource_type_to_string(info->type));
                     return 0;
                 }
 

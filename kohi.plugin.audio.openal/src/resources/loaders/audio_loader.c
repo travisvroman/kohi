@@ -1,4 +1,4 @@
-
+/*
 #include "audio_loader.h"
 
 #include <audio/audio_types.h>
@@ -198,4 +198,4 @@ resource_loader audio_resource_loader_create(void) {
     loader.type_path = "sounds";
 
     return loader;
-}
+} */

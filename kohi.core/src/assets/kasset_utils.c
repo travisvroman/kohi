@@ -18,6 +18,7 @@ static const char* kasset_type_strs[KASSET_TYPE_MAX] = {
     "Material",         // KASSET_TYPE_MATERIAL,
     "StaticMesh",       // KASSET_TYPE_STATIC_MESH,
     "HeightmapTerrain", // KASSET_TYPE_HEIGHTMAP_TERRAIN,
+    "Scene",            // KASSET_TYPE_SCENE
     "BitmapFont",       // KASSET_TYPE_BITMAP_FONT,
     "SystemFont",       // KASSET_TYPE_SYSTEM_FONT,
     "Text",             // KASSET_TYPE_TEXT,
@@ -26,7 +27,7 @@ static const char* kasset_type_strs[KASSET_TYPE_MAX] = {
     "VoxelTerrain",     // KASSET_TYPE_VOXEL_TERRAIN,
     "SkeletalMesh",     // KASSET_TYPE_SKELETAL_MESH,
     "Audio",            // KASSET_TYPE_AUDIO,
-    "Music"             // KASSET_TYPE_MUSIC,
+    "Shader"            // KASSET_TYPE_SHADER,
 };
 
 // Ensure changes to asset types break this if it isn't also updated.

@@ -64,10 +64,8 @@ const char* kresource_type_to_string(kresource_type type) {
         return "heightmap_terrain";
     case KRESOURCE_TYPE_VOXEL_TERRAIN:
         return "voxel_terrain";
-    case KRESOURCE_TYPE_SOUND_EFFECT:
-        return "sound_effect";
-    case KRESOURCE_TYPE_MUSIC:
-        return "music";
+    case KRESOURCE_TYPE_AUDIO:
+        return "audio";
     case KRESOURCE_TYPE_COUNT:
     case KRESOURCE_KNOWN_TYPE_MAX:
         KERROR("Attempted to get string representation of count/max. Returning unknown.");

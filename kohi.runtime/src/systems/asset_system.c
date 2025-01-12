@@ -1,6 +1,7 @@
 #include "asset_system.h"
 #include "core/engine.h"
 // Known handler types
+#include "assets/handlers/asset_handler_audio.h"
 #include "assets/handlers/asset_handler_binary.h"
 #include "assets/handlers/asset_handler_bitmap_font.h"
 #include "assets/handlers/asset_handler_heightmap_terrain.h"
@@ -123,6 +124,7 @@ b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* s
     asset_handler_shader_create(&state->handlers[KASSET_TYPE_SHADER], state->vfs);
     asset_handler_system_font_create(&state->handlers[KASSET_TYPE_SYSTEM_FONT], state->vfs);
     asset_handler_bitmap_font_create(&state->handlers[KASSET_TYPE_BITMAP_FONT], state->vfs);
+    asset_handler_audio_create(&state->handlers[KASSET_TYPE_AUDIO], state->vfs);
 
     return true;
 }

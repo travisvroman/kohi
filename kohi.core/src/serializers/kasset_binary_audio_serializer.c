@@ -1,7 +1,6 @@
 #include "kasset_binary_audio_serializer.h"
 
 #include "assets/kasset_types.h"
-#include "assets/kasset_utils.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 

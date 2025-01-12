@@ -1,6 +1,7 @@
 #include "engine.h"
 
 // Version reporting
+#include "audio/audio_frontend.h"
 #include "kohi.runtime_version.h"
 
 #include "application/application_config.h"
@@ -30,7 +31,6 @@
 
 // systems
 #include "systems/asset_system.h"
-#include "systems/audio_system.h"
 #include "systems/camera_system.h"
 #include "systems/font_system.h"
 #include "systems/job_system.h"
@@ -438,17 +438,9 @@ b8 engine_create(application* game_inst) {
             return false;
         }
 
-        audio_system_config audio_sys_config = {0};
-
-        // Parse system config from app config.
-        if (!audio_system_deserialize_config(generic_sys_config.configuration_str, &audio_sys_config)) {
-            KERROR("Failed to deserialize audio system config, which is required.");
-            return false;
-        }
-
-        audio_system_initialize(&systems->audio_system_memory_requirement, 0, &audio_sys_config);
-        systems->audio_system = kallocate(systems->audio_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!audio_system_initialize(&systems->audio_system_memory_requirement, systems->audio_system, &audio_sys_config)) {
+        kaudio_system_initialize(&systems->kaudio_system_memory_requirement, 0, generic_sys_config.configuration_str);
+        systems->audio_system = kallocate(systems->kaudio_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!kaudio_system_initialize(&systems->kaudio_system_memory_requirement, systems->audio_system, generic_sys_config.configuration_str)) {
             KERROR("Failed to initialize audio system.");
             return false;
         }
@@ -842,7 +834,7 @@ b8 engine_run(application* game_inst) {
         texture_system_shutdown(systems->texture_system);
         timeline_system_shutdown(systems->timeline_system);
         xform_system_shutdown(systems->xform_system);
-        audio_system_shutdown(systems->audio_system);
+        kaudio_system_shutdown(systems->audio_system);
         plugin_system_shutdown(systems->plugin_system);
         shader_system_shutdown(systems->shader_system);
         kresource_system_shutdown(systems->kresource_state);

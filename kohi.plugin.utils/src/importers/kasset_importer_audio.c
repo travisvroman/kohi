@@ -33,7 +33,7 @@ b8 kasset_importer_audio_import(const struct kasset_importer* self, u64 data_siz
 
         // Initialize the decoder.
         mp3dec_t mp3_decoder;
-        mp3dec_file_info_t file_info;
+        /* mp3dec_file_info_t file_info; */
         mp3dec_init(&mp3_decoder);
 
         u8* mp3_data = (u8*)data;
@@ -72,6 +72,9 @@ b8 kasset_importer_audio_import(const struct kasset_importer* self, u64 data_siz
             KERROR("Failed to import OGG Vorbis file.");
             return false;
         }
+        // Make sure this is a multiple of 4. If not, loading into the buffer can fail.
+        total_samples += (total_samples % 4);
+
         typed_asset->total_sample_count = total_samples;
         typed_asset->pcm_data_size = typed_asset->total_sample_count * sizeof(i16);
         typed_asset->pcm_data = kallocate(typed_asset->pcm_data_size, MEMORY_TAG_ASSET);

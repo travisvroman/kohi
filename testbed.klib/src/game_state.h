@@ -93,10 +93,9 @@ typedef struct testbed_game_state {
     struct sui_control test_panel;
     struct sui_control test_button;
 
-    struct audio_file* test_audio_file;
-    struct audio_file* test_loop_audio_file;
-    struct audio_file* test_music;
-    audio_emitter test_emitter;
+    khandle test_sound;
+    khandle test_loop_sound;
+    khandle test_music;
 
     u32 proj_box_index;
     u32 cam_proj_line_indices[24];
