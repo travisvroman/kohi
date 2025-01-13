@@ -213,7 +213,13 @@ b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_
                 f32 mixed_pitch = channel->pitch * channel->bound_data->pitch;
                 state->backend->channel_pitch_set(state->backend, i, mixed_pitch);
                 // Looping setting
-                state->backend->channel_looping_set(state->backend, i, channel->bound_data->looping);
+                b8 looping = channel->bound_data->looping;
+                if (channel->bound_data->is_streaming) {
+                    // Audio channels for streams should never loop directly, but are checked internally instead.
+                    // Always force these to be false for streams.
+                    looping = false;
+                }
+                state->backend->channel_looping_set(state->backend, i, looping);
 
                 // Position is only applied for mono sounds, because only those can be spatial/use position.
                 if (channel->bound_data->resource->channels == 1) {
@@ -288,6 +294,7 @@ b8 kaudio_acquire(struct kaudio_system_state* state, kname resource_name, kname 
     // Set reasonable defaults.
     data->looping = is_streaming ? true : false;
     data->pitch = 1.0f;
+    data->volume = 1.0f;
 
     // Listener for the request.
     audio_asset_request_listener* listener = KALLOC_TYPE(audio_asset_request_listener, MEMORY_TAG_RESOURCE);
@@ -340,6 +347,9 @@ b8 kaudio_play(struct kaudio_system_state* state, khandle audio, u8 channel_inde
         KERROR("%s was called with an out of bounds channel_index of %hhu (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
         return false;
     }
+
+    // Bind the resource.
+    state->channels[channel_index].bound_data = &state->resources[audio.handle_index];
 
     return state->backend->channel_play_resource(state->backend, audio, channel_index);
 }
@@ -398,6 +408,28 @@ b8 kaudio_volume_set(struct kaudio_system_state* state, khandle audio, f32 volum
     return true;
 }
 
+b8 kaudio_looping_get(struct kaudio_system_state* state, khandle audio) {
+    if (!handle_is_valid_and_pristine(state, audio)) {
+        KERROR("%s was called with an invalid or stale handle.", __FUNCTION__);
+        return false;
+    }
+
+    kaudio_resource_handle_data* data = &state->resources[audio.handle_index];
+
+    return data->looping;
+}
+
+b8 kaudio_looping_set(struct kaudio_system_state* state, khandle audio, b8 looping) {
+    if (!handle_is_valid_and_pristine(state, audio)) {
+        KERROR("%s was called with an invalid or stale handle.", __FUNCTION__);
+        return false;
+    }
+
+    kaudio_resource_handle_data* data = &state->resources[audio.handle_index];
+    data->looping = looping;
+    return true;
+}
+
 b8 kaudio_channel_play(struct kaudio_system_state* state, u8 channel_index) {
     if (!state) {
         return false;
@@ -446,6 +478,10 @@ b8 kaudio_channel_stop(struct kaudio_system_state* state, u8 channel_index) {
         KERROR("%s called with channel_index %hhu out of range (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
         return false;
     }
+
+    // Unbind the source on stop.
+    state->channels[channel_index].bound_data = 0;
+
     return state->backend->channel_stop(state->backend, channel_index);
 }
 
@@ -590,7 +626,7 @@ static b8 deserialize_config(const char* config_str, kaudio_system_config* out_c
 
     i64 chunk_size;
     if (!kson_object_property_value_get_int(&tree.root, "chunk_size", &chunk_size)) {
-        chunk_size = 8;
+        chunk_size = 4096 * 16;
     }
     if (chunk_size == 0) {
         chunk_size = 4096 * 16;

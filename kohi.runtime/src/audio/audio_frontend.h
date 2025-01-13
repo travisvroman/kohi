@@ -60,6 +60,8 @@ KAPI f32 kaudio_pitch_get(struct kaudio_system_state* state, khandle audio);
 KAPI b8 kaudio_pitch_set(struct kaudio_system_state* state, khandle audio, f32 pitch);
 KAPI f32 kaudio_volume_get(struct kaudio_system_state* state, khandle audio);
 KAPI b8 kaudio_volume_set(struct kaudio_system_state* state, khandle audio, f32 volume);
+KAPI b8 kaudio_looping_get(struct kaudio_system_state* state, khandle audio);
+KAPI b8 kaudio_looping_set(struct kaudio_system_state* state, khandle audio, b8 looping);
 
 // KAPI b8 kaudio_seek(struct kaudio_system_state* state, khandle audio, f32 seconds);
 // KAPI f32 kaudio_time_played_get(struct kaudio_system_state* state, khandle audio);

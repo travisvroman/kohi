@@ -150,14 +150,14 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
         // Validate asset path.
         const char* asset_path = get_source ? entry->source_path : entry->path;
         if (!asset_path) {
-            KERROR("Package '%s': No %s asset path exists for asset '%s'. Load operation failed.", package_name, get_source ? "source" : "primary", name_str);
+            KTRACE("Package '%s': No %s asset path exists for asset '%s'.", package_name, get_source ? "source" : "primary", name_str);
             result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
             return result;
         }
 
         // Validate that the file exists.
         if (!filesystem_exists(asset_path)) {
-            KERROR("Package '%s': Invalid %s asset path ('%s') for asset '%s'. Load operation failed.", package_name, get_source ? "source" : "primary", asset_path, name_str);
+            KTRACE("Package '%s': Invalid %s asset path ('%s') for asset '%s'.", package_name, get_source ? "source" : "primary", asset_path, name_str);
             result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
             return result;
         }

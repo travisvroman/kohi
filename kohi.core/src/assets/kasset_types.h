@@ -79,6 +79,8 @@ typedef enum asset_request_result {
     ASSET_REQUEST_RESULT_INTERNAL_FAILURE,
     /** No handler exists for the given asset. See logs for details. */
     ASSET_REQUEST_RESULT_NO_HANDLER,
+    /** No importer exists for the given asset extension. See logs for details. */
+    ASSET_REQUEST_RESULT_NO_IMPORTER_FOR_SOURCE_ASSET,
     /** There was a failure at the VFS level, probably a request for an asset that doesn't exist. */
     ASSET_REQUEST_RESULT_VFS_REQUEST_FAILED,
     /** Returned by handlers who attempt (and fail) an auto-import of source asset data when the binary does not exist. */

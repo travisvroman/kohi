@@ -15,6 +15,7 @@
 #include "vendor/stb_vorbis.h"
 // Loading mp3 files.
 #define MINIMP3_IMPLEMENTATION
+// #define MINIMP3_NO_STDIO
 #include "vendor/minimp3_ex.h"
 
 b8 kasset_importer_audio_import(const struct kasset_importer* self, u64 data_size, const void* data, void* params, struct kasset* out_asset) {
@@ -33,36 +34,69 @@ b8 kasset_importer_audio_import(const struct kasset_importer* self, u64 data_siz
 
         // Initialize the decoder.
         mp3dec_t mp3_decoder;
-        /* mp3dec_file_info_t file_info; */
         mp3dec_init(&mp3_decoder);
+        // // HACK: test
+        // mp3dec_file_info_t file_info;
+        // const char* full_file_path = "../testbed.kapp/assets/music/source/Woodland Fantasy.mp3";
+        // i32 err = mp3dec_load(&mp3_decoder, full_file_path, &file_info, 0, 0);
+        // if (err < 0) {
+        //     KERROR("Error decoding MP3.");
+        //     return false;
+        // }
+        // typed_asset->total_sample_count = file_info.samples;
+        // typed_asset->channels = file_info.channels;
+        // typed_asset->sample_rate = file_info.hz;
+        // typed_asset->pcm_data_size = file_info.samples * sizeof(mp3d_sample_t);
+        // typed_asset->pcm_data = kallocate(typed_asset->pcm_data_size, MEMORY_TAG_ASSET);
+        // KDEBUG("Decoded mp3 - channels: %d, samples: %llu, sample_rate/freq: %dHz, avg kbit/s rate: %d, size: %llu", file_info.channels, file_info.samples, file_info.hz, file_info.avg_bitrate_kbps, typed_asset->pcm_data_size);
+        // kcopy_memory(typed_asset->pcm_data, file_info.buffer, typed_asset->pcm_data_size);
+        // if(typed_asset->pcm_data) {
 
-        u8* mp3_data = (u8*)data;
-        mp3dec_frame_info_t frame_info;
-        i32 offset = 0;
-        while (offset < data_size) {
-            i16 pcm[MINIMP3_MAX_SAMPLES_PER_FRAME] = {0};
-            i32 sample_count = mp3dec_decode_frame(&mp3_decoder, mp3_data + offset, data_size - offset, pcm, &frame_info);
-            if (sample_count < 0) {
-                KERROR("Error decoding MP3 frame.");
-                break;
-            }
-            typed_asset->total_sample_count += sample_count;
-
-            offset += frame_info.frame_bytes;
-            typed_asset->pcm_data = (i16*)kreallocate(typed_asset->pcm_data, typed_asset->pcm_data_size, typed_asset->pcm_data_size + frame_info.frame_bytes, MEMORY_TAG_ASSET);
-            if (!typed_asset->pcm_data) {
-                KERROR("Failed to reallocate more memory for PCM data!");
-                break;
-            }
-
-            // Append the data.
-            kcopy_memory(typed_asset->pcm_data + typed_asset->pcm_data_size, pcm, frame_info.frame_bytes);
-            typed_asset->pcm_data_size += frame_info.frame_bytes;
+        // }
+        // TODO: new
+        mp3dec_file_info_t file_info;
+        i32 err = mp3dec_load_buf(&mp3_decoder, (u8*)data, data_size, &file_info, 0, 0);
+        if (err < 0) {
+            KERROR("Error decoding MP3.");
+            return false;
         }
 
-        // Fill out the kaf audio data.
-        typed_asset->channels = frame_info.channels;
-        typed_asset->sample_rate = frame_info.hz;
+        KINFO("Decoded %llu samples successfully.", file_info.samples);
+
+        typed_asset->total_sample_count = file_info.samples;
+        typed_asset->channels = file_info.channels;
+        typed_asset->sample_rate = file_info.hz;
+        typed_asset->pcm_data_size = file_info.samples * sizeof(mp3d_sample_t);
+        typed_asset->pcm_data = kallocate(typed_asset->pcm_data_size, MEMORY_TAG_ASSET);
+        KDEBUG("Decoded mp3 - channels: %d, samples: %llu, sample_rate/freq: %dHz, avg kbit/s rate: %d, size: %llu", file_info.channels, file_info.samples, file_info.hz, file_info.avg_bitrate_kbps, typed_asset->pcm_data_size);
+        kcopy_memory(typed_asset->pcm_data, file_info.buffer, typed_asset->pcm_data_size);
+
+        // TODO: old
+
+        // mp3dec_frame_info_t frame_info;
+        // while (typed_asset->pcm_data_size < data_size) {
+        //     i16 pcm[MINIMP3_MAX_SAMPLES_PER_FRAME] = {0};
+        //     i32 sample_count = mp3dec_decode_frame(&mp3_decoder, ((u8*)data) + typed_asset->pcm_data_size, data_size - typed_asset->pcm_data_size, pcm, &frame_info);
+        //     if (sample_count < 0) {
+        //         KERROR("Error decoding MP3 frame.");
+        //         break;
+        //     }
+        //     typed_asset->total_sample_count += sample_count;
+
+        //     typed_asset->pcm_data = (i16*)kreallocate(typed_asset->pcm_data, typed_asset->pcm_data_size, typed_asset->pcm_data_size + frame_info.frame_bytes, MEMORY_TAG_ASSET);
+        //     if (!typed_asset->pcm_data) {
+        //         KERROR("Failed to reallocate more memory for PCM data!");
+        //         break;
+        //     }
+
+        //     // Append the data.
+        //     kcopy_memory(((u8*)typed_asset->pcm_data) + typed_asset->pcm_data_size, pcm, frame_info.frame_bytes);
+        //     typed_asset->pcm_data_size += frame_info.frame_bytes;
+        // }
+
+        // // Fill out the kaf audio data.
+        // typed_asset->channels = frame_info.channels;
+        // typed_asset->sample_rate = frame_info.hz;
     } else if (strings_equali(self->source_type, "ogg")) {
         KTRACE("Importing OGG Vorbis asset '%s'...", kname_string_get(out_asset->name));
 

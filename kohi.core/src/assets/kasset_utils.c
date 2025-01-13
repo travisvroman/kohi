@@ -71,8 +71,8 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data as
 
         // Check if the file was loaded as primary or from source.
         b8 from_source = (asset_data.flags & VFS_ASSET_FLAG_FROM_SOURCE) ? true : false;
+        KTRACE("%s asset '%s' loaded.",from_source ? "Source" : "Primary", kname_string_get(asset_data.asset_name));
         if (from_source) {
-            KTRACE("Source asset loaded.");
             // Import it, write the binary version to disk and request the primary again.
             // Choose the importer by getting the file extension (minus the '.').
             const char* extension = string_extension_from_path(asset_data.path, false);
@@ -83,8 +83,8 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data as
             }
             const kasset_importer* importer = kasset_importer_registry_get_for_source_type(context.asset->type, extension);
             if (!importer) {
-                KERROR("No handler registered for extension '%s'.", extension);
-                result = ASSET_REQUEST_RESULT_NO_HANDLER;
+                KERROR("No asset importer is registered for extension '%s'.", extension);
+                result = ASSET_REQUEST_RESULT_NO_IMPORTER_FOR_SOURCE_ASSET;
                 goto from_source_cleanup;
             }
 
@@ -136,7 +136,6 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data as
             }
 
         } else {
-            KTRACE("Primary asset '%s' loaded.", kname_string_get(asset_data.asset_name));
             // From primary file.
             // Deserialize directly. This either means that the primary asset already existed or was imported successfully.
             if (context.handler->binary_deserialize) {
