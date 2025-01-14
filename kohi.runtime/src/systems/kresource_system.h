@@ -10,8 +10,10 @@ typedef struct kresource_system_config {
 
 typedef struct kresource_handler {
     struct asset_system_state* asset_system;
-    kresource* (*allocate)(void);
+    // The size of the internal resource struct type.
+    u64 size;
     b8 (*request)(struct kresource_handler* self, kresource* resource, const struct kresource_request_info* info);
+    b8 (*handle_hot_reload)(struct kresource_handler* self, kresource* resource, kasset* asset, u32 file_watch_id);
     void (*release)(struct kresource_handler* self, kresource* resource);
 } kresource_handler;
 
@@ -22,3 +24,4 @@ KAPI kresource* kresource_system_request(struct kresource_system_state* state, k
 KAPI void kresource_system_release(struct kresource_system_state* state, kname resource_name);
 
 KAPI b8 kresource_system_handler_register(struct kresource_system_state* state, kresource_type type, kresource_handler handler);
+KAPI void kresource_system_register_for_hot_reload(struct kresource_system_state* state, kresource* resource, u32 file_watch_id);

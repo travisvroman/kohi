@@ -17,6 +17,7 @@
 
 static b8 kasset_text_deserialize(const char* file_text, kasset* out_asset);
 static const char* kasset_text_serialize(const kasset* asset);
+static void on_hot_reload(const struct vfs_asset_data* asset_data, const struct kasset* asset);
 
 void asset_handler_text_create(struct asset_handler* self, struct vfs_state* vfs) {
     KASSERT_MSG(self && vfs, "Valid pointers are required for 'self' and 'vfs'.");
@@ -31,6 +32,8 @@ void asset_handler_text_create(struct asset_handler* self, struct vfs_state* vfs
     self->binary_deserialize = 0;
     self->text_serialize = kasset_text_serialize;
     self->text_deserialize = kasset_text_deserialize;
+    self->on_hot_reload = on_hot_reload;
+    self->size = sizeof(kasset_text);
 }
 
 void asset_handler_text_release_asset(struct asset_handler* self, struct kasset* asset) {
@@ -58,4 +61,16 @@ static const char* kasset_text_serialize(const kasset* asset) {
     }
 
     return string_duplicate(((kasset_text*)asset)->content);
+}
+
+static void on_hot_reload(const struct vfs_asset_data* asset_data, const struct kasset* asset) {
+    if (asset && asset_data && asset_data->text) {
+        kasset_text* typed_asset = (kasset_text*)asset;
+
+        // Make sure to free the old data first.
+        if (typed_asset->content) {
+            string_free(typed_asset->content);
+        }
+        typed_asset->content = string_duplicate(asset_data->text);
+    }
 }

@@ -8,6 +8,7 @@
 #include "strings/kname.h"
 #include "systems/asset_system.h"
 #include "systems/kresource_system.h"
+#include "systems/audio_system.h"
 
 typedef struct audio_resource_handler_info {
     kresource_audio* typed_resource;
@@ -56,8 +57,6 @@ b8 kresource_handler_audio_request(struct kresource_handler* self, kresource* re
         request_info.listener_inst = listener_inst;
         request_info.callback = audio_kasset_on_result;
         request_info.synchronous = false;
-        request_info.hot_reload_callback = 0;
-        request_info.hot_reload_context = 0;
         request_info.import_params_size = 0;
         request_info.import_params = 0;
 
@@ -83,9 +82,7 @@ void kresource_handler_audio_release(struct kresource_handler* self, kresource* 
         }
 
         // TODO: release backend data
-
-        kfree(resource, sizeof(kresource_audio), MEMORY_TAG_RESOURCE);
-    }
+        }
 }
 
 static void audio_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst) {

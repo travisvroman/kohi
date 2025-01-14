@@ -23,10 +23,6 @@ static void material_kasset_on_result(asset_request_result result, const struct 
 static void asset_to_resource(const kasset_material* asset, kresource_material* out_material);
 static void material_kasset_on_hot_reload(asset_request_result result, const struct kasset* asset, void* listener_inst);
 
-kresource* kresource_handler_material_allocate(void) {
-    return (kresource*)KALLOC_TYPE(kresource_material, MEMORY_TAG_RESOURCE);
-}
-
 b8 kresource_handler_material_request(kresource_handler* self, kresource* resource, const struct kresource_request_info* info) {
     if (!self || !resource) {
         KERROR("kresource_handler_material_request requires valid pointers to self and resource.");
@@ -82,8 +78,6 @@ b8 kresource_handler_material_request(kresource_handler* self, kresource* resour
     request_info.listener_inst = listener_inst;
     request_info.callback = material_kasset_on_result;
     request_info.synchronous = false;
-    request_info.hot_reload_callback = material_kasset_on_hot_reload;
-    request_info.hot_reload_context = typed_resource;
     request_info.import_params_size = 0;
     request_info.import_params = 0;
     asset_system_request(self->asset_system, request_info);
@@ -98,8 +92,6 @@ void kresource_handler_material_release(kresource_handler* self, kresource* reso
         if (typed_resource->custom_sampler_count && typed_resource->custom_samplers) {
             KFREE_TYPE_CARRAY(typed_resource->custom_samplers, kmaterial_sampler_config, typed_resource->custom_sampler_count);
         }
-
-        KFREE_TYPE(typed_resource, kresource_material, MEMORY_TAG_RESOURCE);
     }
 }
 

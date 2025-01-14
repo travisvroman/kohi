@@ -45,14 +45,6 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config)
 void shader_system_shutdown(void* state);
 
 /**
- * @brief Reloads the given shader.
- *
- * @param shader A handle to the shader to reload.
- * @return True on success; otherwise false.
- */
-KAPI b8 shader_system_reload(khandle shader);
-
-/**
  * @brief Returns a handle to a shader with the given name.
  * Attempts to load the shader if not already loaded.
  *

@@ -26,10 +26,6 @@ typedef struct shader_resource_handler_info {
 static void shader_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
 static void asset_to_resource(const kasset_shader* asset, kresource_shader* out_shader);
 
-kresource* kresource_handler_shader_allocate(void) {
-    return (kresource*)KALLOC_TYPE(kresource_shader, MEMORY_TAG_RESOURCE);
-}
-
 b8 kresource_handler_shader_request(kresource_handler* self, kresource* resource, const struct kresource_request_info* info) {
     if (!self || !resource) {
         KERROR("kresource_handler_shader_request requires valid pointers to self and resource.");
@@ -80,8 +76,6 @@ b8 kresource_handler_shader_request(kresource_handler* self, kresource* resource
     request_info.listener_inst = listener_inst;
     request_info.callback = shader_kasset_on_result;
     request_info.synchronous = typed_request->base.synchronous;
-    request_info.hot_reload_callback = 0; // Don't need hot-reloading on the shader config.
-    request_info.hot_reload_context = 0;
     request_info.import_params_size = 0;
     request_info.import_params = 0;
 
@@ -105,8 +99,6 @@ void kresource_handler_shader_release(kresource_handler* self, kresource* resour
         if (typed_resource->stage_count && typed_resource->stage_configs) {
             KFREE_TYPE_CARRAY(typed_resource->stage_configs, shader_stage_config, typed_resource->stage_count);
         }
-
-        KFREE_TYPE(typed_resource, kresource_shader, MEMORY_TAG_RESOURCE);
     }
 }
 
@@ -167,7 +159,6 @@ static void asset_to_resource(const kasset_shader* asset, kresource_shader* out_
     // Stages
     out_shader_resource->stage_count = asset->stage_count;
     out_shader_resource->stage_configs = KALLOC_TYPE_CARRAY(shader_stage_config, out_shader_resource->stage_count);
-    out_shader_resource->base.asset_file_watch_ids = darray_create(u32);
     for (u32 i = 0; i < out_shader_resource->stage_count; ++i) {
         kasset_shader_stage* a = &asset->stages[i];
         shader_stage_config* target = &out_shader_resource->stage_configs[i];
@@ -194,21 +185,13 @@ static void asset_to_resource(const kasset_shader* asset, kresource_shader* out_
         kresource_text* text_resource = (kresource_text*)kresource_system_request(engine_systems_get()->kresource_state, target->resource_name, &request);
         if (!text_resource) {
             KERROR("Failed to properly request shader stage resource '%s' for shader '%s'.", kname_string_get(target->resource_name), kname_string_get(out_shader_resource->base.name));
-            target->source = 0;
+            target->resource = 0;
             return;
         }
         if (text_resource->text) {
-            target->source = string_duplicate(text_resource->text);
+            target->resource = text_resource;
         } else {
             KWARN("Loaded shader source asset '%s' has no source.", kname_string_get(text_resource->base.name));
-        }
-
-        // Keep track of the watch ids if they exist.
-        if (text_resource->base.asset_file_watch_ids) {
-            u32 watch_id_count = darray_length(text_resource->base.asset_file_watch_ids);
-            for (u32 w = 0; w < watch_id_count; ++w) {
-                darray_push(out_shader_resource->base.asset_file_watch_ids, text_resource->base.asset_file_watch_ids[w]);
-            }
         }
     }
 

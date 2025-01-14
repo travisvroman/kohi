@@ -250,11 +250,20 @@ typedef enum shader_state {
     SHADER_STATE_INITIALIZED,
 } shader_state;
 
+struct kresource_text;
+
+/**
+ * @brief The configuration for a single stage of the shader.
+ */
 typedef struct shader_stage_config {
+    /** @brief The shader stage the config is for. */
     shader_stage stage;
+    /** @brief A pointer to the text resource containing the shader source. */
+    struct kresource_text* resource;
+    /** @brief The name of the resource. */
     kname resource_name;
+    /** @brief The name of the package containing the resource. */
     kname package_name;
-    char* source;
 } shader_stage_config;
 
 /** @brief Configuration for an attribute. */

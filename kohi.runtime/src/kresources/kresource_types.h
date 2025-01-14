@@ -83,9 +83,6 @@ typedef struct kresource {
 
     /** @brief An array of tags. */
     kname* tags;
-
-    // darray of file watches, if relevant.
-    u32* asset_file_watch_ids;
 } kresource;
 
 typedef struct kresource_asset_info {
@@ -365,6 +362,8 @@ typedef struct kresource_text {
     kresource base;
 
     const char* text;
+
+    u32 asset_file_watch_id;
 } kresource_text;
 
 #define KRESOURCE_TYPE_NAME_BINARY "Binary"

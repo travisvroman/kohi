@@ -158,6 +158,20 @@ b8 engine_create(application* game_inst) {
         }
     }
 
+    // Event system needs to be setup as early as possible so other systems can register with it.
+    {
+        event_system_initialize(&systems->event_system_memory_requirement, 0, 0);
+        systems->event_system = kallocate(systems->event_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!event_system_initialize(&systems->event_system_memory_requirement, systems->event_system, 0)) {
+            KERROR("Failed to initialize event system.");
+            return false;
+        }
+
+        // After event system, register input callbacks.
+        platform_register_window_closed_callback(engine_on_window_closed);
+        platform_register_window_resized_callback(engine_on_window_resized);
+    }
+
     // Console system
     {
         console_initialize(&systems->console_memory_requirement, 0, 0);
@@ -287,20 +301,6 @@ b8 engine_create(application* game_inst) {
             KERROR("Failed to initialize KVar system.");
             return false;
         }
-    }
-
-    // Event system.
-    {
-        event_system_initialize(&systems->event_system_memory_requirement, 0, 0);
-        systems->event_system = kallocate(systems->event_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!event_system_initialize(&systems->event_system_memory_requirement, systems->event_system, 0)) {
-            KERROR("Failed to initialize event system.");
-            return false;
-        }
-
-        // After event system, register input callbacks.
-        platform_register_window_closed_callback(engine_on_window_closed);
-        platform_register_window_resized_callback(engine_on_window_resized);
     }
 
     // Input system.

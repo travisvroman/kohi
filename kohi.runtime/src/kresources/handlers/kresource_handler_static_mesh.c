@@ -28,10 +28,6 @@ typedef struct static_mesh_asset_request_listener {
 // Callback for when an asset loads.
 static void kasset_static_mesh_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
 
-kresource* kresource_handler_static_mesh_allocate(void) {
-    return (kresource*)KALLOC_TYPE(kresource_static_mesh, MEMORY_TAG_RESOURCE);
-}
-
 b8 kresource_handler_static_mesh_request(struct kresource_handler* self, kresource* resource, const struct kresource_request_info* info) {
     kresource_static_mesh* typed_resource = (kresource_static_mesh*)resource;
 
@@ -64,8 +60,6 @@ b8 kresource_handler_static_mesh_request(struct kresource_handler* self, kresour
         request_info.listener_inst = listener;
         request_info.callback = kasset_static_mesh_on_result;
         request_info.synchronous = false;
-        request_info.hot_reload_callback = 0; // No hot-reloading for this
-        request_info.hot_reload_context = 0;
         request_info.import_params_size = 0;
         request_info.import_params = 0;
 

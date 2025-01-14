@@ -25,6 +25,7 @@ void asset_handler_static_mesh_create(struct asset_handler* self, struct vfs_sta
     self->binary_deserialize = kasset_binary_static_mesh_deserialize;
     self->text_serialize = 0;
     self->text_deserialize = 0;
+    self->size = sizeof(kasset_static_mesh);
 }
 
 void asset_handler_static_mesh_release_asset(struct asset_handler* self, struct kasset* asset) {

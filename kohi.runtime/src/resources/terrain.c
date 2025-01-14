@@ -140,8 +140,6 @@ b8 terrain_load(terrain* t) {
         request_info.listener_inst = t;
         request_info.callback = kasset_heightmap_result;
         request_info.synchronous = false;
-        request_info.hot_reload_callback = 0;
-        request_info.hot_reload_context = 0;
         request_info.import_params_size = sizeof(kasset_image_import_options);
         request_info.import_params = &import_params;
 

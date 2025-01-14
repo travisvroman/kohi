@@ -79,9 +79,11 @@ void vfs_shutdown(vfs_state* state) {
     }
 }
 
-void vfs_hot_reload_callbacks_register(vfs_state* state, PFN_asset_hot_reloaded_callback hot_reloaded_callback, PFN_asset_deleted_callback deleted_callback) {
+void vfs_hot_reload_callbacks_register(vfs_state* state, void* hot_reload_listener, PFN_asset_hot_reloaded_callback hot_reloaded_callback, void* deleted_listener, PFN_asset_deleted_callback deleted_callback) {
     if (state) {
+        state->hot_reload_listener = hot_reload_listener;
         state->hot_reloaded_callback = hot_reloaded_callback;
+        state->deleted_listener = deleted_listener;
         state->deleted_callback = deleted_callback;
     }
 }
@@ -334,19 +336,6 @@ void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, b8 is
         out_data->size = sizeof(char) * (string_length(out_data->text) + 1);
     }
 
-    // Take a copy of the context if provided. This will be freed immediately after the callback is made below.
-    // This means the context should be immediately consumed by the callback before any async
-    // work is done.
-    if (context_size) {
-        KASSERT_MSG(context, "Called vfs_request_asset with a context_size, but not a context. Check yourself before you wreck yourself.");
-        out_data->context_size = context_size;
-        out_data->context = kallocate(context_size, MEMORY_TAG_PLATFORM);
-        kcopy_memory(out_data->context, context, out_data->context_size);
-    } else {
-        out_data->context_size = 0;
-        out_data->context = 0;
-    }
-
     out_data->result = VFS_REQUEST_RESULT_SUCCESS;
 }
 
@@ -439,7 +428,7 @@ static void vfs_watcher_deleted_callback(u32 watcher_id, void* context) {
         if (asset_data->file_watch_id == watcher_id) {
             KTRACE("The VFS has been notified that the asset '%s' in package '%s' was deleted from disk.", kname_string_get(asset_data->asset_name), kname_string_get(asset_data->package_name));
             // Inform that the asset was deleted.
-            state->deleted_callback(state, watcher_id);
+            state->deleted_callback(state->deleted_listener, watcher_id);
             // TODO: Does the asset watch end here, or do we try to reinstate it if/when the asset comes back?
             break;
         }
@@ -472,11 +461,18 @@ static void vfs_watcher_written_callback(u32 watcher_id, void* context) {
                 }
             }
             asset_data->size = 0;
+
+            // Take a copy of the watch id and the package name first because the below zeroes them out.
+            u32 file_watch_id = asset_data->file_watch_id;
+            kname package_name = asset_data->package_name;
             // Reload the asset synchronously
             vfs_request_direct_from_disk_sync(state, asset_data->path, is_binary, asset_data->context_size, asset_data->context, asset_data);
+            // Restore the watch id and package name.
+            asset_data->file_watch_id = file_watch_id;
+            asset_data->package_name = package_name;
 
             // Inform that the asset has been hot-reloaded, passing along the new data.
-            state->hot_reloaded_callback(state, asset_data);
+            state->hot_reloaded_callback(state->hot_reload_listener, asset_data);
             break;
         }
     }

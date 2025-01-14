@@ -21,10 +21,6 @@ typedef struct heightmap_terrain_resource_handler_info {
 static void heightmap_terrain_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
 static void asset_to_resource(const kasset_heightmap_terrain* asset, kresource_heightmap_terrain* out_heightmap_terrain_resource);
 
-kresource* kresource_handler_heightmap_terrain_allocate(void) {
-    return (kresource*)KALLOC_TYPE(kresource_heightmap_terrain, MEMORY_TAG_RESOURCE);
-}
-
 b8 kresource_handler_heightmap_terrain_request(kresource_handler* self, kresource* resource, const struct kresource_request_info* info) {
     if (!self || !resource) {
         KERROR("kresource_handler_heightmap_terrain_request requires valid pointers to self and resource.");
@@ -64,8 +60,6 @@ b8 kresource_handler_heightmap_terrain_request(kresource_handler* self, kresourc
     request_info.listener_inst = listener_inst;
     request_info.callback = heightmap_terrain_kasset_on_result;
     request_info.synchronous = typed_request->base.synchronous;
-    request_info.hot_reload_callback = 0; // Don't need hot-reloading on the heightmap_terrain config.
-    request_info.hot_reload_context = 0;
     request_info.import_params_size = 0;
     request_info.import_params = 0;
 

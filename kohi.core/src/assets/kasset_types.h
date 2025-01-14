@@ -99,7 +99,13 @@ typedef enum asset_request_result {
  */
 typedef void (*PFN_kasset_on_result)(asset_request_result result, const struct kasset* asset, void* listener_inst);
 
-typedef void (*PFN_kasset_on_hot_reload)(asset_request_result result, const struct kasset* asset, void* listener_inst);
+struct vfs_asset_data;
+
+/**
+ * @brief A function pointer typedef to be used to provide the asset system with a callback function
+ * when an asset is written to on-disk (i.e. a hot-reload). This process is synchronous.
+ */
+typedef void (*PFN_kasset_on_hot_reload)(const struct vfs_asset_data* asset_data, const struct kasset* asset);
 
 /**
  * @brief Imports an asset according to the provided params and the importer's internal logic.

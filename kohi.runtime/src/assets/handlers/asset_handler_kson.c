@@ -27,6 +27,7 @@ void asset_handler_kson_create(struct asset_handler* self, struct vfs_state* vfs
     self->binary_deserialize = 0;
     self->text_serialize = kasset_kson_serialize;
     self->text_deserialize = kasset_kson_deserialize;
+    self->size = sizeof(kasset_kson);
 }
 
 void asset_handler_kson_release_asset(struct asset_handler* self, struct kasset* asset) {

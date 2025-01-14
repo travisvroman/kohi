@@ -56,8 +56,8 @@ The items in this list are not in any particular order. This list will be update
       - [x] Resource Handler
     - [x] System Font
       - [x] Resource Handler
-  - [ ] Audio Resource
-    - [ ] Resource Handler
+  - [x] Audio Resource
+    - [x] Resource Handler
 
 - [x] Split asset loading logic from Resource System to new Asset System
   - [x] New asset system will work with asynchronous nature of VFS and automatically handle asset parsing/processing, hot-reloading and interaction with systems where necessary (i.e. texture system).
@@ -74,6 +74,7 @@ The items in this list are not in any particular order. This list will be update
       - [x] Importer from Wavefront OBJ
         - [x] OBJ Serializer
       - [x] Serializer
+      - [x] Rename all references to "mesh" in the engine to "static_mesh" to separate it from later mesh types.
     - [x] Images
       - [x] Asset handler
       - [x] Importer
@@ -105,13 +106,13 @@ The items in this list are not in any particular order. This list will be update
     - [x] Scenes
       - [x] Asset handler
       - [x] Serializer
-    - [ ] Music/Audio effects
-      - [ ] Binary container format (.kaf - Kohi Audio File)
-      - [ ] Asset handler
-      - [ ] Importers
-        - [ ] mp3
-        - [ ] ogg vorbis
-      - [ ] Serializer
+    - [x] Music/Audio effects
+      - [x] Binary container format (.kaf - Kohi Audio File)
+      - [x] Asset handler
+      - [x] Importers
+        - [x] mp3
+        - [x] ogg vorbis
+      - [x] Serializer
   - [x] Create kpackage interface in kohi.core.
   - [x] Point kpackage to files on disk for "debug" builds.
   - [x] Asset hot reloading
@@ -175,11 +176,13 @@ The items in this list are not in any particular order. This list will be update
       - [ ] Create a "default static mesh" (named "StaticMesh_Default") which is a cube with perhaps a warning material.
     - [ ] Materials
       - [ ] Importer from MTL directly (as opposed to with an OBJ file).
+    - [ ] Audio
+      - [ ] Importers
+        - [ ] .wav
 - [ ] Asset Packaging
   - [ ] Manifest file generator (utility that looks at directory structure and auto-creates manifest.kson file from that)
   - [ ] Create binary blob format (.kpackage file) and read/write.
   - [ ] Point kpackage to .kpackage file for "release" builds.
-  - [ ] Rename all references to "mesh" in the engine to "static_mesh" to separate it from later mesh types.
 - [ ] Resources
   - [ ] Materials
     - [ ] Importer from MTL directly (as opposed to with an OBJ file).
@@ -353,7 +356,7 @@ The items in this list are not in any particular order. This list will be update
   - [x] ring buffer
   - [x] queue
   - [ ] pool
-  - [ ] bst
+  - [x] u64_bst
   - [x] registry
 - [ ] quadtrees/octrees
 - [x] Threads
@@ -387,7 +390,7 @@ The items in this list are not in any particular order. This list will be update
     - [ ] compile-time hashing (Requires either custom preprocessor or using C++ compiler)
   - [ ] high-level string structure library (not c-strings)
   - [ ] I18n strings
-- [ ] resource hot reloading
+- [x] resource hot reloading
 - [ ] prefabs
 - [x] Custom storage format (KSON - Kohi Storage Object Notation)
   - [x] Tokenizer/parser
@@ -414,7 +417,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Gizmo (in-world object manipulation)
 - [x] Viewports
 - [x] terrain
-  - [ ] binary format (.kbt extension, Kohi Binary Terrain)
+  - [ ] binary format (.kbt extension, Kohi Binary Terrain) - .kht imports to this.
   - [x] heightmap-based (.kht extension, Kohi Heightmap Terrain)
   - [ ] voxel-based (.kvt extension, Kohi Voxel Terrain)
     - [ ] smooth voxels
@@ -436,7 +439,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Asset packaging system, including package build process.
       https://excalidraw.com/#json=5krkRPmGHvqoYkufVE_ED,ujzx6tqRDUn63DzjraQ_jw
   - [ ] Assets specific to rutime or plugins should be provided at that level to the package build process.
-  - [ ] Would provide an interface to the engine, and the implementation could either load from disk or binary blob.
+  - [x] Would provide an interface to the engine, and the implementation could either load from disk or binary blob.
 - [ ] For release builds, compile shaders to bytecode/SPIR-V and place into package binary.
 - [ ] Custom types capability for asset system.
 

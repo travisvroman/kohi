@@ -95,8 +95,8 @@ typedef struct vfs_asset_data {
 
 typedef void (*PFN_on_asset_loaded_callback)(struct vfs_state* vfs, vfs_asset_data asset_data);
 
-typedef void (*PFN_asset_hot_reloaded_callback)(struct vfs_state* vfs, const vfs_asset_data* asset_data);
-typedef void (*PFN_asset_deleted_callback)(struct vfs_state* vfs, u32 file_watch_id);
+typedef void (*PFN_asset_hot_reloaded_callback)(void* listener, const vfs_asset_data* asset_data);
+typedef void (*PFN_asset_deleted_callback)(void* listener, u32 file_watch_id);
 
 typedef struct vfs_state {
     // darray
@@ -105,9 +105,15 @@ typedef struct vfs_state {
     // darray
     vfs_asset_data* watched_assets;
 
+    // A pointer to a state listening for asset hot reloads.
+    void* hot_reload_listener;
+
     // A callback to be made when an asset is hot-reloaded from the VFS.
     // Typically handled within the asset system.
     PFN_asset_hot_reloaded_callback hot_reloaded_callback;
+
+    // A pointer to a state listening for asset deletions from disk.
+    void* deleted_listener;
 
     // A callback to be made when an asset is deleted from the VFS.
     // Typically handled within the asset system.
@@ -162,10 +168,12 @@ KAPI void vfs_shutdown(vfs_state* state);
  * @brief Register callbacks for hot-reloading from the VFS.
  *
  * @param state A pointer to the system state. Required.
+ * @param hot_reload_listener A pointer to a state listening for asset hot reloads.
  * @param hot_reloaded_callback A callback to be made when an asset is hot-reloaded from the VFS.
+ * @param deleted_listener A pointer to a state listening for asset deletions from disk.
  * @param deleted_callback A callback to be made when an asset is deleted from the VFS.
  */
-KAPI void vfs_hot_reload_callbacks_register(vfs_state* state, PFN_asset_hot_reloaded_callback hot_reloaded_callback, PFN_asset_deleted_callback deleted_callback);
+KAPI void vfs_hot_reload_callbacks_register(vfs_state* state, void* hot_reload_listener, PFN_asset_hot_reloaded_callback hot_reloaded_callback, void* deleted_listener, PFN_asset_deleted_callback deleted_callback);
 
 /**
  * @brief Requests an asset from the VFS, issuing the callback when complete. This call is asynchronous.

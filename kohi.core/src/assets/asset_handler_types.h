@@ -8,6 +8,10 @@ struct vfs_state;
 typedef struct asset_handler {
     kasset_type type;
     const char* type_name;
+
+    /** @brief The internal size of the asset structure. */
+    u64 size;
+
     b8 is_binary;
 
     /** @brief Cache a pointer to the VFS state for fast lookup. */
@@ -57,6 +61,11 @@ typedef struct asset_handler {
      * @returns True on success; otherwise false.
      */
     b8 (*text_deserialize)(const char* file_text, kasset* out_asset);
+
+    /**
+     * @brief If defined, handles the hot-reloading of an asset.
+     */
+    PFN_kasset_on_hot_reload on_hot_reload;
 } asset_handler;
 
 typedef struct asset_handler_request_context {

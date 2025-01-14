@@ -25,6 +25,7 @@ void asset_handler_heightmap_terrain_create(struct asset_handler* self, struct v
     self->binary_deserialize = 0;
     self->text_serialize = kasset_heightmap_terrain_serialize;
     self->text_deserialize = kasset_heightmap_terrain_deserialize;
+    self->size = sizeof(kasset_heightmap_terrain);
 }
 
 void asset_handler_heightmap_terrain_release_asset(struct asset_handler* self, struct kasset* asset) {

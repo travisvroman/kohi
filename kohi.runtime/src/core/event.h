@@ -236,6 +236,7 @@ typedef enum system_event_code {
      * @brief An event fired when a watched asset file has been written to.
      * Context usage:
      * u32 watch_id = context.data.u32[0];
+     * kasset* = sender;
      */
     EVENT_CODE_ASSET_HOT_RELOADED = 0x23,
 
@@ -243,6 +244,7 @@ typedef enum system_event_code {
      * @brief An event fired when a watched asset file has been removed.
      * Context usage:
      * u32 watch_id = context.data.u32[0];
+     * vfs_asset_data* = sender
      */
     EVENT_CODE_ASSET_DELETED_FROM_DISK = 0x24,
 
@@ -250,7 +252,7 @@ typedef enum system_event_code {
      * @brief An event fired when one of a resource's assets has been hot-reloaded.
      * Context usage:
      * u32 watch_id = context.data.u32[0];
-     * The sender should be a pointer to the resource itself.
+     * The sender should be a pointer to the resource whose asset which was hot-reloaded and processed.
      */
     EVENT_CODE_RESOURCE_HOT_RELOADED = 0x25,
 

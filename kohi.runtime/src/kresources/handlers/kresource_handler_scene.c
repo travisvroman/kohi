@@ -24,10 +24,6 @@ typedef struct scene_resource_handler_info {
 static void scene_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
 static void asset_to_resource(const kasset_scene* asset, kresource_scene* out_scene_resource);
 
-kresource* kresource_handler_scene_allocate(void) {
-    return (kresource*)KALLOC_TYPE(kresource_scene, MEMORY_TAG_RESOURCE);
-}
-
 b8 kresource_handler_scene_request(kresource_handler* self, kresource* resource, const struct kresource_request_info* info) {
     if (!self || !resource) {
         KERROR("kresource_handler_scene_request requires valid pointers to self and resource.");
@@ -67,8 +63,6 @@ b8 kresource_handler_scene_request(kresource_handler* self, kresource* resource,
     request_info.listener_inst = listener_inst;
     request_info.callback = scene_kasset_on_result;
     request_info.synchronous = typed_request->base.synchronous;
-    request_info.hot_reload_callback = 0; // Don't need hot-reloading on the scene config.
-    request_info.hot_reload_context = 0;
     request_info.import_params_size = 0;
     request_info.import_params = 0;
 
@@ -137,6 +131,10 @@ void kresource_handler_scene_release(kresource_handler* self, kresource* resourc
             for (u32 i = 0; i < typed_resource->node_count; ++i) {
                 destroy_scene_node(&typed_resource->nodes[i]);
             }
+
+            KFREE_TYPE_CARRAY(typed_resource->nodes, scene_node_config, typed_resource->node_count);
+            typed_resource->nodes = 0;
+            typed_resource->node_count = 0;
         }
     }
 }

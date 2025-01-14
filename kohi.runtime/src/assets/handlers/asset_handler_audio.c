@@ -24,6 +24,7 @@ void asset_handler_audio_create(struct asset_handler* self, struct vfs_state* vf
     self->binary_deserialize = kasset_binary_audio_deserialize;
     self->text_serialize = 0;
     self->text_deserialize = 0;
+    self->size = sizeof(kasset_audio);
 }
 
 void asset_handler_audio_release_asset(struct asset_handler* self, struct kasset* asset) {

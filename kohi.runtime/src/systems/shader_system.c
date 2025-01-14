@@ -94,6 +94,7 @@ static b8 internal_sampler_add(kshader* shader, shader_uniform_config* config);
 static khandle generate_new_shader_handle(void);
 static b8 internal_uniform_add(kshader* shader, const shader_uniform_config* config, u16 tex_samp_index);
 static khandle shader_create(const kresource_shader* shader_resource);
+static b8 shader_reload(kshader* shader, khandle shader_handle);
 
 // Verify the name is valid and unique.
 static b8 uniform_name_valid(kshader* shader, kname uniform_name);
@@ -105,22 +106,27 @@ static void internal_shader_destroy(khandle* shader);
 static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_context context) {
     shader_system_state* typed_state = (shader_system_state*)listener_inst;
     if (code == EVENT_CODE_RESOURCE_HOT_RELOADED) {
-        // NOTE: file watch id available here if needed.
-        // u32 file_watch_id = context.data.u32[0];
 
         // Search shaders for the one whose generations are out of sync.
         for (u32 i = 0; i < typed_state->config.max_shader_count; ++i) {
             kshader* shader = &typed_state->shaders[i];
 
+            b8 reload_required = false;
+
             for (u32 w = 0; w < shader->shader_stage_count; ++w) {
-                // If the generation is out of sync, reload the shader.
+                // Found match. If the generation is out of sync, reload the shader.
                 if (shader->stage_source_text_generations[w] != shader->stage_source_text_resources[w]->base.generation) {
-                    khandle handle = khandle_create_with_u64_identifier(i, shader->uniqueid);
-                    if (!shader_system_reload(handle)) {
-                        KWARN("Shader hot-reload failed for shader '%s'. See logs for details.", shader->name);
-                        // Allow other systems to pick this up.
-                        return false;
-                    }
+                    // At least one is out of sync, reload. Can boot out here.
+                    reload_required = true;
+                    break;
+                }
+            }
+
+            // Reload if needed.
+            if (reload_required) {
+                khandle handle = khandle_create_with_u64_identifier(i, shader->uniqueid);
+                if (!shader_reload(shader, handle)) {
+                    KWARN("Shader hot-reload failed for shader '%s'. See logs for details.", kname_string_get(shader->name));
                 }
             }
         }
@@ -196,29 +202,6 @@ void shader_system_shutdown(void* state) {
     }
 
     state_ptr = 0;
-}
-
-b8 shader_system_reload(khandle shader_handle) {
-    if (khandle_is_invalid(shader_handle)) {
-        return false;
-    }
-
-    kshader* shader = &state_ptr->shaders[shader_handle.handle_index];
-
-    // Check each shader stage generation for out-of-sync.
-    for (u8 i = 0; i < shader->shader_stage_count; ++i) {
-        if (shader->stage_source_text_generations[i] != shader->stage_source_text_resources[i]->base.generation) {
-            // Swap out the source on the config.
-            if (shader->stage_configs[i].source) {
-                string_free(shader->stage_configs[i].source);
-            }
-            shader->stage_configs[i].source = string_duplicate(shader->stage_source_text_resources[i]->text);
-            // Sync the generations.
-            shader->stage_source_text_generations[i] = shader->stage_source_text_resources[i]->base.generation;
-        }
-    }
-
-    return renderer_shader_reload(state_ptr->renderer, shader_handle, shader->shader_stage_count, shader->stage_configs);
 }
 
 khandle shader_system_get(kname name, kname package_name) {
@@ -702,9 +685,11 @@ static khandle shader_create(const kresource_shader* shader_resource) {
     // Take a copy of the array.
     KCOPY_TYPE_CARRAY(out_shader->stage_configs, shader_resource->stage_configs, shader_stage_config, out_shader->shader_stage_count);
 
-    // Take a copy of the source string for each stage
     for (u8 i = 0; i < shader_resource->stage_count; ++i) {
-        out_shader->stage_configs[i].source = string_duplicate(shader_resource->stage_configs[i].source);
+        // Also snag a pointer to the resource itself.
+        out_shader->stage_source_text_resources[i] = shader_resource->stage_configs[i].resource;
+        // Take a copy of the generation for later comparison.
+        out_shader->stage_source_text_generations[i] = shader_resource->stage_configs[i].resource->base.generation;
     }
 
     // Keep a copy of the topology types.
@@ -803,4 +788,17 @@ static khandle shader_create(const kresource_shader* shader_resource) {
     }
 
     return new_handle;
+}
+
+static b8 shader_reload(kshader* shader, khandle shader_handle) {
+
+    // Check each shader stage generation for out-of-sync.
+    for (u8 i = 0; i < shader->shader_stage_count; ++i) {
+        if (shader->stage_source_text_generations[i] != shader->stage_source_text_resources[i]->base.generation) {
+            // Sync the generations.
+            shader->stage_source_text_generations[i] = shader->stage_source_text_resources[i]->base.generation;
+        }
+    }
+
+    return renderer_shader_reload(state_ptr->renderer, shader_handle, shader->shader_stage_count, shader->stage_configs);
 }

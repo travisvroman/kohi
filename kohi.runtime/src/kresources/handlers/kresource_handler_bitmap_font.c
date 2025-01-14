@@ -21,10 +21,6 @@ typedef struct bitmap_font_resource_handler_info {
 static void bitmap_font_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
 static void asset_to_resource(const kasset_bitmap_font* asset, kresource_bitmap_font* out_bitmap_font);
 
-kresource* kresource_handler_bitmap_font_allocate(void) {
-    return (kresource*)KALLOC_TYPE(kresource_bitmap_font, MEMORY_TAG_RESOURCE);
-}
-
 b8 kresource_handler_bitmap_font_request(kresource_handler* self, kresource* resource, const struct kresource_request_info* info) {
     if (!self || !resource) {
         KERROR("kresource_handler_bitmap_font_request requires valid pointers to self and resource.");
@@ -63,8 +59,6 @@ b8 kresource_handler_bitmap_font_request(kresource_handler* self, kresource* res
     request_info.listener_inst = listener_inst;
     request_info.callback = bitmap_font_kasset_on_result;
     request_info.synchronous = typed_request->base.synchronous;
-    request_info.hot_reload_callback = 0;
-    request_info.hot_reload_context = 0;
     request_info.import_params_size = 0;
     request_info.import_params = 0;
     asset_system_request(self->asset_system, request_info);

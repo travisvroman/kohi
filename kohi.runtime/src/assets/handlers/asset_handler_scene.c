@@ -29,6 +29,7 @@ void asset_handler_scene_create(struct asset_handler* self, struct vfs_state* vf
     self->binary_deserialize = 0;
     self->text_serialize = kasset_scene_serialize;
     self->text_deserialize = kasset_scene_deserialize;
+    self->size = sizeof(kasset_scene);
 }
 
 static void destroy_node(scene_node_config* node) {
