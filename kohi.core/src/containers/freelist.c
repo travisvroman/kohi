@@ -21,7 +21,7 @@ static void return_node(freelist_node* node);
 
 void freelist_create(u64 total_size, u64* memory_requirement, void* memory, freelist* out_list) {
     // Enough space to hold state, plus array for all nodes.
-    u64 max_entries = (total_size / (sizeof(void*) * sizeof(freelist_node)));  // NOTE: This might have a remainder, but that's ok.
+    u64 max_entries = (total_size / (sizeof(void*) * sizeof(freelist_node))); // NOTE: This might have a remainder, but that's ok.
 
     // Catch an edge case of having a really small amount of memory to manage, and only having a
     // super small number of entries. Always make sure we have at least a decent amount, like 20 or so.
@@ -34,13 +34,14 @@ void freelist_create(u64 total_size, u64* memory_requirement, void* memory, free
         return;
     }
 
-    // If the memory required is too small, should warn about it being wasteful to use.
-    u64 mem_min = (sizeof(internal_state) + sizeof(freelist_node)) * 8;
-    if (total_size < mem_min) {
-        KWARN(
-            "Freelists are very inefficient with amounts of memory less than %iB; it is recommended to not use this structure in this case.",
-            mem_min);
-    }
+    // NOTE: enable this if we ever need to verify why a lot of small freelists are being created.
+    // // If the memory required is too small, should warn about it being wasteful to use.
+    // u64 mem_min = (sizeof(internal_state) + sizeof(freelist_node)) * 8;
+    // if (total_size < mem_min) {
+    //     KWARN(
+    //         "Freelists are very inefficient with amounts of memory less than %iB; it is recommended to not use this structure in this case.",
+    //         mem_min);
+    // }
 
     out_list->memory = memory;
 
@@ -207,7 +208,7 @@ b8 freelist_resize(freelist* list, u64* memory_requirement, void* new_memory, u6
     }
 
     // Enough space to hold state, plus array for all nodes.
-    u64 max_entries = (new_size / sizeof(void*));  // NOTE: This might have a remainder, but that's ok.
+    u64 max_entries = (new_size / sizeof(void*)); // NOTE: This might have a remainder, but that's ok.
 
     // Catch an edge case of having a really small amount of memory to manage, and only having a
     // super small number of entries. Always make sure we have at least a decent amount, like 20 or so.

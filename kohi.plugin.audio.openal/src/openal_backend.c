@@ -1,27 +1,5 @@
 #include "openal_backend.h"
 
-#include "audio/kaudio_types.h"
-#include "defines.h"
-#include "identifiers/khandle.h"
-#include "kresources/kresource_types.h"
-#ifdef KPLATFORM_WINDOWS
-#    include <malloc.h>
-#else
-#    include <alloca.h>
-#endif
-#include <math/kmath.h>
-#include <platform/platform.h>
-#include <threads/kmutex.h>
-#include <threads/kthread.h>
-
-#include "audio/audio_types.h"
-#include "containers/darray.h"
-#include "defines.h"
-#include "logger.h"
-#include "memory/kmemory.h"
-#include "systems/audio_system.h"
-#include "systems/job_system.h"
-
 // OpenAL
 #ifdef KPLATFORM_WINDOWS
 #    include <al.h>
@@ -30,6 +8,29 @@
 #    include <AL/al.h>
 #    include <AL/alc.h>
 #endif
+
+// Core
+#include <defines.h>
+#include <identifiers/khandle.h>
+#include <containers/darray.h>
+#include <logger.h>
+#include <memory/kmemory.h>
+#include <math/kmath.h>
+#include <platform/platform.h>
+#include <threads/kmutex.h>
+#include <threads/kthread.h>
+
+// #ifdef KPLATFORM_WINDOWS
+// #    include <malloc.h>
+// #else
+// #    include <alloca.h>
+// #endif
+
+// Runtime
+#include <kresources/kresource_types.h>
+#include <audio/kaudio_types.h>
+#include <systems/job_system.h>
+
 // The number of buffers used for streaming music file data.
 #define OPENAL_BACKEND_STREAM_MAX_BUFFER_COUNT 2
 
@@ -240,7 +241,7 @@ void openal_backend_shutdown(kaudio_backend_interface* backend) {
             backend->internal_state = 0;
         }
 
-        kzero_memory(backend, sizeof(audio_backend_interface));
+        kzero_memory(backend, sizeof(kaudio_backend_interface));
     }
 }
 

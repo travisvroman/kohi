@@ -172,7 +172,7 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
         // Does nothing for now.
         return true;
     } else if (code == EVENT_CODE_DEBUG1) {
-        if (state->main_scene.state < SCENE_STATE_LOADING) {
+        if (state->main_scene.state == SCENE_STATE_UNINITIALIZED) {
             KDEBUG("Loading main scene...");
             if (!load_main_scene(game_inst)) {
                 KERROR("Error loading main scene");
@@ -180,7 +180,7 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
         }
         return true;
     } else if (code == EVENT_CODE_DEBUG5) {
-        if (state->main_scene.state >= SCENE_STATE_LOADING) {
+        if (state->main_scene.state == SCENE_STATE_LOADED) {
             KDEBUG("Saving main scene...");
             if (!save_main_scene(game_inst)) {
                 KERROR("Error saving main scene");
@@ -193,7 +193,6 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
 
             scene_unload(&state->main_scene, false);
             clear_debug_objects(game_inst);
-            KDEBUG("Done.");
         }
         return true;
     } else if (code == EVENT_CODE_DEBUG3) {
@@ -271,7 +270,7 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
             testbed_game_state* state = (testbed_game_state*)listener_inst;
 
             // If the scene isn't loaded, don't do anything else.
-            if (state->main_scene.state < SCENE_STATE_LOADED) {
+            if (state->main_scene.state != SCENE_STATE_LOADED) {
                 return false;
             }
 
@@ -780,7 +779,7 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     f32 near_clip = view_viewport->near_clip;
     f32 far_clip = view_viewport->far_clip;
 
-    if (state->main_scene.state >= SCENE_STATE_LOADED) {
+    if (state->main_scene.state == SCENE_STATE_LOADED) {
         if (!scene_update(&state->main_scene, p_frame_data)) {
             KWARN("Failed to update main scene.");
         }
@@ -811,6 +810,13 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
             // TODO: Get emitter from scene and change its position.
             /* state->test_emitter.position = vec3_from_vec4(state->p_light_1->data.position); */
         }
+    } else if (state->main_scene.state == SCENE_STATE_UNLOADING) {
+        // A final update call is required to unload the scene in this state.
+        scene_update(&state->main_scene, p_frame_data);
+    } else if (state->main_scene.state == SCENE_STATE_UNLOADED) {
+        KTRACE("Destroying main scene.");
+        // Unloading complete, destroy it.
+        scene_destroy(&state->main_scene);
     }
 
     // Track allocation differences.
@@ -1074,7 +1080,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 if (!scene_water_plane_query(scene, &camera_frustum, current_camera->position, p_frame_data, &water_plane_count, 0)) {
                     KERROR("Failed to query scene for water planes.");
                 }
-                water_plane** planes = darray_reserve_with_allocator(water_plane*, water_plane_count, &p_frame_data->allocator);
+                water_plane** planes = water_plane_count ? darray_reserve_with_allocator(water_plane*, water_plane_count, &p_frame_data->allocator) : 0;
                 if (!scene_water_plane_query(scene, &camera_frustum, current_camera->position, p_frame_data, &water_plane_count, &planes)) {
                     KERROR("Failed to query scene for water planes.");
                 }
@@ -1088,11 +1094,14 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             } else {
                 // Scene not loaded.
                 forward_rendergraph_node_set_skybox(node, 0);
+                forward_rendergraph_node_irradiance_texture_set(node, p_frame_data, 0);
 
                 // Do not run these passes if the scene is not loaded.
                 // graph->scene_pass.pass_data.do_execute = false;
                 // graph->shadowmap_pass.pass_data.do_execute = false;
                 forward_rendergraph_node_water_planes_set(node, p_frame_data, 0, 0);
+                forward_rendergraph_node_static_geometries_set(node, p_frame_data, 0, 0);
+                forward_rendergraph_node_terrain_geometries_set(node, p_frame_data, 0, 0);
             }
         } else if (strings_equali(node->name, "shadow")) {
             // Shadowmap pass - only runs if there is a directional light.
@@ -1393,6 +1402,7 @@ void application_shutdown(struct application* game_inst) {
 
         scene_unload(&state->main_scene, true);
         clear_debug_objects(game_inst);
+        scene_destroy(&state->main_scene);
 
         KDEBUG("Done.");
     }

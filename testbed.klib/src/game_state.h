@@ -1,26 +1,28 @@
 #pragma once
 
-#include <application/application_types.h>
+// Core
 #include <defines.h>
 #include <math/math_types.h>
-#include <renderer/rendergraph.h>
-#include <systems/camera_system.h>
-
-#include "audio/audio_types.h"
-#include "editor/editor_gizmo.h"
-#include "identifiers/khandle.h"
-#include "renderer/viewport.h"
-#include "resources/scene.h"
-
-// TODO: temp
-#include <core/keymap.h>
-#include <resources/debug/debug_box3d.h>
-#include <resources/skybox.h>
-#include <standard_ui_system.h>
-#include <systems/light_system.h>
+#include <identifiers/khandle.h>
 #include <time/kclock.h>
 
-#include "debug_console.h"
+// Runtime
+#include <renderer/rendergraph.h>
+#include <application/application_types.h>
+#include <systems/camera_system.h>
+#include <core/keymap.h>
+#include <renderer/viewport.h>
+#include <resources/scene.h>
+#include <resources/debug/debug_box3d.h>
+#include <resources/skybox.h>
+#include <systems/light_system.h>
+
+// Standard UI plugin
+#include <standard_ui_system.h>
+#include <debug_console.h>
+
+#include "editor/editor_gizmo.h"
+
 struct debug_line3d;
 struct debug_box3d;
 

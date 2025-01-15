@@ -8,7 +8,6 @@
 #include "strings/kname.h"
 #include "systems/asset_system.h"
 #include "systems/kresource_system.h"
-#include "systems/audio_system.h"
 
 typedef struct audio_resource_handler_info {
     kresource_audio* typed_resource;
@@ -82,7 +81,7 @@ void kresource_handler_audio_release(struct kresource_handler* self, kresource* 
         }
 
         // TODO: release backend data
-        }
+    }
 }
 
 static void audio_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst) {

@@ -1,6 +1,6 @@
 #include "plugin_audio_main.h"
 
-#include <audio/audio_types.h>
+#include <audio/kaudio_types.h>
 #include <defines.h>
 #include <logger.h>
 #include <memory/kmemory.h>
@@ -11,7 +11,7 @@
 
 // Plugin entry point.
 b8 kplugin_create(kruntime_plugin* out_plugin) {
-    out_plugin->plugin_state_size = sizeof(audio_backend_interface);
+    out_plugin->plugin_state_size = sizeof(kaudio_backend_interface);
     out_plugin->plugin_state = kallocate(out_plugin->plugin_state_size, MEMORY_TAG_AUDIO);
 
     kaudio_backend_interface* backend = out_plugin->plugin_state;

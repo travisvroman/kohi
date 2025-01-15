@@ -192,6 +192,14 @@ KAPI b8 scene_load(scene* scene);
 KAPI b8 scene_unload(scene* scene, b8 immediate);
 
 /**
+ * @brief Destroys the scene, releasing any remaining resources held by it. 
+ * Automatically triggers unload if scene is currently loaded.
+ * 
+ * @param s A pointer to the scene to be destroyed.
+ */
+KAPI void scene_destroy(scene* s);
+
+/**
  * @brief Performs any required scene updates for the given frame.
  *
  * @param scene A pointer to the scene to be updated.

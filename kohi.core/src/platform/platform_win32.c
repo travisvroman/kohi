@@ -222,7 +222,7 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
     window->height = client_height;
     window->device_pixel_ratio = 1.0f;
 
-    window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_UNKNOWN);
+    window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_PLATFORM);
 
     // Convert to wide character string first.
     // LPCWSTR wtitle = cstr_to_wcstr(window->title);

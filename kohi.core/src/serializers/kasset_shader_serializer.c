@@ -254,12 +254,14 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
         kson_object_property_value_get_bool(&tree.root, "supports_wireframe", &typed_asset->supports_wireframe);
 
         // Colour read.
-        typed_asset->colour_read = false;
-        kson_object_property_value_get_bool(&tree.root, "colour_read", &typed_asset->colour_read);
+        if (!kson_object_property_value_get_bool(&tree.root, "colour_read", &typed_asset->colour_read)) {
+            typed_asset->colour_read = true; // NOTE: colour read is on by default if not specified.
+        }
 
         // Colour write.
-        typed_asset->colour_write = true; // NOTE: colour write is on by default if not specified.
-        kson_object_property_value_get_bool(&tree.root, "colour_write", &typed_asset->colour_write);
+        if (!kson_object_property_value_get_bool(&tree.root, "colour_write", &typed_asset->colour_write)) {
+            typed_asset->colour_write = true; // NOTE: colour write is on by default if not specified.
+        }
 
         // Cull mode.
         const char* cull_mode = 0;

@@ -92,9 +92,16 @@ b8 clear_colour_rendergraph_node_execute(struct rendergraph_node* self, struct f
         return false;
     }
 
+    renderer_begin_debug_label(self->name, (vec3){0.75f, 0.75f, 0.75f});
+
     clear_colour_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    return renderer_clear_colour(internal_data->renderer, internal_data->buffer_texture->renderer_texture_handle);
+    b8 result = renderer_clear_colour(internal_data->renderer, internal_data->buffer_texture->renderer_texture_handle);
+    
+
+    renderer_end_debug_label();
+
+    return result;
 }
 
 void clear_colour_rendergraph_node_destroy(struct rendergraph_node* self) {

@@ -462,7 +462,7 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
         return false;
     }
 
-    window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_UNKNOWN);
+    window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_PLATFORM);
     kwindow_platform_state* ps = window->platform_state;
     ps->device_pixel_ratio = 1.0f;
 

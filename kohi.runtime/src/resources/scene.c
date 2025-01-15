@@ -134,9 +134,40 @@ b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
 }
 
 void scene_destroy(scene* s) {
-    // TODO: actually destroy the thing.
-    // TODO: remove this
-    /* scene_attachment_release(s, 0); */
+    if (s) {
+        if (s->state == SCENE_STATE_LOADED) {
+            scene_actual_unload(s);
+        }
+
+        // Also destroy the scene.
+        if (s->skyboxes) {
+            darray_destroy(s->skyboxes);
+        }
+
+        if (s->dir_lights) {
+            darray_destroy(s->dir_lights);
+        }
+
+        if (s->point_lights) {
+            darray_destroy(s->point_lights);
+        }
+
+        if (s->static_meshes) {
+            darray_destroy(s->static_meshes);
+        }
+
+        if (s->terrains) {
+            darray_destroy(s->terrains);
+        }
+
+        if (s->water_planes) {
+            darray_destroy(s->water_planes);
+        }
+
+        kzero_memory(s, sizeof(scene));
+
+        s->state = SCENE_STATE_UNINITIALIZED;
+    }
 }
 
 void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* node_config) {
@@ -716,7 +747,7 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
         return true;
     }
 
-    if (scene->state >= SCENE_STATE_LOADED) {
+    if (scene->state == SCENE_STATE_LOADED) {
         hierarchy_graph_update(&scene->hierarchy);
 
         if (scene->dir_lights) {
@@ -830,7 +861,7 @@ void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_d
         return;
     }
 
-    if (scene->state >= SCENE_STATE_LOADED) {
+    if (scene->state == SCENE_STATE_LOADED) {
         if (scene->dir_lights) {
             u32 directional_light_count = darray_length(scene->dir_lights);
             for (u32 i = 0; i < directional_light_count; ++i) {
@@ -899,7 +930,7 @@ void scene_update_lod_from_view_position(scene* scene, const frame_data* p_frame
         return;
     }
 
-    if (scene->state >= SCENE_STATE_LOADED) {
+    if (scene->state == SCENE_STATE_LOADED) {
         // Update terrain chunk LODs
         u32 terrain_count = darray_length(scene->terrains);
         for (u32 i = 0; i < terrain_count; ++i) {
@@ -951,7 +982,7 @@ void scene_update_lod_from_view_position(scene* scene, const frame_data* p_frame
 }
 
 b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_result) {
-    if (!scene || !r || !out_result || scene->state < SCENE_STATE_LOADED) {
+    if (!scene || !r || !out_result || scene->state != SCENE_STATE_LOADED) {
         return false;
     }
 
@@ -1026,6 +1057,10 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
     }
 
     *data_count = 0;
+
+    if (scene->state > SCENE_STATE_LOADED) {
+        return true;
+    }
 
     // TODO: Check if grid exists.
     // TODO: flag for toggling grid on and off.
@@ -1142,6 +1177,10 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
     if (!scene) {
         return false;
     }
+    if (scene->state > SCENE_STATE_LOADED) {
+        *out_count = 0;
+        return true;
+    }
 
     geometry_distance* transparent_geometries = darray_create_with_allocator(geometry_distance, &p_frame_data->allocator);
 
@@ -1238,6 +1277,10 @@ b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction,
     if (!scene) {
         return false;
     }
+    if (scene->state > SCENE_STATE_LOADED) {
+        *out_count = 0;
+        return true;
+    }
 
     u32 terrain_count = darray_length(scene->terrains);
     for (u32 i = 0; i < terrain_count; ++i) {
@@ -1297,6 +1340,10 @@ b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction,
 b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries) {
     if (!scene) {
         return false;
+    }
+    if (scene->state > SCENE_STATE_LOADED) {
+        *out_count = 0;
+        return true;
     }
 
     geometry_distance* transparent_geometries = darray_create_with_allocator(geometry_distance, &p_frame_data->allocator);
@@ -1426,6 +1473,10 @@ b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, vec3 ce
     if (!scene) {
         return false;
     }
+    if (scene->state > SCENE_STATE_LOADED) {
+        *out_count = 0;
+        return true;
+    }
 
     u32 terrain_count = darray_length(scene->terrains);
     for (u32 i = 0; i < terrain_count; ++i) {
@@ -1504,6 +1555,9 @@ b8 scene_water_plane_query(const scene* scene, const frustum* f, vec3 center, fr
         return false;
     }
     *out_count = 0;
+    if (scene->state > SCENE_STATE_LOADED) {
+        return true;
+    }
 
     u32 count = 0;
     u32 water_plane_count = darray_length(scene->water_planes);
@@ -1617,35 +1671,10 @@ static void scene_actual_unload(scene* s) {
     // Destroy the hierarchy graph.
     hierarchy_graph_destroy(&s->hierarchy);
 
-    // Update the state to show the scene is initialized.
+    // Update the state to show the scene is unloaded.
     s->state = SCENE_STATE_UNLOADED;
 
-    // Also destroy the scene.
-    if (s->skyboxes) {
-        darray_destroy(s->skyboxes);
-    }
-
-    if (s->dir_lights) {
-        darray_destroy(s->dir_lights);
-    }
-
-    if (s->point_lights) {
-        darray_destroy(s->point_lights);
-    }
-
-    if (s->static_meshes) {
-        darray_destroy(s->static_meshes);
-    }
-
-    if (s->terrains) {
-        darray_destroy(s->terrains);
-    }
-
-    if (s->water_planes) {
-        darray_destroy(s->water_planes);
-    }
-
-    kzero_memory(s, sizeof(scene));
+    KDEBUG("Scene unloading done.");
 }
 
 static b8 scene_serialize_node(const scene* s, const hierarchy_graph_view* view, const hierarchy_graph_view_node* view_node, kson_property* node) {

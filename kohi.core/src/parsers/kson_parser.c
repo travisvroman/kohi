@@ -1783,7 +1783,7 @@ b8 kson_object_property_value_get_float(const kson_object* object, const char* n
 b8 kson_object_property_value_get_bool(const kson_object* object, const char* name, b8* out_value) {
     i32 index = kson_object_property_index_get(object, name);
     if (index == -1) {
-        *out_value = 0;
+        *out_value = false;
         return false;
     }
 

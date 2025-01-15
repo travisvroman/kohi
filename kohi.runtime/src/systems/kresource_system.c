@@ -240,7 +240,7 @@ kresource* kresource_system_request(struct kresource_system_state* state, kname 
         lookup_index = node->value.u32;
     }
 
-    if (lookup_index != INVALID_ID) {
+    if (lookup_index != INVALID_ID && state->lookups[lookup_index].r) {
         resource_lookup* lookup = &state->lookups[lookup_index];
         lookup->reference_count++;
         // Immediately issue the callback if setup.
@@ -378,7 +378,7 @@ static void kresource_system_release_internal(struct kresource_system_state* sta
             lookup->reference_count--;
             do_release = lookup->auto_release && lookup->reference_count < 1;
         }
-        if (do_release) {
+        if (do_release && lookup->r) {
             // Auto release set and criteria met, so call resource handler's 'release' function.
             kresource_handler* handler = &state->handlers[lookup->r->type];
             if (!handler->release) {
@@ -401,6 +401,12 @@ static void kresource_system_release_internal(struct kresource_system_state* sta
             lookup->r = 0;
             lookup->reference_count = 0;
             lookup->auto_release = false;
+
+            // Remove the entry from the bst too.
+            bt_node* deleted = u64_bst_delete(state->lookup_tree, resource_name);
+            if (!deleted) {
+                state->lookup_tree = 0;
+            }
         }
     } else {
         // Entry not found, nothing to do.

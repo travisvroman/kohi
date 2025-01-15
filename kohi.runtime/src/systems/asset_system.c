@@ -356,6 +356,12 @@ static void asset_system_release_internal(struct asset_system_state* state, knam
                 lookup->asset = 0;
                 lookup->reference_count = 0;
                 lookup->auto_release = false;
+
+                // Remove the entry from the bst too.
+                bt_node* deleted = u64_bst_delete(state->lookup_tree, asset_name);
+                if(!deleted) {
+                    state->lookup_tree = 0;
+                }
             }
         } else {
             // Entry not found, nothing to do.

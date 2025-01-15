@@ -1,6 +1,7 @@
 version = 1
 depth_test=true
 depth_write=true
+colour_read=false
 colour_write=false
 cull_mode="none"
 max_groups=256

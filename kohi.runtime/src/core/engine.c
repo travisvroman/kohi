@@ -1,35 +1,37 @@
 #include "engine.h"
 
+#include <platform/filesystem.h>
+#include <assets/kasset_importer_registry.h>
+#include <containers/darray.h>
+#include <containers/registry.h>
+#include <identifiers/khandle.h>
+#include <identifiers/uuid.h>
+#include <logger.h>
+#include <memory/allocators/linear_allocator.h>
+#include <memory/kmemory.h>
+#include <platform/platform.h>
+#include <platform/vfs.h>
+#include <strings/kstring.h>
+#include <time/kclock.h>
+
 // Version reporting
-#include "audio/audio_frontend.h"
 #include "kohi.runtime_version.h"
 
+#include "audio/audio_frontend.h"
 #include "application/application_config.h"
 #include "application/application_types.h"
-#include "assets/kasset_importer_registry.h"
 #include "console.h"
-#include "containers/darray.h"
-#include "containers/registry.h"
 #include "core/event.h"
 #include "core/input.h"
 #include "core/kvar.h"
 #include "core/metrics.h"
 #include "frame_data.h"
-#include "identifiers/khandle.h"
-#include "identifiers/uuid.h"
-#include "logger.h"
-#include "memory/allocators/linear_allocator.h"
-#include "memory/kmemory.h"
-#include "platform/platform.h"
-#include "platform/vfs.h"
 #include "plugins/plugin_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
-#include "strings/kstring.h"
-#include "systems/plugin_system.h"
-#include "time/kclock.h"
 
 // systems
+#include "systems/plugin_system.h"
 #include "systems/asset_system.h"
 #include "systems/camera_system.h"
 #include "systems/font_system.h"

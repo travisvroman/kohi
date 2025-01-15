@@ -4,6 +4,7 @@
 #include "core/engine.h"
 #include "memory/kmemory.h"
 #include "strings/kstring.h"
+#include "renderer/renderer_frontend.h"
 
 b8 frame_begin_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node* self, const struct rendergraph_node_config* config) {
     if (!graph || !self) {
@@ -51,6 +52,9 @@ b8 frame_begin_rendergraph_node_initialize(struct rendergraph_node* self) {
 b8 frame_begin_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data* p_frame_data) {
     // TODO: This is probably where an image layout transformation should occur,
     // instead of doing it at the renderpass level and having that worry about it.
+    renderer_begin_debug_label(self->name, (vec3){0.75f, 0.75f, 0.75f});
+
+    renderer_end_debug_label();
 
     return true;
 }

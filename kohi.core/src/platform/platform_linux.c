@@ -168,7 +168,7 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
     window->width = client_width;
     window->height = client_height;
 
-    window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_UNKNOWN);
+    window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_PLATFORM);
 
     // Allocate a XID for the window to be created.
     window->platform_state->window = xcb_generate_id(state_ptr->handle.connection);
