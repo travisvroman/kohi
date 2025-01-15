@@ -60,7 +60,9 @@
 #include <core/systems_manager.h>
 #include <standard_ui_system.h>
 
-#include "debug_console.h"
+#ifdef KOHI_DEBUG
+#    include "debug_console.h"
+#endif
 // Game code.
 #include "game_commands.h"
 #include "game_keybinds.h"
@@ -497,7 +499,9 @@ b8 application_initialize(struct application* game_inst) {
     // Invalid handle = no selection.
     state->selection.xform_handle = khandle_invalid();
 
+#ifdef KOHI_DEBUG
     debug_console_load(&state->debug_console);
+#endif
 
     state->test_lines = darray_create(debug_line3d);
     state->test_boxes = darray_create(debug_box3d);
@@ -888,7 +892,9 @@ VSync: %s Drawn: %-5u (%-5u shadow pass) Hovered: %s%u",
         string_free(text_buffer);
     }
 
+#ifdef KOHI_DEBUG
     debug_console_update(&((testbed_game_state*)game_inst->state)->debug_console);
+#endif
 
     vec3 forward = camera_forward(state->world_camera);
     vec3 up = camera_up(state->world_camera);
@@ -1393,20 +1399,25 @@ void application_shutdown(struct application* game_inst) {
 
     rendergraph_destroy(&state->forward_graph);
 
-    // Destroy ui texts
+#ifdef KOHI_DEBUG
     debug_console_unload(&state->debug_console);
+#endif
 }
 
 void application_lib_on_unload(struct application* game_inst) {
     application_unregister_events(game_inst);
+#ifdef KOHI_DEBUG
     debug_console_on_lib_unload(&((testbed_game_state*)game_inst->state)->debug_console);
+#endif
     game_remove_commands(game_inst);
     game_remove_keymaps(game_inst);
 }
 
 void application_lib_on_load(struct application* game_inst) {
     application_register_events(game_inst);
+#ifdef KOHI_DEBUG
     debug_console_on_lib_load(&((testbed_game_state*)game_inst->state)->debug_console, game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE);
+#endif
     if (game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE) {
         game_setup_commands(game_inst);
         game_setup_keymaps(game_inst);

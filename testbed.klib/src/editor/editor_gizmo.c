@@ -105,7 +105,7 @@ b8 editor_gizmo_load(editor_gizmo* gizmo) {
         }
     }
 
-#ifdef _DEBUG
+#if KOHI_DEBUG
     debug_line3d_create(vec3_zero(), vec3_one(), khandle_invalid(), &gizmo->plane_normal_line);
     debug_line3d_initialize(&gizmo->plane_normal_line);
     debug_line3d_load(&gizmo->plane_normal_line);
@@ -117,7 +117,7 @@ b8 editor_gizmo_load(editor_gizmo* gizmo) {
 
 b8 editor_gizmo_unload(editor_gizmo* gizmo) {
     if (gizmo) {
-#ifdef _DEBUG
+#if KOHI_DEBUG
         debug_line3d_unload(&gizmo->plane_normal_line);
         debug_line3d_destroy(&gizmo->plane_normal_line);
 #endif
@@ -163,7 +163,7 @@ editor_gizmo_orientation editor_gizmo_orientation_get(editor_gizmo* gizmo) {
 void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orientation orientation) {
     if (gizmo) {
         gizmo->orientation = orientation;
-#if _DEBUG
+#if KOHI_DEBUG
         switch (gizmo->orientation) {
         case EDITOR_GIZMO_ORIENTATION_GLOBAL:
             KTRACE("Setting editor gizmo to GLOBAL.");
@@ -553,7 +553,7 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, camera* c, struct ray* 
             data->interaction_plane = plane_3d_create(origin, plane_dir);
             data->interaction_plane_back = plane_3d_create(origin, vec3_mul_scalar(plane_dir, -1.0f));
 
-#ifdef _DEBUG
+#if KOHI_DEBUG
             debug_line3d_points_set(&gizmo->plane_normal_line, origin, vec3_add(origin, plane_dir));
 #endif
 
@@ -590,7 +590,7 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, camera* c, struct ray* 
             data->interaction_plane = plane_3d_create(origin, plane_dir);
             data->interaction_plane_back = plane_3d_create(origin, vec3_mul_scalar(plane_dir, -1.0f));
 
-#ifdef _DEBUG
+#if KOHI_DEBUG
             debug_line3d_points_set(&gizmo->plane_normal_line, origin, vec3_add(origin, plane_dir));
 #endif
 

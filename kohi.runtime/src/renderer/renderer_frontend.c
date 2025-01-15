@@ -362,7 +362,7 @@ void renderer_on_window_resized(struct renderer_system_state* state, const struc
 }
 
 void renderer_begin_debug_label(const char* label_text, vec3 colour) {
-#ifdef _DEBUG
+#if KOHI_DEBUG
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     if (state_ptr) {
         state_ptr->backend->begin_debug_label(state_ptr->backend, label_text, colour);
@@ -371,7 +371,7 @@ void renderer_begin_debug_label(const char* label_text, vec3 colour) {
 }
 
 void renderer_end_debug_label(void) {
-#ifdef _DEBUG
+#if KOHI_DEBUG
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     if (state_ptr) {
         state_ptr->backend->end_debug_label(state_ptr->backend);

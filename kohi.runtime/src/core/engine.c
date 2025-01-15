@@ -194,12 +194,14 @@ b8 engine_create(application* game_inst) {
     }
 
     // Report runtime version
-#if KRELEASE
+#if KOHI_RELEASE
     const char* build_type = "Release";
-#else
+#elif KOHI_DEBUG
     const char* build_type = "Debug";
+#else
+    const char* build_type = "Unknown";
 #endif
-    KINFO("Kohi Runtime v. %s (%s)", KVERSION, build_type);
+    KINFO("Kohi Runtime %s (%s)", KVERSION, build_type);
 
     // Virtual File System
     {

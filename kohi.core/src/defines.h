@@ -204,10 +204,12 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #    endif
 #endif
 
-#ifdef _DEBUG
-#    define KOHI_DEBUG
+#if _DEBUG
+#    define KOHI_DEBUG 1
+#    define KOHI_RELEASE 0
 #else
-#    define KOHI_RELEASE
+#    define KOHI_RELEASE 1
+#    define KOHI_DEBUG 0
 #endif
 
 /**

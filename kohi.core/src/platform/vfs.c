@@ -162,8 +162,7 @@ vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
 
         if (info.package_name == INVALID_KNAME || package->name == info.package_name) {
 
-            const char* package_name_str = kname_string_get(package->name);
-            KDEBUG("Attempting to load asset '%s' from package '%s'...", asset_name_str, package_name_str);
+            KDEBUG("Attempting to load asset '%s' from package '%s'...", asset_name_str, kname_string_get(package->name));
 
             // Determine if the asset type is text.
             kpackage_result result = KPACKAGE_RESULT_INTERNAL_FAILURE;
@@ -214,7 +213,7 @@ vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
                 // FIXME: Should be able to watch either the source or primary asset path.
                 if (out_data.path) {
                     kpackage_asset_watch(package, out_data.path, &out_data.file_watch_id);
-                    KTRACE("Watching asset for hot reload: package='%s', name='%s', file_watch_id=%u, path='%s'", package_name_str, kname_string_get(info.asset_name), out_data.file_watch_id, out_data.path);
+                    KTRACE("Watching asset for hot reload: package='%s', name='%s', file_watch_id=%u, path='%s'", kname_string_get(package->name), kname_string_get(info.asset_name), out_data.file_watch_id, out_data.path);
 
                     darray_push(state->watched_assets, out_data);
                 } else {

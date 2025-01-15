@@ -1571,7 +1571,7 @@ void material_system_dump(material_system_state* state) {
             }
         }
 
-        KTRACE("Material name: '%s', active instance count = %u", kname_string_get(m->name), active_instance_count);
+        KINFO("Material name: '%s', active instance count = %u", kname_string_get(m->name), active_instance_count);
     }
 }
 

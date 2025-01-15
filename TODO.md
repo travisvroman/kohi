@@ -23,8 +23,7 @@ The items in this list are not in any particular order. This list will be update
     - [x] 3D_DYNAMIC - Used for 3d geometry that changes often (NOTE: initially not supported)
     - [x] CUSTOM - User-defined geometry type. Vertex/index size will only be looked at for this type.
 
-- [ ] New Resource System
-
+- [x] New Resource System
   - [x] Remove old resource system after it is decomissioned.
   - [x] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
         New system will make requests to new Asset System asynchronously, and be responsible for all reference counting and auto-releasing.

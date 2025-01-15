@@ -705,7 +705,6 @@ typedef struct vulkan_context {
     /** @brief The internal Vulkan allocator. */
     VkAllocationCallbacks* allocator;
 
-#if defined(_DEBUG)
     /** @brief The debug messenger, if active.. */
     VkDebugUtilsMessengerEXT debug_messenger;
 
@@ -717,7 +716,6 @@ typedef struct vulkan_context {
 
     PFN_vkCmdBeginDebugUtilsLabelEXT pfnCmdBeginDebugUtilsLabelEXT;
     PFN_vkCmdEndDebugUtilsLabelEXT pfnCmdEndDebugUtilsLabelEXT;
-#endif
 
     /** @brief The Vulkan device. */
     vulkan_device device;

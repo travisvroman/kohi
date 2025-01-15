@@ -102,7 +102,7 @@ static b8 shader_uniform_add_state_valid(kshader* shader);
 static void internal_shader_destroy(khandle* shader);
 ///////////////////////
 
-#ifdef _DEBUG
+#if KOHI_DEBUG
 static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_context context) {
     shader_system_state* typed_state = (shader_system_state*)listener_inst;
     if (code == EVENT_CODE_RESOURCE_HOT_RELOADED) {
@@ -180,7 +180,7 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config)
     state_ptr->max_bound_texture_count = renderer_max_bound_texture_count_get(state_ptr->renderer);
 
     // Watch for file hot reloads in debug builds.
-#ifdef _DEBUG
+#if KOHI_DEBUG
     event_register(EVENT_CODE_RESOURCE_HOT_RELOADED, state_ptr, file_watch_event);
 #endif
 

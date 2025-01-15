@@ -134,7 +134,7 @@ void vulkan_image_create(
 
         VK_CHECK(vkCreateImageView(context->device.logical_device, &out_image->view_create_info, context->allocator, &out_image->view));
 
-#if _DEBUG
+#if KOHI_DEBUG
         char* formatted_name = string_format("%s_view_idx_global", out_image->name);
         VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, out_image->view, formatted_name);
         string_free(formatted_name);
@@ -172,7 +172,7 @@ void vulkan_image_create(
 
                 VK_CHECK(vkCreateImageView(context->device.logical_device, view_create_info, context->allocator, &out_image->layer_views[i]));
 
-#if _DEBUG
+#if KOHI_DEBUG
                 char* formatted_name = string_format("%s_view_layer_idx_%u", out_image->name, i);
                 VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, out_image->layer_views[i], formatted_name);
                 string_free(formatted_name);
@@ -280,7 +280,7 @@ void vulkan_image_recreate(vulkan_context* context, vulkan_image* image) {
 
         VK_CHECK(vkCreateImageView(context->device.logical_device, &image->view_create_info, context->allocator, &image->view));
 
-#ifdef _DEBUG
+#if KOHI_DEBUG
         char* formatted_name = string_format("%s_view_idx_%u", image->name, 0);
         VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, image->view, formatted_name);
         string_free(formatted_name);
