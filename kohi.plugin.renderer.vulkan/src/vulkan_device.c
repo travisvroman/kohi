@@ -10,6 +10,10 @@
 #include "vulkan_types.h"
 #include "vulkan_utils.h"
 
+#if defined(VK_USE_PLATFORM_MACOS_MVK)
+#include <stdlib.h> // For setenv
+#endif
+
 typedef struct vulkan_physical_device_requirements {
     b8 graphics;
     b8 present;

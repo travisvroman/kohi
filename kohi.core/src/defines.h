@@ -178,6 +178,8 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #        define KPLATFORM_IOS 1
 // iOS device
 #    elif TARGET_OS_MAC
+// HACK: Should probably be in the Vulkan Renderer lib, not here.
+#define VK_USE_PLATFORM_MACOS_MVK
 // Other kinds of Mac OS
 #    else
 #        error "Unknown Apple platform"
