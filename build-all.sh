@@ -47,8 +47,24 @@ then
 echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
+# Tools NOTE: Building tools here since it's required below.
+make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.tools ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="-lkohi.core"
+ERRORLEVEL=$?
+if [ $ERRORLEVEL -ne 0 ]
+then
+echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
+fi
+
 # Kohi Runtime
 make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.runtime DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="-lkohi.core"
+ERRORLEVEL=$?
+if [ $ERRORLEVEL -ne 0 ]
+then
+echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
+fi
+
+# Kohi Utils plugin Lib
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.utils DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -59,9 +75,9 @@ fi
 if [ $PLATFORM = 'macos' ]
 then
    # VULKAN_SDK=/usr/local/
-   VULKAN_SDK=/Users/$USER/VulkanSDK/1.3.290.0/macOS/
+   VULKAN_SDK=~/VulkanSDK/1.3.296.0/macOS/lib/
 fi
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.renderer.vulkan DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="$LNK_CORE_RT -lvulkan.1 -lshaderc_shared -L$VULKAN_SDK/lib -Wl,-rpath,$VULKAN_SDK/lib "
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.plugin.renderer.vulkan DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I$VULKAN_SDK/include" ADDL_LINK_FLAGS="$LNK_CORE_RT -lvulkan -lshaderc_shared -L$VULKAN_SDK/lib -Wl,-rpath,$VULKAN_SDK/lib "
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
@@ -117,13 +133,6 @@ then
 echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
 
-# Tools
-make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.tools ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT"
-ERRORLEVEL=$?
-if [ $ERRORLEVEL -ne 0 ]
-then
-echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
-fi
 
 echo "All assemblies $ACTION_STR_PAST successfully on $PLATFORM ($TARGET)." | sed -e "s/successfully/${txtgrn}successfully${txtrst}/g"
 

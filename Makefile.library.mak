@@ -1,3 +1,9 @@
+%:: %,v
+%:: RCS/%,v
+%:: RCS/%
+%:: s.%
+%:: SCCS/s.%
+
 BUILD_DIR := bin
 OBJ_DIR := obj
 

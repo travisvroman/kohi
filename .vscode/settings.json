@@ -1,19 +1,5 @@
 {
-    "debug.focusWindowOnBreak": false,
-    "workbench.colorTheme": "Gruvbox Dark (Hard)",
-    "xmlTools.enforcePrettySelfClosingTagOnFormat": true,
-    "editor.minimap.enabled": false,
-    "terminal.integrated.shell.windows": "c:/Program Files/PowerShell/7/pwsh.exe",
-    "terminal.integrated.fontWeight": "1",
-    "editor.fontSize": 16,
-    "editor.fontWeight": "1",
-    "workbench.editor.showTabs": "multiple",
-    "workbench.colorCustomizations": {
-        "editorCursor.foreground": "#00ff33",
-        "editor.lineHighlightBackground": "#111144"
-    },
-    "workbench.statusBar.visible": true,
-    "editor.lineNumbers": "on",
+    // Code formatting
     "C_Cpp.clang_format_style": "{ BasedOnStyle: LLVM, IndentWidth: 4, ColumnLimit: 0, NamespaceIndentation: All, BreakBeforeBraces: Attach, PointerAlignment: Left, IndentPPDirectives: AfterHash}",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.block": "sameLine",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.type": "sameLine",
@@ -22,111 +8,6 @@
     "C_Cpp.clang_format_sortIncludes": false,
     "C_Cpp.vcFormat.indent.namespaceContents": true,
     "C_Cpp.workspaceSymbols": "All",
-    "editor.cursorStyle": "block",
-    "window.zoomLevel": 1,
-    "editor.tabCompletion": "on",
-    "todohighlight.isEnable": true,
-    "todohighlight.keywords": [
-        {
-            "text": "TODO:",
-            "color": "red",
-            "backgroundColor": "rgba(0,0,0,0)",
-            "overviewRulerColor": "rgba(0,0,0,0)"
-        },
-        {
-            "text": "TODO(travis):",
-            "color": "red",
-            "backgroundColor": "rgba(0,0,0,0)",
-            "overviewRulerColor": "rgba(0,0,0,0)"
-        },
-        {
-            "text": "HACK:",
-            "color": "#ff6600",
-            "backgroundColor": "rgba(0,0,0,0)",
-            "overviewRulerColor": "rgba(0,0,0,0)"
-        },
-        {
-            "text": "NOTE:",
-            "color": "green",
-            "backgroundColor": "rgba(0,0,0,0)",
-            "overviewRulerColor": "rgba(0,0,0,0)"
-        }
-    ],
-    "todohighlight.defaultStyle": {
-        "color": "red",
-        //"backgroundColor": "#ffab00",
-        "overviewRulerColor": "rgba(0,0,0,0)",
-        "isWholeLine": false,
-    },
-    "files.associations": {
-        "test.h": "c",
-        "vulkan.h": "c",
-        "vulkan_core.h": "c",
-        "vk_platform.h": "c",
-        "type_traits": "c",
-        "typeinfo": "c",
-        "windowsx.h": "c",
-        "vulkan_platform.h": "c",
-        "renderer_frontend.h": "c",
-        "iosfwd": "c",
-        "tuple": "cpp",
-        "utility": "cpp",
-        "kmemory.h": "c",
-        "defines.h": "c",
-        "vulkan_types.h": "c",
-        "kclock.h": "c",
-        "kstring.h": "c",
-        "logger.h": "c",
-        "stb_image.h": "c",
-        "vector": "c",
-        "xstring": "c",
-        "xutility": "c",
-        "iterator": "c",
-        "initializer_list": "c",
-        "loader_utils.h": "c",
-        "kmath.h": "c",
-        "random": "c",
-        "string_view": "c",
-        "limits": "c",
-        "sstream": "c",
-        "filesystem.h": "c",
-        "atomic": "c",
-        "*.tcc": "c",
-        "iomanip": "c",
-        "istream": "c",
-        "ostream": "c",
-        "camera_system.h": "c",
-        "render_view_skybox.h": "c",
-        "darray.h": "c",
-        "stb_truetype.h": "c",
-        "vulkan_pipeline.h": "c",
-        "platform.h": "c",
-        "console.h": "c",
-        "debug_console.h": "c",
-        "vulkan_main.h": "c",
-        "vulkan_backend.h": "c",
-        "input.h": "c",
-        "ui_text.h": "c",
-        "xmemory": "c",
-        "geometry_utils.h": "c",
-        "shader_system.h": "c",
-        "renderer_types.h": "c",
-        "transform.h": "c",
-        "windows.h": "c",
-        "light_system.h": "c",
-        "texture_system.h": "c",
-        "job_system.h": "c",
-        "system_error": "c",
-        "xlocale": "c",
-        "stat.h": "c",
-        "debug_line3d.h": "c",
-        "water_plane_rendergraph_node.h": "c",
-        "water_plane.h": "c",
-        "stdlib.h": "c",
-        "filesystem": "c",
-        "chrono": "c",
-        "codecvt": "c"
-    },
     // File copyright documentation tag.  Array of strings will be converted to one line per element.  Can template {year}.
     "doxdocgen.file.copyrightTag": [
         "@copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-{year}"
@@ -147,4 +28,9 @@
         "empty",
         "custom"
     ],
+    "files.associations": {
+        "core_render_types.h": "c",
+        "logger.h": "c",
+        "vfs.h": "c"
+    }
 }

@@ -136,10 +136,22 @@ KAPI b8 filesystem_write(file_handle* handle, u64 data_size, const void* data, u
 
 /**
  * @brief Opens and reads all text content of the file at the provided path.
- * No file handle required. File is closed automatically.
+ * No file handle required. File is closed automatically. Memory is dynamically allocated
+ * tagged as MEMORY_TAG_STRING) and should be freed by the caller.
  * NOTE: This function also handles size disparity between text read in and files that contain CRLF.
  *
  * @param filepath The path to the file to read.
  * @returns A string containing the file contents if successful; otherwise 0/null.
  */
 KAPI const char* filesystem_read_entire_text_file(const char* filepath);
+
+/**
+ * @brief Opens and reads all content of the file at the provided path.
+ * No file handle required. File is closed automatically. Memory is dynamically allocated
+ * (tagged as MEMORY_TAG_ARRAY) and should be freed by the caller.
+ *
+ * @param filepath The path to the file to read.
+ * @param A pointer to hold the size of the file read in.
+ * @returns A binary block of data read from the file.
+ */
+const void* filesystem_read_entire_binary_file(const char* filepath, u64* out_size);

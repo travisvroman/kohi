@@ -77,7 +77,9 @@ typedef struct platform_state {
     // darray of pointers to created windows (owned by the application);
     kwindow** windows;
     platform_filewatcher_file_deleted_callback watcher_deleted_callback;
+    void* watcher_deleted_context;
     platform_filewatcher_file_written_callback watcher_written_callback;
+    void* watcher_written_context;
     platform_window_closed_callback window_closed_callback;
     platform_window_resized_callback window_resized_callback;
     platform_process_key process_key;
@@ -166,7 +168,7 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
     window->width = client_width;
     window->height = client_height;
 
-    window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_UNKNOWN);
+    window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_PLATFORM);
 
     // Allocate a XID for the window to be created.
     window->platform_state->window = xcb_generate_id(state_ptr->handle.connection);
@@ -649,12 +651,14 @@ const char* platform_dynamic_library_prefix(void) {
     return "./lib";
 }
 
-void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback) {
+void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback, void* context) {
     state_ptr->watcher_deleted_callback = callback;
+    state_ptr->watcher_deleted_context = context;
 }
 
-void platform_register_watcher_written_callback(platform_filewatcher_file_written_callback callback) {
+void platform_register_watcher_written_callback(platform_filewatcher_file_written_callback callback, void* context) {
     state_ptr->watcher_written_callback = callback;
+    state_ptr->watcher_written_context = context;
 }
 
 void platform_register_window_closed_callback(platform_window_closed_callback callback) {
@@ -871,7 +875,7 @@ static void platform_update_watches(void) {
                 if (errno == ENOENT) {
                     // File doesn't exist. Which means it was deleted. Remove the watch.
                     if (state_ptr->watcher_deleted_callback) {
-                        state_ptr->watcher_deleted_callback(f->id);
+                        state_ptr->watcher_deleted_callback(f->id, state_ptr->watcher_written_context);
                     } else {
                         KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_deleted_callback()");
                     }
@@ -897,7 +901,7 @@ static void platform_update_watches(void) {
                 context.data.u32[0] = f->id;
                 event_fire(EVENT_CODE_WATCHED_FILE_WRITTEN, 0, context); */
                 if (state_ptr->watcher_written_callback) {
-                    state_ptr->watcher_written_callback(f->id);
+                    state_ptr->watcher_written_callback(f->id, state_ptr->watcher_written_context);
                 } else {
                     KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_written_callback()");
                 }

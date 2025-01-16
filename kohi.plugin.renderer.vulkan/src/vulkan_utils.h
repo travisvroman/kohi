@@ -28,7 +28,7 @@ const char* vulkan_result_string(VkResult result, b8 get_extended);
  */
 b8 vulkan_result_is_success(VkResult result);
 
-#if defined(_DEBUG)
+#if KOHI_DEBUG
 void vulkan_set_debug_object_name(vulkan_context* context, VkObjectType object_type, void* object_handle, const char* object_name);
 void vulkan_set_debug_object_tag(vulkan_context* context, VkObjectType object_type, void* object_handle, u64 tag_size, const void* tag_data);
 void vulkan_begin_label(vulkan_context* context, VkCommandBuffer buffer, const char* label_name, vec4 colour);

@@ -1,11 +1,14 @@
 #pragma once
 
-#include "containers/freelist.h"
-#include "defines.h"
-#include "math/math_types.h"
-#include "resources/resource_types.h"
+#include <containers/freelist.h>
+#include <core_render_types.h>
+#include <defines.h>
+#include <kresources/kresource_types.h>
+#include <math/math_types.h>
+#include <strings/kname.h>
 
-struct shader;
+#include "systems/material_system.h"
+
 struct shader_uniform;
 struct frame_data;
 struct terrain;
@@ -13,7 +16,11 @@ struct viewport;
 struct camera;
 struct material;
 struct kwindow_renderer_backend_state;
-struct texture_internal_data;
+
+// The max number of "frames" for which data can exist. This would be 2 if
+// only double-buffering was supported, but since triple-buffering is supported
+// this must be always taken into account.
+#define RENDERER_MAX_FRAME_COUNT 3
 
 typedef struct renderbuffer_data {
     /** @brief The element count. */
@@ -26,11 +33,14 @@ typedef struct renderbuffer_data {
     u64 buffer_offset;
 } renderbuffer_data;
 
+KDEPRECATED("geometry_render_data should be phased out.")
 typedef struct geometry_render_data {
     mat4 model;
-    // TODO: keep material id/handle instead.
-    struct material* material;
-    // geometry* geometry;
+    material_instance material;
+
+    // The per-draw id to be used when applying this data. Used for draws that don't use materials.
+    u32 draw_id;
+
     u64 unique_id;
     b8 winding_inverted;
     vec4 diffuse_colour;
@@ -48,6 +58,9 @@ typedef struct geometry_render_data {
     u32 index_element_size;
     /** @brief The offset from the beginning of the index buffer. */
     u64 index_buffer_offset;
+
+    /** @brief The index of the IBL probe to use. */
+    u32 ibl_probe_index;
 } geometry_render_data;
 
 typedef enum renderer_debug_view_mode {
@@ -156,6 +169,16 @@ typedef enum renderbuffer_track_type {
     RENDERBUFFER_TRACK_TYPE_LINEAR = 2
 } renderbuffer_track_type;
 
+/**
+ * @brief Represents a queued renderbuffer deletion.
+ */
+typedef struct renderbuffer_queued_deletion {
+    /** @brief The number of frames remaining until the deletion occurs. */
+    u8 frames_until_delete;
+    /** @brief The range to be deleted. Considered a "free" slot if range's values are 0. */
+    krange range;
+} renderbuffer_queued_deletion;
+
 typedef struct renderbuffer {
     /** @brief The name of the buffer, used for debugging purposes. */
     char* name;
@@ -175,6 +198,14 @@ typedef struct renderbuffer {
     void* internal_data;
     /** @brief The byte offset used for linear tracking. */
     u64 offset;
+
+    /**
+     * @brief Queue of ranges to be deleted in this buffer. This is to ensure that the
+     * data isn't being used before being marked as free and potentially overwritten.
+     * Used for all buffer types, including those without tracking. Zeroed out if the
+     * queue is cleared.
+     */
+    renderbuffer_queued_deletion* delete_queue;
 } renderbuffer;
 
 typedef enum renderer_config_flag_bits {
@@ -194,6 +225,10 @@ typedef struct renderer_backend_config {
     const char* application_name;
     /** @brief Various configuration flags for renderer backend setup. */
     renderer_config_flags flags;
+    /** @brief The max number of shaders that be be held. Should match shader system config. */
+    u16 max_shader_count;
+    /** @brief Indicates if triple buffering should be used. Otherwise, double-buffering is used. */
+    b8 use_triple_buffering;
 } renderer_backend_config;
 
 /** @brief The winding order of vertices, used to determine what is the front-face of a triangle. */
@@ -204,28 +239,17 @@ typedef enum renderer_winding {
     RENDERER_WINDING_CLOCKWISE = 1
 } renderer_winding;
 
-/**
- * @brief Maps a uniform to a texture map/maps when acquiring instance resources.
- */
-typedef struct shader_instance_uniform_texture_config {
-    /** @brief The locaton of the uniform to map to. */
-    /* u16 uniform_location; */
-    /** @brief The number of texture maps bound to the uniform. */
-    u32 texture_map_count;
-    /** @brief An array of pointers to texture maps to be mapped to the uniform. */
-    texture_map** texture_maps;
-} shader_instance_uniform_texture_config;
-
-/**
- * @brief Represents the configuration of texture map resources and mappings to uniforms
- * required for instance-level shader data.
- */
-typedef struct shader_instance_resource_config {
-    /** @brief The number of uniform configurations */
-    u32 uniform_config_count;
-    /** @brief An array of uniform configurations. */
-    shader_instance_uniform_texture_config* uniform_configs;
-} shader_instance_resource_config;
+/** @brief The face cull mode. */
+typedef enum renderer_cull_mode {
+    /** @brief No faces are culled. */
+    RENDERER_CULL_MODE_NONE = 0,
+    /** @brief Only front faces are culled. */
+    RENDERER_CULL_MODE_FRONT = 1,
+    /** @brief Only back faces are culled. */
+    RENDERER_CULL_MODE_BACK = 2,
+    /** @brief Both front and back faces are culled. */
+    RENDERER_CULL_MODE_FRONT_AND_BACK = 3
+} renderer_cull_mode;
 
 /**
  * @brief The internal state of a window for the renderer frontend.
@@ -237,9 +261,9 @@ typedef struct kwindow_renderer_state {
     struct viewport* active_viewport;
 
     // This is technically the swapchain images, which should be wrapped into a single texture.
-    texture colourbuffer;
+    kresource_texture* colourbuffer;
     // This is technically the per-frame depth image, which should be wrapped into a single texture.
-    texture depthbuffer;
+    kresource_texture* depthbuffer;
 
     /** @brief The internal state of the window containing renderer backend data. */
     struct kwindow_renderer_backend_state* backend_state;
@@ -255,9 +279,6 @@ typedef struct kwindow_renderer_state {
 typedef struct renderer_backend_interface {
     // A pointer to the frontend state in case the backend needs to communicate with it.
     struct renderer_system_state* frontend_state;
-
-    // The size needed by the renderer backend to hold texture data.
-    u64 texture_internal_data_size;
 
     /**
      * @brief The size of the backend-specific renderer context.
@@ -362,6 +383,14 @@ typedef struct renderer_backend_interface {
     void (*winding_set)(struct renderer_backend_interface* backend, renderer_winding winding);
 
     /**
+     * @brief Set the renderer to use the given cull mode.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param cull_mode The cull mode.
+     */
+    void (*cull_mode_set)(struct renderer_backend_interface* backend, renderer_cull_mode cull_mode);
+
+    /**
      * @brief Set stencil testing enabled/disabled.
      *
      * @param backend A pointer to the renderer backend interface.
@@ -404,7 +433,7 @@ typedef struct renderer_backend_interface {
      */
     void (*set_stencil_op)(struct renderer_backend_interface* backend, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
 
-    void (*begin_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, struct texture_internal_data** colour_targets, struct texture_internal_data* depth_stencil_target, u32 depth_stencil_layer);
+    void (*begin_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer);
     void (*end_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data);
 
     /**
@@ -426,13 +455,13 @@ typedef struct renderer_backend_interface {
     void (*clear_colour_set)(struct renderer_backend_interface* backend, vec4 clear_colour);
     void (*clear_depth_set)(struct renderer_backend_interface* backend, f32 depth);
     void (*clear_stencil_set)(struct renderer_backend_interface* backend, u32 stencil);
-    void (*clear_colour)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal);
-    void (*clear_depth_stencil)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal);
-    void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal);
-    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, struct texture_internal_data* tex_internal, texture_flag_bits flags);
+    void (*clear_colour)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
+    void (*clear_depth_stencil)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
+    void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
+    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, texture_flag_bits flags);
 
-    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, struct texture_internal_data* data, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags);
-    void (*texture_resources_release)(struct renderer_backend_interface* backend, struct texture_internal_data* data);
+    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle);
+    void (*texture_resources_release)(struct renderer_backend_interface* backend, khandle* renderer_texture_handle);
 
     /**
      * @brief Resizes a texture. There is no check at this level to see if the
@@ -445,7 +474,7 @@ typedef struct renderer_backend_interface {
      * @param new_height The new height in pixels.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_resize)(struct renderer_backend_interface* backend, struct texture_internal_data* data, u32 new_width, u32 new_height);
+    b8 (*texture_resize)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 new_width, u32 new_height);
 
     /**
      * @brief Writes the given data to the provided texture.
@@ -460,7 +489,7 @@ typedef struct renderer_backend_interface {
      * @param pixels The raw image data to be written.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_write_data)(struct renderer_backend_interface* backend, struct texture_internal_data* data, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
+    b8 (*texture_write_data)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
 
     /**
      * @brief Reads the given data from the provided texture.
@@ -472,7 +501,7 @@ typedef struct renderer_backend_interface {
      * @param out_pixels A pointer to a block of memory to write the read data to.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_read_data)(struct renderer_backend_interface* backend, struct texture_internal_data* data, u32 offset, u32 size, u8** out_pixels);
+    b8 (*texture_read_data)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 offset, u32 size, u8** out_pixels);
 
     /**
      * @brief Reads a pixel from the provided texture at the given x/y coordinate.
@@ -484,115 +513,176 @@ typedef struct renderer_backend_interface {
      * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_read_pixel)(struct renderer_backend_interface* backend, struct texture_internal_data* data, u32 x, u32 y, u8** out_rgba);
+    b8 (*texture_read_pixel)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 x, u32 y, u8** out_rgba);
 
     /**
      * @brief Creates internal shader resources using the provided parameters.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader.
-     * @param config A constant pointer to the shader config.
+     * @param shader A handle to the shader.
+     * @param shader_resource A constant pointer to the shader shader_resource.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct renderer_backend_interface* backend, struct shader* shader, const shader_config* config);
+    b8 (*shader_create)(struct renderer_backend_interface* backend, khandle shader, const kresource_shader* shader_resource);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader to be destroyed.
+     * @param shader A handle to the shader to be destroyed.
      */
-    void (*shader_destroy)(struct renderer_backend_interface* backend, struct shader* shader);
-
-    /**
-     * @brief Initializes a configured shader. Will be automatically destroyed if this step fails.
-     * Must be done after vulkan_shader_create().
-     *
-     * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader to be initialized.
-     * @return True on success; otherwise false.
-     */
-    b8 (*shader_initialize)(struct renderer_backend_interface* backend, struct shader* shader);
+    void (*shader_destroy)(struct renderer_backend_interface* backend, khandle shader);
 
     /**
      * @brief Reloads the internals of the given shader.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader to be reloaded.
+     * @param shader A handle to the shader to be reloaded.
+     * @param shader_stage_count The number of shader stages.
+     * @param shader_stages An array of shader stages configs.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_reload)(struct renderer_backend_interface* backend, struct shader* s);
+    b8 (*shader_reload)(struct renderer_backend_interface* backend, khandle s, u32 shader_stage_count, shader_stage_config* shader_stages);
 
     /**
      * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
      * and for use in draw calls.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader to be used.
+     * @param shader A handle to the shader to be used.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_use)(struct renderer_backend_interface* backend, struct shader* shader);
+    b8 (*shader_use)(struct renderer_backend_interface* backend, khandle shader);
 
     /**
      * @brief Indicates if the supplied shader supports wireframe mode.
      *
      * @param backend A constant pointer to the renderer backend interface.
-     * @param s A constant pointer to the shader to be used.
+     * @param shader A handle to the shader to be used.
      * @return True if supported; otherwise false.
      */
-    b8 (*shader_supports_wireframe)(const struct renderer_backend_interface* backend, const struct shader* s);
+    b8 (*shader_supports_wireframe)(const struct renderer_backend_interface* backend, khandle shader);
 
     /**
-     * @brief Applies global data to the uniform buffer.
+     * @brief Indicates if the given shader flag is set.
      *
-     * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader to apply the global data for.
-     * @param renderer_frame_number The current renderer frame number provided by the frontend.
-     * @return True on success; otherwise false.
+     * @param backend A constant pointer to the renderer backend interface.
+     * @param shader A handle to the shader to be used.
+     * @param flag The flag to check.
+     * @return True if set; otherwise false.
      */
-    b8 (*shader_apply_globals)(struct renderer_backend_interface* backend, struct shader* s, u64 renderer_frame_number);
+    b8 (*shader_flag_get)(const struct renderer_backend_interface* backend, khandle shader, shader_flags flag);
 
     /**
-     * @brief Applies data for the currently bound instance.
+     * @brief Sets the given shader flag.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader to apply the instance data for.
-     * @param renderer_frame_number The current renderer frame number provided by the frontend.
-     * @return True on success; otherwise false.
+     * @param shader A handle to the shader to be used.
+     * @param flag The flag to set.
+     * @param enabled Indicates whether the flag should be set or unset.
      */
-    b8 (*shader_apply_instance)(struct renderer_backend_interface* backend, struct shader* s, u64 renderer_frame_number);
+    void (*shader_flag_set)(struct renderer_backend_interface* backend, khandle shader, shader_flags flag, b8 enabled);
 
     /**
-     * @brief Applies local data to the uniform buffer.
+     * @brief Binds the per-frame frequency.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader to apply the instance data for.
-     * @param renderer_frame_number The current renderer frame number provided by the frontend.
+     * @param shader A handle to the shader to be used.
+     * @returns True on success; otherwise false.
+     */
+    b8 (*shader_bind_per_frame)(struct renderer_backend_interface* backend, khandle shader);
+
+    /**
+     * @brief Binds the given per-group frequency id.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param shader A handle to the shader to be used.
+     * @param group_id The per-group frequency id.
+     * @returns True on success; otherwise false.
+     */
+    b8 (*shader_bind_per_group)(struct renderer_backend_interface* backend, khandle shader, u32 group_id);
+
+    /**
+     * @brief Binds the given per-draw frequency id.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param shader A handle to the shader to be used.
+     * @param draw_id The per-draw frequency id.
+     * @returns True on success; otherwise false.
+     */
+    b8 (*shader_bind_per_draw)(struct renderer_backend_interface* backend, khandle shader, u32 draw_id);
+
+    /**
+     * @brief Applies per-frame data to the uniform buffer.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param shader A handle to the shader to apply the global data for.
+     * @param renderer_frame_number The renderer's frame number, internally used as the generation of the per-frame data. Used for synchronization by the backend.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_apply_local)(struct renderer_backend_interface* backend, struct shader* s, u64 renderer_frame_number);
+    b8 (*shader_apply_per_frame)(struct renderer_backend_interface* backend, khandle shader, u16 renderer_frame_number);
+
+    /**
+     * @brief Applies data for the currently bound group.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param shader A handle to the shader to apply the instance data for.
+     * @param generation The current generation of the group's data. Used for synchronization by the backend.
+     * @return True on success; otherwise false.
+     */
+    b8 (*shader_apply_per_group)(struct renderer_backend_interface* backend, khandle shader, u16 generation);
+
+    /**
+     * @brief Applies per-draw data to the uniform buffer.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param shader A handle to the shader to apply the instance data for.
+     * @param generation The current generation of the per-draw data. Used for synchronization by the backend.
+     * @return True on success; otherwise false.
+     */
+    b8 (*shader_apply_per_draw)(struct renderer_backend_interface* backend, khandle shader, u16 generation);
 
     /**
      * @brief Acquires internal instance-level resources and provides an instance id.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader to acquire resources from.
-     * @param texture_map_count The number of texture maps used.
-     * @param maps An array of pointers to texture maps. Must be one map per instance texture.
+     * @param shader A handle to the shader to acquire resources from.
      * @param out_instance_id A pointer to hold the new instance identifier.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_instance_resources_acquire)(struct renderer_backend_interface* backend, struct shader* s, const shader_instance_resource_config* config, u32* out_instance_id);
+    b8 (*shader_per_group_resources_acquire)(struct renderer_backend_interface* backend, khandle shader, u32* out_instance_id);
 
     /**
      * @brief Releases internal instance-level resources for the given instance id.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param s A pointer to the shader to release resources from.
+     * @param shader A handle to the shader to release resources from.
      * @param instance_id The instance identifier whose resources are to be released.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_instance_resources_release)(struct renderer_backend_interface* backend, struct shader* s, u32 instance_id);
+    b8 (*shader_per_group_resources_release)(struct renderer_backend_interface* backend, khandle shader, u32 instance_id);
+
+    /**
+     * @brief Acquires internal local-level resources and provides an instance id.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param shader A handle to the shader to acquire resources from.
+     * @param texture_map_count The number of texture maps used.
+     * @param maps An array of pointers to texture maps. Must be one map per instance texture.
+     * @param out_local_id A pointer to hold the new local identifier.
+     * @return True on success; otherwise false.
+     */
+    b8 (*shader_per_draw_resources_acquire)(struct renderer_backend_interface* backend, khandle shader, u32* out_local_id);
+
+    /**
+     * @brief Releases internal local-level resources for the given instance id.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param shader A handle to the shader to release resources from.
+     * @param instance_id The local identifier whose resources are to be released.
+     * @return True on success; otherwise false.
+     */
+    b8 (*shader_per_draw_resources_release)(struct renderer_backend_interface* backend, khandle shader, u32 local_id);
 
     /**
      * @brief Sets the uniform of the given shader to the provided value.
@@ -604,24 +694,47 @@ typedef struct renderer_backend_interface {
      * @param value A pointer to the value to be set.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_uniform_set)(struct renderer_backend_interface* backend, struct shader* frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
+    b8 (*shader_uniform_set)(struct renderer_backend_interface* backend, khandle frontend_shader, struct shader_uniform* uniform, u32 array_index, const void* value);
 
     /**
-     * @brief Acquires internal resources for the given texture map.
+     * @brief Acquires a internal sampler and returns a handle to it.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param map A pointer to the texture map to obtain resources for.
+     * @param name The name of the sampler.
+     * @param filter The min/mag filter.
+     * @param repeat The repeat mode.
+     * @param anisotropy The anisotropy level, if needed; otherwise 0.
+     * @return A handle to the sampler on success; otherwise an invalid handle.
+     */
+    khandle (*sampler_acquire)(struct renderer_backend_interface* backend, kname name, texture_filter filter, texture_repeat repeat, f32 anisotropy);
+    /**
+     * @brief Releases the internal sampler for the given handle.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param map A pointer to the handle whose sampler is to be released. Handle is invalidated upon release.
+     */
+    void (*sampler_release)(struct renderer_backend_interface* backend, khandle* sampler);
+    /**
+     * @brief Recreates the internal sampler pointed to by the given handle. Modifies the handle.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     * @param sampler A pointer to the handle of the sampler to be refreshed.
+     * @param filter The min/mag filter.
+     * @param repeat The repeat mode.
+     * @param anisotropy The anisotropy level, if needed; otherwise 0.
+     * @param mip_levels The mip levels, if used; otherwise 0.
      * @return True on success; otherwise false.
      */
-    b8 (*texture_map_resources_acquire)(struct renderer_backend_interface* backend, struct texture_map* map);
+    b8 (*sampler_refresh)(struct renderer_backend_interface* backend, khandle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
 
     /**
-     * @brief Releases internal resources for the given texture map.
+     * @brief Attempts to obtain the name of a sampler with the given handle. Returns INVALID_KNAME if not found.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param map A pointer to the texture map to release resources from.
+     * @param sampler A handle to the sampler whose name to get.
+     * @return The name of the sampler on success; otherwise INVALID_KNAME.
      */
-    void (*texture_map_resources_release)(struct renderer_backend_interface* backend, struct texture_map* map);
+    kname (*sampler_name_get)(struct renderer_backend_interface* backend, khandle sampler);
 
     /**
      * @brief Indicates if the renderer is capable of multi-threading.
@@ -648,6 +761,13 @@ typedef struct renderer_backend_interface {
      * @param enabled Indicates whether or not to enable the flag(s).
      */
     void (*flag_enabled_set)(struct renderer_backend_interface* backend, renderer_config_flags flag, b8 enabled);
+
+    /**
+     * @brief Obtains the max anisotropy level available from the renderer. 0 means not available.
+     *
+     * @param backend A pointer to the renderer backend interface.
+     */
+    f32 (*max_anisotropy_get)(struct renderer_backend_interface* backend);
 
     /**
      * @brief Creates and assigns the renderer-backend-specific buffer.

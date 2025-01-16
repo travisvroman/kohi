@@ -1,4 +1,4 @@
-#include "oal_plugin.h"
+/* #include "oal_plugin.h"
 
 #include "defines.h"
 #include "parsers/kson_parser.h"
@@ -17,11 +17,9 @@
 #include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
-#include "resources/loaders/audio_loader.h"
 #include "resources/resource_types.h"
 #include "systems/audio_system.h"
 #include "systems/job_system.h"
-#include "systems/resource_system.h"
 
 // OpenAL
 #ifdef KPLATFORM_WINDOWS
@@ -71,21 +69,11 @@ typedef struct audio_plugin_source {
 // The internal state for this audio plugin.
 typedef struct audio_plugin_state {
 
-    /** @brief The maximum number of buffers available. Default: 256 */
     u32 max_buffers;
-    /** @brief The maximum number of sources available. Default: 8 */
     u32 max_sources;
-    /** @brief The frequency to output audio at. */
     u32 frequency;
-    /**
-     * @brief The number of audio channels to support (i.e. 2 for stereo, 1 for mono).
-     * not to be confused with audio_channel_count below.
-     */
     u32 channel_count;
 
-    /**
-     * The size to chunk streamed audio data in.
-     */
     u32 chunk_size;
 
     // The selected audio device.
@@ -515,7 +503,7 @@ static u32 oal_plugin_find_free_buffer(struct audio_backend_interface* plugin) {
                     oal_plugin_check_error();
 
                     clear_buffer(plugin, &buffers_freed, to_be_freed);
-                    /* alSourcePlay(plugin->internal_state->sources[i - 1].id); */
+                    // alSourcePlay(plugin->internal_state->sources[i - 1].id);
                 }
             }
 
@@ -919,4 +907,4 @@ static b8 plugin_deserialize_config(const char* config_str, audio_plugin_state* 
     kson_tree_cleanup(&tree);
 
     return true;
-}
+} */

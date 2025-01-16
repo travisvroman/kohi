@@ -7,9 +7,10 @@ typedef struct sui_button_internal_data {
     vec2i size;
     vec4 colour;
     nine_slice nslice;
-    u32 instance_id;
-    u64 frame_number;
-    u8 draw_index;
+    u32 group_id;
+    u16 group_generation;
+    u32 draw_id;
+    u16 draw_generation;
 } sui_button_internal_data;
 
 KAPI b8 sui_button_control_create(standard_ui_state* state, const char* name, struct sui_control* out_control);

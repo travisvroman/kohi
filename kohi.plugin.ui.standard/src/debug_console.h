@@ -32,7 +32,7 @@ typedef struct debug_console_state {
 
 } debug_console_state;
 
-KAPI void debug_console_create(standard_ui_state* sui_state, debug_console_state* out_console_state);
+KAPI b8 debug_console_create(standard_ui_state* sui_state, debug_console_state* out_console_state);
 
 KAPI b8 debug_console_load(debug_console_state* state);
 KAPI void debug_console_unload(debug_console_state* state);

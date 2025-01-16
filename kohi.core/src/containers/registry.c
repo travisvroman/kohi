@@ -42,10 +42,10 @@ void kregistry_destroy(kregistry* registry) {
     }
 }
 
-k_handle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b8 auto_release) {
+khandle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b8 auto_release) {
     if (!registry || !size) {
         KERROR("registry_add_entry requires a valid pointer to registry, and a nonzero size. Invalid handle will be returned.");
-        return k_handle_invalid();
+        return khandle_invalid();
     }
 
     // Check that the block hasn't already been registered.
@@ -54,7 +54,7 @@ k_handle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b
         kregistry_entry* entry = &registry->entries[i];
         if (entry->block == block) {
             KWARN("Block of memory at address 0x%x has already been registered, and will not be re-registered. Returning its handle.");
-            return k_handle_create_with_identifier(i, (identifier){entry->uniqueid});
+            return khandle_create_with_identifier(i, (identifier){entry->uniqueid});
         }
     }
 
@@ -63,7 +63,7 @@ k_handle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b
         kregistry_entry* entry = &registry->entries[i];
         if (entry->uniqueid == INVALID_ID_U64) {
             // Found an empty block, use it.
-            k_handle new_handle = k_handle_create(i);
+            khandle new_handle = khandle_create(i);
             entry->uniqueid = new_handle.unique_id.uniqueid;
 
             // Allocate a block of memory and copy the provided block to it.
@@ -87,7 +87,7 @@ k_handle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b
     // Create a new entry and push it to the array instead. Use the current entry_count as the index since it
     // will be added onto the end.
     {
-        k_handle new_handle = k_handle_create(entry_count);
+        khandle new_handle = khandle_create(entry_count);
 
         kregistry_entry new_entry = {0};
         new_entry.uniqueid = new_handle.unique_id.uniqueid;
@@ -112,13 +112,13 @@ k_handle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b
     }
 }
 
-b8 kregistry_entry_set(kregistry* registry, k_handle entry_handle, const void* block, u64 size, void* sender) {
+b8 kregistry_entry_set(kregistry* registry, khandle entry_handle, const void* block, u64 size, void* sender) {
     if (!registry || !block || !size) {
         KERROR("registry_entry_set requires a valid pointer to a registry and block, as well as have a nonzero size. Nothing was done.");
         return false;
     }
 
-    if (k_handle_is_invalid(entry_handle)) {
+    if (khandle_is_invalid(entry_handle)) {
         KERROR("registry_entry_set requires a valid handle, yet an invalid one was passed. Nothing was done.");
         return false;
     }
@@ -154,13 +154,13 @@ b8 kregistry_entry_set(kregistry* registry, k_handle entry_handle, const void* b
     return true;
 }
 
-b8 kregistry_entry_update_callback_for_listener(kregistry* registry, k_handle entry_handle, void* listener, PFN_on_registry_entry_updated updated_callback) {
+b8 kregistry_entry_update_callback_for_listener(kregistry* registry, khandle entry_handle, void* listener, PFN_on_registry_entry_updated updated_callback) {
     if (!registry || !listener || !updated_callback) {
         KERROR("kregistry_entry_update_callback_for_listener requires a valid pointer to a registry, listener, and updated_callback. Nothing was done.");
         return false;
     }
 
-    if (k_handle_is_invalid(entry_handle)) {
+    if (khandle_is_invalid(entry_handle)) {
         KERROR("kregistry_entry_update_callback_for_listener requires a valid handle, yet an invalid one was passed. Nothing was done.");
         return false;
     }
@@ -195,13 +195,13 @@ b8 kregistry_entry_update_callback_for_listener(kregistry* registry, k_handle en
     return false;
 }
 
-void* kregistry_entry_acquire(kregistry* registry, k_handle entry_handle, void* listener, PFN_on_registry_entry_updated updated_callback) {
+void* kregistry_entry_acquire(kregistry* registry, khandle entry_handle, void* listener, PFN_on_registry_entry_updated updated_callback) {
     if (!registry) {
         KERROR("registry_entry_acquire requires a valid pointer to a registry. 0/null will be returned.");
         return 0;
     }
 
-    if (k_handle_is_invalid(entry_handle)) {
+    if (khandle_is_invalid(entry_handle)) {
         KERROR("registry_entry_acquire requires a valid handle, yet an invalid one was passed. 0/null will be returned.");
         return 0;
     }
@@ -262,13 +262,13 @@ void* kregistry_entry_acquire(kregistry* registry, k_handle entry_handle, void* 
     return entry->block;
 }
 
-void kregistry_entry_release(kregistry* registry, k_handle entry_handle, void* listener) {
+void kregistry_entry_release(kregistry* registry, khandle entry_handle, void* listener) {
     if (!registry) {
         KERROR("registry_entry_release requires a valid pointer to a registry.");
         return;
     }
 
-    if (k_handle_is_invalid(entry_handle)) {
+    if (khandle_is_invalid(entry_handle)) {
         KERROR("registry_entry_release requires a valid entry_handle.");
         return;
     }

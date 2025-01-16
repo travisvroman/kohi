@@ -1,5 +1,6 @@
 #include "memory/kmemory.h"
 
+#include "debug/kassert.h"
 #include "logger.h"
 #include "memory/allocators/dynamic_allocator.h"
 #include "platform/platform.h"
@@ -15,10 +16,12 @@
 #if !K_USE_CUSTOM_MEMORY_ALLOCATOR
 #    if _MSC_VER
 #        include <malloc.h>
-#        define aligned_alloc _aligned_malloc
-#        define aligned_free _aligned_free
+#        define kaligned_alloc _aligned_malloc
+#        define kaligned_free _aligned_free
 #    else
 #        include <stdlib.h>
+#        define kaligned_alloc(size, alignment) aligned_alloc(alignment, size)
+#        define kaligned_free free
 #    endif
 #endif
 struct memory_stats {
@@ -60,7 +63,10 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "UI         ",
     "AUDIO      ",
     "REGISTRY   ",
-    "PLUGIN     "};
+    "PLUGIN     ",
+    "PLATFORM   ",
+    "SERIALIZER ",
+    "ASSET      "};
 
 typedef struct memory_system_state {
     memory_system_configuration config;
@@ -111,7 +117,7 @@ b8 memory_system_initialize(memory_system_configuration config) {
         return false;
     }
 #else
-    state_ptr = aligned_alloc(sizeof(memory_system_state), 16);
+    state_ptr = kaligned_alloc(sizeof(memory_system_state), 16);
     state_ptr->config = config;
     state_ptr->alloc_count = 0;
     state_ptr->allocator_memory_requirement = 0;
@@ -137,7 +143,7 @@ void memory_system_shutdown(void) {
         // Free the entire block.
         platform_free(state_ptr, state_ptr->allocator_memory_requirement + sizeof(memory_system_state));
 #else
-        aligned_free(state_ptr);
+        kaligned_free(state_ptr);
 #endif
     }
     state_ptr = 0;
@@ -148,6 +154,7 @@ void* kallocate(u64 size, memory_tag tag) {
 }
 
 void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
+    KASSERT_MSG(size, "kallocate_aligned requires a nonzero size.");
     if (tag == MEMORY_TAG_UNKNOWN) {
         KWARN("kallocate_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
@@ -171,7 +178,7 @@ void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
         block = dynamic_allocator_allocate_aligned(&state_ptr->allocator, size, alignment);
 #else
-        block = aligned_alloc(size, alignment);
+        block = kaligned_alloc(size, alignment);
 #endif
         kmutex_unlock(&state_ptr->allocation_mutex);
     } else {
@@ -255,7 +262,7 @@ void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
         b8 result = dynamic_allocator_free_aligned(&state_ptr->allocator, block);
 #else
-        aligned_free(block);
+        kaligned_free(block);
         b8 result = true;
 #endif
 
@@ -382,4 +389,21 @@ u64 get_memory_alloc_count(void) {
         return state_ptr->alloc_count;
     }
     return 0;
+}
+
+u32 pack_u8_into_u32(u8 x, u8 y, u8 z, u8 w) {
+    return (x << 24) | (y << 16) | (z << 8) | (w);
+}
+
+b8 unpack_u8_from_u32(u32 n, u8* x, u8* y, u8* z, u8* w) {
+    if (!x || !y || !z || !w) {
+        return false;
+    }
+
+    *x = (n >> 24) & 0xFF;
+    *y = (n >> 16) & 0xFF;
+    *z = (n >> 8) & 0xFF;
+    *w = n & 0xFF;
+
+    return true;
 }

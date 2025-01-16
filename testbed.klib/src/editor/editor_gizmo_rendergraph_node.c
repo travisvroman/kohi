@@ -1,19 +1,21 @@
 #include "editor_gizmo_rendergraph_node.h"
 
 #include "core/engine.h"
+#include "defines.h"
+#include "editor_gizmo.h"
 #include "identifiers/khandle.h"
 #include "logger.h"
+#include "math/kmath.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "renderer/rendergraph.h"
+#include "renderer/viewport.h"
 #include "strings/kstring.h"
 #include "systems/material_system.h"
 #include "systems/shader_system.h"
-#include "renderer/viewport.h"
-#include "editor_gizmo.h"
-#include "math/kmath.h"
 #include "systems/xform_system.h"
+#include <runtime_defines.h>
 
 typedef struct debug_shader_locations {
     u16 projection;
@@ -24,11 +26,10 @@ typedef struct debug_shader_locations {
 typedef struct editor_gizmo_rendergraph_node_internal_data {
     struct renderer_system_state* renderer;
 
-    u32 colour_shader_id;
-    shader* colour_shader;
+    khandle colour_shader;
     debug_shader_locations debug_locations;
 
-    struct texture* colourbuffer_texture;
+    kresource_texture* colourbuffer_texture;
 
     viewport vp;
     mat4 view;
@@ -36,6 +37,8 @@ typedef struct editor_gizmo_rendergraph_node_internal_data {
 
     editor_gizmo* gizmo;
     b8 enabled;
+
+    u32 draw_id;
 } editor_gizmo_rendergraph_node_internal_data;
 
 b8 editor_gizmo_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node* self, const struct rendergraph_node_config* config) {
@@ -111,11 +114,15 @@ b8 editor_gizmo_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     // Load debug colour3d shader and get shader uniform locations.
     // Get a pointer to the shader.
-    internal_data->colour_shader = shader_system_get("Shader.Builtin.ColourShader3D");
-    internal_data->colour_shader_id = internal_data->colour_shader->id;
-    internal_data->debug_locations.projection = shader_system_uniform_location(internal_data->colour_shader_id, "projection");
-    internal_data->debug_locations.view = shader_system_uniform_location(internal_data->colour_shader_id, "view");
-    internal_data->debug_locations.model = shader_system_uniform_location(internal_data->colour_shader_id, "model");
+    internal_data->colour_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_COLOUR_3D), kname_create(PACKAGE_NAME_RUNTIME));
+    internal_data->debug_locations.projection = shader_system_uniform_location(internal_data->colour_shader, kname_create("projection"));
+    internal_data->debug_locations.view = shader_system_uniform_location(internal_data->colour_shader, kname_create("view"));
+    internal_data->debug_locations.model = shader_system_uniform_location(internal_data->colour_shader, kname_create("model"));
+
+    if (!shader_system_shader_per_draw_acquire(internal_data->colour_shader, &internal_data->draw_id)) {
+        KERROR("Unable to acquire per-draw resources for editor gizmo rendergraph node.");
+        return false;
+    }
 
     return true;
 }
@@ -148,23 +155,22 @@ b8 editor_gizmo_rendergraph_node_execute(struct rendergraph_node* self, struct f
 
     renderer_begin_debug_label(self->name, (vec3){0.5f, 1.0f, 0.5});
     if (internal_data->enabled) {
-        renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, k_handle_invalid(), 0);
+        editor_gizmo_render_frame_prepare(gizmo, p_frame_data);
+
+        renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, khandle_invalid(), 0);
 
         // Bind the viewport
         renderer_active_viewport_set(&internal_data->vp);
 
-        shader_system_use_by_id(internal_data->colour_shader->id);
+        shader_system_use(internal_data->colour_shader);
 
-        // Globals
-        shader_system_uniform_set_by_location(internal_data->colour_shader_id, internal_data->debug_locations.projection, &internal_data->projection);
-        shader_system_uniform_set_by_location(internal_data->colour_shader_id, internal_data->debug_locations.view, &internal_data->view);
-        shader_system_apply_global(internal_data->colour_shader_id);
+        // per-frame
+        shader_system_bind_frame(internal_data->colour_shader);
+        shader_system_uniform_set_by_location(internal_data->colour_shader, internal_data->debug_locations.projection, &internal_data->projection);
+        shader_system_uniform_set_by_location(internal_data->colour_shader, internal_data->debug_locations.view, &internal_data->view);
+        shader_system_apply_per_frame(internal_data->colour_shader);
 
-        if (gizmo) {
-            editor_gizmo_render_frame_prepare(gizmo, p_frame_data);
-        }
-
-        geometry* g = &gizmo->mode_data[gizmo->mode].geo;
+        kgeometry* g = &gizmo->mode_data[gizmo->mode].geo;
 
         // vec3 camera_pos = camera_position_get(c);
         // vec3 gizmo_pos = transform_position_get(&packet_data->gizmo->xform);
@@ -183,16 +189,18 @@ b8 editor_gizmo_rendergraph_node_execute(struct rendergraph_node* self, struct f
 
         geometry_render_data render_data = {0};
         render_data.model = model;
-        render_data.material = g->material;
         render_data.vertex_count = g->vertex_count;
         render_data.vertex_buffer_offset = g->vertex_buffer_offset;
+        render_data.vertex_element_size = g->vertex_element_size;
         render_data.index_count = g->index_count;
         render_data.index_buffer_offset = g->index_buffer_offset;
+        render_data.index_element_size = g->index_element_size;
         render_data.unique_id = INVALID_ID;
 
         // Set model matrix.
-        shader_system_uniform_set_by_location(internal_data->colour_shader_id, internal_data->debug_locations.model, &model);
-        shader_system_apply_local(internal_data->colour_shader_id);
+        shader_system_bind_draw_id(internal_data->colour_shader, internal_data->draw_id);
+        shader_system_uniform_set_by_location(internal_data->colour_shader, internal_data->debug_locations.model, &model);
+        shader_system_apply_per_draw(internal_data->colour_shader);
 
         // Draw it.
         renderer_geometry_draw(&render_data);

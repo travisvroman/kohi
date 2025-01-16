@@ -61,6 +61,9 @@ typedef enum memory_tag {
     MEMORY_TAG_AUDIO,
     MEMORY_TAG_REGISTRY,
     MEMORY_TAG_PLUGIN,
+    MEMORY_TAG_PLATFORM,
+    MEMORY_TAG_SERIALIZER,
+    MEMORY_TAG_ASSET,
 
     MEMORY_TAG_MAX_TAGS
 } memory_tag;
@@ -90,6 +93,43 @@ KAPI void memory_system_shutdown(void);
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
 KAPI void* kallocate(u64 size, memory_tag tag);
+
+/**
+ * @brief Dynamically allocates memory for the given type. Also casts to type*.
+ *
+ * @param type The type to be used when determining allocation size.
+ * @param mem_tag The memory tag to be used for the allocation.
+ */
+#define KALLOC_TYPE(type, mem_tag) (type*)kallocate(sizeof(type), mem_tag)
+
+/**
+ * @brief Frees the given dynamically-allocated memory of the provided type,
+ * using the given tag.
+ *
+ * @param block The block of memory to be freed.
+ * @param type The type to be used when determining allocation size.
+ * @param mem_tag The memory tag to be used for the deallocation.
+ */
+#define KFREE_TYPE(block, type, mem_tag) kfree(block, sizeof(type), mem_tag)
+
+/**
+ * @brief Dynamically allocates memory for a standard C array of the given type.
+ * Also casts to type*. Memory is tagged as MEMORY_TAG_ARRAY.
+ *
+ * @param type The type to be used when determining allocation size.
+ * @param count The number of elements existing in the array.
+ */
+#define KALLOC_TYPE_CARRAY(type, count) (type*)kallocate(sizeof(type) * count, MEMORY_TAG_ARRAY)
+
+/**
+ * @brief Frees the given dynamically-allocated array of the provided type,
+ * using MEMORY_TAG_ARRAY.
+ *
+ * @param block The block of memory to be freed.
+ * @param type The type to be used when determining allocation size.
+ * @param count The number of elements in the array to be freed.
+ */
+#define KFREE_TYPE_CARRAY(block, type, count) kfree(block, sizeof(type) * count, MEMORY_TAG_ARRAY)
 
 /**
  * @brief Performs an aligned memory allocation from the host of the given size and alignment.
@@ -202,6 +242,9 @@ KAPI void* kzero_memory(void* block, u64 size);
  */
 KAPI void* kcopy_memory(void* dest, const void* source, u64 size);
 
+#define KCOPY_TYPE(dest, source, type) kcopy_memory(dest, source, sizeof(type))
+#define KCOPY_TYPE_CARRAY(dest, source, type, count) kcopy_memory(dest, source, sizeof(type) * count)
+
 /**
  * @brief Sets the bytes of memory located at dest to value over the given size.
  * @param dest A pointer to the destination block of memory to be set.
@@ -224,3 +267,26 @@ KAPI char* get_memory_usage_str(void);
  * @returns The total count of allocations since the system's initialization.
  */
 KAPI u64 get_memory_alloc_count(void);
+
+/**
+ * @brief Packs the values of 4 u8s into a single u32.
+ *
+ * @param x The first u8 to pack.
+ * @param y The second u8 to pack.
+ * @param z The third u8 to pack.
+ * @param w The fourth u8 to pack.
+ * @returns The packed u32.
+ */
+KAPI u32 pack_u8_into_u32(u8 x, u8 y, u8 z, u8 w);
+
+/**
+ * @brief Attempts to unpack 4 u8s from a u32.
+ *
+ * @param n The u32 to extract from.
+ * @param x The first u8 to extract to. Required.
+ * @param y The second u8 to extract to. Required.
+ * @param z The third u8 to extract to. Required.
+ * @param w The fourth u8 to extract to. Required.
+ * @returns True if success, otherwise false.
+ */
+KAPI b8 unpack_u8_from_u32(u32 n, u8* x, u8* y, u8* z, u8* w);

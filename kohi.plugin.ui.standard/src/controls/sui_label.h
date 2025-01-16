@@ -1,16 +1,22 @@
 #pragma once
 
 #include "standard_ui_system.h"
+#include "systems/font_system.h"
 
 typedef struct sui_label_internal_data {
     vec2i size;
     vec4 colour;
-    u32 instance_id;
-    u64 frame_number;
-    u8 draw_index;
+    u32 group_id;
+    u16 group_generation;
+    u32 draw_id;
+    u16 draw_generation;
 
     font_type type;
-    struct font_data* data;
+    // Only used when set to use a bitmap font.
+    khandle bitmap_font;
+    // Only used when set to use a system font.
+    system_font_variant system_font;
+
     u64 vertex_buffer_offset;
     u64 index_buffer_offset;
     u64 vertex_buffer_size;
@@ -23,7 +29,7 @@ typedef struct sui_label_internal_data {
     b8 is_dirty;
 } sui_label_internal_data;
 
-KAPI b8 sui_label_control_create(standard_ui_state* state, const char* name, font_type type, const char* font_name, u16 font_size, const char* text, struct sui_control* out_control);
+KAPI b8 sui_label_control_create(standard_ui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text, struct sui_control* out_control);
 KAPI void sui_label_control_destroy(standard_ui_state* state, struct sui_control* self);
 KAPI b8 sui_label_control_load(standard_ui_state* state, struct sui_control* self);
 KAPI void sui_label_control_unload(standard_ui_state* state, struct sui_control* self);
@@ -40,3 +46,5 @@ KAPI void sui_label_text_set(standard_ui_state* state, struct sui_control* self,
 
 KAPI const char* sui_label_text_get(standard_ui_state* state, struct sui_control* self);
 KAPI void sui_label_colour_set(standard_ui_state* state, struct sui_control* self, vec4 colour);
+
+KAPI f32 sui_label_line_height_get(standard_ui_state* state, struct sui_control* self);

@@ -1,17 +1,20 @@
 #include "vulkan_swapchain.h"
+#include "identifiers/khandle.h"
+#include "kresources/kresource_types.h"
 
-#include "defines.h"
-#include "logger.h"
-#include "memory/kmemory.h"
-#include "platform/platform.h"
-#include "renderer/renderer_frontend.h"
-#include "renderer/renderer_types.h"
-#include "resources/resource_types.h"
-#include "strings/kstring.h"
-#include "vulkan_device.h"
-#include "vulkan_types.h"
-#include "vulkan_utils.h"
 #include <vulkan/vulkan_core.h>
+
+#include <defines.h>
+#include <logger.h>
+#include <memory/kmemory.h>
+#include <platform/platform.h>
+#include <renderer/renderer_frontend.h>
+#include <renderer/renderer_types.h>
+#include <resources/resource_types.h>
+#include <strings/kstring.h>
+#include <vulkan_device.h>
+#include <vulkan_types.h>
+#include <vulkan_utils.h>
 
 static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_config_flags flags, vulkan_swapchain* swapchain);
 static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapchain);
@@ -68,6 +71,14 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
         swapchain->image_format = context->device.swapchain_support.formats[0];
     }
 
+    // Query swapchain image format properties to see if it can be a src/destination for blitting.
+    VkFormatProperties format_properties = {0};
+    vkGetPhysicalDeviceFormatProperties(context->device.physical_device, swapchain->image_format.format, &format_properties);
+    swapchain->supports_blit_dest = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT) != 0;
+    swapchain->supports_blit_src = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT) != 0;
+    KDEBUG("Swapchain image format %s be a blit destination.", swapchain->supports_blit_dest ? "CAN" : "CANNOT");
+    KDEBUG("Swapchain image format %s be a blit source.", swapchain->supports_blit_src ? "CAN" : "CANNOT");
+
     // FIFO and MAILBOX support vsync, IMMEDIATE does not.
     // TODO: vsync seems to hold up the game update for some reason.
     // It theoretically should be post-update and pre-render where that happens.
@@ -102,7 +113,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
     }
 
     // Swapchain extent
-    if (context->device.swapchain_support.capabilities.currentExtent.width != UINT32_MAX) {
+    if (context->device.swapchain_support.capabilities.currentExtent.width != U32_MAX) {
         swapchain_extent = context->device.swapchain_support.capabilities.currentExtent;
     }
 
@@ -116,8 +127,6 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
     if (context->device.swapchain_support.capabilities.maxImageCount > 0 && image_count > context->device.swapchain_support.capabilities.maxImageCount) {
         image_count = context->device.swapchain_support.capabilities.maxImageCount;
     }
-
-    swapchain->max_frames_in_flight = image_count - 1;
 
     // Swapchain create info
     VkSwapchainCreateInfoKHR swapchain_create_info = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
@@ -157,8 +166,14 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
         return false;
     }
 
-    // Start with a zero frame index.
-    window_backend->current_frame = 0;
+    // Because the swapchain images are owned/created by the swapchain, the memory for
+    // the texture "wrapped" around it is manually allocated here.
+    // Of course, only do this if it hasn't already been done.
+    if (!swapchain->swapchain_colour_texture) {
+        swapchain->swapchain_colour_texture = KALLOC_TYPE(kresource_texture, MEMORY_TAG_RENDERER);
+        // Start with an invalid handle.
+        swapchain->swapchain_colour_texture->renderer_texture_handle = khandle_invalid();
+    }
 
     // Get image count from swapchain.
     swapchain->image_count = 0;
@@ -178,14 +193,15 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
         return false;
     }
 
-    // Swapchain images are stored in the backend data of the window.colourbuffer.
-    if (k_handle_is_invalid(window_internal->colourbuffer.renderer_texture_handle)) {
+    // Swapchain images are stored in the backend data of the swapchain's colour texture.
+    // NOTE: The window should create a separate set of images to render to, then blit to these.
+    if (khandle_is_invalid(swapchain->swapchain_colour_texture->renderer_texture_handle)) {
         // If invalid, then a new one needs to be created. This does not reach out to the
         // texture system to create this, but handles it internally instead. This is because
         // the process for this varies greatly between backends.
-        if (!renderer_texture_resources_acquire(
+        if (!renderer_kresource_texture_resources_acquire(
                 backend->frontend_state,
-                "__window_colourbuffer_texture__",
+                kname_create("__swapchain_colour_texture__"),
                 TEXTURE_TYPE_2D,
                 swapchain_extent.width,
                 swapchain_extent.height,
@@ -195,48 +211,42 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
                 // NOTE: This should be a wrapped texture, so the frontend does not try to
                 // acquire the resources we already have here.
                 TEXTURE_FLAG_IS_WRAPPED | TEXTURE_FLAG_IS_WRITEABLE | TEXTURE_FLAG_RENDERER_BUFFERING,
-                &window_internal->colourbuffer.renderer_texture_handle)) {
+                &swapchain->swapchain_colour_texture->renderer_texture_handle)) {
 
-            KFATAL("Failed to acquire internal texture resources for window.colourbuffer");
+            KFATAL("Failed to acquire internal texture resources for swapchain colour texture.");
             return false;
         }
     }
 
     // Get the texture_internal_data based on the existing or newly-created handle above.
     // Use that to setup the internal images/views for the colourbuffer texture.
-    texture_internal_data* texture_data = renderer_texture_resources_get(backend->frontend_state, window_internal->colourbuffer.renderer_texture_handle);
+    vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture->renderer_texture_handle.handle_index];
     if (!texture_data) {
-        KFATAL("Unable to get internal data for colourbuffer image. Swapchain creation failed.");
+        KFATAL("Unable to get internal data for swapchain colour image. Swapchain creation failed.");
         return false;
     }
 
     // Name is meaningless here, but might be useful for debugging.
-    if (!window_internal->colourbuffer.name) {
-        window_internal->colourbuffer.name = string_duplicate("__window_colourbuffer_texture__");
+    if (swapchain->swapchain_colour_texture->base.name == INVALID_KNAME) {
+        swapchain->swapchain_colour_texture->base.name = kname_create("__swapchain_colour_texture__");
     }
 
     texture_data->image_count = swapchain->image_count;
-    // Create the array if it doesn't exist.
-    if (!texture_data->images) {
-        // Also have to setup the internal data.
-        texture_data->images = kallocate(sizeof(vulkan_image) * texture_data->image_count, MEMORY_TAG_TEXTURE);
+    texture_data->images = KALLOC_TYPE_CARRAY(vulkan_image, texture_data->image_count);
+
+    // Set initial parameters for each.
+    for (u32 i = 0; i < texture_data->image_count; ++i) {
+        vulkan_image* image = &texture_data->images[i];
+
+        // Construct a unique name for each image.
+        image->name = string_format("__internal_vulkan_swapchain_image_%u__", i);
 
         // Set initial parameters for each.
-        for (u32 i = 0; i < texture_data->image_count; ++i) {
-            vulkan_image* image = &texture_data->images[i];
-
-            // Construct a unique name for each image.
-            char tex_name[38] = "__internal_vulkan_swapchain_image_0__";
-            tex_name[34] = '0' + (char)i;
-            image->name = string_duplicate(tex_name);
-
-            // Set initial parameters for each.
-            image->memory_flags = 0; // Doesn't really apply anyway/not needed.
-            image->mip_levels = 1;
-            image->format = swapchain->image_format.format;
-            image->layer_count = 1;
-            image->layer_views = 0;
-        }
+        image->memory_flags = 0; // Doesn't really apply anyway/not needed.
+        image->mip_levels = 1;
+        image->format = swapchain->image_format.format;
+        image->layer_count = 1;
+        image->layer_views = 0;
     }
 
     // Update the parameters and setup a view for each image.
@@ -266,9 +276,6 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
         VK_CHECK(vkCreateImageView(context->device.logical_device, &view_create_info, context->allocator, &image->view));
     }
 
-    // Make sure to set the owning window.
-    swapchain->owning_window = window;
-
     KINFO("Swapchain created successfully.");
     return true;
 }
@@ -276,11 +283,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapchain) {
     vulkan_context* context = backend->internal_context;
 
-    kwindow* window = swapchain->owning_window;
-    kwindow_renderer_state* window_internal = window->renderer_state;
-    /* kwindow_renderer_backend_state* window_backend = window_internal->backend_state; */
-
-    texture_internal_data* texture_data = renderer_texture_resources_get(backend->frontend_state, window_internal->colourbuffer.renderer_texture_handle);
+    vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture->renderer_texture_handle.handle_index];
     if (!texture_data) {
         KFATAL("Unable to get internal data for colourbuffer image. Swapchain destruction failed.");
         return;
@@ -294,6 +297,8 @@ static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapc
         vulkan_image* image = &texture_data->images[i];
         vkDestroyImageView(context->device.logical_device, image->view, context->allocator);
     }
+    KFREE_TYPE_CARRAY(texture_data->images, vulkan_image, swapchain->image_count);
+    texture_data->images = 0;
 
     vkDestroySwapchainKHR(context->device.logical_device, swapchain->handle, context->allocator);
 }

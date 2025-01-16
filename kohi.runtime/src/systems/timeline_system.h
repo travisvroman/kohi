@@ -31,18 +31,18 @@ b8 timeline_system_update(void* state, f32 engine_delta_time);
  */
 void timeline_system_shutdown(void* state);
 
-KAPI k_handle timeline_system_create(f32 scale);
+KAPI khandle timeline_system_create(f32 scale);
 
-KAPI void timeline_system_destroy(k_handle timeline);
+KAPI void timeline_system_destroy(khandle timeline);
 
-KAPI f32 timeline_system_scale_get(k_handle timeline);
-KAPI void timeline_system_scale_set(k_handle timeline, f32 scale);
+KAPI f32 timeline_system_scale_get(khandle timeline);
+KAPI void timeline_system_scale_set(khandle timeline, f32 scale);
 
 // Total time since timeline start.
-KAPI f32 timeline_system_total_get(k_handle timeline);
+KAPI f32 timeline_system_total_get(khandle timeline);
 
 // Time in seconds since the last frame.
-KAPI f32 timeline_system_delta_get(k_handle timeline);
+KAPI f32 timeline_system_delta_get(khandle timeline);
 
-KAPI k_handle timeline_system_get_engine(void);
-KAPI k_handle timeline_system_get_game(void);
+KAPI khandle timeline_system_get_engine(void);
+KAPI khandle timeline_system_get_game(void);

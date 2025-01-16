@@ -6,7 +6,6 @@
 #include <plugins/plugin_types.h>
 
 #include "containers/darray.h"
-#include "renderer/rendergraph.h"
 #include "rendergraph_nodes/ui_rendergraph_node.h"
 #include "standard_ui_system.h"
 
@@ -74,7 +73,7 @@ b8 kplugin_frame_prepare(struct kruntime_plugin* plugin, struct frame_data* p_fr
 
     plugin_state->render_data = p_frame_data->allocator.allocate(sizeof(standard_ui_render_data));
     plugin_state->render_data->renderables = darray_create_with_allocator(standard_ui_renderable, &p_frame_data->allocator);
-    plugin_state->render_data->ui_atlas = &plugin_state->state->ui_atlas;
+    plugin_state->render_data->ui_atlas = plugin_state->state->atlas_texture;
 
     // NOTE: The time at which this is called is actually imperative to proper operation.
     // This is because the UI typically should be drawn as the last thing in the frame.

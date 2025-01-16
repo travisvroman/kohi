@@ -1,0 +1,28 @@
+# Blender 3.6.0 MTL File: 'None'
+# www.blender.org
+
+newmtl beams
+Ns 96.078453
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_kd beams_and_sticks_bc.png
+map_bump beams_and_sticks_n.png
+map_Pr beams_and_sticks_roughness.png
+
+newmtl boards
+Ns 96.078453
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_kd boards_and_planks_bc.png
+map_bump boards_and_planks_n.png
+map_Pr boards_and_planks_roughness.png

@@ -1,6 +1,7 @@
 #include "standard_ui_system.h"
 
 #include <containers/darray.h>
+#include <core/engine.h>
 #include <core/event.h>
 #include <core/input.h>
 #include <core/systems_manager.h>
@@ -8,6 +9,7 @@
 #include <identifiers/identifier.h>
 #include <identifiers/khandle.h>
 #include <input_types.h>
+#include <kresources/kresource_types.h>
 #include <logger.h>
 #include <math/geometry.h>
 #include <math/kmath.h>
@@ -16,15 +18,15 @@
 #include <renderer/renderer_frontend.h>
 #include <renderer/renderer_types.h>
 #include <resources/resource_types.h>
+#include <strings/kname.h>
 #include <strings/kstring.h>
 #include <systems/font_system.h>
-#include <systems/geometry_system.h>
 #include <systems/shader_system.h>
 #include <systems/texture_system.h>
 #include <systems/xform_system.h>
 
-#include "core/engine.h"
 #include "kohi.plugin.ui.standard_version.h"
+#include "sui_defines.h"
 
 static b8 standard_ui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
     standard_ui_state* typed_state = (standard_ui_state*)listener_inst;
@@ -153,6 +155,9 @@ static b8 standard_ui_system_move(u16 code, void* sender, void* listener_inst, e
     return false;
 }
 
+static void texture_resource_loaded(kresource* resource, void* listener) {
+}
+
 b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* state, standard_ui_system_config* config) {
     if (!memory_requirement) {
         KERROR("standard_ui_system_initialize requires a valid pointer to memory_requirement.");
@@ -173,6 +178,9 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
         return true;
     }
 
+    state->renderer = engine_systems_get()->renderer_system;
+    state->font_system = engine_systems_get()->font_system;
+
     state->config = *config;
     state->active_controls = (void*)((u8*)state + struct_requirement);
     kzero_memory(state->active_controls, sizeof(sui_control) * config->max_control_count);
@@ -181,20 +189,15 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
 
     sui_base_control_create(state, "__ROOT__", &state->root);
 
-    texture* atlas = texture_system_acquire("StandardUIAtlas", true);
-    if (!atlas) {
-        KWARN("Unable to load atlas texture, using default.");
-        atlas = texture_system_get_default_texture();
-    }
-
-    // Setup the texture map.
-    texture_map* map = &state->ui_atlas;
-    map->repeat_u = map->repeat_v = map->repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
-    map->filter_minify = map->filter_magnify = TEXTURE_FILTER_MODE_NEAREST;
-    map->texture = atlas;
-    if (!renderer_texture_map_resources_acquire(map)) {
-        KERROR("Unable to acquire texture map resources. StandardUI cannot be initialized.");
-        return false;
+    // Atlas texture.
+    state->atlas_texture = texture_system_request(
+        kname_create(STANDARD_UI_DEFAULT_ATLAS_NAME),
+        kname_create(PACKAGE_NAME_STANDARD_UI),
+        state,
+        texture_resource_loaded);
+    if (!state->atlas_texture) {
+        KERROR("Failed to request atlas texture for standard UI.");
+        state->atlas_texture = texture_system_request(kname_create(DEFAULT_TEXTURE_NAME), INVALID_KNAME, 0, 0);
     }
 
     // Listen for input events.
@@ -206,8 +209,6 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
     state->focused_id = INVALID_ID_U64;
 
     KTRACE("Initialized standard UI system (%s).", KVERSION);
-
-    state->renderer = engine_systems_get()->renderer_system;
 
     return true;
 }
@@ -233,16 +234,11 @@ void standard_ui_system_shutdown(standard_ui_state* state) {
             c->destroy(state, c);
         }
 
-        // Release texture map for UI atlas.
-        renderer_texture_map_resources_release(&state->ui_atlas);
-
         // Release texture for UI atlas.
-        if (state->ui_atlas.texture) {
-            texture_system_release(state->ui_atlas.texture->name);
-            state->ui_atlas.texture = 0;
+        if (state->atlas_texture) {
+            texture_system_release_resource(state->atlas_texture);
+            state->atlas_texture = 0;
         }
-
-        renderer_texture_map_resources_release(&state->ui_atlas);
     }
 }
 
@@ -277,7 +273,7 @@ b8 standard_ui_system_render(standard_ui_state* state, sui_control* root, struct
         return false;
     }
 
-    render_data->ui_atlas = &state->ui_atlas;
+    render_data->ui_atlas = state->atlas_texture;
 
     if (!root) {
         root = &state->root;

@@ -1,7 +1,9 @@
 #include <containers/darray.h>
 #include <defines.h>
 #include <logger.h>
+#include <stdio.h>
 #include <strings/kstring.h>
+#include <utils/crc64.h>
 
 // For executing shell commands.
 #include <stdlib.h>
@@ -15,12 +17,23 @@
 void print_help(void);
 i32 combine_texture_maps(i32 argc, char** argv);
 
+// sed -E 's|(KNAME\(\")(.*?)(\"\))|echo "value of: \2"|g' file.c
+// sed -E 's|(KNAME\(\")(.*?)(\"\))|../kohi.tools -crc "\1"|ge' ../kohi.runtime/src/core/metrics.h
+
 i32 main(i32 argc, char** argv) {
     // The first arg is always the program itself.
     if (argc < 2) {
         KERROR("kohi tools requires at least one argument.");
         print_help();
         return -1;
+    }
+
+    if (argc == 3 && strings_equali(argv[1], "-crc")) {
+        u64 length = string_length(argv[2]);
+        u64 crc = crc64(0, (u8*)argv[2], length);
+
+        printf("%llu", crc);
+        return 0;
     }
 
     // The second argument tells us what mode to go into.

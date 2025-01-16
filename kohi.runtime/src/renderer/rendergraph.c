@@ -70,7 +70,7 @@ static void dep_node_connection_add(rg_dep_graph* dgraph, u32 from_index, u32 to
 
 static b8 rg_dep_graph_topological_sort(rendergraph* graph);
 
-b8 rendergraph_create(const char* config_str, struct texture* global_colourbuffer, struct texture* global_depthbuffer, rendergraph* out_graph) {
+b8 rendergraph_create(const char* config_str, struct kresource_texture* global_colourbuffer, struct kresource_texture* global_depthbuffer, rendergraph* out_graph) {
     if (!out_graph) {
         return false;
     }
@@ -201,7 +201,7 @@ b8 rendergraph_node_resolve(rendergraph* graph, rendergraph_node* node) {
         u32 parts_count = string_split(sink->configured_source_name, '.', &source_name_parts, true, false);
         if (parts_count != 2) {
             KERROR("node source name must contain node name and source name. Format: <node_name>.<source_name>.");
-            string_cleanup_split_array(source_name_parts);
+            string_cleanup_split_darray(source_name_parts);
             return false;
         }
 
@@ -209,7 +209,7 @@ b8 rendergraph_node_resolve(rendergraph* graph, rendergraph_node* node) {
         rendergraph_node* source_node = rendergraph_node_get(graph, source_name_parts[0]);
         if (!source_node) {
             KERROR("Unable to find source node called '%s' for sink '%s->%s'", source_name_parts[0], node->name, sink->name);
-            string_cleanup_split_array(source_name_parts);
+            string_cleanup_split_darray(source_name_parts);
             return false;
         }
 
@@ -224,7 +224,7 @@ b8 rendergraph_node_resolve(rendergraph* graph, rendergraph_node* node) {
                 // found it - verify source/sink types match.
                 if (sink->type != source->type) {
                     KERROR("Sink/source type mismatch. Sink: '%s.%s', source: '%s'", node->name, sink->name, sink->configured_source_name);
-                    string_cleanup_split_array(source_name_parts);
+                    string_cleanup_split_darray(source_name_parts);
                     return false;
                 }
 
@@ -234,14 +234,14 @@ b8 rendergraph_node_resolve(rendergraph* graph, rendergraph_node* node) {
 
                 // Notify the dependency graph of the connection.
                 dep_node_connection_add(graph->dep_graph, node->index, source_node->index);
-                string_cleanup_split_array(source_name_parts);
+                string_cleanup_split_darray(source_name_parts);
                 found = true;
                 break;
             }
         }
         if (!found) {
             KERROR("Failed to find source sink '%s.%s'. Expected source: '%s'", node->name, sink->name, sink->configured_source_name);
-            string_cleanup_split_array(source_name_parts);
+            string_cleanup_split_darray(source_name_parts);
             return false;
         }
     }
@@ -485,7 +485,7 @@ static b8 rendergraph_config_deserialize(const char* source_string, rendergraph_
 
     // nodes
     kson_array nodes;
-    if (kson_object_property_value_get_object(&tree.root, "nodes", &nodes)) {
+    if (kson_object_property_value_get_array(&tree.root, "nodes", &nodes)) {
 
         if (!kson_array_element_count_get(&nodes, &out_config->node_count)) {
             KERROR("Failed to get node count from nodes array.");
@@ -530,7 +530,7 @@ static b8 rendergraph_config_deserialize(const char* source_string, rendergraph_
 
                 // Sink configs.
                 kson_array sinks_array;
-                if (kson_object_property_value_get_object(&node, "sinks", &sinks_array)) {
+                if (kson_object_property_value_get_array(&node, "sinks", &sinks_array)) {
                     // Property is optional, so process it if found.
 
                     if (!kson_array_element_count_get(&sinks_array, &node_config->sink_count)) {
