@@ -1,14 +1,14 @@
 #pragma once
 
 #include <defines.h>
-#include <math/math_types.h>
 #include <math/geometry.h>
+#include <math/math_types.h>
 #include <resources/resource_types.h>
 
 #include "identifiers/khandle.h"
 
-#ifdef _DEBUG
-#include <resources/debug/debug_line3d.h>
+#if KOHI_DEBUG
+#    include <resources/debug/debug_line3d.h>
 #endif
 
 struct ray;
@@ -39,7 +39,7 @@ typedef struct editor_gizmo_mode_data {
     u32 index_count;
     u32* indices;
 
-    geometry geo;
+    kgeometry geo;
 
     u32 extents_count;
     extents_3d* mode_extents;
@@ -64,11 +64,11 @@ typedef enum editor_gizmo_orientation {
 
 typedef struct editor_gizmo {
     /** @brief The transform of the gizmo. */
-    k_handle xform_handle;
+    khandle xform_handle;
     /** @brief A handle to the currently selected object's transform. Invalid handle if nothing is selected. */
-    k_handle selected_xform_handle;
+    khandle selected_xform_handle;
     /** @brief A handle to the parent of the currently selected object's transform, if one exists. Otherwise invalid handle. */
-    k_handle selected_xform_parent_handle;
+    khandle selected_xform_parent_handle;
     /** @brief The current mode of the gizmo. */
     editor_gizmo_mode mode;
 
@@ -85,7 +85,7 @@ typedef struct editor_gizmo {
 
     b8 is_dirty;
 
-#ifdef _DEBUG
+#if KOHI_DEBUG
     debug_line3d plane_normal_line;
 #endif
 } editor_gizmo;
@@ -100,7 +100,7 @@ KAPI b8 editor_gizmo_unload(editor_gizmo* gizmo);
 KAPI void editor_gizmo_refresh(editor_gizmo* gizmo);
 KAPI editor_gizmo_orientation editor_gizmo_orientation_get(editor_gizmo* gizmo);
 KAPI void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orientation orientation);
-KAPI void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, k_handle xform_handle, k_handle parent_xform_handle);
+KAPI void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, khandle xform_handle, khandle parent_xform_handle);
 
 KAPI void editor_gizmo_update(editor_gizmo* gizmo);
 KAPI void editor_gizmo_render_frame_prepare(editor_gizmo* gizmo, const struct frame_data* p_frame_data);

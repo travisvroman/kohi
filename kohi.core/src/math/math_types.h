@@ -137,6 +137,54 @@ typedef vec4 quat;
 /** @brief A 2d rectangle. */
 typedef vec4 rect_2d;
 
+/**
+ * @brief A 4-element vector of unsigned ints.
+ */
+typedef union uvec4_u {
+    /** @brief An array of x, y, z, w */
+    u32 elements[4];
+    union {
+        struct {
+            union {
+                /** @brief The first element. */
+                u32 x,
+                    /** @brief The first element. */
+                    r,
+                    /** @brief The first element. */
+                    s;
+            };
+            union {
+                /** @brief The second element. */
+                u32 y,
+                    /** @brief The third element. */
+                    g,
+                    /** @brief The third element. */
+                    t;
+            };
+            union {
+                /** @brief The third element. */
+                u32 z,
+                    /** @brief The third element. */
+                    b,
+                    /** @brief The third element. */
+                    p,
+                    /** @brief The third element. */
+                    width;
+            };
+            union {
+                /** @brief The fourth element. */
+                u32 w,
+                    /** @brief The fourth element. */
+                    a,
+                    /** @brief The fourth element. */
+                    q,
+                    /** @brief The fourth element. */
+                    height;
+            };
+        };
+    };
+} uvec4;
+
 /** @brief A 3x3 matrix */
 typedef union mat3_u {
     /** @brief The matrix elements. */
@@ -182,7 +230,7 @@ typedef struct vertex_3d {
     /** @brief The colour of the vertex. */
     vec4 colour;
     /** @brief The tangent of the vertex. */
-    vec3 tangent;
+    vec4 tangent;
 } vertex_3d;
 
 /**

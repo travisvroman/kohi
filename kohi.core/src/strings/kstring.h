@@ -15,19 +15,44 @@
 #include "math/math_types.h"
 
 /**
- * @brief Gets the length of the given string.
+ * @brief Gets the number of bytes of the given string, minus the null terminator.
+ *
+ * NOTE: For strings without a null terminator, use string_nlength instead.
+ *
  * @param str The string whose length to obtain.
  * @returns The length of the string.
  */
 KAPI u64 string_length(const char* str);
 
 /**
- * @brief Gets the length of a string in UTF-8 (potentially multibyte) characters.
+ * @brief Gets the length of a string in UTF-8 (potentially multibyte) characters, minus the null terminator.
+ *
+ * NOTE: For strings without a null terminator, use string_utf8_nlength instead.
  *
  * @param str The string to examine.
  * @return The UTF-8 length of the string.
  */
 KAPI u32 string_utf8_length(const char* str);
+
+/**
+ * @brief Gets the number of bytes of the given string, minus the null terminator, but at most max_len.
+ * This function only ever looks at the bytes pointed to in str up until, but never beyond, max_len - 1.
+ *
+ * @param str The string whose length to obtain.
+ * @param max_len The maximum number of bytes to examine in the string.
+ * @returns The length of the string, at most max_len.
+ */
+KAPI u64 string_nlength(const char* str, u32 max_len);
+
+/**
+ * @brief Gets the number of characters (multibyte = 1 character) of a string in UTF-8 (potentially multibyte) characters, minus the null terminator, but at most max_len.
+ * This function only ever looks at the characters pointed to in str up until, but never beyond, max_len - 1.
+ *
+ * @param str The string to examine.
+ * @param max_len The maximum number of characters to examine in the string.
+ * @return The number of multibyte characters in the string, at most max_len.
+ */
+KAPI u32 string_utf8_nlength(const char* str, u32 max_len);
 
 /**
  * @brief Obtains bytes needed from the byte array to form a UTF-8 codepoint,
@@ -72,6 +97,10 @@ KAPI char* string_duplicate(const char* str);
  */
 KAPI void string_free(const char* str);
 
+KAPI i64 kstr_ncmp(const char* str0, const char* str1, u32 max_len);
+
+KAPI i64 kstr_ncmpi(const char* str0, const char* str1, u32 max_len);
+
 /**
  * @brief Case-sensitive string comparison.
  * @param str0 The first string to be compared.
@@ -89,24 +118,24 @@ KAPI b8 strings_equal(const char* str0, const char* str1);
 KAPI b8 strings_equali(const char* str0, const char* str1);
 
 /**
- * @brief Case-sensitive string comparison for a number of characters.
+ * @brief Case-sensitive string comparison, where comparison stops at max_len.
  *
  * @param str0 The first string to be compared.
  * @param str1 The second string to be compared.
- * @param length The maximum number of characters to be compared.
+ * @param max_len The maximum number of bytes to be compared.
  * @return True if the same, otherwise false.
  */
-KAPI b8 strings_nequal(const char* str0, const char* str1, u64 length);
+KAPI b8 strings_nequal(const char* str0, const char* str1, u32 max_len);
 
 /**
- * @brief Case-insensitive string comparison for a number of characters.
+ * @brief Case-insensitive string comparison, where comparison stops at max_len.
  *
  * @param str0 The first string to be compared.
  * @param str1 The second string to be compared.
- * @param length The maximum number of characters to be compared.
+ * @param max_len The maximum number of bytes to be compared.
  * @return True if the same, otherwise false.
  */
-KAPI b8 strings_nequali(const char* str0, const char* str1, u64 length);
+KAPI b8 strings_nequali(const char* str0, const char* str1, u32 max_len);
 
 /**
  * @brief Performs string formatting against the given format string and parameters.
@@ -169,13 +198,15 @@ KAPI char* string_empty(char* str);
 KAPI char* string_copy(char* dest, const char* source);
 
 /**
- * @brief Copies the string in source to dest up to the given length. Does not perform any allocations.
- * @param dest The destination string.
- * @param source The source string.
- * @param length The maximum length to be copied.
+ * @brief Copies the bytes in the source buffer into the dest buffer up to the given length. Does not perform any allocations.
+ * Any remaining length after a 0 terminator will be zero-padded unless max_len is U32_MAX.
+ *
+ * @param dest A pointer to the destination buffer. Must be at least max_len large.
+ * @param source A constant pointer to the source buffer.
+ * @param length The maximum number of bytes to be copied.
  * @returns A pointer to the destination string.
  */
-KAPI char* string_ncopy(char* dest, const char* source, i64 length);
+KAPI char* string_ncopy(char* dest, const char* source, u32 max_len);
 
 /**
  * @brief Performs an in-place trim of the provided string.
@@ -204,6 +235,15 @@ KAPI void string_mid(char* dest, const char* source, i32 start, i32 length);
  * @return The index of the first occurance of c; otherwise -1 if not found.
  */
 KAPI i32 string_index_of(const char* str, char c);
+
+/**
+ * @brief Returns the index of the last occurance of c in str; otherwise -1.
+ *
+ * @param str The string to be scanned.
+ * @param c The character to search for.
+ * @return The index of the last occurance of c; otherwise -1 if not found.
+ */
+KAPI i32 string_last_index_of(const char* str, char c);
 
 /**
  * @brief Returns the index of the first occurance of str_1 in str_0; otherwise -1.
@@ -510,8 +550,8 @@ KAPI const char* bool_to_string(b8 b);
 
 /**
  * @brief Splits the given string by the delimiter provided and stores in the
- * provided darray. Optionally trims each entry. NOTE: A string allocation
- * occurs for each entry, and must be freed by the caller.
+ * provided darray. Optionally trims each entry.
+ * NOTE: A string allocation occurs for each entry, and MUST be freed by the caller.
  *
  * @param str The string to be split.
  * @param delimiter The character to split by.
@@ -528,7 +568,31 @@ KAPI u32 string_split(const char* str, char delimiter, char*** str_darray, b8 tr
  *
  * @param str_darray The darray to be cleaned up.
  */
-KAPI void string_cleanup_split_array(char** str_darray);
+KAPI void string_cleanup_split_darray(char** str_darray);
+
+/**
+ * @brief Splits the given string by the delimiter provided and stores in the
+ * provided fixed-size array. Optionally trims each entry.
+ * NOTE: A string allocation occurs for each entry, and MUST be freed by the caller.
+ *
+ * @param str The string to be split.
+ * @param delimiter The character to split by.
+ * @param max_count The maximum number of entries to split.
+ * @param str_darray A fixed-size array of char arrays. Must be large enough to hold max_count entries.
+ * @param trim_entries Trims each entry if true.
+ * @param include_empty Indicates if empty entries should be included.
+ * @return The number of entries yielded by the split operation.
+ */
+KAPI u32 string_nsplit(const char* str, char delimiter, u32 max_count, char** str_array, b8 trim_entries, b8 include_empty);
+
+/**
+ * @brief Cleans up string allocations in the fixed-size str_array, but does not
+ * free the array itself.
+ *
+ * @param str_darray The fixed-size array to be cleaned up.
+ * @param max_count The number of entries (and thus the size) of the fixed-size array.
+ */
+KAPI void string_cleanup_split_array(char** str_array, u32 max_count);
 
 /**
  * Appends append to source and returns a new string.
@@ -600,12 +664,43 @@ KAPI void string_filename_from_path(char* dest, const char* path);
 KAPI void string_filename_no_extension_from_path(char* dest, const char* path);
 
 /**
+ * @brief Attempts to get the file extension from the given path. Allocates a new string which should be freed.
+ *
+ * @param path The full path to extract from.
+ * @param include_dot Indicates if the '.' should be included in the output.
+ * @returns The extension on success; otherwise 0.
+ */
+KAPI const char* string_extension_from_path(const char* path, b8 include_dot);
+
+/**
  * @brief Attempts to extract an array length from a given string. Ex: a string of sampler2D[4] will return True and set out_length to 4.
  * @param str The string to examine.
  * @param out_length A pointer to hold the length, if extracted successfully.
  * @returns True if an array length was found and parsed; otherwise false.
  */
 KAPI b8 string_parse_array_length(const char* str, u32* out_length);
+
+KAPI b8 string_line_get(const char* source_str, u16 max_line_length, u32 start_from, char** out_buffer, u32* out_line_length, u8* out_addl_advance);
+
+/** Indicates if provided codepoint is lower-case. Regular ASCII and western European high-ascii characters only. */
+KAPI b8 codepoint_is_lower(i32 codepoint);
+/** Indicates if provided codepoint is upper-case. Regular ASCII and western European high-ascii characters only. */
+KAPI b8 codepoint_is_upper(i32 codepoint);
+/** Indicates if provided codepoint is alpha-numeric. Regular ASCII and western European high-ascii characters only. */
+KAPI b8 codepoint_is_alpha(i32 codepoint);
+/** Indicates if provided codepoint is numeric. Regular ASCII and western European high-ascii characters only. */
+KAPI b8 codepoint_is_numeric(i32 codepoint);
+/** Indicates if the given codepoint is considered to be a space. Includes ' ', \f \r \n \t and \v. */
+KAPI b8 codepoint_is_space(i32 codepoint);
+
+/**
+ * Converts string in-place to uppercase. Regular ASCII and western European high-ascii characters only.
+ */
+KAPI void string_to_lower(char* str);
+/**
+ * Converts string in-place to uppercase. Regular ASCII and western European high-ascii characters only.
+ */
+KAPI void string_to_upper(char* str);
 
 // ----------------------
 // KString implementation

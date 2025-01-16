@@ -1,12 +1,15 @@
 #include "skybox.h"
 
 #include "core/engine.h"
+#include "defines.h"
+#include "kresources/kresource_types.h"
 #include "logger.h"
+#include "math/geometry.h"
 #include "renderer/renderer_frontend.h"
-#include "strings/kstring.h"
-#include "systems/geometry_system.h"
+#include "strings/kname.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
+#include <runtime_defines.h>
 
 b8 skybox_create(skybox_config config, skybox* out_skybox) {
     if (!out_skybox) {
@@ -14,8 +17,9 @@ b8 skybox_create(skybox_config config, skybox* out_skybox) {
         return false;
     }
 
-    out_skybox->cubemap_name = string_duplicate(config.cubemap_name);
+    out_skybox->cubemap_name = config.cubemap_name;
     out_skybox->state = SKYBOX_STATE_CREATED;
+    out_skybox->cubemap = 0;
 
     return true;
 }
@@ -25,15 +29,10 @@ b8 skybox_initialize(skybox* sb) {
         KERROR("skybox_initialize requires a valid pointer to sb!");
         return false;
     }
-    texture_map* cube_map = &sb->cubemap;
-    cube_map->filter_magnify = cube_map->filter_minify = TEXTURE_FILTER_MODE_LINEAR;
-    cube_map->repeat_u = cube_map->repeat_v = cube_map->repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
 
-    sb->instance_id = INVALID_ID;
+    sb->group_id = INVALID_ID;
+    sb->draw_id = INVALID_ID;
 
-    sb->g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, sb->cubemap_name, 0);
-    // Clear out the material name.
-    sb->g_config.material_name[0] = 0;
     sb->state = SKYBOX_STATE_INITIALIZED;
 
     return true;
@@ -46,30 +45,20 @@ b8 skybox_load(skybox* sb) {
     }
     sb->state = SKYBOX_STATE_LOADING;
 
-    sb->cubemap.texture = texture_system_acquire_cube(sb->cubemap_name, true);
-    if (!renderer_texture_map_resources_acquire(&sb->cubemap)) {
-        KFATAL("Unable to acquire resources for cube map texture.");
-        return false;
+    sb->geometry = geometry_generate_cube(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, sb->cubemap_name);
+    if (!renderer_geometry_upload(&sb->geometry)) {
+        KERROR("Failed to upload skybox geometry.");
     }
 
-    sb->g = geometry_system_acquire_from_config(sb->g_config, true);
-    sb->render_frame_number = INVALID_ID_U64;
+    sb->cubemap = texture_system_request_cube(sb->cubemap_name, true, false, 0, 0);
 
-    shader* skybox_shader = shader_system_get("Shader.Builtin.Skybox"); // TODO: allow configurable shader.
-    texture_map* maps[1] = {&sb->cubemap};
-    /* shader* s = skybox_shader; */
-    /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
-    shader_instance_resource_config instance_resource_config = {0};
-    // Map count for this type is known.
-    shader_instance_uniform_texture_config colour_texture = {0};
-    /* colour_texture.uniform_location = atlas_location; */
-    colour_texture.texture_map_count = 1;
-    colour_texture.texture_maps = maps;
-
-    instance_resource_config.uniform_config_count = 1;
-    instance_resource_config.uniform_configs = &colour_texture;
-    if (!renderer_shader_instance_resources_acquire(engine_systems_get()->renderer_system, skybox_shader, &instance_resource_config, &sb->instance_id)) {
-        KFATAL("Unable to acquire shader resources for skybox texture.");
+    khandle skybox_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
+    if (!renderer_shader_per_group_resources_acquire(engine_systems_get()->renderer_system, skybox_shader, &sb->group_id)) {
+        KFATAL("Unable to acquire shader per-group resources for skybox.");
+        return false;
+    }
+    if (!renderer_shader_per_draw_resources_acquire(engine_systems_get()->renderer_system, skybox_shader, &sb->draw_id)) {
+        KFATAL("Unable to acquire shader per-draw resources for skybox.");
         return false;
     }
     sb->state = SKYBOX_STATE_LOADED;
@@ -84,26 +73,30 @@ b8 skybox_unload(skybox* sb) {
     }
     sb->state = SKYBOX_STATE_UNDEFINED;
 
-    shader* skybox_shader = shader_system_get("Shader.Builtin.Skybox"); // TODO: allow configurable shader.
-    renderer_shader_instance_resources_release(engine_systems_get()->renderer_system, skybox_shader, sb->instance_id);
-    sb->instance_id = INVALID_ID;
-    renderer_texture_map_resources_release(&sb->cubemap);
+    khandle skybox_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
+    if (!renderer_shader_per_group_resources_release(engine_systems_get()->renderer_system, skybox_shader, sb->group_id)) {
+        KWARN("Unable to release shader group resources for skybox.");
+        return false;
+    }
+    sb->group_id = INVALID_ID;
 
-    sb->render_frame_number = INVALID_ID_U64;
+    if (!renderer_shader_per_draw_resources_release(engine_systems_get()->renderer_system, skybox_shader, sb->draw_id)) {
+        KWARN("Unable to release shader draw resources for skybox.");
+        return false;
+    }
+    sb->draw_id = INVALID_ID;
 
-    geometry_system_config_dispose(&sb->g_config);
+    renderer_geometry_destroy(&sb->geometry);
+    geometry_destroy(&sb->geometry);
+
     if (sb->cubemap_name) {
-        if (sb->cubemap.texture) {
-            texture_system_release(sb->cubemap_name);
-            sb->cubemap.texture = 0;
+        if (sb->cubemap) {
+            texture_system_release_resource((kresource_texture*)sb->cubemap);
+            sb->cubemap = 0;
         }
 
-        // u32 length = string_length(sb->config.cubemap_name);
-        // kfree((void*)sb->config.cubemap_name, (length + 1) * sizeof(char), MEMORY_TAG_STRING);
         sb->cubemap_name = 0;
     }
-
-    geometry_system_release(sb->g);
 
     return true;
 }
@@ -121,7 +114,7 @@ void skybox_destroy(skybox* sb) {
     sb->state = SKYBOX_STATE_UNDEFINED;
 
     // If loaded, unload first, then destroy.
-    if (sb->instance_id != INVALID_ID) {
+    if (sb->group_id != INVALID_ID) {
         b8 result = skybox_unload(sb);
         if (!result) {
             KERROR("skybox_destroy() - Failed to successfully unload skybox before destruction.");

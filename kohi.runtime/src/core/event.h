@@ -21,7 +21,7 @@
 /**
  * @brief Represents event contextual data to be sent along with an
  * event code when an event is fired.
- * It is a union that is 128 bits in size, meaning data can be mixed
+ * It is a union that is 128 bytes in size, meaning data can be mixed
  * and matched as required by the developer.
  * */
 typedef struct event_context {
@@ -53,8 +53,8 @@ typedef struct event_context {
         /** @brief An array of 16 8-bit unsigned integers. */
         u8 u8[16];
 
-        /** 
-         * @brief Allows a pointer to arbitrary data to be passed. Also includes size info. 
+        /**
+         * @brief Allows a pointer to arbitrary data to be passed. Also includes size info.
          * NOTE: If used, should be freed by the sender or listener.
          */
         union {
@@ -233,18 +233,28 @@ typedef enum system_event_code {
     EVENT_CODE_KVAR_CHANGED = 0x22,
 
     /**
-     * @brief An event fired when a watched file has been written to.
+     * @brief An event fired when a watched asset file has been written to.
      * Context usage:
      * u32 watch_id = context.data.u32[0];
+     * kasset* = sender;
      */
-    EVENT_CODE_WATCHED_FILE_WRITTEN = 0x23,
+    EVENT_CODE_ASSET_HOT_RELOADED = 0x23,
 
     /**
-     * @brief An event fired when a watched file has been removed.
+     * @brief An event fired when a watched asset file has been removed.
      * Context usage:
      * u32 watch_id = context.data.u32[0];
+     * vfs_asset_data* = sender
      */
-    EVENT_CODE_WATCHED_FILE_DELETED = 0x24,
+    EVENT_CODE_ASSET_DELETED_FROM_DISK = 0x24,
+
+    /**
+     * @brief An event fired when one of a resource's assets has been hot-reloaded.
+     * Context usage:
+     * u32 watch_id = context.data.u32[0];
+     * The sender should be a pointer to the resource whose asset which was hot-reloaded and processed.
+     */
+    EVENT_CODE_RESOURCE_HOT_RELOADED = 0x25,
 
     /**
      * @brief An event fired while a button is being held down and the

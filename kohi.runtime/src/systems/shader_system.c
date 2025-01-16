@@ -3,58 +3,130 @@
 #include "containers/darray.h"
 #include "core/engine.h"
 #include "core/event.h"
+#include "core_render_types.h"
 #include "defines.h"
+#include "identifiers/khandle.h"
+#include "kresources/kresource_types.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
-#include "renderer/renderer_utils.h"
-#include "resources/resource_types.h"
+#include "strings/kname.h"
 #include "strings/kstring.h"
-#include "systems/resource_system.h"
+#include "systems/kresource_system.h"
 #include "systems/texture_system.h"
+#include "utils/render_type_utils.h"
+
+/**
+ * @brief Represents a shader on the frontend. This is internal to the shader system.
+ */
+typedef struct kshader {
+    /** @brief unique identifier that is compared against a handle. */
+    u64 uniqueid;
+
+    kname name;
+
+    shader_flag_bits flags;
+
+    /** @brief The types of topologies used by the shader and its pipeline. See primitive_topology_type. */
+    u32 topology_types;
+
+    /** @brief An array of uniforms in this shader. Darray. */
+    shader_uniform* uniforms;
+
+    /** @brief An array of attributes. Darray. */
+    shader_attribute* attributes;
+
+    /** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
+    u16 attribute_stride;
+
+    u8 shader_stage_count;
+    shader_stage_config* stage_configs;
+
+    /** @brief Per-frame frequency data. */
+    shader_frequency_data per_frame;
+
+    /** @brief Per-group frequency data. */
+    shader_frequency_data per_group;
+
+    /** @brief Per-draw frequency data. */
+    shader_frequency_data per_draw;
+
+    /** @brief The internal state of the shader. */
+    shader_state state;
+
+    // A constant pointer to the shader config resource.
+    const kresource_shader* shader_resource;
+
+    // Array of pointers to text resources, one per stage.
+    kresource_text** stage_source_text_resources;
+    // Array of generations of stage source text resources. Matches size of stage_source_text_resources;
+    u32* stage_source_text_generations;
+
+} kshader;
 
 // The internal shader system state.
 typedef struct shader_system_state {
     // A pointer to the renderer system state.
     struct renderer_system_state* renderer;
+    struct texture_system_state* texture_system;
+
+    // The max number of textures that can be bound for a single draw call, provided by the renderer.
+    u16 max_bound_texture_count;
+    // The max number of samplers that can be bound for a single draw call, provided by the renderer.
+    u16 max_bound_sampler_count;
+
     // This system's configuration.
     shader_system_config config;
-    // A lookup table for shader name->id
-    hashtable lookup;
-    // The memory used for the lookup table.
-    void* lookup_memory;
     // A collection of created shaders.
-    shader* shaders;
+    kshader* shaders;
+
+    // Convenience pointer to resource system state.
+    struct kresource_system_state* resource_state;
 } shader_system_state;
 
 // A pointer to hold the internal system state.
+// FIXME: Get rid of this and all references to it and use the engine_systems_get() instead where needed.
 static shader_system_state* state_ptr = 0;
 
-static b8 internal_attribute_add(shader* shader, const shader_attribute_config* config);
-static b8 internal_sampler_add(shader* shader, shader_uniform_config* config);
-static u32 generate_new_shader_id(void);
-static b8 internal_uniform_add(shader* shader, const shader_uniform_config* config, u32 location);
-static b8 uniform_name_valid(shader* shader, const char* uniform_name);
-static b8 shader_uniform_add_state_valid(shader* shader);
-static void internal_shader_destroy(shader* s);
+static b8 internal_attribute_add(kshader* shader, const shader_attribute_config* config);
+static b8 internal_texture_add(kshader* shader, shader_uniform_config* config);
+static b8 internal_sampler_add(kshader* shader, shader_uniform_config* config);
+static khandle generate_new_shader_handle(void);
+static b8 internal_uniform_add(kshader* shader, const shader_uniform_config* config, u16 tex_samp_index);
+static khandle shader_create(const kresource_shader* shader_resource);
+static b8 shader_reload(kshader* shader, khandle shader_handle);
+
+// Verify the name is valid and unique.
+static b8 uniform_name_valid(kshader* shader, kname uniform_name);
+static b8 shader_uniform_add_state_valid(kshader* shader);
+static void internal_shader_destroy(khandle* shader);
 ///////////////////////
 
-#ifdef _DEBUG
+#if KOHI_DEBUG
 static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_context context) {
     shader_system_state* typed_state = (shader_system_state*)listener_inst;
-    if (code == EVENT_CODE_WATCHED_FILE_WRITTEN) {
-        u32 file_watch_id = context.data.u32[0];
+    if (code == EVENT_CODE_RESOURCE_HOT_RELOADED) {
 
-        // Search shaders for the one with the changed file watch id.
+        // Search shaders for the one whose generations are out of sync.
         for (u32 i = 0; i < typed_state->config.max_shader_count; ++i) {
-            shader* s = &typed_state->shaders[i];
-            for (u32 w = 0; w < s->shader_stage_count; ++w) {
-                if (s->module_watch_ids[w] == file_watch_id) {
-                    if (!shader_system_reload(s->id)) {
-                        KWARN("Shader hot-reload failed for shader '%s'. See logs for details.", s->name);
-                        // Allow other systems to pick this up.
-                        return false;
-                    }
+            kshader* shader = &typed_state->shaders[i];
+
+            b8 reload_required = false;
+
+            for (u32 w = 0; w < shader->shader_stage_count; ++w) {
+                // Found match. If the generation is out of sync, reload the shader.
+                if (shader->stage_source_text_generations[w] != shader->stage_source_text_resources[w]->base.generation) {
+                    // At least one is out of sync, reload. Can boot out here.
+                    reload_required = true;
+                    break;
+                }
+            }
+
+            // Reload if needed.
+            if (reload_required) {
+                khandle handle = khandle_create_with_u64_identifier(i, shader->uniqueid);
+                if (!shader_reload(shader, handle)) {
+                    KWARN("Shader hot-reload failed for shader '%s'. See logs for details.", kname_string_get(shader->name));
                 }
             }
         }
@@ -70,55 +142,46 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config)
     // Verify configuration.
     if (typed_config->max_shader_count < 512) {
         if (typed_config->max_shader_count == 0) {
-            KERROR("shader_system_initialize - config.max_shader_count must be greater than 0");
-            return false;
+            KERROR("shader_system_initialize - config.max_shader_count must be greater than 0. Defaulting to 512.");
+            typed_config->max_shader_count = 512;
         } else {
-            // This is to help avoid hashtable collisions.
             KWARN("shader_system_initialize - config.max_shader_count is recommended to be at least 512.");
         }
     }
 
-    // Figure out how large of a hashtable is needed.
-    // Block of memory will contain state structure then the block for the hashtable.
+    // Block of memory will contain state structure then the block for the shader array.
     u64 struct_requirement = sizeof(shader_system_state);
-    u64 hashtable_requirement = sizeof(u32) * typed_config->max_shader_count;
-    u64 shader_array_requirement = sizeof(shader) * typed_config->max_shader_count;
-    *memory_requirement = struct_requirement + hashtable_requirement + shader_array_requirement;
+    u64 shader_array_requirement = sizeof(kshader) * typed_config->max_shader_count;
+    *memory_requirement = struct_requirement + shader_array_requirement;
 
     if (!memory) {
         return true;
     }
 
-    // Setup the state pointer, memory block, shader array, then create the hashtable.
+    // Setup the state pointer, memory block, shader array, etc.
     state_ptr = memory;
     u64 addr = (u64)memory;
-    state_ptr->lookup_memory = (void*)(addr + struct_requirement);
-    state_ptr->shaders = (void*)((u64)state_ptr->lookup_memory + hashtable_requirement);
+    state_ptr->shaders = (void*)(addr + struct_requirement);
     state_ptr->config = *typed_config;
-    hashtable_create(sizeof(u32), typed_config->max_shader_count, state_ptr->lookup_memory, false, &state_ptr->lookup);
+
+    state_ptr->resource_state = engine_systems_get()->kresource_state;
 
     // Invalidate all shader ids.
     for (u32 i = 0; i < typed_config->max_shader_count; ++i) {
-        state_ptr->shaders[i].id = INVALID_ID;
-    }
-
-    // Fill the table with invalid ids.
-    u32 invalid_fill_id = INVALID_ID;
-    if (!hashtable_fill(&state_ptr->lookup, &invalid_fill_id)) {
-        KERROR("hashtable_fill failed.");
-        return false;
-    }
-
-    for (u32 i = 0; i < state_ptr->config.max_shader_count; ++i) {
-        state_ptr->shaders[i].id = INVALID_ID;
+        state_ptr->shaders[i].uniqueid = INVALID_ID_U64;
     }
 
     // Keep a pointer to the renderer state.
     state_ptr->renderer = engine_systems_get()->renderer_system;
+    state_ptr->texture_system = engine_systems_get()->texture_system;
+
+    // Track max texture and sampler counts.
+    state_ptr->max_bound_sampler_count = renderer_max_bound_sampler_count_get(state_ptr->renderer);
+    state_ptr->max_bound_texture_count = renderer_max_bound_texture_count_get(state_ptr->renderer);
 
     // Watch for file hot reloads in debug builds.
-#ifdef _DEBUG
-    event_register(EVENT_CODE_WATCHED_FILE_WRITTEN, state_ptr, file_watch_event);
+#if KOHI_DEBUG
+    event_register(EVENT_CODE_RESOURCE_HOT_RELOADED, state_ptr, file_watch_event);
 #endif
 
     return true;
@@ -129,374 +192,259 @@ void shader_system_shutdown(void* state) {
         // Destroy any shaders still in existence.
         shader_system_state* st = (shader_system_state*)state;
         for (u32 i = 0; i < st->config.max_shader_count; ++i) {
-            shader* s = &st->shaders[i];
-            if (s->id != INVALID_ID) {
-                internal_shader_destroy(s);
+            kshader* s = &st->shaders[i];
+            if (s->uniqueid != INVALID_ID_U64) {
+                khandle temp_handle = khandle_create_with_u64_identifier(i, s->uniqueid);
+                internal_shader_destroy(&temp_handle);
             }
         }
-        hashtable_destroy(&st->lookup);
         kzero_memory(st, sizeof(shader_system_state));
     }
 
     state_ptr = 0;
 }
 
-b8 shader_system_create(const shader_config* config) {
-    u32 id = generate_new_shader_id();
-    shader* out_shader = &state_ptr->shaders[id];
-    kzero_memory(out_shader, sizeof(shader));
-    out_shader->id = id;
-    if (out_shader->id == INVALID_ID) {
-        KERROR("Unable to find free slot to create new shader. Aborting.");
-        return false;
-    }
-    out_shader->state = SHADER_STATE_NOT_CREATED;
-    out_shader->name = string_duplicate(config->name);
-    out_shader->local_ubo_offset = 0;
-    out_shader->local_ubo_size = 0;
-    out_shader->local_ubo_stride = 0;
-    out_shader->bound_instance_id = INVALID_ID;
-    out_shader->attribute_stride = 0;
-
-    // Setup arrays
-    out_shader->global_texture_maps = darray_create(texture_map*);
-    out_shader->uniforms = darray_create(shader_uniform);
-    out_shader->attributes = darray_create(shader_attribute);
-
-    // Create a hashtable to store uniform array indexes. This provides a direct index into the
-    // 'uniforms' array stored in the shader for quick lookups by name.
-    u64 element_size = sizeof(u16); // Indexes are stored as u16s.
-    u64 element_count = 1023;       // This is more uniforms than we will ever need, but a bigger table reduces collision chance.
-    out_shader->hashtable_block = kallocate(element_size * element_count, MEMORY_TAG_HASHTABLE);
-    hashtable_create(element_size, element_count, out_shader->hashtable_block, false, &out_shader->uniform_lookup);
-
-    // Invalidate all spots in the hashtable.
-    u32 invalid = INVALID_ID;
-    hashtable_fill(&out_shader->uniform_lookup, &invalid);
-
-    // A running total of the actual global uniform buffer object size.
-    out_shader->global_ubo_size = 0;
-    // A running total of the actual instance uniform buffer object size.
-    out_shader->ubo_size = 0;
-    // NOTE: UBO alignment requirement set in renderer backend.
-
-    // This is hard-coded because the Vulkan spec only guarantees that a _minimum_ 128 bytes of space are available,
-    // and it's up to the driver to determine how much is available. Therefore, to avoid complexity, only the
-    // lowest common denominator of 128B will be used.
-    out_shader->local_ubo_stride = 128;
-
-    // Take a copy of the flags.
-    out_shader->flags = config->flags;
-
-    if (!renderer_shader_create(state_ptr->renderer, out_shader, config)) {
-        KERROR("Error creating shader.");
-        return false;
+khandle shader_system_get(kname name, kname package_name) {
+    if (name == INVALID_KNAME) {
+        return khandle_invalid();
     }
 
-    // Ready to be initialized.
-    out_shader->state = SHADER_STATE_UNINITIALIZED;
-
-    // Process attributes
-    for (u32 i = 0; i < config->attribute_count; ++i) {
-        shader_attribute_config* ac = &config->attributes[i];
-        if (!internal_attribute_add(out_shader, ac)) {
-            KERROR("Failed to add attribute '%s' to shader '%s'.", ac->name, config->name);
-            return false;
+    u32 count = state_ptr->config.max_shader_count;
+    for (u32 i = 0; i < count; ++i) {
+        if (state_ptr->shaders[i].name == name) {
+            return khandle_create_with_u64_identifier(i, state_ptr->shaders[i].uniqueid);
         }
     }
 
-    // Process uniforms
-    for (u32 i = 0; i < config->uniform_count; ++i) {
-        shader_uniform_config* uc = &config->uniforms[i];
-        if (uniform_type_is_sampler(uc->type)) {
-            if (!internal_sampler_add(out_shader, uc)) {
-                KERROR("Failed to add sampler '%s' to shader '%s'.", uc->name, config->name);
-                return false;
-            }
-        } else {
-            if (!internal_uniform_add(out_shader, uc, INVALID_ID)) {
-                KERROR("Failed to add uniform '%s' to shader '%s'.", uc->name, config->name);
-                return false;
-            }
-        }
+    // Not found, attempt to load the shader resource.
+    kresource_shader_request_info request_info = {0};
+    request_info.base.type = KRESOURCE_TYPE_SHADER;
+    request_info.base.synchronous = true; // Shaders are needed immediately.
+    request_info.shader_config_source_text = 0;
+
+    // Add shader asset to resource request.
+    request_info.base.assets = array_kresource_asset_info_create(1);
+    kresource_asset_info* asset = &request_info.base.assets.data[0];
+    asset->asset_name = name; // Resource name should match the asset name.
+    asset->package_name = package_name;
+    asset->type = KASSET_TYPE_SHADER;
+    asset->watch_for_hot_reload = false;
+
+    kresource_shader* shader_resource = (kresource_shader*)kresource_system_request(state_ptr->resource_state, name, (kresource_request_info*)&request_info);
+    if (!shader_resource) {
+        KERROR("Failed to load shader resource for shader '%s'.", kname_string_get(name));
+        return khandle_invalid();
     }
 
-    // Initialize the shader.
-    if (!renderer_shader_initialize(state_ptr->renderer, out_shader)) {
-        KERROR("shader_system_create: initialization failed for shader '%s'.", config->name);
-        // NOTE: initialize automatically destroys the shader if it fails.
-        return false;
+    // Create the shader.
+    khandle shader_handle = shader_create(shader_resource);
+
+    if (khandle_is_invalid(shader_handle)) {
+        KERROR("Failed to create shader '%s'.", kname_string_get(name));
+        KERROR("There is no shader available called '%s', and one by that name could also not be loaded.", kname_string_get(name));
+        return shader_handle;
     }
 
-    // At this point, creation is successful, so store the shader id in the hashtable
-    // so this can be looked up by name later.
-    if (!hashtable_set(&state_ptr->lookup, config->name, &out_shader->id)) {
-        // Dangit, we got so far... welp, nuke the shader and boot.
-        renderer_shader_destroy(state_ptr->renderer, out_shader);
-        return false;
-    }
-
-    return true;
+    return shader_handle;
 }
 
-b8 shader_system_reload(u32 shader_id) {
-    if (shader_id == INVALID_ID) {
-        return false;
+khandle shader_system_get_from_source(kname name, const char* shader_config_source) {
+    if (name == INVALID_KNAME) {
+        return khandle_invalid();
     }
 
-    shader* s = &state_ptr->shaders[shader_id];
-    return renderer_shader_reload(state_ptr->renderer, s);
+    // Not found, attempt to load the shader resource.
+    kresource_shader_request_info request_info = {0};
+    request_info.base.type = KRESOURCE_TYPE_SHADER;
+    request_info.base.synchronous = true;                                            // Shaders are needed immediately.
+    request_info.shader_config_source_text = string_duplicate(shader_config_source); // load from string source.
+
+    kresource_shader* shader_resource = (kresource_shader*)kresource_system_request(state_ptr->resource_state, name, (kresource_request_info*)&request_info);
+    if (!shader_resource) {
+        KERROR("Failed to load shader resource for shader '%s'.", kname_string_get(name));
+        return khandle_invalid();
+    }
+
+    // Create the shader.
+    khandle shader_handle = shader_create(shader_resource);
+
+    if (khandle_is_invalid(shader_handle)) {
+        KERROR("Failed to create shader '%s' from config source.", kname_string_get(name));
+        return shader_handle;
+    }
+
+    return shader_handle;
 }
 
-u32 shader_system_get_id(const char* shader_name) {
-    u32 shader_id = INVALID_ID;
-    if (!hashtable_get(&state_ptr->lookup, shader_name, &shader_id)) {
-        KERROR("There is no shader registered named '%s'.", shader_name);
-        return INVALID_ID;
-    }
-    // KTRACE("Got id %u for shader named '%s'.", shader_id, shader_name);
-    return shader_id;
-}
-
-shader* shader_system_get_by_id(u32 shader_id) {
-    if (shader_id == INVALID_ID) {
-        KERROR("shader_system_get_by_id was passed INVALID_ID. Null will be returned.");
-        return 0;
-    }
-    if (state_ptr->shaders[shader_id].id == INVALID_ID) {
-        KERROR("shader_system_get_by_id was passed an invalid id (%u. Null will be returned.", shader_id);
-        return 0;
-    }
-    if (shader_id >= state_ptr->config.max_shader_count) {
-        KERROR("shader_system_get_by_id was passed an id (%u) out of range (0-%u). Null will be returned.", shader_id, state_ptr->config.max_shader_count);
-        return 0;
-    }
-    return &state_ptr->shaders[shader_id];
-}
-
-shader* shader_system_get(const char* shader_name) {
-    u32 shader_id = shader_system_get_id(shader_name);
-    if (shader_id != INVALID_ID) {
-        return shader_system_get_by_id(shader_id);
+static void internal_shader_destroy(khandle* shader) {
+    if (khandle_is_invalid(*shader) || khandle_is_stale(*shader, state_ptr->shaders[shader->handle_index].uniqueid)) {
+        return;
     }
 
-    // Attempt to load the shader resource and return it.
-    resource shader_config_resource;
-    if (!resource_system_load(shader_name, RESOURCE_TYPE_SHADER, 0, &shader_config_resource)) {
-        KERROR("Failed to load shader resource for shader '%s'.", shader_name);
-        return 0;
-    }
-    shader_config* config = (shader_config*)shader_config_resource.data;
-    if (!shader_system_create(config)) {
-        KERROR("Failed to create shader '%s'.", shader_name);
-        return 0;
-    }
-    resource_system_unload(&shader_config_resource);
+    renderer_shader_destroy(state_ptr->renderer, *shader);
 
-    // Attempt once more to get a shader id.
-    shader_id = shader_system_get_id(shader_name);
-    if (shader_id != INVALID_ID) {
-        return shader_system_get_by_id(shader_id);
-    }
-
-    KERROR("There is not shader available called '%s', and one by that name could also not be loaded.", shader_name);
-    return 0;
-}
-
-static void internal_shader_destroy(shader* s) {
-    renderer_shader_destroy(state_ptr->renderer, s);
+    kshader* s = &state_ptr->shaders[shader->handle_index];
 
     // Set it to be unusable right away.
     s->state = SHADER_STATE_NOT_CREATED;
 
-    u32 sampler_count = darray_length(s->global_texture_maps);
-    for (u32 i = 0; i < sampler_count; ++i) {
-        kfree(s->global_texture_maps[i], sizeof(texture_map), MEMORY_TAG_RENDERER);
-    }
-    darray_destroy(s->global_texture_maps);
+    s->name = INVALID_KNAME;
 
-    // Free the name.
-    if (s->name) {
-        u32 length = string_length(s->name);
-        kfree(s->name, length + 1, MEMORY_TAG_STRING);
-    }
-    s->name = 0;
+    // Make sure to invalidate the handle.
+    khandle_invalidate(shader);
 }
 
-void shader_system_destroy(const char* shader_name) {
-    u32 shader_id = shader_system_get_id(shader_name);
-    if (shader_id == INVALID_ID) {
+void shader_system_destroy(khandle* shader) {
+    if (khandle_is_invalid(*shader)) {
         return;
     }
 
-    shader* s = &state_ptr->shaders[shader_id];
-
-    internal_shader_destroy(s);
+    internal_shader_destroy(shader);
 }
 
-b8 shader_system_set_wireframe(u32 shader_id, b8 wireframe_enabled) {
-    // Disabling is always supported because it's basically a no-op.
+b8 shader_system_set_wireframe(khandle shader, b8 wireframe_enabled) {
+    if (khandle_is_invalid(shader)) {
+        KERROR("Invalid shader passed.");
+        return false;
+    }
 
-    shader* s = &state_ptr->shaders[shader_id];
     if (!wireframe_enabled) {
-        s->is_wireframe = false;
+        renderer_shader_flag_set(state_ptr->renderer, shader, SHADER_FLAG_WIREFRAME_BIT, false);
         return true;
     }
 
-    return renderer_shader_set_wireframe(state_ptr->renderer, s, wireframe_enabled);
+    if (renderer_shader_supports_wireframe(state_ptr->renderer, shader)) {
+        renderer_shader_flag_set(state_ptr->renderer, shader, SHADER_FLAG_WIREFRAME_BIT, true);
+    }
+    return true;
 }
 
-b8 shader_system_use_by_id(u32 shader_id) {
-    shader* next_shader = shader_system_get_by_id(shader_id);
-    if (!renderer_shader_use(state_ptr->renderer, next_shader)) {
+b8 shader_system_use(khandle shader) {
+    if (khandle_is_invalid(shader)) {
+        KERROR("Invalid shader passed.");
+        return false;
+    }
+    kshader* next_shader = &state_ptr->shaders[shader.handle_index];
+    if (!renderer_shader_use(state_ptr->renderer, shader)) {
         KERROR("Failed to use shader '%s'.", next_shader->name);
         return false;
     }
     return true;
 }
 
-u16 shader_system_uniform_location(u32 shader_id, const char* uniform_name) {
-    if (shader_id == INVALID_ID) {
-        KERROR("shader_system_uniform_location called with invalid shader id.");
+u16 shader_system_uniform_location(khandle shader, kname uniform_name) {
+    if (khandle_is_invalid(shader)) {
+        KERROR("Invalid shader passed.");
         return INVALID_ID_U16;
     }
-    shader* s = &state_ptr->shaders[shader_id];
+    kshader* next_shader = &state_ptr->shaders[shader.handle_index];
 
-    u16 index = INVALID_ID_U16;
-    if (!hashtable_get(&s->uniform_lookup, uniform_name, &index) || index == INVALID_ID_U16) {
-        KERROR("Shader '%s' does not have a registered uniform named '%s'", s->name, uniform_name);
-        return INVALID_ID_U16;
+    u32 uniform_count = darray_length(next_shader->uniforms);
+    for (u32 i = 0; i < uniform_count; ++i) {
+        if (next_shader->uniforms[i].name == uniform_name) {
+            return next_shader->uniforms[i].location;
+        }
     }
-    return s->uniforms[index].index;
+
+    // Not found.
+    return INVALID_ID_U16;
 }
 
-b8 shader_system_uniform_set(u32 shader_id, const char* uniform_name, const void* value) {
-    return shader_system_uniform_set_arrayed(shader_id, uniform_name, 0, value);
+b8 shader_system_uniform_set(khandle shader, kname uniform_name, const void* value) {
+    return shader_system_uniform_set_arrayed(shader, uniform_name, 0, value);
 }
 
-b8 shader_system_uniform_set_arrayed(u32 shader_id, const char* uniform_name, u32 array_index, const void* value) {
-    if (shader_id == INVALID_ID) {
-        KERROR("shader_system_uniform_set_arrayed called with invalid shader id.");
+b8 shader_system_uniform_set_arrayed(khandle shader, kname uniform_name, u32 array_index, const void* value) {
+    if (khandle_is_invalid(shader)) {
+        KERROR("shader_system_uniform_set_arrayed called with invalid shader handle.");
         return false;
     }
 
-    u16 index = shader_system_uniform_location(shader_id, uniform_name);
-    return shader_system_uniform_set_by_location_arrayed(shader_id, index, array_index, value);
+    u16 index = shader_system_uniform_location(shader, uniform_name);
+    return shader_system_uniform_set_by_location_arrayed(shader, index, array_index, value);
 }
 
-b8 shader_system_sampler_set(u32 shader_id, const char* sampler_name, const texture* t) {
-    return shader_system_sampler_set_arrayed(shader_id, sampler_name, 0, t);
+b8 shader_system_texture_set(khandle shader, kname sampler_name, const kresource_texture* t) {
+    return shader_system_texture_set_arrayed(shader, sampler_name, 0, t);
 }
 
-b8 shader_system_sampler_set_arrayed(u32 shader_id, const char* sampler_name, u32 array_index, const texture* t) {
-    return shader_system_uniform_set_arrayed(shader_id, sampler_name, array_index, t);
+b8 shader_system_texture_set_arrayed(khandle shader, kname uniform_name, u32 array_index, const kresource_texture* t) {
+    return shader_system_uniform_set_arrayed(shader, uniform_name, array_index, t);
 }
 
-b8 shader_system_sampler_set_by_location(u32 shader_id, u16 location, const texture* t) {
-    return shader_system_uniform_set_by_location_arrayed(shader_id, location, 0, t);
+b8 shader_system_texture_set_by_location(khandle shader, u16 location, const kresource_texture* t) {
+    return shader_system_uniform_set_by_location_arrayed(shader, location, 0, t);
 }
 
-b8 shader_system_uniform_set_by_location(u32 shader_id, u16 location, const void* value) {
-    return shader_system_uniform_set_by_location_arrayed(shader_id, location, 0, value);
+b8 shader_system_texture_set_by_location_arrayed(khandle shader, u16 location, u32 array_index, const kresource_texture* t) {
+    return shader_system_uniform_set_by_location_arrayed(shader, location, array_index, t);
 }
 
-b8 shader_system_uniform_set_by_location_arrayed(u32 shader_id, u16 location, u32 array_index, const void* value) {
-    shader* s = &state_ptr->shaders[shader_id];
+b8 shader_system_uniform_set_by_location(khandle shader, u16 location, const void* value) {
+    return shader_system_uniform_set_by_location_arrayed(shader, location, 0, value);
+}
+
+b8 shader_system_uniform_set_by_location_arrayed(khandle shader, u16 location, u32 array_index, const void* value) {
+    kshader* s = &state_ptr->shaders[shader.handle_index];
     shader_uniform* uniform = &s->uniforms[location];
-    return renderer_shader_uniform_set(state_ptr->renderer, s, uniform, array_index, value);
+    return renderer_shader_uniform_set(state_ptr->renderer, shader, uniform, array_index, value);
 }
 
-b8 shader_system_bind_instance(u32 shader_id, u32 instance_id) {
-    state_ptr->shaders[shader_id].bound_instance_id = instance_id;
-    return true;
-}
-
-b8 shader_system_apply_global(u32 shader_id) {
-    shader* s = &state_ptr->shaders[shader_id];
-    return renderer_shader_apply_globals(state_ptr->renderer, s);
-}
-
-b8 shader_system_apply_instance(u32 shader_id) {
-    shader* s = &state_ptr->shaders[shader_id];
-    return renderer_shader_apply_instance(state_ptr->renderer, s);
-}
-
-b8 shader_system_apply_local(u32 shader_id) {
-    shader* s = &state_ptr->shaders[shader_id];
-    return renderer_shader_apply_local(state_ptr->renderer, s);
-}
-
-b8 shader_system_shader_instance_acquire(u32 shader_id, u32 map_count, texture_map* maps, u32* out_instance_id) {
-    shader* selected_shader = shader_system_get_by_id(shader_id);
-
-    // Ensure that configs are setup for required texture maps.
-    shader_instance_resource_config instance_resource_config = {0};
-    u32 instance_sampler_count = selected_shader->instance_uniform_sampler_count;
-
-    instance_resource_config.uniform_config_count = instance_sampler_count;
-    if (instance_sampler_count > 0) {
-        instance_resource_config.uniform_configs = kallocate(sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
-    } else {
-        instance_resource_config.uniform_configs = 0;
+b8 shader_system_bind_frame(khandle shader) {
+    if (khandle_is_invalid(shader) || khandle_is_stale(shader, state_ptr->shaders[shader.handle_index].uniqueid)) {
+        KERROR("Tried to bind_frame on a shader using an invalid or stale handle. Nothing to be done.");
+        return false;
     }
-
-    // Create a sampler config for each map.
-    for (u32 i = 0; i < instance_sampler_count; ++i) {
-        shader_uniform* u = &selected_shader->uniforms[selected_shader->instance_sampler_indices[i]];
-        shader_instance_uniform_texture_config* uniform_config = &instance_resource_config.uniform_configs[i];
-        /* uniform_config->uniform_location = u->location; */
-        uniform_config->texture_map_count = KMAX(u->array_length, 1);
-        uniform_config->texture_maps = kallocate(sizeof(texture_map*) * uniform_config->texture_map_count, MEMORY_TAG_ARRAY);
-        for (u32 j = 0; j < uniform_config->texture_map_count; ++j) {
-            uniform_config->texture_maps[j] = &maps[i];
-
-            // Acquire resources for the map, but only if a texture is assigned.
-            if (uniform_config->texture_maps[j]->texture) {
-                if (!renderer_texture_map_resources_acquire(uniform_config->texture_maps[j])) {
-                    KERROR("Unable to acquire resources for texture map.");
-                    return false;
-                }
-            }
-        }
-    }
-
-    // Acquire the instance resources for this shader.
-    b8 result = renderer_shader_instance_resources_acquire(state_ptr->renderer, selected_shader, &instance_resource_config, out_instance_id);
-    if (!result) {
-        KERROR("Failed to acquire renderer resources for shader '%s'.", selected_shader->name);
-    }
-
-    // Clean up the uniform configs.
-    if (instance_resource_config.uniform_configs) {
-        for (u32 i = 0; i < instance_resource_config.uniform_config_count; ++i) {
-            shader_instance_uniform_texture_config* ucfg = &instance_resource_config.uniform_configs[i];
-            kfree(ucfg->texture_maps, sizeof(shader_instance_uniform_texture_config) * ucfg->texture_map_count, MEMORY_TAG_ARRAY);
-            ucfg->texture_maps = 0;
-        }
-        kfree(instance_resource_config.uniform_configs, sizeof(shader_instance_uniform_texture_config) * instance_resource_config.uniform_config_count, MEMORY_TAG_ARRAY);
-    }
-
-    return result;
+    return renderer_shader_bind_per_frame(state_ptr->renderer, shader);
 }
 
-b8 shader_system_shader_instance_release(u32 shader_id, u32 instance_id, u32 map_count, texture_map* maps) {
-    shader* selected_shader = shader_system_get_by_id(shader_id);
-
-    // Release texture map resources.
-    for (u32 i = 0; i < map_count; ++i) {
-        renderer_texture_map_resources_release(&maps[i]);
+b8 shader_system_bind_group(khandle shader, u32 group_id) {
+    if (group_id == INVALID_ID) {
+        KERROR("Cannot bind shader instance INVALID_ID.");
+        return false;
     }
-
-    // Release the instance resources for this shader.
-    b8 result = renderer_shader_instance_resources_release(state_ptr->renderer, selected_shader, instance_id);
-    if (!result) {
-        KERROR("Failed to acquire renderer resources for shader '%s'.", selected_shader->name);
-    }
-
-    return result;
+    state_ptr->shaders[shader.handle_index].per_group.bound_id = group_id;
+    return renderer_shader_bind_per_group(state_ptr->renderer, shader, group_id);
 }
 
-static b8 internal_attribute_add(shader* shader, const shader_attribute_config* config) {
+b8 shader_system_bind_draw_id(khandle shader, u32 draw_id) {
+    if (draw_id == INVALID_ID) {
+        KERROR("Cannot bind shader local id INVALID_ID.");
+        return false;
+    }
+    state_ptr->shaders[shader.handle_index].per_draw.bound_id = draw_id;
+    return renderer_shader_bind_per_draw(state_ptr->renderer, shader, draw_id);
+}
+
+b8 shader_system_apply_per_frame(khandle shader) {
+    return renderer_shader_apply_per_frame(state_ptr->renderer, shader);
+}
+
+b8 shader_system_apply_per_group(khandle shader) {
+    return renderer_shader_apply_per_group(state_ptr->renderer, shader);
+}
+
+b8 shader_system_apply_per_draw(khandle shader) {
+    return renderer_shader_apply_per_draw(state_ptr->renderer, shader);
+}
+
+b8 shader_system_shader_group_acquire(khandle shader, u32* out_group_id) {
+    return renderer_shader_per_group_resources_acquire(state_ptr->renderer, shader, out_group_id);
+}
+
+b8 shader_system_shader_per_draw_acquire(khandle shader, u32* out_per_draw_id) {
+    return renderer_shader_per_draw_resources_acquire(state_ptr->renderer, shader, out_per_draw_id);
+}
+
+b8 shader_system_shader_group_release(khandle shader, u32 group_id) {
+    return renderer_shader_per_group_resources_release(state_ptr->renderer, shader, group_id);
+}
+
+b8 shader_system_shader_per_draw_release(khandle shader, u32 per_draw_id) {
+    return renderer_shader_per_draw_resources_release(state_ptr->renderer, shader, per_draw_id);
+}
+
+static b8 internal_attribute_add(kshader* shader, const shader_attribute_config* config) {
     u32 size = 0;
     switch (config->type) {
     case SHADER_ATTRIB_TYPE_INT8:
@@ -531,7 +479,7 @@ static b8 internal_attribute_add(shader* shader, const shader_attribute_config* 
 
     // Create/push the attribute.
     shader_attribute attrib = {};
-    attrib.name = string_duplicate(config->name);
+    attrib.name = config->name;
     attrib.size = size;
     attrib.type = config->type;
     darray_push(shader->attributes, attrib);
@@ -539,61 +487,71 @@ static b8 internal_attribute_add(shader* shader, const shader_attribute_config* 
     return true;
 }
 
-static b8 internal_sampler_add(shader* shader, shader_uniform_config* config) {
-    // Samples can't be used for push constants.
-    if (config->scope == SHADER_SCOPE_LOCAL) {
-        KERROR("add_sampler cannot add a sampler at local scope.");
-        return false;
-    }
+static b8 internal_texture_add(kshader* shader, shader_uniform_config* config) {
 
     // Verify the name is valid and unique.
     if (!uniform_name_valid(shader, config->name) || !shader_uniform_add_state_valid(shader)) {
         return false;
     }
 
-    // If global, push into the global list.
-    u32 location = 0;
-    if (config->scope == SHADER_SCOPE_GLOBAL) {
-        u32 global_texture_count = darray_length(shader->global_texture_maps);
-        if (global_texture_count + 1 > state_ptr->config.max_global_textures) {
-            KERROR("Shader global texture count %i exceeds max of %i", global_texture_count, state_ptr->config.max_global_textures);
-            return false;
-        }
-        location = global_texture_count;
-
-        // NOTE: creating a default texture map to be used here. Can always be updated later.
-        texture_map default_map = {};
-        default_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
-        default_map.filter_minify = TEXTURE_FILTER_MODE_LINEAR;
-        default_map.repeat_u = default_map.repeat_v = default_map.repeat_w = TEXTURE_REPEAT_REPEAT;
-
-        // Allocate a pointer assign the texture, and push into global texture maps.
-        // NOTE: This allocation is only done for global texture maps.
-        texture_map* map = kallocate(sizeof(texture_map), MEMORY_TAG_RENDERER);
-        *map = default_map;
-        map->texture = texture_system_get_default_texture();
-
-        if (!renderer_texture_map_resources_acquire(map)) {
-            KERROR("Failed to acquire resources for global texture map during shader creation.");
-            return false;
-        }
-
-        darray_push(shader->global_texture_maps, map);
-    } else {
-        // Otherwise, it's instance-level, so keep count of how many need to be added during the resource acquisition.
-        if (shader->instance_texture_count + 1 > state_ptr->config.max_instance_textures) {
-            KERROR("Shader instance texture count %i exceeds max of %i", shader->instance_texture_count, state_ptr->config.max_instance_textures);
-            return false;
-        }
-        location = shader->instance_texture_count;
-        shader->instance_texture_count++;
+    // Verify that there are not too many textures present across all frequencies.
+    u16 current_texture_count = shader->per_frame.uniform_texture_count + shader->per_group.uniform_texture_count + shader->per_draw.uniform_texture_count;
+    if (current_texture_count + 1 > state_ptr->max_bound_texture_count) {
+        KERROR("Cannot add another texture uniform to shader '%s' as it has already reached the maximum per-draw bound total of %hu", kname_string_get(shader->name), state_ptr->max_bound_texture_count);
+        return false;
     }
 
-    // Treat it like a uniform. NOTE: In the case of samplers, out_location is used to determine the
-    // hashtable entry's 'location' field value directly, and is then set to the index of the uniform array.
-    // This allows location lookups for samplers as if they were uniforms as well (since technically they are).
-    // TODO: might need to store this elsewhere
-    if (!internal_uniform_add(shader, config, location)) {
+    // Get the appropriate index.
+    u32 tex_samp_index = 0;
+    if (config->frequency == SHADER_UPDATE_FREQUENCY_PER_FRAME) {
+        tex_samp_index = shader->per_frame.uniform_texture_count;
+        shader->per_frame.uniform_texture_count++;
+    } else if (config->frequency == SHADER_UPDATE_FREQUENCY_PER_GROUP) {
+        tex_samp_index = shader->per_group.uniform_texture_count;
+        shader->per_group.uniform_texture_count++;
+    } else if (config->frequency == SHADER_UPDATE_FREQUENCY_PER_DRAW) {
+        tex_samp_index = shader->per_draw.uniform_texture_count;
+        shader->per_draw.uniform_texture_count++;
+    }
+
+    // Treat it like a uniform.
+    if (!internal_uniform_add(shader, config, tex_samp_index)) {
+        KERROR("Unable to add texture uniform.");
+        return false;
+    }
+
+    return true;
+}
+
+static b8 internal_sampler_add(kshader* shader, shader_uniform_config* config) {
+
+    // Verify the name is valid and unique.
+    if (!uniform_name_valid(shader, config->name) || !shader_uniform_add_state_valid(shader)) {
+        return false;
+    }
+
+    // Verify that there are not too many samplers present across all frequencies.
+    u16 current_sampler_count = shader->per_frame.uniform_sampler_count + shader->per_group.uniform_sampler_count + shader->per_draw.uniform_sampler_count;
+    if (current_sampler_count + 1 > state_ptr->max_bound_sampler_count) {
+        KERROR("Cannot add another sampler uniform to shader '%s' as it has already reached the maximum per-draw bound total of %hu", kname_string_get(shader->name), state_ptr->max_bound_sampler_count);
+        return false;
+    }
+
+    // If per-frame, push into the per-frame list.
+    u32 tex_samp_index = 0;
+    if (config->frequency == SHADER_UPDATE_FREQUENCY_PER_FRAME) {
+        tex_samp_index = shader->per_frame.uniform_sampler_count;
+        shader->per_frame.uniform_sampler_count++;
+    } else if (config->frequency == SHADER_UPDATE_FREQUENCY_PER_GROUP) {
+        tex_samp_index = shader->per_group.uniform_sampler_count;
+        shader->per_group.uniform_sampler_count++;
+    } else if (config->frequency == SHADER_UPDATE_FREQUENCY_PER_DRAW) {
+        tex_samp_index = shader->per_draw.uniform_sampler_count;
+        shader->per_draw.uniform_sampler_count++;
+    }
+
+    // Treat it like a uniform.
+    if (!internal_uniform_add(shader, config, tex_samp_index)) {
         KERROR("Unable to add sampler uniform.");
         return false;
     }
@@ -601,16 +559,16 @@ static b8 internal_sampler_add(shader* shader, shader_uniform_config* config) {
     return true;
 }
 
-static u32 generate_new_shader_id(void) {
+static khandle generate_new_shader_handle(void) {
     for (u32 i = 0; i < state_ptr->config.max_shader_count; ++i) {
-        if (state_ptr->shaders[i].id == INVALID_ID) {
-            return i;
+        if (state_ptr->shaders[i].uniqueid == INVALID_ID_U64) {
+            return khandle_create(i);
         }
     }
-    return INVALID_ID;
+    return khandle_invalid();
 }
 
-static b8 internal_uniform_add(shader* shader, const shader_uniform_config* config, u32 location) {
+static b8 internal_uniform_add(kshader* shader, const shader_uniform_config* config, u16 tex_samp_index) {
     if (!shader_uniform_add_state_valid(shader) || !uniform_name_valid(shader, config->name)) {
         return false;
     }
@@ -619,67 +577,228 @@ static b8 internal_uniform_add(shader* shader, const shader_uniform_config* conf
         KERROR("A shader can only accept a combined maximum of %d uniforms and samplers at global, instance and local scopes.", state_ptr->config.max_uniform_count);
         return false;
     }
-    b8 is_sampler = uniform_type_is_sampler(config->type);
-    shader_uniform entry;
-    entry.index = uniform_count; // Index is saved to the hashtable for lookups.
-    entry.scope = config->scope;
+    b8 is_sampler_or_texture = uniform_type_is_sampler(config->type) || uniform_type_is_texture(config->type);
+    shader_uniform entry = {0};
+    entry.frequency = config->frequency;
     entry.type = config->type;
     entry.array_length = config->array_length;
-    b8 is_global = (config->scope == SHADER_SCOPE_GLOBAL);
-    if (is_sampler) {
-        // Just use the passed in location
-        entry.location = location;
-    } else {
-        entry.location = entry.index;
-    }
+    entry.location = uniform_count;
+    entry.tex_samp_index = tex_samp_index;
 
-    if (config->scope == SHADER_SCOPE_LOCAL) {
-        entry.set_index = 2; // NOTE: set 2 doesn't exist in Vulkan, it's a push constant.
-        entry.offset = shader->local_ubo_size;
+    b8 is_per_frame = (config->frequency == SHADER_UPDATE_FREQUENCY_PER_FRAME);
+
+    if (config->frequency == SHADER_UPDATE_FREQUENCY_PER_DRAW) {
+        entry.offset = shader->per_draw.ubo_size;
         entry.size = config->size;
     } else {
-        entry.set_index = (u32)config->scope;
-        entry.offset = is_sampler ? 0 : is_global ? shader->global_ubo_size
-                                                  : shader->ubo_size;
-        entry.size = is_sampler ? 0 : config->size;
+        entry.offset = is_sampler_or_texture ? 0 : is_per_frame ? shader->per_frame.ubo_size
+                                                                : shader->per_group.ubo_size;
+        entry.size = is_sampler_or_texture ? 0 : config->size;
     }
 
-    if (!hashtable_set(&shader->uniform_lookup, config->name, &entry.index)) {
-        KERROR("Failed to add uniform.");
-        return false;
-    }
+    entry.name = config->name;
+
     darray_push(shader->uniforms, entry);
 
-    if (!is_sampler) {
-        if (entry.scope == SHADER_SCOPE_GLOBAL) {
-            shader->global_ubo_size += (entry.size * entry.array_length);
-        } else if (entry.scope == SHADER_SCOPE_INSTANCE) {
-            shader->ubo_size += (entry.size * entry.array_length);
-        } else if (entry.scope == SHADER_SCOPE_LOCAL) {
-            shader->local_ubo_size += (entry.size * entry.array_length);
+    // Count regular uniforms only, as the others are counted in the functions called before this for
+    // textures and samplers.
+    if (!is_sampler_or_texture) {
+        shader_frequency_data* frequency = 0;
+        if (entry.frequency == SHADER_UPDATE_FREQUENCY_PER_FRAME) {
+            frequency = &shader->per_frame;
+        } else if (entry.frequency == SHADER_UPDATE_FREQUENCY_PER_GROUP) {
+            frequency = &shader->per_group;
+        } else if (entry.frequency == SHADER_UPDATE_FREQUENCY_PER_DRAW) {
+            frequency = &shader->per_draw;
+        }
+        if (!frequency) {
+            KFATAL("No frequency found - investigate this!");
+            return false;
+        }
+        frequency->ubo_size += (entry.size * (entry.array_length ? entry.array_length : 1));
+        frequency->uniform_count++;
+    }
+
+    return true;
+}
+
+static b8 uniform_name_valid(kshader* shader, kname uniform_name) {
+    if (uniform_name == INVALID_KNAME) {
+        KERROR("Uniform name is invalid.");
+        return false;
+    }
+    u32 uniform_count = darray_length(shader->uniforms);
+    for (u32 i = 0; i < uniform_count; ++i) {
+        if (shader->uniforms[i].name == uniform_name) {
+            KERROR("A uniform by the name '%s' already exists on shader '%s'.", uniform_name, shader->name);
+            return false;
         }
     }
 
     return true;
 }
 
-static b8 uniform_name_valid(shader* shader, const char* uniform_name) {
-    if (!uniform_name || !string_length(uniform_name)) {
-        KERROR("Uniform name must exist.");
-        return false;
-    }
-    u16 location;
-    if (hashtable_get(&shader->uniform_lookup, uniform_name, &location) && location != INVALID_ID_U16) {
-        KERROR("A uniform by the name '%s' already exists on shader '%s'.", uniform_name, shader->name);
-        return false;
-    }
-    return true;
-}
-
-static b8 shader_uniform_add_state_valid(shader* shader) {
+static b8 shader_uniform_add_state_valid(kshader* shader) {
     if (shader->state != SHADER_STATE_UNINITIALIZED) {
         KERROR("Uniforms may only be added to shaders before initialization.");
         return false;
     }
     return true;
+}
+
+static khandle shader_create(const kresource_shader* shader_resource) {
+    khandle new_handle = generate_new_shader_handle();
+    if (khandle_is_invalid(new_handle)) {
+        KERROR("Unable to find free slot to create new shader. Aborting.");
+        return new_handle;
+    }
+
+    // TODO: probably don't need to keep a copy of all the resource properties
+    // since we now hold a pointer to the resource.
+    kshader* out_shader = &state_ptr->shaders[new_handle.handle_index];
+    kzero_memory(out_shader, sizeof(kshader));
+    // Sync handle uniqueid
+    out_shader->uniqueid = new_handle.unique_id.uniqueid;
+    out_shader->state = SHADER_STATE_NOT_CREATED;
+    out_shader->name = shader_resource->base.name;
+    out_shader->attribute_stride = 0;
+    out_shader->shader_stage_count = shader_resource->stage_count;
+    out_shader->stage_configs = kallocate(sizeof(shader_stage_config) * shader_resource->stage_count, MEMORY_TAG_ARRAY);
+    out_shader->uniforms = darray_create(shader_uniform);
+    out_shader->attributes = darray_create(shader_attribute);
+
+    // Invalidate frequency bound ids
+    out_shader->per_frame.bound_id = INVALID_ID; // NOTE: per-frame doesn't have a bound id, but invalidate it anyway.
+    out_shader->per_group.bound_id = INVALID_ID;
+    out_shader->per_draw.bound_id = INVALID_ID;
+
+    // Take a copy of the flags.
+    out_shader->flags = shader_resource->flags;
+
+    // Save off a pointer to the config resource.
+    out_shader->shader_resource = shader_resource;
+
+    // Create arrays to track stage "text" resources.
+    out_shader->stage_source_text_resources = KALLOC_TYPE_CARRAY(kresource_text*, out_shader->shader_stage_count);
+    out_shader->stage_source_text_generations = KALLOC_TYPE_CARRAY(u32, out_shader->shader_stage_count);
+
+    // Take a copy of the array.
+    KCOPY_TYPE_CARRAY(out_shader->stage_configs, shader_resource->stage_configs, shader_stage_config, out_shader->shader_stage_count);
+
+    for (u8 i = 0; i < shader_resource->stage_count; ++i) {
+        // Also snag a pointer to the resource itself.
+        out_shader->stage_source_text_resources[i] = shader_resource->stage_configs[i].resource;
+        // Take a copy of the generation for later comparison.
+        out_shader->stage_source_text_generations[i] = shader_resource->stage_configs[i].resource->base.generation;
+    }
+
+    // Keep a copy of the topology types.
+    out_shader->topology_types = shader_resource->topology_types;
+
+    // Ready to be initialized.
+    out_shader->state = SHADER_STATE_UNINITIALIZED;
+
+    // Process attributes
+    for (u32 i = 0; i < shader_resource->attribute_count; ++i) {
+        shader_attribute_config* ac = &shader_resource->attributes[i];
+        if (!internal_attribute_add(out_shader, ac)) {
+            KERROR("Failed to add attribute '%s' to shader '%s'.", ac->name, out_shader->name);
+            // Invalidate the new handle and return it.
+            khandle_invalidate(&new_handle);
+            return new_handle;
+        }
+    }
+
+    // Process uniforms
+    for (u32 i = 0; i < shader_resource->uniform_count; ++i) {
+        shader_uniform_config* uc = &shader_resource->uniforms[i];
+        b8 uniform_add_result = false;
+        if (uniform_type_is_sampler(uc->type)) {
+            uniform_add_result = internal_sampler_add(out_shader, uc);
+        } else if (uniform_type_is_texture(uc->type)) {
+            uniform_add_result = internal_texture_add(out_shader, uc);
+        } else {
+            uniform_add_result = internal_uniform_add(out_shader, uc, INVALID_ID_U16);
+        }
+        if (!uniform_add_result) {
+            // Invalidate the new handle and return it.
+            khandle_invalidate(&new_handle);
+            return new_handle;
+        }
+    }
+
+    // Now that uniforms are processed, take note of the indices of textures and samplers.
+    // These are used for fast lookups later by type.
+    if (out_shader->per_frame.uniform_sampler_count) {
+        out_shader->per_frame.sampler_indices = KALLOC_TYPE_CARRAY(u32, out_shader->per_frame.uniform_sampler_count);
+    }
+    if (out_shader->per_group.uniform_sampler_count) {
+        out_shader->per_group.sampler_indices = KALLOC_TYPE_CARRAY(u32, out_shader->per_group.uniform_sampler_count);
+    }
+    if (out_shader->per_draw.uniform_sampler_count) {
+        out_shader->per_draw.sampler_indices = KALLOC_TYPE_CARRAY(u32, out_shader->per_draw.uniform_sampler_count);
+    }
+    if (out_shader->per_frame.uniform_texture_count) {
+        out_shader->per_frame.texture_indices = KALLOC_TYPE_CARRAY(u32, out_shader->per_frame.uniform_texture_count);
+    }
+    if (out_shader->per_group.uniform_texture_count) {
+        out_shader->per_group.texture_indices = KALLOC_TYPE_CARRAY(u32, out_shader->per_group.uniform_texture_count);
+    }
+    if (out_shader->per_draw.uniform_texture_count) {
+        out_shader->per_draw.texture_indices = KALLOC_TYPE_CARRAY(u32, out_shader->per_draw.uniform_texture_count);
+    }
+    u32 frame_textures = 0, frame_samplers = 0;
+    u32 group_textures = 0, group_samplers = 0;
+    u32 draw_textures = 0, draw_samplers = 0;
+    for (u32 i = 0; i < shader_resource->uniform_count; ++i) {
+        shader_uniform_config* uc = &shader_resource->uniforms[i];
+        if (uniform_type_is_sampler(uc->type)) {
+            switch (uc->frequency) {
+            case SHADER_UPDATE_FREQUENCY_PER_FRAME:
+                out_shader->per_frame.sampler_indices[frame_samplers] = i;
+                break;
+            case SHADER_UPDATE_FREQUENCY_PER_GROUP:
+                out_shader->per_group.sampler_indices[group_samplers] = i;
+                break;
+            case SHADER_UPDATE_FREQUENCY_PER_DRAW:
+                out_shader->per_draw.sampler_indices[draw_samplers] = i;
+                break;
+            }
+        } else if (uniform_type_is_texture(uc->type)) {
+            switch (uc->frequency) {
+            case SHADER_UPDATE_FREQUENCY_PER_FRAME:
+                out_shader->per_frame.texture_indices[frame_textures] = i;
+                break;
+            case SHADER_UPDATE_FREQUENCY_PER_GROUP:
+                out_shader->per_group.texture_indices[group_textures] = i;
+                break;
+            case SHADER_UPDATE_FREQUENCY_PER_DRAW:
+                out_shader->per_draw.texture_indices[draw_textures] = i;
+                break;
+            }
+        }
+    }
+
+    // Create renderer-internal resources.
+    if (!renderer_shader_create(state_ptr->renderer, new_handle, shader_resource)) {
+        KERROR("Error creating shader.");
+        // Invalidate the new handle and return it.
+        khandle_invalidate(&new_handle);
+        return new_handle;
+    }
+
+    return new_handle;
+}
+
+static b8 shader_reload(kshader* shader, khandle shader_handle) {
+
+    // Check each shader stage generation for out-of-sync.
+    for (u8 i = 0; i < shader->shader_stage_count; ++i) {
+        if (shader->stage_source_text_generations[i] != shader->stage_source_text_resources[i]->base.generation) {
+            // Sync the generations.
+            shader->stage_source_text_generations[i] = shader->stage_source_text_resources[i]->base.generation;
+        }
+    }
+
+    return renderer_shader_reload(state_ptr->renderer, shader_handle, shader->shader_stage_count, shader->stage_configs);
 }

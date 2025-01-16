@@ -1,0 +1,50 @@
+version = 3
+type = pbr
+
+maps = [
+	{
+		name = "albedo"
+		texture_name = "river_rock1_albedo"
+		filter_min = "linear"
+		filter_mag = "linear"
+		repeat_u = "repeat"
+		repeat_v = "repeat"
+		repeat_w = "repeat"
+	}
+	{
+		name = "normal"
+		texture_name = "river_rock1_Normal"
+		filter_min = "linear"
+		filter_mag = "linear"
+		repeat_u = "repeat"
+		repeat_v = "repeat"
+		repeat_w = "repeat"
+	}
+	{
+		name = "combined"
+		texture_name = "river_rock1_combined"
+		filter_min = "linear"
+		filter_mag = "linear"
+		repeat_u = "repeat"
+		repeat_v = "repeat"
+		repeat_w = "repeat"
+	}
+]
+
+properties = [
+	{
+		name = "diffuse_colour"
+		type = "vec4"
+		value = "0.588000 0.588000 0.588000 1.000000"
+	}
+	{
+		name = "padding"
+		type = "vec3"
+		value = "0.000000 0.000000 0.000000"
+	}
+	{
+		name = "shininess"
+		type = "f32"
+		value = 10.0
+	}
+]

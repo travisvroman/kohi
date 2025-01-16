@@ -16,7 +16,7 @@ typedef struct clear_depth_rendergraph_node_config {
 
 typedef struct clear_depth_rendergraph_node_internal_data {
     struct renderer_system_state* renderer;
-    struct texture* buffer_texture;
+    struct kresource_texture* buffer_texture;
     f32 depth_clear_value;
     u32 stencil_clear_value;
 } clear_depth_rendergraph_node_internal_data;
@@ -99,12 +99,18 @@ b8 clear_depth_rendergraph_node_execute(struct rendergraph_node* self, struct fr
         return false;
     }
 
+    renderer_begin_debug_label(self->name, (vec3){0.75f, 0.75f, 0.75f});
+
     clear_depth_rendergraph_node_internal_data* internal_data = self->internal_data;
 
     renderer_clear_depth_set(internal_data->renderer, internal_data->depth_clear_value);
     renderer_clear_stencil_set(internal_data->renderer, internal_data->stencil_clear_value);
 
-    return renderer_clear_depth_stencil(internal_data->renderer, internal_data->buffer_texture->renderer_texture_handle);
+    b8 result = renderer_clear_depth_stencil(internal_data->renderer, internal_data->buffer_texture->renderer_texture_handle);
+
+    renderer_end_debug_label();
+
+    return result;
 }
 
 void clear_depth_rendergraph_node_destroy(struct rendergraph_node* self) {

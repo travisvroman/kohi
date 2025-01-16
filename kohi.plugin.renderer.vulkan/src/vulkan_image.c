@@ -3,9 +3,9 @@
 #include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
-#include "resources/resource_types.h"
 #include "strings/kstring.h"
 #include "vulkan/vulkan_core.h"
+#include "vulkan_types.h"
 #include "vulkan_utils.h"
 
 // A lookup table of vulkan image view types indexed Kohi's texture types.
@@ -103,7 +103,9 @@ void vulkan_image_create(
     }
 
     if (out_image->name) {
-        VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE_MEMORY, out_image->memory, out_image->name);
+        char* mem_name = string_format("%s_memory", out_image->name);
+        VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DEVICE_MEMORY, out_image->memory, mem_name);
+        string_free(mem_name);
     }
 
     // Bind the memory
@@ -132,7 +134,7 @@ void vulkan_image_create(
 
         VK_CHECK(vkCreateImageView(context->device.logical_device, &out_image->view_create_info, context->allocator, &out_image->view));
 
-#if _DEBUG
+#if KOHI_DEBUG
         char* formatted_name = string_format("%s_view_idx_global", out_image->name);
         VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, out_image->view, formatted_name);
         string_free(formatted_name);
@@ -170,7 +172,7 @@ void vulkan_image_create(
 
                 VK_CHECK(vkCreateImageView(context->device.logical_device, view_create_info, context->allocator, &out_image->layer_views[i]));
 
-#if _DEBUG
+#if KOHI_DEBUG
                 char* formatted_name = string_format("%s_view_layer_idx_%u", out_image->name, i);
                 VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, out_image->layer_views[i], formatted_name);
                 string_free(formatted_name);
@@ -278,7 +280,7 @@ void vulkan_image_recreate(vulkan_context* context, vulkan_image* image) {
 
         VK_CHECK(vkCreateImageView(context->device.logical_device, &image->view_create_info, context->allocator, &image->view));
 
-#ifdef _DEBUG
+#if KOHI_DEBUG
         char* formatted_name = string_format("%s_view_idx_%u", image->name, 0);
         VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_IMAGE_VIEW, image->view, formatted_name);
         string_free(formatted_name);
@@ -567,3 +569,82 @@ void vulkan_image_copy_region_to_buffer(
         1,
         &region);
 }
+
+typedef enum vulkan_access {
+    VULKAN_ACCESS_COPY_SRC,
+    VULKAN_ACCESS_COPY_DEST,
+    VULKAN_ACCESS_READ_DEST,
+    VULKAN_ACCESS_WRITE_DEST,
+} vulkan_access;
+
+/* VkImageLayout get_default_layout(vulkan_command_buffer* command_buffer, vulkan_image* image, vulkan_access requested_access) {
+    switch (requested_access) {
+
+    case VULKAN_ACCESS_COPY_SRC:
+        return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    case VULKAN_ACCESS_COPY_DEST:
+        return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+    case VULKAN_ACCESS_READ_DEST:
+        return VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+    case VULKAN_ACCESS_WRITE_DEST:
+        return VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+
+    default:
+        return VK_IMAGE_LAYOUT_UNDEFINED;
+    }
+}
+
+void vulkan_image_copy_to_image(vulkan_context* context, vulkan_image* src, vulkan_image* dest, b8 dest_present_after) {
+
+    // TODO: steps
+    // Transition dest layout from current layout to transfer_dst_optimal
+    // blit or copy
+    // Transition src from src_optimal to previous layout.
+    // Transition dest layout from dst_optimal to (potentially) present
+
+    // Transition src layout from its current layout to transfer_src_optimal, if different.
+    VkImageMemoryBarrier barrier = {0};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.image = image->handle;
+    barrier.srcQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.dstQueueFamilyIndex = context->device.graphics_queue_index;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseArrayLayer = 0;
+
+    // One mip level at a time.
+    barrier.subresourceRange.levelCount = 1;
+
+    // Generate for all layers.
+    barrier.subresourceRange.layerCount = image->layer_count;
+    barrier.subresourceRange.baseMipLevel = i - 1;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+    // Transition the mip image subresource to a transfer layout.
+    vkCmdPipelineBarrier(
+        command_buffer->handle,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0,
+        0, 0,
+        0, 0,
+        1, &barrier);
+
+    // Check if the image format supports linear blitting.
+    VkFormatProperties format_properties;
+    vkGetPhysicalDeviceFormatProperties(context->device.physical_device, image->format, &format_properties);
+
+    if (!(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+        KWARN("Texture image format does not support linear blitting! Mipmaps cannot be created.");
+        return false;
+    }
+
+    if (src->width != dest->width || src->height != dest->height) {
+        // Blit the image if sizes don't match.
+    } else {
+        // If sizes match, a simple copy will do.
+    }
+} */

@@ -1,5 +1,8 @@
 #pragma once
 
+// if(KNAME("something") == 42)
+// if(KNAME("something else") == 42)
+//
 #include "defines.h"
 
 /**

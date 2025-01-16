@@ -42,6 +42,7 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
     backend->texture_prepare_for_sampling = vulkan_renderer_texture_prepare_for_sampling;
 
     backend->winding_set = vulkan_renderer_winding_set;
+    backend->cull_mode_set = vulkan_renderer_cull_mode_set;
     backend->set_stencil_test_enabled = vulkan_renderer_set_stencil_test_enabled;
     backend->set_depth_test_enabled = vulkan_renderer_set_depth_test_enabled;
     backend->set_depth_write_enabled = vulkan_renderer_set_depth_write_enabled;
@@ -56,6 +57,10 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
 
     backend->texture_resources_acquire = vulkan_renderer_texture_resources_acquire;
     backend->texture_resources_release = vulkan_renderer_texture_resources_release;
+
+    backend->sampler_acquire = vulkan_renderer_sampler_acquire;
+    backend->sampler_release = vulkan_renderer_sampler_release;
+
     backend->texture_resize = vulkan_renderer_texture_resize;
     backend->texture_write_data = vulkan_renderer_texture_write_data;
     backend->texture_read_data = vulkan_renderer_texture_read_data;
@@ -63,25 +68,32 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
 
     backend->shader_create = vulkan_renderer_shader_create;
     backend->shader_destroy = vulkan_renderer_shader_destroy;
-    backend->shader_uniform_set = vulkan_renderer_uniform_set;
-    backend->shader_initialize = vulkan_renderer_shader_initialize;
+    backend->shader_uniform_set = vulkan_renderer_shader_uniform_set;
     backend->shader_reload = vulkan_renderer_shader_reload;
     backend->shader_use = vulkan_renderer_shader_use;
     backend->shader_supports_wireframe = vulkan_renderer_shader_supports_wireframe;
 
-    backend->shader_apply_globals = vulkan_renderer_shader_apply_globals;
-    backend->shader_apply_instance = vulkan_renderer_shader_apply_instance;
-    backend->shader_apply_local = vulkan_renderer_shader_apply_local;
-    backend->shader_instance_resources_acquire = vulkan_renderer_shader_instance_resources_acquire;
-    backend->shader_instance_resources_release = vulkan_renderer_shader_instance_resources_release;
-    backend->shader_uniform_set = vulkan_renderer_uniform_set;
+    backend->shader_bind_per_frame = vulkan_renderer_shader_bind_per_frame;
+    backend->shader_bind_per_group = vulkan_renderer_shader_bind_per_group;
+    backend->shader_bind_per_draw = vulkan_renderer_shader_bind_per_draw;
 
-    backend->texture_map_resources_acquire = vulkan_renderer_texture_map_resources_acquire;
-    backend->texture_map_resources_release = vulkan_renderer_texture_map_resources_release;
+    backend->shader_apply_per_frame = vulkan_renderer_shader_apply_per_frame;
+    backend->shader_apply_per_group = vulkan_renderer_shader_apply_per_group;
+    backend->shader_apply_per_draw = vulkan_renderer_shader_apply_per_draw;
+    backend->shader_per_group_resources_acquire = vulkan_renderer_shader_per_group_resources_acquire;
+    backend->shader_per_group_resources_release = vulkan_renderer_shader_per_group_resources_release;
+    backend->shader_per_draw_resources_acquire = vulkan_renderer_shader_per_draw_resources_acquire;
+    backend->shader_per_draw_resources_release = vulkan_renderer_shader_per_draw_resources_release;
+    backend->shader_uniform_set = vulkan_renderer_shader_uniform_set;
+
+    backend->shader_flag_get = vulkan_renderer_shader_flag_get;
+    backend->shader_flag_set = vulkan_renderer_shader_flag_set;
 
     backend->is_multithreaded = vulkan_renderer_is_multithreaded;
     backend->flag_enabled_get = vulkan_renderer_flag_enabled_get;
     backend->flag_enabled_set = vulkan_renderer_flag_enabled_set;
+
+    backend->max_anisotropy_get = vulkan_renderer_max_anisotropy_get;
 
     backend->renderbuffer_internal_create = vulkan_buffer_create_internal;
     backend->renderbuffer_internal_destroy = vulkan_buffer_destroy_internal;

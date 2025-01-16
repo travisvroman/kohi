@@ -29,7 +29,7 @@ u8 kson_parser_should_create_and_destroy(void) {
 
 u8 kson_parser_should_tokenize_file_content(void) {
     // TODO: move to test asset folder.
-    char* full_file_path = "../tests/src/parsers/test_scene2.ksn";
+    char* full_file_path = "../kohi.core.tests/src/parsers/test_scene2.ksn";
     file_handle f;
     if (!filesystem_open(full_file_path, FILE_MODE_READ, false, &f)) {
         KERROR("text_loader_load - unable to open file for text reading: '%s'.", full_file_path);

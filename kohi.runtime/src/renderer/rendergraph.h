@@ -3,7 +3,6 @@
 
 #include "defines.h"
 #include "renderer/renderer_types.h"
-#include "resources/resource_types.h"
 
 #define RG_CHECK(expr)                             \
     if (!expr) {                                   \
@@ -11,7 +10,7 @@
         return false;                              \
     }
 
-struct texture;
+struct kresource_texture;
 struct rendergraph_system_state;
 
 /**
@@ -38,7 +37,7 @@ typedef struct rendergraph_source {
     /** @brief The resource value. */
     union {
         /** @brief A pointer to the underlying texture resource. */
-        struct texture* t;
+        struct kresource_texture* t;
 
         /** @brief A copy of the underlying unsigned int resource. */
         u64 u64;
@@ -95,9 +94,9 @@ typedef struct rendergraph {
     char* name;
 
     // A pointer to the global colourbuffer framebuffer.
-    struct texture* global_colourbuffer;
+    struct kresource_texture* global_colourbuffer;
     // A pointer to the global depthbuffer framebuffer.
-    struct texture* global_depthbuffer;
+    struct kresource_texture* global_depthbuffer;
 
     u32 node_count;
     // Array of nodes in this graph.
@@ -143,7 +142,7 @@ typedef struct rendergraph_node_factory {
     b8 (*create)(rendergraph* graph, rendergraph_node* node, const struct rendergraph_node_config* config);
 } rendergraph_node_factory;
 
-KAPI b8 rendergraph_create(const char* config_str, struct texture* global_colourbuffer, struct texture* global_depthbuffer, rendergraph* out_graph);
+KAPI b8 rendergraph_create(const char* config_str, struct kresource_texture* global_colourbuffer, struct kresource_texture* global_depthbuffer, rendergraph* out_graph);
 KAPI void rendergraph_destroy(rendergraph* graph);
 
 KAPI b8 rendergraph_finalize(rendergraph* graph);
