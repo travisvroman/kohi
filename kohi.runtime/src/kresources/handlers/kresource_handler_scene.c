@@ -179,6 +179,9 @@ static void copy_scene_node(const scene_node_config* source, scene_node_config* 
         if (source->water_plane_configs) {
             target->water_plane_configs = darray_duplicate(scene_node_attachment_water_plane_config, source->water_plane_configs);
         }
+        if (source->audio_emitter_configs) {
+            target->audio_emitter_configs = darray_duplicate(scene_node_attachment_audio_emitter_config, source->audio_emitter_configs);
+        }
     }
 
     target->child_count = source->child_count;

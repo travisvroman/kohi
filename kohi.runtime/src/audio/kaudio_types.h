@@ -4,10 +4,38 @@
 #include <identifiers/khandle.h>
 #include <math/math_types.h>
 
+#include "core_audio_types.h"
 #include "kresources/kresource_types.h"
 
 struct frame_data;
 struct kaudio_backend_state;
+
+typedef struct audio_instance {
+    khandle base_resource;
+    khandle instance;
+} audio_instance;
+
+typedef struct audio_emitter {
+    kname name;
+    // Handle to underlying resource instance.
+    audio_instance instance;
+    // Emitter-specific volume.
+    f32 volume;
+
+    /** @brief inner_radius The inner radius around the sound's center point. A listener inside this radius experiences the volume at 100%. */
+    f32 inner_radius;
+    /** @brief outer_radius The outer radius around the sound's center point. A listener outside this radius experiences the volume at 0%. */
+    f32 outer_radius;
+    /** @brief The falloff factor to use for distance-based sound falloff. Only used for exponential falloff. */
+    f32 falloff;
+    /** @brief The attenuation model to use for distance-based sound falloff. */
+    kaudio_attenuation_model attenuation_model;
+
+    b8 is_looping;
+
+    vec3 velocity;
+
+} audio_emitter;
 
 /**
  * @brief The configuration for an audio backend.
@@ -78,7 +106,7 @@ typedef struct kaudio_backend_interface {
 
     // Play whatever is currently bound to the channel.
     b8 (*channel_play)(struct kaudio_backend_interface* backend, u8 channel_id);
-    b8 (*channel_play_resource)(struct kaudio_backend_interface* backend, khandle resource_handle, u8 channel_id);
+    b8 (*channel_play_resource)(struct kaudio_backend_interface* backend, khandle resource_handle, kaudio_space audio_space, u8 channel_id);
 
     b8 (*channel_stop)(struct kaudio_backend_interface* backend, u8 channel_id);
     b8 (*channel_pause)(struct kaudio_backend_interface* backend, u8 channel_id);

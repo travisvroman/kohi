@@ -9,6 +9,7 @@ typedef enum scene_node_attachment_type {
     SCENE_NODE_ATTACHMENT_TYPE_SKYBOX,
     SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT,
     SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT,
+    SCENE_NODE_ATTACHMENT_TYPE_AUDIO_EMITTER,
     SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH,
     SCENE_NODE_ATTACHMENT_TYPE_HEIGHTMAP_TERRAIN,
     SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE,
@@ -20,6 +21,7 @@ static const char* scene_node_attachment_type_strings[SCENE_NODE_ATTACHMENT_TYPE
     "skybox",            // SCENE_NODE_ATTACHMENT_TYPE_SKYBOX,
     "directional_light", // SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT,
     "point_light",       // SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT,
+    "audio_emitter",     // SCENE_NODE_ATTACHMENT_TYPE_AUDIO_EMITTER,
     "static_mesh",       // SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH,
     "heightmap_terrain", // SCENE_NODE_ATTACHMENT_TYPE_STATIC_HEIGHTMAP_TERRAIN,
     "water_plane"        // SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE,
@@ -59,6 +61,18 @@ typedef struct scene_node_attachment_point_light_config {
     f32 quadratic;
 } scene_node_attachment_point_light_config;
 
+typedef struct scene_node_attachment_audio_emitter_config {
+    scene_node_attachment_config base;
+    b8 is_looping;
+    f32 volume;
+    f32 inner_radius;
+    f32 outer_radius;
+    f32 falloff;
+    kname audio_resource_name;
+    kname audio_resource_package_name;
+    b8 is_streaming;
+} scene_node_attachment_audio_emitter_config;
+
 typedef struct scene_node_attachment_static_mesh_config {
     scene_node_attachment_config base;
     kname asset_name;
@@ -89,6 +103,8 @@ typedef struct scene_node_config {
     scene_node_attachment_directional_light_config* dir_light_configs;
     /** @brief Darray of point light attachment configs. */
     scene_node_attachment_point_light_config* point_light_configs;
+    /** @brief Darray of audio emitter attachment configs. */
+    scene_node_attachment_audio_emitter_config* audio_emitter_configs;
     /** @brief Darray of static mesh attachment configs. */
     scene_node_attachment_static_mesh_config* static_mesh_configs;
     /** @brief Darray of heightmap terrain attachment configs. */

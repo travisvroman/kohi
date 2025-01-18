@@ -106,4 +106,22 @@ nodes = [
             }
         ]
     }
+    {
+        name = "fire"
+        xform = "1.000000 1.000000 1.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
+        attachments = [
+            {
+                type = "audio_emitter"
+                name = "fire emitter"
+                audio_resource_name = "Fire_loop"
+                audio_resource_package_name = "Testbed"
+                inner_radius = 5.0
+                outer_radius = 15.0
+                falloff = 1.0
+                is_streaming = false
+                volume = 1.0
+                is_looping = true
+            }
+        ]
+    }
 ]

@@ -30,6 +30,7 @@
 
 #include "application/application_config.h"
 #include "assets/kasset_types.h"
+#include "core_audio_types.h"
 #include "game_state.h"
 
 // Standard UI.
@@ -196,29 +197,29 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
         }
         return true;
     } else if (code == EVENT_CODE_DEBUG3) {
-        if (khandle_is_valid(state->test_sound)) {
+        if (kaudio_is_valid(state->audio_system, state->test_sound)) {
             // Cycle between first 5 channels.
             static i8 channel_id = -1;
             channel_id++;
             channel_id = channel_id % 5;
             KTRACE("Playing sound on channel %u", channel_id);
-            kaudio_play(engine_systems_get()->audio_system, state->test_sound, channel_id);
+            kaudio_play(state->audio_system, state->test_sound, channel_id);
         }
     } else if (code == EVENT_CODE_DEBUG4) {
-        if (khandle_is_valid(state->test_loop_sound)) {
+        /* if (kaudio_is_valid(state->audio_system, state->test_loop_sound)) {
             static b8 playing = true;
             playing = !playing;
             if (playing) {
                 // Play on channel 6
                 // TODO: pipe this through an emitter node in the scene.
-                kaudio_play(engine_systems_get()->audio_system, state->test_loop_sound, 6);
+                kaudio_play(state->audio_system, state->test_loop_sound, 6);
                 // Set this to loop.
-                kaudio_looping_set(engine_systems_get()->audio_system, state->test_loop_sound, true);
+                kaudio_looping_set(state->audio_system, state->test_loop_sound, true);
             } else {
                 // Stop channel 6.
-                kaudio_channel_stop(engine_systems_get()->audio_system, 6);
+                kaudio_channel_stop(state->audio_system, 6);
             }
-        }
+        } */
     }
 
     return false;
@@ -437,6 +438,7 @@ b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
 
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    state->audio_system = engine_systems_get()->audio_system;
 
     // Get the standard ui plugin.
     state->sui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.standard");
@@ -694,18 +696,17 @@ b8 application_initialize(struct application* game_inst) {
     kzero_memory(&state->render_clock, sizeof(kclock));
 
     // Audio tests
-    struct kaudio_system_state* audio_system = engine_systems_get()->audio_system;
 
     // Load up a test audio file.
-    if (!kaudio_acquire(audio_system, kname_create("Test_Audio"), kname_create("Testbed"), false, &state->test_sound)) {
+    if (!kaudio_acquire(state->audio_system, kname_create("Test_Audio"), kname_create("Testbed"), false, KAUDIO_SPACE_2D, &state->test_sound)) {
         KERROR("Failed to load test audio file.");
     }
-    // Looping audio file.
-    if (!kaudio_acquire(audio_system, kname_create("Fire_loop"), kname_create("Testbed"), false, &state->test_loop_sound)) {
+    /* // Looping audio file.
+    if (!kaudio_acquire(state->audio_system, kname_create("Fire_loop"), kname_create("Testbed"), false, &state->test_loop_sound)) {
         KERROR("Failed to load test looping audio file.");
-    }
+    } */
     // Test music
-    if (!kaudio_acquire(audio_system, kname_create("Woodland Fantasy"), kname_create("Testbed"), true, &state->test_music)) {
+    if (!kaudio_acquire(state->audio_system, kname_create("Woodland Fantasy"), kname_create("Testbed"), true, KAUDIO_SPACE_2D, &state->test_music)) {
         KERROR("Failed to load test music file.");
     }
 
@@ -717,25 +718,22 @@ b8 application_initialize(struct application* game_inst) {
     state->test_emitter.position = vec3_create(10.0f, 0.8f, 20.0f); */
 
     // Set some channel volumes.
-    kaudio_system_master_volume_set(audio_system, 0.9f);
-    kaudio_system_channel_volume_set(audio_system, 0, 1.0f);
-    kaudio_system_channel_volume_set(audio_system, 1, 0.75f);
-    kaudio_system_channel_volume_set(audio_system, 2, 0.50f);
-    kaudio_system_channel_volume_set(audio_system, 3, 0.25);
-    kaudio_system_channel_volume_set(audio_system, 4, 0.0f);
-    kaudio_system_channel_volume_set(audio_system, 7, 0.9f);
+    kaudio_master_volume_set(state->audio_system, 0.9f);
+    kaudio_channel_volume_set(state->audio_system, 0, 1.0f);
+    kaudio_channel_volume_set(state->audio_system, 1, 0.75f);
+    kaudio_channel_volume_set(state->audio_system, 2, 0.50f);
+    kaudio_channel_volume_set(state->audio_system, 3, 0.25);
+    kaudio_channel_volume_set(state->audio_system, 4, 0.0f);
+    kaudio_channel_volume_set(state->audio_system, 7, 0.9f);
 
     // TODO: emitters
     // Try playing the emitter.
     /* if (!audio_system_channel_emitter_play(6, &state->test_emitter)) {
         KERROR("Failed to play test emitter.");
     }*/
-    // TODO: pipe this through an emitter node in the scene.
-    kaudio_play(engine_systems_get()->audio_system, state->test_loop_sound, 6);
-    kaudio_looping_set(engine_systems_get()->audio_system, state->test_loop_sound, true);
 
     // Play the test music on channel 7.
-    kaudio_play(engine_systems_get()->audio_system, state->test_music, 7);
+    kaudio_play(state->audio_system, state->test_music, 7);
 
     if (!rendergraph_initialize(&state->forward_graph)) {
         KERROR("Failed to initialize rendergraph. See logs for details.");

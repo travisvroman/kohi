@@ -2,7 +2,9 @@
 
 #include "assets/kasset_types.h"
 #include "containers/darray.h"
+#include "core_audio_types.h"
 #include "core_resource_types.h"
+#include "defines.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "parsers/kson_parser.h"
@@ -352,6 +354,85 @@ static b8 serialize_node(scene_node_config* node, kson_object* node_obj) {
             // Quadratic
             if (!kson_object_value_add_float(&attachment_obj, "quadratic", typed_attachment->quadratic)) {
                 KERROR("Failed to add 'quadratic' property for attachment '%s'.", attachment_name);
+                return false;
+            }
+
+            // Add it to the attachments array.
+            kson_array_value_add_object(&attachment_obj_array, attachment_obj);
+        }
+    }
+
+    if (node->audio_emitter_configs) {
+        u32 length = darray_length(node->audio_emitter_configs);
+        for (u32 i = 0; i < length; ++i) {
+            scene_node_attachment_audio_emitter_config* typed_attachment = &node->audio_emitter_configs[i];
+            scene_node_attachment_config* attachment = (scene_node_attachment_config*)typed_attachment;
+            kson_object attachment_obj = kson_object_create();
+            const char* attachment_name = kname_string_get(attachment->name);
+
+            // Base properties
+            {
+                // Name, if it exists.
+                if (attachment->name) {
+                    if (!kson_object_value_add_kname_as_string(&attachment_obj, "name", attachment->name)) {
+                        KERROR("Failed to add 'name' property for attachment '%s'.", attachment_name);
+                        return false;
+                    }
+                }
+
+                // Add the type. Required.
+                const char* type_str = scene_node_attachment_type_strings[attachment->type];
+                if (!kson_object_value_add_string(&attachment_obj, "type", type_str)) {
+                    KERROR("Failed to add 'name' property for attachment '%s'.", attachment_name);
+                    return false;
+                }
+            }
+
+            // volume
+            if (!kson_object_value_add_float(&attachment_obj, "volume", typed_attachment->volume)) {
+                KERROR("Failed to add 'volume' property for attachment '%s'.", attachment_name);
+                return false;
+            }
+
+            // is_looping
+            if (!kson_object_value_add_boolean(&attachment_obj, "is_looping", typed_attachment->is_looping)) {
+                KERROR("Failed to add 'is_looping' property for attachment '%s'.", attachment_name);
+                return false;
+            }
+
+            // inner_radius
+            if (!kson_object_value_add_float(&attachment_obj, "inner_radius", typed_attachment->inner_radius)) {
+                KERROR("Failed to add 'inner_radius' property for attachment '%s'.", attachment_name);
+                return false;
+            }
+
+            // outer_radius
+            if (!kson_object_value_add_float(&attachment_obj, "outer_radius", typed_attachment->outer_radius)) {
+                KERROR("Failed to add 'outer_radius' property for attachment '%s'.", attachment_name);
+                return false;
+            }
+
+            // falloff
+            if (!kson_object_value_add_float(&attachment_obj, "falloff", typed_attachment->falloff)) {
+                KERROR("Failed to add 'falloff' property for attachment '%s'.", attachment_name);
+                return false;
+            }
+
+            // is_streaming
+            if (!kson_object_value_add_boolean(&attachment_obj, "is_streaming", typed_attachment->is_streaming)) {
+                KERROR("Failed to add 'is_streaming' property for attachment '%s'.", attachment_name);
+                return false;
+            }
+
+            // audio_resource_name
+            if (!kson_object_value_add_kname_as_string(&attachment_obj, "audio_resource_name", typed_attachment->audio_resource_name)) {
+                KERROR("Failed to add 'audio_resource_name' property for attachment '%s'.", attachment_name);
+                return false;
+            }
+
+            // audio_resource_package_name
+            if (!kson_object_value_add_kname_as_string(&attachment_obj, "audio_resource_package_name", typed_attachment->audio_resource_package_name)) {
+                KERROR("Failed to add 'audio_resource_package_name' property for attachment '%s'.", attachment_name);
                 return false;
             }
 
@@ -750,6 +831,59 @@ static b8 deserialize_attachment(kasset* asset, scene_node_config* node, kson_ob
             node->point_light_configs = darray_create(scene_node_attachment_point_light_config);
         }
         darray_push(node->point_light_configs, typed_attachment);
+    } break;
+
+    case SCENE_NODE_ATTACHMENT_TYPE_AUDIO_EMITTER: {
+        scene_node_attachment_audio_emitter_config typed_attachment = {0};
+
+        // volume - optional
+        if (!kson_object_property_value_get_float(attachment_obj, "volume", &typed_attachment.volume)) {
+            typed_attachment.volume = AUDIO_VOLUME_DEFAULT;
+        }
+
+        // is_looping - optional
+        if (!kson_object_property_value_get_bool(attachment_obj, "is_looping", &typed_attachment.is_looping)) {
+            // Emitters always default to true for looping, if not defined.
+            typed_attachment.is_looping = true;
+        }
+
+        // inner_radius - optional
+        if (!kson_object_property_value_get_float(attachment_obj, "inner_radius", &typed_attachment.inner_radius)) {
+            typed_attachment.inner_radius = AUDIO_INNER_RADIUS_DEFAULT;
+        }
+
+        // outer_radius - optional
+        if (!kson_object_property_value_get_float(attachment_obj, "outer_radius", &typed_attachment.outer_radius)) {
+            typed_attachment.outer_radius = AUDIO_OUTER_RADIUS_DEFAULT;
+        }
+
+        // falloff - optional
+        if (!kson_object_property_value_get_float(attachment_obj, "falloff", &typed_attachment.falloff)) {
+            typed_attachment.falloff = AUDIO_FALLOFF_DEFAULT;
+        }
+
+        // is_streaming - optional - defaults to false
+        if (!kson_object_property_value_get_bool(attachment_obj, "is_streaming", &typed_attachment.is_streaming)) {
+            typed_attachment.is_streaming = false;
+        }
+
+        // audio_resource_name - required
+        if (!kson_object_property_value_get_string_as_kname(attachment_obj, "audio_resource_name", &typed_attachment.audio_resource_name)) {
+            KERROR("Failed to get 'audio_resource_name' property for attachment '%s'.", attachment_name);
+            return false;
+        }
+
+        // audio_resource_package_name - required
+        if (!kson_object_property_value_get_string_as_kname(attachment_obj, "audio_resource_package_name", &typed_attachment.audio_resource_package_name)) {
+            KERROR("Failed to get 'audio_resource_package_name' property for attachment '%s'.", attachment_name);
+            return false;
+        }
+
+        // Push to the appropriate array.
+        if (!node->audio_emitter_configs) {
+            node->audio_emitter_configs = darray_create(scene_node_attachment_audio_emitter_config);
+        }
+        darray_push(node->audio_emitter_configs, typed_attachment);
     } break;
 
     case SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH: {
