@@ -49,6 +49,9 @@ KAPI b8 kaudio_outer_radius_set(struct kaudio_system_state* state, audio_instanc
 KAPI f32 kaudio_falloff_get(struct kaudio_system_state* state, audio_instance instance);
 KAPI b8 kaudio_falloff_set(struct kaudio_system_state* state, audio_instance instance, f32 falloff);
 
+KAPI i8 kaudio_category_id_get(struct kaudio_system_state* state, kname name);
+KAPI b8 kaudio_play_in_category_by_name(struct kaudio_system_state* state, audio_instance instance, kname category_name);
+KAPI b8 kaudio_play_in_category(struct kaudio_system_state* state, audio_instance instance, u8 category_index);
 KAPI b8 kaudio_play(struct kaudio_system_state* state, audio_instance instance, i8 channel_index);
 KAPI b8 kaudio_stop(struct kaudio_system_state* state, audio_instance instance);
 KAPI b8 kaudio_pause(struct kaudio_system_state* state, audio_instance instance);

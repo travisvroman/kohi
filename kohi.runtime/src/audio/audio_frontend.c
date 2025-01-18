@@ -16,8 +16,17 @@
 #include "core/engine.h"
 #include "kresources/kresource_types.h"
 #include "plugins/plugin_types.h"
+#include "strings/kstring.h"
 #include "systems/kresource_system.h"
 #include "systems/plugin_system.h"
+
+typedef struct kaudio_category_config {
+    kname name;
+    f32 volume;
+    kaudio_space audio_space;
+    u32 channel_id_count;
+    u32* channel_ids;
+} kaudio_category_config;
 
 typedef struct kaudio_system_config {
     /** @brief The frequency to output audio at. */
@@ -41,6 +50,9 @@ typedef struct kaudio_system_config {
 
     /** @brief The maximum number of audio resources (sounds or music) that can be loaded at once. */
     u32 max_resource_count;
+
+    u32 category_count;
+    kaudio_category_config* categories;
 
     /** @brief The name of the plugin to be loaded for the audio backend. */
     const char* backend_plugin_name;
@@ -113,6 +125,14 @@ typedef struct kaudio_channel {
     kaudio_resource_instance_data* bound_instance;
 } kaudio_channel;
 
+typedef struct kaudio_category {
+    kname name;
+    f32 volume;
+    kaudio_space audio_space;
+    u32 channel_id_count;
+    u32* channel_ids;
+} kaudio_category;
+
 typedef struct kaudio_system_state {
     f32 master_volume;
 
@@ -137,6 +157,9 @@ typedef struct kaudio_system_state {
 
     // Channels which can play audio.
     kaudio_channel channels[AUDIO_CHANNEL_MAX_COUNT];
+
+    u32 category_count;
+    kaudio_category categories[AUDIO_CHANNEL_MAX_COUNT];
 
     // The max number of audio resources that can be loaded at any time.
     u32 max_resource_count;
@@ -169,6 +192,7 @@ static kaudio_resource_handle_data* get_base(kaudio_system_state* state, khandle
 static kaudio_resource_instance_data* get_instance(kaudio_system_state* state, kaudio_resource_handle_data* base, khandle instance);
 static u32 get_active_instance_count(kaudio_resource_handle_data* base);
 static kaudio_channel* get_channel(kaudio_system_state* state, i8 channel_index);
+static kaudio_channel* get_available_channel_from_category(kaudio_system_state* state, u8 category_index);
 
 b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* config_str) {
 
@@ -214,6 +238,17 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
         channel->volume = 1.0f;
         // Also set some other reasonable defaults.
         channel->bound_resource = 0;
+    }
+
+    // Categories.
+    state->category_count = config.category_count;
+    for (u32 i = 0; i < config.category_count; ++i) {
+        state->categories[i].name = config.categories[i].name;
+        state->categories[i].audio_space = config.categories[i].audio_space;
+        state->categories[i].volume = config.categories[i].volume;
+        state->categories[i].channel_id_count = config.categories[i].channel_id_count;
+        state->categories[i].channel_ids = KALLOC_TYPE_CARRAY(u32, state->categories[i].channel_id_count);
+        kcopy_memory(state->categories[i].channel_ids, config.categories[i].channel_ids, sizeof(u32) * state->categories[i].channel_id_count);
     }
 
     // Load the plugin.
@@ -460,6 +495,44 @@ void kaudio_release(struct kaudio_system_state* state, audio_instance* instance)
             base_resource->uniqueid = INVALID_ID_U64;
         }
     }
+}
+
+i8 kaudio_category_id_get(struct kaudio_system_state* state, kname name) {
+    for (i8 i = 0; i < (i8)state->category_count; ++i) {
+        if (state->categories[i].name == name) {
+            return i;
+        }
+    }
+
+    // Not found.
+    return -1;
+}
+
+b8 kaudio_play_in_category_by_name(struct kaudio_system_state* state, audio_instance instance, kname category_name) {
+    i8 category_index = kaudio_category_id_get(state, category_name);
+    if (category_index < 0) {
+        return false;
+    }
+
+    return kaudio_play_in_category(state, instance, (u8)category_index);
+}
+
+b8 kaudio_play_in_category(struct kaudio_system_state* state, audio_instance instance, u8 category_index) {
+    if (!state || category_index >= state->category_count) {
+        return false;
+    }
+
+    // Get a channel belonging to the category.
+    kaudio_channel* channel = get_available_channel_from_category(state, category_index);
+    if (!channel) {
+        KWARN("No channel available to auto-select - perhaps increase number of channels for category? index=%u", category_index);
+        // Pick the first channel in the category and clobber it's sound.
+        channel = &state->channels[state->categories[category_index].channel_ids[0]];
+        kaudio_channel_stop(state, channel->index);
+    }
+
+    // Play it on that channel.
+    return kaudio_play(state, instance, channel->index);
 }
 
 b8 kaudio_play(struct kaudio_system_state* state, audio_instance instance, i8 channel_index) {
@@ -956,6 +1029,64 @@ static b8 deserialize_config(const char* config_str, kaudio_system_config* out_c
     }
     out_config->chunk_size = chunk_size;
 
+    kson_array category_obj_array = {0};
+    if (kson_object_property_value_get_array(&tree.root, "categories", &category_obj_array)) {
+        if (kson_array_element_count_get(&category_obj_array, &out_config->category_count)) {
+            out_config->categories = KALLOC_TYPE_CARRAY(kaudio_category_config, out_config->category_count);
+
+            // Each category.
+            for (u32 i = 0; i < out_config->category_count; ++i) {
+                kaudio_category_config* cat = &out_config->categories[i];
+                kson_object cat_obj = {0};
+                if (!kson_array_element_value_get_object(&category_obj_array, i, &cat_obj)) {
+                    KERROR("Possible format error reading object at index %u in 'categories' array. Skipping", i);
+                    continue;
+                }
+
+                // Name - required
+                if (!kson_object_property_value_get_string_as_kname(&cat_obj, "name", &cat->name)) {
+                    KERROR("Unable to find required category property 'name' at index %u. Skipping.", i);
+                    continue;
+                }
+
+                // Volume - optional
+                if (!kson_object_property_value_get_float(&cat_obj, "volume", &cat->volume)) {
+                    // Default
+                    cat->volume = 1.0f;
+                }
+
+                // Audio space - optional
+                const char* audio_space_str = 0;
+                if (!kson_object_property_value_get_string(&cat_obj, "audio_space", &audio_space_str)) {
+                    cat->audio_space = KAUDIO_SPACE_2D; // default to 2d if not provided.
+                } else {
+                    cat->audio_space = string_to_audio_space(audio_space_str);
+                    string_free(audio_space_str);
+                }
+
+                // Channel ids - required, must have at least one.
+                kson_array channel_ids_array = {0};
+                if (!kson_object_property_value_get_array(&cat_obj, "channel_ids", &channel_ids_array)) {
+                    KERROR("'channel_ids', a required field for a cateregory, does not exist for cateregory index %u. Skipping.", i);
+                    continue;
+                }
+                kson_array_element_count_get(&channel_ids_array, &cat->channel_id_count);
+                if (!cat->channel_id_count) {
+                    KERROR("Channel cateregory must have at least one channel id listed. Skipping index %u.", i);
+                    continue;
+                }
+
+                cat->channel_ids = KALLOC_TYPE_CARRAY(u32, cat->channel_id_count);
+
+                for (u32 c = 0; c < cat->channel_id_count; c++) {
+                    i64 val = 0;
+                    kson_array_element_value_get_int(&channel_ids_array, c, &val);
+                    cat->channel_ids[c] = (u32)val;
+                }
+            }
+        }
+    }
+
     kson_tree_cleanup(&tree);
 
     return true;
@@ -1067,5 +1198,29 @@ static kaudio_channel* get_channel(kaudio_system_state* state, i8 channel_index)
         return &state->channels[channel_index];
     }
 
+    return 0;
+}
+
+static kaudio_channel* get_available_channel_from_category(kaudio_system_state* state, u8 category_index) {
+    if (!state) {
+        return 0;
+    }
+
+    if (category_index >= state->category_count) {
+        return 0;
+    }
+    kaudio_category* cat = &state->categories[category_index];
+
+    // First available
+    for (u32 i = 0; i < cat->channel_id_count; ++i) {
+        u32 channel_id = cat->channel_ids[i];
+        kaudio_channel* channel = &state->channels[channel_id];
+        if (!channel->bound_instance && !channel->bound_resource) {
+            // Available, use it.
+            return channel;
+        }
+    }
+
+    KWARN("No channel is available for auto-selection via category, index=%u.", category_index);
     return 0;
 }
