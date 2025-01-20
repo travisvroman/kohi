@@ -136,10 +136,10 @@ KAPI void darray_destroy(void* array);
  * @param value The value to be pushed. A copy of this value is taken.
  * @returns A pointer to the array block.
  */
-#define darray_push(array, value)           \
-    {                                       \
-        typeof(value) temp = value;         \
-        array = _darray_push(array, &temp); \
+#define darray_push(array, value)                              \
+    {                                                          \
+        typeof(value) __k_temp_dingus_value__ = value;         \
+        array = _darray_push(array, &__k_temp_dingus_value__); \
     }
 // NOTE: could use __auto_type for temp above, but intellisense
 // for VSCode flags it as an unknown type. typeof() seems to
@@ -160,10 +160,10 @@ KAPI void darray_pop(void* array, void* dest);
  * @param value_ptr A pointer holding the value to be inserted.
  * @returns The array block.
  */
-#define darray_insert_at(array, index, value)           \
-    {                                                   \
-        typeof(value) temp = value;                     \
-        array = _darray_insert_at(array, index, &temp); \
+#define darray_insert_at(array, index, value)                              \
+    {                                                                      \
+        typeof(value) __k_temp_dingus_value__ = value;                     \
+        array = _darray_insert_at(array, index, &__k_temp_dingus_value__); \
     }
 
 /**
