@@ -33,7 +33,7 @@ b8 event_system_initialize(u64* memory_requirement, void* state, void* config) {
     if (state == 0) {
         return true;
     }
-    kzero_memory(state, sizeof(state));
+    kzero_memory(state, sizeof(event_system_state));
     state_ptr = state;
 
     // Notify the engine that the event system is ready for use.
@@ -57,6 +57,11 @@ void event_system_shutdown(void* state) {
 
 b8 event_register(u16 code, void* listener, PFN_on_event on_event) {
     if (!state_ptr) {
+        return false;
+    }
+
+    if (code >= MAX_MESSAGE_CODES) {
+        KERROR("event_register tried to register a code that is greater than the limit of %u.", MAX_MESSAGE_CODES);
         return false;
     }
 
