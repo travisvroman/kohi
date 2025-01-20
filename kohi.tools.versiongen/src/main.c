@@ -42,7 +42,11 @@ int main(int argc, const char** argv) {
                 }
                 fseek(f, 0, SEEK_SET);
 
-                fread(read_version, fsize, 1, f);
+                size_t result = fread(read_version, fsize, 1, f);
+                if (!result) {
+                    printf("Error reading version file. Cannot proceed.");
+                    return 1;
+                }
                 fclose(f);
                 char* lastchar = &read_version[fsize - 2];
                 if (*lastchar == '\n' || *lastchar == '\r') {
