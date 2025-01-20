@@ -15,32 +15,34 @@
 #include "defines.h"
 
 // Disable assertions by commenting out the below line.
-#define KASSERTIONS_ENABLED
+#define KASSERTIONS_ENABLED 1
 
-// Always define kdebug_break in case it is ever needed outside assertions (i.e fatal log errors)
-// Try via __has_builtin first.
-#if defined(__has_builtin) && !defined(__ibmxl__)
-#    if __has_builtin(__builtin_debugtrap)
-#        define kdebug_break() __builtin_debugtrap()
-#    elif __has_builtin(__debugbreak)
-#        define kdebug_break() __debugbreak()
-#    endif
-#endif
+KAPI void kdebug_break();
 
-// If not setup, try the old way.
-#if !defined(kdebug_break)
-#    if defined(__clang__) || defined(__gcc__)
-/** @brief Causes a debug breakpoint to be hit. */
-#        define kdebug_break() __builtin_trap()
-#    elif defined(_MSC_VER)
-#        include <intrin.h>
-/** @brief Causes a debug breakpoint to be hit. */
-#        define kdebug_break() __debugbreak()
-#    else
-// Fall back to x86/x86_64
-#        define kdebug_break() asm { int 3 }
-#    endif
-#endif
+// // Always define kdebug_break in case it is ever needed outside assertions (i.e fatal log errors)
+// // Try via __has_builtin first.
+// #if defined(__has_builtin) && !defined(__ibmxl__)
+// #    if __has_builtin(__builtin_debugtrap)
+// #        define kdebug_break() __builtin_debugtrap()
+// #    elif __has_builtin(__debugbreak)
+// #        define kdebug_break() __debugbreak()
+// #    endif
+// #endif
+
+// // If not setup, try the old way.
+// #if !defined(kdebug_break)
+// #    if defined(__clang__) || defined(__gcc__)
+// /** @brief Causes a debug breakpoint to be hit. */
+// #        define kdebug_break() __builtin_trap()
+// #    elif defined(_MSC_VER)
+// #        include <intrin.h>
+// /** @brief Causes a debug breakpoint to be hit. */
+// #        define kdebug_break() __debugbreak()
+// #    else
+// // Fall back to x86/x86_64
+// #        define kdebug_break() asm { int 3 }
+// #    endif
+// #endif
 
 #ifdef KASSERTIONS_ENABLED
 /**

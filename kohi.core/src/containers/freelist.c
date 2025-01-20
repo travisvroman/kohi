@@ -115,6 +115,10 @@ b8 freelist_free_block(freelist* list, u64 size, u64 offset) {
         return false;
     }
     internal_state* state = list->memory;
+    if (offset >= state->total_size) {
+        KFATAL("freelist_free_block - Attempting to free block (offset=%llu, size=%llu) that is out of the range of the freelist [0-%llu].", offset, size, state->total_size);
+        return false;
+    }
     freelist_node* node = state->head;
     freelist_node* previous = 0;
     if (!node) {
@@ -132,12 +136,17 @@ b8 freelist_free_block(freelist* list, u64 size, u64 offset) {
                 // Can be appended to the right of this node.
                 node->size += size;
 
+                if (offset == 18446603338515483712ULL) {
+                    KINFO("test");
+                }
+
                 // Check if this then connects the range between this and the next
                 // node, and if so, combine them and return the second node..
                 if (node->next && node->next->offset == node->offset + node->size) {
                     node->size += node->next->size;
                     freelist_node* next = node->next;
                     node->next = node->next->next;
+
                     return_node(next);
                 }
                 return true;
@@ -162,11 +171,16 @@ b8 freelist_free_block(freelist* list, u64 size, u64 offset) {
                     state->head = new_node;
                 }
 
+                if (offset == 18446603338515483712ULL) {
+                    KINFO("test");
+                }
+
                 // Double-check next node to see if it can be joined.
                 if (new_node->next && new_node->offset + new_node->size == new_node->next->offset) {
                     new_node->size += new_node->next->size;
                     freelist_node* rubbish = new_node->next;
                     new_node->next = rubbish->next;
+
                     return_node(rubbish);
                 }
 

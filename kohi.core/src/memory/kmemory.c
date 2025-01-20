@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define K_USE_CUSTOM_MEMORY_ALLOCATOR 1
+#define K_USE_CUSTOM_MEMORY_ALLOCATOR 0
 
 #if !K_USE_CUSTOM_MEMORY_ALLOCATOR
 #    if _MSC_VER
@@ -68,6 +68,17 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "SERIALIZER ",
     "ASSET      "};
 
+#ifdef K_TRACK_ALLOCATIONS
+typedef struct memory_allocation {
+    void* ptr;
+    u64 size;
+    u16 alignment;
+    const char* file;
+    i32 line;
+} memory_allocation;
+#    define MEMORY_MAX_ALLOCATIONS 65536
+#endif
+
 typedef struct memory_system_state {
     memory_system_configuration config;
     struct memory_stats stats;
@@ -77,6 +88,9 @@ typedef struct memory_system_state {
     void* allocator_block;
     // A mutex for allocations/frees
     kmutex allocation_mutex;
+#ifdef K_TRACK_ALLOCATIONS
+    memory_allocation active_allocations[MEMORY_MAX_ALLOCATIONS];
+#endif
 } memory_system_state;
 
 // Pointer to system state.
@@ -101,6 +115,13 @@ b8 memory_system_initialize(memory_system_configuration config) {
 
     // The state is in the first part of the massive block of memory.
     state_ptr = (memory_system_state*)block;
+#    ifdef K_TRACK_ALLOCATIONS
+    for (u32 i = 0; i < MEMORY_MAX_ALLOCATIONS; ++i) {
+        // Marks this "slot" as free
+        state_ptr->active_allocations[i].ptr = (void*)INVALID_ID_U64;
+    }
+
+#    endif
     state_ptr->config = config;
     state_ptr->alloc_count = 0;
     state_ptr->allocator_memory_requirement = alloc_requirement;
@@ -149,11 +170,7 @@ void memory_system_shutdown(void) {
     state_ptr = 0;
 }
 
-void* kallocate(u64 size, memory_tag tag) {
-    return kallocate_aligned(size, 1, tag);
-}
-
-void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
+static void* alloc_internal(u64 size, u16 alignment, memory_tag tag, const char* filename, i32 line) {
     KASSERT_MSG(size, "kallocate_aligned requires a nonzero size.");
     if (tag == MEMORY_TAG_UNKNOWN) {
         KWARN("kallocate_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
@@ -180,6 +197,34 @@ void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
 #else
         block = kaligned_alloc(size, alignment);
 #endif
+
+#ifdef K_TRACK_ALLOCATIONS
+        // Check first if an allocation within the range exists.
+        for (u32 i = 0; i < MEMORY_MAX_ALLOCATIONS; ++i) {
+            memory_allocation* allocation = &state_ptr->active_allocations[i];
+            if (allocation->ptr != (void*)INVALID_ID_U64) {
+                u64 min = (u64)allocation->ptr;
+                u64 max = (u64)allocation->size;
+                u64 val = (u64)block;
+                if (val >= min && val <= max) {
+                    KFATAL("Overlapping allocation found! New block = %p, other block: (ptr=%p, size=%llu)", block, allocation->ptr, allocation->size);
+                    return 0;
+                }
+            }
+        }
+        // Run through again, this time looking for a free "slot" to hold the allocation data.
+        for (u32 i = 0; i < MEMORY_MAX_ALLOCATIONS; ++i) {
+            memory_allocation* allocation = &state_ptr->active_allocations[i];
+            if (allocation->ptr == (void*)INVALID_ID_U64) {
+                allocation->ptr = block;
+                allocation->size = size;
+                allocation->alignment = alignment;
+                allocation->file = filename;
+                allocation->line = line;
+                break;
+            }
+        }
+#endif
         kmutex_unlock(&state_ptr->allocation_mutex);
     } else {
         // If the system is not up yet, warn about it but give memory for now.
@@ -197,6 +242,24 @@ void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
     return 0;
 }
 
+#ifdef K_TRACK_ALLOCATIONS
+void* kallocate_file_info(u64 size, memory_tag tag, const char* filename, i32 line_number) {
+    return kallocate_aligned_file_info(size, 1, tag, filename, line_number);
+}
+
+void* kallocate_aligned_file_info(u64 size, u16 alignment, memory_tag tag, const char* filename, i32 line_number) {
+    return alloc_internal(size, alignment, tag, filename, line_number);
+}
+#else
+void* kallocate(u64 size, memory_tag tag) {
+    return kallocate_aligned(size, 1, tag);
+}
+
+void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
+    return alloc_internal(size, alignment, tag, 0, 0);
+}
+#endif
+
 void kallocate_report(u64 size, memory_tag tag) {
     // Make sure multithreaded requests don't trample each other.
     if (!kmutex_lock(&state_ptr->allocation_mutex)) {
@@ -210,6 +273,21 @@ void kallocate_report(u64 size, memory_tag tag) {
     kmutex_unlock(&state_ptr->allocation_mutex);
 }
 
+#ifdef K_TRACK_ALLOCATIONS
+void* kreallocate_file_info(void* block, u64 old_size, u64 new_size, memory_tag tag, const char* file, i32 line_number) {
+    return kreallocate_aligned_file_info(block, old_size, new_size, 1, tag, file, line_number);
+}
+
+void* kreallocate_aligned_file_info(void* block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag, const char* filename, i32 line_number) {
+    void* new_block = kallocate_aligned_file_info(new_size, alignment, tag, filename, line_number);
+    if (block && new_block) {
+        kcopy_memory(new_block, block, old_size);
+        kfree_aligned(block, old_size, alignment, tag);
+    }
+    return new_block;
+}
+
+#else
 void* kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag) {
     return kreallocate_aligned(block, old_size, new_size, 1, tag);
 }
@@ -222,6 +300,7 @@ void* kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignment
     }
     return new_block;
 }
+#endif
 
 void kreallocate_report(u64 old_size, u64 new_size, memory_tag tag) {
     kfree_report(old_size, tag);
@@ -253,6 +332,27 @@ void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
         if (oalignment != alignment) {
             printf("Free alignment mismatch! (%hu/%hu)\n", oalignment, alignment);
         }
+#endif
+
+#ifdef K_TRACK_ALLOCATIONS
+        // Look for the allocation.
+        b8 found = false;
+        for (u32 i = 0; i < MEMORY_MAX_ALLOCATIONS; ++i) {
+            memory_allocation* allocation = &state_ptr->active_allocations[i];
+            if (allocation->ptr == block) {
+                // Reset it if found.
+                allocation->ptr = (void*)INVALID_ID_U64;
+                allocation->alignment = 0;
+                allocation->size = 0;
+                allocation->file = 0;
+                allocation->line = 0;
+                found = true;
+                break;
+            }
+        }
+
+        KASSERT_MSG(found, "Allocation not found, but requested to be freed. Debug for details");
+
 #endif
 
         state_ptr->stats.total_allocated -= size;
@@ -312,6 +412,18 @@ b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment) {
 }
 
 void* kzero_memory(void* block, u64 size) {
+#ifdef K_TRACK_ALLOCATIONS
+    if (state_ptr && block >= state_ptr->allocator.memory && block < (void*)(((u8*)state_ptr->allocator.memory) + dynamic_allocator_total_space(&state_ptr->allocator))) {
+        // Check first if an allocation within the range exists.
+        for (u32 i = 0; i < MEMORY_MAX_ALLOCATIONS; ++i) {
+            memory_allocation* allocation = &state_ptr->active_allocations[i];
+            if (allocation->ptr == block && size > allocation->size) {
+                KFATAL("Trying to zero memory block = %p, past its bounds: (ptr=%p, size=%llu)", block, allocation->ptr, allocation->size);
+                return 0;
+            }
+        }
+    }
+#endif
     return platform_zero_memory(block, size);
 }
 

@@ -45,7 +45,7 @@
 
 // NOTE: To disable the custom allocator, comment this out or set to 0.
 #ifndef KVULKAN_USE_CUSTOM_ALLOCATOR
-#    define KVULKAN_USE_CUSTOM_ALLOCATOR 1
+#    define KVULKAN_USE_CUSTOM_ALLOCATOR 0
 #endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
@@ -114,15 +114,11 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
 
     // NOTE: Custom allocator.
 #if KVULKAN_USE_CUSTOM_ALLOCATOR == 1
-    context->allocator =
-        kallocate(sizeof(VkAllocationCallbacks), MEMORY_TAG_RENDERER);
+    context->allocator = kallocate(sizeof(VkAllocationCallbacks), MEMORY_TAG_RENDERER);
     if (!create_vulkan_allocator(context, context->allocator)) {
         // If this fails, gracefully fall back to the default allocator.
-        KFATAL(
-            "Failed to create custom Vulkan allocator. Continuing using the "
-            "driver's default allocator.");
-        kfree(context->allocator, sizeof(VkAllocationCallbacks),
-              MEMORY_TAG_RENDERER);
+        KFATAL("Failed to create custom Vulkan allocator. Continuing using the driver's default allocator.");
+        kfree(context->allocator, sizeof(VkAllocationCallbacks), MEMORY_TAG_RENDERER);
         context->allocator = 0;
     }
 #else
@@ -137,9 +133,16 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
     context->api_minor = VK_VERSION_MINOR(api_version);
     context->api_patch = VK_VERSION_PATCH(api_version);
 
+    // // HACK: Not wanting to support 1.4 yet, so force 1.3.296
+    // if (context->api_major == 1 && context->api_minor > 3) {
+    //     context->api_minor = 4;
+    //     context->api_patch = 0;
+    // }
+
     // Setup Vulkan instance.
     VkApplicationInfo app_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
-    app_info.apiVersion = VK_MAKE_API_VERSION(0, context->api_major, context->api_minor, context->api_patch);
+    // app_info.apiVersion = VK_MAKE_API_VERSION(0, context->api_major, context->api_minor, context->api_patch);
+    // app_info.apiVersion = VK_MAKE_VERSION(context->api_major, context->api_minor, context->api_patch);
     app_info.pApplicationName = config->application_name;
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "Kohi Engine";

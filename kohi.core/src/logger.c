@@ -39,12 +39,12 @@ void _log_output(log_level level, const char* message, ...) {
         platform_console_write(0, level, out_message);
     }
 
-    string_free(out_message);
-
     // Trigger a "debug break" for fatal errors.
     if (level == LOG_LEVEL_FATAL) {
         kdebug_break();
     }
+
+    string_free(out_message);
 }
 
 void report_assertion_failure(const char* expression, const char* message, const char* file, i32 line) {

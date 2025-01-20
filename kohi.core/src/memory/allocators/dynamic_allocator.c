@@ -5,6 +5,12 @@
 #include "logger.h"
 #include "containers/freelist.h"
 
+#ifndef KALLOC_TRACE
+#    include <stdio.h>
+#    define KALLOC_TRACE 1
+#    define KALLOC_GUARD_VALUE 0xC0FFEE69
+#endif
+
 typedef struct dynamic_allocator_state {
     u64 total_size;
     freelist list;
@@ -13,12 +19,21 @@ typedef struct dynamic_allocator_state {
 } dynamic_allocator_state;
 
 typedef struct alloc_header {
+#if KALLOC_TRACE
+    u32 guard_start;
+#endif
     void* start;
     u16 alignment;
 } alloc_header;
 
 // The storage size in bytes of a node's user memory block size
-#define KSIZE_STORAGE sizeof(u32)
+#if KALLOC_TRACE
+// Enough to hold a 4-byte size and a 4-byte guard value.
+#    define KSIZE_STORAGE sizeof(u64)
+#else
+// Enough to hold a 4-byte size
+#    define KSIZE_STORAGE sizeof(u32)
+#endif
 
 b8 dynamic_allocator_create(u64 total_size, u64* memory_requirement, void* memory, dynamic_allocator* out_allocator) {
     if (total_size < 1) {
@@ -105,10 +120,22 @@ void* dynamic_allocator_allocate_aligned(dynamic_allocator* allocator, u64 size,
             // Store the size just before the user data block
             u32* block_size = (u32*)(aligned_block_offset - KSIZE_STORAGE);
             *block_size = (u32)size;
+#if KALLOC_TRACE
+            u32* guard_end = (u32*)(aligned_block_offset - sizeof(u32));
+            *guard_end = KALLOC_GUARD_VALUE;
+#endif
             // Store the header immediately after the user block.
             alloc_header* header = (alloc_header*)(aligned_block_offset + size);
             header->start = ptr;
             header->alignment = alignment;
+#if KALLOC_TRACE
+            header->guard_start = KALLOC_GUARD_VALUE;
+#endif
+
+#if KALLOC_TRACE
+            // NOTE: Have to printf here since the logging routines use dynamic allocations.
+            printf("  Allocating block %p with size/alignment: %llu/%hu.\n", (void*)aligned_block_offset, size, alignment);
+#endif
 
             return (void*)aligned_block_offset;
         } else {
@@ -142,9 +169,20 @@ b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block) {
     }
 
     u32* block_size = (u32*)((u64)block - KSIZE_STORAGE);
+#if KALLOC_TRACE
+    u32* guard_end = (u32*)(block - sizeof(u32));
+    KASSERT(*guard_end == KALLOC_GUARD_VALUE);
+#endif
     alloc_header* header = (alloc_header*)((u64)block + *block_size);
+#if KALLOC_TRACE
+    KASSERT(header->guard_start == KALLOC_GUARD_VALUE);
+#endif
     u64 required_size = header->alignment + sizeof(alloc_header) + KSIZE_STORAGE + *block_size;
     u64 offset = (u64)header->start - (u64)state->memory_block;
+#if KALLOC_TRACE
+    // NOTE: Have to printf here since the logging routines use dynamic allocations.
+    printf("  Block %p found with size/alignment: %u/%u. Freeing...\n", (void*)block, *block_size, header->alignment);
+#endif
     if (!freelist_free_block(&state->list, required_size, offset)) {
         KERROR("dynamic_allocator_free_aligned failed.");
         return false;
@@ -154,9 +192,18 @@ b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block) {
 }
 
 b8 dynamic_allocator_get_size_alignment(void* block, u64* out_size, u16* out_alignment) {
+#if KALLOC_TRACE
+    u32* guard_end = (u32*)(block - sizeof(u32));
+    KASSERT(*guard_end == KALLOC_GUARD_VALUE);
+#endif
     // Get the header.
     *out_size = *(u32*)((u64)block - KSIZE_STORAGE);
     alloc_header* header = (alloc_header*)((u64)block + *out_size);
+#if KALLOC_TRACE
+    KASSERT(header->guard_start == KALLOC_GUARD_VALUE);
+    // NOTE: Have to printf here since logging can call this indirectly.
+    printf("  Block %p found with size/alignment: %llu/%u.\n", block, *out_size, header->alignment);
+#endif
     *out_alignment = header->alignment;
     return true;
 }

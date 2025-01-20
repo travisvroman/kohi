@@ -17,6 +17,11 @@
 
 #include "defines.h"
 
+// NOTE: Uncomment the below if allocation tracking is required.
+// #ifndef K_TRACK_ALLOCATIONS
+// #    define K_TRACK_ALLOCATIONS 1
+// #endif
+
 // Interface for a frame allocator.
 typedef struct frame_allocator_int {
     void* (*allocate)(u64 size);
@@ -85,6 +90,18 @@ KAPI b8 memory_system_initialize(memory_system_configuration config);
  */
 KAPI void memory_system_shutdown(void);
 
+#ifdef K_TRACK_ALLOCATIONS
+KAPI void* kallocate_file_info(u64 size, memory_tag tag, const char* filename, i32 line_number);
+
+/**
+ * @brief Performs a memory allocation from the host of the given size. The allocation
+ * is tracked for the provided tag.
+ * @param size The size of the allocation.
+ * @param tag Indicates the use of the allocated block.
+ * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
+ */
+#    define kallocate(size, tag) kallocate_file_info(size, tag, __FILE__, __LINE__)
+#else
 /**
  * @brief Performs a memory allocation from the host of the given size. The allocation
  * is tracked for the provided tag.
@@ -93,6 +110,7 @@ KAPI void memory_system_shutdown(void);
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
 KAPI void* kallocate(u64 size, memory_tag tag);
+#endif
 
 /**
  * @brief Dynamically allocates memory for the given type. Also casts to type*.
@@ -130,6 +148,8 @@ KAPI void* kallocate(u64 size, memory_tag tag);
  * @param count The number of elements in the array to be freed.
  */
 #define KFREE_TYPE_CARRAY(block, type, count) kfree(block, sizeof(type) * count, MEMORY_TAG_ARRAY)
+#ifdef K_TRACK_ALLOCATIONS
+KAPI void* kallocate_aligned_file_info(u64 size, u16 alignment, memory_tag tag, const char* filename, i32 line_number);
 
 /**
  * @brief Performs an aligned memory allocation from the host of the given size and alignment.
@@ -140,7 +160,19 @@ KAPI void* kallocate(u64 size, memory_tag tag);
  * @param tag Indicates the use of the allocated block.
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
+#    define kallocate_aligned(size, alignment, tag) kallocate_aligned_file_info(size, alignment, tag, __FILE__, __LINE__)
+#else
+/**
+ * @brief Performs an aligned memory allocation from the host of the given size and alignment.
+ * The allocation is tracked for the provided tag. NOTE: Memory allocated this way must be freed
+ * using kfree_aligned.
+ * @param size The size of the allocation.
+ * @param alignment The alignment in bytes.
+ * @param tag Indicates the use of the allocated block.
+ * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
+ */
 KAPI void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag);
+#endif
 
 /**
  * @brief Reports an allocation associated with the application, but made externally.
@@ -152,6 +184,37 @@ KAPI void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag);
  */
 KAPI void kallocate_report(u64 size, memory_tag tag);
 
+#ifdef K_TRACK_ALLOCATIONS
+
+KAPI void* kreallocate_file_info(void* block, u64 old_size, u64 new_size, memory_tag tag, const char* file, i32 line_number);
+
+/**
+ * @brief Performs a memory reallocation from the host of the given size, and also frees the
+ * block of memory given. The reallocation is tracked for the provided tag.
+ * @param block The block of memory to reallocate.
+ * @param old_size The size of the old allocation (that gets freed).
+ * @param new_size The size of the new allocation (that get allocated).
+ * @param tag Indicates the use of the allocated block.
+ * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
+ */
+#    define kreallocate(block, old_size, new_size, tag) kreallocate_file_info(block, old_size, new_size, tag, __FILE__, __LINE__);
+
+KAPI void* kreallocate_aligned_file_info(void* block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag, const char* filename, i32 line_number);
+
+/**
+ * @brief Performs a memory reallocation from the host of the given size and alignment, and also frees the
+ * block of memory given. The reallocation is tracked for the provided tag.
+ * NOTE: Memory allocated this way must be freed using kfree_aligned.
+
+ * @param block The block of memory to reallocate.
+ * @param old_size The size of the old allocation (that gets freed).
+ * @param new_size The size of the new allocation (that get allocated).
+ * @param alignment The byte alignment to be used for the reallocation.
+ * @param tag Indicates the use of the allocated block.
+ * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
+ */
+#    define kreallocate_aligned(block, old_size, new_size, alignment, tag) kreallocate_aligned_file_info(block, old_size, new_size, alignment, tag, __FILE__, __LINE__)
+#else
 /**
  * @brief Performs a memory reallocation from the host of the given size, and also frees the
  * block of memory given. The reallocation is tracked for the provided tag.
@@ -176,6 +239,7 @@ KAPI void* kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag);
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
 KAPI void* kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag);
+#endif
 
 /**
  * @brief Reports an allocation associated with the application, but made externally.
