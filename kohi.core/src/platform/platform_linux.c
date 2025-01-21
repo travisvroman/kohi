@@ -977,8 +977,12 @@ static keys translate_keycode(u32 x_keycode) {
         return KEY_HELP;
 
     case XK_Meta_L:
-        return KEY_LSUPER; // TODO: not sure this is right
+    case XK_Super_L:
+        // Treat the "meta" key (if mapped) as super
+        return KEY_LSUPER;
     case XK_Meta_R:
+    case XK_Super_R:
+        // Treat the "meta" key (if mapped) as super
         return KEY_RSUPER;
         // case XK_apps: return KEY_APPS; // not supported
 
