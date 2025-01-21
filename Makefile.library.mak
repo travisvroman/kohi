@@ -50,12 +50,12 @@ else
 		# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say
 		# otherwise are exported (i.e. via KAPI).
 		COMPILER_FLAGS :=-fvisibility=hidden -fpic -Wall -Wno-error=deprecated-declarations -Wno-error=unused-function -Werror -Wvla -Wno-missing-braces -fdeclspec 
-		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src -I$(VULKAN_SDK)/include $(ADDL_INC_FLAGS)
+		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
 		# NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
 		# These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
 		# here that would not on other platforms from not being exported (i.e. Windows)
 		# Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
-		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -shared -lvulkan -lxcb -lX11 -lX11-xcb -lxkbcommon -lm -L$(VULKAN_SDK)/lib -L/usr/X11R6/lib -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) 		# .c files
+		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -shared -lxcb -lX11 -lX11-xcb -lxkbcommon -lm -L/usr/X11R6/lib -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
 		# directories with .h files
 		DIRECTORIES := $(shell find $(ASSEMBLY) -type d)
@@ -125,7 +125,7 @@ COMPILER_FLAGS += -g -MD -O0
 LINKER_FLAGS += -g
 endif
 
-all: scaffold compile link gen_compile_flags
+all: scaffold gen_compile_flags compile link 
 
 .NOTPARALLEL: scaffold
 

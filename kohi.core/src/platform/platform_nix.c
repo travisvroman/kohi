@@ -381,8 +381,22 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
 
     void* library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded.dylib"
     if (!library) {
-        KERROR("Error opening library: %s", dlerror());
-        return false;
+
+        // Try the local folder
+        kzero_memory(filename, sizeof(char) * 260);
+        string_format_unsafe(filename, "./%s%s%s", prefix, name, extension);
+        library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded.dylib"
+        if (!library) {
+
+            // try a fallback to /usr/local/lib
+            kzero_memory(filename, sizeof(char) * 260);
+            string_format_unsafe(filename, "/usr/local/lib/%s%s%s", prefix, name, extension);
+            library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded.dylib"
+            if (!library) {
+                KERROR("Error opening library: %s", dlerror());
+                return false;
+            }
+        }
     }
 
     out_library->name = string_duplicate(name);

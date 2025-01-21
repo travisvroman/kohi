@@ -141,16 +141,22 @@ b8 platform_system_startup(u64* memory_requirement, struct platform_state* state
 }
 
 void platform_system_shutdown(struct platform_state* state) {
-    if (state && state->windows) {
-        u32 len = darray_length(state->windows);
-        for (u32 i = 0; i < len; ++i) {
-            if (state->windows[i]) {
-                platform_window_destroy(state->windows[i]);
-                state->windows[i] = 0;
+    if (state) {
+        if (state->windows) {
+            u32 len = darray_length(state->windows);
+            for (u32 i = 0; i < len; ++i) {
+                if (state->windows[i]) {
+                    platform_window_destroy(state->windows[i]);
+                    state->windows[i] = 0;
+                }
             }
+            darray_destroy(state->windows);
+            state->windows = 0;
         }
-        darray_destroy(state->windows);
-        state->windows = 0;
+        if (state->handle.connection) {
+            free(state->handle.connection);
+            state->handle.connection = 0;
+        }
     }
 }
 
@@ -336,24 +342,10 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 
     // Tell the server to notify when the window manager
     // attempts to destroy the window.
-    xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(
-        state_ptr->handle.connection,
-        0,
-        strlen("WM_DELETE_WINDOW"),
-        "WM_DELETE_WINDOW");
-    xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(
-        state_ptr->handle.connection,
-        0,
-        strlen("WM_PROTOCOLS"),
-        "WM_PROTOCOLS");
-    xcb_intern_atom_reply_t* wm_delete_reply = xcb_intern_atom_reply(
-        state_ptr->handle.connection,
-        wm_delete_cookie,
-        NULL);
-    xcb_intern_atom_reply_t* wm_protocols_reply = xcb_intern_atom_reply(
-        state_ptr->handle.connection,
-        wm_protocols_cookie,
-        NULL);
+    xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, strlen("WM_DELETE_WINDOW"), "WM_DELETE_WINDOW");
+    xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, strlen("WM_PROTOCOLS"), "WM_PROTOCOLS");
+    xcb_intern_atom_reply_t* wm_delete_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_delete_cookie, NULL);
+    xcb_intern_atom_reply_t* wm_protocols_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_protocols_cookie, NULL);
     state_ptr->wm_delete_win = wm_delete_reply->atom;
     state_ptr->wm_protocols = wm_protocols_reply->atom;
 
@@ -366,6 +358,9 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
         32,
         1,
         &wm_delete_reply->atom);
+
+    free(wm_delete_reply);
+    free(wm_protocols_reply);
 
     // Map the window to the screen
     xcb_map_window(state_ptr->handle.connection, window->platform_state->window);
@@ -648,7 +643,7 @@ const char* platform_dynamic_library_extension(void) {
 }
 
 const char* platform_dynamic_library_prefix(void) {
-    return "./lib";
+    return "lib";
 }
 
 void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback, void* context) {
@@ -982,8 +977,12 @@ static keys translate_keycode(u32 x_keycode) {
         return KEY_HELP;
 
     case XK_Meta_L:
-        return KEY_LSUPER; // TODO: not sure this is right
+    case XK_Super_L:
+        // Treat the "meta" key (if mapped) as super
+        return KEY_LSUPER;
     case XK_Meta_R:
+    case XK_Super_R:
+        // Treat the "meta" key (if mapped) as super
         return KEY_RSUPER;
         // case XK_apps: return KEY_APPS; // not supported
 
