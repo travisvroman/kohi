@@ -248,10 +248,10 @@ void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
         u16 oalignment = 0;
         dynamic_allocator_get_size_alignment(block, &osize, &oalignment);
         if (osize != size) {
-            printf("Free size mismatch! (%llu/%llu)\n", osize, size);
+            printf("Free size mismatch! (original=%llu, requested=%llu)\n", osize, size);
         }
         if (oalignment != alignment) {
-            printf("Free alignment mismatch! (%hu/%hu)\n", oalignment, alignment);
+            printf("Free alignment mismatch! (original=%hu, requested=%hu)\n", oalignment, alignment);
         }
 #endif
 

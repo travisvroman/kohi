@@ -15,6 +15,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <defines.h>
+#include <platform/platform.h>
 
 struct kwindow;
 struct vulkan_context;
@@ -24,8 +25,7 @@ struct VkPhysicalDevice_T;
 
 // The Vulkan Render Hardware Interface.
 typedef struct krhi_vulkan {
-    void* vulkan_lib;
-    void* (*load_func)(void*, const char*);
+    dynamic_library vulkan_lib;
 
     VkInstance instance;
     VkDevice device;

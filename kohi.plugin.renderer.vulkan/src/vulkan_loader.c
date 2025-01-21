@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan.h>
 
-#define RHI_FUNCTION(name) rhi->k##name = (PFN_##name)rhi->load_func(rhi->vulkan_lib, #name)
+#define RHI_FUNCTION(name) rhi->k##name = (PFN_##name)platform_dynamic_library_load_function(#name, &rhi->vulkan_lib)
 #define RHI_INSTANCE_FUNCTION(name) rhi->k##name = (PFN_##name)rhi->kvkGetInstanceProcAddr(rhi->instance, #name)
 #define RHI_DEVICE_FUNCTION(name) rhi->k##name = (PFN_##name)rhi->kvkGetDeviceProcAddr(rhi->device, #name)
 

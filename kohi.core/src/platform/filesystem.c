@@ -162,7 +162,7 @@ const char* filesystem_read_entire_text_file(const char* filepath) {
     // (effectively trimming it) instead of the allocated one above to avoid leaks.
     if (bytes_read < size) {
         const char* copy = string_duplicate(buf);
-        kfree(buf, size, MEMORY_TAG_STRING);
+        kfree(buf, size + 1, MEMORY_TAG_STRING);
         return copy;
     }
     return buf;
