@@ -80,14 +80,15 @@ KAPI b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block
 
 /**
  * @brief Obtains the size and alignment of the given block of memory. Can fail if
- * invalid data is passed.
+ * invalid data is passed or the pointer is not owned by the allocator.
  *
+ * @param allocator A pointer to the allocator.
  * @param block The block of memory.
  * @param out_size A pointer to hold the size.
  * @param out_alignment A pointer to hold the alignment.
  * @return True on success; otherwise false.
  */
-KAPI b8 dynamic_allocator_get_size_alignment(void* block, u64* out_size, u16* out_alignment);
+KAPI b8 dynamic_allocator_get_size_alignment(dynamic_allocator* allocator, void* block, u64* out_size, u16* out_alignment);
 
 /**
  * @brief Obtains the amount of free space left in the provided allocator.

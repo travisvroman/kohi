@@ -2,16 +2,22 @@
 
 #if defined(KPLATFORM_APPLE)
 
-#define VK_USE_PLATFORM_METAL_EXT
-#include <vulkan/vulkan.h>
+#    include "vulkan/vulkan_core.h"
+#    include "vulkan/vulkan_metal.h"
 
-#include <containers/darray.h>
-#include <logger.h>
-#include <memory/kmemory.h>
-#include <platform/platform.h>
+// Loading function pointers
+#    include <dlfcn.h>
 
-#include "platform/vulkan_platform.h"
-#include "vulkan_types.h"
+#    define VK_USE_PLATFORM_METAL_EXT
+#    include <vulkan/vulkan.h>
+
+#    include <containers/darray.h>
+#    include <logger.h>
+#    include <memory/kmemory.h>
+#    include <platform/platform.h>
+
+#    include "platform/vulkan_platform.h"
+#    include "vulkan_types.h"
 
 // Forward declarations for Obj-C "classes" in the platform implementation.
 typedef struct ContentView ContentView;
@@ -40,8 +46,13 @@ b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow
 
     VkMetalSurfaceCreateInfoEXT create_info = {VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT};
     create_info.pLayer = window->platform_state->layer;
+    PFN_vkCreateMetalSurfaceEXT kvkCreateMetalSurfaceEXT = platform_dynamic_library_load_function("vkCreateMetalSurfaceEXT", &context->rhi.vulkan_lib);
+    if (!kvkCreateMetalSurfaceEXT) {
+        KERROR("Failed to load vkCreateMetalSurfaceEXT!");
+        return false;
+    }
 
-    VkResult result = vkCreateMetalSurfaceEXT(
+    VkResult result = kvkCreateMetalSurfaceEXT(
         context->instance,
         &create_info,
         context->allocator,
@@ -60,6 +71,14 @@ b8 vulkan_platform_presentation_support(vulkan_context* context, VkPhysicalDevic
     // 34.4.10. macOS Platform
     // On macOS, all physical devices and queue families must be capable of presentation with any layer. As a result there is no macOS-specific query for these capabilities.
     return true;
+}
+
+b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
+    if (!rhi) {
+        return false;
+    }
+
+    return platform_dynamic_library_load("vulkan.1", &rhi->vulkan_lib);
 }
 
 #endif

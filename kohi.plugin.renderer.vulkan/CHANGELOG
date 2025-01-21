@@ -14,6 +14,7 @@ Kohi Vulkan Renderer Plugin Changelog
     operations, wereas the swapchain image index should only be used for acquiring swapchain images and presentation purposes.
   - Fixed a long-standing bug that was adding colour attachment data to pipelines regardless if there were any.
     This fixes the "Some things don't render unless validation layers are enabled" bug.
+  - Changed linking of Vulkan lib to dynamic, and added a custom loader.
 
 - 0.6.0
   - Added support for secondary command buffers.

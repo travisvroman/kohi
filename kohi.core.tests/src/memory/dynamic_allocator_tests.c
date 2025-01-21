@@ -294,7 +294,7 @@ u8 dynamic_allocator_single_alloc_aligned(void) {
     // Verify size and alignment
     u64 block_size;
     u16 block_alignment;
-    result = dynamic_allocator_get_size_alignment(block, &block_size, &block_alignment);
+    result = dynamic_allocator_get_size_alignment(&alloc, block, &block_size, &block_alignment);
     expect_to_be_true(result);
     expect_should_be(alignment, block_alignment);
     expect_should_be(1024, block_size);
@@ -362,7 +362,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
         // Verify size and alignment
         u64 block_size;
         u16 block_alignment;
-        result = dynamic_allocator_get_size_alignment(alloc_datas[idx].block, &block_size, &block_alignment);
+        result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
         expect_to_be_true(result);
         expect_should_be(alloc_datas[idx].alignment, block_alignment);
         expect_should_be(alloc_datas[idx].size, block_size);
@@ -384,7 +384,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
         // Verify size and alignment
         u64 block_size;
         u16 block_alignment;
-        result = dynamic_allocator_get_size_alignment(alloc_datas[idx].block, &block_size, &block_alignment);
+        result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
         expect_to_be_true(result);
         expect_should_be(alloc_datas[idx].alignment, block_alignment);
         expect_should_be(alloc_datas[idx].size, block_size);
@@ -406,7 +406,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
         // Verify size and alignment
         u64 block_size;
         u16 block_alignment;
-        result = dynamic_allocator_get_size_alignment(alloc_datas[idx].block, &block_size, &block_alignment);
+        result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
         expect_to_be_true(result);
         expect_should_be(alloc_datas[idx].alignment, block_alignment);
         expect_should_be(alloc_datas[idx].size, block_size);
@@ -428,7 +428,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
         // Verify size and alignment
         u64 block_size;
         u16 block_alignment;
-        result = dynamic_allocator_get_size_alignment(alloc_datas[idx].block, &block_size, &block_alignment);
+        result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
         expect_to_be_true(result);
         expect_should_be(alloc_datas[idx].alignment, block_alignment);
         expect_should_be(alloc_datas[idx].size, block_size);
@@ -504,7 +504,7 @@ u8 util_allocate(dynamic_allocator* allocator, alloc_data* data, u64* currently_
     // Verify size and alignment
     u64 block_size;
     u16 block_alignment;
-    b8 result = dynamic_allocator_get_size_alignment(data->block, &block_size, &block_alignment);
+    b8 result = dynamic_allocator_get_size_alignment(allocator, data->block, &block_size, &block_alignment);
     expect_to_be_true(result);
     expect_should_be(data->alignment, block_alignment);
     expect_should_be(data->size, block_size);

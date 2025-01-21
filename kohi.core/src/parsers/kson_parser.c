@@ -843,8 +843,7 @@ b8 kson_parser_parse(kson_parser* parser, kson_tree* out_tree) {
                 }
 
                 // Reset the numeric parse string state.
-                u32 num_lit_len = string_length(numeric_literal_str);
-                kzero_memory(numeric_literal_str, sizeof(char) * num_lit_len);
+                kzero_memory(numeric_literal_str, sizeof(char) * NUMERIC_LITERAL_STR_MAX_LENGTH);
                 expect_numeric = false;
                 numeric_decimal_pos = -1;
                 numeric_literal_str_pos = 0;
