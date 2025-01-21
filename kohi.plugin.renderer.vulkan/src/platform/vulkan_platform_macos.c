@@ -45,7 +45,7 @@ b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow
 
     VkMetalSurfaceCreateInfoEXT create_info = {VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT};
     create_info.pLayer = window->platform_state->layer;
-    PFN_vkCreateMetalSurfaceEXT kvkCreateMetalSurfaceEXT = dlsym(context->rhi.vulkan_lib, "vkCreateMetalSurfaceEXT");
+    PFN_vkCreateMetalSurfaceEXT kvkCreateMetalSurfaceEXT = platform_dynamic_library_load_function("vkCreateMetalSurfaceEXT", &context->rhi.vulkan_lib);
     if (!kvkCreateMetalSurfaceEXT) {
         KERROR("Failed to load vkCreateMetalSurfaceEXT!");
         return false;
@@ -77,19 +77,7 @@ b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
         return false;
     }
 
-    rhi->vulkan_lib = dlopen("libvulkan.1.dylib", RTLD_LAZY);
-    if (!rhi->vulkan_lib) {
-        // Try this specific path, since it isn't included by default for some reason...
-        // Not sure when/why this changed, but this can help.
-        rhi->vulkan_lib = dlopen("/usr/local/lib/libvulkan.1.dylib", RTLD_LAZY);
-        if (!rhi->vulkan_lib) {
-            KERROR("Failed to load Vulkan library:%s ", dlerror());
-            return false;
-        }
-    }
-    rhi->load_func = dlsym;
-
-    return true;
+    return platform_dynamic_library_load("vulkan.1", &rhi->vulkan_lib);
 }
 
 #endif
