@@ -4877,8 +4877,12 @@ static b8 frequency_has_uniforms(vulkan_shader_frequency_info* frequency_info) {
  * @param allocationScope The allocation scope and lifetime.
  * @return A memory block if successful; otherwise 0.
  */
-static void* vulkan_alloc_allocation(void* user_data, size_t size, size_t alignment,
-                                     VkSystemAllocationScope allocation_scope) {
+static void* vulkan_alloc_allocation(
+    void* user_data,
+    size_t size,
+    size_t alignment,
+    VkSystemAllocationScope allocation_scope) {
+
     // Null MUST be returned if this fails.
     if (size == 0) {
         return 0;
@@ -4886,8 +4890,7 @@ static void* vulkan_alloc_allocation(void* user_data, size_t size, size_t alignm
 
     void* result = kallocate_aligned(size, (u16)alignment, MEMORY_TAG_VULKAN);
 #    ifdef KVULKAN_ALLOCATOR_TRACE
-    KTRACE("Allocated block %p. Size=%llu, Alignment=%llu", result, size,
-           alignment);
+    KTRACE("Allocated block %p. Size=%llu, Alignment=%llu", result, size, alignment);
 #    endif
     return result;
 }
@@ -4922,8 +4925,7 @@ static void vulkan_alloc_free(void* user_data, void* memory) {
 #    endif
         kfree_aligned(memory, size, alignment, MEMORY_TAG_VULKAN);
     } else {
-        KERROR("vulkan_alloc_free failed to get alignment lookup for block %p.",
-               memory);
+        KERROR("vulkan_alloc_free failed to get alignment lookup for block %p.", memory);
     }
 }
 
@@ -4941,12 +4943,14 @@ static void vulkan_alloc_free(void* user_data, void* memory) {
  * @param allocation_scope The scope and lifetime of the allocation.
  * @return A memory block if successful; otherwise 0.
  */
-static void* vulkan_alloc_reallocation(void* user_data, void* original, size_t size,
-                                       size_t alignment,
-                                       VkSystemAllocationScope allocation_scope) {
+static void* vulkan_alloc_reallocation(
+    void* user_data,
+    void* original,
+    size_t size,
+    size_t alignment,
+    VkSystemAllocationScope allocation_scope) {
     if (!original) {
-        return vulkan_alloc_allocation(user_data, size, alignment,
-                                       allocation_scope);
+        return vulkan_alloc_allocation(user_data, size, alignment, allocation_scope);
     }
 
     if (size == 0) {
@@ -4956,10 +4960,9 @@ static void* vulkan_alloc_reallocation(void* user_data, void* original, size_t s
 
     // NOTE: if pOriginal is not null, the same alignment must be used for the new
     // allocation as original.
-    u64 alloc_size;
-    u16 alloc_alignment;
-    b8 is_aligned =
-        kmemory_get_size_alignment(original, &alloc_size, &alloc_alignment);
+    u64 original_alloc_size;
+    u16 original_alloc_alignment;
+    b8 is_aligned = kmemory_get_size_alignment(original, &original_alloc_size, &original_alloc_alignment);
     if (!is_aligned) {
         KERROR("vulkan_alloc_reallocation of unaligned block %p", original);
         return 0;
@@ -4977,20 +4980,19 @@ static void* vulkan_alloc_reallocation(void* user_data, void* original, size_t s
     KTRACE("Attempting to realloc block %p...", original);
 #    endif
 
-    void* result = vulkan_alloc_allocation(user_data, size, alignment,
-                                           allocation_scope);
+    void* result = vulkan_alloc_allocation(user_data, size, original_alloc_alignment, allocation_scope);
     if (result) {
 #    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Block %p reallocated to %p, copying data...", original, result);
 #    endif
 
         // Copy over the original memory.
-        kcopy_memory(result, original, alloc_size);
+        kcopy_memory(result, original, KMIN(size, original_alloc_size) - 1);
 #    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Freeing original aligned block %p...", original);
 #    endif
         // Free the original memory only if the new allocation was successful.
-        kfree_aligned(original, alloc_size, alloc_alignment, MEMORY_TAG_VULKAN);
+        kfree_aligned(original, original_alloc_size, original_alloc_alignment, MEMORY_TAG_VULKAN);
     } else {
 #    ifdef KVULKAN_ALLOCATOR_TRACE
         KERROR("Failed to realloc %p.", original);
