@@ -46,12 +46,14 @@ void vulkan_command_buffer_free(
 /**
  * @brief Begins the provided command buffer.
  *
+ * @param context A pointer to the Vulkan context.
  * @param command_buffer A pointer to the command buffer to begin.
  * @param is_single_use Indicates if the buffer is just single use.
  * @param is_renderpass_continue Indicates if the buffer is renderpass continue.
  * @param is_simultaneous_use Indicates if the buffer is simultaneous use.
  */
 void vulkan_command_buffer_begin(
+    vulkan_context* context,
     vulkan_command_buffer* command_buffer,
     b8 is_single_use,
     b8 is_renderpass_continue,
@@ -60,9 +62,10 @@ void vulkan_command_buffer_begin(
 /**
  * @brief Ends the given command buffer.
  *
+ * @param context A pointer to the Vulkan context.
  * @param command_buffer A pointer to the command buffer to end.
  */
-void vulkan_command_buffer_end(vulkan_command_buffer* command_buffer);
+void vulkan_command_buffer_end(vulkan_context* context, vulkan_command_buffer* command_buffer);
 
 /**
  * @brief Sets the command buffer to the submitted state.
@@ -73,6 +76,7 @@ void vulkan_command_buffer_end(vulkan_command_buffer* command_buffer);
 /**
  * @brief Submits the command buffer to the given queue for execution. Also sets the command buffer to the submitted state.
  *
+ * @param context A pointer to the Vulkan context.
  * @param command_buffer A pointer to the command buffer to be submitted.
  * @param queue The queue to submit to.
  * @param signal_semaphore_count The number of semaphore(s) to be signaled when the queue is complete.
@@ -83,6 +87,7 @@ void vulkan_command_buffer_end(vulkan_command_buffer* command_buffer);
  * @return b8 True on success; otherwise false.
  */
 b8 vulkan_command_buffer_submit(
+    vulkan_context* context,
     vulkan_command_buffer* command_buffer,
     VkQueue queue,
     u32 signal_semaphore_count,
@@ -94,9 +99,10 @@ b8 vulkan_command_buffer_submit(
 /**
  * @brief Executes commands in the given secondary command buffer.
  *
+ * @param context A pointer to the Vulkan context.
  * @param secondary A pointer to the secondary command buffer to execute commands within.
  */
-void vulkan_command_buffer_execute_secondary(vulkan_command_buffer* secondary);
+void vulkan_command_buffer_execute_secondary(vulkan_context* context, vulkan_command_buffer* secondary);
 
 /**
  * @brief Resets the command buffer to the ready state.

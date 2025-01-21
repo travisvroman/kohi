@@ -1,9 +1,11 @@
 #include "vulkan_command_buffer.h"
 
-#include <memory/kmemory.h>
 #include <logger.h>
+#include <memory/kmemory.h>
 #include <strings/kstring.h>
 
+#include "platform/vulkan_platform.h"
+#include "vulkan_types.h"
 #include "vulkan_utils.h"
 
 void vulkan_command_buffer_allocate(
@@ -13,6 +15,9 @@ void vulkan_command_buffer_allocate(
     const char* name,
     vulkan_command_buffer* out_command_buffer,
     u32 secondary_buffer_count) {
+
+    krhi_vulkan* rhi = &context->rhi;
+
     kzero_memory(out_command_buffer, sizeof(vulkan_command_buffer));
 
     VkCommandBufferAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
@@ -22,7 +27,7 @@ void vulkan_command_buffer_allocate(
     allocate_info.pNext = 0;
 
     out_command_buffer->state = COMMAND_BUFFER_STATE_NOT_ALLOCATED;
-    VK_CHECK(vkAllocateCommandBuffers(
+    VK_CHECK(rhi->kvkAllocateCommandBuffers(
         context->device.logical_device,
         &allocate_info,
         &out_command_buffer->handle));
@@ -57,11 +62,11 @@ void vulkan_command_buffer_allocate(
     out_command_buffer->in_secondary = false;       // start off as "not in secondary".
 }
 
-void vulkan_command_buffer_free(
-    vulkan_context* context,
-    VkCommandPool pool,
-    vulkan_command_buffer* command_buffer) {
-    vkFreeCommandBuffers(
+void vulkan_command_buffer_free(vulkan_context* context, VkCommandPool pool, vulkan_command_buffer* command_buffer) {
+
+    krhi_vulkan* rhi = &context->rhi;
+
+    rhi->kvkFreeCommandBuffers(
         context->device.logical_device,
         pool,
         1,
@@ -72,10 +77,13 @@ void vulkan_command_buffer_free(
 }
 
 void vulkan_command_buffer_begin(
+    vulkan_context* context,
     vulkan_command_buffer* command_buffer,
     b8 is_single_use,
     b8 is_renderpass_continue,
     b8 is_simultaneous_use) {
+
+    krhi_vulkan* rhi = &context->rhi;
 
     if (command_buffer->is_primary && command_buffer->state != COMMAND_BUFFER_STATE_READY) {
         KFATAL("vulkan_command_buffer_begin called on a command buffer that is not ready.");
@@ -103,12 +111,13 @@ void vulkan_command_buffer_begin(
         begin_info.pInheritanceInfo = &inheritance_info;
     }
 
-    VK_CHECK(vkBeginCommandBuffer(command_buffer->handle, &begin_info));
+    VK_CHECK(rhi->kvkBeginCommandBuffer(command_buffer->handle, &begin_info));
     command_buffer->state = COMMAND_BUFFER_STATE_RECORDING;
 }
 
-void vulkan_command_buffer_end(vulkan_command_buffer* command_buffer) {
-    VK_CHECK(vkEndCommandBuffer(command_buffer->handle));
+void vulkan_command_buffer_end(vulkan_context* context, vulkan_command_buffer* command_buffer) {
+    krhi_vulkan* rhi = &context->rhi;
+    VK_CHECK(rhi->kvkEndCommandBuffer(command_buffer->handle));
     if (command_buffer->is_primary && command_buffer->state != COMMAND_BUFFER_STATE_RECORDING) {
         KFATAL("vulkan_command_buffer_begin called on a command buffer that is not currently being recorded to.");
     }
@@ -116,6 +125,7 @@ void vulkan_command_buffer_end(vulkan_command_buffer* command_buffer) {
 }
 
 b8 vulkan_command_buffer_submit(
+    vulkan_context* context,
     vulkan_command_buffer* command_buffer,
     VkQueue queue,
     u32 signal_semaphore_count,
@@ -123,6 +133,7 @@ b8 vulkan_command_buffer_submit(
     u32 wait_semaphore_count,
     VkSemaphore* wait_semaphores,
     VkFence fence) {
+    krhi_vulkan* rhi = &context->rhi;
     if (command_buffer->state != COMMAND_BUFFER_STATE_RECORDING_ENDED) {
         KFATAL("vulkan_command_buffer_update_submitted called on a command buffer that is not ready to be submitted.");
     }
@@ -158,7 +169,7 @@ b8 vulkan_command_buffer_submit(
     VkPipelineStageFlags flags[1] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submit_info.pWaitDstStageMask = flags;
 
-    VkResult result = vkQueueSubmit(queue, 1, &submit_info, fence);
+    VkResult result = rhi->kvkQueueSubmit(queue, 1, &submit_info, fence);
     if (result != VK_SUCCESS) {
         KERROR("vulkan_command_buffer_submit() - vkQueueSubmit failed with result: %s", vulkan_result_string(result, true));
         return false;
@@ -167,7 +178,8 @@ b8 vulkan_command_buffer_submit(
     return true;
 }
 
-void vulkan_command_buffer_execute_secondary(vulkan_command_buffer* secondary) {
+void vulkan_command_buffer_execute_secondary(vulkan_context* context, vulkan_command_buffer* secondary) {
+    krhi_vulkan* rhi = &context->rhi;
     vulkan_command_buffer* primary = secondary->parent;
     if (!primary) {
         if (secondary->is_primary) {
@@ -179,7 +191,7 @@ void vulkan_command_buffer_execute_secondary(vulkan_command_buffer* secondary) {
     }
 
     // Execute the secondary command buffer via the primary buffer.
-    vkCmdExecuteCommands(primary->handle, 1, &secondary->handle);
+    rhi->kvkCmdExecuteCommands(primary->handle, 1, &secondary->handle);
 
     // Move on to the next buffer index
     primary->secondary_buffer_index++;
@@ -198,7 +210,7 @@ void vulkan_command_buffer_allocate_and_begin_single_use(
     VkCommandPool pool,
     vulkan_command_buffer* out_command_buffer) {
     vulkan_command_buffer_allocate(context, pool, true, "single_use_command_buffer", out_command_buffer, 0);
-    vulkan_command_buffer_begin(out_command_buffer, true, false, false);
+    vulkan_command_buffer_begin(context, out_command_buffer, true, false, false);
 }
 
 void vulkan_command_buffer_end_single_use(
@@ -206,17 +218,18 @@ void vulkan_command_buffer_end_single_use(
     VkCommandPool pool,
     vulkan_command_buffer* command_buffer,
     VkQueue queue) {
+    krhi_vulkan* rhi = &context->rhi;
     // End the command buffer.
-    vulkan_command_buffer_end(command_buffer);
+    vulkan_command_buffer_end(context, command_buffer);
 
     // Submit the queue
     VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &command_buffer->handle;
-    VK_CHECK(vkQueueSubmit(queue, 1, &submit_info, 0));
+    VK_CHECK(rhi->kvkQueueSubmit(queue, 1, &submit_info, 0));
 
     // Wait for it to finish
-    VK_CHECK(vkQueueWaitIdle(queue));
+    VK_CHECK(rhi->kvkQueueWaitIdle(queue));
 
     // Free the command buffer.
     vulkan_command_buffer_free(context, pool, command_buffer);

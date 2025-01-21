@@ -1,17 +1,22 @@
 #include "platform/platform.h"
+#include "vulkan/vulkan_core.h"
+#include "vulkan/vulkan_metal.h"
 
 #if defined(KPLATFORM_APPLE)
 
-#define VK_USE_PLATFORM_METAL_EXT
-#include <vulkan/vulkan.h>
+// Loading function pointers
+#    include <dlfcn.h>
 
-#include <containers/darray.h>
-#include <logger.h>
-#include <memory/kmemory.h>
-#include <platform/platform.h>
+#    define VK_USE_PLATFORM_METAL_EXT
+#    include <vulkan/vulkan.h>
 
-#include "platform/vulkan_platform.h"
-#include "vulkan_types.h"
+#    include <containers/darray.h>
+#    include <logger.h>
+#    include <memory/kmemory.h>
+#    include <platform/platform.h>
+
+#    include "platform/vulkan_platform.h"
+#    include "vulkan_types.h"
 
 // Forward declarations for Obj-C "classes" in the platform implementation.
 typedef struct ContentView ContentView;
@@ -40,8 +45,13 @@ b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow
 
     VkMetalSurfaceCreateInfoEXT create_info = {VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT};
     create_info.pLayer = window->platform_state->layer;
+    PFN_vkCreateMetalSurfaceEXT kvkCreateMetalSurfaceEXT = dlsym(context->rhi.vulkan_lib, "vkCreateMetalSurfaceEXT");
+    if (!kvkCreateMetalSurfaceEXT) {
+        KERROR("Failed to load vkCreateMetalSurfaceEXT!");
+        return false;
+    }
 
-    VkResult result = vkCreateMetalSurfaceEXT(
+    VkResult result = kvkCreateMetalSurfaceEXT(
         context->instance,
         &create_info,
         context->allocator,
@@ -59,6 +69,26 @@ b8 vulkan_platform_presentation_support(vulkan_context* context, VkPhysicalDevic
     // https://registry.khronos.org/vulkan/specs/1.3-extensions/html/chap34.html#_querying_for_wsi_support
     // 34.4.10. macOS Platform
     // On macOS, all physical devices and queue families must be capable of presentation with any layer. As a result there is no macOS-specific query for these capabilities.
+    return true;
+}
+
+b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
+    if (!rhi) {
+        return false;
+    }
+
+    rhi->vulkan_lib = dlopen("libvulkan.1.dylib", RTLD_LAZY);
+    if (!rhi->vulkan_lib) {
+        // Try this specific path, since it isn't included by default for some reason...
+        // Not sure when/why this changed, but this can help.
+        rhi->vulkan_lib = dlopen("/usr/local/lib/libvulkan.1.dylib", RTLD_LAZY);
+        if (!rhi->vulkan_lib) {
+            KERROR("Failed to load Vulkan library:%s ", dlerror());
+            return false;
+        }
+    }
+    rhi->load_func = dlsym;
+
     return true;
 }
 
