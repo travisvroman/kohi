@@ -204,17 +204,6 @@ typedef struct kaudio_system_state {
     vec3 listener_up;
     vec3 listener_forward;
 
-    // TODO: audio emitters:
-    // Move the management and ownership of them to here, referenced by a handle.
-    // The update loop could then handle the updates being taken care of by the
-    // scene here instead of there. All that would have to be set is the position
-    // on scene update, by handle.
-    // The update here could then easily check emitters for being in/out of radius,
-    // and enable/disable them accordingly, automatically. The only thing that would
-    // need to be known is what "category" the emitter plays on (likely some preset one?)
-    // All the logic could then be encapsulated in this system instead of the scene
-    // or by the application.
-
     // The backend plugin.
     kruntime_plugin* plugin;
 
