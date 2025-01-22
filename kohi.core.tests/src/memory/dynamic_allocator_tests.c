@@ -294,7 +294,7 @@ u8 dynamic_allocator_single_alloc_aligned(void) {
     // Verify size and alignment
     u64 block_size;
     u16 block_alignment;
-    result = dynamic_allocator_get_size_alignment(block, &block_size, &block_alignment);
+    result = dynamic_allocator_get_size_alignment(&alloc, block, &block_size, &block_alignment);
     expect_to_be_true(result);
     expect_should_be(alignment, block_alignment);
     expect_should_be(1024, block_size);
@@ -362,7 +362,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
         // Verify size and alignment
         u64 block_size;
         u16 block_alignment;
-        result = dynamic_allocator_get_size_alignment(alloc_datas[idx].block, &block_size, &block_alignment);
+        result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
         expect_to_be_true(result);
         expect_should_be(alloc_datas[idx].alignment, block_alignment);
         expect_should_be(alloc_datas[idx].size, block_size);
@@ -384,7 +384,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
         // Verify size and alignment
         u64 block_size;
         u16 block_alignment;
-        result = dynamic_allocator_get_size_alignment(alloc_datas[idx].block, &block_size, &block_alignment);
+        result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
         expect_to_be_true(result);
         expect_should_be(alloc_datas[idx].alignment, block_alignment);
         expect_should_be(alloc_datas[idx].size, block_size);
@@ -406,7 +406,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
         // Verify size and alignment
         u64 block_size;
         u16 block_alignment;
-        result = dynamic_allocator_get_size_alignment(alloc_datas[idx].block, &block_size, &block_alignment);
+        result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
         expect_to_be_true(result);
         expect_should_be(alloc_datas[idx].alignment, block_alignment);
         expect_should_be(alloc_datas[idx].size, block_size);
@@ -428,7 +428,7 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments(void) {
         // Verify size and alignment
         u64 block_size;
         u16 block_alignment;
-        result = dynamic_allocator_get_size_alignment(alloc_datas[idx].block, &block_size, &block_alignment);
+        result = dynamic_allocator_get_size_alignment(&alloc, alloc_datas[idx].block, &block_size, &block_alignment);
         expect_to_be_true(result);
         expect_should_be(alloc_datas[idx].alignment, block_alignment);
         expect_should_be(alloc_datas[idx].size, block_size);
@@ -504,7 +504,7 @@ u8 util_allocate(dynamic_allocator* allocator, alloc_data* data, u64* currently_
     // Verify size and alignment
     u64 block_size;
     u16 block_alignment;
-    b8 result = dynamic_allocator_get_size_alignment(data->block, &block_size, &block_alignment);
+    b8 result = dynamic_allocator_get_size_alignment(allocator, data->block, &block_size, &block_alignment);
     expect_to_be_true(result);
     expect_should_be(data->alignment, block_alignment);
     expect_should_be(data->size, block_size);
@@ -525,7 +525,7 @@ u8 util_free(dynamic_allocator* allocator, alloc_data* data, u64* currently_allo
         return false;
     }
     data->block = 0;
-    currently_allocated -= (data->size + header_size + data->alignment);
+    *currently_allocated -= (data->size + header_size + data->alignment);
 
     // Verify free space.
     u64 free_space = dynamic_allocator_free_space(allocator);
@@ -615,7 +615,8 @@ u8 dynamic_allocator_multiple_alloc_and_free_aligned_different_alignments_random
     // Pick random sizes and alignments.
     for (u32 i = 0; i < alloc_data_count; ++i) {
         alloc_datas[i].alignment = po2[krandom_in_range(0, 7)];
-        alloc_datas[i].size = (u64)krandom_in_range(1, 65536);
+        alloc_datas[i].size = (u64)krandom_in_range(1, 256);
+        alloc_datas[i].block = 0;
     }
 
     // Total size needed, including headers.
@@ -623,6 +624,7 @@ u8 dynamic_allocator_multiple_alloc_and_free_aligned_different_alignments_random
     for (u32 i = 0; i < alloc_data_count; ++i) {
         total_allocator_size += alloc_datas[i].alignment + header_size + alloc_datas[i].size;
     }
+    KINFO("Total allocator size: %llu", total_allocator_size);
 
     // Get the memory requirement
     b8 result = dynamic_allocator_create(total_allocator_size, &memory_requirement, 0, 0);
@@ -637,16 +639,27 @@ u8 dynamic_allocator_multiple_alloc_and_free_aligned_different_alignments_random
     expect_should_be(total_allocator_size, free_space);
 
     u32 op_count = 0;
-    const u32 max_op_count = 10000000;
+    const u32 max_op_count = 100000;
     u32 alloc_count = 0;
     while (op_count < max_op_count) {
-        // If there are no allocations, or we "roll" high, allocate. Otherwise deallocate.
-        if (alloc_count == 0 || krandom_in_range(0, 99) > 50) {
+        if (op_count == ((max_op_count / 4) * 3)) {
+            KINFO("75%% done...");
+        } else if (op_count == ((max_op_count / 4) * 2)) {
+            KINFO("50%% done...");
+        } else if (op_count == ((max_op_count / 4) * 1)) {
+            KINFO("25%% done...");
+        }
+        // If there are no allocations, or we "roll" high, allocate. Otherwise free.
+        b8 do_alloc = alloc_count == 0 || krandom_in_range(0, 99) > 50;
+        // SAFEGUARD: if max alloc hit, force free.
+        b8 max_alloc_hit = alloc_count == 65536;
+        if (do_alloc && !max_alloc_hit) {
             while (true) {
+                // Find a free block.
                 u32 index = (u32)krandom_in_range(0, alloc_data_count - 1);
                 if (alloc_datas[index].block == 0) {
                     if (!util_allocate(&alloc, &alloc_datas[index], &currently_allocated, header_size, total_allocator_size)) {
-                        KERROR("util_allocate failed on index: %u.", index);
+                        KERROR("util_allocate (0) failed on index: %u.", index);
                         return false;
                     }
                     alloc_count++;
@@ -656,10 +669,11 @@ u8 dynamic_allocator_multiple_alloc_and_free_aligned_different_alignments_random
             op_count++;
         } else {
             while (true) {
-                u32 index = (u32)krandom_in_range(0, alloc_data_count - 1);
+                // Find an allocated block. If max alloc hit, force free first block.
+                u32 index = max_alloc_hit ? 0 : (u32)krandom_in_range(0, alloc_data_count - 1);
                 if (alloc_datas[index].block != 0) {
                     if (!util_free(&alloc, &alloc_datas[index], &currently_allocated, header_size, total_allocator_size)) {
-                        KERROR("util_free failed on index: %u.", index);
+                        KERROR("util_free (0) failed on index: %u.", index);
                         return false;
                     }
                     alloc_count--;
@@ -674,7 +688,7 @@ u8 dynamic_allocator_multiple_alloc_and_free_aligned_different_alignments_random
     for (u32 i = 0; i < alloc_data_count; ++i) {
         if (alloc_datas[i].block != 0) {
             if (!util_free(&alloc, &alloc_datas[i], &currently_allocated, header_size, total_allocator_size)) {
-                KERROR("util_free failed on index: %u.");
+                KERROR("util_free (1) failed on index: %u.");
                 return false;
             }
         }

@@ -1,13 +1,11 @@
 #pragma once
 
-#include "math/math_types.h"
-#include "renderer/renderer_types.h"
-#include "resources/resource_types.h"
-#include "systems/geometry_system.h"
+#include "kresources/kresource_types.h"
+#include "math/geometry.h"
 
 typedef struct skybox_config {
     /** @brief The name of the cubemap to be used for the skybox. */
-    const char* cubemap_name;
+    kname cubemap_name;
 } skybox_config;
 
 typedef enum skybox_state {
@@ -21,16 +19,12 @@ typedef enum skybox_state {
 typedef struct skybox {
     skybox_state state;
 
-    const char* cubemap_name;
-    texture_map cubemap;
+    kname cubemap_name;
+    kresource_texture* cubemap;
 
-    geometry_config g_config;
-    geometry* g;
-    u32 instance_id;
-    /** @brief Synced to the renderer's current frame number when the material has been applied that frame. */
-    u64 render_frame_number;
-    /** @brief Synced to the renderer's current draw index when the material has been applied that frame. */
-    u8 draw_index;
+    kgeometry geometry;
+    u32 group_id;
+    u32 draw_id;
 } skybox;
 
 /**

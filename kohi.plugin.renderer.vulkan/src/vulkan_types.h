@@ -14,10 +14,24 @@
 
 #include <vulkan/vulkan.h>
 
+#include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
+#include "identifiers/khandle.h"
+#include "kresources/kresource_types.h"
+#include "platform/vulkan_platform.h"
 #include "renderer/renderer_types.h"
 #include "vulkan/vulkan_core.h"
+
+// Frames in flight can differ for double-buffering (1) or triple-buffering (2), but will never exceed this amount.
+#define VULKAN_MAX_FRAMES_IN_FLIGHT 2
+// The colour buffer count can differ for double-buffering (2) or triple-buffering (3), but will never exceed this amount.
+#define VULKAN_MAX_COLOUR_BUFFER_COUNT 3
+
+// The array size for resources created per-image. Regardless of whether double- or
+// triple-buffering is used, this should always be used for resource array sizes so that
+// triple buffering can be toggled in settings.
+#define VULKAN_RESOURCE_IMAGE_COUNT 3
 
 /**
  * @brief Checks the given expression's return value against VK_SUCCESS.
@@ -171,62 +185,12 @@ typedef struct vulkan_image {
     u16 layer_count;
     /** @brief The name of the image. */
     char* name;
+    /** @brief texture flag bits */
+    texture_flag_bits flags;
     /** The number of mipmaps to be generated for this image. Must always be at least 1. */
     u32 mip_levels;
     b8 has_view;
 } vulkan_image;
-
-// Struct definition for renderer-specific texture data.
-typedef struct texture_internal_data {
-    // Number of vulkan_images in the array. This is typically 1 unless the texture
-    // requires the frame_count to be taken into account.
-    u32 image_count;
-    // Array of images.
-    vulkan_image* images;
-
-} texture_internal_data;
-
-// Struct definition for renderer-specific framebuffer data.
-typedef struct framebuffer_internal_data {
-    // The number of VkFramebuffers in the array. Typically 1 unless the attachment
-    // requires the frame_count to be taken into account.
-    u32 framebuffer_count;
-    // Arrat of framebuffers.
-    VkFramebuffer* framebuffers;
-} framebuffer_internal_data;
-
-/** @brief Represents the possible states of a renderpass. */
-typedef enum vulkan_render_pass_state {
-    /** @brief The renderpass is ready to begin. */
-    READY,
-    /** @brief The renderpass is currently being recorded to. */
-    RECORDING,
-    /** @brief The renderpass is currently active. */
-    IN_RENDER_PASS,
-    /** @brief The renderpass is has ended recording. */
-    RECORDING_ENDED,
-    /** @brief The renderpass has been submitted to the queue. */
-    SUBMITTED,
-    /** @brief The renderpass is not allocated. */
-    NOT_ALLOCATED
-} vulkan_render_pass_state;
-
-/**
- * @brief A representation of the Vulkan renderpass.
- */
-typedef struct vulkan_renderpass {
-    /** @brief The internal renderpass handle. */
-    VkRenderPass handle;
-    /** @brief The current render area of the renderpass. */
-
-    /** @brief Indicates renderpass state. */
-    vulkan_render_pass_state state;
-
-    // darray
-    VkClearValue* clear_values;
-    /* u32 clear_value_count; */
-
-} vulkan_renderpass;
 
 /**
  * @brief Representation of the Vulkan swapchain.
@@ -234,11 +198,6 @@ typedef struct vulkan_renderpass {
 typedef struct vulkan_swapchain {
     /** @brief The swapchain image format. */
     VkSurfaceFormatKHR image_format;
-    /**
-     * @brief The maximum number of "images in flight" (images simultaneously being rendered to).
-     * Typically one less than the total number of images available.
-     */
-    u8 max_frames_in_flight;
 
     /** @brief Indicates various flags used for swapchain instantiation. */
     renderer_config_flags flags;
@@ -248,8 +207,16 @@ typedef struct vulkan_swapchain {
     /** @brief The number of swapchain images. */
     u32 image_count;
 
-    /** @brief Track the owning window in case something is needed from it. */
-    struct kwindow* owning_window;
+    /** @brief Supports being used as a blit destination. */
+    b8 supports_blit_dest;
+
+    /** @brief Supports being used as a blit source. */
+    b8 supports_blit_src;
+
+    kresource_texture* swapchain_colour_texture;
+
+    /** @brief The swapchain image index (i.e. the swapchain image index that will be blitted to). */
+    u32 image_index;
 } vulkan_swapchain;
 
 /**
@@ -280,8 +247,29 @@ typedef struct vulkan_command_buffer {
     /** @brief The internal command buffer handle. */
     VkCommandBuffer handle;
 
+#ifdef KOHI_DEBUG
+    // Name, kept for debugging purposes.
+    const char* name;
+#endif
+
     /** @brief Command buffer state. */
     vulkan_command_buffer_state state;
+
+    /** @brief Indicates if this is a primary or secondary command buffer. */
+    b8 is_primary;
+
+    /** @brief The number of secondary buffers that are children to this one. Primary buffer use only. */
+    u16 secondary_count;
+    /** @brief An array of secondary buffers that are children to this one. Primary buffer use only. */
+    struct vulkan_command_buffer* secondary_buffers;
+
+    /** @brief The currently selected secondary buffer index. */
+    u16 secondary_buffer_index;
+    /** @brief Indicates if a secondary command buffer is currently being recorded to. */
+    b8 in_secondary;
+
+    /** A pointer to the parent (primary) command buffer, if there is one. Only applies to secondary buffers. */
+    struct vulkan_command_buffer* parent;
 } vulkan_command_buffer;
 
 /**
@@ -334,7 +322,7 @@ typedef struct vulkan_pipeline_config {
     /** @brief The number of push constant data ranges. */
     u32 push_constant_range_count;
     /** @brief An array of push constant data ranges. */
-    range* push_constant_ranges;
+    krange* push_constant_ranges;
     /** @brief Collection of topology types to be supported on this pipeline. */
     u32 topology_types;
     /** @brief The vertex winding order used to determine the front face of triangles. */
@@ -367,7 +355,9 @@ typedef struct vulkan_pipeline {
 /** @brief The maximum number of stages (such as vertex, fragment, compute, etc.) allowed. */
 #define VULKAN_SHADER_MAX_STAGES 8
 /** @brief The maximum number of texture bindings allowed at once. */
-#define VULKAN_SHADER_MAX_TEXTURE_BINDINGS 31
+#define VULKAN_SHADER_MAX_TEXTURE_BINDINGS 16
+/** @brief The maximum number of sampler bindings allowed at once. */
+#define VULKAN_SHADER_MAX_SAMPLER_BINDINGS 16
 /** @brief The maximum number of vertex input attributes allowed. */
 #define VULKAN_SHADER_MAX_ATTRIBUTES 16
 /**
@@ -380,6 +370,9 @@ typedef struct vulkan_pipeline {
 /** @brief The maximum number of push constant ranges for a shader. */
 #define VULKAN_SHADER_MAX_PUSH_CONST_RANGES 32
 
+// Max number of descriptor sets based on frequency. (0=per-frame, 1=per-group, 2=per-draw)
+#define VULKAN_SHADER_DESCRIPTOR_SET_LAYOUT_COUNT 3
+
 /**
  * @brief The configuration for a descriptor set.
  */
@@ -388,8 +381,6 @@ typedef struct vulkan_descriptor_set_config {
     u8 binding_count;
     /** @brief An array of binding layouts for this set. */
     VkDescriptorSetLayoutBinding* bindings;
-    /** @brief The start index of the sampler bindings. */
-    u8 sampler_binding_index_start;
 } vulkan_descriptor_set_config;
 
 /**
@@ -398,47 +389,94 @@ typedef struct vulkan_descriptor_set_config {
  * per frame (with a max of 3).
  */
 typedef struct vulkan_descriptor_state {
-    /** @brief The descriptor generation, per swapchain image. */
-    u8* generations;
-    /** @brief The identifier, per swapchain image. Typically used for texture ids. */
-    u32* ids;
-    /** @brief The frame number this descriptor was last updated on, per swapchain image. */
-    u64* frame_numbers;
+    /** @brief The renderer frame number on which this descriptor was last updated. One per colour image. INVALID_ID_U16 if never loaded. */
+    u16 renderer_frame_number[VULKAN_RESOURCE_IMAGE_COUNT];
 } vulkan_descriptor_state;
 
 typedef struct vulkan_uniform_sampler_state {
-    struct shader_uniform* uniform;
+    shader_uniform uniform;
 
     /**
-     * @brief Instance texture map pointers, which are used during rendering. These
-     * are set by calls to set_sampler.
+     * @brief An array of sampler handles. Count matches uniform array_count.
      */
-    struct texture_map** uniform_texture_maps;
+    khandle* sampler_handles;
+
+    /**
+     * @brief A descriptor state per sampler. Count matches uniform array_count.
+     */
+    vulkan_descriptor_state* descriptor_states;
+} vulkan_uniform_sampler_state;
+
+typedef struct vulkan_uniform_texture_state {
+    shader_uniform uniform;
+
+    /**
+     * @brief An array of handles to texture resources.
+     */
+    khandle* texture_handles;
 
     /**
      * @brief A descriptor state per descriptor, which in turn handles frames.
      * Count is managed in shader config.
      */
     vulkan_descriptor_state* descriptor_states;
-} vulkan_uniform_sampler_state;
+} vulkan_uniform_texture_state;
 /**
- * @brief The instance-level state for a shader.
+ * @brief The frequency-level state for a shader (i.e. per-frame, per-group, per-draw).
  */
-typedef struct vulkan_shader_instance_state {
-    /** @brief The instance id. INVALID_ID if not used. */
+typedef struct vulkan_shader_frequency_state {
+    /** @brief The frequency id. INVALID_ID if not used. */
     u32 id;
-    /** @brief The offset in bytes in the instance uniform buffer. */
+    /** @brief The offset in bytes in the frequency uniform buffer. */
     u64 offset;
 
-    /** @brief The descriptor sets for this instance, one per frame. */
-    VkDescriptorSet* descriptor_sets;
+    /** @brief The descriptor sets for this frequency, one per colour image. */
+    VkDescriptorSet descriptor_sets[VULKAN_RESOURCE_IMAGE_COUNT];
 
-    // UBO descriptor
+    // UBO descriptor state.
     vulkan_descriptor_state ubo_descriptor_state;
 
-    // A mapping of sampler uniforms to descriptors and texture maps.
-    vulkan_uniform_sampler_state* sampler_uniforms;
-} vulkan_shader_instance_state;
+    // A mapping of sampler uniforms to descriptors.
+    vulkan_uniform_sampler_state* sampler_states;
+    // A mapping of texture uniforms to descriptors.
+    vulkan_uniform_texture_state* texture_states;
+#ifdef KOHI_DEBUG
+    u32 descriptor_set_index;
+    shader_update_frequency frequency;
+#endif
+} vulkan_shader_frequency_state;
+
+/**
+ * @brief Contains vulkan shader frequency specific info for UBOs.
+ */
+typedef struct vulkan_shader_frequency_info {
+    /** @brief The actual size of the uniform buffer object for this frequency. */
+    u64 ubo_size;
+    /** @brief The stride of the uniform buffer object for this frequency. */
+    u64 ubo_stride;
+    /**
+     * @brief The offset in bytes for the UBO from the beginning
+     * of the uniform buffer for this frequency.
+     */
+    u64 ubo_offset;
+
+    /** @brief The number of non-sampler and non-texture uniforms for this frequency. */
+    u8 uniform_count;
+    /** @brief The number of sampler uniforms for this frequency. */
+    u8 uniform_sampler_count;
+    // Darray. Keeps the uniform indices of samplers for fast lookups.
+    u32* sampler_indices;
+    /** @brief The number of texture uniforms for this frequency. */
+    u8 uniform_texture_count;
+    // Darray. Keeps the uniform indices of textures for fast lookups.
+    u32* texture_indices;
+
+    // Array of sorted texture/sampler indices for quick lookups.
+    u32* sorted_indices;
+
+    // The currently-bound id for this frequency.
+    u32 bound_id;
+} vulkan_shader_frequency_info;
 
 /**
  * @brief Represents a generic Vulkan shader. This uses a set of inputs
@@ -446,10 +484,12 @@ typedef struct vulkan_shader_instance_state {
  * files to construct a shader for use in rendering.
  */
 typedef struct vulkan_shader {
-    /** @brief The block of memory mapped to the each per-swapchain-image uniform buffer. */
-    void** mapped_uniform_buffer_blocks;
+    // The name of the shader (mostly kept for debugging purposes).
+    kname name;
+    /** @brief The block of memory mapped to the each per-colourbuffer-image uniform buffer. */
+    void* mapped_uniform_buffer_blocks[VULKAN_RESOURCE_IMAGE_COUNT];
     /** @brief The block of memory used for push constants, 128B. */
-    void* local_push_constant_block;
+    void* per_draw_push_constant_block;
 
     /** @brief The shader identifier. */
     u32 id;
@@ -462,19 +502,34 @@ typedef struct vulkan_shader {
 
     /**
      * @brief The total number of descriptor sets configured for this shader.
-     * Is 1 if only using global uniforms/samplers; otherwise 2.
      */
     u8 descriptor_set_count;
-    /** @brief Descriptor sets, max of 2. Index 0=global, 1=instance */
-    vulkan_descriptor_set_config descriptor_sets[2];
+    /** @brief Descriptor sets, max of 3. Index 0=per_frame, 1=per_group, 2=per_draw */
+    vulkan_descriptor_set_config descriptor_set_configs[VULKAN_SHADER_DESCRIPTOR_SET_LAYOUT_COUNT];
 
+    /** @brief The number of vertex attributes in the shader. */
+    u8 attribute_count;
     /** @brief An array of attribute descriptions for this shader. */
     VkVertexInputAttributeDescription attributes[VULKAN_SHADER_MAX_ATTRIBUTES];
+
+    /** @brief The number of uniforms in the shader. */
+    u32 uniform_count;
+
+    /** @brief An array of uniforms in the shader. */
+    shader_uniform* uniforms;
+
+    /** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
+    u32 attribute_stride;
 
     /** @brief Face culling mode, provided by the front end. */
     face_cull_mode cull_mode;
 
-    u32 max_instances;
+    /** @brief The topology types for the shader pipeline. See primitive_topology_type. Defaults to "triangle list" if unspecified. */
+    u32 topology_types;
+
+    u32 max_groups;
+
+    u32 max_per_draw_count;
 
     /** @brief The number of shader stages in this shader. */
     u8 stage_count;
@@ -485,26 +540,16 @@ typedef struct vulkan_shader {
     u32 pool_size_count;
 
     /** @brief An array of descriptor pool sizes. */
-    VkDescriptorPoolSize pool_sizes[2];
+    VkDescriptorPoolSize pool_sizes[3];
 
     /** @brief The descriptor pool used for this shader. */
     VkDescriptorPool descriptor_pool;
 
-    /** @brief Descriptor set layouts, max of 2. Index 0=global, 1=instance. */
-    VkDescriptorSetLayout descriptor_set_layouts[2];
+    /** @brief Descriptor set layouts, max of 3. */
+    VkDescriptorSetLayout descriptor_set_layouts[VULKAN_SHADER_DESCRIPTOR_SET_LAYOUT_COUNT];
 
-    /** @brief Global descriptor sets, one per swapchain image. */
-    VkDescriptorSet* global_descriptor_sets;
-
-    // UBO descriptor
-    vulkan_descriptor_state global_ubo_descriptor_state;
-
-    // A mapping of sampler uniforms to descriptors and texture maps.
-    vulkan_uniform_sampler_state* global_sampler_uniforms;
-
-    /** @brief The uniform buffers used by this shader, one per swapchain image. */
-    renderbuffer* uniform_buffers;
-    u32 uniform_buffer_count;
+    /** @brief The uniform buffers used by this shader, one per colourbuffer image. */
+    renderbuffer uniform_buffers[VULKAN_RESOURCE_IMAGE_COUNT];
 
     /** @brief An array of pointers to pipelines associated with this shader. */
     vulkan_pipeline** pipelines;
@@ -516,8 +561,31 @@ typedef struct vulkan_shader {
     /** @brief The currently-selected topology. */
     VkPrimitiveTopology current_topology;
 
-    /** @brief The instance states for all instances. */
-    vulkan_shader_instance_state* instance_states;
+    /** @brief The per-frame frequency state. */
+    vulkan_shader_frequency_state per_frame_state;
+
+    /** @brief The per-group frequency states for all groups. */
+    vulkan_shader_frequency_state* group_states;
+
+    /** @brief The per-draw states for all local things/entities/actors/whatever. */
+    vulkan_shader_frequency_state* per_draw_states;
+
+    /**
+     * @brief The amount of bytes that are required for UBO alignment.
+     *
+     * This is used along with the UBO size to determine the ultimate
+     * stride, which is how much the UBOs are spaced out in the buffer.
+     * For example, a required alignment of 256 means that the stride
+     * must be a multiple of 256 (true for some nVidia cards).
+     */
+    u64 required_ubo_alignment;
+
+    vulkan_shader_frequency_info per_frame_info;
+    vulkan_shader_frequency_info per_group_info;
+    vulkan_shader_frequency_info per_draw_info;
+
+    // Shader flags
+    shader_flags flags;
 
 } vulkan_shader;
 
@@ -542,6 +610,9 @@ typedef struct kwindow_renderer_backend_state {
     /** @brief The current frame index ( % by max_frames_in_flight). */
     u32 current_frame;
 
+    /** @brief Indicates the max number of frames in flight. 1 for double-buffering, 2 for triple-buffering. */
+    u8 max_frames_in_flight;
+
     /** @brief Indicates if the swapchain is currently being recreated. */
     b8 recreating_swapchain;
 
@@ -563,11 +634,45 @@ typedef struct kwindow_renderer_backend_state {
     /** @brief Resusable staging buffers (one per frame in flight) to transfer data from a resource to a GPU-only buffer. */
     renderbuffer* staging;
 
+    /**
+     * @brief Array of darrays of handles to textures that were updated as part of a frame's workload.
+     * One list per frame in flight.
+     */
+    khandle** frame_texture_updated_list;
+
     u64 framebuffer_size_generation;
     u64 framebuffer_previous_size_generation;
 
     u8 skip_frames;
 } kwindow_renderer_backend_state;
+
+typedef struct vulkan_sampler_handle_data {
+    // Used for handle validation.
+    u64 handle_uniqueid;
+    // The generation of the internal sampler. Incremented every time the sampler is changed.
+    u16 generation;
+    // Sampler name for named lookups and serialization.
+    kname name;
+    // The underlying sampler handle.
+    VkSampler sampler;
+} vulkan_sampler_handle_data;
+
+/**
+ * @brief Represents Vulkan-specific texture data.
+ */
+typedef struct vulkan_texture_handle_data {
+    // Unique identifier for this texture.
+    u64 uniqueid;
+
+    // The generation of the internal texture. Incremented every time the texture is changed.
+    u16 generation;
+
+    // Number of vulkan_images in the array. This is typically 1 unless the texture
+    // requires the frame_count to be taken into account.
+    u32 image_count;
+    // Array of images. See image_count.
+    vulkan_image* images;
+} vulkan_texture_handle_data;
 
 /**
  * @brief The overall Vulkan context for the backend. Holds and maintains
@@ -601,7 +706,6 @@ typedef struct vulkan_context {
     /** @brief The internal Vulkan allocator. */
     VkAllocationCallbacks* allocator;
 
-#if defined(_DEBUG)
     /** @brief The debug messenger, if active.. */
     VkDebugUtilsMessengerEXT debug_messenger;
 
@@ -613,7 +717,6 @@ typedef struct vulkan_context {
 
     PFN_vkCmdBeginDebugUtilsLabelEXT pfnCmdBeginDebugUtilsLabelEXT;
     PFN_vkCmdEndDebugUtilsLabelEXT pfnCmdEndDebugUtilsLabelEXT;
-#endif
 
     /** @brief The Vulkan device. */
     vulkan_device device;
@@ -628,8 +731,17 @@ typedef struct vulkan_context {
     /** @brief Indicates if multi-threading is supported by this device. */
     b8 multithreading_enabled;
 
+    /** @brief Indicates if triple-buffering is enabled (requested) */
+    b8 triple_buffering_enabled;
+
     /** @brief Collection of samplers. darray */
-    VkSampler* samplers;
+    vulkan_sampler_handle_data* samplers;
+
+    /** @brief Collection of textures. darray. */
+    vulkan_texture_handle_data* textures;
+
+    /** @brief Collection of vulkan shaders (internal shader data). Matches size of shader array in shader system. */
+    vulkan_shader* shaders;
 
     /**
      * @brief A function pointer to find a memory index of the given type and with the given properties.
@@ -642,6 +754,7 @@ typedef struct vulkan_context {
 
     PFN_vkCmdSetPrimitiveTopologyEXT vkCmdSetPrimitiveTopologyEXT;
     PFN_vkCmdSetFrontFaceEXT vkCmdSetFrontFaceEXT;
+    PFN_vkCmdSetCullModeEXT vkCmdSetCullModeEXT;
     PFN_vkCmdSetStencilTestEnableEXT vkCmdSetStencilTestEnableEXT;
     PFN_vkCmdSetDepthTestEnableEXT vkCmdSetDepthTestEnableEXT;
     PFN_vkCmdSetDepthWriteEnableEXT vkCmdSetDepthWriteEnableEXT;
@@ -650,8 +763,11 @@ typedef struct vulkan_context {
     PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR;
     PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR;
 
-    /** @brief A pointer to the currently bound shader. */
-    struct shader* bound_shader;
+    // The render hardware interface.
+    krhi_vulkan rhi;
+
+    /** @brief A pointer to the currently bound vulkan shader. */
+    vulkan_shader* bound_shader;
 
     /**
      * Used for dynamic compilation of vulkan shaders (using the shaderc lib.)

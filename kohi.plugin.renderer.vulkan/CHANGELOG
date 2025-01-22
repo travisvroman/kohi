@@ -1,5 +1,25 @@
 Kohi Vulkan Renderer Plugin Changelog
 
+- 0.8.0
+  - Intentionally skipped 0.7 to sync with base engine version.
+  - Samplers no longer require knowledge of mip levels, and thus no longer clamp LODs.
+  - Separated image and sampler descriptors in renderer backend.
+  - Fixed an issue where command buffers were created/managed based on swapchain image count, not max frames in flight.
+  - Updated backend to only ever use double- or triple-buffering, checked against swapchain image count.
+  - Added some verification logic to command buffers.
+  - Changed all "per-image" resources to use an array size of 3 to allow for triple-buffering to be toggled without having to rebuild resources.
+  - Changed window colourbuffer render targets to not use swapchain images directly. These are now drawn to 2 (double-buffering) 
+    or 3 (triple-buffering) images and later blitted to the swapchain images. In addition, the internal swapchain image index 
+    is maintained separately from the "colour buffer index". Colour buffer index should be used internally for all render 
+    operations, wereas the swapchain image index should only be used for acquiring swapchain images and presentation purposes.
+  - Fixed a long-standing bug that was adding colour attachment data to pipelines regardless if there were any.
+    This fixes the "Some things don't render unless validation layers are enabled" bug.
+  - Changed linking of Vulkan lib to dynamic, and added a custom loader.
+
+- 0.6.0
+  - Added support for secondary command buffers.
+  - Updated "renderings" to always use secondary command buffers. This allows reuse of resources within a frame such as descriptors when a scene is rendered more than once (water plane, cascaded shadow mapping, etc.).
+
 - 0.5.0
   - Refactored plugin to follow standardized plugin loading/interfaces.
   - Changed all resources which are per-frame (i.e. framebuffers, textures) to handle the internal frame-specific logic

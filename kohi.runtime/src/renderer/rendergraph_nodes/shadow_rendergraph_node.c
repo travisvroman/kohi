@@ -2,8 +2,10 @@
 
 #include "containers/darray.h"
 #include "core/engine.h"
+#include "core_render_types.h"
 #include "defines.h"
 #include "identifiers/khandle.h"
+#include "kresources/kresource_types.h"
 #include "logger.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
@@ -12,75 +14,88 @@
 #include "renderer/renderer_types.h"
 #include "renderer/rendergraph.h"
 #include "renderer/viewport.h"
-#include "resources/resource_types.h"
+#include "strings/kname.h"
 #include "strings/kstring.h"
+#include "systems/material_system.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
+#include <runtime_defines.h>
 
-typedef struct shadow_shader_locations {
-    u16 projections_location;
-    u16 views_location;
-    u16 model_location;
-    u32 cascade_index_location;
-    u16 colour_map_location;
-} shadow_shader_locations;
+// Locations of uniforms within the static mesh shader.
+typedef struct shadow_staticmesh_shader_locations {
+    u16 projections;
+    u16 views;
+    u16 model;
+    u16 cascade_index;
+    u16 base_colour_texture;
+    u16 base_colour_sampler;
+} shadow_staticmesh_shader_locations;
 
-typedef struct cascade_resources {
-    // FIXME: not used - delete?
-    k_handle framebuffer_handle;
-} cascade_resources;
+typedef struct shadow_shader_group_data {
+    khandle base_material;
+    u32 group_id;
+} shadow_shader_group_data;
 
-typedef struct shadow_shader_instance_data {
-    u64 render_frame_number;
-    u8 render_draw_index;
-} shadow_shader_instance_data;
+typedef struct shader_per_draw_data {
+    u32 draw_id;
+} shader_per_draw_data;
+
+typedef struct shadow_terrain_shader_locations {
+    u16 projections;
+    u16 views;
+    u16 model;
+    u16 cascade_index;
+} shadow_terrain_shader_locations;
 
 typedef struct shadow_rendergraph_node_internal_data {
     struct renderer_system_state* renderer;
+    struct texture_system_state* texture_system;
+    struct material_system_state* material_system;
     shadow_rendergraph_node_config config;
-
-    shader* s;
-    u32 shader_id;
-    shadow_shader_locations locations;
 
     // Custom projection matrix for shadow pass.
     viewport camera_viewport;
 
     // The depth texture used for the directional light shadow.
-    texture depth_texture;
+    kresource_texture* depth_texture;
 
-    // One per cascade.
-    cascade_resources cascade_resources[MAX_SHADOW_CASCADE_COUNT];
+    // Static mesh shader and locations.
+    khandle shadow_staticmesh_shader;
+    shadow_staticmesh_shader_locations staticmesh_shader_locations;
 
-    // Track instance updates per frame
-    b8* instance_updated;
-    u32 instance_count;
-    // Default map to be used when materials aren't available.
-    texture_map default_colour_map;
-    u32 default_instance_id;
-    u64 default_instance_frame_number;
+    // A pointer to the default base colour texture to be used when rendering opaque static meshes.
+    kresource_texture* default_base_colour_texture;
+    // Holds the id for the default static mesh shader group.
+    shadow_shader_group_data default_group;
 
-    // Track instance data per instance. darray
-    shadow_shader_instance_data* instances;
+    // Track per-group data. darray
+    shadow_shader_group_data* staticmesh_groups;
+
+    // Track per-draw data. darray
+    shader_per_draw_data* staticmesh_per_draw_data;
 
     // Separate shader/instance info for terrains.
-    shader* ts;
-    u32 terrain_shader_id;
-    shadow_shader_locations terrain_locations;
+    khandle shadow_terrain_shader;
+    shadow_terrain_shader_locations terrain_shader_locations;
+
+    // Track per-draw data. darray
+    shader_per_draw_data* terrain_per_draw_data;
 
     const struct directional_light* light;
     // Per-cascade data.
-    shadow_cascade_data cascade_data[MAX_SHADOW_CASCADE_COUNT];
+    shadow_cascade_data cascade_data[MATERIAL_MAX_SHADOW_CASCADES];
 
+    // Collection of static meshes geometries to be rendered for a frame. Reset every frame. Uses frame allocator.
+    u32 static_mesh_geometry_count;
+    struct geometry_render_data* static_mesh_geometries;
+
+    // Collection of terrain geometries to be rendered for a frame. Reset every frame. Uses frame allocator.
     u32 terrain_geometry_count;
     struct geometry_render_data* terrain_geometries;
-    u32 geometry_count;
-    struct geometry_render_data* geometries;
 
 } shadow_rendergraph_node_internal_data;
 
 static b8 deserialize_config(const char* source_str, shadow_rendergraph_node_config* out_config);
-/* static void destroy_config(shadow_rendergraph_node_config* config); */
 
 b8 shadow_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node* self, const struct rendergraph_node_config* config) {
     if (!self || !config) {
@@ -91,6 +106,8 @@ b8 shadow_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_
     self->internal_data = kallocate(sizeof(shadow_rendergraph_node_internal_data), MEMORY_TAG_RENDERER);
     shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
     internal_data->renderer = engine_systems_get()->renderer_system;
+    internal_data->texture_system = engine_systems_get()->texture_system;
+    internal_data->material_system = engine_systems_get()->material_system;
     if (!deserialize_config(config->config_str, &internal_data->config)) {
         KERROR("Failed to deserialize configuration for shadow_rendergraph_node. Node creation failed.");
         return false;
@@ -113,6 +130,10 @@ b8 shadow_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_
     self->load_resources = shadow_rendergraph_node_load_resources;
     self->execute = shadow_rendergraph_node_execute;
 
+    internal_data->staticmesh_groups = darray_create(shadow_shader_group_data);
+    internal_data->staticmesh_per_draw_data = darray_create(shader_per_draw_data);
+    internal_data->terrain_per_draw_data = darray_create(shader_per_draw_data);
+
     return true;
 }
 
@@ -123,31 +144,30 @@ b8 shadow_rendergraph_node_initialize(struct rendergraph_node* self) {
 
     shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Load shadowmap shader. Attempt to to get the already-loaded shader if it doesn't exist.
-    internal_data->s = shader_system_get("Shader.Shadowmap");
-    if (!internal_data->s) {
-        KERROR("Shader for shadow rendergraph node failed to load. See logs for details.");
+    // Load static mesh shadowmap shader.
+    internal_data->shadow_staticmesh_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_SHADOW_STATICMESH), kname_create(PACKAGE_NAME_RUNTIME));
+    if (khandle_is_invalid(internal_data->shadow_staticmesh_shader)) {
+        KERROR("Static mesh shadow shader for shadow rendergraph node failed to load. See logs for details.");
         return false;
     }
-    internal_data->shader_id = internal_data->s->id;
-    internal_data->locations.projections_location = shader_system_uniform_location(internal_data->shader_id, "projections");
-    internal_data->locations.views_location = shader_system_uniform_location(internal_data->shader_id, "views");
-    internal_data->locations.model_location = shader_system_uniform_location(internal_data->shader_id, "model");
-    internal_data->locations.cascade_index_location = shader_system_uniform_location(internal_data->shader_id, "cascade_index");
-    internal_data->locations.colour_map_location = shader_system_uniform_location(internal_data->shader_id, "colour_map");
+    internal_data->staticmesh_shader_locations.projections = shader_system_uniform_location(internal_data->shadow_staticmesh_shader, kname_create("projections"));
+    internal_data->staticmesh_shader_locations.views = shader_system_uniform_location(internal_data->shadow_staticmesh_shader, kname_create("views"));
+    internal_data->staticmesh_shader_locations.model = shader_system_uniform_location(internal_data->shadow_staticmesh_shader, kname_create("model"));
+    internal_data->staticmesh_shader_locations.cascade_index = shader_system_uniform_location(internal_data->shadow_staticmesh_shader, kname_create("cascade_index"));
+    internal_data->staticmesh_shader_locations.base_colour_texture = shader_system_uniform_location(internal_data->shadow_staticmesh_shader, kname_create("base_colour_texture"));
+    internal_data->staticmesh_shader_locations.base_colour_sampler = shader_system_uniform_location(internal_data->shadow_staticmesh_shader, kname_create("base_colour_sampler"));
 
-    // Terrain shadowmap shader.
-    internal_data->ts = shader_system_get("Shader.ShadowmapTerrain");
-    if (!internal_data->ts) {
-        KERROR("Failed to load shader for shadowmap rendergraph node (terrain)");
+    // Load terrain shadowmap shader.
+    internal_data->shadow_terrain_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_SHADOW_TERRAIN), kname_create(PACKAGE_NAME_RUNTIME));
+    if (khandle_is_invalid(internal_data->shadow_terrain_shader)) {
+        KERROR("Static terrain shader for shadow rendergraph node failed to load. See logs for details.");
         return false;
     }
 
-    internal_data->terrain_shader_id = internal_data->ts->id;
-    internal_data->terrain_locations.projections_location = shader_system_uniform_location(internal_data->terrain_shader_id, "projections");
-    internal_data->terrain_locations.views_location = shader_system_uniform_location(internal_data->terrain_shader_id, "views");
-    internal_data->terrain_locations.model_location = shader_system_uniform_location(internal_data->terrain_shader_id, "model");
-    internal_data->terrain_locations.cascade_index_location = shader_system_uniform_location(internal_data->terrain_shader_id, "cascade_index");
+    internal_data->terrain_shader_locations.projections = shader_system_uniform_location(internal_data->shadow_terrain_shader, kname_create("projections"));
+    internal_data->terrain_shader_locations.views = shader_system_uniform_location(internal_data->shadow_terrain_shader, kname_create("views"));
+    internal_data->terrain_shader_locations.model = shader_system_uniform_location(internal_data->shadow_terrain_shader, kname_create("model"));
+    internal_data->terrain_shader_locations.cascade_index = shader_system_uniform_location(internal_data->shadow_terrain_shader, kname_create("cascade_index"));
 
     return true;
 }
@@ -158,39 +178,21 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
     }
     shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Static meshes.
-    {
-        // Create a texture map to be used across the board for the diffuse/albedo transparency sample.
-        internal_data->default_colour_map.mip_levels = 1;
-        internal_data->default_colour_map.generation = INVALID_ID_U8;
-        internal_data->default_colour_map.repeat_u = internal_data->default_colour_map.repeat_v = internal_data->default_colour_map.repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
-        internal_data->default_colour_map.filter_minify = internal_data->default_colour_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
+    // NOTE: For static meshes, the alpha of transparent materials needs to be taken into
+    // account when casting shadows. This means these each need a distinct group per distinct material.
+    // Fully-opaque objects can be rendered using the same default opaque texture, and thus can all
+    // be rendered under the same group.
+    // Since terrains will never be transparent, they can all be rendered without using a texture at all.
 
-        // Grab the default texture for the default texture map.
-        internal_data->default_colour_map.texture = texture_system_get_default_diffuse_texture();
+    internal_data->default_base_colour_texture = texture_system_request(kname_create(DEFAULT_BASE_COLOUR_TEXTURE_NAME), INVALID_KNAME, 0, 0);
+    if (!internal_data->default_base_colour_texture) {
+        KERROR("Failed to load default base colour texture when initializing shadow rendergraph node.");
+        return false;
+    }
 
-        // Acquire resources for the default texture map.
-        if (!renderer_texture_map_resources_acquire(&internal_data->default_colour_map)) {
-            KERROR("Failed to acquire texture map resources for default colour map in shadowmap pass.");
-            return false;
-        }
-
-        // Reserve an instance id for the default "material" to render to.
-        {
-            texture_map* maps[1] = {&internal_data->default_colour_map};
-            /* shader* s = internal_data->s; */
-            /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
-            shader_instance_resource_config instance_resource_config = {0};
-            // Map count for this type is known.
-            shader_instance_uniform_texture_config colour_texture = {0};
-            /* colour_texture.uniform_location = atlas_location; */
-            colour_texture.texture_map_count = 1;
-            colour_texture.texture_maps = maps;
-
-            instance_resource_config.uniform_config_count = 1;
-            instance_resource_config.uniform_configs = &colour_texture;
-            renderer_shader_instance_resources_acquire(internal_data->renderer, internal_data->s, &instance_resource_config, &internal_data->default_instance_id);
-        }
+    if (!shader_system_shader_group_acquire(internal_data->shadow_staticmesh_shader, &internal_data->default_group.group_id)) {
+        KERROR("Failed to obtain group shader resources when initializing shadow rendergraph node.");
+        return false;
     }
 
     // NOTE: Setup a default viewport. The only component that is used for this is the underlying
@@ -204,35 +206,14 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
 
     // Create the depth attachment for the directional light shadow.
     // This should take renderer buffering into account.
-    texture* t = &internal_data->depth_texture;
-    t->width = t->height = internal_data->config.resolution;
-    t->type = TEXTURE_TYPE_2D_ARRAY;
-    t->flags = TEXTURE_FLAG_DEPTH | TEXTURE_FLAG_IS_WRITEABLE | TEXTURE_FLAG_RENDERER_BUFFERING;
-    t->array_size = MAX_SHADOW_CASCADE_COUNT;
-    t->channel_count = 4;
-    t->mip_levels = 1;
-    t->generation = INVALID_ID_U8;
-    t->id = -1;
-    t->name = string_duplicate("__shadow_rg_node_shadowmap__");
-
-    if (!renderer_texture_resources_acquire(
-            internal_data->renderer,
-            t->name,
-            t->type,
-            t->width,
-            t->height,
-            t->channel_count,
-            t->mip_levels,
-            t->array_size,
-            t->flags,
-            &internal_data->depth_texture.renderer_texture_handle)) {
-        KERROR("Failed to acquire renderer resources for shadow rendergraph node map.");
+    internal_data->depth_texture = texture_system_request_depth_arrayed(kname_create("__shadow_rg_node_shadowmap__"), internal_data->config.resolution, internal_data->config.resolution, MATERIAL_MAX_SHADOW_CASCADES, false, true);
+    if (!internal_data->depth_texture) {
+        KERROR("Failed to request layered shadow map texture for shadow rendergraph node.");
         return false;
     }
-
-    self->sources[0].value.t = &internal_data->depth_texture;
-    // Texture never gets uploaded to as most others do, so manually set this.
-    t->generation = 0;
+    // Bind it to the source.
+    rendergraph_source* shadowmap_source = &self->sources[0];
+    shadowmap_source->value.t = internal_data->depth_texture;
 
     return true;
 }
@@ -244,178 +225,228 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
 
     renderer_begin_debug_label("shadow rendergraph node", (vec3){1.0f, 0.0f, 0.0f});
 
-    // FIXME: Need to transition the format from (whatever) to VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-    // then perform the render,
-    // then transition to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL.
-
     shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    // Bind the internal viewport - do not use one provided in pass data.
-    renderer_active_viewport_set(&internal_data->camera_viewport);
-
     // Clear the image first.
-    renderer_clear_depth_stencil(engine_systems_get()->renderer_system, internal_data->depth_texture.renderer_texture_handle);
+    renderer_clear_depth_stencil(engine_systems_get()->renderer_system, internal_data->depth_texture->renderer_texture_handle);
 
     // One renderpass per cascade - directional light.
-    for (u32 p = 0; p < MAX_SHADOW_CASCADE_COUNT; ++p) {
-        const char* label_text = string_format("shadow_rendergraph_cascade_%u", p);
-        renderer_begin_debug_label(label_text, (vec3){1.0f - (p * 0.2f), 0.0f, 0.0f});
-        string_free(label_text);
-
-        renderer_begin_rendering(internal_data->renderer, p_frame_data, 0, 0, internal_data->depth_texture.renderer_texture_handle, p);
-
-        // Use the standard shadowmap shader.
-        shader_system_use_by_id(internal_data->s->id);
-
-        // Apply globals, once per cascade.
-        // LEFTOFF: Why is this being looped through *again*? This is already in a loop above.
-        // Is it because we can only update the globals once?
-        b8 needs_update = p == 0;
-        if (needs_update) {
-            for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
-                if (!shader_system_uniform_set_by_location_arrayed(internal_data->shader_id, internal_data->locations.projections_location, i, &internal_data->cascade_data[i].projection)) {
-                    KERROR("Failed to apply shadowmap projection uniform.");
-                    return false;
-                }
-                if (!shader_system_uniform_set_by_location_arrayed(internal_data->shader_id, internal_data->locations.views_location, i, &internal_data->cascade_data[i].view)) {
-                    KERROR("Failed to apply shadowmap view uniform.");
-                    return false;
-                }
-            }
-        }
-        shader_system_apply_global(internal_data->shader_id);
-
-        // Verify enough instance resources for this frame.
-        // This is done by taking the highest material instance id
-        // and using that for the count. This will ensure enough resources
-        // are present for the frame, and also allows for a quick mapping to
-        // a shader instance for texture binding, as well as keeping track
-        // of instance updates per frame.
-        u32 highest_id = 0;
-        for (u32 i = 0; i < internal_data->geometry_count; ++i) {
-            material* m = internal_data->geometries[i].material;
-            if (m->internal_id > highest_id) {
-                // NOTE: +1 to account for the first id being taken by the default instance.
-                highest_id = m->internal_id + 1;
-            }
-        }
-        // Terrains will be slightly different since a texture sample isn't
-        // really needed since terrains are never transparent. Therefore, only
-        // one more instance is needed, which can use the same default white
-        // texture as a sample.
-        highest_id++;
-
-        if (highest_id > internal_data->instance_count) {
-            if (internal_data->instances) {
-                darray_destroy(internal_data->instances);
-            }
-            internal_data->instances = darray_reserve(shadow_shader_instance_data, highest_id + 1);
-            // Get more resources if needed, starting at the previous high point.
-            for (u32 i = internal_data->instance_count; i < highest_id; i++) {
-                u32 instance_id;
-
-                // Use the same map for all.
-                texture_map* maps[1] = {&internal_data->default_colour_map};
-                /* shader* s = internal_data->s; */
-                /* u16 atlas_location = s->uniforms[s->instance_sampler_indices[0]].index; */
-                shader_instance_resource_config instance_resource_config = {0};
-                // Map count for this type is known.
-                shader_instance_uniform_texture_config colour_texture = {0};
-                /* colour_texture.uniform_location = atlas_location; */
-                colour_texture.texture_map_count = 1;
-                colour_texture.texture_maps = maps;
-
-                instance_resource_config.uniform_config_count = 1;
-                instance_resource_config.uniform_configs = &colour_texture;
-                renderer_shader_instance_resources_acquire(internal_data->renderer, internal_data->s, &instance_resource_config, &instance_id);
-
-                shadow_shader_instance_data* instance = &internal_data->instances[instance_id];
-                instance->render_frame_number = INVALID_ID_U64;
-                instance->render_draw_index = INVALID_ID_U8;
-            }
-            internal_data->instance_count = highest_id;
-        }
-
-        // Static geometries.
+    for (u32 p = 0; p < MATERIAL_MAX_SHADOW_CASCADES; ++p) {
         {
-            for (u32 i = 0; i < internal_data->geometry_count; ++i) {
-                geometry_render_data* g = &internal_data->geometries[i];
+            const char* label_text = string_format("shadow_rendergraph_cascade_%u", p);
+            renderer_begin_debug_label(label_text, (vec3){0.8f - (p * 0.1f), 0.0f, 0.0f});
+            string_free(label_text);
+        }
 
-                u32 bind_id = INVALID_ID;
-                texture_map* bind_map = 0;
+        rect_2d render_area = (rect_2d){0, 0, internal_data->config.resolution, internal_data->config.resolution};
+        renderer_begin_rendering(internal_data->renderer, p_frame_data, render_area, 0, 0, internal_data->depth_texture->renderer_texture_handle, p);
 
-                // Decide what bindings to use.
-                if (g->material && g->material->maps) {
-                    // Use current material's internal id.
-                    // NOTE: +1 to account for the first id being taken by the default instance.
-                    bind_id = g->material->internal_id + 1;
-                    // Use the current material's diffuse/albedo map.
-                    bind_map = &g->material->maps[0];
-                    // NOTE: can't update the _material's_ frame number/draw index because it still needs to be
-                    // used for the actual scene render.
-                    /* shadow_shader_instance_data* instance = &internal_data->instances[g->material->internal_id + 1]; */
-                } else {
-                    // Use the default instance.
-                    bind_id = internal_data->default_instance_id;
-                    // Use the default colour map.
-                    bind_map = &internal_data->default_colour_map;
-                }
+        // Bind the internal viewport - do not use one provided in pass data.
+        renderer_active_viewport_set(&internal_data->camera_viewport);
 
-                // Use the bindings.
-                shader_system_bind_instance(internal_data->shader_id, bind_id);
-                if (!shader_system_uniform_set_by_location(internal_data->shader_id, internal_data->locations.colour_map_location, bind_map)) {
-                    KERROR("Failed to apply shadowmap color_map uniform to static geometry.");
+        // Apply per-frame updates first.
+        {
+            renderer_begin_debug_label("shadow_rendergraph_staticmesh_per_frame", (vec3){1.0f, 0.0f, 0.0f});
+
+            // Use the standard shadowmap shader.
+            shader_system_use(internal_data->shadow_staticmesh_shader);
+            shader_system_bind_frame(internal_data->shadow_staticmesh_shader);
+
+            for (u32 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
+                if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_staticmesh_shader, internal_data->staticmesh_shader_locations.projections, i, &internal_data->cascade_data[i].projection)) {
+                    KERROR("Failed to apply static mesh shadowmap projection uniform (index=%u).", i);
                     return false;
                 }
-                shader_system_apply_instance(internal_data->shader_id);
-
-                // Apply the locals
-                shader_system_uniform_set_by_location(internal_data->shader_id, internal_data->locations.model_location, &g->model);
-                shader_system_uniform_set_by_location(internal_data->shader_id, internal_data->locations.cascade_index_location, &p);
-                shader_system_apply_local(internal_data->shader_id);
-
-                // Invert if needed
-                if (internal_data->geometries[i].winding_inverted) {
-                    renderer_winding_set(RENDERER_WINDING_CLOCKWISE);
+                if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_staticmesh_shader, internal_data->staticmesh_shader_locations.views, i, &internal_data->cascade_data[i].view)) {
+                    KERROR("Failed to apply static mesh shadowmap view uniform (index=%u).", i);
+                    return false;
                 }
+            }
+            // Apply per-frame uniforms.
+            shader_system_apply_per_frame(internal_data->shadow_staticmesh_shader);
 
-                // Draw it.
-                renderer_geometry_draw(g);
+            renderer_end_debug_label();
+        }
 
-                // Change back if needed
-                if (internal_data->geometries[i].winding_inverted) {
-                    renderer_winding_set(RENDERER_WINDING_COUNTER_CLOCKWISE);
-                }
+        // Reset material handle group data for all entries. _NOT_ the group_ids though!
+        {
+            u32 group_count = darray_length(internal_data->staticmesh_groups);
+            for (u32 g = 0; g < group_count; ++g) {
+                shadow_shader_group_data* group = &internal_data->staticmesh_groups[g];
+                group->base_material.handle_index = INVALID_ID;
             }
         }
 
-        // Terrain - use the special terrain shadowmap shader.
+        // Ensure there are enough static mesh per-draw resources for the frame.
         {
-            shader_system_use_by_id(internal_data->terrain_shader_id);
-
-            // Apply globals, once per cascade.
-            if (needs_update) {
-                for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
-                    // NOTE: using the internal projection matrix, not one passed in.
-                    if (!shader_system_uniform_set_by_location_arrayed(internal_data->terrain_shader_id, internal_data->terrain_locations.projections_location, i, &internal_data->cascade_data[i].projection)) {
-                        KERROR("Failed to apply terrain shadowmap projection uniform.");
+            i64 required_per_draw_count = internal_data->static_mesh_geometry_count;
+            u32 current_per_draw_count = darray_length(internal_data->staticmesh_per_draw_data);
+            i64 per_draw_diff = current_per_draw_count - required_per_draw_count;
+            if (per_draw_diff < 0) {
+                // Add the new entries for the difference, requesting draw resources along the way.
+                for (u32 i = current_per_draw_count; i < required_per_draw_count; ++i) {
+                    shader_per_draw_data new_per_draw = {0};
+                    if (!shader_system_shader_per_draw_acquire(internal_data->shadow_staticmesh_shader, &new_per_draw.draw_id)) {
+                        KERROR("Failed to acquire per-draw resources from the static mesh shadow shader. See logs for details.");
                         return false;
                     }
-                    if (!shader_system_uniform_set_by_location_arrayed(internal_data->terrain_shader_id, internal_data->terrain_locations.views_location, i, &internal_data->cascade_data[i].view)) {
-                        KERROR("Failed to apply terrain shadowmap view uniform.");
-                        return false;
-                    }
+                    darray_push(internal_data->staticmesh_per_draw_data, new_per_draw);
                 }
             }
-            shader_system_apply_global(internal_data->terrain_shader_id);
+        }
+
+        // Prepare - Obtain enough shader resources for the frame. Do this by obtaining the count of unique
+        // (but transparent) materials.
+        for (u32 i = 0; i < internal_data->static_mesh_geometry_count; ++i) {
+            geometry_render_data* geometry = &internal_data->static_mesh_geometries[i];
+            material_instance mat_inst = geometry->material;
+            shadow_shader_group_data* selected_group = 0;
+            shader_per_draw_data* selected_per_draw = &internal_data->staticmesh_per_draw_data[i];
+            b8 using_default = false;
+            if (material_flag_get(internal_data->material_system, mat_inst.material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT)) {
+
+                // Search the existing group data to see if this group has already been handled.
+                u32 group_index = INVALID_ID;
+                u32 group_count = darray_length(internal_data->staticmesh_groups);
+                for (u32 g = 0; g < group_count; ++g) {
+                    shadow_shader_group_data* group = &internal_data->staticmesh_groups[g];
+                    if (group->base_material.handle_index == mat_inst.material.handle_index) {
+                        // Exists already, move on to the next material.
+                        group_index = g;
+                        break;
+                    }
+                }
+
+                if (group_index == INVALID_ID) {
+                    // A unique material has been found. If a shader group already exists at this index, move on.
+                    // If not, request group resources, and save it off.
+                    // Find an "empty" slot, i.e. one with the group->base_material.handle_index = INVALID_ID.
+                    for (u32 g = 0; g < group_count; ++g) {
+                        shadow_shader_group_data* group = &internal_data->staticmesh_groups[g];
+                        if (group->base_material.handle_index == INVALID_ID) {
+                            // Found an empty slot. Use it, but don't request group resources.
+                            group->base_material = mat_inst.material;
+
+                            group_index = g;
+                            break;
+                        }
+                    }
+
+                    // If still not found, create a new entry (requesting group resources) and push into the darray.
+                    if (group_index == INVALID_ID) {
+                        shadow_shader_group_data new_group = {0};
+                        new_group.base_material = mat_inst.material;
+                        if (!shader_system_shader_group_acquire(internal_data->shadow_staticmesh_shader, &new_group.group_id)) {
+                            KERROR("Failed to obtain group resources for rendering a transparent material. See logs for details.");
+                            return false;
+                        }
+                        group_index = group_count;
+                        darray_push(internal_data->staticmesh_groups, new_group);
+                    }
+                }
+
+                selected_group = &internal_data->staticmesh_groups[group_index];
+            } else {
+                // For non-transparent materials, use the "default" group.
+                selected_group = &internal_data->default_group;
+                using_default = true;
+            }
+
+            // Update group uniforms.
+            if (!shader_system_bind_group(internal_data->shadow_staticmesh_shader, selected_group->group_id)) {
+                KERROR("Failed to bind static mesh shadow group id %u", selected_group->group_id);
+                return false;
+            }
+
+            // Bind the appropriate texture.
+            kresource_texture* base_colour_texture = using_default ? internal_data->default_base_colour_texture : material_texture_get(internal_data->material_system, selected_group->base_material, MATERIAL_TEXTURE_INPUT_BASE_COLOUR);
+            if (!base_colour_texture) {
+                // Failsafe in case the given material doesn't have a base colour texture.
+                base_colour_texture = internal_data->default_base_colour_texture;
+            }
+
+            // Since this can (and likely will) change every frame, set this every time.
+            if (!shader_system_uniform_set_by_location(internal_data->shadow_staticmesh_shader, internal_data->staticmesh_shader_locations.base_colour_texture, base_colour_texture)) {
+                KERROR("Failed to apply static mesh shadowmap base_colour_texture uniform to static geometry.");
+                return false;
+            }
+
+            if (!shader_system_apply_per_group(internal_data->shadow_staticmesh_shader)) {
+                KERROR("Failed to apply static mesh shadowmap group id %u", selected_group->group_id);
+                return false;
+            }
+
+            // Update per-draw uniforms.
+            shader_system_bind_draw_id(internal_data->shadow_staticmesh_shader, selected_per_draw->draw_id);
+            shader_system_uniform_set_by_location(internal_data->shadow_staticmesh_shader, internal_data->staticmesh_shader_locations.model, &geometry->model);
+            shader_system_uniform_set_by_location(internal_data->shadow_staticmesh_shader, internal_data->staticmesh_shader_locations.cascade_index, &p);
+            shader_system_apply_per_draw(internal_data->shadow_staticmesh_shader);
+
+            // Invert if needed
+            if (geometry->winding_inverted) {
+                renderer_winding_set(RENDERER_WINDING_CLOCKWISE);
+            }
+
+            // Draw it.
+            renderer_geometry_draw(geometry);
+
+            // Change back if needed
+            if (geometry->winding_inverted) {
+                renderer_winding_set(RENDERER_WINDING_COUNTER_CLOCKWISE);
+            }
+        }
+
+        // Terrain - use the terrain shadowmap shader.
+        //
+        // per-frame Terrain shadowmap shader
+        {
+            shader_system_use(internal_data->shadow_terrain_shader);
+
+            shader_system_bind_frame(internal_data->shadow_terrain_shader);
+
+            for (u32 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
+                // NOTE: using the internal projection matrix, not one passed in.
+                if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_terrain_shader, internal_data->terrain_shader_locations.projections, i, &internal_data->cascade_data[i].projection)) {
+                    KERROR("Failed to apply terrain shadowmap projection uniform (index=%u).", i);
+                    return false;
+                }
+                if (!shader_system_uniform_set_by_location_arrayed(internal_data->shadow_terrain_shader, internal_data->terrain_shader_locations.views, i, &internal_data->cascade_data[i].view)) {
+                    KERROR("Failed to apply terrain shadowmap view uniform (index=%u).", i);
+                    return false;
+                }
+            }
+            shader_system_apply_per_frame(internal_data->shadow_terrain_shader);
+        }
+
+        // Ensure there are enough terrain per-draw resources for the frame.
+        {
+            i64 required_per_draw_count = internal_data->terrain_geometry_count;
+            u32 current_per_draw_count = darray_length(internal_data->terrain_per_draw_data);
+            i64 per_draw_diff = current_per_draw_count - required_per_draw_count;
+            if (per_draw_diff < 0) {
+                // Add the new entries for the difference, requesting draw resources along the way.
+                for (u32 i = current_per_draw_count; i < required_per_draw_count; ++i) {
+                    shader_per_draw_data new_per_draw = {0};
+                    if (!shader_system_shader_per_draw_acquire(internal_data->shadow_terrain_shader, &new_per_draw.draw_id)) {
+                        KERROR("Failed to acquire per-draw resources from the terrain shadow shader. See logs for details.");
+                        return false;
+                    }
+                    darray_push(internal_data->terrain_per_draw_data, new_per_draw);
+                }
+            }
+        }
+
+        {
 
             for (u32 i = 0; i < internal_data->terrain_geometry_count; ++i) {
                 geometry_render_data* terrain = &internal_data->terrain_geometries[i];
+                shader_per_draw_data* selected_per_draw = &internal_data->staticmesh_per_draw_data[i];
 
                 // Apply the locals
-                shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.model_location, &terrain->model);
-                shader_system_uniform_set_by_location(internal_data->terrain_shader_id, internal_data->terrain_locations.cascade_index_location, &p);
-                shader_system_apply_local(internal_data->terrain_shader_id);
+                shader_system_bind_draw_id(internal_data->shadow_terrain_shader, selected_per_draw->draw_id);
+                shader_system_uniform_set_by_location(internal_data->shadow_terrain_shader, internal_data->terrain_shader_locations.model, &terrain->model);
+                shader_system_uniform_set_by_location(internal_data->shadow_terrain_shader, internal_data->terrain_shader_locations.cascade_index, &p);
+                shader_system_apply_per_draw(internal_data->shadow_terrain_shader);
 
                 // Draw it.
                 renderer_geometry_draw(terrain);
@@ -426,10 +457,10 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
 
         renderer_end_debug_label();
 
-    }  // End cascade pass
+    } // End cascade pass
 
     // Prepare the image to be sampled from.
-    renderer_texture_prepare_for_sampling(internal_data->renderer, internal_data->depth_texture.renderer_texture_handle, internal_data->depth_texture.flags);
+    renderer_texture_prepare_for_sampling(internal_data->renderer, internal_data->depth_texture->renderer_texture_handle, internal_data->depth_texture->flags);
 
     renderer_end_debug_label();
 
@@ -441,14 +472,8 @@ void shadow_rendergraph_node_destroy(struct rendergraph_node* self) {
         if (self->internal_data) {
             shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-            renderer_texture_resources_release(internal_data->renderer, &internal_data->depth_texture.renderer_texture_handle);
-            if (internal_data->depth_texture.name) {
-                string_free(internal_data->depth_texture.name);
-                internal_data->depth_texture.name = 0;
-            }
-
-            renderer_texture_map_resources_release(&internal_data->default_colour_map);
-            renderer_shader_instance_resources_release(internal_data->renderer, internal_data->s, internal_data->default_instance_id);
+            texture_system_release_resource(internal_data->depth_texture);
+            texture_system_release_resource(internal_data->default_base_colour_texture);
 
             // Internal data.
             kfree(self->internal_data, sizeof(shadow_rendergraph_node_internal_data), MEMORY_TAG_RENDERER);
@@ -474,8 +499,8 @@ b8 shadow_rendergraph_node_cascade_data_set(struct rendergraph_node* self, shado
         return false;
     }
 
-    if (cascade_index > MAX_SHADOW_CASCADE_COUNT - 1) {
-        KERROR("shadow_rendergraph_node_cascade_data_set index out of range. Expected [0-%d] but got %d.", MAX_SHADOW_CASCADE_COUNT - 1, cascade_index);
+    if (cascade_index > MATERIAL_MAX_SHADOW_CASCADES - 1) {
+        KERROR("shadow_rendergraph_node_cascade_data_set index out of range. Expected [0-%d] but got %d.", MATERIAL_MAX_SHADOW_CASCADES - 1, cascade_index);
         return false;
     }
 
@@ -493,9 +518,9 @@ b8 shadow_rendergraph_node_static_geometries_set(struct rendergraph_node* self, 
     shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 
     // Take a copy of the array. Note that this only lasts for the frame.
-    internal_data->geometry_count = geometry_count;
-    internal_data->geometries = p_frame_data->allocator.allocate(sizeof(geometry_render_data) * geometry_count);
-    kcopy_memory(internal_data->geometries, geometries, sizeof(geometry_render_data) * geometry_count);
+    internal_data->static_mesh_geometry_count = geometry_count;
+    internal_data->static_mesh_geometries = p_frame_data->allocator.allocate(sizeof(geometry_render_data) * geometry_count);
+    kcopy_memory(internal_data->static_mesh_geometries, geometries, sizeof(geometry_render_data) * geometry_count);
 
     return false;
 }

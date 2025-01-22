@@ -1,0 +1,41 @@
+version = 3
+type = "standard"
+model = "pbr"
+has_transparency = false
+double_sided = false
+recieves_shadow = true
+casts_shadow = true
+use_vertex_colour_as_base_colour = false
+inputs = {
+    base_colour = {
+        map = {
+            resource_name = "boards_and_planks_bc"
+            package_name = "Testbed"
+        }
+    }
+    normal = {
+        map = {
+            resource_name = "boards_and_planks_n"
+            package_name = "Testbed"
+        }
+        enabled = true
+    }
+    metallic = {
+        value = 0.000000
+    }
+    roughness = {
+        map = {
+            resource_name = "boards_and_planks_roughness"
+            package_name = "Testbed"
+            source_channel = "r"
+        }
+    }
+    ao = {
+        value = 1.000000
+        enabled = false
+    }
+    emissive = {
+        value = "0.000000 0.000000 0.000000 1.000000"
+        enabled = false
+    }
+}

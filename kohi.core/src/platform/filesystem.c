@@ -151,7 +151,7 @@ const char* filesystem_read_entire_text_file(const char* filepath) {
     // File size
     u64 size = 0;
     if (!filesystem_size(&f, &size)) {
-        return false;
+        return 0;
     }
     char* buf = kallocate(size + 1, MEMORY_TAG_STRING);
     u64 bytes_read = fread(buf, 1, size, (FILE*)f.handle);
@@ -162,8 +162,24 @@ const char* filesystem_read_entire_text_file(const char* filepath) {
     // (effectively trimming it) instead of the allocated one above to avoid leaks.
     if (bytes_read < size) {
         const char* copy = string_duplicate(buf);
-        kfree(buf, size, MEMORY_TAG_STRING);
+        kfree(buf, size + 1, MEMORY_TAG_STRING);
         return copy;
     }
+    return buf;
+}
+
+const void* filesystem_read_entire_binary_file(const char* filepath, u64* out_size) {
+    file_handle f;
+    if (!filesystem_open(filepath, FILE_MODE_READ, true, &f)) {
+        return 0;
+    }
+
+    // File size
+    if (!filesystem_size(&f, out_size)) {
+        return 0;
+    }
+    char* buf = kallocate(*out_size, MEMORY_TAG_ARRAY);
+    fread(buf, 1, *out_size, (FILE*)f.handle);
+
     return buf;
 }

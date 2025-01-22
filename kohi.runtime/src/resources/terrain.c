@@ -1,22 +1,25 @@
 #include "terrain.h"
 
-#include "defines.h"
-#include "identifiers/identifier.h"
-#include "memory/kmemory.h"
-#include "strings/kstring.h"
-#include "logger.h"
-#include "math/geometry.h"
-#include "math/kmath.h"
+#include <assets/kasset_types.h>
+#include <containers/darray.h>
+#include <core/engine.h>
+#include <defines.h>
+#include <identifiers/identifier.h>
+#include <identifiers/khandle.h>
+#include <logger.h>
+#include <math/kmath.h>
+#include <memory/kmemory.h>
+
+#include "kresources/kresource_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
-#include "resources/resource_types.h"
-#include "systems/light_system.h"
+#include "systems/asset_system.h"
 #include "systems/material_system.h"
-#include "systems/resource_system.h"
-#include "systems/shader_system.h"
 
 static void terrain_chunk_destroy(terrain* t, terrain_chunk* chunk);
 static void terrain_chunk_calculate_geometry(terrain* t, terrain_chunk* chunk, u32 chunk_offset_x, u32 chunk_offset_z);
+static void generate_and_load_geometry(terrain* t);
+static void kasset_heightmap_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
 
 typedef enum terrain_skirt_side {
     TSS_LEFT = 0,
@@ -26,15 +29,15 @@ typedef enum terrain_skirt_side {
     TSS_COUNT = 4
 } terrain_skirt_side;
 
-b8 terrain_create(const terrain_config* config, terrain* out_terrain) {
+b8 terrain_create(kresource_heightmap_terrain* terrain_resource, terrain* out_terrain) {
     if (!out_terrain) {
         KERROR("terrain_create requires a valid pointer to out_terrain.");
         out_terrain->state = TERRAIN_STATE_UNDEFINED;
         return false;
     }
 
-    out_terrain->name = string_duplicate(config->name);
-    out_terrain->resource_name = string_duplicate(config->resource_name);
+    out_terrain->name = terrain_resource->base.name;
+    out_terrain->terrain_resource = terrain_resource;
     out_terrain->state = TERRAIN_STATE_CREATED;
 
     return true;
@@ -47,12 +50,6 @@ void terrain_destroy(terrain* t) {
         if (!terrain_unload(t)) {
             KERROR("Failed to properly unload terrain before destroying. See logs for details.");
         }
-    }
-
-    if (t->name) {
-        u32 length = string_length(t->name);
-        kfree(t->name, length + 1, MEMORY_TAG_STRING);
-        t->name = 0;
     }
 
     if (t->chunks) {
@@ -106,121 +103,58 @@ b8 terrain_load(terrain* t) {
     }
     t->state = TERRAIN_STATE_LOADING;
 
-    // Load the terrain resource.
-    resource terr_resource;
-    if (!resource_system_load(t->resource_name, RESOURCE_TYPE_TERRAIN, 0, &terr_resource)) {
-        KWARN("Failed to load terrain resource.");
-        return false;
-    }
+    kresource_heightmap_terrain* typed_resource = t->terrain_resource;
 
-    terrain_resource* typed_resource = (terrain_resource*)terr_resource.data;
+    t->tile_scale_x = typed_resource->tile_scale.x;
+    t->tile_scale_z = typed_resource->tile_scale.z;
 
-    if (!typed_resource->tile_count_x) {
-        KERROR("Tile count x cannot be less than one.");
-        return false;
-    }
+    t->scale_y = typed_resource->tile_scale.y;
 
-    if (!typed_resource->tile_count_z) {
-        KERROR("Tile count z cannot be less than one.");
-        return false;
-    }
-
-    if (!typed_resource->chunk_size) {
-        KERROR("Chunk size cannot be less than one.");
-        return false;
-    }
+    t->chunk_size = typed_resource->chunk_size;
 
     t->extents = (extents_3d){0};
     t->origin = vec3_zero();
 
-    t->tile_count_x = typed_resource->tile_count_x;
-    t->tile_count_z = typed_resource->tile_count_z;
-    t->tile_scale_x = typed_resource->tile_scale_x;
-    t->tile_scale_z = typed_resource->tile_scale_z;
-
-    t->scale_y = typed_resource->scale_y;
-
-    t->chunk_size = typed_resource->chunk_size;
-
     // Invalidate the terrain so it doesn't get rendered before it's ready.
     t->generation = INVALID_ID;
 
-    // The number of detail levels  (LOD) is calculated by first taking the dimension
-    // figuring out how many times that number can be divided
-    // by 2, taking the floor value (rounding down) and adding 1 to represent the
-    // base level. This always leaves a value of at least 1.
-    t->lod_count = (u32)(kfloor(klog2(typed_resource->chunk_size)) + 1);
-
-    // Setup memory for the chunks.
-    t->chunk_count = (typed_resource->tile_count_x / typed_resource->chunk_size) * (typed_resource->tile_count_z / typed_resource->chunk_size);
-    t->chunks = kallocate(sizeof(terrain_chunk) * t->chunk_count, MEMORY_TAG_ARRAY);
-    for (u32 i = 0; i < t->chunk_count; ++i) {
-        terrain_chunk* chunk = &t->chunks[i];
-
-        // NOTE: Account for one more row/column at the end so there are chunk_size number of tiles.
-        u32 vertex_stride = t->chunk_size + 1;
-        chunk->surface_vertex_count = vertex_stride * vertex_stride;
-        // Total vertex count includes side skirts.
-        chunk->total_vertex_count = chunk->surface_vertex_count + (vertex_stride * 4);
-        chunk->vertices = kallocate(sizeof(terrain_vertex) * chunk->total_vertex_count, MEMORY_TAG_ARRAY);
-
-        chunk->lods = kallocate(sizeof(terrain_chunk_lod) * t->lod_count, MEMORY_TAG_ARRAY);
-        for (u32 j = 0; j < t->lod_count; ++j) {
-            terrain_chunk_lod* lod = &chunk->lods[j];
-
-            u32 lod_tile_stride = (j == 0 ? t->chunk_size : (u32)(t->chunk_size * (1.0f / (j * 2))));
-            lod->surface_index_count = (lod_tile_stride * lod_tile_stride) * 6;
-            lod->total_index_count = lod->surface_index_count + (lod_tile_stride * 6 * 4);
-            lod->indices = kallocate(sizeof(u32) * lod->total_index_count, MEMORY_TAG_ARRAY);
-        }
-
-        // Invalidate the chunk.
-        chunk->generation = INVALID_ID_U16;
-    }
-
-    // Height data.
-    t->vertex_data_length = typed_resource->vertex_data_length;
-    t->vertex_datas = kallocate(sizeof(terrain_vertex_data) * t->vertex_data_length, MEMORY_TAG_ARRAY);
-    kcopy_memory(t->vertex_datas, typed_resource->vertex_datas, typed_resource->vertex_data_length * sizeof(terrain_vertex_data));
-
     t->material_count = typed_resource->material_count;
     if (t->material_count) {
-        t->material_names = kallocate(sizeof(char*) * t->material_count, MEMORY_TAG_ARRAY);
-        kcopy_memory(t->material_names, typed_resource->material_names, sizeof(char*) * t->material_count);
+        t->material_names = KALLOC_TYPE_CARRAY(kname, t->material_count);
+        KCOPY_TYPE_CARRAY(t->material_names, typed_resource->material_names, kname, t->material_count);
     } else {
         t->material_names = 0;
     }
 
-    // Unload the terrain typed resource.
-    resource_system_unload(&terr_resource);
+    // Load the heightmap if one is configured.
+    if (typed_resource->heightmap_asset_name) {
+        kasset_image_import_options import_params = {0};
+        import_params.flip_y = false;
+        import_params.format = KASSET_IMAGE_FORMAT_RGBA8;
 
-    u32 chunk_row_count = t->tile_count_z / t->chunk_size;
-    u32 chunk_col_count = t->tile_count_x / t->chunk_size;
+        asset_request_info request_info = {0};
+        request_info.type = KASSET_TYPE_IMAGE;
+        request_info.asset_name = typed_resource->heightmap_asset_name;
+        request_info.package_name = typed_resource->heightmap_asset_package_name;
+        request_info.auto_release = true;
+        request_info.listener_inst = t;
+        request_info.callback = kasset_heightmap_result;
+        request_info.synchronous = false;
+        request_info.import_params_size = sizeof(kasset_image_import_options);
+        request_info.import_params = &import_params;
 
-    for (u32 z = 0, i = 0; z < chunk_row_count; z++) {
-        for (u32 x = 0; x < chunk_col_count; ++x, ++i) {
-            // x/z chunk indices within terrain grid.
-            u32 chunk_offset_x = i % chunk_col_count;
-            u32 chunk_offset_z = i / chunk_col_count;
-            terrain_chunk_calculate_geometry(t, &t->chunks[i], chunk_offset_x, chunk_offset_z);
-        }
+        asset_system_request(engine_systems_get()->asset_state, request_info);
+    } else {
+        // For now, heightmaps are the only way to import terrains.
+        KWARN("No heightmap was included, using reasonable defaults for terrain generation.");
+        t->tile_count_x = t->tile_count_z = 128;
+        t->chunk_size = 16;
+        t->vertex_data_length = t->tile_count_x * t->tile_count_z;
+        t->vertex_datas = darray_reserve(terrain_vertex_data, t->vertex_data_length);
+
+        generate_and_load_geometry(t);
     }
 
-    t->id = identifier_create();
-
-    for (u32 i = 0; i < t->chunk_count; ++i) {
-        if (!terrain_chunk_load(t, &t->chunks[i])) {
-            // Clean up the failure.
-            terrain_destroy(t);
-            KERROR("Terrain chunk failed to load, thus the terrain cannot be loaded.");
-            return false;
-        }
-    }
-
-    // Mark it as valid for rendering.
-    t->generation++;
-
-    t->state = TERRAIN_STATE_LOADED;
     return true;
 }
 
@@ -260,14 +194,11 @@ b8 terrain_chunk_load(terrain* t, terrain_chunk* chunk) {
     }
 
     // Create a terrain material by copying the properties of these materials to a new terrain material.
-    char terrain_material_name[MATERIAL_NAME_MAX_LENGTH] = {0};
-    string_format_unsafe(terrain_material_name, "terrain_mat_%s", t->name);
-    // NOTE: While the terrain could technically hold the material, doing this here lends the ability
-    // for each chunk to have a separate material.
-    chunk->material = material_system_acquire_terrain_material(terrain_material_name, t->material_count, (const char**)t->material_names, true);
-    if (!chunk->material) {
+    // FIXME: Need layered materials for this. This is just using the default standard material for now if nothing exists.
+    material_system_acquire(engine_systems_get()->material_system, t->material_name ? t->material_name : kname_create(MATERIAL_DEFAULT_NAME_STANDARD), &chunk->material);
+    if (khandle_is_invalid(chunk->material.material) || khandle_is_invalid(chunk->material.instance)) {
         KWARN("Failed to acquire terrain material. Using defualt instead.");
-        chunk->material = material_system_get_default_terrain();
+        chunk->material = material_system_get_default_blended(engine_systems_get()->material_system);
     }
 
     // Update the generation, making this valid to render.
@@ -314,8 +245,7 @@ b8 terrain_chunk_unload(terrain* t, terrain_chunk* chunk) {
     // This will allow for chunks to be unloaded/reloaded at will.
 
     // Release the material reference.
-    material_system_release(chunk->material->name);
-    chunk->material = 0;
+    material_system_release(engine_systems_get()->material_system, &chunk->material);
 
     if (chunk->vertices) {
         // NOTE: since geometry is not used here, need to release vertex and index data manually.
@@ -613,4 +543,158 @@ void terrain_geometry_generate_tangents(u32 vertex_count, terrain_vertex* vertic
         vertices[i1].tangent = t4;
         vertices[i2].tangent = t4;
     }
+}
+
+static void generate_and_load_geometry(terrain* t) {
+
+    // The number of detail levels  (LOD) is calculated by first taking the dimension
+    // figuring out how many times that number can be divided
+    // by 2, taking the floor value (rounding down) and adding 1 to represent the
+    // base level. This always leaves a value of at least 1.
+    t->lod_count = (u32)(kfloor(klog2(t->chunk_size)) + 1);
+
+    // Setup memory for the chunks.
+    t->chunk_count = (t->tile_count_x / t->chunk_size) * (t->tile_count_z / t->chunk_size);
+    t->chunks = kallocate(sizeof(terrain_chunk) * t->chunk_count, MEMORY_TAG_ARRAY);
+    for (u32 i = 0; i < t->chunk_count; ++i) {
+        terrain_chunk* chunk = &t->chunks[i];
+
+        // NOTE: Account for one more row/column at the end so there are chunk_size number of tiles.
+        u32 vertex_stride = t->chunk_size + 1;
+        chunk->surface_vertex_count = vertex_stride * vertex_stride;
+        // Total vertex count includes side skirts.
+        chunk->total_vertex_count = chunk->surface_vertex_count + (vertex_stride * 4);
+        chunk->vertices = kallocate(sizeof(terrain_vertex) * chunk->total_vertex_count, MEMORY_TAG_ARRAY);
+
+        chunk->lods = kallocate(sizeof(terrain_chunk_lod) * t->lod_count, MEMORY_TAG_ARRAY);
+        for (u32 j = 0; j < t->lod_count; ++j) {
+            terrain_chunk_lod* lod = &chunk->lods[j];
+
+            u32 lod_tile_stride = (j == 0 ? t->chunk_size : (u32)(t->chunk_size * (1.0f / (j * 2))));
+            lod->surface_index_count = (lod_tile_stride * lod_tile_stride) * 6;
+            lod->total_index_count = lod->surface_index_count + (lod_tile_stride * 6 * 4);
+            lod->indices = kallocate(sizeof(u32) * lod->total_index_count, MEMORY_TAG_ARRAY);
+        }
+
+        // Invalidate the chunk.
+        chunk->generation = INVALID_ID_U16;
+    }
+
+    // Height data.
+    t->vertex_data_length = t->vertex_data_length;
+    t->vertex_datas = kallocate(sizeof(terrain_vertex_data) * t->vertex_data_length, MEMORY_TAG_ARRAY);
+    kcopy_memory(t->vertex_datas, t->vertex_datas, t->vertex_data_length * sizeof(terrain_vertex_data));
+
+    u32 chunk_row_count = t->tile_count_z / t->chunk_size;
+    u32 chunk_col_count = t->tile_count_x / t->chunk_size;
+
+    for (u32 z = 0, i = 0; z < chunk_row_count; z++) {
+        for (u32 x = 0; x < chunk_col_count; ++x, ++i) {
+            // x/z chunk indices within terrain grid.
+            u32 chunk_offset_x = i % chunk_col_count;
+            u32 chunk_offset_z = i / chunk_col_count;
+            terrain_chunk_calculate_geometry(t, &t->chunks[i], chunk_offset_x, chunk_offset_z);
+        }
+    }
+
+    t->id = identifier_create();
+
+    for (u32 i = 0; i < t->chunk_count; ++i) {
+        if (!terrain_chunk_load(t, &t->chunks[i])) {
+            // Clean up the failure.
+            terrain_destroy(t);
+            KERROR("Terrain chunk failed to load, thus the terrain cannot be loaded.");
+            return;
+        }
+    }
+
+    // Mark it as valid for rendering.
+    t->generation++;
+
+    t->state = TERRAIN_STATE_LOADED;
+}
+
+static void kasset_heightmap_result(asset_request_result result, const struct kasset* asset, void* listener_inst) {
+    terrain* t = (terrain*)listener_inst;
+
+    if (result == ASSET_REQUEST_RESULT_SUCCESS) {
+
+        kasset_image* typed_asset = (kasset_image*)asset;
+        // Process loaded image.
+
+        t->vertex_data_length = (typed_asset->width + 1) * (typed_asset->height + 1);
+        t->vertex_datas = darray_reserve(terrain_vertex_data, t->vertex_data_length);
+
+        t->tile_count_x = typed_asset->width;
+        t->tile_count_z = typed_asset->height;
+
+        if (!t->tile_count_x) {
+            KWARN("Tile count x cannot be less than one. Defaulting to 1.");
+            t->tile_count_x = 1;
+        }
+
+        if (!t->tile_count_z) {
+            KWARN("Tile count z cannot be less than one. Defaulting to 1.");
+            t->tile_count_z = 1;
+        }
+
+        if (!t->chunk_size) {
+            KWARN("Chunk size cannot be less than one. Defaulting to 16.");
+            t->chunk_size = 16;
+        }
+
+        if (t->tile_count_x % t->chunk_size != 0 || t->tile_count_z % t->chunk_size != 0) {
+            KERROR(
+                "Heightmap dimensions must be a multiple of chunk size. Heightmap terrain load failed. (map w='%u', h='%u', chunk_size='%u')",
+                t->tile_count_x,
+                t->tile_count_z,
+                t->chunk_size);
+            return;
+        }
+
+        u32 j = 0;
+        for (u32 y = 0, i = 0; y < typed_asset->height; ++y) {
+            for (u32 x = 0; x < typed_asset->width; ++x, ++i, ++j) {
+                u8 r = typed_asset->pixels[(i * 4) + 0];
+                u8 g = typed_asset->pixels[(i * 4) + 1];
+                u8 b = typed_asset->pixels[(i * 4) + 2];
+                // Need to base height off combined RGB value.
+                u32 colour_int = 0;
+                rgbu_to_u32(r, g, b, &colour_int);
+                f32 height = (f32)colour_int / 16777215;
+
+                t->vertex_datas[j].height = height;
+            }
+            // Use the previous pixel's height again for the last row.
+            t->vertex_datas[j].height = t->vertex_datas[j - 1].height;
+            ++j;
+        }
+        // Iterate the last row of the image and sample the height from there again for the last row of the terrain.
+        for (u32 i = typed_asset->width * (typed_asset->height - 1); i < (typed_asset->width * typed_asset->height); ++i, ++j) {
+            u8 r = typed_asset->pixels[(i * 4) + 0];
+            u8 g = typed_asset->pixels[(i * 4) + 1];
+            u8 b = typed_asset->pixels[(i * 4) + 2];
+            // Need to base height off combined RGB value.
+            u32 colour_int = 0;
+            rgbu_to_u32(r, g, b, &colour_int);
+            f32 height = (f32)colour_int / 16777215;
+
+            t->vertex_datas[j].height = height;
+        }
+        // The final vertex also needs a copy of the previous height.
+        t->vertex_datas[j].height = t->vertex_datas[j - 1].height;
+
+        // Make sure to release the asset.
+        asset_system_release(engine_systems_get()->asset_state, typed_asset->base.name, typed_asset->base.package_name);
+
+    } else {
+        // For now, heightmaps are the only way to import terrains.
+        KWARN("No heightmap was included, using reasonable defaults for terrain generation.");
+        t->tile_count_x = t->tile_count_z = 128;
+        t->chunk_size = 16;
+        t->vertex_data_length = t->tile_count_x * t->tile_count_z;
+        t->vertex_datas = darray_reserve(terrain_vertex_data, t->vertex_data_length);
+    }
+
+    generate_and_load_geometry(t);
 }

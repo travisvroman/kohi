@@ -1,0 +1,54 @@
+version = 1
+stages=vertex,fragment
+stagefiles=UI_Pick_vert,Pick_UI_frag
+depth_test=false
+depth_write=false
+
+stages = [
+    {
+        type = "vertex"
+        source_asset_name = "Shader.Pick_UI_vert"
+        package_name = "Kohi.Plugin.Ui.Standard"
+    }
+    {
+        type = "fragment"
+        source_asset_name = "Shader.Pick_UI_frag"
+        package_name = "Kohi.Plugin.Ui.Standard"
+    }
+]
+
+attributes = [
+    {
+        name = "in_position"
+        type = "vec2"
+    }
+    {
+        name = "in_texcoord"
+        type = "vec2"
+    }
+]
+
+uniforms = {
+    per_frame = [
+        {
+            name = "projection"
+            type = "mat4"
+        }
+        {
+            name = "view"
+            type = "mat4"
+        }
+    ]
+    per_group = [
+        {
+            name = "id_colour"
+            type = "vec3"
+        }
+    ]
+    per_draw = [
+        {
+            name = "model"
+            type = "mat4"
+        }
+    ]
+}

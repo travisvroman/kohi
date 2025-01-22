@@ -1,5 +1,6 @@
 #include <logger.h>
 #include <math/kmath.h>
+#include <strings/kstring.h>
 
 /**
  * @brief Expects expected to be equal to actual.
@@ -44,4 +45,10 @@
     if (actual != false) {                                                             \
         KERROR("--> Expected false, but got: true. File: %s:%d.", __FILE__, __LINE__); \
         return false;                                                                  \
+    }
+
+#define expect_string_to_be(expected, actual)                                                           \
+    if (!strings_equal(expected, actual)) {                                                             \
+        KERROR("--> Expected '%s', but got: '%s'. File: %s:%d.", expected, actual, __FILE__, __LINE__); \
+        return false;                                                                                   \
     }

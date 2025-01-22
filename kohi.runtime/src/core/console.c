@@ -1,12 +1,12 @@
 #include "console.h"
 
-#include "debug/kassert.h"
 #include "containers/darray.h"
 #include "containers/stack.h"
-#include "strings/kstring.h"
-#include "logger.h"
+#include "debug/kassert.h"
 #include "defines.h"
+#include "logger.h"
 #include "memory/kmemory.h"
+#include "strings/kstring.h"
 
 typedef struct console_consumer {
     PFN_console_consumer_write callback;
@@ -1145,7 +1145,7 @@ b8 console_command_execute(const char* command) {
     }
 
 console_command_execute_cleanup:
-    string_cleanup_split_array(parts);
+    string_cleanup_split_darray(parts);
     darray_destroy(parts);
 
     return !has_error;

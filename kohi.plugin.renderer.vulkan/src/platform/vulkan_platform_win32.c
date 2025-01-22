@@ -39,11 +39,14 @@ b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow
     if (!handle) {
         return false;
     }
+
+    PFN_vkCreateWin32SurfaceKHR kvkCreateWin32SurfaceKHR = platform_dynamic_library_load_function("vkCreateWin32SurfaceKHR", &context->rhi.vulkan_lib);
+
     VkWin32SurfaceCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
     create_info.hinstance = handle->h_instance;
     create_info.hwnd = window->platform_state->hwnd;
 
-    VkResult result = vkCreateWin32SurfaceKHR(
+    VkResult result = kvkCreateWin32SurfaceKHR(
         context->instance,
         &create_info,
         context->allocator,
@@ -57,7 +60,16 @@ b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow
 }
 
 b8 vulkan_platform_presentation_support(vulkan_context* context, VkPhysicalDevice physical_device, u32 queue_family_index) {
-    return (b8)vkGetPhysicalDeviceWin32PresentationSupportKHR(physical_device, queue_family_index);
+    PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR kvkGetPhysicalDeviceWin32PresentationSupportKHR = platform_dynamic_library_load_function("vkGetPhysicalDeviceWin32PresentationSupportKHR", &context->rhi.vulkan_lib);
+    return (b8)kvkGetPhysicalDeviceWin32PresentationSupportKHR(physical_device, queue_family_index);
+}
+
+b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
+    if (!rhi) {
+        return false;
+    }
+
+    return platform_dynamic_library_load("vulkan-1", &rhi->vulkan_lib);
 }
 
 #endif

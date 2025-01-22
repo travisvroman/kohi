@@ -31,10 +31,10 @@
             },
         },
         {
-            "name": "Launch Unit Tests",
+            "name": "Launch Core Unit Tests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/kohi.tests",
+            "program": "${workspaceFolder}/bin/kohi.core.tests",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/bin/",
@@ -48,7 +48,7 @@
             },
             "windows": {
                 "type": "cppvsdbg",
-                "program": "${workspaceFolder}/bin/kohi.tests.exe",
+                "program": "${workspaceFolder}/bin/kohi.core.tests.exe",
                 // cppvsdbg requires this instead of externalConsole
                 "console": "integratedTerminal",
             }

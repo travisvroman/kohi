@@ -5,7 +5,6 @@
 #include "identifiers/khandle.h"
 #include "math/geometry.h"
 #include "math/math_types.h"
-#include "resources/resource_types.h"
 
 typedef struct debug_line3d {
     identifier id;
@@ -13,22 +12,19 @@ typedef struct debug_line3d {
     vec3 point_0;
     vec3 point_1;
     vec4 colour;
-    k_handle xform;
-    k_handle xform_parent;
+    khandle xform;
+    khandle xform_parent;
     b8 is_dirty;
 
-    u32 vertex_count;
-    colour_vertex_3d* vertices;
-
-    geometry geo;
+    kgeometry geometry;
 } debug_line3d;
 
 struct frame_data;
 
-KAPI b8 debug_line3d_create(vec3 point_0, vec3 point_1, k_handle parent_xform, debug_line3d* out_line);
+KAPI b8 debug_line3d_create(vec3 point_0, vec3 point_1, khandle parent_xform, debug_line3d* out_line);
 KAPI void debug_line3d_destroy(debug_line3d* line);
 
-KAPI void debug_line3d_parent_set(debug_line3d* line, k_handle parent_xform);
+KAPI void debug_line3d_parent_set(debug_line3d* line, khandle parent_xform);
 KAPI void debug_line3d_colour_set(debug_line3d* line, vec4 colour);
 KAPI void debug_line3d_points_set(debug_line3d* line, vec3 point_0, vec3 point_1);
 

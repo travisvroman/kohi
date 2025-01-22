@@ -9,11 +9,13 @@ struct rendergraph;
 struct rendergraph_node;
 struct rendergraph_node_config;
 struct frame_data;
-struct texture;
+struct kresource_texture;
 
 struct directional_light;
 struct geometry_render_data;
 struct viewport;
+struct water_plane;
+struct skybox;
 
 KAPI b8 forward_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node* self, const struct rendergraph_node_config* config);
 KAPI b8 forward_rendergraph_node_initialize(struct rendergraph_node* self);
@@ -26,12 +28,13 @@ KAPI b8 forward_rendergraph_node_render_mode_set(struct rendergraph_node* self, 
 KAPI b8 forward_rendergraph_node_directional_light_set(struct rendergraph_node* self, const struct directional_light* light);
 KAPI b8 forward_rendergraph_node_cascade_data_set(struct rendergraph_node* self, f32 split, mat4 dir_light_view, mat4 dir_light_projection, u8 cascade_index);
 KAPI b8 forward_rendergraph_node_static_geometries_set(struct rendergraph_node* self, struct frame_data* p_frame_data, u32 geometry_count, const struct geometry_render_data* geometries);
+KAPI void forward_rendergraph_node_set_skybox(struct rendergraph_node* self, struct skybox* sb);
 KAPI b8 forward_rendergraph_node_terrain_geometries_set(struct rendergraph_node* self, struct frame_data* p_frame_data, u32 geometry_count, const struct geometry_render_data* geometries);
-KAPI b8 forward_rendergraph_node_debug_geometries_set(struct rendergraph_node* self, struct frame_data* p_frame_data, u32 geometry_count, const struct geometry_render_data* geometries);
-KAPI b8 forward_rendergraph_node_irradiance_texture_set(struct rendergraph_node* self, struct frame_data* p_frame_data, struct texture* irradiance_cube_texture);
+KAPI b8 forward_rendergraph_node_water_planes_set(struct rendergraph_node* self, struct frame_data* p_frame_data, u32 count, struct water_plane** planes);
+KAPI b8 forward_rendergraph_node_irradiance_texture_set(struct rendergraph_node* self, struct frame_data* p_frame_data, kresource_texture* irradiance_cube_texture);
 
 KAPI b8 forward_rendergraph_node_viewport_set(struct rendergraph_node* self, viewport v);
-KAPI b8 forward_rendergraph_node_view_projection_set(struct rendergraph_node* self, mat4 view_matrix, vec3 view_pos, mat4 projection_matrix);
+KAPI b8 forward_rendergraph_node_camera_projection_set(struct rendergraph_node* self, struct camera* view_camera, mat4 projection_matrix);
 
 KAPI b8 forward_rendergraph_node_register_factory(void);
 

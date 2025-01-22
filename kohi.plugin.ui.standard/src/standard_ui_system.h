@@ -17,8 +17,8 @@
 #include "defines.h"
 #include "identifiers/identifier.h"
 #include "input_types.h"
+#include "kresources/kresource_types.h"
 #include "renderer/renderer_types.h"
-#include "resources/resource_types.h"
 #include "systems/xform_system.h"
 
 struct frame_data;
@@ -31,14 +31,15 @@ typedef struct standard_ui_system_config {
 } standard_ui_system_config;
 
 typedef struct standard_ui_renderable {
-    u32* instance_id;
-    texture_map* atlas_override;
+    u32* group_id;
+    u32* per_draw_id;
+    kresource_texture* atlas_override;
     geometry_render_data render_data;
     geometry_render_data* clip_mask_render_data;
 } standard_ui_renderable;
 
 typedef struct standard_ui_render_data {
-    texture_map* ui_atlas;
+    kresource_texture* ui_atlas;
     // darray
     standard_ui_renderable* renderables;
 } standard_ui_render_data;
@@ -61,14 +62,14 @@ typedef struct sui_keyboard_event {
 
 typedef struct sui_clip_mask {
     u32 reference_id;
-    k_handle clip_xform;
-    struct geometry* clip_geometry;
+    khandle clip_xform;
+    kgeometry clip_geometry;
     geometry_render_data render_data;
 } sui_clip_mask;
 
 typedef struct sui_control {
     identifier id;
-    k_handle xform;
+    khandle xform;
     char* name;
     // TODO: Convert to flags.
     b8 is_active;
@@ -121,6 +122,7 @@ typedef struct sui_control {
 
 typedef struct standard_ui_state {
     struct renderer_system_state* renderer;
+    struct font_system_state* font_system;
     standard_ui_system_config config;
     // Array of pointers to controls, the system does not own these. The application does.
     u32 total_control_count;
@@ -129,7 +131,9 @@ typedef struct standard_ui_state {
     u32 inactive_control_count;
     sui_control** inactive_controls;
     sui_control root;
-    texture_map ui_atlas;
+    // texture_map ui_atlas;
+
+    kresource_texture* atlas_texture;
 
     u64 focused_id;
 

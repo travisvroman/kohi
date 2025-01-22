@@ -11,8 +11,6 @@ struct rendergraph_node_config;
 struct frame_data;
 struct directional_light;
 
-#define MAX_SHADOW_CASCADE_COUNT 4
-
 typedef struct shadow_cascade_data {
     mat4 projection;
     mat4 view;

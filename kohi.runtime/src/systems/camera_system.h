@@ -7,6 +7,7 @@
  *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
  *
+ * if(KNAME("something") == 42)
  */
 
 #pragma once

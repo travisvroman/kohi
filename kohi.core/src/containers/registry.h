@@ -74,7 +74,7 @@ KAPI void kregistry_destroy(kregistry* registry);
  * @param auto_release Indicates if this entry should automatically release memory when its internal reference counter reaches 0.
  * @returns A handle to the newly-created registry entry.
  */
-KAPI k_handle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b8 auto_release);
+KAPI khandle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b8 auto_release);
 
 /**
  * @brief Attempts to set an existing registry block's data. When this occurs, the old data block will be released
@@ -88,7 +88,7 @@ KAPI k_handle kregistry_add_entry(kregistry* registry, const void* block, u64 si
  * @param sender An optional pointer to the initiator of this operation.
  * @returns True if successfully set; otherwise false.
  */
-KAPI b8 kregistry_entry_set(kregistry* registry, k_handle entry_handle, const void* block, u64 size, void* sender);
+KAPI b8 kregistry_entry_set(kregistry* registry, khandle entry_handle, const void* block, u64 size, void* sender);
 
 /**
  * @brief Attempts to update the callback for the given entry for the provided listener.
@@ -99,7 +99,7 @@ KAPI b8 kregistry_entry_set(kregistry* registry, k_handle entry_handle, const vo
  * @param updated_callback The callback to be set. Required.
  * @returns True on success; otherwise false.
  */
-KAPI b8 kregistry_entry_update_callback_for_listener(kregistry* registry, k_handle entry_handle, void* listener, PFN_on_registry_entry_updated updated_callback);
+KAPI b8 kregistry_entry_update_callback_for_listener(kregistry* registry, khandle entry_handle, void* listener, PFN_on_registry_entry_updated updated_callback);
 
 /**
  * @brief Attempts to acquire a reference for the given entry for the provided listener.
@@ -111,7 +111,7 @@ KAPI b8 kregistry_entry_update_callback_for_listener(kregistry* registry, k_hand
  * @param updated_callback The callback to be set. Optional.
  * @returns A pointer to the entry's memory block on success; otherwise 0/null.
  */
-KAPI void* kregistry_entry_acquire(kregistry* registry, k_handle entry_handle, void* listener, PFN_on_registry_entry_updated updated_callback);
+KAPI void* kregistry_entry_acquire(kregistry* registry, khandle entry_handle, void* listener, PFN_on_registry_entry_updated updated_callback);
 
 /**
  * @brief Attempts to release a reference for the given entry for the provided listener.
@@ -122,4 +122,4 @@ KAPI void* kregistry_entry_acquire(kregistry* registry, k_handle entry_handle, v
  * @param entry_handle The handle to the entry to release.
  * @param listener A pointer to the listener. Optional.
  */
-KAPI void kregistry_entry_release(kregistry* registry, k_handle entry_handle, void* listener);
+KAPI void kregistry_entry_release(kregistry* registry, khandle entry_handle, void* listener);

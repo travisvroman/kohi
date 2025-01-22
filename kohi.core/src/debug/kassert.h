@@ -83,7 +83,7 @@ KAPI void report_assertion_failure(const char* expression, const char* message, 
             }                                                                 \
         }
 
-#    ifdef _DEBUG
+#    if KOHI_DEBUG
 /**
  * @brief Asserts the provided expression to be true, and logs a failure if not.
  * Also triggers a breakpoint if debugging.

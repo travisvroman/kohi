@@ -16,9 +16,8 @@
 
 #include "defines.h"
 
-#include "audio/audio_types.h"
 #include "identifiers/khandle.h"
-#include "renderer/renderer_types.h"
+#include "platform/vfs.h"
 
 struct application;
 struct frame_data;
@@ -32,16 +31,18 @@ struct resource_state;
 struct shader_system_state;
 struct renderer_system_state;
 struct job_system_state;
-struct audio_system_state;
+struct kaudio_system_state;
 struct xform_system_state;
 struct texture_system_state;
 struct font_system_state;
 struct material_system_state;
-struct geometry_system_state;
+struct static_mesh_system_state;
 struct light_system_state;
 struct camera_system_state;
 struct plugin_system_state;
 struct rendergraph_system_state;
+struct asset_system_state;
+struct vfs_state;
 struct kwindow;
 
 typedef struct engine_system_states {
@@ -63,9 +64,6 @@ typedef struct engine_system_states {
     u64 timeline_system_memory_requirement;
     struct timeline_system_state* timeline_system;
 
-    u64 resource_system_memory_requirement;
-    struct resource_state* resource_system;
-
     u64 shader_system_memory_requirement;
     struct shader_system_state* shader_system;
 
@@ -75,8 +73,8 @@ typedef struct engine_system_states {
     u64 job_system_memory_requirement;
     struct job_system_state* job_system;
 
-    u64 audio_system_memory_requirement;
-    struct audio_system_state* audio_system;
+    u64 kaudio_system_memory_requirement;
+    struct kaudio_system_state* audio_system;
 
     u64 xform_system_memory_requirement;
     struct xform_system_state* xform_system;
@@ -90,8 +88,8 @@ typedef struct engine_system_states {
     u64 material_system_memory_requirement;
     struct material_system_state* material_system;
 
-    u64 geometry_system_memory_requirement;
-    struct geometry_system_state* geometry_system;
+    u64 static_mesh_system_memory_requirement;
+    struct static_mesh_system_state* static_mesh_system;
 
     u64 light_system_memory_requirement;
     struct light_system_state* light_system;
@@ -104,6 +102,15 @@ typedef struct engine_system_states {
 
     u64 rendergraph_system_memory_requirement;
     struct rendergraph_system_state* rendergraph_system;
+
+    u64 vfs_system_memory_requirement;
+    struct vfs_state* vfs_system_state;
+
+    u64 asset_system_memory_requirement;
+    struct asset_system_state* asset_state;
+
+    u64 kresource_system_memory_requirement;
+    struct kresource_system_state* kresource_state;
 } engine_system_states;
 
 /**
@@ -140,8 +147,8 @@ KAPI const struct frame_data* engine_frame_data_get(void);
  */
 KAPI const engine_system_states* engine_systems_get(void);
 
-KAPI k_handle engine_external_system_register(u64 system_state_memory_requirement);
+KAPI khandle engine_external_system_register(u64 system_state_memory_requirement);
 
-KAPI void* engine_external_system_state_get(k_handle system_handle);
+KAPI void* engine_external_system_state_get(khandle system_handle);
 
 KAPI struct kwindow* engine_active_window_get(void);

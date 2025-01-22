@@ -1,0 +1,70 @@
+version = 1
+cull_mode="none"
+depth_test=false
+depth_write=false
+
+max_groups=2
+max_draw_ids=2
+
+stages = [
+    {
+        type = "vertex"
+        source_asset_name = "Shader.Skybox_vert"
+        package_name = "Kohi.Runtime"
+    }
+    {
+        type = "fragment"
+        source_asset_name = "Shader.Skybox_frag"
+        package_name = "Kohi.Runtime"
+    }
+]
+
+attributes = [
+    {
+        name = "in_position"
+        type = "vec3"
+    }
+    {
+        name = "in_normal"
+        type = "vec3"
+    }
+    {
+        name = "in_texcoord"
+        type = "vec2"
+    }
+    {
+        name = "in_colour"
+        type = "vec4"
+    }
+    {
+        name = "in_tangent"
+        type = "vec4"
+    }
+]
+
+uniforms = {
+    per_frame = [
+        {
+            name = "skybox_frame_ubo"
+            type = "struct"
+            size = 320
+        }
+    ]
+    per_group = [
+        {
+            name = "cube_texture"
+            type = "textureCube"
+        }
+        {
+            name = "cube_sampler"
+            type = "sampler"
+        }
+    ]
+    per_draw = [
+        {
+            name = "skybox_draw_ubo"
+            type = "struct"
+            size = 16
+        }
+    ]
+}

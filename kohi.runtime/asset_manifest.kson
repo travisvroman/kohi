@@ -1,0 +1,151 @@
+package_name = "Kohi.Runtime"
+references = [
+]
+assets = [
+    {
+        name = "Shader.Colour3D"
+        path = "assets/shaders/Shader.Colour3D.ksc"
+    }
+    {
+        name = "Shader.Colour3D_frag"
+        path = "assets/shaders/Shader.Colour3D_frag.glsl"
+    }
+    {
+        name = "Shader.Colour3D_vert"
+        path = "assets/shaders/Shader.Colour3D_vert.glsl"
+    }
+    {
+        name = "Shader.MaterialStandard_frag"
+        path = "assets/shaders/Shader.MaterialStandard_frag.glsl"
+    }
+    {
+        name = "Shader.MaterialStandard_vert"
+        path = "assets/shaders/Shader.MaterialStandard_vert.glsl"
+    }
+    {
+        name = "Shader.PBR_Terrain"
+        path = "assets/shaders/Shader.PBR_Terrain.ksc"
+    }
+    {
+        name = "Shader.PBR_Terrain_frag"
+        path = "assets/shaders/Shader.PBR_Terrain_frag.glsl"
+    }
+    {
+        name = "Shader.PBR_Terrain_vert"
+        path = "assets/shaders/Shader.PBR_Terrain_vert.glsl"
+    }
+    {
+        name = "Shader.Pick_StaticMesh"
+        path = "assets/shaders/Shader.Pick_StaticMesh.ksc"
+    }
+    {
+        name = "Shader.Pick_StaticMesh_frag"
+        path = "assets/shaders/Shader.Pick_StaticMesh_frag.glsl"
+    }
+    {
+        name = "Shader.Pick_StaticMesh_vert"
+        path = "assets/shaders/Shader.Pick_StaticMesh_vert.glsl"
+    }
+    {
+        name = "Shader.Pick_Terrain"
+        path = "assets/shaders/Shader.Pick_Terrain.ksc"
+    }
+    {
+        name = "Shader.Pick_Terrain_frag"
+        path = "assets/shaders/Shader.Pick_Terrain_frag.glsl"
+    }
+    {
+        name = "Shader.Pick_Terrain_vert"
+        path = "assets/shaders/Shader.Pick_Terrain_vert.glsl"
+    }
+    {
+        name = "Shader.Shadow_StaticMesh"
+        path = "assets/shaders/Shader.Shadow_StaticMesh.ksc"
+    }
+    {
+        name = "Shader.Shadow_StaticMesh_frag"
+        path = "assets/shaders/Shader.Shadow_StaticMesh_frag.glsl"
+    }
+    {
+        name = "Shader.Shadow_StaticMesh_vert"
+        path = "assets/shaders/Shader.Shadow_StaticMesh_vert.glsl"
+    }
+    {
+        name = "Shader.Shadow_Terrain"
+        path = "assets/shaders/Shader.Shadow_Terrain.ksc"
+    }
+    {
+        name = "Shader.Shadow_Terrain_frag"
+        path = "assets/shaders/Shader.Shadow_Terrain_frag.glsl"
+    }
+    {
+        name = "Shader.Shadow_Terrain_vert"
+        path = "assets/shaders/Shader.Shadow_Terrain_vert.glsl"
+    }
+    {
+        name = "Shader.Skybox"
+        path = "assets/shaders/Shader.Skybox.ksc"
+    }
+    {
+        name = "Shader.Skybox_frag"
+        path = "assets/shaders/Shader.Skybox_frag.glsl"
+    }
+    {
+        name = "Shader.Skybox_vert"
+        path = "assets/shaders/Shader.Skybox_vert.glsl"
+    }
+    {
+        name = "Shader.MaterialWater_frag"
+        path = "assets/shaders/Shader.MaterialWater_frag.glsl"
+    }
+    {
+        name = "Shader.MaterialWater_vert"
+        path = "assets/shaders/Shader.MaterialWater_vert.glsl"
+    }
+    {
+        name = "Texture.DefaultWaterDUDV"
+        path = "assets/images/Texture.DefaultWaterDUDV.kbi"
+        source_path = "assets/images/source/Texture.DefaultWaterDUDV.png"
+    }
+    {
+        name = "Texture.DefaultWaterNormal"
+        path = "assets/images/Texture.DefaultWaterNormal.kbi"
+        source_path = "assets/images/source/Texture.DefaultWaterNormal.jpg"
+    }
+    {
+        name = "BitmapFont.NotoSans21px"
+        path = "./assets/fonts/BitmapFont.NotoSans21px.kbf"
+        source_path = "./assets/fonts/source/BitmapFont.NotoSans21px.fnt"
+    }
+    {
+        name = "Texture.BitmapFont.NotoSans21px_0"
+        path = "./assets/images/Texture.BitmapFont.NotoSans21px_0.kbi"
+        source_path = "./assets/images/source/Texture.BitmapFont.NotoSans21px_0.png"
+    }
+    {
+        name = "BitmapFont.UbuntuMono21px"
+        path = "./assets/fonts/BitmapFont.UbuntuMono21px.kbf"
+        source_path = "./assets/fonts/source/BitmapFont.UbuntuMono21px.fnt"
+    }
+    {
+        name = "Texture.BitmapFont.UbuntuMono21px_0"
+        path = "./assets/images/Texture.BitmapFont.UbuntuMono21px_0.kbi"
+        source_path = "./assets/images/source/Texture.BitmapFont.UbuntuMono21px_0.png"
+    }
+    {
+        name = "SystemFont.NotoSansCJK"
+        path = "./assets/fonts/SystemFont.NotoSansCJK.ksf"
+    }
+    {
+        name = "Binary.SystemFont.NotoSansCJK-Regular"
+        path = "./assets/fonts/Binary.SystemFont.NotoSansCJK-Regular.ttc"
+    }
+    {
+        name = "SystemFont.UbuntuMono"
+        path = "./assets/fonts/SystemFont.UbuntuMono.ksf"
+    }
+    {
+        name = "Binary.SystemFont.UbuntuMono-R"
+        path = "./assets/fonts/Binary.SystemFont.UbuntuMono-R.ttf"
+    }
+]

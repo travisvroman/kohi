@@ -29,6 +29,8 @@
 #include <time/kclock.h>
 
 #include "application/application_config.h"
+#include "assets/kasset_types.h"
+#include "core_audio_types.h"
 #include "game_state.h"
 
 // Standard UI.
@@ -38,43 +40,44 @@
 #include <standard_ui_plugin_main.h>
 #include <standard_ui_system.h>
 
-// Audio plugin
-#include <resources/loaders/audio_loader.h>
+// Audio
+#include <audio/audio_frontend.h>
 
 // TODO: Editor temp
 #include "editor/editor_gizmo.h"
 #include "editor/editor_gizmo_rendergraph_node.h"
 #include <resources/debug/debug_box3d.h>
 #include <resources/debug/debug_line3d.h>
+#include <resources/water_plane.h>
 
 // TODO: temp
 #include <identifiers/identifier.h>
-#include <resources/mesh.h>
 #include <resources/scene.h>
 #include <resources/skybox.h>
-#include <systems/audio_system.h>
-#include <systems/geometry_system.h>
 #include <systems/light_system.h>
 #include <systems/material_system.h>
-#include <systems/resource_system.h>
 #include <systems/shader_system.h>
 // Standard ui
 #include <core/systems_manager.h>
 #include <standard_ui_system.h>
 
-#include "debug_console.h"
+#ifdef KOHI_DEBUG
+#    include "debug_console.h"
+#endif
 // Game code.
 #include "game_commands.h"
 #include "game_keybinds.h"
 // TODO: end temp
 
+#include "kresources/kresource_types.h"
 #include "platform/platform.h"
 #include "plugins/plugin_types.h"
 #include "renderer/rendergraph_nodes/debug_rendergraph_node.h"
 #include "renderer/rendergraph_nodes/forward_rendergraph_node.h"
 #include "renderer/rendergraph_nodes/shadow_rendergraph_node.h"
-#include "renderer/rendergraph_nodes/skybox_rendergraph_node.h"
 #include "rendergraph_nodes/ui_rendergraph_node.h"
+#include "strings/kname.h"
+#include "systems/kresource_system.h"
 #include "systems/plugin_system.h"
 #include "systems/timeline_system.h"
 #include "testbed.klib_version.h"
@@ -93,7 +96,7 @@ static b8 load_main_scene(struct application* game_inst);
 static b8 save_main_scene(struct application* game_inst);
 
 static f32 get_engine_delta_time(void) {
-    k_handle engine = timeline_system_get_engine();
+    khandle engine = timeline_system_get_engine();
     return timeline_system_delta_get(engine);
 }
 
@@ -167,34 +170,10 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
     if (code == EVENT_CODE_DEBUG0) {
-        const char* names[3] = {
-            "cobblestone",
-            "paving",
-            "paving2"};
-        static i8 choice = 2;
-
-        // Save off the old names.
-        const char* old_name = names[choice];
-
-        choice++;
-        choice %= 3;
-
-        // Just swap out the material on the first mesh if it exists.
-        geometry* g = state->meshes[0].geometries[0];
-        if (g) {
-            // Acquire the new material.
-            g->material = material_system_acquire(names[choice]);
-            if (!g->material) {
-                KWARN("event_on_debug_event no material found! Using default material.");
-                g->material = material_system_get_default();
-            }
-
-            // Release the old diffuse material.
-            material_system_release(old_name);
-        }
+        // Does nothing for now.
         return true;
     } else if (code == EVENT_CODE_DEBUG1) {
-        if (state->main_scene.state < SCENE_STATE_LOADING) {
+        if (state->main_scene.state == SCENE_STATE_UNINITIALIZED) {
             KDEBUG("Loading main scene...");
             if (!load_main_scene(game_inst)) {
                 KERROR("Error loading main scene");
@@ -202,7 +181,7 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
         }
         return true;
     } else if (code == EVENT_CODE_DEBUG5) {
-        if (state->main_scene.state >= SCENE_STATE_LOADING) {
+        if (state->main_scene.state == SCENE_STATE_LOADED) {
             KDEBUG("Saving main scene...");
             if (!save_main_scene(game_inst)) {
                 KERROR("Error saving main scene");
@@ -215,32 +194,32 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_contex
 
             scene_unload(&state->main_scene, false);
             clear_debug_objects(game_inst);
-            KDEBUG("Done.");
         }
         return true;
     } else if (code == EVENT_CODE_DEBUG3) {
-        if (state->test_audio_file) {
+        if (kaudio_is_valid(state->audio_system, state->test_sound)) {
             // Cycle between first 5 channels.
             static i8 channel_id = -1;
             channel_id++;
             channel_id = channel_id % 5;
             KTRACE("Playing sound on channel %u", channel_id);
-            audio_system_channel_play(channel_id, state->test_audio_file, false);
+            kaudio_play(state->audio_system, state->test_sound, channel_id);
         }
     } else if (code == EVENT_CODE_DEBUG4) {
-        if (state->test_loop_audio_file) {
+        /* if (kaudio_is_valid(state->audio_system, state->test_loop_sound)) {
             static b8 playing = true;
             playing = !playing;
             if (playing) {
                 // Play on channel 6
-                if (!audio_system_channel_emitter_play(6, &state->test_emitter)) {
-                    KERROR("Failed to play test emitter.");
-                }
+                // TODO: pipe this through an emitter node in the scene.
+                kaudio_play(state->audio_system, state->test_loop_sound, 6);
+                // Set this to loop.
+                kaudio_looping_set(state->audio_system, state->test_loop_sound, true);
             } else {
                 // Stop channel 6.
-                audio_system_channel_stop(6);
+                kaudio_channel_stop(state->audio_system, 6);
             }
-        }
+        } */
     }
 
     return false;
@@ -292,7 +271,7 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
             testbed_game_state* state = (testbed_game_state*)listener_inst;
 
             // If the scene isn't loaded, don't do anything else.
-            if (state->main_scene.state < SCENE_STATE_LOADED) {
+            if (state->main_scene.state != SCENE_STATE_LOADED) {
                 return false;
             }
 
@@ -324,7 +303,7 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
 
                         // Create a debug line where the ray cast starts and ends (at the intersection).
                         debug_line3d test_line;
-                        debug_line3d_create(r.origin, hit->position, k_handle_invalid(), &test_line);
+                        debug_line3d_create(r.origin, hit->position, khandle_invalid(), &test_line);
                         debug_line3d_initialize(&test_line);
                         debug_line3d_load(&test_line);
                         // Yellow for hits.
@@ -335,14 +314,16 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
                         // Create a debug box to show the intersection point.
                         debug_box3d test_box;
 
-                        debug_box3d_create((vec3){0.1f, 0.1f, 0.1f}, k_handle_invalid(), &test_box);
+                        debug_box3d_create((vec3){0.1f, 0.1f, 0.1f}, khandle_invalid(), &test_box);
                         debug_box3d_initialize(&test_box);
                         debug_box3d_load(&test_box);
 
-                        extents_3d ext;
-                        ext.min = vec3_create(hit->position.x - 0.05f, hit->position.y - 0.05f, hit->position.z - 0.05f);
-                        ext.max = vec3_create(hit->position.x + 0.05f, hit->position.y + 0.05f, hit->position.z + 0.05f);
-                        debug_box3d_extents_set(&test_box, ext);
+                        // These aren't parented to anything, so the local transform _is_ the world transform.
+                        // TODO: Need to think of a way to make this more automatic.
+                        test_box.xform = xform_from_position(hit->position);
+                        test_box.parent_xform = khandle_invalid();
+                        xform_calculate_local(test_box.xform);
+                        xform_world_set(test_box.xform, xform_local_get(test_box.xform));
 
                         darray_push(state->test_boxes, test_box);
 
@@ -351,7 +332,7 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
                             state->selection.node_handle = hit->node_handle;
                             state->selection.xform_handle = hit->xform_handle; //  scene_transform_get_by_id(&state->main_scene, hit->unique_id);
                             state->selection.xform_parent_handle = hit->xform_parent_handle;
-                            if (!k_handle_is_invalid(state->selection.xform_handle)) {
+                            if (!khandle_is_invalid(state->selection.xform_handle)) {
                                 // NOTE: is handle index what we should identify by?
                                 KINFO("Selected object id %u", hit->node_handle.handle_index);
                                 // state->gizmo.selected_xform = state->selection.xform;
@@ -365,7 +346,7 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
 
                     // Create a debug line where the ray cast starts and continues to.
                     debug_line3d test_line;
-                    debug_line3d_create(r.origin, vec3_add(r.origin, vec3_mul_scalar(r.direction, 100.0f)), k_handle_invalid(), &test_line);
+                    debug_line3d_create(r.origin, vec3_add(r.origin, vec3_mul_scalar(r.direction, 100.0f)), khandle_invalid(), &test_line);
                     debug_line3d_initialize(&test_line);
                     debug_line3d_load(&test_line);
                     // Magenta for non-hits.
@@ -373,11 +354,11 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
 
                     darray_push(state->test_lines, test_line);
 
-                    if (k_handle_is_invalid(state->selection.xform_handle)) {
+                    if (khandle_is_invalid(state->selection.xform_handle)) {
                         KINFO("Object deselected.");
-                        state->selection.xform_handle = k_handle_invalid();
-                        state->selection.node_handle = k_handle_invalid();
-                        state->selection.xform_parent_handle = k_handle_invalid();
+                        state->selection.xform_handle = khandle_invalid();
+                        state->selection.node_handle = khandle_invalid();
+                        state->selection.xform_parent_handle = khandle_invalid();
 
                         editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle, state->selection.xform_parent_handle);
                     }
@@ -457,6 +438,7 @@ b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
 
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    state->audio_system = engine_systems_get()->audio_system;
 
     // Get the standard ui plugin.
     state->sui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.standard");
@@ -464,12 +446,17 @@ b8 application_initialize(struct application* game_inst) {
     state->sui_state = state->sui_plugin_state->state;
     standard_ui_state* sui_state = state->sui_state;
 
-    debug_console_create(state->sui_state, &((testbed_game_state*)game_inst->state)->debug_console);
+#ifdef KOHI_DEBUG
+    if (!debug_console_create(state->sui_state, &((testbed_game_state*)game_inst->state)->debug_console)) {
+        KERROR("Failed to create debug console.");
+    }
+#endif
 
     application_register_events(game_inst);
 
     // Register resource loaders.
-    resource_system_loader_register(audio_resource_loader_create());
+    // FIXME: Audio loader via plugin.
+    /* resource_system_loader_register(audio_resource_loader_create()); */
 
     // Pick out rendergraph(s) config from app config, create/init them
     // from here, save off to state.
@@ -486,8 +473,8 @@ b8 application_initialize(struct application* game_inst) {
         if (strings_equali("forward_graph", rg_config->name)) {
             // Get colourbuffer and depthbuffer from the currently active window.
             kwindow* current_window = engine_active_window_get();
-            texture* global_colourbuffer = &current_window->renderer_state->colourbuffer;
-            texture* global_depthbuffer = &current_window->renderer_state->depthbuffer;
+            kresource_texture* global_colourbuffer = current_window->renderer_state->colourbuffer;
+            kresource_texture* global_depthbuffer = current_window->renderer_state->depthbuffer;
 
             // Create the rendergraph.
             if (!rendergraph_create(rg_config->configuration_str, global_colourbuffer, global_depthbuffer, &state->forward_graph)) {
@@ -511,9 +498,11 @@ b8 application_initialize(struct application* game_inst) {
     }
 
     // Invalid handle = no selection.
-    state->selection.xform_handle = k_handle_invalid();
+    state->selection.xform_handle = khandle_invalid();
 
+#ifdef KOHI_DEBUG
     debug_console_load(&state->debug_console);
+#endif
 
     state->test_lines = darray_create(debug_line3d);
     state->test_boxes = darray_create(debug_box3d);
@@ -565,15 +554,9 @@ b8 application_initialize(struct application* game_inst) {
     /* editor_rendergraph_gizmo_set(&state->editor_graph, &state->gizmo); */
     // World meshes
 
-    // Invalidate all meshes.
-    for (u32 i = 0; i < 10; ++i) {
-        state->meshes[i].generation = INVALID_ID_U8;
-        state->ui_meshes[i].generation = INVALID_ID_U8;
-    }
-
     // Create test ui text objects
     // black background text
-    if (!sui_label_control_create(sui_state, "testbed_mono_test_text_black", FONT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "test text 123,\n\tyo!", &state->test_text_black)) {
+    if (!sui_label_control_create(sui_state, "testbed_mono_test_text_black", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "test text 123,\n\tyo!", &state->test_text_black)) {
         KERROR("Failed to load basic ui bitmap text.");
         return false;
     } else {
@@ -595,7 +578,7 @@ b8 application_initialize(struct application* game_inst) {
             }
         }
     }
-    if (!sui_label_control_create(sui_state, "testbed_mono_test_text", FONT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "test text 123,\n\tyo!", &state->test_text)) {
+    if (!sui_label_control_create(sui_state, "testbed_mono_test_text", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "test text 123,\n\tyo!", &state->test_text)) {
         KERROR("Failed to load basic ui bitmap text.");
         return false;
     } else {
@@ -671,7 +654,7 @@ b8 application_initialize(struct application* game_inst) {
         }
     }
 
-    if (!sui_label_control_create(sui_state, "testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Press 'L' to load a \n\tscene!\n\n\tこんにちは 한", &state->test_sys_text)) {
+    if (!sui_label_control_create(sui_state, "testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), 31, "Press 'L' to load a \n\tscene!\n\n\tこんにちは 한", &state->test_sys_text)) {
         KERROR("Failed to load basic ui system text.");
         return false;
     } else {
@@ -712,41 +695,45 @@ b8 application_initialize(struct application* game_inst) {
     kzero_memory(&state->prepare_clock, sizeof(kclock));
     kzero_memory(&state->render_clock, sizeof(kclock));
 
+    // Audio tests
+
     // Load up a test audio file.
-    state->test_audio_file = audio_system_chunk_load("Test.ogg");
-    if (!state->test_audio_file) {
+    if (!kaudio_acquire(state->audio_system, kname_create("Test_Audio"), kname_create("Testbed"), false, KAUDIO_SPACE_2D, &state->test_sound)) {
         KERROR("Failed to load test audio file.");
     }
-    // Looping audio file.
-    state->test_loop_audio_file = audio_system_chunk_load("Fire_loop.ogg");
+    /* // Looping audio file.
+    if (!kaudio_acquire(state->audio_system, kname_create("Fire_loop"), kname_create("Testbed"), false, &state->test_loop_sound)) {
+        KERROR("Failed to load test looping audio file.");
+    } */
     // Test music
-    state->test_music = audio_system_stream_load("Woodland Fantasy.mp3");
-    if (!state->test_music) {
+    if (!kaudio_acquire(state->audio_system, kname_create("Woodland Fantasy"), kname_create("Testbed"), true, KAUDIO_SPACE_2D, &state->test_music)) {
         KERROR("Failed to load test music file.");
     }
 
     // Setup a test emitter.
-    state->test_emitter.file = state->test_loop_audio_file;
+    /* state->test_emitter.file = state->test_loop_sound;
     state->test_emitter.volume = 1.0f;
     state->test_emitter.looping = true;
     state->test_emitter.falloff = 1.0f;
-    state->test_emitter.position = vec3_create(10.0f, 0.8f, 20.0f);
+    state->test_emitter.position = vec3_create(10.0f, 0.8f, 20.0f); */
 
     // Set some channel volumes.
-    audio_system_master_volume_set(0.9f);
-    audio_system_channel_volume_set(0, 1.0f);
-    audio_system_channel_volume_set(1, 0.75f);
-    audio_system_channel_volume_set(2, 0.50f);
-    audio_system_channel_volume_set(3, 0.25);
-    audio_system_channel_volume_set(4, 0.0f);
+    kaudio_master_volume_set(state->audio_system, 0.9f);
+    kaudio_channel_volume_set(state->audio_system, 0, 1.0f);
+    kaudio_channel_volume_set(state->audio_system, 1, 0.75f);
+    kaudio_channel_volume_set(state->audio_system, 2, 0.50f);
+    kaudio_channel_volume_set(state->audio_system, 3, 0.25);
+    kaudio_channel_volume_set(state->audio_system, 4, 0.0f);
+    kaudio_channel_volume_set(state->audio_system, 7, 0.9f);
 
-    audio_system_channel_volume_set(7, 0.9f);
-
+    // TODO: emitters
     // Try playing the emitter.
     /* if (!audio_system_channel_emitter_play(6, &state->test_emitter)) {
         KERROR("Failed to play test emitter.");
-    }
-    audio_system_channel_play(7, state->test_music, true); */
+    }*/
+
+    // Play the test music on channel 7.
+    /* kaudio_play(state->audio_system, state->test_music, 7); */
 
     if (!rendergraph_initialize(&state->forward_graph)) {
         KERROR("Failed to initialize rendergraph. See logs for details.");
@@ -790,7 +777,7 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
     f32 near_clip = view_viewport->near_clip;
     f32 far_clip = view_viewport->far_clip;
 
-    if (state->main_scene.state >= SCENE_STATE_LOADED) {
+    if (state->main_scene.state == SCENE_STATE_LOADED) {
         if (!scene_update(&state->main_scene, p_frame_data)) {
             KWARN("Failed to update main scene.");
         }
@@ -818,8 +805,16 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
             state->p_light_1->data.position.z = 20.0f + ksin(get_engine_delta_time());
 
             // Make the audio emitter follow it.
-            state->test_emitter.position = vec3_from_vec4(state->p_light_1->data.position);
+            // TODO: Get emitter from scene and change its position.
+            /* state->test_emitter.position = vec3_from_vec4(state->p_light_1->data.position); */
         }
+    } else if (state->main_scene.state == SCENE_STATE_UNLOADING) {
+        // A final update call is required to unload the scene in this state.
+        scene_update(&state->main_scene, p_frame_data);
+    } else if (state->main_scene.state == SCENE_STATE_UNLOADED) {
+        KTRACE("Destroying main scene.");
+        // Unloading complete, destroy it.
+        scene_destroy(&state->main_scene);
     }
 
     // Track allocation differences.
@@ -901,11 +896,13 @@ VSync: %s Drawn: %-5u (%-5u shadow pass) Hovered: %s%u",
         string_free(text_buffer);
     }
 
+#ifdef KOHI_DEBUG
     debug_console_update(&((testbed_game_state*)game_inst->state)->debug_console);
+#endif
 
     vec3 forward = camera_forward(state->world_camera);
     vec3 up = camera_up(state->world_camera);
-    audio_system_listener_orientation_set(pos, forward, up);
+    kaudio_system_listener_orientation_set(engine_systems_get()->audio_system, pos, forward, up);
 
     kclock_update(&state->update_clock);
     state->last_update_elapsed = state->update_clock.elapsed;
@@ -943,8 +940,8 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
     // Calculate splits based on view camera frustum.
     vec4 splits;
-    for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
-        f32 p = (c + 1) / (f32)MAX_SHADOW_CASCADE_COUNT;
+    for (u32 c = 0; c < MATERIAL_MAX_SHADOW_CASCADES; c++) {
+        f32 p = (c + 1) / (f32)MATERIAL_MAX_SHADOW_CASCADES;
         f32 log = min_z * kpow(ratio, p);
         f32 uniform = min_z + range * p;
         f32 d = cascade_split_multiplier * (log - uniform) + uniform;
@@ -953,10 +950,10 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
     // Default values to use in the event there is no directional light.
     // These are required because the scene pass needs them.
-    mat4 shadow_camera_lookats[MAX_SHADOW_CASCADE_COUNT];
-    mat4 shadow_camera_projections[MAX_SHADOW_CASCADE_COUNT];
-    vec3 shadow_camera_positions[MAX_SHADOW_CASCADE_COUNT];
-    for (u32 i = 0; i < MAX_SHADOW_CASCADE_COUNT; ++i) {
+    mat4 shadow_camera_lookats[MATERIAL_MAX_SHADOW_CASCADES];
+    mat4 shadow_camera_projections[MATERIAL_MAX_SHADOW_CASCADES];
+    vec3 shadow_camera_positions[MATERIAL_MAX_SHADOW_CASCADES];
+    for (u32 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
         shadow_camera_lookats[i] = mat4_identity();
         shadow_camera_projections[i] = mat4_identity();
         shadow_camera_positions[i] = vec3_zero();
@@ -968,7 +965,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
     for (u32 i = 0; i < node_count; ++i) {
         rendergraph_node* node = &state->forward_graph.nodes[i];
         if (strings_equali(node->name, "sui")) {
-            ui_rendergraph_node_set_atlas(node, &state->sui_state->ui_atlas);
+            ui_rendergraph_node_set_atlas(node, state->sui_state->atlas_texture);
 
             // We have the one.
             ui_rendergraph_node_set_viewport_and_matrices(
@@ -990,18 +987,26 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
             // Ensure internal lists, etc. are reset.
             forward_rendergraph_node_reset(node);
             forward_rendergraph_node_viewport_set(node, state->world_viewport);
-            forward_rendergraph_node_view_projection_set(
+            forward_rendergraph_node_camera_projection_set(
                 node,
-                camera_view_get(current_camera),
-                camera_position_get(current_camera),
+                current_camera,
                 current_viewport->projection);
 
             // Tell our scene to generate relevant render data if it is loaded.
             if (scene->state == SCENE_STATE_LOADED) {
+                // Only render if the scene is loaded.
+
+                // SKYBOX
+                // HACK: Just use the first one for now.
+                // TODO: Support for multiple skyboxes, possibly transition between them.
+                u32 skybox_count = darray_length(scene->skyboxes);
+                forward_rendergraph_node_set_skybox(node, skybox_count ? &scene->skyboxes[0] : 0);
+
+                // SCENE
                 scene_render_frame_prepare(scene, p_frame_data);
 
                 // Pass over shadow map "camera" view and projection matrices (one per cascade).
-                for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
+                for (u32 c = 0; c < MATERIAL_MAX_SHADOW_CASCADES; c++) {
                     forward_rendergraph_node_cascade_data_set(
                         node,
                         (near + splits.elements[c] * clip_range) * 1.0f, // splits.elements[c]
@@ -1019,7 +1024,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 // HACK: #2 Support for multiple skyboxes, but using the first one for now.
                 // DOUBLE HACK!!!
                 // TODO: Support multiple skyboxes/irradiance maps.
-                forward_rendergraph_node_irradiance_texture_set(node, p_frame_data, scene->skyboxes ? scene->skyboxes[0].cubemap.texture : texture_system_get_default_cube_texture());
+                forward_rendergraph_node_irradiance_texture_set(node, p_frame_data, scene->skyboxes ? scene->skyboxes[0].cubemap : texture_system_request(kname_create(DEFAULT_CUBE_TEXTURE_NAME), INVALID_KNAME, 0, 0));
 
                 // Camera frustum culling and count
                 viewport* v = current_viewport;
@@ -1068,12 +1073,33 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 // Tell the node about them.
                 forward_rendergraph_node_terrain_geometries_set(node, p_frame_data, terrain_geometry_count, terrain_geometries);
 
+                // Get the count of planes, then the planes themselves.
+                u32 water_plane_count = 0;
+                if (!scene_water_plane_query(scene, &camera_frustum, current_camera->position, p_frame_data, &water_plane_count, 0)) {
+                    KERROR("Failed to query scene for water planes.");
+                }
+                water_plane** planes = water_plane_count ? darray_reserve_with_allocator(water_plane*, water_plane_count, &p_frame_data->allocator) : 0;
+                if (!scene_water_plane_query(scene, &camera_frustum, current_camera->position, p_frame_data, &water_plane_count, &planes)) {
+                    KERROR("Failed to query scene for water planes.");
+                }
+
+                // Pass the planes to the node.
+                if (!forward_rendergraph_node_water_planes_set(node, p_frame_data, water_plane_count, planes)) {
+                    // NOTE: Not going to abort the whole graph for this failure, but will bleat about it loudly.
+                    KERROR("Failed to set water planes for water_plane rendergraph node.");
+                }
+
             } else {
                 // Scene not loaded.
+                forward_rendergraph_node_set_skybox(node, 0);
+                forward_rendergraph_node_irradiance_texture_set(node, p_frame_data, 0);
 
                 // Do not run these passes if the scene is not loaded.
                 // graph->scene_pass.pass_data.do_execute = false;
                 // graph->shadowmap_pass.pass_data.do_execute = false;
+                forward_rendergraph_node_water_planes_set(node, p_frame_data, 0, 0);
+                forward_rendergraph_node_static_geometries_set(node, p_frame_data, 0, 0);
+                forward_rendergraph_node_terrain_geometries_set(node, p_frame_data, 0, 0);
             }
         } else if (strings_equali(node->name, "shadow")) {
             // Shadowmap pass - only runs if there is a directional light.
@@ -1100,7 +1126,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 mat4 cam_view_proj = mat4_transposed(mat4_mul(camera_view_get(current_camera), shadow_dist_projection));
 
                 // Pass over shadow map "camera" view and projection matrices (one per cascade).
-                for (u32 c = 0; c < MAX_SHADOW_CASCADE_COUNT; c++) {
+                for (u32 c = 0; c < MATERIAL_MAX_SHADOW_CASCADES; c++) {
                     // NOTE: Each pass for cascades will need to do the following process.
                     // The only real difference will be that the near/far clips will be adjusted for each.
 
@@ -1124,7 +1150,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                         center = vec3_add(center, vec3_from_vec4(corners[i]));
                     }
                     center = vec3_div_scalar(center, 8.0f); // size
-                    if (c == MAX_SHADOW_CASCADE_COUNT - 1) {
+                    if (c == MATERIAL_MAX_SHADOW_CASCADES - 1) {
                         culling_center = center;
                     }
 
@@ -1134,7 +1160,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                         f32 distance = vec3_distance(vec3_from_vec4(corners[i]), center);
                         radius = KMAX(radius, distance);
                     }
-                    if (c == MAX_SHADOW_CASCADE_COUNT - 1) {
+                    if (c == MATERIAL_MAX_SHADOW_CASCADES - 1) {
                         culling_radius = radius;
                     }
 
@@ -1217,19 +1243,6 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 // Tell the node about them.
                 shadow_rendergraph_node_terrain_geometries_set(node, p_frame_data, terrain_geometry_count, terrain_geometries);
             }
-        } else if (strings_equali(node->name, "skybox")) {
-            skybox_rendergraph_node_set_viewport_and_matrices(node, state->world_viewport, state->world_camera->view_matrix, state->world_viewport.projection);
-
-            // Only render if the scene is loaded.
-            if (scene->state == SCENE_STATE_LOADED && scene->skyboxes) {
-                // HACK: Just use the first one for now.
-                // TODO: Support for multiple skyboxes, possibly transition between them.
-                u32 skybox_count = darray_length(scene->skyboxes);
-                skybox_rendergraph_node_set_skybox(node, skybox_count ? &scene->skyboxes[0] : 0);
-            } else {
-                // Otherwise set to null.
-                skybox_rendergraph_node_set_skybox(node, 0);
-            }
         } else if (strings_equali(node->name, "debug")) {
 
             debug_rendergraph_node_viewport_set(node, state->world_viewport);
@@ -1244,48 +1257,58 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 KERROR("Failed to obtain count of debug render objects.");
                 return false;
             }
-            geometry_render_data* debug_geometries = darray_reserve_with_allocator(geometry_render_data, debug_geometry_count, &p_frame_data->allocator);
+            geometry_render_data* debug_geometries = 0;
+            if (debug_geometry_count) {
+                debug_geometries = darray_reserve_with_allocator(geometry_render_data, debug_geometry_count, &p_frame_data->allocator);
 
-            if (!scene_debug_render_data_query(scene, &debug_geometry_count, &debug_geometries)) {
-                KERROR("Failed to obtain debug render objects.");
-                return false;
+                if (!scene_debug_render_data_query(scene, &debug_geometry_count, &debug_geometries)) {
+                    KERROR("Failed to obtain debug render objects.");
+                    return false;
+                }
+
+                // Make sure the count is correct before pushing.
+                darray_length_set(debug_geometries, debug_geometry_count);
+            } else {
+                debug_geometries = darray_create_with_allocator(geometry_render_data, &p_frame_data->allocator);
             }
-            // Make sure the count is correct before pushing.
-            darray_length_set(debug_geometries, debug_geometry_count);
 
             // TODO: Move this to the scene.
-            // HACK: Inject raycast debug geometries into scene pass data.
-            // FIXME: Add this to the debug node below.
             u32 line_count = darray_length(state->test_lines);
             for (u32 i = 0; i < line_count; ++i) {
+                debug_line3d* line = &state->test_lines[i];
+                debug_line3d_render_frame_prepare(line, p_frame_data);
                 geometry_render_data rd = {0};
-                rd.model = xform_world_get(state->test_lines[i].xform);
-                geometry* g = &state->test_lines[i].geo;
-                rd.material = g->material;
+                rd.model = xform_world_get(line->xform);
+                kgeometry* g = &line->geometry;
                 rd.vertex_count = g->vertex_count;
                 rd.vertex_buffer_offset = g->vertex_buffer_offset;
+                rd.vertex_element_size = g->vertex_element_size;
                 rd.index_count = g->index_count;
                 rd.index_buffer_offset = g->index_buffer_offset;
+                rd.index_element_size = g->index_element_size;
                 rd.unique_id = INVALID_ID_U16;
                 darray_push(debug_geometries, rd);
                 debug_geometry_count++;
             }
             u32 box_count = darray_length(state->test_boxes);
             for (u32 i = 0; i < box_count; ++i) {
+                debug_box3d* box = &state->test_boxes[i];
+                debug_box3d_render_frame_prepare(box, p_frame_data);
                 geometry_render_data rd = {0};
-                rd.model = xform_world_get(state->test_boxes[i].xform);
-                geometry* g = &state->test_boxes[i].geo;
-                rd.material = g->material;
+                rd.model = xform_world_get(box->xform);
+                kgeometry* g = &box->geometry;
                 rd.vertex_count = g->vertex_count;
                 rd.vertex_buffer_offset = g->vertex_buffer_offset;
+                rd.vertex_element_size = g->vertex_element_size;
                 rd.index_count = g->index_count;
                 rd.index_buffer_offset = g->index_buffer_offset;
+                rd.index_element_size = g->index_element_size;
                 rd.unique_id = INVALID_ID_U16;
                 darray_push(debug_geometries, rd);
                 debug_geometry_count++;
             }
 
-            // TODO: set geometries
+            // Set geometries in the debug rg node.
             if (!debug_rendergraph_node_debug_geometries_set(node, p_frame_data, debug_geometry_count, debug_geometries)) {
                 // NOTE: Not going to abort the whole graph for this failure, but will bleat about it loudly.
                 KERROR("Failed to set geometries for debug rendergraph node.");
@@ -1377,26 +1400,32 @@ void application_shutdown(struct application* game_inst) {
 
         scene_unload(&state->main_scene, true);
         clear_debug_objects(game_inst);
+        scene_destroy(&state->main_scene);
 
         KDEBUG("Done.");
     }
 
     rendergraph_destroy(&state->forward_graph);
 
-    // Destroy ui texts
+#ifdef KOHI_DEBUG
     debug_console_unload(&state->debug_console);
+#endif
 }
 
 void application_lib_on_unload(struct application* game_inst) {
     application_unregister_events(game_inst);
+#ifdef KOHI_DEBUG
     debug_console_on_lib_unload(&((testbed_game_state*)game_inst->state)->debug_console);
+#endif
     game_remove_commands(game_inst);
     game_remove_keymaps(game_inst);
 }
 
 void application_lib_on_load(struct application* game_inst) {
     application_register_events(game_inst);
+#ifdef KOHI_DEBUG
     debug_console_on_lib_load(&((testbed_game_state*)game_inst->state)->debug_console, game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE);
+#endif
     if (game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE) {
         game_setup_commands(game_inst);
         game_setup_keymaps(game_inst);
@@ -1463,7 +1492,22 @@ void application_unregister_events(struct application* game_inst) {
 static b8 load_main_scene(struct application* game_inst) {
     testbed_game_state* state = (testbed_game_state*)game_inst->state;
 
-    // Load up config file
+    kresource_scene_request_info request_info = {0};
+    request_info.base.type = KRESOURCE_TYPE_SCENE;
+    request_info.base.synchronous = true; // HACK: use a callback instead.
+    request_info.base.assets = array_kresource_asset_info_create(1);
+    kresource_asset_info* asset = &request_info.base.assets.data[0];
+    asset->type = KASSET_TYPE_SCENE;
+    asset->asset_name = kname_create("test_scene");
+    asset->package_name = kname_create("Testbed");
+
+    kresource_scene* scene_resource = (kresource_scene*)kresource_system_request(engine_systems_get()->kresource_state, kname_create("test_scene"), (kresource_request_info*)&request_info);
+    if (!scene_resource) {
+        KERROR("Failed to request scene resource. See logs for details.");
+        return false;
+    }
+
+    /* // Load up config file
     // TODO: clean up resource.
     resource scene_resource;
     if (!resource_system_load("test_scene", RESOURCE_TYPE_scene, 0, &scene_resource)) {
@@ -1473,12 +1517,12 @@ static b8 load_main_scene(struct application* game_inst) {
 
     scene_config* scene_cfg = (scene_config*)scene_resource.data;
     scene_cfg->resource_name = string_duplicate(scene_resource.name);
-    scene_cfg->resource_full_path = string_duplicate(scene_resource.full_path);
+    scene_cfg->resource_full_path = string_duplicate(scene_resource.full_path); */
 
     // Create the scene.
     scene_flags scene_load_flags = 0;
     /* scene_load_flags |= SCENE_FLAG_READONLY;  // NOTE: to enable "editor mode", turn this flag off. */
-    if (!scene_create(scene_cfg, scene_load_flags, &state->main_scene)) {
+    if (!scene_create(scene_resource, scene_load_flags, &state->main_scene)) {
         KERROR("Failed to create main scene");
         return false;
     }

@@ -3,11 +3,11 @@
 // Linux platform layer.
 #if KPLATFORM_LINUX
 
-#    include <xcb/xcb.h>
-
 // For surface creation
 #    define VK_USE_PLATFORM_XCB_KHR
 #    include <vulkan/vulkan.h>
+#    include <vulkan/vulkan_xcb.h>
+#    include <xcb/xcb.h>
 
 #    include <containers/darray.h>
 #    include <logger.h>
@@ -42,7 +42,8 @@ b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow
     create_info.connection = handle->connection;
     create_info.window = window->platform_state->window;
 
-    VkResult result = vkCreateXcbSurfaceKHR(
+    PFN_vkCreateXcbSurfaceKHR kvkCreateXcbSurfaceKHR = platform_dynamic_library_load_function("vkCreateXcbSurfaceKHR", &context->rhi.vulkan_lib);
+    VkResult result = kvkCreateXcbSurfaceKHR(
         context->instance,
         &create_info,
         context->allocator,
@@ -63,7 +64,16 @@ b8 vulkan_platform_presentation_support(vulkan_context* context, VkPhysicalDevic
 
     linux_handle_info* handle = (linux_handle_info*)block;
 
-    return (b8)vkGetPhysicalDeviceXcbPresentationSupportKHR(physical_device, queue_family_index, handle->connection, handle->screen->root_visual);
+    PFN_vkGetPhysicalDeviceXcbPresentationSupportKHR kvkGetPhysicalDeviceXcbPresentationSupportKHR = platform_dynamic_library_load_function("vkGetPhysicalDeviceXcbPresentationSupportKHR", &context->rhi.vulkan_lib);
+    return (b8)kvkGetPhysicalDeviceXcbPresentationSupportKHR(physical_device, queue_family_index, handle->connection, handle->screen->root_visual);
+}
+
+b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
+    if (!rhi) {
+        return false;
+    }
+
+    return platform_dynamic_library_load("vulkan", &rhi->vulkan_lib);
 }
 
 #endif

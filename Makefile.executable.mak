@@ -1,3 +1,10 @@
+%:: %,v
+%:: RCS/%,v
+%:: RCS/%
+%:: s.%
+%:: SCCS/s.%
+
+
 BUILD_DIR := bin
 OBJ_DIR := obj
 
@@ -148,7 +155,8 @@ $(OBJ_DIR)/%.c.o: %.c
 .PHONY: gen_compile_flags
 gen_compile_flags:
 ifeq ($(BUILD_PLATFORM),windows)
-	$(shell powershell \"$(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0\".replace('-I', '-I..\').replace(' ', \"`n\").replace('-I..\C:', '-IC:') > $(ASSEMBLY)/compile_flags.txt)
+#	Updated to handle not breaking up quoted strings (i.e. paths with spaces in them) but then afterward to remove said quotes.
+	$(shell powershell [regex]::matches(\"$(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0\", \"-I'[^']*'|\S+\").Value.replace('-I', '-I..\').replace('-I..\''C:', '-I''C:').replace('''', '') -join [System.Environment]::NewLine > $(ASSEMBLY)/compile_flags.txt)
 else
 	@echo $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0| tr " " "\n" | sed "s/\-I\.\//\-I\.\.\//g" > $(ASSEMBLY)/compile_flags.txt
 endif

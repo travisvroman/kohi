@@ -36,7 +36,7 @@ b8 debug_console_consumer_write(void* inst, log_level level, const char* message
         // NOTE: The lack of cleanup on the strings is intentional
         // here because the strings need to live on so that they can
         // be accessed by this debug console. Ordinarily a cleanup
-        // via string_cleanup_split_array would be warranted.
+        // via string_cleanup_split_darray would be warranted.
         char** split_message = darray_create(char*);
         u32 count = string_split(message, '\n', &split_message, true, false);
         // Push each to the array as a new line.
@@ -62,29 +62,97 @@ static b8 debug_console_on_resize(u16 code, void* sender, void* listener_inst, e
 
     return false;
 }
-void debug_console_create(standard_ui_state* sui_state, debug_console_state* out_console_state) {
-    if (out_console_state) {
-        out_console_state->line_display_count = 10;
-        out_console_state->line_offset = 0;
-        out_console_state->lines = darray_create(char*);
-        out_console_state->visible = false;
-        out_console_state->history = darray_create(command_history_entry);
-        out_console_state->history_offset = -1;
-        out_console_state->loaded = false;
-        out_console_state->sui_state = sui_state;
 
-        // NOTE: update the text based on number of lines to display and
-        // the number of lines offset from the bottom. A UI Text object is
-        // used for display for now. Can worry about colour in a separate pass.
-        // Not going to consider word wrap.
-        // NOTE: also should consider clipping rectangles and newlines.
-
-        // Register as a console consumer.
-        console_consumer_register(out_console_state, debug_console_consumer_write, &out_console_state->console_consumer_id);
-
-        // Register for key events.
-        event_register(EVENT_CODE_RESIZED, out_console_state, debug_console_on_resize);
+b8 debug_console_create(standard_ui_state* sui_state, debug_console_state* out_console_state) {
+    if (!sui_state || !out_console_state) {
+        return false;
     }
+
+    out_console_state->line_display_count = 10;
+    out_console_state->line_offset = 0;
+    out_console_state->lines = darray_create(char*);
+    out_console_state->visible = false;
+    out_console_state->history = darray_create(command_history_entry);
+    out_console_state->history_offset = -1;
+    out_console_state->loaded = false;
+    out_console_state->sui_state = sui_state;
+
+    // NOTE: update the text based on number of lines to display and
+    // the number of lines offset from the bottom. A UI Text object is
+    // used for display for now. Can worry about colour in a separate pass.
+    // Not going to consider word wrap.
+    // NOTE: also should consider clipping rectangles and newlines.
+
+    // Register as a console consumer.
+    console_consumer_register(out_console_state, debug_console_consumer_write, &out_console_state->console_consumer_id);
+
+    // Register for key events.
+    event_register(EVENT_CODE_WINDOW_RESIZED, out_console_state, debug_console_on_resize);
+
+    u16 font_size = 31;
+    f32 height = 50.0f + (font_size * out_console_state->line_display_count + 1); // Account for padding and textbox at the bottom
+
+    // Create controls.
+
+    // Background panel.
+    {
+        if (!sui_panel_control_create(sui_state, "debug_console_bg_panel", (vec2){1280.0f, height}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &out_console_state->bg_panel)) {
+            KERROR("Failed to create background panel.");
+            return false;
+        }
+        if (!standard_ui_system_register_control(sui_state, &out_console_state->bg_panel)) {
+            KERROR("Unable to register control.");
+            return false;
+        }
+        /* transform_translate(&state->bg_panel.xform, (vec3){500, 100}); */
+        if (!standard_ui_system_control_add_child(sui_state, 0, &out_console_state->bg_panel)) {
+            KERROR("Failed to parent background panel.");
+            return false;
+        }
+    }
+
+    // Label to render console text.
+    {
+        if (!sui_label_control_create(sui_state, "debug_console_log_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), font_size, "", &out_console_state->text_control)) {
+            KFATAL("Unable to create text control for debug console.");
+            return false;
+        }
+        if (!standard_ui_system_register_control(sui_state, &out_console_state->text_control)) {
+            KERROR("Unable to register console text label control.");
+            return false;
+        }
+        if (!standard_ui_system_control_add_child(sui_state, &out_console_state->bg_panel, &out_console_state->text_control)) {
+            KERROR("Failed to add background console text label as a child of the panel.");
+            return false;
+        }
+
+        sui_control_position_set(sui_state, &out_console_state->text_control, (vec3){3.0f, font_size, 0.0f});
+    }
+
+    // Textbox for command entry.
+    {
+        if (!sui_textbox_control_create(sui_state, "debug_console_entry_textbox", FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), font_size, "", &out_console_state->entry_textbox)) {
+            KFATAL("Unable to create entry textbox control for debug console.");
+            return false;
+        }
+
+        out_console_state->entry_textbox.user_data = out_console_state;
+        out_console_state->entry_textbox.user_data_size = sizeof(debug_console_state*);
+        out_console_state->entry_textbox.on_key = debug_console_entry_box_on_key;
+        if (!standard_ui_system_register_control(out_console_state->sui_state, &out_console_state->entry_textbox)) {
+            KERROR("Unable to register control.");
+            return false;
+        }
+        if (!standard_ui_system_control_add_child(sui_state, &out_console_state->bg_panel, &out_console_state->entry_textbox)) {
+            KERROR("Failed to parent textbox control to background panel of debug console.");
+            return false;
+        }
+
+        // HACK: This is definitely not the best way to figure out the height of the above text control.
+        sui_control_position_set(sui_state, &out_console_state->entry_textbox, (vec3){3.0f, 10.0f + (font_size * out_console_state->line_display_count), 0.0f});
+    }
+
+    return true;
 }
 
 b8 debug_console_load(debug_console_state* state) {
@@ -93,86 +161,43 @@ b8 debug_console_load(debug_console_state* state) {
         return false;
     }
 
-    u16 font_size = 31;
-    f32 height = 50.0f + (font_size * state->line_display_count + 1); // Account for padding and textbox at the bottom
+    // Load controls and activate them.
 
-    if (!sui_panel_control_create(state->sui_state, "debug_console_bg_panel", (vec2){1280.0f, height}, (vec4){0.0f, 0.0f, 0.0f, 0.75f}, &state->bg_panel)) {
-        KERROR("Failed to create background panel.");
-    } else {
-        if (!sui_panel_control_load(state->sui_state, &state->bg_panel)) {
+    // Background panel.
+    {
+        if (!state->bg_panel.load(state->sui_state, &state->bg_panel)) {
             KERROR("Failed to load background panel.");
-        } else {
-            /* transform_translate(&state->bg_panel.xform, (vec3){500, 100}); */
-            if (!standard_ui_system_register_control(state->sui_state, &state->bg_panel)) {
-                KERROR("Unable to register control.");
-            } else {
-                if (!standard_ui_system_control_add_child(state->sui_state, 0, &state->bg_panel)) {
-                    KERROR("Failed to parent background panel.");
-                } else {
-                    state->bg_panel.is_active = true;
-                    state->bg_panel.is_visible = false;
-                    if (!standard_ui_system_update_active(state->sui_state, &state->bg_panel)) {
-                        KERROR("Unable to update active state.");
-                    }
-                }
-            }
+            return false;
+        }
+        state->bg_panel.is_active = true;
+        state->bg_panel.is_visible = false;
+        if (!standard_ui_system_update_active(state->sui_state, &state->bg_panel)) {
+            KERROR("Unable to update active state.");
         }
     }
 
-    // Create a ui text control for rendering.
-    if (!sui_label_control_create(state->sui_state, "debug_console_log_text", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->text_control)) {
-        KFATAL("Unable to create text control for debug console.");
-        return false;
-    } else {
-        if (!sui_panel_control_load(state->sui_state, &state->text_control)) {
+    // Label to render console text.
+    {
+        if (!state->text_control.load(state->sui_state, &state->text_control)) {
             KERROR("Failed to load text control.");
-        } else {
-            if (!standard_ui_system_register_control(state->sui_state, &state->text_control)) {
-                KERROR("Unable to register control.");
-            } else {
-                if (!standard_ui_system_control_add_child(state->sui_state, &state->bg_panel, &state->text_control)) {
-                    KERROR("Failed to parent background panel.");
-                } else {
-                    state->text_control.is_active = true;
-                    if (!standard_ui_system_update_active(state->sui_state, &state->text_control)) {
-                        KERROR("Unable to update active state.");
-                    }
-                }
-            }
+        }
+        state->text_control.is_active = true;
+        if (!standard_ui_system_update_active(state->sui_state, &state->text_control)) {
+            KERROR("Unable to update active state.");
         }
     }
 
-    sui_control_position_set(state->sui_state, &state->text_control, (vec3){3.0f, font_size, 0.0f});
-
-    // Create another ui text control for rendering typed text.
-
-    // new one
-    if (!sui_textbox_control_create(state->sui_state, "debug_console_entry_textbox", FONT_TYPE_SYSTEM, "Noto Sans CJK JP", font_size, "", &state->entry_textbox)) {
-        KFATAL("Unable to create entry textbox control for debug console.");
-        return false;
-    } else {
+    // Textbox for command entry.
+    {
         if (!state->entry_textbox.load(state->sui_state, &state->entry_textbox)) {
             KERROR("Failed to load entry textbox for debug console.");
-        } else {
-            state->entry_textbox.user_data = state;
-            state->entry_textbox.user_data_size = sizeof(debug_console_state*);
-            state->entry_textbox.on_key = debug_console_entry_box_on_key;
-            if (!standard_ui_system_register_control(state->sui_state, &state->entry_textbox)) {
-                KERROR("Unable to register control.");
-            } else {
-                if (!standard_ui_system_control_add_child(state->sui_state, &state->bg_panel, &state->entry_textbox)) {
-                    KERROR("Failed to parent textbox control to background panel of debug console.");
-                } else {
-                    state->entry_textbox.is_active = true;
-                    if (!standard_ui_system_update_active(state->sui_state, &state->entry_textbox)) {
-                        KERROR("Unable to update active state.");
-                    }
-                }
-            }
+        }
+        state->entry_textbox.is_active = true;
+        if (!standard_ui_system_update_active(state->sui_state, &state->entry_textbox)) {
+            KERROR("Unable to update active state.");
         }
     }
-    // HACK: This is definitely not the best way to figure out the height of the above text control.
-    sui_control_position_set(state->sui_state, &state->entry_textbox, (vec3){3.0f, 10.0f + (font_size * state->line_display_count), 0.0f});
+
     state->loaded = true;
 
     return true;
@@ -184,8 +209,13 @@ void debug_console_unload(debug_console_state* state) {
     }
 }
 
+#define DEBUG_CONSOLE_BUFFER_LENGTH 32768
+
 void debug_console_update(debug_console_state* state) {
     if (state && state->loaded && state->dirty) {
+        // Build one string out of several lines of console text to display in the console window.
+        // This has a limit of DEBUG_CONSOLE_BUFFER_LENGTH, which should be more than enough anyway,
+        // but is clamped to avoid a buffer overflow.
         u32 line_count = darray_length(state->lines);
         u32 max_lines = KMIN(state->line_display_count, KMAX(line_count, state->line_display_count));
 
@@ -194,15 +224,17 @@ void debug_console_update(debug_console_state* state) {
         u32 max_line = min_line + max_lines - 1;
 
         // Hopefully big enough to handle most things.
-        char buffer[16384];
-        kzero_memory(buffer, sizeof(char) * 16384);
+        char buffer[DEBUG_CONSOLE_BUFFER_LENGTH];
+        kzero_memory(buffer, sizeof(char) * DEBUG_CONSOLE_BUFFER_LENGTH);
+        // Leave enough space at the end of the buffer for a \n and a null terminator.
+        const u32 max_buf_pos = DEBUG_CONSOLE_BUFFER_LENGTH - 2;
         u32 buffer_pos = 0;
-        for (u32 i = min_line; i <= max_line; ++i) {
+        for (u32 i = min_line; i <= max_line && buffer_pos < max_buf_pos; ++i) {
             // TODO: insert colour codes for the message type.
 
             const char* line = state->lines[i];
             u32 line_length = string_length(line);
-            for (u32 c = 0; c < line_length; c++, buffer_pos++) {
+            for (u32 c = 0; c < line_length && buffer_pos < max_buf_pos; c++, buffer_pos++) {
                 buffer[buffer_pos] = line[c];
             }
             // Append a newline
@@ -251,14 +283,14 @@ static void debug_console_entry_box_on_key(standard_ui_state* state, sui_control
 void debug_console_on_lib_load(debug_console_state* state, b8 update_consumer) {
     if (update_consumer) {
         state->entry_textbox.on_key = debug_console_entry_box_on_key;
-        event_register(EVENT_CODE_RESIZED, state, debug_console_on_resize);
+        event_register(EVENT_CODE_WINDOW_RESIZED, state, debug_console_on_resize);
         console_consumer_update(state->console_consumer_id, state, debug_console_consumer_write);
     }
 }
 
 void debug_console_on_lib_unload(debug_console_state* state) {
     state->entry_textbox.on_key = 0;
-    event_unregister(EVENT_CODE_RESIZED, state, debug_console_on_resize);
+    event_unregister(EVENT_CODE_WINDOW_RESIZED, state, debug_console_on_resize);
     console_consumer_update(state->console_consumer_id, 0, 0);
 }
 

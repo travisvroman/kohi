@@ -95,8 +95,8 @@ typedef struct kwindow {
     struct kwindow_renderer_state* renderer_state;
 } kwindow;
 
-typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id);
-typedef void (*platform_filewatcher_file_written_callback)(u32 watcher_id);
+typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id, void* context);
+typedef void (*platform_filewatcher_file_written_callback)(u32 watcher_id, void* context);
 typedef void (*platform_window_closed_callback)(const struct kwindow* window);
 typedef void (*platform_window_resized_callback)(const struct kwindow* window);
 typedef void (*platform_process_key)(keys key, b8 pressed);
@@ -330,16 +330,18 @@ KAPI platform_error_code platform_copy_file(const char* source, const char* dest
  * up by the engine or application.
  *
  * @param callback A pointer to the handler function.
+ * @param context A pointer to any context required along with the callback.
  */
-KAPI void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback);
+KAPI void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback, void* context);
 
 /**
  * @brief Registers the system-level handler for filewatcher "file written" events. This can be hooked
  * up by the engine or application.
  *
  * @param callback A pointer to the handler function.
+ * @param context A pointer to any context required along with the callback.
  */
-KAPI void platform_register_watcher_written_callback(platform_filewatcher_file_written_callback callback);
+KAPI void platform_register_watcher_written_callback(platform_filewatcher_file_written_callback callback, void* context);
 
 /**
  * @brief Registers the system-level handler for a window being closed.

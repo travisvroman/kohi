@@ -5,8 +5,6 @@
 #include <platform/platform.h>
 #include <strings/kstring.h>
 
-/* typedef b8 (*PFN_renderer_plugin_create)(renderer_plugin* out_plugin); */
-/* typedef b8 (*PFN_audio_plugin_create)(audio_plugin* out_plugin); */
 typedef u64 (*PFN_application_state_size)(void);
 
 b8 load_game_lib(application* app) {
@@ -63,7 +61,7 @@ b8 load_game_lib(application* app) {
 }
 
 b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_context context) {
-    if (code == EVENT_CODE_WATCHED_FILE_WRITTEN) {
+    if (code == EVENT_CODE_RESOURCE_HOT_RELOADED) {
         application* app = (application*)listener_inst;
         if (context.data.u32[0] == app->game_library.watch_id) {
             KINFO("Hot-Reloading game library.");
@@ -137,41 +135,11 @@ b8 create_application(application* out_application) {
     out_application->engine_state = 0;
     out_application->state = 0;
 
-    /* // Load the Vulkan renderer plugin.
-    if (!platform_dynamic_library_load("kohi.plugin.renderer.vulkan", &out_application->renderer_library)) {
-        return false;
-    }
-
-    if (!platform_dynamic_library_load_function("plugin_create", &out_application->renderer_library)) {
-        return false;
-    }
-
-    // Create the renderer plugin.
-    PFN_renderer_plugin_create plugin_create = out_application->renderer_library.functions[0].pfn;
-    if (!plugin_create(&out_application->render_plugin)) {
-        return false;
-    }
-
-    // Load the OpenAL Audio plugin.
-    if (!platform_dynamic_library_load("kohi.plugin.audio.openal", &out_application->audio_library)) {
-        return false;
-    }
-
-    if (!platform_dynamic_library_load_function("plugin_create", &out_application->audio_library)) {
-        return false;
-    }
-
-    // Create the renderer plugin.
-    PFN_audio_plugin_create audio_plugin_create = out_application->audio_library.functions[0].pfn;
-    if (!audio_plugin_create(&out_application->audio_plugin)) {
-        return false;
-    } */
-
     return true;
 }
 
 b8 initialize_application(application* app) {
-    if (!event_register(EVENT_CODE_WATCHED_FILE_WRITTEN, app, watched_file_updated)) {
+    if (!event_register(EVENT_CODE_RESOURCE_HOT_RELOADED, app, watched_file_updated)) {
         return false;
     }
 

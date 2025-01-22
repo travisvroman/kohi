@@ -1,3 +1,9 @@
+%:: %,v
+%:: RCS/%,v
+%:: RCS/%
+%:: s.%
+%:: SCCS/s.%
+
 BUILD_DIR := bin
 OBJ_DIR := obj
 
@@ -13,7 +19,7 @@ ifeq ($(OS),Windows_NT)
 	EXTENSION := .dll
 	COMPILER_FLAGS := -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wno-error=unused-function -Wvla -Wgnu-folding-constant -Wno-missing-braces -fdeclspec -Wstrict-prototypes -Wno-unused-parameter -Wno-missing-field-initializers
 	INCLUDE_FLAGS := -I$(ASSEMBLY)\src $(ADDL_INC_FLAGS)
-	LINKER_FLAGS := -shared -L$(OBJ_DIR)\$(ASSEMBLY) -L.\$(BUILD_DIR) $(ADDL_LINK_FLAGS)
+	LINKER_FLAGS := -shared -lwinmm -L$(OBJ_DIR)\$(ASSEMBLY) -L.\$(BUILD_DIR) $(ADDL_LINK_FLAGS)
 	DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
 
 # Make does not offer a recursive wildcard function, and Windows needs one, so here it is:
@@ -44,12 +50,12 @@ else
 		# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say
 		# otherwise are exported (i.e. via KAPI).
 		COMPILER_FLAGS :=-fvisibility=hidden -fpic -Wall -Wno-error=deprecated-declarations -Wno-error=unused-function -Werror -Wvla -Wno-missing-braces -fdeclspec 
-		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src -I$(VULKAN_SDK)/include $(ADDL_INC_FLAGS)
+		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
 		# NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
 		# These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
 		# here that would not on other platforms from not being exported (i.e. Windows)
 		# Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
-		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -shared -lvulkan -lxcb -lX11 -lX11-xcb -lxkbcommon -lm -L$(VULKAN_SDK)/lib -L/usr/X11R6/lib -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) 		# .c files
+		LINKER_FLAGS :=-Wl,--no-undefined,--no-allow-shlib-undefined -shared -lxcb -lX11 -lX11-xcb -lxkbcommon -lm -L/usr/X11R6/lib -L./$(BUILD_DIR) $(ADDL_LINK_FLAGS) 		# .c files
 		SRC_FILES := $(shell find $(ASSEMBLY) -name *.c)
 		# directories with .h files
 		DIRECTORIES := $(shell find $(ASSEMBLY) -type d)
@@ -119,7 +125,7 @@ COMPILER_FLAGS += -g -MD -O0
 LINKER_FLAGS += -g
 endif
 
-all: scaffold compile link gen_compile_flags
+all: scaffold gen_compile_flags compile link 
 
 .NOTPARALLEL: scaffold
 
@@ -193,7 +199,8 @@ endif
 .PHONY: gen_compile_flags
 gen_compile_flags:
 ifeq ($(BUILD_PLATFORM),windows)
-	$(shell powershell \"$(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0\".replace('-I', '-I..\').replace(' ', \"`n\").replace('-I..\C:', '-IC:') > $(ASSEMBLY)/compile_flags.txt)
+#	Updated to handle not breaking up quoted strings (i.e. paths with spaces in them) but then afterward to remove said quotes.
+	$(shell powershell [regex]::matches(\"$(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0\", \"-I'[^']*'|\S+\").Value.replace('-I', '-I..\').replace('-I..\''C:', '-I''C:').replace('''', '') -join [System.Environment]::NewLine > $(ASSEMBLY)/compile_flags.txt)
 else
 	@echo $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0 | tr " " "\n" | sed "s/\-I\.\//\-I\.\.\//g" > $(ASSEMBLY)/compile_flags.txt
 endif

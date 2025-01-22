@@ -1,0 +1,82 @@
+version = 1
+depth_test=true
+depth_write=true
+supports_wireframe=true
+max_groups=16
+max_draw_ids=16
+cull_mode = "back"
+
+topology_types [
+    "triangle_list"
+]
+
+stages = [
+    {
+        type = "vertex"
+        source_asset_name = "Shader.MaterialWater_vert"
+        package_name = "Kohi.Runtime"
+    }
+    {
+        type = "fragment"
+        source_asset_name = "Shader.MaterialWater_frag"
+        package_name = "Kohi.Runtime"
+    }
+]
+
+attributes = [
+    {
+        name = "in_position"
+        type = "vec4"
+    }
+]
+
+uniforms = {
+    per_frame = [
+        {
+            name = "material_frame_ubo"
+            type = "struct"
+            size = sizeof
+        }
+        {
+            name = "shadow_texture"
+            type = "texture2DArray"
+        }
+        {
+            name = "ibl_cube_textures"
+            type = "textureCube"
+            array_size = 4
+        }
+        {
+            name = "shadow_sampler"
+            type = "sampler"
+        }
+        {
+            name = "ibl_cube_sampler"
+            type = "sampler"
+        }
+    ]
+    per_group = [
+        {
+            name = "material_group_ubo"
+            type = "struct"
+            size = sizeof
+        }
+        {
+            name = "material_textures"
+            type = "texture2D"
+            array_size = 5
+        }
+        {
+            name = "material_samplers"
+            type = "sampler"
+            array_size = 5
+        }
+    ]
+    per_draw = [
+        {
+            name = "material_draw_ubo"
+            type = "struct"
+            size = sizeof
+        }
+    ]
+}

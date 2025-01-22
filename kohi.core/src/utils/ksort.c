@@ -48,3 +48,25 @@ void kquick_sort(u64 type_size, void* data, i32 low_index, i32 high_index, PFN_k
         kfree(scratch_mem, type_size, MEMORY_TAG_ARRAY);
     }
 }
+
+i32 kquicksort_compare_u32_desc(void* a, void* b) {
+    u32 a_typed = *(u32*)a;
+    u32 b_typed = *(u32*)b;
+    if (a_typed > b_typed) {
+        return 1;
+    } else if (a_typed < b_typed) {
+        return -1;
+    }
+    return 0;
+}
+
+i32 kquicksort_compare_u32(void* a, void* b) {
+    u32 a_typed = *(u32*)a;
+    u32 b_typed = *(u32*)b;
+    if (a_typed < b_typed) {
+        return 1;
+    } else if (a_typed > b_typed) {
+        return -1;
+    }
+    return 0;
+}

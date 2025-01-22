@@ -10,12 +10,15 @@
 #    include "threads/kmutex.h"
 #    include "threads/ksemaphore.h"
 #    include "threads/kthread.h"
+#    include "time/kclock.h"
 #    include <input_types.h>
 
 #    define WIN32_LEAN_AND_MEAN
-#    include <stdlib.h>
 #    include <windows.h>
 #    include <windowsx.h> // param input extraction
+// NOTE: These must be included after above windows includes.
+#    include <stdlib.h>
+#    include <timeapi.h>
 
 typedef struct win32_handle_info {
     HINSTANCE h_instance;
@@ -38,12 +41,13 @@ typedef struct platform_state {
     CONSOLE_SCREEN_BUFFER_INFO err_output_csbi;
     // darray
     win32_file_watch* watches;
-    
 
     // darray of pointers to created windows (owned by the application);
     kwindow** windows;
     platform_filewatcher_file_deleted_callback watcher_deleted_callback;
+    void* watcher_deleted_context;
     platform_filewatcher_file_written_callback watcher_written_callback;
+    void* watcher_written_context;
     platform_window_closed_callback window_closed_callback;
     platform_window_resized_callback window_resized_callback;
     platform_process_key process_key;
@@ -56,7 +60,16 @@ static platform_state* state_ptr;
 
 // Clock
 static f64 clock_frequency;
+static UINT min_period;
 static LARGE_INTEGER start_time;
+
+// FIXME: Brought up by a comment on YT - Check this on other platforms as well. Absolute time should be based on application start time.
+// 1. Here and also in the more recent code updates I see you query the static start_time with QueryPerformanceCounter()
+// but you don't use it anywhere? Do you want as in this case the absolute time since the system started counting, and
+// not the time since the engine was initialized ( returning    (now_time.QuadPart - start_time.QuadPart) * clock_frequency
+// in platform_get_absolute_time() ) ?
+// 2. Is the clock_frequency the right name since it assigns the inverse of frequency.QuadPart, maybe it should be
+// something like tick_duration ?
 
 static void platform_update_watches(void);
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
@@ -69,6 +82,10 @@ void clock_setup(void) {
     QueryPerformanceFrequency(&frequency);
     clock_frequency = 1.0 / (f64)frequency.QuadPart;
     QueryPerformanceCounter(&start_time);
+
+    TIMECAPS tc;
+    timeGetDevCaps(&tc, sizeof(tc));
+    min_period = tc.wPeriodMin;
 }
 
 b8 platform_system_startup(u64* memory_requirement, platform_state* state, platform_system_config* config) {
@@ -205,14 +222,16 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
     window->height = client_height;
     window->device_pixel_ratio = 1.0f;
 
-    window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_UNKNOWN);
+    window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_PLATFORM);
 
     // Convert to wide character string first.
     // LPCWSTR wtitle = cstr_to_wcstr(window->title);
     // FIXME: For some reason using the above causes renderdoc to fail to open the window,
     // but using the below does not...
     WCHAR wtitle[256];
-    MultiByteToWideChar(CP_UTF8, 0, window->title, -1, wtitle, 256);
+    int len = MultiByteToWideChar(CP_UTF8, 0, window->title, -1, wtitle, 256);
+    if (!len) {
+    }
     window->platform_state->hwnd = CreateWindowExW(
         window_ex_style, L"kohi_window_class", wtitle,
         window_style, window_x, window_y, window_width, window_height,
@@ -312,7 +331,7 @@ b8 platform_window_title_set(struct kwindow* window, const char* title) {
         return false;
     }
 
-    LPCWSTR wtitle = cstr_to_wcstr(window->title);
+    LPCWSTR wtitle = cstr_to_wcstr(title);
 
     // If the function succeeds, the return value is nonzero.
     b8 result = (SetWindowText(window->platform_state->hwnd, wtitle) != 0);
@@ -389,7 +408,22 @@ f64 platform_get_absolute_time(void) {
 }
 
 void platform_sleep(u64 ms) {
-    Sleep(ms);
+    kclock clock;
+    kclock_start(&clock);
+    timeBeginPeriod(min_period);
+    Sleep(ms - min_period);
+    timeEndPeriod(min_period);
+
+    kclock_update(&clock);
+    f64 observed = clock.elapsed * 1000.0;
+    f64 ms_remaining = (f64)ms - observed;
+
+    // spin lock
+    kclock_start(&clock);
+    while (clock.elapsed * 1000.0 < ms_remaining) {
+        _mm_pause();
+        kclock_update(&clock);
+    }
 }
 
 i32 platform_get_processor_count(void) {
@@ -631,11 +665,9 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
         return false;
     }
 
-    char filename[MAX_PATH];
-    kzero_memory(filename, sizeof(char) * MAX_PATH);
-    string_format_unsafe(filename, "%s.dll", name);
+    out_library->filename = string_format("%s.dll", name);
 
-    LPCWSTR wfilename = cstr_to_wcstr(filename);
+    LPCWSTR wfilename = cstr_to_wcstr(out_library->filename);
     HMODULE library = LoadLibraryW(wfilename);
     wcstr_free(wfilename);
     if (!library) {
@@ -643,7 +675,6 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
     }
 
     out_library->name = string_duplicate(name);
-    out_library->filename = string_duplicate(filename);
 
     out_library->internal_data_size = sizeof(HMODULE);
     out_library->internal_data = library;
@@ -727,12 +758,14 @@ const char* platform_dynamic_library_prefix(void) {
     return "";
 }
 
-void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback) {
+void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback, void* context) {
     state_ptr->watcher_deleted_callback = callback;
+    state_ptr->watcher_deleted_context = context;
 }
 
-void platform_register_watcher_written_callback(platform_filewatcher_file_written_callback callback) {
+void platform_register_watcher_written_callback(platform_filewatcher_file_written_callback callback, void* context) {
     state_ptr->watcher_written_callback = callback;
+    state_ptr->watcher_written_context = context;
 }
 
 void platform_register_window_closed_callback(platform_window_closed_callback callback) {
@@ -872,7 +905,7 @@ static void platform_update_watches(void) {
             if (file_handle == INVALID_HANDLE_VALUE) {
                 // This means the file has been deleted, remove from watch.
                 if (state_ptr->watcher_deleted_callback) {
-                    state_ptr->watcher_deleted_callback(f->id);
+                    state_ptr->watcher_deleted_callback(f->id, state_ptr->watcher_deleted_context);
                 } else {
                     KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_deleted_callback()");
                 }
@@ -890,7 +923,7 @@ static void platform_update_watches(void) {
                 f->last_write_time = data.ftLastWriteTime;
                 // Notify listeners.
                 if (state_ptr->watcher_written_callback) {
-                    state_ptr->watcher_written_callback(f->id);
+                    state_ptr->watcher_written_callback(f->id, state_ptr->watcher_written_context);
                 } else {
                     KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_written_callback()");
                 }
@@ -1092,12 +1125,12 @@ static LPCWSTR cstr_to_wcstr(const char* str) {
     if (len == 0) {
         return 0;
     }
-    wchar_t* wstr = kallocate(sizeof(wchar_t) * (len), MEMORY_TAG_STRING);
+    LPWSTR wstr = kallocate(sizeof(WCHAR) * len, MEMORY_TAG_STRING);
     if (!wstr) {
         return 0;
     }
     if (MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, len) == 0) {
-        kfree((wchar_t*)wstr, sizeof(wchar_t) * (len), MEMORY_TAG_STRING);
+        kfree(wstr, sizeof(WCHAR) * len, MEMORY_TAG_STRING);
         return 0;
     }
     return wstr;
@@ -1105,8 +1138,8 @@ static LPCWSTR cstr_to_wcstr(const char* str) {
 
 static void wcstr_free(LPCWSTR wstr) {
     if (wstr) {
-        u32 len = lstrlen(wstr);
-        kfree((WCHAR*)wstr, sizeof(WCHAR) * len, MEMORY_TAG_STRING);
+        u32 len = lstrlen(wstr); // Note that lstrlen doesn't account for the null terminator.
+        kfree((WCHAR*)wstr, sizeof(WCHAR) * (len + 1), MEMORY_TAG_STRING);
     }
 }
 
@@ -1119,12 +1152,12 @@ static const char* wcstr_to_cstr(LPCWSTR wstr) {
     if (length == 0) {
         return 0;
     }
-    char* str = kallocate(sizeof(WCHAR) * length, MEMORY_TAG_STRING);
+    char* str = kallocate(sizeof(char) * length, MEMORY_TAG_STRING);
     if (!str) {
         return 0;
     }
     if (WideCharToMultiByte(CP_UTF8, 0, wstr, -1, str, length, NULL, NULL) == 0) {
-        kfree((char*)str, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+        kfree((char*)str, sizeof(char) * length, MEMORY_TAG_STRING);
         return 0;
     }
 

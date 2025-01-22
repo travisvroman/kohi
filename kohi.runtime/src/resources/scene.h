@@ -1,19 +1,21 @@
 #pragma once
 
+#include "audio/kaudio_types.h"
 #include "defines.h"
 #include "graphs/hierarchy_graph.h"
 #include "identifiers/khandle.h"
+#include "kresources/kresource_types.h"
 #include "math/math_types.h"
 #include "resources/debug/debug_grid.h"
 #include "resources/resource_types.h"
+#include "systems/static_mesh_system.h"
 
 struct frame_data;
 struct render_packet;
 struct directional_light;
 struct point_light;
-struct mesh;
 struct skybox;
-struct geometry_config;
+struct water_plane;
 struct camera;
 struct scene_config;
 struct terrain;
@@ -41,9 +43,9 @@ typedef enum scene_state {
 typedef struct scene_attachment {
     scene_node_attachment_type attachment_type;
     // Handle into the hierarchy graph.
-    k_handle hierarchy_node_handle;
+    khandle hierarchy_node_handle;
     // A handle indexing into the resource array of the given type (i.e. meshes).
-    k_handle resource_handle;
+    khandle resource_handle;
 } scene_attachment;
 
 typedef enum scene_flag {
@@ -63,21 +65,30 @@ typedef struct scene_node_metadata {
     u32 id;
 
     // The name of the node.
-    const char* name;
+    kname name;
 } scene_node_metadata;
 
 typedef struct scene_static_mesh_metadata {
-    const char* resource_name;
+    kname resource_name;
+    kname package_name;
 } scene_static_mesh_metadata;
 
 typedef struct scene_terrain_metadata {
-    const char* name;
-    const char* resource_name;
+    kname name;
+    kname resource_name;
+    kname package_name;
 } scene_terrain_metadata;
 
 typedef struct scene_skybox_metadata {
-    const char* cubemap_name;
+    kname cubemap_name;
+    kname package_name;
 } scene_skybox_metadata;
+
+typedef struct scene_water_plane_metadata {
+    u32 reserved;
+} scene_water_plane_metadata;
+
+struct scene_audio_emitter;
 
 typedef struct scene {
     u32 id;
@@ -86,32 +97,26 @@ typedef struct scene {
     scene_state state;
     b8 enabled;
 
-    char* name;
+    kname name;
     char* description;
-    char* resource_name;
-    char* resource_full_path;
 
     // darray of directional lights.
     struct directional_light* dir_lights;
-    // TODO: Delete this
-    // Indices into the attachment array for xform lookups.
-    u32* directional_light_attachment_indices;
     // Array of scene attachments for directional lights.
     scene_attachment* directional_light_attachments;
 
     // darray of point lights.
     struct point_light* point_lights;
-    // TODO: Delete this
-    // Indices into the attachment array for xform lookups.
-    u32* point_light_attachment_indices;
     // Array of scene attachments for point lights.
     scene_attachment* point_light_attachments;
 
-    // darray of meshes.
-    struct mesh* meshes;
-    // TODO: Delete this
-    // Indices into the attachment array for xform and resource lookups.
-    u32* mesh_attachment_indices;
+    // darray of audio emitters.
+    struct scene_audio_emitter* audio_emitters;
+    // Array of scene attachments for audio_emitters.
+    scene_attachment* audio_emitter_attachments;
+
+    // darray of static meshes.
+    static_mesh_instance* static_meshes;
     // Array of scene attachments for meshes.
     scene_attachment* mesh_attachments;
     // Array of mesh metadata.
@@ -119,9 +124,6 @@ typedef struct scene {
 
     // darray of terrains.
     struct terrain* terrains;
-    // TODO: Delete this
-    // Indices into the attachment array for xform lookups.
-    u32* terrain_attachment_indices;
     // Array of scene attachments for terrains.
     scene_attachment* terrain_attachments;
     // Array of terrain metadata.
@@ -129,19 +131,23 @@ typedef struct scene {
 
     // darray of skyboxes.
     struct skybox* skyboxes;
-    // TODO: Delete this
-    // Indices into the attachment array for xform lookups.
-    u32* skybox_attachment_indices;
     // Array of scene attachments for skyboxes.
     scene_attachment* skybox_attachments;
     // Array of skybox metadata.
     scene_skybox_metadata* skybox_metadata;
 
+    // darray of water planes.
+    struct water_plane* water_planes;
+    // Array of scene attachments for water planes.
+    scene_attachment* water_plane_attachments;
+    // Array of water plane metadata.
+    scene_water_plane_metadata* water_plane_metadata;
+
     // A grid for the scene.
     debug_grid grid;
 
-    // A pointer to the scene configuration, if provided.
-    struct scene_config* config;
+    // A pointer to the scene configuration resource.
+    kresource_scene* config;
 
     hierarchy_graph hierarchy;
 
@@ -159,12 +165,12 @@ typedef struct scene {
  * @brief Creates a new scene with the given config with default values.
  * No resources are allocated. Config is not yet processed.
  *
- * @param config A pointer to the configuration. Optional.
+ * @param config A pointer to the configuration resource. Optional.
  * @param flags Flags to be used during creation (i.e. read-only, etc.).
  * @param out_scene A pointer to hold the newly created scene. Required.
  * @return True on success; otherwise false.
  */
-KAPI b8 scene_create(scene_config* config, scene_flags flags, scene* out_scene);
+KAPI b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene);
 
 /**
  * @brief Performs initialization routines on the scene, including processing
@@ -192,6 +198,14 @@ KAPI b8 scene_load(scene* scene);
  * @return True on success; otherwise false.
  */
 KAPI b8 scene_unload(scene* scene, b8 immediate);
+
+/**
+ * @brief Destroys the scene, releasing any remaining resources held by it.
+ * Automatically triggers unload if scene is currently loaded.
+ *
+ * @param s A pointer to the scene to be destroyed.
+ */
+KAPI void scene_destroy(scene* s);
 
 /**
  * @brief Performs any required scene updates for the given frame.
@@ -225,16 +239,6 @@ KAPI b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 directio
 KAPI b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries);
 KAPI b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
 
-KAPI b8 scene_save(scene* s);
+KAPI b8 scene_water_plane_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct water_plane*** out_water_planes);
 
-/**
- * @brief Attempts to parse a xform config (_NOT_ an actual xform) from the provided string.
- * If the string contains 10 elements, rotation is parsed as quaternion.
- * If it contains 9 elements, rotation is parsed as euler angles and is
- * converted to quaternion. Anything else is invalid.
- *
- * @param str The string to parse from.
- * @param out_xform A pointer to the xform to write to.
- * @return True if parsed successfully, otherwise false.
- */
-KAPI b8 string_to_scene_xform_config(const char* str, struct scene_xform_config* out_xform);
+KAPI b8 scene_save(scene* s);

@@ -43,33 +43,42 @@ While the highest effort is made to reduce dependencies, each platform has thing
 
 ### Prerequisites for Windows
 
-- Make for Windows: https://gnuwin32.sourceforge.net/packages/make.htm (Yes, the last update was in 2006. But if ain't broke, why fix it?)
-- Visual Studio Community (acts as backend for clang), 2019+ is fine: https://visualstudio.microsoft.com/vs/community/
-- Git for Windows: https://gitforwindows.org/
+NOTE: This project _does not_ work under WSL, nor will it in the forseeable future. Don't bother trying it. Even if you do get it working, it won't be supported.
+
+- Make for Windows: `winget install exwinports.make` OR https://gnuwin32.sourceforge.net/packages/make.htm (Yes, the last update was in 2006. But if ain't broke, why fix it?)
+- Visual Studio Build Tools: `winget install Microsoft.VisualStudio.2022.BuildTools`
+- Git for Windows: `winget install git.git` OR https://gitforwindows.org/
+- Vulkan SDK: `winget install khronosgroup.vulkansdk` OR download from https://vulkan.lunarg.com/
 
 ### Prerequisites for Linux
 
 Install these via package manager:
 
-- `git`
-- `make`
-- `libx11-dev`
-- `libxkbcommon-x11-dev`
-- `libx11-xcb-dev`
+- `sudo apt install llvm` or `sudo pacman -S llvm`
+- `sudo apt install git` or `sudo pacman -S git`
+- `sudo apt install make`
+
+Required for X11:
+
+- `sudo apt install libx11-dev`
+- `sudo apt install libxkbcommon-x11-dev`
+- `sudo apt install libx11-xcb-dev`
+
+NOTE: Wayland not natively supported (yet)
 
 ### Prerequisites for macOS
 
-Install these via homebrew or other package manager:
+- XCode command line tools: `xcode-select --install`. This should install the latest XCode and
+  command-line tools (most importantly clang). At the time of install, this installs Apple Clang 15.0.0.
 
-- `git`
-- `make`
+Install these via homebrew (brew) or other package manager:
+
+- Git: `brew install git`
+- Make: `brew install make`
+
+NOTE: If you want a newer version of clang, you can also do `brew install llvm` and point to it when compiling.
 
 ### Cross-Platform Prerequisites:
-
-You will need to have Clang 13+ and the Vulkan SDK installed:
-
-- Clang: https://releases.llvm.org/download.html
-- Vulkan SDK: https://vulkan.lunarg.com/
 
 ## Audio Plugin Prerequisites
 
@@ -77,7 +86,7 @@ The audio plugin requires an installatiion of OpenAL.
 
 - Linux: use a package manager to install OpenAL, if not already installed (i.e. `sudo apt install openal` for Ubuntu or `sudo pacman -S openal` on Arch)
 - macOS: install openal-soft via homebrew: `brew install openal-soft`. Note on M1 macs this installs to `/opt/homebrew/opt/openal-soft/`, where the `include`, `lib`, and `'bin` directories can be found. The `build-all.sh` script accounts for this version of the install.
-- Windows: Install the SDK from here: https://www.openal.org/downloads/
+- Windows: `winget install OpenAL.OpenAL` OR Install the SDK from here: https://www.openal.org/downloads/
 
 # Start
 

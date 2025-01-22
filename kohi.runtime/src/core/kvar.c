@@ -123,7 +123,7 @@ static b8 kvar_entry_set_desc_value(kvar_entry* entry, kvar_types type, const ch
     // Send out a notification that the variable was changed.
     event_context context = {0};
     context.data.custom_data.size = sizeof(kvar_change);
-    context.data.custom_data.data = kallocate(context.data.custom_data.size, MEMORY_TAG_UNKNOWN); // FIXME: event tag
+    context.data.custom_data.data = kallocate(context.data.custom_data.size, MEMORY_TAG_ENGINE);
     kvar_change* change_data = context.data.custom_data.data;
     change_data->name = entry->name;
     change_data->new_type = type;
