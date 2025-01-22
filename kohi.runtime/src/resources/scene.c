@@ -9,8 +9,8 @@
 #include "core/console.h"
 #include "core/engine.h"
 #include "core/frame_data.h"
-#include "core_audio_types.h"
 #include "core_render_types.h"
+#include "debug/kassert.h"
 #include "defines.h"
 #include "graphs/hierarchy_graph.h"
 #include "identifiers/identifier.h"
@@ -51,7 +51,12 @@ typedef struct scene_debug_data {
 } scene_debug_data;
 
 typedef struct scene_audio_emitter {
-    audio_emitter data;
+    kname name;
+
+    // Handle to the emitter within the audio system.
+    khandle emitter;
+
+    // debug rendering data.
     scene_debug_data* debug_data;
     u32 generation;
     kname resource_name;
@@ -441,21 +446,26 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
                 } */
 
                 scene_audio_emitter new_emitter = {0};
-                new_emitter.data.name = typed_attachment_config->base.name;
-                new_emitter.data.volume = typed_attachment_config->volume;
-                new_emitter.data.inner_radius = typed_attachment_config->inner_radius;
-                new_emitter.data.outer_radius = typed_attachment_config->outer_radius;
-                new_emitter.data.falloff = typed_attachment_config->falloff;
-                new_emitter.data.is_looping = typed_attachment_config->is_looping;
-                new_emitter.resource_name = typed_attachment_config->audio_resource_name;
-                new_emitter.package_name = typed_attachment_config->audio_resource_package_name;
-                new_emitter.is_streaming = typed_attachment_config->is_streaming;
+                new_emitter.name = typed_attachment_config->base.name;
+                if (!kaudio_emitter_create(
+                        engine_systems_get()->audio_system,
+                        typed_attachment_config->inner_radius,
+                        typed_attachment_config->outer_radius,
+                        typed_attachment_config->volume,
+                        typed_attachment_config->falloff,
+                        typed_attachment_config->is_looping,
+                        typed_attachment_config->is_streaming,
+                        typed_attachment_config->audio_resource_name,
+                        typed_attachment_config->audio_resource_package_name,
+                        &new_emitter.emitter)) {
+                    KERROR("Failed to create audio emitter. See logs for details.");
+                }
 
                 // Add debug data and initialize it.
                 new_emitter.debug_data = KALLOC_TYPE(scene_debug_data, MEMORY_TAG_RESOURCE);
                 scene_debug_data* debug = new_emitter.debug_data;
 
-                if (!debug_sphere3d_create(new_emitter.data.outer_radius, (vec4){1.0f, 0.5f, 0.0f, 1.0f}, khandle_invalid(), &debug->sphere)) {
+                if (!debug_sphere3d_create(typed_attachment_config->outer_radius, (vec4){1.0f, 0.5f, 0.0f, 1.0f}, khandle_invalid(), &debug->sphere)) {
                     KERROR("Failed to create debug sphere for audio emitter.");
                 } else {
                     // xform_position_set(debug->sphere.xform, new_emitter.data.position);
@@ -852,10 +862,10 @@ b8 scene_load(scene* scene) {
 
             // Get world position for the audio emitter based on it's owning node's xform.
             vec3 emitter_world_pos = mat4_position(world);
+            kaudio_emitter_world_position_set(audio_state, emitter->emitter, emitter_world_pos);
 
-            // NOTE: always use 3d space for emitters.
-            if (!kaudio_acquire(audio_state, emitter->resource_name, emitter->package_name, emitter->is_streaming, KAUDIO_SPACE_3D, &emitter->data.instance)) {
-                KWARN("Failed to acquire audio resource from audio system.");
+            if (!kaudio_emitter_load(audio_state, emitter->emitter)) {
+                KWARN("Failed to load audio emitter.");
             } else {
                 // Load debug data if it was setup.
                 scene_debug_data* debug = (scene_debug_data*)scene->audio_emitters[i].debug_data;
@@ -865,16 +875,10 @@ b8 scene_load(scene* scene) {
                     scene->audio_emitters[i].debug_data = 0;
                 }
 
-                // HACK: play this in an "on load" callback which should be triggered at the end of this function.
-                // It should "play", but it should also just play when entering the outer_radius.
-                kaudio_play(audio_state, emitter->data.instance, -1); // HACK: Don't hardcode this. Config? Define family group, or index somehow?
-                // Apply properties to audio.
-                kaudio_looping_set(audio_state, emitter->data.instance, emitter->data.is_looping);
-                kaudio_outer_radius_set(audio_state, emitter->data.instance, emitter->data.outer_radius);
-                kaudio_inner_radius_set(audio_state, emitter->data.instance, emitter->data.inner_radius);
-                kaudio_falloff_set(audio_state, emitter->data.instance, emitter->data.falloff);
-                kaudio_position_set(audio_state, emitter->data.instance, emitter_world_pos);
-                kaudio_volume_set(audio_state, emitter->data.instance, emitter->data.volume);
+                // Load the emitter.
+                if (!kaudio_emitter_load(audio_state, scene->audio_emitters[i].emitter)) {
+                    KERROR("Failed to load audio for emitter.");
+                }
             }
         }
     }
@@ -988,16 +992,9 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
                     world = mat4_identity();
                 }
 
-                // Get world position for the audio emitter based on it's owning node's xform.
+                // Get world position for the audio emitter based on it's owning node's xform and set it.
                 vec3 emitter_world_pos = mat4_position(world);
-
-                // Apply properties to audio.
-                kaudio_looping_set(audio_state, emitter->data.instance, emitter->data.is_looping);
-                kaudio_outer_radius_set(audio_state, emitter->data.instance, emitter->data.outer_radius);
-                kaudio_inner_radius_set(audio_state, emitter->data.instance, emitter->data.inner_radius);
-                kaudio_falloff_set(audio_state, emitter->data.instance, emitter->data.falloff);
-                kaudio_position_set(audio_state, emitter->data.instance, emitter_world_pos);
-                kaudio_volume_set(audio_state, emitter->data.instance, emitter->data.volume);
+                kaudio_emitter_world_position_set(audio_state, emitter->emitter, emitter_world_pos);
             }
         }
 
@@ -1915,9 +1912,8 @@ static void scene_actual_unload(scene* s) {
 
     u32 audio_emitter_count = darray_length(s->audio_emitters);
     for (u32 i = 0; i < audio_emitter_count; ++i) {
-        // Stop the sound immediately.
-        kaudio_stop(engine_systems_get()->audio_system, s->audio_emitters[i].data.instance);
-        // FIXME: Destroy the emitter.
+        // Unload the emitter.
+        kaudio_emitter_unload(engine_systems_get()->audio_system, s->audio_emitters[i].emitter);
 
         // Destroy debug data if it exists.
         if (s->audio_emitters[i].debug_data) {
@@ -2043,10 +2039,11 @@ static b8 scene_serialize_node(const scene* s, const hierarchy_graph_view* view,
             kson_property attachment = kson_object_property_create(0);
 
             // Add properties to it.
-            kson_object_value_add_string(&attachment.value.o, "type", "audio_emitter");
+            KASSERT_MSG(false, "Implement serialization of audio emitters");
+            /* kson_object_value_add_string(&attachment.value.o, "type", "audio_emitter");
             kson_object_value_add_float(&attachment.value.o, "inner_radius", s->audio_emitters[m].data.inner_radius);
             kson_object_value_add_float(&attachment.value.o, "outer_radius", s->audio_emitters[m].data.outer_radius);
-            kson_object_value_add_float(&attachment.value.o, "falloff", s->audio_emitters[m].data.falloff);
+            kson_object_value_add_float(&attachment.value.o, "falloff", s->audio_emitters[m].data.falloff); */
 
             // Push it into the attachments array
             darray_push(attachments_prop.value.o.properties, attachment);

@@ -95,3 +95,11 @@ KAPI f32 kaudio_channel_volume_get(struct kaudio_system_state* state, u8 channel
  * @volume The volume to set. Clamped to a range of [0.0-1.0].
  */
 KAPI b8 kaudio_channel_volume_set(struct kaudio_system_state* state, u8 channel_index, f32 volume);
+
+KAPI b8 kaudio_emitter_create(struct kaudio_system_state* state, f32 inner_radius, f32 outer_radius, f32 volume, f32 falloff, b8 is_looping, b8 is_streaming, kname audio_resource_name, kname package_name, khandle* out_emitter);
+
+KAPI b8 kaudio_emitter_load(struct kaudio_system_state* state, khandle emitter);
+
+KAPI b8 kaudio_emitter_unload(struct kaudio_system_state* state, khandle emitter_handle);
+
+KAPI b8 kaudio_emitter_world_position_set(struct kaudio_system_state* state, khandle emitter_handle, vec3 world_position);
