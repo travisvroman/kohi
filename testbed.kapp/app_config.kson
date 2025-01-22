@@ -38,6 +38,40 @@ systems = [
         config = {
             backend_plugin_name = "kohi.plugin.audio.openal"
             audio_channel_count = 8
+            max_resource_count = 64
+            frequency = 44100
+            chunk_size = 65536
+            categories = [
+                {
+                    name = "world_sounds"
+                    volume = 1.0
+                    audio_space = "3D"
+                    channel_ids = [
+                        0
+                        1
+                        2
+                        3
+                        4
+                        5
+                    ]
+                }
+                {
+                    name = "ui_sounds"
+                    volume = 0.9
+                    audio_space = "2D"
+                    channel_ids = [
+                        6
+                    ]
+                }
+                {
+                    name = "music"
+                    volume = 0.8
+                    audio_space = "2D"
+                    channel_ids = [
+                        7
+                    ]
+                }
+            ]
         }
     }
     {

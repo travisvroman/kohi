@@ -3,11 +3,14 @@
 #include <core_resource_types.h>
 
 #include "assets/kasset_types.h"
+#include "audio/audio_frontend.h"
+#include "audio/kaudio_types.h"
 #include "containers/darray.h"
 #include "core/console.h"
 #include "core/engine.h"
 #include "core/frame_data.h"
 #include "core_render_types.h"
+#include "debug/kassert.h"
 #include "defines.h"
 #include "graphs/hierarchy_graph.h"
 #include "identifiers/identifier.h"
@@ -22,6 +25,7 @@
 #include "renderer/renderer_types.h"
 #include "resources/debug/debug_box3d.h"
 #include "resources/debug/debug_line3d.h"
+#include "resources/debug/debug_sphere3d.h"
 #include "resources/skybox.h"
 #include "resources/terrain.h"
 #include "resources/water_plane.h"
@@ -43,7 +47,22 @@ static u32 global_scene_id = 0;
 typedef struct scene_debug_data {
     debug_box3d box;
     debug_line3d line;
+    debug_sphere3d sphere;
 } scene_debug_data;
+
+typedef struct scene_audio_emitter {
+    kname name;
+
+    // Handle to the emitter within the audio system.
+    khandle emitter;
+
+    // debug rendering data.
+    scene_debug_data* debug_data;
+    u32 generation;
+    kname resource_name;
+    kname package_name;
+    b8 is_streaming;
+} scene_audio_emitter;
 
 /** @brief A private structure used to sort geometry by distance from the camera. */
 typedef struct geometry_distance {
@@ -87,6 +106,7 @@ b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
     // Internal "lists" of renderable objects.
     out_scene->dir_lights = darray_create(directional_light);
     out_scene->point_lights = darray_create(point_light);
+    out_scene->audio_emitters = darray_create(scene_audio_emitter);
     out_scene->static_meshes = darray_create(static_mesh_instance);
     out_scene->terrains = darray_create(terrain);
     out_scene->skyboxes = darray_create(skybox);
@@ -99,6 +119,7 @@ b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
     out_scene->skybox_attachments = darray_create(scene_attachment);
     out_scene->directional_light_attachments = darray_create(scene_attachment);
     out_scene->point_light_attachments = darray_create(scene_attachment);
+    out_scene->audio_emitter_attachments = darray_create(scene_attachment);
     out_scene->water_plane_attachments = darray_create(scene_attachment);
 
     b8 is_readonly = ((out_scene->flags & SCENE_FLAG_READONLY) != 0);
@@ -143,25 +164,62 @@ void scene_destroy(scene* s) {
         if (s->skyboxes) {
             darray_destroy(s->skyboxes);
         }
+        if (s->skybox_attachments) {
+            darray_destroy(s->skybox_attachments);
+        }
+        if (s->skybox_metadata) {
+            darray_destroy(s->skybox_metadata);
+        }
 
         if (s->dir_lights) {
             darray_destroy(s->dir_lights);
+        }
+        if (s->directional_light_attachments) {
+            darray_destroy(s->directional_light_attachments);
         }
 
         if (s->point_lights) {
             darray_destroy(s->point_lights);
         }
+        if (s->point_light_attachments) {
+            darray_destroy(s->point_light_attachments);
+        }
+
+        if (s->audio_emitters) {
+            darray_destroy(s->audio_emitters);
+        }
+        if (s->audio_emitter_attachments) {
+            darray_destroy(s->audio_emitter_attachments);
+        }
 
         if (s->static_meshes) {
             darray_destroy(s->static_meshes);
+        }
+        if (s->mesh_attachments) {
+            darray_destroy(s->mesh_attachments);
+        }
+        if (s->mesh_metadata) {
+            darray_destroy(s->mesh_metadata);
         }
 
         if (s->terrains) {
             darray_destroy(s->terrains);
         }
+        if (s->terrain_attachments) {
+            darray_destroy(s->terrain_attachments);
+        }
+        if (s->terrain_metadata) {
+            darray_destroy(s->terrain_metadata);
+        }
 
         if (s->water_planes) {
             darray_destroy(s->water_planes);
+        }
+        if (s->water_plane_attachments) {
+            darray_destroy(s->water_plane_attachments);
+        }
+        if (s->water_plane_metadata) {
+            darray_destroy(s->water_plane_metadata);
         }
 
         kzero_memory(s, sizeof(scene));
@@ -185,13 +243,13 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
         }
 
         // Add a node in the heirarchy.
-        khandle node_handle = hierarchy_graph_child_add_with_xform(&s->hierarchy, parent_handle, xform_handle);
+        khandle hierarchy_node_handle = hierarchy_graph_child_add_with_xform(&s->hierarchy, parent_handle, xform_handle);
 
         if (!is_readonly) {
-            scene_node_metadata_ensure_allocated(s, node_handle.handle_index);
+            scene_node_metadata_ensure_allocated(s, hierarchy_node_handle.handle_index);
             if (node_config->name) {
-                scene_node_metadata* m = &s->node_metadata[node_handle.handle_index];
-                m->id = node_handle.handle_index;
+                scene_node_metadata* m = &s->node_metadata[hierarchy_node_handle.handle_index];
+                m->id = hierarchy_node_handle.handle_index;
                 m->name = node_config->name;
             }
         }
@@ -242,7 +300,7 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
 
                     scene_attachment* attachment = &s->skybox_attachments[index];
                     attachment->resource_handle = khandle_create(index);
-                    attachment->hierarchy_node_handle = node_handle;
+                    attachment->hierarchy_node_handle = hierarchy_node_handle;
                     attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_SKYBOX;
 
                     // For "edit" mode, retain metadata.
@@ -306,7 +364,7 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
 
                     scene_attachment* attachment = &s->directional_light_attachments[index];
                     attachment->resource_handle = khandle_create(index);
-                    attachment->hierarchy_node_handle = node_handle;
+                    attachment->hierarchy_node_handle = hierarchy_node_handle;
                     attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_DIRECTIONAL_LIGHT;
 
                     // NOTE: These dont have metadata. If metadata is required, get it here.
@@ -365,8 +423,79 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
 
                     scene_attachment* attachment = &s->point_light_attachments[index];
                     attachment->resource_handle = khandle_create(index);
-                    attachment->hierarchy_node_handle = node_handle;
+                    attachment->hierarchy_node_handle = hierarchy_node_handle;
                     attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_POINT_LIGHT;
+
+                    // NOTE: These dont have metadata. If metadata is required, get it here.
+                    /* if (!is_readonly) {
+                        scene_point_light_metadata* meta = 0;
+                    } */
+                }
+            }
+        }
+
+        // Audio emitters
+        if (node_config->audio_emitter_configs) {
+            u32 count = darray_length(node_config->audio_emitter_configs);
+            for (u32 i = 0; i < count; ++i) {
+                scene_node_attachment_audio_emitter_config* typed_attachment_config = &node_config->audio_emitter_configs[i];
+
+                /* vec3 pos = vec3_zero();
+                if (khandle_is_valid(xform_handle)) {
+                    pos = xform_position_get(xform_handle);
+                } */
+
+                scene_audio_emitter new_emitter = {0};
+                new_emitter.name = typed_attachment_config->base.name;
+                if (!kaudio_emitter_create(
+                        engine_systems_get()->audio_system,
+                        typed_attachment_config->inner_radius,
+                        typed_attachment_config->outer_radius,
+                        typed_attachment_config->volume,
+                        typed_attachment_config->falloff,
+                        typed_attachment_config->is_looping,
+                        typed_attachment_config->is_streaming,
+                        typed_attachment_config->audio_resource_name,
+                        typed_attachment_config->audio_resource_package_name,
+                        &new_emitter.emitter)) {
+                    KERROR("Failed to create audio emitter. See logs for details.");
+                }
+
+                // Add debug data and initialize it.
+                new_emitter.debug_data = KALLOC_TYPE(scene_debug_data, MEMORY_TAG_RESOURCE);
+                scene_debug_data* debug = new_emitter.debug_data;
+
+                if (!debug_sphere3d_create(typed_attachment_config->outer_radius, (vec4){1.0f, 0.5f, 0.0f, 1.0f}, khandle_invalid(), &debug->sphere)) {
+                    KERROR("Failed to create debug sphere for audio emitter.");
+                } else {
+                    // xform_position_set(debug->sphere.xform, new_emitter.data.position);
+                }
+                if (!debug_sphere3d_initialize(&debug->sphere)) {
+                    KERROR("Failed to create debug sphere for audio emitter.");
+                } else {
+                    // Find a free slot and take it, or push a new one.
+                    u32 index = INVALID_ID;
+                    u32 emitter_count = darray_length(s->audio_emitters);
+                    for (u32 dli = 0; dli < emitter_count; ++dli) {
+                        if (s->audio_emitters[dli].generation == INVALID_ID) {
+                            // Found a slot, use it.
+                            index = dli;
+                            break;
+                        }
+                    }
+                    if (index == INVALID_ID) {
+                        // No empty slot found, so push empty entries and obtain pointers.
+                        darray_push(s->audio_emitters, (scene_audio_emitter){0});
+                        darray_push(s->audio_emitter_attachments, (scene_attachment){0});
+                        index = emitter_count;
+                    }
+
+                    s->audio_emitters[index] = new_emitter;
+
+                    scene_attachment* attachment = &s->audio_emitter_attachments[index];
+                    attachment->resource_handle = khandle_create(index);
+                    attachment->hierarchy_node_handle = hierarchy_node_handle;
+                    attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_AUDIO_EMITTER;
 
                     // NOTE: These dont have metadata. If metadata is required, get it here.
                     /* if (!is_readonly) {
@@ -418,7 +547,7 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
 
                     scene_attachment* attachment = &s->mesh_attachments[index];
                     attachment->resource_handle = khandle_create(index);
-                    attachment->hierarchy_node_handle = node_handle;
+                    attachment->hierarchy_node_handle = hierarchy_node_handle;
                     attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
 
                     // For "edit" mode, retain metadata.
@@ -499,7 +628,7 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
 
                     scene_attachment* attachment = &s->terrain_attachments[index];
                     attachment->resource_handle = khandle_create(index);
-                    attachment->hierarchy_node_handle = node_handle;
+                    attachment->hierarchy_node_handle = hierarchy_node_handle;
                     attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_HEIGHTMAP_TERRAIN;
 
                     // For "edit" mode, retain metadata.
@@ -558,7 +687,7 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
 
                     scene_attachment* attachment = &s->water_plane_attachments[index];
                     attachment->resource_handle = khandle_create(index);
-                    attachment->hierarchy_node_handle = node_handle;
+                    attachment->hierarchy_node_handle = hierarchy_node_handle;
                     attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE;
 
                     // For "edit" mode, retain metadata.
@@ -577,7 +706,7 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
         if (node_config->children) {
             u32 child_count = node_config->child_count;
             for (u32 i = 0; i < child_count; ++i) {
-                scene_node_initialize(s, node_handle, &node_config->children[i]);
+                scene_node_initialize(s, hierarchy_node_handle, &node_config->children[i]);
             }
         }
     }
@@ -714,6 +843,46 @@ b8 scene_load(scene* scene) {
         }
     }
 
+    if (scene->audio_emitters) {
+        struct kaudio_system_state* audio_state = engine_systems_get()->audio_system;
+        u32 emitter_count = darray_length(scene->audio_emitters);
+        for (u32 i = 0; i < emitter_count; ++i) {
+            scene_audio_emitter* emitter = &scene->audio_emitters[i];
+
+            scene_attachment* emitter_attachment = &scene->audio_emitter_attachments[i];
+            khandle xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, emitter_attachment->hierarchy_node_handle);
+
+            mat4 world;
+            if (!khandle_is_invalid(xform_handle)) {
+                world = xform_world_get(xform_handle);
+            } else {
+                // TODO: traverse tree to try and find a ancestor node with a transform.
+                world = mat4_identity();
+            }
+
+            // Get world position for the audio emitter based on it's owning node's xform.
+            vec3 emitter_world_pos = mat4_position(world);
+            kaudio_emitter_world_position_set(audio_state, emitter->emitter, emitter_world_pos);
+
+            if (!kaudio_emitter_load(audio_state, emitter->emitter)) {
+                KWARN("Failed to load audio emitter.");
+            } else {
+                // Load debug data if it was setup.
+                scene_debug_data* debug = (scene_debug_data*)scene->audio_emitters[i].debug_data;
+                if (!debug_sphere3d_load(&debug->sphere)) {
+                    KERROR("debug sphere failed to load.");
+                    kfree(scene->audio_emitters[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+                    scene->audio_emitters[i].debug_data = 0;
+                }
+
+                // Load the emitter.
+                if (!kaudio_emitter_load(audio_state, scene->audio_emitters[i].emitter)) {
+                    KERROR("Failed to load audio for emitter.");
+                }
+            }
+        }
+    }
+
     // Update the state to show the scene is fully loaded.
     scene->state = SCENE_STATE_LOADED;
 
@@ -804,6 +973,31 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
             }
         }
 
+        // Update audio emitter debug boxes.
+        if (scene->audio_emitters) {
+            struct kaudio_system_state* audio_state = engine_systems_get()->audio_system;
+            u32 emitter_count = darray_length(scene->audio_emitters);
+            for (u32 i = 0; i < emitter_count; ++i) {
+                scene_audio_emitter* emitter = &scene->audio_emitters[i];
+                // Update the audio emitter's data position (world position) to take into account
+                // the owning node's transform.
+                scene_attachment* emitter_attachment = &scene->audio_emitter_attachments[i];
+                khandle xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, emitter_attachment->hierarchy_node_handle);
+
+                mat4 world;
+                if (!khandle_is_invalid(xform_handle)) {
+                    world = xform_world_get(xform_handle);
+                } else {
+                    // TODO: traverse tree to try and find a ancestor node with a transform.
+                    world = mat4_identity();
+                }
+
+                // Get world position for the audio emitter based on it's owning node's xform and set it.
+                vec3 emitter_world_pos = mat4_position(world);
+                kaudio_emitter_world_position_set(audio_state, emitter->emitter, emitter_world_pos);
+            }
+        }
+
         // Check meshes to see if they have debug data. If not, add it here and init/load it.
         // Doing this here because mesh loading is multi-threaded, and may not yet be available
         // even though the object is present in the scene.
@@ -891,6 +1085,29 @@ void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_d
                     xform_world_set(debug->box.xform, model);
 
                     debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
+                }
+            }
+        }
+
+        // Update audio emitter debug spheres.
+        if (scene->audio_emitters) {
+            u32 emitter_count = darray_length(scene->audio_emitters);
+            for (u32 i = 0; i < emitter_count; ++i) {
+                if (scene->audio_emitters[i].debug_data) {
+                    scene_debug_data* debug = (scene_debug_data*)scene->audio_emitters[i].debug_data;
+
+                    // Lookup the attachment to get the xform handle to set as the parent.
+                    scene_attachment* attachment = &scene->audio_emitter_attachments[i];
+                    khandle xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+                    // Since debug objects aren't actually added to the hierarchy or as attachments, need to manually update
+                    // the xform here, using the node's world xform as the parent.
+                    xform_calculate_local(debug->sphere.xform);
+                    mat4 local = xform_local_get(debug->sphere.xform);
+                    mat4 parent_world = xform_world_get(xform_handle);
+                    mat4 model = mat4_mul(local, parent_world);
+                    xform_world_set(debug->sphere.xform, model);
+
+                    debug_sphere3d_render_frame_prepare(&debug->sphere, p_frame_data);
                 }
             }
         }
@@ -1132,6 +1349,40 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
                         data.index_count = g->index_count;
                         data.index_buffer_offset = g->index_buffer_offset;
                         data.unique_id = debug->box.id.uniqueid;
+
+                        (*debug_geometries)[(*data_count)] = data;
+                    }
+                    (*data_count)++;
+                }
+            }
+        }
+    }
+
+    // Audio emitters
+    {
+        if (scene->audio_emitters) {
+            u32 emitter_count = darray_length(scene->audio_emitters);
+            for (u32 i = 0; i < emitter_count; ++i) {
+                if (scene->audio_emitters[i].debug_data) {
+                    if (debug_geometries) {
+                        scene_debug_data* debug = (scene_debug_data*)scene->audio_emitters[i].debug_data;
+
+                        // Debug sphere 3d
+                        geometry_render_data data = {0};
+                        // Only want the ultimate position of this, since we don't want the debug data
+                        // to scale or rotate along with any parent it may be under.
+                        mat4 sphere_world = xform_world_get(debug->sphere.xform);
+                        vec3 world_pos = mat4_position(sphere_world);
+                        data.model = mat4_translation(world_pos);
+
+                        kgeometry* g = &debug->sphere.geometry;
+                        data.material.material = khandle_invalid(); // debug geometries don't need a material.
+                        data.material.instance = khandle_invalid(); // debug geometries don't need a material.
+                        data.vertex_count = g->vertex_count;
+                        data.vertex_buffer_offset = g->vertex_buffer_offset;
+                        data.index_count = g->index_count;
+                        data.index_buffer_offset = g->index_buffer_offset;
+                        data.unique_id = debug->sphere.id.uniqueid;
 
                         (*debug_geometries)[(*data_count)] = data;
                     }
@@ -1659,6 +1910,21 @@ static void scene_actual_unload(scene* s) {
         }
     }
 
+    u32 audio_emitter_count = darray_length(s->audio_emitters);
+    for (u32 i = 0; i < audio_emitter_count; ++i) {
+        // Unload the emitter.
+        kaudio_emitter_unload(engine_systems_get()->audio_system, s->audio_emitters[i].emitter);
+
+        // Destroy debug data if it exists.
+        if (s->audio_emitters[i].debug_data) {
+            scene_debug_data* debug = (scene_debug_data*)s->audio_emitters[i].debug_data;
+            debug_sphere3d_unload(&debug->sphere);
+            debug_sphere3d_destroy(&debug->sphere);
+            kfree(s->audio_emitters[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
+            s->audio_emitters[i].debug_data = 0;
+        }
+    }
+
     u32 water_plane_count = darray_length(s->water_planes);
     for (u32 i = 0; i < water_plane_count; ++i) {
         if (!water_plane_unload(&s->water_planes[i])) {
@@ -1757,6 +2023,27 @@ static b8 scene_serialize_node(const scene* s, const hierarchy_graph_view* view,
             kson_object_value_add_kname_as_string(&attachment.value.o, "name", s->terrain_metadata[m].name);
             kson_object_value_add_kname_as_string(&attachment.value.o, "asset_name", s->terrain_metadata[m].resource_name);
             kson_object_value_add_kname_as_string(&attachment.value.o, "package_name", s->terrain_metadata[m].package_name);
+
+            // Push it into the attachments array
+            darray_push(attachments_prop.value.o.properties, attachment);
+        }
+    }
+
+    // Audio emitters
+    u32 audio_emitter_count = darray_length(s->audio_emitter_attachments);
+    for (u32 m = 0; m < audio_emitter_count; ++m) {
+        if (s->audio_emitter_attachments[m].hierarchy_node_handle.handle_index == view_node->node_handle.handle_index) {
+            // Found one!
+
+            // Create the object array entry.
+            kson_property attachment = kson_object_property_create(0);
+
+            // Add properties to it.
+            KASSERT_MSG(false, "Implement serialization of audio emitters");
+            /* kson_object_value_add_string(&attachment.value.o, "type", "audio_emitter");
+            kson_object_value_add_float(&attachment.value.o, "inner_radius", s->audio_emitters[m].data.inner_radius);
+            kson_object_value_add_float(&attachment.value.o, "outer_radius", s->audio_emitters[m].data.outer_radius);
+            kson_object_value_add_float(&attachment.value.o, "falloff", s->audio_emitters[m].data.falloff); */
 
             // Push it into the attachments array
             darray_push(attachments_prop.value.o.properties, attachment);

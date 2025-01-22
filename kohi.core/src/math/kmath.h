@@ -180,6 +180,14 @@ KAPI f32 kfloor(f32 x);
 KAPI f32 kceil(f32 x);
 
 /**
+ * @brief Computes the logarithm of x.
+ *
+ * @param x The value to be examined.
+ * @return The logarithm of x.
+ */
+KAPI f32 klog(f32 x);
+
+/**
  * @brief Computes the base-2 logarithm of x (i.e. how many times x can be divided by 2).
  *
  * @param x The value to be examined.

@@ -489,6 +489,10 @@ typedef struct kresource_audio {
     u64 pcm_data_size;
     /** Pulse-code modulation buffer, or raw data to be fed into a buffer. */
     i16* pcm_data;
+    // The size of the downmixed pcm data if the asset was stereo, or 0 if the asset was already mono (use ) or just a pointer to pcm data if the asset was already mono (use pcm_data_size instead).
+    u64 downmixed_size;
+    // Downmixed pcm data if the asset was stereo, or just a pointer to pcm data if the asset was already mono.
+    i16* mono_pcm_data;
 
     /** @brief A handle to the audio internal resource. */
     khandle internal_resource;

@@ -24,6 +24,7 @@ The items in this list are not in any particular order. This list will be update
     - [x] CUSTOM - User-defined geometry type. Vertex/index size will only be looked at for this type.
 
 - [x] New Resource System
+
   - [x] Remove old resource system after it is decomissioned.
   - [x] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
         New system will make requests to new Asset System asynchronously, and be responsible for all reference counting and auto-releasing.
@@ -148,6 +149,15 @@ The items in this list are not in any particular order. This list will be update
 - [x] Handle refactoring
   - [x] Convert shader system to use handles
   - [x] Convert material system to use handles
+- [ ] Audio system
+  - [x] kaudio system refactor.
+  - [x] Audio "instances"
+  - [x] Audio radius checks (think emitter vs lister pos./falloff)
+  - [x] Audio instance play position + radius vs. listener + radius indicates if currently bound/playing on a channel.
+  - [x] Auto-channel selection based on availability (gracefully handle out-of-channels i.e. discard oldest or simply don't play?)
+    - [x] Channel reservation/sound types or "categories"
+- [x] Debug shape
+  - [x] debug_sphere3d (similar to the one generated for the editor gizmo)
 
 ## 0.9.0 Release
 
@@ -156,7 +166,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Change Vulkan backend to use actual uniform size instead of stride when allocating from renderbuffer.
 - [ ] Rework Vulkan shaders to only use compiled SPIR-V resources in the plugin runtime. This means that "shaderc" would not be
       required in the release build of the plugin. This also means that it _would_ need to be linked _somewhere_. Adding it to the
-      utils plugin is one option, but having Vulkan-specific stuff there is strange. Could also make _another_ plugin that just contains 
+      utils plugin is one option, but having Vulkan-specific stuff there is strange. Could also make _another_ plugin that just contains
       the importer. This makes the most sense but has the drawback of being yet another plugin that has to be distributed (although, perhaps)
       it could be next to/a part of the vulkan renderer plugin somehow?
 - [ ] Remove deprecated geometry functions in renderer.
@@ -183,6 +193,7 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Audio
       - [ ] Importers
         - [ ] .wav
+        - [ ] .qoa (Quite OK Audio format)
 - [ ] Asset Packaging
   - [ ] Manifest file generator (utility that looks at directory structure and auto-creates manifest.kson file from that)
   - [ ] Create binary blob format (.kpackage file) and read/write.
@@ -199,6 +210,13 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Convert lighting system to use handles.
   - [ ] Create skybox system that uses handles.
   - [ ] Create scene system that uses handles.
+- [ ] Audio
+  - [ ] Audio velocity
+  - [ ] Effects
+    - [ ] Reverb
+    - [ ] Low- and Hi-pass filtering
+    - [ ] Ability to apply effects to categories or to channels directly.
+    - [ ] Sound Volumes (namely, echo for caves/tunnels, with properties to adjust in scene config)
 - [ ] Material system
   - [ ] Add a default "warning" material that stands out, to use in place of a non-existent material.
   - [ ] Blended materials

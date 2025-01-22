@@ -41,6 +41,10 @@ Changelog
   - Synchronized all shaders using vertex_3d-like vertex information to actually use the same data structure (involved changing in_tangent vec3-vec4 in some cases)
   - Added ability to dynamically set face cull mode in renderer.
   - Changed point/dynamic lights to properly use a range of 0-1 for rgb values. PBR shaders now scale this internally automatically instead of requiring it from the light.
+  - Revamped audio system and emitters. Emitters are now configurable and loadable in scenes.
+  - Reworked OpenAL audio plugin to be more robust and feature-rich, with more features coming.
+  - Fixed and issue in the build makefiles regarding spaces in include paths for compile_flags.txt files.
+  - Audio now can be assigned a "space" of 2D or 3D regardless of whether it is mono or stereo.
   - KNOWN ISSUES:
     - Terrains do not work due to the dependance on blended materials, which do not yet exist. These will be re-added in a future version.
 

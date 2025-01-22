@@ -238,6 +238,93 @@ kgeometry geometry_generate_line3d(vec3 point_0, vec3 point_1, kname name) {
     return out_geometry;
 }
 
+kgeometry geometry_generate_line_sphere3d(f32 radius, u32 segment_count, vec4 colour, kname name) {
+    kgeometry out_geometry = {0};
+    out_geometry.name = name;
+    out_geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
+    out_geometry.generation = INVALID_ID_U16;
+    out_geometry.center = vec3_zero();
+
+    out_geometry.extents.min = (vec3){-radius, -radius, -radius};
+    out_geometry.extents.max = (vec3){radius, radius, radius};
+
+    // 2 per line, 3 lines + 3 lines
+    out_geometry.vertex_count = 12 + (segment_count * 2 * 3);
+    out_geometry.vertex_element_size = sizeof(colour_vertex_3d);
+    out_geometry.vertices = kallocate(sizeof(colour_vertex_3d) * out_geometry.vertex_count, MEMORY_TAG_ARRAY);
+
+    // Start with the center, draw small axes.
+    // x
+    colour_vertex_3d* verts = out_geometry.vertices;
+    verts[0].colour = colour; // First vert is at origin, no pos needed.
+    verts[1].colour = colour;
+    verts[1].position.x = 0.2f;
+
+    // y
+    verts[2].colour = colour; // First vert is at origin, no pos needed.
+    verts[3].colour = colour;
+    verts[3].position.y = 0.2f;
+
+    // z
+    verts[4].colour = colour; // First vert is at origin, no pos needed.
+    verts[5].colour = colour;
+    verts[5].position.z = 0.2f;
+
+    // For each axis, generate points in a circle.
+    u32 j = 6;
+
+    // x
+    for (u32 i = 0; i < segment_count; ++i, j += 2) {
+        // 2 at a time to form a line.
+        f32 theta = (f32)i / segment_count * K_2PI;
+        verts[j].position.y = radius * kcos(theta);
+        verts[j].position.z = radius * ksin(theta);
+        verts[j].colour = colour;
+
+        theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
+        verts[j + 1].position.y = radius * kcos(theta);
+        verts[j + 1].position.z = radius * ksin(theta);
+        verts[j + 1].colour = colour;
+    }
+
+    // y
+    for (u32 i = 0; i < segment_count; ++i, j += 2) {
+        // 2 at a time to form a line.
+        f32 theta = (f32)i / segment_count * K_2PI;
+        verts[j].position.x = radius * kcos(theta);
+        verts[j].position.z = radius * ksin(theta);
+        verts[j].colour = colour;
+
+        theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
+        verts[j + 1].position.x = radius * kcos(theta);
+        verts[j + 1].position.z = radius * ksin(theta);
+        verts[j + 1].colour = colour;
+    }
+
+    // z
+    for (u32 i = 0; i < segment_count; ++i, j += 2) {
+        // 2 at a time to form a line.
+        f32 theta = (f32)i / segment_count * K_2PI;
+        verts[j].position.x = radius * kcos(theta);
+        verts[j].position.y = radius * ksin(theta);
+        verts[j].colour = colour;
+
+        theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
+        verts[j + 1].position.x = radius * kcos(theta);
+        verts[j + 1].position.y = radius * ksin(theta);
+        verts[j + 1].colour = colour;
+    }
+
+    out_geometry.vertex_buffer_offset = INVALID_ID_U64;
+    // NOTE: lines do not have indices.
+    out_geometry.index_count = 0;
+    out_geometry.index_element_size = sizeof(u32);
+    out_geometry.indices = 0;
+    out_geometry.index_buffer_offset = INVALID_ID_U64;
+
+    return out_geometry;
+}
+
 kgeometry geometry_generate_plane(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name) {
     if (width == 0) {
         KWARN("Width must be nonzero. Defaulting to one.");

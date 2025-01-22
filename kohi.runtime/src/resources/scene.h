@@ -1,5 +1,6 @@
 #pragma once
 
+#include "audio/kaudio_types.h"
 #include "defines.h"
 #include "graphs/hierarchy_graph.h"
 #include "identifiers/khandle.h"
@@ -87,6 +88,8 @@ typedef struct scene_water_plane_metadata {
     u32 reserved;
 } scene_water_plane_metadata;
 
+struct scene_audio_emitter;
+
 typedef struct scene {
     u32 id;
     scene_flags flags;
@@ -106,6 +109,11 @@ typedef struct scene {
     struct point_light* point_lights;
     // Array of scene attachments for point lights.
     scene_attachment* point_light_attachments;
+
+    // darray of audio emitters.
+    struct scene_audio_emitter* audio_emitters;
+    // Array of scene attachments for audio_emitters.
+    scene_attachment* audio_emitter_attachments;
 
     // darray of static meshes.
     static_mesh_instance* static_meshes;
@@ -192,9 +200,9 @@ KAPI b8 scene_load(scene* scene);
 KAPI b8 scene_unload(scene* scene, b8 immediate);
 
 /**
- * @brief Destroys the scene, releasing any remaining resources held by it. 
+ * @brief Destroys the scene, releasing any remaining resources held by it.
  * Automatically triggers unload if scene is currently loaded.
- * 
+ *
  * @param s A pointer to the scene to be destroyed.
  */
 KAPI void scene_destroy(scene* s);

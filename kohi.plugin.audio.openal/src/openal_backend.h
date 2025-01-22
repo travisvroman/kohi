@@ -1,8 +1,9 @@
 #pragma once
 
-#include <identifiers/khandle.h>
+#include "core_audio_types.h"
 #include <audio/kaudio_types.h>
 #include <defines.h>
+#include <identifiers/khandle.h>
 
 b8 openal_backend_initialize(kaudio_backend_interface* backend, const kaudio_backend_config* config);
 
@@ -20,7 +21,7 @@ b8 openal_backend_channel_pitch_set(kaudio_backend_interface* backend, u8 channe
 b8 openal_backend_channel_position_set(kaudio_backend_interface* backend, u8 channel_id, vec3 position);
 b8 openal_backend_channel_looping_set(kaudio_backend_interface* backend, u8 channel_id, b8 looping);
 b8 openal_backend_channel_play(kaudio_backend_interface* backend, u8 channel_id);
-b8 openal_backend_channel_play_resource(kaudio_backend_interface* backend, khandle resource_handle, u8 channel_id);
+b8 openal_backend_channel_play_resource(kaudio_backend_interface* backend, khandle resource_handle, kaudio_space audio_space, u8 channel_id);
 b8 openal_backend_channel_stop(kaudio_backend_interface* backend, u8 channel_id);
 b8 openal_backend_channel_pause(kaudio_backend_interface* backend, u8 channel_id);
 b8 openal_backend_channel_resume(kaudio_backend_interface* backend, u8 channel_id);

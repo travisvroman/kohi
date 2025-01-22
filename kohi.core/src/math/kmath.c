@@ -34,6 +34,8 @@ f32 kfloor(f32 x) { return floorf(x); }
 
 f32 kceil(f32 x) { return ceilf(x); }
 
+f32 klog(f32 x) { return logf(x); }
+
 f32 klog2(f32 x) { return log2f(x); }
 
 f32 kpow(f32 x, f32 y) { return powf(x, y); }
