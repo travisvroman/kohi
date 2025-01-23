@@ -29,12 +29,6 @@ systems = [
         }
     }
     {
-        name="resource"
-        config = {
-            asset_base_path="../overdrive2069.assets"
-        }
-    }
-    {
         name="audio"
         config = {
             backend_plugin_name = "kohi.plugin.audio.openal"

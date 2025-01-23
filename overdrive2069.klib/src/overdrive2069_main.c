@@ -1,5 +1,7 @@
 #include "overdrive2069_main.h"
+#include "core/keymap.h"
 #include "overdrive2069.klib_version.h"
+#include "overdrive2069_types.h"
 
 #include <application/application_types.h>
 #include <containers/darray.h>
@@ -31,6 +33,7 @@
 #include <systems/light_system.h>
 #include <systems/plugin_system.h>
 #include <systems/texture_system.h>
+#include <systems/timeline_system.h>
 #include <time/kclock.h>
 
 // Standard UI.
@@ -51,56 +54,51 @@
 
 struct kaudio_system_state;
 
-typedef struct overdrive2069_game_state {
-    b8 running;
-    camera* world_camera;
-    camera* editor_camera;
-    camera* current_camera;
-
-    u16 width, height;
-
-    struct kaudio_system_state* audio_system;
-    struct kruntime_plugin* sui_plugin;
-    struct standard_ui_plugin_state* sui_plugin_state;
-    struct standard_ui_state* sui_state;
-
-    kclock update_clock;
-    kclock prepare_clock;
-    kclock render_clock;
-    f64 last_update_elapsed;
-
-    rendergraph forward_graph;
-    scene track_scene;
-
-    viewport world_viewport;
-    viewport ui_viewport;
-
-    u32 render_mode;
-
-    // HACK: Debug stuff to eventually be excluded on release builds.
-    sui_control debug_text;
-    sui_control debug_text_shadow;
-    debug_console_state debug_console;
-    editor_gizmo gizmo;
-} overdrive2069_game_state;
-
-typedef struct overdrive_2069_frame_data {
-    i32 dummy;
-} overdrive_2069_frame_data;
+static void game_on_escape_callback(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void setup_keymaps(application* app);
+static void remove_keymaps(application* app);
+static void change_current_camera(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_yaw(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_pitch(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_move_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_move_backward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_move_left(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_move_right(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_move_up(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_move_down(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_console_change_visibility(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_set_render_mode_default(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_set_render_mode_lighting(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_set_render_mode_normals(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_set_render_mode_cascades(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_set_render_mode_wireframe(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_set_gizmo_mode(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_gizmo_orientation_set(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_save_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_unload_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_play_sound(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_toggle_sound(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_console_scroll(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_console_scroll_hold(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_console_history_back(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_console_history_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static void game_on_debug_vsync_toggle(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data);
+static f32 get_engine_delta_time(void);
 
 u64 application_state_size(void) {
     return sizeof(overdrive2069_game_state);
 }
 
-b8 application_boot(struct application* game_inst) {
+b8 application_boot(struct application* app) {
     KINFO("Booting Overdrive 2069 (%s)...", KVERSION);
 
     // Allocate the game state.
-    game_inst->state = kallocate(sizeof(overdrive2069_game_state), MEMORY_TAG_GAME);
-    overdrive2069_game_state* state = game_inst->state;
+    app->state = kallocate(sizeof(overdrive2069_game_state), MEMORY_TAG_GAME);
+    overdrive2069_game_state* state = app->state;
     state->running = false;
 
-    application_config* config = &game_inst->app_config;
+    application_config* config = &app->app_config;
 
     config->frame_allocator_size = MEBIBYTES(64);
     config->app_frame_data_size = sizeof(overdrive_2069_frame_data);
@@ -112,17 +110,25 @@ b8 application_boot(struct application* game_inst) {
         return false;
     }
 
-    // TODO: Keymaps
+    // Keymaps
+    setup_keymaps(app);
+
+    input_keymap_push(&state->global_keymap);
+
+    // Set default game mode and keymap
+    state->mode = GAME_MODE_WORLD;
+    state->current_camera = state->vehicle_camera;
+    input_keymap_push(&state->world_keymap);
 
     // TODO: Console commands
 
     return true;
 }
 
-b8 application_initialize(struct application* game_inst) {
+b8 application_initialize(struct application* app) {
     KINFO("Initializing application.");
 
-    overdrive2069_game_state* state = game_inst->state;
+    overdrive2069_game_state* state = app->state;
 
     state->audio_system = engine_systems_get()->audio_system;
 
@@ -133,7 +139,7 @@ b8 application_initialize(struct application* game_inst) {
     standard_ui_state* sui_state = state->sui_state;
 
 #ifdef KOHI_DEBUG
-    if (!debug_console_create(state->sui_state, &((overdrive2069_game_state*)game_inst->state)->debug_console)) {
+    if (!debug_console_create(state->sui_state, &((overdrive2069_game_state*)app->state)->debug_console)) {
         KERROR("Failed to create debug console.");
     }
 #endif
@@ -143,7 +149,7 @@ b8 application_initialize(struct application* game_inst) {
 
     // Pick out rendergraph(s) config from app config, create/init them
     // from here, save off to state.
-    application_config* config = &game_inst->app_config;
+    application_config* config = &app->app_config;
     u32 rendergraph_count = darray_length(config->rendergraphs);
     if (rendergraph_count < 1) {
         KERROR("At least one rendergraph is required in order to run this application.");
@@ -269,14 +275,16 @@ b8 application_initialize(struct application* game_inst) {
     sui_control_position_set(sui_state, &state->debug_text, vec3_create(21, state->height - 74, 0));
 
     // Cameras
-    state->world_camera = camera_system_acquire("world");
-    camera_position_set(state->world_camera, (vec3){-3.94f, 4.26f, 15.79f});
-    camera_rotation_euler_set(state->world_camera, (vec3){-11.505f, -74.994f, 0.0f});
+    state->vehicle_camera = camera_system_acquire("vehicle");
+    camera_position_set(state->vehicle_camera, (vec3){-3.94f, 4.26f, 15.79f});
+    camera_rotation_euler_set(state->vehicle_camera, (vec3){-11.505f, -74.994f, 0.0f});
     // Set the active/current camera to the world camera by default.
-    state->current_camera = state->world_camera;
+    state->current_camera = state->vehicle_camera;
 
     // TODO: debug only
     state->editor_camera = camera_system_acquire("editor");
+    state->editor_camera_forward_move_speed = 5.0f * 5.0f;
+    state->editor_camera_backward_move_speed = 2.5f * 5.0f;
 
     // Clocks
     kzero_memory(&state->update_clock, sizeof(kclock));
@@ -309,13 +317,13 @@ b8 application_initialize(struct application* game_inst) {
     return true;
 }
 
-b8 application_update(struct application* game_inst, struct frame_data* p_frame_data) {
+b8 application_update(struct application* app, struct frame_data* p_frame_data) {
     overdrive_2069_frame_data* app_frame_data = (overdrive_2069_frame_data*)p_frame_data->application_frame_data;
     if (!app_frame_data) {
         return true;
     }
 
-    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)app->state;
     if (!state->running) {
         return true;
     }
@@ -445,7 +453,7 @@ VSync: %s Drawn: %-5u (%-5u shadow pass)",
     }
 
 #ifdef KOHI_DEBUG
-    debug_console_update(&((overdrive2069_game_state*)game_inst->state)->debug_console);
+    debug_console_update(&((overdrive2069_game_state*)app->state)->debug_console);
 #endif
 
     vec3 forward = camera_forward(state->current_camera);
@@ -458,8 +466,8 @@ VSync: %s Drawn: %-5u (%-5u shadow pass)",
     return true;
 }
 
-b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_frame_data) {
-    overdrive2069_game_state* state = (overdrive2069_game_state*)app_inst->state;
+b8 application_prepare_frame(struct application* app, struct frame_data* p_frame_data) {
+    overdrive2069_game_state* state = (overdrive2069_game_state*)app->state;
     if (!state->running) {
         return false;
     }
@@ -884,9 +892,9 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
     return true;
 }
 
-b8 application_render_frame(struct application* game_inst, struct frame_data* p_frame_data) {
+b8 application_render_frame(struct application* app, struct frame_data* p_frame_data) {
     // Start the frame
-    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)app->state;
     if (!state->running) {
         return true;
     }
@@ -904,12 +912,12 @@ b8 application_render_frame(struct application* game_inst, struct frame_data* p_
     return true;
 }
 
-void application_on_window_resize(struct application* game_inst, const struct kwindow* window) {
-    if (!game_inst->state) {
+void application_on_window_resize(struct application* app, const struct kwindow* window) {
+    if (!app->state) {
         return;
     }
 
-    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)app->state;
 
     state->width = window->width;
     state->height = window->height;
@@ -933,15 +941,15 @@ void application_on_window_resize(struct application* game_inst, const struct kw
     sui_control_position_set(state->sui_state, &state->debug_text_shadow, vec3_create(21, state->height - 94, 0));
 }
 
-void application_shutdown(struct application* game_inst) {
-    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+void application_shutdown(struct application* app) {
+    overdrive2069_game_state* state = (overdrive2069_game_state*)app->state;
     state->running = false;
 
     if (state->track_scene.state == SCENE_STATE_LOADED) {
         KDEBUG("Unloading scene...");
 
         scene_unload(&state->track_scene, true);
-        /* clear_debug_objects(game_inst); */
+        /* clear_debug_objects(app); */
         scene_destroy(&state->track_scene);
 
         KDEBUG("Done.");
@@ -954,26 +962,381 @@ void application_shutdown(struct application* game_inst) {
 #endif
 }
 
-void application_lib_on_unload(struct application* game_inst) {
+void application_lib_on_unload(struct application* app) {
     // TODO: re-enable
-    /* application_unregister_events(game_inst); */
+    /* application_unregister_events(app); */
 #ifdef KOHI_DEBUG
-    debug_console_on_lib_unload(&((overdrive2069_game_state*)game_inst->state)->debug_console);
+    debug_console_on_lib_unload(&((overdrive2069_game_state*)app->state)->debug_console);
 #endif
     // TODO: re-enable
-    /* game_remove_commands(game_inst); */
-    /* game_remove_keymaps(game_inst); */
+    /* game_remove_commands(app); */
+    /* game_remove_keymaps(app); */
 }
 
-void application_lib_on_load(struct application* game_inst) {
+void application_lib_on_load(struct application* app) {
     // TODO: re-enable
-    /* application_register_events(game_inst); */
+    /* application_register_events(app); */
 #ifdef KOHI_DEBUG
-    debug_console_on_lib_load(&((overdrive2069_game_state*)game_inst->state)->debug_console, game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE);
+    debug_console_on_lib_load(&((overdrive2069_game_state*)app->state)->debug_console, app->stage >= APPLICATION_STAGE_BOOT_COMPLETE);
 #endif
-    if (game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE) {
+    if (app->stage >= APPLICATION_STAGE_BOOT_COMPLETE) {
         // TODO: re-enable
-        /* game_setup_commands(game_inst); */
-        /* game_setup_keymaps(game_inst); */
+        /* game_setup_commands(app); */
+        /* game_setup_keymaps(app); */
     }
+}
+
+static void setup_keymaps(application* app) {
+
+    overdrive2069_game_state* state = ((overdrive2069_game_state*)app->state);
+
+    // Global keymap
+    state->global_keymap = keymap_create();
+    keymap_binding_add(&state->global_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_escape_callback);
+
+    // World mode keymap
+    state->world_keymap = keymap_create();
+    keymap_binding_add(&state->world_keymap, KEY_C, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, change_current_camera);
+
+    // Editor mode keymap
+    state->editor_keymap = keymap_create();
+    /* state->editor_keymap.overrides_all = true; */
+    keymap_binding_add(&state->editor_keymap, KEY_C, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, change_current_camera);
+
+    keymap_binding_add(&state->editor_keymap, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_yaw);
+    keymap_binding_add(&state->editor_keymap, KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_yaw);
+
+    keymap_binding_add(&state->editor_keymap, KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_yaw);
+    keymap_binding_add(&state->editor_keymap, KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_yaw);
+
+    keymap_binding_add(&state->editor_keymap, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_pitch);
+    keymap_binding_add(&state->editor_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_pitch);
+
+    keymap_binding_add(&state->editor_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_change_visibility);
+
+    keymap_binding_add(&state->editor_keymap, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_forward);
+    keymap_binding_add(&state->editor_keymap, KEY_S, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_backward);
+    keymap_binding_add(&state->editor_keymap, KEY_Q, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_left);
+    keymap_binding_add(&state->editor_keymap, KEY_E, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_right);
+    keymap_binding_add(&state->editor_keymap, KEY_SPACE, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_up);
+    keymap_binding_add(&state->editor_keymap, KEY_X, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_move_down);
+
+    keymap_binding_add(&state->editor_keymap, KEY_0, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, app, game_on_set_render_mode_default);
+    keymap_binding_add(&state->editor_keymap, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, app, game_on_set_render_mode_lighting);
+    keymap_binding_add(&state->editor_keymap, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, app, game_on_set_render_mode_normals);
+    keymap_binding_add(&state->editor_keymap, KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, app, game_on_set_render_mode_cascades);
+    keymap_binding_add(&state->editor_keymap, KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, app, game_on_set_render_mode_wireframe);
+
+    keymap_binding_add(&state->editor_keymap, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_set_gizmo_mode);
+    keymap_binding_add(&state->editor_keymap, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_set_gizmo_mode);
+    keymap_binding_add(&state->editor_keymap, KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_set_gizmo_mode);
+    keymap_binding_add(&state->editor_keymap, KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_set_gizmo_mode);
+    keymap_binding_add(&state->editor_keymap, KEY_G, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_gizmo_orientation_set);
+
+    keymap_binding_add(&state->editor_keymap, KEY_L, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_load_scene);
+    keymap_binding_add(&state->editor_keymap, KEY_U, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_unload_scene);
+    // ctrl s
+    keymap_binding_add(&state->editor_keymap, KEY_S, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, app, game_on_save_scene);
+
+    keymap_binding_add(&state->editor_keymap, KEY_V, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_debug_vsync_toggle);
+
+    // A console-specific keymap. Is not pushed by default.
+    state->console_keymap = keymap_create();
+    state->console_keymap.overrides_all = true;
+    keymap_binding_add(&state->console_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_change_visibility);
+    keymap_binding_add(&state->console_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_change_visibility);
+
+    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_scroll);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_scroll);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_scroll_hold);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_scroll_hold);
+
+    keymap_binding_add(&state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_history_back);
+    keymap_binding_add(&state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, app, game_on_console_history_forward);
+
+// If this was done with the console open, push its keymap.
+#if KOHI_DEBUG
+    b8 console_visible = debug_console_visible(&state->debug_console);
+    if (console_visible) {
+        input_keymap_push(&state->console_keymap);
+    }
+#endif
+}
+
+static void remove_keymaps(application* app) {
+    //
+}
+
+static void game_on_escape_callback(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    KDEBUG("game_on_escape_callback");
+    event_fire(EVENT_CODE_APPLICATION_QUIT, 0, (event_context){});
+}
+
+static void change_current_camera(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    if (state->mode == GAME_MODE_WORLD) {
+        state->mode = GAME_MODE_EDITOR;
+        state->current_camera = state->editor_camera;
+        KTRACE("Editor camera: %f %f %f", state->current_camera->euler_rotation.x, state->current_camera->euler_rotation.y, state->current_camera->euler_rotation.z);
+        if (!input_keymap_pop()) {
+            KERROR("No keymap was popped during world->editor");
+        }
+        input_keymap_push(&state->editor_keymap);
+    } else if (state->mode == GAME_MODE_EDITOR) {
+        state->mode = GAME_MODE_WORLD;
+        state->current_camera = state->vehicle_camera;
+        KTRACE("Vehicle camera: %f %f %f", state->current_camera->euler_rotation.x, state->current_camera->euler_rotation.y, state->current_camera->euler_rotation.z);
+        if (!input_keymap_pop()) {
+            KERROR("No keymap was popped during editor->world");
+        }
+        input_keymap_push(&state->world_keymap);
+    } else {
+        KERROR("Stuck in unknown state, changing to vehicle.");
+        state->mode = GAME_MODE_WORLD;
+        state->current_camera = state->vehicle_camera;
+        if (!input_keymap_pop()) {
+            KFATAL("No keymap was popped during unknown->world");
+        }
+        input_keymap_push(&state->world_keymap);
+    }
+}
+
+static void game_on_yaw(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    f32 f = 0.0f;
+    if (key == KEY_LEFT || key == KEY_A) {
+        f = 1.0f;
+    } else if (key == KEY_RIGHT || key == KEY_D) {
+        f = -1.0f;
+    }
+
+    camera_yaw(state->editor_camera, f * get_engine_delta_time());
+}
+
+static void game_on_pitch(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    f32 f = 0.0f;
+    if (key == KEY_UP) {
+        f = 1.0f;
+    } else if (key == KEY_DOWN) {
+        f = -1.0f;
+    }
+
+    camera_pitch(state->editor_camera, f * get_engine_delta_time());
+}
+
+static void game_on_move_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    camera_move_forward(state->editor_camera, state->editor_camera_forward_move_speed * get_engine_delta_time());
+}
+
+static void game_on_move_backward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    camera_move_backward(state->editor_camera, state->editor_camera_backward_move_speed * get_engine_delta_time());
+}
+
+static void game_on_move_left(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    camera_move_left(state->editor_camera, state->editor_camera_forward_move_speed * get_engine_delta_time());
+}
+
+static void game_on_move_right(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    camera_move_right(state->editor_camera, state->editor_camera_forward_move_speed * get_engine_delta_time());
+}
+
+static void game_on_move_up(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    camera_move_up(state->editor_camera, state->editor_camera_forward_move_speed * get_engine_delta_time());
+}
+
+static void game_on_move_down(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    camera_move_down(state->editor_camera, state->editor_camera_forward_move_speed * get_engine_delta_time());
+}
+
+static void game_on_console_change_visibility(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    // No-op unless a debug build
+#if KOHI_DEBUG
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    b8 console_visible = debug_console_visible(&state->debug_console);
+    console_visible = !console_visible;
+
+    debug_console_visible_set(&state->debug_console, console_visible);
+    if (console_visible) {
+        input_keymap_push(&state->console_keymap);
+    } else {
+        input_keymap_pop();
+    }
+#endif
+}
+
+static void game_on_set_render_mode_default(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_context data = {};
+    data.data.i32[0] = RENDERER_VIEW_MODE_DEFAULT;
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (application*)user_data, data);
+}
+
+static void game_on_set_render_mode_lighting(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_context data = {};
+    data.data.i32[0] = RENDERER_VIEW_MODE_LIGHTING;
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (application*)user_data, data);
+}
+
+static void game_on_set_render_mode_normals(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_context data = {};
+    data.data.i32[0] = RENDERER_VIEW_MODE_NORMALS;
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (application*)user_data, data);
+}
+
+static void game_on_set_render_mode_cascades(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_context data = {};
+    data.data.i32[0] = RENDERER_VIEW_MODE_CASCADES;
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (application*)user_data, data);
+}
+
+static void game_on_set_render_mode_wireframe(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_context data = {};
+    data.data.i32[0] = RENDERER_VIEW_MODE_WIREFRAME;
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (application*)user_data, data);
+}
+
+static void game_on_set_gizmo_mode(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    editor_gizmo_mode mode;
+    switch (key) {
+    case KEY_1:
+    default:
+        mode = EDITOR_GIZMO_MODE_NONE;
+        break;
+    case KEY_2:
+        mode = EDITOR_GIZMO_MODE_MOVE;
+        break;
+    case KEY_3:
+        mode = EDITOR_GIZMO_MODE_ROTATE;
+        break;
+    case KEY_4:
+        mode = EDITOR_GIZMO_MODE_SCALE;
+        break;
+    }
+    editor_gizmo_mode_set(&state->gizmo, mode);
+}
+
+static void game_on_gizmo_orientation_set(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+
+    editor_gizmo_orientation orientation = editor_gizmo_orientation_get(&state->gizmo);
+    orientation++;
+    if (orientation > EDITOR_GIZMO_ORIENTATION_MAX) {
+        orientation = 0;
+    }
+    editor_gizmo_orientation_set(&state->gizmo, orientation);
+}
+
+static void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_fire(EVENT_CODE_DEBUG1, (application*)user_data, (event_context){});
+}
+
+static void game_on_save_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_fire(EVENT_CODE_DEBUG5, (application*)user_data, (event_context){});
+}
+
+static void game_on_unload_scene(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_fire(EVENT_CODE_DEBUG2, (application*)user_data, (event_context){});
+}
+
+static void game_on_play_sound(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_fire(EVENT_CODE_DEBUG3, (application*)user_data, (event_context){});
+}
+static void game_on_toggle_sound(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    event_fire(EVENT_CODE_DEBUG4, (application*)user_data, (event_context){});
+}
+
+static void game_on_console_scroll(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+// No-op unless a debug build.
+#if KOHI_DEBUG
+    application* app = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)app->state;
+    debug_console_state* console_state = &state->debug_console;
+    if (key == KEY_PAGEUP) {
+        debug_console_move_up(console_state);
+    } else if (key == KEY_PAGEDOWN) {
+        debug_console_move_down(console_state);
+    }
+#endif
+}
+
+static void game_on_console_scroll_hold(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    // No-op unless a debug build.
+#if KOHI_DEBUG
+    application* app = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)app->state;
+    debug_console_state* console_state = &state->debug_console;
+
+    static f32 accumulated_time = 0.0f;
+    accumulated_time += get_engine_delta_time();
+
+    if (accumulated_time >= 0.1f) {
+        if (key == KEY_PAGEUP) {
+            debug_console_move_up(console_state);
+        } else if (key == KEY_PAGEDOWN) {
+            debug_console_move_down(console_state);
+        }
+        accumulated_time = 0.0f;
+    }
+#endif
+}
+
+static void game_on_console_history_back(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+// No-op unless a debug build.
+#if KOHI_DEBUG
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+    debug_console_history_back(&state->debug_console);
+#endif
+}
+
+static void game_on_console_history_forward(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    // No-op unless a debug build.
+#if KOHI_DEBUG
+    application* game_inst = (application*)user_data;
+    overdrive2069_game_state* state = (overdrive2069_game_state*)game_inst->state;
+    debug_console_history_forward(&state->debug_console);
+#endif
+}
+static void game_on_debug_vsync_toggle(keys key, keymap_entry_bind_type type, keymap_modifier modifiers, void* user_data) {
+    char cmd[30];
+    string_ncopy(cmd, "kvar_set_int vsync 0", 29);
+    b8 vsync_enabled = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
+    u32 length = string_length(cmd);
+    cmd[length - 1] = vsync_enabled ? '1' : '0';
+    console_command_execute(cmd);
+}
+
+static f32 get_engine_delta_time(void) {
+    khandle engine = timeline_system_get_engine();
+    return timeline_system_delta_get(engine);
 }

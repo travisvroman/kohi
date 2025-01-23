@@ -48,10 +48,6 @@ assets = [
         path = "./assets/scenes/track_00.ksn"
     }
     {
-        name = "test_terrain"
-        path = "./assets/terrains/test_terrain.ktn"
-    }
-    {
         name = "bark_0021"
         path = "./assets/images/bark_0021.kbi"
         source_path = "./assets/images/source/bark_0021.jpg"
@@ -95,25 +91,5 @@ assets = [
         name = "skybox_u"
         path = "./assets/images/skybox_u.kbi"
         source_path = "./assets/images/source/skybox_u.jpg"
-    }
-    {
-        name = "terrain_heightmap"
-        path = "./assets/images/terrain_heightmap.kbi"
-        source_path = "./assets/images/source/terrain_heightmap.png"
-    }
-    {
-        name = "terrain_heightmap3"
-        path = "./assets/images/terrain_heightmap3.kbi"
-        source_path = "./assets/images/source/terrain_heightmap3.png"
-    }
-    {
-        name = "terrain_heightmap_256"
-        path = "./assets/images/terrain_heightmap_256.kbi"
-        source_path = "./assets/images/source/terrain_heightmap_256.png"
-    }
-    {
-        name = "terrain_heightmap_512"
-        path = "./assets/images/terrain_heightmap_512.kbi"
-        source_path = "./assets/images/source/terrain_heightmap_512.png"
     }
 ]
