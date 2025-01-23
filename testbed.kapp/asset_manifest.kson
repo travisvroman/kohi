@@ -814,3 +814,4 @@ assets = [
         path = "./assets/images/wispy-grass-meadow_normal.kbi"
         source_path = "./assets/images/source/wispy-grass-meadow_normal.png"
     }
+]

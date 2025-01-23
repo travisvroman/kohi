@@ -34,10 +34,8 @@ b8 vfs_initialize(u64* memory_requirement, vfs_state* state, const vfs_config* c
     state->watched_assets = darray_create(vfs_asset_data);
 
     // TODO: For release builds, look at binary file.
-    // FIXME: hardcoded rubbish. Add to app config, pass to config and read in here.
-    const char* file_path = "../testbed.kapp/asset_manifest.kson";
     asset_manifest manifest = {0};
-    if (!kpackage_parse_manifest_file_content(file_path, &manifest)) {
+    if (!kpackage_parse_manifest_file_content(config->manifest_file_path, &manifest)) {
         KERROR("Failed to parse primary asset manifest. See logs for details.");
         return false;
     }

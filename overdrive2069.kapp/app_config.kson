@@ -1,21 +1,21 @@
 // Application config file.
-app_name = "Kohi Engine Testbed Application"
+app_name = "Overdrive: 2069"
 frame_allocator_size = 128
 app_frame_data_size = 128
-manifest_file_path = "../testbed.kapp/asset_manifest.kson"
+manifest_file_path = "../overdrive2069.kapp/asset_manifest.kson"
 windows = [
    {
     resolution = "1280 720"
     position="100 100"
     name="main_window"
-    title = "Testbed Main Window (コーヒー)"
+    title = "Overdrive: 2069"
    }
 ]
 package_config = {
     packages = [
         "Kohi.Runtime"
         "Kohi.Plugin.Ui.Standard"
-        "Testbed"
+        "Overdrive2069"
     ]
     process_as_text [
         "SomeUserAssetType"
@@ -31,7 +31,7 @@ systems = [
     {
         name="resource"
         config = {
-            asset_base_path="../testbed.assets"
+            asset_base_path="../overdrive2069.assets"
         }
     }
     {

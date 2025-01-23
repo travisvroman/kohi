@@ -21,6 +21,7 @@ struct vfs_state;
 
 typedef struct vfs_config {
     const char** text_user_types;
+    const char* manifest_file_path;
 } vfs_config;
 
 typedef enum vfs_asset_flag_bits {

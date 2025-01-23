@@ -84,7 +84,7 @@ void kresource_handler_audio_release(struct kresource_handler* self, kresource* 
         t->pcm_data = 0;
         t->pcm_data_size = 0;
         if (t->mono_pcm_data && t->downmixed_size) {
-            kfree(t->mono_pcm_data, t->total_sample_count * sizeof(i16), MEMORY_TAG_AUDIO);
+            kfree(t->mono_pcm_data, t->downmixed_size, MEMORY_TAG_AUDIO);
         }
         t->mono_pcm_data = 0;
         t->downmixed_size = 0;
@@ -108,7 +108,7 @@ static void audio_kasset_on_result(asset_request_result result, const struct kas
         // as a "2D" sound if need be.
         if (listener->typed_resource->channels == 2) {
             listener->typed_resource->mono_pcm_data = kaudio_downmix_stereo_to_mono(listener->typed_resource->pcm_data, listener->typed_resource->total_sample_count);
-            listener->typed_resource->downmixed_size = listener->typed_resource->total_sample_count * sizeof(i16);
+            listener->typed_resource->downmixed_size = (listener->typed_resource->total_sample_count / 2) * sizeof(i16);
         } else {
             // Asset was already mono, just point to the pcm data.
             listener->typed_resource->mono_pcm_data = listener->typed_resource->pcm_data;

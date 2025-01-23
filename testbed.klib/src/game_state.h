@@ -21,9 +21,11 @@
 #include <debug_console.h>
 #include <standard_ui_system.h>
 
+// Utils plugin
+#include <editor/editor_gizmo.h>
+
 #include "audio/audio_frontend.h"
 #include "core/engine.h"
-#include "editor/editor_gizmo.h"
 
 struct debug_line3d;
 struct debug_box3d;
