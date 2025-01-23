@@ -285,7 +285,7 @@ void renderer_system_shutdown(renderer_system_state* state) {
     if (state) {
         renderer_system_state* typed_state = (renderer_system_state*)state;
 
-        renderer_wait_for_idle();
+        // renderer_wait_for_idle();
 
         // Destroy buffers.
         renderer_renderbuffer_destroy(&typed_state->geometry_vertex_buffer);

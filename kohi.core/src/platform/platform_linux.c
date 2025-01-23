@@ -643,7 +643,7 @@ const char* platform_dynamic_library_extension(void) {
 }
 
 const char* platform_dynamic_library_prefix(void) {
-    return "lib";
+    return "./lib";
 }
 
 void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback, void* context) {

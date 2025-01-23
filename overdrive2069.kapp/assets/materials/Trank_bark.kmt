@@ -10,7 +10,7 @@ inputs = {
     base_colour = {
         map = {
             resource_name = "bark_0021"
-            package_name = "Testbed"
+            package_name = "Overdrive2069"
         }
     }
     normal = {
