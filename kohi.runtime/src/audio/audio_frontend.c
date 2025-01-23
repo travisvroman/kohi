@@ -1134,7 +1134,7 @@ static void kaudio_emitter_update(struct kaudio_system_state* state, kaudio_emit
     } else {
         // Check if in range. If so, need to start playing.
         if (vec3_distance(state->listener_position, emitter->world_position) <= emitter->outer_radius) {
-            KTRACE("Audio emitter came into listener range. Stopping.");
+            KTRACE("Audio emitter came into listener range. Playing.");
             // HACK: Don't hardcode this. Config? Define family group, or index somehow?
             kaudio_play(state, emitter->instance, -1);
             emitter->playing_in_range = true;

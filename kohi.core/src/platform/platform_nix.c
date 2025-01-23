@@ -377,16 +377,18 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
     const char* extension = platform_dynamic_library_extension();
     const char* prefix = platform_dynamic_library_prefix();
 
-    string_format_unsafe(filename, "%s%s%s", prefix, name, extension);
+    string_format_unsafe(filename, "./%s%s%s", prefix, name, extension);
 
     void* library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded.dylib"
     if (!library) {
+        KTRACE("Trying fallback because of error: '%s'", dlerror());
 
         // Try the local folder
         kzero_memory(filename, sizeof(char) * 260);
-        string_format_unsafe(filename, "./%s%s%s", prefix, name, extension);
+        string_format_unsafe(filename, "%s%s%s", prefix, name, extension);
         library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded.dylib"
         if (!library) {
+            KTRACE("Trying second fallback because of error: '%s'", dlerror());
 
             // try a fallback to /usr/local/lib
             kzero_memory(filename, sizeof(char) * 260);
