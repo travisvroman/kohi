@@ -11,6 +11,8 @@
 #include "standard_ui_system.h"
 #include "time/kclock.h"
 
+#include "track.h"
+
 typedef enum game_mode {
     GAME_MODE_WORLD,
     GAME_MODE_EDITOR,
@@ -18,7 +20,7 @@ typedef enum game_mode {
     PAUSED_MENU
 } game_mode;
 
-typedef struct overdrive2069_game_state {
+typedef struct game_state {
     b8 running;
     camera* vehicle_camera;
     camera* cutscene_camera;
@@ -34,6 +36,7 @@ typedef struct overdrive2069_game_state {
     game_mode mode;
 
     scene track_scene;
+    track collision_track;
 
     u16 width, height;
 
@@ -61,7 +64,7 @@ typedef struct overdrive2069_game_state {
     editor_gizmo gizmo;
     f32 editor_camera_forward_move_speed;
     f32 editor_camera_backward_move_speed;
-} overdrive2069_game_state;
+} game_state;
 
 typedef struct overdrive_2069_frame_data {
     i32 dummy;
