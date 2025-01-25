@@ -24,6 +24,11 @@ assets = [
         source_path = "./assets/models/source/Tree.obj"
     }
     {
+        name = "testcube"
+        path = "./assets/models/testcube.ksm"
+        source_path = "./assets/models/source/testcube.obj"
+    }
+    {
         name = "Fire_loop"
         path = "./assets/sounds/Fire_loop.kaf"
         source_path = "./assets/sounds/source/Fire_loop.ogg"

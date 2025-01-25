@@ -139,6 +139,10 @@ KAPI f32 ktan(f32 x);
  */
 KAPI f32 katan(f32 x);
 
+KAPI f32 katan2(f32 x, f32 y);
+
+KAPI f32 kasin(f32 x);
+
 /**
  * @brief Calculates the arc cosine of x.
  *
@@ -1257,6 +1261,28 @@ KINLINE mat4 mat4_look_at(vec3 position, vec3 target, vec3 up) {
     return out_matrix;
 }
 
+KINLINE mat4 mat4_look_at2(vec3 position, vec3 target, vec3 up) {
+    // LH
+    vec3 f = vec3_normalized(vec3_sub(target, position));
+    vec3 s = vec3_normalized(vec3_cross(f, up));
+    vec3 u = vec3_cross(s, f);
+
+    mat4 lookat = mat4_identity();
+    lookat.data[0] = s.x;
+    lookat.data[4] = s.y;
+    lookat.data[8] = s.z;
+    lookat.data[1] = u.x;
+    lookat.data[5] = u.y;
+    lookat.data[9] = u.z;
+    lookat.data[2] = -f.x;
+    lookat.data[6] = -f.y;
+    lookat.data[10] = -f.z;
+    lookat.data[12] = -vec3_dot(s, position);
+    lookat.data[13] = -vec3_dot(u, position);
+    lookat.data[14] = vec3_dot(f, position);
+    return lookat;
+}
+
 /**
  * @brief Returns a transposed copy of the provided matrix (rows->colums)
  *
@@ -1541,8 +1567,8 @@ KINLINE mat4 mat4_euler_xyz(f32 x_radians, f32 y_radians, f32 z_radians) {
  */
 KINLINE vec3 mat4_forward(mat4 matrix) {
     vec3 forward;
-    forward.x = -matrix.data[2];
-    forward.y = -matrix.data[6];
+    forward.x = -matrix.data[8]; //2
+    forward.y = -matrix.data[9]; // 6
     forward.z = -matrix.data[10];
     vec3_normalize(&forward);
     return forward;

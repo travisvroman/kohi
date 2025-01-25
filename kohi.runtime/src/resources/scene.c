@@ -249,7 +249,8 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
             scene_node_metadata_ensure_allocated(s, hierarchy_node_handle.handle_index);
             if (node_config->name) {
                 scene_node_metadata* m = &s->node_metadata[hierarchy_node_handle.handle_index];
-                m->id = hierarchy_node_handle.handle_index;
+                m->index = hierarchy_node_handle.handle_index;
+                m->uniqueid = hierarchy_node_handle.unique_id.uniqueid;
                 m->name = node_config->name;
             }
         }
@@ -1833,6 +1834,23 @@ b8 scene_water_plane_query(const scene* scene, const frustum* f, vec3 center, fr
     return true;
 }
 
+b8 scene_node_xform_get_by_name(const scene* scene, kname name, khandle* out_xform_handle) {
+    if (!scene || !name || !out_xform_handle) {
+        return false;
+    }
+
+    for (u32 i = 0; i < scene->node_metadata_count; ++i) {
+        scene_node_metadata* node_meta = &scene->node_metadata[i];
+        if (node_meta->name == name) {
+            khandle hierarchy_node_handle = khandle_create_with_u64_identifier(node_meta->index, node_meta->uniqueid);
+            *out_xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, hierarchy_node_handle);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void scene_actual_unload(scene* s) {
     u32 skybox_count = darray_length(s->skyboxes);
     for (u32 i = 0; i < skybox_count; ++i) {
@@ -2255,7 +2273,9 @@ static void scene_node_metadata_ensure_allocated(scene* s, u64 handle_index) {
 
             // Invalidate all new entries.
             for (u32 i = s->node_metadata_count; i < new_count; ++i) {
-                s->node_metadata[i].id = INVALID_ID;
+                s->node_metadata[i].index = INVALID_ID;
+                s->node_metadata[i].uniqueid = INVALID_ID_U64;
+                s->node_metadata[i].name = INVALID_KNAME;
             }
 
             s->node_metadata_count = new_count;

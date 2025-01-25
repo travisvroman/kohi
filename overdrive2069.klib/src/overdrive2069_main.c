@@ -1,9 +1,12 @@
 #include "overdrive2069_main.h"
 #include "core/keymap.h"
+#include "identifiers/khandle.h"
+#include "input_types.h"
 #include "math/geometry.h"
 #include "overdrive2069.klib_version.h"
 #include "overdrive2069_types.h"
 #include "renderer/renderer_types.h"
+#include "strings/kname.h"
 #include "systems/kresource_system.h"
 
 #include <application/application_types.h>
@@ -57,6 +60,7 @@
 #include <editor/editor_gizmo.h>
 
 // Game files
+#include "systems/xform_system.h"
 #include "track.h"
 
 struct kaudio_system_state;
@@ -359,6 +363,70 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
 
         editor_gizmo_update(&state->gizmo);
 
+        if (khandle_is_valid(state->test_vehicle_xform)) {
+
+            mat4 vehicle_xform = xform_local_get(state->test_vehicle_xform);
+            vec3 vehicle_position = mat4_position(vehicle_xform);
+            vec3 forward = mat4_forward(vehicle_xform);
+            vec3 right = mat4_right(vehicle_xform);
+            f32 delta = get_engine_delta_time();
+
+            // HACK: Should be stored elsewhere
+            f32 vehicle_speed = 10.0f;
+            f32 vehicle_turn_speed = 2.5f;
+            // Move the vehicle
+            if (input_is_key_down(KEY_W)) {
+                xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * vehicle_speed));
+            }
+            if (input_is_key_down(KEY_S)) {
+                xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * -vehicle_speed));
+            }
+            if (input_is_key_down(KEY_Q)) {
+                xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * -vehicle_speed));
+            }
+            if (input_is_key_down(KEY_E)) {
+                xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * vehicle_speed));
+            }
+            if (input_is_key_down(KEY_A)) {
+                quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, -vehicle_turn_speed * delta, false);
+                xform_rotate(state->test_vehicle_xform, rotation);
+            }
+            if (input_is_key_down(KEY_D)) {
+                quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, vehicle_turn_speed * delta, false);
+                xform_rotate(state->test_vehicle_xform, rotation);
+            }
+
+            // TODO: not sure if this has to be done or not.
+            xform_calculate_local(state->test_vehicle_xform);
+            vehicle_xform = xform_local_get(state->test_vehicle_xform);
+
+            // Update vehicle camera to follow.
+            f32 chase_distance = 5.0;
+            vec3 backward_offset = vec3_mul_scalar(forward, -chase_distance);
+            vec3 upward_offset = vec3_create(0.0f, 2.0f, 0.0f);
+            vec3 camera_position = vec3_add(vec3_add(vehicle_position, backward_offset), upward_offset);
+            camera_position_set(state->vehicle_camera, camera_position);
+
+            // Direction from point to focus object
+            vec3 to_obj = vec3_sub(vehicle_position, camera_position);
+
+            vec3 f = vec3_normalized(to_obj);
+
+            f32 yaw = katan2(-f.x, -f.z);
+
+            f32 pitch = kasin(f.y);
+
+            vec3 euler = {pitch, yaw, 0.0f};
+            camera_rotation_euler_set_radians(state->vehicle_camera, euler);
+
+            // LEFTOFF:
+            // - The fix to the forward vector now has the audio backwards between l/r.
+            // - Audio listener position should probably be at or near the vehicle_position.
+            // - Need to constrain movement of the controlled vehicle to the track.
+            // - Investigate turning off vertex deduplication (crashes for some reason.)
+            // - Investigate why importing of .objs fails/crashes with no materials defined (should be able to do this)
+        }
+
         // // Perform a small rotation on the first mesh.
         // quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, -0.5f * p_frame_data->delta_time, false);
         // transform_rotate(&state->meshes[0].transform, rotation);
@@ -628,7 +696,7 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
                 // Query the scene for static meshes using the camera frustum.
                 if (!scene_mesh_render_data_query(
                         scene,
-                        &camera_frustum,
+                        0, // &camera_frustum, // HACK: Frustum culling isn't working right. Disabling for now...
                         state->current_camera->position,
                         p_frame_data,
                         &geometry_count, &geometries)) {
@@ -636,8 +704,9 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
                 }
 
                 // HACK: geometry render data for the collision_track
-                {
-                    kgeometry* g = &state->collision_track.geometry;
+                u32 track_segment_count = darray_length(state->collision_track.segments);
+                for (u32 s = 0; s < track_segment_count; ++s) {
+                    kgeometry* g = &state->collision_track.segments[s].geometry;
                     geometry_render_data data = {0};
                     data.model = mat4_identity();
                     data.material = state->collision_track.material;
@@ -666,7 +735,7 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
                 // Query the scene for terrain meshes using the camera frustum.
                 if (!scene_terrain_render_data_query(
                         scene,
-                        &camera_frustum,
+                        0, // &camera_frustum, // HACK: Frustum culling isn't working right. Disabling for now...
                         state->current_camera->position,
                         p_frame_data,
                         &terrain_geometry_count, &terrain_geometries)) {
@@ -1348,6 +1417,10 @@ static void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_mod
         if (!track_initialize(&state->collision_track)) {
             KERROR("Failed to initialize collision track.");
             return;
+        }
+
+        if (!scene_node_xform_get_by_name(&state->track_scene, kname_create("test_vehicle"), &state->test_vehicle_xform)) {
+            KERROR("Unable to get test vehicle.");
         }
 
         // Actually load the scene.

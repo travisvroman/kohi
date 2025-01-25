@@ -64,6 +64,9 @@ typedef struct game_state {
     editor_gizmo gizmo;
     f32 editor_camera_forward_move_speed;
     f32 editor_camera_backward_move_speed;
+
+    // HACK: Gameplay stuff
+    khandle test_vehicle_xform;
 } game_state;
 
 typedef struct overdrive_2069_frame_data {

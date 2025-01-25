@@ -61,8 +61,9 @@ typedef enum scene_flag {
 typedef u32 scene_flags;
 
 typedef struct scene_node_metadata {
-    // Metadata considered stale/non-existant if INVALID_ID
-    u32 id;
+    u32 index;
+    // Metadata considered stale/non-existant if INVALID_ID_U64
+    u64 uniqueid;
 
     // The name of the node.
     kname name;
@@ -240,5 +241,7 @@ KAPI b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, ve
 KAPI b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
 
 KAPI b8 scene_water_plane_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct water_plane*** out_water_planes);
+
+KAPI b8 scene_node_xform_get_by_name(const scene* scene, kname name, khandle* out_xform_handle);
 
 KAPI b8 scene_save(scene* s);

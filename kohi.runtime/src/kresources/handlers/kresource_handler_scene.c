@@ -159,6 +159,8 @@ static void scene_kasset_on_result(asset_request_result result, const struct kas
 
 static void copy_scene_node(const scene_node_config* source, scene_node_config* target) {
 
+    target->name = source->name;
+
     // Take a copy of attachment configs.
     {
         if (source->skybox_configs) {
