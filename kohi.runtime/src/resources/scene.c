@@ -1660,10 +1660,10 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
             {
                 // Translate/scale the extents.
                 // vec3 extents_min = vec3_mul_mat4(g->extents.min, model);
-                vec3 extents_max = vec3_mul_mat4(g->extents.max, model);
+                vec3 extents_max = mat4_mul_vec3(model, g->extents.max);
 
                 // Translate/scale the center.
-                vec3 g_center = vec3_mul_mat4(g->center, model);
+                vec3 g_center = mat4_mul_vec3(model, g->center);
                 vec3 half_extents = {
                     kabs(extents_max.x - g_center.x),
                     kabs(extents_max.y - g_center.y),

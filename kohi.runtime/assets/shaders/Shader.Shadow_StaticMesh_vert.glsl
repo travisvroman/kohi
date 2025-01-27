@@ -15,8 +15,7 @@ layout(location = 4) in vec4 in_tangent;
 
 // per frame
 layout(set = 0, binding = 0) uniform per_frame_ubo {
-    mat4 projections[MAX_CASCADES];
-	mat4 views[MAX_CASCADES];
+    mat4 view_projections[MAX_CASCADES];
 } frame_ubo;
 
 // per group NOTE: No per-group UBO for this shader
@@ -40,5 +39,5 @@ layout(location = 1) out struct dto {
 
 void main() {
     out_dto.tex_coord = in_texcoord;
-    gl_Position = (frame_ubo.projections[draw_ubo.cascade_index] * frame_ubo.views[draw_ubo.cascade_index]) * draw_ubo.model * vec4(in_position, 1.0);
+    gl_Position = frame_ubo.view_projections[draw_ubo.cascade_index] * draw_ubo.model * vec4(in_position, 1.0);
 }

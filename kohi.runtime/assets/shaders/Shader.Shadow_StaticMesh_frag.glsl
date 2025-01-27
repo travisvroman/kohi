@@ -8,8 +8,7 @@
 
 // per frame
 layout(set = 0, binding = 0) uniform per_frame_ubo {
-    mat4 projections[MAX_CASCADES];
-	mat4 views[MAX_CASCADES];
+    mat4 view_projections[MAX_CASCADES];
 } frame_ubo;
 
 // per group NOTE: No per-group UBO for this shader

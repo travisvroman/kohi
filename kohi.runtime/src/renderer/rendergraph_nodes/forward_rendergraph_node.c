@@ -169,8 +169,6 @@ typedef struct forward_rendergraph_node_internal_data {
     const struct directional_light* dir_light;
 
     f32 cascade_splits[MATERIAL_MAX_SHADOW_CASCADES];
-    mat4 directional_light_views[MATERIAL_MAX_SHADOW_CASCADES];
-    mat4 directional_light_projections[MATERIAL_MAX_SHADOW_CASCADES];
     // The multiplied view/projections
     mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES];
 
@@ -569,11 +567,6 @@ b8 render_scene(forward_rendergraph_node_internal_data* internal_data, kresource
 
     // Begin rendering the scene
     renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colour->renderer_texture_handle, depth->renderer_texture_handle, 0);
-
-    // Calculate light-space matrices for each shadow cascade.
-    for (u8 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
-        internal_data->directional_light_spaces[i] = mat4_mul(internal_data->directional_light_views[i], internal_data->directional_light_projections[i]);
-    }
 
     // Set the per-frame material data (i.e. view, projection, etc.).
     {
@@ -984,7 +977,7 @@ b8 forward_rendergraph_node_directional_light_set(struct rendergraph_node* self,
     return false;
 }
 
-b8 forward_rendergraph_node_cascade_data_set(struct rendergraph_node* self, f32 split, mat4 dir_light_view, mat4 dir_light_projection, u8 cascade_index) {
+b8 forward_rendergraph_node_cascade_data_set(struct rendergraph_node* self, f32 split, mat4 dir_light_space, u8 cascade_index) {
     if (self && self->internal_data) {
         if (cascade_index >= MATERIAL_MAX_SHADOW_CASCADES) {
             KERROR("Shadow cascade index out of bounds: %d is not in range [0-%s]", cascade_index, MATERIAL_MAX_SHADOW_CASCADES - 1);
@@ -992,8 +985,7 @@ b8 forward_rendergraph_node_cascade_data_set(struct rendergraph_node* self, f32 
         }
         forward_rendergraph_node_internal_data* internal_data = self->internal_data;
         internal_data->cascade_splits[cascade_index] = split;
-        internal_data->directional_light_views[cascade_index] = dir_light_view;
-        internal_data->directional_light_projections[cascade_index] = dir_light_projection;
+        internal_data->directional_light_spaces[cascade_index] = dir_light_space;
         return true;
     }
     return false;

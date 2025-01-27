@@ -212,7 +212,7 @@ b8 application_initialize(struct application* app) {
 
     // UI Viewport
     rect_2d ui_vp_rect = vec4_create(0.0f, 0.0f, 1280.0f, 720.0f);
-    if (!viewport_create(ui_vp_rect, 0.0f, -100.0f, 100.0f, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC, &state->ui_viewport)) {
+    if (!viewport_create(ui_vp_rect, 0.0f, 0.0f, 100.0f, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC, &state->ui_viewport)) {
         KERROR("Failed to create UI viewport. Cannot start application.");
         return false;
     }
@@ -578,7 +578,7 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
 
     // HACK: Using the first light in the collection for now.
     // TODO: Support for multiple directional lights with priority sorting.
-    directional_light* dir_light = 0; // scene->dir_lights ? &scene->dir_lights[0] : 0;
+    directional_light* dir_light = scene->dir_lights ? &scene->dir_lights[0] : 0;
 
     // Global setup
     f32 near = current_viewport->near_clip;
@@ -604,13 +604,9 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
 
     // Default values to use in the event there is no directional light.
     // These are required because the scene pass needs them.
-    mat4 shadow_camera_lookats[MATERIAL_MAX_SHADOW_CASCADES];
-    mat4 shadow_camera_projections[MATERIAL_MAX_SHADOW_CASCADES];
-    vec3 shadow_camera_positions[MATERIAL_MAX_SHADOW_CASCADES];
+    mat4 shadow_camera_view_projections[MATERIAL_MAX_SHADOW_CASCADES];
     for (u32 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
-        shadow_camera_lookats[i] = mat4_identity();
-        shadow_camera_projections[i] = mat4_identity();
-        shadow_camera_positions[i] = vec3_zero();
+        shadow_camera_view_projections[i] = mat4_identity();
     }
 
     // TODO: Anything to do here?
@@ -664,8 +660,7 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
                     forward_rendergraph_node_cascade_data_set(
                         node,
                         (near + splits.elements[c] * clip_range) * 1.0f, // splits.elements[c]
-                        shadow_camera_lookats[c],
-                        shadow_camera_projections[c],
+                        shadow_camera_view_projections[c],
                         c);
                 }
                 // Ensure the render mode is set.
@@ -683,9 +678,10 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
                 // Camera frustum culling and count
                 viewport* v = current_viewport;
                 vec3 forward = camera_forward(state->current_camera);
-                vec3 right = camera_right(state->current_camera);
+                vec3 target = vec3_add(state->current_camera->position, vec3_mul_scalar(forward, far));
                 vec3 up = camera_up(state->current_camera);
-                frustum camera_frustum = frustum_create(&state->current_camera->position, &forward, &right,
+                // TODO: move frustum to be managed by camera it is attached to.
+                frustum camera_frustum = frustum_create(&state->current_camera->position, &target,
                                                         &up, v->rect.width / v->rect.height, v->fov, v->near_clip, v->far_clip);
 
                 p_frame_data->drawn_mesh_count = 0;
@@ -801,12 +797,24 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
 
                 // Pass over shadow map "camera" view and projection matrices (one per cascade).
                 for (u32 c = 0; c < MATERIAL_MAX_SHADOW_CASCADES; c++) {
-                    // NOTE: Each pass for cascades will need to do the following process.
-                    // The only real difference will be that the near/far clips will be adjusted for each.
 
                     // Get the world-space corners of the view frustum.
-                    vec4 corners[8] = {0};
-                    frustum_corner_points_world_space(cam_view_proj, corners);
+                    vec4 corners[8] = {
+                        {-1.0f, +1.0f, 0.0f, 1.0f},
+                        {+1.0f, +1.0f, 0.0f, 1.0f},
+                        {+1.0f, -1.0f, 0.0f, 1.0f},
+                        {-1.0f, -1.0f, 0.0f, 1.0f},
+
+                        {-1.0f, +1.0f, 1.0f, 1.0f},
+                        {+1.0f, +1.0f, 1.0f, 1.0f},
+                        {+1.0f, -1.0f, 1.0f, 1.0f},
+                        {-1.0f, -1.0f, 1.0f, 1.0f}};
+
+                    mat4 inv_cam = mat4_inverse(cam_view_proj);
+                    for (u32 j = 0; j < 8; ++j) {
+                        vec4 inv_corner = mat4_mul_vec4(inv_cam, corners[j]);
+                        corners[j] = (vec4_div_scalar(inv_corner, inv_corner.w));
+                    }
 
                     // Adjust the corners by pulling/pushing the near/far according to the current split.
                     f32 split_dist = splits.elements[c];
@@ -834,6 +842,8 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
                         f32 distance = vec3_distance(vec3_from_vec4(corners[i]), center);
                         radius = KMAX(radius, distance);
                     }
+                    radius = kceil(radius * 16.0f) / 16.0f;
+
                     if (c == MATERIAL_MAX_SHADOW_CASCADES - 1) {
                         culling_radius = radius;
                     }
@@ -862,18 +872,20 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
                     // Generate lookat by moving along the opposite direction of the directional light by the
                     // minimum extents. This is negated because the directional light points "down" and the camera
                     // needs to be "up".
-                    shadow_camera_positions[c] = vec3_sub(center, vec3_mul_scalar(light_dir, -extents.min.z));
-                    shadow_camera_lookats[c] = mat4_look_at(shadow_camera_positions[c], center, vec3_up());
+                    vec3 shadow_camera_position = vec3_sub(center, vec3_mul_scalar(light_dir, -extents.min.z));
+                    mat4 light_view = mat4_look_at(shadow_camera_position, center, vec3_up());
 
                     // Generate ortho projection based on extents.
-                    shadow_camera_projections[c] = mat4_orthographic(extents.min.x, extents.max.x, extents.min.y, extents.max.y, extents.min.z, extents.max.z - extents.min.z);
+                    mat4 light_ortho = mat4_orthographic(extents.min.x, extents.max.x, extents.min.y, extents.max.y, 0.0f, extents.max.z - extents.min.z);
+
+                    // combined view/projection
+                    shadow_camera_view_projections[c] = (mat4_mul(light_view, light_ortho));
 
                     // Build out cascade data to set in shadow rg node.
                     shadow_cascade_data cdata = {0};
                     cdata.cascade_index = c;
-                    cdata.split_depth = (near + split_dist * clip_range) * 1.0f;
-                    cdata.view = shadow_camera_lookats[c];
-                    cdata.projection = shadow_camera_projections[c];
+                    cdata.split_depth = (near + split_dist * clip_range) * -1.0f;
+                    cdata.view_projection = shadow_camera_view_projections[c];
                     shadow_rendergraph_node_cascade_data_set(node, cdata, c);
 
                     last_split_dist = split_dist;

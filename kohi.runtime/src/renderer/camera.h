@@ -40,6 +40,9 @@ typedef struct camera {
      * so the view matrix is recalculated when needed.
      */
     mat4 view_matrix;
+
+    // To be used for camera movement, etc.
+    mat4 transform;
 } camera;
 
 /**
@@ -116,6 +119,8 @@ KAPI void camera_rotation_euler_set_radians(camera* c, vec3 rotation_radians);
  * @return A copy of the up-to-date view matrix.
  */
 KAPI mat4 camera_view_get(camera* c);
+
+KAPI mat4 camera_inverse_view_get(camera* c);
 
 /**
  * @brief Returns a copy of the camera's forward vector.

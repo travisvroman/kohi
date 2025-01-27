@@ -2,11 +2,12 @@
  * @file kmath.h
  * @author Travis Vroman (travis@kohiengine.com)
  * @brief This file contains definitions for various important constant values
- * as well as functions for many common math types.
- * @version 1.0
- * @date 2022-01-10
+ * as well as functions for many common math types. Note that this math library
+ * is all written to be right-handed (-z forward, +y up) and in column-major format.
+ * @version 2.0
+ * @date 2025-01-26
  *
- * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2025
  *
  */
 
@@ -583,7 +584,7 @@ KINLINE vec3 vec3_forward(void) { return (vec3){0.0f, 0.0f, -1.0f}; }
 /**
  * @brief Creates and returns a 3-component vector pointing backward (0, 0, 1).
  */
-KINLINE vec3 vec3_back(void) { return (vec3){0.0f, 0.0f, 1.0f}; }
+KINLINE vec3 vec3_backward(void) { return (vec3){0.0f, 0.0f, 1.0f}; }
 
 /**
  * @brief Adds vector_1 to vector_0 and returns a copy of the result.
@@ -1167,11 +1168,11 @@ KINLINE mat4 mat4_orthographic(f32 left, f32 right, f32 bottom, f32 top,
 
     out_matrix.data[0] = -2.0f * lr;
     out_matrix.data[5] = -2.0f * bt;
-    out_matrix.data[10] = 2.0f * nf;
+    out_matrix.data[10] = nf;
 
     out_matrix.data[12] = (left + right) * lr;
     out_matrix.data[13] = (top + bottom) * bt;
-    out_matrix.data[14] = (far_clip + near_clip) * nf;
+    out_matrix.data[14] = -near_clip * nf;
 
     return out_matrix;
 }
@@ -1186,17 +1187,15 @@ KINLINE mat4 mat4_orthographic(f32 left, f32 right, f32 bottom, f32 top,
  * @param far_clip The far clipping plane distance.
  * @return A new perspective matrix.
  */
-KINLINE mat4 mat4_perspective(f32 fov_radians, f32 aspect_ratio, f32 near_clip,
-                              f32 far_clip) {
+KINLINE mat4 mat4_perspective(f32 fov_radians, f32 aspect_ratio, f32 near_clip, f32 far_clip) {
     f32 half_tan_fov = ktan(fov_radians * 0.5f);
     mat4 out_matrix;
     kzero_memory(out_matrix.data, sizeof(f32) * 16);
     out_matrix.data[0] = 1.0f / (aspect_ratio * half_tan_fov);
     out_matrix.data[5] = 1.0f / half_tan_fov;
-    out_matrix.data[10] = -((far_clip + near_clip) / (far_clip - near_clip));
+    out_matrix.data[10] = far_clip / (near_clip - far_clip);
     out_matrix.data[11] = -1.0f;
-    out_matrix.data[14] =
-        -((2.0f * far_clip * near_clip) / (far_clip - near_clip));
+    out_matrix.data[14] = (far_clip * near_clip) / (near_clip - far_clip);
     return out_matrix;
 }
 
@@ -1210,14 +1209,8 @@ KINLINE mat4 mat4_perspective(f32 fov_radians, f32 aspect_ratio, f32 near_clip,
  * @return A matrix looking at target from the perspective of position.
  */
 KINLINE mat4 mat4_look_at(vec3 position, vec3 target, vec3 up) {
-    // RH
     mat4 out_matrix;
-    vec3 z_axis;
-    z_axis.x = target.x - position.x;
-    z_axis.y = target.y - position.y;
-    z_axis.z = target.z - position.z;
-
-    z_axis = vec3_normalized(z_axis);
+    vec3 z_axis = vec3_normalized(vec3_sub(target, position));
     vec3 x_axis = vec3_normalized(vec3_cross(z_axis, up));
     vec3 y_axis = vec3_cross(x_axis, z_axis);
 
@@ -1237,50 +1230,7 @@ KINLINE mat4 mat4_look_at(vec3 position, vec3 target, vec3 up) {
     out_matrix.data[13] = -vec3_dot(y_axis, position);
     out_matrix.data[14] = vec3_dot(z_axis, position);
     out_matrix.data[15] = 1.0f;
-
-    // LH
-    // vec3 f = vec3_normalized(vec3_sub(target, position));
-    // vec3 s = vec3_normalized(vec3_cross(f, up));
-    // vec3 u = vec3_cross(s, f);
-
-    // mat4 Result = mat4_identity();
-    // Result.data[0] = s.x;
-    // Result.data[4] = s.y;
-    // Result.data[8] = s.z;
-    // Result.data[1] = u.x;
-    // Result.data[5] = u.y;
-    // Result.data[9] = u.z;
-    // Result.data[2] =-f.x;
-    // Result.data[6] =-f.y;
-    // Result.data[10] =-f.z;
-    // Result.data[12] =-vec3_dot(s, position);
-    // Result.data[13] =-vec3_dot(u, position);
-    // Result.data[14] = vec3_dot(f, position);
-    // return Result;
-
     return out_matrix;
-}
-
-KINLINE mat4 mat4_look_at2(vec3 position, vec3 target, vec3 up) {
-    // LH
-    vec3 f = vec3_normalized(vec3_sub(target, position));
-    vec3 s = vec3_normalized(vec3_cross(f, up));
-    vec3 u = vec3_cross(s, f);
-
-    mat4 lookat = mat4_identity();
-    lookat.data[0] = s.x;
-    lookat.data[4] = s.y;
-    lookat.data[8] = s.z;
-    lookat.data[1] = u.x;
-    lookat.data[5] = u.y;
-    lookat.data[9] = u.z;
-    lookat.data[2] = -f.x;
-    lookat.data[6] = -f.y;
-    lookat.data[10] = -f.z;
-    lookat.data[12] = -vec3_dot(s, position);
-    lookat.data[13] = -vec3_dot(u, position);
-    lookat.data[14] = vec3_dot(f, position);
-    return lookat;
 }
 
 /**
@@ -1290,7 +1240,7 @@ KINLINE mat4 mat4_look_at2(vec3 position, vec3 target, vec3 up) {
  * @return A transposed copy of of the provided matrix.
  */
 KINLINE mat4 mat4_transposed(mat4 matrix) {
-    mat4 out_matrix = mat4_identity();
+    mat4 out_matrix;
     out_matrix.data[0] = matrix.data[0];
     out_matrix.data[1] = matrix.data[4];
     out_matrix.data[2] = matrix.data[8];
@@ -1395,6 +1345,12 @@ KINLINE mat4 mat4_inverse(mat4 matrix) {
            (t4 * m[1] + t9 * m[5] + t10 * m[9]);
 
     f32 d = 1.0f / (m[0] * o[0] + m[4] * o[1] + m[8] * o[2] + m[12] * o[3]);
+
+    // Check for singular matrix (determinant near zero)
+    if (kabs(d) < 1e-6f) {
+        // Return identity matrix if the determinant is close to zero (singular matrix)
+        return mat4_identity();
+    }
 
     o[0] = d * o[0];
     o[1] = d * o[1];
@@ -1567,8 +1523,8 @@ KINLINE mat4 mat4_euler_xyz(f32 x_radians, f32 y_radians, f32 z_radians) {
  */
 KINLINE vec3 mat4_forward(mat4 matrix) {
     vec3 forward;
-    forward.x = -matrix.data[8]; //2
-    forward.y = -matrix.data[9]; // 6
+    forward.x = -matrix.data[8];
+    forward.y = -matrix.data[9];
     forward.z = -matrix.data[10];
     vec3_normalize(&forward);
     return forward;
@@ -1582,8 +1538,8 @@ KINLINE vec3 mat4_forward(mat4 matrix) {
  */
 KINLINE vec3 mat4_backward(mat4 matrix) {
     vec3 backward;
-    backward.x = matrix.data[2];
-    backward.y = matrix.data[6];
+    backward.x = matrix.data[8];
+    backward.y = matrix.data[9];
     backward.z = matrix.data[10];
     vec3_normalize(&backward);
     return backward;
@@ -1628,8 +1584,8 @@ KINLINE vec3 mat4_down(mat4 matrix) {
 KINLINE vec3 mat4_left(mat4 matrix) {
     vec3 left;
     left.x = -matrix.data[0];
-    left.y = -matrix.data[4];
-    left.z = -matrix.data[8];
+    left.y = -matrix.data[1];
+    left.z = -matrix.data[2];
     vec3_normalize(&left);
     return left;
 }
@@ -1643,8 +1599,8 @@ KINLINE vec3 mat4_left(mat4 matrix) {
 KINLINE vec3 mat4_right(mat4 matrix) {
     vec3 right;
     right.x = matrix.data[0];
-    right.y = matrix.data[4];
-    right.z = matrix.data[8];
+    right.y = matrix.data[1];
+    right.z = matrix.data[2];
     vec3_normalize(&right);
     return right;
 }
@@ -1671,10 +1627,10 @@ KINLINE vec3 mat4_position(mat4 matrix) {
  * @return The transformed vector.
  */
 KINLINE vec3 mat4_mul_vec3(mat4 m, vec3 v) {
-    return (vec3){v.x * m.data[0] + v.y * m.data[1] + v.z * m.data[2] + m.data[3],
-                  v.x * m.data[4] + v.y * m.data[5] + v.z * m.data[6] + m.data[7],
-                  v.x * m.data[8] + v.y * m.data[9] + v.z * m.data[10] +
-                      m.data[11]};
+    return (vec3){
+        v.x * m.data[0] + v.y * m.data[4] + v.z * m.data[8] + m.data[12],
+        v.x * m.data[1] + v.y * m.data[5] + v.z * m.data[9] + m.data[13],
+        v.x * m.data[2] + v.y * m.data[6] + v.z * m.data[10] + m.data[14]};
 }
 
 /**
@@ -2073,8 +2029,7 @@ KAPI plane_3d plane_3d_create(vec3 p1, vec3 norm);
  * culling.
  *
  * @param position A constant pointer to the position to be used.
- * @param forward A constant pointer to the forward vector to be used.
- * @param right A constant pointer to the right vector to be used.
+ * @param target A constant pointer to the target vector to be used.
  * @param up A constant pointer to the up vector to be used.
  * @param aspect The aspect ratio.
  * @param fov The vertical field of view.
@@ -2082,9 +2037,7 @@ KAPI plane_3d plane_3d_create(vec3 p1, vec3 norm);
  * @param far The far clipping plane distance.
  * @return A shiny new frustum.
  */
-KAPI frustum frustum_create(const vec3* position, const vec3* forward,
-                            const vec3* right, const vec3* up, f32 aspect,
-                            f32 fov, f32 near, f32 far);
+KAPI frustum frustum_create(const vec3* position, const vec3* target, const vec3* up, f32 aspect, f32 fov, f32 near, f32 far);
 
 KAPI frustum frustum_from_view_projection(mat4 view_projection);
 
