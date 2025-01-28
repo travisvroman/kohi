@@ -374,26 +374,29 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
             // HACK: Should be stored elsewhere
             f32 vehicle_speed = 10.0f;
             f32 vehicle_turn_speed = 2.5f;
-            // Move the vehicle
-            if (input_is_key_down(KEY_W)) {
-                xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * vehicle_speed));
-            }
-            if (input_is_key_down(KEY_S)) {
-                xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * -vehicle_speed));
-            }
-            if (input_is_key_down(KEY_Q)) {
-                xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * -vehicle_speed));
-            }
-            if (input_is_key_down(KEY_E)) {
-                xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * vehicle_speed));
-            }
-            if (input_is_key_down(KEY_A)) {
-                quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, -vehicle_turn_speed * delta, false);
-                xform_rotate(state->test_vehicle_xform, rotation);
-            }
-            if (input_is_key_down(KEY_D)) {
-                quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, vehicle_turn_speed * delta, false);
-                xform_rotate(state->test_vehicle_xform, rotation);
+
+            if (state->mode == GAME_MODE_WORLD) {
+                // Move the vehicle
+                if (input_is_key_down(KEY_W)) {
+                    xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * vehicle_speed));
+                }
+                if (input_is_key_down(KEY_S)) {
+                    xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * -vehicle_speed));
+                }
+                if (input_is_key_down(KEY_Q)) {
+                    xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * -vehicle_speed));
+                }
+                if (input_is_key_down(KEY_E)) {
+                    xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * vehicle_speed));
+                }
+                if (input_is_key_down(KEY_A)) {
+                    quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, -vehicle_turn_speed * delta, false);
+                    xform_rotate(state->test_vehicle_xform, rotation);
+                }
+                if (input_is_key_down(KEY_D)) {
+                    quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, vehicle_turn_speed * delta, false);
+                    xform_rotate(state->test_vehicle_xform, rotation);
+                }
             }
 
             // TODO: not sure if this has to be done or not.
@@ -418,13 +421,6 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
 
             vec3 euler = {pitch, yaw, 0.0f};
             camera_rotation_euler_set_radians(state->vehicle_camera, euler);
-
-            // LEFTOFF:
-            // - The fix to the forward vector now has the audio backwards between l/r.
-            // - Audio listener position should probably be at or near the vehicle_position.
-            // - Need to constrain movement of the controlled vehicle to the track.
-            // - Investigate turning off vertex deduplication (crashes for some reason.)
-            // - Investigate why importing of .objs fails/crashes with no materials defined (should be able to do this)
         }
 
         // // Perform a small rotation on the first mesh.
@@ -554,9 +550,26 @@ VSync: %s Drawn: %-5u (%-5u shadow pass), Mode: %s, Run time: %s",
     debug_console_update(&((game_state*)app->state)->debug_console);
 #endif
 
-    vec3 forward = camera_forward(state->current_camera);
-    vec3 up = camera_up(state->current_camera);
-    kaudio_system_listener_orientation_set(engine_systems_get()->audio_system, pos, forward, up);
+    vec3 sound_pos, sound_forward, sound_up;
+    if (state->mode == GAME_MODE_EDITOR) {
+        // In editor mode, the sound follows the camera.
+        sound_pos = pos;
+        sound_forward = camera_forward(state->current_camera);
+        sound_up = camera_up(state->current_camera);
+    } else if (state->mode == GAME_MODE_WORLD) {
+        // In world mode, the sound follows the vehicle.
+        mat4 vehicle_xform = xform_local_get(state->test_vehicle_xform);
+        sound_pos = mat4_position(vehicle_xform);
+        sound_forward = mat4_forward(vehicle_xform);
+        sound_up = mat4_up(vehicle_xform);
+    } else {
+        // The fallback case acts like editor mode, where the sound follows the camera.
+        sound_pos = pos;
+        sound_forward = camera_forward(state->current_camera);
+        sound_up = camera_up(state->current_camera);
+    }
+    // Update the listener orientation.
+    kaudio_system_listener_orientation_set(engine_systems_get()->audio_system, sound_pos, sound_forward, sound_up);
 
     kclock_update(&state->update_clock);
     state->last_update_elapsed = state->update_clock.elapsed;

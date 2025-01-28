@@ -1,7 +1,7 @@
 version = 3
 type = "standard"
 model = "pbr"
-has_transparency = true
+has_transparency = false
 double_sided = false
 recieves_shadow = true
 casts_shadow = true
@@ -9,7 +9,7 @@ use_vertex_colour_as_base_colour = false
 inputs = {
     base_colour = {
         map = {
-            resource_name = "DB2X2_L01"
+            resource_name = "orange_lines_512"
             package_name = "Overdrive2069"
         }
     }

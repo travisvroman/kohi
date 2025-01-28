@@ -1,9 +1,17 @@
-newmtl testcube
-illum 4
-Kd 0.00 0.00 0.00
-Ka 0.00 0.00 0.00
-Tf 1.00 1.00 1.00
-map_Kd bark_0021.jpg
-Ni 1.00
-Ks 0.00 0.00 0.00
-Ns 16.00
+# Blender 4.3.2 MTL File: 'None'
+# www.blender.org
+
+newmtl testcube_mat
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+Pr 0.500000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
