@@ -422,6 +422,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Continuous Integration
 - [x] Add git tags to mark version releases (https://github.com/travisvroman/kohi/issues/174)
 - [ ] Nix build compatability (https://github.com/travisvroman/kohi/issues/175)
+- [ ] Scripting language - Kohi Language (KLang) - Thanks for the name idea Dr. Elliot. :)
 
 # Previous Release TODO lists:
 

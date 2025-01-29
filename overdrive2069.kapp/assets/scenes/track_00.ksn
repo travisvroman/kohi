@@ -22,12 +22,18 @@ nodes = [
     }
     {
         name = "test_vehicle"
-        xform = "0 0 0 0 0 0 1.0 1.000000 1.000000 1.000000"
-        attachments = [
+        xform = "0.1 0 0.1 0 0 0 1.0 1.000000 1.000000 1.000000"
+        children = [
             {
-                type = "static_mesh"
-                asset_name = "testcube"
-                package_name = "Overdrive2069"
+                name = "vehicle_mesh"
+                xform = "0.0 0.5 0.1 0 0 0 1.0 0.500000 0.350000 1.000000"
+                attachments = [
+                    {
+                        type = "static_mesh"
+                        asset_name = "testcube"
+                        package_name = "Overdrive2069"
+                    }
+                ]
             }
         ]
     }

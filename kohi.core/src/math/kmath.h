@@ -797,6 +797,23 @@ KINLINE f32 vec3_distance_squared(vec3 vector_0, vec3 vector_1) {
 }
 
 /**
+ * @brief Projects v_0 onto v_1.
+ *
+ * @param v_0 The first vector.
+ * @param v_1 The second vector.
+ * @return The projected vector.
+ */
+KINLINE vec3 vec3_project(vec3 v_0, vec3 v_1) {
+    f32 length_sq = vec3_length_squared(v_1);
+    if (length_sq == 0.0f) {
+        // NOTE: handle divide-by-zero case (i.e. v_1 is a zero vector).
+        return vec3_zero();
+    }
+    f32 scalar = vec3_dot(v_0, v_1) / length_sq;
+    return vec3_mul_scalar(v_1, scalar);
+}
+
+/**
  * @brief Transform v by m.
  * @param v The vector to transform.
  * @param w Pass 1.0f for a point, or 0.0f for a direction.
@@ -2147,4 +2164,42 @@ KINLINE vec3 vec3_mid(vec3 v_0, vec3 v_1) {
         (v_0.x - v_1.x) * 0.5f,
         (v_0.y - v_1.y) * 0.5f,
         (v_0.z - v_1.z) * 0.5f};
+}
+
+KINLINE vec3 vec3_lerp(vec3 v_0, vec3 v_1, f32 t) {
+    return vec3_add(vec3_mul_scalar(v_0, 1.0f - t), vec3_mul_scalar(v_1, t));
+}
+
+KINLINE vec3 triangle_get_normal(const triangle* tri) {
+    vec3 edge1 = vec3_sub(tri->verts[1], tri->verts[0]);
+    vec3 edge2 = vec3_sub(tri->verts[2], tri->verts[0]);
+
+    vec3 normal = vec3_cross(edge1, edge2);
+    return vec3_normalized(normal);
+}
+
+KINLINE quat quat_from_surface_normal(vec3 normal, vec3 reference_up) {
+    normal = vec3_normalized(normal);
+    reference_up = vec3_normalized(reference_up);
+
+    // Compute rotation axis as the cross product
+    vec3 axis = vec3_cross(reference_up, normal);
+    f32 dot = vec3_dot(reference_up, normal);
+
+    // If dot is near 1, the vectors are already aligned, return identity quaternion
+    if (dot > 0.9999f) {
+        return quat_identity();
+    }
+
+    // If dot is near -1, the vectors are opposite, use an arbitrary perpendicular axis
+    if (dot < -0.9999f) {
+        axis = vec3_normalized(vec3_cross(reference_up, (vec3){1, 0, 0})); // Try X-axis
+        if (vec3_length_squared(axis) < K_FLOAT_EPSILON) {
+            axis = vec3_normalized(vec3_cross(reference_up, (vec3){0, 0, 1})); // Try Z-axis
+        }
+    }
+
+    // Compute the quaternion components
+    f32 angle = kacos(dot); // Angle between the vectors
+    return quat_from_axis_angle(axis, angle, false);
 }

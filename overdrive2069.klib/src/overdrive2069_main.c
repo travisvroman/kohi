@@ -372,22 +372,27 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
             f32 delta = get_engine_delta_time();
 
             // HACK: Should be stored elsewhere
-            f32 vehicle_speed = 10.0f;
+            f32 vehicle_speed = 20.0f;
             f32 vehicle_turn_speed = 2.5f;
 
+            vec3 velocity = vec3_zero();
             if (state->mode == GAME_MODE_WORLD) {
                 // Move the vehicle
                 if (input_is_key_down(KEY_W)) {
-                    xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * vehicle_speed));
+                    velocity = vec3_add(velocity, vec3_mul_scalar(forward, delta * vehicle_speed));
+                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * vehicle_speed));
                 }
                 if (input_is_key_down(KEY_S)) {
-                    xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * -vehicle_speed));
+                    velocity = vec3_add(velocity, vec3_mul_scalar(forward, delta * -vehicle_speed));
+                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * -vehicle_speed));
                 }
                 if (input_is_key_down(KEY_Q)) {
-                    xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * -vehicle_speed));
+                    velocity = vec3_add(velocity, vec3_mul_scalar(right, delta * -vehicle_speed));
+                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * -vehicle_speed));
                 }
                 if (input_is_key_down(KEY_E)) {
-                    xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * vehicle_speed));
+                    velocity = vec3_add(velocity, vec3_mul_scalar(right, delta * vehicle_speed));
+                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * vehicle_speed));
                 }
                 if (input_is_key_down(KEY_A)) {
                     quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, -vehicle_turn_speed * delta, false);
@@ -399,14 +404,29 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
                 }
             }
 
-            // TODO: not sure if this has to be done or not.
+            // Constrain to the track.
+            vehicle_xform = xform_local_get(state->test_vehicle_xform);
+            vehicle_position = mat4_position(vehicle_xform);
+
+            vec3 surface_normal = vec3_up();
+            vehicle_position = constrain_to_track(vehicle_position, velocity, &state->collision_track, &surface_normal);
+            // xform_position_set(state->test_vehicle_xform, vec3_add(vehicle_position, velocity));
+            xform_position_set(state->test_vehicle_xform, vehicle_position);
+            // KTRACE("surface normal: %.2f, %.2f, %.2f", surface_normal.x, surface_normal.y, surface_normal.z);
+
+            // TODO: This doesn't seem to be working correctly...
+            quat vehicle_rotation_from_normal = quat_from_surface_normal(surface_normal, vec3_up());
+            xform_rotation_set(state->test_vehicle_mesh_xform, vehicle_rotation_from_normal);
+            xform_calculate_local(state->test_vehicle_mesh_xform);
+
             xform_calculate_local(state->test_vehicle_xform);
+
             vehicle_xform = xform_local_get(state->test_vehicle_xform);
 
             // Update vehicle camera to follow.
-            f32 chase_distance = 5.0;
+            f32 chase_distance = 10.0;
             vec3 backward_offset = vec3_mul_scalar(forward, -chase_distance);
-            vec3 upward_offset = vec3_create(0.0f, 2.0f, 0.0f);
+            vec3 upward_offset = vec3_create(0.0f, 3.0f, 0.0f);
             vec3 camera_position = vec3_add(vec3_add(vehicle_position, backward_offset), upward_offset);
             camera_position_set(state->vehicle_camera, camera_position);
 
@@ -1446,6 +1466,10 @@ static void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_mod
 
         if (!scene_node_xform_get_by_name(&state->track_scene, kname_create("test_vehicle"), &state->test_vehicle_xform)) {
             KERROR("Unable to get test vehicle.");
+        }
+
+        if (!scene_node_xform_get_by_name(&state->track_scene, kname_create("vehicle_mesh"), &state->test_vehicle_mesh_xform)) {
+            KERROR("Unable to get test vehicle mesh.");
         }
 
         // Actually load the scene.

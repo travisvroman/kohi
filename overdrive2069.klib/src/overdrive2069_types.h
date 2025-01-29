@@ -67,6 +67,7 @@ typedef struct game_state {
 
     // HACK: Gameplay stuff
     khandle test_vehicle_xform;
+    khandle test_vehicle_mesh_xform;
 } game_state;
 
 typedef struct overdrive_2069_frame_data {
