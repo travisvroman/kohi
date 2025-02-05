@@ -1,12 +1,17 @@
 #include "track.h"
 #include "core/engine.h"
+#include "core_physics_types.h"
 #include "defines.h"
 #include "logger.h"
 #include "math/geometry.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
+#include "physics/kphysics_system.h"
+#include "physics/physics_types.h"
 #include "renderer/renderer_frontend.h"
+#include "strings/kname.h"
+#include "strings/kstring.h"
 #include "systems/material_system.h"
 
 #include <containers/darray.h>
@@ -37,19 +42,22 @@ b8 track_create(track* out_track) {
     }
 
     // HACK: defining some hardcoded stuff for now - should be configurable.
-    const u32 point_count = 8;
+    const u32 point_count = 11;
     out_track->points = darray_reserve(track_point, point_count);
     darray_length_set(out_track->points, point_count);
 
-    // Position, left_width, left_height, right_width, right_height, rotation_y
-    out_track->points[0] = (track_point){{-10.0f, -0.5f, 0.0f}, 10.0f, 0.0f, 12.0f, 0.25f, deg_to_rad(0.0f)};
-    out_track->points[1] = (track_point){{10.0f, 2.0f, 00.0f}, 8.0f, 0.25f, 3.0f, 0.5f, deg_to_rad(45.0f)};
-    out_track->points[2] = (track_point){{50.0f, 5.0f, 100.0f}, 9.0f, -0.5f, 6.0f, 1.0f, deg_to_rad(90.0f)};
-    out_track->points[3] = (track_point){{75.0f, 6.0f, 200.0f}, 6.0f, 1.0f, 10.0f, 1.5f, deg_to_rad(135.0f)};
-    out_track->points[4] = (track_point){{20.0f, 6.0f, 230.0f}, 5.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(180.0f)};
-    out_track->points[5] = (track_point){{-50.0f, 5.0f, 200.0f}, 4.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(270.0f)};
-    out_track->points[6] = (track_point){{-20.0f, 5.0f, 100.0f}, 8.0f, 1.0f, 8.0f, 1.5f, deg_to_rad(270.0f)};
-    out_track->points[7] = (track_point){{-10.0f, -0.5f, 0.0f}, 10.0f, 0.0f, 12.0f, 0.25f, deg_to_rad(0.0f)}; // last should be the same as the first to loop
+    // Position, left_width, left_height, right_width, right_height, rotation_y, left_rail_height, left_rail_width, right_rail_height, right_rail_width
+    out_track->points[0] = (track_point){{-10.0f, -0.5f, 0.0f}, 10.0f, 0.0f, 12.0f, 0.25f, deg_to_rad(0.0f), 1.0f, 3.0f, 1.0f, 3.0f};
+    out_track->points[1] = (track_point){{10.0f, 2.0f, 00.0f}, 8.0f, 0.25f, 3.0f, 0.5f, deg_to_rad(45.0f), 2.0f, 0.0f, 2.0f, 0.0f};
+    out_track->points[2] = (track_point){{50.0f, 5.0f, 100.0f}, 9.0f, -0.5f, 6.0f, 1.0f, deg_to_rad(90.0f), 2.0f, 0.0f, 2.0f, 0.0f};
+    out_track->points[3] = (track_point){{75.0f, 6.0f, 200.0f}, 6.0f, 1.0f, 10.0f, 1.5f, deg_to_rad(135.0f), 2.0f, 0.0f, 2.0f, 0.0f};
+    out_track->points[4] = (track_point){{20.0f, 6.0f, 230.0f}, 5.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(180.0f), 2.0f, 0.0f, 2.0f, 0.0f};
+    out_track->points[5] = (track_point){{-50.0f, 5.0f, 200.0f}, 4.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
+    out_track->points[6] = (track_point){{-50.0f, 10.0f, 159.0f}, 4.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
+    out_track->points[7] = (track_point){{-50.0f, -1.0f, 158.0f}, 4.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
+    out_track->points[8] = (track_point){{-50.0f, 2.0f, 100.0f}, 8.0f, 1.0f, 8.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
+    out_track->points[9] = (track_point){{-25.0f, 2.0f, 10.0f}, 8.0f, 1.0f, 8.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
+    out_track->points[10] = (track_point){{-10.0f, -0.5f, 0.0f}, 10.0f, 0.0f, 12.0f, 0.25f, deg_to_rad(0.0f), 1.0f, 3.0f, 1.0f, 3.0f}; // last should be the same as the first to loop
 
     // Number of divisions to make per segment.
     out_track->segment_resolution = 10;
@@ -93,9 +101,9 @@ b8 track_initialize(track* trk) {
         segment->geometry.generation = INVALID_ID_U16;
         segment->geometry.vertex_buffer_offset = INVALID_ID_U64;
         segment->geometry.index_buffer_offset = INVALID_ID_U64;
-        segment->geometry.vertex_count = 3 + (3 * trk->segment_resolution);
+        segment->geometry.vertex_count = 5 + (5 * trk->segment_resolution);
         segment->geometry.vertices = KALLOC_TYPE_CARRAY(vertex_3d, segment->geometry.vertex_count);
-        segment->geometry.index_count = 12 * trk->segment_resolution; // 6 per face, 2 faces per segment Tessellation
+        segment->geometry.index_count = 24 * trk->segment_resolution; // 6 per face, 4 faces per segment Tessellation
         segment->geometry.indices = KALLOC_TYPE_CARRAY(u32, segment->geometry.index_count);
 
         // Triangle and adjacency data.
@@ -113,15 +121,37 @@ b8 track_initialize(track* trk) {
         vec3 end_direction = {kcos(segment->end->rotation_y), 0.0f, ksin(segment->end->rotation_y)};
         vec3 end_normal = vec3_cross(end_direction, vec3_up());
 
+        // Start: Left side of the track
         vec3 start_left = vec3_add(segment->start->position, vec3_mul_scalar(start_normal, -segment->start->left_width));
         start_left.y += segment->start->left_height;
+
+        // Start: Left railing, which can further extend outward
+        vec3 start_left_rail = vec3_add(start_left, vec3_mul_scalar(start_normal, -segment->start->left_rail_width));
+        start_left_rail.y = start_left.y + segment->start->left_rail_height;
+
+        // Start: Right side of the track.
         vec3 start_right = vec3_add(segment->start->position, vec3_mul_scalar(start_normal, segment->start->right_width));
         start_right.y += segment->start->right_height;
 
+        // Start: Right railing, which can further extend outward
+        vec3 start_right_rail = vec3_add(start_right, vec3_mul_scalar(start_normal, segment->start->right_rail_width));
+        start_right_rail.y = start_right.y + segment->start->right_rail_height;
+
+        // End: Left side of the track
         vec3 end_left = vec3_add(segment->end->position, vec3_mul_scalar(end_normal, -segment->end->left_width));
         end_left.y += segment->end->left_height;
+
+        // End: Left railing, which can further extend outward
+        vec3 end_left_rail = vec3_add(end_left, vec3_mul_scalar(end_normal, -segment->end->left_rail_width));
+        end_left_rail.y = end_left.y + segment->end->left_rail_height;
+
+        // End: Right side of the track
         vec3 end_right = vec3_add(segment->end->position, vec3_mul_scalar(end_normal, segment->end->right_width));
         end_right.y += segment->end->right_height;
+
+        // End: Right railing, which can further extend outward
+        vec3 end_right_rail = vec3_add(end_right, vec3_mul_scalar(end_normal, segment->end->right_rail_width));
+        end_right_rail.y = end_right.y + segment->end->right_rail_height;
 
         // Save off the end points for later.
         segment->start->left = start_left;
@@ -130,16 +160,24 @@ b8 track_initialize(track* trk) {
         segment->end->right = end_right;
 
         // Tessellation
-        for (u32 t = 0; t <= trk->segment_resolution; ++t, vi += 3) {
+        for (u32 t = 0; t <= trk->segment_resolution; ++t, vi += 5) {
             // How far into the segment this iteration is.
             f32 pct = (f32)t / (f32)trk->segment_resolution;
 
             // Interpolate center using bezier
             f32 handle_factor = vec3_distance(segment->start->position, segment->end->position);
-            handle_factor *= 0.5f;                                                                                                       // proportion
+            handle_factor *= 0.5f; // proportion
+            // center
             vec3 center_handle_0 = default_handle(segment->start->position, segment->start->rotation_y, handle_factor);                  // forward handle
             vec3 center_handle_1 = default_handle(segment->end->position, segment->end->rotation_y + deg_to_rad(180.0f), handle_factor); // backward handle
             vec3 center = calculate_bezier(segment->start->position, segment->end->position, center_handle_0, center_handle_1, pct);
+
+            // left rail
+            handle_factor = vec3_distance(start_left_rail, end_left_rail);
+            handle_factor *= 0.5f;                                                                                                 // proportion
+            vec3 left_rail_handle_0 = default_handle(start_left_rail, segment->start->rotation_y, handle_factor);                  // forward handle
+            vec3 left_rail_handle_1 = default_handle(end_left_rail, segment->end->rotation_y + deg_to_rad(180.0f), handle_factor); // backward handle
+            vec3 left_rail = calculate_bezier(start_left_rail, end_left_rail, left_rail_handle_0, left_rail_handle_1, pct);
 
             // left
             handle_factor = vec3_distance(start_left, end_left);
@@ -147,6 +185,13 @@ b8 track_initialize(track* trk) {
             vec3 left_handle_0 = default_handle(start_left, segment->start->rotation_y, handle_factor);                  // forward handle
             vec3 left_handle_1 = default_handle(end_left, segment->end->rotation_y + deg_to_rad(180.0f), handle_factor); // backward handle
             vec3 left = calculate_bezier(start_left, end_left, left_handle_0, left_handle_1, pct);
+
+            // right rail
+            handle_factor = vec3_distance(start_right_rail, end_right_rail);
+            handle_factor *= 0.5f;                                                                                                   // proportion
+            vec3 right_rail_handle_0 = default_handle(start_right_rail, segment->start->rotation_y, handle_factor);                  // forward handle
+            vec3 right_rail_handle_1 = default_handle(end_right_rail, segment->end->rotation_y + deg_to_rad(180.0f), handle_factor); // backward handle
+            vec3 right_rail = calculate_bezier(start_right_rail, end_right_rail, right_rail_handle_0, right_rail_handle_1, pct);
 
             // right
             handle_factor = vec3_distance(start_right, end_right);
@@ -158,103 +203,79 @@ b8 track_initialize(track* trk) {
             // Vertex data.
 
             // store in the vertex array.
-            // Left
-            verts[vi + 0].position = left;
+            // Left rail
+            verts[vi + 0].position = left_rail;
             verts[vi + 0].normal = (vec3){0, 0, 1};
-            verts[vi + 0].texcoord.u = -1.0f;
+            verts[vi + 0].texcoord.u = -2.0f;
             verts[vi + 0].texcoord.v = pct;
-            // Center
-            verts[vi + 1].position = center;
+            // Left
+            verts[vi + 1].position = left;
             verts[vi + 1].normal = (vec3){0, 0, 1};
-            verts[vi + 1].texcoord.u = 0.0f;
+            verts[vi + 1].texcoord.u = -1.0f;
             verts[vi + 1].texcoord.v = pct;
-            // Right
-            verts[vi + 2].position = right;
+            // Center
+            verts[vi + 2].position = center;
             verts[vi + 2].normal = (vec3){0, 0, 1};
-            verts[vi + 2].texcoord.u = 1.0f;
+            verts[vi + 2].texcoord.u = 0.0f;
             verts[vi + 2].texcoord.v = pct;
+            // Right
+            verts[vi + 3].position = right;
+            verts[vi + 3].normal = (vec3){0, 0, 1};
+            verts[vi + 3].texcoord.u = 1.0f;
+            verts[vi + 3].texcoord.v = pct;
+            // Right rail
+            verts[vi + 4].position = right_rail;
+            verts[vi + 4].normal = (vec3){0, 0, 1};
+            verts[vi + 4].texcoord.u = 2.0f;
+            verts[vi + 4].texcoord.v = pct;
 
             // Generate index data per segment. This looks forward to the next
             // tessellated face. So skip the last iteration. Also generate triangle
             // adjacency data
             if (t < trk->segment_resolution) {
-                // left, first triangle
+
+                // left rail, first triangle
                 indices[ii + 0] = vi + 0;
                 indices[ii + 1] = vi + 1;
-                indices[ii + 2] = vi + 3;
+                indices[ii + 2] = vi + 5;
 
-                // left, second triangle
+                // left rail, second triangle
                 indices[ii + 3] = vi + 1;
-                indices[ii + 4] = vi + 4;
-                indices[ii + 5] = vi + 3;
+                indices[ii + 4] = vi + 6;
+                indices[ii + 5] = vi + 5;
 
-                // right, first triangle
+                // left, first triangle
                 indices[ii + 6] = vi + 1;
                 indices[ii + 7] = vi + 2;
-                indices[ii + 8] = vi + 4;
+                indices[ii + 8] = vi + 6;
+
+                // left, second triangle
+                indices[ii + 9] = vi + 2;
+                indices[ii + 10] = vi + 7;
+                indices[ii + 11] = vi + 6;
+
+                // right, first triangle
+                indices[ii + 12] = vi + 2;
+                indices[ii + 13] = vi + 3;
+                indices[ii + 14] = vi + 7;
 
                 // right, second triangle
-                indices[ii + 9] = vi + 2;
-                indices[ii + 10] = vi + 5;
-                indices[ii + 11] = vi + 4;
+                indices[ii + 15] = vi + 3;
+                indices[ii + 16] = vi + 8;
+                indices[ii + 17] = vi + 7;
 
-                ii += 12;
+                // right rail, first triangle
+                indices[ii + 18] = vi + 3;
+                indices[ii + 19] = vi + 4;
+                indices[ii + 20] = vi + 8;
+
+                // right rail, second triangle
+                indices[ii + 21] = vi + 4;
+                indices[ii + 22] = vi + 9;
+                indices[ii + 23] = vi + 8;
+
+                ii += 24;
             }
-        }
-
-        // Reset vertex index and index index.
-        vi = 0;
-        ii = 0;
-
-        // Generate triangle adjacency data per segment. This looks forward to the next
-        // tessellated face, So skip the last iteration.
-        for (u32 t = 0; t < trk->segment_resolution; ++t, vi += 3) {
-
-            // left, first triangle
-            u32 tri_idx = (t * 4) + 0;
-            triangle_with_adjacency* twa = &segment->triangles[tri_idx];
-            twa->tri.verts[0] = verts[vi + 0].position;
-            twa->tri.verts[1] = verts[vi + 1].position;
-            twa->tri.verts[2] = verts[vi + 3].position;
-            twa->adjacent_triangles[0] = t == 0 ? INVALID_ID : (((t - 1) * 4) + 1); // previous row, second tri
-            twa->adjacent_triangles[1] = tri_idx + 1;                               // next triangle
-            twa->adjacent_triangles[2] = INVALID_ID;                                // left-most tri has nothing to its left.
-            twa->index = tri_idx;
-
-            // left, second triangle
-            tri_idx++;
-            twa = &segment->triangles[tri_idx];
-            twa->tri.verts[0] = verts[vi + 1].position;
-            twa->tri.verts[1] = verts[vi + 4].position;
-            twa->tri.verts[2] = verts[vi + 3].position;
-            twa->adjacent_triangles[0] = tri_idx + 1;                                                           // next triangle
-            twa->adjacent_triangles[1] = t == (trk->segment_resolution - 1) ? INVALID_ID : (((t + 1) * 4) + 0); // next row, first tri
-            twa->adjacent_triangles[2] = tri_idx - 1;                                                           // previous triangle
-            twa->index = tri_idx;
-
-            // right, first triangle
-            tri_idx++;
-            twa = &segment->triangles[tri_idx];
-            twa->tri.verts[0] = verts[vi + 1].position;
-            twa->tri.verts[1] = verts[vi + 2].position;
-            twa->tri.verts[2] = verts[vi + 4].position;
-            twa->adjacent_triangles[0] = t == 0 ? INVALID_ID : (((t - 1) * 4) + 3); // previous row, fourth tri
-            twa->adjacent_triangles[1] = tri_idx + 1;                               // next triangle
-            twa->adjacent_triangles[2] = tri_idx - 1;                               // previous triangle
-            twa->index = tri_idx;
-
-            // right, second triangle
-            tri_idx++;
-            twa = &segment->triangles[tri_idx];
-            twa->tri.verts[0] = verts[vi + 2].position;
-            twa->tri.verts[1] = verts[vi + 5].position;
-            twa->tri.verts[2] = verts[vi + 4].position;
-            twa->adjacent_triangles[0] = INVALID_ID;                                                            // Nothing to the right of the rightmost tri
-            twa->adjacent_triangles[1] = t == (trk->segment_resolution - 1) ? INVALID_ID : (((t + 1) * 4) + 2); // next row, third tri
-            twa->adjacent_triangles[2] = tri_idx - 1;                                                           // previous triangle
-            twa->index = tri_idx;
-
-            ii += 12;
         }
 
         // geometry_generate_normals(segment->geometry.vertex_count, verts, segment->geometry.index_count, indices);
@@ -264,7 +285,7 @@ b8 track_initialize(track* trk) {
     return true;
 }
 
-b8 track_load(track* t) {
+b8 track_load(track* t, kphysics_world* physics_world) {
     if (!t) {
         return false;
     }
@@ -275,12 +296,37 @@ b8 track_load(track* t) {
         KERROR("Failed to load material!");
     }
 
+    t->pjysics_world = physics_world;
+
     // Upload the geometry to the GPU. This is only needed to visualize the track.
     u32 segment_count = darray_length(t->segments);
     for (u32 i = 0; i < segment_count; ++i) {
         track_segment* segment = &t->segments[i];
         if (!renderer_geometry_upload(&segment->geometry)) {
             KERROR("Failed to upload geometry for track segment. Track load failed.");
+            return false;
+        }
+
+        // Ensure the segment has triangle data loaded for its geometry.
+        if (!segment->geometry.tris) {
+            if (!geometry_calculate_triangles(&segment->geometry)) {
+                KERROR("Triangle generation failed for track segment geometry. See logs for details.");
+                return false;
+            }
+        }
+
+        // Create a static physics body for each segment.
+        char* seg_name = string_format("segment_%u", i);
+        // Add to physics world (pass in after querying from scene)
+        if (!kphysics_body_create_mesh(engine_systems_get()->physics_system, kname_create(seg_name), vec3_zero(), segment->geometry.triangle_count, segment->geometry.tris, KPHYSICS_BODY_TYPE_STATIC, &segment->physics_body)) {
+            KERROR("Failed to create mesh body for physics body attachment. See logs for details.");
+            continue;
+        }
+        string_free(seg_name);
+
+        // Add to physics world.
+        if (!kphysics_world_add_body(engine_systems_get()->physics_system, t->pjysics_world, segment->physics_body)) {
+            KERROR("Failed to add track segment to physics world. See logs for details.");
             return false;
         }
     }
@@ -296,7 +342,14 @@ void track_unload(track* t) {
         // Upload the geometry to the GPU. This is only needed to visualize the track.
         u32 segment_count = darray_length(t->segments);
         for (u32 i = 0; i < segment_count; ++i) {
-            renderer_geometry_destroy(&t->segments[i].geometry);
+            track_segment* segment = &t->segments[i];
+
+            kphysics_world_remove_body(engine_systems_get()->physics_system, t->pjysics_world, segment->physics_body);
+            // Destroy physics body.
+            kphysics_body_destroy(engine_systems_get()->physics_system, &segment->physics_body);
+
+            // Destroy the geometry.
+            renderer_geometry_destroy(&segment->geometry);
         }
     }
 }
@@ -320,7 +373,7 @@ void track_destroy(track* t) {
     }
 }
 
-b8 is_point_inside_triangle(vec3 point, const triangle* tri) {
+b8 is_point_inside_triangle(vec3 point, const triangle_3d* tri) {
     vec3 edge_0 = vec3_sub(tri->verts[2], tri->verts[0]);
     vec3 edge_1 = vec3_sub(tri->verts[1], tri->verts[0]);
     vec3 v0_to_point = vec3_sub(point, tri->verts[0]);
@@ -364,7 +417,7 @@ vec3 get_closest_point_on_edge(vec3 point, vec3 edge_start, vec3 edge_end) {
     return vec3_add(edge_start, vec3_mul_scalar(edge, t));
 }
 
-vec3 get_closest_point_on_triangle_edges(vec3 point, const triangle* tri) {
+vec3 get_closest_point_on_triangle_edges(vec3 point, const triangle_3d* tri) {
     vec3 closest_on_edge[3];
     f32 distances[3];
     for (u8 i = 0; i < 3; ++i) {
@@ -380,15 +433,15 @@ vec3 get_closest_point_on_triangle_edges(vec3 point, const triangle* tri) {
     }
 }
 
-triangle find_closest_triangle(vec3 point, const kgeometry* geometry) {
+triangle_3d find_closest_triangle(vec3 point, const kgeometry* geometry) {
     vertex_3d* verts = geometry->vertices;
     u32* indices = geometry->indices;
     // TODO: use a BVH or something here
     f32 closest_distance = K_FLOAT_MAX;
-    triangle closest_triangle;
+    triangle_3d closest_triangle;
 
     for (u32 i = 0; i < geometry->index_count; i += 3) {
-        triangle t;
+        triangle_3d t;
         for (u32 j = 0; j < 3; ++j) {
             t.verts[j] = verts[indices[i + j]].position;
         }
@@ -406,7 +459,7 @@ triangle find_closest_triangle(vec3 point, const kgeometry* geometry) {
     return closest_triangle;
 }
 
-vec3 get_closest_point_on_triangle(vec3 point, const triangle* tri) {
+vec3 get_closest_point_on_triangle(vec3 point, const triangle_3d* tri) {
     vec3 p0 = tri->verts[0];
     vec3 p1 = tri->verts[1];
     vec3 p2 = tri->verts[2];
@@ -480,7 +533,7 @@ i32 constrain_to_track_segment(vec3 point, vec3 velocity, track* trk, track_segm
                 normal)));
 
     // Get and report the triangle's surface normal.
-    *out_surface_normal = triangle_get_normal(&closest_triangle->tri);
+    *out_surface_normal = triangle_3d_get_normal(&closest_triangle->tri);
 
     // Check if inside the triangle.
     if (is_point_inside_triangle(projected_position, &closest_triangle->tri)) {

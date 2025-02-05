@@ -168,7 +168,7 @@ vec3 hierarchy_graph_world_position_get(const hierarchy_graph* graph, khandle no
     }
 
     mat4 world = xform_world_get(graph->xform_handles[node_handle.handle_index]);
-    vec3 world_pos = mat4_position(world);
+    vec3 world_pos = mat4_position_get(&world);
 
     return world_pos;
 }

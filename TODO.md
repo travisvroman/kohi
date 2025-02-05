@@ -6,6 +6,17 @@ The items in this list are not in any particular order. This list will be update
 
 ## 0.9.0 Release
 
+- [ ] Simple Physics System (kphysics)
+  - [x] Store triangle data in kgeometry.
+        NOTE: This should be optional, and not done by default. A function could be added to (re)generate
+        this and store it on the kgeometry.
+  - [ ] Static bodies that don't move/react to collision.
+    - [ ] Sphere
+    - [ ] Rectangle (OBB)
+    - [ ] Triangle-based mesh
+  - [ ] Dynamic bodies that _do_ move/react to collision.
+    - [ ] Sphere
+    - [ ] Rectangle (OBB)
 - [ ] Rework freelist to take alignment into account.
   - [ ] Rework renderbuffer to take alignment in during creation, and use said alignment for allocations.
   - [ ] Change Vulkan backend to use actual uniform size instead of stride when allocating from renderbuffer.

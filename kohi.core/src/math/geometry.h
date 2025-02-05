@@ -66,6 +66,9 @@ typedef struct kgeometry {
     void* indices;
     /** @brief The offset from the beginning of the index buffer. */
     u64 index_buffer_offset;
+
+    u32 triangle_count;
+    triangle_3d* tris;
 } kgeometry;
 
 typedef enum grid_orientation {
@@ -253,3 +256,11 @@ KAPI kgeometry geometry_generate_grid(grid_orientation orientation, u32 segment_
  * @param geometry A pointer to the geometry to be destroyed.
  */
 KAPI void geometry_destroy(kgeometry* geometry);
+
+/**
+ * @brief Generates triangle data for the given geometry.
+ *
+ * @param geometry A pointer to the geometry for which to generate the data.
+ * @return True on success; otherwise false.
+ */
+KAPI b8 geometry_calculate_triangles(kgeometry* geometry);

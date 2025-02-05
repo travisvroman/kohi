@@ -19,3 +19,7 @@ const char* time_as_string_from_seconds(f32 total_seconds) {
 
     return string_format("%02u:%02u:%02u.%02u", hours, minutes, seconds, (u32)(fractional_seconds * 100));
 }
+
+u64 milliseconds_from_seconds_f64(f64 seconds) {
+    return (u64)(seconds * 1000);
+}

@@ -3,6 +3,7 @@ app_name = "Overdrive: 2069"
 frame_allocator_size = 128
 app_frame_data_size = 128
 manifest_file_path = "../overdrive2069.kapp/asset_manifest.kson"
+clamp_fps=0
 windows = [
    {
     resolution = "1280 720"

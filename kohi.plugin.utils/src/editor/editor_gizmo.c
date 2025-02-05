@@ -130,7 +130,7 @@ void editor_gizmo_refresh(editor_gizmo* gizmo) {
         if (!khandle_is_invalid(gizmo->selected_xform_handle)) {
             // Set the position.
             mat4 world = xform_world_get(gizmo->selected_xform_handle);
-            vec3 world_position = mat4_position(world);
+            vec3 world_position = mat4_position_get(&world);
             xform_position_set(gizmo->xform_handle, world_position);
 
             // If local, set rotation.

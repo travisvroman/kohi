@@ -1,6 +1,10 @@
 version = 2
 name = "Track 0"
 description = "The very first test track."
+physics = {
+    enabled = true
+    gravity = "0 -9.81 0"
+}
 nodes = [
     {
         name = "environment"
@@ -22,7 +26,7 @@ nodes = [
     }
     {
         name = "test_vehicle"
-        xform = "0.1 0 0.1 0 0 0 1.0 1.000000 1.000000 1.000000"
+        xform = "0.1 10 0.1 0 0 0 1.0 1.000000 1.000000 1.000000"
         children = [
             {
                 name = "vehicle_mesh"
@@ -34,6 +38,16 @@ nodes = [
                         package_name = "Overdrive2069"
                     }
                 ]
+            }
+        ]
+        attachments = [
+            {
+                type = "physics_body"
+                name = "test_vehicle_physics_body"
+                body_type = "dynamic"
+                shape_type = "sphere"
+                radius = 0.5
+                extents = "0.5 0.35 1.0"
             }
         ]
     }

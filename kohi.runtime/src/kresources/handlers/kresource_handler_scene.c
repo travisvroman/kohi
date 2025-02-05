@@ -105,6 +105,10 @@ static void destroy_scene_node(scene_node_config* root) {
                 darray_destroy(root->water_plane_configs);
                 root->water_plane_configs = 0;
             }
+            if (root->physics_body_configs) {
+                darray_destroy(root->physics_body_configs);
+                root->physics_body_configs = 0;
+            }
         }
 
         if (root->xform_source) {
@@ -184,6 +188,9 @@ static void copy_scene_node(const scene_node_config* source, scene_node_config* 
         if (source->audio_emitter_configs) {
             target->audio_emitter_configs = darray_duplicate(scene_node_attachment_audio_emitter_config, source->audio_emitter_configs);
         }
+        if (source->physics_body_configs) {
+            target->physics_body_configs = darray_duplicate(scene_node_attachment_physics_body_config, source->physics_body_configs);
+        }
     }
 
     target->child_count = source->child_count;
@@ -205,6 +212,9 @@ static void asset_to_resource(const kasset_scene* asset, kresource_scene* out_sc
     if (asset->description) {
         out_scene_resource->description = string_duplicate(asset->description);
     }
+
+    out_scene_resource->physics_enabled = asset->physics_enabled;
+    out_scene_resource->physics_gravity = asset->physics_gravity;
 
     out_scene_resource->node_count = asset->node_count;
 

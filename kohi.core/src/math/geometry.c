@@ -906,3 +906,31 @@ void geometry_destroy(kgeometry* geometry) {
         geometry->index_buffer_offset = INVALID_ID_U64;
     }
 }
+
+b8 geometry_calculate_triangles(kgeometry* geometry) {
+    if (!geometry) {
+        return false;
+    }
+
+    if (geometry->index_count % 3) {
+        KERROR("Invalid index count that is not divisible by 3, thus a incomplete/degenerate triangle exists.");
+        return false;
+    }
+
+    // NOTE: This assumes a triangle list. A strip would not work here.
+    geometry->triangle_count = geometry->index_count / 3;
+    geometry->tris = KALLOC_TYPE_CARRAY(triangle_3d, geometry->triangle_count);
+
+    u32 ii = 0;
+    vertex_3d* verts = geometry->vertices;
+    u32* indices = geometry->indices;
+
+    for (u32 t = 0; t < geometry->triangle_count; ++t, ii += 3) {
+        triangle_3d* tri = &geometry->tris[t];
+        tri->verts[0] = verts[indices[ii + 0]].position;
+        tri->verts[1] = verts[indices[ii + 1]].position;
+        tri->verts[2] = verts[indices[ii + 2]].position;
+    }
+
+    return true;
+}

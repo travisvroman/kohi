@@ -188,6 +188,8 @@ KAPI void xform_translate_rotate(khandle t, vec3 translation, quat rotation);
  */
 KAPI void xform_calculate_local(khandle t);
 
+KAPI void xform_local_set(khandle t, mat4 local);
+
 /**
  * @brief Retrieves the local xformation matrix from the provided xform.
  * Automatically recalculates the matrix if it is dirty. Otherwise, the already

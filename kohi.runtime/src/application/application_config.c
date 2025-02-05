@@ -1,5 +1,6 @@
 #include "application_config.h"
 #include "containers/darray.h"
+#include "defines.h"
 #include "logger.h"
 #include "math/kmath.h"
 #include "parsers/kson_parser.h"
@@ -38,6 +39,16 @@ b8 application_config_parse_file_content(const char* file_content, application_c
     } else {
         out_config->frame_allocator_size = (u64)frame_alloc_size;
     }
+
+#if KOHI_DEBUG
+    // clamp_fps is optional and only available on debug builds, so use a defualt if it isn't defined.
+    i64 clamp_fps_i64 = 0; // kson doesn't do unsigned ints, so convert it after.
+    if (!kson_object_property_value_get_int(&app_config_tree.root, "clamp_fps", &clamp_fps_i64)) {
+        out_config->clamp_fps = 0;
+    } else {
+        out_config->clamp_fps = KCLAMP(clamp_fps_i64, 0, 255);
+    }
+#endif
 
     // app_frame_data_size is optional, so use a defualt if it isn't defined.
     // NOTE: It's likely the application will want to override this anyway with a sizeof(some_struct).

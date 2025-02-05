@@ -111,6 +111,9 @@ typedef struct engine_system_states {
 
     u64 kresource_system_memory_requirement;
     struct kresource_system_state* kresource_state;
+
+    u64 physics_system_memory_requirement;
+    struct kphysics_system_state* physics_system;
 } engine_system_states;
 
 /**

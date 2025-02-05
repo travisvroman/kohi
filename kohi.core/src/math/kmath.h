@@ -200,8 +200,24 @@ KAPI f32 klog(f32 x);
  */
 KAPI f32 klog2(f32 x);
 
+/**
+ * @brief Raises x to the power of y.
+ *
+ * @param x The number to be raised.
+ * @param y The exponent to raise to.
+ * @return The value of x raised to the power of y.
+ */
 KAPI f32 kpow(f32 x, f32 y);
 
+/**
+ * @brief Calculates a linear value between a and b based on parameter t.
+ *
+ * Any value of t outside the range of 0-1 extends beyond a or b, respectively.
+ *
+ * @param a The start number.
+ * @param b The target number.
+ * @param t Interpolation parameter, typically between 0 and 1.
+ */
 KINLINE f32 klerp(f32 a, f32 b, f32 t) {
     return a + t * (b - a);
 }
@@ -286,6 +302,93 @@ KINLINE b8 kfloat_compare(f32 f_0, f32 f_1) {
     return kabs(f_0 - f_1) < K_FLOAT_EPSILON;
 }
 
+/**
+ * @brief Converts provided degrees to radians.
+ *
+ * @param degrees The degrees to be converted.
+ * @return The amount in radians.
+ */
+KINLINE f32 deg_to_rad(f32 degrees) { return degrees * K_DEG2RAD_MULTIPLIER; }
+
+/**
+ * @brief Converts provided radians to degrees.
+ *
+ * @param radians The radians to be converted.
+ * @return The amount in degrees.
+ */
+KINLINE f32 rad_to_deg(f32 radians) { return radians * K_RAD2DEG_MULTIPLIER; }
+
+/**
+ * @brief Converts value from the "old" range to the "new" range.
+ *
+ * @param value The value to be converted.
+ * @param from_min The minimum value from the old range.
+ * @param from_max The maximum value from the old range.
+ * @param to_min The minimum value from the new range.
+ * @param to_max The maximum value from the new range.
+ * @return The converted value.
+ */
+KINLINE f32 range_convert_f32(f32 value, f32 old_min, f32 old_max, f32 new_min,
+                              f32 new_max) {
+    return (((value - old_min) * (new_max - new_min)) / (old_max - old_min)) +
+           new_min;
+}
+
+/**
+ * @brief Converts rgb int values [0-255] to a single 32-bit integer.
+ *
+ * @param r The red value [0-255].
+ * @param g The green value [0-255].
+ * @param b The blue value [0-255].
+ * @param out_u32 A pointer to hold the resulting integer.
+ */
+KINLINE void rgbu_to_u32(u32 r, u32 g, u32 b, u32* out_u32) {
+    *out_u32 = (((r & 0x0FF) << 16) | ((g & 0x0FF) << 8) | (b & 0x0FF));
+}
+
+/**
+ * @brief Converts the given 32-bit integer to rgb values [0-255].
+ *
+ * @param rgbu The integer holding a rgb value.
+ * @param out_r A pointer to hold the red value.
+ * @param out_g A pointer to hold the green value.
+ * @param out_b A pointer to hold the blue value.
+ */
+KINLINE void u32_to_rgb(u32 rgbu, u32* out_r, u32* out_g, u32* out_b) {
+    *out_r = (rgbu >> 16) & 0x0FF;
+    *out_g = (rgbu >> 8) & 0x0FF;
+    *out_b = (rgbu) & 0x0FF;
+}
+
+/**
+ * @brief Converts rgb integer values [0-255] to a vec3 of floating-point values
+ * [0.0-1.0]
+ *
+ * @param r The red value [0-255].
+ * @param g The green value [0-255].
+ * @param b The blue value [0-255].
+ * @param out_v A pointer to hold the vector of floating-point values.
+ */
+KINLINE void rgb_u32_to_vec3(u32 r, u32 g, u32 b, vec3* out_v) {
+    out_v->r = r / 255.0f;
+    out_v->g = g / 255.0f;
+    out_v->b = b / 255.0f;
+}
+
+/**
+ * @brief Converts a vec3 of rgbvalues [0.0-1.0] to integer rgb values [0-255].
+ *
+ * @param v The vector of rgb values [0.0-1.0] to be converted.
+ * @param out_r A pointer to hold the red value.
+ * @param out_g A pointer to hold the green value.
+ * @param out_b A pointer to hold the blue value.
+ */
+KINLINE void vec3_to_rgb_u32(vec3 v, u32* out_r, u32* out_g, u32* out_b) {
+    *out_r = v.r * 255;
+    *out_g = v.g * 255;
+    *out_b = v.b * 255;
+}
+
 // ------------------------------------------
 // Vector 2
 // ------------------------------------------
@@ -298,10 +401,9 @@ KINLINE b8 kfloat_compare(f32 f_0, f32 f_1) {
  * @return A new 2-element vector.
  */
 KINLINE vec2 vec2_create(f32 x, f32 y) {
-    vec2 out_vector;
-    out_vector.x = x;
-    out_vector.y = y;
-    return out_vector;
+    return (vec2){
+        .x = x,
+        .y = y};
 }
 
 /**
@@ -396,6 +498,20 @@ KINLINE vec2 vec2_mul_add(vec2 vector_0, vec2 vector_1, vec2 vector_2) {
 }
 
 /**
+ * @brief Multiplies vector_0 by scalar, then adds to vector_1.
+ *
+ * @param vector_0 The first vector.
+ * @param vector_1 The second vector.
+ * @param scalar The scalar value.
+ * @return The resulting vector.
+ */
+KINLINE vec2 vec2_mul_add_scalar(vec2 vector_0, f32 scalar, vec2 vector_1) {
+    return (vec2){
+        vector_0.x * scalar + vector_1.x,
+        vector_0.y * scalar + vector_1.y};
+}
+
+/**
  * @brief Divides vector_0 by vector_1 and returns a copy of the result.
  *
  * @param vector_0 The first vector.
@@ -422,20 +538,14 @@ KINLINE f32 vec2_length_squared(vec2 vector) {
  * @param vector The vector to retrieve the length of.
  * @return The length.
  */
-KINLINE f32 vec2_length(vec2 vector) {
-    return ksqrt(vec2_length_squared(vector));
-}
+KAPI f32 vec2_length(vec2 vector);
 
 /**
  * @brief Normalizes the provided vector in place to a unit vector.
  *
  * @param vector A pointer to the vector to be normalized.
  */
-KINLINE void vec2_normalize(vec2* vector) {
-    const f32 length = vec2_length(*vector);
-    vector->x /= length;
-    vector->y /= length;
-}
+KAPI void vec2_normalize(vec2* vector);
 
 /**
  * @brief Returns a normalized copy of the supplied vector.
@@ -443,10 +553,7 @@ KINLINE void vec2_normalize(vec2* vector) {
  * @param vector The vector to be normalized.
  * @return A normalized copy of the supplied vector
  */
-KINLINE vec2 vec2_normalized(vec2 vector) {
-    vec2_normalize(&vector);
-    return vector;
-}
+KAPI vec2 vec2_normalized(vec2 vector);
 
 /**
  * @brief Compares all elements of vector_0 and vector_1 and ensures the
@@ -454,21 +561,11 @@ KINLINE vec2 vec2_normalized(vec2 vector) {
  *
  * @param vector_0 The first vector.
  * @param vector_1 The second vector.
- * @param tolerance The difference tolerance. Typically K_FLOAT_EPSILON or
- * similar.
+ * @param tolerance The difference tolerance. Typically K_FLOAT_EPSILON or similar.
+ *
  * @return True if within tolerance; otherwise false.
  */
-KINLINE b8 vec2_compare(vec2 vector_0, vec2 vector_1, f32 tolerance) {
-    if (kabs(vector_0.x - vector_1.x) > tolerance) {
-        return false;
-    }
-
-    if (kabs(vector_0.y - vector_1.y) > tolerance) {
-        return false;
-    }
-
-    return true;
-}
+KAPI b8 vec2_compare(vec2 vector_0, vec2 vector_1, f32 tolerance);
 
 /**
  * @brief Returns the distance between vector_0 and vector_1.
@@ -477,10 +574,7 @@ KINLINE b8 vec2_compare(vec2 vector_0, vec2 vector_1, f32 tolerance) {
  * @param vector_1 The second vector.
  * @return The distance between vector_0 and vector_1.
  */
-KINLINE f32 vec2_distance(vec2 vector_0, vec2 vector_1) {
-    vec2 d = (vec2){vector_0.x - vector_1.x, vector_0.y - vector_1.y};
-    return vec2_length(d);
-}
+KAPI f32 vec2_distance(vec2 vector_0, vec2 vector_1);
 
 /**
  * @brief Returns the squared distance between vector_0 and vector_1.
@@ -490,10 +584,7 @@ KINLINE f32 vec2_distance(vec2 vector_0, vec2 vector_1) {
  * @param vector_1 The second vector.
  * @return The distance between vector_0 and vector_1.
  */
-KINLINE f32 vec2_distance_squared(vec2 vector_0, vec2 vector_1) {
-    vec2 d = (vec2){vector_0.x - vector_1.x, vector_0.y - vector_1.y};
-    return vec2_length_squared(d);
-}
+KAPI f32 vec2_distance_squared(vec2 vector_0, vec2 vector_1);
 
 // ------------------------------------------
 // Vector 3
@@ -533,8 +624,7 @@ KINLINE vec3 vec3_from_vec2(vec2 vector, f32 z) {
 }
 
 /**
- * @brief Returns a new vec4 using vector as the x, y and z components and w for
- * w.
+ * @brief Returns a new vec4 using vector as the x, y and z components and w for w.
  *
  * @param vector The 3-component vector.
  * @param w The w component.
@@ -594,8 +684,7 @@ KINLINE vec3 vec3_backward(void) { return (vec3){0.0f, 0.0f, 1.0f}; }
  * @return The resulting vector.
  */
 KINLINE vec3 vec3_add(vec3 vector_0, vec3 vector_1) {
-    return (vec3){vector_0.x + vector_1.x, vector_0.y + vector_1.y,
-                  vector_0.z + vector_1.z};
+    return (vec3){vector_0.x + vector_1.x, vector_0.y + vector_1.y, vector_0.z + vector_1.z};
 }
 
 /**
@@ -606,8 +695,7 @@ KINLINE vec3 vec3_add(vec3 vector_0, vec3 vector_1) {
  * @return The resulting vector.
  */
 KINLINE vec3 vec3_sub(vec3 vector_0, vec3 vector_1) {
-    return (vec3){vector_0.x - vector_1.x, vector_0.y - vector_1.y,
-                  vector_0.z - vector_1.z};
+    return (vec3){vector_0.x - vector_1.x, vector_0.y - vector_1.y, vector_0.z - vector_1.z};
 }
 
 /**
@@ -618,8 +706,7 @@ KINLINE vec3 vec3_sub(vec3 vector_0, vec3 vector_1) {
  * @return The resulting vector.
  */
 KINLINE vec3 vec3_mul(vec3 vector_0, vec3 vector_1) {
-    return (vec3){vector_0.x * vector_1.x, vector_0.y * vector_1.y,
-                  vector_0.z * vector_1.z};
+    return (vec3){vector_0.x * vector_1.x, vector_0.y * vector_1.y, vector_0.z * vector_1.z};
 }
 
 /**
@@ -650,6 +737,21 @@ KINLINE vec3 vec3_mul_add(vec3 vector_0, vec3 vector_1, vec3 vector_2) {
 }
 
 /**
+ * @brief Multiplies vector_0 by scalar, then add that result to vector_1.
+ *
+ * @param vector_0 The first vector.
+ * @param scalar The scalar value.
+ * @param vector_1 The second vector.
+ * @return The resulting vector.
+ */
+KINLINE vec3 vec3_mul_add_scalar(vec3 vector_0, f32 scalar, vec3 vector_1) {
+    return (vec3){
+        vector_0.x * scalar + vector_1.x,
+        vector_0.y * scalar + vector_1.y,
+        vector_0.z * scalar + vector_1.z};
+}
+
+/**
  * @brief Divides vector_0 by vector_1 and returns a copy of the result.
  *
  * @param vector_0 The first vector.
@@ -657,8 +759,10 @@ KINLINE vec3 vec3_mul_add(vec3 vector_0, vec3 vector_1, vec3 vector_2) {
  * @return The resulting vector.
  */
 KINLINE vec3 vec3_div(vec3 vector_0, vec3 vector_1) {
-    return (vec3){vector_0.x / vector_1.x, vector_0.y / vector_1.y,
-                  vector_0.z / vector_1.z};
+    return (vec3){
+        vector_0.x / vector_1.x,
+        vector_0.y / vector_1.y,
+        vector_0.z / vector_1.z};
 }
 
 KINLINE vec3 vec3_div_scalar(vec3 vector_0, f32 scalar) {
@@ -685,21 +789,14 @@ KINLINE f32 vec3_length_squared(vec3 vector) {
  * @param vector The vector to retrieve the length of.
  * @return The length.
  */
-KINLINE f32 vec3_length(vec3 vector) {
-    return ksqrt(vec3_length_squared(vector));
-}
+KAPI f32 vec3_length(vec3 vector);
 
 /**
  * @brief Normalizes the provided vector in place to a unit vector.
  *
  * @param vector A pointer to the vector to be normalized.
  */
-KINLINE void vec3_normalize(vec3* vector) {
-    const f32 length = vec3_length(*vector);
-    vector->x /= length;
-    vector->y /= length;
-    vector->z /= length;
-}
+KAPI void vec3_normalize(vec3* vector);
 
 /**
  * @brief Returns a normalized copy of the supplied vector.
@@ -707,10 +804,7 @@ KINLINE void vec3_normalize(vec3* vector) {
  * @param vector The vector to be normalized.
  * @return A normalized copy of the supplied vector
  */
-KINLINE vec3 vec3_normalized(vec3 vector) {
-    vec3_normalize(&vector);
-    return vector;
-}
+KAPI vec3 vec3_normalized(vec3 vector);
 
 /**
  * @brief Returns the dot product between the provided vectors. Typically used
@@ -720,13 +814,7 @@ KINLINE vec3 vec3_normalized(vec3 vector) {
  * @param vector_1 The second vector.
  * @return The dot product.
  */
-KINLINE f32 vec3_dot(vec3 vector_0, vec3 vector_1) {
-    f32 p = 0;
-    p += vector_0.x * vector_1.x;
-    p += vector_0.y * vector_1.y;
-    p += vector_0.z * vector_1.z;
-    return p;
-}
+KAPI f32 vec3_dot(vec3 vector_0, vec3 vector_1);
 
 /**
  * @brief Calculates and returns the cross product of the supplied vectors.
@@ -737,10 +825,41 @@ KINLINE f32 vec3_dot(vec3 vector_0, vec3 vector_1) {
  * @param vector_1 The second vector.
  * @return The cross product.
  */
-KINLINE vec3 vec3_cross(vec3 vector_0, vec3 vector_1) {
-    return (vec3){vector_0.y * vector_1.z - vector_0.z * vector_1.y,
-                  vector_0.z * vector_1.x - vector_0.x * vector_1.z,
-                  vector_0.x * vector_1.y - vector_0.y * vector_1.x};
+KAPI vec3 vec3_cross(vec3 vector_0, vec3 vector_1);
+
+/**
+ * @brief Returns the midpoint between two vectors.
+ *
+ * @param vector_0 The first vector.
+ * @param vector_1 The second vector.
+ * @return The midpoint vector.
+ */
+KINLINE vec3 vec3_mid(vec3 vector_0, vec3 vector_1) {
+    return (vec3){
+        (vector_0.x - vector_1.x) * 0.5f,
+        (vector_0.y - vector_1.y) * 0.5f,
+        (vector_0.z - vector_1.z) * 0.5f};
+}
+
+/**
+ * @brief Linearly interpolates between the first and second vectors based on parameter t.
+ *
+ * Performs linear interpolation between vector_0 and vector_1 based on parameter t, where:
+ * - When t = 0.0, returns vector_0
+ * - When t = 1.0, returns vector_1
+ * - When t = 0.5, returns the midpoint of vector_0 and vector_1
+ * - Values of t outside [0,1] extrapolate beyond the endpoints
+ *
+ * @param vector_0 The first vector.
+ * @param vector_1 The second vector.
+ * @param t The interpolation factor (typically between 0 and 1).
+ * @return The interpolated vector.
+ */
+KINLINE vec3 vec3_lerp(vec3 vector_0, vec3 vector_1, f32 t) {
+    return (vec3){
+        vector_0.x + (vector_1.x - vector_0.x) * t,
+        vector_0.y + (vector_1.y - vector_0.y) * t,
+        vector_0.z + (vector_1.z - vector_0.z) * t};
 }
 
 /**
@@ -753,21 +872,7 @@ KINLINE vec3 vec3_cross(vec3 vector_0, vec3 vector_1) {
  * similar.
  * @return True if within tolerance; otherwise false.
  */
-KINLINE b8 vec3_compare(vec3 vector_0, vec3 vector_1, f32 tolerance) {
-    if (kabs(vector_0.x - vector_1.x) > tolerance) {
-        return false;
-    }
-
-    if (kabs(vector_0.y - vector_1.y) > tolerance) {
-        return false;
-    }
-
-    if (kabs(vector_0.z - vector_1.z) > tolerance) {
-        return false;
-    }
-
-    return true;
-}
+KAPI b8 vec3_compare(vec3 vector_0, vec3 vector_1, f32 tolerance);
 
 /**
  * @brief Returns the distance between vector_0 and vector_1.
@@ -776,11 +881,7 @@ KINLINE b8 vec3_compare(vec3 vector_0, vec3 vector_1, f32 tolerance) {
  * @param vector_1 The second vector.
  * @return The distance between vector_0 and vector_1.
  */
-KINLINE f32 vec3_distance(vec3 vector_0, vec3 vector_1) {
-    vec3 d = (vec3){vector_0.x - vector_1.x, vector_0.y - vector_1.y,
-                    vector_0.z - vector_1.z};
-    return vec3_length(d);
-}
+KAPI f32 vec3_distance(vec3 vector_0, vec3 vector_1);
 
 /**
  * @brief Returns the squared distance between vector_0 and vector_1.
@@ -790,11 +891,7 @@ KINLINE f32 vec3_distance(vec3 vector_0, vec3 vector_1) {
  * @param vector_1 The second vector.
  * @return The squared distance between vector_0 and vector_1.
  */
-KINLINE f32 vec3_distance_squared(vec3 vector_0, vec3 vector_1) {
-    vec3 d = (vec3){vector_0.x - vector_1.x, vector_0.y - vector_1.y,
-                    vector_0.z - vector_1.z};
-    return vec3_length_squared(d);
-}
+KAPI f32 vec3_distance_squared(vec3 vector_0, vec3 vector_1);
 
 /**
  * @brief Projects v_0 onto v_1.
@@ -803,15 +900,18 @@ KINLINE f32 vec3_distance_squared(vec3 vector_0, vec3 vector_1) {
  * @param v_1 The second vector.
  * @return The projected vector.
  */
-KINLINE vec3 vec3_project(vec3 v_0, vec3 v_1) {
-    f32 length_sq = vec3_length_squared(v_1);
-    if (length_sq == 0.0f) {
-        // NOTE: handle divide-by-zero case (i.e. v_1 is a zero vector).
-        return vec3_zero();
-    }
-    f32 scalar = vec3_dot(v_0, v_1) / length_sq;
-    return vec3_mul_scalar(v_1, scalar);
-}
+KAPI vec3 vec3_project(vec3 v_0, vec3 v_1);
+
+KAPI void vec3_project_points_onto_axis(vec3* points, u32 count, vec3 axis, f32* out_min, f32* out_max);
+
+/**
+ * @brief Reflects vector v along the given normal using r = v - 2(v·n)n
+ *
+ * @param v The vector to be reflected.
+ * @param normal The normal to reflect along.
+ * @returns The reflected vector.
+ */
+KAPI vec3 vec3_reflect(vec3 v, vec3 normal);
 
 /**
  * @brief Transform v by m.
@@ -820,13 +920,35 @@ KINLINE vec3 vec3_project(vec3 v_0, vec3 v_1) {
  * @param m The matrix to transform by.
  * @return A transformed copy of v.
  */
-KINLINE vec3 vec3_transform(vec3 v, f32 w, mat4 m) {
-    vec3 out;
-    out.x = v.x * m.data[0 + 0] + v.y * m.data[4 + 0] + v.z * m.data[8 + 0] + w * m.data[12 + 0];
-    out.y = v.x * m.data[0 + 1] + v.y * m.data[4 + 1] + v.z * m.data[8 + 1] + w * m.data[12 + 1];
-    out.z = v.x * m.data[0 + 2] + v.y * m.data[4 + 2] + v.z * m.data[8 + 2] + w * m.data[12 + 2];
-    return out;
-}
+KAPI vec3 vec3_transform(vec3 v, f32 w, mat4 m);
+
+/**
+ * @brief Calculates the shortest Euclidean distance from a point to a line in 3D space.
+ *
+ * This function uses the cross product method to efficiently calculate the shortest
+ * distance between a point and a line. The line is defined by a starting point and
+ * a direction vector. The calculation is based on the geometric property that the
+ * magnitude of the cross product of two vectors equals the area of the parallelogram
+ * they form, divided by the length of one vector.
+ *
+ * @note If the line direction vector has zero length, returns the distance from the point to the line start point.
+ * @warning The line direction vector should not be zero-length for proper line distance calculation.
+ *
+ * @param point The point to calculate distance from.
+ * @param line_start Starting point of the line.
+ * @param line_direction Direction vector of the line.
+ *
+ * @return The shortest Euclidean distance from the point to the line.
+ */
+KAPI f32 vec3_distance_to_line(vec3 point, vec3 line_start, vec3 line_direction);
+
+KAPI vec3 vec3_min(vec3 vector_0, vec3 vector_1);
+
+KAPI vec3 vec3_max(vec3 vector_0, vec3 vector_1);
+
+KAPI vec3 vec3_sign(vec3 v);
+
+KAPI vec3 vec3_rotate(vec3 v, quat q);
 
 // ------------------------------------------
 // Vector 4
@@ -841,18 +963,7 @@ KINLINE vec3 vec3_transform(vec3 v, f32 w, mat4 m) {
  * @param w The w value.
  * @return A new 4-element vector.
  */
-KINLINE vec4 vec4_create(f32 x, f32 y, f32 z, f32 w) {
-    vec4 out_vector;
-#if defined(KUSE_SIMD)
-    out_vector.data = _mm_setr_ps(x, y, z, w);
-#else
-    out_vector.x = x;
-    out_vector.y = y;
-    out_vector.z = z;
-    out_vector.w = w;
-#endif
-    return out_vector;
-}
+KAPI vec4 vec4_create(f32 x, f32 y, f32 z, f32 w);
 
 /**
  * @brief Returns a new vec3 containing the x, y and z components of the
@@ -861,9 +972,7 @@ KINLINE vec4 vec4_create(f32 x, f32 y, f32 z, f32 w) {
  * @param vector The 4-component vector to extract from.
  * @return A new vec3
  */
-KINLINE vec3 vec4_to_vec3(vec4 vector) {
-    return (vec3){vector.x, vector.y, vector.z};
-}
+KAPI vec3 vec4_to_vec3(vec4 vector);
 
 /**
  * @brief Returns a new vec4 using vector as the x, y and z components and w for
@@ -873,15 +982,7 @@ KINLINE vec3 vec4_to_vec3(vec4 vector) {
  * @param w The w component.
  * @return A new vec4
  */
-KINLINE vec4 vec4_from_vec3(vec3 vector, f32 w) {
-#if defined(KUSE_SIMD)
-    vec4 out_vector;
-    out_vector.data = _mm_setr_ps(x, y, z, w);
-    return out_vector;
-#else
-    return (vec4){vector.x, vector.y, vector.z, w};
-#endif
-}
+KAPI vec4 vec4_from_vec3(vec3 vector, f32 w);
 
 /**
  * @brief Creates and returns a 4-component vector with all components set to
@@ -902,13 +1003,7 @@ KINLINE vec4 vec4_one(void) { return (vec4){1.0f, 1.0f, 1.0f, 1.0f}; }
  * @param vector_1 The second vector.
  * @return The resulting vector.
  */
-KINLINE vec4 vec4_add(vec4 vector_0, vec4 vector_1) {
-    vec4 result;
-    for (u64 i = 0; i < 4; ++i) {
-        result.elements[i] = vector_0.elements[i] + vector_1.elements[i];
-    }
-    return result;
-}
+KAPI vec4 vec4_add(vec4 vector_0, vec4 vector_1);
 
 /**
  * @brief Subtracts vector_1 from vector_0 and returns a copy of the result.
@@ -917,13 +1012,7 @@ KINLINE vec4 vec4_add(vec4 vector_0, vec4 vector_1) {
  * @param vector_1 The second vector.
  * @return The resulting vector.
  */
-KINLINE vec4 vec4_sub(vec4 vector_0, vec4 vector_1) {
-    vec4 result;
-    for (u64 i = 0; i < 4; ++i) {
-        result.elements[i] = vector_0.elements[i] - vector_1.elements[i];
-    }
-    return result;
-}
+KAPI vec4 vec4_sub(vec4 vector_0, vec4 vector_1);
 
 /**
  * @brief Multiplies vector_0 by vector_1 and returns a copy of the result.
@@ -932,13 +1021,7 @@ KINLINE vec4 vec4_sub(vec4 vector_0, vec4 vector_1) {
  * @param vector_1 The second vector.
  * @return The resulting vector.
  */
-KINLINE vec4 vec4_mul(vec4 vector_0, vec4 vector_1) {
-    vec4 result;
-    for (u64 i = 0; i < 4; ++i) {
-        result.elements[i] = vector_0.elements[i] * vector_1.elements[i];
-    }
-    return result;
-}
+KAPI vec4 vec4_mul(vec4 vector_0, vec4 vector_1);
 
 /**
  * @brief Multiplies all elements of vector_0 by scalar and returns a copy of
@@ -948,9 +1031,7 @@ KINLINE vec4 vec4_mul(vec4 vector_0, vec4 vector_1) {
  * @param scalar The scalar value.
  * @return A copy of the resulting vector.
  */
-KINLINE vec4 vec4_mul_scalar(vec4 vector_0, f32 scalar) {
-    return (vec4){vector_0.x * scalar, vector_0.y * scalar, vector_0.z * scalar, vector_0.w * scalar};
-}
+KAPI vec4 vec4_mul_scalar(vec4 vector_0, f32 scalar);
 
 /**
  * @brief Multiplies vector_0 by vector_1, then adds the result to vector_2.
@@ -960,14 +1041,7 @@ KINLINE vec4 vec4_mul_scalar(vec4 vector_0, f32 scalar) {
  * @param vector_2 The third vector.
  * @return The resulting vector.
  */
-KINLINE vec4 vec4_mul_add(vec4 vector_0, vec4 vector_1, vec4 vector_2) {
-    return (vec4){
-        vector_0.x * vector_1.x + vector_2.x,
-        vector_0.y * vector_1.y + vector_2.y,
-        vector_0.z * vector_1.z + vector_2.z,
-        vector_0.w * vector_1.w + vector_2.w,
-    };
-}
+KAPI vec4 vec4_mul_add(vec4 vector_0, vec4 vector_1, vec4 vector_2);
 
 /**
  * @brief Divides vector_0 by vector_1 and returns a copy of the result.
@@ -976,21 +1050,9 @@ KINLINE vec4 vec4_mul_add(vec4 vector_0, vec4 vector_1, vec4 vector_2) {
  * @param vector_1 The second vector.
  * @return The resulting vector.
  */
-KINLINE vec4 vec4_div(vec4 vector_0, vec4 vector_1) {
-    vec4 result;
-    for (u64 i = 0; i < 4; ++i) {
-        result.elements[i] = vector_0.elements[i] / vector_1.elements[i];
-    }
-    return result;
-}
+KAPI vec4 vec4_div(vec4 vector_0, vec4 vector_1);
 
-KINLINE vec4 vec4_div_scalar(vec4 vector_0, f32 scalar) {
-    vec4 result;
-    for (u64 i = 0; i < 4; ++i) {
-        result.elements[i] = vector_0.elements[i] / scalar;
-    }
-    return result;
-}
+KAPI vec4 vec4_div_scalar(vec4 vector_0, f32 scalar);
 
 /**
  * @brief Returns the squared length of the provided vector.
@@ -998,10 +1060,7 @@ KINLINE vec4 vec4_div_scalar(vec4 vector_0, f32 scalar) {
  * @param vector The vector to retrieve the squared length of.
  * @return The squared length.
  */
-KINLINE f32 vec4_length_squared(vec4 vector) {
-    return vector.x * vector.x + vector.y * vector.y + vector.z * vector.z +
-           vector.w * vector.w;
-}
+KAPI f32 vec4_length_squared(vec4 vector);
 
 /**
  * @brief Returns the length of the provided vector.
@@ -1009,22 +1068,14 @@ KINLINE f32 vec4_length_squared(vec4 vector) {
  * @param vector The vector to retrieve the length of.
  * @return The length.
  */
-KINLINE f32 vec4_length(vec4 vector) {
-    return ksqrt(vec4_length_squared(vector));
-}
+KAPI f32 vec4_length(vec4 vector);
 
 /**
  * @brief Normalizes the provided vector in place to a unit vector.
  *
  * @param vector A pointer to the vector to be normalized.
  */
-KINLINE void vec4_normalize(vec4* vector) {
-    const f32 length = vec4_length(*vector);
-    vector->x /= length;
-    vector->y /= length;
-    vector->z /= length;
-    vector->w /= length;
-}
+KAPI void vec4_normalize(vec4* vector);
 
 /**
  * @brief Returns a normalized copy of the supplied vector.
@@ -1032,10 +1083,7 @@ KINLINE void vec4_normalize(vec4* vector) {
  * @param vector The vector to be normalized.
  * @return A normalized copy of the supplied vector
  */
-KINLINE vec4 vec4_normalized(vec4 vector) {
-    vec4_normalize(&vector);
-    return vector;
-}
+KAPI vec4 vec4_normalized(vec4 vector);
 
 /**
  * @brief Calculates the dot product using the elements of vec4s provided in
@@ -1051,12 +1099,7 @@ KINLINE vec4 vec4_normalized(vec4 vector) {
  * @param b3 The fourth element of the b vector.
  * @return The dot product of vectors and b.
  */
-KINLINE f32 vec4_dot_f32(f32 a0, f32 a1, f32 a2, f32 a3, f32 b0, f32 b1, f32 b2,
-                         f32 b3) {
-    f32 p;
-    p = a0 * b0 + a1 * b1 + a2 * b2 + a3 * b3;
-    return p;
-}
+KAPI f32 vec4_dot_f32(f32 a0, f32 a1, f32 a2, f32 a3, f32 b0, f32 b1, f32 b2, f32 b3);
 
 /**
  * @brief Compares all elements of vector_0 and vector_1 and ensures the
@@ -1068,25 +1111,7 @@ KINLINE f32 vec4_dot_f32(f32 a0, f32 a1, f32 a2, f32 a3, f32 b0, f32 b1, f32 b2,
  * similar.
  * @return True if within tolerance; otherwise false.
  */
-KINLINE b8 vec4_compare(vec4 vector_0, vec4 vector_1, f32 tolerance) {
-    if (kabs(vector_0.x - vector_1.x) > tolerance) {
-        return false;
-    }
-
-    if (kabs(vector_0.y - vector_1.y) > tolerance) {
-        return false;
-    }
-
-    if (kabs(vector_0.z - vector_1.z) > tolerance) {
-        return false;
-    }
-
-    if (kabs(vector_0.w - vector_1.w) > tolerance) {
-        return false;
-    }
-
-    return true;
-}
+KAPI b8 vec4_compare(vec4 vector_0, vec4 vector_1, f32 tolerance);
 
 /**
  * @brief Clamps the provided vector in-place to the given min/max values.
@@ -1095,13 +1120,7 @@ KINLINE b8 vec4_compare(vec4 vector_0, vec4 vector_1, f32 tolerance) {
  * @param min The minimum value.
  * @param max The maximum value.
  */
-KINLINE void vec4_clamp(vec4* vector, f32 min, f32 max) {
-    if (vector) {
-        for (u8 i = 0; i < 4; ++i) {
-            vector->elements[i] = KCLAMP(vector->elements[i], min, max);
-        }
-    }
-}
+KAPI void vec4_clamp(vec4* vector, f32 min, f32 max);
 
 /**
  * @brief Returns a clamped copy of the provided vector.
@@ -1111,10 +1130,11 @@ KINLINE void vec4_clamp(vec4* vector, f32 min, f32 max) {
  * @param max The maximum value.
  * @return A clamped copy of the provided vector.
  */
-KINLINE vec4 vec4_clamped(vec4 vector, f32 min, f32 max) {
-    vec4_clamp(&vector, min, max);
-    return vector;
-}
+KAPI vec4 vec4_clamped(vec4 vector, f32 min, f32 max);
+
+// ------------------------------------------
+// Mat4 (4x4 matrix)
+// ------------------------------------------
 
 /**
  * @brief Creates and returns an identity matrix:
@@ -1128,15 +1148,7 @@ KINLINE vec4 vec4_clamped(vec4 vector, f32 min, f32 max) {
  *
  * @return A new identity matrix
  */
-KINLINE mat4 mat4_identity(void) {
-    mat4 out_matrix;
-    kzero_memory(out_matrix.data, sizeof(f32) * 16);
-    out_matrix.data[0] = 1.0f;
-    out_matrix.data[5] = 1.0f;
-    out_matrix.data[10] = 1.0f;
-    out_matrix.data[15] = 1.0f;
-    return out_matrix;
-}
+KAPI mat4 mat4_identity(void);
 
 /**
  * @brief Returns the result of multiplying matrix_0 and matrix_1.
@@ -1145,23 +1157,7 @@ KINLINE mat4 mat4_identity(void) {
  * @param matrix_1 The second matrix to be multiplied.
  * @return The result of the matrix multiplication.
  */
-KINLINE mat4 mat4_mul(mat4 matrix_0, mat4 matrix_1) {
-    mat4 out_matrix = mat4_identity();
-
-    const f32* m1_ptr = matrix_0.data;
-    const f32* m2_ptr = matrix_1.data;
-    f32* dst_ptr = out_matrix.data;
-
-    for (i32 i = 0; i < 4; ++i) {
-        for (i32 j = 0; j < 4; ++j) {
-            *dst_ptr = m1_ptr[0] * m2_ptr[0 + j] + m1_ptr[1] * m2_ptr[4 + j] +
-                       m1_ptr[2] * m2_ptr[8 + j] + m1_ptr[3] * m2_ptr[12 + j];
-            dst_ptr++;
-        }
-        m1_ptr += 4;
-    }
-    return out_matrix;
-}
+KAPI mat4 mat4_mul(mat4 matrix_0, mat4 matrix_1);
 
 /**
  * @brief Creates and returns an orthographic projection matrix. Typically used
@@ -1175,24 +1171,7 @@ KINLINE mat4 mat4_mul(mat4 matrix_0, mat4 matrix_1) {
  * @param far_clip The far clipping plane distance.
  * @return A new orthographic projection matrix.
  */
-KINLINE mat4 mat4_orthographic(f32 left, f32 right, f32 bottom, f32 top,
-                               f32 near_clip, f32 far_clip) {
-    mat4 out_matrix = mat4_identity();
-
-    f32 lr = 1.0f / (left - right);
-    f32 bt = 1.0f / (bottom - top);
-    f32 nf = 1.0f / (near_clip - far_clip);
-
-    out_matrix.data[0] = -2.0f * lr;
-    out_matrix.data[5] = -2.0f * bt;
-    out_matrix.data[10] = nf;
-
-    out_matrix.data[12] = (left + right) * lr;
-    out_matrix.data[13] = (top + bottom) * bt;
-    out_matrix.data[14] = -near_clip * nf;
-
-    return out_matrix;
-}
+KAPI mat4 mat4_orthographic(f32 left, f32 right, f32 bottom, f32 top, f32 near_clip, f32 far_clip);
 
 /**
  * @brief Creates and returns a perspective matrix. Typically used to render 3d
@@ -1204,17 +1183,7 @@ KINLINE mat4 mat4_orthographic(f32 left, f32 right, f32 bottom, f32 top,
  * @param far_clip The far clipping plane distance.
  * @return A new perspective matrix.
  */
-KINLINE mat4 mat4_perspective(f32 fov_radians, f32 aspect_ratio, f32 near_clip, f32 far_clip) {
-    f32 half_tan_fov = ktan(fov_radians * 0.5f);
-    mat4 out_matrix;
-    kzero_memory(out_matrix.data, sizeof(f32) * 16);
-    out_matrix.data[0] = 1.0f / (aspect_ratio * half_tan_fov);
-    out_matrix.data[5] = 1.0f / half_tan_fov;
-    out_matrix.data[10] = far_clip / (near_clip - far_clip);
-    out_matrix.data[11] = -1.0f;
-    out_matrix.data[14] = (far_clip * near_clip) / (near_clip - far_clip);
-    return out_matrix;
-}
+KAPI mat4 mat4_perspective(f32 fov_radians, f32 aspect_ratio, f32 near_clip, f32 far_clip);
 
 /**
  * @brief Creates and returns a look-at matrix, or a matrix looking
@@ -1225,30 +1194,7 @@ KINLINE mat4 mat4_perspective(f32 fov_radians, f32 aspect_ratio, f32 near_clip, 
  * @param up The up vector.
  * @return A matrix looking at target from the perspective of position.
  */
-KINLINE mat4 mat4_look_at(vec3 position, vec3 target, vec3 up) {
-    mat4 out_matrix;
-    vec3 z_axis = vec3_normalized(vec3_sub(target, position));
-    vec3 x_axis = vec3_normalized(vec3_cross(z_axis, up));
-    vec3 y_axis = vec3_cross(x_axis, z_axis);
-
-    out_matrix.data[0] = x_axis.x;
-    out_matrix.data[1] = y_axis.x;
-    out_matrix.data[2] = -z_axis.x;
-    out_matrix.data[3] = 0;
-    out_matrix.data[4] = x_axis.y;
-    out_matrix.data[5] = y_axis.y;
-    out_matrix.data[6] = -z_axis.y;
-    out_matrix.data[7] = 0;
-    out_matrix.data[8] = x_axis.z;
-    out_matrix.data[9] = y_axis.z;
-    out_matrix.data[10] = -z_axis.z;
-    out_matrix.data[11] = 0;
-    out_matrix.data[12] = -vec3_dot(x_axis, position);
-    out_matrix.data[13] = -vec3_dot(y_axis, position);
-    out_matrix.data[14] = vec3_dot(z_axis, position);
-    out_matrix.data[15] = 1.0f;
-    return out_matrix;
-}
+KAPI mat4 mat4_look_at(vec3 position, vec3 target, vec3 up);
 
 /**
  * @brief Returns a transposed copy of the provided matrix (rows->colums)
@@ -1256,26 +1202,7 @@ KINLINE mat4 mat4_look_at(vec3 position, vec3 target, vec3 up) {
  * @param matrix The matrix to be transposed.
  * @return A transposed copy of of the provided matrix.
  */
-KINLINE mat4 mat4_transposed(mat4 matrix) {
-    mat4 out_matrix;
-    out_matrix.data[0] = matrix.data[0];
-    out_matrix.data[1] = matrix.data[4];
-    out_matrix.data[2] = matrix.data[8];
-    out_matrix.data[3] = matrix.data[12];
-    out_matrix.data[4] = matrix.data[1];
-    out_matrix.data[5] = matrix.data[5];
-    out_matrix.data[6] = matrix.data[9];
-    out_matrix.data[7] = matrix.data[13];
-    out_matrix.data[8] = matrix.data[2];
-    out_matrix.data[9] = matrix.data[6];
-    out_matrix.data[10] = matrix.data[10];
-    out_matrix.data[11] = matrix.data[14];
-    out_matrix.data[12] = matrix.data[3];
-    out_matrix.data[13] = matrix.data[7];
-    out_matrix.data[14] = matrix.data[11];
-    out_matrix.data[15] = matrix.data[15];
-    return out_matrix;
-}
+KAPI mat4 mat4_transposed(mat4 matrix);
 
 /**
  * @brief Calculates the determinant of the given matrix.
@@ -1283,37 +1210,7 @@ KINLINE mat4 mat4_transposed(mat4 matrix) {
  * @param matrix The matrix to calculate the determinant of.
  * @return The determinant of the given matrix.
  */
-KINLINE f32 mat4_determinant(mat4 matrix) {
-    const f32* m = matrix.data;
-
-    f32 t0 = m[10] * m[15];
-    f32 t1 = m[14] * m[11];
-    f32 t2 = m[6] * m[15];
-    f32 t3 = m[14] * m[7];
-    f32 t4 = m[6] * m[11];
-    f32 t5 = m[10] * m[7];
-    f32 t6 = m[2] * m[15];
-    f32 t7 = m[14] * m[3];
-    f32 t8 = m[2] * m[11];
-    f32 t9 = m[10] * m[3];
-    f32 t10 = m[2] * m[7];
-    f32 t11 = m[6] * m[3];
-
-    mat3 temp_mat;
-    f32* o = temp_mat.data;
-
-    o[0] = (t0 * m[5] + t3 * m[9] + t4 * m[13]) -
-           (t1 * m[5] + t2 * m[9] + t5 * m[13]);
-    o[1] = (t1 * m[1] + t6 * m[9] + t9 * m[13]) -
-           (t0 * m[1] + t7 * m[9] + t8 * m[13]);
-    o[2] = (t2 * m[1] + t7 * m[5] + t10 * m[13]) -
-           (t3 * m[1] + t6 * m[5] + t11 * m[13]);
-    o[3] = (t5 * m[1] + t8 * m[5] + t11 * m[9]) -
-           (t4 * m[1] + t9 * m[5] + t10 * m[9]);
-
-    f32 determinant = 1.0f / (m[0] * o[0] + m[4] * o[1] + m[8] * o[2] + m[12] * o[3]);
-    return determinant;
-}
+KAPI f32 mat4_determinant(mat4 matrix);
 
 /**
  * @brief Creates and returns an inverse of the provided matrix.
@@ -1321,85 +1218,7 @@ KINLINE f32 mat4_determinant(mat4 matrix) {
  * @param matrix The matrix to be inverted.
  * @return A inverted copy of the provided matrix.
  */
-KINLINE mat4 mat4_inverse(mat4 matrix) {
-    const f32* m = matrix.data;
-
-    f32 t0 = m[10] * m[15];
-    f32 t1 = m[14] * m[11];
-    f32 t2 = m[6] * m[15];
-    f32 t3 = m[14] * m[7];
-    f32 t4 = m[6] * m[11];
-    f32 t5 = m[10] * m[7];
-    f32 t6 = m[2] * m[15];
-    f32 t7 = m[14] * m[3];
-    f32 t8 = m[2] * m[11];
-    f32 t9 = m[10] * m[3];
-    f32 t10 = m[2] * m[7];
-    f32 t11 = m[6] * m[3];
-    f32 t12 = m[8] * m[13];
-    f32 t13 = m[12] * m[9];
-    f32 t14 = m[4] * m[13];
-    f32 t15 = m[12] * m[5];
-    f32 t16 = m[4] * m[9];
-    f32 t17 = m[8] * m[5];
-    f32 t18 = m[0] * m[13];
-    f32 t19 = m[12] * m[1];
-    f32 t20 = m[0] * m[9];
-    f32 t21 = m[8] * m[1];
-    f32 t22 = m[0] * m[5];
-    f32 t23 = m[4] * m[1];
-
-    mat4 out_matrix;
-    f32* o = out_matrix.data;
-
-    o[0] = (t0 * m[5] + t3 * m[9] + t4 * m[13]) -
-           (t1 * m[5] + t2 * m[9] + t5 * m[13]);
-    o[1] = (t1 * m[1] + t6 * m[9] + t9 * m[13]) -
-           (t0 * m[1] + t7 * m[9] + t8 * m[13]);
-    o[2] = (t2 * m[1] + t7 * m[5] + t10 * m[13]) -
-           (t3 * m[1] + t6 * m[5] + t11 * m[13]);
-    o[3] = (t5 * m[1] + t8 * m[5] + t11 * m[9]) -
-           (t4 * m[1] + t9 * m[5] + t10 * m[9]);
-
-    f32 d = 1.0f / (m[0] * o[0] + m[4] * o[1] + m[8] * o[2] + m[12] * o[3]);
-
-    // Check for singular matrix (determinant near zero)
-    if (kabs(d) < 1e-6f) {
-        // Return identity matrix if the determinant is close to zero (singular matrix)
-        return mat4_identity();
-    }
-
-    o[0] = d * o[0];
-    o[1] = d * o[1];
-    o[2] = d * o[2];
-    o[3] = d * o[3];
-    o[4] = d * ((t1 * m[4] + t2 * m[8] + t5 * m[12]) -
-                (t0 * m[4] + t3 * m[8] + t4 * m[12]));
-    o[5] = d * ((t0 * m[0] + t7 * m[8] + t8 * m[12]) -
-                (t1 * m[0] + t6 * m[8] + t9 * m[12]));
-    o[6] = d * ((t3 * m[0] + t6 * m[4] + t11 * m[12]) -
-                (t2 * m[0] + t7 * m[4] + t10 * m[12]));
-    o[7] = d * ((t4 * m[0] + t9 * m[4] + t10 * m[8]) -
-                (t5 * m[0] + t8 * m[4] + t11 * m[8]));
-    o[8] = d * ((t12 * m[7] + t15 * m[11] + t16 * m[15]) -
-                (t13 * m[7] + t14 * m[11] + t17 * m[15]));
-    o[9] = d * ((t13 * m[3] + t18 * m[11] + t21 * m[15]) -
-                (t12 * m[3] + t19 * m[11] + t20 * m[15]));
-    o[10] = d * ((t14 * m[3] + t19 * m[7] + t22 * m[15]) -
-                 (t15 * m[3] + t18 * m[7] + t23 * m[15]));
-    o[11] = d * ((t17 * m[3] + t20 * m[7] + t23 * m[11]) -
-                 (t16 * m[3] + t21 * m[7] + t22 * m[11]));
-    o[12] = d * ((t14 * m[10] + t17 * m[14] + t13 * m[6]) -
-                 (t16 * m[14] + t12 * m[6] + t15 * m[10]));
-    o[13] = d * ((t20 * m[14] + t12 * m[2] + t19 * m[10]) -
-                 (t18 * m[10] + t21 * m[14] + t13 * m[2]));
-    o[14] = d * ((t18 * m[6] + t23 * m[14] + t15 * m[2]) -
-                 (t22 * m[14] + t14 * m[2] + t19 * m[6]));
-    o[15] = d * ((t22 * m[10] + t16 * m[2] + t21 * m[6]) -
-                 (t20 * m[6] + t23 * m[10] + t17 * m[2]));
-
-    return out_matrix;
-}
+KAPI mat4 mat4_inverse(mat4 matrix);
 
 /**
  * @brief Creates and returns a translation matrix from the given position.
@@ -1407,13 +1226,7 @@ KINLINE mat4 mat4_inverse(mat4 matrix) {
  * @param position The position to be used to create the matrix.
  * @return A newly created translation matrix.
  */
-KINLINE mat4 mat4_translation(vec3 position) {
-    mat4 out_matrix = mat4_identity();
-    out_matrix.data[12] = position.x;
-    out_matrix.data[13] = position.y;
-    out_matrix.data[14] = position.z;
-    return out_matrix;
-}
+KAPI mat4 mat4_translation(vec3 position);
 
 /**
  * @brief Returns a scale matrix using the provided scale.
@@ -1421,13 +1234,7 @@ KINLINE mat4 mat4_translation(vec3 position) {
  * @param scale The 3-component scale.
  * @return A scale matrix.
  */
-KINLINE mat4 mat4_scale(vec3 scale) {
-    mat4 out_matrix = mat4_identity();
-    out_matrix.data[0] = scale.x;
-    out_matrix.data[5] = scale.y;
-    out_matrix.data[10] = scale.z;
-    return out_matrix;
-}
+KAPI mat4 mat4_scale(vec3 scale);
 
 /**
  * @brief Returns a matrix created from the provided translation, rotation and scale (TRS).
@@ -1437,28 +1244,7 @@ KINLINE mat4 mat4_scale(vec3 scale) {
  * @param scale The 3-component scale to be used to create the matrix.
  * @return A matrix created in TRS order.
  */
-KINLINE mat4 mat4_from_translation_rotation_scale(vec3 t, quat r, vec3 s) {
-    mat4 out_matrix;
-
-    out_matrix.data[0] = (1.0f - 2.0f * (r.y * r.y + r.z * r.z)) * s.x;
-    out_matrix.data[1] = (r.x * r.y + r.z * r.w) * s.x * 2.0f;
-    out_matrix.data[2] = (r.x * r.z - r.y * r.w) * s.x * 2.0f;
-    out_matrix.data[3] = 0.0f;
-    out_matrix.data[4] = (r.x * r.y - r.z * r.w) * s.y * 2.0f;
-    out_matrix.data[5] = (1.0f - 2.0f * (r.x * r.x + r.z * r.z)) * s.y;
-    out_matrix.data[6] = (r.y * r.z + r.x * r.w) * s.y * 2.0f;
-    out_matrix.data[7] = 0.0f;
-    out_matrix.data[8] = (r.x * r.z + r.y * r.w) * s.z * 2.0f;
-    out_matrix.data[9] = (r.y * r.z - r.x * r.w) * s.z * 2.0f;
-    out_matrix.data[10] = (1.0f - 2.0f * (r.x * r.x + r.y * r.y)) * s.z;
-    out_matrix.data[11] = 0.0f;
-    out_matrix.data[12] = t.x;
-    out_matrix.data[13] = t.y;
-    out_matrix.data[14] = t.z;
-    out_matrix.data[15] = 1.0f;
-
-    return out_matrix;
-}
+KAPI mat4 mat4_from_translation_rotation_scale(vec3 t, quat r, vec3 s);
 
 /**
  * @brief Creates a rotation matrix from the provided x angle.
@@ -1466,17 +1252,7 @@ KINLINE mat4 mat4_from_translation_rotation_scale(vec3 t, quat r, vec3 s) {
  * @param angle_radians The x angle in radians.
  * @return A rotation matrix.
  */
-KINLINE mat4 mat4_euler_x(f32 angle_radians) {
-    mat4 out_matrix = mat4_identity();
-    f32 c = kcos(angle_radians);
-    f32 s = ksin(angle_radians);
-
-    out_matrix.data[5] = c;
-    out_matrix.data[6] = s;
-    out_matrix.data[9] = -s;
-    out_matrix.data[10] = c;
-    return out_matrix;
-}
+KAPI mat4 mat4_euler_x(f32 angle_radians);
 
 /**
  * @brief Creates a rotation matrix from the provided y angle.
@@ -1484,17 +1260,7 @@ KINLINE mat4 mat4_euler_x(f32 angle_radians) {
  * @param angle_radians The y angle in radians.
  * @return A rotation matrix.
  */
-KINLINE mat4 mat4_euler_y(f32 angle_radians) {
-    mat4 out_matrix = mat4_identity();
-    f32 c = kcos(angle_radians);
-    f32 s = ksin(angle_radians);
-
-    out_matrix.data[0] = c;
-    out_matrix.data[2] = -s;
-    out_matrix.data[8] = s;
-    out_matrix.data[10] = c;
-    return out_matrix;
-}
+KAPI mat4 mat4_euler_y(f32 angle_radians);
 
 /**
  * @brief Creates a rotation matrix from the provided z angle.
@@ -1502,18 +1268,7 @@ KINLINE mat4 mat4_euler_y(f32 angle_radians) {
  * @param angle_radians The z angle in radians.
  * @return A rotation matrix.
  */
-KINLINE mat4 mat4_euler_z(f32 angle_radians) {
-    mat4 out_matrix = mat4_identity();
-
-    f32 c = kcos(angle_radians);
-    f32 s = ksin(angle_radians);
-
-    out_matrix.data[0] = c;
-    out_matrix.data[1] = s;
-    out_matrix.data[4] = -s;
-    out_matrix.data[5] = c;
-    return out_matrix;
-}
+KAPI mat4 mat4_euler_z(f32 angle_radians);
 
 /**
  * @brief Creates a rotation matrix from the provided x, y and z axis rotations.
@@ -1523,14 +1278,7 @@ KINLINE mat4 mat4_euler_z(f32 angle_radians) {
  * @param z_radians The z rotation.
  * @return A rotation matrix.
  */
-KINLINE mat4 mat4_euler_xyz(f32 x_radians, f32 y_radians, f32 z_radians) {
-    mat4 rx = mat4_euler_x(x_radians);
-    mat4 ry = mat4_euler_y(y_radians);
-    mat4 rz = mat4_euler_z(z_radians);
-    mat4 out_matrix = mat4_mul(rx, ry);
-    out_matrix = mat4_mul(out_matrix, rz);
-    return out_matrix;
-}
+KAPI mat4 mat4_euler_xyz(f32 x_radians, f32 y_radians, f32 z_radians);
 
 /**
  * @brief Returns a forward vector relative to the provided matrix.
@@ -1538,14 +1286,7 @@ KINLINE mat4 mat4_euler_xyz(f32 x_radians, f32 y_radians, f32 z_radians) {
  * @param matrix The matrix from which to base the vector.
  * @return A 3-component directional vector.
  */
-KINLINE vec3 mat4_forward(mat4 matrix) {
-    vec3 forward;
-    forward.x = -matrix.data[8];
-    forward.y = -matrix.data[9];
-    forward.z = -matrix.data[10];
-    vec3_normalize(&forward);
-    return forward;
-}
+KAPI vec3 mat4_forward(mat4 matrix);
 
 /**
  * @brief Returns a backward vector relative to the provided matrix.
@@ -1553,14 +1294,7 @@ KINLINE vec3 mat4_forward(mat4 matrix) {
  * @param matrix The matrix from which to base the vector.
  * @return A 3-component directional vector.
  */
-KINLINE vec3 mat4_backward(mat4 matrix) {
-    vec3 backward;
-    backward.x = matrix.data[8];
-    backward.y = matrix.data[9];
-    backward.z = matrix.data[10];
-    vec3_normalize(&backward);
-    return backward;
-}
+KAPI vec3 mat4_backward(mat4 matrix);
 
 /**
  * @brief Returns a upward vector relative to the provided matrix.
@@ -1568,14 +1302,7 @@ KINLINE vec3 mat4_backward(mat4 matrix) {
  * @param matrix The matrix from which to base the vector.
  * @return A 3-component directional vector.
  */
-KINLINE vec3 mat4_up(mat4 matrix) {
-    vec3 up;
-    up.x = matrix.data[1];
-    up.y = matrix.data[5];
-    up.z = matrix.data[9];
-    vec3_normalize(&up);
-    return up;
-}
+KAPI vec3 mat4_up(mat4 matrix);
 
 /**
  * @brief Returns a downward vector relative to the provided matrix.
@@ -1583,14 +1310,7 @@ KINLINE vec3 mat4_up(mat4 matrix) {
  * @param matrix The matrix from which to base the vector.
  * @return A 3-component directional vector.
  */
-KINLINE vec3 mat4_down(mat4 matrix) {
-    vec3 down;
-    down.x = -matrix.data[1];
-    down.y = -matrix.data[5];
-    down.z = -matrix.data[9];
-    vec3_normalize(&down);
-    return down;
-}
+KAPI vec3 mat4_down(mat4 matrix);
 
 /**
  * @brief Returns a left vector relative to the provided matrix.
@@ -1598,14 +1318,7 @@ KINLINE vec3 mat4_down(mat4 matrix) {
  * @param matrix The matrix from which to base the vector.
  * @return A 3-component directional vector.
  */
-KINLINE vec3 mat4_left(mat4 matrix) {
-    vec3 left;
-    left.x = -matrix.data[0];
-    left.y = -matrix.data[1];
-    left.z = -matrix.data[2];
-    vec3_normalize(&left);
-    return left;
-}
+KAPI vec3 mat4_left(mat4 matrix);
 
 /**
  * @brief Returns a right vector relative to the provided matrix.
@@ -1613,28 +1326,31 @@ KINLINE vec3 mat4_left(mat4 matrix) {
  * @param matrix The matrix from which to base the vector.
  * @return A 3-component directional vector.
  */
-KINLINE vec3 mat4_right(mat4 matrix) {
-    vec3 right;
-    right.x = matrix.data[0];
-    right.y = matrix.data[1];
-    right.z = matrix.data[2];
-    vec3_normalize(&right);
-    return right;
-}
+KAPI vec3 mat4_right(mat4 matrix);
 
 /**
  * @brief Returns the position relative to the provided matrix.
  *
- * @param matrix The matrix from which to base the vector.
+ * @param matrix A pointer to the matrix from which to base the vector.
  * @return A 3-component positional vector.
  */
-KINLINE vec3 mat4_position(mat4 matrix) {
-    vec3 pos;
-    pos.x = matrix.data[12];
-    pos.y = matrix.data[13];
-    pos.z = matrix.data[14];
-    return pos;
-}
+KAPI vec3 mat4_position_get(const mat4* matrix);
+
+/**
+ * @brief Returns the quaternion relative to the provided matrix.
+ *
+ * @param matrix A pointer to the matrix from which to base the quaternion.
+ * @return A quaternion.
+ */
+KAPI quat mat4_rotation_get(const mat4* matrix);
+
+/**
+ * @brief Returns the scale relative to the provided matrix.
+ *
+ * @param matrix A pointer to the matrix from which to base the vector.
+ * @return A 3-component scale vector.
+ */
+KAPI vec3 mat4_scale_get(const mat4* matrix);
 
 /**
  * @brief Performs m * v
@@ -1643,12 +1359,7 @@ KINLINE vec3 mat4_position(mat4 matrix) {
  * @param v The vector to multiply by.
  * @return The transformed vector.
  */
-KINLINE vec3 mat4_mul_vec3(mat4 m, vec3 v) {
-    return (vec3){
-        v.x * m.data[0] + v.y * m.data[4] + v.z * m.data[8] + m.data[12],
-        v.x * m.data[1] + v.y * m.data[5] + v.z * m.data[9] + m.data[13],
-        v.x * m.data[2] + v.y * m.data[6] + v.z * m.data[10] + m.data[14]};
-}
+KAPI vec3 mat4_mul_vec3(mat4 m, vec3 v);
 
 /**
  * @brief Performs v * m
@@ -1657,12 +1368,7 @@ KINLINE vec3 mat4_mul_vec3(mat4 m, vec3 v) {
  * @param m The matrix to be multiply by.
  * @return The transformed vector.
  */
-KINLINE vec3 vec3_mul_mat4(vec3 v, mat4 m) {
-    return (vec3){
-        v.x * m.data[0] + v.y * m.data[4] + v.z * m.data[8] + m.data[12],
-        v.x * m.data[1] + v.y * m.data[5] + v.z * m.data[9] + m.data[13],
-        v.x * m.data[2] + v.y * m.data[6] + v.z * m.data[10] + m.data[14]};
-}
+KAPI vec3 vec3_mul_mat4(vec3 v, mat4 m);
 
 /**
  * @brief Performs m * v
@@ -1671,13 +1377,7 @@ KINLINE vec3 vec3_mul_mat4(vec3 v, mat4 m) {
  * @param v The vector to multiply by.
  * @return The transformed vector.
  */
-KINLINE vec4 mat4_mul_vec4(mat4 m, vec4 v) {
-    return (vec4){
-        v.x * m.data[0] + v.y * m.data[1] + v.z * m.data[2] + v.w * m.data[3],
-        v.x * m.data[4] + v.y * m.data[5] + v.z * m.data[6] + v.w * m.data[7],
-        v.x * m.data[8] + v.y * m.data[9] + v.z * m.data[10] + v.w * m.data[11],
-        v.x * m.data[12] + v.y * m.data[13] + v.z * m.data[14] + v.w * m.data[15]};
-}
+KAPI vec4 mat4_mul_vec4(mat4 m, vec4 v);
 
 /**
  * @brief Performs v * m
@@ -1686,13 +1386,7 @@ KINLINE vec4 mat4_mul_vec4(mat4 m, vec4 v) {
  * @param m The matrix to be multiply by.
  * @return The transformed vector.
  */
-KINLINE vec4 vec4_mul_mat4(vec4 v, mat4 m) {
-    return (vec4){
-        v.x * m.data[0] + v.y * m.data[4] + v.z * m.data[8] + v.w * m.data[12],
-        v.x * m.data[1] + v.y * m.data[5] + v.z * m.data[9] + v.w * m.data[13],
-        v.x * m.data[2] + v.y * m.data[6] + v.z * m.data[10] + v.w * m.data[14],
-        v.x * m.data[3] + v.y * m.data[7] + v.z * m.data[11] + v.w * m.data[15]};
-}
+KAPI vec4 vec4_mul_mat4(vec4 v, mat4 m);
 
 // ------------------------------------------
 // Quaternion
@@ -1703,7 +1397,9 @@ KINLINE vec4 vec4_mul_mat4(vec4 v, mat4 m) {
  *
  * @return An identity quaternion.
  */
-KINLINE quat quat_identity(void) { return (quat){0, 0, 0, 1.0f}; }
+KAPI quat quat_identity(void);
+
+KAPI quat quat_from_surface_normal(vec3 normal, vec3 reference_up);
 
 /**
  * @brief Returns the normal of the provided quaternion.
@@ -1711,9 +1407,7 @@ KINLINE quat quat_identity(void) { return (quat){0, 0, 0, 1.0f}; }
  * @param q The quaternion.
  * @return The normal of the provided quaternion.
  */
-KINLINE f32 quat_normal(quat q) {
-    return ksqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
-}
+KAPI f32 quat_normal(quat q);
 
 /**
  * @brief Returns a normalized copy of the provided quaternion.
@@ -1721,10 +1415,7 @@ KINLINE f32 quat_normal(quat q) {
  * @param q The quaternion to normalize.
  * @return A normalized copy of the provided quaternion.
  */
-KINLINE quat quat_normalize(quat q) {
-    f32 normal = quat_normal(q);
-    return (quat){q.x / normal, q.y / normal, q.z / normal, q.w / normal};
-}
+KAPI quat quat_normalize(quat q);
 
 /**
  * @brief Returns the conjugate of the provided quaternion. That is,
@@ -1733,7 +1424,7 @@ KINLINE quat quat_normalize(quat q) {
  * @param q The quaternion to obtain a conjugate of.
  * @return The conjugate quaternion.
  */
-KINLINE quat quat_conjugate(quat q) { return (quat){-q.x, -q.y, -q.z, q.w}; }
+KAPI quat quat_conjugate(quat q);
 
 /**
  * @brief Returns an inverse copy of the provided quaternion.
@@ -1741,7 +1432,7 @@ KINLINE quat quat_conjugate(quat q) { return (quat){-q.x, -q.y, -q.z, q.w}; }
  * @param q The quaternion to invert.
  * @return An inverse copy of the provided quaternion.
  */
-KINLINE quat quat_inverse(quat q) { return quat_normalize(quat_conjugate(q)); }
+KAPI quat quat_inverse(quat q);
 
 /**
  * @brief Multiplies the provided quaternions.
@@ -1750,23 +1441,7 @@ KINLINE quat quat_inverse(quat q) { return quat_normalize(quat_conjugate(q)); }
  * @param q_1 The second quaternion.
  * @return The multiplied quaternion.
  */
-KINLINE quat quat_mul(quat q_0, quat q_1) {
-    quat out_quaternion;
-
-    out_quaternion.x =
-        q_0.x * q_1.w + q_0.y * q_1.z - q_0.z * q_1.y + q_0.w * q_1.x;
-
-    out_quaternion.y =
-        -q_0.x * q_1.z + q_0.y * q_1.w + q_0.z * q_1.x + q_0.w * q_1.y;
-
-    out_quaternion.z =
-        q_0.x * q_1.y - q_0.y * q_1.x + q_0.z * q_1.w + q_0.w * q_1.z;
-
-    out_quaternion.w =
-        -q_0.x * q_1.x - q_0.y * q_1.y - q_0.z * q_1.z + q_0.w * q_1.w;
-
-    return out_quaternion;
-}
+KAPI quat quat_mul(quat q_0, quat q_1);
 
 /**
  * @brief Calculates the dot product of the provided quaternions.
@@ -1775,38 +1450,7 @@ KINLINE quat quat_mul(quat q_0, quat q_1) {
  * @param q_1 The second quaternion.
  * @return The dot product of the provided quaternions.
  */
-KINLINE f32 quat_dot(quat q_0, quat q_1) {
-    return q_0.x * q_1.x + q_0.y * q_1.y + q_0.z * q_1.z + q_0.w * q_1.w;
-}
-
-KINLINE vec3 vec3_min(vec3 vector_0, vec3 vector_1) {
-    return vec3_create(
-        KMIN(vector_0.x, vector_1.y),
-        KMIN(vector_0.y, vector_1.y),
-        KMIN(vector_0.z, vector_1.z));
-}
-
-KINLINE vec3 vec3_max(vec3 vector_0, vec3 vector_1) {
-    return vec3_create(
-        KMAX(vector_0.x, vector_1.y),
-        KMAX(vector_0.y, vector_1.y),
-        KMAX(vector_0.z, vector_1.z));
-}
-
-KINLINE vec3 vec3_sign(vec3 v) {
-    return vec3_create(ksign(v.x), ksign(v.y), ksign(v.z));
-}
-
-KINLINE vec3 vec3_rotate(vec3 v, quat q) {
-    vec3 u = vec3_create(q.x, q.y, q.z);
-    f32 s = q.w;
-
-    return vec3_add(
-        vec3_add(
-            vec3_mul_scalar(u, 2.0f * vec3_dot(u, v)),
-            vec3_mul_scalar(v, (s * s - vec3_dot(u, u)))),
-        vec3_mul_scalar(vec3_cross(u, v), 2.0f * s));
-}
+KAPI f32 quat_dot(quat q_0, quat q_1);
 
 /**
  * @brief Creates a rotation matrix from the given quaternion.
@@ -1814,27 +1458,7 @@ KINLINE vec3 vec3_rotate(vec3 v, quat q) {
  * @param q The quaternion to be used.
  * @return A rotation matrix.
  */
-KINLINE mat4 quat_to_mat4(quat q) {
-    mat4 out_matrix = mat4_identity();
-
-    // https://stackoverflow.com/questions/1556260/convert-quaternion-rotation-to-rotation-matrix
-
-    quat n = quat_normalize(q);
-
-    out_matrix.data[0] = 1.0f - 2.0f * n.y * n.y - 2.0f * n.z * n.z;
-    out_matrix.data[1] = 2.0f * n.x * n.y - 2.0f * n.z * n.w;
-    out_matrix.data[2] = 2.0f * n.x * n.z + 2.0f * n.y * n.w;
-
-    out_matrix.data[4] = 2.0f * n.x * n.y + 2.0f * n.z * n.w;
-    out_matrix.data[5] = 1.0f - 2.0f * n.x * n.x - 2.0f * n.z * n.z;
-    out_matrix.data[6] = 2.0f * n.y * n.z - 2.0f * n.x * n.w;
-
-    out_matrix.data[8] = 2.0f * n.x * n.z - 2.0f * n.y * n.w;
-    out_matrix.data[9] = 2.0f * n.y * n.z + 2.0f * n.x * n.w;
-    out_matrix.data[10] = 1.0f - 2.0f * n.x * n.x - 2.0f * n.y * n.y;
-
-    return out_matrix;
-}
+KAPI mat4 quat_to_mat4(quat q);
 
 /**
  * @brief Calculates a rotation matrix based on the quaternion and the passed in
@@ -1844,31 +1468,7 @@ KINLINE mat4 quat_to_mat4(quat q) {
  * @param center The center point.
  * @return A rotation matrix.
  */
-KINLINE mat4 quat_to_rotation_matrix(quat q, vec3 center) {
-    mat4 out_matrix;
-
-    f32* o = out_matrix.data;
-    o[0] = (q.x * q.x) - (q.y * q.y) - (q.z * q.z) + (q.w * q.w);
-    o[1] = 2.0f * ((q.x * q.y) + (q.z * q.w));
-    o[2] = 2.0f * ((q.x * q.z) - (q.y * q.w));
-    o[3] = center.x - center.x * o[0] - center.y * o[1] - center.z * o[2];
-
-    o[4] = 2.0f * ((q.x * q.y) - (q.z * q.w));
-    o[5] = -(q.x * q.x) + (q.y * q.y) - (q.z * q.z) + (q.w * q.w);
-    o[6] = 2.0f * ((q.y * q.z) + (q.x * q.w));
-    o[7] = center.y - center.x * o[4] - center.y * o[5] - center.z * o[6];
-
-    o[8] = 2.0f * ((q.x * q.z) + (q.y * q.w));
-    o[9] = 2.0f * ((q.y * q.z) - (q.x * q.w));
-    o[10] = -(q.x * q.x) - (q.y * q.y) + (q.z * q.z) + (q.w * q.w);
-    o[11] = center.z - center.x * o[8] - center.y * o[9] - center.z * o[10];
-
-    o[12] = 0.0f;
-    o[13] = 0.0f;
-    o[14] = 0.0f;
-    o[15] = 1.0f;
-    return out_matrix;
-}
+KAPI mat4 quat_to_rotation_matrix(quat q, vec3 center);
 
 /**
  * @brief Creates a quaternion from the given axis and angle.
@@ -1878,17 +1478,7 @@ KINLINE mat4 quat_to_rotation_matrix(quat q, vec3 center) {
  * @param normalize Indicates if the quaternion should be normalized.
  * @return A new quaternion.
  */
-KINLINE quat quat_from_axis_angle(vec3 axis, f32 angle, b8 normalize) {
-    const f32 half_angle = 0.5f * angle;
-    f32 s = ksin(half_angle);
-    f32 c = kcos(half_angle);
-
-    quat q = (quat){s * axis.x, s * axis.y, s * axis.z, c};
-    if (normalize) {
-        return quat_normalize(q);
-    }
-    return q;
-}
+KAPI quat quat_from_axis_angle(vec3 axis, f32 angle, b8 normalize);
 
 /**
  * @brief Calculates spherical linear interpolation of a given percentage
@@ -1900,172 +1490,20 @@ KINLINE quat quat_from_axis_angle(vec3 axis, f32 angle, b8 normalize) {
  * 0.0f-1.0f.
  * @return An interpolated quaternion.
  */
-KINLINE quat quat_slerp(quat q_0, quat q_1, f32 percentage) {
-    quat out_quaternion;
-    // Source: https://en.wikipedia.org/wiki/Slerp
-    // Only unit quaternions are valid rotations.
-    // Normalize to avoid undefined behavior.
-    quat v0 = quat_normalize(q_0);
-    quat v1 = quat_normalize(q_1);
+KAPI quat quat_slerp(quat q_0, quat q_1, f32 percentage);
 
-    // Compute the cosine of the angle between the two vectors.
-    f32 dot = quat_dot(v0, v1);
-
-    // If the dot product is negative, slerp won't take
-    // the shorter path. Note that v1 and -v1 are equivalent when
-    // the negation is applied to all four components. Fix by
-    // reversing one quaternion.
-    if (dot < 0.0f) {
-        v1.x = -v1.x;
-        v1.y = -v1.y;
-        v1.z = -v1.z;
-        v1.w = -v1.w;
-        dot = -dot;
-    }
-
-    const f32 DOT_THRESHOLD = 0.9995f;
-    if (dot > DOT_THRESHOLD) {
-        // If the inputs are too close for comfort, linearly interpolate
-        // and normalize the result.
-        out_quaternion = (quat){v0.x + ((v1.x - v0.x) * percentage),
-                                v0.y + ((v1.y - v0.y) * percentage),
-                                v0.z + ((v1.z - v0.z) * percentage),
-                                v0.w + ((v1.w - v0.w) * percentage)};
-
-        return quat_normalize(out_quaternion);
-    }
-
-    // Since dot is in range [0, DOT_THRESHOLD], acos is safe
-    f32 theta_0 = kacos(dot);         // theta_0 = angle between input vectors
-    f32 theta = theta_0 * percentage; // theta = angle between v0 and result
-    f32 sin_theta = ksin(theta);      // compute this value only once
-    f32 sin_theta_0 = ksin(theta_0);  // compute this value only once
-
-    f32 s0 =
-        kcos(theta) -
-        dot * sin_theta / sin_theta_0; // == sin(theta_0 - theta) / sin(theta_0)
-    f32 s1 = sin_theta / sin_theta_0;
-
-    return (quat){(v0.x * s0) + (v1.x * s1), (v0.y * s0) + (v1.y * s1),
-                  (v0.z * s0) + (v1.z * s1), (v0.w * s0) + (v1.w * s1)};
-}
+// ------------------------------------------
+// Plane3D
+// ------------------------------------------
 
 /**
- * @brief Converts provided degrees to radians.
+ * @brief Creates a three-dimensional plane based on the provided position and normal.
  *
- * @param degrees The degrees to be converted.
- * @return The amount in radians.
+ * @param position
+ * @param normal
+ * @return A three-dimensional plane.
  */
-KINLINE f32 deg_to_rad(f32 degrees) { return degrees * K_DEG2RAD_MULTIPLIER; }
-
-/**
- * @brief Converts provided radians to degrees.
- *
- * @param radians The radians to be converted.
- * @return The amount in degrees.
- */
-KINLINE f32 rad_to_deg(f32 radians) { return radians * K_RAD2DEG_MULTIPLIER; }
-
-/**
- * @brief Converts value from the "old" range to the "new" range.
- *
- * @param value The value to be converted.
- * @param from_min The minimum value from the old range.
- * @param from_max The maximum value from the old range.
- * @param to_min The minimum value from the new range.
- * @param to_max The maximum value from the new range.
- * @return The converted value.
- */
-KINLINE f32 range_convert_f32(f32 value, f32 old_min, f32 old_max, f32 new_min,
-                              f32 new_max) {
-    return (((value - old_min) * (new_max - new_min)) / (old_max - old_min)) +
-           new_min;
-}
-
-/**
- * @brief Converts rgb int values [0-255] to a single 32-bit integer.
- *
- * @param r The red value [0-255].
- * @param g The green value [0-255].
- * @param b The blue value [0-255].
- * @param out_u32 A pointer to hold the resulting integer.
- */
-KINLINE void rgbu_to_u32(u32 r, u32 g, u32 b, u32* out_u32) {
-    *out_u32 = (((r & 0x0FF) << 16) | ((g & 0x0FF) << 8) | (b & 0x0FF));
-}
-
-/**
- * @brief Converts the given 32-bit integer to rgb values [0-255].
- *
- * @param rgbu The integer holding a rgb value.
- * @param out_r A pointer to hold the red value.
- * @param out_g A pointer to hold the green value.
- * @param out_b A pointer to hold the blue value.
- */
-KINLINE void u32_to_rgb(u32 rgbu, u32* out_r, u32* out_g, u32* out_b) {
-    *out_r = (rgbu >> 16) & 0x0FF;
-    *out_g = (rgbu >> 8) & 0x0FF;
-    *out_b = (rgbu) & 0x0FF;
-}
-
-/**
- * @brief Converts rgb integer values [0-255] to a vec3 of floating-point values
- * [0.0-1.0]
- *
- * @param r The red value [0-255].
- * @param g The green value [0-255].
- * @param b The blue value [0-255].
- * @param out_v A pointer to hold the vector of floating-point values.
- */
-KINLINE void rgb_u32_to_vec3(u32 r, u32 g, u32 b, vec3* out_v) {
-    out_v->r = r / 255.0f;
-    out_v->g = g / 255.0f;
-    out_v->b = b / 255.0f;
-}
-
-/**
- * @brief Converts a vec3 of rgbvalues [0.0-1.0] to integer rgb values [0-255].
- *
- * @param v The vector of rgb values [0.0-1.0] to be converted.
- * @param out_r A pointer to hold the red value.
- * @param out_g A pointer to hold the green value.
- * @param out_b A pointer to hold the blue value.
- */
-KINLINE void vec3_to_rgb_u32(vec3 v, u32* out_r, u32* out_g, u32* out_b) {
-    *out_r = v.r * 255;
-    *out_g = v.g * 255;
-    *out_b = v.b * 255;
-}
-
-KAPI plane_3d plane_3d_create(vec3 p1, vec3 norm);
-
-/**
- * @brief Creates and returns a frustum based on the provided position,
- * direction vectors, aspect, field of view, and near/far clipping planes
- * (typically obtained from a camera). This is typically used for frustum
- * culling.
- *
- * @param position A constant pointer to the position to be used.
- * @param target A constant pointer to the target vector to be used.
- * @param up A constant pointer to the up vector to be used.
- * @param aspect The aspect ratio.
- * @param fov The vertical field of view.
- * @param near The near clipping plane distance.
- * @param far The far clipping plane distance.
- * @return A shiny new frustum.
- */
-KAPI frustum frustum_create(const vec3* position, const vec3* target, const vec3* up, f32 aspect, f32 fov, f32 near, f32 far);
-
-KAPI frustum frustum_from_view_projection(mat4 view_projection);
-
-/**
- * Calculate the corner points of the provided frustum in world space, using
- * the given projection and view matrices.
- *
- * @param projection_view The combined projection/view matrix from the active camera.
- * @param corners An array of 8 vec4s to hold the caluclated points.
- */
-KAPI void frustum_corner_points_world_space(mat4 projection_view, vec4* corners);
+KAPI plane_3d plane_3d_create(vec3 position, vec3 normal);
 
 /**
  * @brief Obtains the signed distance between the plane p and the provided
@@ -2087,22 +1525,7 @@ KAPI f32 plane_signed_distance(const plane_3d* p, const vec3* position);
  * @param radius The radius of the sphere.
  * @return True if the sphere intersects the plane; otherwise false.
  */
-KAPI b8 plane_intersects_sphere(const plane_3d* p, const vec3* center,
-                                f32 radius);
-
-/**
- * @brief Indicates if the frustum intersects (or contains) a sphere constructed
- * via center and radius.
- *
- * @param f A constant pointer to a frustum.
- * @param center A constant pointer to a position representing the center of a
- * sphere.
- * @param radius The radius of the sphere.
- * @return True if the sphere is intersected by or contained within the frustum
- * f; otherwise false.
- */
-KAPI b8 frustum_intersects_sphere(const frustum* f, const vec3* center,
-                                  f32 radius);
+KAPI b8 plane_intersects_sphere(const plane_3d* p, const vec3* center, f32 radius);
 
 /**
  * @brief Indicates if plane p intersects an axis-aligned bounding box
@@ -2115,8 +1538,43 @@ KAPI b8 frustum_intersects_sphere(const frustum* f, const vec3* center,
  * @return True if the axis-aligned bounding box intersects the plane; otherwise
  * false.
  */
-KAPI b8 plane_intersects_aabb(const plane_3d* p, const vec3* center,
-                              const vec3* extents);
+KAPI b8 plane_intersects_aabb(const plane_3d* p, const vec3* center, const vec3* extents);
+
+// ------------------------------------------
+// Frustum
+// ------------------------------------------
+
+/**
+ * @brief Creates and returns a frustum based on the provided position,
+ * direction vectors, aspect, field of view, and near/far clipping planes
+ * (typically obtained from a camera). This is typically used for frustum
+ * culling.
+ *
+ * @param position A constant pointer to the position to be used.
+ * @param target A constant pointer to the target vector to be used.
+ * @param up A constant pointer to the up vector to be used.
+ * @param aspect The aspect ratio.
+ * @param fov The vertical field of view.
+ * @param near The near clipping plane distance.
+ * @param far The far clipping plane distance.
+ * @return A shiny new frustum.
+ */
+KAPI frustum frustum_create(const vec3* position, const vec3* target, const vec3* up, f32 aspect, f32 fov, f32 near, f32 far);
+
+KAPI frustum frustum_from_view_projection(mat4 view_projection);
+
+/**
+ * @brief Indicates if the frustum intersects (or contains) a sphere constructed
+ * via center and radius.
+ *
+ * @param f A constant pointer to a frustum.
+ * @param center A constant pointer to a position representing the center of a
+ * sphere.
+ * @param radius The radius of the sphere.
+ * @return True if the sphere is intersected by or contained within the frustum
+ * f; otherwise false.
+ */
+KAPI b8 frustum_intersects_sphere(const frustum* f, const vec3* center, f32 radius);
 
 /**
  * @brief Indicates if frustum f intersects an axis-aligned bounding box
@@ -2129,14 +1587,26 @@ KAPI b8 plane_intersects_aabb(const plane_3d* p, const vec3* center,
  * @return True if the axis-aligned bounding box is intersected by or contained
  * within the frustum f; otherwise false.
  */
-KAPI b8 frustum_intersects_aabb(const frustum* f, const vec3* center,
-                                const vec3* extents);
+KAPI b8 frustum_intersects_aabb(const frustum* f, const vec3* center, const vec3* extents);
+
+/**
+ * Calculate the corner points of the provided frustum in world space, using
+ * the given projection and view matrices.
+ *
+ * @param projection_view The combined projection/view matrix from the active camera.
+ * @param corners An array of 8 vec4s to hold the caluclated points.
+ */
+KAPI void frustum_corner_points_world_space(mat4 projection_view, vec4* corners);
+
+// ------------------------------------------
+// Oriented Bounding Box (OBB)
+// ------------------------------------------
+
+KAPI f32 oriented_bounding_box_project(const oriented_bounding_box* obb, vec3 axis);
 
 KINLINE b8 rect_2d_contains_point(rect_2d rect, vec2 point) {
     return (point.x >= rect.x && point.x <= rect.x + rect.width) && (point.y >= rect.y && point.y <= rect.y + rect.height);
 }
-
-KAPI f32 vec3_distance_to_line(vec3 point, vec3 line_start, vec3 line_direction);
 
 KINLINE vec3 extents_2d_half(extents_2d extents) {
     return (vec3){
@@ -2159,18 +1629,25 @@ KINLINE vec2 vec2_mid(vec2 v_0, vec2 v_1) {
         (v_0.y - v_1.y) * 0.5f};
 }
 
-KINLINE vec3 vec3_mid(vec3 v_0, vec3 v_1) {
-    return (vec3){
-        (v_0.x - v_1.x) * 0.5f,
-        (v_0.y - v_1.y) * 0.5f,
-        (v_0.z - v_1.z) * 0.5f};
+KINLINE vec3 edge_3d_get_closest_point(vec3 point, vec3 edge_start, vec3 edge_end) {
+    vec3 edge = vec3_sub(edge_end, edge_start);
+    f32 edge_length_sq = vec3_length_squared(edge);
+
+    if (edge_length_sq == 0.0f) {
+        // Degenerate edge, just use the edge's start point.
+        return edge_start;
+    }
+
+    // Project the point onto the edge, clamping it to within the edge segment as well.
+    vec3 point_to_start = vec3_sub(point, edge_start);
+    f32 t = vec3_dot(point_to_start, edge) / edge_length_sq;
+    t = KCLAMP(t, 0.0f, 1.0f);
+
+    // Interpolate along the edge to find the closest point.
+    return vec3_add(edge_start, vec3_mul_scalar(edge, t));
 }
 
-KINLINE vec3 vec3_lerp(vec3 v_0, vec3 v_1, f32 t) {
-    return vec3_add(vec3_mul_scalar(v_0, 1.0f - t), vec3_mul_scalar(v_1, t));
-}
-
-KINLINE vec3 triangle_get_normal(const triangle* tri) {
+KINLINE vec3 triangle_3d_get_normal(const triangle_3d* tri) {
     vec3 edge1 = vec3_sub(tri->verts[1], tri->verts[0]);
     vec3 edge2 = vec3_sub(tri->verts[2], tri->verts[0]);
 
@@ -2178,28 +1655,24 @@ KINLINE vec3 triangle_get_normal(const triangle* tri) {
     return vec3_normalized(normal);
 }
 
-KINLINE quat quat_from_surface_normal(vec3 normal, vec3 reference_up) {
-    normal = vec3_normalized(normal);
-    reference_up = vec3_normalized(reference_up);
+KINLINE vec3 triangle_3d_get_closest_point(vec3 point, const triangle_3d* tri) {
+    vec3 p0 = tri->verts[0];
+    vec3 p1 = tri->verts[1];
+    vec3 p2 = tri->verts[2];
 
-    // Compute rotation axis as the cross product
-    vec3 axis = vec3_cross(reference_up, normal);
-    f32 dot = vec3_dot(reference_up, normal);
+    vec3 closest_0_1 = edge_3d_get_closest_point(point, p0, p1);
+    vec3 closest_1_2 = edge_3d_get_closest_point(point, p1, p2);
+    vec3 closest_2_0 = edge_3d_get_closest_point(point, p2, p0);
 
-    // If dot is near 1, the vectors are already aligned, return identity quaternion
-    if (dot > 0.9999f) {
-        return quat_identity();
+    f32 dist_0 = vec3_distance(point, closest_0_1);
+    f32 dist_1 = vec3_distance(point, closest_1_2);
+    f32 dist_2 = vec3_distance(point, closest_2_0);
+
+    if (dist_0 < dist_1 && dist_0 < dist_2) {
+        return closest_0_1;
+    } else if (dist_1 < dist_2) {
+        return closest_1_2;
+    } else {
+        return closest_2_0;
     }
-
-    // If dot is near -1, the vectors are opposite, use an arbitrary perpendicular axis
-    if (dot < -0.9999f) {
-        axis = vec3_normalized(vec3_cross(reference_up, (vec3){1, 0, 0})); // Try X-axis
-        if (vec3_length_squared(axis) < K_FLOAT_EPSILON) {
-            axis = vec3_normalized(vec3_cross(reference_up, (vec3){0, 0, 1})); // Try Z-axis
-        }
-    }
-
-    // Compute the quaternion components
-    f32 angle = kacos(dot); // Angle between the vectors
-    return quat_from_axis_angle(axis, angle, false);
 }

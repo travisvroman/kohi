@@ -4,6 +4,8 @@ Changelog
   - Fixed several issues in the math library where some functions were not the correct handedness and/or major. The 
     entire library is now right-handed and column-major (-z forward, +y up) as it should have been.
   - Fixed an issue with OBJ imports when not de-duplicating vertices.
+  - Added logic to convert updates to fixed updates, locked to 60FPS (1.0/60). 
+  - Added a configurable "clamp_fps" debug setting to app config to cap frame rates for testing. Only used in debug builds.
 
 - 0.8.0
   - Removed preferential VSCode settings from settings.json in the project. Only project-specific config is remaining. The rest now exists in user configuration and will be added to an external repo if wanted.

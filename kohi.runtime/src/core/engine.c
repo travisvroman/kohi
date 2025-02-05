@@ -1,6 +1,5 @@
 #include "engine.h"
 
-#include <platform/filesystem.h>
 #include <assets/kasset_importer_registry.h>
 #include <containers/darray.h>
 #include <containers/registry.h>
@@ -9,29 +8,32 @@
 #include <logger.h>
 #include <memory/allocators/linear_allocator.h>
 #include <memory/kmemory.h>
+#include <platform/filesystem.h>
 #include <platform/platform.h>
 #include <platform/vfs.h>
 #include <strings/kstring.h>
 #include <time/kclock.h>
 
 // Version reporting
+#include "defines.h"
 #include "kohi.runtime_version.h"
 
-#include "audio/audio_frontend.h"
 #include "application/application_config.h"
 #include "application/application_types.h"
+#include "audio/audio_frontend.h"
 #include "console.h"
 #include "core/event.h"
 #include "core/input.h"
 #include "core/kvar.h"
 #include "core/metrics.h"
 #include "frame_data.h"
+#include "physics/kphysics_system.h"
+#include "physics/physics_types.h"
 #include "plugins/plugin_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
 
 // systems
-#include "systems/plugin_system.h"
 #include "systems/asset_system.h"
 #include "systems/camera_system.h"
 #include "systems/font_system.h"
@@ -39,11 +41,13 @@
 #include "systems/kresource_system.h"
 #include "systems/light_system.h"
 #include "systems/material_system.h"
+#include "systems/plugin_system.h"
 #include "systems/shader_system.h"
 #include "systems/static_mesh_system.h"
 #include "systems/texture_system.h"
 #include "systems/timeline_system.h"
 #include "systems/xform_system.h"
+#include "time/time_utils.h"
 
 struct kwindow;
 
@@ -53,6 +57,11 @@ typedef struct engine_state_t {
     b8 is_suspended;
     kclock clock;
     f64 last_time;
+
+#if KOHI_DEBUG
+    // Clamp FPS to this number. 0 = do not clamp. Only available on debug builds.
+    u8 clamp_fps;
+#endif
 
     // An allocator used for per-frame allocations, that is reset every frame.
     linear_allocator frame_allocator;
@@ -113,8 +122,8 @@ static void engine_on_process_mouse_wheel(i8 z_delta);
 static b8 engine_log_file_write(void* engine, log_level level, const char* message);
 static b8 engine_platform_console_write(void* platform, log_level level, const char* message);
 
-b8 engine_create(application* game_inst) {
-    if (game_inst->engine_state) {
+b8 engine_create(application* app) {
+    if (app->engine_state) {
         KERROR("engine_create called more than once.");
         return false;
     }
@@ -135,11 +144,14 @@ b8 engine_create(application* game_inst) {
     metrics_initialize();
 
     // Stand up the engine state.
-    game_inst->engine_state = kallocate(sizeof(engine_state_t), MEMORY_TAG_ENGINE);
-    engine_state = game_inst->engine_state;
-    engine_state->game_inst = game_inst;
+    app->engine_state = kallocate(sizeof(engine_state_t), MEMORY_TAG_ENGINE);
+    engine_state = app->engine_state;
+    engine_state->game_inst = app;
     engine_state->is_running = false;
     engine_state->is_suspended = false;
+#if KOHI_DEBUG
+    engine_state->clamp_fps = app->app_config.clamp_fps;
+#endif
 
     // Setup a registry for external systems to register themselves to.
     kregistry_create(&engine_state->external_systems_registry);
@@ -150,7 +162,7 @@ b8 engine_create(application* game_inst) {
     // Platform initialization first. NOTE: NOT window creation - that should happen much later.
     {
         platform_system_config plat_config = {0};
-        plat_config.application_name = game_inst->app_config.name;
+        plat_config.application_name = app->app_config.name;
         systems->platform_memory_requirement = 0;
         platform_system_startup(&systems->platform_memory_requirement, 0, &plat_config);
         systems->platform_system = kallocate(systems->platform_memory_requirement, MEMORY_TAG_ENGINE);
@@ -218,7 +230,7 @@ b8 engine_create(application* game_inst) {
         vfs_config vfs_sys_config = {0};
         vfs_sys_config.text_user_types = 0;
         // Take a copy of the asset manifest path.
-        vfs_sys_config.manifest_file_path = string_duplicate(game_inst->app_config.manifest_file_path);
+        vfs_sys_config.manifest_file_path = string_duplicate(app->app_config.manifest_file_path);
 
         vfs_initialize(&systems->vfs_system_memory_requirement, 0, 0);
         systems->vfs_system_state = kallocate(systems->vfs_system_memory_requirement, MEMORY_TAG_ENGINE);
@@ -232,7 +244,7 @@ b8 engine_create(application* game_inst) {
     {
         // Get the generic config from application config first.
         application_system_config generic_sys_config = {0};
-        if (!application_config_system_config_get(&game_inst->app_config, "asset", &generic_sys_config)) {
+        if (!application_config_system_config_get(&app->app_config, "asset", &generic_sys_config)) {
             KERROR("No configuration exists in app config for the asset system. This configuration is required.");
             return false;
         }
@@ -279,7 +291,7 @@ b8 engine_create(application* game_inst) {
     {
         // Get the generic config from application config first.
         application_system_config generic_sys_config = {0};
-        if (!application_config_system_config_get(&game_inst->app_config, "plugin_system", &generic_sys_config)) {
+        if (!application_config_system_config_get(&app->app_config, "plugin_system", &generic_sys_config)) {
             KERROR("No configuration exists in app config for the plugin system. This configuration is required.");
             return false;
         }
@@ -309,6 +321,18 @@ b8 engine_create(application* game_inst) {
         }
     }
 
+    // Physics system.
+    {
+        kphysics_system_config config = {0};
+        config.steps_per_frame = 10; // TODO: configurable via app config.
+        kphysics_system_initialize(&systems->physics_system_memory_requirement, 0, 0);
+        systems->physics_system = kallocate(systems->physics_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!kphysics_system_initialize(&systems->physics_system_memory_requirement, systems->physics_system, &config)) {
+            KERROR("Failed to initialize physics system.");
+            return false;
+        }
+    }
+
     // Input system.
     {
         input_system_initialize(&systems->input_system_memory_requirement, 0, 0);
@@ -329,7 +353,7 @@ b8 engine_create(application* game_inst) {
     {
         // Get the generic config from application config first.
         application_system_config generic_sys_config = {0};
-        if (!application_config_system_config_get(&game_inst->app_config, "renderer", &generic_sys_config)) {
+        if (!application_config_system_config_get(&app->app_config, "renderer", &generic_sys_config)) {
             KERROR("No configuration exists in app config for the renderer system. This configuration is required.");
             return false;
         }
@@ -351,7 +375,7 @@ b8 engine_create(application* game_inst) {
 
     // Reach into platform and open new window(s) in accordance with app config.
     // Notify renderer of window(s)/setup surface(s), etc.
-    u32 window_count = darray_length(game_inst->app_config.windows);
+    u32 window_count = darray_length(app->app_config.windows);
     if (window_count > 1) {
         KFATAL("Multiple windows are not yet implemented at the engine level. Please just stick to one for now.");
         return false;
@@ -359,7 +383,7 @@ b8 engine_create(application* game_inst) {
 
     engine_state->windows = darray_create(kwindow);
     for (u32 i = 0; i < window_count; ++i) {
-        kwindow_config* window_config = &game_inst->app_config.windows[i];
+        kwindow_config* window_config = &app->app_config.windows[i];
         kwindow new_window = {0};
         new_window.name = string_duplicate(window_config->name);
         // Add to tracked window list
@@ -438,7 +462,7 @@ b8 engine_create(application* game_inst) {
 
         // Get the generic config from application config first.
         application_system_config generic_sys_config = {0};
-        if (!application_config_system_config_get(&game_inst->app_config, "audio", &generic_sys_config)) {
+        if (!application_config_system_config_get(&app->app_config, "audio", &generic_sys_config)) {
             // TODO: Maybe audio shouldn't be required?
             KERROR("No configuration exists in app config for the audio system. This configuration is required.");
             return false;
@@ -529,7 +553,7 @@ b8 engine_create(application* game_inst) {
     {
         // Get the generic config from application config first.
         application_system_config generic_sys_config = {0};
-        if (!application_config_system_config_get(&game_inst->app_config, "font", &generic_sys_config)) {
+        if (!application_config_system_config_get(&app->app_config, "font", &generic_sys_config)) {
             KERROR("No configuration exists in app config for the font system. This configuration is required.");
             return false;
         }
@@ -584,8 +608,8 @@ b8 engine_create(application* game_inst) {
 
     // NOTE: Boot sequence =======================================================================================================
     // Perform the application's boot sequence.
-    game_inst->stage = APPLICATION_STAGE_BOOTING;
-    if (!game_inst->boot(game_inst)) {
+    app->stage = APPLICATION_STAGE_BOOTING;
+    if (!app->boot(app)) {
         KFATAL("Game boot sequence failed; aborting application.");
         return false;
     }
@@ -605,42 +629,155 @@ b8 engine_create(application* game_inst) {
     // &game_inst->app_config->font_config
 
     // Setup the frame allocator.
-    linear_allocator_create(game_inst->app_config.frame_allocator_size, 0, &engine_state->frame_allocator);
+    linear_allocator_create(app->app_config.frame_allocator_size, 0, &engine_state->frame_allocator);
     engine_state->p_frame_data.allocator.allocate = frame_allocator_allocate;
     engine_state->p_frame_data.allocator.free = frame_allocator_free;
     engine_state->p_frame_data.allocator.free_all = frame_allocator_free_all;
 
     // Allocate for the application's frame data.
-    if (game_inst->app_config.app_frame_data_size > 0) {
-        engine_state->p_frame_data.application_frame_data = kallocate(game_inst->app_config.app_frame_data_size, MEMORY_TAG_GAME);
+    if (app->app_config.app_frame_data_size > 0) {
+        engine_state->p_frame_data.application_frame_data = kallocate(app->app_config.app_frame_data_size, MEMORY_TAG_GAME);
     } else {
         engine_state->p_frame_data.application_frame_data = 0;
     }
 
-    game_inst->stage = APPLICATION_STAGE_BOOT_COMPLETE;
+    app->stage = APPLICATION_STAGE_BOOT_COMPLETE;
 
     // Initialize the game.
-    game_inst->stage = APPLICATION_STAGE_INITIALIZING;
+    app->stage = APPLICATION_STAGE_INITIALIZING;
     if (!engine_state->game_inst->initialize(engine_state->game_inst)) {
         KFATAL("Game failed to initialize.");
         return false;
     }
-    game_inst->stage = APPLICATION_STAGE_INITIALIZED;
+    app->stage = APPLICATION_STAGE_INITIALIZED;
 
     return true;
 }
 
-b8 engine_run(application* game_inst) {
-    game_inst->stage = APPLICATION_STAGE_RUNNING;
+static b8 engine_fixed_update(kwindow* w, f64 fixed_update_time) {
+    // Update systems here that need them.
+    job_system_update(engine_state->systems.job_system, &engine_state->p_frame_data);
+    plugin_system_update_plugins(engine_state->systems.plugin_system, &engine_state->p_frame_data);
+    kaudio_system_update(engine_state->systems.audio_system, &engine_state->p_frame_data);
+
+    // Physics system update.
+    if (!kphysics_system_fixed_update(engine_state->systems.physics_system, fixed_update_time)) {
+        KERROR("Physics system update failed during engine update. See logs for details.");
+        return false;
+    }
+
+    // Handle application updates.
+    if (!engine_state->game_inst->update(engine_state->game_inst, &engine_state->p_frame_data)) {
+        KFATAL("Game update failed, shutting down.");
+        engine_state->is_running = false;
+        return true;
+    }
+
+    return true;
+}
+
+static u8 engine_render(kwindow* w) {
+
+    if (!renderer_frame_prepare(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
+        return true;
+    }
+
+    // Make sure the window is not currently being resized by waiting a designated
+    // number of frames after the last resize operation before performing the backend updates.
+    if (w->resizing) {
+        w->frames_since_resize++;
+
+        // If the required number of frames have passed since the resize, go ahead and perform the actual updates.
+        // FIXME: Configurable delay here instead of magic 30 frames.
+        if (w->frames_since_resize >= 30) {
+            renderer_on_window_resized(engine_state->systems.renderer_system, w);
+
+            // NOTE: Don't bother checking the result of this, since this will likely
+            // recreate the swapchain and boot to the next frame anyway.
+            renderer_frame_prepare_window_surface(engine_state->systems.renderer_system, w, &engine_state->p_frame_data);
+
+            // Notify the application of the resize.
+            engine_state->game_inst->on_window_resize(engine_state->game_inst, w);
+
+            w->frames_since_resize = 0;
+            w->resizing = false;
+        } else {
+            // Skip rendering the frame and try again next time.
+            // NOTE: Simulate a frame being "drawn" at 60 FPS.
+            platform_sleep(16);
+        }
+
+        // Either way, don't process this frame any further while resizing.
+        // Try again next frame.
+        return true;
+    }
+    if (!renderer_frame_prepare_window_surface(engine_state->systems.renderer_system, w, &engine_state->p_frame_data)) {
+        // This can also happen not just from a resize above, but also if a renderer flag
+        // (such as VSync) changed, which may also require resource recreation. To handle this,
+        // Notify the application of a resize event, which it can then pass on to its rendergraph(s)
+        // as needed.
+        engine_state->game_inst->on_window_resize(engine_state->game_inst, w);
+        return true;
+    }
+
+    // Start recording to the command list.
+    if (!renderer_frame_command_list_begin(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
+        KERROR("Failed to begin renderer command list. Shutting down.");
+        return false;
+    }
+
+    // Begin "prepare_frame" render event grouping.
+    renderer_begin_debug_label("prepare_frame", (vec3){1.0f, 1.0f, 0.0f});
+
+    // TODO: frame prepare for systems that need it.
+    // NOTE: Frame preparation for plugins
+    plugin_system_frame_prepare_plugins(engine_state->systems.plugin_system, &engine_state->p_frame_data);
+
+    // Have the application generate the render packet.
+    b8 prepare_result = engine_state->game_inst->prepare_frame(engine_state->game_inst, &engine_state->p_frame_data);
+    // End "prepare_frame" render event grouping.
+    renderer_end_debug_label();
+
+    if (!prepare_result) {
+        return true;
+    }
+
+    // Call the game's render routine.
+    if (!engine_state->game_inst->render_frame(engine_state->game_inst, &engine_state->p_frame_data)) {
+        KERROR("Game render failed, shutting down.");
+        return false;
+    }
+
+    // End the recording to the command list.
+    if (!renderer_frame_command_list_end(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
+        KERROR("Failed to end renderer command list. Shutting down.");
+        return false;
+    }
+
+    if (!renderer_frame_submit(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
+        KERROR("Failed to submit work to the renderer for frame rendering.");
+        return false;
+    }
+
+    // Present the frame.
+    if (!renderer_frame_present(engine_state->systems.renderer_system, w, &engine_state->p_frame_data)) {
+        KERROR("The call to renderer_present failed. This is likely unrecoverable. Shutting down.");
+        return false;
+    }
+
+    return true;
+}
+
+b8 engine_run(application* app) {
+    app->stage = APPLICATION_STAGE_RUNNING;
     engine_state->is_running = true;
     kclock_start(&engine_state->clock);
     kclock_update(&engine_state->clock);
     engine_state->last_time = engine_state->clock.elapsed;
-    // f64 running_time = 0;
-    // TODO: frame rate lock
-    // u8 frame_count = 0;
-    f64 target_frame_seconds = 1.0f / 60;
-    f64 frame_elapsed_time = 0;
+    // TODO: configurable.
+    const f64 fixed_update_time = 1.0f / 60;
+
+    f64 accumulator = 0.0f;
 
     char* mem_usage = get_memory_usage_str();
     KINFO(mem_usage);
@@ -661,155 +798,75 @@ b8 engine_run(application* game_inst) {
             kclock_update(&engine_state->clock);
             f64 current_time = engine_state->clock.elapsed;
             f64 delta = (current_time - engine_state->last_time);
-            f64 frame_start_time = platform_get_absolute_time();
+
+            // Update last time
+            engine_state->last_time = current_time;
 
             // Reset the frame allocator
             engine_state->p_frame_data.allocator.free_all();
-
-            // TODO: Update systems here that need them.
-            job_system_update(engine_state->systems.job_system, &engine_state->p_frame_data);
-            plugin_system_update_plugins(engine_state->systems.plugin_system, &engine_state->p_frame_data);
-            kaudio_system_update(engine_state->systems.audio_system, &engine_state->p_frame_data);
 
             // Update timelines. Note that this is not done by the systems manager
             // because we don't want or have timeline data in the frame_data struct any longer.
             timeline_system_update(engine_state->systems.timeline_system, delta);
 
+            // Fixed update
+            b8 update_result = true;
+            accumulator += delta;
+            while (accumulator >= fixed_update_time) {
+                update_result = engine_fixed_update(w, fixed_update_time);
+                if (!update_result) {
+                    break;
+                }
+                accumulator -= fixed_update_time;
+            }
+            if (!update_result) {
+                KFATAL("Engine update failed - see logs for details.");
+                engine_state->is_running = false;
+            }
+
+            // Measure frame duration.
+            f64 frame_start_time = platform_get_absolute_time();
+            if (!engine_render(w)) {
+                KFATAL("Engine render failed - see logs for details.");
+                engine_state->is_running = false;
+                break;
+            }
+
+            // Figure out how long the frame took and, report it below
+            f64 frame_end_time = platform_get_absolute_time();
+            f64 frame_elapsed_time = frame_end_time - frame_start_time;
+
+#if KOHI_DEBUG
+            // NOTE: Frame rate limiter can be applied here for testing (debug builds only).
+            if (engine_state->clamp_fps) {
+                u64 target_limited_fps = engine_state->clamp_fps;
+                f64 target_frame_time = 1.0f / (f64)target_limited_fps;
+                if (frame_elapsed_time < target_frame_time) {
+                    f64 sleep_time = target_frame_time - frame_elapsed_time;
+                    u64 ms = milliseconds_from_seconds_f64(sleep_time);
+                    platform_sleep(ms);
+
+                    // When limiting, count the sleep time as part of the elapsed frame time.
+                    frame_elapsed_time += sleep_time;
+                }
+            }
+#endif
+
             // update metrics
             metrics_update(frame_elapsed_time);
-
-            if (!renderer_frame_prepare(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
-                continue;
-            }
-
-            // Make sure the window is not currently being resized by waiting a designated
-            // number of frames after the last resize operation before performing the backend updates.
-            if (w->resizing) {
-                w->frames_since_resize++;
-
-                // If the required number of frames have passed since the resize, go ahead and perform the actual updates.
-                // FIXME: Configurable delay here instead of magic 30 frames.
-                if (w->frames_since_resize >= 30) {
-                    renderer_on_window_resized(engine_state->systems.renderer_system, w);
-
-                    // NOTE: Don't bother checking the result of this, since this will likely
-                    // recreate the swapchain and boot to the next frame anyway.
-                    renderer_frame_prepare_window_surface(engine_state->systems.renderer_system, w, &engine_state->p_frame_data);
-
-                    // Notify the application of the resize.
-                    engine_state->game_inst->on_window_resize(engine_state->game_inst, w);
-
-                    w->frames_since_resize = 0;
-                    w->resizing = false;
-                } else {
-                    // Skip rendering the frame and try again next time.
-                    // NOTE: Simulate a frame being "drawn" at 60 FPS.
-                    platform_sleep(16);
-                }
-
-                // Either way, don't process this frame any further while resizing.
-                // Try again next frame.
-                continue;
-            }
-            if (!renderer_frame_prepare_window_surface(engine_state->systems.renderer_system, w, &engine_state->p_frame_data)) {
-                // This can also happen not just from a resize above, but also if a renderer flag
-                // (such as VSync) changed, which may also require resource recreation. To handle this,
-                // Notify the application of a resize event, which it can then pass on to its rendergraph(s)
-                // as needed.
-                engine_state->game_inst->on_window_resize(engine_state->game_inst, w);
-                continue;
-            }
-
-            if (!engine_state->game_inst->update(engine_state->game_inst, &engine_state->p_frame_data)) {
-                KFATAL("Game update failed, shutting down.");
-                engine_state->is_running = false;
-                break;
-            }
-
-            // Start recording to the command list.
-            if (!renderer_frame_command_list_begin(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
-                KFATAL("Failed to begin renderer command list. Shutting down.");
-                engine_state->is_running = false;
-                break;
-            }
-
-            // Begin "prepare_frame" render event grouping.
-            renderer_begin_debug_label("prepare_frame", (vec3){1.0f, 1.0f, 0.0f});
-
-            // TODO: frame prepare for systems that need it.
-            // NOTE: Frame preparation for plugins
-            plugin_system_frame_prepare_plugins(engine_state->systems.plugin_system, &engine_state->p_frame_data);
-
-            // Have the application generate the render packet.
-            b8 prepare_result = engine_state->game_inst->prepare_frame(engine_state->game_inst, &engine_state->p_frame_data);
-            // End "prepare_frame" render event grouping.
-            renderer_end_debug_label();
-
-            if (!prepare_result) {
-                continue;
-            }
-
-            // Call the game's render routine.
-            if (!engine_state->game_inst->render_frame(engine_state->game_inst, &engine_state->p_frame_data)) {
-                KFATAL("Game render failed, shutting down.");
-                engine_state->is_running = false;
-                break;
-            }
-
-            // End the recording to the command list.
-            if (!renderer_frame_command_list_end(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
-                KFATAL("Failed to end renderer command list. Shutting down.");
-                engine_state->is_running = false;
-                break;
-            }
-
-            if (!renderer_frame_submit(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
-                KFATAL("Failed to submit work to the renderer for frame rendering.");
-                engine_state->is_running = false;
-                break;
-            }
-
-            // Present the frame.
-            if (!renderer_frame_present(engine_state->systems.renderer_system, w, &engine_state->p_frame_data)) {
-                KERROR("The call to renderer_present failed. This is likely unrecoverable. Shutting down.");
-                engine_state->is_running = false;
-                break;
-            }
-
-            // Figure out how long the frame took and, if below
-            f64 frame_end_time = platform_get_absolute_time();
-            frame_elapsed_time = frame_end_time - frame_start_time;
-            // running_time += frame_elapsed_time;
-            f64 remaining_seconds = target_frame_seconds - frame_elapsed_time;
-
-            if (remaining_seconds > 0) {
-                u64 remaining_ms = (remaining_seconds * 1000);
-
-                // If there is time left, give it back to the OS.
-                b8 limit_frames = false;
-                if (remaining_ms > 0 && limit_frames) {
-                    platform_sleep(remaining_ms - 1);
-                }
-
-                // TODO: frame rate lock
-                // frame_count++;
-            }
 
             // NOTE: Input update/state copying should always be handled
             // after any input should be recorded; I.E. before this line.
             // As a safety, input is the last thing to be updated before
             // this frame ends.
             input_update(&engine_state->p_frame_data);
-
-            // Update last time
-            engine_state->last_time = current_time;
         } else {
             KDEBUG("suspended...");
         }
     }
 
     engine_state->is_running = false;
-    game_inst->stage = APPLICATION_STAGE_SHUTTING_DOWN;
+    app->stage = APPLICATION_STAGE_SHUTTING_DOWN;
 
     // Shut down the game.
     engine_state->game_inst->shutdown(engine_state->game_inst);
@@ -849,6 +906,7 @@ b8 engine_run(application* game_inst) {
         job_system_shutdown(systems->job_system);
         input_system_shutdown(systems->input_system);
         event_system_shutdown(systems->event_system);
+        kphysics_system_shutdown(systems->physics_system);
         kvar_system_shutdown(systems->kvar_system);
         kasset_importer_registry_shutdown();
         vfs_shutdown(systems->vfs_system_state);
@@ -857,7 +915,7 @@ b8 engine_run(application* game_inst) {
         memory_system_shutdown();
     }
 
-    game_inst->stage = APPLICATION_STAGE_UNINITIALIZED;
+    app->stage = APPLICATION_STAGE_UNINITIALIZED;
 
     return true;
 }

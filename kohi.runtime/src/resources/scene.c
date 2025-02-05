@@ -22,6 +22,7 @@
 #include "math/math_types.h"
 #include "memory/kmemory.h"
 #include "parsers/kson_parser.h"
+#include "physics/kphysics_system.h"
 #include "renderer/renderer_types.h"
 #include "resources/debug/debug_box3d.h"
 #include "resources/debug/debug_line3d.h"
@@ -64,6 +65,17 @@ typedef struct scene_audio_emitter {
     b8 is_streaming;
 } scene_audio_emitter;
 
+typedef struct scene_physics_body {
+    kphysics_body_type body_type;
+    kphysics_shape_type shape_type;
+    kname name;
+    vec3 extents;
+    f32 radius;
+    kname mesh_resource_name;
+
+    khandle body_handle;
+} scene_physics_body;
+
 /** @brief A private structure used to sort geometry by distance from the camera. */
 typedef struct geometry_distance {
     /** @brief The geometry render data. */
@@ -103,6 +115,9 @@ b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
     global_scene_id++;
     out_scene->id = global_scene_id;
 
+    out_scene->physics_enabled = config->physics_enabled;
+    out_scene->physics_gravity = config->physics_gravity;
+
     // Internal "lists" of renderable objects.
     out_scene->dir_lights = darray_create(directional_light);
     out_scene->point_lights = darray_create(point_light);
@@ -111,6 +126,7 @@ b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
     out_scene->terrains = darray_create(terrain);
     out_scene->skyboxes = darray_create(skybox);
     out_scene->water_planes = darray_create(water_plane);
+    out_scene->physics_bodies = darray_create(scene_physics_body);
 
     // Internal lists of attachments.
     /* out_scene->attachments = darray_create(scene_attachment); */
@@ -121,6 +137,7 @@ b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
     out_scene->point_light_attachments = darray_create(scene_attachment);
     out_scene->audio_emitter_attachments = darray_create(scene_attachment);
     out_scene->water_plane_attachments = darray_create(scene_attachment);
+    out_scene->physics_body_attachments = darray_create(scene_attachment);
 
     b8 is_readonly = ((out_scene->flags & SCENE_FLAG_READONLY) != 0);
     if (!is_readonly) {
@@ -220,6 +237,13 @@ void scene_destroy(scene* s) {
         }
         if (s->water_plane_metadata) {
             darray_destroy(s->water_plane_metadata);
+        }
+
+        if (s->physics_bodies) {
+            darray_destroy(s->physics_bodies);
+        }
+        if (s->physics_body_attachments) {
+            darray_destroy(s->physics_body_attachments);
         }
 
         kzero_memory(s, sizeof(scene));
@@ -703,6 +727,62 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
             }
         }
 
+        // Physics bodies
+        if (node_config->physics_body_configs) {
+            u32 count = darray_length(node_config->physics_body_configs);
+            for (u32 i = 0; i < count; ++i) {
+                scene_node_attachment_physics_body_config* typed_attachment_config = &node_config->physics_body_configs[i];
+
+                /* if (!typed_attachment_config->asset_name) {
+                    KWARN("Invalid heightmap terrain config, asset_name is required.");
+                    return;
+                } */
+
+                // Find a free slot and take it, or push a new one.
+                u32 index = INVALID_ID;
+                u32 scene_physics_body_count = darray_length(s->physics_bodies);
+                for (u32 spbi = 0; spbi < scene_physics_body_count; ++spbi) {
+                    if (khandle_is_invalid(s->physics_bodies[i].body_handle)) {
+                        index = spbi;
+                        break;
+                    }
+                }
+                if (index == INVALID_ID) {
+                    // No empty slot found, so push empty entries and obtain pointers.
+                    darray_push(s->physics_bodies, (scene_physics_body){0});
+                    darray_push(s->physics_body_attachments, (scene_attachment){0});
+                    index = scene_physics_body_count;
+                }
+
+                // Save off properties required for intialization/loading.
+                scene_physics_body spb = {0};
+                spb.body_type = typed_attachment_config->body_type;
+                spb.shape_type = typed_attachment_config->shape_type;
+                spb.name = typed_attachment_config->base.name;
+
+                // Initialize the physics body.
+                switch (typed_attachment_config->shape_type) {
+                case KPHYSICS_SHAPE_TYPE_SPHERE:
+                    spb.radius = typed_attachment_config->radius;
+                    break;
+                case KPHYSICS_SHAPE_TYPE_RECTANGLE:
+                    spb.extents = typed_attachment_config->extents;
+                    break;
+                case KPHYSICS_SHAPE_TYPE_MESH:
+                    spb.mesh_resource_name = typed_attachment_config->mesh_resource_name;
+                    break;
+                }
+
+                // Fill out the structs.
+                s->physics_bodies[index] = spb;
+
+                scene_attachment* attachment = &s->physics_body_attachments[index];
+                attachment->resource_handle = khandle_invalid(); // No resource handle for physics attachments.
+                attachment->hierarchy_node_handle = hierarchy_node_handle;
+                attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_PHYSICS_BODY;
+            }
+        }
+
         // Process children.
         if (node_config->children) {
             u32 child_count = node_config->child_count;
@@ -844,6 +924,75 @@ b8 scene_load(scene* scene) {
         }
     }
 
+    // Setup physics world and bodies, if enabled.
+    if (scene->physics_enabled) {
+        if (!kphysics_world_create(engine_systems_get()->physics_system, scene->name, scene->physics_gravity, &scene->physics_world)) {
+            KERROR("Failed to create physics world for scene. See logs for details.");
+            return false;
+        }
+
+        if (!kphysics_set_world(engine_systems_get()->physics_system, &scene->physics_world)) {
+            KERROR("Failed to set physics world! See logs for details.");
+            return false;
+        }
+
+        // Physics bodies
+        if (scene->physics_bodies) {
+            u32 physics_body_count = darray_length(scene->physics_bodies);
+            for (u32 i = 0; i < physics_body_count; ++i) {
+                scene_physics_body* body = &scene->physics_bodies[i];
+                // Load the actual physics data
+
+                // Extract the position from the owning hierarchy node by getting its xform.
+                khandle hierarchy_node_handle = scene->physics_body_attachments[i].hierarchy_node_handle;
+                khandle xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, hierarchy_node_handle);
+                // Need to recalculate here so the model below is accurate.
+                xform_calculate_local(xform_handle);
+                mat4 model = xform_local_get(xform_handle);
+                vec3 position = mat4_position_get(&model);
+
+                switch (body->shape_type) {
+                case KPHYSICS_SHAPE_TYPE_SPHERE: {
+                    if (!kphysics_body_create_sphere(engine_systems_get()->physics_system, body->name, position, body->radius, body->body_type, &body->body_handle)) {
+                        KERROR("Failed to create sphere body for physics body attachment. See logs for details.");
+                        continue;
+                    }
+                } break;
+                case KPHYSICS_SHAPE_TYPE_RECTANGLE: {
+                    vec3 half_extents = vec3_mul_scalar(body->extents, 0.5f);
+                    if (!kphysics_body_create_rectangle(engine_systems_get()->physics_system, body->name, position, half_extents, body->body_type, &body->body_handle)) {
+                        KERROR("Failed to create sphere body for physics body attachment. See logs for details.");
+                        continue;
+                    }
+                } break;
+                case KPHYSICS_SHAPE_TYPE_MESH: {
+                    KASSERT_MSG(false, "Physics shape type mesh isn't supported directly in scenes yet, as it needs a standard way to pull geometry.");
+
+                    /* if (body->mesh_resource_name == INVALID_KNAME) {
+                        KERROR("No mesh resource name defined for physics object.");
+                        continue;
+                    }
+
+                    // TODO: Load up a mesh resource. Might need to define some rules in terms of what this loads (i.e. only static meshes).
+
+                    if (!kphysics_body_create_mesh(engine_systems_get()->physics_system, body->name, position, body->radius, body->body_type, &body->body_handle)) {
+                        KERROR("Failed to create sphere body for physics body attachment. See logs for details.");
+                        continue;
+                    } */
+                } break;
+                }
+
+                if (khandle_is_valid(body->body_handle)) {
+                    // Add it to the world.
+                    if (!kphysics_world_add_body(engine_systems_get()->physics_system, &scene->physics_world, body->body_handle)) {
+                        KERROR("Failed to add body to physics world. See logs for details.");
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
     if (scene->audio_emitters) {
         struct kaudio_system_state* audio_state = engine_systems_get()->audio_system;
         u32 emitter_count = darray_length(scene->audio_emitters);
@@ -862,7 +1011,7 @@ b8 scene_load(scene* scene) {
             }
 
             // Get world position for the audio emitter based on it's owning node's xform.
-            vec3 emitter_world_pos = mat4_position(world);
+            vec3 emitter_world_pos = mat4_position_get(&world);
             kaudio_emitter_world_position_set(audio_state, emitter->emitter, emitter_world_pos);
 
             if (!kaudio_emitter_load(audio_state, emitter->emitter)) {
@@ -918,6 +1067,29 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
     }
 
     if (scene->state == SCENE_STATE_LOADED) {
+        // Apply physics world updates, if enabled.
+        if (scene->physics_enabled) {
+            // Sync visual object transforms to those of the physics attachments.
+            // NOTE: This is not recursive, and should only be used on base-level nodes.
+            // This also overwrites the _entire_ transform, including scale.
+            u32 physics_body_count = darray_length(scene->physics_bodies);
+            for (u32 i = 0; i < physics_body_count; ++i) {
+                scene_physics_body* sbody = &scene->physics_bodies[i];
+                scene_attachment* attachment = &scene->physics_body_attachments[i];
+
+                mat4 body_model;
+                if (!kphysics_body_orientation_get(engine_systems_get()->physics_system, sbody->body_handle, &body_model)) {
+                    KWARN("Failed to get physics body orientation! See logs for details. Falling back to mat4_identity()");
+                    body_model = mat4_identity();
+                }
+
+                // Update the transform on the owning node.
+                khandle node_xform = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+                xform_local_set(node_xform, body_model);
+            }
+        }
+
+        // Update hierarchy graph, which also rebuilds transforms, etc.
         hierarchy_graph_update(&scene->hierarchy);
 
         if (scene->dir_lights) {
@@ -994,7 +1166,7 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
                 }
 
                 // Get world position for the audio emitter based on it's owning node's xform and set it.
-                vec3 emitter_world_pos = mat4_position(world);
+                vec3 emitter_world_pos = mat4_position_get(&world);
                 kaudio_emitter_world_position_set(audio_state, emitter->emitter, emitter_world_pos);
             }
         }
@@ -1373,7 +1545,7 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
                         // Only want the ultimate position of this, since we don't want the debug data
                         // to scale or rotate along with any parent it may be under.
                         mat4 sphere_world = xform_world_get(debug->sphere.xform);
-                        vec3 world_pos = mat4_position(sphere_world);
+                        vec3 world_pos = mat4_position_get(&sphere_world);
                         data.model = mat4_translation(world_pos);
 
                         kgeometry* g = &debug->sphere.geometry;
@@ -1851,6 +2023,23 @@ b8 scene_node_xform_get_by_name(const scene* scene, kname name, khandle* out_xfo
     return false;
 }
 
+b8 scene_physics_body_get_by_name(const scene* s, kname name, khandle* out_body_handle) {
+    if (!s || !name || !out_body_handle) {
+        return false;
+    }
+
+    u32 physics_body_count = darray_length(s->physics_bodies);
+    for (u32 i = 0; i < physics_body_count; ++i) {
+        scene_physics_body* body = &s->physics_bodies[i];
+        if (body->name == name) {
+            *out_body_handle = body->body_handle;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void scene_actual_unload(scene* s) {
     u32 skybox_count = darray_length(s->skyboxes);
     for (u32 i = 0; i < skybox_count; ++i) {
@@ -2170,6 +2359,14 @@ static b8 scene_serialize_node(const scene* s, const hierarchy_graph_view* view,
     }
 
     return true;
+}
+
+kphysics_world* scene_physics_world_get(scene* s) {
+    if (!s) {
+        return 0;
+    }
+
+    return &s->physics_world;
 }
 
 b8 scene_save(scene* s) {

@@ -451,6 +451,8 @@ typedef struct kresource_scene {
     const char* description;
     u32 node_count;
     scene_node_config* nodes;
+    b8 physics_enabled;
+    vec3 physics_gravity;
 } kresource_scene;
 
 typedef struct kresource_scene_request_info {

@@ -352,6 +352,16 @@ typedef union vec4i_t {
     };
 } vec4i;
 
-typedef struct triangle {
+typedef struct triangle_2d {
+    vec2 verts[3];
+} triangle_2d;
+
+typedef struct triangle_3d {
     vec3 verts[3];
-} triangle;
+} triangle_3d;
+
+typedef struct oriented_bounding_box {
+    vec3 center;
+    vec3 half_extents;
+    quat rotation;
+} oriented_bounding_box;

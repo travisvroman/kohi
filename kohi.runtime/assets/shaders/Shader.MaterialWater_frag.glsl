@@ -186,7 +186,7 @@ void main() {
 
         out_colour = mix(reflect_colour, refract_colour, fresnel_factor);
         vec4 tint = vec4(0.0, 0.3, 0.5, 1.0); // TODO: configurable.
-        float tint_strength = 0.5; // TODO: configurable.
+        float tint_strength = 0.25; // TODO: configurable.
         out_colour = mix(out_colour, tint, tint_strength);
     } else {
         // Other modes should just use white.
@@ -199,7 +199,7 @@ void main() {
 
     if(render_mode == 0) {
         // Falloff depth of the water at the edge.
-        float edge_depth_falloff = 0.5; // TODO: configurable
+        float edge_depth_falloff = 0.75; // TODO: configurable
         out_colour.a = clamp(water_depth / edge_depth_falloff, 0.0, 1.0);
     }
 }

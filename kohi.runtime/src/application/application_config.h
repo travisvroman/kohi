@@ -67,6 +67,11 @@ typedef struct application_config {
 
     /** @brief The asset manifest file path. */
     const char* manifest_file_path;
+
+#ifdef KOHI_DEBUG
+    // Clamps FPS to a maximum of this number. Only available for debug builds.
+    u8 clamp_fps;
+#endif
 } application_config;
 
 /**

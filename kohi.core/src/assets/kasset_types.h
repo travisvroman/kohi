@@ -340,6 +340,8 @@ typedef struct kasset_scene {
     const char* description;
     u32 node_count;
     scene_node_config* nodes;
+    b8 physics_enabled;
+    vec3 physics_gravity;
 } kasset_scene;
 
 #define KASSET_TYPE_NAME_SHADER "Shader"
