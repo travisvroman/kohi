@@ -1,12 +1,12 @@
 /**
  * @file camera.h
  * @author Travis Vroman (travis@kohiengine.com)
- * @brief 
+ * @brief
  * @version 1.0
  * @date 2022-05-21
- * 
+ *
  * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
- * 
+ *
  */
 
 #pragma once
@@ -57,7 +57,7 @@ KAPI camera camera_create(void);
 
 /**
  * @brief Creates a copy of the camera based on the provided source.
- * 
+ *
  * @param source A constant pointer to a camera source.
  * @return The camera copy.
  */
@@ -102,6 +102,8 @@ KAPI vec3 camera_rotation_euler_get(const camera* c);
  * @param rotation The rotation in Euler angles to be set (degrees).
  */
 KAPI void camera_rotation_euler_set(camera* c, vec3 rotation);
+
+/* KAPI void camera_rotation_set(camera* c, quat rotation); */
 
 /**
  * @brief Sets the provided camera's rotation in Euler angles (radians).

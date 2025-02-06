@@ -36,33 +36,49 @@ static vec3 default_handle(vec3 position, f32 rotation_y, f32 handle_factor) {
     return vec3_add(direction, position);
 }
 
-b8 track_create(track* out_track) {
-    if (!out_track) {
+b8 track_create(track* out_track, const track_config* config) {
+    if (!out_track || !config) {
         return false;
     }
 
-    // HACK: defining some hardcoded stuff for now - should be configurable.
-    const u32 point_count = 11;
-    out_track->points = darray_reserve(track_point, point_count);
-    darray_length_set(out_track->points, point_count);
+    out_track->loops = config->loops;
+    out_track->points = darray_reserve(track_point, config->point_count);
+    darray_length_set(out_track->points, config->point_count);
 
-    // Position, left_width, left_height, right_width, right_height, rotation_y, left_rail_height, left_rail_width, right_rail_height, right_rail_width
-    out_track->points[0] = (track_point){{-10.0f, -0.5f, 0.0f}, 10.0f, 0.0f, 12.0f, 0.25f, deg_to_rad(0.0f), 1.0f, 3.0f, 1.0f, 3.0f};
-    out_track->points[1] = (track_point){{10.0f, 2.0f, 00.0f}, 8.0f, 0.25f, 3.0f, 0.5f, deg_to_rad(45.0f), 2.0f, 0.0f, 2.0f, 0.0f};
-    out_track->points[2] = (track_point){{50.0f, 5.0f, 100.0f}, 9.0f, -0.5f, 6.0f, 1.0f, deg_to_rad(90.0f), 2.0f, 0.0f, 2.0f, 0.0f};
+    for (u32 i = 0; i < config->point_count; ++i) {
+        track_point* p = &out_track->points[i];
+        track_point_config* c = &config->points[i];
+
+        p->position = c->position;
+        p->rotation_y = deg_to_rad(c->rotation_y);
+
+        p->left_width = c->left.width;
+        p->left_height = c->left.height;
+        p->left_rail_width = c->left.rail_width;
+        p->left_rail_height = c->left.rail_height;
+
+        p->right_width = c->right.width;
+        p->right_height = c->right.height;
+        p->right_rail_width = c->right.rail_width;
+        p->right_rail_height = c->right.rail_height;
+    }
+
+    /* // Position, left_width, left_height, right_width, right_height, rotation_y, left_rail_height, left_rail_width, right_rail_height, right_rail_width
+    out_track->points[0] = (track_point){{-10.0f, -0.5f, 0.0f}, 10.0f, 0.0f, 12.0f, 0.25f, deg_to_rad(0.0f), 7.0f, 3.0f, 1.0f, 3.0f};
+    out_track->points[1] = (track_point){{10.0f, 2.0f, 00.0f}, 8.0f, 0.25f, 3.0f, 0.5f, deg_to_rad(45.0f), 5.0f, 0.0f, 2.0f, 0.0f};
+    out_track->points[2] = (track_point){{50.0f, 5.0f, 100.0f}, 9.0f, -0.5f, 6.0f, 1.0f, deg_to_rad(90.0f), 3.0f, 0.0f, 2.0f, 0.0f};
     out_track->points[3] = (track_point){{75.0f, 6.0f, 200.0f}, 6.0f, 1.0f, 10.0f, 1.5f, deg_to_rad(135.0f), 2.0f, 0.0f, 2.0f, 0.0f};
     out_track->points[4] = (track_point){{20.0f, 6.0f, 230.0f}, 5.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(180.0f), 2.0f, 0.0f, 2.0f, 0.0f};
     out_track->points[5] = (track_point){{-50.0f, 5.0f, 200.0f}, 4.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
     out_track->points[6] = (track_point){{-50.0f, 10.0f, 159.0f}, 4.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
-    out_track->points[7] = (track_point){{-50.0f, -1.0f, 158.0f}, 4.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
+    out_track->points[7] = (track_point){{-50.0f, -1.0f, 158.0f}, 4.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(270.0f), 11.0f, 0.0f, 11.0f, 0.0f};
     out_track->points[8] = (track_point){{-50.0f, 2.0f, 100.0f}, 8.0f, 1.0f, 8.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
-    out_track->points[9] = (track_point){{-25.0f, 2.0f, 10.0f}, 8.0f, 1.0f, 8.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
-    out_track->points[10] = (track_point){{-10.0f, -0.5f, 0.0f}, 10.0f, 0.0f, 12.0f, 0.25f, deg_to_rad(0.0f), 1.0f, 3.0f, 1.0f, 3.0f}; // last should be the same as the first to loop
+    out_track->points[9] = (track_point){{-25.0f, 2.0f, 10.0f}, 8.0f, 1.0f, 8.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f}; */
 
     // Number of divisions to make per segment.
-    out_track->segment_resolution = 10;
+    out_track->segment_resolution = config->segment_resolution;
 
-    u32 segment_count = darray_length(out_track->points) - 1;
+    u32 segment_count = out_track->loops ? config->point_count : config->point_count - 1;
     out_track->segments = darray_reserve(track_segment, segment_count);
     darray_length_set(out_track->segments, segment_count);
 
@@ -77,9 +93,10 @@ b8 track_initialize(track* trk) {
     u32 point_count = darray_length(trk->points);
 
     // Track segments
+    u32 segment_count = trk->loops ? point_count : point_count - 1;
 
     // Each segment is defined by a start and end track point.
-    for (u32 i = 0; i < point_count - 1; ++i) {
+    for (u32 i = 0; i < segment_count; ++i) {
 
         // Index into the vertex array.
         u32 vi = 0;
@@ -90,7 +107,8 @@ b8 track_initialize(track* trk) {
         segment->index = i;
 
         segment->start = &trk->points[i];
-        segment->end = &trk->points[i + 1];
+        u32 end_index = trk->loops ? ((i + 1) % point_count) : (i + 1);
+        segment->end = &trk->points[end_index];
 
         // Generate geometry.
         segment->geometry.type = KGEOMETRY_TYPE_3D_STATIC;
@@ -296,7 +314,7 @@ b8 track_load(track* t, kphysics_world* physics_world) {
         KERROR("Failed to load material!");
     }
 
-    t->pjysics_world = physics_world;
+    t->physics_world = physics_world;
 
     // Upload the geometry to the GPU. This is only needed to visualize the track.
     u32 segment_count = darray_length(t->segments);
@@ -318,14 +336,14 @@ b8 track_load(track* t, kphysics_world* physics_world) {
         // Create a static physics body for each segment.
         char* seg_name = string_format("segment_%u", i);
         // Add to physics world (pass in after querying from scene)
-        if (!kphysics_body_create_mesh(engine_systems_get()->physics_system, kname_create(seg_name), vec3_zero(), segment->geometry.triangle_count, segment->geometry.tris, KPHYSICS_BODY_TYPE_STATIC, &segment->physics_body)) {
+        if (!kphysics_body_create_mesh(engine_systems_get()->physics_system, kname_create(seg_name), vec3_zero(), segment->geometry.triangle_count, segment->geometry.tris, 0.0f, 0.0f, &segment->physics_body)) {
             KERROR("Failed to create mesh body for physics body attachment. See logs for details.");
             continue;
         }
         string_free(seg_name);
 
         // Add to physics world.
-        if (!kphysics_world_add_body(engine_systems_get()->physics_system, t->pjysics_world, segment->physics_body)) {
+        if (!kphysics_world_add_body(engine_systems_get()->physics_system, t->physics_world, segment->physics_body)) {
             KERROR("Failed to add track segment to physics world. See logs for details.");
             return false;
         }
@@ -344,7 +362,7 @@ void track_unload(track* t) {
         for (u32 i = 0; i < segment_count; ++i) {
             track_segment* segment = &t->segments[i];
 
-            kphysics_world_remove_body(engine_systems_get()->physics_system, t->pjysics_world, segment->physics_body);
+            kphysics_world_remove_body(engine_systems_get()->physics_system, t->physics_world, segment->physics_body);
             // Destroy physics body.
             kphysics_body_destroy(engine_systems_get()->physics_system, &segment->physics_body);
 

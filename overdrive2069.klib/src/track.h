@@ -24,7 +24,7 @@ typedef struct track_point {
     // The height difference from the center on the left side.
     f32 right_height;
 
-    // Segments may only be rotated on y.
+    // Segments may only be rotated on y. Radians
     f32 rotation_y;
 
     // The height of the left rail. Negative heights go downward.
@@ -65,6 +65,9 @@ typedef struct track {
     // darray of points (darray so it's editable)
     track_point* points;
 
+    // Indicates if the track loops (i.e. the last point connects to the first)
+    b8 loops;
+
     // Track segments
     track_segment* segments;
 
@@ -73,10 +76,32 @@ typedef struct track {
 
     material_instance material;
 
-    struct kphysics_world* pjysics_world;
+    struct kphysics_world* physics_world;
 } track;
 
-b8 track_create(track* out_track);
+typedef struct track_side_config {
+    f32 width;
+    f32 height;
+    f32 rail_width;
+    f32 rail_height;
+} track_side_config;
+
+typedef struct track_point_config {
+    vec3 position;
+    // In degrees
+    f32 rotation_y;
+    track_side_config left;
+    track_side_config right;
+} track_point_config;
+
+typedef struct track_config {
+    u32 segment_resolution;
+    b8 loops;
+    u32 point_count;
+    track_point_config* points;
+} track_config;
+
+b8 track_create(track* out_track, const track_config* config);
 
 b8 track_initialize(track* t);
 b8 track_load(track* t, struct kphysics_world* physics_world);

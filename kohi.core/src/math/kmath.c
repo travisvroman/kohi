@@ -49,6 +49,8 @@ f32 klog2(f32 x) { return log2f(x); }
 
 f32 kpow(f32 x, f32 y) { return powf(x, y); }
 
+f32 kexp(f32 x) { return exp(x); }
+
 i32 krandom(void) {
     if (!rand_seeded) {
         seed_randoms();
@@ -985,6 +987,104 @@ quat quat_from_axis_angle(vec3 axis, f32 angle, b8 normalize) {
         return quat_normalize(q);
     }
     return q;
+}
+
+quat quat_from_euler_radians(vec3 euler_rotation_radians) {
+    f32 sin_p = ksin(euler_rotation_radians.x);
+    f32 cos_p = kcos(euler_rotation_radians.x);
+    f32 sin_y = ksin(euler_rotation_radians.y);
+    f32 cos_y = kcos(euler_rotation_radians.y);
+    f32 sin_r = ksin(euler_rotation_radians.z);
+    f32 cos_r = kcos(euler_rotation_radians.z);
+
+    quat q = {
+        .x = cos_y * sin_p * cos_r + sin_y * cos_p * sin_r,
+        .y = sin_y * cos_p * cos_r + cos_y * sin_p * sin_r,
+        .z = cos_y * cos_p * sin_r + sin_y * sin_p * cos_r,
+        .w = cos_y * cos_p * cos_r + sin_y * sin_p * sin_r};
+
+    return q;
+}
+
+vec3 quat_to_euler_radians(quat q) {
+    vec3 out_euler;
+
+    // Pitch clamped at 90 to avoid Gimball lock
+    f32 sin_p = 2.0f * (q.w * q.y - q.x * q.z);
+    if (kabs(sin_p) >= 1.0f) {
+        out_euler.x = copysign(K_PI / 2.0f, sin_p);
+    } else {
+        out_euler.x = kasin(sin_p);
+    }
+
+    // Compute yaw (Y rotation)
+    out_euler.y = (atan2f(2.0f * (q.w * q.x + q.y * q.z), 1.0f - 2.0f * (q.x * q.x + q.y * q.y)));
+
+    // Compute roll (Z rotation)
+    out_euler.z = (atan2f(2.0f * (q.w * q.z + q.x * q.y), 1.0f - 2.0f * (q.y * q.y + q.z * q.z)));
+
+    return out_euler;
+}
+
+vec3 quat_to_euler(quat q) {
+    vec3 euler_rad = quat_to_euler_radians(q);
+
+    return (vec3){
+        .x = rad_to_deg(euler_rad.x),
+        .y = rad_to_deg(euler_rad.y),
+        .z = rad_to_deg(euler_rad.z)};
+}
+
+quat quat_from_direction(vec3 direction) {
+    vec3 forward = vec3_forward();
+
+    vec3_normalize(&direction);
+
+    f32 dot = vec3_dot(forward, direction);
+
+    vec3 axis;
+    f32 angle;
+
+    if (dot >= 0.9999f) {
+        return quat_identity(); // Same direction.
+    } else if (dot <= -0.9999f) {
+        axis = (vec3){0.0f, 1.0f, 0.0f}; // arbitrary perpendicular axis
+        angle = K_PI;
+    } else {
+        axis = vec3_cross(forward, direction);
+        vec3_normalize(&axis);
+        angle = kacos(dot);
+    }
+
+    return quat_from_axis_angle(axis, angle, false);
+}
+
+quat quat_lookat(vec3 from, vec3 to) {
+    vec3 forward = vec3_forward();
+    vec3 direction = vec3_sub(to, from);
+    vec3_normalize(&direction);
+
+    f32 dot = vec3_dot(forward, direction);
+
+    if (dot >= 0.9999f) {
+        return quat_identity(); // no rotation needed.
+    } else if (dot <= -0.9999f) {
+        // Vectors are opposite, flip to 180
+        vec3 up = vec3_up();
+        return quat_from_axis_angle(up, K_PI, false);
+    }
+
+    vec3 axis = vec3_cross(forward, direction);
+    vec3_normalize(&axis);
+
+    // Handle the case where the axis becomes near zero (parallel vectors)
+    if (axis.x == 0.0f && axis.y == 0.0f && axis.z == 0.0f) {
+        return quat_identity();
+    }
+
+    f32 angle = kacos(dot);
+
+    return quat_from_axis_angle(axis, angle, false);
 }
 
 quat quat_slerp(quat q_0, quat q_1, f32 percentage) {

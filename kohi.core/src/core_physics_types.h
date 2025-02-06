@@ -1,10 +1,5 @@
 #pragma once
 
-typedef enum kphysics_body_type {
-    KPHYSICS_BODY_TYPE_STATIC,
-    KPHYSICS_BODY_TYPE_DYNAMIC,
-} kphysics_body_type;
-
 typedef enum kphysics_shape_type {
     KPHYSICS_SHAPE_TYPE_SPHERE,
     KPHYSICS_SHAPE_TYPE_RECTANGLE,

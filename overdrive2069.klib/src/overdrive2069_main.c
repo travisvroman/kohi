@@ -375,32 +375,21 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
             f32 delta = get_engine_delta_time();
 
             // HACK: Should be stored elsewhere
-            f32 vehicle_top_speed = 2.0f;
-            static f32 acceleration = 0.0f;
+            f32 vehicle_jet_power = 30.0f;
             f32 vehicle_turn_speed = 2.5f;
 
-            vec3 velocity = vec3_zero();
             quat rotation = quat_identity();
             if (state->mode == GAME_MODE_WORLD) {
                 // Move the vehicle
                 if (input_is_key_down(KEY_W)) {
-                    acceleration += 0.05f;
-                    /* velocity = vec3_add(velocity, vec3_mul_scalar(forward, delta * vehicle_speed)); */
-                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * vehicle_speed));
+                    // Apply forward force
+                    vec3 vehicle_jet_force = vec3_mul_scalar(forward, vehicle_jet_power);
+                    kphysics_body_set_force(engine_systems_get()->physics_system, state->test_vehicle_physics_body, vehicle_jet_force);
                 } else if (input_is_key_down(KEY_S)) {
-                    if (acceleration > 0) {
-                        acceleration -= 0.1f; // Braking hard
-                        if (acceleration < 0.1f) {
-                            acceleration = 0; // Stop if close to stopping anyway.
-                        }
-                    } else {
-                        acceleration -= 0.05f; // Accelerating backward
-                    }
-                    /* velocity = vec3_add(velocity, vec3_mul_scalar(forward, delta * -vehicle_speed)); */
-                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * -vehicle_speed));
+                    // TODO: apply braking force
                 } else {
-                    // Neither is down, cut acceleration to 0
-                    acceleration = 0;
+                    // No force applied.
+                    // Coasting - maybe apply drag?
                 }
                 if (input_is_key_down(KEY_Q)) {
                     /* velocity = vec3_add(velocity, vec3_mul_scalar(right, delta * -vehicle_speed)); */
@@ -420,26 +409,11 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
                     /* xform_rotate(state->test_vehicle_xform, rotation); */
                 }
             }
-            // Use the physics system to rotate and apply velocity.
+            // Use the physics system to rotate.
             kphysics_body_rotate(engine_systems_get()->physics_system, state->test_vehicle_physics_body, rotation);
-            // TODO: acceleration
-            acceleration = KCLAMP(acceleration, -1.0f, 1.0f);
-            velocity = vec3_add(velocity, vec3_mul_scalar(forward, acceleration * vehicle_top_speed * delta));
-            kphysics_body_apply_velocity(engine_systems_get()->physics_system, state->test_vehicle_physics_body, velocity);
 
-            // Constrain to the track.
             vehicle_xform = xform_local_get(state->test_vehicle_xform);
             vehicle_position = mat4_position_get(&vehicle_xform);
-
-            /* vehicle_position = constrain_to_track(vehicle_position, velocity, &state->collision_track, &surface_normal); */
-            // xform_position_set(state->test_vehicle_xform, vec3_add(vehicle_position, velocity));
-            /* xform_position_set(state->test_vehicle_xform, vehicle_position); */
-            // KTRACE("surface normal: %.2f, %.2f, %.2f", surface_normal.x, surface_normal.y, surface_normal.z);
-
-            // TODO: This doesn't seem to be working correctly...
-            /* vec3 surface_normal = vec3_up();
-            quat vehicle_rotation_from_normal = quat_from_surface_normal(surface_normal, vec3_up());
-            xform_rotation_set(state->test_vehicle_mesh_xform, vehicle_rotation_from_normal); */
 
             xform_calculate_local(state->test_vehicle_mesh_xform);
 
@@ -451,20 +425,31 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
             f32 chase_distance = 10.0;
             vec3 backward_offset = vec3_mul_scalar(forward, -chase_distance);
             vec3 upward_offset = vec3_create(0.0f, 3.0f, 0.0f);
-            vec3 camera_position = vec3_add(vec3_add(vehicle_position, backward_offset), upward_offset);
-            camera_position_set(state->vehicle_camera, camera_position);
+            vec3 target_camera_position = vec3_add(vec3_add(vehicle_position, backward_offset), upward_offset);
 
             // Direction from point to focus object
-            vec3 to_obj = vec3_sub(vehicle_position, camera_position);
-
+            vec3 to_obj = vec3_sub(vehicle_position, target_camera_position);
             vec3 f = vec3_normalized(to_obj);
-
             f32 yaw = katan2(-f.x, -f.z);
-
             f32 pitch = kasin(f.y);
+            vec3 target_euler = {pitch, yaw, 0.0f};
 
-            vec3 euler = {pitch, yaw, 0.0f};
-            camera_rotation_euler_set_radians(state->vehicle_camera, euler);
+            f32 smoothing = 5.0f;
+            f32 alpha = 1.0f - kexp(-get_engine_delta_time() * smoothing);
+
+            vec3 camera_position = vec3_lerp(state->vehicle_camera->position, target_camera_position, alpha);
+
+            vec3 camera_rotation = vec3_lerp(state->vehicle_camera->euler_rotation, target_euler, alpha);
+            f32 cyaw = camera_rotation.y;
+
+            // Smooth interpolation when yaw is close to 180 or -180
+            if (kabs(cyaw - state->vehicle_camera->euler_rotation.y) > 3.14159f) { // crossing 180° boundary
+                cyaw = (cyaw > 0.0f) ? cyaw - 2 * 3.14159f : cyaw + 2 * 3.14159f;
+            }
+            camera_rotation.y = cyaw;
+
+            camera_position_set(state->vehicle_camera, camera_position);
+            camera_rotation_euler_set_radians(state->vehicle_camera, camera_rotation);
         }
 
         // // Perform a small rotation on the first mesh.
@@ -1264,7 +1249,7 @@ static void change_current_camera(keys key, keymap_entry_bind_type type, keymap_
     if (state->mode == GAME_MODE_WORLD) {
         state->mode = GAME_MODE_EDITOR;
         state->current_camera = state->editor_camera;
-        KTRACE("Editor camera: %f %f %f", state->current_camera->position.x, state->current_camera->euler_rotation.y, state->current_camera->euler_rotation.z);
+        /* KTRACE("Editor camera: %f %f %f", state->current_camera->position.x, state->current_camera->euler_rotation.y, state->current_camera->euler_rotation.z); */
         if (!input_keymap_pop()) {
             KERROR("No keymap was popped during world->editor");
         }
@@ -1272,7 +1257,7 @@ static void change_current_camera(keys key, keymap_entry_bind_type type, keymap_
     } else if (state->mode == GAME_MODE_EDITOR) {
         state->mode = GAME_MODE_WORLD;
         state->current_camera = state->vehicle_camera;
-        KTRACE("Vehicle camera: %f %f %f", state->current_camera->position.x, state->current_camera->euler_rotation.y, state->current_camera->euler_rotation.z);
+        /* KTRACE("Vehicle camera: %f %f %f", state->current_camera->position.x, state->current_camera->euler_rotation.y, state->current_camera->euler_rotation.z); */
         if (!input_keymap_pop()) {
             KERROR("No keymap was popped during editor->world");
         }

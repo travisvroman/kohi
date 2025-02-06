@@ -47,7 +47,39 @@ nodes = [
                 body_type = "dynamic"
                 shape_type = "sphere"
                 radius = 0.5
+                mass = 1.0
+                inertia = 5.0
                 extents = "0.5 0.35 1.0"
+            }
+        ]
+    }
+    {
+        name = "track"
+        xform = "0 0 0 0 0 0 1 1 1 1"
+        attachments = [
+            {
+                type = "custom_track"
+                segment_resolution = 10
+                loops = true
+                points = [
+                    {
+                        position = "-10.0 -0.5 0.0"
+                        rotation_y = 0.0
+                        left = {
+                            width = 10.0 
+                            height = 0.0 
+                            rail_height = 7.0
+                            rail_width = 3.0
+                        }
+                        right = {
+                            width = 12.0 
+                            height = 0.25 
+                            rail_height = 1.0
+                            rail_width = 3.0
+                        }
+                    }
+                ]
+                
             }
         ]
     }

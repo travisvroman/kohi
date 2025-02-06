@@ -209,6 +209,8 @@ KAPI f32 klog2(f32 x);
  */
 KAPI f32 kpow(f32 x, f32 y);
 
+KAPI f32 kexp(f32 x);
+
 /**
  * @brief Calculates a linear value between a and b based on parameter t.
  *
@@ -1479,6 +1481,16 @@ KAPI mat4 quat_to_rotation_matrix(quat q, vec3 center);
  * @return A new quaternion.
  */
 KAPI quat quat_from_axis_angle(vec3 axis, f32 angle, b8 normalize);
+
+KAPI quat quat_from_euler_radians(vec3 euler_rotation_radians);
+
+KAPI vec3 quat_to_euler_radians(quat q);
+
+KAPI vec3 quat_to_euler(quat q);
+
+KAPI quat quat_from_direction(vec3 direction);
+
+KAPI quat quat_lookat(vec3 from, vec3 to);
 
 /**
  * @brief Calculates spherical linear interpolation of a given percentage

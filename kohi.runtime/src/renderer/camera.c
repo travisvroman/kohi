@@ -53,6 +53,13 @@ void camera_rotation_euler_set_radians(camera* c, vec3 rotation_radians) {
         c->euler_rotation.x = rotation_radians.x;
         c->euler_rotation.y = rotation_radians.y;
         c->euler_rotation.z = rotation_radians.z;
+
+        if (c->euler_rotation.y > 3.14159f) {         // yaw > 180
+            c->euler_rotation.y -= 2 * 3.14159f;      // Wrap yaw around
+        } else if (c->euler_rotation.y < -3.14159f) { // yaw < -180
+            c->euler_rotation.y += 2 * 3.14159f;      // Wrap yaw around
+        }
+
         c->is_dirty = true;
     }
 }
