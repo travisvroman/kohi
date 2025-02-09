@@ -44,12 +44,14 @@ nodes = [
             {
                 type = "physics_body"
                 name = "test_vehicle_physics_body"
-                body_type = "dynamic"
-                shape_type = "sphere"
-                radius = 0.5
-                mass = 1.0
-                inertia = 5.0
-                extents = "0.5 0.35 1.0"
+                config = {
+                    body_type = "dynamic"
+                    shape_type = "sphere"
+                    radius = 0.5
+                    mass = 1.0
+                    inertia = 5.0
+                    extents = "0.5 0.35 1.0"
+                }
             }
         ]
     }
@@ -78,8 +80,151 @@ nodes = [
                             rail_width = 3.0
                         }
                     }
+                    {
+                        position = "10.0 2.0 0.0"
+                        rotation_y = 45.0
+                        left = {
+                            width = 8.0 
+                            height = 0.25 
+                            rail_height = 5.0
+                            rail_width = 0.0
+                        }
+                        right = {
+                            width = 3.0 
+                            height = 0.5 
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                    }
+                    {
+                        position = "50.0 5.0 100.0"
+                        rotation_y = 90.0
+                        left = {
+                            width = 9.0 
+                            height = -0.5 
+                            rail_height = 3.0
+                            rail_width = 0.0
+                        }
+                        right = {
+                            width = 6.0 
+                            height = 1.0
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                    }
+                    {
+                        position = "75.0 6.0 200.0"
+                        rotation_y = 135.0
+                        left = {
+                            width = 6.0 
+                            height = 1.5
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                        right = {
+                            width = 10.0 
+                            height = 1.0
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                    }
+                    {
+                        position = "20.0 6.0 230.0"
+                        rotation_y = 180.0
+                        left = {
+                            width = 5.0 
+                            height = 1.5
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                        right = {
+                            width = 15.0 
+                            height = 1.0
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                    }
+                    {
+                        position = "-50.0 5.0 200.0"
+                        rotation_y = 270.0
+                        left = {
+                            width = 4.0 
+                            height = 1.5
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                        right = {
+                            width = 15.0 
+                            height = 1.0
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                    }
+                    {
+                        position = "-50.0 10.0 159.0"
+                        rotation_y = 270.0
+                        left = {
+                            width = 4.0 
+                            height = 1.5
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                        right = {
+                            width = 15.0 
+                            height = 1.0
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                    }
+                    {
+                        position = "-50.0 -1.0 158.0"
+                        rotation_y = 270.0
+                        left = {
+                            width = 4.0 
+                            height = 1.5
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                        right = {
+                            width = 15.0 
+                            height = 1.0
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                    }
+                    {
+                        position = "-50.0 2.0 100.0"
+                        rotation_y = 270.0
+                        left = {
+                            width = 8.0 
+                            height = 1.5
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                        right = {
+                            width = 8.0 
+                            height = 1.0
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                    }
+                    {
+                        position = "-25.0 2.0 10.0"
+                        rotation_y = 270.0
+                        left = {
+                            width = 8.0 
+                            height = 1.5
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                        right = {
+                            width = 8.0 
+                            height = 1.0
+                            rail_height = 2.0
+                            rail_width = 0.0
+                        }
+                    }
                 ]
-                
             }
         ]
     }

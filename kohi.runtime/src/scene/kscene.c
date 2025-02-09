@@ -1,4 +1,4 @@
-#include "scene.h"
+#include "kscene.h"
 
 #include <core_resource_types.h>
 
@@ -40,8 +40,8 @@
 #include "systems/xform_system.h"
 #include "utils/ksort.h"
 
-static void scene_actual_unload(scene* scene);
-static void scene_node_metadata_ensure_allocated(scene* s, u64 handle_index);
+static void scene_actual_unload(kscene* scene);
+static void scene_node_metadata_ensure_allocated(kscene* s, u64 handle_index);
 
 static u32 global_scene_id = 0;
 
@@ -102,17 +102,17 @@ static i32 geometry_distance_compare(void* a, void* b) {
     return 0;
 }
 
-b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
+b8 scene_create(kresource_scene* config, scene_flags flags, kscene* out_scene) {
     if (!out_scene) {
         KERROR("scene_create(): A valid pointer to out_scene is required.");
         return false;
     }
 
-    kzero_memory(out_scene, sizeof(scene));
+    kzero_memory(out_scene, sizeof(kscene));
 
     out_scene->flags = flags;
     out_scene->enabled = false;
-    out_scene->state = SCENE_STATE_UNINITIALIZED;
+    out_scene->state = KSCENE_STATE_UNINITIALIZED;
     global_scene_id++;
     out_scene->id = global_scene_id;
 
@@ -172,9 +172,9 @@ b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
     return true;
 }
 
-void scene_destroy(scene* s) {
+void scene_destroy(kscene* s) {
     if (s) {
-        if (s->state == SCENE_STATE_LOADED) {
+        if (s->state == KSCENE_STATE_LOADED) {
             scene_actual_unload(s);
         }
 
@@ -247,13 +247,13 @@ void scene_destroy(scene* s) {
             darray_destroy(s->physics_body_attachments);
         }
 
-        kzero_memory(s, sizeof(scene));
+        kzero_memory(s, sizeof(kscene));
 
-        s->state = SCENE_STATE_UNINITIALIZED;
+        s->state = KSCENE_STATE_UNINITIALIZED;
     }
 }
 
-void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* node_config) {
+void scene_node_initialize(kscene* s, khandle parent_handle, scene_node_config* node_config) {
     if (node_config) {
         b8 is_readonly = ((s->flags & SCENE_FLAG_READONLY) != 0);
 
@@ -791,6 +791,8 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
             u32 count = darray_length(node_config->user_defined_configs);
             for (u32 i = 0; i < count; ++i) {
                 scene_node_attachment_user_defined_config* typed_attachment_config = &node_config->user_defined_configs[i];
+                if (typed_attachment_config) {
+                }
                 // LEFTOFF: Implement a registry to handle user-defined attachment types, which will process the string
                 // held by these configs. Will need a type-agnostic way to handle these specifcially.
             }
@@ -806,7 +808,7 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
     }
 }
 
-b8 scene_initialize(scene* scene) {
+b8 scene_initialize(kscene* scene) {
     if (!scene) {
         KERROR("scene_initialize requires a valid pointer to a scene.");
         return false;
@@ -839,18 +841,18 @@ b8 scene_initialize(scene* scene) {
     }
 
     // Update the state to show the scene is initialized.
-    scene->state = SCENE_STATE_INITIALIZED;
+    scene->state = KSCENE_STATE_INITIALIZED;
 
     return true;
 }
 
-b8 scene_load(scene* scene) {
+b8 scene_load(kscene* scene) {
     if (!scene) {
         return false;
     }
 
     // Update the state to show the scene is currently loading.
-    scene->state = SCENE_STATE_LOADING;
+    scene->state = KSCENE_STATE_LOADING;
 
     // Register with the console.
     console_object_register("scene", scene, CONSOLE_OBJECT_TYPE_STRUCT);
@@ -1047,18 +1049,18 @@ b8 scene_load(scene* scene) {
     }
 
     // Update the state to show the scene is fully loaded.
-    scene->state = SCENE_STATE_LOADED;
+    scene->state = KSCENE_STATE_LOADED;
 
     return true;
 }
 
-b8 scene_unload(scene* scene, b8 immediate) {
+b8 scene_unload(kscene* scene, b8 immediate) {
     if (!scene) {
         return false;
     }
 
     // Always immediately set the state to unloading.
-    scene->state = SCENE_STATE_UNLOADING;
+    scene->state = KSCENE_STATE_UNLOADING;
 
     // If immediate, trigger the unload right away. Otherwise it will happen on the next frame.
     if (immediate) {
@@ -1069,17 +1071,17 @@ b8 scene_unload(scene* scene, b8 immediate) {
     return true;
 }
 
-b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
+b8 scene_update(kscene* scene, const struct frame_data* p_frame_data) {
     if (!scene) {
         return false;
     }
 
-    if (scene->state == SCENE_STATE_UNLOADING) {
+    if (scene->state == KSCENE_STATE_UNLOADING) {
         scene_actual_unload(scene);
         return true;
     }
 
-    if (scene->state == SCENE_STATE_LOADED) {
+    if (scene->state == KSCENE_STATE_LOADED) {
         // Apply physics world updates, if enabled.
         if (scene->physics_enabled) {
             // Sync visual object transforms to those of the physics attachments.
@@ -1236,12 +1238,12 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
     return true;
 }
 
-void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_data) {
+void scene_render_frame_prepare(kscene* scene, const struct frame_data* p_frame_data) {
     if (!scene) {
         return;
     }
 
-    if (scene->state == SCENE_STATE_LOADED) {
+    if (scene->state == KSCENE_STATE_LOADED) {
         if (scene->dir_lights) {
             u32 directional_light_count = darray_length(scene->dir_lights);
             for (u32 i = 0; i < directional_light_count; ++i) {
@@ -1328,12 +1330,12 @@ void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_d
     }
 }
 
-void scene_update_lod_from_view_position(scene* scene, const frame_data* p_frame_data, vec3 view_position, f32 near_clip, f32 far_clip) {
+void scene_update_lod_from_view_position(kscene* scene, const frame_data* p_frame_data, vec3 view_position, f32 near_clip, f32 far_clip) {
     if (!scene) {
         return;
     }
 
-    if (scene->state == SCENE_STATE_LOADED) {
+    if (scene->state == KSCENE_STATE_LOADED) {
         // Update terrain chunk LODs
         u32 terrain_count = darray_length(scene->terrains);
         for (u32 i = 0; i < terrain_count; ++i) {
@@ -1384,8 +1386,8 @@ void scene_update_lod_from_view_position(scene* scene, const frame_data* p_frame
     }
 }
 
-b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_result) {
-    if (!scene || !r || !out_result || scene->state != SCENE_STATE_LOADED) {
+b8 scene_raycast(kscene* scene, const struct ray* r, struct raycast_result* out_result) {
+    if (!scene || !r || !out_result || scene->state != KSCENE_STATE_LOADED) {
         return false;
     }
 
@@ -1454,14 +1456,14 @@ b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_r
     return out_result->hits != 0;
 }
 
-b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_data** debug_geometries) {
+b8 scene_debug_render_data_query(kscene* scene, u32* data_count, geometry_render_data** debug_geometries) {
     if (!scene || !data_count) {
         return false;
     }
 
     *data_count = 0;
 
-    if (scene->state > SCENE_STATE_LOADED) {
+    if (scene->state > KSCENE_STATE_LOADED) {
         return true;
     }
 
@@ -1610,11 +1612,11 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
     return true;
 }
 
-b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, vec3 center, f32 radius, frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries) {
+b8 scene_mesh_render_data_query_from_line(const kscene* scene, vec3 direction, vec3 center, f32 radius, frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries) {
     if (!scene) {
         return false;
     }
-    if (scene->state > SCENE_STATE_LOADED) {
+    if (scene->state > KSCENE_STATE_LOADED) {
         *out_count = 0;
         return true;
     }
@@ -1710,11 +1712,11 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
     return true;
 }
 
-b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries) {
+b8 scene_terrain_render_data_query_from_line(const kscene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries) {
     if (!scene) {
         return false;
     }
-    if (scene->state > SCENE_STATE_LOADED) {
+    if (scene->state > KSCENE_STATE_LOADED) {
         *out_count = 0;
         return true;
     }
@@ -1774,11 +1776,11 @@ b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction,
     return true;
 }
 
-b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries) {
+b8 scene_mesh_render_data_query(const kscene* scene, const frustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries) {
     if (!scene) {
         return false;
     }
-    if (scene->state > SCENE_STATE_LOADED) {
+    if (scene->state > KSCENE_STATE_LOADED) {
         *out_count = 0;
         return true;
     }
@@ -1906,11 +1908,11 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
     return true;
 }
 
-b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries) {
+b8 scene_terrain_render_data_query(const kscene* scene, const frustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries) {
     if (!scene) {
         return false;
     }
-    if (scene->state > SCENE_STATE_LOADED) {
+    if (scene->state > KSCENE_STATE_LOADED) {
         *out_count = 0;
         return true;
     }
@@ -1987,12 +1989,12 @@ b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, vec3 ce
  * @param out_water_planes A pointer to an array of pointers to water planes. Pass 0 if just obtaining the count.
  * @return True on success; otherwise false.
  */
-b8 scene_water_plane_query(const scene* scene, const frustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, water_plane*** out_water_planes) {
+b8 scene_water_plane_query(const kscene* scene, const frustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, water_plane*** out_water_planes) {
     if (!scene) {
         return false;
     }
     *out_count = 0;
-    if (scene->state > SCENE_STATE_LOADED) {
+    if (scene->state > KSCENE_STATE_LOADED) {
         return true;
     }
 
@@ -2019,7 +2021,7 @@ b8 scene_water_plane_query(const scene* scene, const frustum* f, vec3 center, fr
     return true;
 }
 
-b8 scene_node_xform_get_by_name(const scene* scene, kname name, khandle* out_xform_handle) {
+b8 scene_node_xform_get_by_name(const kscene* scene, kname name, khandle* out_xform_handle) {
     if (!scene || !name || !out_xform_handle) {
         return false;
     }
@@ -2036,7 +2038,7 @@ b8 scene_node_xform_get_by_name(const scene* scene, kname name, khandle* out_xfo
     return false;
 }
 
-b8 scene_physics_body_get_by_name(const scene* s, kname name, khandle* out_body_handle) {
+b8 scene_physics_body_get_by_name(const kscene* s, kname name, khandle* out_body_handle) {
     if (!s || !name || !out_body_handle) {
         return false;
     }
@@ -2053,7 +2055,7 @@ b8 scene_physics_body_get_by_name(const scene* s, kname name, khandle* out_body_
     return false;
 }
 
-static void scene_actual_unload(scene* s) {
+static void scene_actual_unload(kscene* s) {
     u32 skybox_count = darray_length(s->skyboxes);
     for (u32 i = 0; i < skybox_count; ++i) {
         if (!skybox_unload(&s->skyboxes[i])) {
@@ -2158,12 +2160,12 @@ static void scene_actual_unload(scene* s) {
     hierarchy_graph_destroy(&s->hierarchy);
 
     // Update the state to show the scene is unloaded.
-    s->state = SCENE_STATE_UNLOADED;
+    s->state = KSCENE_STATE_UNLOADED;
 
     KDEBUG("Scene unloading done.");
 }
 
-static b8 scene_serialize_node(const scene* s, const hierarchy_graph_view* view, const hierarchy_graph_view_node* view_node, kson_property* node) {
+static b8 scene_serialize_node(const kscene* s, const hierarchy_graph_view* view, const hierarchy_graph_view_node* view_node, kson_property* node) {
     if (!s || !view || !view_node) {
         return false;
     }
@@ -2374,7 +2376,7 @@ static b8 scene_serialize_node(const scene* s, const hierarchy_graph_view* view,
     return true;
 }
 
-kphysics_world* scene_physics_world_get(scene* s) {
+kphysics_world* scene_physics_world_get(kscene* s) {
     if (!s) {
         return 0;
     }
@@ -2382,7 +2384,7 @@ kphysics_world* scene_physics_world_get(scene* s) {
     return &s->physics_world;
 }
 
-b8 scene_save(scene* s) {
+b8 scene_save(kscene* s) {
     if (!s) {
         KERROR("scene_save requires a valid pointer to a scene.");
         return false;
@@ -2470,7 +2472,7 @@ b8 scene_save(scene* s) {
     return result;
 }
 
-static void scene_node_metadata_ensure_allocated(scene* s, u64 handle_index) {
+static void scene_node_metadata_ensure_allocated(kscene* s, u64 handle_index) {
     if (s && handle_index != INVALID_ID_U64) {
         u64 new_count = handle_index + 1;
         if (s->node_metadata_count < new_count) {

@@ -34,6 +34,7 @@
 #include "renderer/rendergraph.h"
 
 // systems
+#include "scene/kscene_attachment_registry.h"
 #include "systems/asset_system.h"
 #include "systems/camera_system.h"
 #include "systems/font_system.h"
@@ -606,6 +607,15 @@ b8 engine_create(application* app) {
         }
     }
 
+    // Scene attachment type registry
+    {
+        systems->scene_attachment_type_registry = kallocate(sizeof(kscene_attachment_type_registry_state), MEMORY_TAG_ENGINE);
+        if (!kscene_attachment_type_registry_initialize(systems->scene_attachment_type_registry)) {
+            KERROR("Failed to initialize scene attachment type registry. See logs for details.");
+            return false;
+        }
+    }
+
     // NOTE: Boot sequence =======================================================================================================
     // Perform the application's boot sequence.
     app->stage = APPLICATION_STAGE_BOOTING;
@@ -890,6 +900,7 @@ b8 engine_run(application* app) {
         // Engine systems
         engine_system_states* systems = &engine_state->systems;
 
+        kscene_attachment_type_registry_shutdown(&systems->scene_attachment_type_registry);
         camera_system_shutdown(systems->camera_system);
         light_system_shutdown(systems->light_system);
         static_mesh_system_shutdown(systems->static_mesh_system);

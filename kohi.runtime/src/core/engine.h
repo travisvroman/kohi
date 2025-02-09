@@ -44,6 +44,7 @@ struct rendergraph_system_state;
 struct asset_system_state;
 struct vfs_state;
 struct kwindow;
+struct kscene_attachment_type_registry_state;
 
 typedef struct engine_system_states {
     u64 platform_memory_requirement;
@@ -114,6 +115,8 @@ typedef struct engine_system_states {
 
     u64 physics_system_memory_requirement;
     struct kphysics_system_state* physics_system;
+
+    struct kscene_attachment_type_registry_state* scene_attachment_type_registry;
 } engine_system_states;
 
 /**

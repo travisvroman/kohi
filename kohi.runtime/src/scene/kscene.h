@@ -8,6 +8,7 @@
 #include "math/math_types.h"
 #include "physics/physics_types.h"
 #include "resources/debug/debug_grid.h"
+#include "scene/kscene_attachment_types.h"
 #include "systems/static_mesh_system.h"
 
 struct frame_data;
@@ -25,20 +26,20 @@ struct transform;
 struct viewport;
 struct geometry_render_data;
 
-typedef enum scene_state {
+typedef enum kscene_state {
     /** @brief created, but nothing more. */
-    SCENE_STATE_UNINITIALIZED,
+    KSCENE_STATE_UNINITIALIZED,
     /** @brief Configuration parsed, not yet loaded hierarchy setup. */
-    SCENE_STATE_INITIALIZED,
+    KSCENE_STATE_INITIALIZED,
     /** @brief In the process of loading the hierarchy. */
-    SCENE_STATE_LOADING,
+    KSCENE_STATE_LOADING,
     /** @brief Everything is loaded, ready to play. */
-    SCENE_STATE_LOADED,
+    KSCENE_STATE_LOADED,
     /** @brief In the process of unloading, not ready to play. */
-    SCENE_STATE_UNLOADING,
+    KSCENE_STATE_UNLOADING,
     /** @brief Unloaded and ready to be destroyed.*/
-    SCENE_STATE_UNLOADED
-} scene_state;
+    KSCENE_STATE_UNLOADED
+} kscene_state;
 
 typedef struct scene_attachment {
     scene_node_attachment_type attachment_type;
@@ -92,11 +93,11 @@ typedef struct scene_water_plane_metadata {
 struct scene_audio_emitter;
 struct scene_physics_body;
 
-typedef struct scene {
+typedef struct kscene {
     u32 id;
     scene_flags flags;
 
-    scene_state state;
+    kscene_state state;
     b8 enabled;
 
     kname name;
@@ -104,6 +105,10 @@ typedef struct scene {
 
     b8 physics_enabled;
     vec3 physics_gravity;
+
+    // darray of attachments. Slots are considered "free" if the name/type_name
+    // are INVALID_KNAME and the internal_attachment handle is an invalid khandle.
+    kscene_attachment* attachments;
 
     // darray of directional lights.
     struct directional_light* dir_lights;
@@ -172,7 +177,7 @@ typedef struct scene {
     // The number of node_metadatas currently allocated.
     u32 node_metadata_count;
 
-} scene;
+} kscene;
 
 /**
  * @brief Creates a new scene with the given config with default values.
@@ -183,7 +188,7 @@ typedef struct scene {
  * @param out_scene A pointer to hold the newly created scene. Required.
  * @return True on success; otherwise false.
  */
-KAPI b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene);
+KAPI b8 scene_create(kresource_scene* config, scene_flags flags, kscene* out_scene);
 
 /**
  * @brief Performs initialization routines on the scene, including processing
@@ -192,7 +197,7 @@ KAPI b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scen
  * @param scene A pointer to the scene to be initialized.
  * @return True on success; otherwise false.
  */
-KAPI b8 scene_initialize(scene* scene);
+KAPI b8 scene_initialize(kscene* scene);
 
 /**
  * @brief Performs loading routines and resource allocation on the given scene.
@@ -200,7 +205,7 @@ KAPI b8 scene_initialize(scene* scene);
  * @param scene A pointer to the scene to be loaded.
  * @return True on success; otherwise false.
  */
-KAPI b8 scene_load(scene* scene);
+KAPI b8 scene_load(kscene* scene);
 
 /**
  * @brief Performs unloading routines and resource de-allocation on the given scene.
@@ -210,7 +215,7 @@ KAPI b8 scene_load(scene* scene);
  * @param immediate Unload immediately instead of the next frame. NOTE: can have unintended side effects if used improperly.
  * @return True on success; otherwise false.
  */
-KAPI b8 scene_unload(scene* scene, b8 immediate);
+KAPI b8 scene_unload(kscene* scene, b8 immediate);
 
 /**
  * @brief Destroys the scene, releasing any remaining resources held by it.
@@ -218,7 +223,7 @@ KAPI b8 scene_unload(scene* scene, b8 immediate);
  *
  * @param s A pointer to the scene to be destroyed.
  */
-KAPI void scene_destroy(scene* s);
+KAPI void scene_destroy(kscene* s);
 
 /**
  * @brief Performs any required scene updates for the given frame.
@@ -227,9 +232,9 @@ KAPI void scene_destroy(scene* s);
  * @param p_frame_data A constant pointer to the current frame's data.
  * @return True on success; otherwise false.
  */
-KAPI b8 scene_update(scene* scene, const struct frame_data* p_frame_data);
+KAPI b8 scene_update(kscene* scene, const struct frame_data* p_frame_data);
 
-KAPI void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_data);
+KAPI void scene_render_frame_prepare(kscene* scene, const struct frame_data* p_frame_data);
 
 /**
  * @brief Updates LODs of items in the scene based on the given position and clipping distances.
@@ -240,23 +245,23 @@ KAPI void scene_render_frame_prepare(scene* scene, const struct frame_data* p_fr
  * @param near_clip The near clipping distance from the view position.
  * @param far_clip The far clipping distance from the view position.
  */
-KAPI void scene_update_lod_from_view_position(scene* scene, const struct frame_data* p_frame_data, vec3 view_position, f32 near_clip, f32 far_clip);
+KAPI void scene_update_lod_from_view_position(kscene* scene, const struct frame_data* p_frame_data, vec3 view_position, f32 near_clip, f32 far_clip);
 
-KAPI b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_result);
+KAPI b8 scene_raycast(kscene* scene, const struct ray* r, struct raycast_result* out_result);
 
-KAPI b8 scene_debug_render_data_query(scene* scene, u32* data_count, struct geometry_render_data** debug_geometries);
+KAPI b8 scene_debug_render_data_query(kscene* scene, u32* data_count, struct geometry_render_data** debug_geometries);
 
-KAPI b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
-KAPI b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
+KAPI b8 scene_mesh_render_data_query(const kscene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
+KAPI b8 scene_mesh_render_data_query_from_line(const kscene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
 
-KAPI b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries);
-KAPI b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
+KAPI b8 scene_terrain_render_data_query(const kscene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries);
+KAPI b8 scene_terrain_render_data_query_from_line(const kscene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
 
-KAPI b8 scene_water_plane_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct water_plane*** out_water_planes);
+KAPI b8 scene_water_plane_query(const kscene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct water_plane*** out_water_planes);
 
-KAPI b8 scene_node_xform_get_by_name(const scene* scene, kname name, khandle* out_xform_handle);
+KAPI b8 scene_node_xform_get_by_name(const kscene* scene, kname name, khandle* out_xform_handle);
 
-KAPI kphysics_world* scene_physics_world_get(scene* s);
-KAPI b8 scene_physics_body_get_by_name(const scene* s, kname name, khandle* out_body_handle);
+KAPI kphysics_world* scene_physics_world_get(kscene* s);
+KAPI b8 scene_physics_body_get_by_name(const kscene* s, kname name, khandle* out_body_handle);
 
-KAPI b8 scene_save(scene* s);
+KAPI b8 scene_save(kscene* s);

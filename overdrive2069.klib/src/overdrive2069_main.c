@@ -1456,7 +1456,8 @@ static void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_mod
         }
 
         // HACK: create track
-        if (!track_create(&state->collision_track)) {
+        // TODO: pass config instead of 0
+        if (!track_create(&state->collision_track, 0)) {
             KERROR("Failed to create collision track.");
             return;
         }
