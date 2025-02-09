@@ -10,7 +10,6 @@
 #include <math/kmath.h>
 #include <memory/kmemory.h>
 #include <renderer/renderer_frontend.h>
-#include <resources/resource_types.h>
 #include <strings/kstring.h>
 #include <systems/font_system.h>
 #include <systems/shader_system.h>

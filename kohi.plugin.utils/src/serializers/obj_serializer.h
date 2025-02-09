@@ -1,10 +1,8 @@
 #pragma once
 
-#include "core_render_types.h"
 #include <assets/kasset_types.h>
 #include <defines.h>
 #include <math/math_types.h>
-#include <resources/resource_types.h>
 
 typedef struct obj_source_geometry {
     /** @brief The number of vertices. */

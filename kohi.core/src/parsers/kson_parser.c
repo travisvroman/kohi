@@ -1930,6 +1930,26 @@ b8 kson_object_property_value_get_object(const kson_object* object, const char* 
     return true;
 }
 
+const char* kson_object_property_value_get_object_as_source_string(const kson_object* object, const char* name) {
+    i32 index = kson_object_property_index_get(object, name);
+    if (index == -1) {
+        return false;
+    }
+
+    kson_property* p = &object->properties[index];
+    // Allow both object and array here.
+    if (p->type != KSON_PROPERTY_TYPE_OBJECT) {
+        KERROR("Error parsing value as '%s' - property is instead stored as (type='%s').", kson_property_type_to_string(KSON_PROPERTY_TYPE_OBJECT), kson_property_type_to_string(p->type));
+        return false;
+    }
+
+    kson_tree temp_tree = {0};
+    temp_tree.root = p->value.o;
+
+    const char* result = kson_tree_to_string(&temp_tree);
+    return result;
+}
+
 b8 kson_object_property_value_get_array(const kson_object* object, const char* name, kson_array* out_value) {
     i32 index = kson_object_property_index_get(object, name);
     if (index == -1) {

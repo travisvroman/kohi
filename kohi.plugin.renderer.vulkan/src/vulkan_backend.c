@@ -25,7 +25,6 @@
 #include <platform/vulkan_platform.h>
 #include <renderer/renderer_frontend.h>
 #include <renderer/renderer_types.h>
-#include <resources/resource_types.h>
 #include <strings/kname.h>
 #include <strings/kstring.h>
 #include <utils/ksort.h>

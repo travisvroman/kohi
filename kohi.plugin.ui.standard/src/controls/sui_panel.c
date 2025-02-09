@@ -6,7 +6,6 @@
 #include <math/geometry.h>
 #include <math/kmath.h>
 #include <renderer/renderer_frontend.h>
-#include <resources/resource_types.h>
 #include <strings/kstring.h>
 #include <systems/shader_system.h>
 

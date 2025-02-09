@@ -4,7 +4,6 @@
 #include "identifiers/identifier.h"
 #include "kresources/kresource_types.h"
 #include "math/math_types.h"
-#include "resources/resource_types.h"
 #include "strings/kname.h"
 #include "systems/material_system.h"
 
@@ -17,6 +16,8 @@ Load heightmaps
 calculate normals/tangents (copy-pasta of existing, but using terrain_vertex
 structure) New material type? (terrain/multi material)
 */
+
+#define TERRAIN_MAX_MATERIAL_COUNT 4
 
 typedef struct terrain_vertex {
     /** @brief The position of the vertex */

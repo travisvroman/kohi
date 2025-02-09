@@ -6,6 +6,8 @@ The items in this list are not in any particular order. This list will be update
 
 ## 0.9.0 Release
 
+- [ ] Rework khandle to use less memory (i.e. 32-bit globally-incrementing uniqueid instead of 64 bit)
+- [ ] Extend kpool to optionally expand when full (if configured to do so)
 - [ ] Simple Physics System (kphysics)
   - [x] Store triangle data in kgeometry.
         NOTE: This should be optional, and not done by default. A function could be added to (re)generate

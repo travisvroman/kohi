@@ -4,7 +4,6 @@
 #include <assets/kasset_types.h>
 #include <defines.h>
 #include <math/math_types.h>
-#include <resources/resource_types.h>
 
 typedef struct fnt_source_asset {
     char* face_name;

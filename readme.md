@@ -49,6 +49,7 @@ NOTE: This project _does not_ work under WSL, nor will it in the forseeable futu
 - Visual Studio Build Tools: `winget install Microsoft.VisualStudio.2022.BuildTools`
 - Git for Windows: `winget install git.git` OR https://gitforwindows.org/
 - Vulkan SDK: `winget install khronosgroup.vulkansdk` OR download from https://vulkan.lunarg.com/
+- Clang: `winget install -i llvm` (Important! Note the '-i' for interactive install. You must choose the option to add to PATH for all users).
 
 ### Prerequisites for Linux
 

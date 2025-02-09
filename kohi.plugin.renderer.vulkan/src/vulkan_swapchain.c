@@ -11,7 +11,6 @@
 #include <platform/platform.h>
 #include <renderer/renderer_frontend.h>
 #include <renderer/renderer_types.h>
-#include <resources/resource_types.h>
 #include <strings/kstring.h>
 #include <vulkan_device.h>
 #include <vulkan_types.h>

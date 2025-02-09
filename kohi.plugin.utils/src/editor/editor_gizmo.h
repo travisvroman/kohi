@@ -3,7 +3,6 @@
 #include <defines.h>
 #include <math/geometry.h>
 #include <math/math_types.h>
-#include <resources/resource_types.h>
 
 #include "identifiers/khandle.h"
 

@@ -8,7 +8,6 @@
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
-#include "resources/resource_types.h"
 #include "runtime_defines.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
@@ -31,37 +30,6 @@ typedef struct texture_system_state {
 
     struct kresource_system_state* kresource_system;
 } texture_system_state;
-
-// Also used as result_data from job.
-typedef struct texture_load_params {
-    char* resource_name;
-    kresource_texture* out_texture;
-    kresource_texture temp_texture;
-    resource image_resource;
-} texture_load_params;
-
-typedef struct texture_load_layered_params {
-    char* name;
-    u32 layer_count;
-    char** layer_names;
-    kresource_texture* out_texture;
-} texture_load_layered_params;
-
-typedef enum texture_load_job_code {
-    TEXTURE_LOAD_JOB_CODE_FIRST_QUERY_FAILED,
-    TEXTURE_LOAD_JOB_CODE_RESOURCE_LOAD_FAILED,
-    TEXTURE_LOAD_JOB_CODE_RESOURCE_DIMENSION_MISMATCH,
-} texture_load_job_code;
-
-typedef struct texture_load_layered_result {
-    char* name;
-    u32 layer_count;
-    kresource_texture* out_texture;
-    u64 data_block_size;
-    u8* data_block;
-    kresource_texture temp_texture;
-    texture_load_job_code result_code;
-} texture_load_layered_result;
 
 // FIXME: remove this and its dependencies.
 static texture_system_state* state_ptr = 0;
