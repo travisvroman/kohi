@@ -45,7 +45,7 @@ nodes = [
                 type = "physics_body"
                 name = "test_vehicle_physics_body"
                 body_type = "dynamic"
-                shape_type = "sphere"
+                shape_type = "rec"
                 radius = 0.5
                 mass = 1.0
                 inertia = 5.0
@@ -85,12 +85,20 @@ nodes = [
     }
     {
         name = "tree2"
-        xform = "56.887442 0.536942 53.040905 0.000000 0.817741 0.000000 0.575589 2.000000 2.000000 2.000000"
+        xform = "52 4.0 50.0 0.000000 0.817741 0.000000 0.575589 2.000000 2.000000 2.000000"
         attachments = [
             {
                 type = "static_mesh"
                 asset_name = "Tree"
                 package_name = "Overdrive2069"
+            }
+            {
+                type = "physics_body"
+                name = "tree2_physics_body"
+                body_type = "dynamic"
+                shape_type = "rectangle"
+                mass = 0.0
+                extents = "0.1 2.0 0.1"
             }
         ]
     }

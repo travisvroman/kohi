@@ -782,8 +782,8 @@ void kphysics_world_destroy(struct kphysics_system_state* state, kphysics_world*
 }
 
 b8 kphysics_set_world(kphysics_system_state* state, kphysics_world* world) {
-    if (!state || !world) {
-        KERROR("kphysics_set_world requires valid pointers to state and world, ya dingus!");
+    if (!state) {
+        KERROR("kphysics_set_world requires a valid pointer to state!");
         return false;
     }
 

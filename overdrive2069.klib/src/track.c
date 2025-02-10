@@ -63,17 +63,7 @@ b8 track_create(track* out_track, const track_config* config) {
         p->right_rail_height = c->right.rail_height;
     }
 
-    /* // Position, left_width, left_height, right_width, right_height, rotation_y, left_rail_height, left_rail_width, right_rail_height, right_rail_width
-    out_track->points[0] = (track_point){{-10.0f, -0.5f, 0.0f}, 10.0f, 0.0f, 12.0f, 0.25f, deg_to_rad(0.0f), 7.0f, 3.0f, 1.0f, 3.0f};
-    out_track->points[1] = (track_point){{10.0f, 2.0f, 00.0f}, 8.0f, 0.25f, 3.0f, 0.5f, deg_to_rad(45.0f), 5.0f, 0.0f, 2.0f, 0.0f};
-    out_track->points[2] = (track_point){{50.0f, 5.0f, 100.0f}, 9.0f, -0.5f, 6.0f, 1.0f, deg_to_rad(90.0f), 3.0f, 0.0f, 2.0f, 0.0f};
-    out_track->points[3] = (track_point){{75.0f, 6.0f, 200.0f}, 6.0f, 1.0f, 10.0f, 1.5f, deg_to_rad(135.0f), 2.0f, 0.0f, 2.0f, 0.0f};
-    out_track->points[4] = (track_point){{20.0f, 6.0f, 230.0f}, 5.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(180.0f), 2.0f, 0.0f, 2.0f, 0.0f};
-    out_track->points[5] = (track_point){{-50.0f, 5.0f, 200.0f}, 4.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
-    out_track->points[6] = (track_point){{-50.0f, 10.0f, 159.0f}, 4.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
-    out_track->points[7] = (track_point){{-50.0f, -1.0f, 158.0f}, 4.0f, 1.0f, 15.0f, 1.5f, deg_to_rad(270.0f), 11.0f, 0.0f, 11.0f, 0.0f};
-    out_track->points[8] = (track_point){{-50.0f, 2.0f, 100.0f}, 8.0f, 1.0f, 8.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f};
-    out_track->points[9] = (track_point){{-25.0f, 2.0f, 10.0f}, 8.0f, 1.0f, 8.0f, 1.5f, deg_to_rad(270.0f), 2.0f, 0.0f, 2.0f, 0.0f}; */
+    
 
     // Number of divisions to make per segment.
     out_track->segment_resolution = config->segment_resolution;

@@ -32,6 +32,7 @@
         "core_render_types.h": "c",
         "logger.h": "c",
         "vfs.h": "c",
-        "kresource_system.h": "c"
+        "kresource_system.h": "c",
+        "frame_data.h": "c"
     }
 }

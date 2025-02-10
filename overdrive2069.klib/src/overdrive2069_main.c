@@ -105,6 +105,14 @@ u64 application_state_size(void) {
     return sizeof(game_state);
 }
 
+game_state* game_state_get(struct application* app) {
+    return (game_state*)app->state;
+}
+
+game_settings* game_settings_get(struct application* app) {
+    return &(game_state_get(app)->settings);
+}
+
 b8 application_boot(struct application* app) {
     KINFO("Booting Overdrive 2069 (%s)...", KVERSION);
 
@@ -329,6 +337,14 @@ b8 application_initialize(struct application* app) {
         return false;
     }
 
+    // Setup default game settings.
+    game_settings* settings = game_settings_get(app);
+    settings->chase_camera_delay = 0.85f;
+    settings->chase_camera_distance = 10.0f;
+    settings->chase_camera_vertical_offset = 3.0f;
+
+    // TODO: Load saved game settings.
+
     state->running = true;
 
     return true;
@@ -371,7 +387,6 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
             mat4 vehicle_xform = xform_local_get(state->test_vehicle_xform);
             vec3 vehicle_position = mat4_position_get(&vehicle_xform);
             vec3 forward = mat4_forward(vehicle_xform);
-            /* vec3 right = mat4_right(vehicle_xform); */
             f32 delta = get_engine_delta_time();
 
             // HACK: Should be stored elsewhere
@@ -391,22 +406,12 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
                     // No force applied.
                     // Coasting - maybe apply drag?
                 }
-                if (input_is_key_down(KEY_Q)) {
-                    /* velocity = vec3_add(velocity, vec3_mul_scalar(right, delta * -vehicle_speed)); */
-                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * -vehicle_speed));
-                }
-                if (input_is_key_down(KEY_E)) {
-                    /* velocity = vec3_add(velocity, vec3_mul_scalar(right, delta * vehicle_speed)); */
-                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * vehicle_speed));
-                }
 
                 if (input_is_key_down(KEY_A)) {
                     rotation = quat_mul(rotation, quat_from_axis_angle((vec3){0, 1, 0}, delta * vehicle_turn_speed, false));
-                    /* xform_rotate(state->test_vehicle_xform, rotation); */
                 }
                 if (input_is_key_down(KEY_D)) {
                     rotation = quat_mul(rotation, quat_from_axis_angle((vec3){0, 1, 0}, delta * -vehicle_turn_speed, false));
-                    /* xform_rotate(state->test_vehicle_xform, rotation); */
                 }
             }
             // Use the physics system to rotate.
@@ -421,10 +426,11 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
 
             vehicle_xform = xform_local_get(state->test_vehicle_xform);
 
-            // Update vehicle camera to follow.
-            f32 chase_distance = 10.0;
-            vec3 backward_offset = vec3_mul_scalar(forward, -chase_distance);
-            vec3 upward_offset = vec3_create(0.0f, 3.0f, 0.0f);
+            game_settings* settings = game_settings_get(app);
+
+            // Update chase camera to follow.
+            vec3 backward_offset = vec3_mul_scalar(forward, -settings->chase_camera_distance);
+            vec3 upward_offset = vec3_create(0.0f, settings->chase_camera_vertical_offset, 0.0f);
             vec3 target_camera_position = vec3_add(vec3_add(vehicle_position, backward_offset), upward_offset);
 
             // Direction from point to focus object
@@ -434,18 +440,21 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
             f32 pitch = kasin(f.y);
             vec3 target_euler = {pitch, yaw, 0.0f};
 
-            f32 smoothing = 5.0f;
+            // Smooth interpolation when yaw is close to 180 or -180
+            f32 cyaw = target_euler.y;
+
+            f32 chase_camera_delay = game_settings_get(app)->chase_camera_delay;
+            f32 smoothing = (1.0f - chase_camera_delay) * 60.0f; // HACK: should be target FPS
             f32 alpha = 1.0f - kexp(-get_engine_delta_time() * smoothing);
 
             vec3 camera_position = vec3_lerp(state->vehicle_camera->position, target_camera_position, alpha);
-
-            vec3 camera_rotation = vec3_lerp(state->vehicle_camera->euler_rotation, target_euler, alpha);
-            f32 cyaw = camera_rotation.y;
-
-            // Smooth interpolation when yaw is close to 180 or -180
-            if (kabs(cyaw - state->vehicle_camera->euler_rotation.y) > 3.14159f) { // crossing 180° boundary
+            if (kabs(cyaw - target_euler.y) > 3.14159f) { // crossing 180° boundary
+                KTRACE("crossing");
                 cyaw = (cyaw > 0.0f) ? cyaw - 2 * 3.14159f : cyaw + 2 * 3.14159f;
             }
+
+            vec3 camera_rotation = vec3_lerp(state->vehicle_camera->euler_rotation, target_euler, alpha);
+
             camera_rotation.y = cyaw;
 
             camera_position_set(state->vehicle_camera, camera_position);
@@ -1455,8 +1464,25 @@ static void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_mod
             return;
         }
 
+        // HACK: Track configuration
+        track_config cfg = {0};
+        cfg.loops = true;
+        cfg.point_count = 10;
+        cfg.points = KALLOC_TYPE_CARRAY(track_point_config, cfg.point_count);
+        cfg.segment_resolution = 10;
+        cfg.points[0] = (track_point_config){.position = {-10.0f, -0.5f, 0.0f}, .rotation_y = 0.0f, .left = {10.0f, 0.0f, 3.0f, 7.0f}, .right = {12.0f, 0.25f, 3.0f, 1.0f}};
+        cfg.points[1] = (track_point_config){.position = {10.0f, 2.0f, 0.0f}, .rotation_y = 45.0f, .left = {8.0f, 0.25f, 0.0f, 5.0f}, .right = {3.0f, 0.5f, 0.0f, 2.0f}};
+        cfg.points[2] = (track_point_config){.position = {50.0f, 5.0f, 100.0f}, .rotation_y = 90.0f, .left = {9.0f, -0.5f, 0.0f, 3.0f}, .right = {6.0f, 1.0f, 0.0f, 2.0f}};
+        cfg.points[3] = (track_point_config){.position = {75.0f, 6.0f, 200.0f}, .rotation_y = 135.0f, .left = {6.0f, 1.0f, 0.0f, 2.0f}, .right = {10.0f, 1.5f, 0.0f, 2.0f}};
+        cfg.points[4] = (track_point_config){.position = {20.0f, 6.0f, 230.0f}, .rotation_y = 180.0f, .left = {5.0f, 1.0f, 0.0f, 2.0f}, .right = {15.0f, 1.5f, 0.0f, 2.0f}};
+        cfg.points[5] = (track_point_config){.position = {-50.0f, 5.0f, 200.0f}, .rotation_y = 270.0f, .left = {4.0f, 1.0f, 0.0f, 2.0f}, .right = {15.0f, 1.5f, 0.0f, 2.0f}};
+        cfg.points[6] = (track_point_config){.position = {-50.0f, 10.0f, 159.0f}, .rotation_y = 270.0f, .left = {4.0f, 1.0f, 0.0f, 2.0f}, .right = {15.0f, 1.5f, 0.0f, 2.0f}};
+        cfg.points[7] = (track_point_config){.position = {-50.0f, -1.0f, 158.0f}, .rotation_y = 270.0f, .left = {4.0f, 1.0f, 0.0f, 11.0f}, .right = {15.0f, 1.5f, 0.0f, 11.0f}};
+        cfg.points[8] = (track_point_config){.position = {-50.0f, 2.0f, 100.0f}, .rotation_y = 270.0f, .left = {8.0f, 1.0f, 0.0f, 2.0f}, .right = {8.0f, 1.5f, 0.0f, 2.0f}};
+        cfg.points[9] = (track_point_config){.position = {-25.0f, 2.0f, 10.0f}, .rotation_y = 270.0f, .left = {8.0f, 1.0f, 0.0f, 2.0f}, .right = {8.0f, 1.5f, 0.0f, 2.0f}};
+
         // HACK: create track
-        if (!track_create(&state->collision_track)) {
+        if (!track_create(&state->collision_track, &cfg)) {
             KERROR("Failed to create collision track.");
             return;
         }

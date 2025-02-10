@@ -20,8 +20,18 @@ typedef enum game_mode {
     PAUSED_MENU
 } game_mode;
 
+typedef struct game_settings {
+    // 0.0 = no delay, 1.0 = infinite delay.
+    f32 chase_camera_delay;
+    f32 chase_camera_distance;
+    // Positive is above target, negative is below, 0 is equal
+    f32 chase_camera_vertical_offset;
+} game_settings;
+
 typedef struct game_state {
     b8 running;
+    game_settings settings;
+
     camera* vehicle_camera;
     camera* cutscene_camera;
     camera* editor_camera;
