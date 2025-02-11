@@ -1,6 +1,7 @@
 #pragma once
 
 #include <containers/kpool.h>
+#include <core_resource_types.h>
 #include <defines.h>
 #include <identifiers/khandle.h>
 #include <math/math_types.h>
@@ -86,7 +87,7 @@ KAPI void kscene_attachment_unload(struct kscene_attachment_type_registry_state*
 KAPI b8 kscene_attachment_update(struct kscene_attachment_type_registry_state* state, kscene_attachment* attachment, const struct frame_data* p_frame_data);
 
 KAPI b8 kscene_attachment_render_frame_prepare(struct kscene_attachment_type_registry_state* state, kscene_attachment* attachment, const struct frame_data* p_frame_data);
-KAPI b8 kscene_attachment_generate_render_data(struct kscene_attachment_type_registry_state* state, kscene_attachment* attachment, mat4 node_model, const struct frame_data* p_frame_data, struct geometry_render_data* out_render_data);
+KAPI b8 kscene_attachment_generate_render_data(struct kscene_attachment_type_registry_state* state, kname type_name, khandle internal_attachment, mat4 node_model, const struct frame_data* p_frame_data, u32* render_data_count, struct geometry_render_data** out_render_datas);
 
 KAPI b8 kscene_attachment_debug_initialize(struct kscene_attachment_type_registry_state* state, kscene_attachment* attachment);
 KAPI b8 kscene_attachment_debug_load(struct kscene_attachment_type_registry_state* state, kscene_attachment* attachment);

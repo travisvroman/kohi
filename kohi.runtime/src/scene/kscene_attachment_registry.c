@@ -272,22 +272,22 @@ b8 kscene_attachment_render_frame_prepare(struct kscene_attachment_type_registry
     return false;
 }
 
-b8 kscene_attachment_generate_render_data(struct kscene_attachment_type_registry_state* state, kscene_attachment* attachment, mat4 node_model, const struct frame_data* p_frame_data, struct geometry_render_data* out_render_data) {
-    if (!state || !attachment || !p_frame_data || !out_render_data) {
+b8 kscene_attachment_generate_render_data(struct kscene_attachment_type_registry_state* state, kname type_name, khandle internal_attachment, mat4 node_model, const struct frame_data* p_frame_data, u32* render_data_count, struct geometry_render_data** out_render_datas) {
+    if (!state || !p_frame_data || render_data_count || !out_render_datas) {
         KERROR("%s requires valid pointers to state, attachment, p_frame_data, and out_render_data.", __FUNCTION__);
         return false;
     }
 
-    kscene_attachment_handler* handler = get_handler(state, attachment->type_name);
+    kscene_attachment_handler* handler = get_handler(state, type_name);
     if (handler) {
         if (handler->generate_render_data) {
-            return handler->generate_render_data(handler, attachment->internal_attachment, node_model, p_frame_data, out_render_data);
+            return handler->generate_render_data(handler, internal_attachment, node_model, p_frame_data, render_data_count, out_render_datas);
         }
         // Handler found, but no callback exists. Technically a success.
         return true;
     }
 
-    KERROR("%s - no handler exists for type '%s'.", __FUNCTION__, kname_string_get(attachment->type_name));
+    KERROR("%s - no handler exists for type '%s'.", __FUNCTION__, kname_string_get(type_name));
     return false;
 }
 

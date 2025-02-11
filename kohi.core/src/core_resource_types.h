@@ -109,6 +109,21 @@ typedef struct scene_node_attachment_physics_body_config {
     kname mesh_resource_name;
 } scene_node_attachment_physics_body_config;
 
+// NEW
+// TODO: remove all old types
+
+/**
+ * @brief Represents the base configuration structure for a kscene attachment.
+ */
+typedef struct kscene_attachment_config {
+    // The name of the attachment type. (i.e. kname_create("static_mesh"))
+    kname type_name;
+    // Name of the attachment
+    kname name;
+    // String representation of the config for the underlying type.
+    const char* config;
+} kscene_attachment_config;
+
 /**
  *  @brief Represents the configuration for a scene node.
  */
@@ -116,24 +131,10 @@ typedef struct scene_node_config {
     /** @brief The name of node. */
     kname name;
 
-    /** @brief Darray of skybox attachment configs. */
-    scene_node_attachment_skybox_config* skybox_configs;
-    /** @brief Darray of directional light attachment configs. */
-    scene_node_attachment_directional_light_config* dir_light_configs;
-    /** @brief Darray of point light attachment configs. */
-    scene_node_attachment_point_light_config* point_light_configs;
-    /** @brief Darray of audio emitter attachment configs. */
-    scene_node_attachment_audio_emitter_config* audio_emitter_configs;
-    /** @brief Darray of static mesh attachment configs. */
-    scene_node_attachment_static_mesh_config* static_mesh_configs;
-    /** @brief Darray of heightmap terrain attachment configs. */
-    scene_node_attachment_heightmap_terrain_config* heightmap_terrain_configs;
-    /** @brief Darray of water plane attachment configs. */
-    scene_node_attachment_water_plane_config* water_plane_configs;
-    /** @brief Darray of physics body attachment configs. */
-    scene_node_attachment_physics_body_config* physics_body_configs;
-
-    scene_node_attachment_user_defined_config* user_defined_configs;
+    /** @brief The number of attachments for this node. */
+    u32 attachment_count;
+    /** @brief Array of generic scene attachment configs. */
+    kscene_attachment_config* attachments;
 
     /** @brief The number of children within this node. */
     u32 child_count;

@@ -1,4 +1,4 @@
-version = 2
+version = 3
 name = "Track 0"
 description = "The very first test track."
 physics = {
@@ -10,12 +10,12 @@ nodes = [
         name = "environment"
         attachments = [
             {
-                type = "skybox"
+                type_name = "skybox"
                 cubemap_image_asset_name = "skybox"
                 package_name = "Overdrive2069"
             }
             {
-                type = "directional_light"
+                type_name = "directional_light"
                 colour = "0.400000 0.400000 0.300000 1.000000"
                 direction = "-0.577350 -0.577350 0.577350 0.000000"
                 shadow_distance = 100.000000
@@ -33,7 +33,7 @@ nodes = [
                 xform = "0.0 0.5 0.1 0 0 0 1.0 0.500000 0.350000 1.000000"
                 attachments = [
                     {
-                        type = "static_mesh"
+                        type_name = "static_mesh"
                         asset_name = "testcube"
                         package_name = "Overdrive2069"
                     }
@@ -42,11 +42,11 @@ nodes = [
         ]
         attachments = [
             {
-                type = "physics_body"
+                type_name = "physics_body"
                 name = "test_vehicle_physics_body"
                 config = {
-                    body_type = "dynamic"
-                    shape_type = "sphere"
+                    body_type_name = "dynamic"
+                    shape_type_name = "sphere"
                     radius = 0.5
                     mass = 1.0
                     inertia = 5.0
@@ -60,7 +60,7 @@ nodes = [
         xform = "0 0 0 0 0 0 1 1 1 1"
         attachments = [
             {
-                type = "custom_track"
+                type_name = "custom_track"
                 segment_resolution = 10
                 loops = true
                 points = [
@@ -233,7 +233,7 @@ nodes = [
         xform = "56.887442 0.536942 53.040905 0.000000 0.817741 0.000000 0.575589 2.000000 2.000000 2.000000"
         attachments = [
             {
-                type = "static_mesh"
+                type_name = "static_mesh"
                 asset_name = "Tree"
                 package_name = "Overdrive2069"
             }
@@ -244,7 +244,7 @@ nodes = [
         xform = "0.000000 0.000000 0.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
         attachments = [
             {
-                type = "water_plane"
+                type_name = "water_plane"
             }
         ]
     }
@@ -253,7 +253,7 @@ nodes = [
         xform = "020.000000 1.000000 20.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
         attachments = [
             {
-                type = "audio_emitter"
+                type_name = "audio_emitter"
                 name = "fire emitter"
                 audio_resource_name = "Fire_loop"
                 audio_resource_package_name = "Overdrive2069"

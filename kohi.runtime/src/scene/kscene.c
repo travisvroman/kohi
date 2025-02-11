@@ -6,6 +6,7 @@
 #include "audio/audio_frontend.h"
 #include "audio/kaudio_types.h"
 #include "containers/darray.h"
+#include "containers/khashmap.h"
 #include "core/console.h"
 #include "core/engine.h"
 #include "core/frame_data.h"
@@ -30,6 +31,8 @@
 #include "resources/skybox.h"
 #include "resources/terrain.h"
 #include "resources/water_plane.h"
+#include "scene/kscene_attachment_registry.h"
+#include "scene/kscene_attachment_types.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "strings/kstring_id.h"
@@ -281,6 +284,32 @@ void scene_node_initialize(kscene* s, khandle parent_handle, scene_node_config* 
         }
 
         // Process attachment configs by type.
+        kscene_attachment_type_registry_state* attachment_registry = engine_systems_get()->scene_attachment_type_registry;
+        if (node_config->attachments && node_config->attachment_count) {
+            for (u32 i = 0; i < node_config->attachment_count; ++i) {
+                kscene_attachment_config* attachment_config = &node_config->attachments[i];
+
+                // TODO: Where does this get stored? How is it looked up?
+                kscene_attachment attachment = {0};
+                if (!kscene_attachment_create(attachment_registry, attachment_config, &attachment)) {
+                    KERROR("Attachment creation for attachment '%s' failed. See logs for details. Skipping.", kname_string_get(attachment_config->name));
+                    continue;
+                }
+
+                // Make sure to store a handle into the hierarchy graph for later lookups.
+                attachment.hierarchy_node_handle = hierarchy_node_handle;
+
+                // Run the initialization routine.
+                if (!kscene_attachment_initialize(attachment_registry, &attachment)) {
+                    KERROR("Attachment initialization for attachment '%s' failed. See logs for details. Skipping.", kname_string_get(attachment_config->name));
+                    continue;
+                }
+
+                // If that's all set, push into the collection.
+                // TODO: push to array
+                // nocheckin
+            }
+        }
 
         // Skyboxes
         if (node_config->skybox_configs) {
@@ -2017,6 +2046,94 @@ b8 scene_water_plane_query(const kscene* scene, const frustum* f, vec3 center, f
     }
 
     *out_count = count;
+
+    return true;
+}
+
+// LEFTOFF:
+// All scene queries should look like the below 2 functions.
+// Need to implement add/remove functions for attachments which update the lookup hashmaps.
+// Need to convert attachment registry to use direct typename/handle combo instead of taking the struct it does now, and eliminate the struct.
+// Need to finish making other handlers once static meshes are sorted. Make sure they are all actually registered!!!
+// nocheckin
+
+b8 scene_query_renderdata_by_name(const kscene* scene, kname name, frame_data* p_frame_data, u32* renderdata_count, geometry_render_data** out_render_datas) {
+    if (!scene || name == INVALID_KNAME) {
+        return false;
+    }
+
+    u32 index = INVALID_ID;
+    if (!khashmap_get(&scene->attachments.name_to_index, name, &index)) {
+        KERROR("Failed to find attachment '%s'.", kname_string_get(name));
+        return false;
+    }
+    if (index == INVALID_ID) {
+        return false;
+    }
+
+    // Model is the node transform.
+    khandle xform = hierarchy_graph_xform_handle_get(&scene->hierarchy, scene->attachments.hierarchy_node_handles[index]);
+    mat4 node_model = xform_world_get(xform);
+
+    return kscene_attachment_generate_render_data(
+        engine_systems_get()->scene_attachment_type_registry,
+        scene->attachments.type_names[index],
+        scene->attachments.internal_attachments[index],
+        node_model,
+        p_frame_data,
+        renderdata_count,
+        out_render_datas);
+}
+
+b8 scene_query_renderdata_by_typename(const kscene* scene, kname type_name, frame_data* p_frame_data, u32* renderdata_count, geometry_render_data** out_render_datas) {
+    if (!scene || type_name == INVALID_KNAME) {
+        return false;
+    }
+
+    u32 first_type_index = INVALID_ID;
+    if (!khashmap_get(&scene->attachments.type_to_first, type_name, &first_type_index)) {
+        KERROR("Failed to find attachment of type '%s'.", kname_string_get(type_name));
+        return false;
+    }
+
+    *renderdata_count = 0;
+    geometry_render_data* out_datas = darray_create_with_allocator(geometry_render_data, &p_frame_data->allocator);
+
+    while (scene->attachments.type_names[first_type_index] == type_name) {
+
+        // Model is the node transform.
+        khandle xform = hierarchy_graph_xform_handle_get(&scene->hierarchy, scene->attachments.hierarchy_node_handles[first_type_index]);
+        mat4 node_model = xform_world_get(xform);
+
+        // Geometries and count for this attachment.
+        u32 count = 0;
+        geometry_render_data* datas = 0;
+        if (!kscene_attachment_generate_render_data(
+                engine_systems_get()->scene_attachment_type_registry,
+                scene->attachments.type_names[first_type_index],
+                scene->attachments.internal_attachments[first_type_index],
+                node_model,
+                p_frame_data,
+                &count,
+                &datas)) {
+            KERROR("Failed to generate renderdata. See logs for details.");
+            return false;
+        }
+
+        // Add these to the overall collection.
+        (*renderdata_count) += count;
+        for (u32 i = 0; i < count; ++i) {
+            darray_push(out_datas, datas[i]);
+        }
+
+        // TODO: add to list
+        first_type_index++;
+    }
+
+    // Take a copy of what is in the darray and just output it as a standard array.
+    // Does not need releasing since it is using the frame allocator.
+    *out_render_datas = p_frame_data->allocator.allocate(sizeof(geometry_render_data) * (*renderdata_count));
+    KCOPY_TYPE_CARRAY(*out_render_datas, out_datas, geometry_render_data, *renderdata_count);
 
     return true;
 }

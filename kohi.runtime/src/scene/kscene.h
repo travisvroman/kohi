@@ -1,6 +1,7 @@
 #pragma once
 
 #include "audio/kaudio_types.h"
+#include "containers/khashmap.h"
 #include "defines.h"
 #include "graphs/hierarchy_graph.h"
 #include "identifiers/khandle.h"
@@ -93,6 +94,29 @@ typedef struct scene_water_plane_metadata {
 struct scene_audio_emitter;
 struct scene_physics_body;
 
+typedef struct scene_attachments {
+    // Names of the attachments. INVALID_KNAME = "free slot"
+    kname* names;
+
+    // The names of the attachment types. (i.e. kname_create("static_mesh"))
+    kname* type_names;
+
+    // Handles to the internal attachment type-specific data.
+    khandle* internal_attachments;
+
+    // Handles into the hierarchy graph.
+    khandle* hierarchy_node_handles;
+
+    // Lookup by name hash
+    khashmap name_to_index;
+
+    // First occurrence of each type.
+    khashmap type_to_first;
+
+    // Attachments matching a tag.
+    khashmap tag_to_indices;
+} scene_attachments;
+
 typedef struct kscene {
     u32 id;
     scene_flags flags;
@@ -106,9 +130,8 @@ typedef struct kscene {
     b8 physics_enabled;
     vec3 physics_gravity;
 
-    // darray of attachments. Slots are considered "free" if the name/type_name
-    // are INVALID_KNAME and the internal_attachment handle is an invalid khandle.
-    kscene_attachment* attachments;
+    // Scene attachments
+    scene_attachments attachments;
 
     // darray of directional lights.
     struct directional_light* dir_lights;
