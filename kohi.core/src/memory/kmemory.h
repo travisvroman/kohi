@@ -64,6 +64,7 @@ typedef enum memory_tag {
     MEMORY_TAG_PLATFORM,
     MEMORY_TAG_SERIALIZER,
     MEMORY_TAG_ASSET,
+    MEMORY_TAG_XML,
 
     MEMORY_TAG_MAX_TAGS
 } memory_tag;
