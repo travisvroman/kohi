@@ -5,6 +5,32 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Launch Shadows of Illuimina",
+            "type": "cppdbg",
+            "request": "launch",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/bin/",
+            "environment": [],
+            "program": "${workspaceFolder}/bin/soi.kapp",
+            "osx": {
+                "MIMode": "lldb",
+                "targetArchitecture": "arm64",
+                "externalConsole": false,
+            },
+            "linux": {
+                "externalConsole": false,
+                // "environment": [
+                //     { "name": "VK_LOADER_DEBUG", "value": "all"}
+                // ]
+            },
+            "windows": {
+                "type": "cppvsdbg",
+                "program": "${workspaceFolder}/bin/soi.kapp.exe",
+                // cppvsdbg requires this instead of externalConsole
+                "console": "integratedTerminal",
+            },
+        },
+        {
             "name": "Launch Overdrive 2069",
             "type": "cppdbg",
             "request": "launch",

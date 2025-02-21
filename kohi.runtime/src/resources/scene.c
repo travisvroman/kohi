@@ -1851,6 +1851,102 @@ b8 scene_node_xform_get_by_name(const scene* scene, kname name, khandle* out_xfo
     return false;
 }
 
+b8 scene_node_xform_get(const scene* scene, khandle node_handle, khandle* out_xform_handle) {
+    if (!scene || khandle_is_invalid(node_handle) || !out_xform_handle) {
+        return false;
+    }
+
+    if (!khandle_is_pristine(node_handle, scene->node_metadata->uniqueid)) {
+        KERROR("%s was called with a stale node_handle.", __FUNCTION__);
+        return false;
+    }
+
+    *out_xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, node_handle);
+    return true;
+}
+
+b8 scene_node_local_matrix_get(const scene* scene, khandle node_handle, mat4* out_matrix) {
+    if (!scene || khandle_is_invalid(node_handle) || !out_matrix) {
+        return false;
+    }
+
+    scene_node_metadata* node_meta = &scene->node_metadata[node_handle.handle_index];
+    khandle hierarchy_node_handle = khandle_create_with_u64_identifier(node_meta->index, node_meta->uniqueid);
+    return hierarchy_graph_xform_local_matrix_get(&scene->hierarchy, hierarchy_node_handle, out_matrix);
+}
+
+b8 scene_node_local_matrix_get_by_name(const scene* scene, kname name, mat4* out_matrix) {
+    if (!scene || !name || !out_matrix) {
+        return false;
+    }
+
+    for (u32 i = 0; i < scene->node_metadata_count; ++i) {
+        scene_node_metadata* node_meta = &scene->node_metadata[i];
+        if (node_meta->name == name) {
+            khandle hierarchy_node_handle = khandle_create_with_u64_identifier(node_meta->index, node_meta->uniqueid);
+            return scene_node_local_matrix_get(scene, hierarchy_node_handle, out_matrix);
+        }
+    }
+
+    return false;
+}
+
+b8 scene_node_exists(const scene* s, kname name) {
+    if (!s || !name) {
+        return false;
+    }
+
+    for (u32 i = 0; i < s->node_metadata_count; ++i) {
+        scene_node_metadata* node_meta = &s->node_metadata[i];
+        if (node_meta->name == name) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+b8 scene_node_child_count_get(const scene* s, kname name, u32* out_child_count) {
+    if (!s || !name || !out_child_count) {
+        return false;
+    }
+
+    // TODO: BST lookup
+    for (u32 i = 0; i < s->node_metadata_count; ++i) {
+        scene_node_metadata* node_meta = &s->node_metadata[i];
+        if (node_meta->name == name) {
+            khandle hierarchy_node_handle = khandle_create_with_u64_identifier(node_meta->index, node_meta->uniqueid);
+            *out_child_count = hierarchy_graph_child_count_get(&s->hierarchy, hierarchy_node_handle);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+b8 scene_node_child_name_get_by_index(const scene* s, kname name, u32 index, kname* out_child_name) {
+    if (!s || !name || !out_child_name) {
+        return false;
+    }
+
+    // TODO: BST lookup
+    for (u32 i = 0; i < s->node_metadata_count; ++i) {
+        scene_node_metadata* node_meta = &s->node_metadata[i];
+        if (node_meta->name == name) {
+            khandle parent_node_handle = khandle_create_with_u64_identifier(node_meta->index, node_meta->uniqueid);
+
+            khandle child_handle = {0};
+            if (hierarchy_graph_child_get_by_index(&s->hierarchy, parent_node_handle, index, &child_handle)) {
+                scene_node_metadata* child_meta = &s->node_metadata[child_handle.handle_index];
+                *out_child_name = child_meta->name;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 static void scene_actual_unload(scene* s) {
     u32 skybox_count = darray_length(s->skyboxes);
     for (u32 i = 0; i < skybox_count; ++i) {

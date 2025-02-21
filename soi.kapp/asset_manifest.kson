@@ -1,0 +1,110 @@
+package_name = "SOI"
+references = [
+    {
+        name = "Kohi.Runtime"
+        path = "../kohi.runtime/"
+    }
+    {
+        name = "Kohi.Plugin.Ui.Standard"
+        path = "../kohi.plugin.ui.standard/"
+    }
+]
+assets = [
+    {
+        name = "polySurface1SG1"
+        path = "./assets/materials/polySurface1SG1.kmt"
+    }
+    {
+        name = "Trank_bark"
+        path = "./assets/materials/Trank_bark.kmt"
+    }
+    {
+        name = "Tree"
+        path = "./assets/models/Tree.ksm"
+        source_path = "./assets/models/source/Tree.obj"
+    }
+    {
+        name = "orange_lines_512"
+        path = "./assets/images/orange_lines_512.kbi"
+        source_path = "./assets/images/source/orange_lines_512.png"
+    }
+    {
+        name = "testcube"
+        path = "./assets/models/testcube.ksm"
+        source_path = "./assets/models/source/testcube.obj"
+    }
+    {
+        name = "testcube_mat"
+        path = "./assets/materials/testcube_mat.kmt"
+        source_path = "./assets/models/source/testcube.mtl"
+    }
+    {
+        name = "Fire_loop"
+        path = "./assets/sounds/Fire_loop.kaf"
+        source_path = "./assets/sounds/source/Fire_loop.ogg"
+    }
+    {
+        name = "Fire_loop_2"
+        path = "./assets/sounds/Fire_loop_2.kaf"
+        source_path = "./assets/sounds/source/Fire_loop_2.ogg"
+    }
+    {
+        name = "Test_Audio"
+        path = "./assets/sounds/Test.kaf"
+        source_path = "./assets/sounds/source/Test.ogg"
+    }
+    {
+        name = "Unlock"
+        path = "./assets/sounds/Unlock.kaf"
+        source_path = "./assets/sounds/source/Unlock.ogg"
+    }
+    {
+        name = "test_zone"
+        path = "./assets/scenes/zone_00.ksn"
+    }
+    {
+        name = "bark_0021"
+        path = "./assets/images/bark_0021.kbi"
+        source_path = "./assets/images/source/bark_0021.jpg"
+    }
+    {
+        name = "DB2X2_L01"
+        path = "./assets/images/DB2X2_L01.kbi"
+        source_path = "./assets/images/source/DB2X2_L01.png"
+    }
+    {
+        name = "DB2X2_L01_Spec"
+        path = "./assets/images/DB2X2_L01_Spec.kbi"
+        source_path = "./assets/images/source/DB2X2_L01_Spec.png"
+    }
+    {
+        name = "skybox_b"
+        path = "./assets/images/skybox_b.kbi"
+        source_path = "./assets/images/source/skybox_b.jpg"
+    }
+    {
+        name = "skybox_d"
+        path = "./assets/images/skybox_d.kbi"
+        source_path = "./assets/images/source/skybox_d.jpg"
+    }
+    {
+        name = "skybox_f"
+        path = "./assets/images/skybox_f.kbi"
+        source_path = "./assets/images/source/skybox_f.jpg"
+    }
+    {
+        name = "skybox_l"
+        path = "./assets/images/skybox_l.kbi"
+        source_path = "./assets/images/source/skybox_l.jpg"
+    }
+    {
+        name = "skybox_r"
+        path = "./assets/images/skybox_r.kbi"
+        source_path = "./assets/images/source/skybox_r.jpg"
+    }
+    {
+        name = "skybox_u"
+        path = "./assets/images/skybox_u.kbi"
+        source_path = "./assets/images/source/skybox_u.jpg"
+    }
+]

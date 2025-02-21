@@ -116,17 +116,17 @@ typedef struct engine_system_states {
 /**
  * @brief Creates the engine, standing up the platform layer and all
  * underlying subsystems.
- * @param game_inst A pointer to the application instance associated with the engine
+ * @param app A pointer to the application instance associated with the engine
  * @returns True on success; otherwise false.
  */
-KAPI b8 engine_create(struct application* game_inst);
+KAPI b8 engine_create(struct application* app);
 
 /**
  * @brief Starts the main engine loop.
- * @param game_inst A pointer to the application instance associated with the engine
+ * @param app A pointer to the application instance associated with the engine
  * @returns True on success; otherwise false.
  */
-KAPI b8 engine_run(struct application* game_inst);
+KAPI b8 engine_run(struct application* app);
 
 /**
  * @brief A callback made when the event system is initialized,

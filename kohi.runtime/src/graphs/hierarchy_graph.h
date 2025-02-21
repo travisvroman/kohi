@@ -18,8 +18,8 @@
 #ifndef _XFORM_GRAPH_H_
 #define _XFORM_GRAPH_H_
 
-#include "identifiers/khandle.h"
-#include "math/math_types.h"
+#include <identifiers/khandle.h>
+#include <math/math_types.h>
 
 struct frame_data;
 
@@ -106,6 +106,16 @@ KAPI void hierarchy_graph_update(hierarchy_graph* graph);
 KAPI khandle hierarchy_graph_xform_handle_get(const hierarchy_graph* graph, khandle node_handle);
 
 /**
+ * @brief Attempts to get the local transformation matrix for the given hierarchy node, if it exists and has a transform.
+ *
+ * @param graph A pointer to the graph to examine.
+ * @param node_handle The handle to the node to examine.
+ * @param out_matrix A constant pointer to hold the matrix. Required.
+ * @returns True if the node exists and has an existing xform; otherwise false.
+ */
+KAPI b8 hierarchy_graph_xform_local_matrix_get(const hierarchy_graph* graph, khandle node_handle, mat4* out_matrix);
+
+/**
  * @brief Obtains the handle of the parent of the node provided. Will return an invalid handle if the
  * node does not exist or if it has no parent.
  *
@@ -161,6 +171,25 @@ KAPI khandle hierarchy_graph_child_add(hierarchy_graph* graph, khandle parent_no
  * @returns A copy of the handle to the new node.
  */
 KAPI khandle hierarchy_graph_child_add_with_xform(hierarchy_graph* graph, khandle parent_node_handle, khandle xform_handle);
+
+/**
+ * @brief Attempts to get the number of child nodes of the given parent node.
+ *
+ * @param graph A pointer to the graph to search.
+ * @param parent_node_handle The handle to the parent node.
+ * @returns The number of children under the parent. Can also return 0 if the parent was not found.
+ */
+KAPI u32 hierarchy_graph_child_count_get(const hierarchy_graph* graph, khandle parent_node_handle);
+
+/**
+ * @brief Attempts to get a handle to a child node of the given parent node, at the provided index.
+ *
+ * @param graph A pointer to the graph to search.
+ * @param parent_node_handle The handle to the node to search.
+ * @param out_handle A pointer to hold the found handle if successful.
+ * @returns True if a handle was found at the index; otherwise false.
+ */
+KAPI b8 hierarchy_graph_child_get_by_index(const hierarchy_graph* graph, khandle parent_node_handle, u32 index, khandle* out_handle);
 
 /**
  * @brief Removes the given node from the hierarchy. This automatically handles reorganization of the

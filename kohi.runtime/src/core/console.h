@@ -42,6 +42,8 @@ typedef struct console_command_context {
     u8 argument_count;
     /** @brief The arguments array. */
     console_command_argument* arguments;
+    /** @brief A pointer to a listener, if required. */
+    void* listener;
 } console_command_context;
 
 /**
@@ -105,10 +107,11 @@ void console_write(log_level level, const char* message);
  *
  * @param command The name of the command.
  * @param arg_count The number of required arguments.
+ * @param listener A pointer to a listener, if needed.
  * @param func The function pointer to be invoked.
  * @return True on success; otherwise false.
  */
-KAPI b8 console_command_register(const char* command, u8 arg_count, PFN_console_command func);
+KAPI b8 console_command_register(const char* command, u8 arg_count, void* listener, PFN_console_command func);
 
 /**
  * @brief Unregisters the given command.
