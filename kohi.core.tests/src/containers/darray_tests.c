@@ -972,7 +972,7 @@ static u8 darray_all_iterator_tests(void) {
         // Try reverse/backward iteration on an empty array.
         it = arr.rbegin(&arr.base);
         expect_should_be(&arr.base, it.arr);
-        expect_should_be(arr.base.length - 1, it.pos);
+        expect_should_be(arr.base.length - 1, (u32)it.pos);
         expect_should_be(-1, it.dir);
         loop_count = 0;
         for (; !it.end(&it); it.next(&it)) {
@@ -1010,7 +1010,7 @@ static u8 darray_all_iterator_tests(void) {
         // Try reverse/backward iteration.
         it = arr.rbegin(&arr.base);
         expect_should_be(&arr.base, it.arr);
-        expect_should_be(arr.base.length - 1, it.pos);
+        expect_should_be(arr.base.length - 1, (u32)it.pos);
         expect_should_be(-1, it.dir);
         loop_count = 0;
         for (; !it.end(&it); it.next(&it)) {
@@ -1054,7 +1054,7 @@ static u8 darray_all_iterator_tests(void) {
         // Try reverse/backward iteration.
         it = arr.rbegin(&arr.base);
         expect_should_be(&arr.base, it.arr);
-        expect_should_be(arr.base.length - 1, it.pos);
+        expect_should_be(arr.base.length - 1, (u32)it.pos);
         expect_should_be(-1, it.dir);
         loop_count = 0;
         for (; !it.end(&it); it.next(&it)) {
@@ -1104,7 +1104,7 @@ static u8 darray_all_iterator_tests(void) {
         // Try reverse/backward iteration.
         it = arr.rbegin(&arr.base);
         expect_should_be(&arr.base, it.arr);
-        expect_should_be(arr.base.length - 1, it.pos);
+        expect_should_be(arr.base.length - 1, (u32)it.pos);
         expect_should_be(-1, it.dir);
         loop_count = 0;
         for (; !it.end(&it); it.next(&it)) {

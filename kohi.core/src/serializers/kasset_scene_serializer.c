@@ -566,6 +566,83 @@ static b8 serialize_node(scene_node_config* node, kson_object* node_obj) {
         }
     }
 
+    if (node->volume_configs) {
+        u32 length = darray_length(node->volume_configs);
+        for (u32 i = 0; i < length; ++i) {
+            scene_node_attachment_volume_config* typed_attachment = &node->volume_configs[i];
+            scene_node_attachment_config* attachment = (scene_node_attachment_config*)typed_attachment;
+            kson_object attachment_obj = kson_object_create();
+            const char* attachment_name = kname_string_get(attachment->name);
+
+            // Base properties
+            {
+                // Name, if it exists.
+                if (attachment->name) {
+                    if (!kson_object_value_add_kname_as_string(&attachment_obj, "name", attachment->name)) {
+                        KERROR("Failed to add 'name' property for attachment '%s'.", attachment_name);
+                        return false;
+                    }
+                }
+
+                // Add the type. Required.
+                const char* type_str = scene_node_attachment_type_strings[attachment->type];
+                if (!kson_object_value_add_string(&attachment_obj, "type", type_str)) {
+                    KERROR("Failed to add 'name' property for attachment '%s'.", attachment_name);
+                    return false;
+                }
+            }
+
+            // Shape type
+            char* shape_type_str = 0;
+            switch (typed_attachment->shape_type) {
+            case SCENE_VOLUME_SHAPE_TYPE_SPHERE:
+                shape_type_str = "sphere";
+                // Radius
+                if (!kson_object_value_add_float(&attachment_obj, "radius", typed_attachment->shape_config.radius)) {
+                    KERROR("Failed to add 'radius' property for attachment '%s'.", attachment_name);
+                    return false;
+                }
+                break;
+            case SCENE_VOLUME_SHAPE_TYPE_RECTANGLE:
+                shape_type_str = "rectangle";
+                // Extents
+                if (!kson_object_value_add_vec3(&attachment_obj, "extents", typed_attachment->shape_config.extents)) {
+                    KERROR("Failed to add 'extents' property for attachment '%s'.", attachment_name);
+                    return false;
+                }
+                break;
+            }
+            if (!kson_object_value_add_string(&attachment_obj, "shape_type", shape_type_str)) {
+                KERROR("Failed to add 'shape_type' property for attachment '%s'.", attachment_name);
+                return false;
+            }
+
+            if (typed_attachment->on_enter_command) {
+                if (!kson_object_value_add_string(&attachment_obj, "on_enter", typed_attachment->on_enter_command)) {
+                    KERROR("Failed to add 'on_enter' property for attachment '%s'.", attachment_name);
+                    return false;
+                }
+            }
+
+            if (typed_attachment->on_leave_command) {
+                if (!kson_object_value_add_string(&attachment_obj, "on_leave", typed_attachment->on_leave_command)) {
+                    KERROR("Failed to add 'on_leave' property for attachment '%s'.", attachment_name);
+                    return false;
+                }
+            }
+
+            if (typed_attachment->on_update_command) {
+                if (!kson_object_value_add_string(&attachment_obj, "on_update", typed_attachment->on_update_command)) {
+                    KERROR("Failed to add 'on_update' property for attachment '%s'.", attachment_name);
+                    return false;
+                }
+            }
+
+            // Add it to the attachments array.
+            kson_array_value_add_object(&attachment_obj_array, attachment_obj);
+        }
+    }
+
     // Only write out the attachments array object if it contains something.
     u32 total_attachment_count = 0;
     kson_array_element_count_get(&attachment_obj_array, &total_attachment_count);
@@ -951,6 +1028,68 @@ static b8 deserialize_attachment(kasset* asset, scene_node_config* node, kson_ob
             node->water_plane_configs = darray_create(scene_node_attachment_water_plane_config);
         }
         darray_push(node->water_plane_configs, typed_attachment);
+    } break;
+
+    case SCENE_NODE_ATTACHMENT_TYPE_VOLUME: {
+        scene_node_attachment_volume_config typed_attachment = {0};
+
+        // shape type is required.
+        const char* shape_type_str = 0;
+        if (!kson_object_property_value_get_string(attachment_obj, "shape_type", &shape_type_str)) {
+            KERROR("Volume definition is missing required property shape_type.");
+            return false;
+        }
+        if (strings_equali(shape_type_str, "sphere")) {
+            typed_attachment.shape_type = SCENE_VOLUME_SHAPE_TYPE_SPHERE;
+
+            // This shape type requires radius.
+            if (!kson_object_property_value_get_float(attachment_obj, "radius", &typed_attachment.shape_config.radius)) {
+                KERROR("Volume sphere definition is missing required property radius.");
+                return false;
+            }
+        } else if (strings_equali(shape_type_str, "rectangle")) {
+            typed_attachment.shape_type = SCENE_VOLUME_SHAPE_TYPE_RECTANGLE;
+
+            // This shape type requires extents.
+            if (!kson_object_property_value_get_vec3(attachment_obj, "extents", &typed_attachment.shape_config.extents)) {
+                KERROR("Volume rectangle definition is missing required property extents.");
+                return false;
+            }
+        } else {
+            KERROR("Unknown volume shape type '%s'.", shape_type_str);
+            return false;
+        }
+
+        // Volume type
+        const char* volume_type_str = 0;
+        if (!kson_object_property_value_get_string(attachment_obj, "volume_type", &volume_type_str)) {
+            KERROR("Volume definition is missing required property volume_type.");
+            return false;
+        }
+        if (strings_equali(volume_type_str, "trigger")) {
+            typed_attachment.volume_type = SCENE_VOLUME_TYPE_TRIGGER;
+        } else {
+            KERROR("Unsupported volume type '%s'.", volume_type_str);
+            return false;
+        }
+
+        // on enter - optional
+        kson_object_property_value_get_string(attachment_obj, "on_enter", &typed_attachment.on_enter_command);
+        // on leave - optional
+        kson_object_property_value_get_string(attachment_obj, "on_leave", &typed_attachment.on_leave_command);
+        // on update - optional
+        kson_object_property_value_get_string(attachment_obj, "on_update", &typed_attachment.on_update_command);
+
+        // Validate that at least one of the above was set.
+        if (!typed_attachment.on_enter_command && !typed_attachment.on_leave_command && !typed_attachment.on_update_command) {
+            KWARN("No commands were set for volume.");
+        }
+
+        // Push to the appropriate array.
+        if (!node->volume_configs) {
+            node->volume_configs = darray_create(scene_node_attachment_volume_config);
+        }
+        darray_push(node->volume_configs, typed_attachment);
     } break;
 
     case SCENE_NODE_ATTACHMENT_TYPE_COUNT:

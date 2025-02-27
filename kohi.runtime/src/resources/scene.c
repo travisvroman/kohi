@@ -64,6 +64,23 @@ typedef struct scene_audio_emitter {
     b8 is_streaming;
 } scene_audio_emitter;
 
+typedef struct scene_volume {
+    scene_volume_type type;
+    scene_volume_shape_type shape_type;
+
+    union {
+        f32 radius;
+        vec3 extents;
+    } shape_config;
+
+    const char* on_enter_command;
+    const char* on_leave_command;
+    const char* on_update_command;
+
+    // debug rendering data.
+    scene_debug_data* debug_data;
+} scene_volume;
+
 /** @brief A private structure used to sort geometry by distance from the camera. */
 typedef struct geometry_distance {
     /** @brief The geometry render data. */
@@ -111,6 +128,7 @@ b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
     out_scene->terrains = darray_create(terrain);
     out_scene->skyboxes = darray_create(skybox);
     out_scene->water_planes = darray_create(water_plane);
+    out_scene->volumes = darray_create(scene_volume);
 
     // Internal lists of attachments.
     /* out_scene->attachments = darray_create(scene_attachment); */
@@ -121,6 +139,7 @@ b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
     out_scene->point_light_attachments = darray_create(scene_attachment);
     out_scene->audio_emitter_attachments = darray_create(scene_attachment);
     out_scene->water_plane_attachments = darray_create(scene_attachment);
+    out_scene->volume_attachments = darray_create(scene_attachment);
 
     b8 is_readonly = ((out_scene->flags & SCENE_FLAG_READONLY) != 0);
     if (!is_readonly) {
@@ -220,6 +239,13 @@ void scene_destroy(scene* s) {
         }
         if (s->water_plane_metadata) {
             darray_destroy(s->water_plane_metadata);
+        }
+
+        if (s->volumes) {
+            darray_destroy(s->volumes);
+        }
+        if (s->volume_attachments) {
+            darray_destroy(s->volume_attachments);
         }
 
         kzero_memory(s, sizeof(scene));
@@ -699,6 +725,69 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
                         /* meta->resource_name = typed_attachment_config->asset_name;
                         meta->package_name = typed_attachment_config->package_name; */
                     }
+                }
+            }
+        }
+
+        // Volumes
+        if (node_config->volume_configs) {
+            u32 count = darray_length(node_config->volume_configs);
+            for (u32 i = 0; i < count; ++i) {
+                scene_node_attachment_volume_config* typed_attachment_config = &node_config->volume_configs[i];
+
+                scene_volume new_volume = {0};
+                new_volume.type = typed_attachment_config->volume_type;
+                new_volume.shape_type = typed_attachment_config->shape_type;
+
+                // Add debug data and initialize it.
+                new_volume.debug_data = KALLOC_TYPE(scene_debug_data, MEMORY_TAG_RESOURCE);
+                scene_debug_data* debug = new_volume.debug_data;
+                b8 init_result = false;
+                switch (new_volume.shape_type) {
+                case SCENE_VOLUME_SHAPE_TYPE_SPHERE:
+                    new_volume.shape_config.radius = typed_attachment_config->shape_config.radius;
+                    // Create debug sphere TODO: colour?
+                    if (!debug_sphere3d_create(typed_attachment_config->shape_config.radius, (vec4){1.0f, 0.0f, 1.0f, 1.0f}, khandle_invalid(), &debug->sphere)) {
+                        KERROR("Failed to create debug sphere for sphere volume.");
+                    } else {
+                        // xform_position_set(debug->sphere.xform, new_emitter.data.position);
+                    }
+                    if (!debug_sphere3d_initialize(&debug->sphere)) {
+                        KERROR("Failed to create debug sphere for sphere volume.");
+                    }
+                    break;
+                case SCENE_VOLUME_SHAPE_TYPE_RECTANGLE:
+                    new_volume.shape_config.extents = typed_attachment_config->shape_config.extents;
+                    if (!debug_box3d_create(typed_attachment_config->shape_config.extents, xform_handle, &debug->box)) {
+                        KERROR("Failed to create debug box for rectangle volume.");
+                    } else {
+                        /* xform_position_set(debug->box.xform, vec3_from_vec4(new_volume.data.position)); */
+                    }
+                    if (!debug_box3d_initialize(&debug->box)) {
+                        KERROR("Failed to create debug box for rectangle volume.");
+                    }
+                    break;
+                }
+
+                // Commands
+                new_volume.on_enter_command = string_duplicate(typed_attachment_config->on_enter_command);
+                new_volume.on_leave_command = string_duplicate(typed_attachment_config->on_leave_command);
+                new_volume.on_update_command = string_duplicate(typed_attachment_config->on_update_command);
+
+                if (init_result) {
+                    // Find a free slot and take it, or push a new one.
+                    u32 volume_count = darray_length(s->volumes);
+                    darray_push(s->volumes, new_volume);
+                    darray_push(s->volume_attachments, (scene_attachment){0});
+                    scene_attachment* attachment = &s->volume_attachments[volume_count];
+                    attachment->resource_handle = khandle_create(volume_count);
+                    attachment->hierarchy_node_handle = hierarchy_node_handle;
+                    attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_VOLUME;
+
+                    // NOTE: These dont have metadata. If metadata is required, get it here.
+                    /* if (!is_readonly) {
+                        scene_point_light_metadata* meta = 0;
+                    } */
                 }
             }
         }
@@ -2223,6 +2312,51 @@ static b8 scene_serialize_node(const scene* s, const hierarchy_graph_view* view,
             // Add properties to it.
             kson_object_value_add_string(&attachment.value.o, "type", "water_plane");
             kson_object_value_add_int(&attachment.value.o, "reserved", s->water_plane_metadata[m].reserved);
+
+            // Push it into the attachments array
+            darray_push(attachments_prop.value.o.properties, attachment);
+        }
+    }
+
+    // volumes
+    u32 volume_count = darray_length(s->water_plane_attachments);
+    for (u32 m = 0; m < volume_count; ++m) {
+        if (s->volume_attachments[m].hierarchy_node_handle.handle_index == view_node->node_handle.handle_index) {
+            // Found one!
+
+            // Create the object array entry.
+            kson_property attachment = kson_object_property_create(0);
+
+            // Add properties to it.
+            kson_object_value_add_string(&attachment.value.o, "type", "volume");
+            switch (s->volumes[m].type) {
+            case SCENE_VOLUME_TYPE_TRIGGER:
+                kson_object_value_add_string(&attachment.value.o, "volume_type", "trigger");
+                break;
+            }
+
+            switch (s->volumes[m].shape_type) {
+            case SCENE_VOLUME_SHAPE_TYPE_SPHERE:
+                kson_object_value_add_string(&attachment.value.o, "shape_type", "sphere");
+                kson_object_value_add_float(&attachment.value.o, "radius", s->volumes[m].shape_config.radius);
+                break;
+            case SCENE_VOLUME_SHAPE_TYPE_RECTANGLE:
+                kson_object_value_add_string(&attachment.value.o, "shape_type", "rectangle");
+                kson_object_value_add_vec3(&attachment.value.o, "extents", s->volumes[m].shape_config.extents);
+                break;
+            }
+
+            if (s->volumes[m].on_enter_command) {
+                kson_object_value_add_string(&attachment.value.o, "on_enter", s->volumes[m].on_enter_command);
+            }
+
+            if (s->volumes[m].on_leave_command) {
+                kson_object_value_add_string(&attachment.value.o, "on_leave", s->volumes[m].on_leave_command);
+            }
+
+            if (s->volumes[m].on_update_command) {
+                kson_object_value_add_string(&attachment.value.o, "on_update", s->volumes[m].on_update_command);
+            }
 
             // Push it into the attachments array
             darray_push(attachments_prop.value.o.properties, attachment);
