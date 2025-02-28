@@ -640,6 +640,20 @@ KAPI void string_append_bool(char* dest, const char* source, b8 b);
 KAPI void string_append_char(char* dest, const char* source, char c);
 
 /**
+ * @brief Joins the array of strings given with the provided delimiter. The delimiter is not
+ * used after the final entry.
+ *
+ * NOTE: This function dynamically allocates string memory. The string should be freed by the caller.
+ *
+ * @param strings The array of strings to be joined.
+ * @param count The number of strings to be joined.
+ * @param delimiter The delimiter character to join with.
+ *
+ * @returns The joined string. Should be freed by the caller.
+ */
+KAPI char* string_join(const char** strings, u32 count, char delimiter);
+
+/**
  * @brief Extracts the directory from a full file path.
  *
  * @param dest The destination for the path.
