@@ -13,6 +13,8 @@ typedef enum scene_node_attachment_type {
     SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH,
     SCENE_NODE_ATTACHMENT_TYPE_HEIGHTMAP_TERRAIN,
     SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE,
+    SCENE_NODE_ATTACHMENT_TYPE_VOLUME,
+    SCENE_NODE_ATTACHMENT_TYPE_HIT_SPHERE,
     SCENE_NODE_ATTACHMENT_TYPE_COUNT
 } scene_node_attachment_type;
 
@@ -24,7 +26,9 @@ static const char* scene_node_attachment_type_strings[SCENE_NODE_ATTACHMENT_TYPE
     "audio_emitter",     // SCENE_NODE_ATTACHMENT_TYPE_AUDIO_EMITTER,
     "static_mesh",       // SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH,
     "heightmap_terrain", // SCENE_NODE_ATTACHMENT_TYPE_STATIC_HEIGHTMAP_TERRAIN,
-    "water_plane"        // SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE,
+    "water_plane",       // SCENE_NODE_ATTACHMENT_TYPE_WATER_PLANE,
+    "volume",            // SCENE_NODE_ATTACHMENT_TYPE_VOLUME,
+    "hit_sphere"         // SCENE_NODE_ATTACHMENT_TYPE_HIT_SPHERE,
 };
 
 // Ensure changes to scene attachment types break this if it isn't also updated.
@@ -35,6 +39,8 @@ STATIC_ASSERT(SCENE_NODE_ATTACHMENT_TYPE_COUNT == (sizeof(scene_node_attachment_
 typedef struct scene_node_attachment_config {
     scene_node_attachment_type type;
     kname name;
+    u32 tag_count;
+    kname* tags;
 } scene_node_attachment_config;
 
 typedef struct scene_node_attachment_skybox_config {
@@ -90,6 +96,39 @@ typedef struct scene_node_attachment_water_plane_config {
     // TODO: expand configurable properties.
 } scene_node_attachment_water_plane_config;
 
+typedef enum scene_volume_type {
+    SCENE_VOLUME_TYPE_TRIGGER
+} scene_volume_type;
+
+typedef enum scene_volume_shape_type {
+    SCENE_VOLUME_SHAPE_TYPE_SPHERE,
+    SCENE_VOLUME_SHAPE_TYPE_RECTANGLE
+} scene_volume_shape_type;
+
+typedef struct scene_node_attachment_volume_config {
+    scene_node_attachment_config base;
+
+    scene_volume_type volume_type;
+    scene_volume_shape_type shape_type;
+
+    union {
+        f32 radius;
+        vec3 extents;
+    } shape_config;
+
+    u32 hit_sphere_tag_count;
+    kname* hit_sphere_tags;
+
+    const char* on_enter_command;
+    const char* on_leave_command;
+    const char* on_update_command;
+} scene_node_attachment_volume_config;
+
+typedef struct scene_node_attachment_hit_sphere_config {
+    scene_node_attachment_config base;
+    f32 radius;
+} scene_node_attachment_hit_sphere_config;
+
 /**
  *  @brief Represents the configuration for a scene node.
  */
@@ -111,6 +150,10 @@ typedef struct scene_node_config {
     scene_node_attachment_heightmap_terrain_config* heightmap_terrain_configs;
     /** @brief Darray of water plane attachment configs. */
     scene_node_attachment_water_plane_config* water_plane_configs;
+    /** @brief Darray of volume attachment configs. */
+    scene_node_attachment_volume_config* volume_configs;
+    /** @brief Darray of hit sphere attachment configs. */
+    scene_node_attachment_hit_sphere_config* hit_sphere_configs;
 
     /** @brief The number of children within this node. */
     u32 child_count;
