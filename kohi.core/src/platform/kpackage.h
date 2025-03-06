@@ -82,5 +82,7 @@ KAPI const char* kpackage_source_path_for_asset(const kpackage* package, kname n
 KAPI b8 kpackage_asset_bytes_write(kpackage* package, kname name, u64 size, const void* bytes);
 KAPI b8 kpackage_asset_text_write(kpackage* package, kname name, u64 size, const char* text);
 
+KAPI b8 kpackage_ensure_manifest_entry(kpackage* package, kname asset_name, u32 size, const char* path, const char* source_path);
+
 KAPI b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_manifest);
 KAPI void kpackage_manifest_destroy(asset_manifest* manifest);

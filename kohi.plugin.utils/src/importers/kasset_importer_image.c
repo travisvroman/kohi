@@ -8,9 +8,11 @@
 #include <platform/vfs.h>
 #include <serializers/kasset_binary_image_serializer.h>
 
-#define STB_IMAGE_IMPLEMENTATION
+#ifndef STB_IMAGE_IMPLEMENTATION
+#    define STB_IMAGE_IMPLEMENTATION
 // Using our own filesystem.
-#define STBI_NO_STDIO
+#    define STBI_NO_STDIO
+#endif
 #include "vendor/stb_image.h"
 
 b8 kasset_importer_image_import(const struct kasset_importer* self, u64 data_size, const void* data, void* params, struct kasset* out_asset) {

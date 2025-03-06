@@ -1,4 +1,5 @@
 #include "strings/kstring.h"
+#include "math/kmath.h"
 
 #include <stdarg.h> // For variadic functions
 #include <stdio.h>  // vsnprintf, sscanf, sprintf
@@ -1209,6 +1210,91 @@ void string_to_upper(char* str) {
             str[i] += ('a' - 'A');
         }
     }
+}
+
+char* string_generate_random(u32 length) {
+    if (!length) {
+        return 0;
+    }
+
+    char* out_str = KALLOC_TYPE_CARRAY(char, length + 1);
+
+    // Everything on the ASCII table between '!' and '~'.
+    i32 lower_bound = 33;
+    i32 upper_bound = 126;
+
+    for (u32 i = 0; i < length; ++i) {
+        i32 codepoint = krandom_in_range(lower_bound, upper_bound);
+        out_str[i] = (char)codepoint;
+    }
+
+    out_str[length] = 0;
+    return out_str;
+}
+
+b8 string_decompose_data_uri(const char* uri, u32* out_type_subtype_length, char** out_type_subtype, u32* out_param_length, char** out_param, u32* out_data_length, char** out_data) {
+    if (!out_data_length || !out_data) {
+        KERROR("%s requires valid pointers to out_data_length and out_data");
+        return false;
+    }
+
+    if (!strings_nequali(uri, "data:", 5)) {
+        KWARN("%s - String is not a valid data URI. It should begin with 'data:'");
+        return false;
+    }
+    // It's a base64 data URI. Format is data:<type>;base64,<data>
+    // A base64 URI must have a comma, which is always just before the data.
+    i32 comma_index = string_index_of(uri, ',');
+    if (comma_index == -1) {
+        KERROR("Invalid data URI (no comma found in URI). Check format.");
+        return false;
+    }
+
+    i32 semicolon_index = string_index_of(uri, ';');
+
+    // Read the mime type/subtype, which extends to the semicolon (or comma if no semicolon)
+    if (out_type_subtype && out_type_subtype_length) {
+        char mime_type[256];
+        kzero_memory(mime_type, sizeof(char) * 256);
+
+        // Length is after the type/subtype, but before parameter (if it exists, otherwise just before the comma)
+        // Clip to a length of 30.
+        *out_type_subtype_length = KMIN((semicolon_index == -1 ? comma_index : semicolon_index) - 1 - 5, 255);
+        if (*out_type_subtype_length) {
+            // Use the string as-is.
+            string_mid(mime_type, uri, 5, *out_type_subtype_length);
+            *out_type_subtype = string_duplicate(mime_type);
+        }
+    }
+
+    // Only parse the mime type parameter if there is a semicolon
+    if (out_param && out_param_length && semicolon_index != -1) {
+        char mime_param[256] = {0};
+        i32 start = semicolon_index + 1;
+        i32 end = comma_index - 1;
+        *out_param_length = end - start;
+        if (*out_param_length) {
+            string_mid(mime_param, uri, start, *out_param_length);
+            *out_param = string_duplicate(mime_param);
+        }
+    }
+
+    // Extract the data string starting after the comma.
+    u32 str_size = string_length(uri + comma_index + 1);
+    // Ignore padding '=' characters at the end, as the data will be padded out below.
+    while (uri[comma_index + str_size] == '=') {
+        str_size--;
+    }
+
+    // Ensure the number of encoded bits is made into a multiple of 8 bits.
+    u32 encoded_bit_count = str_size * 6 - (str_size * 6) % 8;
+    *out_data_length = encoded_bit_count / 8;
+
+    // Take a copy of the relevant portion of the string.
+    *out_data = KALLOC_TYPE_CARRAY(char, *out_data_length);
+    KCOPY_TYPE_CARRAY(*out_data, uri + comma_index + 1, char, *out_data_length);
+
+    return true;
 }
 
 // ----------------------

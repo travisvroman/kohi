@@ -353,7 +353,14 @@ static b8 kpackage_asset_write_file_internal(kpackage* package, kname name, u64 
         }
     }
 
-    // New asset file, write out.
+    // Not found, meaning this is a new entry. Add it to the manifest.
+    asset_entry new_entry = {0};
+    new_entry.name = name;
+    new_entry.size = size;
+    // FIXME: get these
+    new_entry.path = 0;
+    new_entry.source_path = 0;
+
     KERROR("kpackage_asset_bytes_write attempted to write to an asset that is not in the manifest.");
     return false;
 }
@@ -394,6 +401,35 @@ b8 kpackage_asset_text_write(kpackage* package, kname name, u64 size, const char
         KERROR("Failed to write asset.");
         return false;
     }
+
+    return true;
+}
+
+b8 kpackage_ensure_manifest_entry(kpackage* package, kname asset_name, u32 size, const char* path, const char* source_path) {
+    if (!package || !path) {
+        return false;
+    }
+
+    u32 entry_count = darray_length(package->internal_data->entries);
+    for (u32 i = 0; i < entry_count; ++i) {
+        asset_entry* entry = &package->internal_data->entries[i];
+        if (entry->name == asset_name) {
+            // Found a match.
+            return true;
+        }
+    }
+
+    // Not found, meaning this is a new entry. Add it to the manifest.
+    asset_entry new_entry = {0};
+    new_entry.name = asset_name;
+    new_entry.size = size;
+    new_entry.path = string_duplicate(path);
+    new_entry.source_path = string_duplicate(source_path);
+    new_entry.offset = 0;
+
+    darray_push(package->internal_data->entries, new_entry);
+
+    // TODO: Write out manifest
 
     return true;
 }

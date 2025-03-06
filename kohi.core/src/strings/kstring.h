@@ -716,6 +716,32 @@ KAPI void string_to_lower(char* str);
  */
 KAPI void string_to_upper(char* str);
 
+/**
+ * @brief Generates an alpha-numeric string (also including symbols, but not spaces) of the given length. Also accounts for null terminator.
+ * NOTE: The string is dynamically allocated and must be freed by the caller.
+ *
+ * @param length The length of the string to generate.
+ *
+ * @returns The randomly-generated string which must be freed by the caller.
+ */
+KAPI char* string_generate_random(u32 length);
+
+/**
+ * @brief Attempts to decompose a data URI string into type/subtype, parameter, and the date segment.
+ * NOTE: Format is data:[<type>][;base64],<data>
+ * NOTE: All strings are dynamically allocated and must be freed by the caller.
+ *
+ * @param uri The string containing the URI. Required.
+ * @param out_type_subtype_length A pointer to hold the length of the type/subtype string. Optional.
+ * @param out_type_subtype A pointer to hold the type/subtype string. Optional.
+ * @param out_param_length A pointer to hold the length of the parameter string, if one exists. Optional.
+ * @param out_param A pointer to hold the parameter string, if one exists. Optional.
+ * @param out_data_length A pointer to hold the length of the data string. Required.
+ * @param out_data A pointer to hold the data string. Required.
+ * @return True if successfully parsed/decomposed; otherwise false.
+ */
+KAPI b8 string_decompose_data_uri(const char* uri, u32* out_type_subtype_length, char** out_type_subtype, u32* out_param_length, char** out_param, u32* out_data_length, char** out_data);
+
 // ----------------------
 // KString implementation
 // ----------------------

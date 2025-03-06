@@ -358,6 +358,25 @@ b8 vfs_asset_write(vfs_state* state, const kasset* asset, b8 is_binary, u64 size
     return false;
 }
 
+b8 vfs_ensure_manifest_entry(vfs_state* state, kname asset_name, kname package_name, const char* path, const char* asset_path) {
+    KASSERT_DEBUG(state);
+    u32 package_count = darray_length(state->packages);
+    if (package_name == 0) {
+        KERROR("%s - Package name is required.", __FUNCTION__);
+        return false;
+    }
+    for (u32 i = 0; i < package_count; ++i) {
+        kpackage* package = &state->packages[i];
+        if (package->name == package_name) {
+
+            // TODO: Move this to kpackage
+        }
+    }
+
+    KERROR("%s - Unable to find package named '%s'.", __FUNCTION__, kname_string_get(package_name));
+    return false;
+}
+
 static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest) {
     b8 success = true;
     if (manifest->references) {
