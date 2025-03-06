@@ -38,6 +38,12 @@ typedef struct console_command_argument {
  * command (i.e. arguments to the command).
  */
 typedef struct console_command_context {
+    /** @brief The full, original console command. */
+    const char* command;
+
+    /** @brief The console command name only. */
+    const char* command_name;
+
     /** @brief The number of arguments passed.*/
     u8 argument_count;
     /** @brief The arguments array. */

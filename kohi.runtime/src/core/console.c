@@ -1125,6 +1125,8 @@ b8 console_command_execute(const char* command) {
             } else {
                 // Execute it, passing along arguments if needed.
                 console_command_context context = {0};
+                context.command = string_duplicate(command);
+                context.command_name = string_duplicate(cmd->name);
                 context.argument_count = cmd->arg_count;
                 if (context.argument_count > 0) {
                     context.arguments = kallocate(sizeof(console_command_argument) * cmd->arg_count, MEMORY_TAG_ARRAY);
