@@ -37,6 +37,8 @@ typedef enum application_stage {
     APPLICATION_STAGE_SHUTTING_DOWN
 } application_stage;
 
+struct application_state;
+
 /**
  * @brief Represents the basic application state in a application.
  * Called for creation by the application.
@@ -106,7 +108,7 @@ typedef struct application {
     application_stage stage;
 
     /** @brief application-specific state. Created and managed by the application. */
-    void* state;
+    struct application_state* state;
 
     /** @brief A block of memory to hold the engine state. Created and managed by the engine. */
     void* engine_state;
