@@ -4,6 +4,13 @@
 #include "math/math_types.h"
 #include "strings/kname.h"
 
+typedef struct kresource_info {
+    kname resource_name;
+    kname package_name;
+} kresource_info;
+
+// TODO: Remove old scene stuff.
+
 typedef enum scene_node_attachment_type {
     SCENE_NODE_ATTACHMENT_TYPE_UNKNOWN,
     SCENE_NODE_ATTACHMENT_TYPE_SKYBOX,

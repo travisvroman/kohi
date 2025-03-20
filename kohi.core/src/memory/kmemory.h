@@ -164,6 +164,17 @@ KAPI void kallocate_report(u64 size, memory_tag tag);
 KAPI void* kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag);
 
 /**
+ * @brief Dynamically reallocates memory for a standard C array of the given type.
+ * Also casts to type*. Memory is tagged as MEMORY_TAG_ARRAY.
+ *
+ * @param block The block of memory to reallocate.
+ * @param type The type to be used when determining allocation size.
+ * @param old_count The number of elements existing in the array.
+ * @param new_count The number of elements in the resized array.
+ */
+#define KREALLOC_TYPE_CARRAY(block, type, old_count, new_count) (type*)kreallocate(block, sizeof(type) * old_count, sizeof(type) * new_count, MEMORY_TAG_ARRAY)
+
+/**
  * @brief Performs a memory reallocation from the host of the given size and alignment, and also frees the
  * block of memory given. The reallocation is tracked for the provided tag.
  * NOTE: Memory allocated this way must be freed using kfree_aligned.

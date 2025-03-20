@@ -2095,14 +2095,21 @@ KAPI b8 plane_intersects_sphere(const plane_3d* p, const vec3* center,
  * via center and radius.
  *
  * @param f A constant pointer to a frustum.
- * @param center A constant pointer to a position representing the center of a
- * sphere.
+ * @param center A constant pointer to a position representing the center of a sphere.
  * @param radius The radius of the sphere.
- * @return True if the sphere is intersected by or contained within the frustum
- * f; otherwise false.
+ * @return True if the sphere is intersected by or contained within the frustum f; otherwise false.
  */
-KAPI b8 frustum_intersects_sphere(const frustum* f, const vec3* center,
-                                  f32 radius);
+KAPI b8 frustum_intersects_sphere(const frustum* f, const vec3* center, f32 radius);
+
+/**
+ * @brief Indicates if the frustum intersects (or contains) a sphere constructed
+ * via center and radius.
+ *
+ * @param f A constant pointer to a frustum.
+ * @param sphere A constant pointer to a sphere.
+ * @return True if the sphere is intersected by or contained within the frustum f; otherwise false.
+ */
+KAPI b8 frustum_intersects_ksphere(const frustum* f, const ksphere* sphere);
 
 /**
  * @brief Indicates if plane p intersects an axis-aligned bounding box
@@ -2115,8 +2122,7 @@ KAPI b8 frustum_intersects_sphere(const frustum* f, const vec3* center,
  * @return True if the axis-aligned bounding box intersects the plane; otherwise
  * false.
  */
-KAPI b8 plane_intersects_aabb(const plane_3d* p, const vec3* center,
-                              const vec3* extents);
+KAPI b8 plane_intersects_aabb(const plane_3d* p, const vec3* center, const vec3* extents);
 
 /**
  * @brief Indicates if frustum f intersects an axis-aligned bounding box
@@ -2138,18 +2144,33 @@ KINLINE b8 rect_2d_contains_point(rect_2d rect, vec2 point) {
 
 KAPI f32 vec3_distance_to_line(vec3 point, vec3 line_start, vec3 line_direction);
 
-KINLINE vec3 extents_2d_half(extents_2d extents) {
+KINLINE vec3 extents_2d_center(extents_2d extents) {
     return (vec3){
         (extents.min.x + extents.max.x) * 0.5f,
         (extents.min.y + extents.max.y) * 0.5f,
     };
 }
 
-KINLINE vec3 extents_3d_half(extents_3d extents) {
+KINLINE vec3 extents_2d_half(extents_2d extents) {
+    return (vec3){
+        kabs(extents.min.x - extents.max.x) * 0.5f,
+        kabs(extents.min.y - extents.max.y) * 0.5f,
+    };
+}
+
+KINLINE vec3 extents_3d_center(extents_3d extents) {
     return (vec3){
         (extents.min.x + extents.max.x) * 0.5f,
         (extents.min.y + extents.max.y) * 0.5f,
         (extents.min.z + extents.max.z) * 0.5f,
+    };
+}
+
+KINLINE vec3 extents_3d_half(extents_3d extents) {
+    return (vec3){
+        kabs(extents.min.x - extents.max.x) * 0.5f,
+        kabs(extents.min.y - extents.max.y) * 0.5f,
+        kabs(extents.min.z - extents.max.z) * 0.5f,
     };
 }
 
