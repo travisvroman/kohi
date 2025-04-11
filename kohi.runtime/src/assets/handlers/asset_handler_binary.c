@@ -59,8 +59,8 @@ void asset_handler_binary_create(struct asset_handler* self, struct vfs_state* v
     self->type_name = KASSET_TYPE_NAME_BINARY;
     self->binary_serialize = kasset_binary_serialize;
     self->binary_deserialize = kasset_binary_deserialize;
-    self->binary_serialize = 0;
-    self->binary_deserialize = 0;
+    self->text_serialize = 0;
+    self->text_deserialize = 0;
     self->size = sizeof(kasset_binary);
 }
 
