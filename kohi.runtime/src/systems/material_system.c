@@ -703,7 +703,7 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
     // }
 
     // Register a console command to dump list of materials/references.
-    console_command_register("material_system_dump", 0, on_material_system_dump);
+    console_command_register("material_system_dump", 0, state, on_material_system_dump);
 
     return true;
 }

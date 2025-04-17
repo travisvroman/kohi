@@ -250,31 +250,44 @@ b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_s
     u32 count = darray_length(geometries_darray);
     for (u64 i = 0; i < count; ++i) {
         obj_source_geometry* g = &((geometries_darray)[i]);
-        KDEBUG("Geometry de-duplication process starting on geometry object named '%s'...", g->name);
+        // FIXME: pass in a flag to decide on deduplication.
+        // KDEBUG("Geometry de-duplication process starting on geometry object named '%s'...", g->name);
 
-        u32 new_vert_count = 0;
-        vertex_3d* unique_verts = 0;
-        geometry_deduplicate_vertices(
-            g->vertex_count,
-            g->vertices,
-            g->index_count,
-            g->indices,
-            &new_vert_count,
-            &unique_verts);
+        // u32 new_vert_count = 0;
+        // vertex_3d* unique_verts = 0;
+        // geometry_deduplicate_vertices(
+        //     g->vertex_count,
+        //     g->vertices,
+        //     g->index_count,
+        //     g->indices,
+        //     &new_vert_count,
+        //     &unique_verts);
 
-        // Destroy the old, large array...
+        // // Destroy the old, large array...
+        // darray_destroy(g->vertices);
+
+        // // And replace with the de-duplicated one.
+        // g->vertices = unique_verts;
+        // g->vertex_count = new_vert_count;
+
+        // // Take a copy of the indices as a normal, non-darray
+        // u32* indices = kallocate(sizeof(u32) * g->index_count, MEMORY_TAG_ARRAY);
+        // kcopy_memory(indices, g->indices, sizeof(u32) * g->index_count);
+        // // Destroy the darray
+        // darray_destroy(g->indices);
+        // // Replace with the non-darray version.
+        // g->indices = indices;
+
+        // Take a non-darray copy of the vertex and index data if not de-duplicating, as the
+        // runtime expects this to be a standard array.
+        vertex_3d* unique_verts = KALLOC_TYPE_CARRAY(vertex_3d, g->vertex_count);
+        KCOPY_TYPE_CARRAY(unique_verts, g->vertices, vertex_3d, g->vertex_count);
         darray_destroy(g->vertices);
-
-        // And replace with the de-duplicated one.
         g->vertices = unique_verts;
-        g->vertex_count = new_vert_count;
 
-        // Take a copy of the indices as a normal, non-darray
-        u32* indices = kallocate(sizeof(u32) * g->index_count, MEMORY_TAG_ARRAY);
-        kcopy_memory(indices, g->indices, sizeof(u32) * g->index_count);
-        // Destroy the darray
+        u32* indices = KALLOC_TYPE_CARRAY(u32, g->index_count);
+        KCOPY_TYPE_CARRAY(indices, g->indices, u32, g->index_count);
         darray_destroy(g->indices);
-        // Replace with the non-darray version.
         g->indices = indices;
 
         // Also generate tangents here, this way tangents are also stored in the output file.

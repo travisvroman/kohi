@@ -48,13 +48,15 @@ static u32 semaphore_id = 0;
 
 // NOTE: Begin threads.
 
+typedef void *(*kthread_work_callback)(void *);
+
 b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_detach, kthread* out_thread) {
     if (!start_function_ptr) {
         return false;
     }
 
     // pthread_create uses a function pointer that returns void*, so cold-cast to this type.
-    i32 result = pthread_create((pthread_t*)&out_thread->thread_id, 0, (void* (*)(void*))start_function_ptr, params);
+    i32 result = pthread_create((pthread_t*)&out_thread->thread_id, 0, (kthread_work_callback)start_function_ptr, params);
     if (result != 0) {
         switch (result) {
         case EAGAIN:
@@ -371,36 +373,40 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
         return false;
     }
 
-    char filename[260]; // NOTE: same as Windows, for now.
-    kzero_memory(filename, sizeof(char) * 260);
 
     const char* extension = platform_dynamic_library_extension();
     const char* prefix = platform_dynamic_library_prefix();
 
-    string_format_unsafe(filename, "%s%s%s", prefix, name, extension);
+    const char* filename = string_format("%s%s%s", prefix, name, extension);
+    KTRACE("Trying local path '%s' first.", filename);
 
-    void* library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded.dylib"
+    void* library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
     if (!library) {
+        KTRACE("Trying fallback path '%s' because of error: '%s'", filename, dlerror());
 
-        // Try the local folder
-        kzero_memory(filename, sizeof(char) * 260);
-        string_format_unsafe(filename, "./%s%s%s", prefix, name, extension);
-        library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded.dylib"
+        // Try the /lib/ folder next
+        string_free(filename);
+        filename = string_format("/lib/%s%s%s", prefix, name, extension);
+
+        library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
         if (!library) {
+            KTRACE("Trying second fallback path '%s' because of error: '%s'", filename, dlerror());
 
             // try a fallback to /usr/local/lib
-            kzero_memory(filename, sizeof(char) * 260);
-            string_format_unsafe(filename, "/usr/local/lib/%s%s%s", prefix, name, extension);
-            library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded.dylib"
+            string_free(filename);
+            filename = string_format("/usr/local/lib/%s%s%s", prefix, name, extension);
+
+            library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
             if (!library) {
                 KERROR("Error opening library: %s", dlerror());
                 return false;
             }
         }
     }
+    KTRACE("Found lib: '%s'", filename);
 
     out_library->name = string_duplicate(name);
-    out_library->filename = string_duplicate(filename);
+    out_library->filename = filename;
 
     out_library->internal_data_size = 8;
     out_library->internal_data = library;

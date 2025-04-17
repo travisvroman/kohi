@@ -46,12 +46,7 @@ attributes = [
 uniforms = {
     per_frame = [
         {
-            name = "projections"
-            type = "mat4"
-            array_size = 4
-        }
-        {
-            name = "views"
+            name = "view_projections"
             type = "mat4"
             array_size = 4
         }

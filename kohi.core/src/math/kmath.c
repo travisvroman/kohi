@@ -24,6 +24,10 @@ f32 ktan(f32 x) { return tanf(x); }
 
 f32 katan(f32 x) { return atanf(x); }
 
+f32 katan2(f32 x, f32 y) { return atan2(x, y); }
+
+f32 kasin(f32 x) { return asinf(x); }
+
 f32 kacos(f32 x) { return acosf(x); }
 
 f32 ksqrt(f32 x) { return sqrtf(x); }
@@ -117,25 +121,58 @@ frustum frustum_from_view_projection(mat4 view_projection) {
     return f;
 }
 
-frustum frustum_create(const vec3* position, const vec3* forward,
-                       const vec3* right, const vec3* up, f32 aspect, f32 fov,
-                       f32 near, f32 far) {
+frustum frustum_create(const vec3* position, const vec3* target, const vec3* up, f32 aspect, f32 fov, f32 near, f32 far) {
     frustum f;
 
-    f32 half_v = far * tanf(fov * 0.5f);
-    f32 half_h = half_v * aspect;
-    vec3 fwd = *forward;
-    vec3 forward_far = vec3_mul_scalar(fwd, far);
-    vec3 right_half_h = vec3_mul_scalar(*right, half_h);
-    vec3 up_half_v = vec3_mul_scalar(*up, half_v);
+    // Calculate the forward vector (negative Z direction for right-handed systems)
+    vec3 forward = vec3_normalized(vec3_sub(*target, *position));
 
-    // Top, bottom, right, left, far, near
-    f.sides[FRUSTUM_SIDE_TOP] = plane_3d_create(vec3_add(vec3_mul_scalar(fwd, near), *position), fwd);
-    f.sides[FRUSTUM_SIDE_BOTTOM] = plane_3d_create(vec3_add(*position, forward_far), vec3_mul_scalar(fwd, -1.0f));
-    f.sides[FRUSTUM_SIDE_RIGHT] = plane_3d_create(*position, vec3_cross(*up, vec3_add(forward_far, right_half_h)));
-    f.sides[FRUSTUM_SIDE_LEFT] = plane_3d_create(*position, vec3_cross(vec3_sub(forward_far, right_half_h), *up));
-    f.sides[FRUSTUM_SIDE_FAR] = plane_3d_create(*position, vec3_cross(*right, vec3_sub(forward_far, up_half_v)));
-    f.sides[FRUSTUM_SIDE_NEAR] = plane_3d_create(*position, vec3_cross(vec3_add(forward_far, up_half_v), *right));
+    // Calculate the right vector (X-axis), ensuring a right-handed system
+    vec3 right = vec3_normalized(vec3_cross(forward, *up));
+
+    // Recalculate the true up vector (Y-axis) to ensure orthogonality
+    vec3 adjusted_up = vec3_cross(right, forward);
+
+    // Half dimensions at the far plane
+    f32 half_v = far * tanf(fov * 0.5f); // Vertical half
+    f32 half_h = half_v * aspect;        // Horizontal half
+
+    vec3 forward_far = vec3_mul_scalar(forward, far);
+    vec3 forward_near = vec3_mul_scalar(forward, near);
+    vec3 right_half_h = vec3_mul_scalar(right, half_h);
+    vec3 up_half_v = vec3_mul_scalar(adjusted_up, half_v);
+
+    // Top plane
+    f.sides[FRUSTUM_SIDE_TOP] = plane_3d_create(
+        vec3_add(*position, forward_far),
+        vec3_cross(right, vec3_sub(forward_far, up_half_v)));
+
+    // Bottom plane
+    f.sides[FRUSTUM_SIDE_BOTTOM] = plane_3d_create(
+        vec3_add(*position, forward_far),
+        vec3_cross(vec3_add(forward_far, up_half_v), right));
+
+    // Right plane
+    f.sides[FRUSTUM_SIDE_RIGHT] = plane_3d_create(
+        vec3_add(*position, forward_far),
+        vec3_cross(adjusted_up, vec3_sub(forward_far, right_half_h)));
+
+    // Left plane
+    f.sides[FRUSTUM_SIDE_LEFT] = plane_3d_create(
+        vec3_add(*position, forward_far),
+        vec3_cross(vec3_add(forward_far, right_half_h), adjusted_up));
+
+    // Far plane
+    f.sides[FRUSTUM_SIDE_FAR] = plane_3d_create(
+        vec3_add(*position, forward_far),
+        vec3_mul_scalar(forward, -1.0f) // Normal points back toward the camera
+    );
+
+    // Near plane
+    f.sides[FRUSTUM_SIDE_NEAR] = plane_3d_create(
+        vec3_add(*position, forward_near),
+        forward // Normal points away from the camera
+    );
 
     return f;
 }
@@ -157,12 +194,27 @@ b8 frustum_intersects_sphere(const frustum* f, const vec3* center, f32 radius) {
     return true;
 }
 
+b8 frustum_intersects_ksphere(const frustum* f, const ksphere* sphere) {
+    for (u8 i = 0; i < 6; ++i) {
+        if (!plane_intersects_sphere(&f->sides[i], &sphere->position, sphere->radius)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 b8 plane_intersects_aabb(const plane_3d* p, const vec3* center, const vec3* extents) {
     f32 r = extents->x * kabs(p->normal.x) +
             extents->y * kabs(p->normal.y) +
             extents->z * kabs(p->normal.z);
 
-    return -r <= plane_signed_distance(p, center);
+    f32 distance = plane_signed_distance(p, center);
+
+    if (distance <= -r) {
+        return false;
+    }
+
+    return true;
 }
 
 b8 frustum_intersects_aabb(const frustum* f, const vec3* center, const vec3* extents) {

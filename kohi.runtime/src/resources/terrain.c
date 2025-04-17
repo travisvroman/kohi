@@ -405,7 +405,7 @@ static void terrain_chunk_calculate_geometry(terrain* t, terrain_chunk* chunk, u
     chunk->extents.max = chunk->vertices[chunk->surface_vertex_count - 1].position;
     chunk->extents.max.y = y_max;
 
-    chunk->center = extents_3d_half(chunk->extents);
+    chunk->center = extents_3d_center(chunk->extents);
 
     // Generate indices for each LOD.
     for (u32 j = 0; j < t->lod_count; ++j) {

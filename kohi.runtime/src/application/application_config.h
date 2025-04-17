@@ -64,6 +64,9 @@ typedef struct application_config {
 
     /** @brief The size of the application-specific frame data. Set to 0 if not used. */
     u64 app_frame_data_size;
+
+    /** @brief The asset manifest file path. */
+    const char* manifest_file_path;
 } application_config;
 
 /**

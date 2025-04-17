@@ -1,0 +1,235 @@
+// Application config file.
+app_name = "Overdrive: 2069"
+frame_allocator_size = 128
+app_frame_data_size = 128
+manifest_file_path = "../overdrive2069.kapp/asset_manifest.kson"
+windows = [
+   {
+    resolution = "1280 720"
+    position="100 100"
+    name="main_window"
+    title = "Overdrive: 2069"
+   }
+]
+package_config = {
+    packages = [
+        "Kohi.Runtime"
+        "Kohi.Plugin.Ui.Standard"
+        "Overdrive2069"
+    ]
+    process_as_text [
+        "SomeUserAssetType"
+    ]
+}
+systems = [
+    {
+        name="asset"
+        config = {
+            max_asset_count = 2049
+        }
+    }
+    {
+        name="audio"
+        config = {
+            backend_plugin_name = "kohi.plugin.audio.openal"
+            audio_channel_count = 8
+            max_resource_count = 64
+            frequency = 44100
+            chunk_size = 65536
+            categories = [
+                {
+                    name = "world_sounds"
+                    volume = 1.0
+                    audio_space = "3D"
+                    channel_ids = [
+                        0
+                        1
+                        2
+                        3
+                        4
+                        5
+                    ]
+                }
+                {
+                    name = "ui_sounds"
+                    volume = 0.9
+                    audio_space = "2D"
+                    channel_ids = [
+                        6
+                    ]
+                }
+                {
+                    name = "music"
+                    volume = 0.8
+                    audio_space = "2D"
+                    channel_ids = [
+                        7
+                    ]
+                }
+            ]
+        }
+    }
+    {
+        name="renderer"
+        config = {
+            vsync=true
+            power_saving=true
+            enable_validation=false
+            backend_plugin_name = "kohi.plugin.renderer.vulkan"
+            triple_buffering_enabled = true
+        }
+    }
+    {
+        name = "font"
+        config = {
+            max_bitmap_font_count = 5
+            max_system_font_count = 25
+            bitmap_fonts = [
+                {
+                    resource_name = "BitmapFont.NotoSans21px"
+                    package_name = "Kohi.Runtime"
+                }
+                {
+                    resource_name = "BitmapFont.UbuntuMono21px"
+                    package_name = "Kohi.Runtime"
+                }
+            ]
+            system_fonts = [
+                {
+                    resource_name = "SystemFont.NotoSansCJK"
+                    package_name = "Kohi.Runtime"
+                    default_size = 20
+                }
+                {
+                    resource_name = "SystemFont.UbuntuMono"
+                    package_name = "Kohi.Runtime"
+                    default_size = 20
+                }
+            ]
+        }
+    }
+    {
+       name="plugin_system"
+       config = {
+            plugins = [
+                {
+                    name = "kohi.plugin.utils"
+                }
+                {
+                    name = "kohi.plugin.renderer.vulkan"
+                    config = {
+                        
+                    }
+                }
+                {
+                    name = "kohi.plugin.audio.openal"
+                    config = {
+                        max_buffers = 256
+                    }
+                }
+                {
+                     name = "kohi.plugin.ui.standard"
+                }
+            ]
+        }
+    }
+]
+rendergraphs = [
+    {
+        name = "forward_graph"
+        nodes = [
+            {
+                name = "frame_begin"
+                type = "frame_begin"
+                comment = "This node is required, but not configurable."
+            }
+            {
+                name = "clear_colour"
+                type = "clear_colour"
+                config = {
+                    source_name = "frame_begin.colourbuffer"
+                }
+            }
+            {
+                name = "clear_ds"
+                type = "clear_depth_stencil"
+                config = {
+                    source_name = "frame_begin.depthbuffer"
+                    depth_clear_value = 1.0
+                    stencil_clear_value = 0
+                }
+            }
+            {
+                name = "shadow"
+                type = "shadow"
+                config = {
+                    resolution = 2048
+                }
+            }
+            {
+                name = "forward"
+                type = "forward"
+                sinks = [
+                    {
+                        name = "colourbuffer"
+                        source_name = "clear_colour.colourbuffer"
+                    }
+                    {
+                        name = "depthbuffer"
+                        source_name = "clear_ds.depthbuffer"
+                    }
+                    {
+                        name = "shadow"
+                        source_name = "shadow.shadowmap"
+                    }
+                ]
+            }
+            {
+                name = "debug"
+                type = "debug3d"
+                sinks = [
+                    {
+                        name = "colourbuffer"
+                        source_name = "forward.colourbuffer"
+                    }
+                    {
+                        name = "depthbuffer"
+                        source_name = "forward.depthbuffer"
+                    }
+                ]
+            }
+            {
+                name = "editor_gizmo"
+                type = "editor_gizmo"
+                sinks = [
+                    {
+                        name = "colourbuffer"
+                        source_name = "debug.colourbuffer"
+                    }
+                ]
+            }
+            {
+                name = "sui"
+                type = "standard_ui"
+                sinks = [
+                    {
+                        name = "colourbuffer"
+                        source_name = "editor_gizmo.colourbuffer"
+                    }
+                    {
+                        name = "depthbuffer"
+                        source_name = "debug.depthbuffer"
+                    }
+                ]
+            }
+            {
+                name = "frame_end"
+                type = "frame_end"
+                comment = "This node is required."
+                config = {
+                    colourbuffer_source = "sui.colourbuffer"
+                }
+            }
+        ]
+    }
+]

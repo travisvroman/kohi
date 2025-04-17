@@ -49,6 +49,12 @@ b8 application_config_parse_file_content(const char* file_content, application_c
         out_config->app_frame_data_size = (u64)iapp_frame_data_size;
     }
 
+    // Asset manifest file path
+    if (!kson_object_property_value_get_string(&app_config_tree.root, "manifest_file_path", &out_config->manifest_file_path)) {
+        KERROR("'manifest_file_path' is a required field in application config. Cannot continue.");
+        return false;
+    }
+
     // Window configs.
     out_config->windows = darray_create(kwindow_config);
     kson_array window_configs_array;

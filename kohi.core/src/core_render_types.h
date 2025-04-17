@@ -1,8 +1,11 @@
 #pragma once
 
 #include "defines.h"
+#include "identifiers/khandle.h"
+#include "math/math_types.h"
 #include "strings/kname.h"
 #include "strings/kstring_id.h"
+#include "utils/kcolour.h"
 
 /** @brief Determines face culling mode during rendering. */
 typedef enum face_cull_mode {
@@ -365,3 +368,129 @@ typedef struct kmaterial_sampler_config {
     texture_repeat repeat_v;
     texture_repeat repeat_w;
 } kmaterial_sampler_config;
+
+/**
+ * @brief A material instance, which contains handles to both
+ * the base material as well as the instance itself. Every time
+ * an instance is "acquired", one of these is created, and the instance
+ * should be referenced using this going from that point.
+ */
+typedef struct material_instance {
+    // Handle to the base material.
+    khandle material;
+    // Handle to the instance.
+    khandle instance;
+} material_instance;
+
+typedef struct krenderbuffer_render_data {
+    /** @brief The element count. */
+    u32 count;
+    /** @brief The offset from the beginning of the buffer. */
+    u64 offset;
+} krenderbuffer_render_data;
+
+/** @brief Represents render data for arbitrary geometry. */
+typedef struct kgeometry_render_data {
+    struct renderbuffer* vertex_buffer;
+    krenderbuffer_render_data vertex_data;
+    struct renderbuffer* index_buffer;
+    krenderbuffer_render_data index_data;
+} kgeometry_render_data;
+
+typedef struct kskybox_render_data {
+    mat4 model;
+    u32 group_id;
+    u32 draw_id;
+    struct kresource_texture* cubemap;
+} kskybox_render_data;
+
+/** @brief Defines flags used for rendering static meshes */
+typedef enum kstatic_mesh_render_data_flag {
+    /** @brief Indicates that the winding order for the given static mesh should be inverted. */
+    KSTATICM_ESH_RENDER_DATA_FLAG_WINDING_INVERTED_BIT = 0x0001
+} kstaticm_esh_render_data_flag;
+
+/**
+ * @brief Collection of flags for a static mesh submesh to be rendered.
+ * @see kstatic_mesh_render_data_flag
+ */
+typedef u32 kstatic_mesh_render_data_flag_bits;
+
+/**
+ * @brief The render data for an individual static sub-mesh
+ * to be rendered.
+ */
+typedef struct kstatic_mesh_submesh_render_data {
+    /** @brief Flags for the static mesh to be rendered. */
+    kstatic_mesh_render_data_flag_bits flags;
+
+    /** @brief The vertex data. */
+    krenderbuffer_render_data vertex_data;
+
+    /** @brief The index data. */
+    krenderbuffer_render_data index_data;
+
+    /** @brief The instance of the material to use with this static mesh when rendering. */
+    material_instance material;
+} kstatic_mesh_submesh_render_data;
+
+/**
+ * Contains data required to render a static mesh (ultimately its submeshes).
+ */
+typedef struct kstatic_mesh_render_data {
+    /** The identifier of the mesh instance being rendered. */
+    u64 instance_id;
+
+    /** @brief The number of submeshes to be rendered. */
+    u32 submesh_count;
+    /** @brief The array of submeshes to be rendered. */
+    kstatic_mesh_submesh_render_data* submeshes;
+
+    /** @brief The tint override to be used when rendering all submeshes. Typically white (1, 1, 1, 1) if not used. */
+    vec4 tint;
+} kstatic_mesh_render_data;
+
+/**
+ * Directional light data formatted for direct shader use.
+ */
+typedef struct kdirectional_light_render_data {
+    /** @brief The light colour. */
+    colour4 colour;
+    /** @brief The direction of the light. The w component is ignored.*/
+    vec4 direction;
+
+    f32 shadow_distance;
+    f32 shadow_fade_distance;
+    f32 shadow_split_mult;
+    f32 padding;
+} kdirectional_light_render_data;
+
+/**
+ * Point light data formatted for direct shader use.
+ */
+typedef struct kpoint_light_render_data {
+    /** @brief The light colour. */
+    colour4 colour;
+    /** @brief The position of the light in the world. The w component is ignored.*/
+    vec4 position;
+    /** @brief Usually 1, make sure denominator never gets smaller than 1 */
+    f32 constant_f;
+    /** @brief Reduces light intensity linearly */
+    f32 linear;
+    /** @brief Makes the light fall off slower at longer distances. */
+    f32 quadratic;
+    /** @brief Additional padding used for memory alignment purposes. Ignored. */
+    f32 padding;
+} kpoint_light_render_data;
+
+typedef struct kwater_plane_render_data {
+    mat4 model;
+    /** @brief The vertex data. */
+    krenderbuffer_render_data vertex_data;
+
+    /** @brief The index data. */
+    krenderbuffer_render_data index_data;
+
+    /** @brief The instance of the material to use with this static mesh when rendering. */
+    material_instance material;
+} kwater_plane_render_data;

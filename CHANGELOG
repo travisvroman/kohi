@@ -1,5 +1,10 @@
 Changelog
 
+- 0.9.0
+  - Fixed several issues in the math library where some functions were not the correct handedness and/or major. The 
+    entire library is now right-handed and column-major (-z forward, +y up) as it should have been.
+  - Fixed an issue with OBJ imports when not de-duplicating vertices.
+
 - 0.8.0
   - Removed preferential VSCode settings from settings.json in the project. Only project-specific config is remaining. The rest now exists in user configuration and will be added to an external repo if wanted.
   - Added debug labels to all rendergraph nodes using "renderings".

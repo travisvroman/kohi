@@ -138,6 +138,10 @@ b8 create_application(application* out_application) {
     return true;
 }
 
+const char* application_config_path_get(void) {
+    return "../testbed.kapp/app_config.kson";
+}
+
 b8 initialize_application(application* app) {
     if (!event_register(EVENT_CODE_RESOURCE_HOT_RELOADED, app, watched_file_updated)) {
         return false;

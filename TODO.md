@@ -4,161 +4,6 @@ The items in this list are not in any particular order. This list will be update
 
 # Future Releases:
 
-## 0.8.0 Release
-
-- [x] KName system (case-insensitve string hashing)
-- [x] KString Id system (case-sensitive string hashing)
-- [x] Virtual file system (VFS)
-  - [x] Sits on top of and manages packages, doles out requests to loaded packages, etc.
-- [x] Remove geometry system
-
-  - [x] Rename geometry->kgeometry
-  - [x] Move creation of geometries to geometry.h/c
-  - [x] Add geometry_type:
-    - [x] 2D_STATIC - Used for 2d geometry that doesn't change
-    - [x] 2D_DYNAMIC - Used for 2d geometry that changes often (NOTE: initially not supported)
-    - [x] 3D_STATIC - Used for 3d geometry that doesn't change
-    - [x] 3D_HEIGHTMAP_TERRAIN - Used for heightmap terrain-specific geometry that rarely (if ever) changes - includes material index/weight data
-    - [x] 3D_SKINNED - Used for skinned 3d geometry that changes potentially every frame, and includes bone/weight data
-    - [x] 3D_DYNAMIC - Used for 3d geometry that changes often (NOTE: initially not supported)
-    - [x] CUSTOM - User-defined geometry type. Vertex/index size will only be looked at for this type.
-
-- [x] New Resource System
-
-  - [x] Remove old resource system after it is decomissioned.
-  - [x] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
-        New system will make requests to new Asset System asynchronously, and be responsible for all reference counting and auto-releasing.
-  - [x] Provide kresource structure which contains basic high-level items such as type, name, generation, etc.
-  - [ ] Resource type reworks
-    - [x] Text (Simple, generic loading of a text file)
-      - [x] Handler
-    - [x] Binary (Simple loading of all bytes in a file)
-      - [x] Handler
-    - [x] Textures
-      - [x] Handler - Does this also include GPU uploads? Thinking so, versus a different "gpu loader"
-    - [x] Material
-      - [x] Handler
-      - [x] Conversion of material .kmt files to version 3.
-      - [x] Material instances
-      - [x] Standard materials
-      - [x] Water materials
-        - [x] Water plane: Add various properties to configuration.
-    - [x] Shader
-      - [x] Handler
-      - [x] Conversion of scopes to update_frequency (global/instance/local -> per_frame/per_group/per_draw)
-    - [x] Scene
-      - [x] Handler
-    - [x] Static Mesh (formerly just Mesh)
-      - [x] Handler
-      - [x] kresource_static_mesh structure
-        - [x] holds (and owns) static_geometry structure
-    - [x] Bitmap Font
-      - [x] Resource Handler
-    - [x] System Font
-      - [x] Resource Handler
-  - [x] Audio Resource
-    - [x] Resource Handler
-
-- [x] Split asset loading logic from Resource System to new Asset System
-  - [x] New asset system will work with asynchronous nature of VFS and automatically handle asset parsing/processing, hot-reloading and interaction with systems where necessary (i.e. texture system).
-  - [x] Provide kasset structure which contains basic high-level metadata such as name, type, size and pointer to data, as well as a general "asset state" that can be looked at by any system (i.e. Uninitialized->Initialized->Loading->Loaded->Unloading)
-  - [x] When an asset is requested, a name and callback are provided. The name and a asset-type-specific handler callback are provided to the VFS, which responds in kind when the asset is loaded. In the event more than one VFS call is required, the asset handler will be responsible for managing this and will ultimately invoke the original callback provided when the top-level asset was requested.
-- [x] Asset packaging (kpackage)
-  - [x] Reorganize assets from testbed.assets folder to go along with the respective "module".
-  - [x] Rename all assets and asset references to use the format "<package>.<asset_type>.<name>". I.e. "Testbed.Texture.arch"
-  - [x] Setup one manifest file including a list of all these files in each "module.". Exclude "source" files (i.e. .obj and .mtl).
-  - [x] Asset type reworks:
-    - [x] Static meshes
-      - [x] Regenerate all .ksm files.
-      - [x] Asset handler
-      - [x] Importer from Wavefront OBJ
-        - [x] OBJ Serializer
-      - [x] Serializer
-      - [x] Rename all references to "mesh" in the engine to "static_mesh" to separate it from later mesh types.
-    - [x] Images
-      - [x] Asset handler
-      - [x] Importer
-        - [x] Common formats (.bmp, .tga, .jpg, .png)
-      - [x] Binary .kbi format
-      - [x] Serializer
-    - [x] Shaders
-      - [x] Fix hot-reloading/change watches to be called from package/vfs
-      - [x] Convert .shadercfg file to KSON-based .ksc (Kohi Shader Config)
-      - [x] Asset handler
-      - [x] Serializer
-    - [x] Bitmap fonts
-      - [x] Rename .fnt files to .kbf (Kohi Bitmap Font)
-      - [x] Asset handler
-      - [x] Serializer
-    - [x] System fonts
-      - [x] Convert .fontcfg to KSON-based .ksf file (Kohi System Font)
-      - [x] Asset handler
-      - [x] Primary format Serializer
-    - [x] Materials
-      - [x] Convert .kmt to KSON
-        - [x] MTL Serializer
-      - [x] Asset handler
-      - [x] Serializer
-    - [x] Terrains -> HeightmapTerrains
-      - [x] Convert .kterrain to KSON-based .kht file (Kohi Heightmap Terrain)
-      - [x] Asset handler
-      - [x] Serializer
-    - [x] Scenes
-      - [x] Asset handler
-      - [x] Serializer
-    - [x] Music/Audio effects
-      - [x] Binary container format (.kaf - Kohi Audio File)
-      - [x] Asset handler
-      - [x] Importers
-        - [x] mp3
-        - [x] ogg vorbis
-      - [x] Serializer
-  - [x] Create kpackage interface in kohi.core.
-  - [x] Point kpackage to files on disk for "debug" builds.
-  - [x] Asset hot reloading
-- [x] BUG: Fix release build hang on startup (creating logical device).
-- [x] BUG: Fix macOS window resizing.
-- [x] Fix release build hang on startup (creating logical device).
-- [x] Blitting - Separate colourbuffer to its own texture separate from the swapchain/blit to swapchain image just before present.
-- [x] Material system refactor
-  - [x] Have material/texture system create the "combined" image at runtime instead of it being stored as a static asset (will make it easier to change in an editor without having to run a utility to do it).
-  - [x] Convert material configs to KSON
-- [x] Material redux:
-  - [x] Shading models:
-    - [x] PBR (default now)
-  - [x] Transparency flag (turning off ignores alpha on albedo). Also used for material sorting during deferred/forward passes.
-  - [x] Additional texture channels:
-    - [x] Emissive (PBR, Phong)
-- [x] Static-sized, dynamically-allocated, type-safe array with iterator.
-  - [x] Tests
-- [x] Static-sized, stack-allocated, type-safe array with iterator.
-  - [x] Tests
-- [x] Dynamic-sized, type-safe darray with iterator.
-  - [x] Tests
-- [x] Vulkan backend:
-  - [x] Support for separate image descriptors and sampler descriptors. Remove support for combined image sampler descriptors.
-  - [x] Add generic samplers usable everywhere (linear repeat, nearest repeat, linear border, linear clamp etc.)
-    - [x] Add tracking to shader system as to whether these are used.
-    - [x] Default sampler uniforms to use these.
-    - [x] Add 16 sampler/texture limitation to shader system. (see required limits doc)
-  - [x] Change samplers to use khandles
-  - [x] Bubble up sampler functions to renderer frontend.
-  - [x] Remove concept of texture maps in favour of separate samplers and images
-  - [x] Change shader system to set "texture" instead of "sampler".
-  - [x] Change shader system to no longer hold string names for uniforms, but use knames instead.
-- [x] Handle refactoring
-  - [x] Convert shader system to use handles
-  - [x] Convert material system to use handles
-- [ ] Audio system
-  - [x] kaudio system refactor.
-  - [x] Audio "instances"
-  - [x] Audio radius checks (think emitter vs lister pos./falloff)
-  - [x] Audio instance play position + radius vs. listener + radius indicates if currently bound/playing on a channel.
-  - [x] Auto-channel selection based on availability (gracefully handle out-of-channels i.e. discard oldest or simply don't play?)
-    - [x] Channel reservation/sound types or "categories"
-- [x] Debug shape
-  - [x] debug_sphere3d (similar to the one generated for the editor gizmo)
-
 ## 0.9.0 Release
 
 - [ ] Rework freelist to take alignment into account.
@@ -577,6 +422,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Continuous Integration
 - [x] Add git tags to mark version releases (https://github.com/travisvroman/kohi/issues/174)
 - [ ] Nix build compatability (https://github.com/travisvroman/kohi/issues/175)
+- [ ] Scripting language - Kohi Language (KLang) - Thanks for the name idea Dr. Elliot. :)
 
 # Previous Release TODO lists:
 
@@ -643,5 +489,160 @@ The items in this list are not in any particular order. This list will be update
 - [x] Remove specialized rendergraphs. Replaced by app config.
 - [x] Separate debug shapes out to new debug_rendergraph_node.
 - [x] Separate editor gizmo out to new editor_gizmo_rendergraph_node.
+
+## 0.8.0 Release
+
+- [x] KName system (case-insensitve string hashing)
+- [x] KString Id system (case-sensitive string hashing)
+- [x] Virtual file system (VFS)
+  - [x] Sits on top of and manages packages, doles out requests to loaded packages, etc.
+- [x] Remove geometry system
+
+  - [x] Rename geometry->kgeometry
+  - [x] Move creation of geometries to geometry.h/c
+  - [x] Add geometry_type:
+    - [x] 2D_STATIC - Used for 2d geometry that doesn't change
+    - [x] 2D_DYNAMIC - Used for 2d geometry that changes often (NOTE: initially not supported)
+    - [x] 3D_STATIC - Used for 3d geometry that doesn't change
+    - [x] 3D_HEIGHTMAP_TERRAIN - Used for heightmap terrain-specific geometry that rarely (if ever) changes - includes material index/weight data
+    - [x] 3D_SKINNED - Used for skinned 3d geometry that changes potentially every frame, and includes bone/weight data
+    - [x] 3D_DYNAMIC - Used for 3d geometry that changes often (NOTE: initially not supported)
+    - [x] CUSTOM - User-defined geometry type. Vertex/index size will only be looked at for this type.
+
+- [x] New Resource System
+
+  - [x] Remove old resource system after it is decomissioned.
+  - [x] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
+        New system will make requests to new Asset System asynchronously, and be responsible for all reference counting and auto-releasing.
+  - [x] Provide kresource structure which contains basic high-level items such as type, name, generation, etc.
+  - [ ] Resource type reworks
+    - [x] Text (Simple, generic loading of a text file)
+      - [x] Handler
+    - [x] Binary (Simple loading of all bytes in a file)
+      - [x] Handler
+    - [x] Textures
+      - [x] Handler - Does this also include GPU uploads? Thinking so, versus a different "gpu loader"
+    - [x] Material
+      - [x] Handler
+      - [x] Conversion of material .kmt files to version 3.
+      - [x] Material instances
+      - [x] Standard materials
+      - [x] Water materials
+        - [x] Water plane: Add various properties to configuration.
+    - [x] Shader
+      - [x] Handler
+      - [x] Conversion of scopes to update_frequency (global/instance/local -> per_frame/per_group/per_draw)
+    - [x] Scene
+      - [x] Handler
+    - [x] Static Mesh (formerly just Mesh)
+      - [x] Handler
+      - [x] kresource_static_mesh structure
+        - [x] holds (and owns) static_geometry structure
+    - [x] Bitmap Font
+      - [x] Resource Handler
+    - [x] System Font
+      - [x] Resource Handler
+  - [x] Audio Resource
+    - [x] Resource Handler
+
+- [x] Split asset loading logic from Resource System to new Asset System
+  - [x] New asset system will work with asynchronous nature of VFS and automatically handle asset parsing/processing, hot-reloading and interaction with systems where necessary (i.e. texture system).
+  - [x] Provide kasset structure which contains basic high-level metadata such as name, type, size and pointer to data, as well as a general "asset state" that can be looked at by any system (i.e. Uninitialized->Initialized->Loading->Loaded->Unloading)
+  - [x] When an asset is requested, a name and callback are provided. The name and a asset-type-specific handler callback are provided to the VFS, which responds in kind when the asset is loaded. In the event more than one VFS call is required, the asset handler will be responsible for managing this and will ultimately invoke the original callback provided when the top-level asset was requested.
+- [x] Asset packaging (kpackage)
+  - [x] Reorganize assets from testbed.assets folder to go along with the respective "module".
+  - [x] Rename all assets and asset references to use the format "<package>.<asset_type>.<name>". I.e. "Testbed.Texture.arch"
+  - [x] Setup one manifest file including a list of all these files in each "module.". Exclude "source" files (i.e. .obj and .mtl).
+  - [x] Asset type reworks:
+    - [x] Static meshes
+      - [x] Regenerate all .ksm files.
+      - [x] Asset handler
+      - [x] Importer from Wavefront OBJ
+        - [x] OBJ Serializer
+      - [x] Serializer
+      - [x] Rename all references to "mesh" in the engine to "static_mesh" to separate it from later mesh types.
+    - [x] Images
+      - [x] Asset handler
+      - [x] Importer
+        - [x] Common formats (.bmp, .tga, .jpg, .png)
+      - [x] Binary .kbi format
+      - [x] Serializer
+    - [x] Shaders
+      - [x] Fix hot-reloading/change watches to be called from package/vfs
+      - [x] Convert .shadercfg file to KSON-based .ksc (Kohi Shader Config)
+      - [x] Asset handler
+      - [x] Serializer
+    - [x] Bitmap fonts
+      - [x] Rename .fnt files to .kbf (Kohi Bitmap Font)
+      - [x] Asset handler
+      - [x] Serializer
+    - [x] System fonts
+      - [x] Convert .fontcfg to KSON-based .ksf file (Kohi System Font)
+      - [x] Asset handler
+      - [x] Primary format Serializer
+    - [x] Materials
+      - [x] Convert .kmt to KSON
+        - [x] MTL Serializer
+      - [x] Asset handler
+      - [x] Serializer
+    - [x] Terrains -> HeightmapTerrains
+      - [x] Convert .kterrain to KSON-based .kht file (Kohi Heightmap Terrain)
+      - [x] Asset handler
+      - [x] Serializer
+    - [x] Scenes
+      - [x] Asset handler
+      - [x] Serializer
+    - [x] Music/Audio effects
+      - [x] Binary container format (.kaf - Kohi Audio File)
+      - [x] Asset handler
+      - [x] Importers
+        - [x] mp3
+        - [x] ogg vorbis
+      - [x] Serializer
+  - [x] Create kpackage interface in kohi.core.
+  - [x] Point kpackage to files on disk for "debug" builds.
+  - [x] Asset hot reloading
+- [x] BUG: Fix release build hang on startup (creating logical device).
+- [x] BUG: Fix macOS window resizing.
+- [x] Fix release build hang on startup (creating logical device).
+- [x] Blitting - Separate colourbuffer to its own texture separate from the swapchain/blit to swapchain image just before present.
+- [x] Material system refactor
+  - [x] Have material/texture system create the "combined" image at runtime instead of it being stored as a static asset (will make it easier to change in an editor without having to run a utility to do it).
+  - [x] Convert material configs to KSON
+- [x] Material redux:
+  - [x] Shading models:
+    - [x] PBR (default now)
+  - [x] Transparency flag (turning off ignores alpha on albedo). Also used for material sorting during deferred/forward passes.
+  - [x] Additional texture channels:
+    - [x] Emissive (PBR, Phong)
+- [x] Static-sized, dynamically-allocated, type-safe array with iterator.
+  - [x] Tests
+- [x] Static-sized, stack-allocated, type-safe array with iterator.
+  - [x] Tests
+- [x] Dynamic-sized, type-safe darray with iterator.
+  - [x] Tests
+- [x] Vulkan backend:
+  - [x] Support for separate image descriptors and sampler descriptors. Remove support for combined image sampler descriptors.
+  - [x] Add generic samplers usable everywhere (linear repeat, nearest repeat, linear border, linear clamp etc.)
+    - [x] Add tracking to shader system as to whether these are used.
+    - [x] Default sampler uniforms to use these.
+    - [x] Add 16 sampler/texture limitation to shader system. (see required limits doc)
+  - [x] Change samplers to use khandles
+  - [x] Bubble up sampler functions to renderer frontend.
+  - [x] Remove concept of texture maps in favour of separate samplers and images
+  - [x] Change shader system to set "texture" instead of "sampler".
+  - [x] Change shader system to no longer hold string names for uniforms, but use knames instead.
+- [x] Handle refactoring
+  - [x] Convert shader system to use handles
+  - [x] Convert material system to use handles
+- [ ] Audio system
+  - [x] kaudio system refactor.
+  - [x] Audio "instances"
+  - [x] Audio radius checks (think emitter vs lister pos./falloff)
+  - [x] Audio instance play position + radius vs. listener + radius indicates if currently bound/playing on a channel.
+  - [x] Auto-channel selection based on availability (gracefully handle out-of-channels i.e. discard oldest or simply don't play?)
+    - [x] Channel reservation/sound types or "categories"
+- [x] Debug shape
+  - [x] debug_sphere3d (similar to the one generated for the editor gizmo)
 
 Back to [readme](readme.md)

@@ -12,8 +12,7 @@ struct frame_data;
 struct directional_light;
 
 typedef struct shadow_cascade_data {
-    mat4 projection;
-    mat4 view;
+    mat4 view_projection;
     f32 split_depth;
     i32 cascade_index;
 } shadow_cascade_data;

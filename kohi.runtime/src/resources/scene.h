@@ -1,13 +1,13 @@
 #pragma once
 
 #include "audio/kaudio_types.h"
+#include "core_resource_types.h"
 #include "defines.h"
 #include "graphs/hierarchy_graph.h"
 #include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
 #include "math/math_types.h"
 #include "resources/debug/debug_grid.h"
-#include "resources/resource_types.h"
 #include "systems/static_mesh_system.h"
 
 struct frame_data;
@@ -46,6 +46,9 @@ typedef struct scene_attachment {
     khandle hierarchy_node_handle;
     // A handle indexing into the resource array of the given type (i.e. meshes).
     khandle resource_handle;
+
+    u32 tag_count;
+    kname* tags;
 } scene_attachment;
 
 typedef enum scene_flag {
@@ -61,8 +64,9 @@ typedef enum scene_flag {
 typedef u32 scene_flags;
 
 typedef struct scene_node_metadata {
-    // Metadata considered stale/non-existant if INVALID_ID
-    u32 id;
+    u32 index;
+    // Metadata considered stale/non-existant if INVALID_ID_U64
+    u64 uniqueid;
 
     // The name of the node.
     kname name;
@@ -89,6 +93,8 @@ typedef struct scene_water_plane_metadata {
 } scene_water_plane_metadata;
 
 struct scene_audio_emitter;
+struct scene_volume;
+struct scene_hit_sphere;
 
 typedef struct scene {
     u32 id;
@@ -142,6 +148,16 @@ typedef struct scene {
     scene_attachment* water_plane_attachments;
     // Array of water plane metadata.
     scene_water_plane_metadata* water_plane_metadata;
+
+    // darray of volumes.
+    struct scene_volume* volumes;
+    // Array of scene attachments for volumes.
+    scene_attachment* volume_attachments;
+
+    // darray of hit spheres.
+    struct scene_hit_sphere* hit_spheres;
+    // Array of scene attachments for hit spheres.
+    scene_attachment* hit_sphere_attachments;
 
     // A grid for the scene.
     debug_grid grid;
@@ -240,5 +256,14 @@ KAPI b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, ve
 KAPI b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
 
 KAPI b8 scene_water_plane_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct water_plane*** out_water_planes);
+
+KAPI b8 scene_node_xform_get_by_name(const scene* scene, kname name, khandle* out_xform_handle);
+KAPI b8 scene_node_xform_get(const scene* scene, khandle node_handle, khandle* out_xform_handle);
+KAPI b8 scene_node_local_matrix_get(const scene* scene, khandle node_handle, mat4* out_matrix);
+KAPI b8 scene_node_local_matrix_get_by_name(const scene* scene, kname name, mat4* out_matrix);
+
+KAPI b8 scene_node_exists(const scene* s, kname name);
+KAPI b8 scene_node_child_count_get(const scene* s, kname name, u32* out_child_count);
+KAPI b8 scene_node_child_name_get_by_index(const scene* s, kname name, u32 index, kname* out_child_name);
 
 KAPI b8 scene_save(scene* s);

@@ -106,7 +106,6 @@ b8 static_mesh_system_render_data_generate(const static_mesh_instance* instance,
     out_render_data->tint = instance->tint;
     out_render_data->instance_id = instance->instance_id;
     out_render_data->submesh_count = instance->mesh_resource->submesh_count;
-    out_render_data->ibl_probe_index = 0; // TODO: This should be provided elsewhere.
     // FIXME: Need a way to filter down this list by view frustum if we want that granular control.
     // For now though either every submesh gets rendered when this is called, or this isn't called and nothing is rendered.
     out_render_data->submeshes = KALLOC_TYPE_CARRAY(static_mesh_submesh_render_data, out_render_data->submesh_count);

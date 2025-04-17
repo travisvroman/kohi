@@ -267,7 +267,6 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
         KERROR("Error creating vertex buffer.");
         return false;
     }
-    renderer_renderbuffer_bind(&state->geometry_vertex_buffer, 0);
 
     // Geometry index buffer
     // TODO: Make this configurable.
@@ -276,7 +275,6 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
         KERROR("Error creating index buffer.");
         return false;
     }
-    renderer_renderbuffer_bind(&state->geometry_index_buffer, 0);
 
     return true;
 }
@@ -285,7 +283,7 @@ void renderer_system_shutdown(renderer_system_state* state) {
     if (state) {
         renderer_system_state* typed_state = (renderer_system_state*)state;
 
-        renderer_wait_for_idle();
+        // renderer_wait_for_idle();
 
         // Destroy buffers.
         renderer_renderbuffer_destroy(&typed_state->geometry_vertex_buffer);

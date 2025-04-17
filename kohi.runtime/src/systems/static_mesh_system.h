@@ -73,9 +73,6 @@ typedef struct static_mesh_render_data {
     /** @brief The array of submeshes to be rendered. */
     static_mesh_submesh_render_data* submeshes;
 
-    /** The index of the Image-Based-Lighting probe to be used, if applicable. */
-    u8 ibl_probe_index;
-
     /** @brief The tint override to be used when rendering all submeshes. Typically white (1, 1, 1, 1) if not used. */
     vec4 tint;
 } static_mesh_render_data;

@@ -82,6 +82,18 @@ khandle hierarchy_graph_xform_handle_get(const hierarchy_graph* graph, khandle n
     return graph->xform_handles[node_handle.handle_index];
 }
 
+b8 hierarchy_graph_xform_local_matrix_get(const hierarchy_graph* graph, khandle node_handle, mat4* out_matrix) {
+    if (!graph || khandle_is_invalid(node_handle) || !out_matrix) {
+        return false;
+    }
+
+    khandle xform_handle = graph->xform_handles[node_handle.handle_index];
+    xform_calculate_local(xform_handle);
+    *out_matrix = xform_local_get(xform_handle);
+
+    return true;
+}
+
 khandle hierarchy_graph_parent_handle_get(const hierarchy_graph* graph, khandle node_handle) {
     u32 parent_index = hierarchy_graph_parent_index_get(graph, node_handle);
     if (parent_index == INVALID_ID) {
@@ -112,6 +124,42 @@ khandle hierarchy_graph_child_add(hierarchy_graph* graph, khandle parent_node_ha
 
 khandle hierarchy_graph_child_add_with_xform(hierarchy_graph* graph, khandle parent_node_handle, khandle xform_handle) {
     return node_acquire(graph, parent_node_handle.handle_index, xform_handle);
+}
+
+u32 hierarchy_graph_child_count_get(const hierarchy_graph* graph, khandle parent_node_handle) {
+    if (!graph || khandle_is_invalid(parent_node_handle)) {
+        return 0;
+    }
+
+    u32 count = 0;
+    for (u32 i = 0; i < graph->nodes_allocated; ++i) {
+        if (graph->parent_indices[i] == parent_node_handle.handle_index) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+b8 hierarchy_graph_child_get_by_index(const hierarchy_graph* graph, khandle parent_node_handle, u32 index, khandle* out_handle) {
+    if (!graph || khandle_is_invalid(parent_node_handle)) {
+        return 0;
+    }
+
+    u32 child_index = 0;
+
+    // Search for children with the given parent index.
+    for (u32 i = 0; i < graph->nodes_allocated; ++i) {
+        if (graph->parent_indices[i] == parent_node_handle.handle_index) {
+            if (child_index == index) {
+                *out_handle = graph->node_handles[i];
+                return true;
+            }
+            child_index++;
+        }
+    }
+
+    return false;
 }
 
 void hierarchy_graph_node_remove(hierarchy_graph* graph, khandle* node_handle, b8 release_transform) {

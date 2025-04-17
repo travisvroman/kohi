@@ -530,7 +530,7 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, camera* c, struct ray* 
                 switch (data->current_axis_index) {
                 case 0: // x axis
                 case 3: // xy axes
-                    plane_dir = vec3_transform(vec3_back(), 0.0f, gizmo_world);
+                    plane_dir = vec3_transform(vec3_backward(), 0.0f, gizmo_world);
                     break;
                 case 1: // y axis
                 case 6: // xyz
@@ -827,11 +827,11 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
                 break;
             case 4: // xz
                 // Combine the 2 axes, scale along both.
-                direction = vec3_normalized(vec3_mul_scalar(vec3_add(vec3_right(), vec3_back()), 0.5f));
+                direction = vec3_normalized(vec3_mul_scalar(vec3_add(vec3_right(), vec3_backward()), 0.5f));
                 break;
             case 5: // yz
                 // Combine the 2 axes, scale along both.
-                direction = vec3_normalized(vec3_mul_scalar(vec3_add(vec3_back(), vec3_up()), 0.5f));
+                direction = vec3_normalized(vec3_mul_scalar(vec3_add(vec3_backward(), vec3_up()), 0.5f));
                 break;
             case 6: // xyz
                 direction = vec3_normalized(vec3_one());
@@ -1011,7 +1011,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, stru
                 direction = vec3_transform(vec3_up(), 0.0f, gizmo_world);
                 break;
             case 2: // z
-                direction = vec3_transform(vec3_back(), 0.0f, gizmo_world);
+                direction = vec3_transform(vec3_backward(), 0.0f, gizmo_world);
                 break;
             default:
                 return;

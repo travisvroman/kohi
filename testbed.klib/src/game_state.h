@@ -21,9 +21,11 @@
 #include <debug_console.h>
 #include <standard_ui_system.h>
 
+// Utils plugin
+#include <editor/editor_gizmo.h>
+
 #include "audio/audio_frontend.h"
 #include "core/engine.h"
-#include "editor/editor_gizmo.h"
 
 struct debug_line3d;
 struct debug_box3d;
@@ -35,7 +37,7 @@ typedef struct selected_object {
     khandle xform_parent_handle;
 } selected_object;
 
-typedef struct testbed_game_state {
+typedef struct application_state {
     b8 running;
     camera* world_camera;
     struct kaudio_system_state* audio_system;
@@ -106,7 +108,7 @@ typedef struct testbed_game_state {
     u32 cam_proj_line_indices[24];
 
     // TODO: end temp
-} testbed_game_state;
+} application_state;
 
 typedef struct testbed_application_frame_data {
     i32 dummy;

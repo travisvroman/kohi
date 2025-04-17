@@ -105,6 +105,10 @@ static void destroy_scene_node(scene_node_config* root) {
                 darray_destroy(root->water_plane_configs);
                 root->water_plane_configs = 0;
             }
+            if (root->volume_configs) {
+                darray_destroy(root->volume_configs);
+                root->volume_configs = 0;
+            }
         }
 
         if (root->xform_source) {
@@ -159,6 +163,8 @@ static void scene_kasset_on_result(asset_request_result result, const struct kas
 
 static void copy_scene_node(const scene_node_config* source, scene_node_config* target) {
 
+    target->name = source->name;
+
     // Take a copy of attachment configs.
     {
         if (source->skybox_configs) {
@@ -181,6 +187,12 @@ static void copy_scene_node(const scene_node_config* source, scene_node_config* 
         }
         if (source->audio_emitter_configs) {
             target->audio_emitter_configs = darray_duplicate(scene_node_attachment_audio_emitter_config, source->audio_emitter_configs);
+        }
+        if (source->volume_configs) {
+            target->volume_configs = darray_duplicate(scene_node_attachment_volume_config, source->volume_configs);
+        }
+        if (source->hit_sphere_configs) {
+            target->hit_sphere_configs = darray_duplicate(scene_node_attachment_hit_sphere_config, source->hit_sphere_configs);
         }
     }
 

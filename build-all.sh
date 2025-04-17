@@ -105,12 +105,20 @@ echo "error:"$errorlevel | sed -e "s/error/${txtred}error${txtrst}/g" && exit
 fi
 
 # Testbed Lib
-make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.klib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.standard/src -I./kohi.plugin.audio.openal/src" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal"
+make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=testbed.klib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.standard/src -I./kohi.plugin.audio.openal/src -I./kohi.plugin.utils/src" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal -lkohi.plugin.utils"
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]
 then
 echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
+
+# Overdrive2069 Lib
+#make -f Makefile.library.mak $ACTION TARGET=$TARGET ASSEMBLY=overdrive2069.klib DO_VERSION=$DO_VERSION ADDL_INC_FLAGS="$INC_CORE_RT -I./kohi.plugin.ui.standard/src -I./kohi.plugin.audio.openal/src -I./kohi.plugin.utils/src" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal -lkohi.plugin.utils"
+#ERRORLEVEL=$?
+#if [ $ERRORLEVEL -ne 0 ]
+#then
+#echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
+#fi
 
 # ---------------------------------------------------
 # Executables
@@ -123,6 +131,14 @@ if [ $ERRORLEVEL -ne 0 ]
 then
 echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
 fi
+
+# Overdrive 2069 Game Executable
+# make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=overdrive2069.kapp ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT -lkohi.plugin.ui.standard -lkohi.plugin.audio.openal"
+# ERRORLEVEL=$?
+# if [ $ERRORLEVEL -ne 0 ]
+# then
+# echo "Error:"$ERRORLEVEL | sed -e "s/Error/${txtred}Error${txtrst}/g" && exit
+# fi
 
 # Tests
 make -f Makefile.executable.mak $ACTION TARGET=$TARGET ASSEMBLY=kohi.core.tests ADDL_INC_FLAGS="$INC_CORE_RT" ADDL_LINK_FLAGS="$LNK_CORE_RT"

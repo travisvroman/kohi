@@ -101,7 +101,7 @@ static f32 get_engine_delta_time(void) {
 }
 
 static void clear_debug_objects(struct application* game_inst) {
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    application_state* state = (application_state*)game_inst->state;
 
     if (state->test_boxes) {
         u32 box_count = darray_length(state->test_boxes);
@@ -126,7 +126,7 @@ static void clear_debug_objects(struct application* game_inst) {
 
 b8 game_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
     application* game_inst = (application*)listener_inst;
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    application_state* state = (application_state*)game_inst->state;
 
     switch (code) {
     case EVENT_CODE_OBJECT_HOVER_ID_CHANGED: {
@@ -167,7 +167,7 @@ b8 game_on_event(u16 code, void* sender, void* listener_inst, event_context cont
 
 b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, event_context data) {
     application* game_inst = (application*)listener_inst;
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    application_state* state = (application_state*)game_inst->state;
 
     if (code == EVENT_CODE_DEBUG0) {
         // Does nothing for now.
@@ -229,7 +229,7 @@ static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_contex
     i16 x = context.data.i16[0];
     i16 y = context.data.i16[1];
     u16 drag_button = context.data.u16[2];
-    testbed_game_state* state = (testbed_game_state*)listener_inst;
+    application_state* state = (application_state*)listener_inst;
 
     // Only care about left button drags.
     if (drag_button == MOUSE_BUTTON_LEFT) {
@@ -268,7 +268,7 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
         case MOUSE_BUTTON_LEFT: {
             i16 x = context.data.i16[1];
             i16 y = context.data.i16[2];
-            testbed_game_state* state = (testbed_game_state*)listener_inst;
+            application_state* state = (application_state*)listener_inst;
 
             // If the scene isn't loaded, don't do anything else.
             if (state->main_scene.state != SCENE_STATE_LOADED) {
@@ -379,7 +379,7 @@ static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_
         i16 x = context.data.i16[0];
         i16 y = context.data.i16[1];
 
-        testbed_game_state* state = (testbed_game_state*)listener_inst;
+        application_state* state = (application_state*)listener_inst;
 
         mat4 view = camera_view_get(state->world_camera);
         vec3 origin = camera_position_get(state->world_camera);
@@ -404,15 +404,15 @@ static void sui_test_button_on_click(struct standard_ui_state* state, struct sui
 }
 
 u64 application_state_size(void) {
-    return sizeof(testbed_game_state);
+    return sizeof(application_state);
 }
 
 b8 application_boot(struct application* game_inst) {
     KINFO("Booting testbed (%s)...", KVERSION);
 
     // Allocate the game state.
-    game_inst->state = kallocate(sizeof(testbed_game_state), MEMORY_TAG_GAME);
-    testbed_game_state* state = game_inst->state;
+    game_inst->state = kallocate(sizeof(application_state), MEMORY_TAG_GAME);
+    application_state* state = game_inst->state;
     state->running = false;
 
     application_config* config = &game_inst->app_config;
@@ -437,7 +437,7 @@ b8 application_boot(struct application* game_inst) {
 b8 application_initialize(struct application* game_inst) {
     KDEBUG("game_initialize() called!");
 
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    application_state* state = (application_state*)game_inst->state;
     state->audio_system = engine_systems_get()->audio_system;
 
     // Get the standard ui plugin.
@@ -447,7 +447,7 @@ b8 application_initialize(struct application* game_inst) {
     standard_ui_state* sui_state = state->sui_state;
 
 #ifdef KOHI_DEBUG
-    if (!debug_console_create(state->sui_state, &((testbed_game_state*)game_inst->state)->debug_console)) {
+    if (!debug_console_create(state->sui_state, &((application_state*)game_inst->state)->debug_console)) {
         KERROR("Failed to create debug console.");
     }
 #endif
@@ -517,7 +517,7 @@ b8 application_initialize(struct application* game_inst) {
 
     // UI Viewport
     rect_2d ui_vp_rect = vec4_create(0.0f, 0.0f, 1280.0f, 720.0f);
-    if (!viewport_create(ui_vp_rect, 0.0f, -100.0f, 100.0f, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC, &state->ui_viewport)) {
+    if (!viewport_create(ui_vp_rect, 0.0f, 0.0f, 100.0f, RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC, &state->ui_viewport)) {
         KERROR("Failed to create UI viewport. Cannot start application.");
         return false;
     }
@@ -756,7 +756,7 @@ b8 application_update(struct application* game_inst, struct frame_data* p_frame_
         return true;
     }
 
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    application_state* state = (application_state*)game_inst->state;
     if (!state->running) {
         return true;
     }
@@ -897,7 +897,7 @@ VSync: %s Drawn: %-5u (%-5u shadow pass) Hovered: %s%u",
     }
 
 #ifdef KOHI_DEBUG
-    debug_console_update(&((testbed_game_state*)game_inst->state)->debug_console);
+    debug_console_update(&((application_state*)game_inst->state)->debug_console);
 #endif
 
     vec3 forward = camera_forward(state->world_camera);
@@ -911,7 +911,7 @@ VSync: %s Drawn: %-5u (%-5u shadow pass) Hovered: %s%u",
 }
 
 b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_frame_data) {
-    testbed_game_state* state = (testbed_game_state*)app_inst->state;
+    application_state* state = (application_state*)app_inst->state;
     if (!state->running) {
         return false;
     }
@@ -950,13 +950,9 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
     // Default values to use in the event there is no directional light.
     // These are required because the scene pass needs them.
-    mat4 shadow_camera_lookats[MATERIAL_MAX_SHADOW_CASCADES];
-    mat4 shadow_camera_projections[MATERIAL_MAX_SHADOW_CASCADES];
-    vec3 shadow_camera_positions[MATERIAL_MAX_SHADOW_CASCADES];
+    mat4 shadow_camera_view_projections[MATERIAL_MAX_SHADOW_CASCADES];
     for (u32 i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
-        shadow_camera_lookats[i] = mat4_identity();
-        shadow_camera_projections[i] = mat4_identity();
-        shadow_camera_positions[i] = vec3_zero();
+        shadow_camera_view_projections[i] = mat4_identity();
     }
 
     // TODO: Anything to do here?
@@ -1010,8 +1006,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                     forward_rendergraph_node_cascade_data_set(
                         node,
                         (near + splits.elements[c] * clip_range) * 1.0f, // splits.elements[c]
-                        shadow_camera_lookats[c],
-                        shadow_camera_projections[c],
+                        shadow_camera_view_projections[c],
                         c);
                 }
                 // Ensure the render mode is set.
@@ -1029,9 +1024,10 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 // Camera frustum culling and count
                 viewport* v = current_viewport;
                 vec3 forward = camera_forward(current_camera);
-                vec3 right = camera_right(current_camera);
+                vec3 target = vec3_add(current_camera->position, vec3_mul_scalar(forward, far));
                 vec3 up = camera_up(current_camera);
-                frustum camera_frustum = frustum_create(&current_camera->position, &forward, &right,
+                // TODO: move frustum to be managed by camera it is attached to.
+                frustum camera_frustum = frustum_create(&current_camera->position, &target,
                                                         &up, v->rect.width / v->rect.height, v->fov, v->near_clip, v->far_clip);
 
                 p_frame_data->drawn_mesh_count = 0;
@@ -1042,7 +1038,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 // Query the scene for static meshes using the camera frustum.
                 if (!scene_mesh_render_data_query(
                         scene,
-                        &camera_frustum,
+                        0, //&camera_frustum, // HACK: disabling frustum culling for now.
                         current_camera->position,
                         p_frame_data,
                         &geometry_count, &geometries)) {
@@ -1061,7 +1057,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 // Query the scene for terrain meshes using the camera frustum.
                 if (!scene_terrain_render_data_query(
                         scene,
-                        &camera_frustum,
+                        0, //&camera_frustum, // HACK: disabling frustum culling for now.
                         current_camera->position,
                         p_frame_data,
                         &terrain_geometry_count, &terrain_geometries)) {
@@ -1127,12 +1123,24 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
                 // Pass over shadow map "camera" view and projection matrices (one per cascade).
                 for (u32 c = 0; c < MATERIAL_MAX_SHADOW_CASCADES; c++) {
-                    // NOTE: Each pass for cascades will need to do the following process.
-                    // The only real difference will be that the near/far clips will be adjusted for each.
 
                     // Get the world-space corners of the view frustum.
-                    vec4 corners[8] = {0};
-                    frustum_corner_points_world_space(cam_view_proj, corners);
+                    vec4 corners[8] = {
+                        {-1.0f, +1.0f, 0.0f, 1.0f},
+                        {+1.0f, +1.0f, 0.0f, 1.0f},
+                        {+1.0f, -1.0f, 0.0f, 1.0f},
+                        {-1.0f, -1.0f, 0.0f, 1.0f},
+
+                        {-1.0f, +1.0f, 1.0f, 1.0f},
+                        {+1.0f, +1.0f, 1.0f, 1.0f},
+                        {+1.0f, -1.0f, 1.0f, 1.0f},
+                        {-1.0f, -1.0f, 1.0f, 1.0f}};
+
+                    mat4 inv_cam = mat4_inverse(cam_view_proj);
+                    for (u32 j = 0; j < 8; ++j) {
+                        vec4 inv_corner = mat4_mul_vec4(inv_cam, corners[j]);
+                        corners[j] = (vec4_div_scalar(inv_corner, inv_corner.w));
+                    }
 
                     // Adjust the corners by pulling/pushing the near/far according to the current split.
                     f32 split_dist = splits.elements[c];
@@ -1160,6 +1168,8 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                         f32 distance = vec3_distance(vec3_from_vec4(corners[i]), center);
                         radius = KMAX(radius, distance);
                     }
+                    radius = kceil(radius * 16.0f) / 16.0f;
+
                     if (c == MATERIAL_MAX_SHADOW_CASCADES - 1) {
                         culling_radius = radius;
                     }
@@ -1188,18 +1198,20 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                     // Generate lookat by moving along the opposite direction of the directional light by the
                     // minimum extents. This is negated because the directional light points "down" and the camera
                     // needs to be "up".
-                    shadow_camera_positions[c] = vec3_sub(center, vec3_mul_scalar(light_dir, -extents.min.z));
-                    shadow_camera_lookats[c] = mat4_look_at(shadow_camera_positions[c], center, vec3_up());
+                    vec3 shadow_camera_position = vec3_sub(center, vec3_mul_scalar(light_dir, -extents.min.z));
+                    mat4 light_view = mat4_look_at(shadow_camera_position, center, vec3_up());
 
                     // Generate ortho projection based on extents.
-                    shadow_camera_projections[c] = mat4_orthographic(extents.min.x, extents.max.x, extents.min.y, extents.max.y, extents.min.z, extents.max.z - extents.min.z);
+                    mat4 light_ortho = mat4_orthographic(extents.min.x, extents.max.x, extents.min.y, extents.max.y, 0.0f, extents.max.z - extents.min.z);
+
+                    // combined view/projection
+                    shadow_camera_view_projections[c] = (mat4_mul(light_view, light_ortho));
 
                     // Build out cascade data to set in shadow rg node.
                     shadow_cascade_data cdata = {0};
                     cdata.cascade_index = c;
-                    cdata.split_depth = (near + split_dist * clip_range) * 1.0f;
-                    cdata.view = shadow_camera_lookats[c];
-                    cdata.projection = shadow_camera_projections[c];
+                    cdata.split_depth = (near + split_dist * clip_range) * -1.0f;
+                    cdata.view_projection = shadow_camera_view_projections[c];
                     shadow_rendergraph_node_cascade_data_set(node, cdata, c);
 
                     last_split_dist = split_dist;
@@ -1336,7 +1348,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
 
 b8 application_render_frame(struct application* game_inst, struct frame_data* p_frame_data) {
     // Start the frame
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    application_state* state = (application_state*)game_inst->state;
     if (!state->running) {
         return true;
     }
@@ -1359,7 +1371,7 @@ void application_on_window_resize(struct application* game_inst, const struct kw
         return;
     }
 
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    application_state* state = (application_state*)game_inst->state;
 
     state->width = window->width;
     state->height = window->height;
@@ -1392,7 +1404,7 @@ void application_on_window_resize(struct application* game_inst, const struct kw
 }
 
 void application_shutdown(struct application* game_inst) {
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    application_state* state = (application_state*)game_inst->state;
     state->running = false;
 
     if (state->main_scene.state == SCENE_STATE_LOADED) {
@@ -1415,7 +1427,7 @@ void application_shutdown(struct application* game_inst) {
 void application_lib_on_unload(struct application* game_inst) {
     application_unregister_events(game_inst);
 #ifdef KOHI_DEBUG
-    debug_console_on_lib_unload(&((testbed_game_state*)game_inst->state)->debug_console);
+    debug_console_on_lib_unload(&((application_state*)game_inst->state)->debug_console);
 #endif
     game_remove_commands(game_inst);
     game_remove_keymaps(game_inst);
@@ -1424,7 +1436,7 @@ void application_lib_on_unload(struct application* game_inst) {
 void application_lib_on_load(struct application* game_inst) {
     application_register_events(game_inst);
 #ifdef KOHI_DEBUG
-    debug_console_on_lib_load(&((testbed_game_state*)game_inst->state)->debug_console, game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE);
+    debug_console_on_lib_load(&((application_state*)game_inst->state)->debug_console, game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE);
 #endif
     if (game_inst->stage >= APPLICATION_STAGE_BOOT_COMPLETE) {
         game_setup_commands(game_inst);
@@ -1490,7 +1502,7 @@ void application_unregister_events(struct application* game_inst) {
 }
 
 static b8 load_main_scene(struct application* game_inst) {
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    application_state* state = (application_state*)game_inst->state;
 
     kresource_scene_request_info request_info = {0};
     request_info.base.type = KRESOURCE_TYPE_SCENE;
@@ -1544,7 +1556,7 @@ static b8 save_main_scene(struct application* game_inst) {
     if (!game_inst) {
         return false;
     }
-    testbed_game_state* state = (testbed_game_state*)game_inst->state;
+    application_state* state = (application_state*)game_inst->state;
 
     return scene_save(&state->main_scene);
 }

@@ -31,6 +31,7 @@
     "files.associations": {
         "core_render_types.h": "c",
         "logger.h": "c",
-        "vfs.h": "c"
+        "vfs.h": "c",
+        "kresource_system.h": "c"
     }
 }
