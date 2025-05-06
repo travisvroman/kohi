@@ -20,32 +20,12 @@
 typedef struct asset_system_config {
     // The maximum number of assets which may be loaded at once.
     u32 max_asset_count;
+
+    kname application_package_name;
+    const char* application_package_name_str;
 } asset_system_config;
 
 struct asset_system_state;
-
-typedef void (*PFN_asset_system_hot_reload_callback)(void* listener, kasset* asset);
-
-typedef struct asset_request_info {
-    /** @param type The asset type. */
-    kasset_type type;
-    /** @param package_name The name of the package. */
-    kname package_name;
-    /** @param asset_name The name of the asset. */
-    kname asset_name;
-    // If true, request is synchronous and does not return until asset is read and processed.
-    b8 synchronous;
-    /** @param auto_release Indicates if the asset should be released automatically when its internal reference counter reaches 0. Only has an effect the first time the asset is requested. */
-    b8 auto_release;
-    /** @param listener_inst A pointer to the listener instance that is awaiting the asset. Technically optional as perhaps nothing is interested in the result, but hwhy? */
-    void* listener_inst;
-    /** @param callback A pointer to the function to be called when the load is complete (or failed). Technically optional as perhaps nothing is interested in the result, but hwhy? */
-    PFN_kasset_on_result callback;
-    /** @param import_params_size Size of the import params, if used; otherwise 0. */
-    u32 import_params_size;
-    /** @param import_params A pointer to the inport params, if used; otherwise 0; */
-    void* import_params;
-} asset_request_info;
 
 /**
  * @brief Deserializes configuration for the asset system from the provided string.
@@ -74,41 +54,34 @@ KAPI b8 asset_system_initialize(u64* memory_requirement, struct asset_system_sta
  */
 KAPI void asset_system_shutdown(struct asset_system_state* state);
 
-/**
- * @brief Requests an asset by type, name and package name. This operation is asynchronus, and will provide its result via a
- * callback (if provided) at a later time. Internally, a reference count for each asset is maintained each time the asset
- * is requested. If the asset's first request had auto-release set to true, it will be released automatically when this
- * count reaches 0.
- *
- * @param A pointer to the asset system state. Required.
- * @param info The information about the asset request.
- */
-KAPI void asset_system_request(struct asset_system_state* state, asset_request_info info);
+// ////////////////////////////////////
+// BINARY ASSETS
+// ////////////////////////////////////
 
-/**
- * @brief Releases an asset via the fully-qualified name.
- *
- * @param A pointer to the asset system state. Required.
- * @param asset_name The name of the asset to be released.
- * @param package_name The name of the package containing the asset.
- */
-KAPI void asset_system_release(struct asset_system_state* state, kname asset_name, kname package_name);
+typedef void (*PFN_kasset_binary_loaded_callback)(void* listener, kasset_binary* asset);
+// async load from game package.
+KAPI kasset_binary* asset_system_request_binary(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_binary_loaded_callback callback);
+// sync load from game package.
+KAPI kasset_binary* asset_system_request_binary_sync(struct asset_system_state* state, const char* name);
+// async load from specific package.
+KAPI kasset_binary* asset_system_request_binary_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_binary_loaded_callback callback);
+// sync load from specific package.
+KAPI kasset_binary* asset_system_request_binary_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
 
-/**
- * @brief A callback function to be made from an asset handler when an asset is fully loaded and ready to go.
- *
- * @param A pointer to the asset system state. Required.
- * @param result The result of the load operation.
- * @param A pointer to the asset used in the operation.
- */
-KAPI void asset_system_on_handler_result(struct asset_system_state* state, asset_request_result result, kasset* asset, void* listener_instance, PFN_kasset_on_result callback);
+KAPI void asset_system_release_binary(struct asset_system_state* state, kasset_binary* asset);
 
-/**
- * @brief Indicates if the provided asset type is a binary asset.
- *
- * @param type The asset type.
- * @return True if binary; otherwise treated as text.
- */
-KAPI b8 asset_type_is_binary(kasset_type type);
+// ////////////////////////////////////
+// IMAGE ASSETS
+// ////////////////////////////////////
 
-void asset_system_register_hot_reload_callback(struct asset_system_state* state, void* listener, PFN_asset_system_hot_reload_callback callback);
+typedef void (*PFN_kasset_image_loaded_callback)(void* listener, kasset_image* asset);
+// async load from game package.
+KAPI kasset_image* asset_system_request_image(struct asset_system_state* state, const char* name, b8 flip_y, void* listener, PFN_kasset_image_loaded_callback callback);
+// sync load from game package.
+KAPI kasset_image* asset_system_request_image_sync(struct asset_system_state* state, const char* name, b8 flip_y);
+// async load from specific package.
+KAPI kasset_image* asset_system_request_image_from_package(struct asset_system_state* state, const char* package_name, const char* name, b8 flip_y, void* listener, PFN_kasset_image_loaded_callback callback);
+// sync load from specific package.
+KAPI kasset_image* asset_system_request_image_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name, b8 flip_y);
+
+KAPI void asset_system_release_image(struct asset_system_state* state, kasset_image* asset);

@@ -112,103 +112,60 @@ typedef struct kresource_request_info {
 /**
  * @brief Represents various types of textures.
  */
-typedef enum texture_type {
+typedef enum ktexture_type {
     /** @brief A standard two-dimensional texture. */
-    TEXTURE_TYPE_2D,
+    KTEXTURE_TYPE_2D,
     /** @brief A 2d array texture. */
-    TEXTURE_TYPE_2D_ARRAY,
+    KTEXTURE_TYPE_2D_ARRAY,
     /** @brief A cube texture, used for cubemaps. */
-    TEXTURE_TYPE_CUBE,
+    KTEXTURE_TYPE_CUBE,
     /** @brief A cube array texture, used for arrays of cubemaps. */
-    TEXTURE_TYPE_CUBE_ARRAY,
-    TEXTURE_TYPE_COUNT
-} texture_type;
+    KTEXTURE_TYPE_CUBE_ARRAY,
+    KTEXTURE_TYPE_COUNT
+} ktexture_type;
 
-typedef enum texture_format {
-    TEXTURE_FORMAT_UNKNOWN,
-    TEXTURE_FORMAT_RGBA8,
-    TEXTURE_FORMAT_RGB8,
-} texture_format;
-
-typedef enum texture_flag {
+typedef enum ktexture_flag {
     /** @brief Indicates if the texture has transparency. */
-    TEXTURE_FLAG_HAS_TRANSPARENCY = 0x01,
+    KTEXTURE_FLAG_HAS_TRANSPARENCY = 0x01,
     /** @brief Indicates if the texture can be written (rendered) to. */
-    TEXTURE_FLAG_IS_WRITEABLE = 0x02,
+    KTEXTURE_FLAG_IS_WRITEABLE = 0x02,
     /** @brief Indicates if the texture was created via wrapping vs traditional
        creation. */
-    TEXTURE_FLAG_IS_WRAPPED = 0x04,
+    KTEXTURE_FLAG_IS_WRAPPED = 0x04,
     /** @brief Indicates the texture is a depth texture. */
-    TEXTURE_FLAG_DEPTH = 0x08,
+    KTEXTURE_FLAG_DEPTH = 0x08,
     /** @brief Indicates the texture is a stencil texture. */
-    TEXTURE_FLAG_STENCIL = 0x10,
+    KTEXTURE_FLAG_STENCIL = 0x10,
     /** @brief Indicates that this texture should account for renderer buffering (i.e. double/triple buffering) */
-    TEXTURE_FLAG_RENDERER_BUFFERING = 0x20,
-} texture_flag;
+    KTEXTURE_FLAG_RENDERER_BUFFERING = 0x20,
+} ktexture_flag;
 
 /** @brief Holds bit flags for textures.. */
-typedef u8 texture_flag_bits;
-
-#define KRESOURCE_TYPE_NAME_TEXTURE "Texture"
-
-typedef struct kresource_texture {
-    kresource base;
+typedef u8 ktexture_flag_bits;
+/**
+ * @brief Represents a texture to be used for rendering purposes,
+ * stored on the GPU (VRAM)
+ */
+typedef struct ktexture {
+    /** @brief The the handle to renderer-specific texture data. */
+    khandle renderer_texture_handle;
+    /** @brief The unique identifier for this texture. */
+    u32 id;
     /** @brief The texture type. */
-    texture_type type;
+    ktexture_type type;
     /** @brief The texture width. */
     u32 width;
     /** @brief The texture height. */
     u32 height;
     /** @brief The format of the texture data. */
-    texture_format format;
+    kpixel_format format;
+    /** @brief Holds various flags for this texture. */
+    ktexture_flag_bits flags;
     /** @brief For arrayed textures, how many "layers" there are. Otherwise this is 1. */
     u16 array_size;
-    /** @brief Holds various flags for this texture. */
-    texture_flag_bits flags;
     /** @brief The number of mip maps the internal texture has. Must always be at least 1. */
     u8 mip_levels;
-    /** @brief The the handle to renderer-specific texture data. */
-    khandle renderer_texture_handle;
-} kresource_texture;
-
-typedef struct kresource_texture_pixel_data {
-    u8* pixels;
-    u32 pixel_array_size;
-    u32 width;
-    u32 height;
-    u32 channel_count;
-    texture_format format;
-    u8 mip_levels;
-} kresource_texture_pixel_data;
-
-ARRAY_TYPE(kresource_texture_pixel_data);
-
-typedef struct kresource_texture_request_info {
-    kresource_request_info base;
-
-    texture_type texture_type;
-    u8 array_size;
-    texture_flag_bits flags;
-
-    // Optionally provide pixel data per layer. Must match array_size in length.
-    // Only used where asset at index has type of undefined.
-    array_kresource_texture_pixel_data pixel_data;
-
-    // Texture width in pixels. Ignored unless there are no assets or pixel data.
-    u32 width;
-
-    // Texture height in pixels. Ignored unless there are no assets or pixel data.
-    u32 height;
-
-    // Texture format. Ignored unless there are no assets or pixel data.
-    texture_format format;
-
-    // The number of mip levels. Ignored unless there are no assets or pixel data.
-    u8 mip_levels;
-
-    // Indicates if loaded image assets should be flipped on the y-axis when loaded. Ignored for non-asset-based textures.
-    b8 flip_y;
-} kresource_texture_request_info;
+} ktexture;
 
 /**
  * @brief A shader resource.

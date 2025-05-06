@@ -1,5 +1,8 @@
 Changelog
 
+- 0.10.0
+  - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.
+
 - 0.9.0
   - Fixed several issues in the math library where some functions were not the correct handedness and/or major. The 
     entire library is now right-handed and column-major (-z forward, +y up) as it should have been.

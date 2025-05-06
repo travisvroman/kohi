@@ -1175,11 +1175,6 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
         }
 
         // Inputs - Bind the texture if used.
-        const char* n = kname_string_get(base_material->name);
-        if (n) {
-            // TODO: remove this //nocheckin
-            // base_material->name == 9915642719336865037 || base_material-> name == 768219666871114128
-        }
 
         // Base colour
         if (base_material->base_colour_texture) {

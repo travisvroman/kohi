@@ -571,6 +571,16 @@ KAPI u32 string_split(const char* str, char delimiter, char*** str_darray, b8 tr
 KAPI void string_cleanup_split_darray(char** str_darray);
 
 /**
+ * @brief Cleans up string allocations in str_array and frees the array itself.
+ *
+ * NOTE: Not for use with darrays! Use string_cleanup_split_darray() instead or memory will be leaked.
+ *
+ * @param str_array The array to be cleaned up and freed.
+ * @param length The number of string elements in the array.
+ */
+KAPI void string_cleanup_array(const char** str_array, u32 length);
+
+/**
  * @brief Splits the given string by the delimiter provided and stores in the
  * provided fixed-size array. Optionally trims each entry.
  * NOTE: A string allocation occurs for each entry, and MUST be freed by the caller.

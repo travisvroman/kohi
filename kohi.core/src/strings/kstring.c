@@ -914,6 +914,17 @@ void string_cleanup_split_darray(char** str_darray) {
     }
 }
 
+void string_cleanup_array(const char** str_array, u32 length) {
+    if (str_array) {
+        for (u32 i = 0; i < length; ++i) {
+            if (str_array[i]) {
+                string_free(str_array[i]);
+            }
+        }
+        KFREE_TYPE_CARRAY(str_array, const char*, length);
+    }
+}
+
 u32 string_nsplit(const char* str, char delimiter, u32 max_count, char** str_array, b8 trim_entries, b8 include_empty) {
     if (!str || !str_array) {
         return 0;

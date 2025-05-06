@@ -4,6 +4,7 @@
 #include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"
+#include "math/kmath.h"
 #include "memory/kmemory.h"
 #include "strings/kstring.h"
 
@@ -467,6 +468,86 @@ u16 size_from_shader_uniform_type(shader_uniform_type type) {
         KFATAL("Uniform type not handled. Check enums.");
         return 0;
     }
+}
+
+#define PX_ALPHA_LESS_THAN_MAX(type, array, array_size, alpha_max, channel_count, alpha_index) \
+    {                                                                                          \
+        type* px = (type*)array;                                                               \
+        for (u32 i = 0; i < array_size; ++i) {                                                 \
+            type alpha = px[(sizeof(type) * channel_count * i) + alpha_index];                 \
+            if (alpha < alpha_max) {                                                           \
+                return true;                                                                   \
+            }                                                                                  \
+        }                                                                                      \
+        return false;                                                                          \
+    }
+
+b8 pixel_data_has_transparency(const void* pixels, u32 pixel_array_size, kpixel_format format) {
+    if (!pixels || !pixel_array_size) {
+        return false;
+    }
+
+    switch (format) {
+    case KPIXEL_FORMAT_UNKNOWN:
+    default:
+        KWARN("%s - Unknown pixel format provided. Cannot determine pixel transparency. Defaulting to false.");
+        return false;
+
+    case KPIXEL_FORMAT_RGBA8: {
+        PX_ALPHA_LESS_THAN_MAX(u8, pixels, pixel_array_size, U8_MAX, 4, 3);
+    }
+    case KPIXEL_FORMAT_RGBA16: {
+        PX_ALPHA_LESS_THAN_MAX(u16, pixels, pixel_array_size, U16_MAX, 4, 3);
+    }
+    case KPIXEL_FORMAT_RGBA32: {
+        PX_ALPHA_LESS_THAN_MAX(u32, pixels, pixel_array_size, U32_MAX, 4, 3);
+    } break;
+
+    case KPIXEL_FORMAT_RGB8:
+    case KPIXEL_FORMAT_RG8:
+    case KPIXEL_FORMAT_R8:
+    case KPIXEL_FORMAT_RGB16:
+    case KPIXEL_FORMAT_RG16:
+    case KPIXEL_FORMAT_R16:
+    case KPIXEL_FORMAT_RGB32:
+    case KPIXEL_FORMAT_RG32:
+    case KPIXEL_FORMAT_R32:
+        // No alpha channel, return false.
+        return false;
+    }
+}
+
+u8 channel_count_from_pixel_format(kpixel_format format) {
+    switch (format) {
+    case KPIXEL_FORMAT_UNKNOWN:
+    default:
+        KWARN("%s - Unknown pixel format provided. Cannot determine pixel transparency. Defaulting to false.");
+        return INVALID_ID_U8;
+    case KPIXEL_FORMAT_RGBA8:
+    case KPIXEL_FORMAT_RGBA16:
+    case KPIXEL_FORMAT_RGBA32:
+        return 4;
+    case KPIXEL_FORMAT_RGB8:
+    case KPIXEL_FORMAT_RGB16:
+    case KPIXEL_FORMAT_RGB32:
+        return 3;
+    case KPIXEL_FORMAT_RG8:
+    case KPIXEL_FORMAT_RG16:
+    case KPIXEL_FORMAT_RG32:
+        return 2;
+    case KPIXEL_FORMAT_R8:
+    case KPIXEL_FORMAT_R16:
+    case KPIXEL_FORMAT_R32:
+        return 1;
+    }
+}
+
+b8 calculate_mip_levels_from_dimension(u32 width, u32 height) {
+    // The number of mip levels is calculated by first taking the largest dimension
+    // (either width or height), figuring out how many times that number can be divided
+    // by 2, taking the floor value (rounding down) and adding 1 to represent the
+    // base level. This always leaves a value of at least 1.
+    return (u8)(kfloor(klog2(KMAX(width, height))) + 1);
 }
 
 const char* kmaterial_type_to_string(kmaterial_type type) {

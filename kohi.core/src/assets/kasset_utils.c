@@ -71,7 +71,7 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data as
 
         // Check if the file was loaded as primary or from source.
         b8 from_source = (asset_data.flags & VFS_ASSET_FLAG_FROM_SOURCE) ? true : false;
-        KTRACE("%s asset '%s' loaded.",from_source ? "Source" : "Primary", kname_string_get(asset_data.asset_name));
+        KTRACE("%s asset '%s' loaded.", from_source ? "Source" : "Primary", kname_string_get(asset_data.asset_name));
         if (from_source) {
             // Import it, write the binary version to disk and request the primary again.
             // Choose the importer by getting the file extension (minus the '.').
@@ -190,14 +190,5 @@ void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data as
             KERROR("Source file does not exist to be imported. Asset handler failed to load anything for asset '%s'", kname_string_get(asset_data.asset_name));
             context.user_callback(ASSET_REQUEST_RESULT_VFS_REQUEST_FAILED, context.asset, context.listener_instance);
         }
-    }
-}
-
-u8 channel_count_from_image_format(kasset_image_format format) {
-    switch (format) {
-    case KASSET_IMAGE_FORMAT_RGBA8:
-        return 4;
-    default:
-        return 4;
     }
 }

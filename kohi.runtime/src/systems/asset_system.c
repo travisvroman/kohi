@@ -14,12 +14,14 @@
 #include "assets/handlers/asset_handler_system_font.h"
 #include "assets/handlers/asset_handler_text.h"
 #include "platform/vfs.h"
+#include "serializers/kasset_image_serializer.h"
 
 #include <assets/asset_handler_types.h>
 #include <assets/kasset_types.h>
 #include <assets/kasset_utils.h>
 #include <containers/darray.h>
 #include <containers/u64_bst.h>
+#include <core/event.h>
 #include <debug/kassert.h>
 #include <defines.h>
 #include <identifiers/identifier.h>
@@ -28,7 +30,6 @@
 #include <parsers/kson_parser.h>
 #include <strings/kname.h>
 #include <strings/kstring.h>
-#include <core/event.h>
 
 typedef struct asset_lookup {
     // The asset itself, owned by this lookup.
@@ -45,6 +46,11 @@ typedef struct asset_lookup {
 
 typedef struct asset_system_state {
     vfs_state* vfs;
+
+    // The name of the default package to use (i.e, the game's package name)
+    kname application_package_name;
+    const char* application_package_name_str;
+
     // Max number of assets that can be loaded at any given time.
     u32 max_asset_count;
     // An array of lookups which contain reference and release data.
@@ -53,17 +59,8 @@ typedef struct asset_system_state {
     bt_node* lookup_tree;
 
     // An array of handlers for various asset types.
-    // TODO: This does not allow for user types, but for now this is fine.
     asset_handler handlers[KASSET_TYPE_MAX];
-
-    PFN_asset_system_hot_reload_callback hot_reload_callback;
-    void* asset_hot_reload_listener;
 } asset_system_state;
-
-/* static void on_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data); */
-static void asset_system_release_internal(struct asset_system_state* state, kname asset_name, kname package_name, b8 force_release);
-static void asset_hot_reloaded_callback(void* listener, const vfs_asset_data* asset_data);
-static void asset_deleted_callback(void* listener, u32 file_watch_id);
 
 b8 asset_system_deserialize_config(const char* config_str, asset_system_config* out_config) {
     if (!config_str || !out_config) {
@@ -83,6 +80,13 @@ b8 asset_system_deserialize_config(const char* config_str, asset_system_config* 
         return false;
     }
 
+    // application_package_name
+    if (!kson_object_property_value_get_string(&tree.root, "application_package_name", &out_config->application_package_name_str)) {
+        KERROR("application_package_name is a required field and was not provided.");
+        return false;
+    }
+    out_config->application_package_name = kname_create(out_config->application_package_name_str);
+
     return true;
 }
 
@@ -101,6 +105,9 @@ b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* s
         KERROR("asset_system_initialize: A pointer to valid configuration is required. Initialization failed.");
         return false;
     }
+
+    state->application_package_name = config->application_package_name;
+    state->application_package_name_str = string_duplicate(config->application_package_name_str);
 
     state->max_asset_count = config->max_asset_count;
     state->lookups = kallocate(sizeof(asset_lookup) * state->max_asset_count, MEMORY_TAG_ENGINE);
@@ -159,271 +166,186 @@ void asset_system_shutdown(struct asset_system_state* state) {
     }
 }
 
-void asset_system_request(struct asset_system_state* state, asset_request_info info) {
-    KASSERT(state);
-    // Lookup the asset by fully-qualified name.
-    u32 lookup_index = INVALID_ID;
-    const bt_node* node = u64_bst_find(state->lookup_tree, info.asset_name);
-    if (node) {
-        lookup_index = node->value.u32;
-    }
-    if (lookup_index != INVALID_ID) {
-        // Valid entry found, increment the reference count and immediately make the callback.
-        asset_lookup* lookup = &state->lookups[lookup_index];
-        lookup->reference_count++;
-        if (info.callback) {
-            info.callback(ASSET_REQUEST_RESULT_SUCCESS, lookup->asset, info.listener_inst);
-        }
-    } else {
-        // Before requesting the new asset, get it registered in the lookup in case anything
-        // else requests it while it is still being loaded.
-        // Search for an empty slot;
-        for (u32 i = 0; i < state->max_asset_count; ++i) {
-            asset_lookup* lookup = &state->lookups[i];
-            if (!lookup->asset) {
-                bt_node_value v;
-                v.u32 = i;
-                bt_node* new_node = u64_bst_insert(state->lookup_tree, info.asset_name, v);
-                // Save as root if this is the first asset. Otherwise it'll be part of the tree automatically.
-                if (!state->lookup_tree) {
-                    state->lookup_tree = new_node;
-                }
+// ////////////////////////////////////
+// BINARY ASSETS
+// ////////////////////////////////////
 
-                // Get the appropriate asset handler for the type and request the asset.
-                asset_handler* handler = &state->handlers[info.type];
+typedef struct kasset_binary_vfs_context {
+    void* listener;
+    PFN_kasset_binary_loaded_callback callback;
+    kasset_binary* asset;
+} kasset_binary_vfs_context;
 
-                // Allocate memory for the asset.
-                lookup->asset = kallocate(handler->size, MEMORY_TAG_ASSET);
-                if (!lookup->asset) {
-                    KFATAL("Asset allocation failed. See logs for details.");
-                    return;
-                }
+static void vfs_on_binary_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data) {
+    kasset_binary_vfs_context* context = asset_data.context;
+    kasset_binary* out_asset = context->asset;
+    out_asset->size = asset_data.size;
+    void* content = kallocate(out_asset->size, MEMORY_TAG_ASSET);
+    kcopy_memory(content, asset_data.bytes, out_asset->size);
+    out_asset->content = content;
 
-                // Found a free slot, setup the asset.
-                lookup->asset->id = identifier_create();
-                lookup->asset->type = info.type;
-                lookup->asset->name = info.asset_name;
-                lookup->asset->package_name = info.package_name;
-                // Only allow auto-release for assets that aren't setup to hot-reload.
-                lookup->auto_release = handler->on_hot_reload == 0 ? info.auto_release : false;
-                lookup->file_watch_id = INVALID_ID_U32;
-
-                if (!handler->request_asset) {
-                    // If no request_asset function pointer exists, use a "default" vfs request.
-                    // Create and pass along a context.
-                    // NOTE: The VFS takes a copy of this context, so the lifecycle doesn't matter.
-                    asset_handler_request_context context = {0};
-                    context.asset = lookup->asset;
-                    context.handler = handler;
-                    context.listener_instance = info.listener_inst;
-                    context.user_callback = info.callback;
-
-                    vfs_request_info request_info = {0};
-                    // Only watch for hot reloads for asset types that support it.
-                    request_info.watch_for_hot_reload = handler->on_hot_reload ? true : false;
-                    request_info.asset_name = lookup->asset->name;
-                    request_info.package_name = lookup->asset->package_name;
-                    request_info.import_params = info.import_params;
-                    request_info.import_params_size = info.import_params_size;
-                    request_info.is_binary = handler->is_binary;
-                    request_info.context = &context;
-                    request_info.context_size = sizeof(asset_handler_request_context);
-                    request_info.get_source = false;
-                    request_info.vfs_callback = asset_handler_base_on_asset_loaded;
-                    if (info.synchronous) {
-                        vfs_asset_data out_data = vfs_request_asset_sync(state->vfs, request_info);
-                        asset_handler_base_on_asset_loaded(state->vfs, out_data);
-                    } else {
-                        vfs_request_asset(state->vfs, request_info);
-                    }
-                } else {
-                    handler->request_asset(handler, lookup->asset, info.listener_inst, info.callback);
-                }
-                return;
-            }
-        }
-        // If this point is reached, it is not possible to register any more assets. Config should be adjusted
-        // to handle more entries.
-        KFATAL("The asset system has reached maximum capacity of allowed assets (%d). Please adjust configuration to allow for more if needed.", state->max_asset_count);
-        info.callback(ASSET_REQUEST_RESULT_INTERNAL_FAILURE, 0, info.listener_inst);
-    }
+    KFREE_TYPE(context, kasset_binary_vfs_context, MEMORY_TAG_ASSET);
 }
 
-void asset_system_release(struct asset_system_state* state, kname asset_name, kname package_name) {
-    asset_system_release_internal(state, asset_name, package_name, false);
+// async load from game package.
+kasset_binary* asset_system_request_binary(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_binary_loaded_callback callback) {
+    return asset_system_request_binary_from_package(state, state->application_package_name_str, name, listener, callback);
 }
 
-void asset_system_on_handler_result(struct asset_system_state* state, asset_request_result result, kasset* asset, void* listener_instance, PFN_kasset_on_result callback) {
+// sync load from game package.
+kasset_binary* asset_system_request_binary_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_binary_from_package_sync(state, state->application_package_name_str, name);
+}
+
+// async load from specific package.
+kasset_binary* asset_system_request_binary_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_binary_loaded_callback callback) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_binary* out_asset = KALLOC_TYPE(kasset_binary, MEMORY_TAG_ASSET);
+
+    kasset_binary_vfs_context* context = KALLOC_TYPE(kasset_binary_vfs_context, MEMORY_TAG_ASSET);
+    context->asset = out_asset;
+    context->callback = callback;
+    context->listener = listener;
+
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = state->application_package_name,
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+        .vfs_callback = vfs_on_binary_asset_loaded_callback,
+        .context = context,
+        .context_size = sizeof(kasset_binary_vfs_context)};
+    vfs_request_asset(state->vfs, info);
+
+    return out_asset;
+}
+// sync load from specific package.
+kasset_binary* asset_system_request_binary_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_binary* out_asset = KALLOC_TYPE(kasset_binary, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    out_asset->size = data.size;
+    void* content = kallocate(out_asset->size, MEMORY_TAG_ASSET);
+    kcopy_memory(content, data.bytes, out_asset->size);
+    out_asset->content = content;
+
+    return out_asset;
+}
+
+void asset_system_release_binary(struct asset_system_state* state, kasset_binary* asset) {
     if (state && asset) {
-        switch (result) {
-        case ASSET_REQUEST_RESULT_SUCCESS: {
-            // See if the asset already exists first.
-            u32 lookup_index = INVALID_ID;
-            const bt_node* node = u64_bst_find(state->lookup_tree, asset->name);
-            if (node) {
-                lookup_index = node->value.u32;
-            }
-            if (lookup_index != INVALID_ID) {
-                // Valid entry found, increment the reference count and immediately make the callback.
-                asset_lookup* lookup = &state->lookups[lookup_index];
-                lookup->reference_count++;
-                lookup->asset->generation++;
-                if (callback) {
-                    callback(ASSET_REQUEST_RESULT_SUCCESS, lookup->asset, listener_instance);
-                }
-            } else {
-                // NOTE: The lookup should already exist at this point as defined above in asset_system_request.
-                KERROR("Could not find valid lookup for asset '%s', package '%s'.", kname_string_get(asset->name), kname_string_get(asset->package_name));
-                if (callback) {
-                    callback(ASSET_REQUEST_RESULT_INTERNAL_FAILURE, 0, listener_instance);
-                }
-            }
-        } break;
-        case ASSET_REQUEST_RESULT_INVALID_PACKAGE:
-            KERROR("Asset '%s' load failed: An invalid package was specified.", kname_string_get(asset->name));
-            break;
-        case ASSET_REQUEST_RESULT_INVALID_NAME:
-            KERROR("Asset '%s' load failed: An invalid asset name was specified.", kname_string_get(asset->name));
-            break;
-        case ASSET_REQUEST_RESULT_INVALID_ASSET_TYPE:
-            KERROR("Asset '%s' load failed: An invalid asset type was specified.", kname_string_get(asset->name));
-            break;
-        case ASSET_REQUEST_RESULT_PARSE_FAILED:
-            KERROR("Asset '%s' load failed: The parsing stage of the asset load failed.", kname_string_get(asset->name));
-            break;
-        case ASSET_REQUEST_RESULT_GPU_UPLOAD_FAILED:
-            KERROR("Asset '%s' load failed: The GPU-upload stage of the asset load failed.", kname_string_get(asset->name));
-            break;
-        default:
-            KERROR("Asset '%s' load failed: An unspecified error has occurred.", kname_string_get(asset->name));
-            break;
+        if (asset->content && asset->size) {
+            kfree((void*)asset->content, asset->size, MEMORY_TAG_ASSET);
         }
+        KFREE_TYPE(asset, kasset_binary, MEMORY_TAG_ASSET);
     }
 }
 
-b8 asset_type_is_binary(kasset_type type) {
-    switch (type) {
-        // NOTE: Specify text-type assets here (i.e. assets that should be opened as text, not binary).
-    case KASSET_TYPE_HEIGHTMAP_TERRAIN:
-    case KASSET_TYPE_MATERIAL:
-    case KASSET_TYPE_SCENE:
-    case KASSET_TYPE_KSON:
-    case KASSET_TYPE_TEXT:
-    case KASSET_TYPE_BITMAP_FONT:
-    case KASSET_TYPE_SYSTEM_FONT:
-        return false;
+// ////////////////////////////////////
+// IMAGE ASSETS
+// ////////////////////////////////////
 
-    default:
-        // NOTE: default for assets is binary.
-        return true;
+typedef struct kasset_image_vfs_context {
+    void* listener;
+    PFN_kasset_image_loaded_callback callback;
+    kasset_image* asset;
+} kasset_image_vfs_context;
+
+static void vfs_on_image_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data) {
+    kasset_image_vfs_context* context = asset_data.context;
+    kasset_image* out_asset = context->asset;
+    b8 result = kasset_image_deserialize(asset_data.size, asset_data.bytes, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize image asset. See logs for details.");
     }
+
+    KFREE_TYPE(context, kasset_image_vfs_context, MEMORY_TAG_ASSET);
 }
 
-void asset_system_register_hot_reload_callback(struct asset_system_state* state, void* listener, PFN_asset_system_hot_reload_callback callback) {
-    state->asset_hot_reload_listener = listener;
-    state->hot_reload_callback = callback;
+// async load from game package.
+kasset_image* asset_system_request_image(struct asset_system_state* state, const char* name, b8 flip_y, void* listener, PFN_kasset_image_loaded_callback callback) {
+    return asset_system_request_image_from_package(state, state->application_package_name_str, name, flip_y, listener, callback);
+}
+// sync load from game package.
+kasset_image* asset_system_request_image_sync(struct asset_system_state* state, const char* name, b8 flip_y) {
+    return asset_system_request_image_from_package_sync(state, state->application_package_name_str, name, flip_y);
+}
+// async load from specific package.
+kasset_image* asset_system_request_image_from_package(struct asset_system_state* state, const char* package_name, const char* name, b8 flip_y, void* listener, PFN_kasset_image_loaded_callback callback) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_image* out_asset = KALLOC_TYPE(kasset_image, MEMORY_TAG_ASSET);
+
+    kasset_image_vfs_context* context = KALLOC_TYPE(kasset_image_vfs_context, MEMORY_TAG_ASSET);
+    context->asset = out_asset;
+    context->callback = callback;
+    context->listener = listener;
+
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = state->application_package_name,
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+        .vfs_callback = vfs_on_image_asset_loaded_callback,
+        .context = context,
+        .context_size = sizeof(kasset_image_vfs_context)};
+    vfs_request_asset(state->vfs, info);
+
+    return out_asset;
+}
+// sync load from specific package.
+kasset_image* asset_system_request_image_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name, b8 flip_y) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_image* out_asset = KALLOC_TYPE(kasset_image, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    b8 result = kasset_image_deserialize(data.size, data.bytes, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize image asset. See logs for details.");
+        KFREE_TYPE(out_asset, kasset_image, MEMORY_TAG_ASSET);
+        return 0;
+    }
+
+    return out_asset;
 }
 
-static void asset_system_release_internal(struct asset_system_state* state, kname asset_name, kname package_name, b8 force_release) {
-    if (state) {
-        // Lookup the asset by fully-qualified name.
-        u32 lookup_index = INVALID_ID;
-        const bt_node* node = u64_bst_find(state->lookup_tree, asset_name);
-        if (node) {
-            lookup_index = node->value.u32;
+void asset_system_release_image(struct asset_system_state* state, kasset_image* asset) {
+    if (state && asset) {
+        if (asset->pixel_array_size && asset->pixels) {
+            kfree((void*)asset->pixels, asset->pixel_array_size, MEMORY_TAG_ASSET);
         }
-        if (lookup_index != INVALID_ID) {
-            // Valid entry found, decrement the reference count.
-            asset_lookup* lookup = &state->lookups[lookup_index];
-            lookup->reference_count--;
-            if (force_release || (lookup->reference_count < 1 && lookup->auto_release)) {
-                // Auto release set and criteria met, so call asset handler's 'unload' function.
-                kasset* asset = lookup->asset;
-                kasset_type type = asset->type;
-                asset_handler* handler = &state->handlers[type];
-                if (!handler->release_asset) {
-                    KWARN("No release setup on handler for asset type %d, asset_name='%s', package_name='%s'", type, kname_string_get(asset_name), kname_string_get(package_name));
-                } else {
-                    // Release the asset-specific data.
-                    // TODO: Jobify this call.
-                    handler->release_asset(handler, asset);
-                }
-
-                // Free the resource structure itself.
-                kfree(lookup->asset, handler->size, MEMORY_TAG_ASSET);
-
-                // Ensure the lookup is invalidated.
-                lookup->asset = 0;
-                lookup->reference_count = 0;
-                lookup->auto_release = false;
-
-                // Remove the entry from the bst too.
-                bt_node* deleted = u64_bst_delete(state->lookup_tree, asset_name);
-                if(!deleted) {
-                    state->lookup_tree = 0;
-                }
-            }
-        } else {
-            // Entry not found, nothing to do.
-            KWARN("asset_system_release: Attempted to release asset '%s' (package '%s'), which does not exist or is not already loaded. Nothing to do.", kname_string_get(asset_name), kname_string_get(package_name));
-        }
+        KFREE_TYPE(asset, kasset_image, MEMORY_TAG_ASSET);
     }
-}
-
-// Invoked from the VFS when an asset file watch update occurs.
-static void asset_hot_reloaded_callback(void* listener, const vfs_asset_data* asset_data) {
-    asset_system_state* state = (asset_system_state*)listener;
-
-    // See if the asset already exists first.
-    u32 lookup_index = INVALID_ID;
-    const bt_node* node = u64_bst_find(state->lookup_tree, asset_data->asset_name);
-    if (node) {
-        lookup_index = node->value.u32;
-    } else {
-        KERROR("Hot reload called for asset %'s', but no asset is registered or exists with that name. Nothing to do.", kname_string_get(asset_data->asset_name));
-        return;
-    }
-    if (lookup_index != INVALID_ID) {
-        // Valid entry found.
-        asset_lookup* lookup = &state->lookups[lookup_index];
-        if (!lookup->asset) {
-            KERROR("Hot reload called for asset %'s', but no asset is loaded on there. Nothing to do.", kname_string_get(asset_data->asset_name));
-            return;
-        }
-        asset_handler* handler = &state->handlers[lookup->asset->type];
-        if (handler->on_hot_reload) {
-            handler->on_hot_reload(asset_data, lookup->asset);
-
-            // Make sure to increment the generation.
-            lookup->asset->generation++;
-
-            // Notify external system that a hot reload has occurred.
-            if (state->hot_reload_callback) {
-                state->hot_reload_callback(state->asset_hot_reload_listener, lookup->asset);
-            }
-
-            // Send out an event for anything that might be interested in this.
-            // TODO: is this needed?
-            {
-                event_context evt = {0};
-                evt.data.u32[0] = asset_data->file_watch_id;
-                event_fire(EVENT_CODE_ASSET_HOT_RELOADED, lookup->asset, evt);
-            }
-        } else {
-            KWARN("Hot reload called for asset %'s', but the asset type does not handle hot-reloads. Nothing to do.", kname_string_get(asset_data->asset_name));
-            return;
-        }
-    } else {
-        KERROR("Hot reload called for asset %'s', but no asset is registered or exists with that name. Nothing to do.", kname_string_get(asset_data->asset_name));
-        return;
-    }
-}
-
-static void asset_deleted_callback(void* listener, u32 file_watch_id) {
-    // asset_system_state* state = (asset_system_state*)listener;
-
-    // Send out an event for anything that might be interested in this.
-    event_context evt = {0};
-    evt.data.u32[0] = file_watch_id;
-    event_fire(EVENT_CODE_ASSET_DELETED_FROM_DISK, 0, evt);
 }

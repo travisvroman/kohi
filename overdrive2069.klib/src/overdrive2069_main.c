@@ -643,7 +643,7 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
     }
 
     // TODO: Anything to do here?
-    // FIXME: Cache this instead of looking up every frame. // nocheckin
+    // FIXME: Cache this instead of looking up every frame.
     u32 node_count = state->forward_graph.node_count;
     for (u32 i = 0; i < node_count; ++i) {
         rendergraph_node* node = &state->forward_graph.nodes[i];

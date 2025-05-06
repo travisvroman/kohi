@@ -4524,11 +4524,6 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
         flags &= ~(SHADER_FLAG_WIREFRAME_BIT);
         pipeline_config.shader_flags = flags;
 
-        // skybox
-        if (internal_shader->name == 8288729406296736979) {
-            KTRACE("skybox shader"); // nocheckin
-        }
-
         // NOTE: Always one block for the push constant, unless there is no per-draw UBO uniforms.
         krange push_constant_range;
         if (internal_shader->per_draw_info.ubo_size) {

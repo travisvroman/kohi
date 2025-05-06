@@ -195,30 +195,15 @@ typedef struct kasset_heightmap_terrain {
     kname* material_names;
 } kasset_heightmap_terrain;
 
-typedef enum kasset_image_format {
-    KASSET_IMAGE_FORMAT_UNDEFINED = 0,
-    // 4 channel, 8 bits per channel
-    KASSET_IMAGE_FORMAT_RGBA8 = 1
-    // TODO: additional formats
-} kasset_image_format;
-
-/** @brief Import options for images. */
-typedef struct kasset_image_import_options {
-    /** @brief Indicates if the image should be flipped on the y-axis when imported. */
-    b8 flip_y;
-    /** @brief The expected format of the image. */
-    kasset_image_format format;
-} kasset_image_import_options;
-
 #define KASSET_TYPE_NAME_IMAGE "Image"
 
 typedef struct kasset_image {
-    kasset base;
     u32 width;
     u32 height;
+    u32 depth;
     u8 channel_count;
     u8 mip_levels;
-    kasset_image_format format;
+    kpixel_format format;
     u64 pixel_array_size;
     u8* pixels;
 } kasset_image;
@@ -320,7 +305,6 @@ typedef struct kasset_text {
 #define KASSET_TYPE_NAME_BINARY "Binary"
 
 typedef struct kasset_binary {
-    kasset base;
     u64 size;
     const void* content;
 } kasset_binary;

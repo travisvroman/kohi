@@ -76,6 +76,39 @@ KAPI u16 size_from_shader_attribute_type(shader_attribute_type type);
 /** @brief Returns the size in bytes of the uniform type. */
 KAPI u16 size_from_shader_uniform_type(shader_uniform_type type);
 
+/**
+ * @brief Determines if any pixel has an alpha less than opaque.
+ *
+ * @param pixels A constant array of pixel data. Channel size determined by format.
+ * @pixel_array_size The size of the pixels array in bytes (NOT pixel count!)
+ * @param format The pixel format.
+ *
+ * @returns True if any pixel is even slightly transparent; otherwise false.
+ */
+KAPI b8 pixel_data_has_transparency(const void* pixels, u32 pixel_array_size, kpixel_format format);
+
+/**
+ * Returns the number of channels for the given pixel format.
+ * @param format The pixel format.
+ *
+ * @returns The number of channels for the format, or INVALID_ID_U8 if format is invalid/unknown.
+ */
+KAPI u8 channel_count_from_pixel_format(kpixel_format format);
+
+/**
+ * @brief Calculate mip levels based on the given dimensions.
+ *
+ * The number of mip levels is calculated by first taking the largest dimension
+ * (either width or height), figuring out how many times that number can be divided
+ * by 2, taking the floor value (rounding down) and adding 1 to represent the
+ * base level. This always leaves a value of at least 1.
+ *
+ * @param width The image width.
+ * @param height The image height.
+ * @returns The number of mip levels.
+ */
+KAPI b8 calculate_mip_levels_from_dimension(u32 width, u32 height);
+
 /** @brief Returns the string representation of the given material type. */
 KAPI const char* kmaterial_type_to_string(kmaterial_type type);
 

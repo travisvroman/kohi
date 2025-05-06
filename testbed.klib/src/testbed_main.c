@@ -956,7 +956,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
     }
 
     // TODO: Anything to do here?
-    // FIXME: Cache this instead of looking up every frame. // nocheckin
+    // FIXME: Cache this instead of looking up every frame.
     u32 node_count = state->forward_graph.node_count;
     for (u32 i = 0; i < node_count; ++i) {
         rendergraph_node* node = &state->forward_graph.nodes[i];
@@ -1513,7 +1513,10 @@ static b8 load_main_scene(struct application* game_inst) {
     asset->asset_name = kname_create("test_scene");
     asset->package_name = kname_create("Testbed");
 
-    kresource_scene* scene_resource = (kresource_scene*)kresource_system_request(engine_systems_get()->kresource_state, kname_create("test_scene"), (kresource_request_info*)&request_info);
+    kresource_scene* scene_resource = (kresource_scene*)kresource_system_request(
+        engine_systems_get()->kresource_state,
+        kname_create("test_scene"),
+        (kresource_request_info*)&request_info);
     if (!scene_resource) {
         KERROR("Failed to request scene resource. See logs for details.");
         return false;

@@ -62,10 +62,110 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
 
 /**
  * @brief Shuts down the texture system.
- *
+
  * @param state The state block of memory for this system.
  */
 void texture_system_shutdown(void* state);
+
+// NOTE: new
+
+typedef void (*PFN_texture_loaded_callback)(ktexture* texture, void* listener);
+
+KAPI ktexture* texture_acquire(const char* image_asset_name, void* listener, PFN_texture_loaded_callback callback);
+// auto_release=true, default options
+KAPI ktexture* texture_acquire_sync(const char* image_asset_name);
+
+// auto_release=true, default options
+KAPI ktexture* texture_acquire_from_package(const char* image_asset_name, const char* package_name, void* listener, PFN_texture_loaded_callback callback);
+KAPI ktexture* texture_acquire_from_package_sync(const char* image_asset_name, const char* package_name);
+
+KAPI ktexture* texture_cubemap_acquire(const char* image_asset_name_prefix);
+// auto_release=true, default options
+KAPI ktexture* texture_cubemap_acquire_from_package(const char* image_asset_name_prefix, const char* package_name);
+
+/* // Easier idea? synchronous. auto_release=true, default options
+KAPI ktexture* texture_acquire_from_image(const struct kasset_image* image);
+
+KAPI ktexture* texture_cubemap_acquire_from_images(const struct kasset_image* images[6]); */
+
+typedef struct ktexture_load_options {
+    b8 is_writeable;
+    b8 is_depth;
+    b8 is_stencil;
+    b8 multiframe_buffering;
+    // Unload from GPU when reference count reaches 0.
+    b8 auto_release;
+    kpixel_format format;
+    ktexture_type type;
+    u32 width;
+    u32 height;
+    // Set to 0 to calculate mip levels based on size.
+    u8 mip_levels;
+    union {
+        u32 depth;
+        u32 layer_count;
+    };
+    const char* name;
+    // The name of the image asset to load for the texture. Optional. Only used for single-layer textures and cubemaps. Ignored for layered textures.
+    const char* image_asset_name;
+    // The name of the image asset to load for the texture. Optional. Only used for single-layer textures and cubemaps. Ignored for layered textures.
+    const char* package_name;
+    // Names of layer image assets, only used for array/layered textures. Element count must be layer_count.
+    const char** layer_image_asset_names;
+    // Names of packages containing layer image assets, only used for array/layered textures. Element count must be layer_count. Use null/0 to load from application package.
+    const char** layer_package_names;
+
+    // Block of pixel data, which can be multiple layers as defined by layer_count. The pixel data for all layers should be contiguous. Layout interpreted based on format.
+    void* pixel_data;
+    // The size of the pixel_data array in bytes (NOT pixel count!)
+    u32 pixel_array_size;
+} ktexture_load_options;
+
+KAPI ktexture* texture_acquire_with_options(ktexture_load_options options, void* listener, PFN_texture_loaded_callback callback);
+KAPI ktexture* texture_acquire_with_options_sync(ktexture_load_options options);
+
+KAPI void texture_release(ktexture* texture);
+
+/* typedef struct kresource_texture_pixel_data {
+    u8* pixels;
+    u32 pixel_array_size;
+    u32 width;
+    u32 height;
+    u32 channel_count;
+    texture_format format;
+    u8 mip_levels;
+} kresource_texture_pixel_data;
+
+ARRAY_TYPE(kresource_texture_pixel_data);
+
+typedef struct kresource_texture_request_info {
+    kresource_request_info base;
+
+    texture_type texture_type;
+    u8 array_size;
+    texture_flag_bits flags;
+
+    // Optionally provide pixel data per layer. Must match array_size in length.
+    // Only used where asset at index has type of undefined.
+    array_kresource_texture_pixel_data pixel_data;
+
+    // Texture width in pixels. Ignored unless there are no assets or pixel data.
+    u32 width;
+
+    // Texture height in pixels. Ignored unless there are no assets or pixel data.
+    u32 height;
+
+    // Texture format. Ignored unless there are no assets or pixel data.
+    texture_format format;
+
+    // The number of mip levels. Ignored unless there are no assets or pixel data.
+    u8 mip_levels;
+
+    // Indicates if loaded image assets should be flipped on the y-axis when loaded. Ignored for non-asset-based textures.
+    b8 flip_y;
+} kresource_texture_request_info; */
+
+// LEFTOFF: old
 
 /**
  * @brief Attempts to acquire a texture with the given name. If it has not yet been loaded,

@@ -123,7 +123,7 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
         typed_resource->renderer_texture_handle = khandle_invalid();
 
         // Acquire the resources for the texture.
-        b8 acquisition_result = renderer_kresource_texture_resources_acquire(
+        b8 acquisition_result = renderer_texture_resources_acquire(
             renderer,
             typed_resource->base.name,
             typed_resource->type,
@@ -176,7 +176,7 @@ b8 kresource_handler_texture_request(struct kresource_handler* self, kresource* 
         typed_resource->renderer_texture_handle = khandle_invalid();
 
         // Acquire the resources for the texture.
-        b8 acquisition_result = renderer_kresource_texture_resources_acquire(
+        b8 acquisition_result = renderer_texture_resources_acquire(
             renderer,
             typed_resource->base.name,
             typed_resource->type,
@@ -245,7 +245,7 @@ static void texture_kasset_on_result(asset_request_result result, const struct k
 
             listener->typed_resource->renderer_texture_handle = khandle_invalid();
             // Acquire GPU resources for the texture resource.
-            b8 result = renderer_kresource_texture_resources_acquire(
+            b8 result = renderer_texture_resources_acquire(
                 renderer,
                 listener->typed_resource->base.name,
                 listener->request_info->texture_type,

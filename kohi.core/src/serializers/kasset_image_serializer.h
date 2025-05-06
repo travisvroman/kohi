@@ -10,7 +10,7 @@
  * @param out_size A pointer to hold the size of the serialized block of memory. Required.
  * @returns A block of memory containing the serialized asset on success; 0 on failure.
  */
-KAPI void* kasset_binary_image_serialize(const kasset* asset, u64* out_size);
+KAPI void* kasset_image_serialize(const kasset_image* asset, u64* out_size);
 
 /**
  * @brief Attempts to deserialize the given block of memory into an image asset.
@@ -20,4 +20,4 @@ KAPI void* kasset_binary_image_serialize(const kasset* asset, u64* out_size);
  * @param out_asset A pointer to the asset to deserialize to. Required.
  * @returns True on success; otherwise false.
  */
-KAPI b8 kasset_binary_image_deserialize(u64 size, const void* block, kasset* out_asset);
+KAPI b8 kasset_image_deserialize(u64 size, const void* block, kasset_image* out_asset);
