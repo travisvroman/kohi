@@ -13,15 +13,14 @@
 #include "kresources/handlers/kresource_handler_static_mesh.h"
 #include "kresources/handlers/kresource_handler_system_font.h"
 #include "kresources/handlers/kresource_handler_text.h"
-#include "kresources/handlers/kresource_handler_texture.h"
 #include "kresources/kresource_types.h"
 #include "kresources/kresource_utils.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "strings/kname.h"
 #include "systems/asset_system.h"
-#include <core/event.h>
 #include <containers/darray.h>
+#include <core/event.h>
 
 struct asset_system_state;
 
@@ -92,18 +91,6 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
         handler.handle_hot_reload = kresource_handler_binary_handle_hot_reload;
         if (!kresource_system_handler_register(state, KRESOURCE_TYPE_BINARY, handler)) {
             KERROR("Failed to register binary resource handler");
-            return false;
-        }
-    }
-
-    // Texture handler
-    {
-        kresource_handler handler = {0};
-        handler.size = sizeof(kresource_texture);
-        handler.release = kresource_handler_texture_release;
-        handler.request = kresource_handler_texture_request;
-        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_TEXTURE, handler)) {
-            KERROR("Failed to register texture resource handler");
             return false;
         }
     }
@@ -203,9 +190,6 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
             return false;
         }
     }
-
-    // Register a callback with the asset system to get notified when an asset has been hot-reloaded.
-    asset_system_register_hot_reload_callback(state->asset_system, state, on_asset_system_hot_reload);
 
     KINFO("Resource system (new) initialized.");
     return true;

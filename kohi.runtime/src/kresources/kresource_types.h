@@ -142,30 +142,12 @@ typedef enum ktexture_flag {
 
 /** @brief Holds bit flags for textures.. */
 typedef u8 ktexture_flag_bits;
+
 /**
  * @brief Represents a texture to be used for rendering purposes,
  * stored on the GPU (VRAM)
  */
-typedef struct ktexture {
-    /** @brief The the handle to renderer-specific texture data. */
-    khandle renderer_texture_handle;
-    /** @brief The unique identifier for this texture. */
-    u32 id;
-    /** @brief The texture type. */
-    ktexture_type type;
-    /** @brief The texture width. */
-    u32 width;
-    /** @brief The texture height. */
-    u32 height;
-    /** @brief The format of the texture data. */
-    kpixel_format format;
-    /** @brief Holds various flags for this texture. */
-    ktexture_flag_bits flags;
-    /** @brief For arrayed textures, how many "layers" there are. Otherwise this is 1. */
-    u16 array_size;
-    /** @brief The number of mip maps the internal texture has. Must always be at least 1. */
-    u8 mip_levels;
-} ktexture;
+typedef u16 ktexture;
 
 /**
  * @brief A shader resource.

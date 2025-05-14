@@ -14,7 +14,9 @@
 #include "assets/handlers/asset_handler_system_font.h"
 #include "assets/handlers/asset_handler_text.h"
 #include "platform/vfs.h"
+#include "serializers/kasset_bitmap_font_serializer.h"
 #include "serializers/kasset_image_serializer.h"
+#include "serializers/kasset_system_font_serializer.h"
 
 #include <assets/asset_handler_types.h>
 #include <assets/kasset_types.h>
@@ -347,5 +349,101 @@ void asset_system_release_image(struct asset_system_state* state, kasset_image* 
             kfree((void*)asset->pixels, asset->pixel_array_size, MEMORY_TAG_ASSET);
         }
         KFREE_TYPE(asset, kasset_image, MEMORY_TAG_ASSET);
+    }
+}
+
+// ////////////////////////////////////
+// BITMAP FONT ASSETS
+// ////////////////////////////////////
+
+// sync load from game package.
+kasset_bitmap_font* asset_system_request_bitmap_font_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_bitmap_font_from_package_sync(state, state->application_package_name_str, name);
+}
+
+// sync load from specific package.
+kasset_bitmap_font* asset_system_request_bitmap_font_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_bitmap_font* out_asset = KALLOC_TYPE(kasset_bitmap_font, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    b8 result = kasset_bitmap_font_deserialize(data.size, data.bytes, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize bitmap font asset. See logs for details.");
+        KFREE_TYPE(out_asset, kasset_bitmap_font, MEMORY_TAG_ASSET);
+        return 0;
+    }
+
+    return out_asset;
+}
+
+void asset_system_release_bitmap_font(struct asset_system_state* state, kasset_bitmap_font* asset) {
+    if (state && asset) {
+        array_kasset_bitmap_font_kerning_destroy(&asset->kernings);
+        array_kasset_bitmap_font_glyph_destroy(&asset->glyphs);
+        array_kasset_bitmap_font_page_destroy(&asset->pages);
+
+        kzero_memory(asset, sizeof(kasset_bitmap_font));
+    }
+}
+
+// ////////////////////////////////////
+// SYSTEM FONT ASSETS
+// ////////////////////////////////////
+
+// sync load from game package.
+kasset_system_font* asset_system_request_system_font_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_system_font_from_package_sync(state, state->application_package_name_str, name);
+}
+
+// sync load from specific package.
+kasset_system_font* asset_system_request_system_font_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_system_font* out_asset = KALLOC_TYPE(kasset_system_font, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    b8 result = kasset_system_font_deserialize(data.text, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize system font asset. See logs for details.");
+        KFREE_TYPE(out_asset, kasset_system_font, MEMORY_TAG_ASSET);
+        return 0;
+    }
+
+    return out_asset;
+}
+
+void asset_system_release_system_font(struct asset_system_state* state, kasset_system_font* asset) {
+    if (state && asset) {
+        if (asset->faces && asset->face_count) {
+            KFREE_TYPE_CARRAY(asset->faces, kasset_system_font_face, asset->face_count);
+        }
+
+        if (asset->font_binary && asset->font_binary_size) {
+            kfree(asset->font_binary, asset->font_binary_size, MEMORY_TAG_RESOURCE);
+        }
+
+        kzero_memory(asset, sizeof(kasset_system_font));
     }
 }

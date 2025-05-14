@@ -272,7 +272,7 @@ KAPI void renderer_set_stencil_write_mask(u32 write_mask);
  * @param out_renderer_texture_handle A pointer to hold the renderer texture handle, which points to the backing resource(s) of the texture.
  * @returns True on success, otherwise false;
  */
-KAPI b8 renderer_texture_resources_acquire(struct renderer_system_state* state, kname name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle);
+KAPI b8 renderer_texture_resources_acquire(struct renderer_system_state* state, kname name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_renderer_texture_handle);
 
 /**
  * Releases backing renderer-specific resources for the given renderer_texture_id.
@@ -445,7 +445,7 @@ KAPI void renderer_colour_texture_prepare_for_present(struct renderer_system_sta
  * @param texture_handle A handle to the texture to prepare for sampling.
  * @param flags Texture flags from the texture itself, used to determine format/layout, etc.
  */
-KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, khandle texture_handle, texture_flag_bits flags);
+KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, khandle texture_handle, ktexture_flag_bits flags);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.

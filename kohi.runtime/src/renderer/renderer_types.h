@@ -7,8 +7,6 @@
 #include <math/math_types.h>
 #include <strings/kname.h>
 
-#include "systems/material_system.h"
-
 struct shader_uniform;
 struct frame_data;
 struct terrain;
@@ -260,9 +258,9 @@ typedef struct kwindow_renderer_state {
     struct viewport* active_viewport;
 
     // This is technically the swapchain images, which should be wrapped into a single texture.
-    kresource_texture* colourbuffer;
+    ktexture colourbuffer;
     // This is technically the per-frame depth image, which should be wrapped into a single texture.
-    kresource_texture* depthbuffer;
+    ktexture depthbuffer;
 
     /** @brief The internal state of the window containing renderer backend data. */
     struct kwindow_renderer_backend_state* backend_state;
@@ -457,9 +455,9 @@ typedef struct renderer_backend_interface {
     void (*clear_colour)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
     void (*clear_depth_stencil)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
     void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
-    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, texture_flag_bits flags);
+    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, ktexture_flag_bits flags);
 
-    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle);
+    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, const char* name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_renderer_texture_handle);
     void (*texture_resources_release)(struct renderer_backend_interface* backend, khandle* renderer_texture_handle);
 
     /**

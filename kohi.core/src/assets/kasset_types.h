@@ -391,7 +391,6 @@ typedef struct kasset_system_font_face {
 } kasset_system_font_face;
 
 typedef struct kasset_system_font {
-    kasset base;
     kname ttf_asset_name;
     kname ttf_asset_package_name;
     u32 face_count;
@@ -430,7 +429,6 @@ ARRAY_TYPE(kasset_bitmap_font_kerning);
 ARRAY_TYPE(kasset_bitmap_font_page);
 
 typedef struct kasset_bitmap_font {
-    kasset base;
     kname face;
     u32 size;
     i32 line_height;

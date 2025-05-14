@@ -64,10 +64,9 @@ cleanup_kson:
     return out_str;
 }
 
-b8 kasset_system_font_deserialize(const char* file_text, kasset* out_asset) {
+b8 kasset_system_font_deserialize(const char* file_text, kasset_system_font* out_asset) {
     if (out_asset) {
         b8 success = false;
-        kasset_system_font* typed_asset = (kasset_system_font*)out_asset;
 
         // Deserialize the loaded asset data
         kson_tree tree = {0};
@@ -82,16 +81,15 @@ b8 kasset_system_font_deserialize(const char* file_text, kasset* out_asset) {
             KERROR("Failed to parse version, which is a required field.");
             goto cleanup_kson;
         }
-        typed_asset->base.meta.version = (u32)version;
 
         // ttf_asset_name
-        if (!kson_object_property_value_get_string_as_kname(&tree.root, "ttf_asset_name", &typed_asset->ttf_asset_name)) {
+        if (!kson_object_property_value_get_string_as_kname(&tree.root, "ttf_asset_name", &out_asset->ttf_asset_name)) {
             KERROR("Failed to parse ttf_asset_name, which is a required field.");
             goto cleanup_kson;
         }
 
         // ttf_asset_package_name
-        if (!kson_object_property_value_get_string_as_kname(&tree.root, "ttf_asset_package_name", &typed_asset->ttf_asset_package_name)) {
+        if (!kson_object_property_value_get_string_as_kname(&tree.root, "ttf_asset_package_name", &out_asset->ttf_asset_package_name)) {
             KERROR("Failed to get ttf_asset_package_name, which is a required field.");
             goto cleanup_kson;
         }
@@ -104,15 +102,15 @@ b8 kasset_system_font_deserialize(const char* file_text, kasset* out_asset) {
         }
 
         // Get the number of elements.
-        if (!kson_array_element_count_get(&face_array, (u32*)(&typed_asset->face_count))) {
+        if (!kson_array_element_count_get(&face_array, (u32*)(&out_asset->face_count))) {
             KERROR("Failed to parse face count. Invalid format?");
             goto cleanup_kson;
         }
 
         // Setup the new array.
-        typed_asset->faces = kallocate(sizeof(kasset_system_font_face) * typed_asset->face_count, MEMORY_TAG_ARRAY);
-        for (u32 i = 0; i < typed_asset->face_count; ++i) {
-            if (!kson_array_element_value_get_string_as_kname(&face_array, i, &typed_asset->faces[i].name)) {
+        out_asset->faces = kallocate(sizeof(kasset_system_font_face) * out_asset->face_count, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < out_asset->face_count; ++i) {
+            if (!kson_array_element_value_get_string_as_kname(&face_array, i, &out_asset->faces[i].name)) {
                 KWARN("Unable to read face name at index %u. Skipping", i);
                 continue;
             }
@@ -122,10 +120,10 @@ b8 kasset_system_font_deserialize(const char* file_text, kasset* out_asset) {
     cleanup_kson:
         kson_tree_cleanup(&tree);
         if (!success) {
-            if (typed_asset->face_count && typed_asset->faces) {
-                kfree(typed_asset->faces, sizeof(kasset_system_font_face) * typed_asset->face_count, MEMORY_TAG_ARRAY);
-                typed_asset->faces = 0;
-                typed_asset->face_count = 0;
+            if (out_asset->face_count && out_asset->faces) {
+                kfree(out_asset->faces, sizeof(kasset_system_font_face) * out_asset->face_count, MEMORY_TAG_ARRAY);
+                out_asset->faces = 0;
+                out_asset->face_count = 0;
             }
         }
         return success;

@@ -21,14 +21,9 @@ typedef struct bitmap_font_header {
     u32 face_name_len;
 } bitmap_font_header;
 
-void* kasset_bitmap_font_serialize(const kasset* asset, u64* out_size) {
+void* kasset_bitmap_font_serialize(const kasset_bitmap_font* asset, u64* out_size) {
     if (!asset) {
         KERROR("Cannot serialize without an asset, ya dingus!");
-        return 0;
-    }
-
-    if (asset->type != KASSET_TYPE_BITMAP_FONT) {
-        KERROR("Cannot serialize a non-bitmap_font asset using the bitmap_font serializer.");
         return 0;
     }
 
@@ -39,7 +34,7 @@ void* kasset_bitmap_font_serialize(const kasset* asset, u64* out_size) {
 
     // Base attributes.
     header.base.magic = ASSET_MAGIC;
-    header.base.type = (u32)asset->type;
+    header.base.type = (u32)KASSET_TYPE_BITMAP_FONT;
     header.base.data_block_size = 0;
     // Always write the most current version.
     header.base.version = 1;
@@ -113,7 +108,7 @@ void* kasset_bitmap_font_serialize(const kasset* asset, u64* out_size) {
     return block;
 }
 
-b8 kasset_bitmap_font_deserialize(u64 size, const void* block, kasset* out_asset) {
+b8 kasset_bitmap_font_deserialize(u64 size, const void* block, kasset_bitmap_font* out_asset) {
     if (!size || !block || !out_asset) {
         KERROR("Cannot deserialize without a nonzero size, block of memory and an static_mesh to write to.");
         return false;
@@ -131,8 +126,7 @@ b8 kasset_bitmap_font_deserialize(u64 size, const void* block, kasset* out_asset
         return false;
     }
 
-    out_asset->meta.version = header->base.version;
-    out_asset->type = type;
+    /* out_asset->meta.version = header->base.version; */ // TODO: version
 
     kasset_bitmap_font* typed_asset = (kasset_bitmap_font*)out_asset;
     typed_asset->baseline = header->baseline;

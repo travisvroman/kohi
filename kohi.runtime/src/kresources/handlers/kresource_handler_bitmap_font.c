@@ -7,19 +7,10 @@
 #include <serializers/kasset_bitmap_font_serializer.h>
 #include <strings/kname.h>
 
+#include "core/engine.h"
 #include "kresources/kresource_types.h"
 #include "systems/asset_system.h"
 #include "systems/kresource_system.h"
-
-typedef struct bitmap_font_resource_handler_info {
-    kresource_bitmap_font* typed_resource;
-    kresource_handler* handler;
-    kresource_bitmap_font_request_info* request_info;
-    kasset_bitmap_font* asset;
-} bitmap_font_resource_handler_info;
-
-static void bitmap_font_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
-static void asset_to_resource(const kasset_bitmap_font* asset, kresource_bitmap_font* out_bitmap_font);
 
 b8 kresource_handler_bitmap_font_request(kresource_handler* self, kresource* resource, const struct kresource_request_info* info) {
     if (!self || !resource) {
@@ -28,7 +19,6 @@ b8 kresource_handler_bitmap_font_request(kresource_handler* self, kresource* res
     }
 
     kresource_bitmap_font* typed_resource = (kresource_bitmap_font*)resource;
-    kresource_bitmap_font_request_info* typed_request = (kresource_bitmap_font_request_info*)info;
     typed_resource->base.state = KRESOURCE_STATE_UNINITIALIZED;
 
     if (info->assets.base.length < 1) {
@@ -36,65 +26,13 @@ b8 kresource_handler_bitmap_font_request(kresource_handler* self, kresource* res
         return false;
     }
 
-    // NOTE: dynamically allocating this so lifetime isn't a concern.
-    bitmap_font_resource_handler_info* listener_inst = kallocate(sizeof(bitmap_font_resource_handler_info), MEMORY_TAG_RESOURCE);
-    // Take a copy of the typed request info.
-    listener_inst->request_info = kallocate(sizeof(kresource_bitmap_font_request_info), MEMORY_TAG_RESOURCE);
-    kcopy_memory(listener_inst->request_info, typed_request, sizeof(kresource_bitmap_font_request_info));
-    listener_inst->typed_resource = typed_resource;
-    listener_inst->handler = self;
-    listener_inst->asset = 0;
+    // Load the asset from disk synchronously.
+    kasset_bitmap_font* asset = asset_system_request_bitmap_font_from_package_sync(
+        engine_systems_get()->asset_state,
+        kname_string_get(info->assets.data[0].package_name),
+        kname_string_get(info->assets.data[0].asset_name));
 
-    typed_resource->base.state = KRESOURCE_STATE_INITIALIZED;
-
-    typed_resource->base.state = KRESOURCE_STATE_LOADING;
-
-    kresource_asset_info* asset_info = &info->assets.data[0];
-
-    asset_request_info request_info = {0};
-    request_info.type = asset_info->type;
-    request_info.asset_name = asset_info->asset_name;
-    request_info.package_name = asset_info->package_name;
-    request_info.auto_release = true;
-    request_info.listener_inst = listener_inst;
-    request_info.callback = bitmap_font_kasset_on_result;
-    request_info.synchronous = typed_request->base.synchronous;
-    request_info.import_params_size = 0;
-    request_info.import_params = 0;
-    asset_system_request(self->asset_system, request_info);
-
-    return true;
-}
-
-void kresource_handler_bitmap_font_release(kresource_handler* self, kresource* resource) {
-    if (resource) {
-        kresource_bitmap_font* typed_resource = (kresource_bitmap_font*)resource;
-
-        array_font_glyph_destroy(&typed_resource->glyphs);
-        array_font_kerning_destroy(&typed_resource->kernings);
-        array_font_page_destroy(&typed_resource->pages);
-    }
-}
-
-static void bitmap_font_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst) {
-    bitmap_font_resource_handler_info* listener = (bitmap_font_resource_handler_info*)listener_inst;
-    if (result == ASSET_REQUEST_RESULT_SUCCESS) {
-        // Save off the asset pointer to the array.
-        listener->asset = (kasset_bitmap_font*)asset;
-
-        asset_to_resource(listener->asset, listener->typed_resource);
-    } else {
-        KERROR("Failed to load a required asset for bitmap_font resource '%s'. Resource may not appear correctly when rendered.", kname_string_get(listener->typed_resource->base.name));
-    }
-
-    // Destroy the request.
-    array_kresource_asset_info_destroy(&listener->request_info->base.assets);
-    kfree(listener->request_info, sizeof(kresource_bitmap_font_request_info), MEMORY_TAG_RESOURCE);
-    // Free the listener itself.
-    kfree(listener, sizeof(bitmap_font_resource_handler_info), MEMORY_TAG_RESOURCE);
-}
-
-static void asset_to_resource(const kasset_bitmap_font* asset, kresource_bitmap_font* out_bitmap_font) {
+    kresource_bitmap_font* out_bitmap_font = typed_resource;
     // Take a copy of all of the asset properties.
 
     out_bitmap_font->size = asset->size;
@@ -148,4 +86,19 @@ static void asset_to_resource(const kasset_bitmap_font* asset, kresource_bitmap_
     }
 
     out_bitmap_font->base.state = KRESOURCE_STATE_LOADED;
+
+    // Destroy the request.
+    array_kresource_asset_info_destroy((array_kresource_asset_info*)&info->assets);
+
+    return true;
+}
+
+void kresource_handler_bitmap_font_release(kresource_handler* self, kresource* resource) {
+    if (resource) {
+        kresource_bitmap_font* typed_resource = (kresource_bitmap_font*)resource;
+
+        array_font_glyph_destroy(&typed_resource->glyphs);
+        array_font_kerning_destroy(&typed_resource->kernings);
+        array_font_page_destroy(&typed_resource->pages);
+    }
 }
