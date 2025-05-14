@@ -10,7 +10,7 @@
 #include <debug/kassert.h>
 #include <logger.h>
 #include <platform/vfs.h>
-#include <serializers/kasset_binary_static_mesh_serializer.h>
+#include <serializers/kasset_static_mesh_serializer.h>
 
 void asset_handler_static_mesh_create(struct asset_handler* self, struct vfs_state* vfs) {
     KASSERT_MSG(self && vfs, "Valid pointers are required for 'self' and 'vfs'.");

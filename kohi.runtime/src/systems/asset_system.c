@@ -3,19 +3,16 @@
 // Known handler types
 #include "assets/handlers/asset_handler_audio.h"
 #include "assets/handlers/asset_handler_binary.h"
-#include "assets/handlers/asset_handler_bitmap_font.h"
 #include "assets/handlers/asset_handler_heightmap_terrain.h"
-#include "assets/handlers/asset_handler_image.h"
 #include "assets/handlers/asset_handler_kson.h"
 #include "assets/handlers/asset_handler_material.h"
 #include "assets/handlers/asset_handler_scene.h"
 #include "assets/handlers/asset_handler_shader.h"
-#include "assets/handlers/asset_handler_static_mesh.h"
-#include "assets/handlers/asset_handler_system_font.h"
 #include "assets/handlers/asset_handler_text.h"
 #include "platform/vfs.h"
 #include "serializers/kasset_bitmap_font_serializer.h"
 #include "serializers/kasset_image_serializer.h"
+#include "serializers/kasset_static_mesh_serializer.h"
 #include "serializers/kasset_system_font_serializer.h"
 
 #include <assets/asset_handler_types.h>
@@ -129,16 +126,12 @@ b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* s
 
     // Setup handlers for known types.
     asset_handler_heightmap_terrain_create(&state->handlers[KASSET_TYPE_HEIGHTMAP_TERRAIN], state->vfs);
-    asset_handler_image_create(&state->handlers[KASSET_TYPE_IMAGE], state->vfs);
-    asset_handler_static_mesh_create(&state->handlers[KASSET_TYPE_STATIC_MESH], state->vfs);
     asset_handler_material_create(&state->handlers[KASSET_TYPE_MATERIAL], state->vfs);
     asset_handler_text_create(&state->handlers[KASSET_TYPE_TEXT], state->vfs);
     asset_handler_kson_create(&state->handlers[KASSET_TYPE_KSON], state->vfs);
     asset_handler_binary_create(&state->handlers[KASSET_TYPE_BINARY], state->vfs);
     asset_handler_scene_create(&state->handlers[KASSET_TYPE_SCENE], state->vfs);
     asset_handler_shader_create(&state->handlers[KASSET_TYPE_SHADER], state->vfs);
-    asset_handler_system_font_create(&state->handlers[KASSET_TYPE_SYSTEM_FONT], state->vfs);
-    asset_handler_bitmap_font_create(&state->handlers[KASSET_TYPE_BITMAP_FONT], state->vfs);
     asset_handler_audio_create(&state->handlers[KASSET_TYPE_AUDIO], state->vfs);
 
     // Register for hot-reload/deleted events.
@@ -445,5 +438,107 @@ void asset_system_release_system_font(struct asset_system_state* state, kasset_s
         }
 
         kzero_memory(asset, sizeof(kasset_system_font));
+    }
+}
+
+// ////////////////////////////////////
+// STATIC MESH ASSETS
+// ////////////////////////////////////
+
+typedef struct kasset_static_mesh_vfs_context {
+    void* listener;
+    PFN_kasset_static_mesh_loaded_callback callback;
+    kasset_static_mesh* asset;
+} kasset_static_mesh_vfs_context;
+
+static void vfs_on_static_mesh_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data) {
+    kasset_static_mesh_vfs_context* context = asset_data.context;
+    kasset_static_mesh* out_asset = context->asset;
+    b8 result = kasset_static_mesh_deserialize(asset_data.size, asset_data.bytes, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize static_mesh asset. See logs for details.");
+    }
+
+    KFREE_TYPE(context, kasset_static_mesh_vfs_context, MEMORY_TAG_ASSET);
+}
+
+// async load from game package.
+kasset_static_mesh* asset_static_mesh_request_static_mesh(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_static_mesh_loaded_callback callback) {
+    return asset_system_request_static_mesh_from_package(state, state->application_package_name_str, name, listener, callback);
+}
+// sync load from game package.
+kasset_static_mesh* asset_static_mesh_request_static_mesh_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_static_mesh_from_package_sync(state, state->application_package_name_str, name);
+}
+// async load from specific package.
+kasset_static_mesh* asset_system_request_static_mesh_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_static_mesh_loaded_callback callback) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_static_mesh* out_asset = KALLOC_TYPE(kasset_static_mesh, MEMORY_TAG_ASSET);
+
+    kasset_static_mesh_vfs_context* context = KALLOC_TYPE(kasset_static_mesh_vfs_context, MEMORY_TAG_ASSET);
+    context->asset = out_asset;
+    context->callback = callback;
+    context->listener = listener;
+
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = state->application_package_name,
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+        .vfs_callback = vfs_on_static_mesh_asset_loaded_callback,
+        .context = context,
+        .context_size = sizeof(kasset_static_mesh_vfs_context)};
+    vfs_request_asset(state->vfs, info);
+
+    return out_asset;
+}
+// sync load from specific package.
+kasset_static_mesh* asset_system_request_static_mesh_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_static_mesh* out_asset = KALLOC_TYPE(kasset_static_mesh, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    b8 result = kasset_static_mesh_deserialize(data.size, data.bytes, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize static_mesh asset. See logs for details.");
+        KFREE_TYPE(out_asset, kasset_static_mesh, MEMORY_TAG_ASSET);
+        return 0;
+    }
+
+    return out_asset;
+}
+
+void asset_system_release_static_mesh(struct asset_system_state* state, kasset_static_mesh* asset) {
+    if (state && asset) {
+        // Asset type-specific data cleanup
+        if (asset->geometries && asset->geometry_count) {
+            for (u32 i = 0; i < asset->geometry_count; ++i) {
+                kasset_static_mesh_geometry* g = &asset->geometries[i];
+                if (g->vertices && g->vertex_count) {
+                    kfree(g->vertices, sizeof(g->vertices[0]) * g->vertex_count, MEMORY_TAG_ARRAY);
+                }
+                if (g->indices && g->index_count) {
+                    kfree(g->indices, sizeof(g->indices[0]) * g->index_count, MEMORY_TAG_ARRAY);
+                }
+            }
+            kfree(asset->geometries, sizeof(asset->geometries[0]) * asset->geometry_count, MEMORY_TAG_ARRAY);
+        }
+        KFREE_TYPE(asset, kasset_static_mesh, MEMORY_TAG_ASSET);
     }
 }

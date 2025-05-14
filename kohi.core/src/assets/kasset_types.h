@@ -223,7 +223,6 @@ typedef struct kasset_static_mesh_geometry {
 
 /** @brief Represents a static mesh asset. */
 typedef struct kasset_static_mesh {
-    kasset base;
     u16 geometry_count;
     kasset_static_mesh_geometry* geometries;
     extents_3d extents;
