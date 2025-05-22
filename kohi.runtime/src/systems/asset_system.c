@@ -1,21 +1,17 @@
 #include "asset_system.h"
 #include "core/engine.h"
-// Known handler types
-#include "assets/handlers/asset_handler_audio.h"
-#include "assets/handlers/asset_handler_binary.h"
-#include "assets/handlers/asset_handler_heightmap_terrain.h"
-#include "assets/handlers/asset_handler_kson.h"
-#include "assets/handlers/asset_handler_material.h"
-#include "assets/handlers/asset_handler_scene.h"
-#include "assets/handlers/asset_handler_shader.h"
-#include "assets/handlers/asset_handler_text.h"
+
 #include "platform/vfs.h"
+#include "serializers/kasset_audio_serializer.h"
 #include "serializers/kasset_bitmap_font_serializer.h"
+#include "serializers/kasset_heightmap_terrain_serializer.h"
 #include "serializers/kasset_image_serializer.h"
+#include "serializers/kasset_material_serializer.h"
+#include "serializers/kasset_scene_serializer.h"
+#include "serializers/kasset_shader_serializer.h"
 #include "serializers/kasset_static_mesh_serializer.h"
 #include "serializers/kasset_system_font_serializer.h"
 
-#include <assets/asset_handler_types.h>
 #include <assets/kasset_types.h>
 #include <assets/kasset_utils.h>
 #include <containers/darray.h>
@@ -56,9 +52,6 @@ typedef struct asset_system_state {
     asset_lookup* lookups;
     // A BST to use for lookups of assets by name.
     bt_node* lookup_tree;
-
-    // An array of handlers for various asset types.
-    asset_handler handlers[KASSET_TYPE_MAX];
 } asset_system_state;
 
 b8 asset_system_deserialize_config(const char* config_str, asset_system_config* out_config) {
@@ -124,19 +117,6 @@ b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* s
 
     state->vfs = engine_systems_get()->vfs_system_state;
 
-    // Setup handlers for known types.
-    asset_handler_heightmap_terrain_create(&state->handlers[KASSET_TYPE_HEIGHTMAP_TERRAIN], state->vfs);
-    asset_handler_material_create(&state->handlers[KASSET_TYPE_MATERIAL], state->vfs);
-    asset_handler_text_create(&state->handlers[KASSET_TYPE_TEXT], state->vfs);
-    asset_handler_kson_create(&state->handlers[KASSET_TYPE_KSON], state->vfs);
-    asset_handler_binary_create(&state->handlers[KASSET_TYPE_BINARY], state->vfs);
-    asset_handler_scene_create(&state->handlers[KASSET_TYPE_SCENE], state->vfs);
-    asset_handler_shader_create(&state->handlers[KASSET_TYPE_SHADER], state->vfs);
-    asset_handler_audio_create(&state->handlers[KASSET_TYPE_AUDIO], state->vfs);
-
-    // Register for hot-reload/deleted events.
-    vfs_hot_reload_callbacks_register(state->vfs, state, asset_hot_reloaded_callback, state, asset_deleted_callback);
-
     return true;
 }
 
@@ -147,8 +127,9 @@ void asset_system_shutdown(struct asset_system_state* state) {
             for (u32 i = 0; i < state->max_asset_count; ++i) {
                 asset_lookup* lookup = &state->lookups[i];
                 if (lookup->asset) {
+                    // FIXME: Asset cache not currently being written to on the new asset load logic, need to do this so it can be undone here.
                     // Force release the asset.
-                    asset_system_release_internal(state, lookup->asset->name, lookup->asset->package_name, true);
+                    /* asset_system_release_internal(state, lookup->asset->name, lookup->asset->package_name, true); */
                 }
             }
             kfree(state->lookups, sizeof(asset_lookup) * state->max_asset_count, MEMORY_TAG_ARRAY);
@@ -250,6 +231,45 @@ void asset_system_release_binary(struct asset_system_state* state, kasset_binary
             kfree((void*)asset->content, asset->size, MEMORY_TAG_ASSET);
         }
         KFREE_TYPE(asset, kasset_binary, MEMORY_TAG_ASSET);
+    }
+}
+
+// ////////////////////////////////////
+// TEXT ASSETS
+// ////////////////////////////////////
+
+// sync load from game package.
+kasset_text* asset_system_request_text_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_text_from_package_sync(state, state->application_package_name_str, name);
+}
+// sync load from specific package.
+kasset_text* asset_system_request_text_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_text* out_asset = KALLOC_TYPE(kasset_text, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .get_source = false,
+        .is_binary = false,
+        .watch_for_hot_reload = false,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    out_asset->content = string_duplicate(data.text);
+
+    return out_asset;
+}
+
+void asset_system_release_text(struct asset_system_state* state, kasset_text* asset) {
+    if (state && asset) {
+        if (asset->content) {
+            string_free(asset->content);
+        }
+        KFREE_TYPE(asset, kasset_text, MEMORY_TAG_ASSET);
     }
 }
 
@@ -463,11 +483,11 @@ static void vfs_on_static_mesh_asset_loaded_callback(struct vfs_state* vfs, vfs_
 }
 
 // async load from game package.
-kasset_static_mesh* asset_static_mesh_request_static_mesh(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_static_mesh_loaded_callback callback) {
+kasset_static_mesh* asset_system_request_static_mesh(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_static_mesh_loaded_callback callback) {
     return asset_system_request_static_mesh_from_package(state, state->application_package_name_str, name, listener, callback);
 }
 // sync load from game package.
-kasset_static_mesh* asset_static_mesh_request_static_mesh_sync(struct asset_system_state* state, const char* name) {
+kasset_static_mesh* asset_system_request_static_mesh_sync(struct asset_system_state* state, const char* name) {
     return asset_system_request_static_mesh_from_package_sync(state, state->application_package_name_str, name);
 }
 // async load from specific package.
@@ -540,5 +560,472 @@ void asset_system_release_static_mesh(struct asset_system_state* state, kasset_s
             kfree(asset->geometries, sizeof(asset->geometries[0]) * asset->geometry_count, MEMORY_TAG_ARRAY);
         }
         KFREE_TYPE(asset, kasset_static_mesh, MEMORY_TAG_ASSET);
+    }
+}
+
+// ////////////////////////////////////
+// HEIGHTMAP TERRAIN ASSETS
+// ////////////////////////////////////
+
+typedef struct kasset_heightmap_terrain_vfs_context {
+    void* listener;
+    PFN_kasset_heightmap_terrain_loaded_callback callback;
+    kasset_heightmap_terrain* asset;
+} kasset_heightmap_terrain_vfs_context;
+
+static void vfs_on_heightmap_terrain_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data) {
+    kasset_heightmap_terrain_vfs_context* context = asset_data.context;
+    b8 result = kasset_heightmap_terrain_deserialize(asset_data.text, context->asset);
+    if (!result) {
+        KERROR("Failed to deserialize heightmap_terrain asset. See logs for details.");
+    }
+
+    KFREE_TYPE(context, kasset_heightmap_terrain_vfs_context, MEMORY_TAG_ASSET);
+}
+
+// async load from game package.
+kasset_heightmap_terrain* asset_system_request_heightmap_terrain(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_heightmap_terrain_loaded_callback callback) {
+    return asset_system_request_heightmap_terrain_from_package(state, state->application_package_name_str, name, listener, callback);
+}
+// sync load from game package.
+kasset_heightmap_terrain* asset_system_request_heightmap_terrain_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_heightmap_terrain_from_package_sync(state, state->application_package_name_str, name);
+}
+// async load from specific package.
+kasset_heightmap_terrain* asset_system_request_heightmap_terrain_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_heightmap_terrain_loaded_callback callback) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_heightmap_terrain* out_asset = KALLOC_TYPE(kasset_heightmap_terrain, MEMORY_TAG_ASSET);
+
+    kasset_heightmap_terrain_vfs_context* context = KALLOC_TYPE(kasset_heightmap_terrain_vfs_context, MEMORY_TAG_ASSET);
+    context->asset = out_asset;
+    context->callback = callback;
+    context->listener = listener;
+
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = state->application_package_name,
+        .get_source = false,
+        .is_binary = false,
+        .watch_for_hot_reload = false,
+        .vfs_callback = vfs_on_heightmap_terrain_asset_loaded_callback,
+        .context = context,
+        .context_size = sizeof(kasset_heightmap_terrain_vfs_context)};
+    vfs_request_asset(state->vfs, info);
+
+    return out_asset;
+}
+// sync load from specific package.
+kasset_heightmap_terrain* asset_system_request_heightmap_terrain_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_heightmap_terrain* out_asset = KALLOC_TYPE(kasset_heightmap_terrain, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .get_source = false,
+        .is_binary = false,
+        .watch_for_hot_reload = false,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    b8 result = kasset_heightmap_terrain_deserialize(data.text, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize heightmap_terrain asset. See logs for details.");
+        KFREE_TYPE(out_asset, kasset_heightmap_terrain, MEMORY_TAG_ASSET);
+        return 0;
+    }
+
+    return out_asset;
+}
+
+void asset_system_release_heightmap_terrain(struct asset_system_state* state, kasset_heightmap_terrain* asset) {
+    if (state && asset) {
+        // Asset type-specific data cleanup
+        if (asset->material_count && asset->material_names) {
+            kfree(asset->material_names, sizeof(kname) * asset->material_count, MEMORY_TAG_ARRAY);
+            asset->material_names = 0;
+            asset->material_count = 0;
+        }
+        KFREE_TYPE(asset, kasset_heightmap_terrain, MEMORY_TAG_ASSET);
+    }
+}
+
+// ////////////////////////////////////
+// MATERIAL ASSETS
+// ////////////////////////////////////
+
+typedef struct kasset_material_vfs_context {
+    void* listener;
+    PFN_kasset_material_loaded_callback callback;
+    kasset_material* asset;
+} kasset_material_vfs_context;
+
+static void vfs_on_material_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data) {
+    kasset_material_vfs_context* context = asset_data.context;
+    b8 result = kasset_material_deserialize(asset_data.text, context->asset);
+    if (!result) {
+        KERROR("Failed to deserialize material asset. See logs for details.");
+    }
+
+    context->asset->name = asset_data.asset_name;
+
+    KFREE_TYPE(context, kasset_material_vfs_context, MEMORY_TAG_ASSET);
+}
+
+// async load from game package.
+kasset_material* asset_system_request_material(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_material_loaded_callback callback) {
+    return asset_system_request_material_from_package(state, state->application_package_name_str, name, listener, callback);
+}
+// sync load from game package.
+kasset_material* asset_system_terrain_request_material_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_material_from_package_sync(state, state->application_package_name_str, name);
+}
+// async load from specific package.
+kasset_material* asset_system_request_material_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_material_loaded_callback callback) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_material* out_asset = KALLOC_TYPE(kasset_material, MEMORY_TAG_ASSET);
+
+    kasset_material_vfs_context* context = KALLOC_TYPE(kasset_material_vfs_context, MEMORY_TAG_ASSET);
+    context->asset = out_asset;
+    context->callback = callback;
+    context->listener = listener;
+
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = state->application_package_name,
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+        .vfs_callback = vfs_on_material_asset_loaded_callback,
+        .context = context,
+        .context_size = sizeof(kasset_material_vfs_context)};
+    vfs_request_asset(state->vfs, info);
+
+    return out_asset;
+}
+// sync load from specific package.
+kasset_material* asset_system_request_material_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_material* out_asset = KALLOC_TYPE(kasset_material, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    b8 result = kasset_material_deserialize(data.text, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize material asset. See logs for details.");
+        KFREE_TYPE(out_asset, kasset_material, MEMORY_TAG_ASSET);
+        return 0;
+    }
+
+    out_asset->name = info.asset_name;
+
+    return out_asset;
+}
+
+void asset_system_release_material(struct asset_system_state* state, kasset_material* asset) {
+    if (state && asset) {
+        // Asset type-specific data cleanup
+        if (asset->custom_sampler_count && asset->custom_samplers) {
+            KFREE_TYPE_CARRAY(asset->custom_samplers, kmaterial_sampler_config, asset->custom_sampler_count);
+        }
+
+        KFREE_TYPE(asset, kasset_material, MEMORY_TAG_ASSET);
+    }
+}
+
+// ////////////////////////////////////
+// AUDIO ASSETS
+// ////////////////////////////////////
+
+typedef struct kasset_audio_vfs_context {
+    void* listener;
+    PFN_kasset_audio_loaded_callback callback;
+    kasset_audio* asset;
+} kasset_audio_vfs_context;
+
+static void vfs_on_audio_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data) {
+    kasset_audio_vfs_context* context = asset_data.context;
+    b8 result = kasset_audio_deserialize(asset_data.size, asset_data.bytes, context->asset);
+    if (!result) {
+        KERROR("Failed to deserialize audio asset. See logs for details.");
+    }
+
+    context->asset->name = asset_data.asset_name;
+
+    KFREE_TYPE(context, kasset_audio_vfs_context, MEMORY_TAG_ASSET);
+}
+
+// async load from game package.
+kasset_audio* asset_system_request_audio(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_audio_loaded_callback callback) {
+    return asset_system_request_audio_from_package(state, state->application_package_name_str, name, listener, callback);
+}
+// sync load from game package.
+kasset_audio* asset_system_terrain_request_audio_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_audio_from_package_sync(state, state->application_package_name_str, name);
+}
+// async load from specific package.
+kasset_audio* asset_system_request_audio_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_audio_loaded_callback callback) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_audio* out_asset = KALLOC_TYPE(kasset_audio, MEMORY_TAG_ASSET);
+
+    kasset_audio_vfs_context* context = KALLOC_TYPE(kasset_audio_vfs_context, MEMORY_TAG_ASSET);
+    context->asset = out_asset;
+    context->callback = callback;
+    context->listener = listener;
+
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = state->application_package_name,
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+        .vfs_callback = vfs_on_audio_asset_loaded_callback,
+        .context = context,
+        .context_size = sizeof(kasset_audio_vfs_context)};
+    vfs_request_asset(state->vfs, info);
+
+    return out_asset;
+}
+// sync load from specific package.
+kasset_audio* asset_system_request_audio_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_audio* out_asset = KALLOC_TYPE(kasset_audio, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    b8 result = kasset_audio_deserialize(data.size, data.bytes, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize audio asset. See logs for details.");
+        KFREE_TYPE(out_asset, kasset_audio, MEMORY_TAG_ASSET);
+        return 0;
+    }
+
+    out_asset->name = info.asset_name;
+
+    return out_asset;
+}
+
+void asset_system_release_audio(struct asset_system_state* state, kasset_audio* asset) {
+    if (state && asset) {
+        // Asset type-specific data cleanup
+        if (asset->pcm_data_size && asset->pcm_data) {
+            kfree(asset->pcm_data, asset->pcm_data_size, MEMORY_TAG_ASSET);
+        }
+
+        KFREE_TYPE(asset, kasset_audio, MEMORY_TAG_ASSET);
+    }
+}
+
+// ////////////////////////////////////
+// SCENE ASSETS
+// ////////////////////////////////////
+
+// sync load from game package.
+kasset_scene* asset_system_terrain_request_scene_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_scene_from_package_sync(state, state->application_package_name_str, name);
+}
+// sync load from specific package.
+kasset_scene* asset_system_request_scene_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_scene* out_asset = KALLOC_TYPE(kasset_scene, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .get_source = false,
+        .is_binary = false,
+        .watch_for_hot_reload = false,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    b8 result = kasset_scene_deserialize(data.text, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize scene asset. See logs for details.");
+        KFREE_TYPE(out_asset, kasset_scene, MEMORY_TAG_ASSET);
+        return 0;
+    }
+
+    out_asset->name = info.asset_name;
+
+    return out_asset;
+}
+
+static void kasset_scene_destroy_node(scene_node_config* node) {
+
+    // Descroy attachments by type
+    if (node->skybox_configs) {
+        darray_destroy(node->skybox_configs);
+        node->skybox_configs = 0;
+    }
+
+    if (node->dir_light_configs) {
+        darray_destroy(node->dir_light_configs);
+        node->dir_light_configs = 0;
+    }
+    if (node->point_light_configs) {
+        darray_destroy(node->point_light_configs);
+        node->point_light_configs = 0;
+    }
+    if (node->static_mesh_configs) {
+        darray_destroy(node->static_mesh_configs);
+        node->static_mesh_configs = 0;
+    }
+    if (node->heightmap_terrain_configs) {
+        darray_destroy(node->heightmap_terrain_configs);
+        node->heightmap_terrain_configs = 0;
+    }
+    if (node->water_plane_configs) {
+        darray_destroy(node->water_plane_configs);
+        node->water_plane_configs = 0;
+    }
+
+    // Destroy child nodes.
+    for (u32 i = 0; i < node->child_count; ++i) {
+        kasset_scene_destroy_node(&node->children[i]);
+    }
+    kfree(node->children, sizeof(scene_node_config) * node->child_count, MEMORY_TAG_ARRAY);
+    node->child_count = 0;
+    node->children = 0;
+}
+
+void asset_system_release_scene(struct asset_system_state* state, kasset_scene* asset) {
+    if (state && asset) {
+        // Asset type-specific data cleanup
+        if (asset->description) {
+            string_free(asset->description);
+        }
+        if (asset->node_count && asset->nodes) {
+            for (u32 i = 0; i < asset->node_count; ++i) {
+                kasset_scene_destroy_node(&asset->nodes[i]);
+            }
+            kfree(asset->nodes, sizeof(scene_node_config) * asset->node_count, MEMORY_TAG_ARRAY);
+        }
+
+        KFREE_TYPE(asset, kasset_scene, MEMORY_TAG_ASSET);
+    }
+}
+
+// ////////////////////////////////////
+// SHADER ASSETS
+// ////////////////////////////////////
+
+// sync load from game package.
+kasset_shader* asset_system_terrain_request_shader_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_shader_from_package_sync(state, state->application_package_name_str, name);
+}
+
+// sync load from specific package.
+kasset_shader* asset_system_request_shader_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_shader* out_asset = KALLOC_TYPE(kasset_shader, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .get_source = false,
+        .is_binary = true,
+        .watch_for_hot_reload = false,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    b8 result = kasset_shader_deserialize(data.text, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize shader asset. See logs for details.");
+        KFREE_TYPE(out_asset, kasset_shader, MEMORY_TAG_ASSET);
+        return 0;
+    }
+
+    out_asset->name = info.asset_name;
+
+    return out_asset;
+}
+
+void asset_system_release_shader(struct asset_system_state* state, kasset_shader* asset) {
+    if (state && asset) {
+        // Asset type-specific data cleanup
+        // Stages
+        if (asset->stages && asset->stage_count) {
+            for (u32 i = 0; i < asset->stage_count; ++i) {
+                kasset_shader_stage* stage = &asset->stages[i];
+                if (stage->source_asset_name) {
+                    string_free(stage->source_asset_name);
+                }
+                if (stage->package_name) {
+                    string_free(stage->package_name);
+                }
+            }
+            kfree(asset->stages, sizeof(kasset_shader_stage*) * asset->stage_count, MEMORY_TAG_ARRAY);
+            asset->stages = 0;
+            asset->stage_count = 0;
+        }
+
+        // Attributes
+        if (asset->attributes && asset->attribute_count) {
+            for (u32 i = 0; i < asset->attribute_count; ++i) {
+                kasset_shader_attribute* attrib = &asset->attributes[i];
+                if (attrib->name) {
+                    string_free(attrib->name);
+                }
+            }
+            kfree(asset->attributes, sizeof(kasset_shader_stage*) * asset->attribute_count, MEMORY_TAG_ARRAY);
+            asset->attributes = 0;
+            asset->attribute_count = 0;
+        }
+
+        // Uniforms
+        if (asset->uniforms && asset->uniform_count) {
+            for (u32 i = 0; i < asset->uniform_count; ++i) {
+                kasset_shader_uniform* attrib = &asset->uniforms[i];
+                if (attrib->name) {
+                    string_free(attrib->name);
+                }
+            }
+            kfree(asset->uniforms, sizeof(kasset_shader_stage*) * asset->uniform_count, MEMORY_TAG_ARRAY);
+            asset->uniforms = 0;
+            asset->uniform_count = 0;
+        }
+
+        KFREE_TYPE(asset, kasset_shader, MEMORY_TAG_ASSET);
     }
 }

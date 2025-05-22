@@ -7,11 +7,9 @@
 #include <serializers/kasset_shader_serializer.h>
 #include <strings/kname.h>
 
-#include "containers/darray.h"
 #include "core/engine.h"
 #include "core_render_types.h"
 #include "kresources/kresource_types.h"
-#include "strings/kstring.h"
 #include "systems/asset_system.h"
 #include "systems/kresource_system.h"
 #include "utils/render_type_utils.h"
@@ -23,7 +21,6 @@ typedef struct shader_resource_handler_info {
     kasset_shader* asset;
 } shader_resource_handler_info;
 
-static void shader_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
 static void asset_to_resource(const kasset_shader* asset, kresource_shader* out_shader);
 
 b8 kresource_handler_shader_request(kresource_handler* self, kresource* resource, const struct kresource_request_info* info) {
@@ -41,7 +38,7 @@ b8 kresource_handler_shader_request(kresource_handler* self, kresource* resource
         if (info->assets.base.length == 0 && typed_request->shader_config_source_text) {
             // Deserialize shader asset from provided source.
             kasset_shader shader_from_source = {0};
-            if (!kasset_shader_deserialize(typed_request->shader_config_source_text, (kasset*)&shader_from_source)) {
+            if (!kasset_shader_deserialize(typed_request->shader_config_source_text, &shader_from_source)) {
                 KERROR("Failed to deserialize shader from direct source upon resource request.");
                 return false;
             }
@@ -68,18 +65,13 @@ b8 kresource_handler_shader_request(kresource_handler* self, kresource* resource
     typed_resource->base.state = KRESOURCE_STATE_LOADING;
 
     // Request the shader config asset.
-    asset_request_info request_info = {0};
-    request_info.type = KASSET_TYPE_SHADER;
-    request_info.asset_name = resource->name;
-    request_info.package_name = INVALID_KNAME;
-    request_info.auto_release = true;
-    request_info.listener_inst = listener_inst;
-    request_info.callback = shader_kasset_on_result;
-    request_info.synchronous = typed_request->base.synchronous;
-    request_info.import_params_size = 0;
-    request_info.import_params = 0;
+    kasset_shader* asset = asset_system_request_shader_from_package_sync(self->asset_system, INVALID_KNAME, kname_string_get(resource->name));
+    if (!asset) {
+        KERROR("Failed to load shader asset '%s' - see logs for details.", kname_string_get(resource->name));
+        return false;
+    }
 
-    asset_system_request(self->asset_system, request_info);
+    asset_to_resource(asset, typed_resource);
 
     return true;
 }
@@ -102,49 +94,31 @@ void kresource_handler_shader_release(kresource_handler* self, kresource* resour
     }
 }
 
-static void shader_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst) {
-    shader_resource_handler_info* listener = (shader_resource_handler_info*)listener_inst;
-    if (result == ASSET_REQUEST_RESULT_SUCCESS) {
-        // Save off the asset pointer to the array.
-        listener->asset = (kasset_shader*)asset;
-
-        asset_to_resource(listener->asset, listener->typed_resource);
-    } else {
-        KERROR("Failed to load a required asset for shader resource '%s'. Resource may be incorrect.", kname_string_get(listener->typed_resource->base.name));
-    }
-
-    // Destroy the request.
-    array_kresource_asset_info_destroy(&listener->request_info->base.assets);
-    kfree(listener->request_info, sizeof(kresource_shader_request_info), MEMORY_TAG_RESOURCE);
-    // Free the listener itself.
-    kfree(listener, sizeof(shader_resource_handler_info), MEMORY_TAG_RESOURCE);
-}
-
-static void asset_to_resource(const kasset_shader* asset, kresource_shader* out_shader_resource) {
+static void asset_to_resource(const kasset_shader* asset, kresource_shader* typed_resource) {
     // Take a copy of all of the asset properties.
 
-    out_shader_resource->cull_mode = asset->cull_mode;
-    out_shader_resource->max_groups = asset->max_groups;
-    out_shader_resource->max_per_draw_count = asset->max_draw_ids;
-    out_shader_resource->topology_types = asset->topology_types;
+    typed_resource->cull_mode = asset->cull_mode;
+    typed_resource->max_groups = asset->max_groups;
+    typed_resource->max_per_draw_count = asset->max_draw_ids;
+    typed_resource->topology_types = asset->topology_types;
 
     // Attributes.
-    out_shader_resource->attribute_count = asset->attribute_count;
-    out_shader_resource->attributes = KALLOC_TYPE_CARRAY(shader_attribute_config, out_shader_resource->attribute_count);
-    for (u32 i = 0; i < out_shader_resource->attribute_count; ++i) {
+    typed_resource->attribute_count = asset->attribute_count;
+    typed_resource->attributes = KALLOC_TYPE_CARRAY(shader_attribute_config, typed_resource->attribute_count);
+    for (u32 i = 0; i < typed_resource->attribute_count; ++i) {
         kasset_shader_attribute* a = &asset->attributes[i];
-        shader_attribute_config* config = &out_shader_resource->attributes[i];
+        shader_attribute_config* config = &typed_resource->attributes[i];
         config->type = a->type;
         config->size = size_from_shader_attribute_type(a->type);
         config->name = kname_create(a->name);
     }
 
     // Uniforms
-    out_shader_resource->uniform_count = asset->uniform_count;
-    out_shader_resource->uniforms = KALLOC_TYPE_CARRAY(shader_uniform_config, out_shader_resource->uniform_count);
-    for (u32 i = 0; i < out_shader_resource->uniform_count; ++i) {
+    typed_resource->uniform_count = asset->uniform_count;
+    typed_resource->uniforms = KALLOC_TYPE_CARRAY(shader_uniform_config, typed_resource->uniform_count);
+    for (u32 i = 0; i < typed_resource->uniform_count; ++i) {
         kasset_shader_uniform* u = &asset->uniforms[i];
-        shader_uniform_config* config = &out_shader_resource->uniforms[i];
+        shader_uniform_config* config = &typed_resource->uniforms[i];
         config->type = u->type;
         if (config->type == SHADER_UNIFORM_TYPE_STRUCT || config->type == SHADER_UNIFORM_TYPE_CUSTOM) {
             config->size = u->size;
@@ -157,11 +131,11 @@ static void asset_to_resource(const kasset_shader* asset, kresource_shader* out_
     }
 
     // Stages
-    out_shader_resource->stage_count = asset->stage_count;
-    out_shader_resource->stage_configs = KALLOC_TYPE_CARRAY(shader_stage_config, out_shader_resource->stage_count);
-    for (u32 i = 0; i < out_shader_resource->stage_count; ++i) {
+    typed_resource->stage_count = asset->stage_count;
+    typed_resource->stage_configs = KALLOC_TYPE_CARRAY(shader_stage_config, typed_resource->stage_count);
+    for (u32 i = 0; i < typed_resource->stage_count; ++i) {
         kasset_shader_stage* a = &asset->stages[i];
-        shader_stage_config* target = &out_shader_resource->stage_configs[i];
+        shader_stage_config* target = &typed_resource->stage_configs[i];
         target->stage = a->type;
         target->resource_name = kname_create(a->source_asset_name);
         target->package_name = kname_create(a->package_name);
@@ -184,7 +158,7 @@ static void asset_to_resource(const kasset_shader* asset, kresource_shader* out_
         // Request the resource. Text resources are always loaded synchronously, so this is available immediately.
         kresource_text* text_resource = (kresource_text*)kresource_system_request(engine_systems_get()->kresource_state, target->resource_name, &request);
         if (!text_resource) {
-            KERROR("Failed to properly request shader stage resource '%s' for shader '%s'.", kname_string_get(target->resource_name), kname_string_get(out_shader_resource->base.name));
+            KERROR("Failed to properly request shader stage resource '%s' for shader '%s'.", kname_string_get(target->resource_name), kname_string_get(typed_resource->base.name));
             target->resource = 0;
             return;
         }
@@ -196,31 +170,31 @@ static void asset_to_resource(const kasset_shader* asset, kresource_shader* out_
     }
 
     // Build up flags.
-    out_shader_resource->flags = SHADER_FLAG_NONE_BIT;
+    typed_resource->flags = SHADER_FLAG_NONE_BIT;
     if (asset->depth_test) {
-        out_shader_resource->flags = FLAG_SET(out_shader_resource->flags, SHADER_FLAG_DEPTH_TEST_BIT, true);
+        typed_resource->flags = FLAG_SET(typed_resource->flags, SHADER_FLAG_DEPTH_TEST_BIT, true);
     }
     if (asset->depth_write) {
-        out_shader_resource->flags = FLAG_SET(out_shader_resource->flags, SHADER_FLAG_DEPTH_WRITE_BIT, true);
+        typed_resource->flags = FLAG_SET(typed_resource->flags, SHADER_FLAG_DEPTH_WRITE_BIT, true);
     }
 
     if (asset->stencil_test) {
-        out_shader_resource->flags = FLAG_SET(out_shader_resource->flags, SHADER_FLAG_STENCIL_TEST_BIT, true);
+        typed_resource->flags = FLAG_SET(typed_resource->flags, SHADER_FLAG_STENCIL_TEST_BIT, true);
     }
     if (asset->stencil_write) {
-        out_shader_resource->flags = FLAG_SET(out_shader_resource->flags, SHADER_FLAG_STENCIL_WRITE_BIT, true);
+        typed_resource->flags = FLAG_SET(typed_resource->flags, SHADER_FLAG_STENCIL_WRITE_BIT, true);
     }
 
     if (asset->colour_read) {
-        out_shader_resource->flags = FLAG_SET(out_shader_resource->flags, SHADER_FLAG_COLOUR_READ_BIT, true);
+        typed_resource->flags = FLAG_SET(typed_resource->flags, SHADER_FLAG_COLOUR_READ_BIT, true);
     }
     if (asset->colour_write) {
-        out_shader_resource->flags = FLAG_SET(out_shader_resource->flags, SHADER_FLAG_COLOUR_WRITE_BIT, true);
+        typed_resource->flags = FLAG_SET(typed_resource->flags, SHADER_FLAG_COLOUR_WRITE_BIT, true);
     }
 
     if (asset->supports_wireframe) {
-        out_shader_resource->flags = FLAG_SET(out_shader_resource->flags, SHADER_FLAG_WIREFRAME_BIT, true);
+        typed_resource->flags = FLAG_SET(typed_resource->flags, SHADER_FLAG_WIREFRAME_BIT, true);
     }
 
-    out_shader_resource->base.state = KRESOURCE_STATE_LOADED;
+    typed_resource->base.state = KRESOURCE_STATE_LOADED;
 }

@@ -8,7 +8,7 @@
 #include "strings/kname.h"
 #include "strings/kstring.h"
 
-const char* kasset_heightmap_terrain_serialize(const kasset* asset) {
+const char* kasset_heightmap_terrain_serialize(const kasset_heightmap_terrain* asset) {
     if (!asset) {
         KERROR("kasset_heightmap_serialize requires an asset to serialize, ya dingus!");
         return 0;
@@ -22,7 +22,7 @@ const char* kasset_heightmap_terrain_serialize(const kasset* asset) {
     tree.root = kson_object_create();
 
     // version
-    if (!kson_object_value_add_int(&tree.root, "version", typed_asset->base.meta.version)) {
+    if (!kson_object_value_add_int(&tree.root, "version", typed_asset->version)) {
         KERROR("Failed to add version, which is a required field.");
         goto cleanup_kson;
     }
@@ -71,7 +71,7 @@ cleanup_kson:
     return out_str;
 }
 
-b8 kasset_heightmap_terrain_deserialize(const char* file_text, kasset* out_asset) {
+b8 kasset_heightmap_terrain_deserialize(const char* file_text, kasset_heightmap_terrain* out_asset) {
     if (out_asset) {
         b8 success = false;
         kasset_heightmap_terrain* typed_asset = (kasset_heightmap_terrain*)out_asset;
@@ -84,7 +84,7 @@ b8 kasset_heightmap_terrain_deserialize(const char* file_text, kasset* out_asset
         }
 
         // version
-        if (!kson_object_property_value_get_int(&tree.root, "version", (i64*)(&typed_asset->base.meta.version))) {
+        if (!kson_object_property_value_get_int(&tree.root, "version", (i64*)(&typed_asset->version))) {
             KERROR("Failed to parse version, which is a required field.");
             goto cleanup_kson;
         }

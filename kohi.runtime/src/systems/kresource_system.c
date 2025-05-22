@@ -7,14 +7,12 @@
 #include "kresources/handlers/kresource_handler_binary.h"
 #include "kresources/handlers/kresource_handler_bitmap_font.h"
 #include "kresources/handlers/kresource_handler_heightmap_terrain.h"
-#include "kresources/handlers/kresource_handler_material.h"
 #include "kresources/handlers/kresource_handler_scene.h"
 #include "kresources/handlers/kresource_handler_shader.h"
 #include "kresources/handlers/kresource_handler_static_mesh.h"
 #include "kresources/handlers/kresource_handler_system_font.h"
 #include "kresources/handlers/kresource_handler_text.h"
 #include "kresources/kresource_types.h"
-#include "kresources/kresource_utils.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "strings/kname.h"
@@ -75,7 +73,7 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
         handler.size = sizeof(kresource_text);
         handler.release = kresource_handler_text_release;
         handler.request = kresource_handler_text_request;
-        handler.handle_hot_reload = kresource_handler_text_handle_hot_reload;
+        /* handler.handle_hot_reload = kresource_handler_text_handle_hot_reload; */
         if (!kresource_system_handler_register(state, KRESOURCE_TYPE_TEXT, handler)) {
             KERROR("Failed to register text resource handler");
             return false;
@@ -88,21 +86,9 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
         handler.size = sizeof(kresource_binary);
         handler.release = kresource_handler_binary_release;
         handler.request = kresource_handler_binary_request;
-        handler.handle_hot_reload = kresource_handler_binary_handle_hot_reload;
+        /* handler.handle_hot_reload = kresource_handler_binary_handle_hot_reload; */
         if (!kresource_system_handler_register(state, KRESOURCE_TYPE_BINARY, handler)) {
             KERROR("Failed to register binary resource handler");
-            return false;
-        }
-    }
-
-    // Material handler.
-    {
-        kresource_handler handler = {0};
-        handler.size = sizeof(kresource_material);
-        handler.release = kresource_handler_material_release;
-        handler.request = kresource_handler_material_request;
-        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_MATERIAL, handler)) {
-            KERROR("Failed to register material resource handler");
             return false;
         }
     }

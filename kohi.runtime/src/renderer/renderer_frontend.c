@@ -323,9 +323,29 @@ b8 renderer_on_window_created(struct renderer_system_state* state, struct kwindo
 
     // Request writeable images that are the size of the window. These are used as render targets and
     // are later blitted to swapchain images.
-    // LEFTOFF: These can't be requested until the renderer backend is setup.
-    window->renderer_state->colourbuffer = texture_system_request_writeable(kname_create("__window_colourbuffer_texture__"), window->width, window->height, TEXTURE_FORMAT_RGBA8, false, true);
-    window->renderer_state->depthbuffer = texture_system_request_depth(kname_create("__window_depthbuffer_texture__"), window->width, window->height, true, true);
+    {
+        ktexture_load_options options = {
+            .type = KTEXTURE_TYPE_2D,
+            .is_writeable = true,
+            .format = KPIXEL_FORMAT_RGBA8,
+            .width = window->width,
+            .height = window->height,
+            .multiframe_buffering = true,
+            .name = kname_create("__window_colourbuffer_texture__")};
+        window->renderer_state->colourbuffer = texture_acquire_with_options_sync(options);
+    }
+    {
+        ktexture_load_options options = {
+            .type = KTEXTURE_TYPE_2D,
+            .is_depth = true,
+            .is_stencil = true,
+            .format = KPIXEL_FORMAT_RGBA8,
+            .width = window->width,
+            .height = window->height,
+            .multiframe_buffering = true,
+            .name = kname_create("__window_depthbuffer_texture__")};
+        window->renderer_state->depthbuffer = texture_acquire_with_options_sync(options);
+    }
 
     return true;
 }
@@ -345,14 +365,14 @@ void renderer_on_window_resized(struct renderer_system_state* state, const struc
 
     // Also recreate colour/depth buffers.
     if (window->renderer_state->colourbuffer) {
-        if (!texture_system_resize(window->renderer_state->colourbuffer, window->width, window->height, texture_system_initialized)) {
+        if (!texture_resize(window->renderer_state->colourbuffer, window->width, window->height, texture_system_initialized)) {
             KERROR("Failed to resize window colour buffer texture on window resize.");
             return;
         }
     }
 
     if (window->renderer_state->depthbuffer) {
-        if (!texture_system_resize(window->renderer_state->depthbuffer, window->width, window->height, texture_system_initialized)) {
+        if (!texture_resize(window->renderer_state->depthbuffer, window->width, window->height, texture_system_initialized)) {
             KERROR("Failed to resize window depth buffer texture on window resize.");
             return;
         }
@@ -570,13 +590,13 @@ void renderer_set_stencil_write_mask(u32 write_mask) {
     state_ptr->backend->set_stencil_write_mask(state_ptr->backend, write_mask);
 }
 
-b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* state, kname name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle) {
+b8 renderer_texture_resources_acquire(struct renderer_system_state* state, kname name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_renderer_texture_handle) {
     if (!state) {
         return false;
     }
 
     if (!out_renderer_texture_handle) {
-        KERROR("renderer_kresource_texture_resources_acquire requires a valid pointer to a handle.");
+        KERROR("%s - requires a valid pointer to a handle.", __FUNCTION__);
         return false;
     }
 
@@ -810,7 +830,7 @@ void renderer_colour_texture_prepare_for_present(struct renderer_system_state* s
     KERROR("renderer_colour_texture_prepare_for_present requires a valid handle to a texture. Nothing was done.");
 }
 
-void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, khandle texture_handle, texture_flag_bits flags) {
+void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, khandle texture_handle, ktexture_flag_bits flags) {
     if (state && !khandle_is_invalid(texture_handle)) {
         state->backend->texture_prepare_for_sampling(state->backend, texture_handle, flags);
         return;

@@ -11,6 +11,7 @@
 #include "strings/kstring.h"
 #include "systems/material_system.h"
 #include "systems/shader_system.h"
+#include "systems/texture_system.h"
 #include <runtime_defines.h>
 
 typedef struct debug_shader_locations {
@@ -25,8 +26,8 @@ typedef struct debug_rendergraph_node_internal_data {
     khandle colour_shader;
     debug_shader_locations debug_locations;
 
-    struct kresource_texture* colourbuffer_texture;
-    struct kresource_texture* depthbuffer_texture;
+    ktexture colourbuffer_texture;
+    ktexture depthbuffer_texture;
 
     viewport vp;
     mat4 view;
@@ -175,7 +176,9 @@ b8 debug_rendergraph_node_execute(struct rendergraph_node* self, struct frame_da
     renderer_begin_debug_label(self->name, (vec3){0.5f, 1.0f, 0});
 
     if (internal_data->geometry_count > 0) {
-        renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
+        khandle colourbuffer_texture_handle = texture_renderer_handle_get(internal_data->colourbuffer_texture);
+        khandle depthbuffer_texture_handle = texture_renderer_handle_get(internal_data->depthbuffer_texture);
+        renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colourbuffer_texture_handle, depthbuffer_texture_handle, 0);
 
         // Bind the viewport
         renderer_active_viewport_set(&internal_data->vp);

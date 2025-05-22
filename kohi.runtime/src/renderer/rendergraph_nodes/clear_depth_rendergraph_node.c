@@ -1,12 +1,14 @@
 
 #include "clear_depth_rendergraph_node.h"
 #include "core/engine.h"
+#include "identifiers/khandle.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "parsers/kson_parser.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
 #include "strings/kstring.h"
+#include "systems/texture_system.h"
 
 typedef struct clear_depth_rendergraph_node_config {
     const char* source_name;
@@ -16,7 +18,7 @@ typedef struct clear_depth_rendergraph_node_config {
 
 typedef struct clear_depth_rendergraph_node_internal_data {
     struct renderer_system_state* renderer;
-    struct kresource_texture* buffer_texture;
+    ktexture buffer_texture;
     f32 depth_clear_value;
     u32 stencil_clear_value;
 } clear_depth_rendergraph_node_internal_data;
@@ -106,7 +108,8 @@ b8 clear_depth_rendergraph_node_execute(struct rendergraph_node* self, struct fr
     renderer_clear_depth_set(internal_data->renderer, internal_data->depth_clear_value);
     renderer_clear_stencil_set(internal_data->renderer, internal_data->stencil_clear_value);
 
-    b8 result = renderer_clear_depth_stencil(internal_data->renderer, internal_data->buffer_texture->renderer_texture_handle);
+    khandle handle = texture_renderer_handle_get(internal_data->buffer_texture);
+    b8 result = renderer_clear_depth_stencil(internal_data->renderer, handle);
 
     renderer_end_debug_label();
 

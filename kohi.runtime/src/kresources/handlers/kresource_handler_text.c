@@ -6,16 +6,10 @@
 #include <memory/kmemory.h>
 #include <strings/kname.h>
 
-#include "containers/darray.h"
-#include "core/event.h"
 #include "kresources/kresource_types.h"
 #include "strings/kstring.h"
 #include "systems/asset_system.h"
 #include "systems/kresource_system.h"
-#include "core/engine.h"
-
-static void text_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
-static void text_kasset_on_hot_reload(asset_request_result result, const struct kasset* asset, void* listener_inst);
 
 b8 kresource_handler_text_request(kresource_handler* self, kresource* resource, const struct kresource_request_info* info) {
     if (!self || !resource) {
@@ -24,24 +18,24 @@ b8 kresource_handler_text_request(kresource_handler* self, kresource* resource, 
     }
 
     kresource_text* typed_resource = (kresource_text*)resource;
-    /* typed_resource->base.state = KRESOURCE_STATE_UNINITIALIZED; */
-    /* typed_resource->base.state = KRESOURCE_STATE_INITIALIZED; */
     // Straight to loading state.
     typed_resource->base.state = KRESOURCE_STATE_LOADING;
 
     kresource_asset_info* asset_info = &info->assets.data[0];
 
-    asset_request_info request_info = {0};
-    request_info.type = asset_info->type;
-    request_info.asset_name = asset_info->asset_name;
-    request_info.package_name = asset_info->package_name;
-    request_info.auto_release = true;
-    request_info.listener_inst = typed_resource;
-    request_info.callback = text_kasset_on_result;
-    request_info.synchronous = true;
-    request_info.import_params_size = 0;
-    request_info.import_params = 0;
-    asset_system_request(self->asset_system, request_info);
+    kasset_text* asset = asset_system_request_text_from_package_sync(self->asset_system, kname_string_get(asset_info->package_name), kname_string_get(asset_info->asset_name));
+    if (!asset) {
+        KERROR("%s - Failed to load asset. See logs for details.", __FUNCTION__);
+        return false;
+    }
+
+    // Take a copy of the string.
+    typed_resource->text = string_duplicate(asset->content);
+
+    // Release the asset.
+    asset_system_release_text(self->asset_system, asset);
+
+    resource->state = KRESOURCE_STATE_LOADED;
 
     return true;
 }
@@ -54,35 +48,5 @@ void kresource_handler_text_release(kresource_handler* self, kresource* resource
             string_free(typed_resource->text);
             typed_resource->text = 0;
         }
-    }
-}
-
-KAPI b8 kresource_handler_text_handle_hot_reload(struct kresource_handler* self, kresource* resource, kasset* asset, u32 file_watch_id) {
-    if (resource && asset) {
-        kresource_text* typed_resource = (kresource_text*)resource;
-        kasset_text* typed_asset = (kasset_text*)asset;
-
-        if (typed_resource->text) {
-            string_free(typed_resource->text);
-            typed_resource->text = 0;
-        }
-
-        typed_resource->text = string_duplicate(typed_asset->content);
-
-        return true;
-    }
-
-    return false;
-}
-
-static void text_kasset_on_result(asset_request_result result, const struct kasset* asset, void* listener_inst) {
-    kresource_text* typed_resource = (kresource_text*)listener_inst;
-    if (result == ASSET_REQUEST_RESULT_SUCCESS) {
-        typed_resource->text = string_duplicate(((kasset_text*)asset)->content);
-        typed_resource->asset_file_watch_id = asset->file_watch_id;
-        typed_resource->base.generation++;
-        kresource_system_register_for_hot_reload(engine_systems_get()->kresource_state, (kresource*)typed_resource, asset->file_watch_id);
-    } else {
-        KERROR("Failed to load a required asset for text resource '%s'.", kname_string_get(typed_resource->base.name));
     }
 }

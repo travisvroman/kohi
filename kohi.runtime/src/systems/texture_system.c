@@ -64,8 +64,8 @@ typedef struct texture_asset_load_listener_context {
     // NOTE: size of array is texture->layer_count
     kasset_image** assets;
     kname name;
-    const char** image_asset_names;
-    const char** package_names;
+    kname* image_asset_names;
+    kname* package_names;
     ktexture_load_options options;
     u32 loaded_asset_count;
 } texture_asset_load_listener_context;
@@ -80,7 +80,7 @@ static ktexture texture_get_if_exists(kname name);
 static ktexture texture_get_new(kname name);
 static b8 texture_resources_acquire(ktexture t, kname name);
 static void texture_cleanup(ktexture t, b8 clear_references);
-static b8 get_image_asset_names_from_options(const ktexture_load_options* options, u16* out_count, const char*** image_asset_names, const char*** package_names);
+static b8 get_image_asset_names_from_options(const ktexture_load_options* options, u16* out_count, kname** image_asset_names, kname** package_names);
 static void combine_asset_pixel_data(kasset_image** assets, u32 count, u32 expected_width, u32 expected_height, b8 release_assets, u32* out_size, void** out_pixels);
 static b8 texture_apply_asset_data(ktexture t, kname name, const ktexture_load_options* options, kasset_image** assets);
 
@@ -149,7 +149,7 @@ void texture_system_shutdown(void* state) {
     }
 }
 
-ktexture texture_acquire(const char* image_asset_name, void* listener, PFN_texture_loaded_callback callback) {
+ktexture texture_acquire(kname image_asset_name, void* listener, PFN_texture_loaded_callback callback) {
     ktexture_load_options options = {
         .type = KTEXTURE_TYPE_2D,
         .auto_release = true,
@@ -160,7 +160,7 @@ ktexture texture_acquire(const char* image_asset_name, void* listener, PFN_textu
 }
 
 // auto_release=true, default options
-ktexture texture_acquire_sync(const char* image_asset_name) {
+ktexture texture_acquire_sync(kname image_asset_name) {
     ktexture_load_options options = {
         .type = KTEXTURE_TYPE_2D,
         .auto_release = true,
@@ -171,7 +171,7 @@ ktexture texture_acquire_sync(const char* image_asset_name) {
 }
 
 void texture_release(ktexture texture) {
-    if (texture != INVALID_ID_U16 && state_ptr->formats[texture] != KPIXEL_FORMAT_UNKNOWN) {
+    if (texture != INVALID_KTEXTURE && state_ptr->formats[texture] != KPIXEL_FORMAT_UNKNOWN) {
         if (state_ptr->texture_reference_counts[texture] > 0) {
             state_ptr->texture_reference_counts[texture]--;
 
@@ -185,7 +185,7 @@ void texture_release(ktexture texture) {
 }
 
 // auto_release=true, default options
-ktexture texture_acquire_from_package(const char* image_asset_name, const char* package_name, void* listener, PFN_texture_loaded_callback callback) {
+ktexture texture_acquire_from_package(kname image_asset_name, kname package_name, void* listener, PFN_texture_loaded_callback callback) {
     ktexture_load_options options = {
         .type = KTEXTURE_TYPE_2D,
         .auto_release = true,
@@ -195,7 +195,7 @@ ktexture texture_acquire_from_package(const char* image_asset_name, const char* 
     return texture_acquire_with_options(options, listener, callback);
 }
 
-ktexture texture_acquire_from_package_sync(const char* image_asset_name, const char* package_name) {
+ktexture texture_acquire_from_package_sync(kname image_asset_name, kname package_name) {
     ktexture_load_options options = {
         .type = KTEXTURE_TYPE_2D,
         .auto_release = true,
@@ -205,7 +205,7 @@ ktexture texture_acquire_from_package_sync(const char* image_asset_name, const c
     return texture_acquire_with_options_sync(options);
 }
 
-ktexture texture_cubemap_acquire(const char* image_asset_name_prefix, void* listener, PFN_texture_loaded_callback callback) {
+ktexture texture_cubemap_acquire(kname image_asset_name_prefix, void* listener, PFN_texture_loaded_callback callback) {
     ktexture_load_options options = {
         .type = KTEXTURE_TYPE_CUBE,
         .auto_release = true,
@@ -215,7 +215,7 @@ ktexture texture_cubemap_acquire(const char* image_asset_name_prefix, void* list
     return texture_acquire_with_options(options, listener, callback);
 }
 
-ktexture texture_cubemap_acquire_sync(const char* image_asset_name_prefix) {
+ktexture texture_cubemap_acquire_sync(kname image_asset_name_prefix) {
     ktexture_load_options options = {
         .type = KTEXTURE_TYPE_CUBE,
         .auto_release = true,
@@ -225,7 +225,7 @@ ktexture texture_cubemap_acquire_sync(const char* image_asset_name_prefix) {
     return texture_acquire_with_options_sync(options);
 }
 
-ktexture texture_cubemap_acquire_from_package(const char* image_asset_name_prefix, const char* package_name, void* listener, PFN_texture_loaded_callback callback) {
+ktexture texture_cubemap_acquire_from_package(kname image_asset_name_prefix, kname package_name, void* listener, PFN_texture_loaded_callback callback) {
     ktexture_load_options options = {
         .type = KTEXTURE_TYPE_CUBE,
         .auto_release = true,
@@ -235,7 +235,7 @@ ktexture texture_cubemap_acquire_from_package(const char* image_asset_name_prefi
     return texture_acquire_with_options(options, listener, callback);
 }
 
-ktexture texture_cubemap_acquire_from_package_sync(const char* image_asset_name_prefix, const char* package_name) {
+ktexture texture_cubemap_acquire_from_package_sync(kname image_asset_name_prefix, kname package_name) {
     ktexture_load_options options = {
         .type = KTEXTURE_TYPE_CUBE,
         .auto_release = true,
@@ -245,7 +245,7 @@ ktexture texture_cubemap_acquire_from_package_sync(const char* image_asset_name_
     return texture_acquire_with_options_sync(options);
 }
 
-ktexture texture_acquire_from_image(const struct kasset_image* image, const char* name) {
+ktexture texture_acquire_from_image(const struct kasset_image* image, kname name) {
     ktexture_load_options options = {
         .type = KTEXTURE_TYPE_2D,
         .auto_release = true,
@@ -255,7 +255,7 @@ ktexture texture_acquire_from_image(const struct kasset_image* image, const char
     return texture_acquire_with_options_sync(options);
 }
 
-ktexture texture_acquire_from_pixel_data(kpixel_format format, u32 pixel_array_size, void* pixels, u32 width, u32 height, const char* name) {
+ktexture texture_acquire_from_pixel_data(kpixel_format format, u32 pixel_array_size, void* pixels, u32 width, u32 height, kname name) {
     if (!width || !height) {
         KERROR("%s requires a nonzero width and height, ya dingus!", __FUNCTION__);
         return 0;
@@ -272,7 +272,7 @@ ktexture texture_acquire_from_pixel_data(kpixel_format format, u32 pixel_array_s
     return texture_acquire_with_options_sync(options);
 }
 
-ktexture texture_cubemap_acquire_from_pixel_data(kpixel_format format, u32 pixel_array_size, void* pixels, u32 width, u32 height, const char* name) {
+ktexture texture_cubemap_acquire_from_pixel_data(kpixel_format format, u32 pixel_array_size, void* pixels, u32 width, u32 height, kname name) {
     if (!width || !height) {
         KERROR("%s requires a nonzero width and height, ya dingus!", __FUNCTION__);
         return 0;
@@ -294,17 +294,17 @@ ktexture texture_cubemap_acquire_from_pixel_data(kpixel_format format, u32 pixel
 } */
 
 ktexture texture_acquire_with_options(ktexture_load_options options, void* listener, PFN_texture_loaded_callback callback) {
-    if ((!options.name || !string_length(options.name)) && (!options.image_asset_name || !string_length(options.image_asset_name))) {
+    if (options.name != INVALID_KNAME && options.image_asset_name != INVALID_KNAME) {
         KERROR("%s - Either name or image_asset_name is required.", __FUNCTION__);
         return 0;
     }
 
     b8 success = false;
-    kname name = kname_create(options.name ? options.name : options.image_asset_name);
+    kname name = options.name ? options.name : options.image_asset_name;
     ktexture t = texture_get_if_exists(name);
 
     // If an entry with the name exists, return it.
-    if (t != INVALID_ID_U16) {
+    if (t != INVALID_KTEXTURE) {
         // Increment reference count.
         state_ptr->texture_reference_counts[t]++;
 
@@ -317,7 +317,7 @@ ktexture texture_acquire_with_options(ktexture_load_options options, void* liste
 
     // Pick a free slot in the texture cache.
     t = texture_get_new(name);
-    if (t == INVALID_ID_U16) {
+    if (t == INVALID_KTEXTURE) {
         goto texture_acquire_with_options_async_cleanup;
     }
 
@@ -336,8 +336,8 @@ ktexture texture_acquire_with_options(ktexture_load_options options, void* liste
 
     state_ptr->auto_releases[t] = options.auto_release;
 
-    const char** image_asset_names = 0;
-    const char** package_names = 0;
+    kname* image_asset_names = 0;
+    kname* package_names = 0;
     if (!get_image_asset_names_from_options(&options, &state_ptr->array_sizes[t], &image_asset_names, &package_names)) {
         goto texture_acquire_with_options_async_cleanup;
     }
@@ -358,10 +358,11 @@ ktexture texture_acquire_with_options(ktexture_load_options options, void* liste
         // Fetch assets.
         u16 array_size = state_ptr->array_sizes[t];
         for (u16 i = 0; i < array_size; ++i) {
-            if (package_names[i]) {
-                context->assets[i] = asset_system_request_image_from_package(state_ptr->kasset_system, image_asset_names[i], package_names[i], false, context, texture_kasset_image_loaded);
+            const char* asset_name = kname_string_get(image_asset_names[i]);
+            if (package_names[i] != INVALID_KNAME) {
+                context->assets[i] = asset_system_request_image_from_package(state_ptr->kasset_system, asset_name, kname_string_get(package_names[i]), false, context, texture_kasset_image_loaded);
             } else {
-                context->assets[i] = asset_system_request_image(state_ptr->kasset_system, image_asset_names[i], false, context, texture_kasset_image_loaded);
+                context->assets[i] = asset_system_request_image(state_ptr->kasset_system, asset_name, false, context, texture_kasset_image_loaded);
             }
             if (!context->assets[i]) {
                 // NOTE: Continue to load other images instead of booting here.
@@ -402,9 +403,9 @@ ktexture texture_acquire_with_options(ktexture_load_options options, void* liste
     success = true;
 texture_acquire_with_options_async_cleanup:
 
-    if (t != INVALID_ID_U16) {
-        string_cleanup_array(image_asset_names, state_ptr->array_sizes[t]);
-        string_cleanup_array(package_names, state_ptr->array_sizes[t]);
+    if (t != INVALID_KTEXTURE) {
+        KFREE_TYPE_CARRAY(image_asset_names, kname, state_ptr->array_sizes[t]);
+        KFREE_TYPE_CARRAY(package_names, kname, state_ptr->array_sizes[t]);
     }
 
     if (!success) {
@@ -416,17 +417,23 @@ texture_acquire_with_options_async_cleanup:
 }
 
 ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
-    if ((!options.name || !string_length(options.name)) && (!options.image_asset_name || !string_length(options.image_asset_name))) {
+    if (options.name != INVALID_KNAME && options.image_asset_name != INVALID_KNAME) {
         KERROR("%s - Either name or image_asset_name is required.", __FUNCTION__);
         return 0;
     }
 
     b8 success = false;
-    kname name = kname_create(options.name ? options.name : options.image_asset_name);
+    kname name = options.name ? options.name : options.image_asset_name;
     ktexture t = texture_get_if_exists(name);
 
+    // Load pixel/asset pixel data.
+    u32 all_pixel_size = 0;
+    // TODO: This will be an issue with any other bit depth than 8
+    u8* all_pixels = 0;
+    b8 free_pixels = false;
+
     // If an entry with the name exists, return it.
-    if (t != INVALID_ID_U16) {
+    if (t != INVALID_KTEXTURE) {
         // Increment reference count.
         state_ptr->texture_reference_counts[t]++;
         return t;
@@ -434,7 +441,7 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
 
     // Pick a free slot in the texture cache.
     t = texture_get_new(name);
-    if (t == INVALID_ID_U16) {
+    if (t == INVALID_KTEXTURE) {
         goto texture_acquire_with_options_sync_cleanup;
     }
 
@@ -454,8 +461,9 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
     kasset_image** assets = 0;
 
     // Gather asset/package names, if relevant.
-    const char** image_asset_names = 0;
-    const char** package_names = 0;
+    kname* image_asset_names = 0;
+    kname* package_names = 0;
+
     if (!get_image_asset_names_from_options(&options, &state_ptr->array_sizes[t], &image_asset_names, &package_names)) {
         goto texture_acquire_with_options_sync_cleanup;
     }
@@ -464,10 +472,11 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
         // Fetch assets.
         assets = KALLOC_TYPE_CARRAY(kasset_image*, state_ptr->array_sizes[t]);
         for (u16 i = 0; i < state_ptr->array_sizes[t]; ++i) {
-            if (package_names[i]) {
-                assets[i] = asset_system_request_image_from_package_sync(state_ptr->kasset_system, image_asset_names[i], package_names[i], false);
+            const char* asset_name = kname_string_get(image_asset_names[i]);
+            if (package_names[i] != INVALID_KNAME) {
+                assets[i] = asset_system_request_image_from_package_sync(state_ptr->kasset_system, asset_name, kname_string_get(package_names[i]), false);
             } else {
-                assets[i] = asset_system_request_image_sync(state_ptr->kasset_system, image_asset_names[i], false);
+                assets[i] = asset_system_request_image_sync(state_ptr->kasset_system, asset_name, false);
             }
             if (!assets[i]) {
                 // NOTE: Continue to load other images instead of booting here.
@@ -504,11 +513,6 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
         goto texture_acquire_with_options_sync_cleanup;
     }
 
-    // Load pixel/asset pixel data.
-    u32 all_pixel_size = 0;
-    // TODO: This will be an issue with any other bit depth than 8
-    u8* all_pixels = 0;
-    b8 free_pixels = false;
     if (options.pixel_array_size && options.pixel_data) {
         all_pixels = options.pixel_data;
         all_pixel_size = options.pixel_array_size;
@@ -543,8 +547,8 @@ texture_acquire_with_options_sync_cleanup:
         if (assets) {
             KFREE_TYPE_CARRAY(assets, kasset_image, state_ptr->array_sizes[t]);
         }
-        string_cleanup_array(image_asset_names, state_ptr->array_sizes[t]);
-        string_cleanup_array(package_names, state_ptr->array_sizes[t]);
+        KFREE_TYPE_CARRAY(image_asset_names, kname, state_ptr->array_sizes[t]);
+        KFREE_TYPE_CARRAY(package_names, kname, state_ptr->array_sizes[t]);
     }
 
     if (!success) {
@@ -556,7 +560,7 @@ texture_acquire_with_options_sync_cleanup:
 }
 
 b8 texture_resize(ktexture t, u32 width, u32 height, b8 regenerate_internal_data) {
-    if (t != INVALID_ID_U16) {
+    if (t != INVALID_KTEXTURE) {
         if (!width || !height) {
             KERROR("%s - A nonzero width and height are required!", __FUNCTION__);
             return false;
@@ -602,6 +606,49 @@ static b8 texture_is_default(texture_system_state* state, ktexture t) {
            (t == state->default_kresource_water_dudv_texture);
 }
 
+u32 texture_width_get(ktexture t) {
+    if (t == INVALID_KTEXTURE) {
+        return 0;
+    }
+
+    return state_ptr->widths[t];
+}
+
+u32 texture_height_get(ktexture t) {
+    if (t == INVALID_KTEXTURE) {
+        return 0;
+    }
+
+    return state_ptr->heights[t];
+}
+
+b8 texture_dimensions_get(ktexture t, u32* out_width, u32* out_height) {
+    if (t == INVALID_KTEXTURE) {
+        return false;
+    }
+
+    *out_width = state_ptr->widths[t];
+    *out_height = state_ptr->heights[t];
+
+    return true;
+}
+
+khandle texture_renderer_handle_get(ktexture t) {
+    if (t == INVALID_KTEXTURE) {
+        return khandle_invalid();
+    }
+
+    return state_ptr->renderer_texture_handles[t];
+}
+
+ktexture_flag_bits texture_flags_get(ktexture t) {
+    if (t == INVALID_KTEXTURE) {
+        return 0;
+    }
+
+    return state_ptr->flags[t];
+}
+
 static b8 create_default_textures(texture_system_state* state) {
     // NOTE: Create default texture, a 256x256 blue/white checkerboard pattern.
     // This is done in code to eliminate asset dependencies.
@@ -637,7 +684,7 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, pixels, 16, 16, DEFAULT_TEXTURE_NAME);
+        state->default_kresource_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, pixels, 16, 16, kname_create(DEFAULT_TEXTURE_NAME));
         if (!state->default_kresource_texture) {
             KERROR("Failed to request resources for default texture");
             return false;
@@ -654,7 +701,7 @@ static b8 create_default_textures(texture_system_state* state) {
         // Request new resource texture.
 
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_base_colour_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, diff_pixels, 16, 16, DEFAULT_BASE_COLOUR_TEXTURE_NAME);
+        state->default_kresource_base_colour_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, diff_pixels, 16, 16, kname_create(DEFAULT_BASE_COLOUR_TEXTURE_NAME));
         if (!state->default_kresource_base_colour_texture) {
             KERROR("Failed to request resources for default base colour texture");
             return false;
@@ -670,7 +717,7 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_specular_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, spec_pixels, 16, 16, DEFAULT_SPECULAR_TEXTURE_NAME);
+        state->default_kresource_specular_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, spec_pixels, 16, 16, kname_create(DEFAULT_SPECULAR_TEXTURE_NAME));
         if (!state->default_kresource_specular_texture) {
             KERROR("Failed to request resources for default specular texture");
             return false;
@@ -696,7 +743,7 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_normal_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, normal_pixels, 16, 16, DEFAULT_NORMAL_TEXTURE_NAME);
+        state->default_kresource_normal_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, normal_pixels, 16, 16, kname_create(DEFAULT_NORMAL_TEXTURE_NAME));
         if (!state->default_kresource_normal_texture) {
             KERROR("Failed to request resources for default normal texture");
             return false;
@@ -722,7 +769,7 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_mra_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, mra_pixels, 16, 16, DEFAULT_MRA_TEXTURE_NAME);
+        state->default_kresource_mra_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, mra_pixels, 16, 16, kname_create(DEFAULT_MRA_TEXTURE_NAME));
         if (!state->default_kresource_mra_texture) {
             KERROR("Failed to request resources for default MRA texture");
             return false;
@@ -770,7 +817,7 @@ static b8 create_default_textures(texture_system_state* state) {
 
         // Request new resource texture.?
         u32 pixel_array_size = image_size;
-        state->default_kresource_cube_texture = texture_cubemap_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, pixels, 16, 16, DEFAULT_CUBE_TEXTURE_NAME);
+        state->default_kresource_cube_texture = texture_cubemap_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, pixels, 16, 16, kname_create(DEFAULT_CUBE_TEXTURE_NAME));
         if (!state->default_kresource_cube_texture) {
             KERROR("Failed to request resources for default cube texture");
             return false;
@@ -810,10 +857,10 @@ static b8 create_default_textures(texture_system_state* state) {
     } */
 
     // Default water normal texture is part of the runtime package - request it.
-    state->default_kresource_water_normal_texture = texture_acquire_sync(DEFAULT_WATER_NORMAL_TEXTURE_NAME);
+    state->default_kresource_water_normal_texture = texture_acquire_sync(kname_create(DEFAULT_WATER_NORMAL_TEXTURE_NAME));
 
     // Default water dudv texture is part of the runtime package - request it.
-    state->default_kresource_water_dudv_texture = texture_acquire_sync(DEFAULT_WATER_DUDV_TEXTURE_NAME);
+    state->default_kresource_water_dudv_texture = texture_acquire_sync(kname_create(DEFAULT_WATER_DUDV_TEXTURE_NAME));
 
     return true;
 }
@@ -884,11 +931,11 @@ static void texture_kasset_image_loaded(void* listener, kasset_image* asset) {
         if (context->assets) {
             KFREE_TYPE_CARRAY(context->assets, kasset_image*, state_ptr->array_sizes[t]);
         }
-        string_cleanup_array(context->image_asset_names, state_ptr->array_sizes[t]);
-        string_cleanup_array(context->package_names, state_ptr->array_sizes[t]);
+        KFREE_TYPE_CARRAY(context->image_asset_names, kname, state_ptr->array_sizes[t]);
+        KFREE_TYPE_CARRAY(context->package_names, kname, state_ptr->array_sizes[t]);
 
         if (!success) {
-            if (t != INVALID_ID_U16) {
+            if (t != INVALID_KTEXTURE) {
                 texture_cleanup(t, true);
             }
 
@@ -920,7 +967,7 @@ static ktexture texture_get_if_exists(kname name) {
         return t;
     }
 
-    return INVALID_ID_U16;
+    return INVALID_KTEXTURE;
 }
 
 static ktexture texture_get_new(kname name) {
@@ -946,7 +993,7 @@ static ktexture texture_get_new(kname name) {
     }
 
     KERROR("%s - Failed to find free slot in texture cache. Cache is full. Increase max_texture_count.");
-    return INVALID_ID_U16;
+    return INVALID_KTEXTURE;
 }
 
 static b8 texture_resources_acquire(ktexture t, kname name) {
@@ -964,7 +1011,7 @@ static b8 texture_resources_acquire(ktexture t, kname name) {
 }
 
 static void texture_cleanup(ktexture t, b8 clear_references) {
-    if (t != INVALID_ID_U16) {
+    if (t != INVALID_KTEXTURE) {
         renderer_texture_resources_release(state_ptr->renderer, &state_ptr->renderer_texture_handles[t]);
 
         if (clear_references) {
@@ -984,7 +1031,7 @@ static void texture_cleanup(ktexture t, b8 clear_references) {
     }
 }
 
-static b8 get_image_asset_names_from_options(const ktexture_load_options* options, u16* out_count, const char*** image_asset_names, const char*** package_names) {
+static b8 get_image_asset_names_from_options(const ktexture_load_options* options, u16* out_count, kname** image_asset_names, kname** package_names) {
     u16 count = 0;
 
     // No pixel data provided, check if asset name(s) are.
@@ -993,11 +1040,11 @@ static b8 get_image_asset_names_from_options(const ktexture_load_options* option
         if (options->type == KTEXTURE_TYPE_2D_ARRAY) {
             count = options->layer_count;
 
-            *image_asset_names = KALLOC_TYPE_CARRAY(const char*, count);
-            *package_names = KALLOC_TYPE_CARRAY(const char*, count);
+            *image_asset_names = KALLOC_TYPE_CARRAY(kname, count);
+            *package_names = KALLOC_TYPE_CARRAY(kname, count);
             for (u8 i = 0; i < count; ++i) {
-                (*image_asset_names)[i] = string_duplicate(options->layer_image_asset_names[i]);
-                (*package_names)[i] = string_duplicate(options->layer_package_names[i]);
+                (*image_asset_names)[i] = options->layer_image_asset_names[i];
+                (*package_names)[i] = options->layer_package_names[i];
             }
         } else if (options->type == KTEXTURE_TYPE_CUBE_ARRAY) {
             // FIXME: Support for loading an array of cubemaps.
@@ -1022,22 +1069,24 @@ static b8 get_image_asset_names_from_options(const ktexture_load_options* option
             count = 6;
 
             // Build asset names.
-            *image_asset_names = KALLOC_TYPE_CARRAY(const char*, count);
-            *package_names = KALLOC_TYPE_CARRAY(const char*, count);
+            *image_asset_names = KALLOC_TYPE_CARRAY(kname, count);
+            *package_names = KALLOC_TYPE_CARRAY(kname, count);
             const char* cube_sides = "fbudrl";
             for (u8 i = 0; i < 6; ++i) {
-                (*image_asset_names)[i] = string_format("%s_%c", options->image_asset_name, cube_sides[i]);
-                (*package_names)[i] = options->package_name ? string_duplicate(options->package_name) : 0;
+                char* name_temp = string_format("%s_%c", options->image_asset_name, cube_sides[i]);
+                (*image_asset_names)[i] = kname_create(name_temp);
+                string_free(name_temp);
+                (*package_names)[i] = options->package_name ? options->package_name : INVALID_KNAME;
             }
         } else if (options->type == KTEXTURE_TYPE_2D) {
             // Load a single asset for the texture.
             count = 1;
 
-            *image_asset_names = KALLOC_TYPE_CARRAY(const char*, count);
-            *package_names = KALLOC_TYPE_CARRAY(const char*, count);
+            *image_asset_names = KALLOC_TYPE_CARRAY(kname, count);
+            *package_names = KALLOC_TYPE_CARRAY(kname, count);
 
-            (*image_asset_names)[0] = string_duplicate(options->image_asset_name);
-            (*package_names)[0] = options->package_name ? string_duplicate(options->package_name) : 0;
+            (*image_asset_names)[0] = options->image_asset_name;
+            (*package_names)[0] = options->package_name ? options->package_name : INVALID_KNAME;
         } else {
             // Need to use layer_image_asset_names instead.
             if (options->type == KTEXTURE_TYPE_2D_ARRAY || options->type == KTEXTURE_TYPE_CUBE_ARRAY) {
@@ -1066,7 +1115,6 @@ static void combine_asset_pixel_data(kasset_image** assets, u32 count, u32 expec
     // The initial size is always based on the first texture. Start at the second texture, if one exits.
     u32 offset = 0;
     for (u16 i = 1; i < count; ++i) {
-        b8 mismatch = false;
         kasset_image* asset = assets[i];
         if (!asset) {
             KERROR("No asset at index %u. This layer may not appear correctly.", i);
@@ -1110,15 +1158,16 @@ static b8 texture_apply_asset_data(ktexture t, kname name, const ktexture_load_o
         state_ptr->mip_level_counts[t] = calculate_mip_levels_from_dimension(state_ptr->widths[t], state_ptr->heights[t]);
     }
 
+    // Load pixel/asset pixel data.
+    u32 all_pixel_size = 0;
+    u8* all_pixels = 0;
+    b8 free_pixels = false;
+
     if (!texture_resources_acquire(t, name)) {
         KERROR("%s - Failed to acquire renderer texture resources for texture '%s'", __FUNCTION__, kname_string_get(name));
         goto texture_apply_asset_data_cleanup;
     }
 
-    // Load pixel/asset pixel data.
-    u32 all_pixel_size = 0;
-    u8* all_pixels = 0;
-    b8 free_pixels = false;
     if (options->pixel_array_size && options->pixel_data) {
         all_pixels = options->pixel_data;
         all_pixel_size = options->pixel_array_size;

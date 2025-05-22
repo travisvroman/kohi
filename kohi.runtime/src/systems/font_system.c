@@ -13,6 +13,7 @@
 #include <strings/kstring.h>
 
 #include "core/engine.h"
+#include "core_render_types.h"
 #include "kresources/kresource_types.h"
 #include "renderer/renderer_frontend.h"
 #include "systems/kresource_system.h"
@@ -61,7 +62,7 @@ typedef struct font_data {
 } font_data;
 
 typedef struct bitmap_font_page {
-    kresource_texture* atlas;
+    ktexture atlas;
 } bitmap_font_page;
 
 typedef struct bitmap_font_lookup {
@@ -79,7 +80,7 @@ typedef struct system_font_variant_data {
     i32* codepoints;
     f32 scale;
     font_data data;
-    kresource_texture* atlas;
+    ktexture atlas;
 } system_font_variant_data;
 
 typedef struct system_font_lookup {
@@ -407,11 +408,11 @@ b8 font_system_bitmap_font_load(font_system_state* state, kname resource_name, k
     if (font_resource->pages.base.length) {
         lookup->pages = KALLOC_TYPE_CARRAY(bitmap_font_page, font_resource->pages.base.length);
         for (u32 i = 0; i < lookup->page_count; ++i) {
-            lookup->pages[i].atlas = texture_system_request(font_resource->pages.data[i].image_asset_name, INVALID_KNAME, 0, 0);
+            lookup->pages[i].atlas = texture_acquire_sync(font_resource->pages.data[i].image_asset_name);
             // If lookup fails, use default texture instead.
             if (!lookup->pages[i].atlas) {
                 KWARN("Failed to request bitmap font atlas texture. Using a default texture instead, but text will not render correctly.");
-                lookup->pages[i].atlas = texture_system_request(kname_create(DEFAULT_TEXTURE_NAME), INVALID_KNAME, 0, 0);
+                lookup->pages[i].atlas = texture_acquire_sync(kname_create(DEFAULT_TEXTURE_NAME));
             }
         }
     }
@@ -441,7 +442,7 @@ b8 font_system_bitmap_font_measure_string(struct font_system_state* state, khand
     return true;
 }
 
-kresource_texture* font_system_bitmap_font_atlas_get(struct font_system_state* state, khandle font) {
+ktexture font_system_bitmap_font_atlas_get(struct font_system_state* state, khandle font) {
     bitmap_font_lookup* base_font = get_bitmap_font_lookup(state, font);
     if (!base_font) {
         KERROR("font_system_bitmap_font_measure_string: Unable to find bitmap font. Cannot measure.");
@@ -669,7 +670,7 @@ b8 font_system_system_font_generate_geometry(struct font_system_state* state, sy
     return generate_font_geometry(&var->data, FONT_TYPE_SYSTEM, text, out_geometry);
 }
 
-kresource_texture* font_system_system_font_atlas_get(struct font_system_state* state, system_font_variant variant) {
+ktexture font_system_system_font_atlas_get(struct font_system_state* state, system_font_variant variant) {
     system_font_lookup* base_font = get_system_font_lookup(state, variant.base_font);
     if (!base_font) {
         return 0;
@@ -947,13 +948,13 @@ static b8 create_system_font_variant(system_font_lookup* lookup, u16 size, kname
     // Create texture.
     const char* font_tex_name = string_format("__system_text_atlas_%s_i%i_sz%i__", kname_string_get(font_name), lookup->index, size);
 
-    out_variant->atlas = texture_system_request_writeable(
-        kname_create(font_tex_name),
-        out_variant->data.atlas_size_x,
-        out_variant->data.atlas_size_y,
-        TEXTURE_FORMAT_RGBA8,
-        true,
-        false);
+    ktexture_load_options options = {
+        .is_writeable = true,
+        .format = KPIXEL_FORMAT_RGBA8,
+        .width = out_variant->data.atlas_size_x,
+        .height = out_variant->data.atlas_size_y,
+    };
+    out_variant->atlas = texture_acquire_with_options_sync(options);
     string_free(font_tex_name);
     font_tex_name = 0;
 
@@ -1017,10 +1018,8 @@ static b8 rebuild_system_font_variant_atlas(system_font_lookup* lookup, system_f
     }
 
     // Write texture data to atlas.
-    if (!renderer_texture_write_data(
-            engine_systems_get()->renderer_system,
-            variant->atlas->renderer_texture_handle,
-            0, pack_image_size * 4, rgba_pixels)) {
+    khandle variant_atlas_handle = texture_renderer_handle_get(variant->atlas);
+    if (!renderer_texture_write_data(engine_systems_get()->renderer_system, variant_atlas_handle, 0, pack_image_size * 4, rgba_pixels)) {
         KERROR("Failed to write data to system font variant texture");
         return false;
     }
@@ -1130,7 +1129,7 @@ static void bitmap_font_release(font_system_state* state, bitmap_font_lookup* lo
             for (u32 i = 0; i < lookup->page_count; ++i) {
                 // Release atlas
                 if (lookup->pages[i].atlas) {
-                    texture_system_release_resource(lookup->pages[i].atlas);
+                    texture_release(lookup->pages[i].atlas);
                 }
             }
             KFREE_TYPE_CARRAY(lookup->pages, bitmap_font_page, lookup->page_count);
@@ -1151,7 +1150,7 @@ static void system_font_release(font_system_state* state, system_font_lookup* lo
         for (u32 i = 0; i < variant_count; ++i) {
             system_font_variant_data* v = &lookup->size_variants[i];
             if (v->atlas) {
-                texture_system_release_resource(v->atlas);
+                texture_release(v->atlas);
             }
 
             if (v->codepoints) {

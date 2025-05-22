@@ -16,10 +16,10 @@
 
 static b8 serialize_node(scene_node_config* node, kson_object* node_obj);
 
-static b8 deserialize_node(kasset* asset, scene_node_config* node, kson_object* node_obj);
-static b8 deserialize_attachment(kasset* asset, scene_node_config* node, kson_object* attachment_obj);
+static b8 deserialize_node(kasset_scene* asset, scene_node_config* node, kson_object* node_obj);
+static b8 deserialize_attachment(kasset_scene* asset, scene_node_config* node, kson_object* attachment_obj);
 
-const char* kasset_scene_serialize(const kasset* asset) {
+const char* kasset_scene_serialize(const kasset_scene* asset) {
     if (!asset) {
         KERROR("scene_serialize requires an asset to serialize, ya dingus!");
         KERROR("Scene serialization failed. See logs for details.");
@@ -89,7 +89,7 @@ cleanup_kson:
     return out_str;
 }
 
-b8 kasset_scene_deserialize(const char* file_text, kasset* out_asset) {
+b8 kasset_scene_deserialize(const char* file_text, kasset_scene* out_asset) {
     if (out_asset) {
         b8 success = false;
         kasset_scene* typed_asset = (kasset_scene*)out_asset;
@@ -106,7 +106,7 @@ b8 kasset_scene_deserialize(const char* file_text, kasset* out_asset) {
         kson_object properties_obj = {0};
         if (kson_object_property_value_get_object(&tree.root, "properties", &properties_obj)) {
             // This is a version 1 file.
-            out_asset->meta.version = 1;
+            /* out_asset->meta.version = 1; */
 
             // Description is also extracted from here for v1. This is optional, however, so don't
             // bother checking the result.
@@ -117,13 +117,12 @@ b8 kasset_scene_deserialize(const char* file_text, kasset* out_asset) {
             // File is v2+, extract the version and description from the root node.
 
             // version is required in this case.
-            if (!kson_object_property_value_get_int(&tree.root, "version", (i64*)(&typed_asset->base.meta.version))) {
+            if (!kson_object_property_value_get_int(&tree.root, "version", (i64*)(&typed_asset->version))) {
                 KERROR("Failed to parse version, which is a required field.");
                 goto cleanup_kson;
             }
-
-            if (typed_asset->base.meta.version > SCENE_ASSET_CURRENT_VERSION) {
-                KERROR("Parsed scene version '%u' is beyond what the current version '%u' is. Check file format. Deserialization failed.", typed_asset->base.meta.version, SCENE_ASSET_CURRENT_VERSION);
+            if (typed_asset->version > SCENE_ASSET_CURRENT_VERSION) {
+                KERROR("Parsed scene version '%u' is beyond what the current version '%u' is. Check file format. Deserialization failed.", typed_asset->version, SCENE_ASSET_CURRENT_VERSION);
                 return false;
             }
 
@@ -646,7 +645,7 @@ static b8 serialize_node(scene_node_config* node, kson_object* node_obj) {
     return true;
 }
 
-static b8 deserialize_node(kasset* asset, scene_node_config* node, kson_object* node_obj) {
+static b8 deserialize_node(kasset_scene* asset, scene_node_config* node, kson_object* node_obj) {
 
     // Get name, if defined. Not required.
     kson_object_property_value_get_string_as_kname(node_obj, "name", &node->name);
@@ -712,7 +711,7 @@ static b8 deserialize_node(kasset* asset, scene_node_config* node, kson_object* 
     // Done!
     return true;
 }
-static b8 deserialize_attachment(kasset* asset, scene_node_config* node, kson_object* attachment_obj) {
+static b8 deserialize_attachment(kasset_scene* asset, scene_node_config* node, kson_object* attachment_obj) {
 
     // Name, if it exists. Optional.
     kname name = INVALID_KNAME;
@@ -736,7 +735,7 @@ static b8 deserialize_attachment(kasset* asset, scene_node_config* node, kson_ob
         }
 
         // Some things in version 1 were named differently. Try those as well if v1.
-        if (asset->meta.version == 1) {
+        if (asset->version == 1) {
             // fallback types.
             if (i == SCENE_NODE_ATTACHMENT_TYPE_HEIGHTMAP_TERRAIN) {
                 if (strings_equali("terrain", type_str)) {
@@ -784,7 +783,7 @@ static b8 deserialize_attachment(kasset* asset, scene_node_config* node, kson_ob
         // Cubemap name
         if (!kson_object_property_value_get_string_as_kname(attachment_obj, "cubemap_image_asset_name", &typed_attachment.cubemap_image_asset_name)) {
             // Try fallback name if v1.
-            if (asset->meta.version == 1) {
+            if (asset->version == 1) {
                 if (!kson_object_property_value_get_string_as_kname(attachment_obj, "cubemap_name", &typed_attachment.cubemap_image_asset_name)) {
                     KERROR("Failed to add 'cubemap_name' property for attachment '%s'.", attachment_name);
                     return false;
@@ -954,7 +953,7 @@ static b8 deserialize_attachment(kasset* asset, scene_node_config* node, kson_ob
         if (!kson_object_property_value_get_string_as_kname(attachment_obj, "asset_name", &typed_attachment.asset_name)) {
 
             // Try fallback.
-            if (asset->meta.version == 1) {
+            if (asset->version == 1) {
                 if (!kson_object_property_value_get_string_as_kname(attachment_obj, "resource_name", &typed_attachment.asset_name)) {
                     KERROR("Failed to get 'resource_name' property for attachment '%s'.", attachment_name);
                     return false;
@@ -984,7 +983,7 @@ static b8 deserialize_attachment(kasset* asset, scene_node_config* node, kson_ob
         if (!kson_object_property_value_get_string_as_kname(attachment_obj, "asset_name", &typed_attachment.asset_name)) {
 
             // Try fallback.
-            if (asset->meta.version == 1) {
+            if (asset->version == 1) {
                 if (!kson_object_property_value_get_string_as_kname(attachment_obj, "resource_name", &typed_attachment.asset_name)) {
                     KERROR("Failed to get 'resource_name' property for attachment '%s'.", attachment_name);
                     return false;

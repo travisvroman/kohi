@@ -6,7 +6,7 @@
 #include <math/kmath.h>
 #include <memory/kmemory.h>
 #include <platform/vfs.h>
-#include <serializers/kasset_binary_image_serializer.h>
+#include <serializers/kasset_image_serializer.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 // Using our own filesystem.

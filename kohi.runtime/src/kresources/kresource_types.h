@@ -149,6 +149,9 @@ typedef u8 ktexture_flag_bits;
  */
 typedef u16 ktexture;
 
+// The id representing an invalid texture.
+#define INVALID_KTEXTURE INVALID_ID_U16
+
 /**
  * @brief A shader resource.
  */

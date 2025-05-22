@@ -55,14 +55,14 @@ typedef struct shadow_rendergraph_node_internal_data {
     viewport camera_viewport;
 
     // The depth texture used for the directional light shadow.
-    kresource_texture* depth_texture;
+    ktexture depth_texture;
 
     // Static mesh shader and locations.
     khandle shadow_staticmesh_shader;
     shadow_staticmesh_shader_locations staticmesh_shader_locations;
 
     // A pointer to the default base colour texture to be used when rendering opaque static meshes.
-    kresource_texture* default_base_colour_texture;
+    ktexture default_base_colour_texture;
     // Holds the id for the default static mesh shader group.
     shadow_shader_group_data default_group;
 
@@ -180,7 +180,7 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
     // be rendered under the same group.
     // Since terrains will never be transparent, they can all be rendered without using a texture at all.
 
-    internal_data->default_base_colour_texture = texture_system_request(kname_create(DEFAULT_BASE_COLOUR_TEXTURE_NAME), INVALID_KNAME, 0, 0);
+    internal_data->default_base_colour_texture = texture_acquire_sync(kname_create(DEFAULT_BASE_COLOUR_TEXTURE_NAME));
     if (!internal_data->default_base_colour_texture) {
         KERROR("Failed to load default base colour texture when initializing shadow rendergraph node.");
         return false;
@@ -202,7 +202,16 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
 
     // Create the depth attachment for the directional light shadow.
     // This should take renderer buffering into account.
-    internal_data->depth_texture = texture_system_request_depth_arrayed(kname_create("__shadow_rg_node_shadowmap__"), internal_data->config.resolution, internal_data->config.resolution, MATERIAL_MAX_SHADOW_CASCADES, false, true);
+    ktexture_load_options options = {
+        .type = KTEXTURE_TYPE_2D_ARRAY,
+        .is_depth = true,
+        .is_stencil = false,
+        .name = kname_create("__shadow_rg_node_shadowmap__"),
+        .width = internal_data->config.resolution,
+        .height = internal_data->config.resolution,
+        .layer_count = MATERIAL_MAX_SHADOW_CASCADES,
+        .multiframe_buffering = true};
+    internal_data->depth_texture = texture_acquire_with_options_sync(options);
     if (!internal_data->depth_texture) {
         KERROR("Failed to request layered shadow map texture for shadow rendergraph node.");
         return false;
@@ -223,8 +232,10 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
 
     shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 
+    khandle depth_texture_handle = texture_renderer_handle_get(internal_data->depth_texture);
+
     // Clear the image first.
-    renderer_clear_depth_stencil(engine_systems_get()->renderer_system, internal_data->depth_texture->renderer_texture_handle);
+    renderer_clear_depth_stencil(engine_systems_get()->renderer_system, depth_texture_handle);
 
     // One renderpass per cascade - directional light.
     for (u32 p = 0; p < MATERIAL_MAX_SHADOW_CASCADES; ++p) {
@@ -235,7 +246,7 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
         }
 
         rect_2d render_area = (rect_2d){0, 0, internal_data->config.resolution, internal_data->config.resolution};
-        renderer_begin_rendering(internal_data->renderer, p_frame_data, render_area, 0, 0, internal_data->depth_texture->renderer_texture_handle, p);
+        renderer_begin_rendering(internal_data->renderer, p_frame_data, render_area, 0, 0, depth_texture_handle, p);
 
         // Bind the internal viewport - do not use one provided in pass data.
         renderer_active_viewport_set(&internal_data->camera_viewport);
@@ -351,14 +362,14 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
             }
 
             // Bind the appropriate texture.
-            kresource_texture* base_colour_texture = using_default ? internal_data->default_base_colour_texture : material_texture_get(internal_data->material_system, selected_group->base_material, MATERIAL_TEXTURE_INPUT_BASE_COLOUR);
+            ktexture base_colour_texture = using_default ? internal_data->default_base_colour_texture : material_texture_get(internal_data->material_system, selected_group->base_material, MATERIAL_TEXTURE_INPUT_BASE_COLOUR);
             if (!base_colour_texture) {
                 // Failsafe in case the given material doesn't have a base colour texture.
                 base_colour_texture = internal_data->default_base_colour_texture;
             }
 
             // Since this can (and likely will) change every frame, set this every time.
-            if (!shader_system_uniform_set_by_location(internal_data->shadow_staticmesh_shader, internal_data->staticmesh_shader_locations.base_colour_texture, base_colour_texture)) {
+            if (!shader_system_texture_set_by_location(internal_data->shadow_staticmesh_shader, internal_data->staticmesh_shader_locations.base_colour_texture, base_colour_texture)) {
                 KERROR("Failed to apply static mesh shadowmap base_colour_texture uniform to static geometry.");
                 return false;
             }
@@ -448,7 +459,8 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
     } // End cascade pass
 
     // Prepare the image to be sampled from.
-    renderer_texture_prepare_for_sampling(internal_data->renderer, internal_data->depth_texture->renderer_texture_handle, internal_data->depth_texture->flags);
+    ktexture_flag_bits flags = texture_flags_get(internal_data->depth_texture);
+    renderer_texture_prepare_for_sampling(internal_data->renderer, depth_texture_handle, flags);
 
     renderer_end_debug_label();
 
@@ -460,8 +472,8 @@ void shadow_rendergraph_node_destroy(struct rendergraph_node* self) {
         if (self->internal_data) {
             shadow_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-            texture_system_release_resource(internal_data->depth_texture);
-            texture_system_release_resource(internal_data->default_base_colour_texture);
+            texture_release(internal_data->depth_texture);
+            texture_release(internal_data->default_base_colour_texture);
 
             // Internal data.
             kfree(self->internal_data, sizeof(shadow_rendergraph_node_internal_data), MEMORY_TAG_RENDERER);

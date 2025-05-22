@@ -1,4 +1,4 @@
-#include "kasset_binary_audio_serializer.h"
+#include "kasset_audio_serializer.h"
 
 #include "assets/kasset_types.h"
 #include "logger.h"
@@ -15,14 +15,9 @@ typedef struct binary_audio_header {
     u64 pcm_data_size;
 } binary_audio_header;
 
-KAPI void* kasset_binary_audio_serialize(const kasset* asset, u64* out_size) {
+KAPI void* kasset_audio_serialize(const kasset_audio* asset, u64* out_size) {
     if (!asset) {
         KERROR("Cannot serialize without an asset, ya dingus!");
-        return 0;
-    }
-
-    if (asset->type != KASSET_TYPE_AUDIO) {
-        KERROR("Cannot serialize a non-audio asset using the audio serializer.");
         return 0;
     }
 
@@ -31,7 +26,7 @@ KAPI void* kasset_binary_audio_serialize(const kasset* asset, u64* out_size) {
     binary_audio_header header = {0};
     // Base attributes.
     header.base.magic = ASSET_MAGIC;
-    header.base.type = (u32)asset->type;
+    header.base.type = (u32)KASSET_TYPE_AUDIO;
     header.base.data_block_size = typed_asset->pcm_data_size;
     // Always write the most current version.
     header.base.version = 1;
@@ -50,7 +45,7 @@ KAPI void* kasset_binary_audio_serialize(const kasset* asset, u64* out_size) {
     return block;
 }
 
-KAPI b8 kasset_binary_audio_deserialize(u64 size, const void* block, kasset* out_asset) {
+KAPI b8 kasset_audio_deserialize(u64 size, const void* block, kasset_audio* out_asset) {
     if (!size || !block || !out_asset) {
         KERROR("Cannot deserialize without a nonzero size, block of memory and an asset to write to.");
         return false;
@@ -76,8 +71,6 @@ KAPI b8 kasset_binary_audio_deserialize(u64 size, const void* block, kasset* out
 
     kasset_audio* out_audio = (kasset_audio*)out_asset;
 
-    out_audio->base.type = type;
-    out_audio->base.meta.version = header->base.version;
     out_audio->channels = header->channels;
     out_audio->total_sample_count = header->total_sample_count;
     out_audio->sample_rate = header->sample_rate;
