@@ -666,29 +666,35 @@ KAPI char* string_join(const char** strings, u32 count, char delimiter);
 /**
  * @brief Extracts the directory from a full file path.
  *
- * @param dest The destination for the path.
  * @param path The full path to extract from.
+ * @return The the directory.
  */
-KAPI void string_directory_from_path(char* dest, const char* path);
+KAPI const char* string_directory_from_path(const char* path);
 
 /**
  * @brief Extracts the filename (including file extension) from a full file path.
  *
- * @param dest The destination for the filename.
+ * NOTE: This function dynamically allocates string memory. The string should be freed by the caller.
+ *
  * @param path The full path to extract from.
+ * @return The filename with extension.
  */
-KAPI void string_filename_from_path(char* dest, const char* path);
+KAPI const char* string_filename_from_path(const char* path);
 
 /**
  * @brief Extracts the filename (excluding file extension) from a full file path.
  *
- * @param dest The destination for the filename.
+ * NOTE: This function dynamically allocates string memory. The string should be freed by the caller.
+ *
  * @param path The full path to extract from.
+ * @return The filename without extension.
  */
-KAPI void string_filename_no_extension_from_path(char* dest, const char* path);
+KAPI const char* string_filename_no_extension_from_path(const char* path);
 
 /**
  * @brief Attempts to get the file extension from the given path. Allocates a new string which should be freed.
+ *
+ * NOTE: This function dynamically allocates string memory. The string should be freed by the caller.
  *
  * @param path The full path to extract from.
  * @param include_dot Indicates if the '.' should be included in the output.

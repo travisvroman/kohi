@@ -32,8 +32,10 @@ typedef struct obj_source_asset {
     extents_3d extents;
     // The center point of the asset.
     vec3 center;
-    // The material file name (.mtl file).
-    const char* material_file_name;
+    // The number of material files (.mtl)
+    u32 material_file_count;
+    // An array of material file names (.mtl files).
+    const char** material_file_names;
 } obj_source_asset;
 
 KAPI b8 obj_serializer_serialize(const obj_source_asset* out_source_asset, const char** out_file_text);

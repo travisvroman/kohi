@@ -428,11 +428,7 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
     out_manifest->file_path = string_duplicate(path);
 
     // Take a copy of the directory to the file path.
-    char base_path[512];
-    kzero_memory(base_path, sizeof(char) * 512);
-    string_directory_from_path(base_path, path);
-    string_trim(base_path);
-    out_manifest->path = string_duplicate(base_path);
+    out_manifest->path = string_directory_from_path(path);
 
     // Process references.
     kson_array references = {0};

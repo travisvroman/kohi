@@ -120,11 +120,11 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
             sscanf(line, "%s %s", substr, texture_file_name);
 
             // Texture name
-            char tex_name_buf[512] = {0};
-            string_filename_no_extension_from_path(tex_name_buf, texture_file_name);
+            const char* tex_name_buf = string_filename_no_extension_from_path(texture_file_name);
 
             if (strings_nequali(substr, "bump", 4)) {
                 current_material.normal_image_asset_name = kname_create(tex_name_buf);
+                string_free(tex_name_buf);
             } else {
                 KWARN("Unrecognized token (expected 'bump'). Skipping.");
                 continue;
@@ -138,9 +138,9 @@ static b8 import_obj_material_library_file(const char* mtl_file_text, obj_mtl_so
             sscanf(line, "%s %s", substr, texture_file_name);
 
             // Texture name
-            char tex_name_buf[512] = {0};
-            string_filename_no_extension_from_path(tex_name_buf, texture_file_name);
+            const char* tex_name_buf = string_filename_no_extension_from_path(texture_file_name);
             kname image_asset_name = kname_create(tex_name_buf);
+            string_free(tex_name_buf);
 
             // map name/type
             if (strings_nequali(substr, "map_ka", 6)) {

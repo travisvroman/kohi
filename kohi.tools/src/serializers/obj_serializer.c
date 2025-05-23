@@ -43,6 +43,8 @@ b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_s
         return false;
     }
 
+    out_source_asset->material_file_count = 0;
+
     // Positions
     vec3* positions = darray_reserve(vec3, 16384);
 
@@ -52,12 +54,13 @@ b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_s
     // Texture coordinates
     vec2* tex_coords = darray_reserve(vec2, 16384);
 
+    // Material file names
+    const char** material_file_names = darray_create(const char*);
+
     // Groups
     mesh_group_data* groups = darray_reserve(mesh_group_data, 4);
 
     obj_source_geometry* geometries_darray = darray_create(obj_source_geometry);
-
-    char material_file_name[512] = "";
 
     char name[512];
     kzero_memory(name, sizeof(char) * 512);
@@ -156,12 +159,14 @@ b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_s
             // Material library file.
             char substr[7];
 
-            sscanf(line_buf, "%s %s", substr, material_file_name);
+            char buf[512];
+            kzero_memory(buf, 512);
+
+            sscanf(line_buf, "%s %s", substr, buf);
 
             // If found, save off the material file name.
             if (strings_nequali(substr, "mtllib", 6)) {
-                // TODO: verification
-                out_source_asset->material_file_name = string_duplicate(material_file_name);
+                darray_push(material_file_names, string_duplicate(buf));
             }
         } break;
         case 'u': {
@@ -240,11 +245,17 @@ b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_s
         darray_destroy(groups[i].faces);
     }
 
+    // Copy over material names.
+    out_source_asset->material_file_count = darray_length(material_file_names);
+    KALLOC_TYPE_CARRAY(const char*, out_source_asset->material_file_count);
+    KCOPY_TYPE_CARRAY(out_source_asset->material_file_names, material_file_names, const char*, out_source_asset->material_file_count);
+
     // Cleanup
     darray_destroy(groups);
     darray_destroy(positions);
     darray_destroy(normals);
     darray_destroy(tex_coords);
+    darray_destroy(material_file_names);
 
     // De-duplicate geometry
     u32 count = darray_length(geometries_darray);

@@ -290,9 +290,9 @@ void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, b8 is
 
     kzero_memory(out_data, sizeof(vfs_asset_data));
 
-    char filename[512] = {0};
-    string_filename_no_extension_from_path(filename, path);
+    const char* filename = string_filename_no_extension_from_path(path);
     out_data->asset_name = kname_create(filename);
+    string_free(filename);
     out_data->package_name = 0;
     out_data->path = string_duplicate(path);
 
@@ -336,26 +336,52 @@ void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, b8 is
     out_data->result = VFS_REQUEST_RESULT_SUCCESS;
 }
 
-b8 vfs_asset_write(vfs_state* state, const kasset* asset, b8 is_binary, u64 size, const void* data) {
+b8 vfs_asset_write_binary(vfs_state* state, kname asset_name, kname package_name, u64 size, const void* data) {
     KASSERT_DEBUG(state);
     u32 package_count = darray_length(state->packages);
-    if (asset->package_name == 0) {
-        KERROR("Unable to write asset because it does not have a package name: '%s'.", kname_string_get(asset->name));
+    if (package_name == INVALID_KNAME) {
+        KERROR("%s: Unable to write asset because it does not have a package name: '%s'.", __FUNCTION__, kname_string_get(asset_name));
         return false;
     }
     for (u32 i = 0; i < package_count; ++i) {
         kpackage* package = &state->packages[i];
-        if (package->name == asset->package_name) {
-            if (is_binary) {
-                return kpackage_asset_bytes_write(package, asset->name, size, data);
-            } else {
-                return kpackage_asset_text_write(package, asset->name, size, data);
-            }
+        if (package->name == package_name) {
+            return kpackage_asset_bytes_write(package, asset_name, size, data);
         }
     }
 
-    KERROR("vfs_asset_write: Unable to find package named '%s'.", kname_string_get(asset->package_name));
+    KERROR("%s: Unable to find package named '%s'.", __FUNCTION__, kname_string_get(package_name));
     return false;
+}
+
+b8 vfs_asset_write_text(vfs_state* state, kname asset_name, kname package_name, const char* text) {
+    KASSERT_DEBUG(state);
+    u32 package_count = darray_length(state->packages);
+    if (package_name == INVALID_KNAME) {
+        KERROR("%s: Unable to write asset because it does not have a package name: '%s'.", __FUNCTION__, kname_string_get(asset_name));
+        return false;
+    }
+    for (u32 i = 0; i < package_count; ++i) {
+        kpackage* package = &state->packages[i];
+        if (package->name == package_name) {
+            return kpackage_asset_text_write(package, asset_name, string_length(text) + 1, text);
+        }
+    }
+
+    KERROR("%s: Unable to find package named '%s'.", __FUNCTION__, kname_string_get(package_name));
+    return false;
+}
+
+void vfs_asset_data_cleanup(vfs_asset_data* data) {
+    if (data) {
+        if (data->size && data->bytes) {
+            kfree((void*)data->bytes, data->size, MEMORY_TAG_ASSET);
+        }
+        if (data->context || data->context_size) {
+            KWARN("%s - Possible memory leak - context/context_size found on vfs_asset_data.", __FUNCTION__);
+        }
+        kzero_memory(data, sizeof(vfs_asset_data));
+    }
 }
 
 static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest) {

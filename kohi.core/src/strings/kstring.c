@@ -1054,34 +1054,43 @@ char* string_join(const char** strings, u32 count, char delimiter) {
     return out_str;
 }
 
-void string_directory_from_path(char* dest, const char* path) {
+const char* string_directory_from_path(const char* path) {
     u64 length = string_length(path);
-    for (i32 i = length; i >= 0; --i) {
+    for (i32 i = length, j = 0; i >= 0; --i, ++j) {
         char c = path[i];
         if (c == '/' || c == '\\') {
+            u32 new_length = j + 1;
+            char* dest = kallocate(new_length, MEMORY_TAG_STRING);
             string_ncopy(dest, path, i + 1);
             dest[i + 1] = 0;
-            return;
+            return dest;
         }
     }
+
+    return 0;
 }
 
-void string_filename_from_path(char* dest, const char* path) {
+const char* string_filename_from_path(const char* path) {
     u64 length = string_length(path);
-    for (i32 i = length; i >= 0; --i) {
+    for (i32 i = length, j = 0; i >= 0; --i, ++j) {
         char c = path[i];
         if (c == '/' || c == '\\') {
-            string_copy(dest, path + i + 1);
-            return;
+            u32 new_length = j + 1;
+            char* dest = kallocate(new_length, MEMORY_TAG_STRING);
+            dest[i + 1] = 0;
+            return dest;
         }
     }
+
+    return 0;
 }
 
-void string_filename_no_extension_from_path(char* dest, const char* path) {
+const char* string_filename_no_extension_from_path(const char* path) {
     u64 length = string_length(path);
     u64 start = 0;
     u64 end = 0;
-    for (i32 i = length; i >= 0; --i) {
+    i32 j = 0;
+    for (i32 i = length, j = 0; i >= 0; --i, ++j) {
         char c = path[i];
         if (end == 0 && c == '.') {
             end = i;
@@ -1092,7 +1101,11 @@ void string_filename_no_extension_from_path(char* dest, const char* path) {
         }
     }
 
-    string_mid(dest, path, start, end - start);
+    u32 new_length = j + 1;
+    char* dest = kallocate(new_length, MEMORY_TAG_STRING);
+    dest[new_length] = 0;
+    string_ncopy(dest, path + start, new_length);
+    return dest;
 }
 
 const char* string_extension_from_path(const char* path, b8 include_dot) {

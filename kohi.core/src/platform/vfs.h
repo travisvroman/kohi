@@ -241,13 +241,32 @@ KAPI void vfs_request_direct_from_disk(vfs_state* state, const char* path, b8 is
 KAPI void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, b8 is_binary, u32 context_size, const void* context, vfs_asset_data* out_data);
 
 /**
- * @brief Attempts to write the provided data to the VFS (or package) for the given asset.
+ * @brief Attempts to write the provided binary data to the VFS (or package).
  *
  * @param state A pointer to the system state. Required.
- * @param asset A pointer to the asset to be written.
- * @param is_binary Indicates if the asset data is binary (ot text).
+ * @param asset_name The name of the asset to be written within the given package.
+ * @param package_name The name of the package to write the data into.
  * @param size The size of the data to be written.
  * @param data A constant pointer to the block of data to be written.
  * @returns True on success; otherwise false.
  */
-KAPI b8 vfs_asset_write(vfs_state* state, const struct kasset* asset, b8 is_binary, u64 size, const void* data);
+KAPI b8 vfs_asset_write_binary(vfs_state* state, kname asset_name, kname package_name, u64 size, const void* data);
+
+/**
+ * @brief Attempts to write the provided text data to the VFS (or package).
+ *
+ * @param state A pointer to the system state. Required.
+ * @param asset_name The name of the asset to be written within the given package.
+ * @param package_name The name of the package to write the data into.
+ * @param size The size of the data to be written.
+ * @param data A constant pointer to the block of data to be written.
+ * @returns True on success; otherwise false.
+ */
+KAPI b8 vfs_asset_write_text(vfs_state* state, kname asset_name, kname package_name, const char* text);
+
+/**
+ * @brief Releases resources held by data. NOTE: This does _NOT_ account for any dynamic allocations made within said context!
+ *
+ * @param data A pointer to the VFS data to be released.
+ */
+KAPI void vfs_asset_data_cleanup(vfs_asset_data* data);
