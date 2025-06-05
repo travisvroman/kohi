@@ -233,6 +233,10 @@ void kfree(void* block, u64 size, memory_tag tag) {
 }
 
 void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
+    if (!block) {
+        KFATAL("%s tried to free null block of memory. Check application logic.", __FUNCTION__);
+        return;
+    }
     if (tag == MEMORY_TAG_UNKNOWN) {
         KWARN("kfree_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }

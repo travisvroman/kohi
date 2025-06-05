@@ -2,26 +2,23 @@
 #include "kasset_importer_material_obj_mtl.h"
 
 #include <assets/kasset_types.h>
-#include <core/engine.h>
 #include <core_render_types.h>
 #include <logger.h>
+#include <math/kmath.h>
 #include <memory/kmemory.h>
-#include <platform/vfs.h>
+#include <platform/filesystem.h>
 #include <serializers/kasset_material_serializer.h>
 #include <serializers/kasset_static_mesh_serializer.h>
 #include <strings/kname.h>
 #include <strings/kstring.h>
 
-#include "math/kmath.h"
 #include "serializers/obj_mtl_serializer.h"
 
-b8 kasset_material_obj_mtl_import(kname output_asset_name, kname output_package_name, const char* data) {
+b8 kasset_material_obj_mtl_import(const char* output_directory, const char* output_filename, kname package_name, const char* data) {
     if (!data) {
         KERROR("%s requires a valid pointer to data.", __FUNCTION__);
         return false;
     }
-
-    struct vfs_state* vfs = engine_systems_get()->vfs_system_state;
 
     obj_mtl_source_asset mtl_asset = {0};
     // Deserialize the mtl file content.
@@ -61,14 +58,14 @@ b8 kasset_material_obj_mtl_import(kname output_asset_name, kname output_package_
                 // Base colour translates from diffuse only for PBR.
                 if (m_src->diffuse_image_asset_name) {
                     new_material.base_colour_map.resource_name = m_src->diffuse_image_asset_name;
-                    new_material.base_colour_map.package_name = output_package_name;
+                    new_material.base_colour_map.package_name = package_name;
                 }
                 new_material.base_colour = vec4_from_vec3(m_src->diffuse_colour, 1.0f);
 
                 // Metallic
                 if (m_src->metallic_image_asset_name) {
                     new_material.metallic_map.resource_name = m_src->metallic_image_asset_name;
-                    new_material.metallic_map.package_name = output_package_name;
+                    new_material.metallic_map.package_name = package_name;
                     // NOTE: Always assume red channel for OBJ MTL imports.
                     new_material.metallic_map.channel = TEXTURE_CHANNEL_R;
                 }
@@ -77,7 +74,7 @@ b8 kasset_material_obj_mtl_import(kname output_asset_name, kname output_package_
                 // Roughness
                 if (m_src->roughness_image_asset_name) {
                     new_material.roughness_map.resource_name = m_src->roughness_image_asset_name;
-                    new_material.roughness_map.package_name = output_package_name;
+                    new_material.roughness_map.package_name = package_name;
                     // NOTE: Always assume red channel for OBJ MTL imports.
                     new_material.roughness_map.channel = TEXTURE_CHANNEL_R;
                 }
@@ -90,7 +87,7 @@ b8 kasset_material_obj_mtl_import(kname output_asset_name, kname output_package_
                 // MRA (combined Metallic/Roughness/AO maps)
                 if (m_src->mra_image_asset_name) {
                     new_material.mra_map.resource_name = m_src->mra_image_asset_name;
-                    new_material.mra_map.package_name = output_package_name;
+                    new_material.mra_map.package_name = package_name;
                     new_material.use_mra = true;
 
                     // In this one scenario, enable AO since the MRA map can provide it.
@@ -115,7 +112,7 @@ b8 kasset_material_obj_mtl_import(kname output_asset_name, kname output_package_
                 }
                 if (m_src->diffuse_image_asset_name) {
                     new_material.base_colour_map.resource_name = m_src->diffuse_image_asset_name;
-                    new_material.base_colour_map.package_name = output_package_name;
+                    new_material.base_colour_map.package_name = package_name;
                 }
                 // For phong, base colour is ambient + diffuse.
                 new_material.base_colour = vec4_from_vec3(vec3_add(m_src->ambient_colour, m_src->diffuse_colour), 1.0f);
@@ -123,7 +120,7 @@ b8 kasset_material_obj_mtl_import(kname output_asset_name, kname output_package_
                 // Specular - only used for phong.
                 if (m_src->specular_image_asset_name) {
                     new_material.specular_colour_map.resource_name = m_src->specular_image_asset_name;
-                    new_material.specular_colour_map.package_name = output_package_name;
+                    new_material.specular_colour_map.package_name = package_name;
                 }
                 new_material.specular_colour = vec4_from_vec3(m_src->specular_colour, 1.0f);
             }
@@ -131,7 +128,7 @@ b8 kasset_material_obj_mtl_import(kname output_asset_name, kname output_package_
             // Normal
             if (m_src->normal_image_asset_name) {
                 new_material.normal_map.resource_name = m_src->normal_image_asset_name;
-                new_material.normal_map.package_name = output_package_name;
+                new_material.normal_map.package_name = package_name;
                 new_material.normal_enabled = true;
             } else {
                 new_material.normal_enabled = false;
@@ -140,7 +137,7 @@ b8 kasset_material_obj_mtl_import(kname output_asset_name, kname output_package_
             // Emissive
             if (m_src->emissive_image_asset_name) {
                 new_material.emissive_map.resource_name = m_src->emissive_image_asset_name;
-                new_material.emissive_map.package_name = output_package_name;
+                new_material.emissive_map.package_name = package_name;
             }
             new_material.emissive = vec4_from_vec3(m_src->emissive_colour, 1.0f);
 
@@ -152,7 +149,8 @@ b8 kasset_material_obj_mtl_import(kname output_asset_name, kname output_package_
             }
 
             // Write out kmt file.
-            if (!vfs_asset_write_text(vfs, output_asset_name, output_package_name, serialized_text)) {
+            const char* out_path = string_format("%s/%s.%s", output_directory, output_filename, "kmt");
+            if (!filesystem_write_entire_text_file(out_path, serialized_text)) {
                 KERROR("Failed to write serialized material to disk. See logs for details.");
             }
 

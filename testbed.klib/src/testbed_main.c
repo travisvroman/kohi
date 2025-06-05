@@ -473,8 +473,8 @@ b8 application_initialize(struct application* game_inst) {
         if (strings_equali("forward_graph", rg_config->name)) {
             // Get colourbuffer and depthbuffer from the currently active window.
             kwindow* current_window = engine_active_window_get();
-            kresource_texture* global_colourbuffer = current_window->renderer_state->colourbuffer;
-            kresource_texture* global_depthbuffer = current_window->renderer_state->depthbuffer;
+            ktexture global_colourbuffer = current_window->renderer_state->colourbuffer;
+            ktexture global_depthbuffer = current_window->renderer_state->depthbuffer;
 
             // Create the rendergraph.
             if (!rendergraph_create(rg_config->configuration_str, global_colourbuffer, global_depthbuffer, &state->forward_graph)) {
@@ -1019,7 +1019,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 // HACK: #2 Support for multiple skyboxes, but using the first one for now.
                 // DOUBLE HACK!!!
                 // TODO: Support multiple skyboxes/irradiance maps.
-                forward_rendergraph_node_irradiance_texture_set(node, p_frame_data, scene->skyboxes ? scene->skyboxes[0].cubemap : texture_system_request(kname_create(DEFAULT_CUBE_TEXTURE_NAME), INVALID_KNAME, 0, 0));
+                forward_rendergraph_node_irradiance_texture_set(node, p_frame_data, scene->skyboxes ? scene->skyboxes[0].cubemap : texture_acquire_sync(kname_create(DEFAULT_CUBE_TEXTURE_NAME)));
 
                 // Camera frustum culling and count
                 viewport* v = current_viewport;

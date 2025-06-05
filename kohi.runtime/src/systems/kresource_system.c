@@ -213,10 +213,12 @@ kresource* kresource_system_request(struct kresource_system_state* state, kname 
     if (lookup_index != INVALID_ID && state->lookups[lookup_index].r) {
         resource_lookup* lookup = &state->lookups[lookup_index];
         lookup->reference_count++;
+        // NOTE: This probably shouldn't happen because it means the load already happened or is in progress.
+        // Disabling for now.
         // Immediately issue the callback if setup.
-        if (info->user_callback) {
-            info->user_callback(lookup->r, info->listener_inst);
-        }
+        // if (info->user_callback) {
+        //     info->user_callback(lookup->r, info->listener_inst);
+        // }
 
         // Return a pointer to the resource.
         return lookup->r;

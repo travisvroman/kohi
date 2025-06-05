@@ -186,7 +186,7 @@ typedef struct vulkan_image {
     /** @brief The name of the image. */
     char* name;
     /** @brief texture flag bits */
-    texture_flag_bits flags;
+    ktexture_flag_bits flags;
     /** The number of mipmaps to be generated for this image. Must always be at least 1. */
     u32 mip_levels;
     b8 has_view;
@@ -213,7 +213,7 @@ typedef struct vulkan_swapchain {
     /** @brief Supports being used as a blit source. */
     b8 supports_blit_src;
 
-    kresource_texture* swapchain_colour_texture;
+    khandle swapchain_colour_texture;
 
     /** @brief The swapchain image index (i.e. the swapchain image index that will be blitted to). */
     u32 image_index;

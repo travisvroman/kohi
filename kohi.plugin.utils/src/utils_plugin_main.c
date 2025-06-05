@@ -1,9 +1,5 @@
 #include "utils_plugin_main.h"
 
-#include "importers/kasset_importer_audio.h"
-#include "importers/kasset_importer_bitmap_font_fnt.h"
-#include "importers/kasset_importer_image.h"
-#include "importers/kasset_importer_static_mesh_obj.h"
 #include "kohi.plugin.utils_version.h"
 
 #include <assets/kasset_importer_registry.h>
@@ -22,53 +18,7 @@ b8 kplugin_create(struct kruntime_plugin* out_plugin) {
     out_plugin->plugin_state_size = 0;
     out_plugin->plugin_state = 0;
 
-    // TODO: Register known importer types.
-
-    // Images - one per file extension.
-    {
-        const char* image_types[] = {"tga", "png", "jpg", "bmp"};
-        for (u8 i = 0; i < 4; ++i) {
-            kasset_importer image_importer = {0};
-            image_importer.import = kasset_importer_image_import;
-            if (!kasset_importer_registry_register(KASSET_TYPE_IMAGE, image_types[i], image_importer)) {
-                KERROR("Failed to register image asset importer!");
-                return false;
-            }
-        }
-    }
-
-    // Static mesh - Wavefront OBJ.
-    {
-        kasset_importer obj_importer = {0};
-        obj_importer.import = kasset_importer_static_mesh_obj_import;
-        if (!kasset_importer_registry_register(KASSET_TYPE_STATIC_MESH, "obj", obj_importer)) {
-            KERROR("Failed to register static mesh Wavefront OBJ asset importer!");
-            return false;
-        }
-    }
-
-    // Bitmaps fonts - FNT.
-    {
-        kasset_importer fnt_importer = {0};
-        fnt_importer.import = kasset_importer_bitmap_font_fnt;
-        if (!kasset_importer_registry_register(KASSET_TYPE_BITMAP_FONT, "fnt", fnt_importer)) {
-            KERROR("Failed to register bitmap font FNT asset importer!");
-            return false;
-        }
-    }
-
-    // Audio - one per file extension.
-    {
-        const char* audio_types[] = {"mp3", "ogg", "wav"};
-        for (u8 i = 0; i < 3; ++i) {
-            kasset_importer audio_importer = {0};
-            audio_importer.import = kasset_importer_audio_import;
-            if (!kasset_importer_registry_register(KASSET_TYPE_AUDIO, audio_types[i], audio_importer)) {
-                KERROR("Failed to register audio asset importer!");
-                return false;
-            }
-        }
-    }
+    // TODO: register plugin... stuff.
 
     KINFO("Kohi Utils Plugin Creation successful (%s).", KVERSION);
 

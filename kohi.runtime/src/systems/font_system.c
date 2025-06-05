@@ -408,7 +408,7 @@ b8 font_system_bitmap_font_load(font_system_state* state, kname resource_name, k
     if (font_resource->pages.base.length) {
         lookup->pages = KALLOC_TYPE_CARRAY(bitmap_font_page, font_resource->pages.base.length);
         for (u32 i = 0; i < lookup->page_count; ++i) {
-            lookup->pages[i].atlas = texture_acquire_sync(font_resource->pages.data[i].image_asset_name);
+            lookup->pages[i].atlas = texture_acquire_from_package_sync(font_resource->pages.data[i].image_asset_name, package_name);
             // If lookup fails, use default texture instead.
             if (!lookup->pages[i].atlas) {
                 KWARN("Failed to request bitmap font atlas texture. Using a default texture instead, but text will not render correctly.");
@@ -953,6 +953,7 @@ static b8 create_system_font_variant(system_font_lookup* lookup, u16 size, kname
         .format = KPIXEL_FORMAT_RGBA8,
         .width = out_variant->data.atlas_size_x,
         .height = out_variant->data.atlas_size_y,
+        .name = kname_create(font_tex_name),
     };
     out_variant->atlas = texture_acquire_with_options_sync(options);
     string_free(font_tex_name);

@@ -349,38 +349,6 @@ b8 engine_create(application* app) {
         }
     }
 
-    // Reach into platform and open new window(s) in accordance with app config.
-    // Notify renderer of window(s)/setup surface(s), etc.
-    u32 window_count = darray_length(app->app_config.windows);
-    if (window_count > 1) {
-        KFATAL("Multiple windows are not yet implemented at the engine level. Please just stick to one for now.");
-        return false;
-    }
-
-    engine_state->windows = darray_create(kwindow);
-    for (u32 i = 0; i < window_count; ++i) {
-        kwindow_config* window_config = &app->app_config.windows[i];
-        kwindow new_window = {0};
-        new_window.name = string_duplicate(window_config->name);
-        // Add to tracked window list
-        darray_push(engine_state->windows, new_window);
-
-        kwindow* window = &engine_state->windows[(darray_length(engine_state->windows) - 1)];
-        if (!platform_window_create(window_config, window, true)) {
-            KERROR("Failed to create window '%s'.", window_config->name);
-            return false;
-        }
-
-        // Tell the renderer about the window.
-        if (!renderer_on_window_created(engine_state->systems.renderer_system, window)) {
-            KERROR("The renderer failed to create resources for the window '%s.", window_config->name);
-            return false;
-        }
-
-        // Manually call to make sure window is of the right size/viewports and such are the right size.
-        renderer_on_window_resized(engine_state->systems.renderer_system, window);
-    }
-
     // Job system
     {
         b8 renderer_multithreaded = renderer_is_multithreaded();
@@ -499,6 +467,39 @@ b8 engine_create(application* app) {
             KERROR("Failed to initialize texture system.");
             return false;
         }
+    }
+
+    // Reach into platform and open new window(s) in accordance with app config.
+    // Notify renderer of window(s)/setup surface(s), etc.
+    // NOTE: This must happen after the texture system is initialized since the window "owns" it's render target textures.
+    u32 window_count = darray_length(app->app_config.windows);
+    if (window_count > 1) {
+        KFATAL("Multiple windows are not yet implemented at the engine level. Please just stick to one for now.");
+        return false;
+    }
+
+    engine_state->windows = darray_create(kwindow);
+    for (u32 i = 0; i < window_count; ++i) {
+        kwindow_config* window_config = &app->app_config.windows[i];
+        kwindow new_window = {0};
+        new_window.name = string_duplicate(window_config->name);
+        // Add to tracked window list
+        darray_push(engine_state->windows, new_window);
+
+        kwindow* window = &engine_state->windows[(darray_length(engine_state->windows) - 1)];
+        if (!platform_window_create(window_config, window, true)) {
+            KERROR("Failed to create window '%s'.", window_config->name);
+            return false;
+        }
+
+        // Tell the renderer about the window.
+        if (!renderer_on_window_created(engine_state->systems.renderer_system, window)) {
+            KERROR("The renderer failed to create resources for the window '%s.", window_config->name);
+            return false;
+        }
+
+        // Manually call to make sure window is of the right size/viewports and such are the right size.
+        renderer_on_window_resized(engine_state->systems.renderer_system, window);
     }
 
     // Material system

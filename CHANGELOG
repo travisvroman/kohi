@@ -2,6 +2,10 @@ Changelog
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.
+  - Moved VFS from core to runtime.
+  - Jobifyed async asset loads.
+  - Fixed logic errors in string_directory_from_path and string_filename_from_path.
+  - Refactored texture system to use a newly-created typedef 'ktexture', which is essentially an id used to lookup texture info. Texture system internals and engine-wide references were reworked to support this.
 
 - 0.9.0
   - Fixed several issues in the math library where some functions were not the correct handedness and/or major. The 

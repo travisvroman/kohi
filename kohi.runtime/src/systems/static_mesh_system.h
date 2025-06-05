@@ -13,8 +13,8 @@ typedef struct static_mesh_instance {
     /** @brief A randomly-generated identifier specific to this instance. */
     u64 instance_id;
 
-    /** @brief A constant pointer to the underlying mesh resource. */
-    const kresource_static_mesh* mesh_resource;
+    /** @brief A pointer to the underlying mesh resource. */
+    kresource_static_mesh* mesh_resource;
 
     /**
      * @brief An array of material instances associated with the submeshes.

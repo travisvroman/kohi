@@ -31,6 +31,7 @@
 #include <utils/ksort.h>
 #include <utils/render_type_utils.h>
 
+#include "systems/texture_system.h"
 #include "vulkan_command_buffer.h"
 #include "vulkan_device.h"
 #include "vulkan_image.h"
@@ -306,26 +307,27 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
         KASSERT_MSG(func, "Failed to create debug messenger!");
         VK_CHECK(func(context->instance, &debug_create_info, context->allocator, &context->debug_messenger));
         KDEBUG("Vulkan debugger created.");
+    }
 
-        // Load up debug function pointers.
-        context->pfnSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkSetDebugUtilsObjectNameEXT");
-        if (!context->pfnSetDebugUtilsObjectNameEXT) {
-            KWARN("Unable to load function pointer for vkSetDebugUtilsObjectNameEXT. Debug functions associated with this will not work.");
-        }
-        context->pfnSetDebugUtilsObjectTagEXT = (PFN_vkSetDebugUtilsObjectTagEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkSetDebugUtilsObjectTagEXT");
-        if (!context->pfnSetDebugUtilsObjectTagEXT) {
-            KWARN("Unable to load function pointer for vkSetDebugUtilsObjectTagEXT. Debug functions associated with this will not work.");
-        }
+    // TODO: conditionally enable labels via config?
+    // Load up debug function pointers.
+    context->pfnSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkSetDebugUtilsObjectNameEXT");
+    if (!context->pfnSetDebugUtilsObjectNameEXT) {
+        KWARN("Unable to load function pointer for vkSetDebugUtilsObjectNameEXT. Debug functions associated with this will not work.");
+    }
+    context->pfnSetDebugUtilsObjectTagEXT = (PFN_vkSetDebugUtilsObjectTagEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkSetDebugUtilsObjectTagEXT");
+    if (!context->pfnSetDebugUtilsObjectTagEXT) {
+        KWARN("Unable to load function pointer for vkSetDebugUtilsObjectTagEXT. Debug functions associated with this will not work.");
+    }
 
-        context->pfnCmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkCmdBeginDebugUtilsLabelEXT");
-        if (!context->pfnCmdBeginDebugUtilsLabelEXT) {
-            KWARN("Unable to load function pointer for vkCmdBeginDebugUtilsLabelEXT. Debug functions associated with this will not work.");
-        }
+    context->pfnCmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkCmdBeginDebugUtilsLabelEXT");
+    if (!context->pfnCmdBeginDebugUtilsLabelEXT) {
+        KWARN("Unable to load function pointer for vkCmdBeginDebugUtilsLabelEXT. Debug functions associated with this will not work.");
+    }
 
-        context->pfnCmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkCmdEndDebugUtilsLabelEXT");
-        if (!context->pfnCmdEndDebugUtilsLabelEXT) {
-            KWARN("Unable to load function pointer for vkCmdEndDebugUtilsLabelEXT. Debug functions associated with this will not work.");
-        }
+    context->pfnCmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkCmdEndDebugUtilsLabelEXT");
+    if (!context->pfnCmdEndDebugUtilsLabelEXT) {
+        KWARN("Unable to load function pointer for vkCmdEndDebugUtilsLabelEXT. Debug functions associated with this will not work.");
     }
 
     // Device creation
@@ -538,27 +540,6 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
         window_backend->graphics_command_buffers = 0;
     }
 
-    // Destroy per-swapchain-image resources.
-    {
-
-        // Destroy depthbuffer images/views.
-        vulkan_texture_handle_data* texture_data = &context->textures[window_internal->depthbuffer->renderer_texture_handle.handle_index];
-        if (!texture_data) {
-            KWARN("Unable to get internal data for depthbuffer image. Underlying resources may not be properly destroyed.");
-        } else {
-            // Free the name
-            window_internal->depthbuffer->base.name = INVALID_KNAME;
-
-            // Destroy each backing image.
-            for (u32 i = 0; i < texture_data->image_count; ++i) {
-                vulkan_image_destroy(context, &texture_data->images[i]);
-            }
-
-            // Releasing the resources for the default depthbuffer should destroy backing resources too.
-            renderer_texture_resources_release(backend->frontend_state, &window->renderer_state->depthbuffer->renderer_texture_handle);
-        }
-    }
-
     // Swapchain
     KDEBUG("Destroying Vulkan swapchain for window '%s'...", window->name);
     vulkan_swapchain_destroy(backend, &window_backend->swapchain);
@@ -737,10 +718,11 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 
     kwindow_renderer_backend_state* window_backend = context->current_window->renderer_state->backend_state;
     // Source is the window's colour buffer texture.
-    vulkan_texture_handle_data* source_image_handle = &context->textures[context->current_window->renderer_state->colourbuffer->renderer_texture_handle.handle_index];
+    khandle colourbuffer_handle = texture_renderer_handle_get(context->current_window->renderer_state->colourbuffer);
+    vulkan_texture_handle_data* source_image_handle = &context->textures[colourbuffer_handle.handle_index];
     vulkan_image* source_image = &source_image_handle->images[window_backend->image_index];
     // Target is the current swapchain image.
-    vulkan_texture_handle_data* target_image_handle = &context->textures[window_backend->swapchain.swapchain_colour_texture->renderer_texture_handle.handle_index];
+    vulkan_texture_handle_data* target_image_handle = &context->textures[window_backend->swapchain.swapchain_colour_texture.handle_index];
     vulkan_image* target_image = &target_image_handle->images[window_backend->swapchain.image_index];
 
     // Before ending the command buffer, blit the current colour buffer's contents to
@@ -1240,12 +1222,12 @@ void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend,
         depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // Always store.
         depth_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
         depth_attachment_info.resolveImageView = 0;
-        if (image->flags & TEXTURE_FLAG_DEPTH) {
+        if (image->flags & KTEXTURE_FLAG_DEPTH) {
             render_info.pDepthAttachment = &depth_attachment_info;
         } else {
             render_info.pDepthAttachment = 0;
         }
-        if (image->flags & TEXTURE_FLAG_STENCIL) {
+        if (image->flags & KTEXTURE_FLAG_STENCIL) {
             render_info.pStencilAttachment = &depth_attachment_info;
         } else {
             render_info.pStencilAttachment = 0;
@@ -1486,7 +1468,7 @@ void vulkan_renderer_clear_depth_stencil(renderer_backend_interface* backend, kh
 
     // If a per-frame texture, get the appropriate image index. Otherwise it's just the first one.
     vulkan_image* image = tex_internal->image_count == 1 ? &tex_internal->images[0] : &tex_internal->images[image_index];
-    b8 is_depth = FLAG_GET(image->flags, TEXTURE_FLAG_DEPTH);
+    b8 is_depth = FLAG_GET(image->flags, KTEXTURE_FLAG_DEPTH);
     // b8 is_stencil = FLAG_GET(image->flags, TEXTURE_FLAG_STENCIL);
 
     VkImageAspectFlags aspect_flags = 0;
@@ -1599,7 +1581,7 @@ void vulkan_renderer_colour_texture_prepare_for_present(renderer_backend_interfa
         1, &barrier);
 }
 
-void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* backend, khandle renderer_texture_handle, texture_flag_bits flags) {
+void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* backend, khandle renderer_texture_handle, ktexture_flag_bits flags) {
     // Cold-cast the context
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
@@ -1610,7 +1592,7 @@ void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* ba
 
     // If a per-frame texture, get the appropriate image index. Otherwise it's just the first one.
     vulkan_image* image = tex_internal->image_count == 1 ? &tex_internal->images[0] : &tex_internal->images[image_index];
-    b8 is_depth = FLAG_GET(image->flags, TEXTURE_FLAG_DEPTH);
+    b8 is_depth = FLAG_GET(image->flags, KTEXTURE_FLAG_DEPTH);
     // b8 is_stencil = FLAG_GET(image->flags, TEXTURE_FLAG_STENCIL);
 
     VkImageAspectFlags aspect_flags = 0;
@@ -1753,7 +1735,7 @@ static VkFormat channel_count_to_format(u8 channel_count, VkFormat default_forma
     }
 }
 
-b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle) {
+b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, const char* name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_renderer_texture_handle) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
 
     if (!context->textures) {
@@ -1784,14 +1766,14 @@ b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend
         texture_data = &context->textures[texture_count];
     }
 
-    if (flags & TEXTURE_FLAG_IS_WRAPPED) {
+    if (flags & KTEXTURE_FLAG_IS_WRAPPED) {
         // If the texure is considered "wrapped" (i.e. internal resources are created somwhere else,
         // such as swapchain images), then nothing further is required. Just return the handle.
         return true;
     }
 
     // Internal data creation.
-    if (flags & TEXTURE_FLAG_RENDERER_BUFFERING) {
+    if (flags & KTEXTURE_FLAG_RENDERER_BUFFERING) {
         // Need to generate enough images to support triple-buffering.
         texture_data->image_count = VULKAN_RESOURCE_IMAGE_COUNT;
     } else {
@@ -1802,8 +1784,8 @@ b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend
     VkImageUsageFlagBits usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     VkImageAspectFlagBits aspect = 0;
     VkFormat image_format;
-    b8 is_depth = FLAG_GET(flags, TEXTURE_FLAG_DEPTH);
-    b8 is_stencil = FLAG_GET(flags, TEXTURE_FLAG_STENCIL);
+    b8 is_depth = FLAG_GET(flags, KTEXTURE_FLAG_DEPTH);
+    b8 is_stencil = FLAG_GET(flags, KTEXTURE_FLAG_STENCIL);
     if (is_depth || is_stencil) {
         usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         if (is_depth) {
@@ -3090,7 +3072,8 @@ b8 vulkan_renderer_shader_uniform_set(renderer_backend_interface* backend, khand
     }
 
     if (uniform_type_is_texture(uniform->type)) {
-        kresource_texture* tex_value = (kresource_texture*)value;
+        ktexture tex_value = *(ktexture*)value;
+        khandle tex_handle = texture_renderer_handle_get(tex_value);
 
         for (u32 i = 0; i < frequency_info->uniform_texture_count; ++i) {
             vulkan_uniform_texture_state* texture_state = &frequency_state->texture_states[i];
@@ -3104,7 +3087,7 @@ b8 vulkan_renderer_shader_uniform_set(renderer_backend_interface* backend, khand
                 if (!texture_state->texture_handles) {
                     KFATAL("Textures array not setup. Check implementation.");
                 }
-                texture_state->texture_handles[array_index] = tex_value->renderer_texture_handle;
+                texture_state->texture_handles[array_index] = tex_handle;
                 return true;
             }
         }
@@ -4574,7 +4557,7 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
             pipeline_result = vulkan_graphics_pipeline_create(context, &pipeline_config, &new_wireframe_pipelines[i]);
         }
 
-        kfree(pipeline_config.name, string_length(pipeline_config.name) + 1, MEMORY_TAG_STRING);
+        string_free(pipeline_config.name);
 
         if (!pipeline_result) {
             KERROR("Failed to load graphics pipeline for shader: '%s'.", kname_string_get(internal_shader->name));

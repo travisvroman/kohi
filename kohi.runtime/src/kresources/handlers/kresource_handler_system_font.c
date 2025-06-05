@@ -32,9 +32,11 @@ b8 kresource_handler_system_font_request(kresource_handler* self, kresource* res
     typed_resource->base.state = KRESOURCE_STATE_INITIALIZED;
     typed_resource->base.state = KRESOURCE_STATE_LOADING;
 
+    struct asset_system_state* asset_state = engine_systems_get()->asset_state;
+
     // Load the asset from disk synchronously.
     kasset_system_font* asset = asset_system_request_system_font_from_package_sync(
-        engine_systems_get()->asset_state,
+        asset_state,
         kname_string_get(info->assets.data[0].package_name),
         kname_string_get(info->assets.data[0].asset_name));
 
@@ -48,10 +50,21 @@ b8 kresource_handler_system_font_request(kresource_handler* self, kresource* res
     out_system_font->faces = KALLOC_TYPE_CARRAY(kname, out_system_font->face_count);
     KCOPY_TYPE_CARRAY(out_system_font->faces, asset->faces, kname, out_system_font->face_count);
 
-    // NOTE: The binary should also have been loaded by this point. Take a copy of it.
-    out_system_font->font_binary_size = asset->font_binary_size;
+    // Load the font binary file.
+    kasset_binary* ttf_binary_asset = asset_system_request_binary_from_package_sync(
+        asset_state,
+        kname_string_get(asset->ttf_asset_package_name),
+        kname_string_get(asset->ttf_asset_name));
+
+    // Take a copy of the binary asset's data.
+    out_system_font->font_binary_size = ttf_binary_asset->size;
     out_system_font->font_binary = kallocate(out_system_font->font_binary_size, MEMORY_TAG_RESOURCE);
-    kcopy_memory(out_system_font->font_binary, asset->font_binary, out_system_font->font_binary_size);
+    kcopy_memory(out_system_font->font_binary, ttf_binary_asset->content, out_system_font->font_binary_size);
+
+    // Release the binary asset.
+    asset_system_release_binary(asset_state, ttf_binary_asset);
+    // Release the system font asset as well.
+    asset_system_release_system_font(asset_state, asset);
 
     out_system_font->base.state = KRESOURCE_STATE_LOADED;
 

@@ -33,13 +33,13 @@ typedef struct standard_ui_system_config {
 typedef struct standard_ui_renderable {
     u32* group_id;
     u32* per_draw_id;
-    kresource_texture* atlas_override;
+    ktexture atlas_override;
     geometry_render_data render_data;
     geometry_render_data* clip_mask_render_data;
 } standard_ui_renderable;
 
 typedef struct standard_ui_render_data {
-    kresource_texture* ui_atlas;
+    ktexture ui_atlas;
     // darray
     standard_ui_renderable* renderables;
 } standard_ui_render_data;
@@ -133,7 +133,7 @@ typedef struct standard_ui_state {
     sui_control root;
     // texture_map ui_atlas;
 
-    kresource_texture* atlas_texture;
+    ktexture atlas_texture;
 
     u64 focused_id;
 

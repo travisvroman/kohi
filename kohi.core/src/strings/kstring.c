@@ -1056,13 +1056,13 @@ char* string_join(const char** strings, u32 count, char delimiter) {
 
 const char* string_directory_from_path(const char* path) {
     u64 length = string_length(path);
-    for (i32 i = length, j = 0; i >= 0; --i, ++j) {
+    for (i32 i = length; i >= 0; --i) {
         char c = path[i];
         if (c == '/' || c == '\\') {
-            u32 new_length = j + 1;
+            u32 new_length = i + 1; // Account for null.
             char* dest = kallocate(new_length, MEMORY_TAG_STRING);
-            string_ncopy(dest, path, i + 1);
-            dest[i + 1] = 0;
+            string_ncopy(dest, path, i);
+            dest[new_length] = 0;
             return dest;
         }
     }
@@ -1075,9 +1075,10 @@ const char* string_filename_from_path(const char* path) {
     for (i32 i = length, j = 0; i >= 0; --i, ++j) {
         char c = path[i];
         if (c == '/' || c == '\\') {
-            u32 new_length = j + 1;
+            u32 new_length = j + 1;  // Account for null.
             char* dest = kallocate(new_length, MEMORY_TAG_STRING);
-            dest[i + 1] = 0;
+            string_ncopy(dest, path + i, j);
+            dest[new_length] = 0;
             return dest;
         }
     }

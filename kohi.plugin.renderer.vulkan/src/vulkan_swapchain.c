@@ -2,6 +2,7 @@
 #include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
 #include "platform/vulkan_platform.h"
+#include "vulkan_backend.h"
 
 #include <vulkan/vulkan_core.h>
 
@@ -26,6 +27,7 @@ b8 vulkan_swapchain_create(
     renderer_config_flags flags,
     vulkan_swapchain* out_swapchain) {
     // Simply create a new one.
+    out_swapchain->swapchain_colour_texture = khandle_invalid();
     return create(backend, window, flags, out_swapchain);
 }
 
@@ -167,14 +169,8 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
         return false;
     }
 
-    // Because the swapchain images are owned/created by the swapchain, the memory for
-    // the texture "wrapped" around it is manually allocated here.
-    // Of course, only do this if it hasn't already been done.
-    if (!swapchain->swapchain_colour_texture) {
-        swapchain->swapchain_colour_texture = KALLOC_TYPE(kresource_texture, MEMORY_TAG_RENDERER);
-        // Start with an invalid handle.
-        swapchain->swapchain_colour_texture->renderer_texture_handle = khandle_invalid();
-    }
+    // Start with an invalid handle.
+    // swapchain->swapchain_colour_texture = khandle_invalid();
 
     // Get image count from swapchain.
     swapchain->image_count = 0;
@@ -196,14 +192,14 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 
     // Swapchain images are stored in the backend data of the swapchain's colour texture.
     // NOTE: The window should create a separate set of images to render to, then blit to these.
-    if (khandle_is_invalid(swapchain->swapchain_colour_texture->renderer_texture_handle)) {
+    if (khandle_is_invalid(swapchain->swapchain_colour_texture)) {
         // If invalid, then a new one needs to be created. This does not reach out to the
         // texture system to create this, but handles it internally instead. This is because
         // the process for this varies greatly between backends.
-        if (!renderer_kresource_texture_resources_acquire(
-                backend->frontend_state,
-                kname_create("__swapchain_colour_texture__"),
-                TEXTURE_TYPE_2D,
+        if (!vulkan_renderer_texture_resources_acquire(
+                backend,
+                "__swapchain_colour_texture__",
+                KTEXTURE_TYPE_2D,
                 swapchain_extent.width,
                 swapchain_extent.height,
                 4,
@@ -211,9 +207,8 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
                 1,
                 // NOTE: This should be a wrapped texture, so the frontend does not try to
                 // acquire the resources we already have here.
-                TEXTURE_FLAG_IS_WRAPPED | TEXTURE_FLAG_IS_WRITEABLE | TEXTURE_FLAG_RENDERER_BUFFERING,
-                &swapchain->swapchain_colour_texture->renderer_texture_handle)) {
-
+                KTEXTURE_FLAG_IS_WRAPPED | KTEXTURE_FLAG_IS_WRITEABLE | KTEXTURE_FLAG_RENDERER_BUFFERING,
+                &swapchain->swapchain_colour_texture)) {
             KFATAL("Failed to acquire internal texture resources for swapchain colour texture.");
             return false;
         }
@@ -221,15 +216,10 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 
     // Get the texture_internal_data based on the existing or newly-created handle above.
     // Use that to setup the internal images/views for the colourbuffer texture.
-    vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture->renderer_texture_handle.handle_index];
+    vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture.handle_index];
     if (!texture_data) {
         KFATAL("Unable to get internal data for swapchain colour image. Swapchain creation failed.");
         return false;
-    }
-
-    // Name is meaningless here, but might be useful for debugging.
-    if (swapchain->swapchain_colour_texture->base.name == INVALID_KNAME) {
-        swapchain->swapchain_colour_texture->base.name = kname_create("__swapchain_colour_texture__");
     }
 
     texture_data->image_count = swapchain->image_count;
@@ -285,7 +275,11 @@ static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapc
     vulkan_context* context = backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
 
-    vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture->renderer_texture_handle.handle_index];
+    if (khandle_is_invalid(swapchain->swapchain_colour_texture)) {
+        KFATAL("Swapchain internal colour texture has an invalid handle.");
+    }
+
+    vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture.handle_index];
     if (!texture_data) {
         KFATAL("Unable to get internal data for colourbuffer image. Swapchain destruction failed.");
         return;

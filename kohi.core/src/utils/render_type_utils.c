@@ -490,7 +490,7 @@ b8 pixel_data_has_transparency(const void* pixels, u32 pixel_array_size, kpixel_
     switch (format) {
     case KPIXEL_FORMAT_UNKNOWN:
     default:
-        KWARN("%s - Unknown pixel format provided. Cannot determine pixel transparency. Defaulting to false.");
+        KWARN("%s - Unknown pixel format provided. Cannot determine pixel transparency. Defaulting to false.", __FUNCTION__);
         return false;
 
     case KPIXEL_FORMAT_RGBA8: {
@@ -521,7 +521,7 @@ u8 channel_count_from_pixel_format(kpixel_format format) {
     switch (format) {
     case KPIXEL_FORMAT_UNKNOWN:
     default:
-        KWARN("%s - Unknown pixel format provided. Cannot determine pixel transparency. Defaulting to false.");
+        KWARN("%s - Unknown pixel format provided. Cannot determine channel count. Returning INVALID_ID_U8.", __FUNCTION__);
         return INVALID_ID_U8;
     case KPIXEL_FORMAT_RGBA8:
     case KPIXEL_FORMAT_RGBA16:

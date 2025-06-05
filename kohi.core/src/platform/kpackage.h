@@ -1,7 +1,6 @@
 #pragma once
 
 #include "defines.h"
-#include "platform/vfs.h"
 #include "strings/kname.h"
 
 typedef struct asset_manifest_asset {

@@ -204,6 +204,7 @@ b8 shadow_rendergraph_node_load_resources(struct rendergraph_node* self) {
     // This should take renderer buffering into account.
     ktexture_load_options options = {
         .type = KTEXTURE_TYPE_2D_ARRAY,
+        .format = KPIXEL_FORMAT_RGBA8,
         .is_depth = true,
         .is_stencil = false,
         .name = kname_create("__shadow_rg_node_shadowmap__"),

@@ -291,7 +291,9 @@ static void vfs_on_image_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_
         KERROR("Failed to deserialize image asset. See logs for details.");
     }
 
-    KFREE_TYPE(context, kasset_image_vfs_context, MEMORY_TAG_ASSET);
+    if (context->callback) {
+        context->callback(context->listener, out_asset);
+    }
 }
 
 // async load from game package.
@@ -318,7 +320,7 @@ kasset_image* asset_system_request_image_from_package(struct asset_system_state*
 
     vfs_request_info info = {
         .asset_name = kname_create(name),
-        .package_name = state->application_package_name,
+        .package_name = kname_create(package_name),
         .get_source = false,
         .is_binary = true,
         .watch_for_hot_reload = false,
@@ -432,7 +434,7 @@ kasset_system_font* asset_system_request_system_font_from_package_sync(struct as
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
         .get_source = false,
-        .is_binary = true,
+        .is_binary = false,
         .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
@@ -479,7 +481,9 @@ static void vfs_on_static_mesh_asset_loaded_callback(struct vfs_state* vfs, vfs_
         KERROR("Failed to deserialize static_mesh asset. See logs for details.");
     }
 
-    KFREE_TYPE(context, kasset_static_mesh_vfs_context, MEMORY_TAG_ASSET);
+    if (context->callback) {
+        context->callback(context->listener, out_asset);
+    }
 }
 
 // async load from game package.
@@ -676,7 +680,9 @@ static void vfs_on_material_asset_loaded_callback(struct vfs_state* vfs, vfs_ass
 
     context->asset->name = asset_data.asset_name;
 
-    KFREE_TYPE(context, kasset_material_vfs_context, MEMORY_TAG_ASSET);
+    if (context->callback) {
+        context->callback(context->listener, context->asset);
+    }
 }
 
 // async load from game package.
@@ -705,7 +711,7 @@ kasset_material* asset_system_request_material_from_package(struct asset_system_
         .asset_name = kname_create(name),
         .package_name = state->application_package_name,
         .get_source = false,
-        .is_binary = true,
+        .is_binary = false,
         .watch_for_hot_reload = false,
         .vfs_callback = vfs_on_material_asset_loaded_callback,
         .context = context,
@@ -726,7 +732,7 @@ kasset_material* asset_system_request_material_from_package_sync(struct asset_sy
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
         .get_source = false,
-        .is_binary = true,
+        .is_binary = false,
         .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
@@ -772,8 +778,6 @@ static void vfs_on_audio_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_
     }
 
     context->asset->name = asset_data.asset_name;
-
-    KFREE_TYPE(context, kasset_audio_vfs_context, MEMORY_TAG_ASSET);
 }
 
 // async load from game package.
@@ -964,7 +968,7 @@ kasset_shader* asset_system_request_shader_from_package_sync(struct asset_system
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
         .get_source = false,
-        .is_binary = true,
+        .is_binary = false,
         .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);

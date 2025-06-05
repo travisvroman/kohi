@@ -66,9 +66,9 @@ void vulkan_renderer_clear_stencil_set(renderer_backend_interface* backend, u32 
 void vulkan_renderer_clear_colour_texture(renderer_backend_interface* backend, khandle texture_handle);
 void vulkan_renderer_clear_depth_stencil(renderer_backend_interface* backend, khandle texture_handle);
 void vulkan_renderer_colour_texture_prepare_for_present(renderer_backend_interface* backend, khandle texture_handle);
-void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* backend, khandle texture_handle, texture_flag_bits flags);
+void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* backend, khandle texture_handle, ktexture_flag_bits flags);
 
-b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_texture_handle);
+b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, const char* name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_texture_handle);
 void vulkan_renderer_texture_resources_release(renderer_backend_interface* backend, khandle* texture_handle);
 
 b8 vulkan_renderer_texture_resize(renderer_backend_interface* backend, khandle texture_handle, u32 new_width, u32 new_height);

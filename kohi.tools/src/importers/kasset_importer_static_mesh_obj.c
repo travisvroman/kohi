@@ -5,7 +5,7 @@
 #include <core_render_types.h>
 #include <logger.h>
 #include <memory/kmemory.h>
-#include <platform/vfs.h>
+#include <platform/filesystem.h>
 #include <serializers/kasset_material_serializer.h>
 #include <serializers/kasset_static_mesh_serializer.h>
 #include <strings/kname.h>
@@ -13,13 +13,11 @@
 
 #include "serializers/obj_serializer.h"
 
-b8 kasset_static_mesh_obj_import(kname output_asset_name, kname output_package_name, const char* data, u32* out_material_file_count, const char*** out_material_file_names) {
+b8 kasset_static_mesh_obj_import(const char* output_directory, const char* output_filename, kname package_name, const char* data, u32* out_material_file_count, const char*** out_material_file_names) {
     if (!data || !out_material_file_count || !out_material_file_names) {
         KERROR("%s requires valid pointers to data, out_material_file_count, and out_material_file_names.", __FUNCTION__);
         return false;
     }
-
-    struct vfs_state* vfs = engine_systems_get()->vfs_system_state;
 
     kasset_static_mesh asset = {0};
     obj_source_asset obj_asset = {0};
@@ -105,19 +103,21 @@ b8 kasset_static_mesh_obj_import(kname output_asset_name, kname output_package_n
     }
 
     // Serialize static_mesh and write out ksm file.
-    {
-        u64 serialized_size = 0;
-        void* serialized_data = kasset_static_mesh_serialize(&asset, &serialized_size);
-        if (!serialized_data || !serialized_size) {
-            KERROR("Failed to serialize binary static mesh.");
-            return false;
-        }
 
-        // Write out .ksm file.
-        if (!vfs_asset_write_binary(vfs, output_asset_name, output_package_name, serialized_size, serialized_data)) {
-            KWARN("Failed to write .ksm file. See logs for details. Static mesh asset still imported and can be used, though.");
-        }
+    u64 serialized_size = 0;
+    void* serialized_data = kasset_static_mesh_serialize(&asset, &serialized_size);
+    if (!serialized_data || !serialized_size) {
+        KERROR("Failed to serialize binary static mesh.");
+        return false;
     }
 
-    return true;
+    // Write out .ksm file.
+    const char* out_path = string_format("%s/%s.%s", output_directory, output_filename, "ksm");
+    b8 success = true;
+    if (!filesystem_write_entire_binary_file(out_path, serialized_size, serialized_data)) {
+        KWARN("Failed to write .ksm file. See logs for details. Static mesh asset still imported and can be used, though.");
+        success = false;
+    }
+
+    return success;
 }

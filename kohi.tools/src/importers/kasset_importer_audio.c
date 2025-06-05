@@ -5,20 +5,19 @@
 #include <logger.h>
 #include <math/kmath.h>
 #include <memory/kmemory.h>
-#include <platform/vfs.h>
+#include <platform/filesystem.h>
 #include <serializers/kasset_audio_serializer.h>
 #include <stdlib.h>
+#include <strings/kstring.h>
 
 // Loading vorbis files.
-#include "strings/kname.h"
-#include "strings/kstring.h"
 #include "vendor/stb_vorbis.h"
 // Loading mp3 files.
 #define MINIMP3_IMPLEMENTATION
 // #define MINIMP3_NO_STDIO
 #include "vendor/minimp3_ex.h"
 
-b8 kasset_audio_import(kname output_asset_name, kname output_package_name, u64 data_size, const void* data, const char* extension) {
+b8 kasset_audio_import(const char* output_directory, const char* output_filename, u64 data_size, const void* data, const char* extension) {
     if (!data_size || !data) {
         KERROR("%s requires a valid pointer to data, as well as a nonzero data_size.", __FUNCTION__);
         return false;
@@ -28,7 +27,7 @@ b8 kasset_audio_import(kname output_asset_name, kname output_package_name, u64 d
 
     if (strings_equali(extension, ".mp3")) {
         // MP3 import
-        KTRACE("Importing MP3 asset '%s'...", kname_string_get(output_asset_name));
+        KTRACE("Importing MP3 asset '%s'...", output_filename);
         asset.pcm_data_size = 0;
         asset.pcm_data = 0;
         asset.total_sample_count = 0;
@@ -55,7 +54,7 @@ b8 kasset_audio_import(kname output_asset_name, kname output_package_name, u64 d
 
     } else if (strings_equali(extension, ".ogg")) {
         // Ogg import
-        KTRACE("Importing OGG Vorbis asset '%s'...", kname_string_get(output_asset_name));
+        KTRACE("Importing OGG Vorbis asset '%s'...", output_filename);
 
         i16* decoded_pcm_data = 0;
         i32 total_samples = stb_vorbis_decode_memory(data, data_size, &asset.channels, (i32*)&asset.sample_rate, &decoded_pcm_data);
@@ -73,15 +72,12 @@ b8 kasset_audio_import(kname output_asset_name, kname output_package_name, u64 d
         free(decoded_pcm_data);
 
     } else if (strings_equali(extension, ".wav")) {
-        KTRACE("Importing WAV Vorbis asset '%s'...", kname_string_get(output_asset_name));
+        KTRACE("Importing WAV asset '%s'...", output_filename);
         // FIXME: support wav
         KFATAL("wav not yet supported.");
     } else {
         KFATAL("Unsupported audio source file format '%s', ya dingus.", extension);
     }
-
-    // Serialize and write to the VFS.
-    struct vfs_state* vfs = engine_systems_get()->vfs_system_state;
 
     u64 serialized_block_size = 0;
     void* serialized_block = kasset_audio_serialize(&asset, &serialized_block_size);
@@ -90,9 +86,11 @@ b8 kasset_audio_import(kname output_asset_name, kname output_package_name, u64 d
         return false;
     }
 
+    // Write out .kaf file.
+    const char* out_path = string_format("%s/%s.%s", output_directory, output_filename, "kaf");
     b8 success = true;
-    if (!vfs_asset_write_binary(vfs, output_asset_name, output_package_name, serialized_block_size, serialized_block)) {
-        KERROR("Failed to write Binary Audio asset data to VFS. See logs for details.");
+    if (!filesystem_write_entire_binary_file(out_path, serialized_block_size, serialized_block)) {
+        KWARN("Failed to write Binary Audio asset (.kaf) file. See logs for details.");
         success = false;
     }
 

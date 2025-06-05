@@ -389,7 +389,7 @@ b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_
                 state->backend->channel_looping_set(state->backend, i, looping);
 
                 // Position is only applied for mono sounds, because only those can be spatial/use position.
-                if (channel->bound_resource->resource->channels == 1) {
+                if (channel->bound_resource->resource && channel->bound_resource->resource->channels == 1) {
                     state->backend->channel_position_set(state->backend, i, channel->bound_instance->position);
                 }
             }

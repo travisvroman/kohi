@@ -80,7 +80,7 @@ b8 rendergraph_create(const char* config_str, ktexture global_colourbuffer, ktex
         return false;
     }
 
-    if (!global_colourbuffer || !global_depthbuffer) {
+    if (global_colourbuffer == INVALID_KTEXTURE || global_depthbuffer == INVALID_KTEXTURE) {
         KERROR("rendergraph_create requires valid pointers to global colour and depthbuffers.");
         return false;
     }

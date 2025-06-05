@@ -1,16 +1,17 @@
 #include "vfs.h"
 
-#include "assets/kasset_types.h"
-#include "containers/darray.h"
-#include "debug/kassert.h"
-#include "defines.h"
-#include "logger.h"
-#include "memory/kmemory.h"
-#include "platform/filesystem.h"
-#include "platform/kpackage.h"
-#include "platform/platform.h"
-#include "strings/kname.h"
-#include "strings/kstring.h"
+#include <assets/kasset_types.h>
+#include <containers/darray.h>
+#include <debug/kassert.h>
+#include <defines.h>
+#include <logger.h>
+#include <memory/kmemory.h>
+#include <platform/filesystem.h>
+#include <platform/kpackage.h>
+#include <platform/platform.h>
+#include <strings/kname.h>
+#include <strings/kstring.h>
+#include <systems/job_system.h>
 
 static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest);
 static void vfs_watcher_deleted_callback(u32 watcher_id, void* context);
@@ -86,34 +87,73 @@ void vfs_hot_reload_callbacks_register(vfs_state* state, void* hot_reload_listen
     }
 }
 
+typedef struct vfs_asset_job_params {
+    vfs_state* state;
+    vfs_request_info info;
+} vfs_asset_job_params;
+
+typedef struct vfs_asset_job_result {
+    vfs_state* state;
+    vfs_asset_data data;
+    vfs_request_info info;
+} vfs_asset_job_result;
+
+b8 vfs_asset_job_start(void* params, void* out_result_data) {
+    vfs_asset_job_params* job_params = (vfs_asset_job_params*)params;
+    vfs_asset_job_result* out_result = (vfs_asset_job_result*)out_result_data;
+    out_result->data = vfs_request_asset_sync(job_params->state, job_params->info);
+    out_result->state = job_params->state;
+    out_result->info = job_params->info;
+
+    return out_result->data.result == VFS_REQUEST_RESULT_SUCCESS;
+}
+
+// Invoked on asset job success.
+void vfs_asset_job_success(void* result_params) {
+    vfs_asset_job_result* result = result_params;
+
+    // Issue the callback with the data, if present.
+    if (result->info.vfs_callback) {
+        result->info.vfs_callback(result->state, result->data);
+    }
+
+    // Cleanup context and import params if _not_ watching.
+    if (!result->info.watch_for_hot_reload) {
+        if (result->data.context && result->data.context_size) {
+            kfree(result->data.context, result->data.context_size, MEMORY_TAG_PLATFORM);
+            result->data.context = 0;
+            result->data.context_size = 0;
+        }
+        if (result->data.import_params && result->data.import_params_size) {
+            kfree(result->data.import_params, result->data.import_params_size, MEMORY_TAG_PLATFORM);
+            result->data.import_params = 0;
+            result->data.import_params_size = 0;
+        }
+    }
+}
+
+// Invoked on asset job failure.
+void vfs_asset_job_fail(void* result_params) {
+    vfs_asset_job_result* result = result_params;
+
+    // FIXME: notify?
+    KERROR("VFS asset (name='%s', package='%s') load failed. See logs for details.", kname_string_get(result->info.asset_name), kname_string_get(result->info.package_name));
+    if (result) {
+        //
+    }
+}
+
 void vfs_request_asset(vfs_state* state, vfs_request_info info) {
     if (!state) {
         KERROR("vfs_request_asset requires state to be provided.");
     }
 
-    // TODO: Jobify this call.
-    vfs_asset_data data = vfs_request_asset_sync(state, info);
-
-    // TODO: This should be the job result
-    //
-    // Issue the callback with the data, if present.
-    if (info.vfs_callback) {
-        info.vfs_callback(state, data);
-    }
-
-    // Cleanup context and import params if _not_ watching.
-    if (!info.watch_for_hot_reload) {
-        if (data.context && data.context_size) {
-            kfree(data.context, data.context_size, MEMORY_TAG_PLATFORM);
-            data.context = 0;
-            data.context_size = 0;
-        }
-        if (data.import_params && data.import_params_size) {
-            kfree(data.import_params, data.import_params_size, MEMORY_TAG_PLATFORM);
-            data.import_params = 0;
-            data.import_params_size = 0;
-        }
-    }
+    // Async asset requests are jobifyed.
+    vfs_asset_job_params job_params = {
+        .info = info,
+        .state = state};
+    job_info job = job_create(vfs_asset_job_start, vfs_asset_job_success, vfs_asset_job_fail, &job_params, sizeof(vfs_asset_job_params), sizeof(vfs_asset_job_result));
+    job_system_submit(job);
 }
 
 vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
