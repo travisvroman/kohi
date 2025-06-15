@@ -17,7 +17,7 @@
 #include "kresources/kresource_types.h"
 #include "plugins/plugin_types.h"
 #include "strings/kstring.h"
-#include "systems/kresource_system.h"
+#include "systems/asset_system.h"
 #include "systems/plugin_system.h"
 
 typedef struct kaudio_category_config {
@@ -49,7 +49,7 @@ typedef struct kaudio_system_config {
     u32 audio_channel_count;
 
     /** @brief The maximum number of audio resources (sounds or music) that can be loaded at once. */
-    u32 max_resource_count;
+    u32 max_count;
 
     u32 category_count;
     kaudio_category_config* categories;
@@ -58,66 +58,11 @@ typedef struct kaudio_system_config {
     const char* backend_plugin_name;
 } kaudio_system_config;
 
-typedef struct kaudio_resource_instance_data {
-    // The unique id matching an associated handle. INVALID_ID_U64 means this slot is unused.
-    u64 uniqueid;
-
-    // Range: [0.5f - 2.0f] Default: 1.0f
-    f32 pitch;
-
-    // Range: 0-1
-    f32 volume;
-
-    // Position of the sound.
-    vec3 position;
-
-    // Indicates if the sound loops.
-    b8 looping;
-
-    // The radius around the position where the sound plays at full volume.
-    f32 inner_radius;
-
-    // The max distance from the position where the sound is still audible.
-    f32 outer_radius;
-
-    // The rate of falloff/how quickly the sound drops in volume as it is moved away from. Only used in exponential attenuation; otherwise ignored.
-    f32 falloff;
-
-    // The model to use for falloff of sound as the listener moves away.
-    kaudio_attenuation_model attenuation_model;
-
-    // The space in which the sound exists.
-    kaudio_space audio_space;
-
-    // A flag set when a play is requested. Remains on until the asset is valid and
-    // a play kicks off or if stopped.
-    b8 trigger_play;
-} kaudio_resource_instance_data;
-
-// The frontend-specific data for an audio resource.
-typedef struct kaudio_resource_handle_data {
-    // The unique id matching an associated handle. INVALID_ID_U64 means this slot is unused.
-    u64 uniqueid;
-
-    // A pointer to the underlying audio resource.
-    kresource_audio* resource;
-
-    kname resource_name;
-    kname package_name;
-
-    // Indicates if the audio should be streamed in small bits (large files) or loaded all at once (small files)
-    b8 is_streaming;
-
-    // darray of instances of this resource.
-    kaudio_resource_instance_data* instances;
-
-} kaudio_resource_handle_data;
-
 typedef struct kaudio_emitter_handle_data {
     u64 uniqueid;
 
     // Handle to underlying resource instance.
-    audio_instance instance;
+    kaudio_instance instance;
     // Emitter-specific volume.
     f32 volume;
 
@@ -149,10 +94,10 @@ typedef struct kaudio_channel {
     // The channel volume
     f32 volume;
 
-    // A pointer to the currently bound resource handle data, if in  use; otherwise 0/null (i.e. not in use)
-    kaudio_resource_handle_data* bound_resource;
-    // A pointer to the currently bound instance handle data, if in  use; otherwise 0/null (i.e. not in use)
-    kaudio_resource_instance_data* bound_instance;
+    // A index to the currently bound audio data, if in use; otherwise INVALID_KAUDIO (i.e. not in use)
+    kaudio bound_audio;
+    // A index to the currently bound instance data, if in  use; otherwise INVALID_ID_U16 (i.e. not in use)
+    u16 bound_instance;
 } kaudio_channel;
 
 typedef struct kaudio_category {
@@ -162,6 +107,69 @@ typedef struct kaudio_category {
     u32 channel_id_count;
     u32* channel_ids;
 } kaudio_category;
+
+typedef enum kaudio_instance_state {
+    KAUDIO_INSTANCE_STATE_UNINITIALIZED,
+    KAUDIO_INSTANCE_STATE_ACQUIRED
+} kaudio_instance_state;
+
+typedef struct kaudio_instance_data {
+    // State of the instance. Uninitialized = free
+    kaudio_instance_state state;
+    // Range: [0.5f - 2.0f] Default: 1.0f
+    f32 pitch;
+
+    // Range: 0-1
+    f32 volume;
+
+    // Position of the sound.
+    vec3 position;
+
+    // Indicates if the sound loops.
+    b8 looping;
+
+    // The radius around the position where the sound plays at full volume.
+    f32 inner_radius;
+
+    // The max distance from the position where the sound is still audible.
+    f32 outer_radius;
+
+    // The rate of falloff/how quickly the sound drops in volume as it is moved away from. Only used in exponential attenuation; otherwise ignored.
+    f32 falloff;
+
+    // The model to use for falloff of sound as the listener moves away.
+    kaudio_attenuation_model attenuation_model;
+
+    // The space in which the sound exists.
+    kaudio_space audio_space;
+
+    // A flag set when a play is requested. Remains on until the asset is valid and
+    // a play kicks off or if stopped.
+    b8 trigger_play;
+} kaudio_instance_data;
+
+typedef enum kaudio_state {
+    KAUDIO_STATE_UNINITIALIZED,
+    KAUDIO_STATE_LOADING,
+    KAUDIO_STATE_LOADED,
+} kaudio_state;
+
+typedef struct kaudio_data {
+    // Names of kaudios.
+    kname* names;
+
+    kaudio_state* states;
+
+    // Indicates if the audio should be streamed in small bits (large files) or loaded all at once (small files). Indexed by kaudio.
+    b8* is_streamings;
+
+    // The number of audio channels, indexed by kaudio.
+    u8* channel_counts;
+
+    // array of darrays of instances of kaudios, indexed by kaudio.
+    // ex: data.instances[audio][instance_id]
+    kaudio_instance_data** instances;
+} kaudio_data;
 
 typedef struct kaudio_system_state {
     f32 master_volume;
@@ -192,10 +200,11 @@ typedef struct kaudio_system_state {
     kaudio_category categories[AUDIO_CHANNEL_MAX_COUNT];
 
     // The max number of audio resources that can be loaded at any time.
-    u32 max_resource_count;
+    u16 max_count;
 
-    // Array of internal resources for audio data in the system's frontend.
-    kaudio_resource_handle_data* resources;
+    // audio data in the system's frontend.
+    // Contains arrays of data.
+    kaudio_data data;
 
     // darray of audio emitters.
     kaudio_emitter_handle_data* emitters;
@@ -213,17 +222,14 @@ typedef struct kaudio_system_state {
 
 typedef struct audio_asset_request_listener {
     kaudio_system_state* state;
-    audio_instance* instance;
+    kaudio_instance instance;
 } audio_asset_request_listener;
 
 static b8 deserialize_config(const char* config_str, kaudio_system_config* out_config);
-static khandle get_base_handle(kaudio_system_state* state, kname resource_name, kname package_name);
-static void on_audio_asset_loaded(kresource* resource, void* listener);
-static b8 base_resource_handle_is_valid_and_pristine(kaudio_system_state* state, khandle handle);
-static b8 instance_handle_is_valid_and_pristine(kaudio_system_state* state, kaudio_resource_handle_data* base, khandle handle);
-static kaudio_resource_handle_data* get_base(kaudio_system_state* state, khandle base_resource);
-static kaudio_resource_instance_data* get_instance(kaudio_system_state* state, kaudio_resource_handle_data* base, khandle instance);
-static u32 get_active_instance_count(kaudio_resource_handle_data* base);
+static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming);
+static u16 issue_new_instance(kaudio_system_state* state, kaudio base);
+static void kasset_audio_loaded_callback(void* listener, kasset_audio* asset);
+static u16 get_active_instance_count(kaudio_system_state* state, kaudio base);
 static kaudio_channel* get_channel(kaudio_system_state* state, i8 channel_index);
 static kaudio_channel* get_available_channel_from_category(kaudio_system_state* state, u8 category_index);
 static void kaudio_emitter_update(struct kaudio_system_state* state, kaudio_emitter_handle_data* emitter);
@@ -246,23 +252,20 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
         config.frequency = 44100;
         config.channel_count = 2;
         config.chunk_size = 4096 * 16;
-        config.max_resource_count = 32;
+        config.max_count = 32;
     }
 
     state->chunk_size = config.chunk_size;
     state->channel_count = config.channel_count;
     state->audio_channel_count = config.audio_channel_count;
     state->frequency = config.frequency;
-    state->max_resource_count = config.max_resource_count;
+    state->max_count = config.max_count;
 
-    state->resources = KALLOC_TYPE_CARRAY(kaudio_resource_handle_data, state->max_resource_count);
-    // Invalidate all entries.
-    for (u32 i = 0; i < state->max_resource_count; ++i) {
-        kaudio_resource_handle_data* data = &state->resources[i];
-        data->resource = 0;
-        // This marks it as unused.
-        data->uniqueid = INVALID_ID_U64;
-    }
+    state->data.instances = KALLOC_TYPE_CARRAY(kaudio_instance_data*, state->max_count);
+    state->data.is_streamings = KALLOC_TYPE_CARRAY(b8, state->max_count);
+    state->data.states = KALLOC_TYPE_CARRAY(kaudio_state, state->max_count);
+    state->data.names = KALLOC_TYPE_CARRAY(kname, state->max_count);
+    state->data.channel_counts = KALLOC_TYPE_CARRAY(u8, state->max_count);
 
     // Default volumes for master and all channels to 1.0 (max);
     state->master_volume = 1.0f;
@@ -271,7 +274,8 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
         channel->index = i;
         channel->volume = 1.0f;
         // Also set some other reasonable defaults.
-        channel->bound_resource = 0;
+        channel->bound_audio = INVALID_KAUDIO;
+        channel->bound_instance = INVALID_ID_U16;
     }
 
     // Categories.
@@ -303,7 +307,7 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
     backend_config.frequency = config.frequency;
     backend_config.chunk_size = config.chunk_size;
     backend_config.channel_count = config.channel_count;
-    backend_config.max_resource_count = config.max_resource_count;
+    backend_config.max_count = config.max_count;
     backend_config.audio_channel_count = config.audio_channel_count;
     return state->backend->initialize(state->backend, &backend_config);
 }
@@ -334,38 +338,38 @@ b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_
         // Adjust each channel's properties based on what is bound to them (if anything).
         for (u32 i = 0; i < state->audio_channel_count; ++i) {
             kaudio_channel* channel = &state->channels[i];
-            if (channel->bound_resource && channel->bound_instance) {
-                b8 is_valid = channel->bound_resource->resource && channel->bound_resource->uniqueid != INVALID_ID_U64 && channel->bound_resource->resource->base.state == KRESOURCE_STATE_LOADED;
-                kaudio_resource_instance_data* instance = channel->bound_instance;
+            if (channel->bound_audio != INVALID_KAUDIO && channel->bound_instance != INVALID_ID_U16) {
+                b8 is_valid = state->data.states[channel->bound_audio] == KAUDIO_STATE_LOADED;
+                kaudio_instance_data* instance = &state->data.instances[channel->bound_audio][channel->bound_instance];
 
                 // If a play has been triggered and the resource is valid/ready for playing, do it.
-                if (channel->bound_instance->trigger_play && is_valid) {
+                if (instance->trigger_play && is_valid) {
                     b8 play_result = state->backend->channel_play_resource(
                         state->backend,
-                        channel->bound_resource->resource->internal_resource,
-                        channel->bound_instance->audio_space,
+                        channel->bound_audio,
+                        instance->audio_space,
                         channel->index);
 
                     if (!play_result) {
                         KERROR("Failed to play resource on channel index %i", channel->index);
                     } else {
                         // Unset the flag on success.
-                        channel->bound_instance->trigger_play = false;
+                        instance->trigger_play = false;
                     }
                 }
 
                 // Volume
                 f32 gain = 1.0f;
                 // Apply the volume at various levels by mixing them.
-                f32 mixed_volume = channel->bound_instance->volume * channel->volume * state->master_volume;
+                f32 mixed_volume = instance->volume * channel->volume * state->master_volume;
 
-                if (channel->bound_instance->audio_space == KAUDIO_SPACE_3D) {
+                if (instance->audio_space == KAUDIO_SPACE_3D) {
                     // Perform custom attenuation for sounds based on distance and falloff method. This is only done for
                     // mono sounds.
-                    f32 distance = vec3_distance(channel->bound_instance->position, state->listener_position);
+                    f32 distance = vec3_distance(instance->position, state->listener_position);
                     gain = calculate_spatial_gain(distance, instance->inner_radius, instance->outer_radius, instance->falloff, instance->attenuation_model);
 
-                    state->backend->channel_position_set(state->backend, i, channel->bound_instance->position);
+                    state->backend->channel_position_set(state->backend, i, instance->position);
                 } else {
                     // Treat as 2D, even if mono, by syncing the position of the sound/channel with the listener.
                     state->backend->channel_position_set(state->backend, i, state->listener_position);
@@ -378,10 +382,10 @@ b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_
                 state->backend->channel_gain_set(state->backend, i, gain);
 
                 // Pitch
-                state->backend->channel_pitch_set(state->backend, i, channel->bound_instance->pitch);
+                state->backend->channel_pitch_set(state->backend, i, instance->pitch);
                 // Looping setting
-                b8 looping = channel->bound_instance->looping;
-                if (channel->bound_resource->is_streaming) {
+                b8 looping = instance->looping;
+                if (state->data.is_streamings[channel->bound_audio]) {
                     // Audio channels for streams should never loop directly, but are checked internally instead.
                     // Always force these to be false for streams.
                     looping = false;
@@ -389,8 +393,9 @@ b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_
                 state->backend->channel_looping_set(state->backend, i, looping);
 
                 // Position is only applied for mono sounds, because only those can be spatial/use position.
-                if (channel->bound_resource->resource && channel->bound_resource->resource->channels == 1) {
-                    state->backend->channel_position_set(state->backend, i, channel->bound_instance->position);
+                // FIXME: Store channel count at this level?
+                if (state->data.states[channel->bound_audio] == KAUDIO_STATE_LOADED && state->data.channel_counts[channel->bound_audio] == 1) {
+                    state->backend->channel_position_set(state->backend, i, instance->position);
                 }
             }
         }
@@ -421,124 +426,81 @@ f32 kaudio_master_volume_get(struct kaudio_system_state* state) {
     return 0.0f;
 }
 
-b8 kaudio_acquire(struct kaudio_system_state* state, kname resource_name, kname package_name, b8 is_streaming, kaudio_space audio_space, audio_instance* out_audio_instance) {
-    if (!state) {
-        return false;
-    }
-
-    // Get/create a new handle for the resource.
-    out_audio_instance->base_resource = get_base_handle(state, resource_name, package_name);
-    kaudio_resource_handle_data* data = &state->resources[out_audio_instance->base_resource.handle_index];
-    if (!data->resource) {
-        // New handle was created, need to request resource.
-        data->resource_name = resource_name;
-        data->package_name = package_name;
-
-        data->is_streaming = is_streaming;
-
-        // Listener for the request.
-        audio_asset_request_listener* listener = KALLOC_TYPE(audio_asset_request_listener, MEMORY_TAG_RESOURCE);
-        listener->state = state;
-        listener->instance = out_audio_instance;
-
-        // Request the resource. If it already exists it will return immediately and be in a ready/loaded state.
-        // If not, it will be handled asynchronously. Either way, it'll go through the same callback.
-        kresource_audio_request_info request = {0};
-        request.base.type = KRESOURCE_TYPE_AUDIO;
-        request.base.assets = array_kresource_asset_info_create(1);
-        request.base.user_callback = on_audio_asset_loaded;
-        request.base.listener_inst = listener;
-        kresource_asset_info* asset = &request.base.assets.data[0];
-        asset->type = KASSET_TYPE_AUDIO;
-        asset->asset_name = resource_name;
-        asset->package_name = package_name;
-        asset->watch_for_hot_reload = false; // Hot-reloading not supported for audio.
-        if (!kresource_system_request(engine_systems_get()->kresource_state, resource_name, (kresource_request_info*)&request)) {
-            KERROR("Failed to request audio resource. See logs for details.");
-            kfree(listener, sizeof(audio_asset_request_listener), MEMORY_TAG_RESOURCE);
-            return false;
-        }
-
-        // Create the darray for the instances.
-        data->instances = darray_create(kaudio_resource_instance_data);
-    }
-
-    // Setup instance
-    // Check to see if there is a free instance slot first. Otherwise push a new one.
-    u32 resource_index = INVALID_ID;
-    u32 instance_count = darray_length(data->instances);
-    for (u32 i = 0; i < instance_count; ++i) {
-        kaudio_resource_instance_data* instance = &data->instances[i];
-        if (instance->uniqueid == INVALID_ID_U64) {
-            // available
-            instance_count = i;
-            break;
-        }
-    }
-    // Push a new one one was not found.
-    if (resource_index == INVALID_ID) {
-        darray_push(data->instances, (kaudio_resource_instance_data){0});
-        resource_index = instance_count;
-    }
-
-    kaudio_resource_instance_data* instance = &data->instances[resource_index];
-    out_audio_instance->instance = khandle_create(resource_index);
-    instance->uniqueid = out_audio_instance->instance.unique_id.uniqueid;
-
-    // Set reasonable defaults for an instance.
-    instance->looping = is_streaming; // Streaming sounds automatically loop.
-    instance->pitch = AUDIO_PITCH_DEFAULT;
-    instance->volume = AUDIO_VOLUME_DEFAULT;
-    instance->position = vec3_zero();
-    instance->inner_radius = AUDIO_INNER_RADIUS_DEFAULT;
-    instance->outer_radius = AUDIO_OUTER_RADIUS_DEFAULT;
-    instance->falloff = AUDIO_FALLOFF_DEFAULT;
-    // Set the instance's audio space accordingly.
-    instance->audio_space = audio_space;
-
-    return true;
+kaudio_instance kaudio_acquire(struct kaudio_system_state* state, kname asset_name, b8 is_streaming, kaudio_space audio_space) {
+    return kaudio_acquire_from_package(state, asset_name, INVALID_KNAME, is_streaming, audio_space);
 }
 
-void kaudio_release(struct kaudio_system_state* state, audio_instance* instance) {
-    if (state && instance) {
-        // Check both instance and base handle
-        kaudio_resource_handle_data* base_resource = get_base(state, instance->base_resource);
-        if (!base_resource) {
-            KERROR("kaudio_release was passed a base resource handle that is either invalid or stale. Nothing to be done.");
-            return;
+kaudio_instance kaudio_acquire_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming, kaudio_space audio_space) {
+    kaudio_instance out_instance = {
+        .base = INVALID_KAUDIO,
+        .instance_id = INVALID_ID_U16};
+
+    if (!state) {
+        return out_instance;
+    }
+
+    // Search first for an existing kaudio with the asset_name as its name.
+    for (u16 i = 0; i < state->max_count; ++i) {
+        if (state->data.names[i] == asset_name) {
+            // Issue new instance and return.
+            out_instance.base = i;
+            out_instance.instance_id = issue_new_instance(state, out_instance.base);
+            state->data.instances[out_instance.base][out_instance.instance_id].audio_space = audio_space;
+            return out_instance;
         }
-        kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance->instance);
-        if (!instance_data) {
-            KERROR("kaudio_release was passed an instance resource handle that is either invalid or stale. Nothing to be done.");
-            return;
-        }
+    }
+
+    // No existing kaudio, so create a new one.
+    kaudio base = create_base_audio(state, is_streaming);
+    out_instance.base = base;
+
+    // Listener for the request.
+    audio_asset_request_listener* listener = KALLOC_TYPE(audio_asset_request_listener, MEMORY_TAG_RESOURCE);
+    listener->state = state;
+    listener->instance = out_instance;
+
+    // Request the asset.
+    kasset_audio* asset = asset_system_request_audio_from_package(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(asset_name), listener, kasset_audio_loaded_callback);
+    if (!asset) {
+        KERROR("Failed to request kaudio asset. See logs for details.");
+        kfree(listener, sizeof(audio_asset_request_listener), MEMORY_TAG_RESOURCE);
+        return out_instance;
+    }
+
+    // Issue new instance for it.
+    out_instance.instance_id = issue_new_instance(state, out_instance.base);
+
+    // Set the instance's audio space accordingly.
+    state->data.instances[out_instance.base][out_instance.instance_id].audio_space = audio_space;
+    return out_instance;
+}
+
+void kaudio_release(struct kaudio_system_state* state, kaudio_instance* instance) {
+    if (state && instance && instance->base != INVALID_KAUDIO && instance->instance_id != INVALID_ID_U16) {
 
         // Invalidate the instance data.
-        kzero_memory(instance_data, sizeof(kaudio_resource_instance_data));
-        instance_data->uniqueid = INVALID_ID_U64;
-
-        // Invalidate the handles.
-        khandle_invalidate(&instance->base_resource);
-        khandle_invalidate(&instance->instance);
+        kzero_memory(&state->data.instances[instance->base][instance->instance_id], sizeof(kaudio_instance_data));
 
         // See how many active instances there are left. If none, release.
-        u32 active_instance_count = get_active_instance_count(base_resource);
+        u16 active_instance_count = get_active_instance_count(state, instance->base);
         if (!active_instance_count) {
-            KTRACE("Audio resource '%s' has no more instances and will be released.", kname_string_get(base_resource->resource->base.name));
+            KTRACE("KAudio '%s' has no more instances and will be released.", kname_string_get(state->data.names[instance->base]));
 
             // Release from backend.
-            state->backend->resource_unload(state->backend, instance->base_resource);
+            state->backend->unload(state->backend, instance->base);
 
-            // Release the resource.
-            kresource_system_release(engine_systems_get()->kresource_state, base_resource->resource->base.name);
+            // Clear instance array.
+            darray_clear(state->data.instances[instance->base]);
 
-            // Release instance array.
-            darray_destroy(base_resource->instances);
-
-            // Reset the handle data and make the slot available for use.
-            kzero_memory(base_resource, sizeof(kaudio_resource_handle_data));
-            base_resource->uniqueid = INVALID_ID_U64;
+            // Reset the slot data and make the slot available for use.
+            state->data.names[instance->base] = INVALID_KNAME;
+            state->data.is_streamings[instance->base] = false;
+            state->data.states[instance->base] = KAUDIO_STATE_UNINITIALIZED;
         }
+
+        // Invalidate the instance.
+        instance->base = INVALID_KAUDIO;
+        instance->instance_id = INVALID_ID_U16;
     }
 }
 
@@ -553,7 +515,7 @@ i8 kaudio_category_id_get(struct kaudio_system_state* state, kname name) {
     return -1;
 }
 
-b8 kaudio_play_in_category_by_name(struct kaudio_system_state* state, audio_instance instance, kname category_name) {
+b8 kaudio_play_in_category_by_name(struct kaudio_system_state* state, kaudio_instance instance, kname category_name) {
     i8 category_index = kaudio_category_id_get(state, category_name);
     if (category_index < 0) {
         return false;
@@ -562,7 +524,7 @@ b8 kaudio_play_in_category_by_name(struct kaudio_system_state* state, audio_inst
     return kaudio_play_in_category(state, instance, (u8)category_index);
 }
 
-b8 kaudio_play_in_category(struct kaudio_system_state* state, audio_instance instance, u8 category_index) {
+b8 kaudio_play_in_category(struct kaudio_system_state* state, kaudio_instance instance, u8 category_index) {
     if (!state || category_index >= state->category_count) {
         return false;
     }
@@ -580,15 +542,14 @@ b8 kaudio_play_in_category(struct kaudio_system_state* state, audio_instance ins
     return kaudio_play(state, instance, channel->index);
 }
 
-b8 kaudio_play(struct kaudio_system_state* state, audio_instance instance, i8 channel_index) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
+b8 kaudio_play(struct kaudio_system_state* state, kaudio_instance instance, i8 channel_index) {
+    if (!kaudio_is_valid(state, instance)) {
         return false;
     }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
+
+    kaudio_instance_data* instance_data = &state->data.instances[instance.base][instance.instance_id];
     if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
+        KERROR("%s was called with an invalid or stale instance index.", __FUNCTION__);
         return false;
     }
     kaudio_channel* channel = get_channel(state, channel_index);
@@ -600,8 +561,8 @@ b8 kaudio_play(struct kaudio_system_state* state, audio_instance instance, i8 ch
     }
 
     // Bind the base resource.
-    channel->bound_resource = base_resource;
-    channel->bound_instance = instance_data;
+    channel->bound_audio = instance.base;
+    channel->bound_instance = instance.instance_id;
 
     // Trigger a play on the next update if/when the bound resource is valid for playing.
     instance_data->trigger_play = true;
@@ -610,21 +571,14 @@ b8 kaudio_play(struct kaudio_system_state* state, audio_instance instance, i8 ch
     return true;
 }
 
-b8 kaudio_stop(struct kaudio_system_state* state, audio_instance instance) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
+b8 kaudio_stop(struct kaudio_system_state* state, kaudio_instance instance) {
+    if (!kaudio_is_valid(state, instance)) {
         return false;
     }
 
     for (u32 i = 0; i < state->audio_channel_count; ++i) {
         kaudio_channel* channel = &state->channels[i];
-        if (channel->bound_resource == base_resource && channel->bound_instance == instance_data) {
+        if (channel->bound_audio == instance.base && channel->bound_instance == instance.instance_id) {
             // Found the channel it's bound to, stop.
             return kaudio_channel_stop(state, i);
         }
@@ -634,21 +588,14 @@ b8 kaudio_stop(struct kaudio_system_state* state, audio_instance instance) {
     return false;
 }
 
-b8 kaudio_pause(struct kaudio_system_state* state, audio_instance instance) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
+b8 kaudio_pause(struct kaudio_system_state* state, kaudio_instance instance) {
+    if (!kaudio_is_valid(state, instance)) {
         return false;
     }
 
     for (u32 i = 0; i < state->audio_channel_count; ++i) {
         kaudio_channel* channel = &state->channels[i];
-        if (channel->bound_resource == base_resource && channel->bound_instance == instance_data) {
+        if (channel->bound_audio == instance.base && channel->bound_instance == instance.instance_id) {
             // Found the channel it's bound to, stop.
             return kaudio_channel_pause(state, i);
         }
@@ -658,21 +605,14 @@ b8 kaudio_pause(struct kaudio_system_state* state, audio_instance instance) {
     return false;
 }
 
-b8 kaudio_resume(struct kaudio_system_state* state, audio_instance instance) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
+b8 kaudio_resume(struct kaudio_system_state* state, kaudio_instance instance) {
+    if (!kaudio_is_valid(state, instance)) {
         return false;
     }
 
     for (u32 i = 0; i < state->audio_channel_count; ++i) {
         kaudio_channel* channel = &state->channels[i];
-        if (channel->bound_resource == base_resource && channel->bound_instance == instance_data) {
+        if (channel->bound_audio == instance.base && channel->bound_instance == instance.instance_id) {
             // Found the channel it's bound to, stop.
             return kaudio_channel_resume(state, i);
         }
@@ -682,230 +622,137 @@ b8 kaudio_resume(struct kaudio_system_state* state, audio_instance instance) {
     return false;
 }
 
-b8 kaudio_is_valid(struct kaudio_system_state* state, audio_instance instance) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
+b8 kaudio_is_valid(struct kaudio_system_state* state, kaudio_instance instance) {
+    if (instance.base == INVALID_KAUDIO || instance.instance_id == INVALID_ID_U16) {
         return false;
     }
 
-    return base_resource->uniqueid != INVALID_ID_U64 && base_resource->resource && base_resource->resource->base.state == KRESOURCE_STATE_LOADED;
+    // Check range of base audio and instance id.
+    if (instance.base >= state->max_count || !state->data.instances[instance.base] || instance.instance_id >= darray_length(state->data.instances[instance.base])) {
+        return false;
+    }
+
+    // Part of being 'valid' also requires it to have a fully-loaded asset.
+    return true; // state->data.states[instance.base] == KAUDIO_STATE_LOADED;
 }
 
-f32 kaudio_pitch_get(struct kaudio_system_state* state, audio_instance instance) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
+f32 kaudio_pitch_get(struct kaudio_system_state* state, kaudio_instance instance) {
+    if (!kaudio_is_valid(state, instance)) {
+        return 0.0f;
     }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
-        return false;
-    }
-    return instance_data->pitch;
+    return state->data.instances[instance.base][instance.instance_id].pitch;
 }
 
-b8 kaudio_pitch_set(struct kaudio_system_state* state, audio_instance instance, f32 pitch) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
-        return false;
-    }
-    // Clamp to a valid range.
-    instance_data->pitch = KCLAMP(pitch, AUDIO_PITCH_MIN, AUDIO_PITCH_MAX);
-    return true;
-}
-
-f32 kaudio_volume_get(struct kaudio_system_state* state, audio_instance instance) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
-        return false;
-    }
-
-    return instance_data->volume;
-}
-
-b8 kaudio_volume_set(struct kaudio_system_state* state, audio_instance instance, f32 volume) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
+b8 kaudio_pitch_set(struct kaudio_system_state* state, kaudio_instance instance, f32 pitch) {
+    if (!kaudio_is_valid(state, instance)) {
         return false;
     }
 
     // Clamp to a valid range.
-    instance_data->volume = KCLAMP(volume, AUDIO_VOLUME_MIN, AUDIO_VOLUME_MAX);
+    state->data.instances[instance.base][instance.instance_id].pitch = KCLAMP(pitch, AUDIO_PITCH_MIN, AUDIO_PITCH_MAX);
     return true;
 }
 
-b8 kaudio_looping_get(struct kaudio_system_state* state, audio_instance instance) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
-        return false;
+f32 kaudio_volume_get(struct kaudio_system_state* state, kaudio_instance instance) {
+    if (!kaudio_is_valid(state, instance)) {
+        return 0.0f;
     }
 
-    return instance_data->looping;
+    return state->data.instances[instance.base][instance.instance_id].volume;
 }
 
-b8 kaudio_looping_set(struct kaudio_system_state* state, audio_instance instance, b8 looping) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
+b8 kaudio_volume_set(struct kaudio_system_state* state, kaudio_instance instance, f32 volume) {
+    if (!kaudio_is_valid(state, instance)) {
         return false;
     }
 
-    instance_data->looping = looping;
+    // Clamp to a valid range.
+    state->data.instances[instance.base][instance.instance_id].volume = KCLAMP(volume, AUDIO_VOLUME_MIN, AUDIO_VOLUME_MAX);
     return true;
 }
 
-vec3 kaudio_position_get(struct kaudio_system_state* state, audio_instance instance) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return vec3_zero();
+b8 kaudio_looping_get(struct kaudio_system_state* state, kaudio_instance instance) {
+    if (!kaudio_is_valid(state, instance)) {
+        return false;
     }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
+
+    return state->data.instances[instance.base][instance.instance_id].looping;
+}
+
+b8 kaudio_looping_set(struct kaudio_system_state* state, kaudio_instance instance, b8 looping) {
+    if (!kaudio_is_valid(state, instance)) {
+        return false;
+    }
+
+    state->data.instances[instance.base][instance.instance_id].looping = looping;
+    return true;
+}
+
+vec3 kaudio_position_get(struct kaudio_system_state* state, kaudio_instance instance) {
+    if (!kaudio_is_valid(state, instance)) {
         return vec3_zero();
     }
 
-    return instance_data->position;
+    return state->data.instances[instance.base][instance.instance_id].position;
 }
 
-b8 kaudio_position_set(struct kaudio_system_state* state, audio_instance instance, vec3 position) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
+b8 kaudio_position_set(struct kaudio_system_state* state, kaudio_instance instance, vec3 position) {
+    if (!kaudio_is_valid(state, instance)) {
         return false;
     }
 
-    instance_data->position = position;
+    state->data.instances[instance.base][instance.instance_id].position = position;
     return true;
 }
 
-f32 kaudio_inner_radius_get(struct kaudio_system_state* state, audio_instance instance) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return 0;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
-        return 0;
+f32 kaudio_inner_radius_get(struct kaudio_system_state* state, kaudio_instance instance) {
+    if (!kaudio_is_valid(state, instance)) {
+        return 0.0f;
     }
 
-    return instance_data->inner_radius;
+    return state->data.instances[instance.base][instance.instance_id].inner_radius;
 }
 
-b8 kaudio_inner_radius_set(struct kaudio_system_state* state, audio_instance instance, f32 inner_radius) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
+b8 kaudio_inner_radius_set(struct kaudio_system_state* state, kaudio_instance instance, f32 inner_radius) {
+    if (!kaudio_is_valid(state, instance)) {
         return false;
     }
 
-    instance_data->inner_radius = KCLAMP(inner_radius, AUDIO_INNER_RADIUS_MIN, AUDIO_INNER_RADIUS_MAX);
+    state->data.instances[instance.base][instance.instance_id].inner_radius = KCLAMP(inner_radius, AUDIO_INNER_RADIUS_MIN, AUDIO_INNER_RADIUS_MAX);
     return true;
 }
 
-f32 kaudio_outer_radius_get(struct kaudio_system_state* state, audio_instance instance) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return 0;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
-        return 0;
+f32 kaudio_outer_radius_get(struct kaudio_system_state* state, kaudio_instance instance) {
+    if (!kaudio_is_valid(state, instance)) {
+        return 0.0f;
     }
 
-    return instance_data->outer_radius;
+    return state->data.instances[instance.base][instance.instance_id].outer_radius;
 }
 
-b8 kaudio_outer_radius_set(struct kaudio_system_state* state, audio_instance instance, f32 outer_radius) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
+b8 kaudio_outer_radius_set(struct kaudio_system_state* state, kaudio_instance instance, f32 outer_radius) {
+    if (!kaudio_is_valid(state, instance)) {
         return false;
     }
 
-    instance_data->outer_radius = KCLAMP(outer_radius, AUDIO_OUTER_RADIUS_MIN, AUDIO_OUTER_RADIUS_MAX);
+    state->data.instances[instance.base][instance.instance_id].outer_radius = KCLAMP(outer_radius, AUDIO_OUTER_RADIUS_MIN, AUDIO_OUTER_RADIUS_MAX);
     return true;
 }
 
-f32 kaudio_falloff_get(struct kaudio_system_state* state, audio_instance instance) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return 0;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
-        return 0;
+f32 kaudio_falloff_get(struct kaudio_system_state* state, kaudio_instance instance) {
+    if (!kaudio_is_valid(state, instance)) {
+        return 0.0f;
     }
 
-    return instance_data->falloff;
+    return state->data.instances[instance.base][instance.instance_id].falloff;
 }
 
-b8 kaudio_falloff_set(struct kaudio_system_state* state, audio_instance instance, f32 falloff) {
-    kaudio_resource_handle_data* base_resource = get_base(state, instance.base_resource);
-    if (!base_resource) {
-        KERROR("%s was called with an invalid or stale base_resource handle.", __FUNCTION__);
-        return false;
-    }
-    kaudio_resource_instance_data* instance_data = get_instance(state, base_resource, instance.instance);
-    if (!instance_data) {
-        KERROR("%s was called with an invalid or stale instance handle.", __FUNCTION__);
+b8 kaudio_falloff_set(struct kaudio_system_state* state, kaudio_instance instance, f32 falloff) {
+    if (!kaudio_is_valid(state, instance)) {
         return false;
     }
 
-    instance_data->falloff = KCLAMP(falloff, AUDIO_FALLOFF_MIN, AUDIO_FALLOFF_MAX);
+    state->data.instances[instance.base][instance.instance_id].falloff = KCLAMP(falloff, AUDIO_FALLOFF_MIN, AUDIO_FALLOFF_MAX);
     return true;
 }
 
@@ -917,7 +764,7 @@ b8 kaudio_channel_play(struct kaudio_system_state* state, u8 channel_index) {
     }
 
     // Attempt to play the already bound resource if one exists. Otherwise this fails.
-    if (channel->bound_resource) {
+    if (channel->bound_audio != INVALID_KAUDIO) {
         return state->backend->channel_play(state->backend, channel_index);
     }
 
@@ -952,8 +799,8 @@ b8 kaudio_channel_stop(struct kaudio_system_state* state, u8 channel_index) {
     }
 
     // Unbind the resource and instance on stop.
-    channel->bound_resource = 0;
-    channel->bound_instance = 0;
+    channel->bound_audio = INVALID_KAUDIO;
+    channel->bound_instance = INVALID_ID_U16;
 
     return state->backend->channel_stop(state->backend, channel_index);
 }
@@ -1056,7 +903,8 @@ b8 kaudio_emitter_load(struct kaudio_system_state* state, khandle emitter_handle
     if (khandle_is_valid(emitter_handle) && khandle_is_pristine(emitter_handle, state->emitters[emitter_handle.handle_index].uniqueid)) {
         kaudio_emitter_handle_data* emitter = &state->emitters[emitter_handle.handle_index];
         // NOTE: always use 3d space for emitters.
-        if (!kaudio_acquire(state, emitter->resource_name, emitter->package_name, emitter->is_streaming, KAUDIO_SPACE_3D, &emitter->instance)) {
+        emitter->instance = kaudio_acquire_from_package(state, emitter->resource_name, emitter->package_name, emitter->is_streaming, KAUDIO_SPACE_3D);
+        if (emitter->instance.base == INVALID_KAUDIO || emitter->instance.instance_id == INVALID_ID_U16) {
             KWARN("Failed to acquire audio resource from audio system.");
             return false;
         }
@@ -1090,7 +938,7 @@ b8 kaudio_emitter_unload(struct kaudio_system_state* state, khandle emitter_hand
         kaudio_release(state, &emitter->instance);
 
         // Take a copy of the invalidated instance.
-        audio_instance invalid_inst = emitter->instance;
+        kaudio_instance invalid_inst = emitter->instance;
 
         kzero_memory(&emitter->instance, sizeof(kaudio_emitter_handle_data));
 
@@ -1188,7 +1036,7 @@ static b8 deserialize_config(const char* config_str, kaudio_system_config* out_c
         KWARN("Invalid audio system config - max_resource_count must be at least 32. Defaulting to 32.");
         max_resource_count = 32;
     }
-    out_config->max_resource_count = max_resource_count;
+    out_config->max_count = max_resource_count;
 
     // FIXME: This is currently unused.
     i64 frequency;
@@ -1280,87 +1128,91 @@ static b8 deserialize_config(const char* config_str, kaudio_system_config* out_c
     return true;
 }
 
-static khandle get_base_handle(kaudio_system_state* state, kname resource_name, kname package_name) {
-    // Search for name/package_name combo and return if found.
-    for (u32 i = 0; i < state->max_resource_count; ++i) {
-        kaudio_resource_handle_data* data = &state->resources[i];
-        if (data->resource_name == resource_name && data->package_name == package_name) {
-            // Found a match, return.
-            return khandle_create_with_u64_identifier(i, data->uniqueid);
-        }
-    }
-
-    // Resource with name/package_name combo not found, need to request new.
-    for (u32 i = 0; i < state->max_resource_count; ++i) {
-        kaudio_resource_handle_data* data = &state->resources[i];
-        if (data->uniqueid == INVALID_ID_U64) {
+static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming) {
+    // Look for a new free slot.
+    for (u16 i = 0; i < state->max_count; ++i) {
+        if (state->data.states[i] == KAUDIO_STATE_UNINITIALIZED) {
             // Found one.
-            khandle h = khandle_create(i);
-            // Mark as in use by syncing the uniqueid
-            data->uniqueid = h.unique_id.uniqueid;
-            data->resource = 0;
-            return h;
+            state->data.states[i] = KAUDIO_STATE_LOADING;
+            state->data.instances[i] = darray_create(kaudio_instance_data);
+            state->data.is_streamings[i] = is_streaming;
+            state->data.channel_counts[i] = 0;
+
+            return i;
         }
     }
-    KFATAL("No more room to allocate a new handle for a sound. Expand the max_resource_count in configuration to load more at once.");
-    return khandle_invalid();
+    KFATAL("No more room to allocate a new kaudio. Expand the max_count in configuration to load more at once.");
+    return INVALID_KAUDIO;
 }
 
-static void on_audio_asset_loaded(kresource* resource, void* listener) {
-    audio_asset_request_listener* listener_inst = listener;
-    KTRACE("Audio resource loaded: '%s'.", kname_string_get(resource->name));
-
-    kaudio_resource_handle_data* data = get_base(listener_inst->state, listener_inst->instance->base_resource);
-    if (!data) {
-        KFATAL("Data handle is invalid during audio asset load completion. Check application logic.");
-    } else {
-        data->resource = (kresource_audio*)resource;
-        // Sync the resource's "internal" handle to the base resource handle we track in this system.
-        data->resource->internal_resource = listener_inst->instance->base_resource;
-
-        // Send over to the backend to be loaded.
-        if (!listener_inst->state->backend->resource_load(listener_inst->state->backend, data->resource, data->is_streaming, listener_inst->instance->base_resource)) {
-            KERROR("Failed to load audio resource into audio system backend. Resource will be released and handle unusable.");
-
-            kresource_system_release(engine_systems_get()->kresource_state, resource->name);
-
-            kzero_memory(data, sizeof(kaudio_resource_handle_data));
-            data->uniqueid = INVALID_ID_U64;
+static u16 issue_new_instance(kaudio_system_state* state, kaudio base) {
+    u16 count = darray_length(state->data.instances[base]);
+    u16 instance_id = INVALID_ID_U16;
+    for (u16 i = 0; i < count; ++i) {
+        if (state->data.instances[base][i].state == KAUDIO_INSTANCE_STATE_UNINITIALIZED) {
+            // Found one, use it.
+            instance_id = i;
+            break;
         }
     }
+
+    if (instance_id == INVALID_ID_U16) {
+        // If this point is reached, no slots are available. Push a new one.
+        darray_push(state->data.instances[base], (kaudio_instance_data){0});
+        instance_id = count;
+    }
+
+    kaudio_instance_data* instance = &state->data.instances[base][instance_id];
+
+    // Mark as in-use.
+    instance->state = KAUDIO_INSTANCE_STATE_ACQUIRED;
+
+    // Setup some reasonable defaults.
+    instance->looping = state->data.is_streamings[base]; // Streaming sounds automatically loop.
+    instance->pitch = AUDIO_PITCH_DEFAULT;
+    instance->volume = AUDIO_VOLUME_DEFAULT;
+    instance->position = vec3_zero();
+    instance->inner_radius = AUDIO_INNER_RADIUS_DEFAULT;
+    instance->outer_radius = AUDIO_OUTER_RADIUS_DEFAULT;
+    instance->falloff = AUDIO_FALLOFF_DEFAULT;
+
+    return instance_id;
+}
+
+// Invoked when an audio asset completes its async load from disk.
+static void kasset_audio_loaded_callback(void* listener, kasset_audio* asset) {
+    audio_asset_request_listener* listener_inst = listener;
+    KTRACE("Audio asset loaded: '%s'.", kname_string_get(asset->name));
+    kaudio_system_state* state = listener_inst->state;
+    kaudio base = listener_inst->instance.base;
+
+    // Send over to the backend to be loaded.
+    // b8 (*load)(struct kaudio_backend_interface* backend, i32 channels, u32 sample_rate, u32 total_sample_count, u64 pcm_data_size, i16* pcm_data, b8 is_stream, kaudio audio);
+    if (!listener_inst->state->backend->load(listener_inst->state->backend, asset->channels, asset->sample_rate, asset->total_sample_count, asset->pcm_data_size, asset->pcm_data, state->data.is_streamings[base], base)) {
+        KERROR("Failed to load audio resource into audio system backend. Resource will be released and handle unusable.");
+    } else {
+        state->data.states[base] = KAUDIO_STATE_LOADED;
+
+        // TODO: save off any asset info required before release.
+        state->data.channel_counts[base] = asset->channels;
+    }
+
+    // Release the asset.
+    asset_system_release_audio(engine_systems_get()->asset_state, asset);
 
     // Cleanup the listener.
     KFREE_TYPE(listener, audio_asset_request_listener, MEMORY_TAG_RESOURCE);
 }
 
-static b8 base_resource_handle_is_valid_and_pristine(kaudio_system_state* state, khandle handle) {
-    return state && khandle_is_valid(handle) && handle.handle_index < state->max_resource_count && khandle_is_pristine(handle, state->resources[handle.handle_index].uniqueid);
-}
-
-static b8 instance_handle_is_valid_and_pristine(kaudio_system_state* state, kaudio_resource_handle_data* base, khandle handle) {
-    u32 instance_count = darray_length(base->instances);
-    return state && base && base->instances && khandle_is_valid(handle) && handle.handle_index < instance_count && khandle_is_pristine(handle, base->instances[handle.handle_index].uniqueid);
-}
-
-static kaudio_resource_handle_data* get_base(kaudio_system_state* state, khandle base_resource) {
-    if (!base_resource_handle_is_valid_and_pristine(state, base_resource)) {
-        return 0;
-    }
-    return &state->resources[base_resource.handle_index];
-}
-
-static kaudio_resource_instance_data* get_instance(kaudio_system_state* state, kaudio_resource_handle_data* base, khandle instance) {
-    if (!instance_handle_is_valid_and_pristine(state, base, instance)) {
-        return 0;
-    }
-    return &base->instances[instance.handle_index];
-}
-
-static u32 get_active_instance_count(kaudio_resource_handle_data* base) {
+static u16 get_active_instance_count(kaudio_system_state* state, kaudio base) {
     u32 count = 0;
-    u32 length = darray_length(base->instances);
+    kaudio_instance_data* datas = state->data.instances[base];
+    if (!datas) {
+        return 0;
+    }
+    u32 length = darray_length(datas);
     for (u32 i = 0; i < length; ++i) {
-        count += (base->instances[i].uniqueid != INVALID_ID_U64);
+        count += (datas[i].state == KAUDIO_INSTANCE_STATE_ACQUIRED);
     }
     return count;
 }
@@ -1373,7 +1225,7 @@ static kaudio_channel* get_channel(kaudio_system_state* state, i8 channel_index)
         // First available
         for (u32 i = 0; i < state->audio_channel_count; ++i) {
             kaudio_channel* channel = &state->channels[i];
-            if (!channel->bound_instance && !channel->bound_resource) {
+            if (channel->bound_instance == INVALID_ID_U16 && channel->bound_audio == INVALID_KAUDIO) {
                 // Available, use it.
                 return channel;
             }
@@ -1403,7 +1255,7 @@ static kaudio_channel* get_available_channel_from_category(kaudio_system_state* 
     for (u32 i = 0; i < cat->channel_id_count; ++i) {
         u32 channel_id = cat->channel_ids[i];
         kaudio_channel* channel = &state->channels[channel_id];
-        if (!channel->bound_instance && !channel->bound_resource) {
+        if (channel->bound_instance == INVALID_ID_U16 && channel->bound_audio == INVALID_KAUDIO) {
             // Available, use it.
             return channel;
         }

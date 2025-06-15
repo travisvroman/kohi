@@ -3,13 +3,11 @@
 #include "core/engine.h"
 #include "debug/kassert.h"
 #include "defines.h"
-#include "kresources/handlers/kresource_handler_audio.h"
 #include "kresources/handlers/kresource_handler_binary.h"
 #include "kresources/handlers/kresource_handler_bitmap_font.h"
 #include "kresources/handlers/kresource_handler_heightmap_terrain.h"
 #include "kresources/handlers/kresource_handler_scene.h"
 #include "kresources/handlers/kresource_handler_shader.h"
-#include "kresources/handlers/kresource_handler_static_mesh.h"
 #include "kresources/handlers/kresource_handler_system_font.h"
 #include "kresources/handlers/kresource_handler_text.h"
 #include "kresources/kresource_types.h"
@@ -93,18 +91,6 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
         }
     }
 
-    // Static mesh handler.
-    {
-        kresource_handler handler = {0};
-        handler.size = sizeof(kresource_static_mesh);
-        handler.release = kresource_handler_static_mesh_release;
-        handler.request = kresource_handler_static_mesh_request;
-        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_STATIC_MESH, handler)) {
-            KERROR("Failed to register static mesh resource handler");
-            return false;
-        }
-    }
-
     // Shader handler.
     {
         kresource_handler handler = {0};
@@ -161,18 +147,6 @@ b8 kresource_system_initialize(u64* memory_requirement, struct kresource_system_
         handler.request = kresource_handler_heightmap_terrain_request;
         if (!kresource_system_handler_register(state, KRESOURCE_TYPE_HEIGHTMAP_TERRAIN, handler)) {
             KERROR("Failed to register heightmap terrain resource handler");
-            return false;
-        }
-    }
-
-    // Audio handler.
-    {
-        kresource_handler handler = {0};
-        handler.size = sizeof(kresource_audio);
-        handler.release = kresource_handler_audio_release;
-        handler.request = kresource_handler_audio_request;
-        if (!kresource_system_handler_register(state, KRESOURCE_TYPE_AUDIO, handler)) {
-            KERROR("Failed to register audio resource handler");
             return false;
         }
     }

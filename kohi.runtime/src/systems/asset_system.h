@@ -21,8 +21,7 @@ typedef struct asset_system_config {
     // The maximum number of assets which may be loaded at once.
     u32 max_asset_count;
 
-    kname application_package_name;
-    const char* application_package_name_str;
+    kname default_package_name;
 } asset_system_config;
 
 struct asset_system_state;

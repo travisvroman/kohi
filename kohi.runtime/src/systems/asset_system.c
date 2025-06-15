@@ -43,8 +43,8 @@ typedef struct asset_system_state {
     vfs_state* vfs;
 
     // The name of the default package to use (i.e, the game's package name)
-    kname application_package_name;
-    const char* application_package_name_str;
+    kname default_package_name;
+    const char* default_package_name_str;
 
     // Max number of assets that can be loaded at any given time.
     u32 max_asset_count;
@@ -72,13 +72,6 @@ b8 asset_system_deserialize_config(const char* config_str, asset_system_config* 
         return false;
     }
 
-    // application_package_name
-    if (!kson_object_property_value_get_string(&tree.root, "application_package_name", &out_config->application_package_name_str)) {
-        KERROR("application_package_name is a required field and was not provided.");
-        return false;
-    }
-    out_config->application_package_name = kname_create(out_config->application_package_name_str);
-
     return true;
 }
 
@@ -98,8 +91,8 @@ b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* s
         return false;
     }
 
-    state->application_package_name = config->application_package_name;
-    state->application_package_name_str = string_duplicate(config->application_package_name_str);
+    state->default_package_name = config->default_package_name;
+    state->default_package_name_str = kname_string_get(config->default_package_name);
 
     state->max_asset_count = config->max_asset_count;
     state->lookups = kallocate(sizeof(asset_lookup) * state->max_asset_count, MEMORY_TAG_ENGINE);
@@ -165,12 +158,12 @@ static void vfs_on_binary_asset_loaded_callback(struct vfs_state* vfs, vfs_asset
 
 // async load from game package.
 kasset_binary* asset_system_request_binary(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_binary_loaded_callback callback) {
-    return asset_system_request_binary_from_package(state, state->application_package_name_str, name, listener, callback);
+    return asset_system_request_binary_from_package(state, state->default_package_name_str, name, listener, callback);
 }
 
 // sync load from game package.
 kasset_binary* asset_system_request_binary_sync(struct asset_system_state* state, const char* name) {
-    return asset_system_request_binary_from_package_sync(state, state->application_package_name_str, name);
+    return asset_system_request_binary_from_package_sync(state, state->default_package_name_str, name);
 }
 
 // async load from specific package.
@@ -189,7 +182,7 @@ kasset_binary* asset_system_request_binary_from_package(struct asset_system_stat
 
     vfs_request_info info = {
         .asset_name = kname_create(name),
-        .package_name = state->application_package_name,
+        .package_name = state->default_package_name,
         .get_source = false,
         .is_binary = true,
         .watch_for_hot_reload = false,
@@ -240,7 +233,7 @@ void asset_system_release_binary(struct asset_system_state* state, kasset_binary
 
 // sync load from game package.
 kasset_text* asset_system_request_text_sync(struct asset_system_state* state, const char* name) {
-    return asset_system_request_text_from_package_sync(state, state->application_package_name_str, name);
+    return asset_system_request_text_from_package_sync(state, state->default_package_name_str, name);
 }
 // sync load from specific package.
 kasset_text* asset_system_request_text_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
@@ -298,11 +291,11 @@ static void vfs_on_image_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_
 
 // async load from game package.
 kasset_image* asset_system_request_image(struct asset_system_state* state, const char* name, b8 flip_y, void* listener, PFN_kasset_image_loaded_callback callback) {
-    return asset_system_request_image_from_package(state, state->application_package_name_str, name, flip_y, listener, callback);
+    return asset_system_request_image_from_package(state, state->default_package_name_str, name, flip_y, listener, callback);
 }
 // sync load from game package.
 kasset_image* asset_system_request_image_sync(struct asset_system_state* state, const char* name, b8 flip_y) {
-    return asset_system_request_image_from_package_sync(state, state->application_package_name_str, name, flip_y);
+    return asset_system_request_image_from_package_sync(state, state->default_package_name_str, name, flip_y);
 }
 // async load from specific package.
 kasset_image* asset_system_request_image_from_package(struct asset_system_state* state, const char* package_name, const char* name, b8 flip_y, void* listener, PFN_kasset_image_loaded_callback callback) {
@@ -373,7 +366,7 @@ void asset_system_release_image(struct asset_system_state* state, kasset_image* 
 
 // sync load from game package.
 kasset_bitmap_font* asset_system_request_bitmap_font_sync(struct asset_system_state* state, const char* name) {
-    return asset_system_request_bitmap_font_from_package_sync(state, state->application_package_name_str, name);
+    return asset_system_request_bitmap_font_from_package_sync(state, state->default_package_name_str, name);
 }
 
 // sync load from specific package.
@@ -419,7 +412,7 @@ void asset_system_release_bitmap_font(struct asset_system_state* state, kasset_b
 
 // sync load from game package.
 kasset_system_font* asset_system_request_system_font_sync(struct asset_system_state* state, const char* name) {
-    return asset_system_request_system_font_from_package_sync(state, state->application_package_name_str, name);
+    return asset_system_request_system_font_from_package_sync(state, state->default_package_name_str, name);
 }
 
 // sync load from specific package.
@@ -488,11 +481,11 @@ static void vfs_on_static_mesh_asset_loaded_callback(struct vfs_state* vfs, vfs_
 
 // async load from game package.
 kasset_static_mesh* asset_system_request_static_mesh(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_static_mesh_loaded_callback callback) {
-    return asset_system_request_static_mesh_from_package(state, state->application_package_name_str, name, listener, callback);
+    return asset_system_request_static_mesh_from_package(state, state->default_package_name_str, name, listener, callback);
 }
 // sync load from game package.
 kasset_static_mesh* asset_system_request_static_mesh_sync(struct asset_system_state* state, const char* name) {
-    return asset_system_request_static_mesh_from_package_sync(state, state->application_package_name_str, name);
+    return asset_system_request_static_mesh_from_package_sync(state, state->default_package_name_str, name);
 }
 // async load from specific package.
 kasset_static_mesh* asset_system_request_static_mesh_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_static_mesh_loaded_callback callback) {
@@ -510,7 +503,7 @@ kasset_static_mesh* asset_system_request_static_mesh_from_package(struct asset_s
 
     vfs_request_info info = {
         .asset_name = kname_create(name),
-        .package_name = state->application_package_name,
+        .package_name = state->default_package_name,
         .get_source = false,
         .is_binary = true,
         .watch_for_hot_reload = false,
@@ -589,11 +582,11 @@ static void vfs_on_heightmap_terrain_asset_loaded_callback(struct vfs_state* vfs
 
 // async load from game package.
 kasset_heightmap_terrain* asset_system_request_heightmap_terrain(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_heightmap_terrain_loaded_callback callback) {
-    return asset_system_request_heightmap_terrain_from_package(state, state->application_package_name_str, name, listener, callback);
+    return asset_system_request_heightmap_terrain_from_package(state, state->default_package_name_str, name, listener, callback);
 }
 // sync load from game package.
 kasset_heightmap_terrain* asset_system_request_heightmap_terrain_sync(struct asset_system_state* state, const char* name) {
-    return asset_system_request_heightmap_terrain_from_package_sync(state, state->application_package_name_str, name);
+    return asset_system_request_heightmap_terrain_from_package_sync(state, state->default_package_name_str, name);
 }
 // async load from specific package.
 kasset_heightmap_terrain* asset_system_request_heightmap_terrain_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_heightmap_terrain_loaded_callback callback) {
@@ -611,7 +604,7 @@ kasset_heightmap_terrain* asset_system_request_heightmap_terrain_from_package(st
 
     vfs_request_info info = {
         .asset_name = kname_create(name),
-        .package_name = state->application_package_name,
+        .package_name = state->default_package_name,
         .get_source = false,
         .is_binary = false,
         .watch_for_hot_reload = false,
@@ -687,11 +680,11 @@ static void vfs_on_material_asset_loaded_callback(struct vfs_state* vfs, vfs_ass
 
 // async load from game package.
 kasset_material* asset_system_request_material(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_material_loaded_callback callback) {
-    return asset_system_request_material_from_package(state, state->application_package_name_str, name, listener, callback);
+    return asset_system_request_material_from_package(state, state->default_package_name_str, name, listener, callback);
 }
 // sync load from game package.
 kasset_material* asset_system_terrain_request_material_sync(struct asset_system_state* state, const char* name) {
-    return asset_system_request_material_from_package_sync(state, state->application_package_name_str, name);
+    return asset_system_request_material_from_package_sync(state, state->default_package_name_str, name);
 }
 // async load from specific package.
 kasset_material* asset_system_request_material_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_material_loaded_callback callback) {
@@ -709,7 +702,7 @@ kasset_material* asset_system_request_material_from_package(struct asset_system_
 
     vfs_request_info info = {
         .asset_name = kname_create(name),
-        .package_name = state->application_package_name,
+        .package_name = state->default_package_name,
         .get_source = false,
         .is_binary = false,
         .watch_for_hot_reload = false,
@@ -778,15 +771,19 @@ static void vfs_on_audio_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_
     }
 
     context->asset->name = asset_data.asset_name;
+
+    if (context->callback) {
+        context->callback(context->listener, context->asset);
+    }
 }
 
 // async load from game package.
 kasset_audio* asset_system_request_audio(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_audio_loaded_callback callback) {
-    return asset_system_request_audio_from_package(state, state->application_package_name_str, name, listener, callback);
+    return asset_system_request_audio_from_package(state, state->default_package_name_str, name, listener, callback);
 }
 // sync load from game package.
 kasset_audio* asset_system_terrain_request_audio_sync(struct asset_system_state* state, const char* name) {
-    return asset_system_request_audio_from_package_sync(state, state->application_package_name_str, name);
+    return asset_system_request_audio_from_package_sync(state, state->default_package_name_str, name);
 }
 // async load from specific package.
 kasset_audio* asset_system_request_audio_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_audio_loaded_callback callback) {
@@ -804,7 +801,7 @@ kasset_audio* asset_system_request_audio_from_package(struct asset_system_state*
 
     vfs_request_info info = {
         .asset_name = kname_create(name),
-        .package_name = state->application_package_name,
+        .package_name = state->default_package_name,
         .get_source = false,
         .is_binary = true,
         .watch_for_hot_reload = false,
@@ -861,7 +858,7 @@ void asset_system_release_audio(struct asset_system_state* state, kasset_audio* 
 
 // sync load from game package.
 kasset_scene* asset_system_terrain_request_scene_sync(struct asset_system_state* state, const char* name) {
-    return asset_system_request_scene_from_package_sync(state, state->application_package_name_str, name);
+    return asset_system_request_scene_from_package_sync(state, state->default_package_name_str, name);
 }
 // sync load from specific package.
 kasset_scene* asset_system_request_scene_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
@@ -953,7 +950,7 @@ void asset_system_release_scene(struct asset_system_state* state, kasset_scene* 
 
 // sync load from game package.
 kasset_shader* asset_system_terrain_request_shader_sync(struct asset_system_state* state, const char* name) {
-    return asset_system_request_shader_from_package_sync(state, state->application_package_name_str, name);
+    return asset_system_request_shader_from_package_sync(state, state->default_package_name_str, name);
 }
 
 // sync load from specific package.

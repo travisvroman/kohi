@@ -456,7 +456,7 @@ typedef struct kstatic_mesh_submesh_render_data {
  */
 typedef struct kstatic_mesh_render_data {
     /** The identifier of the mesh instance being rendered. */
-    u64 instance_id;
+    u16 instance_id;
 
     /** @brief The number of submeshes to be rendered. */
     u32 submesh_count;

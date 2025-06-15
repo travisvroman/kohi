@@ -28,11 +28,11 @@ b8 kplugin_create(kruntime_plugin* out_plugin) {
     backend->channel_position_set = openal_backend_channel_position_set;
     backend->channel_looping_set = openal_backend_channel_looping_set;
 
-    backend->resource_load = openal_backend_resource_load;
-    backend->resource_unload = openal_backend_resource_unload;
+    backend->load = openal_backend_load;
+    backend->unload = openal_backend_unload;
 
     backend->channel_play = openal_backend_channel_play;
-    backend->channel_play_resource = openal_backend_channel_play_resource;
+    backend->channel_play_resource = openal_backend_channel_play_audio;
 
     backend->channel_stop = openal_backend_channel_stop;
     backend->channel_pause = openal_backend_channel_pause;

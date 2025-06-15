@@ -6,6 +6,9 @@ Changelog
   - Jobifyed async asset loads.
   - Fixed logic errors in string_directory_from_path and string_filename_from_path.
   - Refactored texture system to use a newly-created typedef 'ktexture', which is essentially an id used to lookup texture info. Texture system internals and engine-wide references were reworked to support this.
+  - Added KRESIZE_ARRAY utility function.
+  - Reworked audio system to use indices instead of handles, and reworked to use new asset system.
+  - added 'default_package_name' option to app config, intended to tell the VFS what package to use by default if one is not provided.
 
 - 0.9.0
   - Fixed several issues in the math library where some functions were not the correct handedness and/or major. The 

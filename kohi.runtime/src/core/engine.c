@@ -243,6 +243,7 @@ b8 engine_create(application* app) {
             KERROR("Failed to deserialize asset system config, which is required.");
             return false;
         }
+        asset_sys_config.default_package_name = app->app_config.default_package_name;
 
         asset_system_initialize(&systems->asset_system_memory_requirement, 0, 0);
         systems->asset_state = kallocate(systems->asset_system_memory_requirement, MEMORY_TAG_ENGINE);
@@ -518,9 +519,10 @@ b8 engine_create(application* app) {
 
     // Static mesh system
     {
-        static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, 0);
+        static_mesh_system_config config = {.application_package_name = app->app_config.default_package_name};
+        static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, 0, config);
         systems->static_mesh_system = kallocate(systems->static_mesh_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, systems->static_mesh_system)) {
+        if (!static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, systems->static_mesh_system, config)) {
             KERROR("Failed to initialize geometry system.");
             return false;
         }

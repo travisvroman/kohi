@@ -273,30 +273,11 @@ typedef struct kresource_material_request_info {
  */
 
 /**
- * Represents a single static mesh, which contains geometry.
+ * @brief Represents a single static mesh, which contains geometry.
  */
-typedef struct static_mesh_submesh {
-    /** @brief The geometry data for this mesh. */
-    kgeometry geometry;
-    /** @brief The name of the material associated with this mesh. */
-    kname material_name;
-} static_mesh_submesh;
+typedef u16 kstatic_mesh;
 
-/**
- * @brief A mesh resource that is static in nature (i.e. it does not change over time).
- */
-typedef struct kresource_static_mesh {
-    kresource base;
-
-    /** @brief The number of submeshes in this static mesh resource. */
-    u16 submesh_count;
-    /** @brief The array of submeshes in this static mesh resource. */
-    static_mesh_submesh* submeshes;
-} kresource_static_mesh;
-
-typedef struct kresource_static_mesh_request_info {
-    kresource_request_info base;
-} kresource_static_mesh_request_info;
+#define INVALID_KSTATIC_MESH INVALID_ID_U16
 
 #define KRESOURCE_TYPE_NAME_TEXT "Text"
 
@@ -417,29 +398,9 @@ typedef struct kresource_heightmap_terrain_request_info {
 } kresource_heightmap_terrain_request_info;
 
 /**
- * Represents a Kohi Audio resource.
+ * Represents a Kohi Audio.
  */
-typedef struct kresource_audio {
-    kresource base;
-    // The number of channels (i.e. 1 for mono or 2 for stereo)
-    i32 channels;
-    // The sample rate of the sound/music (i.e. 44100)
-    u32 sample_rate;
-    // Total samples in the audio resource.
-    u32 total_sample_count;
-    // The size of the pcm data.
-    u64 pcm_data_size;
-    /** Pulse-code modulation buffer, or raw data to be fed into a buffer. */
-    i16* pcm_data;
-    // The size of the downmixed pcm data if the asset was stereo, or 0 if the asset was already mono (use ) or just a pointer to pcm data if the asset was already mono (use pcm_data_size instead).
-    u64 downmixed_size;
-    // Downmixed pcm data if the asset was stereo, or just a pointer to pcm data if the asset was already mono.
-    i16* mono_pcm_data;
+typedef u16 kaudio;
 
-    /** @brief A handle to the audio internal resource. */
-    khandle internal_resource;
-} kresource_audio;
-
-typedef struct kresource_audio_request_info {
-    kresource_request_info base;
-} kresource_audio_request_info;
+// The id representing an invalid kaudio.
+#define INVALID_KAUDIO INVALID_ID_U16

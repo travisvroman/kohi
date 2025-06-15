@@ -325,3 +325,5 @@ KAPI b8 texture_dimensions_get(ktexture t, u32* out_width, u32* out_height);
 KAPI khandle texture_renderer_handle_get(ktexture t);
 
 KAPI ktexture_flag_bits texture_flags_get(ktexture t);
+
+KAPI b8 texture_is_loaded(ktexture t);

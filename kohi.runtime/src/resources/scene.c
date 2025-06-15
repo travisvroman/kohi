@@ -43,6 +43,7 @@ static void scene_actual_unload(scene* scene);
 static void scene_node_metadata_ensure_allocated(scene* s, u64 handle_index);
 
 static u32 global_scene_id = 0;
+static material_instance default_material;
 
 typedef struct scene_debug_data {
     debug_box3d box;
@@ -125,6 +126,11 @@ b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
         return false;
     }
 
+    // NOTE: If not done already, take an instance of the default material.
+    if (!default_material.material.unique_id.uniqueid) {
+        default_material = material_system_get_default_standard(engine_systems_get()->material_system);
+    }
+
     kzero_memory(out_scene, sizeof(scene));
 
     out_scene->flags = flags;
@@ -137,7 +143,7 @@ b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
     out_scene->dir_lights = darray_create(directional_light);
     out_scene->point_lights = darray_create(point_light);
     out_scene->audio_emitters = darray_create(scene_audio_emitter);
-    out_scene->static_meshes = darray_create(static_mesh_instance);
+    out_scene->static_meshes = darray_create(kstatic_mesh_instance);
     out_scene->terrains = darray_create(terrain);
     out_scene->skyboxes = darray_create(skybox);
     out_scene->water_planes = darray_create(water_plane);
@@ -585,51 +591,46 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
                     return;
                 }
 
-                static_mesh_instance new_static_mesh = {0};
-                if (!static_mesh_system_instance_acquire(engine_systems_get()->static_mesh_system, typed_attachment_config->asset_name, typed_attachment_config->package_name, &new_static_mesh)) {
-                    KERROR("Failed to create new static mesh in scene.");
-                    return;
-                } else {
-                    // Find a free slot and take it, or push a new one.
-                    u32 index = INVALID_ID;
-                    u32 static_mesh_count = darray_length(s->static_meshes);
-                    for (u32 smi = 0; smi < static_mesh_count; ++smi) {
-                        if (s->static_meshes[i].instance_id == INVALID_ID_U64) {
-                            // Found a slot, use it.
-                            index = smi;
-                            break;
-                        }
+                kstatic_mesh_instance new_static_mesh = static_mesh_instance_acquire(engine_systems_get()->static_mesh_system, typed_attachment_config->asset_name);
+                // Find a free slot and take it, or push a new one.
+                u32 index = INVALID_ID;
+                u32 static_mesh_count = darray_length(s->static_meshes);
+                for (u32 smi = 0; smi < static_mesh_count; ++smi) {
+                    if (s->static_meshes[i].instance_id == INVALID_ID_U16) {
+                        // Found a slot, use it.
+                        index = smi;
+                        break;
                     }
-                    if (index == INVALID_ID) {
-                        // No empty slot found, so push empty entries and obtain pointers.
-                        darray_push(s->static_meshes, (static_mesh_instance){0});
-                        darray_push(s->mesh_attachments, (scene_attachment){0});
-                        if (!is_readonly) {
-                            darray_push(s->mesh_metadata, (scene_static_mesh_metadata){0});
-                        }
-
-                        index = static_mesh_count;
-                    }
-
-                    // Fill out the structs.
-                    s->static_meshes[index] = new_static_mesh;
-
-                    scene_attachment* attachment = &s->mesh_attachments[index];
-                    attachment->resource_handle = khandle_create(index);
-                    attachment->hierarchy_node_handle = hierarchy_node_handle;
-                    attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
-                    attachment->tag_count = typed_attachment_config->base.tag_count;
-                    if (attachment->tag_count) {
-                        attachment->tags = KALLOC_TYPE_CARRAY(kname, attachment->tag_count);
-                        KCOPY_TYPE_CARRAY(attachment->tags, typed_attachment_config->base.tags, kname, attachment->tag_count);
-                    }
-
-                    // For "edit" mode, retain metadata.
+                }
+                if (index == INVALID_ID) {
+                    // No empty slot found, so push empty entries and obtain pointers.
+                    darray_push(s->static_meshes, (kstatic_mesh_instance){0});
+                    darray_push(s->mesh_attachments, (scene_attachment){0});
                     if (!is_readonly) {
-                        scene_static_mesh_metadata* meta = &s->mesh_metadata[index];
-                        meta->resource_name = typed_attachment_config->asset_name;
-                        meta->package_name = typed_attachment_config->package_name;
+                        darray_push(s->mesh_metadata, (scene_static_mesh_metadata){0});
                     }
+
+                    index = static_mesh_count;
+                }
+
+                // Fill out the structs.
+                s->static_meshes[index] = new_static_mesh;
+
+                scene_attachment* attachment = &s->mesh_attachments[index];
+                attachment->resource_handle = khandle_create(index);
+                attachment->hierarchy_node_handle = hierarchy_node_handle;
+                attachment->attachment_type = SCENE_NODE_ATTACHMENT_TYPE_STATIC_MESH;
+                attachment->tag_count = typed_attachment_config->base.tag_count;
+                if (attachment->tag_count) {
+                    attachment->tags = KALLOC_TYPE_CARRAY(kname, attachment->tag_count);
+                    KCOPY_TYPE_CARRAY(attachment->tags, typed_attachment_config->base.tags, kname, attachment->tag_count);
+                }
+
+                // For "edit" mode, retain metadata.
+                if (!is_readonly) {
+                    scene_static_mesh_metadata* meta = &s->mesh_metadata[index];
+                    meta->resource_name = typed_attachment_config->asset_name;
+                    meta->package_name = typed_attachment_config->package_name;
                 }
             }
         }
@@ -1677,10 +1678,10 @@ b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_r
     // Otherwise a scene with thousands of objects will be super slow!
     u32 mesh_count = darray_length(scene->static_meshes);
     for (u32 i = 0; i < mesh_count; ++i) {
-        static_mesh_instance* m = &scene->static_meshes[i];
+        kstatic_mesh_instance mi = scene->static_meshes[i];
 
         // Only count loaded meshes.
-        if (m->mesh_resource->base.state < KRESOURCE_STATE_LOADED) {
+        if (!static_mesh_is_loaded(engine_systems_get()->static_mesh_system, mi.mesh)) {
             continue;
         }
         // Perform a lookup into the attachments array to get the hierarchy node.
@@ -1688,27 +1689,29 @@ b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_r
         khandle xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
         mat4 model = xform_world_get(xform_handle);
         f32 dist;
-        // FIXME: This just selects the first geometry's extents. Need to add extents to the whole
-        // thing based on all submeshes.
-        if (raycast_oriented_extents(m->mesh_resource->submeshes[0].geometry.extents, model, r, &dist)) {
-            // Hit
-            if (!out_result->hits) {
-                out_result->hits = darray_create(raycast_hit);
+
+        extents_3d sm_extents = {0};
+        if (static_mesh_extents_get(engine_systems_get()->static_mesh_system, mi.mesh, &sm_extents)) {
+            if (raycast_oriented_extents(sm_extents, model, r, &dist)) {
+                // Hit
+                if (!out_result->hits) {
+                    out_result->hits = darray_create(raycast_hit);
+                }
+
+                raycast_hit hit = {0};
+                hit.distance = dist;
+                hit.type = RAYCAST_HIT_TYPE_OBB;
+                hit.position = vec3_add(r->origin, vec3_mul_scalar(r->direction, hit.distance));
+
+                hit.xform_handle = xform_handle;
+                hit.node_handle = attachment->hierarchy_node_handle;
+
+                // Get parent xform handle if one exists.
+                hit.xform_parent_handle = hierarchy_graph_parent_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+                // TODO: Indicate selection node attachment type somehow?
+
+                darray_push(out_result->hits, hit);
             }
-
-            raycast_hit hit = {0};
-            hit.distance = dist;
-            hit.type = RAYCAST_HIT_TYPE_OBB;
-            hit.position = vec3_add(r->origin, vec3_mul_scalar(r->direction, hit.distance));
-
-            hit.xform_handle = xform_handle;
-            hit.node_handle = attachment->hierarchy_node_handle;
-
-            // Get parent xform handle if one exists.
-            hit.xform_parent_handle = hierarchy_graph_parent_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
-            // TODO: Indicate selection node attachment type somehow?
-
-            darray_push(out_result->hits, hit);
         }
     }
 
@@ -1944,13 +1947,10 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
 
     u32 mesh_count = darray_length(scene->static_meshes);
     for (u32 i = 0; i < mesh_count; ++i) {
-        static_mesh_instance* m = &scene->static_meshes[i];
+        kstatic_mesh_instance* m = &scene->static_meshes[i];
 
         // Only count loaded meshes.
-        if (m->mesh_resource->base.state < KRESOURCE_STATE_LOADED) {
-            continue;
-        }
-        if (!m->material_instances) {
+        if (!static_mesh_is_loaded(engine_systems_get()->static_mesh_system, m->mesh)) {
             continue;
         }
 
@@ -1962,10 +1962,14 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
         f32 determinant = mat4_determinant(model);
         b8 winding_inverted = determinant < 0;
 
-        for (u32 j = 0; j < m->mesh_resource->submesh_count; ++j) {
-            static_mesh_submesh* submesh = &m->mesh_resource->submeshes[j];
-            kgeometry* g = &submesh->geometry;
-            material_instance m_inst = m->material_instances[j];
+        u16 submesh_count = 0;
+        static_mesh_submesh_count_get(engine_systems_get()->static_mesh_system, m->mesh, &submesh_count);
+        for (u16 j = 0; j < submesh_count; ++j) {
+            const kgeometry* g = static_mesh_submesh_geometry_get_at(engine_systems_get()->static_mesh_system, m->mesh, j);
+            const material_instance* m_inst = static_mesh_submesh_material_instance_get_at(engine_systems_get()->static_mesh_system, *m, j);
+            if (!material_is_loaded_get(engine_systems_get()->material_system, m_inst->material)) {
+                m_inst = &default_material;
+            }
 
             // TODO: cache this somewhere...
             //
@@ -1984,7 +1988,7 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
                 // Add it to the list to be rendered.
                 geometry_render_data data = {0};
                 data.model = model;
-                data.material = m_inst;
+                data.material = *m_inst;
                 data.vertex_count = g->vertex_count;
                 data.vertex_buffer_offset = g->vertex_buffer_offset;
                 data.index_count = g->index_count;
@@ -1995,7 +1999,7 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
                 // Check if transparent. If so, put into a separate, temp array to be
                 // sorted by distance from the camera. Otherwise, put into the
                 // out_geometries array directly.
-                b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst.material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
+                b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst->material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
                 if (has_transparency) {
                     // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
                     // Get the center, extract the global position from the model matrix and add it to the center,
@@ -2109,13 +2113,10 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
     // Iterate all meshes in the scene.
     u32 mesh_count = darray_length(scene->static_meshes);
     for (u32 resource_index = 0; resource_index < mesh_count; ++resource_index) {
-        static_mesh_instance* m = &scene->static_meshes[resource_index];
+        kstatic_mesh_instance* m = &scene->static_meshes[resource_index];
 
         // Only count loaded meshes.
-        if (m->mesh_resource->base.state < KRESOURCE_STATE_LOADED) {
-            continue;
-        }
-        if (!m->material_instances) {
+        if (!static_mesh_is_loaded(engine_systems_get()->static_mesh_system, m->mesh)) {
             continue;
         }
         // Attachment lookup - by resource index.
@@ -2127,10 +2128,14 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
         f32 determinant = mat4_determinant(model);
         b8 winding_inverted = determinant < 0;
 
-        for (u32 j = 0; j < m->mesh_resource->submesh_count; ++j) {
-            static_mesh_submesh* submesh = &m->mesh_resource->submeshes[j];
-            kgeometry* g = &submesh->geometry;
-            material_instance m_inst = m->material_instances[j];
+        u16 submesh_count = 0;
+        static_mesh_submesh_count_get(engine_systems_get()->static_mesh_system, m->mesh, &submesh_count);
+        for (u16 j = 0; j < submesh_count; ++j) {
+            const kgeometry* g = static_mesh_submesh_geometry_get_at(engine_systems_get()->static_mesh_system, m->mesh, j);
+            const material_instance* m_inst = static_mesh_submesh_material_instance_get_at(engine_systems_get()->static_mesh_system, *m, j);
+            if (!material_is_loaded_get(engine_systems_get()->material_system, m_inst->material)) {
+                m_inst = &default_material;
+            }
 
             // TODO: Distance-from-line detection per object (e.g. light direction and center pos, then distance check from that line.)
             //
@@ -2180,7 +2185,7 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
                     // Add it to the list to be rendered.
                     geometry_render_data data = {0};
                     data.model = model;
-                    data.material = m_inst;
+                    data.material = *m_inst;
                     data.vertex_count = g->vertex_count;
                     data.vertex_buffer_offset = g->vertex_buffer_offset;
                     data.index_count = g->index_count;
@@ -2191,7 +2196,7 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
                     // Check if transparent. If so, put into a separate, temp array to be
                     // sorted by distance from the camera. Otherwise, put into the
                     // out_geometries array directly.
-                    b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst.material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
+                    b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst->material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
                     if (has_transparency) {
                         // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
                         // Get the center, extract the global position from the model matrix and add it to the center,
@@ -2465,7 +2470,7 @@ static void scene_actual_unload(scene* s) {
 
     u32 mesh_count = darray_length(s->static_meshes);
     for (u32 i = 0; i < mesh_count; ++i) {
-        if (s->static_meshes[i].instance_id != INVALID_ID_U64) {
+        if (s->static_meshes[i].instance_id != INVALID_ID_U16) {
             // Unload any debug data.
             // TODO: debug data
             /* if (s->static_meshes[i].debug_data) {
@@ -2478,9 +2483,9 @@ static void scene_actual_unload(scene* s) {
                 s->static_meshes[i].debug_data = 0;
             } */
 
-            static_mesh_system_instance_release(engine_systems_get()->static_mesh_system, &s->static_meshes[i]);
+            static_mesh_instance_release(engine_systems_get()->static_mesh_system, &s->static_meshes[i]);
 
-            s->static_meshes->instance_id = INVALID_ID_U64;
+            s->static_meshes->instance_id = INVALID_ID_U16;
         }
     }
 

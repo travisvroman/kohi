@@ -117,6 +117,8 @@ void material_system_shutdown(struct material_system_state* state);
  */
 KAPI b8 material_system_get_handle(struct material_system_state* state, kname name, khandle* out_material_handle);
 
+KAPI b8 material_is_loaded_get(struct material_system_state* state, khandle material);
+
 KAPI ktexture material_texture_get(struct material_system_state* state, khandle material, material_texture_input tex_input);
 KAPI void material_texture_set(struct material_system_state* state, khandle material, material_texture_input tex_input, ktexture texture);
 

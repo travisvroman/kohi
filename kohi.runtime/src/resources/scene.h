@@ -122,7 +122,7 @@ typedef struct scene {
     scene_attachment* audio_emitter_attachments;
 
     // darray of static meshes.
-    static_mesh_instance* static_meshes;
+    kstatic_mesh_instance* static_meshes;
     // Array of scene attachments for meshes.
     scene_attachment* mesh_attachments;
     // Array of mesh metadata.

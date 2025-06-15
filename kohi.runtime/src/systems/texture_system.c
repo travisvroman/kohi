@@ -16,6 +16,12 @@
 #include "utils/render_type_utils.h"
 #include <runtime_defines.h>
 
+typedef enum texture_state {
+    TEXTURE_STATE_UNINITIALIZED,
+    TEXTURE_STATE_LOADING,
+    TEXTURE_STATE_LOADED
+} texture_state;
+
 typedef struct texture_system_state {
     texture_system_config config;
 
@@ -39,6 +45,7 @@ typedef struct texture_system_state {
     u8* mip_level_counts;
     u16* texture_reference_counts;
     b8* auto_releases;
+    texture_state* states;
 
     // For quick lookups by name.
     bt_node* texture_name_lookup;
@@ -115,6 +122,7 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
 
     state_ptr->texture_reference_counts = KALLOC_TYPE_CARRAY(u16, typed_config->max_texture_count);
     state_ptr->auto_releases = KALLOC_TYPE_CARRAY(b8, typed_config->max_texture_count);
+    state_ptr->states = KALLOC_TYPE_CARRAY(texture_state, typed_config->max_texture_count);
 
     // Keep a pointer to the renderer system state.
     state_ptr->renderer = engine_systems_get()->renderer_system;
@@ -144,6 +152,7 @@ void texture_system_shutdown(void* state) {
         KFREE_TYPE_CARRAY(state_ptr->mip_level_counts, u8, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->texture_reference_counts, u16, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->auto_releases, b8, typed_config->max_texture_count);
+        KFREE_TYPE_CARRAY(state_ptr->states, texture_state, typed_config->max_texture_count);
 
         state_ptr->renderer = 0;
         state_ptr = 0;
@@ -427,6 +436,7 @@ ktexture texture_acquire_with_options(ktexture_load_options options, void* liste
         }
     }
 
+    state_ptr->states[t] = TEXTURE_STATE_LOADED;
     success = true;
 texture_acquire_with_options_async_cleanup:
 
@@ -573,6 +583,7 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
         }
     }
 
+    state_ptr->states[t] = TEXTURE_STATE_LOADED;
     success = true;
 texture_acquire_with_options_sync_cleanup:
 
@@ -687,6 +698,14 @@ ktexture_flag_bits texture_flags_get(ktexture t) {
     }
 
     return state_ptr->flags[t];
+}
+
+b8 texture_is_loaded(ktexture t) {
+    if (t == INVALID_KTEXTURE) {
+        return false;
+    }
+
+    return state_ptr->states[t] == TEXTURE_STATE_LOADED;
 }
 
 static b8 create_default_textures(texture_system_state* state) {
@@ -1002,6 +1021,7 @@ static ktexture texture_get_new(kname name) {
     for (u16 i = 0; i < state_ptr->config.max_texture_count; ++i) {
         if (state_ptr->formats[i] == KPIXEL_FORMAT_UNKNOWN) {
             // Found one, use it.
+            state_ptr->states[i] = TEXTURE_STATE_LOADING;
 
             // Insert into the lookup tree.
             bt_node_value val = {.u16 = i};
@@ -1056,6 +1076,7 @@ static void texture_cleanup(ktexture t, b8 clear_references) {
         state_ptr->mip_level_counts[t] = 0;
         state_ptr->array_sizes[t] = 0;
         state_ptr->flags[t] = 0;
+        state_ptr->states[t] = TEXTURE_STATE_UNINITIALIZED;
     }
 }
 
@@ -1232,6 +1253,7 @@ static b8 texture_apply_asset_data(ktexture t, kname name, const ktexture_load_o
         goto texture_apply_asset_data_cleanup;
     }
 
+    state_ptr->states[t] = TEXTURE_STATE_LOADED;
     success = true;
 texture_apply_asset_data_cleanup:
 

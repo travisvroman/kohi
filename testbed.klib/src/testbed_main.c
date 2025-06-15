@@ -698,17 +698,13 @@ b8 application_initialize(struct application* game_inst) {
     // Audio tests
 
     // Load up a test audio file.
-    if (!kaudio_acquire(state->audio_system, kname_create("Test_Audio"), kname_create("Testbed"), false, KAUDIO_SPACE_2D, &state->test_sound)) {
-        KERROR("Failed to load test audio file.");
-    }
+    state->test_sound = kaudio_acquire_from_package(state->audio_system, kname_create("Test_Audio"), kname_create("Testbed"), false, KAUDIO_SPACE_2D);
     /* // Looping audio file.
     if (!kaudio_acquire(state->audio_system, kname_create("Fire_loop"), kname_create("Testbed"), false, &state->test_loop_sound)) {
         KERROR("Failed to load test looping audio file.");
     } */
     // Test music
-    if (!kaudio_acquire(state->audio_system, kname_create("Woodland Fantasy"), kname_create("Testbed"), true, KAUDIO_SPACE_2D, &state->test_music)) {
-        KERROR("Failed to load test music file.");
-    }
+    state->test_music = kaudio_acquire_from_package(state->audio_system, kname_create("Woodland Fantasy"), kname_create("Testbed"), true, KAUDIO_SPACE_2D);
 
     // Setup a test emitter.
     /* state->test_emitter.file = state->test_loop_sound;

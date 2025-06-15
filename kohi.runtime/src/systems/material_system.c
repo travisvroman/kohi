@@ -73,14 +73,29 @@ const u32 MAT_WATER_IDX_NORMAL = 4;
 #define MATERIAL_WATER_SAMPLER_COUNT 5
 
 // TODO:
-// - Water type material
 // - Blended type material
 // - Material models (unlit, PBR, Phong, etc.)
-// - Shader interaction/binding/applying for material instances
+
+typedef enum material_state {
+    MATERIAL_STATE_UNINITIALIZED = 0,
+    MATERIAL_STATE_LOADING,
+    MATERIAL_STATE_LOADED,
+} material_state;
+
+typedef enum material_instance_state {
+    // Instance is available
+    MATERIAL_INSTANCE_STATE_UNINITIALIZED = 0,
+    // Instance was issued while base material was loading, and needs initialization.
+    MATERIAL_INSTANCE_STATE_LOADING,
+    // Instance is ready to be used.
+    MATERIAL_INSTANCE_STATE_LOADED,
+} material_instance_state;
 
 // Represents the data for a single instance of a material.
 // This can be thought of as "per-draw" data.
 typedef struct material_instance_data {
+    material_instance_state state;
+
     // A unique id used for handle validation.
     u64 unique_id;
 
@@ -108,6 +123,8 @@ typedef struct material_data {
     u32 index;
 
     kname name;
+    // The state of the material (loaded vs not, etc.)
+    material_state state;
     /** @brief The material type. Ultimately determines what shader the material is rendered with. */
     kmaterial_type type;
     /** @brief The material lighting model. */
@@ -352,11 +369,16 @@ typedef struct material_system_state {
 
     khandle material_blended_shader;
 
-    // Pointer to a default cubemap to fall back on if no IBL cubemaps are present.
-    ktexture default_ibl_cubemap;
-
     // Pointer to use for material texture inputs _not_ using a texture map (because something has to be bound).
     ktexture default_texture;
+    ktexture default_base_colour_texture;
+    ktexture default_spec_texture;
+    ktexture default_normal_texture;
+    // Pointer to a default cubemap to fall back on if no IBL cubemaps are present.
+    ktexture default_ibl_cubemap;
+    ktexture default_mra_texture;
+    ktexture default_water_normal_texture;
+    ktexture default_water_dudv_texture;
 
     // Keep a pointer to the renderer state for quick access.
     struct renderer_system_state* renderer;
@@ -422,7 +444,13 @@ b8 material_system_initialize(u64* memory_requirement, material_system_state* st
     state->instances = darray_reserve(material_instance_data*, config->max_material_count);
 
     state->default_texture = texture_acquire_sync(kname_create(DEFAULT_TEXTURE_NAME));
+    state->default_base_colour_texture = texture_acquire_sync(kname_create(DEFAULT_BASE_COLOUR_TEXTURE_NAME));
+    state->default_spec_texture = texture_acquire_sync(kname_create(DEFAULT_SPECULAR_TEXTURE_NAME));
+    state->default_normal_texture = texture_acquire_sync(kname_create(DEFAULT_NORMAL_TEXTURE_NAME));
+    state->default_mra_texture = texture_acquire_sync(kname_create(DEFAULT_MRA_TEXTURE_NAME));
     state->default_ibl_cubemap = texture_cubemap_acquire_sync(kname_create(DEFAULT_CUBE_TEXTURE_NAME));
+    state->default_water_normal_texture = texture_acquire_sync(kname_create(DEFAULT_WATER_NORMAL_TEXTURE_NAME));
+    state->default_water_dudv_texture = texture_acquire_sync(kname_create(DEFAULT_WATER_DUDV_TEXTURE_NAME));
 
     // Get default material shaders.
 
@@ -713,6 +741,14 @@ void material_system_shutdown(struct material_system_state* state) {
     }
 }
 
+b8 material_is_loaded_get(struct material_system_state* state, khandle material) {
+    if (!state || khandle_is_invalid(material)) {
+        return false;
+    }
+
+    return state->materials[material.handle_index].state == MATERIAL_STATE_LOADED;
+}
+
 ktexture material_texture_get(struct material_system_state* state, khandle material, material_texture_input tex_input) {
     if (!state || khandle_is_invalid(material) || khandle_is_stale(material, state->materials[material.handle_index].unique_id)) {
         return false;
@@ -918,6 +954,9 @@ b8 material_system_acquire(material_system_state* state, kname name, material_in
     khandle new_handle = material_handle_create(state, name);
     out_instance->material = new_handle;
 
+    material_data* material = &state->materials[new_handle.handle_index];
+    material->state = MATERIAL_STATE_LOADING;
+
     // Setup a listener.
     kasset_material_request_listener* listener = KALLOC_TYPE(kasset_material_request_listener, MEMORY_TAG_MATERIAL_INSTANCE);
     listener->state = state;
@@ -1009,6 +1048,10 @@ b8 material_system_prepare_frame(material_system_state* state, material_frame_da
         // Irradience textures provided by probes around in the world.
         for (u32 i = 0; i < MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT; ++i) {
             ktexture t = mat_frame_data.irradiance_cubemap_textures[i] ? mat_frame_data.irradiance_cubemap_textures[i] : state->default_ibl_cubemap;
+            // FIXME: Check if the texture is loaded.
+            if (!texture_is_loaded(t)) {
+                t = state->default_ibl_cubemap;
+            }
             if (!shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.irradiance_cube_textures, i, t)) {
                 KERROR("Failed to set ibl cubemap at index %i", i);
             }
@@ -1077,6 +1120,10 @@ b8 material_system_prepare_frame(material_system_state* state, material_frame_da
         // Irradiance textures provided by probes around in the world.
         for (u32 i = 0; i < MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT; ++i) {
             ktexture t = mat_frame_data.irradiance_cubemap_textures[i] ? mat_frame_data.irradiance_cubemap_textures[i] : state->default_ibl_cubemap;
+            // FIXME: Check if the texture is loaded.
+            if (!texture_is_loaded(t)) {
+                t = state->default_ibl_cubemap;
+            }
             shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.irradiance_cube_textures, i, t);
         }
 
@@ -1163,7 +1210,7 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
         // Inputs - Bind the texture if used.
 
         // Base colour
-        if (base_material->base_colour_texture) {
+        if (texture_is_loaded(base_material->base_colour_texture)) {
             group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_BASE_COLOUR_TEX, true);
             shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_BASE_COLOUR, base_material->base_colour_texture);
         } else {
@@ -1173,27 +1220,28 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
 
         // Normal
         if (FLAG_GET(base_material->flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)) {
-            if (base_material->normal_texture) {
+            if (texture_is_loaded(base_material->normal_texture)) {
                 group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX, true);
                 shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, base_material->normal_texture);
             } else {
                 group_ubo.normal = base_material->normal;
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, state->default_texture);
+                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, state->default_normal_texture);
             }
         } else {
+            group_ubo.normal = vec3_up();
             // Still need this set.
-            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, state->default_texture);
+            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, state->default_normal_texture);
         }
 
         // MRA
         b8 mra_enabled = FLAG_GET(base_material->flags, KMATERIAL_FLAG_MRA_ENABLED_BIT);
         if (mra_enabled) {
-            if (base_material->mra_texture) {
+            if (texture_is_loaded(base_material->mra_texture)) {
                 group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_MRA_TEX, true);
                 shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_MRA, base_material->mra_texture);
             } else {
                 group_ubo.mra = base_material->mra;
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_MRA, state->default_texture);
+                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_MRA, state->default_mra_texture);
             }
 
             // Even though MRA is being used, still need to bind something for these.
@@ -1203,12 +1251,12 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
         } else {
 
             // Still have to bind something to MRA.
-            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_MRA, state->default_texture);
+            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_MRA, state->default_mra_texture);
 
             // If not using MRA, then do these:
 
             // Metallic
-            if (base_material->metallic_texture) {
+            if (texture_is_loaded(base_material->metallic_texture)) {
                 group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_METALLIC_TEX, true);
                 shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_METALLIC, base_material->metallic_texture);
             } else {
@@ -1217,7 +1265,7 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
             }
 
             // Roughness
-            if (base_material->roughness_texture) {
+            if (texture_is_loaded(base_material->roughness_texture)) {
                 group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_ROUGHNESS_TEX, true);
                 shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_ROUGHNESS, base_material->roughness_texture);
             } else {
@@ -1226,11 +1274,16 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
             }
 
             // AO
-            if (base_material->ao_texture && FLAG_GET(base_material->flags, KMATERIAL_FLAG_AO_ENABLED_BIT)) {
-                group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_AO_TEX, true);
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, base_material->ao_texture);
+            if (FLAG_GET(base_material->flags, KMATERIAL_FLAG_AO_ENABLED_BIT)) {
+                if (texture_is_loaded(base_material->ao_texture)) {
+                    group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_AO_TEX, true);
+                    shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, base_material->ao_texture);
+                } else {
+                    group_ubo.ao = base_material->ao;
+                    shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, state->default_texture);
+                }
             } else {
-                group_ubo.ao = base_material->ao;
+                group_ubo.ao = 1.0f;
                 shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, state->default_texture);
             }
 
@@ -1239,11 +1292,16 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
         }
 
         // Emissive
-        if (base_material->emissive_texture && FLAG_GET(base_material->flags, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT)) {
-            group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX, true);
-            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_EMISSIVE, base_material->emissive_texture);
+        if (FLAG_GET(base_material->flags, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT)) {
+            if (texture_is_loaded(base_material->emissive_texture)) {
+                group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX, true);
+                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_EMISSIVE, base_material->emissive_texture);
+            } else {
+                group_ubo.emissive = base_material->emissive;
+                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_EMISSIVE, state->default_texture);
+            }
         } else {
-            group_ubo.emissive = base_material->emissive;
+            group_ubo.emissive = vec4_zero();
             shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_EMISSIVE, state->default_texture);
         }
 
@@ -1304,38 +1362,47 @@ b8 material_system_apply(material_system_state* state, khandle material, frame_d
         }
 
         // Reflection texture.
-        if (base_material->reflection_texture) {
-            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFLECTION, base_material->reflection_texture);
-        } else {
-            KFATAL("Water material shader requires a reflection texture.");
+        {
+            ktexture t = base_material->reflection_texture;
+            if (!texture_is_loaded(t)) {
+                t = state->default_texture;
+            }
+            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFLECTION, t);
         }
 
         // Refraction texture.
-        if (base_material->refraction_texture) {
-            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFRACTION, base_material->refraction_texture);
-        } else {
-            KFATAL("Water material shader requires a refraction texture.");
+        {
+            ktexture t = base_material->refraction_texture;
+            if (!texture_is_loaded(t)) {
+                t = state->default_texture;
+            }
+            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFRACTION, t);
         }
 
         // Refraction depth texture.
-        if (base_material->refraction_depth_texture) {
-            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFRACTION_DEPTH, base_material->refraction_depth_texture);
-        } else {
-            KFATAL("Water material shader requires a refraction depth texture.");
+        {
+            ktexture t = base_material->refraction_depth_texture;
+            if (texture_is_loaded(t)) {
+            }
+            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFRACTION_DEPTH, t);
         }
 
         // DUDV texture.
-        if (base_material->dudv_texture) {
-            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_DUDV, base_material->dudv_texture);
-        } else {
-            KFATAL("Water material shader requires a dudv texture.");
+        {
+            ktexture t = base_material->dudv_texture;
+            if (!texture_is_loaded(t)) {
+                t = state->default_normal_texture; // default_water_dudv_texture;
+            }
+            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_DUDV, t);
         }
 
-        // Normal texture.
-        if (base_material->normal_texture) {
-            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_NORMAL, base_material->normal_texture);
-        } else {
-            KFATAL("Water material shader requires a normal texture.");
+        // Water Normal texture.
+        {
+            ktexture t = base_material->normal_texture;
+            if (!texture_is_loaded(t)) {
+                t = state->default_normal_texture; // default_water_normal_texture;
+            }
+            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_NORMAL, t);
         }
 
         // Set the whole thing at once.
@@ -2004,11 +2071,16 @@ static b8 material_create(material_system_state* state, khandle material_handle,
 
     // TODO: Custom samplers.
 
+    material->state = MATERIAL_STATE_LOADED;
+
     return true;
 }
 
 static void material_destroy(material_system_state* state, material_data* material, u32 material_index) {
     KASSERT_MSG(material, "Tried to destroy null material.");
+
+    // Immediately mark it as unavailable for use.
+    material->state = MATERIAL_STATE_UNINITIALIZED;
 
     // Select shader.
     khandle material_shader = get_shader_for_material_type(state, material->type);
@@ -2095,18 +2167,30 @@ static b8 material_instance_create(material_system_state* state, khandle base_ma
 
     material_data* material = &state->materials[base_material.handle_index];
     material_instance_data* inst = &state->instances[base_material.handle_index][out_instance_handle->handle_index];
+    inst->state = MATERIAL_INSTANCE_STATE_UNINITIALIZED;
 
-    // Get per-draw resources for the instance.
-    if (!renderer_shader_per_draw_resources_acquire(state->renderer, get_shader_for_material_type(state, material->type), &inst->per_draw_id)) {
-        KERROR("Failed to create per-draw resources for a material instance. Instance creation failed.");
-        return false;
+    // Only request resources and copy base material properties if the base material is actually loaded and ready to go.
+    if (material->state == MATERIAL_STATE_LOADED) {
+        inst->state = MATERIAL_INSTANCE_STATE_LOADING;
+
+        // Get per-draw resources for the instance.
+        if (!renderer_shader_per_draw_resources_acquire(state->renderer, get_shader_for_material_type(state, material->type), &inst->per_draw_id)) {
+            KERROR("Failed to create per-draw resources for a material instance. Instance creation failed.");
+            inst->state = MATERIAL_INSTANCE_STATE_UNINITIALIZED;
+            return false;
+        }
+
+        // Take a copy of the base material properties.
+        inst->flags = material->flags;
+        inst->uv_scale = material->uv_scale;
+        inst->uv_offset = material->uv_offset;
+        inst->base_colour = material->base_colour;
+
+        inst->state = MATERIAL_INSTANCE_STATE_LOADED;
+    } else {
+        // Base material NOT loaded, handle in async callback from asset system.
+        inst->state = MATERIAL_INSTANCE_STATE_LOADING;
     }
-
-    // Take a copy of the base material properties.
-    inst->flags = material->flags;
-    inst->uv_scale = material->uv_scale;
-    inst->uv_offset = material->uv_offset;
-    inst->base_colour = material->base_colour;
 
     return true;
 }
@@ -2141,6 +2225,30 @@ static void kasset_material_loaded(void* listener, kasset_material* asset) {
     if (listener_inst->instance_handle) {
         if (!material_instance_create(state, listener_inst->material_handle, listener_inst->instance_handle)) {
             KERROR("Failed to create material instance during new material creation.");
+        }
+    }
+
+    // Iterate the instances of the material and see if any were waiting on the asset to load.
+    material_data* material = &state->materials[listener_inst->material_handle.handle_index];
+
+    u32 instance_count = darray_length(state->instances[listener_inst->material_handle.handle_index]);
+    for (u32 i = 0; i < instance_count; ++i) {
+        material_instance_data* inst = &state->instances[listener_inst->material_handle.handle_index][i];
+        if (inst->state == MATERIAL_INSTANCE_STATE_LOADING) {
+            // Get per-draw resources for the instance.
+            if (!renderer_shader_per_draw_resources_acquire(state->renderer, get_shader_for_material_type(state, material->type), &inst->per_draw_id)) {
+                KERROR("Failed to create per-draw resources for a material instance. Instance creation failed.");
+                inst->state = MATERIAL_INSTANCE_STATE_UNINITIALIZED;
+                continue;
+            }
+
+            // Take a copy of the base material properties.
+            inst->flags = material->flags;
+            inst->uv_scale = material->uv_scale;
+            inst->uv_offset = material->uv_offset;
+            inst->base_colour = material->base_colour;
+
+            inst->state = MATERIAL_INSTANCE_STATE_LOADED;
         }
     }
 

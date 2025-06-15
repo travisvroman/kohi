@@ -364,7 +364,7 @@ b8 shadow_rendergraph_node_execute(struct rendergraph_node* self, struct frame_d
 
             // Bind the appropriate texture.
             ktexture base_colour_texture = using_default ? internal_data->default_base_colour_texture : material_texture_get(internal_data->material_system, selected_group->base_material, MATERIAL_TEXTURE_INPUT_BASE_COLOUR);
-            if (!base_colour_texture) {
+            if (!texture_is_loaded(base_colour_texture)) {
                 // Failsafe in case the given material doesn't have a base colour texture.
                 base_colour_texture = internal_data->default_base_colour_texture;
             }
