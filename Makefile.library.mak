@@ -49,7 +49,7 @@ else
 		EXTENSION := .so
 		# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say
 		# otherwise are exported (i.e. via KAPI).
-		COMPILER_FLAGS :=-fvisibility=hidden -fpic -Wall -Wno-error=deprecated-declarations -Wno-error=unused-function -Werror -Wvla -Wno-missing-braces -fdeclspec 
+		COMPILER_FLAGS :=-fvisibility=hidden -fpic -Wall -Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=tautological-compare -Werror -Wvla -Wno-missing-braces -fdeclspec 
 		INCLUDE_FLAGS := -I./$(ASSEMBLY)/src $(ADDL_INC_FLAGS)
 		# NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
 		# These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
