@@ -89,13 +89,14 @@ u32 string_utf8_nlength(const char* str, u32 max_len) {
         length++;
     }
 
-    if(expected) {
-        KERROR("kstring string_utf8_nlength() - Unexpected end of starting (missing continuation byte).");
-        return 0;
-    }
 
     if (length == U32_MAX) {
         KWARN("kstring string_utf8_nlength is returning U32_MAX. Is it possible the string has no null terminator?")
+    }
+
+    if(expected) {
+        KERROR("kstring string_utf8_nlength() - Unexpected end of starting (missing continuation byte).");
+        return 0;
     }
 
     return length;
