@@ -51,28 +51,47 @@ u64 string_nlength(const char* str, u32 max_len) {
 
 u32 string_utf8_nlength(const char* str, u32 max_len) {
     u32 length = 0;
-    for (u64 i = 0; length < max_len; ++i, ++length) {
-        i32 c = (i32)str[i];
+    u8 expected = 0;
+    for (u64 i = 0; length < max_len; ++i) {
+        u8 c = (u8)str[i];
         if (c == 0) {
             break;
         }
-        if (c >= 0 && c < 127) {
+        if(expected) {
+            if((c & 0xC0) != 0x80) {
+                KERROR("kstring string_utf8_nlength() - Invalid continuation byte UTF-8.");
+                return 0;
+            }
+            expected--;
+            continue;
+        }
+        if (c < 0x80) {
             // Normal ascii character, don't increment again.
             // i += 0; // Basically doing this.
-        } else if ((c & 0xE0) == 0xC0) {
+        } else if (c < 0xC0) {
+            KERROR("kstring string_utf8_nlength() - Unexpected continuation byte UTF-8.");
+            return 0;
+        } else if (c < 0xE0) {
             // Double-byte character, increment once more.
-            i += 1;
-        } else if ((c & 0xF0) == 0xE0) {
+            expected = 1;
+        } else if (c < 0xF0) {
             // Triple-byte character, increment twice more.
-            i += 2;
-        } else if ((c & 0xF8) == 0xF0) {
+            expected = 2;
+        } else if (c < 0xF8) {
             // 4-byte character, increment thrice more.
-            i += 3;
+            expected = 3;
         } else {
             // NOTE: Not supporting 5 and 6-byte characters; return as invalid UTF-8.
             KERROR("kstring string_utf8_nlength() - Not supporting 5 and 6-byte characters; Invalid UTF-8.");
             return 0;
         }
+
+        length++;
+    }
+
+    if(expected) {
+        KERROR("kstring string_utf8_nlength() - Unexpected end of starting (missing continuation byte).");
+        return 0;
     }
 
     if (length == U32_MAX) {
