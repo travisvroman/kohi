@@ -83,8 +83,6 @@ typedef struct kstatic_mesh_asset_load_listener {
     kstatic_mesh m;
 } kstatic_mesh_asset_load_listener;
 
-// Invoked when the resource is loaded (or if already loaded and immediately returned).
-static void static_mesh_on_resource_loaded(kresource* resource, void* listener);
 static void ensure_arrays_allocated(static_mesh_system_state* state, u32 new_count);
 static void ensure_instance_arrays_allocated(base_mesh_instance_data* base_instance_data, u32 new_count);
 static kstatic_mesh_instance issue_new_instance(static_mesh_system_state* state, kstatic_mesh m);

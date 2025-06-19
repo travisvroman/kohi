@@ -1,13 +1,12 @@
 #pragma once
 
-#include "defines.h"
-#include "identifiers/identifier.h"
-#include "kresources/kresource_types.h"
-#include "math/math_types.h"
-#include "resources/resource_types.h"
-#include "strings/kname.h"
-#include "systems/material_system.h"
+#include <assets/kasset_types.h>
+#include <defines.h>
+#include <identifiers/identifier.h>
+#include <math/math_types.h>
+#include <strings/kname.h>
 
+#include "resources/resource_types.h"
 /*
 Need to modify the geometry structure/functions to allow for multiple materials.
 Write shader to handle 8 material weights/blending

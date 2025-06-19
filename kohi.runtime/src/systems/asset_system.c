@@ -871,7 +871,7 @@ void asset_system_release_audio(struct asset_system_state* state, kasset_audio* 
 // ////////////////////////////////////
 
 // sync load from game package.
-kasset_scene* asset_system_terrain_request_scene_sync(struct asset_system_state* state, const char* name) {
+kasset_scene* asset_system_request_scene_sync(struct asset_system_state* state, const char* name) {
     return asset_system_request_scene_from_package_sync(state, state->default_package_name_str, name);
 }
 // sync load from specific package.

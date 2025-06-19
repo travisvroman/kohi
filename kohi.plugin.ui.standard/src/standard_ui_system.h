@@ -12,14 +12,14 @@
 
 #pragma once
 
+#include <defines.h>
+#include <identifiers/identifier.h>
+#include <input_types.h>
+#include <kresources/kresource_types.h>
+#include <math/geometry.h>
 #include <math/math_types.h>
-
-#include "defines.h"
-#include "identifiers/identifier.h"
-#include "input_types.h"
-#include "kresources/kresource_types.h"
-#include "renderer/renderer_types.h"
-#include "systems/xform_system.h"
+#include <renderer/renderer_types.h>
+#include <systems/xform_system.h>
 
 struct frame_data;
 struct standard_ui_state;

@@ -29,6 +29,7 @@
 #include <defines.h>
 #include <identifiers/khandle.h>
 #include <kresources/kresource_types.h>
+#include <math/geometry.h>
 #include <strings/kname.h>
 
 #include "core/frame_data.h"

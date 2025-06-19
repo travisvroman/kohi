@@ -14,7 +14,9 @@
 
 #pragma once
 
-#include "core_render_types.h"
+#include <assets/kasset_types.h>
+#include <core_render_types.h>
+
 #include "kresources/kresource_types.h"
 
 struct texture_system_state;
@@ -250,7 +252,7 @@ KAPI ktexture texture_cubemap_acquire_from_package(kname image_asset_name_prefix
 KAPI ktexture texture_cubemap_acquire_from_package_sync(kname image_asset_name_prefix, kname package_name);
 
 // Easier idea? synchronous. auto_release=true, default options
-KAPI ktexture texture_acquire_from_image(const struct kasset_image* image, kname name);
+KAPI ktexture texture_acquire_from_image(const kasset_image* image, kname name);
 
 KAPI ktexture texture_acquire_from_pixel_data(kpixel_format format, u32 pixel_array_size, void* pixels, u32 width, u32 height, kname name);
 

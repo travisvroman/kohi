@@ -1,23 +1,23 @@
 #include "shader_system.h"
 
-#include "assets/kasset_types.h"
-#include "containers/darray.h"
+#include <assets/kasset_types.h>
+#include <containers/darray.h>
+#include <core_render_types.h>
+#include <defines.h>
+#include <identifiers/khandle.h>
+#include <logger.h>
+#include <memory/kmemory.h>
+#include <serializers/kasset_shader_serializer.h>
+#include <strings/kname.h>
+#include <strings/kstring.h>
+#include <utils/render_type_utils.h>
+
 #include "core/engine.h"
 #include "core/event.h"
-#include "core_render_types.h"
-#include "defines.h"
-#include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
-#include "logger.h"
-#include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
-#include "serializers/kasset_shader_serializer.h"
-#include "strings/kname.h"
-#include "strings/kstring.h"
 #include "systems/asset_system.h"
-#include "systems/kresource_system.h"
 #include "systems/texture_system.h"
-#include "utils/render_type_utils.h"
 
 /**
  * @brief Represents a shader on the frontend. This is internal to the shader system.
@@ -229,28 +229,15 @@ khandle shader_system_get(kname name, kname package_name) {
         }
     }
 
-    // Not found, attempt to load the shader resource.
-    kresource_shader_request_info request_info = {0};
-    request_info.base.type = KRESOURCE_TYPE_SHADER;
-    request_info.base.synchronous = true; // Shaders are needed immediately.
-    request_info.shader_config_source_text = 0;
-
-    // Add shader asset to resource request.
-    request_info.base.assets = array_kresource_asset_info_create(1);
-    kresource_asset_info* asset = &request_info.base.assets.data[0];
-    asset->asset_name = name; // Resource name should match the asset name.
-    asset->package_name = package_name;
-    asset->type = KASSET_TYPE_SHADER;
-    asset->watch_for_hot_reload = false;
-
-    kasset_shader* shader_resource = asset_system_request_shader_from_package_sync(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(name));
-    if (!shader_resource) {
+    // Not found, attempt to load the shader asset.
+    kasset_shader* shader_asset = asset_system_request_shader_from_package_sync(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(name));
+    if (!shader_asset) {
         KERROR("Failed to load shader resource for shader '%s'.", kname_string_get(name));
         return khandle_invalid();
     }
 
     // Create the shader.
-    khandle shader_handle = shader_create(shader_resource);
+    khandle shader_handle = shader_create(shader_asset);
 
     if (khandle_is_invalid(shader_handle)) {
         KERROR("Failed to create shader '%s'.", kname_string_get(name));
@@ -271,7 +258,7 @@ khandle shader_system_get_from_source(kname name, const char* shader_config_sour
         return khandle_invalid();
     }
 
-        // Create the shader.
+    // Create the shader.
     khandle shader_handle = shader_create(temp_asset);
 
     asset_system_release_shader(engine_systems_get()->asset_state, temp_asset);

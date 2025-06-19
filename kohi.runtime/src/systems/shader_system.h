@@ -13,8 +13,9 @@
 
 #pragma once
 
-#include "defines.h"
-#include "kresources/kresource_types.h"
+#include <defines.h>
+#include <identifiers/khandle.h>
+#include <kresources/kresource_types.h>
 
 /** @brief Configuration for the shader system. */
 typedef struct shader_system_config {

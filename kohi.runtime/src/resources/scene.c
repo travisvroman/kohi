@@ -15,7 +15,6 @@
 #include "graphs/hierarchy_graph.h"
 #include "identifiers/identifier.h"
 #include "identifiers/khandle.h"
-#include "kresources/kresource_types.h"
 #include "logger.h"
 #include "math/geometry_3d.h"
 #include "math/kmath.h"
@@ -120,7 +119,7 @@ static i32 geometry_distance_compare(void* a, void* b) {
     return 0;
 }
 
-b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene) {
+b8 scene_create(kasset_scene* config, scene_flags flags, scene* out_scene) {
     if (!out_scene) {
         KERROR("scene_create(): A valid pointer to out_scene is required.");
         return false;
@@ -924,9 +923,9 @@ b8 scene_initialize(scene* scene) {
 
     // Process configuration and setup hierarchy.
     if (scene->config) {
-        kresource_scene* config = scene->config;
-        if (scene->config->base.name) {
-            scene->name = scene->config->base.name;
+        kasset_scene* config = scene->config;
+        if (scene->config->name) {
+            scene->name = scene->config->name;
         }
         if (scene->config->description) {
             scene->description = string_duplicate(scene->config->description);

@@ -24,7 +24,6 @@
 #include "runtime_defines.h"
 #include "strings/kstring.h"
 #include "systems/asset_system.h"
-#include "systems/kresource_system.h"
 #include "systems/light_system.h"
 #include "systems/shader_system.h"
 #include "systems/texture_system.h"
@@ -1716,8 +1715,6 @@ static b8 create_default_water_material(material_system_state* state) {
 
 static b8 create_default_blended_material(material_system_state* state) {
 
-    kresource_material_request_info request = {0};
-    request.base.type = KRESOURCE_TYPE_MATERIAL;
     // FIXME: figure out how the layers should look for this material type.
     //
     // TODO: Need to add "channel" property to each map separate from the name of
@@ -1738,16 +1735,6 @@ static b8 create_default_blended_material(material_system_state* state) {
     //
     // TODO: This process will also be utilized by the metallic_roughness_ao_map (formerly "combined"),
     // but instead targeting a single channel of the target texture as opposed to a layer of it.
-    request.material_source_text = "\
-version = 3\
-type = \"multi\"\
-\
-materials = [\
-    \"default\"\
-    \"default\"\
-    \"default\"\
-    \"default\"\
-]";
 
     return true;
 }

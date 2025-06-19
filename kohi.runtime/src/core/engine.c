@@ -35,7 +35,6 @@
 #include "systems/camera_system.h"
 #include "systems/font_system.h"
 #include "systems/job_system.h"
-#include "systems/kresource_system.h"
 #include "systems/light_system.h"
 #include "systems/material_system.h"
 #include "systems/plugin_system.h"
@@ -257,21 +256,6 @@ b8 engine_create(application* app) {
     {
         if (!kasset_importer_registry_initialize()) {
             KERROR("Failed to initialize asset importer registry. See logs for details.");
-            return false;
-        }
-    }
-
-    // Resource system
-    {
-
-        // TODO: deserialize from application config, if provided.
-        kresource_system_config resource_sys_config = {0};
-        resource_sys_config.max_resource_count = 2000;
-
-        kresource_system_initialize(&systems->kresource_system_memory_requirement, 0, &resource_sys_config);
-        systems->kresource_state = kallocate(systems->kresource_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!kresource_system_initialize(&systems->kresource_system_memory_requirement, systems->kresource_state, &resource_sys_config)) {
-            KERROR("Failed to initialize resource system (new).");
             return false;
         }
     }
@@ -841,7 +825,6 @@ b8 engine_run(application* app) {
         kaudio_system_shutdown(systems->audio_system);
         plugin_system_shutdown(systems->plugin_system);
         shader_system_shutdown(systems->shader_system);
-        kresource_system_shutdown(systems->kresource_state);
         renderer_system_shutdown(systems->renderer_system);
         job_system_shutdown(systems->job_system);
         input_system_shutdown(systems->input_system);
