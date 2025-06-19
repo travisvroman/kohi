@@ -95,6 +95,12 @@ KAPI b8 pixel_data_has_transparency(const void* pixels, u32 pixel_array_size, kp
  */
 KAPI u8 channel_count_from_pixel_format(kpixel_format format);
 
+/** @brief Returns the string representation of the given kpixel_format. */
+KAPI const char* string_from_kpixel_format(kpixel_format format);
+
+/** @brief Converts the given string into a kpixel_format. Case-insensitive. */
+KAPI kpixel_format string_to_kpixel_format(const char* str);
+
 /**
  * @brief Calculate mip levels based on the given dimensions.
  *

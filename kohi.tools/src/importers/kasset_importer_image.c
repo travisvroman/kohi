@@ -17,9 +17,9 @@
 // NOTE: defined in tools_main.c
 #include "vendor/stb_image.h"
 
-b8 kasset_image_import(const char* output_directory, const char* output_filename, u64 data_size, const void* data, b8 flip_y, kpixel_format output_format) {
-    if (!data_size || !data) {
-        KERROR("%s requires valid pointer to data as well as a nonzero data_size.", __FUNCTION__);
+b8 kasset_image_import(const char* source_path, const char* target_path, b8 flip_y, kpixel_format output_format) {
+    if (!source_path || !target_path) {
+        KERROR("%s requires valid source_path and target_path.", __FUNCTION__);
         return false;
     }
 
@@ -89,6 +89,13 @@ b8 kasset_image_import(const char* output_directory, const char* output_filename
     // Set the "flip" as described in the options.
     stbi_set_flip_vertically_on_load_thread(flip_y);
 
+    u64 data_size = 0;
+    const void* data = filesystem_read_entire_binary_file(source_path, &data_size);
+    if (!data) {
+        KERROR("%s - Failed to import image from path - see logs for details.", __FUNCTION__);
+        return false;
+    }
+
     // Load the image.
     kasset_image asset = {0};
     u8* pixels = stbi_load_from_memory(data, data_size, (i32*)&asset.width, (i32*)&asset.height, (i32*)&asset.channel_count, required_channel_count);
@@ -109,9 +116,8 @@ b8 kasset_image_import(const char* output_directory, const char* output_filename
         return false;
     }
 
-    const char* out_path = string_format("%s/%s.%s", output_directory, output_filename, "kbi");
     b8 success = true;
-    if (!filesystem_write_entire_binary_file(out_path, serialized_block_size, serialized_block)) {
+    if (!filesystem_write_entire_binary_file(target_path, serialized_block_size, serialized_block)) {
         KERROR("Failed to write Binary Image asset data to disk. See logs for details.");
         success = false;
     }
@@ -121,20 +127,4 @@ b8 kasset_image_import(const char* output_directory, const char* output_filename
     }
 
     return success;
-}
-
-b8 kasset_image_import_from_path(const char* output_directory, const char* output_filename, const char* path, b8 flip_y, kpixel_format output_format) {
-    u64 size = 0;
-    const void* bytes = filesystem_read_entire_binary_file(path, &size);
-    if (!bytes) {
-        KERROR("%s - Failed to import image from path - see logs for details.", __FUNCTION__);
-        return false;
-    }
-
-    b8 result = kasset_image_import(output_directory, output_filename, size, bytes, flip_y, output_format);
-    if (size && bytes) {
-        kfree((void*)bytes, size, MEMORY_TAG_ARRAY);
-    }
-
-    return result;
 }

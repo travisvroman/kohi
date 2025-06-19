@@ -17,17 +17,33 @@
 // #define MINIMP3_NO_STDIO
 #include "vendor/minimp3_ex.h"
 
-b8 kasset_audio_import(const char* output_directory, const char* output_filename, u64 data_size, const void* data, const char* extension) {
-    if (!data_size || !data) {
-        KERROR("%s requires a valid pointer to data, as well as a nonzero data_size.", __FUNCTION__);
+b8 kasset_audio_import(const char* source_path, const char* target_path) {
+    if (!source_path || !target_path) {
+        KERROR("%s requires valid source_path and target_path.", __FUNCTION__);
         return false;
+    }
+
+    const char* source_extension = string_extension_from_path(source_path, true);
+    if (!source_extension) {
+        return false;
+    }
+
+    b8 success = false;
+    u64 serialized_block_size = 0;
+    void* serialized_block = 0;
+
+    u64 data_size = 0;
+    const void* data = filesystem_read_entire_binary_file(source_path, &data_size);
+    if (!data || !data_size) {
+        KERROR("Error reading audio file (%s) for import.", source_path);
+        goto kasset_importer_audio_cleanup;
     }
 
     kasset_audio asset = {0};
 
-    if (strings_equali(extension, ".mp3")) {
+    if (strings_equali(source_extension, ".mp3")) {
         // MP3 import
-        KTRACE("Importing MP3 asset '%s'...", output_filename);
+        KTRACE("Importing asset '%s' as MP3...", source_path);
         asset.pcm_data_size = 0;
         asset.pcm_data = 0;
         asset.total_sample_count = 0;
@@ -39,7 +55,7 @@ b8 kasset_audio_import(const char* output_directory, const char* output_filename
         i32 err = mp3dec_load_buf(&mp3_decoder, (u8*)data, data_size, &file_info, 0, 0);
         if (err < 0) {
             KERROR("Error decoding MP3.");
-            return false;
+            goto kasset_importer_audio_cleanup;
         }
 
         KINFO("Decoded %llu samples successfully.", file_info.samples);
@@ -52,15 +68,15 @@ b8 kasset_audio_import(const char* output_directory, const char* output_filename
         KDEBUG("Decoded mp3 - channels: %d, samples: %llu, sample_rate/freq: %dHz, avg kbit/s rate: %d, size: %llu", file_info.channels, file_info.samples, file_info.hz, file_info.avg_bitrate_kbps, asset.pcm_data_size);
         kcopy_memory(asset.pcm_data, file_info.buffer, asset.pcm_data_size);
 
-    } else if (strings_equali(extension, ".ogg")) {
+    } else if (strings_equali(source_extension, ".ogg")) {
         // Ogg import
-        KTRACE("Importing OGG Vorbis asset '%s'...", output_filename);
+        KTRACE("Importing asset '%s' as OGG Vorbis...", source_path);
 
         i16* decoded_pcm_data = 0;
         i32 total_samples = stb_vorbis_decode_memory(data, data_size, &asset.channels, (i32*)&asset.sample_rate, &decoded_pcm_data);
         if (!decoded_pcm_data || total_samples < 0) {
             KERROR("Failed to import OGG Vorbis file.");
-            return false;
+            goto kasset_importer_audio_cleanup;
         }
         // Make sure this is a multiple of 4. If not, loading into the buffer can fail.
         total_samples += (total_samples % 4);
@@ -71,28 +87,31 @@ b8 kasset_audio_import(const char* output_directory, const char* output_filename
         kcopy_memory(asset.pcm_data, decoded_pcm_data, asset.pcm_data_size);
         free(decoded_pcm_data);
 
-    } else if (strings_equali(extension, ".wav")) {
-        KTRACE("Importing WAV asset '%s'...", output_filename);
+    } else if (strings_equali(source_extension, ".wav")) {
+        KTRACE("Importing asset '%s' as WAV...", source_path);
         // FIXME: support wav
         KFATAL("wav not yet supported.");
+        goto kasset_importer_audio_cleanup;
     } else {
-        KFATAL("Unsupported audio source file format '%s', ya dingus.", extension);
+        KFATAL("Unsupported audio source file format '%s', ya dingus.", source_extension);
+        goto kasset_importer_audio_cleanup;
     }
 
-    u64 serialized_block_size = 0;
-    void* serialized_block = kasset_audio_serialize(&asset, &serialized_block_size);
+    serialized_block_size = 0;
+    serialized_block = kasset_audio_serialize(&asset, &serialized_block_size);
     if (!serialized_block) {
         KERROR("Binary audio serialization failed, check logs.");
-        return false;
+        goto kasset_importer_audio_cleanup;
     }
 
     // Write out .kaf file.
-    const char* out_path = string_format("%s/%s.%s", output_directory, output_filename, "kaf");
-    b8 success = true;
-    if (!filesystem_write_entire_binary_file(out_path, serialized_block_size, serialized_block)) {
-        KWARN("Failed to write Binary Audio asset (.kaf) file. See logs for details.");
-        success = false;
+    if (!filesystem_write_entire_binary_file(target_path, serialized_block_size, serialized_block)) {
+        KERROR("Failed to write Binary Audio asset (.kaf) file. See logs for details.");
+        goto kasset_importer_audio_cleanup;
     }
+
+    success = true;
+kasset_importer_audio_cleanup:
 
     if (serialized_block) {
         kfree(serialized_block, serialized_block_size, MEMORY_TAG_SERIALIZER);

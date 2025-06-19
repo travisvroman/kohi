@@ -13,7 +13,7 @@
 
 #include "serializers/obj_serializer.h"
 
-b8 kasset_static_mesh_obj_import(const char* output_directory, const char* output_filename, kname package_name, const char* data, u32* out_material_file_count, const char*** out_material_file_names) {
+b8 kasset_static_mesh_obj_import(const char* target_path, const char* data, u32* out_material_file_count, const char*** out_material_file_names) {
     if (!data || !out_material_file_count || !out_material_file_names) {
         KERROR("%s requires valid pointers to data, out_material_file_count, and out_material_file_names.", __FUNCTION__);
         return false;
@@ -112,10 +112,9 @@ b8 kasset_static_mesh_obj_import(const char* output_directory, const char* outpu
     }
 
     // Write out .ksm file.
-    const char* out_path = string_format("%s/%s.%s", output_directory, output_filename, "ksm");
     b8 success = true;
-    if (!filesystem_write_entire_binary_file(out_path, serialized_size, serialized_data)) {
-        KWARN("Failed to write .ksm file. See logs for details. Static mesh asset still imported and can be used, though.");
+    if (!filesystem_write_entire_binary_file(target_path, serialized_size, serialized_data)) {
+        KWARN("Failed to write .ksm file '%s'. See logs for details.", target_path);
         success = false;
     }
 

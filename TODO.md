@@ -10,7 +10,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Refactor asset system to use direct types, dispense with handlers/import logic from engine
   - [x] Jobify VFS loading.
   - [ ] Rework import pipeline to exist in kohi.tools instead.
-- [ ] Remove resource system, directly use reworked asset system in dedicated systems.
+- [x] Remove resource system, directly use reworked asset system in dedicated systems.
 - [ ] Rework hot-reloading. (systems can register for a KASSET_HOT_RELOADED event and handle it thusly)
 
 ## 0.11.0 Release

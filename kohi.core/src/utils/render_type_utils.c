@@ -542,6 +542,73 @@ u8 channel_count_from_pixel_format(kpixel_format format) {
     }
 }
 
+const char* string_from_kpixel_format(kpixel_format format) {
+    switch (format) {
+    case KPIXEL_FORMAT_UNKNOWN:
+    default:
+        return 0;
+    case KPIXEL_FORMAT_RGBA8:
+        return "rgba8";
+    case KPIXEL_FORMAT_RGBA16:
+        return "rgba16";
+    case KPIXEL_FORMAT_RGBA32:
+        return "rgba32";
+    case KPIXEL_FORMAT_RGB8:
+        return "rgb8";
+    case KPIXEL_FORMAT_RGB16:
+        return "rgb16";
+    case KPIXEL_FORMAT_RGB32:
+        return "rgb32";
+    case KPIXEL_FORMAT_RG8:
+        return "rg8";
+    case KPIXEL_FORMAT_RG16:
+        return "rg16";
+    case KPIXEL_FORMAT_RG32:
+        return "rg32";
+    case KPIXEL_FORMAT_R8:
+        return "r8";
+    case KPIXEL_FORMAT_R16:
+        return "r16";
+    case KPIXEL_FORMAT_R32:
+        return "r2";
+    }
+}
+
+kpixel_format string_to_kpixel_format(const char* str) {
+    if (!str) {
+        return KPIXEL_FORMAT_UNKNOWN;
+    }
+
+    if (strings_equali(str, "rgba8")) {
+        return KPIXEL_FORMAT_RGBA8;
+    } else if (strings_equali(str, "rgba16")) {
+        return KPIXEL_FORMAT_RGBA16;
+    } else if (strings_equali(str, "rgba32")) {
+        return KPIXEL_FORMAT_RGBA32;
+    } else if (strings_equali(str, "rgb8")) {
+        return KPIXEL_FORMAT_RGB8;
+    } else if (strings_equali(str, "rgb16")) {
+        return KPIXEL_FORMAT_RGB16;
+    } else if (strings_equali(str, "rgb32")) {
+        return KPIXEL_FORMAT_RGB32;
+    } else if (strings_equali(str, "rg8")) {
+        return KPIXEL_FORMAT_RG8;
+    } else if (strings_equali(str, "rg16")) {
+        return KPIXEL_FORMAT_RG16;
+    } else if (strings_equali(str, "rg32")) {
+        return KPIXEL_FORMAT_RG32;
+    } else if (strings_equali(str, "r8")) {
+        return KPIXEL_FORMAT_R8;
+    } else if (strings_equali(str, "r16")) {
+        return KPIXEL_FORMAT_R16;
+    } else if (strings_equali(str, "r32")) {
+        return KPIXEL_FORMAT_R32;
+    }
+
+    // Fall back to unknown.
+    return KPIXEL_FORMAT_UNKNOWN;
+}
+
 b8 calculate_mip_levels_from_dimension(u32 width, u32 height) {
     // The number of mip levels is calculated by first taking the largest dimension
     // (either width or height), figuring out how many times that number can be divided
