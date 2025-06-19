@@ -84,7 +84,7 @@ typedef struct terrain {
     u32 generation;
     terrain_state state;
     kname name;
-    kresource_heightmap_terrain* terrain_resource;
+    kasset_heightmap_terrain* asset;
     kname material_name;
     u32 tile_count_x;
     u32 tile_count_z;
@@ -116,7 +116,7 @@ typedef struct terrain {
     kname* material_names;
 } terrain;
 
-KAPI b8 terrain_create(kresource_heightmap_terrain* terrain_resource, terrain* out_terrain);
+KAPI b8 terrain_create(kasset_heightmap_terrain* asset, terrain* out_terrain);
 KAPI void terrain_destroy(terrain* t);
 
 KAPI b8 terrain_initialize(terrain* t);

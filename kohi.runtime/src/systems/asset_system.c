@@ -439,6 +439,20 @@ kasset_system_font* asset_system_request_system_font_from_package_sync(struct as
         return 0;
     }
 
+    // Load the font binary file.
+    kasset_binary* ttf_binary_asset = asset_system_request_binary_from_package_sync(
+        state,
+        kname_string_get(out_asset->ttf_asset_package_name),
+        kname_string_get(out_asset->ttf_asset_name));
+
+    // Take a copy of the binary asset's data.
+    out_asset->font_binary_size = ttf_binary_asset->size;
+    out_asset->font_binary = kallocate(out_asset->font_binary_size, MEMORY_TAG_ASSET);
+    kcopy_memory(out_asset->font_binary, ttf_binary_asset->content, out_asset->font_binary_size);
+
+    // Release the binary asset.
+    asset_system_release_binary(state, ttf_binary_asset);
+
     return out_asset;
 }
 
@@ -449,7 +463,7 @@ void asset_system_release_system_font(struct asset_system_state* state, kasset_s
         }
 
         if (asset->font_binary && asset->font_binary_size) {
-            kfree(asset->font_binary, asset->font_binary_size, MEMORY_TAG_RESOURCE);
+            kfree(asset->font_binary, asset->font_binary_size, MEMORY_TAG_ASSET);
         }
 
         kzero_memory(asset, sizeof(kasset_system_font));
@@ -996,7 +1010,7 @@ void asset_system_release_shader(struct asset_system_state* state, kasset_shader
                     string_free(stage->package_name);
                 }
             }
-            kfree(asset->stages, sizeof(kasset_shader_stage*) * asset->stage_count, MEMORY_TAG_ARRAY);
+            kfree(asset->stages, sizeof(kasset_shader_stage) * asset->stage_count, MEMORY_TAG_ARRAY);
             asset->stages = 0;
             asset->stage_count = 0;
         }
@@ -1009,7 +1023,7 @@ void asset_system_release_shader(struct asset_system_state* state, kasset_shader
                     string_free(attrib->name);
                 }
             }
-            kfree(asset->attributes, sizeof(kasset_shader_stage*) * asset->attribute_count, MEMORY_TAG_ARRAY);
+            kfree(asset->attributes, sizeof(kasset_shader_attribute) * asset->attribute_count, MEMORY_TAG_ARRAY);
             asset->attributes = 0;
             asset->attribute_count = 0;
         }
@@ -1022,7 +1036,7 @@ void asset_system_release_shader(struct asset_system_state* state, kasset_shader
                     string_free(attrib->name);
                 }
             }
-            kfree(asset->uniforms, sizeof(kasset_shader_stage*) * asset->uniform_count, MEMORY_TAG_ARRAY);
+            kfree(asset->uniforms, sizeof(kasset_shader_uniform) * asset->uniform_count, MEMORY_TAG_ARRAY);
             asset->uniforms = 0;
             asset->uniform_count = 0;
         }

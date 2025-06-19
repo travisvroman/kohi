@@ -1,5 +1,6 @@
 #include "renderer_frontend.h"
 
+#include "assets/kasset_types.h"
 #include "containers/darray.h"
 #include "containers/freelist.h"
 #include "core/engine.h"
@@ -844,16 +845,16 @@ void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, 
     KERROR("renderer_texture_prepare_for_sampling requires a valid handle to a texture. Nothing was done.");
 }
 
-b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, const kresource_shader* shader_resource) {
-    return state->backend->shader_create(state->backend, shader, shader_resource);
+b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms) {
+    return state->backend->shader_create(state->backend, shader, name, flags, topology_types, cull_mode, stage_count, stages, stage_names, stage_sources, max_groups, max_draw_ids, attribute_count, attributes, uniform_count, d_uniforms);
 }
 
 void renderer_shader_destroy(struct renderer_system_state* state, khandle shader) {
     state->backend->shader_destroy(state->backend, shader);
 }
 
-b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 shader_stage_count, shader_stage_config* shader_stages) {
-    return state->backend->shader_reload(state->backend, shader, shader_stage_count, shader_stages);
+b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources) {
+    return state->backend->shader_reload(state->backend, shader, stage_count, stages, names, sources);
 }
 
 b8 renderer_shader_use(struct renderer_system_state* state, khandle shader) {

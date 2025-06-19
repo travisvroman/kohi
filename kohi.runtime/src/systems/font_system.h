@@ -149,11 +149,11 @@ KAPI b8 font_system_bitmap_font_acquire(struct font_system_state* state, kname n
  * @brief Attempts to load a bitmap font from the given named resource.
  *
  * @param state A pointer to the font system state.
- * @param resource_name The name of the font resource to load.
+ * @param asset_name The name of the font asset to load.
  * @param package_name The name of the package containing the resource.
  * @return True on load success; otherwise false.
  */
-KAPI b8 font_system_bitmap_font_load(struct font_system_state* state, kname resource_name, kname package_name);
+KAPI b8 font_system_bitmap_font_load(struct font_system_state* state, kname asset_name, kname package_name);
 
 /**
  * @brief Measures the given string to find out how large it is at the widest/tallest point

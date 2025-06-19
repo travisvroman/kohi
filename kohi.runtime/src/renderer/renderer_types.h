@@ -1,5 +1,6 @@
 #pragma once
 
+#include "assets/kasset_types.h"
 #include <containers/freelist.h>
 #include <core_render_types.h>
 #include <defines.h>
@@ -517,10 +518,10 @@ typedef struct renderer_backend_interface {
      *
      * @param backend A pointer to the renderer backend interface.
      * @param shader A handle to the shader.
-     * @param shader_resource A constant pointer to the shader shader_resource.
+     * @param shader_asset A constant pointer to the shader asset.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct renderer_backend_interface* backend, khandle shader, const kresource_shader* shader_resource);
+    b8 (*shader_create)(struct renderer_backend_interface* backend, khandle shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
@@ -539,7 +540,7 @@ typedef struct renderer_backend_interface {
      * @param shader_stages An array of shader stages configs.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_reload)(struct renderer_backend_interface* backend, khandle s, u32 shader_stage_count, shader_stage_config* shader_stages);
+    b8 (*shader_reload)(struct renderer_backend_interface* backend, khandle s, u32 stage_count, shader_stage* stages, kname* names, const char** sources);
 
     /**
      * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,

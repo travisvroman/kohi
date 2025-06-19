@@ -452,10 +452,10 @@ KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* st
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader.
- * @param shader_resource A constant pointer to the shader shader_resource.
+ * @param shader_asset A constant pointer to the shader asset.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, const kresource_shader* shader_resource);
+KAPI b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms);
 
 /**
  * @brief Destroys the given shader and releases any resources held by it.
@@ -474,7 +474,7 @@ KAPI void renderer_shader_destroy(struct renderer_system_state* state, khandle s
  * @param shader_stages An array of shader stages configs.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 shader_stage_count, shader_stage_config* shader_stages);
+KAPI b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources);
 
 /**
  * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,

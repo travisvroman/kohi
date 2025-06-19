@@ -10,7 +10,6 @@
 #include <math/kmath.h>
 #include <memory/kmemory.h>
 
-#include "kresources/kresource_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "strings/kname.h"
@@ -30,15 +29,16 @@ typedef enum terrain_skirt_side {
     TSS_COUNT = 4
 } terrain_skirt_side;
 
-b8 terrain_create(kresource_heightmap_terrain* terrain_resource, terrain* out_terrain) {
+b8 terrain_create(kasset_heightmap_terrain* asset, terrain* out_terrain) {
     if (!out_terrain) {
         KERROR("terrain_create requires a valid pointer to out_terrain.");
         out_terrain->state = TERRAIN_STATE_UNDEFINED;
         return false;
     }
 
-    out_terrain->name = terrain_resource->base.name;
-    out_terrain->terrain_resource = terrain_resource;
+    // FIXME: name
+    out_terrain->name = INVALID_KNAME; //  terrain_resource->name;
+    out_terrain->asset = asset;
     out_terrain->state = TERRAIN_STATE_CREATED;
 
     return true;
@@ -104,14 +104,14 @@ b8 terrain_load(terrain* t) {
     }
     t->state = TERRAIN_STATE_LOADING;
 
-    kresource_heightmap_terrain* typed_resource = t->terrain_resource;
+    kasset_heightmap_terrain* typed_asset = t->asset;
 
-    t->tile_scale_x = typed_resource->tile_scale.x;
-    t->tile_scale_z = typed_resource->tile_scale.z;
+    t->tile_scale_x = typed_asset->tile_scale.x;
+    t->tile_scale_z = typed_asset->tile_scale.z;
 
-    t->scale_y = typed_resource->tile_scale.y;
+    t->scale_y = typed_asset->tile_scale.y;
 
-    t->chunk_size = typed_resource->chunk_size;
+    t->chunk_size = typed_asset->chunk_size;
 
     t->extents = (extents_3d){0};
     t->origin = vec3_zero();
@@ -119,17 +119,17 @@ b8 terrain_load(terrain* t) {
     // Invalidate the terrain so it doesn't get rendered before it's ready.
     t->generation = INVALID_ID;
 
-    t->material_count = typed_resource->material_count;
+    t->material_count = typed_asset->material_count;
     if (t->material_count) {
         t->material_names = KALLOC_TYPE_CARRAY(kname, t->material_count);
-        KCOPY_TYPE_CARRAY(t->material_names, typed_resource->material_names, kname, t->material_count);
+        KCOPY_TYPE_CARRAY(t->material_names, typed_asset->material_names, kname, t->material_count);
     } else {
         t->material_names = 0;
     }
 
     // Load the heightmap if one is configured.
-    if (typed_resource->heightmap_asset_name) {
-        kasset_heightmap_terrain* asset = asset_system_request_heightmap_terrain(engine_systems_get()->asset_state, kname_string_get(typed_resource->heightmap_asset_name), t, kasset_heightmap_result);
+    if (typed_asset->heightmap_asset_name) {
+        kasset_heightmap_terrain* asset = asset_system_request_heightmap_terrain(engine_systems_get()->asset_state, kname_string_get(typed_asset->heightmap_asset_name), t, kasset_heightmap_result);
         if (asset) {
             return true;
         }

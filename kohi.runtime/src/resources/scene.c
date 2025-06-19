@@ -32,7 +32,7 @@
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "strings/kstring_id.h"
-#include "systems/kresource_system.h"
+#include "systems/asset_system.h"
 #include "systems/light_system.h"
 #include "systems/material_system.h"
 #include "systems/static_mesh_system.h"
@@ -648,27 +648,20 @@ void scene_node_initialize(scene* s, khandle parent_handle, scene_node_config* n
 
                 const engine_system_states* systems = engine_systems_get();
 
-                kresource_request_info request = {0};
-                request.type = KRESOURCE_TYPE_HEIGHTMAP_TERRAIN;
-                request.assets = array_kresource_asset_info_create(1);
-                request.assets.data[0].type = KASSET_TYPE_HEIGHTMAP_TERRAIN;
-                request.assets.data[0].asset_name = typed_attachment_config->asset_name;
-                request.assets.data[0].package_name = typed_attachment_config->package_name;
-                // TODO: Setup a listener and callback.
-                request.listener_inst = 0;
-                request.user_callback = 0;
-                // TODO: async with callback.
-                request.synchronous = true;
-
-                // Request the resource.
-                kresource_heightmap_terrain* terrain_resource = (kresource_heightmap_terrain*)kresource_system_request(
-                    systems->kresource_state,
-                    typed_attachment_config->asset_name,
-                    &request);
+                // Request the asset.
+                kasset_heightmap_terrain* terrain_asset = asset_system_request_heightmap_terrain_from_package_sync(
+                    systems->asset_state,
+                    kname_string_get(typed_attachment_config->package_name),
+                    kname_string_get(typed_attachment_config->asset_name));
 
                 // Create the terrain.
                 terrain new_terrain = {0};
-                if (!terrain_create(terrain_resource, &new_terrain)) {
+                b8 result = terrain_create(terrain_asset, &new_terrain);
+
+                // Release the asset.
+                asset_system_release_heightmap_terrain(systems->asset_state, terrain_asset);
+
+                if (!result) {
                     KWARN("Failed to load heightmap terrain.");
                     return;
                 }
