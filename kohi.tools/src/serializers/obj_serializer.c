@@ -247,7 +247,7 @@ b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_s
 
     // Copy over material names.
     out_source_asset->material_file_count = darray_length(material_file_names);
-    KALLOC_TYPE_CARRAY(const char*, out_source_asset->material_file_count);
+    out_source_asset->material_file_names = KALLOC_TYPE_CARRAY(const char*, out_source_asset->material_file_count);
     KCOPY_TYPE_CARRAY(out_source_asset->material_file_names, material_file_names, const char*, out_source_asset->material_file_count);
 
     // Cleanup

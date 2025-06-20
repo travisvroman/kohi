@@ -191,7 +191,7 @@ b8 filesystem_write_entire_text_file(const char* filepath, const char* content) 
     }
     b8 success = false;
 
-    u64 data_size = string_length(filepath) + 1;
+    u64 data_size = string_length(content);
 
     u64 bytes_written = 0;
     if (!filesystem_write(&f, data_size, content, &bytes_written)) {

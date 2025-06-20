@@ -1075,7 +1075,7 @@ const char* string_filename_from_path(const char* path) {
     for (i32 i = length, j = 0; i >= 0; --i, ++j) {
         char c = path[i];
         if (c == '/' || c == '\\') {
-            u32 new_length = j + 1;  // Account for null.
+            u32 new_length = j + 1; // Account for null.
             char* dest = kallocate(new_length, MEMORY_TAG_STRING);
             string_ncopy(dest, path + i, j);
             dest[new_length] = 0;
@@ -1090,8 +1090,7 @@ const char* string_filename_no_extension_from_path(const char* path) {
     u64 length = string_length(path);
     u64 start = 0;
     u64 end = 0;
-    i32 j = 0;
-    for (i32 i = length, j = 0; i >= 0; --i, ++j) {
+    for (i32 i = length; i >= 0; --i) {
         char c = path[i];
         if (end == 0 && c == '.') {
             end = i;
@@ -1102,10 +1101,10 @@ const char* string_filename_no_extension_from_path(const char* path) {
         }
     }
 
-    u32 new_length = j + 1;
+    u32 new_length = (end - start) + 1;
     char* dest = kallocate(new_length, MEMORY_TAG_STRING);
     dest[new_length] = 0;
-    string_ncopy(dest, path + start, new_length);
+    string_ncopy(dest, path + start, new_length - 1);
     return dest;
 }
 

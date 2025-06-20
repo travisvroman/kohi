@@ -72,7 +72,9 @@ b8 kasset_static_mesh_obj_import(const char* target_path, const char* data, u32*
         *out_material_file_count = obj_asset.material_file_count;
         if (*out_material_file_count) {
             *out_material_file_names = KALLOC_TYPE_CARRAY(const char*, *out_material_file_count);
-            KCOPY_TYPE_CARRAY(*out_material_file_names, obj_asset.material_file_names, const char*, *out_material_file_count);
+            for (u32 i = 0; i < *out_material_file_count; ++i) {
+                (*out_material_file_names)[i] = string_duplicate(obj_asset.material_file_names[i]);
+            }
         }
 
         // Cleanup OBJ asset.
@@ -98,7 +100,6 @@ b8 kasset_static_mesh_obj_import(const char* target_path, const char* data, u32*
         kfree(obj_asset.geometries, sizeof(obj_source_geometry) * obj_asset.geometry_count, MEMORY_TAG_ARRAY);
         if (obj_asset.material_file_count && obj_asset.material_file_names) {
             string_cleanup_array(obj_asset.material_file_names, obj_asset.material_file_count);
-            KFREE_TYPE_CARRAY(obj_asset.material_file_names, const char*, obj_asset.material_file_count);
         }
     }
 

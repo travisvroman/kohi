@@ -151,7 +151,7 @@ b8 kasset_material_obj_mtl_import(const char* output_directory, const char* outp
             }
 
             // Write out kmt file.
-            const char* out_path = string_format("%s/%s.%s", output_directory, output_filename, "kmt");
+            const char* out_path = string_format("%s/%s.%s", output_directory, kname_string_get(new_material.name), "kmt");
             if (!filesystem_write_entire_text_file(out_path, serialized_text)) {
                 KERROR("Failed to write serialized material to disk. See logs for details.");
             }

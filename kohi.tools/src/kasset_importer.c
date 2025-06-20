@@ -16,7 +16,7 @@
 /*
  *
  *
-LEFTOFF: Need to add required/optional options (lul) to import processes. Can vary by type/importer
+NOTE: Need to add required/optional options (lul) to import processes. Can vary by type/importer
 kohi.tools -t "./assets/models/Tree.ksm" -s "./assets/models/source/Tree.obj" -mtl_target_path="./assets/materials/" -package_name="Testbed"
 kohi.tools -t "./assets/models/Tree.ksm" -s "./assets/models/source/Tree.gltf" -mtl_target_path="./assets/materials/" -package_name="Testbed"
 kohi.tools -t "./assets/images/orange_lines_512.kbi" -s "./assets/images/source/orange_lines_512.png" -flip_y=no
@@ -29,6 +29,7 @@ static b8 extension_is_audio(const char* extension);
 static b8 extension_is_image(const char* extension);
 
 b8 obj_2_ksm(const char* source_path, const char* target_path, const char* mtl_target_dir, const char* package_name) {
+    KDEBUG("Executing %s...", __FUNCTION__);
     // OBJ import
     const char* content = filesystem_read_entire_text_file(source_path);
     if (!content) {
@@ -37,29 +38,36 @@ b8 obj_2_ksm(const char* source_path, const char* target_path, const char* mtl_t
     }
 
     u32 material_file_count = 0;
-    const char** material_file_paths = 0;
+    const char** material_file_names = 0;
     // Parses source file, imports and writes asset to disk.
-    if (!kasset_static_mesh_obj_import(target_path, content, &material_file_count, &material_file_paths)) {
+    if (!kasset_static_mesh_obj_import(target_path, content, &material_file_count, &material_file_names)) {
         KERROR("Failed to import obj file '%s'. See logs for details.", source_path);
         return false;
     }
 
+    const char* source_folder = string_directory_from_path(source_path);
+
     // Secondary import of materials. If these fail, should not count as a static mesh import failure.
     for (u32 i = 0; i < material_file_count; ++i) {
-        const char* mtl_file_name = string_filename_from_path(material_file_paths[i]);
-        const char* data = filesystem_read_entire_text_file(material_file_paths[i]);
-        b8 mtl_result = kasset_material_obj_mtl_import(mtl_target_dir, mtl_file_name, package_name, data);
-        string_free(mtl_file_name);
+        const char* mtl_file_name_no_extension = string_filename_no_extension_from_path(material_file_names[i]);
+        const char* src_mtl_file_path = string_format("%s/%s", source_folder, material_file_names[i]);
+        const char* data = filesystem_read_entire_text_file(src_mtl_file_path);
+        b8 mtl_result = kasset_material_obj_mtl_import(mtl_target_dir, mtl_file_name_no_extension, package_name, data);
+        string_free(mtl_file_name_no_extension);
+        string_free(src_mtl_file_path);
         string_free(data);
         if (!mtl_result) {
             KWARN("Material file import failed (%s). See logs for details.", source_path);
         }
     }
 
+    string_free(source_folder);
+
     return true;
 }
 
 b8 mtl_2_kmt(const char* source_path, const char* target_filename, const char* mtl_target_dir, const char* package_name) {
+    KDEBUG("Executing %s...", __FUNCTION__);
     // MTL import
     /* const char* mtl_file_name = string_filename_from_path(source_path); */
     const char* data = filesystem_read_entire_text_file(source_path);
@@ -75,15 +83,18 @@ b8 mtl_2_kmt(const char* source_path, const char* target_filename, const char* m
 }
 
 b8 source_audio_2_kaf(const char* source_path, const char* target_path) {
+    KDEBUG("Executing %s...", __FUNCTION__);
     return kasset_audio_import(source_path, target_path);
 }
 
 // if output_format is set, force that format. Otherwise use source file format.
 b8 source_image_2_kbi(const char* source_path, const char* target_path, b8 flip_y, kpixel_format output_format) {
+    KDEBUG("Executing %s...", __FUNCTION__);
     return kasset_image_import(source_path, target_path, flip_y, output_format);
 }
 
 b8 fnt_2_kbf(const char* source_path, const char* target_path) {
+    KDEBUG("Executing %s...", __FUNCTION__);
     return kasset_bitmap_font_fnt_import(source_path, target_path);
 }
 
@@ -208,9 +219,15 @@ b8 import_all_from_manifest(const char* manifest_path) {
     }
 
     u32 asset_count = darray_length(manifest.assets);
+
+    KINFO("Asset manifest '%s' has a total listing of %u assets.", manifest_path, asset_count);
+
     for (u32 i = 0; i < asset_count; ++i) {
         asset_manifest_asset* asset = &manifest.assets[i];
-        if (asset->source_path) {
+        if (!asset->source_path) {
+            KTRACE("Asset '%s' (%s) does NOT have a source_path. Nothing to import.", kname_string_get(asset->name), asset->path);
+        } else {
+            KINFO("Asset '%s' (%s) DOES have a source_path of '%s'. Importing...", kname_string_get(asset->name), asset->path, asset->source_path);
 
             // The source file extension dictates what importer is used.
             const char* source_extension = string_extension_from_path(asset->source_path, true);
@@ -218,16 +235,15 @@ b8 import_all_from_manifest(const char* manifest_path) {
                 KWARN("Unable to determine source extension for path '%s'. Skipping import.", asset->source_path);
                 continue;
             }
-            //
+
             if (strings_equali(source_extension, ".obj")) {
                 // NOTE: Using defaults for this.
-                const char* mtl_target_dir = "./assets/materials/";
+                const char* mtl_target_dir = string_format("%s/%s", manifest.path, "assets/materials/");
                 const char* package_name = kname_string_get(manifest.name);
 
                 if (!obj_2_ksm(asset->source_path, asset->path, mtl_target_dir, package_name)) {
                     goto import_all_from_manifest_cleanup;
                 }
-
             } else if (strings_equali(source_extension, ".mtl")) {
                 const char* mtl_target_dir = string_directory_from_path(asset->path);
                 if (!mtl_target_dir) {
