@@ -1,4 +1,5 @@
 #include "vfs.h"
+#include "core/event.h"
 
 #include <assets/kasset_types.h>
 #include <containers/darray.h>
@@ -14,8 +15,6 @@
 #include <systems/job_system.h>
 
 static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest);
-static void vfs_watcher_deleted_callback(u32 watcher_id, void* context);
-static void vfs_watcher_written_callback(u32 watcher_id, void* context);
 
 b8 vfs_initialize(u64* memory_requirement, vfs_state* state, const vfs_config* config) {
     if (!memory_requirement) {
@@ -32,7 +31,6 @@ b8 vfs_initialize(u64* memory_requirement, vfs_state* state, const vfs_config* c
     }
 
     state->packages = darray_create(kpackage);
-    state->watched_assets = darray_create(vfs_asset_data);
 
     // TODO: For release builds, look at binary file.
     asset_manifest manifest = {0};
@@ -58,10 +56,6 @@ b8 vfs_initialize(u64* memory_requirement, vfs_state* state, const vfs_config* c
 
     kpackage_manifest_destroy(&manifest);
 
-    // Register platform watcher callbacks.
-    platform_register_watcher_deleted_callback(vfs_watcher_deleted_callback, state);
-    platform_register_watcher_written_callback(vfs_watcher_written_callback, state);
-
     return true;
 }
 
@@ -75,15 +69,6 @@ void vfs_shutdown(vfs_state* state) {
             darray_destroy(state->packages);
             state->packages = 0;
         }
-    }
-}
-
-void vfs_hot_reload_callbacks_register(vfs_state* state, void* hot_reload_listener, PFN_asset_hot_reloaded_callback hot_reloaded_callback, void* deleted_listener, PFN_asset_deleted_callback deleted_callback) {
-    if (state) {
-        state->hot_reload_listener = hot_reload_listener;
-        state->hot_reloaded_callback = hot_reloaded_callback;
-        state->deleted_listener = deleted_listener;
-        state->deleted_callback = deleted_callback;
     }
 }
 
@@ -117,18 +102,11 @@ void vfs_asset_job_success(void* result_params) {
         result->info.vfs_callback(result->state, result->data);
     }
 
-    // Cleanup context and import params if _not_ watching.
-    if (!result->info.watch_for_hot_reload) {
-        if (result->data.context && result->data.context_size) {
-            kfree(result->data.context, result->data.context_size, MEMORY_TAG_PLATFORM);
-            result->data.context = 0;
-            result->data.context_size = 0;
-        }
-        if (result->data.import_params && result->data.import_params_size) {
-            kfree(result->data.import_params, result->data.import_params_size, MEMORY_TAG_PLATFORM);
-            result->data.import_params = 0;
-            result->data.import_params_size = 0;
-        }
+    // Cleanup context.
+    if (result->data.context && result->data.context_size) {
+        kfree(result->data.context, result->data.context_size, MEMORY_TAG_PLATFORM);
+        result->data.context = 0;
+        result->data.context_size = 0;
     }
 }
 
@@ -181,17 +159,6 @@ vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
         out_data.context = 0;
     }
 
-    // Take a copy of the import params. This will need to be freed by the caller.
-    if (info.import_params_size) {
-        KASSERT_MSG(info.context, "Called vfs_request_asset with a import_params_size, but not a import_params. Check yourself before you wreck yourself.");
-        out_data.import_params_size = info.context_size;
-        out_data.import_params = kallocate(info.context_size, MEMORY_TAG_PLATFORM);
-        kcopy_memory(out_data.import_params, info.import_params, out_data.import_params_size);
-    } else {
-        out_data.import_params_size = 0;
-        out_data.import_params = 0;
-    }
-
     const char* asset_name_str = kname_string_get(info.asset_name);
 
     u32 package_count = darray_length(state->packages);
@@ -205,26 +172,18 @@ vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
             // Determine if the asset type is text.
             kpackage_result result = KPACKAGE_RESULT_INTERNAL_FAILURE;
             if (info.is_binary) {
-                result = kpackage_asset_bytes_get(package, info.asset_name, info.get_source, &out_data.size, &out_data.bytes);
+                result = kpackage_asset_bytes_get(package, info.asset_name, &out_data.size, &out_data.bytes);
                 out_data.flags |= VFS_ASSET_FLAG_BINARY_BIT;
             } else {
-                result = kpackage_asset_text_get(package, info.asset_name, info.get_source, &out_data.size, &out_data.text);
-            }
-
-            // Indicate this was loaded from source, if appropriate.
-            if (info.get_source) {
-                out_data.flags |= VFS_ASSET_FLAG_FROM_SOURCE;
+                result = kpackage_asset_text_get(package, info.asset_name, &out_data.size, &out_data.text);
             }
 
             // Translate the result to VFS layer and send on up.
             if (result != KPACKAGE_RESULT_SUCCESS) {
                 KTRACE("Failed to load binary asset. See logs for details.");
                 switch (result) {
-                case KPACKAGE_RESULT_PRIMARY_GET_FAILURE:
+                case KPACKAGE_RESULT_ASSET_GET_FAILURE:
                     out_data.result = VFS_REQUEST_RESULT_FILE_DOES_NOT_EXIST;
-                    break;
-                case KPACKAGE_RESULT_SOURCE_GET_FAILURE:
-                    out_data.result = VFS_REQUEST_RESULT_SOURCE_FILE_DOES_NOT_EXIST;
                     break;
                 default:
                 case KPACKAGE_RESULT_INTERNAL_FAILURE:
@@ -235,28 +194,7 @@ vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
                 out_data.result = VFS_REQUEST_RESULT_SUCCESS;
                 // Keep the package name in case an importer needs it later.
                 out_data.package_name = package->name;
-                if (info.get_source) {
-                    out_data.path = kpackage_source_path_for_asset(package, info.asset_name);
-                    out_data.source_asset_path = kpackage_source_path_for_asset(package, info.asset_name);
-                } else {
-                    out_data.path = kpackage_path_for_asset(package, info.asset_name);
-                    out_data.source_asset_path = kpackage_source_path_for_asset(package, info.asset_name);
-                }
-            }
-
-            // If set to watch, add to the list and watch.
-            if (result == KPACKAGE_RESULT_SUCCESS && info.watch_for_hot_reload) {
-
-                // Watch the asset.
-                // FIXME: Should be able to watch either the source or primary asset path.
-                if (out_data.path) {
-                    kpackage_asset_watch(package, out_data.path, &out_data.file_watch_id);
-                    KTRACE("Watching asset for hot reload: package='%s', name='%s', file_watch_id=%u, path='%s'", kname_string_get(package->name), kname_string_get(info.asset_name), out_data.file_watch_id, out_data.path);
-
-                    darray_push(state->watched_assets, out_data);
-                } else {
-                    KERROR("Asset set to watch for hot reloading but not asset path is available.");
-                }
+                out_data.path = kpackage_path_for_asset(package, info.asset_name);
             }
 
             // Boot out only if success OR looking through all packages (no package name provided)
@@ -424,6 +362,67 @@ void vfs_asset_data_cleanup(vfs_asset_data* data) {
     }
 }
 
+#if KOHI_HOT_RELOAD
+static void file_deleted(u32 watcher_id, void* context) {
+    vfs_state* state = (vfs_state*)context;
+    KTRACE("VFS: File associated with watch id %u has been deleted. Watch will be removed.", watcher_id);
+
+    // Remove watch.
+    vfs_asset_unwatch(state, watcher_id);
+
+    // Fire off an event.
+    event_context evt_context = {
+        .data.u32[0] = watcher_id};
+    event_fire(EVENT_CODE_VFS_FILE_DELETED_FROM_DISK, 0, evt_context);
+}
+
+static void file_written(u32 watcher_id, const char* file_path, b8 is_binary, void* context) {
+    vfs_state* state = (vfs_state*)context;
+
+    KTRACE("VFS: File associated with watch id %u has been written to.", watcher_id);
+
+    vfs_asset_data asset_data = {
+        .path = file_path};
+
+    // NOTE: asset and package name won't be available for hot reloaded assets.
+
+    // Re-read file.
+    vfs_request_direct_from_disk_sync(state, file_path, is_binary, 0, 0, &asset_data);
+
+    // Fire off an event.
+    event_context evt_context = {
+        .data.u32[0] = watcher_id,
+    };
+    event_fire(EVENT_CODE_VFS_FILE_WRITTEN_TO_DISK, &asset_data, evt_context);
+
+    // Cleanup asset data.
+    vfs_asset_data_cleanup(&asset_data);
+}
+
+u32 vfs_asset_watch(vfs_state* state, kname asset_name, kname package_name, b8 is_binary) {
+    u32 out_watch_id = INVALID_ID_U32;
+
+    u32 package_count = darray_length(state->packages);
+    for (u32 i = 0; i < package_count; ++i) {
+        kpackage* package = &state->packages[i];
+        if (package->name == package_name) {
+            const char* asset_path = kpackage_path_for_asset(package, asset_name);
+            if (!platform_watch_file(asset_path, is_binary, file_written, state, file_deleted, state, &out_watch_id)) {
+                KWARN("VFS: Unable to watch file '%s'.", asset_path);
+                return INVALID_ID_U32;
+            }
+            return out_watch_id;
+        }
+    }
+
+    return INVALID_ID_U32;
+}
+
+b8 vfs_asset_unwatch(vfs_state* state, u32 watch_id) {
+    return platform_unwatch_file(watch_id);
+}
+#endif
+
 static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest) {
     b8 success = true;
     if (manifest->references) {
@@ -476,67 +475,4 @@ static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest
     }
 
     return success;
-}
-
-static void vfs_watcher_deleted_callback(u32 watcher_id, void* context) {
-    vfs_state* state = (vfs_state*)context;
-
-    if (!state->deleted_callback) {
-        return;
-    }
-
-    u32 watched_asset_count = darray_length(state->watched_assets);
-    for (u32 i = 0; i < watched_asset_count; ++i) {
-        vfs_asset_data* asset_data = &state->watched_assets[i];
-        if (asset_data->file_watch_id == watcher_id) {
-            KTRACE("The VFS has been notified that the asset '%s' in package '%s' was deleted from disk.", kname_string_get(asset_data->asset_name), kname_string_get(asset_data->package_name));
-            // Inform that the asset was deleted.
-            state->deleted_callback(state->deleted_listener, watcher_id);
-            // TODO: Does the asset watch end here, or do we try to reinstate it if/when the asset comes back?
-            break;
-        }
-    }
-}
-
-static void vfs_watcher_written_callback(u32 watcher_id, void* context) {
-    vfs_state* state = (vfs_state*)context;
-
-    if (!state->hot_reloaded_callback) {
-        return;
-    }
-
-    u32 watched_asset_count = darray_length(state->watched_assets);
-    for (u32 i = 0; i < watched_asset_count; ++i) {
-        vfs_asset_data* asset_data = &state->watched_assets[i];
-        if (asset_data->file_watch_id == watcher_id) {
-            KTRACE("The VFS has been notified that the asset '%s' in package '%s' was updated on disk.", kname_string_get(asset_data->asset_name), kname_string_get(asset_data->package_name));
-            b8 is_binary = FLAG_GET(asset_data->flags, VFS_ASSET_FLAG_BINARY_BIT);
-            // Wipe out the old data.
-            if (is_binary) {
-                if (asset_data->bytes && asset_data->size) {
-                    kfree((void*)asset_data->bytes, asset_data->size, MEMORY_TAG_ASSET);
-                    asset_data->bytes = 0;
-                }
-            } else {
-                if (asset_data->text && asset_data->size) {
-                    kfree((void*)asset_data->text, asset_data->size, MEMORY_TAG_ASSET);
-                    asset_data->text = 0;
-                }
-            }
-            asset_data->size = 0;
-
-            // Take a copy of the watch id and the package name first because the below zeroes them out.
-            u32 file_watch_id = asset_data->file_watch_id;
-            kname package_name = asset_data->package_name;
-            // Reload the asset synchronously
-            vfs_request_direct_from_disk_sync(state, asset_data->path, is_binary, asset_data->context_size, asset_data->context, asset_data);
-            // Restore the watch id and package name.
-            asset_data->file_watch_id = file_watch_id;
-            asset_data->package_name = package_name;
-
-            // Inform that the asset has been hot-reloaded, passing along the new data.
-            state->hot_reloaded_callback(state->hot_reload_listener, asset_data);
-            break;
-        }
-    }
 }

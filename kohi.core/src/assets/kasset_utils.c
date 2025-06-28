@@ -41,3 +41,27 @@ const char* kasset_type_to_string(kasset_type type) {
     KASSERT_MSG(type < KASSET_TYPE_MAX, "Provided kasset_type is not valid.");
     return string_duplicate(kasset_type_strs[type]);
 }
+
+b8 kasset_type_is_binary(kasset_type type) {
+    switch (type) {
+    default:
+    case KASSET_TYPE_UNKNOWN:
+    case KASSET_TYPE_MAX:
+    case KASSET_TYPE_MATERIAL:
+    case KASSET_TYPE_HEIGHTMAP_TERRAIN:
+    case KASSET_TYPE_SCENE:
+    case KASSET_TYPE_SYSTEM_FONT:
+    case KASSET_TYPE_TEXT:
+    case KASSET_TYPE_KSON:
+    case KASSET_TYPE_SHADER:
+        return false;
+    case KASSET_TYPE_IMAGE:
+    case KASSET_TYPE_STATIC_MESH:
+    case KASSET_TYPE_BITMAP_FONT:
+    case KASSET_TYPE_BINARY:
+    case KASSET_TYPE_VOXEL_TERRAIN:
+    case KASSET_TYPE_SKELETAL_MESH:
+    case KASSET_TYPE_AUDIO:
+        return true;
+    }
+}

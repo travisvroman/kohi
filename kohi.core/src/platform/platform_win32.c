@@ -27,6 +27,11 @@ typedef struct win32_handle_info {
 typedef struct win32_file_watch {
     u32 id;
     const char* file_path;
+    b8 is_binary;
+    platform_filewatcher_file_written_callback watcher_written_callback;
+    void* watcher_written_context;
+    platform_filewatcher_file_deleted_callback watcher_deleted_callback;
+    void* watcher_deleted_context;
     FILETIME last_write_time;
 } win32_file_watch;
 
@@ -44,10 +49,6 @@ typedef struct platform_state {
 
     // darray of pointers to created windows (owned by the application);
     kwindow** windows;
-    platform_filewatcher_file_deleted_callback watcher_deleted_callback;
-    void* watcher_deleted_context;
-    platform_filewatcher_file_written_callback watcher_written_callback;
-    void* watcher_written_context;
     platform_window_closed_callback window_closed_callback;
     platform_window_resized_callback window_resized_callback;
     platform_process_key process_key;
@@ -104,10 +105,6 @@ b8 platform_system_startup(u64* memory_requirement, platform_state* state, platf
 
     // Create the array of window pointers.
     state->windows = darray_create(kwindow*);
-    state->watcher_deleted_callback = 0;
-    state->watcher_written_callback = 0;
-    state->window_closed_callback = 0;
-    state->window_resized_callback = 0;
     state->process_key = 0;
     state->process_mouse_button = 0;
     state->process_mouse_move = 0;
@@ -758,16 +755,6 @@ const char* platform_dynamic_library_prefix(void) {
     return "";
 }
 
-void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback, void* context) {
-    state_ptr->watcher_deleted_callback = callback;
-    state_ptr->watcher_deleted_context = context;
-}
-
-void platform_register_watcher_written_callback(platform_filewatcher_file_written_callback callback, void* context) {
-    state_ptr->watcher_written_callback = callback;
-    state_ptr->watcher_written_context = context;
-}
-
 void platform_register_window_closed_callback(platform_window_closed_callback callback) {
     state_ptr->window_closed_callback = callback;
 }
@@ -811,7 +798,15 @@ platform_error_code platform_copy_file(const char* source, const char* dest, b8 
     return PLATFORM_ERROR_SUCCESS;
 }
 
-static b8 register_watch(const char* file_path, u32* out_watch_id) {
+static b8 register_watch(
+    const char* file_path,
+    b8 is_binary,
+    platform_filewatcher_file_written_callback watcher_written_callback,
+    void* watcher_written_context,
+    platform_filewatcher_file_deleted_callback watcher_deleted_callback,
+    void* watcher_deleted_context,
+    u32* out_watch_id) {
+
     if (!state_ptr || !file_path || !out_watch_id) {
         if (out_watch_id) {
             *out_watch_id = INVALID_ID;
@@ -854,6 +849,10 @@ static b8 register_watch(const char* file_path, u32* out_watch_id) {
     w.id = count;
     w.file_path = string_duplicate(file_path);
     w.last_write_time = data.ftLastWriteTime;
+    w.watcher_written_callback = watcher_written_callback;
+    w.watcher_written_context = watcher_written_context;
+    w.watcher_deleted_callback = watcher_deleted_callback;
+    w.watcher_deleted_context = watcher_deleted_context;
     *out_watch_id = count;
     darray_push(state_ptr->watches, w);
 
@@ -880,8 +879,22 @@ static b8 unregister_watch(u32 watch_id) {
     return true;
 }
 
-b8 platform_watch_file(const char* file_path, u32* out_watch_id) {
-    return register_watch(file_path, out_watch_id);
+b8 platform_watch_file(
+    const char* file_path,
+    b8 is_binary,
+    platform_filewatcher_file_written_callback watcher_written_callback,
+    void* watcher_written_context,
+    platform_filewatcher_file_deleted_callback watcher_deleted_callback,
+    void* watcher_deleted_context,
+    u32* out_watch_id) {
+    return register_watch(
+        file_path,
+        is_binary,
+        watcher_written_callback,
+        watcher_written_context,
+        watcher_deleted_callback,
+        watcher_deleted_context,
+        out_watch_id);
 }
 
 b8 platform_unwatch_file(u32 watch_id) {
@@ -904,8 +917,8 @@ static void platform_update_watches(void) {
             wcstr_free(wfile_path);
             if (file_handle == INVALID_HANDLE_VALUE) {
                 // This means the file has been deleted, remove from watch.
-                if (state_ptr->watcher_deleted_callback) {
-                    state_ptr->watcher_deleted_callback(f->id, state_ptr->watcher_deleted_context);
+                if (f->watcher_deleted_callback) {
+                    f->watcher_deleted_callback(f->id, f->watcher_written_context);
                 } else {
                     KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_deleted_callback()");
                 }
@@ -922,8 +935,8 @@ static void platform_update_watches(void) {
             if (CompareFileTime(&data.ftLastWriteTime, &f->last_write_time) != 0) {
                 f->last_write_time = data.ftLastWriteTime;
                 // Notify listeners.
-                if (state_ptr->watcher_written_callback) {
-                    state_ptr->watcher_written_callback(f->id, state_ptr->watcher_written_context);
+                if (f->watcher_written_callback) {
+                    f->watcher_written_callback(f->id, f->file_path, f->is_binary, f->watcher_written_context);
                 } else {
                     KWARN("Watcher file was deleted but no handler callback was set. Make sure to call platform_register_watcher_written_callback()");
                 }

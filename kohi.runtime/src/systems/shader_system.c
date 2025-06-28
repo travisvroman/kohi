@@ -70,6 +70,8 @@ typedef struct kshader {
     kname* stage_names;
     // Array of source text for stages. Matches size of stage_source_text_resources;
     const char** stage_sources;
+    // Array of file watch ids, one per stage.
+    u32* watch_ids;
 
 } kshader;
 
@@ -111,10 +113,15 @@ static b8 shader_uniform_add_state_valid(kshader* shader);
 static void internal_shader_destroy(khandle* shader);
 ///////////////////////
 
-#if KOHI_DEBUG
+#if KOHI_HOT_RELOAD
 static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_context context) {
     shader_system_state* typed_state = (shader_system_state*)listener_inst;
-    if (code == EVENT_CODE_RESOURCE_HOT_RELOADED) {
+
+    u32 watch_id = context.data.u32[0];
+    if (code == EVENT_CODE_ASSET_HOT_RELOADED) {
+
+        // TODO: more verification to make sure this is correct.
+        kasset_text* shader_source_asset = (kasset_text*)sender;
 
         // Search shaders for the one whose generations are out of sync.
         for (u32 i = 0; i < typed_state->config.max_shader_count; ++i) {
@@ -123,16 +130,18 @@ static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_co
             b8 reload_required = false;
 
             for (u32 w = 0; w < shader->shader_stage_count; ++w) {
-                // Found match. If the generation is out of sync, reload the shader.
-                // FIXME: generation check.
-                /* if (shader->stage_source_text_generations[w] != shader->stage_source_text_assets[w]->base.generation) {
-                    // At least one is out of sync, reload. Can boot out here.
+                if (shader->watch_ids[w] == watch_id) {
+                    // Replace the existing shader stage source with the new.
+                    if (shader->stage_sources[w]) {
+                        string_free(shader->stage_sources[w]);
+                    }
+                    shader->stage_sources[w] = string_duplicate(shader_source_asset->content);
+
+                    // Release the asset.
+                    asset_system_release_text(engine_systems_get()->asset_state, shader_source_asset);
                     reload_required = true;
                     break;
-                } */
-
-                reload_required = true;
-                break;
+                }
             }
 
             // Reload if needed.
@@ -193,8 +202,8 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config)
     state_ptr->max_bound_texture_count = renderer_max_bound_texture_count_get(state_ptr->renderer);
 
     // Watch for file hot reloads in debug builds.
-#if KOHI_DEBUG
-    event_register(EVENT_CODE_RESOURCE_HOT_RELOADED, state_ptr, file_watch_event);
+#if KOHI_HOT_RELOAD
+    event_register(EVENT_CODE_ASSET_HOT_RELOADED, state_ptr, file_watch_event);
 #endif
 
     return true;
@@ -648,8 +657,6 @@ static khandle shader_create(const kasset_shader* asset) {
         return new_handle;
     }
 
-    // TODO: probably don't need to keep a copy of all the resource properties
-    // since we now hold a pointer to the resource.
     kshader* out_shader = &state_ptr->shaders[new_handle.handle_index];
     kzero_memory(out_shader, sizeof(kshader));
     // Sync handle uniqueid
@@ -704,17 +711,23 @@ static khandle shader_create(const kasset_shader* asset) {
     out_shader->stage_source_text_generations = KALLOC_TYPE_CARRAY(u32, out_shader->shader_stage_count);
     out_shader->stage_names = KALLOC_TYPE_CARRAY(kname, out_shader->shader_stage_count);
     out_shader->stage_sources = KALLOC_TYPE_CARRAY(const char*, out_shader->shader_stage_count);
+    out_shader->watch_ids = KALLOC_TYPE_CARRAY(u32, out_shader->shader_stage_count);
+
+    struct asset_system_state* asset_state = engine_systems_get()->asset_state;
 
     // Process stages.
     for (u8 i = 0; i < asset->stage_count; ++i) {
         out_shader->stages[i] = asset->stages[i].type;
         // Request the text asset for each stage synchronously.
-        out_shader->stage_source_text_assets[i] = asset_system_request_text_from_package_sync(engine_systems_get()->asset_state, asset->stages[i].package_name, asset->stages[i].source_asset_name);
+        out_shader->stage_source_text_assets[i] = asset_system_request_text_from_package_sync(asset_state, asset->stages[i].package_name, asset->stages[i].source_asset_name);
         // Take a copy of the generation for later comparison.
         out_shader->stage_source_text_generations[i] = 0; // TODO: generation? // out_shader->stage_source_text_assets[i].generation;
 
         out_shader->stage_names[i] = kname_create(asset->stages[i].source_asset_name);
         out_shader->stage_sources[i] = string_duplicate(out_shader->stage_source_text_assets[i]->content);
+
+        // Watch source file for hot-reload.
+        out_shader->watch_ids[i] = asset_system_watch_for_reload(asset_state, KASSET_TYPE_TEXT, out_shader->stage_names[i], kname_create(asset->stages[i].package_name));
     }
 
     // Keep a copy of the topology types.

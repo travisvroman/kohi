@@ -7,7 +7,6 @@
 #include "memory/kmemory.h"
 #include "parsers/kson_parser.h"
 #include "platform/filesystem.h"
-#include "platform/platform.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 
@@ -46,8 +45,6 @@ b8 kpackage_create_from_manifest(const asset_manifest* manifest, kpackage* out_p
     out_package->is_binary = false;
 
     out_package->internal_data = kallocate(sizeof(kpackage_internal), MEMORY_TAG_RESOURCE);
-
-    out_package->watch_ids = darray_create(u32);
 
     // Process manifest
     u32 asset_count = darray_length(manifest->assets);
@@ -100,16 +97,6 @@ void kpackage_destroy(kpackage* package) {
             darray_destroy(package->internal_data->entries);
         }
 
-        // Unwatch watched files.
-        if (package->watch_ids) {
-            u32 watch_count = darray_length(package->watch_ids);
-            for (u32 i = 0; i < watch_count; ++i) {
-                platform_unwatch_file(package->watch_ids[i]);
-            }
-            darray_destroy(package->watch_ids);
-            package->watch_ids = 0;
-        }
-
         if (package->internal_data) {
             kfree(package->internal_data, sizeof(kpackage_internal), MEMORY_TAG_RESOURCE);
         }
@@ -132,13 +119,13 @@ static asset_entry* asset_entry_get(const kpackage* package, kname name) {
     return 0;
 }
 
-static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kname name, b8 get_source, u64* out_size, const void** out_data) {
+static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kname name, u64* out_size, const void** out_data) {
 
     const char* package_name = kname_string_get(package->name);
     const char* name_str = kname_string_get(name);
     asset_entry* entry = asset_entry_get(package, name);
     if (!entry) {
-        return get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+        return KPACKAGE_RESULT_ASSET_GET_FAILURE;
     }
 
     if (package->is_binary) {
@@ -148,17 +135,17 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
         kpackage_result result = KPACKAGE_RESULT_INTERNAL_FAILURE;
 
         // Validate asset path.
-        const char* asset_path = get_source ? entry->source_path : entry->path;
+        const char* asset_path = entry->path;
         if (!asset_path) {
-            KTRACE("Package '%s': No %s asset path exists for asset '%s'.", package_name, get_source ? "source" : "primary", name_str);
-            result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+            KTRACE("Package '%s': No path exists for asset '%s'.", package_name, name_str);
+            result = KPACKAGE_RESULT_ASSET_GET_FAILURE;
             return result;
         }
 
         // Validate that the file exists.
         if (!filesystem_exists(asset_path)) {
-            KTRACE("Package '%s': Invalid %s asset path ('%s') for asset '%s'.", package_name, get_source ? "source" : "primary", asset_path, name_str);
-            result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+            KTRACE("Package '%s': Invalid path ('%s') for asset '%s'.", package_name, asset_path, name_str);
+            result = KPACKAGE_RESULT_ASSET_GET_FAILURE;
             return result;
         }
         void* data = 0;
@@ -167,7 +154,7 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
         file_handle f = {0};
         if (!filesystem_open(asset_path, FILE_MODE_READ, is_binary, &f)) {
             KERROR("Package '%s': Failed to open asset '%s' file at path: '%s'.", package_name, name_str, asset_path);
-            result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+            result = KPACKAGE_RESULT_ASSET_GET_FAILURE;
             goto get_data_cleanup;
         }
 
@@ -175,7 +162,7 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
         u64 original_file_size = 0;
         if (!filesystem_size(&f, &original_file_size)) {
             KERROR("Package '%s': Failed to get size for asset '%s' file at path: '%s'.", package_name, name_str, asset_path);
-            result = get_source ? KPACKAGE_RESULT_SOURCE_GET_FAILURE : KPACKAGE_RESULT_PRIMARY_GET_FAILURE;
+            result = KPACKAGE_RESULT_ASSET_GET_FAILURE;
             goto get_data_cleanup;
         }
 
@@ -241,50 +228,22 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
     }
 }
 
-kpackage_result kpackage_asset_bytes_get(const kpackage* package, kname name, b8 get_source, u64* out_size, const void** out_data) {
+kpackage_result kpackage_asset_bytes_get(const kpackage* package, kname name, u64* out_size, const void** out_data) {
     if (!package || !name || !out_size || !out_data) {
         KERROR("kpackage_asset_bytes_get requires valid pointers to package, name, out_size, and out_data.");
         return 0;
     }
 
-    return asset_get_data(package, true, name, get_source, out_size, out_data);
+    return asset_get_data(package, true, name, out_size, out_data);
 }
 
-kpackage_result kpackage_asset_text_get(const kpackage* package, kname name, b8 get_source, u64* out_size, const char** out_text) {
+kpackage_result kpackage_asset_text_get(const kpackage* package, kname name, u64* out_size, const char** out_text) {
     if (!package || !name || !out_size || !out_text) {
         KERROR("kpackage_asset_text_get requires valid pointers to package, name, out_size, and out_text.");
         return 0;
     }
 
-    return asset_get_data(package, false, name, get_source, out_size, (const void**)out_text);
-}
-
-b8 kpackage_asset_watch(kpackage* package, const char* asset_path, u32* out_watch_id) {
-    if (!platform_watch_file(asset_path, out_watch_id)) {
-        KWARN("Failed to watch package '%s' asset file '%s'.", kname_string_get(package->name), asset_path);
-        return false;
-    }
-    // Register the watch.
-    darray_push(package->watch_ids, *out_watch_id);
-    return true;
-}
-
-void kpackage_asset_unwatch(kpackage* package, u32 watch_id) {
-    if (package && package->watch_ids && watch_id != INVALID_ID) {
-        if (!platform_unwatch_file(watch_id)) {
-            KWARN("Failed to unwatch file watch id %u.", watch_id);
-        }
-
-        // Remove from the watch list.
-        u32 watch_count = darray_length(package->watch_ids);
-        for (u32 i = 0; i < watch_count; ++i) {
-            if (package->watch_ids[i] == watch_id) {
-                u32 out_val = 0;
-                darray_pop_at(package->watch_ids, i, &out_val);
-                return;
-            }
-        }
-    }
+    return asset_get_data(package, false, name, out_size, (const void**)out_text);
 }
 
 const char* kpackage_path_for_asset(const kpackage* package, kname name) {
@@ -529,6 +488,12 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
                     // Full source path of the asset.
                     asset.source_path = string_format("%s/%s", out_manifest->path, asset_source_path_temp);
                     string_free(asset_source_path_temp);
+                }
+
+                // HACK: implement some sort of metadata instead.
+                // flip y - optional
+                if (!kson_object_property_value_get_bool(&asset_obj, "flip_y", &asset.flip_y)) {
+                    asset.flip_y = true;
                 }
 
                 // Add to assets

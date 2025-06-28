@@ -98,12 +98,14 @@ b8 kasset_image_import(const char* source_path, const char* target_path, b8 flip
 
     // Load the image.
     kasset_image asset = {0};
-    u8* pixels = stbi_load_from_memory(data, data_size, (i32*)&asset.width, (i32*)&asset.height, (i32*)&asset.channel_count, required_channel_count);
+    i32 source_channel_count = 0;
+    u8* pixels = stbi_load_from_memory(data, data_size, (i32*)&asset.width, (i32*)&asset.height, (i32*)&source_channel_count, required_channel_count);
     if (!pixels) {
         KERROR("Image importer failed to import image.");
         return false;
     }
 
+    asset.channel_count = required_channel_count;
     asset.pixel_array_size = (bits_per_channel / 8) * asset.channel_count * asset.width * asset.height;
     asset.pixels = pixels;
     asset.mip_levels = calculate_mip_levels_from_dimension(asset.width, asset.height);

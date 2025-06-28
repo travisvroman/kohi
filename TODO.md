@@ -9,9 +9,14 @@ The items in this list are not in any particular order. This list will be update
 - [x] Refactor texture system to use ids only, typedefed as a ktexture.
 - [x] Refactor asset system to use direct types, dispense with handlers/import logic from engine
   - [x] Jobify VFS loading.
-  - [ ] Rework import pipeline to exist in kohi.tools instead.
+  - [x] Rework import pipeline to exist in kohi.tools instead.
 - [x] Remove resource system, directly use reworked asset system in dedicated systems.
-- [ ] Rework hot-reloading. (systems can register for a KASSET_HOT_RELOADED event and handle it thusly)
+- [x] Rework hot-reloading. (systems can register for a KASSET_HOT_RELOADED event and handle it thusly)
+  - [x] Separate hot reload request call in VFS. This should return a watch id.
+  - [x] Remove hot reload bool option in VFS request and in vfs_asset_data, as well as the file watch id.
+  - [x] Fire VFS-specific event when a filesystem watch updates.
+  - [x] Intercept above message in asset system, interpret how to handle it.
+  - [x] Fire off asset-system specific hot reload event, accompanied by watch id.
 
 ## 0.11.0 Release
 

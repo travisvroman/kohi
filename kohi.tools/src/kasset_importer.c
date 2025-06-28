@@ -261,7 +261,7 @@ b8 import_all_from_manifest(const char* manifest_path) {
                 }
             } else if (extension_is_image(source_extension)) {
                 // Always assume y should be flipped on import.
-                b8 flip_y = true;
+                b8 flip_y = asset->flip_y;
                 // NOTE: When importing this way, always use the pixel format as provided by the asset.
                 kpixel_format output_format = KPIXEL_FORMAT_UNKNOWN;
 

@@ -20,4 +20,12 @@ KAPI kasset_type kasset_type_from_string(const char* type_str);
  * @param type The type to be converted.
  * @return The string representation of the type.
  */
-const char* kasset_type_to_string(kasset_type type);
+KAPI const char* kasset_type_to_string(kasset_type type);
+
+/**
+ * @brief Indicates if the given asset type is a binary asset type.
+ * 
+ * @param type The asset type.
+ * @return True if the given asset type is binary; otherwise false.
+ */
+KAPI b8 kasset_type_is_binary(kasset_type type);

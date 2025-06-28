@@ -396,9 +396,9 @@ ktexture texture_acquire_with_options(ktexture_load_options options, void* liste
         for (u16 i = 0; i < array_size; ++i) {
             const char* asset_name = kname_string_get(image_asset_names[i]);
             if (package_names[i] != INVALID_KNAME) {
-                context->assets[i] = asset_system_request_image_from_package(state_ptr->kasset_system, kname_string_get(package_names[i]), asset_name, false, context, texture_kasset_image_loaded);
+                context->assets[i] = asset_system_request_image_from_package(state_ptr->kasset_system, kname_string_get(package_names[i]), asset_name, context, texture_kasset_image_loaded);
             } else {
-                context->assets[i] = asset_system_request_image(state_ptr->kasset_system, asset_name, false, context, texture_kasset_image_loaded);
+                context->assets[i] = asset_system_request_image(state_ptr->kasset_system, asset_name, context, texture_kasset_image_loaded);
             }
             if (!context->assets[i]) {
                 // NOTE: Continue to load other images instead of booting here.
@@ -516,9 +516,9 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
         for (u16 i = 0; i < state_ptr->array_sizes[t]; ++i) {
             const char* asset_name = kname_string_get(image_asset_names[i]);
             if (package_names[i] != INVALID_KNAME) {
-                assets[i] = asset_system_request_image_from_package_sync(state_ptr->kasset_system, kname_string_get(package_names[i]), asset_name, false);
+                assets[i] = asset_system_request_image_from_package_sync(state_ptr->kasset_system, kname_string_get(package_names[i]), asset_name);
             } else {
-                assets[i] = asset_system_request_image_sync(state_ptr->kasset_system, asset_name, false);
+                assets[i] = asset_system_request_image_sync(state_ptr->kasset_system, asset_name);
             }
             if (!assets[i]) {
                 // NOTE: Continue to load other images instead of booting here.

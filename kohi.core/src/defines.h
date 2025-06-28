@@ -214,6 +214,14 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #    define KOHI_DEBUG 0
 #endif
 
+// Feature build flags.
+
+#if KOHI_DEBUG
+#    define KOHI_HOT_RELOAD 1
+#else
+#    define KOHI_HOT_RELOAD 0
+#endif
+
 /**
  * @brief Clamps value to a range of min and max (inclusive).
  * @param value The value to be clamped.

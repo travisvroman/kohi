@@ -1,6 +1,7 @@
 #include "asset_system.h"
 #include "core/engine.h"
 
+#include "platform/platform.h"
 #include "platform/vfs.h"
 #include "serializers/kasset_audio_serializer.h"
 #include "serializers/kasset_bitmap_font_serializer.h"
@@ -26,18 +27,12 @@
 #include <strings/kname.h>
 #include <strings/kstring.h>
 
-typedef struct asset_lookup {
-    // The asset itself, owned by this lookup.
-    kasset* asset;
-    // The current number of references to the asset.
-    i32 reference_count;
-    // Indicates if the asset will be released when the reference_count reaches 0.
-    b8 auto_release;
-
+typedef struct asset_watch {
+    kasset_type type;
     u32 file_watch_id;
-
-    void* hot_reload_context;
-} asset_lookup;
+    kname asset_name;
+    kname package_name;
+} asset_watch;
 
 typedef struct asset_system_state {
     vfs_state* vfs;
@@ -48,11 +43,20 @@ typedef struct asset_system_state {
 
     // Max number of assets that can be loaded at any given time.
     u32 max_asset_count;
-    // An array of lookups which contain reference and release data.
-    asset_lookup* lookups;
-    // A BST to use for lookups of assets by name.
+
+#if KOHI_HOT_RELOAD
+    // An array of watches which contain name, type, etc.
+    asset_watch* watches;
+    // A BST to use for lookups of asset watches by file_watch_id.
     bt_node* lookup_tree;
+#endif
 } asset_system_state;
+
+#if KOHI_HOT_RELOAD
+static asset_watch* get_watch(asset_system_state* state, u32 watch_id);
+static b8 vfs_file_written(u16 code, void* sender, void* listener_inst, event_context data);
+static b8 vfs_file_deleted(u16 code, void* sender, void* listener_inst, event_context data);
+#endif
 
 b8 asset_system_deserialize_config(const char* config_str, asset_system_config* out_config) {
     if (!config_str || !out_config) {
@@ -95,45 +99,106 @@ b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* s
     state->default_package_name_str = kname_string_get(config->default_package_name);
 
     state->max_asset_count = config->max_asset_count;
-    state->lookups = kallocate(sizeof(asset_lookup) * state->max_asset_count, MEMORY_TAG_ENGINE);
+
+    state->vfs = engine_systems_get()->vfs_system_state;
+
+#if KOHI_HOT_RELOAD
+    state->watches = kallocate(sizeof(asset_watch) * state->max_asset_count, MEMORY_TAG_ENGINE);
 
     // Asset lookup tree.
     {
-        // NOTE: BST node created when first asset is requested.
+        // NOTE: BST node created when first asset is watched.
         state->lookup_tree = 0;
 
-        // Invalidate all lookups.
+        // Invalidate all lookups. Unknown = free slot.
         for (u32 i = 0; i < state->max_asset_count; ++i) {
-            state->lookups[i].asset = 0;
+            state->watches[i].type = KASSET_TYPE_UNKNOWN;
+            state->watches[i].file_watch_id = INVALID_ID_U32;
         }
     }
 
-    state->vfs = engine_systems_get()->vfs_system_state;
+    // Register for vfs load/delete events.
+    event_register(EVENT_CODE_VFS_FILE_WRITTEN_TO_DISK, state, vfs_file_written);
+    event_register(EVENT_CODE_VFS_FILE_DELETED_FROM_DISK, state, vfs_file_deleted);
+#endif
 
     return true;
 }
 
 void asset_system_shutdown(struct asset_system_state* state) {
     if (state) {
-        if (state->lookups) {
+#if KOHI_HOT_RELOAD
+        if (state->watches) {
             // Unload all currently-held lookups.
             for (u32 i = 0; i < state->max_asset_count; ++i) {
-                asset_lookup* lookup = &state->lookups[i];
-                if (lookup->asset) {
-                    // FIXME: Asset cache not currently being written to on the new asset load logic, need to do this so it can be undone here.
-                    // Force release the asset.
-                    /* asset_system_release_internal(state, lookup->asset->name, lookup->asset->package_name, true); */
+                asset_watch* lookup = &state->watches[i];
+                if (lookup->file_watch_id != INVALID_ID_U32) {
+                    platform_unwatch_file(lookup->file_watch_id);
                 }
             }
-            kfree(state->lookups, sizeof(asset_lookup) * state->max_asset_count, MEMORY_TAG_ARRAY);
+            kfree(state->watches, sizeof(asset_watch) * state->max_asset_count, MEMORY_TAG_ARRAY);
         }
 
         // Destroy the BST.
         u64_bst_cleanup(state->lookup_tree);
+#endif
 
         kzero_memory(state, sizeof(asset_system_state));
     }
 }
+
+#if KOHI_HOT_RELOAD
+u32 _asset_system_watch_for_reload(struct asset_system_state* state, kasset_type type, kname asset_name, kname package_name) {
+    if (state && asset_name != INVALID_KNAME) {
+
+        if (package_name == INVALID_KNAME) {
+            package_name = state->default_package_name;
+        }
+
+        b8 is_binary = kasset_type_is_binary(type);
+        u32 file_watch_id = vfs_asset_watch(engine_systems_get()->vfs_system_state, asset_name, package_name, is_binary);
+
+        // Add entry into the 'watch' list, using a pointer to the asset as the base.
+        u32 index = INVALID_ID_U32;
+        for (u32 i = 0; i < state->max_asset_count; ++i) {
+            if (state->watches[i].type == KASSET_TYPE_UNKNOWN) {
+                state->watches[i].type = type;
+                state->watches[i].file_watch_id = file_watch_id;
+                state->watches[i].package_name = package_name;
+                state->watches[i].asset_name = asset_name;
+                index = i;
+                break;
+            }
+        }
+        if (index == INVALID_ID_U32) {
+            KFATAL("No space left in the watch cache.");
+            return INVALID_ID_U32;
+        }
+        bt_node_value v = {
+            .u32 = index};
+        bt_node* new_node = u64_bst_insert(state->lookup_tree, file_watch_id, v);
+        if (!state->lookup_tree) {
+            state->lookup_tree = new_node;
+        }
+
+        return file_watch_id;
+    }
+
+    return INVALID_ID_U32;
+}
+
+void _asset_system_stop_watch(struct asset_system_state* state, u32 watch_id) {
+    asset_watch* watch = get_watch(state, watch_id);
+
+    KTRACE("Asset System: Watch for asset '%s' has been removed.", kname_string_get(watch->asset_name));
+
+    // The watch is removed simply by resetting it, marking the slot as 'free'.
+    watch->type = KASSET_TYPE_UNKNOWN;
+    watch->file_watch_id = INVALID_ID_U32;
+    watch->asset_name = INVALID_KNAME;
+    watch->package_name = INVALID_KNAME;
+}
+#endif
 
 // ////////////////////////////////////
 // BINARY ASSETS
@@ -183,9 +248,7 @@ kasset_binary* asset_system_request_binary_from_package(struct asset_system_stat
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = state->default_package_name,
-        .get_source = false,
         .is_binary = true,
-        .watch_for_hot_reload = false,
         .vfs_callback = vfs_on_binary_asset_loaded_callback,
         .context = context,
         .context_size = sizeof(kasset_binary_vfs_context)};
@@ -204,9 +267,7 @@ kasset_binary* asset_system_request_binary_from_package_sync(struct asset_system
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = true,
-        .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
@@ -246,9 +307,7 @@ kasset_text* asset_system_request_text_from_package_sync(struct asset_system_sta
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = false,
-        .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
@@ -290,15 +349,15 @@ static void vfs_on_image_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_
 }
 
 // async load from game package.
-kasset_image* asset_system_request_image(struct asset_system_state* state, const char* name, b8 flip_y, void* listener, PFN_kasset_image_loaded_callback callback) {
-    return asset_system_request_image_from_package(state, state->default_package_name_str, name, flip_y, listener, callback);
+kasset_image* asset_system_request_image(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_image_loaded_callback callback) {
+    return asset_system_request_image_from_package(state, state->default_package_name_str, name, listener, callback);
 }
 // sync load from game package.
-kasset_image* asset_system_request_image_sync(struct asset_system_state* state, const char* name, b8 flip_y) {
-    return asset_system_request_image_from_package_sync(state, state->default_package_name_str, name, flip_y);
+kasset_image* asset_system_request_image_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_image_from_package_sync(state, state->default_package_name_str, name);
 }
 // async load from specific package.
-kasset_image* asset_system_request_image_from_package(struct asset_system_state* state, const char* package_name, const char* name, b8 flip_y, void* listener, PFN_kasset_image_loaded_callback callback) {
+kasset_image* asset_system_request_image_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_image_loaded_callback callback) {
     if (!state || !name || !string_length(name)) {
         KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
         return 0;
@@ -314,9 +373,7 @@ kasset_image* asset_system_request_image_from_package(struct asset_system_state*
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = true,
-        .watch_for_hot_reload = false,
         .vfs_callback = vfs_on_image_asset_loaded_callback,
         .context = context,
         .context_size = sizeof(kasset_image_vfs_context)};
@@ -325,7 +382,7 @@ kasset_image* asset_system_request_image_from_package(struct asset_system_state*
     return out_asset;
 }
 // sync load from specific package.
-kasset_image* asset_system_request_image_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name, b8 flip_y) {
+kasset_image* asset_system_request_image_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
     if (!state || !name || !string_length(name)) {
         KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
         return 0;
@@ -335,9 +392,7 @@ kasset_image* asset_system_request_image_from_package_sync(struct asset_system_s
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = true,
-        .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
@@ -380,9 +435,7 @@ kasset_bitmap_font* asset_system_request_bitmap_font_from_package_sync(struct as
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = true,
-        .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
@@ -426,9 +479,7 @@ kasset_system_font* asset_system_request_system_font_from_package_sync(struct as
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = false,
-        .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
@@ -518,9 +569,7 @@ kasset_static_mesh* asset_system_request_static_mesh_from_package(struct asset_s
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = state->default_package_name,
-        .get_source = false,
         .is_binary = true,
-        .watch_for_hot_reload = false,
         .vfs_callback = vfs_on_static_mesh_asset_loaded_callback,
         .context = context,
         .context_size = sizeof(kasset_static_mesh_vfs_context)};
@@ -539,9 +588,7 @@ kasset_static_mesh* asset_system_request_static_mesh_from_package_sync(struct as
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = true,
-        .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
@@ -619,9 +666,7 @@ kasset_heightmap_terrain* asset_system_request_heightmap_terrain_from_package(st
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = state->default_package_name,
-        .get_source = false,
         .is_binary = false,
-        .watch_for_hot_reload = false,
         .vfs_callback = vfs_on_heightmap_terrain_asset_loaded_callback,
         .context = context,
         .context_size = sizeof(kasset_heightmap_terrain_vfs_context)};
@@ -640,9 +685,7 @@ kasset_heightmap_terrain* asset_system_request_heightmap_terrain_from_package_sy
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = false,
-        .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
@@ -717,9 +760,7 @@ kasset_material* asset_system_request_material_from_package(struct asset_system_
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = state->default_package_name,
-        .get_source = false,
         .is_binary = false,
-        .watch_for_hot_reload = false,
         .vfs_callback = vfs_on_material_asset_loaded_callback,
         .context = context,
         .context_size = sizeof(kasset_material_vfs_context)};
@@ -738,9 +779,7 @@ kasset_material* asset_system_request_material_from_package_sync(struct asset_sy
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = false,
-        .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
@@ -816,9 +855,7 @@ kasset_audio* asset_system_request_audio_from_package(struct asset_system_state*
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = state->default_package_name,
-        .get_source = false,
         .is_binary = true,
-        .watch_for_hot_reload = false,
         .vfs_callback = vfs_on_audio_asset_loaded_callback,
         .context = context,
         .context_size = sizeof(kasset_audio_vfs_context)};
@@ -837,9 +874,7 @@ kasset_audio* asset_system_request_audio_from_package_sync(struct asset_system_s
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = true,
-        .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
@@ -885,9 +920,7 @@ kasset_scene* asset_system_request_scene_from_package_sync(struct asset_system_s
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = false,
-        .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
@@ -978,9 +1011,7 @@ kasset_shader* asset_system_request_shader_from_package_sync(struct asset_system
     vfs_request_info info = {
         .asset_name = kname_create(name),
         .package_name = kname_create(package_name),
-        .get_source = false,
         .is_binary = false,
-        .watch_for_hot_reload = false,
     };
     vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
@@ -1044,3 +1075,110 @@ void asset_system_release_shader(struct asset_system_state* state, kasset_shader
         KFREE_TYPE(asset, kasset_shader, MEMORY_TAG_ASSET);
     }
 }
+
+#if KOHI_HOT_RELOAD
+static asset_watch* get_watch(asset_system_state* state, u32 watch_id) {
+    const bt_node* node = u64_bst_find(state->lookup_tree, watch_id);
+    if (!node) {
+        KWARN("Asset System: The provided watch_id (%d) isn't registered in the system. Nothing to be done.", watch_id);
+        return false; // Allow other listeners to handle the event, but boot early.
+    }
+
+    u32 index = node->value.u32;
+    return &state->watches[index];
+}
+
+static b8 vfs_file_written(u16 code, void* sender, void* listener_inst, event_context context) {
+    if (code == EVENT_CODE_VFS_FILE_WRITTEN_TO_DISK) {
+        asset_system_state* state = (asset_system_state*)listener_inst;
+        vfs_asset_data* asset_data = (vfs_asset_data*)sender;
+
+        KTRACE("Asset System: Notification occurred that asset '%s' has been written to on disk. Performing hot reload.", asset_data->path);
+
+        u32 watch_id = context.data.u32[0];
+        asset_watch* watch = get_watch(state, watch_id);
+
+        void* out_asset = 0;
+
+        // LEFTOFF: handle the asset by type when hot-reloading
+        switch (watch->type) {
+        case KASSET_TYPE_BINARY: {
+            kasset_binary* typed_asset = KALLOC_TYPE(kasset_binary, MEMORY_TAG_ASSET);
+
+            kasset_binary_vfs_context* context = KALLOC_TYPE(kasset_binary_vfs_context, MEMORY_TAG_ASSET);
+            context->asset = typed_asset;
+
+            asset_data->context = context;
+            vfs_on_binary_asset_loaded_callback(state->vfs, *asset_data);
+
+            out_asset = typed_asset;
+        } break;
+        case KASSET_TYPE_TEXT: {
+            kasset_text* typed_asset = KALLOC_TYPE(kasset_text, MEMORY_TAG_ASSET);
+            typed_asset->content = string_duplicate(asset_data->text);
+            out_asset = typed_asset;
+        } break;
+
+            // NOTE: There isn't much value in hot-reloading the shader config, which is what this asset type is.
+            /* case KASSET_TYPE_SHADER: {
+                kasset_shader* typed_asset = KALLOC_TYPE(kasset_shader, MEMORY_TAG_ASSET);
+
+                b8 result = kasset_shader_deserialize(asset_data->text, typed_asset);
+                if (!result) {
+                    KERROR("Failed to deserialize shader asset. See logs for details.");
+                    KFREE_TYPE(typed_asset, kasset_shader, MEMORY_TAG_ASSET);
+                } else {
+                    typed_asset->name = watch->asset_name;
+                }
+                out_asset = typed_asset;
+
+            } break; */
+
+            // TODO: hot-reload these types
+            /* case KASSET_TYPE_IMAGE: */
+            /* case KASSET_TYPE_MATERIAL: */
+            /* case KASSET_TYPE_KSON: */
+
+            // NOTE: The below types probalby should not support hot-reloading.
+        /* case KASSET_TYPE_STATIC_MESH: */
+        /* case KASSET_TYPE_HEIGHTMAP_TERRAIN: */
+        /* case KASSET_TYPE_SCENE: */
+        /* case KASSET_TYPE_BITMAP_FONT: */
+        /* case KASSET_TYPE_SYSTEM_FONT: */
+        /* case KASSET_TYPE_VOXEL_TERRAIN: */
+        /* case KASSET_TYPE_SKELETAL_MESH: */
+        /* case KASSET_TYPE_AUDIO: */
+        case KASSET_TYPE_UNKNOWN:
+        default:
+            KWARN("%s: Asset type '%s' not supported for hot reload.", __FUNCTION__, kasset_type_to_string(watch->type));
+            break;
+        }
+
+        // Fire off a message that the asset was hot-reloaded. It is up to the appropriate system
+        // to handle it from this point on. Note that the asset will need to be released by the
+        // watcher every time this happens.
+        if (out_asset) {
+            event_context evt_context = {
+                .data.u32[0] = watch_id};
+            event_fire(EVENT_CODE_ASSET_HOT_RELOADED, out_asset, evt_context);
+        } else {
+            KWARN("%s: out_asset not set - notification event will not be fired.", __FUNCTION__);
+        }
+    }
+
+    return false; // Allow other listeners to handle the event.
+}
+
+static b8 vfs_file_deleted(u16 code, void* sender, void* listener_inst, event_context context) {
+    if (code == EVENT_CODE_VFS_FILE_DELETED_FROM_DISK) {
+        asset_system_state* state = (asset_system_state*)listener_inst;
+
+        u32 watch_id = context.data.u32[0];
+        KTRACE("Asset System: Notification occurred that an asset has been deleted from disk. Watch will be removed.");
+
+        _asset_system_stop_watch(state, watch_id);
+    }
+
+    return false; // Allow other listeners to handle the event.
+}
+#endif
