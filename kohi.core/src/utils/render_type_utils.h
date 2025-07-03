@@ -80,12 +80,12 @@ KAPI u16 size_from_shader_uniform_type(shader_uniform_type type);
  * @brief Determines if any pixel has an alpha less than opaque.
  *
  * @param pixels A constant array of pixel data. Channel size determined by format.
- * @pixel_array_size The size of the pixels array in bytes (NOT pixel count!)
+ * @pixel_count The number of pixels in the array.
  * @param format The pixel format.
  *
  * @returns True if any pixel is even slightly transparent; otherwise false.
  */
-KAPI b8 pixel_data_has_transparency(const void* pixels, u32 pixel_array_size, kpixel_format format);
+KAPI b8 pixel_data_has_transparency(const void* pixels, u32 pixel_count, kpixel_format format);
 
 /**
  * Returns the number of channels for the given pixel format.

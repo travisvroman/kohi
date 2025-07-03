@@ -86,15 +86,17 @@ b8 kasset_image_import(const char* source_path, const char* target_path, b8 flip
         break;
     }
 
-    // Set the "flip" as described in the options.
-    stbi_set_flip_vertically_on_load_thread(flip_y);
-
     u64 data_size = 0;
     const void* data = filesystem_read_entire_binary_file(source_path, &data_size);
     if (!data) {
         KERROR("%s - Failed to import image from path - see logs for details.", __FUNCTION__);
         return false;
     }
+
+    // Set the "flip" as described in the options.
+    stbi_set_flip_vertically_on_load_thread(flip_y);
+    KTRACE("flip_y = %s", flip_y ? "true" : "false");
+    stbi_set_flip_vertically_on_load(flip_y);
 
     // Load the image.
     kasset_image asset = {0};

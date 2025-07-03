@@ -198,6 +198,7 @@ typedef struct kasset_heightmap_terrain {
 #define KASSET_TYPE_NAME_IMAGE "Image"
 
 typedef struct kasset_image {
+    kname name;
     u32 width;
     u32 height;
     u32 depth;

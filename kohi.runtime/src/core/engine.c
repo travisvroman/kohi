@@ -1,6 +1,5 @@
 #include "engine.h"
 
-#include <assets/kasset_importer_registry.h>
 #include <containers/darray.h>
 #include <containers/registry.h>
 #include <identifiers/khandle.h>
@@ -248,14 +247,6 @@ b8 engine_create(application* app) {
         systems->asset_state = kallocate(systems->asset_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!asset_system_initialize(&systems->asset_system_memory_requirement, systems->asset_state, &asset_sys_config)) {
             KERROR("Failed to initialize Asset System. See logs for details.");
-            return false;
-        }
-    }
-
-    // Asset importer registry.
-    {
-        if (!kasset_importer_registry_initialize()) {
-            KERROR("Failed to initialize asset importer registry. See logs for details.");
             return false;
         }
     }
@@ -830,7 +821,6 @@ b8 engine_run(application* app) {
         input_system_shutdown(systems->input_system);
         event_system_shutdown(systems->event_system);
         kvar_system_shutdown(systems->kvar_system);
-        kasset_importer_registry_shutdown();
         vfs_shutdown(systems->vfs_system_state);
         console_shutdown(systems->console_system);
         platform_system_shutdown(systems->platform_system);

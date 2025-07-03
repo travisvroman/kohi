@@ -8,8 +8,6 @@ typedef struct asset_manifest_asset {
     // TODO: If loaded from binary, this might be null?
     const char* path;
     const char* source_path;
-    // HACK: This is terrible - implement some sort of metadata option instead.
-    b8 flip_y;
 } asset_manifest_asset;
 
 /**

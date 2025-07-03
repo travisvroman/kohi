@@ -90,7 +90,7 @@ i32 combine_texture_maps(i32 argc, char** argv) {
     // - A: reserved/set to 1
 
     // Always flip y when loading in.
-    stbi_set_flip_vertically_on_load_thread(true);
+    /* stbi_set_flip_vertically_on_load_thread(true); */
 
     channel_map maps[MAP_TYPE_MAX] = {0};
     char out_file_path[1024] = {0};

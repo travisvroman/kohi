@@ -467,6 +467,7 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
     u32 all_pixel_size = 0;
     // TODO: This will be an issue with any other bit depth than 8
     u8* all_pixels = 0;
+    u32 all_pixel_count = 0;
     b8 free_pixels = false;
 
     // If an entry with the name exists, return it.
@@ -560,13 +561,15 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
     if (options.pixel_array_size && options.pixel_data) {
         all_pixels = options.pixel_data;
         all_pixel_size = options.pixel_array_size;
+        all_pixel_count = options.width * options.height * options.layer_count;
     } else if (assets) {
         free_pixels = true;
+        all_pixel_count = state_ptr->widths[t] * state_ptr->heights[t] * state_ptr->array_sizes[t];
         combine_asset_pixel_data(assets, state_ptr->array_sizes[t], state_ptr->widths[t], state_ptr->heights[t], true, &all_pixel_size, (void*)&all_pixels);
     }
 
     // Determine transparency.
-    b8 has_transparency = pixel_data_has_transparency(all_pixels, all_pixel_size, state_ptr->formats[t]);
+    b8 has_transparency = pixel_data_has_transparency(all_pixels, all_pixel_count, state_ptr->formats[t]);
     state_ptr->flags[t] = FLAG_SET(state_ptr->flags[t], KTEXTURE_FLAG_HAS_TRANSPARENCY, has_transparency);
 
     // Write the image asset/pixel data to the texture if it exists.
@@ -715,35 +718,42 @@ static b8 create_default_textures(texture_system_state* state) {
     const u32 tex_dimension = 16;
     const u32 channels = 4;
     const u32 pixel_count = tex_dimension * tex_dimension;
-    u8 pixels[16 * 16 * 4];
-    kset_memory(pixels, 255, sizeof(u8) * pixel_count * channels);
-
-    // Each pixel.
-    for (u64 row = 0; row < tex_dimension; ++row) {
-        for (u64 col = 0; col < tex_dimension; ++col) {
-            u64 index = (row * tex_dimension) + col;
-            u64 index_bpp = index * channels;
-            if (row % 2) {
-                if (col % 2) {
-                    pixels[index_bpp + 0] = 0;
-                    pixels[index_bpp + 1] = 0;
-                }
-            } else {
-                if (!(col % 2)) {
-                    pixels[index_bpp + 0] = 0;
-                    pixels[index_bpp + 1] = 0;
-                }
-            }
-        }
-    }
 
     // Default texture
     {
-        KTRACE("Creating default resource texture...");
+        u8 default_pixels[16 * 16 * 4] = {0};
+        kset_memory(default_pixels, 255, sizeof(u8) * pixel_count * channels);
+
+        // Each pixel.
+        for (u64 row = 0; row < tex_dimension; ++row) {
+            for (u64 col = 0; col < tex_dimension; ++col) {
+                u64 index = (row * tex_dimension) + col;
+                u64 index_bpp = index * channels;
+                if (row % 2) {
+                    if (col % 2) {
+                        default_pixels[index_bpp + 0] = 0;
+                        default_pixels[index_bpp + 1] = 0;
+                    }
+                } else {
+                    if (!(col % 2)) {
+                        default_pixels[index_bpp + 0] = 0;
+                        default_pixels[index_bpp + 1] = 0;
+                    }
+                }
+            }
+        }
 
         // Request new resource texture.
         u32 pixel_array_size = sizeof(u8) * pixel_count * channels;
-        state->default_kresource_texture = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, pixels, 16, 16, kname_create(DEFAULT_TEXTURE_NAME));
+        state->default_kresource_texture = INVALID_KTEXTURE;
+        ktexture t = texture_acquire_from_pixel_data(
+            KPIXEL_FORMAT_RGBA8,
+            pixel_array_size,
+            default_pixels,
+            16,
+            16,
+            kname_create(DEFAULT_TEXTURE_NAME));
+        state->default_kresource_texture = t;
         if (state->default_kresource_texture == INVALID_KTEXTURE) {
             KERROR("Failed to request resources for default texture");
             return false;
@@ -754,7 +764,7 @@ static b8 create_default_textures(texture_system_state* state) {
     {
         KTRACE("Creating default base colour texture...");
 
-        u8 diff_pixels[16 * 16 * 4];
+        u8 diff_pixels[16 * 16 * 4] = {0};
         // Default diffuse map is all white.
         kset_memory(diff_pixels, 255, sizeof(u8) * 16 * 16 * 4);
         // Request new resource texture.
@@ -770,7 +780,7 @@ static b8 create_default_textures(texture_system_state* state) {
     // Specular texture.
     {
         KTRACE("Creating default specular texture...");
-        u8 spec_pixels[16 * 16 * 4];
+        u8 spec_pixels[16 * 16 * 4] = {0};
         // Default spec map is black (no specular)
         kset_memory(spec_pixels, 0, sizeof(u8) * 16 * 16 * 4);
 
@@ -784,7 +794,7 @@ static b8 create_default_textures(texture_system_state* state) {
     }
 
     // Normal texture.
-    u8 normal_pixels[16 * 16 * 4]; // w * h * channels
+    u8 normal_pixels[16 * 16 * 4] = {0}; // w * h * channels
     {
         KTRACE("Creating default normal texture...");
         kset_memory(normal_pixels, 255, sizeof(u8) * 16 * 16 * 4);
@@ -810,7 +820,7 @@ static b8 create_default_textures(texture_system_state* state) {
     }
 
     // MRA texture
-    u8 mra_pixels[16 * 16 * 4]; // w * h * channels
+    u8 mra_pixels[16 * 16 * 4] = {0}; // w * h * channels
     {
         KTRACE("Creating default MRA (metallic, roughness, AO) texture...");
         kset_memory(mra_pixels, 255, sizeof(u8) * 16 * 16 * 4);
@@ -844,7 +854,7 @@ static b8 create_default_textures(texture_system_state* state) {
         const u32 channels = 4;
         const u32 layers = 6; // one per side.
         const u32 pixel_count = tex_dimension * tex_dimension;
-        u8 cube_side_pixels[16 * 16 * 4];
+        u8 cube_side_pixels[16 * 16 * 4] = {0};
         kset_memory(cube_side_pixels, 255, sizeof(u8) * pixel_count * channels);
 
         // Each pixel.
@@ -1107,12 +1117,12 @@ static b8 get_image_asset_names_from_options(const ktexture_load_options* option
         // Single asset.
         if (options->type == KTEXTURE_TYPE_CUBE) {
             /* NOTE: Treat the image_asset_name as a prefix and load the required 6 images.
-             * - name_f Front
-             * - name_b Back
-             * - name_u Up
-             * - name_d Down
              * - name_r Right
              * - name_l Left
+             * - name_d Down
+             * - name_u Up
+             * - name_f Front
+             * - name_b Back
              * For example, "skybox_f.png", "skybox_b.png", etc. where name is "skybox".
              */
             count = 6;
@@ -1120,7 +1130,9 @@ static b8 get_image_asset_names_from_options(const ktexture_load_options* option
             // Build asset names.
             *image_asset_names = KALLOC_TYPE_CARRAY(kname, count);
             *package_names = KALLOC_TYPE_CARRAY(kname, count);
-            const char* cube_sides = "fbudrl";
+            /* const char* cube_sides = "fbudrl"; */
+            // +X/-X/+Y/-Y/+Z/-Z
+            const char* cube_sides = "rldufb";
             for (u8 i = 0; i < 6; ++i) {
                 char* name_temp = string_format("%s_%c", kname_string_get(options->image_asset_name), cube_sides[i]);
                 (*image_asset_names)[i] = kname_create(name_temp);
@@ -1222,6 +1234,7 @@ static b8 texture_apply_asset_data(ktexture t, kname name, const ktexture_load_o
     // Load pixel/asset pixel data.
     u32 all_pixel_size = 0;
     u8* all_pixels = 0;
+    u32 all_pixel_count = 0;
     b8 free_pixels = false;
 
     if (!texture_resources_acquire(t, name)) {
@@ -1232,13 +1245,15 @@ static b8 texture_apply_asset_data(ktexture t, kname name, const ktexture_load_o
     if (options->pixel_array_size && options->pixel_data) {
         all_pixels = options->pixel_data;
         all_pixel_size = options->pixel_array_size;
+        all_pixel_count = options->width * options->height * options->layer_count;
     } else if (assets) {
         free_pixels = true;
+        all_pixel_count = state_ptr->widths[t] * state_ptr->heights[t] * state_ptr->array_sizes[t];
         combine_asset_pixel_data(assets, state_ptr->array_sizes[t], state_ptr->widths[t], state_ptr->heights[t], true, &all_pixel_size, (void*)&all_pixels);
     }
 
     // Upload the pixel data to the GPU
-    b8 has_transparency = pixel_data_has_transparency(all_pixels, all_pixel_size, state_ptr->formats[t]);
+    b8 has_transparency = pixel_data_has_transparency(all_pixels, all_pixel_count, state_ptr->formats[t]);
     state_ptr->flags[t] = FLAG_SET(state_ptr->flags[t], KTEXTURE_FLAG_HAS_TRANSPARENCY, has_transparency);
 
     // Write the image asset data to the texture.

@@ -110,7 +110,7 @@ void* kasset_bitmap_font_serialize(const kasset_bitmap_font* asset, u64* out_siz
 
 b8 kasset_bitmap_font_deserialize(u64 size, const void* block, kasset_bitmap_font* out_asset) {
     if (!size || !block || !out_asset) {
-        KERROR("Cannot deserialize without a nonzero size, block of memory and an static_mesh to write to.");
+        KERROR("Cannot deserialize without a nonzero size, block of memory and a kasset_bitmap_font to write to.");
         return false;
     }
 

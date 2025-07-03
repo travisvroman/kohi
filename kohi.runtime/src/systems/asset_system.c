@@ -379,6 +379,8 @@ kasset_image* asset_system_request_image_from_package(struct asset_system_state*
         .context_size = sizeof(kasset_image_vfs_context)};
     vfs_request_asset(state->vfs, info);
 
+    out_asset->name = kname_create(name);
+
     return out_asset;
 }
 // sync load from specific package.
@@ -403,11 +405,14 @@ kasset_image* asset_system_request_image_from_package_sync(struct asset_system_s
         return 0;
     }
 
+    out_asset->name = kname_create(name);
+
     return out_asset;
 }
 
 void asset_system_release_image(struct asset_system_state* state, kasset_image* asset) {
     if (state && asset) {
+        KTRACE("Releasing image asset '%s'.", kname_string_get(asset->name));
         if (asset->pixel_array_size && asset->pixels) {
             kfree((void*)asset->pixels, asset->pixel_array_size, MEMORY_TAG_ASSET);
         }

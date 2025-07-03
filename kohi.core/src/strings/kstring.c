@@ -1062,7 +1062,7 @@ const char* string_directory_from_path(const char* path) {
             u32 new_length = i + 1; // Account for null.
             char* dest = kallocate(new_length, MEMORY_TAG_STRING);
             string_ncopy(dest, path, i);
-            dest[new_length] = 0;
+            dest[i] = 0;
             return dest;
         }
     }
@@ -1078,7 +1078,7 @@ const char* string_filename_from_path(const char* path) {
             u32 new_length = j + 1; // Account for null.
             char* dest = kallocate(new_length, MEMORY_TAG_STRING);
             string_ncopy(dest, path + i, j);
-            dest[new_length] = 0;
+            dest[j] = 0;
             return dest;
         }
     }

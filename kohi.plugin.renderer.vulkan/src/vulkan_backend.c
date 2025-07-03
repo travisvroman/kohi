@@ -367,12 +367,6 @@ void vulkan_renderer_backend_shutdown(renderer_backend_interface* backend) {
     KDEBUG("Destroying Vulkan device...");
     vulkan_device_destroy(context);
 
-    if (backend->internal_context) {
-        kfree(backend->internal_context, backend->internal_context_size, MEMORY_TAG_RENDERER);
-        backend->internal_context_size = 0;
-        backend->internal_context = 0;
-    }
-
     if (context->validation_enabled) {
         KDEBUG("Destroying Vulkan debugger...");
         if (context->debug_messenger) {
@@ -388,6 +382,13 @@ void vulkan_renderer_backend_shutdown(renderer_backend_interface* backend) {
     if (context->allocator) {
         kfree(context->allocator, sizeof(VkAllocationCallbacks), MEMORY_TAG_RENDERER);
         context->allocator = 0;
+    }
+
+    // Free the context last.
+    if (backend->internal_context) {
+        kfree(backend->internal_context, backend->internal_context_size, MEMORY_TAG_RENDERER);
+        backend->internal_context_size = 0;
+        backend->internal_context = 0;
     }
 }
 
@@ -4931,7 +4932,7 @@ static void* vulkan_alloc_reallocation(
     size_t alignment,
     VkSystemAllocationScope allocation_scope) {
     if (!original) {
-        return vulkan_alloc_allocation(user_data, size, alignment, allocation_scope);
+        return kallocate_aligned(size, (u16)alignment, MEMORY_TAG_VULKAN);
     }
 
     if (size == 0) {
@@ -4961,14 +4962,15 @@ static void* vulkan_alloc_reallocation(
     KTRACE("Attempting to realloc block %p...", original);
 #    endif
 
-    void* result = vulkan_alloc_allocation(user_data, size, original_alloc_alignment, allocation_scope);
-    if (result) {
+    void* result = kallocate_aligned(size, (u16)alignment, MEMORY_TAG_VULKAN);
+    /* void* result = vulkan_alloc_allocation(user_data, size, original_alloc_alignment, allocation_scope); */
+    if (result && original) {
 #    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Block %p reallocated to %p, copying data...", original, result);
 #    endif
 
         // Copy over the original memory.
-        kcopy_memory(result, original, KMIN(size, original_alloc_size) - 1);
+        kcopy_memory(result, original, KMIN(size, original_alloc_size));
 #    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Freeing original aligned block %p...", original);
 #    endif

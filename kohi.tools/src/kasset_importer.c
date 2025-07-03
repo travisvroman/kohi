@@ -89,7 +89,7 @@ b8 source_audio_2_kaf(const char* source_path, const char* target_path) {
 
 // if output_format is set, force that format. Otherwise use source file format.
 b8 source_image_2_kbi(const char* source_path, const char* target_path, b8 flip_y, kpixel_format output_format) {
-    KDEBUG("Executing %s...", __FUNCTION__);
+    KDEBUG("Executing %s... (flip_y=%s)", __FUNCTION__, flip_y ? "yes" : "no");
     return kasset_image_import(source_path, target_path, flip_y, output_format);
 }
 
@@ -261,7 +261,7 @@ b8 import_all_from_manifest(const char* manifest_path) {
                 }
             } else if (extension_is_image(source_extension)) {
                 // Always assume y should be flipped on import.
-                b8 flip_y = asset->flip_y;
+                b8 flip_y = true;
                 // NOTE: When importing this way, always use the pixel format as provided by the asset.
                 kpixel_format output_format = KPIXEL_FORMAT_UNKNOWN;
 

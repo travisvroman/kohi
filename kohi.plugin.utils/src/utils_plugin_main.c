@@ -2,7 +2,6 @@
 
 #include "kohi.plugin.utils_version.h"
 
-#include <assets/kasset_importer_registry.h>
 #include <assets/kasset_types.h>
 #include <logger.h>
 #include <memory/kmemory.h>
