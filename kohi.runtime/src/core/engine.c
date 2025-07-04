@@ -1,6 +1,5 @@
 #include "engine.h"
 
-#include <assets/kasset_importer_registry.h>
 #include <containers/darray.h>
 #include <containers/registry.h>
 #include <identifiers/khandle.h>
@@ -35,7 +34,6 @@
 #include "systems/camera_system.h"
 #include "systems/font_system.h"
 #include "systems/job_system.h"
-#include "systems/kresource_system.h"
 #include "systems/light_system.h"
 #include "systems/material_system.h"
 #include "systems/plugin_system.h"
@@ -243,34 +241,12 @@ b8 engine_create(application* app) {
             KERROR("Failed to deserialize asset system config, which is required.");
             return false;
         }
+        asset_sys_config.default_package_name = app->app_config.default_package_name;
 
         asset_system_initialize(&systems->asset_system_memory_requirement, 0, 0);
         systems->asset_state = kallocate(systems->asset_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!asset_system_initialize(&systems->asset_system_memory_requirement, systems->asset_state, &asset_sys_config)) {
             KERROR("Failed to initialize Asset System. See logs for details.");
-            return false;
-        }
-    }
-
-    // Asset importer registry.
-    {
-        if (!kasset_importer_registry_initialize()) {
-            KERROR("Failed to initialize asset importer registry. See logs for details.");
-            return false;
-        }
-    }
-
-    // Resource system
-    {
-
-        // TODO: deserialize from application config, if provided.
-        kresource_system_config resource_sys_config = {0};
-        resource_sys_config.max_resource_count = 2000;
-
-        kresource_system_initialize(&systems->kresource_system_memory_requirement, 0, &resource_sys_config);
-        systems->kresource_state = kallocate(systems->kresource_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!kresource_system_initialize(&systems->kresource_system_memory_requirement, systems->kresource_state, &resource_sys_config)) {
-            KERROR("Failed to initialize resource system (new).");
             return false;
         }
     }
@@ -347,38 +323,6 @@ b8 engine_create(application* app) {
             KERROR("Failed to initialize renderer system.");
             return false;
         }
-    }
-
-    // Reach into platform and open new window(s) in accordance with app config.
-    // Notify renderer of window(s)/setup surface(s), etc.
-    u32 window_count = darray_length(app->app_config.windows);
-    if (window_count > 1) {
-        KFATAL("Multiple windows are not yet implemented at the engine level. Please just stick to one for now.");
-        return false;
-    }
-
-    engine_state->windows = darray_create(kwindow);
-    for (u32 i = 0; i < window_count; ++i) {
-        kwindow_config* window_config = &app->app_config.windows[i];
-        kwindow new_window = {0};
-        new_window.name = string_duplicate(window_config->name);
-        // Add to tracked window list
-        darray_push(engine_state->windows, new_window);
-
-        kwindow* window = &engine_state->windows[(darray_length(engine_state->windows) - 1)];
-        if (!platform_window_create(window_config, window, true)) {
-            KERROR("Failed to create window '%s'.", window_config->name);
-            return false;
-        }
-
-        // Tell the renderer about the window.
-        if (!renderer_on_window_created(engine_state->systems.renderer_system, window)) {
-            KERROR("The renderer failed to create resources for the window '%s.", window_config->name);
-            return false;
-        }
-
-        // Manually call to make sure window is of the right size/viewports and such are the right size.
-        renderer_on_window_resized(engine_state->systems.renderer_system, window);
     }
 
     // Job system
@@ -492,13 +436,46 @@ b8 engine_create(application* app) {
     // Texture system
     {
         texture_system_config texture_sys_config;
-        texture_sys_config.max_texture_count = 65536;
+        texture_sys_config.max_texture_count = 65535;
         texture_system_initialize(&systems->texture_system_memory_requirement, 0, &texture_sys_config);
         systems->texture_system = kallocate(systems->texture_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!texture_system_initialize(&systems->texture_system_memory_requirement, systems->texture_system, &texture_sys_config)) {
             KERROR("Failed to initialize texture system.");
             return false;
         }
+    }
+
+    // Reach into platform and open new window(s) in accordance with app config.
+    // Notify renderer of window(s)/setup surface(s), etc.
+    // NOTE: This must happen after the texture system is initialized since the window "owns" it's render target textures.
+    u32 window_count = darray_length(app->app_config.windows);
+    if (window_count > 1) {
+        KFATAL("Multiple windows are not yet implemented at the engine level. Please just stick to one for now.");
+        return false;
+    }
+
+    engine_state->windows = darray_create(kwindow);
+    for (u32 i = 0; i < window_count; ++i) {
+        kwindow_config* window_config = &app->app_config.windows[i];
+        kwindow new_window = {0};
+        new_window.name = string_duplicate(window_config->name);
+        // Add to tracked window list
+        darray_push(engine_state->windows, new_window);
+
+        kwindow* window = &engine_state->windows[(darray_length(engine_state->windows) - 1)];
+        if (!platform_window_create(window_config, window, true)) {
+            KERROR("Failed to create window '%s'.", window_config->name);
+            return false;
+        }
+
+        // Tell the renderer about the window.
+        if (!renderer_on_window_created(engine_state->systems.renderer_system, window)) {
+            KERROR("The renderer failed to create resources for the window '%s.", window_config->name);
+            return false;
+        }
+
+        // Manually call to make sure window is of the right size/viewports and such are the right size.
+        renderer_on_window_resized(engine_state->systems.renderer_system, window);
     }
 
     // Material system
@@ -517,9 +494,10 @@ b8 engine_create(application* app) {
 
     // Static mesh system
     {
-        static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, 0);
+        static_mesh_system_config config = {.application_package_name = app->app_config.default_package_name};
+        static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, 0, config);
         systems->static_mesh_system = kallocate(systems->static_mesh_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, systems->static_mesh_system)) {
+        if (!static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, systems->static_mesh_system, config)) {
             KERROR("Failed to initialize geometry system.");
             return false;
         }
@@ -838,13 +816,11 @@ b8 engine_run(application* app) {
         kaudio_system_shutdown(systems->audio_system);
         plugin_system_shutdown(systems->plugin_system);
         shader_system_shutdown(systems->shader_system);
-        kresource_system_shutdown(systems->kresource_state);
         renderer_system_shutdown(systems->renderer_system);
         job_system_shutdown(systems->job_system);
         input_system_shutdown(systems->input_system);
         event_system_shutdown(systems->event_system);
         kvar_system_shutdown(systems->kvar_system);
-        kasset_importer_registry_shutdown();
         vfs_shutdown(systems->vfs_system_state);
         console_shutdown(systems->console_system);
         platform_system_shutdown(systems->platform_system);

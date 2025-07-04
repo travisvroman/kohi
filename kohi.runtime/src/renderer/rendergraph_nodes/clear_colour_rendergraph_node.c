@@ -1,11 +1,13 @@
 #include "clear_colour_rendergraph_node.h"
 #include "core/engine.h"
+#include "identifiers/khandle.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "parsers/kson_parser.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/rendergraph.h"
 #include "strings/kstring.h"
+#include "systems/texture_system.h"
 
 typedef struct clear_colour_rendergraph_node_config {
     const char* source_name;
@@ -13,7 +15,7 @@ typedef struct clear_colour_rendergraph_node_config {
 
 typedef struct clear_colour_rendergraph_node_internal_data {
     struct renderer_system_state* renderer;
-    struct kresource_texture* buffer_texture;
+    ktexture buffer_texture;
 } clear_colour_rendergraph_node_internal_data;
 
 static b8 deserialize_config(const char* source_str, clear_colour_rendergraph_node_config* out_config);
@@ -96,8 +98,8 @@ b8 clear_colour_rendergraph_node_execute(struct rendergraph_node* self, struct f
 
     clear_colour_rendergraph_node_internal_data* internal_data = self->internal_data;
 
-    b8 result = renderer_clear_colour(internal_data->renderer, internal_data->buffer_texture->renderer_texture_handle);
-    
+    khandle buffer_texture_handle = texture_renderer_handle_get(internal_data->buffer_texture);
+    b8 result = renderer_clear_colour(internal_data->renderer, buffer_texture_handle);
 
     renderer_end_debug_label();
 

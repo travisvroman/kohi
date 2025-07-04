@@ -149,11 +149,11 @@ KAPI b8 font_system_bitmap_font_acquire(struct font_system_state* state, kname n
  * @brief Attempts to load a bitmap font from the given named resource.
  *
  * @param state A pointer to the font system state.
- * @param resource_name The name of the font resource to load.
+ * @param asset_name The name of the font asset to load.
  * @param package_name The name of the package containing the resource.
  * @return True on load success; otherwise false.
  */
-KAPI b8 font_system_bitmap_font_load(struct font_system_state* state, kname resource_name, kname package_name);
+KAPI b8 font_system_bitmap_font_load(struct font_system_state* state, kname asset_name, kname package_name);
 
 /**
  * @brief Measures the given string to find out how large it is at the widest/tallest point
@@ -174,7 +174,7 @@ KAPI b8 font_system_bitmap_font_measure_string(struct font_system_state* state, 
  * @param font A handle to the bitmap font to use for measuring.
  * @return A pointer to the font's atlas if successful; otherwise 0.
  */
-KAPI kresource_texture* font_system_bitmap_font_atlas_get(struct font_system_state* state, khandle font);
+KAPI ktexture font_system_bitmap_font_atlas_get(struct font_system_state* state, khandle font);
 
 /**
  * @brief Gets the line height of the given font.
@@ -268,4 +268,4 @@ KAPI b8 font_system_system_font_generate_geometry(struct font_system_state* stat
  * @param variant The system font variant to use for retrieval.
  * @return A pointer to the font's atlas if successful; otherwise 0.
  */
-KAPI kresource_texture* font_system_system_font_atlas_get(struct font_system_state* state, system_font_variant variant);
+KAPI ktexture font_system_system_font_atlas_get(struct font_system_state* state, system_font_variant variant);

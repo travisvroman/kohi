@@ -2,6 +2,7 @@
 
 #include "containers/darray.h"
 #include "core/engine.h"
+#include "kresources/kresource_types.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
@@ -12,6 +13,7 @@
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/shader_system.h"
+#include "systems/texture_system.h"
 #include <standard_ui_defines.h>
 
 typedef struct sui_shader_locations {
@@ -40,9 +42,9 @@ typedef struct ui_rendergraph_node_internal_data {
     khandle sui_shader; // standard ui // TODO: different render pass?
     sui_shader_locations sui_locations;
 
-    kresource_texture* colourbuffer_texture;
-    kresource_texture* depthbuffer_texture;
-    kresource_texture* ui_atlas;
+    ktexture colourbuffer_texture;
+    ktexture depthbuffer_texture;
+    ktexture ui_atlas;
     standard_ui_render_data render_data;
 
     viewport vp;
@@ -59,6 +61,9 @@ b8 ui_rendergraph_node_create(struct rendergraph* graph, struct rendergraph_node
     ui_rendergraph_node_internal_data* internal_data = self->internal_data;
 
     internal_data->renderer = engine_systems_get()->renderer_system;
+    internal_data->colourbuffer_texture = INVALID_KTEXTURE;
+    internal_data->depthbuffer_texture = INVALID_KTEXTURE;
+    internal_data->ui_atlas = INVALID_KTEXTURE;
 
     self->name = string_duplicate(config->name);
 
@@ -185,7 +190,9 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
 
     renderer_begin_debug_label(self->name, (vec3){0.5f, 0.5f, 0.5});
 
-    renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, internal_data->depthbuffer_texture->renderer_texture_handle, 0);
+    khandle colorbuffer_handle = texture_renderer_handle_get(internal_data->colourbuffer_texture);
+    khandle depthbuffer_handle = texture_renderer_handle_get(internal_data->depthbuffer_texture);
+    renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colorbuffer_handle, depthbuffer_handle, 0);
 
     // Bind the viewport
     renderer_active_viewport_set(&internal_data->vp);
@@ -268,8 +275,8 @@ b8 ui_rendergraph_node_execute(struct rendergraph_node* self, struct frame_data*
             group_data.diffuse_colour = renderable->render_data.diffuse_colour;
             shader_system_uniform_set_by_location(internal_data->sui_shader, internal_data->sui_locations.sui_group_ubo, &group_data);
             // Atlas texture
-            kresource_texture* atlas = renderable->atlas_override ? renderable->atlas_override : internal_data->ui_atlas;
-            shader_system_uniform_set_by_location(internal_data->sui_shader, internal_data->sui_locations.atlas_texture, atlas);
+            ktexture atlas = renderable->atlas_override != INVALID_KTEXTURE ? renderable->atlas_override : internal_data->ui_atlas;
+            shader_system_uniform_set_by_location(internal_data->sui_shader, internal_data->sui_locations.atlas_texture, &atlas);
 
             shader_system_apply_per_group(internal_data->sui_shader);
         }
@@ -314,7 +321,7 @@ void ui_rendergraph_node_destroy(struct rendergraph_node* self) {
     }
 }
 
-void ui_rendergraph_node_set_atlas(struct rendergraph_node* self, kresource_texture* atlas) {
+void ui_rendergraph_node_set_atlas(struct rendergraph_node* self, ktexture atlas) {
     if (self) {
         ui_rendergraph_node_internal_data* internal_data = self->internal_data;
         internal_data->ui_atlas = atlas;

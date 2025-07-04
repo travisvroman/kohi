@@ -10,16 +10,16 @@
 #include <math/kmath.h>
 #include <memory/kmemory.h>
 
-#include "kresources/kresource_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
+#include "strings/kname.h"
 #include "systems/asset_system.h"
 #include "systems/material_system.h"
 
 static void terrain_chunk_destroy(terrain* t, terrain_chunk* chunk);
 static void terrain_chunk_calculate_geometry(terrain* t, terrain_chunk* chunk, u32 chunk_offset_x, u32 chunk_offset_z);
 static void generate_and_load_geometry(terrain* t);
-static void kasset_heightmap_result(asset_request_result result, const struct kasset* asset, void* listener_inst);
+static void kasset_heightmap_result(void* listener_inst, struct kasset_heightmap_terrain* asset);
 
 typedef enum terrain_skirt_side {
     TSS_LEFT = 0,
@@ -29,15 +29,16 @@ typedef enum terrain_skirt_side {
     TSS_COUNT = 4
 } terrain_skirt_side;
 
-b8 terrain_create(kresource_heightmap_terrain* terrain_resource, terrain* out_terrain) {
+b8 terrain_create(kasset_heightmap_terrain* asset, terrain* out_terrain) {
     if (!out_terrain) {
         KERROR("terrain_create requires a valid pointer to out_terrain.");
         out_terrain->state = TERRAIN_STATE_UNDEFINED;
         return false;
     }
 
-    out_terrain->name = terrain_resource->base.name;
-    out_terrain->terrain_resource = terrain_resource;
+    // FIXME: name
+    out_terrain->name = INVALID_KNAME; //  terrain_resource->name;
+    out_terrain->asset = asset;
     out_terrain->state = TERRAIN_STATE_CREATED;
 
     return true;
@@ -103,14 +104,14 @@ b8 terrain_load(terrain* t) {
     }
     t->state = TERRAIN_STATE_LOADING;
 
-    kresource_heightmap_terrain* typed_resource = t->terrain_resource;
+    kasset_heightmap_terrain* typed_asset = t->asset;
 
-    t->tile_scale_x = typed_resource->tile_scale.x;
-    t->tile_scale_z = typed_resource->tile_scale.z;
+    t->tile_scale_x = typed_asset->tile_scale.x;
+    t->tile_scale_z = typed_asset->tile_scale.z;
 
-    t->scale_y = typed_resource->tile_scale.y;
+    t->scale_y = typed_asset->tile_scale.y;
 
-    t->chunk_size = typed_resource->chunk_size;
+    t->chunk_size = typed_asset->chunk_size;
 
     t->extents = (extents_3d){0};
     t->origin = vec3_zero();
@@ -118,42 +119,30 @@ b8 terrain_load(terrain* t) {
     // Invalidate the terrain so it doesn't get rendered before it's ready.
     t->generation = INVALID_ID;
 
-    t->material_count = typed_resource->material_count;
+    t->material_count = typed_asset->material_count;
     if (t->material_count) {
         t->material_names = KALLOC_TYPE_CARRAY(kname, t->material_count);
-        KCOPY_TYPE_CARRAY(t->material_names, typed_resource->material_names, kname, t->material_count);
+        KCOPY_TYPE_CARRAY(t->material_names, typed_asset->material_names, kname, t->material_count);
     } else {
         t->material_names = 0;
     }
 
     // Load the heightmap if one is configured.
-    if (typed_resource->heightmap_asset_name) {
-        kasset_image_import_options import_params = {0};
-        import_params.flip_y = false;
-        import_params.format = KASSET_IMAGE_FORMAT_RGBA8;
-
-        asset_request_info request_info = {0};
-        request_info.type = KASSET_TYPE_IMAGE;
-        request_info.asset_name = typed_resource->heightmap_asset_name;
-        request_info.package_name = typed_resource->heightmap_asset_package_name;
-        request_info.auto_release = true;
-        request_info.listener_inst = t;
-        request_info.callback = kasset_heightmap_result;
-        request_info.synchronous = false;
-        request_info.import_params_size = sizeof(kasset_image_import_options);
-        request_info.import_params = &import_params;
-
-        asset_system_request(engine_systems_get()->asset_state, request_info);
-    } else {
-        // For now, heightmaps are the only way to import terrains.
-        KWARN("No heightmap was included, using reasonable defaults for terrain generation.");
-        t->tile_count_x = t->tile_count_z = 128;
-        t->chunk_size = 16;
-        t->vertex_data_length = t->tile_count_x * t->tile_count_z;
-        t->vertex_datas = darray_reserve(terrain_vertex_data, t->vertex_data_length);
-
-        generate_and_load_geometry(t);
+    if (typed_asset->heightmap_asset_name) {
+        kasset_heightmap_terrain* asset = asset_system_request_heightmap_terrain(engine_systems_get()->asset_state, kname_string_get(typed_asset->heightmap_asset_name), t, kasset_heightmap_result);
+        if (asset) {
+            return true;
+        }
     }
+
+    // For now, heightmaps are the only way to import terrains.
+    KWARN("No heightmap was included, using reasonable defaults for terrain generation.");
+    t->tile_count_x = t->tile_count_z = 128;
+    t->chunk_size = 16;
+    t->vertex_data_length = t->tile_count_x * t->tile_count_z;
+    t->vertex_datas = darray_reserve(terrain_vertex_data, t->vertex_data_length);
+
+    generate_and_load_geometry(t);
 
     return true;
 }
@@ -614,63 +603,45 @@ static void generate_and_load_geometry(terrain* t) {
     t->state = TERRAIN_STATE_LOADED;
 }
 
-static void kasset_heightmap_result(asset_request_result result, const struct kasset* asset, void* listener_inst) {
+static void kasset_heightmap_result(void* listener_inst, struct kasset_heightmap_terrain* asset) {
     terrain* t = (terrain*)listener_inst;
 
-    if (result == ASSET_REQUEST_RESULT_SUCCESS) {
+    kasset_image* typed_asset = (kasset_image*)asset;
+    // Process loaded image.
 
-        kasset_image* typed_asset = (kasset_image*)asset;
-        // Process loaded image.
+    t->vertex_data_length = (typed_asset->width + 1) * (typed_asset->height + 1);
+    t->vertex_datas = darray_reserve(terrain_vertex_data, t->vertex_data_length);
 
-        t->vertex_data_length = (typed_asset->width + 1) * (typed_asset->height + 1);
-        t->vertex_datas = darray_reserve(terrain_vertex_data, t->vertex_data_length);
+    t->tile_count_x = typed_asset->width;
+    t->tile_count_z = typed_asset->height;
 
-        t->tile_count_x = typed_asset->width;
-        t->tile_count_z = typed_asset->height;
+    if (!t->tile_count_x) {
+        KWARN("Tile count x cannot be less than one. Defaulting to 1.");
+        t->tile_count_x = 1;
+    }
 
-        if (!t->tile_count_x) {
-            KWARN("Tile count x cannot be less than one. Defaulting to 1.");
-            t->tile_count_x = 1;
-        }
+    if (!t->tile_count_z) {
+        KWARN("Tile count z cannot be less than one. Defaulting to 1.");
+        t->tile_count_z = 1;
+    }
 
-        if (!t->tile_count_z) {
-            KWARN("Tile count z cannot be less than one. Defaulting to 1.");
-            t->tile_count_z = 1;
-        }
+    if (!t->chunk_size) {
+        KWARN("Chunk size cannot be less than one. Defaulting to 16.");
+        t->chunk_size = 16;
+    }
 
-        if (!t->chunk_size) {
-            KWARN("Chunk size cannot be less than one. Defaulting to 16.");
-            t->chunk_size = 16;
-        }
+    if (t->tile_count_x % t->chunk_size != 0 || t->tile_count_z % t->chunk_size != 0) {
+        KERROR(
+            "Heightmap dimensions must be a multiple of chunk size. Heightmap terrain load failed. (map w='%u', h='%u', chunk_size='%u')",
+            t->tile_count_x,
+            t->tile_count_z,
+            t->chunk_size);
+        return;
+    }
 
-        if (t->tile_count_x % t->chunk_size != 0 || t->tile_count_z % t->chunk_size != 0) {
-            KERROR(
-                "Heightmap dimensions must be a multiple of chunk size. Heightmap terrain load failed. (map w='%u', h='%u', chunk_size='%u')",
-                t->tile_count_x,
-                t->tile_count_z,
-                t->chunk_size);
-            return;
-        }
-
-        u32 j = 0;
-        for (u32 y = 0, i = 0; y < typed_asset->height; ++y) {
-            for (u32 x = 0; x < typed_asset->width; ++x, ++i, ++j) {
-                u8 r = typed_asset->pixels[(i * 4) + 0];
-                u8 g = typed_asset->pixels[(i * 4) + 1];
-                u8 b = typed_asset->pixels[(i * 4) + 2];
-                // Need to base height off combined RGB value.
-                u32 colour_int = 0;
-                rgbu_to_u32(r, g, b, &colour_int);
-                f32 height = (f32)colour_int / 16777215;
-
-                t->vertex_datas[j].height = height;
-            }
-            // Use the previous pixel's height again for the last row.
-            t->vertex_datas[j].height = t->vertex_datas[j - 1].height;
-            ++j;
-        }
-        // Iterate the last row of the image and sample the height from there again for the last row of the terrain.
-        for (u32 i = typed_asset->width * (typed_asset->height - 1); i < (typed_asset->width * typed_asset->height); ++i, ++j) {
+    u32 j = 0;
+    for (u32 y = 0, i = 0; y < typed_asset->height; ++y) {
+        for (u32 x = 0; x < typed_asset->width; ++x, ++i, ++j) {
             u8 r = typed_asset->pixels[(i * 4) + 0];
             u8 g = typed_asset->pixels[(i * 4) + 1];
             u8 b = typed_asset->pixels[(i * 4) + 2];
@@ -681,20 +652,27 @@ static void kasset_heightmap_result(asset_request_result result, const struct ka
 
             t->vertex_datas[j].height = height;
         }
-        // The final vertex also needs a copy of the previous height.
+        // Use the previous pixel's height again for the last row.
         t->vertex_datas[j].height = t->vertex_datas[j - 1].height;
-
-        // Make sure to release the asset.
-        asset_system_release(engine_systems_get()->asset_state, typed_asset->base.name, typed_asset->base.package_name);
-
-    } else {
-        // For now, heightmaps are the only way to import terrains.
-        KWARN("No heightmap was included, using reasonable defaults for terrain generation.");
-        t->tile_count_x = t->tile_count_z = 128;
-        t->chunk_size = 16;
-        t->vertex_data_length = t->tile_count_x * t->tile_count_z;
-        t->vertex_datas = darray_reserve(terrain_vertex_data, t->vertex_data_length);
+        ++j;
     }
+    // Iterate the last row of the image and sample the height from there again for the last row of the terrain.
+    for (u32 i = typed_asset->width * (typed_asset->height - 1); i < (typed_asset->width * typed_asset->height); ++i, ++j) {
+        u8 r = typed_asset->pixels[(i * 4) + 0];
+        u8 g = typed_asset->pixels[(i * 4) + 1];
+        u8 b = typed_asset->pixels[(i * 4) + 2];
+        // Need to base height off combined RGB value.
+        u32 colour_int = 0;
+        rgbu_to_u32(r, g, b, &colour_int);
+        f32 height = (f32)colour_int / 16777215;
+
+        t->vertex_datas[j].height = height;
+    }
+    // The final vertex also needs a copy of the previous height.
+    t->vertex_datas[j].height = t->vertex_datas[j - 1].height;
+
+    // Make sure to release the asset.
+    asset_system_release_image(engine_systems_get()->asset_state, typed_asset);
 
     generate_and_load_geometry(t);
 }

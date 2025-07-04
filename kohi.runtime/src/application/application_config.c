@@ -1,9 +1,9 @@
 #include "application_config.h"
 #include "containers/darray.h"
 #include "logger.h"
-#include "math/kmath.h"
 #include "parsers/kson_parser.h"
 #include "platform/platform.h"
+#include "strings/kname.h"
 #include "strings/kstring.h"
 
 b8 application_config_parse_file_content(const char* file_content, application_config* out_config) {
@@ -54,6 +54,13 @@ b8 application_config_parse_file_content(const char* file_content, application_c
         KERROR("'manifest_file_path' is a required field in application config. Cannot continue.");
         return false;
     }
+
+    // Default package name
+    if (!kson_object_property_value_get_string(&app_config_tree.root, "default_package_name", &out_config->default_package_name_str)) {
+        KERROR("'default_package_name' is a required field in application config. Cannot continue.");
+        return false;
+    }
+    out_config->default_package_name = kname_create(out_config->default_package_name_str);
 
     // Window configs.
     out_config->windows = darray_create(kwindow_config);

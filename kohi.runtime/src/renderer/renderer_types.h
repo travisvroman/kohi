@@ -1,13 +1,12 @@
 #pragma once
 
+#include "assets/kasset_types.h"
 #include <containers/freelist.h>
 #include <core_render_types.h>
 #include <defines.h>
 #include <kresources/kresource_types.h>
 #include <math/math_types.h>
 #include <strings/kname.h>
-
-#include "systems/material_system.h"
 
 struct shader_uniform;
 struct frame_data;
@@ -260,9 +259,9 @@ typedef struct kwindow_renderer_state {
     struct viewport* active_viewport;
 
     // This is technically the swapchain images, which should be wrapped into a single texture.
-    kresource_texture* colourbuffer;
+    ktexture colourbuffer;
     // This is technically the per-frame depth image, which should be wrapped into a single texture.
-    kresource_texture* depthbuffer;
+    ktexture depthbuffer;
 
     /** @brief The internal state of the window containing renderer backend data. */
     struct kwindow_renderer_backend_state* backend_state;
@@ -457,9 +456,9 @@ typedef struct renderer_backend_interface {
     void (*clear_colour)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
     void (*clear_depth_stencil)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
     void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
-    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, texture_flag_bits flags);
+    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, ktexture_flag_bits flags);
 
-    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle);
+    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, const char* name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_renderer_texture_handle);
     void (*texture_resources_release)(struct renderer_backend_interface* backend, khandle* renderer_texture_handle);
 
     /**
@@ -519,10 +518,10 @@ typedef struct renderer_backend_interface {
      *
      * @param backend A pointer to the renderer backend interface.
      * @param shader A handle to the shader.
-     * @param shader_resource A constant pointer to the shader shader_resource.
+     * @param shader_asset A constant pointer to the shader asset.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct renderer_backend_interface* backend, khandle shader, const kresource_shader* shader_resource);
+    b8 (*shader_create)(struct renderer_backend_interface* backend, khandle shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
@@ -541,7 +540,7 @@ typedef struct renderer_backend_interface {
      * @param shader_stages An array of shader stages configs.
      * @return True on success; otherwise false.
      */
-    b8 (*shader_reload)(struct renderer_backend_interface* backend, khandle s, u32 shader_stage_count, shader_stage_config* shader_stages);
+    b8 (*shader_reload)(struct renderer_backend_interface* backend, khandle s, u32 stage_count, shader_stage* stages, kname* names, const char** sources);
 
     /**
      * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,

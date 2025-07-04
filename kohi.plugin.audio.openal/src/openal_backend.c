@@ -1,5 +1,4 @@
 #include "openal_backend.h"
-#include "core_audio_types.h"
 
 // OpenAL
 #ifdef KPLATFORM_WINDOWS
@@ -29,33 +28,44 @@
 
 // Runtime
 #include <audio/kaudio_types.h>
-#include <kresources/kresource_types.h>
+#include <core_audio_types.h>
 #include <systems/job_system.h>
+#include <utils/audio_utils.h>
 
 // The number of buffers used for streaming music file data.
 #define OPENAL_BACKEND_STREAM_MAX_BUFFER_COUNT 2
 
-// This corresponds to a resource instance on the frontend.
-typedef struct kaudio_resource_data {
+// This corresponds to audio data by index on the frontend.
+typedef struct kaudio_internal_data {
     // The openal sound format (i.e. 16-bit mono/stereo)
     u32 format;
     // The current buffer being used to play sound effect types.
     ALuint buffer;
-    // A secondary buffer used to play downmixed mono where the original resource was stereo.
+    // A secondary buffer used to play downmixed mono where the original asset was stereo.
     ALuint mono_buffer;
     // The internal buffers used for streaming data from larger files.
     ALuint streaming_buffers[OPENAL_BACKEND_STREAM_MAX_BUFFER_COUNT];
     // Indicates if the music file should loop.
     b8 is_looping;
-    // Indicates if the internal resource should be streamed or all loaded at once.
+    // Indicates if the internal asset should be streamed or all loaded at once.
     b8 is_stream;
 
     // Used to track samples in streaming type files.
     u32 total_samples_left;
 
-    // A pointer to the audio resource used here.
-    const kresource_audio* resource;
-} kaudio_resource_data;
+    // The number of channels (i.e. 1 for mono or 2 for stereo)
+    i32 channels;
+    // The sample rate of the sound/music (i.e. 44100)
+    u32 sample_rate;
+
+    u32 total_sample_count;
+
+    u64 pcm_data_size;
+    /** Pulse-code modulation buffer, or raw data to be fed into a buffer. */
+    i16* pcm_data;
+    i16* mono_pcm_data;
+    u64 downmixed_size;
+} kaudio_internal_data;
 
 // Sources are used to play sounds, potentially at a space in 3D.
 typedef struct kaudio_plugin_source {
@@ -66,8 +76,8 @@ typedef struct kaudio_plugin_source {
     kthread thread;
 
     kmutex data_mutex; // everything from here down should be accessed/changed during lock.
-    // Currently playing resource data. Is null if not in use.
-    kaudio_resource_data* current;
+    // Currently playing audio data. Is INVALID_KAUDIO if not in use.
+    kaudio current;
     // The current audio space.
     kaudio_space current_audio_space;
 
@@ -116,11 +126,11 @@ typedef struct kaudio_backend_state {
     // An array to keep free/available buffer ids.
     u32* free_buffers;
 
-    // The max number of resources that can be loaded at any one time. Synced with frontend.
-    u32 max_resource_count;
+    // The max number of audios that can be loaded at any one time. Synced with frontend.
+    u32 max_count;
 
-    // Resource array aligning with that of the frontend.
-    kaudio_resource_data* resources;
+    // Internal data array aligning with that of the frontend.
+    kaudio_internal_data* datas;
 } kaudio_backend_state;
 
 typedef struct ksource_work_thread_params {
@@ -133,7 +143,7 @@ static b8 openal_backend_channel_create(kaudio_backend_interface* backend, kaudi
 static void openal_backend_channel_destroy(kaudio_backend_interface* backend, kaudio_plugin_source* source);
 static u32 openal_backend_find_free_buffer(kaudio_backend_interface* backend);
 
-static b8 stream_resource_data(kaudio_backend_interface* plugin, ALuint buffer, kaudio_space audio_space, kaudio_resource_data* resource);
+static b8 stream_data(kaudio_backend_interface* backend, ALuint buffer, kaudio_space audio_space, kaudio audio);
 static b8 openal_backend_stream_update(kaudio_backend_interface* plugin, kaudio_plugin_source* source);
 static u32 source_work_thread(void* params);
 static b8 source_set_defaults(kaudio_backend_interface* backend, kaudio_plugin_source* source, b8 reset_use);
@@ -156,8 +166,8 @@ b8 openal_backend_initialize(kaudio_backend_interface* backend, const kaudio_bac
         state->chunk_size = config->chunk_size;
         state->frequency = config->frequency;
         state->channel_count = config->channel_count;
-        state->max_resource_count = config->max_resource_count;
-        state->resources = KALLOC_TYPE_CARRAY(kaudio_resource_data, state->max_resource_count);
+        state->max_count = config->max_count;
+        state->datas = KALLOC_TYPE_CARRAY(kaudio_internal_data, state->max_count);
 
         state->buffer_count = 256; // FIXME: load from config.
 
@@ -257,36 +267,41 @@ b8 openal_backend_update(kaudio_backend_interface* backend, struct frame_data* p
     return true;
 }
 
-b8 openal_backend_resource_load(kaudio_backend_interface* backend, const kresource_audio* resource, b8 is_stream, khandle resource_handle) {
-    if (!backend || !backend->internal_state) {
-        KERROR("openal_backend_resource_load requires a valid pointer to backend.");
-        return false;
-    }
-    if (khandle_is_invalid(resource_handle)) {
-        KERROR("openal_backend_resource_load requires a valid handle.");
-        return false;
-    }
-
+b8 openal_backend_load(struct kaudio_backend_interface* backend, i32 channels, u32 sample_rate, u32 total_sample_count, u64 pcm_data_size, i16* pcm_data, b8 is_stream, kaudio audio) {
     kaudio_backend_state* state = backend->internal_state;
 
-    // Get the internal resource data.
-    kaudio_resource_data* data = &state->resources[resource_handle.handle_index];
+    // Get the internal data.
+    kaudio_internal_data* data = &state->datas[audio];
     data->is_stream = is_stream;
+    data->channels = channels;
+    data->sample_rate = sample_rate;
+    data->total_sample_count = total_sample_count;
+    data->pcm_data_size = pcm_data_size;
+    data->pcm_data = kallocate(pcm_data_size, MEMORY_TAG_ARRAY);
+    kcopy_memory(data->pcm_data, pcm_data, pcm_data_size);
 
     data->format = AL_FORMAT_MONO16;
-    if (resource->channels == 2) {
+    if (data->channels == 2) {
         data->format = AL_FORMAT_STEREO16;
+        // TODO: maybe do this on the frontend?
+        // If the asset is stereo, get a downmixed version of the audio so it can be used
+        // as a "3D" sound if need be.
+        data->mono_pcm_data = kaudio_downmix_stereo_to_mono(data->pcm_data, data->total_sample_count);
+        data->downmixed_size = (data->total_sample_count / 2) * sizeof(i16);
+    } else {
+        // Asset was already mono, just point to the pcm data.
+        data->mono_pcm_data = data->pcm_data;
+        data->downmixed_size = 0; // Set to zero to indicate this shouldn't be freed separately.
     }
 
-    data->resource = resource;
-    data->total_samples_left = data->resource->total_sample_count;
+    data->total_samples_left = total_sample_count;
 
     if (is_stream) {
         // Streams need buffers to be used back to back.
         for (u32 i = 0; i < OPENAL_BACKEND_STREAM_MAX_BUFFER_COUNT; ++i) {
             data->streaming_buffers[i] = openal_backend_find_free_buffer(backend);
             if (data->streaming_buffers[i] == INVALID_ID) {
-                KERROR("Unable to load streaming audio resource due to no buffers being available.");
+                KERROR("Unable to load streaming audio due to no buffers being available.");
                 return 0;
             }
 
@@ -305,7 +320,7 @@ b8 openal_backend_resource_load(kaudio_backend_interface* backend, const kresour
 
         if (data->total_samples_left > 0) {
             // Load the whole thing into the buffer.
-            alBufferData(data->buffer, data->format, (i16*)resource->pcm_data, data->total_samples_left, resource->sample_rate);
+            alBufferData(data->buffer, data->format, (i16*)data->pcm_data, data->total_samples_left, data->sample_rate);
             openal_backend_check_error();
         }
 
@@ -318,7 +333,7 @@ b8 openal_backend_resource_load(kaudio_backend_interface* backend, const kresour
         openal_backend_check_error();
         if (data->total_samples_left > 0) {
             // Load the whole thing into the buffer.
-            alBufferData(data->buffer, AL_FORMAT_MONO16, (i16*)resource->mono_pcm_data, data->total_samples_left, resource->sample_rate);
+            alBufferData(data->buffer, AL_FORMAT_MONO16, (i16*)data->mono_pcm_data, data->total_samples_left, data->sample_rate);
             openal_backend_check_error();
         }
 
@@ -329,22 +344,15 @@ b8 openal_backend_resource_load(kaudio_backend_interface* backend, const kresour
     return true;
 }
 
-void openal_backend_resource_unload(kaudio_backend_interface* backend, khandle resource_handle) {
-    if (!backend || khandle_is_invalid(resource_handle)) {
-        KERROR("openal_backend_resource_unload requires a valid pointer to plugin and a valid resource_handle.");
-        return;
-    }
-
+void openal_backend_unload(struct kaudio_backend_interface* backend, kaudio audio) {
     kaudio_backend_state* state = backend->internal_state;
 
-    // Get the internal resource data.
-    kaudio_resource_data* data = &state->resources[resource_handle.handle_index];
+    // Get the internal data.
+    kaudio_internal_data* data = &state->datas[audio];
 
     clear_buffer(backend, &data->buffer, 0);
 
-    // FIXME: Mark resource entry as available for use
-
-    // TODO: release resource?
+    // FIXME: Mark entry as available for use
 }
 
 b8 openal_backend_listener_position_set(kaudio_backend_interface* backend, vec3 position) {
@@ -448,14 +456,14 @@ b8 openal_backend_channel_play(kaudio_backend_interface* backend, u8 channel_id)
     return true;
 }
 
-b8 openal_backend_channel_play_resource(kaudio_backend_interface* backend, khandle resource_handle, kaudio_space audio_space, u8 channel_id) {
-    if (!backend || khandle_is_invalid(resource_handle) || !channel_id_valid(backend->internal_state, channel_id)) {
+b8 openal_backend_channel_play_audio(kaudio_backend_interface* backend, kaudio audio, kaudio_space audio_space, u8 channel_id) {
+    if (!channel_id_valid(backend->internal_state, channel_id)) {
         return false;
     }
 
     KTRACE("Play on channel %d", channel_id);
     kaudio_backend_state* state = backend->internal_state;
-    kaudio_resource_data* data = &state->resources[resource_handle.handle_index];
+    kaudio_internal_data* data = &state->datas[audio];
 
     // Assign the sound's buffer to the source.
     kaudio_plugin_source* source = &state->sources[channel_id];
@@ -466,7 +474,7 @@ b8 openal_backend_channel_play_resource(kaudio_backend_interface* backend, khand
         // Load data into all buffers initially.
         b8 result = true;
         for (u32 i = 0; i < OPENAL_BACKEND_STREAM_MAX_BUFFER_COUNT; ++i) {
-            if (!stream_resource_data(backend, data->streaming_buffers[i], audio_space, data)) {
+            if (!stream_data(backend, data->streaming_buffers[i], audio_space, audio)) {
                 KERROR("Failed to stream data to buffer &u in music file. File load failed.", i);
                 result = false;
                 break;
@@ -476,7 +484,7 @@ b8 openal_backend_channel_play_resource(kaudio_backend_interface* backend, khand
         alSourceQueueBuffers(source->id, OPENAL_BACKEND_STREAM_MAX_BUFFER_COUNT, data->streaming_buffers);
         openal_backend_check_error();
         if (!result) {
-            KERROR("Failed to stream resource data. See logs for details.");
+            KERROR("Failed to stream audio data. See logs for details.");
             return false;
         }
     } else {
@@ -507,12 +515,12 @@ b8 openal_backend_channel_play_resource(kaudio_backend_interface* backend, khand
 
         // Queue up sound buffer.
         ALuint* bids = 0;
-        if (data->resource->channels == 2 && audio_space == KAUDIO_SPACE_3D) {
+        if (data->channels == 2 && audio_space == KAUDIO_SPACE_3D) {
             // If stereo sound but wanting to play 3d, use the mono buffer.
             alSourcei(source->id, AL_SOURCE_RELATIVE, AL_FALSE);
             bids = &data->mono_buffer;
         } else {
-            if (data->resource->channels == 2) {
+            if (data->channels == 2) {
                 // stereo, but using 2d sound. Play as normal.
                 alSourcei(source->id, AL_SOURCE_RELATIVE, AL_FALSE);
                 bids = &data->buffer;
@@ -532,7 +540,7 @@ b8 openal_backend_channel_play_resource(kaudio_backend_interface* backend, khand
     }
 
     // Assign current, set flags, play, etc.
-    source->current = data;
+    source->current = audio;
     alSourcePlay(source->id);
     kmutex_unlock(&source->data_mutex);
 
@@ -646,16 +654,14 @@ b8 openal_backend_channel_is_stopped(kaudio_backend_interface* backend, u8 chann
     return false;
 }
 
-static b8 stream_resource_data(kaudio_backend_interface* backend, ALuint buffer, kaudio_space audio_space, kaudio_resource_data* resource) {
-    if (!backend || !resource) {
-        return false;
-    }
-
+static b8 stream_data(kaudio_backend_interface* backend, ALuint buffer, kaudio_space audio_space, kaudio audio) {
     kaudio_backend_state* state = backend->internal_state;
+
+    kaudio_internal_data* data = &state->datas[audio];
 
     // Figure out how many samples can be taken.
     // TODO: This might be _way_ too much between chunk size and samples (maybe samples left * channels?)
-    u64 sample_count = KMIN(resource->total_samples_left, state->chunk_size);
+    u64 sample_count = KMIN(data->total_samples_left, state->chunk_size);
 
     // 0 means the end of the file has been reached, and either the stream stops or needs to start over.
     if (sample_count == 0) {
@@ -664,33 +670,33 @@ static b8 stream_resource_data(kaudio_backend_interface* backend, ALuint buffer,
     }
     openal_backend_check_error();
     // Load the data into the buffer. Just a pointer into the pcm_data at an offset.
-    u64 pos = resource->resource->total_sample_count - resource->total_samples_left;
+    u64 pos = data->total_sample_count - data->total_samples_left;
 
     // Figure out the format and source.
     i16* data_source = 0;
-    ALenum format = resource->format;
-    if (resource->resource->channels == 2) {
+    ALenum format = data->format;
+    if (data->channels == 2) {
         if (audio_space == KAUDIO_SPACE_3D) {
             // Use the mono data.
             format = AL_FORMAT_MONO16;
-            data_source = resource->resource->mono_pcm_data;
+            data_source = data->mono_pcm_data;
         } else {
             // Stereo is fine
             format = AL_FORMAT_STEREO16;
-            data_source = resource->resource->pcm_data;
+            data_source = data->pcm_data;
         }
-    } else if (resource->resource->channels == 1) {
+    } else if (data->channels == 1) {
         // Only mono data exists to use, so use it.
         // The front-end should handle positioning the channel so it comes across in stereo (2d)
         format = AL_FORMAT_MONO16;
-        data_source = resource->resource->mono_pcm_data;
+        data_source = data->mono_pcm_data;
     } else {
-        KFATAL("Unsupported channel count %u", resource->resource->channels);
+        KFATAL("Unsupported channel count %u", data->channels);
     }
     // Get the data offset.
     i16* streamed_data = data_source + pos;
     if (streamed_data) {
-        alBufferData(buffer, format, streamed_data, sample_count * sizeof(ALshort), resource->resource->sample_rate);
+        alBufferData(buffer, format, streamed_data, sample_count * sizeof(ALshort), data->sample_rate);
         openal_backend_check_error();
     } else {
         KERROR("Error streaming data. Check logs for more info.");
@@ -698,15 +704,13 @@ static b8 stream_resource_data(kaudio_backend_interface* backend, ALuint buffer,
     }
 
     // Update the samples remaining.
-    resource->total_samples_left -= sample_count;
+    data->total_samples_left -= sample_count;
 
     return true;
 }
 
 static b8 openal_backend_stream_update(kaudio_backend_interface* backend, kaudio_plugin_source* source) {
-    if (!backend || !source) {
-        return false;
-    }
+    kaudio_backend_state* state = backend->internal_state;
 
     // It's possible sometimes for this to not be playing, even with buffers queued up.
     // Make sure to handle this case.
@@ -726,17 +730,19 @@ static b8 openal_backend_stream_update(kaudio_backend_interface* backend, kaudio
         alSourceUnqueueBuffers(source->id, 1, &buffer_id);
 
         // If this returns false, there was nothing further to read (i.e at the end of the file).
-        if (!stream_resource_data(backend, buffer_id, source->current_audio_space, source->current)) {
-            KTRACE("stream_resource_data returned false");
+        if (!stream_data(backend, buffer_id, source->current_audio_space, source->current)) {
+            KTRACE("stream_data returned false");
             b8 done = true;
 
+            kaudio_internal_data* data = &state->datas[source->current];
+
             // If set to loop, start over at the beginning.
-            if (source->current->is_looping) {
-                KTRACE("Resource set to loop. Rewinding and starting over.");
+            if (data->is_looping) {
+                KTRACE("Internal audio set to loop. Rewinding and starting over.");
                 // Loop around.
-                source->current->total_samples_left = source->current->resource->total_sample_count;
+                data->total_samples_left = data->total_sample_count;
                 /* audio->rewind(audio); */
-                done = !stream_resource_data(backend, buffer_id, source->current_audio_space, source->current);
+                done = !stream_data(backend, buffer_id, source->current_audio_space, source->current);
             }
 
             // If not set to loop, the sound is done playing.
@@ -755,6 +761,7 @@ static b8 openal_backend_stream_update(kaudio_backend_interface* backend, kaudio
 static u32 source_work_thread(void* params) {
     ksource_work_thread_params* typed_params = params;
     kaudio_backend_interface* backend = typed_params->backend;
+    kaudio_backend_state* state = backend->internal_state;
     kaudio_plugin_source* source = typed_params->source;
 
     // Release this right away since it's no longer needed.
@@ -778,9 +785,12 @@ static u32 source_work_thread(void* params) {
         }
         kmutex_unlock(&source->data_mutex);
 
-        if (source->current && source->current->is_stream) {
-            // If currently playing stream, try updating the stream.
-            openal_backend_stream_update(backend, source);
+        if (source->current != INVALID_KAUDIO) {
+            kaudio_internal_data* data = &state->datas[source->current];
+            if (data->is_stream) {
+                // If currently playing stream, try updating the stream.
+                openal_backend_stream_update(backend, source);
+            }
         }
 
         platform_sleep(2);

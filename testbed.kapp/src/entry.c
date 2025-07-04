@@ -60,50 +60,53 @@ b8 load_game_lib(application* app) {
     return true;
 }
 
-b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_context context) {
-    if (code == EVENT_CODE_RESOURCE_HOT_RELOADED) {
-        application* app = (application*)listener_inst;
-        if (context.data.u32[0] == app->game_library.watch_id) {
-            KINFO("Hot-Reloading game library.");
+static void file_deleted(u32 watcher_id, void* context) {
+    KFATAL("Testbed: Game code library file deleted.");
+}
 
-            // Tell the app it is about to be unloaded.
-            app->lib_on_unload(app);
+static void file_written(u32 watcher_id, const char* file_path, b8 is_binary, void* context) {
+    KFATAL("Testbed: Game code library file updated, hot-reloading.");
 
-            // Actually unload the app's lib.
-            if (!platform_dynamic_library_unload(&app->game_library)) {
-                KERROR("Failed to unload game library");
-                return false;
-            }
+    application* app = (application*)context;
+    if (watcher_id == app->game_library.watch_id) {
+        KINFO("Hot-Reloading game library.");
 
-            // Wait a bit before trying to copy the file.
-            platform_sleep(100);
+        // Tell the app it is about to be unloaded.
+        app->lib_on_unload(app);
 
-            const char* prefix = platform_dynamic_library_prefix();
-            const char* extension = platform_dynamic_library_extension();
-            char source_file[260];
-            char target_file[260];
-            string_format_unsafe(source_file, "%stestbed.klib%s", prefix, extension);
-            string_format_unsafe(target_file, "%stestbed.klib_loaded%s", prefix, extension);
+        // Actually unload the app's lib.
+        if (!platform_dynamic_library_unload(&app->game_library)) {
+            KFATAL("Failed to unload game library");
+            return;
+        }
 
-            platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
-            while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
-                err_code = platform_copy_file(source_file, target_file, true);
-                if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
-                    platform_sleep(100);
-                }
-            }
-            if (err_code != PLATFORM_ERROR_SUCCESS) {
-                KERROR("File copy failed!");
-                return false;
-            }
+        // Wait a bit before trying to copy the file.
+        platform_sleep(100);
 
-            if (!load_game_lib(app)) {
-                KERROR("Game lib reload failed.");
-                return false;
+        const char* prefix = platform_dynamic_library_prefix();
+        const char* extension = platform_dynamic_library_extension();
+        char source_file[260];
+        char target_file[260];
+        string_format_unsafe(source_file, "%stestbed.klib%s", prefix, extension);
+        string_format_unsafe(target_file, "%stestbed.klib_loaded%s", prefix, extension);
+
+        platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
+        while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+            err_code = platform_copy_file(source_file, target_file, true);
+            if (err_code == PLATFORM_ERROR_FILE_LOCKED) {
+                platform_sleep(100);
             }
         }
+        if (err_code != PLATFORM_ERROR_SUCCESS) {
+            KFATAL("File copy failed!");
+            return;
+        }
+
+        if (!load_game_lib(app)) {
+            KFATAL("Game lib reload failed.");
+            return;
+        }
     }
-    return false;
 }
 
 // Define the function to create a game
@@ -143,21 +146,20 @@ const char* application_config_path_get(void) {
 }
 
 b8 initialize_application(application* app) {
-    if (!event_register(EVENT_CODE_RESOURCE_HOT_RELOADED, app, watched_file_updated)) {
-        return false;
-    }
-
     const char* prefix = platform_dynamic_library_prefix();
     const char* extension = platform_dynamic_library_extension();
-    // FIXME: safe version of string format
-    char path[260];
-    kzero_memory(path, sizeof(char) * 260);
-    string_format_unsafe(path, "%s%s%s", prefix, "testbed.klib", extension);
 
-    if (!platform_watch_file(path, &app->game_library.watch_id)) {
+    b8 success = false;
+    char* path = string_format("%s%s%s", prefix, "testbed.klib", extension);
+    if (!platform_watch_file(path, true, file_written, app, file_deleted, app, &app->game_library.watch_id)) {
         KERROR("Failed to watch the testbed library!");
-        return false;
+        goto initialize_application_cleanup;
     }
 
-    return true;
+    success = true;
+initialize_application_cleanup:
+    if (path) {
+        string_free(path);
+    }
+    return success;
 }

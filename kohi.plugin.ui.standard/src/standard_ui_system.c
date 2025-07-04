@@ -155,9 +155,6 @@ static b8 standard_ui_system_move(u16 code, void* sender, void* listener_inst, e
     return false;
 }
 
-static void texture_resource_loaded(kresource* resource, void* listener) {
-}
-
 b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* state, standard_ui_system_config* config) {
     if (!memory_requirement) {
         KERROR("standard_ui_system_initialize requires a valid pointer to memory_requirement.");
@@ -190,14 +187,12 @@ b8 standard_ui_system_initialize(u64* memory_requirement, standard_ui_state* sta
     sui_base_control_create(state, "__ROOT__", &state->root);
 
     // Atlas texture.
-    state->atlas_texture = texture_system_request(
+    state->atlas_texture = texture_acquire_from_package_sync(
         kname_create(STANDARD_UI_DEFAULT_ATLAS_NAME),
-        kname_create(PACKAGE_NAME_STANDARD_UI),
-        state,
-        texture_resource_loaded);
-    if (!state->atlas_texture) {
+        kname_create(PACKAGE_NAME_STANDARD_UI));
+    if (state->atlas_texture == INVALID_KTEXTURE) {
         KERROR("Failed to request atlas texture for standard UI.");
-        state->atlas_texture = texture_system_request(kname_create(DEFAULT_TEXTURE_NAME), INVALID_KNAME, 0, 0);
+        state->atlas_texture = texture_acquire_sync(kname_create(DEFAULT_TEXTURE_NAME));
     }
 
     // Listen for input events.
@@ -236,8 +231,8 @@ void standard_ui_system_shutdown(standard_ui_state* state) {
 
         // Release texture for UI atlas.
         if (state->atlas_texture) {
-            texture_system_release_resource(state->atlas_texture);
-            state->atlas_texture = 0;
+            texture_release(state->atlas_texture);
+            state->atlas_texture = INVALID_KTEXTURE;
         }
     }
 }

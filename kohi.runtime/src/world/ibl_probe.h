@@ -6,7 +6,7 @@
 
 typedef struct ibl_probe {
     kname cubemap_name;
-    kresource_texture* ibl_cube_texture;
+    ktexture ibl_cube_texture;
     vec3 position;
 } ibl_probe;
 

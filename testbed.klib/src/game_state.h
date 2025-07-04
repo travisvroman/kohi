@@ -101,8 +101,8 @@ typedef struct application_state {
     struct sui_control test_panel;
     struct sui_control test_button;
 
-    audio_instance test_sound;
-    audio_instance test_music;
+    kaudio_instance test_sound;
+    kaudio_instance test_music;
 
     u32 proj_box_index;
     u32 cam_proj_line_indices[24];

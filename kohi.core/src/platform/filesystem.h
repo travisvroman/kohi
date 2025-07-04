@@ -154,4 +154,8 @@ KAPI const char* filesystem_read_entire_text_file(const char* filepath);
  * @param A pointer to hold the size of the file read in.
  * @returns A binary block of data read from the file.
  */
-const void* filesystem_read_entire_binary_file(const char* filepath, u64* out_size);
+KAPI const void* filesystem_read_entire_binary_file(const char* filepath, u64* out_size);
+
+KAPI b8 filesystem_write_entire_text_file(const char* filepath, const char* content);
+
+KAPI b8 filesystem_write_entire_binary_file(const char* filepath, u64 size, const void* content);

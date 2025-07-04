@@ -37,32 +37,33 @@ KAPI void kaudio_system_listener_orientation_set(struct kaudio_system_state* sta
 KAPI void kaudio_master_volume_set(struct kaudio_system_state* state, f32 volume);
 KAPI f32 kaudio_system_master_volume_get(struct kaudio_system_state* state);
 
-KAPI b8 kaudio_acquire(struct kaudio_system_state* state, kname resource_name, kname package_name, b8 is_streaming, kaudio_space audio_space, audio_instance* out_audio_instance);
-KAPI void kaudio_release(struct kaudio_system_state* state, audio_instance* instance);
+KAPI kaudio_instance kaudio_acquire(struct kaudio_system_state* state, kname asset_name, b8 is_streaming, kaudio_space audio_space);
+KAPI kaudio_instance kaudio_acquire_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming, kaudio_space audio_space);
+KAPI void kaudio_release(struct kaudio_system_state* state, kaudio_instance* instance);
 
-KAPI vec3 kaudio_position_get(struct kaudio_system_state* state, audio_instance instance);
-KAPI b8 kaudio_position_set(struct kaudio_system_state* state, audio_instance instance, vec3 position);
-KAPI f32 kaudio_inner_radius_get(struct kaudio_system_state* state, audio_instance instance);
-KAPI b8 kaudio_inner_radius_set(struct kaudio_system_state* state, audio_instance instance, f32 inner_radius);
-KAPI f32 kaudio_outer_radius_get(struct kaudio_system_state* state, audio_instance instance);
-KAPI b8 kaudio_outer_radius_set(struct kaudio_system_state* state, audio_instance instance, f32 outer_radius);
-KAPI f32 kaudio_falloff_get(struct kaudio_system_state* state, audio_instance instance);
-KAPI b8 kaudio_falloff_set(struct kaudio_system_state* state, audio_instance instance, f32 falloff);
+KAPI vec3 kaudio_position_get(struct kaudio_system_state* state, kaudio_instance instance);
+KAPI b8 kaudio_position_set(struct kaudio_system_state* state, kaudio_instance instance, vec3 position);
+KAPI f32 kaudio_inner_radius_get(struct kaudio_system_state* state, kaudio_instance instance);
+KAPI b8 kaudio_inner_radius_set(struct kaudio_system_state* state, kaudio_instance instance, f32 inner_radius);
+KAPI f32 kaudio_outer_radius_get(struct kaudio_system_state* state, kaudio_instance instance);
+KAPI b8 kaudio_outer_radius_set(struct kaudio_system_state* state, kaudio_instance instance, f32 outer_radius);
+KAPI f32 kaudio_falloff_get(struct kaudio_system_state* state, kaudio_instance instance);
+KAPI b8 kaudio_falloff_set(struct kaudio_system_state* state, kaudio_instance instance, f32 falloff);
 
 KAPI i8 kaudio_category_id_get(struct kaudio_system_state* state, kname name);
-KAPI b8 kaudio_play_in_category_by_name(struct kaudio_system_state* state, audio_instance instance, kname category_name);
-KAPI b8 kaudio_play_in_category(struct kaudio_system_state* state, audio_instance instance, u8 category_index);
-KAPI b8 kaudio_play(struct kaudio_system_state* state, audio_instance instance, i8 channel_index);
-KAPI b8 kaudio_stop(struct kaudio_system_state* state, audio_instance instance);
-KAPI b8 kaudio_pause(struct kaudio_system_state* state, audio_instance instance);
-KAPI b8 kaudio_resume(struct kaudio_system_state* state, audio_instance instance);
-KAPI b8 kaudio_is_valid(struct kaudio_system_state* state, audio_instance instance);
-KAPI f32 kaudio_pitch_get(struct kaudio_system_state* state, audio_instance instance);
-KAPI b8 kaudio_pitch_set(struct kaudio_system_state* state, audio_instance instance, f32 pitch);
-KAPI f32 kaudio_volume_get(struct kaudio_system_state* state, audio_instance instance);
-KAPI b8 kaudio_volume_set(struct kaudio_system_state* state, audio_instance instance, f32 volume);
-KAPI b8 kaudio_looping_get(struct kaudio_system_state* state, audio_instance instance);
-KAPI b8 kaudio_looping_set(struct kaudio_system_state* state, audio_instance instance, b8 looping);
+KAPI b8 kaudio_play_in_category_by_name(struct kaudio_system_state* state, kaudio_instance instance, kname category_name);
+KAPI b8 kaudio_play_in_category(struct kaudio_system_state* state, kaudio_instance instance, u8 category_index);
+KAPI b8 kaudio_play(struct kaudio_system_state* state, kaudio_instance instance, i8 channel_index);
+KAPI b8 kaudio_stop(struct kaudio_system_state* state, kaudio_instance instance);
+KAPI b8 kaudio_pause(struct kaudio_system_state* state, kaudio_instance instance);
+KAPI b8 kaudio_resume(struct kaudio_system_state* state, kaudio_instance instance);
+KAPI b8 kaudio_is_valid(struct kaudio_system_state* state, kaudio_instance instance);
+KAPI f32 kaudio_pitch_get(struct kaudio_system_state* state, kaudio_instance instance);
+KAPI b8 kaudio_pitch_set(struct kaudio_system_state* state, kaudio_instance instance, f32 pitch);
+KAPI f32 kaudio_volume_get(struct kaudio_system_state* state, kaudio_instance instance);
+KAPI b8 kaudio_volume_set(struct kaudio_system_state* state, kaudio_instance instance, f32 volume);
+KAPI b8 kaudio_looping_get(struct kaudio_system_state* state, kaudio_instance instance);
+KAPI b8 kaudio_looping_set(struct kaudio_system_state* state, kaudio_instance instance, b8 looping);
 
 // KAPI b8 kaudio_seek(struct kaudio_system_state* state, audio_instance instance, f32 seconds);
 // KAPI f32 kaudio_time_played_get(struct kaudio_system_state* state, audio_instance instance);

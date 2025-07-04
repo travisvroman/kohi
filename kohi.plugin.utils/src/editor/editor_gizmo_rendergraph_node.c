@@ -14,6 +14,7 @@
 #include "strings/kstring.h"
 #include "systems/material_system.h"
 #include "systems/shader_system.h"
+#include "systems/texture_system.h"
 #include "systems/xform_system.h"
 #include <runtime_defines.h>
 
@@ -29,7 +30,7 @@ typedef struct editor_gizmo_rendergraph_node_internal_data {
     khandle colour_shader;
     debug_shader_locations debug_locations;
 
-    kresource_texture* colourbuffer_texture;
+    ktexture colourbuffer_texture;
 
     viewport vp;
     mat4 view;
@@ -157,7 +158,8 @@ b8 editor_gizmo_rendergraph_node_execute(struct rendergraph_node* self, struct f
     if (internal_data->enabled) {
         editor_gizmo_render_frame_prepare(gizmo, p_frame_data);
 
-        renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &internal_data->colourbuffer_texture->renderer_texture_handle, khandle_invalid(), 0);
+        khandle colourbuffer_texture_handle = texture_renderer_handle_get(internal_data->colourbuffer_texture);
+        renderer_begin_rendering(internal_data->renderer, p_frame_data, internal_data->vp.rect, 1, &colourbuffer_texture_handle, khandle_invalid(), 0);
 
         // Bind the viewport
         renderer_active_viewport_set(&internal_data->vp);

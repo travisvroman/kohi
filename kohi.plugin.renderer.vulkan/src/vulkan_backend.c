@@ -31,6 +31,7 @@
 #include <utils/ksort.h>
 #include <utils/render_type_utils.h>
 
+#include "systems/texture_system.h"
 #include "vulkan_command_buffer.h"
 #include "vulkan_device.h"
 #include "vulkan_image.h"
@@ -77,8 +78,8 @@ static void vulkan_pipeline_bind(vulkan_context* context, vulkan_command_buffer*
 static b8 setup_frequency_state(renderer_backend_interface* backend, vulkan_shader* internal_shader, shader_update_frequency frequency, u32* out_frequency_id);
 static b8 release_shader_frequency_state(vulkan_context* context, vulkan_shader* internal_shader, shader_update_frequency frequency, u32 frequency_id);
 static void destroy_shader_frequency_states(shader_update_frequency frequency, vulkan_shader_frequency_state* states, u32 state_count, vulkan_shader_frequency_info* info);
-static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backend, vulkan_shader* internal_shader, u8 stage_count, shader_stage_config* stage_configs);
-static void setup_frequency_descriptors(b8 do_ubo, vulkan_shader_frequency_info* frequency_info, vulkan_descriptor_set_config* set_config, const kresource_shader* config);
+static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backend, vulkan_shader* internal_shader, u8 stage_count, shader_stage* stages, kname* names, const char** sources);
+static void setup_frequency_descriptors(b8 do_ubo, vulkan_shader_frequency_info* frequency_info, vulkan_descriptor_set_config* set_config, const shader_uniform* uniforms);
 static b8 vulkan_descriptorset_update_and_bind(
     vulkan_context* context,
     u16 generation,
@@ -306,26 +307,27 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
         KASSERT_MSG(func, "Failed to create debug messenger!");
         VK_CHECK(func(context->instance, &debug_create_info, context->allocator, &context->debug_messenger));
         KDEBUG("Vulkan debugger created.");
+    }
 
-        // Load up debug function pointers.
-        context->pfnSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkSetDebugUtilsObjectNameEXT");
-        if (!context->pfnSetDebugUtilsObjectNameEXT) {
-            KWARN("Unable to load function pointer for vkSetDebugUtilsObjectNameEXT. Debug functions associated with this will not work.");
-        }
-        context->pfnSetDebugUtilsObjectTagEXT = (PFN_vkSetDebugUtilsObjectTagEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkSetDebugUtilsObjectTagEXT");
-        if (!context->pfnSetDebugUtilsObjectTagEXT) {
-            KWARN("Unable to load function pointer for vkSetDebugUtilsObjectTagEXT. Debug functions associated with this will not work.");
-        }
+    // TODO: conditionally enable labels via config?
+    // Load up debug function pointers.
+    context->pfnSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkSetDebugUtilsObjectNameEXT");
+    if (!context->pfnSetDebugUtilsObjectNameEXT) {
+        KWARN("Unable to load function pointer for vkSetDebugUtilsObjectNameEXT. Debug functions associated with this will not work.");
+    }
+    context->pfnSetDebugUtilsObjectTagEXT = (PFN_vkSetDebugUtilsObjectTagEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkSetDebugUtilsObjectTagEXT");
+    if (!context->pfnSetDebugUtilsObjectTagEXT) {
+        KWARN("Unable to load function pointer for vkSetDebugUtilsObjectTagEXT. Debug functions associated with this will not work.");
+    }
 
-        context->pfnCmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkCmdBeginDebugUtilsLabelEXT");
-        if (!context->pfnCmdBeginDebugUtilsLabelEXT) {
-            KWARN("Unable to load function pointer for vkCmdBeginDebugUtilsLabelEXT. Debug functions associated with this will not work.");
-        }
+    context->pfnCmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkCmdBeginDebugUtilsLabelEXT");
+    if (!context->pfnCmdBeginDebugUtilsLabelEXT) {
+        KWARN("Unable to load function pointer for vkCmdBeginDebugUtilsLabelEXT. Debug functions associated with this will not work.");
+    }
 
-        context->pfnCmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkCmdEndDebugUtilsLabelEXT");
-        if (!context->pfnCmdEndDebugUtilsLabelEXT) {
-            KWARN("Unable to load function pointer for vkCmdEndDebugUtilsLabelEXT. Debug functions associated with this will not work.");
-        }
+    context->pfnCmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)rhi->kvkGetInstanceProcAddr(context->instance, "vkCmdEndDebugUtilsLabelEXT");
+    if (!context->pfnCmdEndDebugUtilsLabelEXT) {
+        KWARN("Unable to load function pointer for vkCmdEndDebugUtilsLabelEXT. Debug functions associated with this will not work.");
     }
 
     // Device creation
@@ -365,12 +367,6 @@ void vulkan_renderer_backend_shutdown(renderer_backend_interface* backend) {
     KDEBUG("Destroying Vulkan device...");
     vulkan_device_destroy(context);
 
-    if (backend->internal_context) {
-        kfree(backend->internal_context, backend->internal_context_size, MEMORY_TAG_RENDERER);
-        backend->internal_context_size = 0;
-        backend->internal_context = 0;
-    }
-
     if (context->validation_enabled) {
         KDEBUG("Destroying Vulkan debugger...");
         if (context->debug_messenger) {
@@ -386,6 +382,13 @@ void vulkan_renderer_backend_shutdown(renderer_backend_interface* backend) {
     if (context->allocator) {
         kfree(context->allocator, sizeof(VkAllocationCallbacks), MEMORY_TAG_RENDERER);
         context->allocator = 0;
+    }
+
+    // Free the context last.
+    if (backend->internal_context) {
+        kfree(backend->internal_context, backend->internal_context_size, MEMORY_TAG_RENDERER);
+        backend->internal_context_size = 0;
+        backend->internal_context = 0;
     }
 }
 
@@ -536,27 +539,6 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
 
         KFREE_TYPE_CARRAY(window_backend->graphics_command_buffers, vulkan_command_buffer, window_backend->max_frames_in_flight);
         window_backend->graphics_command_buffers = 0;
-    }
-
-    // Destroy per-swapchain-image resources.
-    {
-
-        // Destroy depthbuffer images/views.
-        vulkan_texture_handle_data* texture_data = &context->textures[window_internal->depthbuffer->renderer_texture_handle.handle_index];
-        if (!texture_data) {
-            KWARN("Unable to get internal data for depthbuffer image. Underlying resources may not be properly destroyed.");
-        } else {
-            // Free the name
-            window_internal->depthbuffer->base.name = INVALID_KNAME;
-
-            // Destroy each backing image.
-            for (u32 i = 0; i < texture_data->image_count; ++i) {
-                vulkan_image_destroy(context, &texture_data->images[i]);
-            }
-
-            // Releasing the resources for the default depthbuffer should destroy backing resources too.
-            renderer_texture_resources_release(backend->frontend_state, &window->renderer_state->depthbuffer->renderer_texture_handle);
-        }
     }
 
     // Swapchain
@@ -737,10 +719,11 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 
     kwindow_renderer_backend_state* window_backend = context->current_window->renderer_state->backend_state;
     // Source is the window's colour buffer texture.
-    vulkan_texture_handle_data* source_image_handle = &context->textures[context->current_window->renderer_state->colourbuffer->renderer_texture_handle.handle_index];
+    khandle colourbuffer_handle = texture_renderer_handle_get(context->current_window->renderer_state->colourbuffer);
+    vulkan_texture_handle_data* source_image_handle = &context->textures[colourbuffer_handle.handle_index];
     vulkan_image* source_image = &source_image_handle->images[window_backend->image_index];
     // Target is the current swapchain image.
-    vulkan_texture_handle_data* target_image_handle = &context->textures[window_backend->swapchain.swapchain_colour_texture->renderer_texture_handle.handle_index];
+    vulkan_texture_handle_data* target_image_handle = &context->textures[window_backend->swapchain.swapchain_colour_texture.handle_index];
     vulkan_image* target_image = &target_image_handle->images[window_backend->swapchain.image_index];
 
     // Before ending the command buffer, blit the current colour buffer's contents to
@@ -1240,12 +1223,12 @@ void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend,
         depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // Always store.
         depth_attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
         depth_attachment_info.resolveImageView = 0;
-        if (image->flags & TEXTURE_FLAG_DEPTH) {
+        if (image->flags & KTEXTURE_FLAG_DEPTH) {
             render_info.pDepthAttachment = &depth_attachment_info;
         } else {
             render_info.pDepthAttachment = 0;
         }
-        if (image->flags & TEXTURE_FLAG_STENCIL) {
+        if (image->flags & KTEXTURE_FLAG_STENCIL) {
             render_info.pStencilAttachment = &depth_attachment_info;
         } else {
             render_info.pStencilAttachment = 0;
@@ -1486,7 +1469,7 @@ void vulkan_renderer_clear_depth_stencil(renderer_backend_interface* backend, kh
 
     // If a per-frame texture, get the appropriate image index. Otherwise it's just the first one.
     vulkan_image* image = tex_internal->image_count == 1 ? &tex_internal->images[0] : &tex_internal->images[image_index];
-    b8 is_depth = FLAG_GET(image->flags, TEXTURE_FLAG_DEPTH);
+    b8 is_depth = FLAG_GET(image->flags, KTEXTURE_FLAG_DEPTH);
     // b8 is_stencil = FLAG_GET(image->flags, TEXTURE_FLAG_STENCIL);
 
     VkImageAspectFlags aspect_flags = 0;
@@ -1599,7 +1582,7 @@ void vulkan_renderer_colour_texture_prepare_for_present(renderer_backend_interfa
         1, &barrier);
 }
 
-void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* backend, khandle renderer_texture_handle, texture_flag_bits flags) {
+void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* backend, khandle renderer_texture_handle, ktexture_flag_bits flags) {
     // Cold-cast the context
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
@@ -1610,7 +1593,7 @@ void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* ba
 
     // If a per-frame texture, get the appropriate image index. Otherwise it's just the first one.
     vulkan_image* image = tex_internal->image_count == 1 ? &tex_internal->images[0] : &tex_internal->images[image_index];
-    b8 is_depth = FLAG_GET(image->flags, TEXTURE_FLAG_DEPTH);
+    b8 is_depth = FLAG_GET(image->flags, KTEXTURE_FLAG_DEPTH);
     // b8 is_stencil = FLAG_GET(image->flags, TEXTURE_FLAG_STENCIL);
 
     VkImageAspectFlags aspect_flags = 0;
@@ -1753,7 +1736,7 @@ static VkFormat channel_count_to_format(u8 channel_count, VkFormat default_forma
     }
 }
 
-b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle) {
+b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, const char* name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_renderer_texture_handle) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
 
     if (!context->textures) {
@@ -1784,14 +1767,14 @@ b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend
         texture_data = &context->textures[texture_count];
     }
 
-    if (flags & TEXTURE_FLAG_IS_WRAPPED) {
+    if (flags & KTEXTURE_FLAG_IS_WRAPPED) {
         // If the texure is considered "wrapped" (i.e. internal resources are created somwhere else,
         // such as swapchain images), then nothing further is required. Just return the handle.
         return true;
     }
 
     // Internal data creation.
-    if (flags & TEXTURE_FLAG_RENDERER_BUFFERING) {
+    if (flags & KTEXTURE_FLAG_RENDERER_BUFFERING) {
         // Need to generate enough images to support triple-buffering.
         texture_data->image_count = VULKAN_RESOURCE_IMAGE_COUNT;
     } else {
@@ -1802,8 +1785,8 @@ b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend
     VkImageUsageFlagBits usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     VkImageAspectFlagBits aspect = 0;
     VkFormat image_format;
-    b8 is_depth = FLAG_GET(flags, TEXTURE_FLAG_DEPTH);
-    b8 is_stencil = FLAG_GET(flags, TEXTURE_FLAG_STENCIL);
+    b8 is_depth = FLAG_GET(flags, KTEXTURE_FLAG_DEPTH);
+    b8 is_stencil = FLAG_GET(flags, KTEXTURE_FLAG_STENCIL);
     if (is_depth || is_stencil) {
         usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         if (is_depth) {
@@ -2112,10 +2095,10 @@ static void calculate_sorted_indices(vulkan_shader_frequency_info* frequency_inf
     kquick_sort(sizeof(u32), frequency_info->sorted_indices, 0, count - 1, kquicksort_compare_u32);
 }
 
-b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle shader, const kresource_shader* shader_resource) {
+b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms) {
     // Verify stage support before anything else.
-    for (u8 i = 0; i < shader_resource->stage_count; ++i) {
-        switch (shader_resource->stage_configs[i].stage) {
+    for (u8 i = 0; i < stage_count; ++i) {
+        switch (stages[i]) {
         case SHADER_STAGE_FRAGMENT:
         case SHADER_STAGE_VERTEX:
             break;
@@ -2126,7 +2109,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
             KWARN("vulkan_renderer_shader_create: SHADER_STAGE_COMPUTE is set but not yet supported.");
             break;
         default:
-            KERROR("Unsupported stage type: %d", shader_stage_to_string(shader_resource->stage_configs[i].stage));
+            KERROR("Unsupported stage type: %d", shader_stage_to_string(stages[i]));
             break;
         }
     }
@@ -2140,10 +2123,10 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     // Setup the internal shader.
     internal_shader->per_draw_push_constant_block = kallocate(128, MEMORY_TAG_RENDERER);
 
-    internal_shader->stage_count = shader_resource->stage_count;
-    internal_shader->flags = shader_resource->flags;
-    internal_shader->topology_types = shader_resource->topology_types;
-    internal_shader->name = shader_resource->base.name;
+    internal_shader->stage_count = stage_count;
+    internal_shader->flags = flags;
+    internal_shader->topology_types = topology_types;
+    internal_shader->name = name;
 
     // Count up uniform/sampler/textures and UBO sizes.
     kzero_memory(&internal_shader->per_frame_info, sizeof(vulkan_shader_frequency_info));
@@ -2162,10 +2145,10 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     internal_shader->per_draw_info.bound_id = INVALID_ID;
 
     // Process uniforms.
-    internal_shader->uniform_count = shader_resource->uniform_count;
+    internal_shader->uniform_count = uniform_count;
     internal_shader->uniforms = KALLOC_TYPE_CARRAY(shader_uniform, internal_shader->uniform_count);
-    for (u32 i = 0; i < shader_resource->uniform_count; ++i) {
-        shader_uniform_config* u_config = &shader_resource->uniforms[i];
+    for (u32 i = 0; i < uniform_count; ++i) {
+        const shader_uniform* u_config = &d_uniforms[i];
         b8 is_sampler = uniform_type_is_sampler(u_config->type);
         b8 is_texture = uniform_type_is_texture(u_config->type);
         vulkan_shader_frequency_info* info = 0;
@@ -2223,8 +2206,8 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     internal_shader->per_frame_info.ubo_stride = get_aligned(internal_shader->per_frame_info.ubo_size, context->device.properties.limits.minUniformBufferOffsetAlignment);
     internal_shader->per_group_info.ubo_stride = get_aligned(internal_shader->per_group_info.ubo_size, context->device.properties.limits.minUniformBufferOffsetAlignment);
 
-    internal_shader->max_groups = shader_resource->max_groups;
-    internal_shader->max_per_draw_count = shader_resource->max_per_draw_count;
+    internal_shader->max_groups = max_groups;
+    internal_shader->max_per_draw_count = max_draw_ids;
 
     // Need a max of VULKAN_SHADER_DESCRIPTOR_SET_LAYOUT_COUNT descriptor sets, one per shader update frequency.
     // Note that this can mean that only one (or potentially none) exist as well.
@@ -2241,17 +2224,17 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     // Calculate the total number of descriptors needed.
     // Get a count of sampler descriptors needed.
     u32 per_frame_sampler_count = internal_shader->per_frame_info.uniform_sampler_count * VULKAN_RESOURCE_IMAGE_COUNT;
-    u32 per_group_sampler_count = shader_resource->max_groups * internal_shader->per_group_info.uniform_sampler_count * VULKAN_RESOURCE_IMAGE_COUNT;
-    u32 per_draw_sampler_count = shader_resource->max_per_draw_count * internal_shader->per_draw_info.uniform_sampler_count * VULKAN_RESOURCE_IMAGE_COUNT;
+    u32 per_group_sampler_count = internal_shader->max_groups * internal_shader->per_group_info.uniform_sampler_count * VULKAN_RESOURCE_IMAGE_COUNT;
+    u32 per_draw_sampler_count = internal_shader->max_per_draw_count * internal_shader->per_draw_info.uniform_sampler_count * VULKAN_RESOURCE_IMAGE_COUNT;
     u32 max_sampler_count = per_frame_sampler_count + per_group_sampler_count + per_draw_sampler_count;
     // Get a count of image descriptors needed.
     u32 per_frame_image_count = internal_shader->per_frame_info.uniform_texture_count * VULKAN_RESOURCE_IMAGE_COUNT;
-    u32 per_group_image_count = shader_resource->max_groups * internal_shader->per_group_info.uniform_texture_count * VULKAN_RESOURCE_IMAGE_COUNT;
-    u32 per_draw_image_count = shader_resource->max_per_draw_count * internal_shader->per_draw_info.uniform_texture_count * VULKAN_RESOURCE_IMAGE_COUNT;
+    u32 per_group_image_count = internal_shader->max_groups * internal_shader->per_group_info.uniform_texture_count * VULKAN_RESOURCE_IMAGE_COUNT;
+    u32 per_draw_image_count = internal_shader->max_per_draw_count * internal_shader->per_draw_info.uniform_texture_count * VULKAN_RESOURCE_IMAGE_COUNT;
     u32 max_image_count = per_frame_image_count + per_group_image_count + per_draw_image_count;
     // Get a count of uniform buffer descriptors needed.
     u32 per_frame_ubo_count = (internal_shader->per_frame_info.uniform_count ? 1 : 0) * VULKAN_RESOURCE_IMAGE_COUNT;
-    u32 per_group_ubo_count = (internal_shader->per_group_info.uniform_count ? 1 : 0) * shader_resource->max_groups * VULKAN_RESOURCE_IMAGE_COUNT;
+    u32 per_group_ubo_count = (internal_shader->per_group_info.uniform_count ? 1 : 0) * max_groups * VULKAN_RESOURCE_IMAGE_COUNT;
     u32 per_draw_ubo_count = 0; // NOTE: this is 0 because per_draw ubo is handled as a push constant.
     u32 max_ubo_count = per_frame_ubo_count + per_group_ubo_count + per_draw_ubo_count;
 
@@ -2279,7 +2262,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     if (has_per_frame) {
         vulkan_descriptor_set_config* set_config = &internal_shader->descriptor_set_configs[internal_shader->descriptor_set_count];
 
-        setup_frequency_descriptors(true, &internal_shader->per_frame_info, set_config, shader_resource);
+        setup_frequency_descriptors(true, &internal_shader->per_frame_info, set_config, internal_shader->uniforms);
 
         // Increment the set counter.
         internal_shader->descriptor_set_count++;
@@ -2290,7 +2273,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
         // In that set, add a binding for UBO if used.
         vulkan_descriptor_set_config* set_config = &internal_shader->descriptor_set_configs[internal_shader->descriptor_set_count];
 
-        setup_frequency_descriptors(true, &internal_shader->per_group_info, set_config, shader_resource);
+        setup_frequency_descriptors(true, &internal_shader->per_group_info, set_config, internal_shader->uniforms);
 
         // Increment the set counter.
         internal_shader->descriptor_set_count++;
@@ -2301,7 +2284,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
         // In that set, add a binding for UBO if used.
         vulkan_descriptor_set_config* set_config = &internal_shader->descriptor_set_configs[internal_shader->descriptor_set_count];
 
-        setup_frequency_descriptors(false, &internal_shader->per_draw_info, set_config, shader_resource);
+        setup_frequency_descriptors(false, &internal_shader->per_draw_info, set_config, internal_shader->uniforms);
 
         // Increment the set counter.
         internal_shader->descriptor_set_count++;
@@ -2328,12 +2311,12 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     }
 
     // Keep a copy of the cull mode.
-    internal_shader->cull_mode = shader_resource->cull_mode;
+    internal_shader->cull_mode = cull_mode;
 
     b8 needs_wireframe = (internal_shader->flags & SHADER_FLAG_WIREFRAME_BIT) != 0;
     // Determine if the implementation supports this and set to false if not.
     if (!context->device.features.fillModeNonSolid) {
-        KINFO("Renderer backend does not support fillModeNonSolid. Wireframe mode is not possible, but was requested for the shader '%s'.", kname_string_get(shader_resource->base.name));
+        KINFO("Renderer backend does not support fillModeNonSolid. Wireframe mode is not possible, but was requested for the shader '%s'.", kname_string_get(name));
         needs_wireframe = false;
     }
 
@@ -2355,7 +2338,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     }
 
     // Process attributes
-    internal_shader->attribute_count = shader_resource->attribute_count;
+    internal_shader->attribute_count = attribute_count;
     u32 offset = 0;
     for (u32 i = 0; i < internal_shader->attribute_count; ++i) {
         // Setup the new attribute.
@@ -2363,13 +2346,13 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
         attribute.location = i;
         attribute.binding = 0;
         attribute.offset = offset;
-        attribute.format = types[shader_resource->attributes[i].type];
+        attribute.format = types[attributes[i].type];
 
         // Push into the config's attribute collection and add to the stride.
         internal_shader->attributes[i] = attribute;
 
-        offset += shader_resource->attributes[i].size;
-        internal_shader->attribute_stride += shader_resource->attributes[i].size;
+        offset += attributes[i].size;
+        internal_shader->attribute_stride += attributes[i].size;
     }
 
     // Descriptor pool.
@@ -2389,7 +2372,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
         return false;
     }
 
-    char* desc_pool_name = string_format("desc_pool_shader_%s", kname_string_get(shader_resource->base.name));
+    char* desc_pool_name = string_format("desc_pool_shader_%s", kname_string_get(name));
     VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_DESCRIPTOR_POOL, internal_shader->descriptor_pool, desc_pool_name);
     string_free(desc_pool_name);
 
@@ -2423,7 +2406,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
 
     // Create one pipeline per topology class.
     // Point class.
-    if (shader_resource->topology_types & PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT) {
+    if (internal_shader->topology_types & PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT) {
         internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_POINT] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
         // Set the supported types for this class.
         internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_POINT]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT;
@@ -2437,7 +2420,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     }
 
     // Line class.
-    if (shader_resource->topology_types & PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT || shader_resource->topology_types & PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP_BIT) {
+    if (internal_shader->topology_types & PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT || internal_shader->topology_types & PRIMITIVE_TOPOLOGY_TYPE_LINE_STRIP_BIT) {
         internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_LINE] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
         // Set the supported types for this class.
         internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_LINE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT;
@@ -2453,9 +2436,9 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     }
 
     // Triangle class.
-    if (shader_resource->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT ||
-        shader_resource->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP_BIT ||
-        shader_resource->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN_BIT) {
+    if (internal_shader->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT ||
+        internal_shader->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_STRIP_BIT ||
+        internal_shader->topology_types & PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_FAN_BIT) {
         internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_TRIANGLE] = kallocate(sizeof(vulkan_pipeline), MEMORY_TAG_VULKAN);
         // Set the supported types for this class.
         internal_shader->pipelines[VULKAN_TOPOLOGY_CLASS_TRIANGLE]->supported_topology_types |= PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
@@ -2472,8 +2455,8 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
         }
     }
 
-    if (!shader_create_modules_and_pipelines(backend, internal_shader, shader_resource->stage_count, shader_resource->stage_configs)) {
-        KERROR("Failed initial load on shader '%s'. See logs for details.", kname_string_get(shader_resource->base.name));
+    if (!shader_create_modules_and_pipelines(backend, internal_shader, internal_shader->stage_count, stages, stage_names, stage_sources)) {
+        KERROR("Failed initial load on shader '%s'. See logs for details.", kname_string_get(internal_shader->name));
         return false;
     }
 
@@ -2544,7 +2527,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     // Uniform  buffers, one per swapchain image.
     u64 total_buffer_size = internal_shader->per_frame_info.ubo_stride + (internal_shader->per_group_info.ubo_stride * internal_shader->max_groups);
     for (u32 i = 0; i < VULKAN_RESOURCE_IMAGE_COUNT; ++i) {
-        const char* buffer_name = string_format("renderbuffer_uniform_%s_idx_%d", kname_string_get(shader_resource->base.name), i);
+        const char* buffer_name = string_format("renderbuffer_uniform_%s_idx_%d", kname_string_get(internal_shader->name), i);
         if (!renderer_renderbuffer_create(buffer_name, RENDERBUFFER_TYPE_UNIFORM, total_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, &internal_shader->uniform_buffers[i])) {
             KERROR("Vulkan buffer creation failed for object shader.");
             string_free(buffer_name);
@@ -2678,9 +2661,9 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, khandle
     }
 }
 
-b8 vulkan_renderer_shader_reload(renderer_backend_interface* backend, khandle shader, u32 shader_stage_count, shader_stage_config* shader_stages) {
+b8 vulkan_renderer_shader_reload(renderer_backend_interface* backend, khandle shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    return shader_create_modules_and_pipelines(backend, &context->shaders[shader.handle_index], shader_stage_count, shader_stages);
+    return shader_create_modules_and_pipelines(backend, &context->shaders[shader.handle_index], stage_count, stages, names, sources);
 }
 
 b8 vulkan_renderer_shader_use(renderer_backend_interface* backend, khandle shader) {
@@ -3090,7 +3073,8 @@ b8 vulkan_renderer_shader_uniform_set(renderer_backend_interface* backend, khand
     }
 
     if (uniform_type_is_texture(uniform->type)) {
-        kresource_texture* tex_value = (kresource_texture*)value;
+        ktexture tex_value = *(ktexture*)value;
+        khandle tex_handle = texture_renderer_handle_get(tex_value);
 
         for (u32 i = 0; i < frequency_info->uniform_texture_count; ++i) {
             vulkan_uniform_texture_state* texture_state = &frequency_state->texture_states[i];
@@ -3104,7 +3088,7 @@ b8 vulkan_renderer_shader_uniform_set(renderer_backend_interface* backend, khand
                 if (!texture_state->texture_handles) {
                     KFATAL("Textures array not setup. Check implementation.");
                 }
-                texture_state->texture_handles[array_index] = tex_value->renderer_texture_handle;
+                texture_state->texture_handles[array_index] = tex_handle;
                 return true;
             }
         }
@@ -4440,7 +4424,7 @@ static void destroy_shader_frequency_states(shader_update_frequency frequency, v
     }
 }
 
-static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backend, vulkan_shader* internal_shader, u8 stage_count, shader_stage_config* stage_configs) {
+static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backend, vulkan_shader* internal_shader, u8 stage_count, shader_stage* stages, kname* names, const char** sources) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
 
@@ -4463,9 +4447,8 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
     // Create a module for each stage.
     vulkan_shader_stage new_stages[VULKAN_SHADER_MAX_STAGES] = {0};
     for (u32 i = 0; i < internal_shader->stage_count; ++i) {
-        shader_stage_config* sc = &stage_configs[i];
-        if (!create_shader_module(context, internal_shader, sc->stage, sc->resource->text, kname_string_get(sc->resource_name), &new_stages[i])) {
-            KERROR("Unable to create %s shader module for '%s'. Shader will be destroyed.", kname_string_get(stage_configs[i].resource_name), kname_string_get(internal_shader->name));
+        if (!create_shader_module(context, internal_shader, stages[i], sources[i], kname_string_get(names[i]), &new_stages[i])) {
+            KERROR("Unable to create %s shader module for '%s'. Shader will be destroyed.", kname_string_get(names[i]), kname_string_get(internal_shader->name));
             has_error = true;
             goto shader_module_pipeline_cleanup;
         }
@@ -4524,11 +4507,6 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
         flags &= ~(SHADER_FLAG_WIREFRAME_BIT);
         pipeline_config.shader_flags = flags;
 
-        // skybox
-        if (internal_shader->name == 8288729406296736979) {
-            KTRACE("skybox shader"); // nocheckin
-        }
-
         // NOTE: Always one block for the push constant, unless there is no per-draw UBO uniforms.
         krange push_constant_range;
         if (internal_shader->per_draw_info.ubo_size) {
@@ -4579,7 +4557,7 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
             pipeline_result = vulkan_graphics_pipeline_create(context, &pipeline_config, &new_wireframe_pipelines[i]);
         }
 
-        kfree(pipeline_config.name, string_length(pipeline_config.name) + 1, MEMORY_TAG_STRING);
+        string_free(pipeline_config.name);
 
         if (!pipeline_result) {
             KERROR("Failed to load graphics pipeline for shader: '%s'.", kname_string_get(internal_shader->name));
@@ -4632,7 +4610,7 @@ shader_module_pipeline_cleanup:
     return !has_error;
 }
 
-static void setup_frequency_descriptors(b8 do_ubo, vulkan_shader_frequency_info* frequency_info, vulkan_descriptor_set_config* set_config, const kresource_shader* config) {
+static void setup_frequency_descriptors(b8 do_ubo, vulkan_shader_frequency_info* frequency_info, vulkan_descriptor_set_config* set_config, const shader_uniform* uniforms) {
 
     // Total bindings are 1 UBO for per_frame (if needed), plus per_frame sampler count.
     // This is dynamically allocated now.
@@ -4660,7 +4638,7 @@ static void setup_frequency_descriptors(b8 do_ubo, vulkan_shader_frequency_info*
 
         // Traverse the sorted list.
         for (u32 i = 0; i < sampler_and_image_count; ++i) {
-            shader_uniform_config* u = &config->uniforms[frequency_info->sorted_indices[i]];
+            const shader_uniform* u = &uniforms[frequency_info->sorted_indices[i]];
             VkDescriptorType type = uniform_type_is_texture(u->type) ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_SAMPLER;
             set_config->bindings[frequency_binding_index].binding = frequency_binding_index;
             set_config->bindings[frequency_binding_index].descriptorCount = KMAX(u->array_length, 1); // Either treat as an array or a single texture, depending on what is passed in.
@@ -4954,7 +4932,7 @@ static void* vulkan_alloc_reallocation(
     size_t alignment,
     VkSystemAllocationScope allocation_scope) {
     if (!original) {
-        return vulkan_alloc_allocation(user_data, size, alignment, allocation_scope);
+        return kallocate_aligned(size, (u16)alignment, MEMORY_TAG_VULKAN);
     }
 
     if (size == 0) {
@@ -4984,14 +4962,15 @@ static void* vulkan_alloc_reallocation(
     KTRACE("Attempting to realloc block %p...", original);
 #    endif
 
-    void* result = vulkan_alloc_allocation(user_data, size, original_alloc_alignment, allocation_scope);
-    if (result) {
+    void* result = kallocate_aligned(size, (u16)alignment, MEMORY_TAG_VULKAN);
+    /* void* result = vulkan_alloc_allocation(user_data, size, original_alloc_alignment, allocation_scope); */
+    if (result && original) {
 #    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Block %p reallocated to %p, copying data...", original, result);
 #    endif
 
         // Copy over the original memory.
-        kcopy_memory(result, original, KMIN(size, original_alloc_size) - 1);
+        kcopy_memory(result, original, KMIN(size, original_alloc_size));
 #    ifdef KVULKAN_ALLOCATOR_TRACE
         KTRACE("Freeing original aligned block %p...", original);
 #    endif

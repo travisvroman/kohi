@@ -1,6 +1,7 @@
 #ifndef _KOHI_APPLICATION_CONFIG_H_
 #define _KOHI_APPLICATION_CONFIG_H_
 
+#include "strings/kname.h"
 #include <defines.h>
 #include <math/math_types.h>
 
@@ -67,6 +68,12 @@ typedef struct application_config {
 
     /** @brief The asset manifest file path. */
     const char* manifest_file_path;
+
+    /** @brief The name of the default package to be used when loading assets, if one is not provided. */
+    const char* default_package_name_str;
+
+    /** @brief The name of the default package to be used when loading assets, if one is not provided. */
+    kname default_package_name;
 } application_config;
 
 /**

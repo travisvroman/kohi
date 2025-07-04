@@ -1,6 +1,7 @@
 #include "memory/kmemory.h"
 
 #include "debug/kassert.h"
+#include "defines.h"
 #include "logger.h"
 #include "memory/allocators/dynamic_allocator.h"
 #include "platform/platform.h"
@@ -10,7 +11,7 @@
 // TODO: Custom string lib
 #include <stdio.h>
 #include <string.h>
-
+// NOTE: If this is disabled, C11 must be used to enable aligned_alloc.
 #define K_USE_CUSTOM_MEMORY_ALLOCATOR 1
 
 #if !K_USE_CUSTOM_MEMORY_ALLOCATOR
@@ -118,6 +119,7 @@ b8 memory_system_initialize(memory_system_configuration config) {
     }
 #else
     state_ptr = kaligned_alloc(sizeof(memory_system_state), 16);
+    kzero_memory(state_ptr, sizeof(memory_system_state));
     state_ptr->config = config;
     state_ptr->alloc_count = 0;
     state_ptr->allocator_memory_requirement = 0;
@@ -158,6 +160,8 @@ void* kallocate_aligned(u64 size, u16 alignment, memory_tag tag) {
     if (tag == MEMORY_TAG_UNKNOWN) {
         KWARN("kallocate_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
+
+    /* size = get_aligned(size, alignment); */
 
     // Either allocate from the system's allocator or the OS. The latter shouldn't ever
     // really happen.
@@ -233,6 +237,10 @@ void kfree(void* block, u64 size, memory_tag tag) {
 }
 
 void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
+    if (!block) {
+        KFATAL("%s tried to free null block of memory. Check application logic.", __FUNCTION__);
+        return;
+    }
     if (tag == MEMORY_TAG_UNKNOWN) {
         KWARN("kfree_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
@@ -242,6 +250,8 @@ void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
             KFATAL("Unable to obtain mutex lock for free operation. Heap corruption is likely.");
             return;
         }
+
+        /* size = get_aligned(size, alignment); */
 
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
         u64 osize = 0;
@@ -349,7 +359,7 @@ char* get_memory_usage_str(void) {
             get_unit_for_size(state_ptr->stats.new_tagged_allocations[i], &amounts[1]),
             get_unit_for_size(state_ptr->stats.new_tagged_deallocations[i], &amounts[2])};
 
-        i32 length = snprintf(buffer + offset, 8000, "  %s: %-7.2f %-3s [+ %-7.2f %-3s | - %-7.2f%-3s]\n",
+        i32 length = snprintf(buffer + offset, 8000 - offset, "  %s: %-7.2f %-3s [+ %-7.2f %-3s | - %-7.2f%-3s]\n",
                               memory_tag_strings[i],
                               amounts[0], units[0], amounts[1], units[1], amounts[2], units[2]);
         offset += length;

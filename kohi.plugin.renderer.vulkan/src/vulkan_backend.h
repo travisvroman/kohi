@@ -15,7 +15,6 @@
 
 #include "core_render_types.h"
 #include "identifiers/khandle.h"
-#include "kresources/kresource_types.h"
 #include "renderer/renderer_types.h"
 
 struct shader_uniform;
@@ -66,9 +65,9 @@ void vulkan_renderer_clear_stencil_set(renderer_backend_interface* backend, u32 
 void vulkan_renderer_clear_colour_texture(renderer_backend_interface* backend, khandle texture_handle);
 void vulkan_renderer_clear_depth_stencil(renderer_backend_interface* backend, khandle texture_handle);
 void vulkan_renderer_colour_texture_prepare_for_present(renderer_backend_interface* backend, khandle texture_handle);
-void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* backend, khandle texture_handle, texture_flag_bits flags);
+void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* backend, khandle texture_handle, ktexture_flag_bits flags);
 
-b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, const char* name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_texture_handle);
+b8 vulkan_renderer_texture_resources_acquire(renderer_backend_interface* backend, const char* name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_texture_handle);
 void vulkan_renderer_texture_resources_release(renderer_backend_interface* backend, khandle* texture_handle);
 
 b8 vulkan_renderer_texture_resize(renderer_backend_interface* backend, khandle texture_handle, u32 new_width, u32 new_height);
@@ -76,10 +75,10 @@ b8 vulkan_renderer_texture_write_data(renderer_backend_interface* backend, khand
 b8 vulkan_renderer_texture_read_data(renderer_backend_interface* backend, khandle texture_handle, u32 offset, u32 size, u8** out_pixels);
 b8 vulkan_renderer_texture_read_pixel(renderer_backend_interface* backend, khandle texture_handle, u32 x, u32 y, u8** out_rgba);
 
-b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle shader, const kresource_shader* shader_resource);
+b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms);
 void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, khandle shader);
 
-b8 vulkan_renderer_shader_reload(renderer_backend_interface* backend, khandle shader, u32 shader_stage_count, shader_stage_config* shader_stages);
+b8 vulkan_renderer_shader_reload(renderer_backend_interface* backend, khandle shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources);
 b8 vulkan_renderer_shader_use(renderer_backend_interface* backend, khandle shader);
 b8 vulkan_renderer_shader_supports_wireframe(const renderer_backend_interface* backend, const khandle s);
 b8 vulkan_renderer_shader_flag_get(const renderer_backend_interface* backend, khandle shader, shader_flags flag);

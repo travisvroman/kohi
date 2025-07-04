@@ -46,6 +46,7 @@
 // TODO: Editor temp
 #include "editor/editor_gizmo.h"
 #include "editor/editor_gizmo_rendergraph_node.h"
+#include "systems/asset_system.h"
 #include <resources/debug/debug_box3d.h>
 #include <resources/debug/debug_line3d.h>
 #include <resources/water_plane.h>
@@ -77,7 +78,6 @@
 #include "renderer/rendergraph_nodes/shadow_rendergraph_node.h"
 #include "rendergraph_nodes/ui_rendergraph_node.h"
 #include "strings/kname.h"
-#include "systems/kresource_system.h"
 #include "systems/plugin_system.h"
 #include "systems/timeline_system.h"
 #include "testbed.klib_version.h"
@@ -473,8 +473,8 @@ b8 application_initialize(struct application* game_inst) {
         if (strings_equali("forward_graph", rg_config->name)) {
             // Get colourbuffer and depthbuffer from the currently active window.
             kwindow* current_window = engine_active_window_get();
-            kresource_texture* global_colourbuffer = current_window->renderer_state->colourbuffer;
-            kresource_texture* global_depthbuffer = current_window->renderer_state->depthbuffer;
+            ktexture global_colourbuffer = current_window->renderer_state->colourbuffer;
+            ktexture global_depthbuffer = current_window->renderer_state->depthbuffer;
 
             // Create the rendergraph.
             if (!rendergraph_create(rg_config->configuration_str, global_colourbuffer, global_depthbuffer, &state->forward_graph)) {
@@ -698,17 +698,13 @@ b8 application_initialize(struct application* game_inst) {
     // Audio tests
 
     // Load up a test audio file.
-    if (!kaudio_acquire(state->audio_system, kname_create("Test_Audio"), kname_create("Testbed"), false, KAUDIO_SPACE_2D, &state->test_sound)) {
-        KERROR("Failed to load test audio file.");
-    }
+    state->test_sound = kaudio_acquire_from_package(state->audio_system, kname_create("Test_Audio"), kname_create("Testbed"), false, KAUDIO_SPACE_2D);
     /* // Looping audio file.
     if (!kaudio_acquire(state->audio_system, kname_create("Fire_loop"), kname_create("Testbed"), false, &state->test_loop_sound)) {
         KERROR("Failed to load test looping audio file.");
     } */
     // Test music
-    if (!kaudio_acquire(state->audio_system, kname_create("Woodland Fantasy"), kname_create("Testbed"), true, KAUDIO_SPACE_2D, &state->test_music)) {
-        KERROR("Failed to load test music file.");
-    }
+    state->test_music = kaudio_acquire_from_package(state->audio_system, kname_create("Woodland Fantasy"), kname_create("Testbed"), true, KAUDIO_SPACE_2D);
 
     // Setup a test emitter.
     /* state->test_emitter.file = state->test_loop_sound;
@@ -956,7 +952,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
     }
 
     // TODO: Anything to do here?
-    // FIXME: Cache this instead of looking up every frame. // nocheckin
+    // FIXME: Cache this instead of looking up every frame.
     u32 node_count = state->forward_graph.node_count;
     for (u32 i = 0; i < node_count; ++i) {
         rendergraph_node* node = &state->forward_graph.nodes[i];
@@ -1019,7 +1015,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 // HACK: #2 Support for multiple skyboxes, but using the first one for now.
                 // DOUBLE HACK!!!
                 // TODO: Support multiple skyboxes/irradiance maps.
-                forward_rendergraph_node_irradiance_texture_set(node, p_frame_data, scene->skyboxes ? scene->skyboxes[0].cubemap : texture_system_request(kname_create(DEFAULT_CUBE_TEXTURE_NAME), INVALID_KNAME, 0, 0));
+                forward_rendergraph_node_irradiance_texture_set(node, p_frame_data, scene->skyboxes ? scene->skyboxes[0].cubemap : texture_acquire_sync(kname_create(DEFAULT_CUBE_TEXTURE_NAME)));
 
                 // Camera frustum culling and count
                 viewport* v = current_viewport;
@@ -1504,17 +1500,8 @@ void application_unregister_events(struct application* game_inst) {
 static b8 load_main_scene(struct application* game_inst) {
     application_state* state = (application_state*)game_inst->state;
 
-    kresource_scene_request_info request_info = {0};
-    request_info.base.type = KRESOURCE_TYPE_SCENE;
-    request_info.base.synchronous = true; // HACK: use a callback instead.
-    request_info.base.assets = array_kresource_asset_info_create(1);
-    kresource_asset_info* asset = &request_info.base.assets.data[0];
-    asset->type = KASSET_TYPE_SCENE;
-    asset->asset_name = kname_create("test_scene");
-    asset->package_name = kname_create("Testbed");
-
-    kresource_scene* scene_resource = (kresource_scene*)kresource_system_request(engine_systems_get()->kresource_state, kname_create("test_scene"), (kresource_request_info*)&request_info);
-    if (!scene_resource) {
+    kasset_scene* scene_asset = asset_system_request_scene_sync(engine_systems_get()->asset_state, "test_scene");
+    if (!scene_asset) {
         KERROR("Failed to request scene resource. See logs for details.");
         return false;
     }
@@ -1534,7 +1521,7 @@ static b8 load_main_scene(struct application* game_inst) {
     // Create the scene.
     scene_flags scene_load_flags = 0;
     /* scene_load_flags |= SCENE_FLAG_READONLY;  // NOTE: to enable "editor mode", turn this flag off. */
-    if (!scene_create(scene_resource, scene_load_flags, &state->main_scene)) {
+    if (!scene_create(scene_asset, scene_load_flags, &state->main_scene)) {
         KERROR("Failed to create main scene");
         return false;
     }

@@ -1,13 +1,12 @@
 #pragma once
 
-#include "defines.h"
-#include "identifiers/identifier.h"
-#include "kresources/kresource_types.h"
-#include "math/math_types.h"
-#include "resources/resource_types.h"
-#include "strings/kname.h"
-#include "systems/material_system.h"
+#include <assets/kasset_types.h>
+#include <defines.h>
+#include <identifiers/identifier.h>
+#include <math/math_types.h>
+#include <strings/kname.h>
 
+#include "resources/resource_types.h"
 /*
 Need to modify the geometry structure/functions to allow for multiple materials.
 Write shader to handle 8 material weights/blending
@@ -84,7 +83,7 @@ typedef struct terrain {
     u32 generation;
     terrain_state state;
     kname name;
-    kresource_heightmap_terrain* terrain_resource;
+    kasset_heightmap_terrain* asset;
     kname material_name;
     u32 tile_count_x;
     u32 tile_count_z;
@@ -116,7 +115,7 @@ typedef struct terrain {
     kname* material_names;
 } terrain;
 
-KAPI b8 terrain_create(kresource_heightmap_terrain* terrain_resource, terrain* out_terrain);
+KAPI b8 terrain_create(kasset_heightmap_terrain* asset, terrain* out_terrain);
 KAPI void terrain_destroy(terrain* t);
 
 KAPI b8 terrain_initialize(terrain* t);
