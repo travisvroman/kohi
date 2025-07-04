@@ -760,9 +760,8 @@ const char* platform_dynamic_library_prefix(void) {
     return "lib";
 }
 
-void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback, void* context) {
-    state_ptr->watcher_deleted_callback = callback;
-    state_ptr->watcher_deleted_context = context;
+void platform_register_window_closed_callback(platform_window_closed_callback callback) {
+    state_ptr->window_closed_callback = callback;
 }
 
 void platform_register_window_resized_callback(platform_window_resized_callback callback) {
