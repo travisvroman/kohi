@@ -1,5 +1,6 @@
 #pragma once
 
+#include "assets/kasset_types.h"
 #include "audio/kaudio_types.h"
 #include "core_resource_types.h"
 #include "defines.h"
@@ -122,7 +123,7 @@ typedef struct scene {
     scene_attachment* audio_emitter_attachments;
 
     // darray of static meshes.
-    static_mesh_instance* static_meshes;
+    kstatic_mesh_instance* static_meshes;
     // Array of scene attachments for meshes.
     scene_attachment* mesh_attachments;
     // Array of mesh metadata.
@@ -163,7 +164,7 @@ typedef struct scene {
     debug_grid grid;
 
     // A pointer to the scene configuration resource.
-    kresource_scene* config;
+    kasset_scene* config;
 
     hierarchy_graph hierarchy;
 
@@ -186,7 +187,7 @@ typedef struct scene {
  * @param out_scene A pointer to hold the newly created scene. Required.
  * @return True on success; otherwise false.
  */
-KAPI b8 scene_create(kresource_scene* config, scene_flags flags, scene* out_scene);
+KAPI b8 scene_create(kasset_scene* config, scene_flags flags, scene* out_scene);
 
 /**
  * @brief Performs initialization routines on the scene, including processing

@@ -179,7 +179,7 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 // iOS device
 #    elif TARGET_OS_MAC
 // HACK: Should probably be in the Vulkan Renderer lib, not here.
-#define VK_USE_PLATFORM_MACOS_MVK
+#        define VK_USE_PLATFORM_MACOS_MVK
 // Other kinds of Mac OS
 #    else
 #        error "Unknown Apple platform"
@@ -212,6 +212,14 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #else
 #    define KOHI_RELEASE 1
 #    define KOHI_DEBUG 0
+#endif
+
+// Feature build flags.
+
+#if KOHI_DEBUG
+#    define KOHI_HOT_RELOAD 1
+#else
+#    define KOHI_HOT_RELOAD 0
 #endif
 
 /**

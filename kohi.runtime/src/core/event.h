@@ -232,8 +232,9 @@ typedef enum system_event_code {
      */
     EVENT_CODE_KVAR_CHANGED = 0x22,
 
+#if KOHI_HOT_RELOAD
     /**
-     * @brief An event fired when a watched asset file has been written to.
+     * @brief An event fired from the asset system when a watched asset file has been written to.
      * Context usage:
      * u32 watch_id = context.data.u32[0];
      * kasset* = sender;
@@ -241,20 +242,22 @@ typedef enum system_event_code {
     EVENT_CODE_ASSET_HOT_RELOADED = 0x23,
 
     /**
-     * @brief An event fired when a watched asset file has been removed.
+     * @brief An event fired when a watched file has written to disk.
      * Context usage:
      * u32 watch_id = context.data.u32[0];
      * vfs_asset_data* = sender
      */
-    EVENT_CODE_ASSET_DELETED_FROM_DISK = 0x24,
+    EVENT_CODE_VFS_FILE_WRITTEN_TO_DISK = 0x24,
 
     /**
-     * @brief An event fired when one of a resource's assets has been hot-reloaded.
+     * @brief An event fired when a watched file has been removed from disk.
+     * No asset data is included (obviously)
      * Context usage:
      * u32 watch_id = context.data.u32[0];
-     * The sender should be a pointer to the resource whose asset which was hot-reloaded and processed.
      */
-    EVENT_CODE_RESOURCE_HOT_RELOADED = 0x25,
+    EVENT_CODE_VFS_FILE_DELETED_FROM_DISK = 0x25,
+
+#endif
 
     /**
      * @brief An event fired while a button is being held down and the

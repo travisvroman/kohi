@@ -183,3 +183,43 @@ const void* filesystem_read_entire_binary_file(const char* filepath, u64* out_si
 
     return buf;
 }
+
+b8 filesystem_write_entire_text_file(const char* filepath, const char* content) {
+    file_handle f;
+    if (!filesystem_open(filepath, FILE_MODE_WRITE, false, &f)) {
+        return false;
+    }
+    b8 success = false;
+
+    u64 data_size = string_length(content);
+
+    u64 bytes_written = 0;
+    if (!filesystem_write(&f, data_size, content, &bytes_written)) {
+        KERROR("%s: Failed to write file. See logs for details.", __FUNCTION__);
+        goto filesystem_write_entire_text_file_cleanup;
+    }
+
+    success = true;
+filesystem_write_entire_text_file_cleanup:
+    filesystem_close(&f);
+    return success;
+}
+
+b8 filesystem_write_entire_binary_file(const char* filepath, u64 size, const void* content) {
+    file_handle f;
+    if (!filesystem_open(filepath, FILE_MODE_WRITE, true, &f)) {
+        return false;
+    }
+    b8 success = false;
+
+    u64 bytes_written = 0;
+    if (!filesystem_write(&f, size, content, &bytes_written)) {
+        KERROR("%s: Failed to write file. See logs for details.", __FUNCTION__);
+        goto filesystem_write_entire_binary_file_cleanup;
+    }
+
+    success = true;
+filesystem_write_entire_binary_file_cleanup:
+    filesystem_close(&f);
+    return success;
+}

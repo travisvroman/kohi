@@ -40,7 +40,7 @@ static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const
 static void add_map_obj(kson_object* base_obj, const char* source_channel, kmaterial_texture_input* texture);
 static b8 extract_map(const kson_object* map_obj, kmaterial_texture_input* out_texture, texture_channel* out_source_channel);
 
-const char* kasset_material_serialize(const kasset* asset) {
+const char* kasset_material_serialize(const kasset_material* asset) {
     if (!asset) {
         KERROR("kasset_material_serialize requires a valid pointer to a material.");
         return 0;
@@ -224,7 +224,7 @@ const char* kasset_material_serialize(const kasset* asset) {
     return serialized;
 }
 
-b8 kasset_material_deserialize(const char* file_text, kasset* out_asset) {
+b8 kasset_material_deserialize(const char* file_text, kasset_material* out_asset) {
     if (!file_text || !out_asset) {
         KERROR("kasset_material_deserialize requires valid pointers to file_text and out_asset.");
         return false;

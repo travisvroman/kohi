@@ -10,10 +10,10 @@
 struct frame_data;
 struct kaudio_backend_state;
 
-typedef struct audio_instance {
-    khandle base_resource;
-    khandle instance;
-} audio_instance;
+typedef struct kaudio_instance {
+    kaudio base;
+    u16 instance_id;
+} kaudio_instance;
 
 /**
  * @brief The configuration for an audio backend.
@@ -38,8 +38,8 @@ typedef struct kaudio_backend_config {
      */
     u32 audio_channel_count;
 
-    /** @brief The maximum number of audio resources (sounds or music) that can be loaded at once. */
-    u32 max_resource_count;
+    /** @brief The maximum number of kaudios (sounds or music) that can be loaded at once. */
+    u16 max_count;
 } kaudio_backend_config;
 
 typedef struct kaudio_backend_interface {
@@ -79,12 +79,12 @@ typedef struct kaudio_backend_interface {
 
     b8 (*channel_looping_set)(struct kaudio_backend_interface* backend, u8 channel_id, b8 looping);
 
-    b8 (*resource_load)(struct kaudio_backend_interface* backend, const kresource_audio* resource, b8 is_stream, khandle resource_handle);
-    void (*resource_unload)(struct kaudio_backend_interface* backend, khandle resource_handle);
+    b8 (*load)(struct kaudio_backend_interface* backend, i32 channels, u32 sample_rate, u32 total_sample_count, u64 pcm_data_size, i16* pcm_data, b8 is_stream, kaudio audio);
+    void (*unload)(struct kaudio_backend_interface* backend, kaudio audio);
 
     // Play whatever is currently bound to the channel.
     b8 (*channel_play)(struct kaudio_backend_interface* backend, u8 channel_id);
-    b8 (*channel_play_resource)(struct kaudio_backend_interface* backend, khandle resource_handle, kaudio_space audio_space, u8 channel_id);
+    b8 (*channel_play_resource)(struct kaudio_backend_interface* backend, kaudio audio, kaudio_space audio_space, u8 channel_id);
 
     b8 (*channel_stop)(struct kaudio_backend_interface* backend, u8 channel_id);
     b8 (*channel_pause)(struct kaudio_backend_interface* backend, u8 channel_id);

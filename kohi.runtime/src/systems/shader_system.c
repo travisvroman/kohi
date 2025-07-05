@@ -1,20 +1,23 @@
 #include "shader_system.h"
 
-#include "containers/darray.h"
+#include <assets/kasset_types.h>
+#include <containers/darray.h>
+#include <core_render_types.h>
+#include <defines.h>
+#include <identifiers/khandle.h>
+#include <logger.h>
+#include <memory/kmemory.h>
+#include <serializers/kasset_shader_serializer.h>
+#include <strings/kname.h>
+#include <strings/kstring.h>
+#include <utils/render_type_utils.h>
+
 #include "core/engine.h"
 #include "core/event.h"
-#include "core_render_types.h"
-#include "defines.h"
-#include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
-#include "logger.h"
-#include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
-#include "strings/kname.h"
-#include "strings/kstring.h"
-#include "systems/kresource_system.h"
+#include "systems/asset_system.h"
 #include "systems/texture_system.h"
-#include "utils/render_type_utils.h"
 
 /**
  * @brief Represents a shader on the frontend. This is internal to the shader system.
@@ -54,13 +57,21 @@ typedef struct kshader {
     /** @brief The internal state of the shader. */
     shader_state state;
 
-    // A constant pointer to the shader config resource.
-    const kresource_shader* shader_resource;
+    // A constant pointer to the shader config asset.
+    const kasset_shader* shader_asset;
 
-    // Array of pointers to text resources, one per stage.
-    kresource_text** stage_source_text_resources;
+    // Array of stages.
+    shader_stage* stages;
+    // Array of pointers to text assets, one per stage.
+    kasset_text** stage_source_text_assets;
     // Array of generations of stage source text resources. Matches size of stage_source_text_resources;
     u32* stage_source_text_generations;
+    // Array of names of stage assets.
+    kname* stage_names;
+    // Array of source text for stages. Matches size of stage_source_text_resources;
+    const char** stage_sources;
+    // Array of file watch ids, one per stage.
+    u32* watch_ids;
 
 } kshader;
 
@@ -93,7 +104,7 @@ static b8 internal_texture_add(kshader* shader, shader_uniform_config* config);
 static b8 internal_sampler_add(kshader* shader, shader_uniform_config* config);
 static khandle generate_new_shader_handle(void);
 static b8 internal_uniform_add(kshader* shader, const shader_uniform_config* config, u16 tex_samp_index);
-static khandle shader_create(const kresource_shader* shader_resource);
+static khandle shader_create(const kasset_shader* asset);
 static b8 shader_reload(kshader* shader, khandle shader_handle);
 
 // Verify the name is valid and unique.
@@ -102,10 +113,15 @@ static b8 shader_uniform_add_state_valid(kshader* shader);
 static void internal_shader_destroy(khandle* shader);
 ///////////////////////
 
-#if KOHI_DEBUG
+#if KOHI_HOT_RELOAD
 static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_context context) {
     shader_system_state* typed_state = (shader_system_state*)listener_inst;
-    if (code == EVENT_CODE_RESOURCE_HOT_RELOADED) {
+
+    u32 watch_id = context.data.u32[0];
+    if (code == EVENT_CODE_ASSET_HOT_RELOADED) {
+
+        // TODO: more verification to make sure this is correct.
+        kasset_text* shader_source_asset = (kasset_text*)sender;
 
         // Search shaders for the one whose generations are out of sync.
         for (u32 i = 0; i < typed_state->config.max_shader_count; ++i) {
@@ -114,9 +130,15 @@ static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_co
             b8 reload_required = false;
 
             for (u32 w = 0; w < shader->shader_stage_count; ++w) {
-                // Found match. If the generation is out of sync, reload the shader.
-                if (shader->stage_source_text_generations[w] != shader->stage_source_text_resources[w]->base.generation) {
-                    // At least one is out of sync, reload. Can boot out here.
+                if (shader->watch_ids[w] == watch_id) {
+                    // Replace the existing shader stage source with the new.
+                    if (shader->stage_sources[w]) {
+                        string_free(shader->stage_sources[w]);
+                    }
+                    shader->stage_sources[w] = string_duplicate(shader_source_asset->content);
+
+                    // Release the asset.
+                    asset_system_release_text(engine_systems_get()->asset_state, shader_source_asset);
                     reload_required = true;
                     break;
                 }
@@ -180,8 +202,8 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config)
     state_ptr->max_bound_texture_count = renderer_max_bound_texture_count_get(state_ptr->renderer);
 
     // Watch for file hot reloads in debug builds.
-#if KOHI_DEBUG
-    event_register(EVENT_CODE_RESOURCE_HOT_RELOADED, state_ptr, file_watch_event);
+#if KOHI_HOT_RELOAD
+    event_register(EVENT_CODE_ASSET_HOT_RELOADED, state_ptr, file_watch_event);
 #endif
 
     return true;
@@ -216,28 +238,15 @@ khandle shader_system_get(kname name, kname package_name) {
         }
     }
 
-    // Not found, attempt to load the shader resource.
-    kresource_shader_request_info request_info = {0};
-    request_info.base.type = KRESOURCE_TYPE_SHADER;
-    request_info.base.synchronous = true; // Shaders are needed immediately.
-    request_info.shader_config_source_text = 0;
-
-    // Add shader asset to resource request.
-    request_info.base.assets = array_kresource_asset_info_create(1);
-    kresource_asset_info* asset = &request_info.base.assets.data[0];
-    asset->asset_name = name; // Resource name should match the asset name.
-    asset->package_name = package_name;
-    asset->type = KASSET_TYPE_SHADER;
-    asset->watch_for_hot_reload = false;
-
-    kresource_shader* shader_resource = (kresource_shader*)kresource_system_request(state_ptr->resource_state, name, (kresource_request_info*)&request_info);
-    if (!shader_resource) {
+    // Not found, attempt to load the shader asset.
+    kasset_shader* shader_asset = asset_system_request_shader_from_package_sync(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(name));
+    if (!shader_asset) {
         KERROR("Failed to load shader resource for shader '%s'.", kname_string_get(name));
         return khandle_invalid();
     }
 
     // Create the shader.
-    khandle shader_handle = shader_create(shader_resource);
+    khandle shader_handle = shader_create(shader_asset);
 
     if (khandle_is_invalid(shader_handle)) {
         KERROR("Failed to create shader '%s'.", kname_string_get(name));
@@ -253,20 +262,15 @@ khandle shader_system_get_from_source(kname name, const char* shader_config_sour
         return khandle_invalid();
     }
 
-    // Not found, attempt to load the shader resource.
-    kresource_shader_request_info request_info = {0};
-    request_info.base.type = KRESOURCE_TYPE_SHADER;
-    request_info.base.synchronous = true;                                            // Shaders are needed immediately.
-    request_info.shader_config_source_text = string_duplicate(shader_config_source); // load from string source.
-
-    kresource_shader* shader_resource = (kresource_shader*)kresource_system_request(state_ptr->resource_state, name, (kresource_request_info*)&request_info);
-    if (!shader_resource) {
-        KERROR("Failed to load shader resource for shader '%s'.", kname_string_get(name));
+    kasset_shader* temp_asset = KALLOC_TYPE(kasset_shader, MEMORY_TAG_ASSET);
+    if (!kasset_shader_deserialize(shader_config_source, temp_asset)) {
         return khandle_invalid();
     }
 
     // Create the shader.
-    khandle shader_handle = shader_create(shader_resource);
+    khandle shader_handle = shader_create(temp_asset);
+
+    asset_system_release_shader(engine_systems_get()->asset_state, temp_asset);
 
     if (khandle_is_invalid(shader_handle)) {
         KERROR("Failed to create shader '%s' from config source.", kname_string_get(name));
@@ -364,20 +368,20 @@ b8 shader_system_uniform_set_arrayed(khandle shader, kname uniform_name, u32 arr
     return shader_system_uniform_set_by_location_arrayed(shader, index, array_index, value);
 }
 
-b8 shader_system_texture_set(khandle shader, kname sampler_name, const kresource_texture* t) {
+b8 shader_system_texture_set(khandle shader, kname sampler_name, ktexture t) {
     return shader_system_texture_set_arrayed(shader, sampler_name, 0, t);
 }
 
-b8 shader_system_texture_set_arrayed(khandle shader, kname uniform_name, u32 array_index, const kresource_texture* t) {
-    return shader_system_uniform_set_arrayed(shader, uniform_name, array_index, t);
+b8 shader_system_texture_set_arrayed(khandle shader, kname uniform_name, u32 array_index, ktexture t) {
+    return shader_system_uniform_set_arrayed(shader, uniform_name, array_index, &t);
 }
 
-b8 shader_system_texture_set_by_location(khandle shader, u16 location, const kresource_texture* t) {
-    return shader_system_uniform_set_by_location_arrayed(shader, location, 0, t);
+b8 shader_system_texture_set_by_location(khandle shader, u16 location, ktexture t) {
+    return shader_system_uniform_set_by_location_arrayed(shader, location, 0, &t);
 }
 
-b8 shader_system_texture_set_by_location_arrayed(khandle shader, u16 location, u32 array_index, const kresource_texture* t) {
-    return shader_system_uniform_set_by_location_arrayed(shader, location, array_index, t);
+b8 shader_system_texture_set_by_location_arrayed(khandle shader, u16 location, u32 array_index, ktexture t) {
+    return shader_system_uniform_set_by_location_arrayed(shader, location, array_index, &t);
 }
 
 b8 shader_system_uniform_set_by_location(khandle shader, u16 location, const void* value) {
@@ -646,24 +650,22 @@ static b8 shader_uniform_add_state_valid(kshader* shader) {
     return true;
 }
 
-static khandle shader_create(const kresource_shader* shader_resource) {
+static khandle shader_create(const kasset_shader* asset) {
     khandle new_handle = generate_new_shader_handle();
     if (khandle_is_invalid(new_handle)) {
         KERROR("Unable to find free slot to create new shader. Aborting.");
         return new_handle;
     }
 
-    // TODO: probably don't need to keep a copy of all the resource properties
-    // since we now hold a pointer to the resource.
     kshader* out_shader = &state_ptr->shaders[new_handle.handle_index];
     kzero_memory(out_shader, sizeof(kshader));
     // Sync handle uniqueid
     out_shader->uniqueid = new_handle.unique_id.uniqueid;
     out_shader->state = SHADER_STATE_NOT_CREATED;
-    out_shader->name = shader_resource->base.name;
+    out_shader->name = asset->name;
     out_shader->attribute_stride = 0;
-    out_shader->shader_stage_count = shader_resource->stage_count;
-    out_shader->stage_configs = kallocate(sizeof(shader_stage_config) * shader_resource->stage_count, MEMORY_TAG_ARRAY);
+    out_shader->shader_stage_count = asset->stage_count;
+    out_shader->stage_configs = kallocate(sizeof(shader_stage_config) * asset->stage_count, MEMORY_TAG_ARRAY);
     out_shader->uniforms = darray_create(shader_uniform);
     out_shader->attributes = darray_create(shader_attribute);
 
@@ -673,36 +675,76 @@ static khandle shader_create(const kresource_shader* shader_resource) {
     out_shader->per_draw.bound_id = INVALID_ID;
 
     // Take a copy of the flags.
-    out_shader->flags = shader_resource->flags;
+    // Build up flags.
+    out_shader->flags = SHADER_FLAG_NONE_BIT;
+    if (asset->depth_test) {
+        out_shader->flags = FLAG_SET(out_shader->flags, SHADER_FLAG_DEPTH_TEST_BIT, true);
+    }
+    if (asset->depth_write) {
+        out_shader->flags = FLAG_SET(out_shader->flags, SHADER_FLAG_DEPTH_WRITE_BIT, true);
+    }
+
+    if (asset->stencil_test) {
+        out_shader->flags = FLAG_SET(out_shader->flags, SHADER_FLAG_STENCIL_TEST_BIT, true);
+    }
+    if (asset->stencil_write) {
+        out_shader->flags = FLAG_SET(out_shader->flags, SHADER_FLAG_STENCIL_WRITE_BIT, true);
+    }
+
+    if (asset->colour_read) {
+        out_shader->flags = FLAG_SET(out_shader->flags, SHADER_FLAG_COLOUR_READ_BIT, true);
+    }
+    if (asset->colour_write) {
+        out_shader->flags = FLAG_SET(out_shader->flags, SHADER_FLAG_COLOUR_WRITE_BIT, true);
+    }
+
+    if (asset->supports_wireframe) {
+        out_shader->flags = FLAG_SET(out_shader->flags, SHADER_FLAG_WIREFRAME_BIT, true);
+    }
 
     // Save off a pointer to the config resource.
-    out_shader->shader_resource = shader_resource;
+    out_shader->shader_asset = asset;
 
     // Create arrays to track stage "text" resources.
-    out_shader->stage_source_text_resources = KALLOC_TYPE_CARRAY(kresource_text*, out_shader->shader_stage_count);
+    out_shader->stages = KALLOC_TYPE_CARRAY(shader_stage, out_shader->shader_stage_count);
+    out_shader->stage_source_text_assets = KALLOC_TYPE_CARRAY(kasset_text*, out_shader->shader_stage_count);
     out_shader->stage_source_text_generations = KALLOC_TYPE_CARRAY(u32, out_shader->shader_stage_count);
+    out_shader->stage_names = KALLOC_TYPE_CARRAY(kname, out_shader->shader_stage_count);
+    out_shader->stage_sources = KALLOC_TYPE_CARRAY(const char*, out_shader->shader_stage_count);
+    out_shader->watch_ids = KALLOC_TYPE_CARRAY(u32, out_shader->shader_stage_count);
 
-    // Take a copy of the array.
-    KCOPY_TYPE_CARRAY(out_shader->stage_configs, shader_resource->stage_configs, shader_stage_config, out_shader->shader_stage_count);
+    struct asset_system_state* asset_state = engine_systems_get()->asset_state;
 
-    for (u8 i = 0; i < shader_resource->stage_count; ++i) {
-        // Also snag a pointer to the resource itself.
-        out_shader->stage_source_text_resources[i] = shader_resource->stage_configs[i].resource;
+    // Process stages.
+    for (u8 i = 0; i < asset->stage_count; ++i) {
+        out_shader->stages[i] = asset->stages[i].type;
+        // Request the text asset for each stage synchronously.
+        out_shader->stage_source_text_assets[i] = asset_system_request_text_from_package_sync(asset_state, asset->stages[i].package_name, asset->stages[i].source_asset_name);
         // Take a copy of the generation for later comparison.
-        out_shader->stage_source_text_generations[i] = shader_resource->stage_configs[i].resource->base.generation;
+        out_shader->stage_source_text_generations[i] = 0; // TODO: generation? // out_shader->stage_source_text_assets[i].generation;
+
+        out_shader->stage_names[i] = kname_create(asset->stages[i].source_asset_name);
+        out_shader->stage_sources[i] = string_duplicate(out_shader->stage_source_text_assets[i]->content);
+
+        // Watch source file for hot-reload.
+        out_shader->watch_ids[i] = asset_system_watch_for_reload(asset_state, KASSET_TYPE_TEXT, out_shader->stage_names[i], kname_create(asset->stages[i].package_name));
     }
 
     // Keep a copy of the topology types.
-    out_shader->topology_types = shader_resource->topology_types;
+    out_shader->topology_types = asset->topology_types;
 
     // Ready to be initialized.
     out_shader->state = SHADER_STATE_UNINITIALIZED;
 
     // Process attributes
-    for (u32 i = 0; i < shader_resource->attribute_count; ++i) {
-        shader_attribute_config* ac = &shader_resource->attributes[i];
-        if (!internal_attribute_add(out_shader, ac)) {
-            KERROR("Failed to add attribute '%s' to shader '%s'.", ac->name, out_shader->name);
+    for (u32 i = 0; i < asset->attribute_count; ++i) {
+        kasset_shader_attribute* a = &asset->attributes[i];
+        shader_attribute_config ac = {
+            .type = a->type,
+            .name = kname_create(a->name),
+            .size = size_from_shader_attribute_type(a->type)};
+        if (!internal_attribute_add(out_shader, &ac)) {
+            KERROR("Failed to add attribute '%s' to shader '%s'.", ac.name, out_shader->name);
             // Invalidate the new handle and return it.
             khandle_invalidate(&new_handle);
             return new_handle;
@@ -710,15 +752,25 @@ static khandle shader_create(const kresource_shader* shader_resource) {
     }
 
     // Process uniforms
-    for (u32 i = 0; i < shader_resource->uniform_count; ++i) {
-        shader_uniform_config* uc = &shader_resource->uniforms[i];
+    for (u32 i = 0; i < asset->uniform_count; ++i) {
+        kasset_shader_uniform* u = &asset->uniforms[i];
+        shader_uniform_config uc = {
+            .type = u->type,
+            .name = kname_create(u->name),
+            .array_length = u->array_size,
+            .frequency = u->frequency,
+            .size = u->size};
+        if (u->type != SHADER_UNIFORM_TYPE_STRUCT && u->type != SHADER_UNIFORM_TYPE_CUSTOM) {
+            uc.size = size_from_shader_uniform_type(u->type);
+        }
+
         b8 uniform_add_result = false;
-        if (uniform_type_is_sampler(uc->type)) {
-            uniform_add_result = internal_sampler_add(out_shader, uc);
-        } else if (uniform_type_is_texture(uc->type)) {
-            uniform_add_result = internal_texture_add(out_shader, uc);
+        if (uniform_type_is_sampler(uc.type)) {
+            uniform_add_result = internal_sampler_add(out_shader, &uc);
+        } else if (uniform_type_is_texture(uc.type)) {
+            uniform_add_result = internal_texture_add(out_shader, &uc);
         } else {
-            uniform_add_result = internal_uniform_add(out_shader, uc, INVALID_ID_U16);
+            uniform_add_result = internal_uniform_add(out_shader, &uc, INVALID_ID_U16);
         }
         if (!uniform_add_result) {
             // Invalidate the new handle and return it.
@@ -750,8 +802,8 @@ static khandle shader_create(const kresource_shader* shader_resource) {
     u32 frame_textures = 0, frame_samplers = 0;
     u32 group_textures = 0, group_samplers = 0;
     u32 draw_textures = 0, draw_samplers = 0;
-    for (u32 i = 0; i < shader_resource->uniform_count; ++i) {
-        shader_uniform_config* uc = &shader_resource->uniforms[i];
+    for (u32 i = 0; i < asset->uniform_count; ++i) {
+        kasset_shader_uniform* uc = &asset->uniforms[i];
         if (uniform_type_is_sampler(uc->type)) {
             switch (uc->frequency) {
             case SHADER_UPDATE_FREQUENCY_PER_FRAME:
@@ -780,7 +832,23 @@ static khandle shader_create(const kresource_shader* shader_resource) {
     }
 
     // Create renderer-internal resources.
-    if (!renderer_shader_create(state_ptr->renderer, new_handle, shader_resource)) {
+    if (!renderer_shader_create(
+            state_ptr->renderer,
+            new_handle,
+            out_shader->name,
+            out_shader->flags,
+            out_shader->topology_types,
+            asset->cull_mode,
+            out_shader->shader_stage_count,
+            out_shader->stages,
+            out_shader->stage_names,
+            out_shader->stage_sources,
+            asset->max_groups,
+            asset->max_draw_ids,
+            darray_length(out_shader->attributes),
+            out_shader->attributes,
+            darray_length(out_shader->uniforms),
+            out_shader->uniforms)) {
         KERROR("Error creating shader.");
         // Invalidate the new handle and return it.
         khandle_invalidate(&new_handle);
@@ -794,11 +862,12 @@ static b8 shader_reload(kshader* shader, khandle shader_handle) {
 
     // Check each shader stage generation for out-of-sync.
     for (u8 i = 0; i < shader->shader_stage_count; ++i) {
-        if (shader->stage_source_text_generations[i] != shader->stage_source_text_resources[i]->base.generation) {
+        // FIXME: shader geneeration sync.
+        /* if (shader->stage_source_text_generations[i] != shader->stage_source_text_assets[i]->base.generation) {
             // Sync the generations.
-            shader->stage_source_text_generations[i] = shader->stage_source_text_resources[i]->base.generation;
-        }
+            shader->stage_source_text_generations[i] = shader->stage_source_text_assets[i]->base.generation;
+        } */
     }
 
-    return renderer_shader_reload(state_ptr->renderer, shader_handle, shader->shader_stage_count, shader->stage_configs);
+    return renderer_shader_reload(state_ptr->renderer, shader_handle, shader->shader_stage_count, shader->stages, shader->stage_names, shader->stage_sources);
 }

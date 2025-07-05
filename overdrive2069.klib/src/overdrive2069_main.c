@@ -643,7 +643,7 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
     }
 
     // TODO: Anything to do here?
-    // FIXME: Cache this instead of looking up every frame. // nocheckin
+    // FIXME: Cache this instead of looking up every frame.
     u32 node_count = state->forward_graph.node_count;
     for (u32 i = 0; i < node_count; ++i) {
         rendergraph_node* node = &state->forward_graph.nodes[i];
@@ -1423,16 +1423,9 @@ static void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_mod
     if (state->track_scene.state == SCENE_STATE_UNINITIALIZED) {
         KDEBUG("Loading track scene...");
 
-        kresource_scene_request_info request_info = {0};
-        request_info.base.type = KRESOURCE_TYPE_SCENE;
-        request_info.base.synchronous = true; // HACK: use a callback instead.
-        request_info.base.assets = array_kresource_asset_info_create(1);
-        kresource_asset_info* asset = &request_info.base.assets.data[0];
-        asset->type = KASSET_TYPE_SCENE;
-        asset->asset_name = kname_create("track_00");
-        asset->package_name = kname_create("Overdrive2069");
+        /* asset->package_name = kname_create("Overdrive2069"); */
 
-        kresource_scene* scene_resource = (kresource_scene*)kresource_system_request(engine_systems_get()->kresource_state, kname_create("test_scene"), (kresource_request_info*)&request_info);
+        kasset_scene* scene_resource = asset_system_request_scene_sync(engine_systems_get()->asset_state, "track_00");
         if (!scene_resource) {
             KERROR("Failed to request track scene resource. See logs for details.");
             return;

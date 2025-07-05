@@ -14,7 +14,7 @@
 
 static b8 extract_frequency_uniforms(shader_update_frequency frequency, u32 frequency_uniform_count, kson_array* frequency_array, kasset_shader* typed_asset, u32* uniform_index);
 
-const char* kasset_shader_serialize(const kasset* asset) {
+const char* kasset_shader_serialize(const kasset_shader* asset) {
     if (!asset) {
         KERROR("kasset_shader_serialize requires an asset to serialize, ya dingus!");
         return 0;
@@ -205,7 +205,7 @@ cleanup_kson:
     return out_str;
 }
 
-b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
+b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
     if (out_asset) {
         b8 success = false;
         kasset_shader* typed_asset = (kasset_shader*)out_asset;
@@ -218,7 +218,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset* out_asset) {
         }
 
         // version
-        if (!kson_object_property_value_get_int(&tree.root, "version", (i64*)(&typed_asset->base.meta.version))) {
+        if (!kson_object_property_value_get_int(&tree.root, "version", (i64*)(&typed_asset->version))) {
             KERROR("Failed to parse version, which is a required field.");
             goto cleanup_kson;
         }

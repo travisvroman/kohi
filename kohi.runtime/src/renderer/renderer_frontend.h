@@ -29,6 +29,7 @@
 #include <defines.h>
 #include <identifiers/khandle.h>
 #include <kresources/kresource_types.h>
+#include <math/geometry.h>
 #include <strings/kname.h>
 
 #include "core/frame_data.h"
@@ -272,7 +273,7 @@ KAPI void renderer_set_stencil_write_mask(u32 write_mask);
  * @param out_renderer_texture_handle A pointer to hold the renderer texture handle, which points to the backing resource(s) of the texture.
  * @returns True on success, otherwise false;
  */
-KAPI b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* state, kname name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle);
+KAPI b8 renderer_texture_resources_acquire(struct renderer_system_state* state, kname name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_renderer_texture_handle);
 
 /**
  * Releases backing renderer-specific resources for the given renderer_texture_id.
@@ -445,17 +446,17 @@ KAPI void renderer_colour_texture_prepare_for_present(struct renderer_system_sta
  * @param texture_handle A handle to the texture to prepare for sampling.
  * @param flags Texture flags from the texture itself, used to determine format/layout, etc.
  */
-KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, khandle texture_handle, texture_flag_bits flags);
+KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, khandle texture_handle, ktexture_flag_bits flags);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.
  *
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader.
- * @param shader_resource A constant pointer to the shader shader_resource.
+ * @param shader_asset A constant pointer to the shader asset.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, const kresource_shader* shader_resource);
+KAPI b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms);
 
 /**
  * @brief Destroys the given shader and releases any resources held by it.
@@ -474,7 +475,7 @@ KAPI void renderer_shader_destroy(struct renderer_system_state* state, khandle s
  * @param shader_stages An array of shader stages configs.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 shader_stage_count, shader_stage_config* shader_stages);
+KAPI b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources);
 
 /**
  * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,

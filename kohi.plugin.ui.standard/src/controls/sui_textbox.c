@@ -526,7 +526,7 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
                     typed_data->cursor_position--;
                 }
                 sui_label_text_set(state, &typed_data->content_label, str);
-                kfree(str, len + 1, MEMORY_TAG_STRING);
+                string_free(str);
                 sui_textbox_update_cursor_position(state, self);
             }
         } else if (key_code == KEY_DELETE) {
@@ -541,7 +541,7 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
                 typed_data->highlight_range.size = 0;
                 sui_textbox_update_highlight_box(state, self);
                 sui_label_text_set(state, &typed_data->content_label, str);
-                kfree(str, len + 1, MEMORY_TAG_STRING);
+                string_free(str);
                 sui_textbox_update_cursor_position(state, self);
             } else if (typed_data->cursor_position <= len) {
                 char* str = string_duplicate(entry_control_text);
@@ -556,7 +556,7 @@ static b8 sui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
                     string_remove_at(str, entry_control_text, typed_data->cursor_position, 1);
                 }
                 sui_label_text_set(state, &typed_data->content_label, str);
-                kfree(str, len + 1, MEMORY_TAG_STRING);
+                string_free(str);
                 sui_textbox_update_cursor_position(state, self);
             }
         } else if (key_code == KEY_LEFT) {

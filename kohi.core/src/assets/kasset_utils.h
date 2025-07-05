@@ -2,7 +2,6 @@
 
 #include "assets/kasset_types.h"
 #include "defines.h"
-#include "platform/vfs.h"
 
 struct kasset_name;
 
@@ -21,14 +20,12 @@ KAPI kasset_type kasset_type_from_string(const char* type_str);
  * @param type The type to be converted.
  * @return The string representation of the type.
  */
-const char* kasset_type_to_string(kasset_type type);
+KAPI const char* kasset_type_to_string(kasset_type type);
 
 /**
- * @brief A generic asset "on loaded" handler which can be used (almost) always.
- *
- * @param vfs A pointer to the VFS state.
- * @param vfs_asset_data The VFS asset data containing the result of the VFS load operation and potential asset data.
+ * @brief Indicates if the given asset type is a binary asset type.
+ * 
+ * @param type The asset type.
+ * @return True if the given asset type is binary; otherwise false.
  */
-KAPI void asset_handler_base_on_asset_loaded(struct vfs_state* vfs, vfs_asset_data asset_data);
-
-KAPI u8 channel_count_from_image_format(kasset_image_format format);
+KAPI b8 kasset_type_is_binary(kasset_type type);

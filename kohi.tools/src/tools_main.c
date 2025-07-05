@@ -14,6 +14,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "vendor/stb_image_write.h"
 
+#include "kasset_importer.h"
+
 void print_help(void);
 i32 combine_texture_maps(i32 argc, char** argv);
 
@@ -39,6 +41,17 @@ i32 main(i32 argc, char** argv) {
     // The second argument tells us what mode to go into.
     if (strings_equali(argv[1], "combine") || strings_equali(argv[1], "cmaps")) {
         return combine_texture_maps(argc, argv);
+    } else if (strings_equali(argv[1], "importmanifest") || strings_equali(argv[1], "iman")) {
+        if (argc < 3) {
+            KERROR("importmanifest command requires an argument specifying the manifest path.");
+            return -3;
+        }
+        const char* manifest_path = argv[2];
+        if (!import_all_from_manifest(manifest_path)) {
+            KERROR("Manifest import error. See logs for details.");
+            return -4;
+        }
+
     } else {
         KERROR("Unrecognized argument '%s'.", argv[1]);
         print_help();
@@ -77,7 +90,7 @@ i32 combine_texture_maps(i32 argc, char** argv) {
     // - A: reserved/set to 1
 
     // Always flip y when loading in.
-    stbi_set_flip_vertically_on_load_thread(true);
+    /* stbi_set_flip_vertically_on_load_thread(true); */
 
     channel_map maps[MAP_TYPE_MAX] = {0};
     char out_file_path[1024] = {0};

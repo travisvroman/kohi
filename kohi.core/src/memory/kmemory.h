@@ -132,6 +132,21 @@ KAPI void* kallocate(u64 size, memory_tag tag);
 #define KFREE_TYPE_CARRAY(block, type, count) kfree(block, sizeof(type) * count, MEMORY_TAG_ARRAY)
 
 /**
+ * @brief Resizes the given array of the provided type, also copying the contents of the old
+ * array to the new. Performs a new allocation, so the array address will be different.
+ * NOTE: new_count must be greater than old_count
+ */
+#define KRESIZE_ARRAY(array, type, old_count, new_count)     \
+    {                                                        \
+        type* temp = KALLOC_TYPE_CARRAY(type, new_count);    \
+        if (old_count && array) {                            \
+            KCOPY_TYPE_CARRAY(temp, array, type, old_count); \
+            KFREE_TYPE_CARRAY(array, type, old_count);       \
+        }                                                    \
+        array = temp;                                        \
+    }
+
+/**
  * @brief Performs an aligned memory allocation from the host of the given size and alignment.
  * The allocation is tracked for the provided tag. NOTE: Memory allocated this way must be freed
  * using kfree_aligned.

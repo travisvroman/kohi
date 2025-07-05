@@ -186,39 +186,25 @@ typedef struct kasset {
 #define KASSET_TYPE_NAME_HEIGHTMAP_TERRAIN "HeightmapTerrain"
 
 typedef struct kasset_heightmap_terrain {
-    kasset base;
     kname heightmap_asset_name;
     kname heightmap_asset_package_name;
     u16 chunk_size;
     vec3 tile_scale;
     u8 material_count;
     kname* material_names;
+    u32 version;
 } kasset_heightmap_terrain;
-
-typedef enum kasset_image_format {
-    KASSET_IMAGE_FORMAT_UNDEFINED = 0,
-    // 4 channel, 8 bits per channel
-    KASSET_IMAGE_FORMAT_RGBA8 = 1
-    // TODO: additional formats
-} kasset_image_format;
-
-/** @brief Import options for images. */
-typedef struct kasset_image_import_options {
-    /** @brief Indicates if the image should be flipped on the y-axis when imported. */
-    b8 flip_y;
-    /** @brief The expected format of the image. */
-    kasset_image_format format;
-} kasset_image_import_options;
 
 #define KASSET_TYPE_NAME_IMAGE "Image"
 
 typedef struct kasset_image {
-    kasset base;
+    kname name;
     u32 width;
     u32 height;
+    u32 depth;
     u8 channel_count;
     u8 mip_levels;
-    kasset_image_format format;
+    kpixel_format format;
     u64 pixel_array_size;
     u8* pixels;
 } kasset_image;
@@ -238,7 +224,6 @@ typedef struct kasset_static_mesh_geometry {
 
 /** @brief Represents a static mesh asset. */
 typedef struct kasset_static_mesh {
-    kasset base;
     u16 geometry_count;
     kasset_static_mesh_geometry* geometries;
     extents_3d extents;
@@ -248,7 +233,7 @@ typedef struct kasset_static_mesh {
 #define KASSET_TYPE_NAME_MATERIAL "Material"
 
 typedef struct kasset_material {
-    kasset base;
+    kname name;
     kmaterial_type type;
     // Shading model
     kmaterial_model model;
@@ -313,14 +298,12 @@ typedef struct kasset_material {
 #define KASSET_TYPE_NAME_TEXT "Text"
 
 typedef struct kasset_text {
-    kasset base;
     const char* content;
 } kasset_text;
 
 #define KASSET_TYPE_NAME_BINARY "Binary"
 
 typedef struct kasset_binary {
-    kasset base;
     u64 size;
     const void* content;
 } kasset_binary;
@@ -336,7 +319,8 @@ typedef struct kasset_kson {
 #define KASSET_TYPE_NAME_SCENE "Scene"
 
 typedef struct kasset_scene {
-    kasset base;
+    kname name;
+    u32 version;
     const char* description;
     u32 node_count;
     scene_node_config* nodes;
@@ -375,7 +359,8 @@ typedef struct kasset_shader_uniform {
  * @brief Represents a shader asset, typically loaded from disk.
  */
 typedef struct kasset_shader {
-    kasset base;
+    kname name;
+    u32 version;
     b8 depth_test;
     b8 depth_write;
     b8 stencil_test;
@@ -407,7 +392,6 @@ typedef struct kasset_system_font_face {
 } kasset_system_font_face;
 
 typedef struct kasset_system_font {
-    kasset base;
     kname ttf_asset_name;
     kname ttf_asset_package_name;
     u32 face_count;
@@ -446,7 +430,6 @@ ARRAY_TYPE(kasset_bitmap_font_kerning);
 ARRAY_TYPE(kasset_bitmap_font_page);
 
 typedef struct kasset_bitmap_font {
-    kasset base;
     kname face;
     u32 size;
     i32 line_height;
@@ -464,7 +447,7 @@ typedef struct kasset_bitmap_font {
  * Represents a Kohi Audio asset.
  */
 typedef struct kasset_audio {
-    kasset base;
+    kname name;
     // The number of channels (i.e. 1 for mono or 2 for stereo)
     i32 channels;
     // The sample rate of the sound/music (i.e. 44100)

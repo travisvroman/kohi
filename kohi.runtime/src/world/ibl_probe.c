@@ -13,6 +13,7 @@ b8 ibl_probe_create(kname cubemap_name, vec3 position, ibl_probe* out_probe) {
 
     out_probe->cubemap_name = cubemap_name;
     out_probe->position = position;
+    out_probe->ibl_cube_texture = INVALID_KTEXTURE;
     return true;
 }
 
@@ -35,14 +36,14 @@ b8 ibl_probe_load(ibl_probe* probe) {
         return true;
     }
 
-    probe->ibl_cube_texture = texture_system_request_cube(probe->cubemap_name, true, false, 0, 0);
+    probe->ibl_cube_texture = texture_cubemap_acquire_sync(probe->cubemap_name);
 
     return true;
 }
 
 void ibl_probe_unload(ibl_probe* probe) {
     if (probe->ibl_cube_texture) {
-        texture_system_release_resource((kresource_texture*)probe->ibl_cube_texture);
-        probe->ibl_cube_texture = 0;
+        texture_release(probe->ibl_cube_texture);
+        probe->ibl_cube_texture = INVALID_KTEXTURE;
     }
 }

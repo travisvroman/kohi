@@ -29,13 +29,27 @@ The Twitch stream happens here: https://twitch.tv/travisvroman.
 - Website: https://kohiengine.com
 - API Documentation: https://kohiengine.com/docs/
 
-# Plan
+## Goal
 
-Kohi has been a 3D engine from the start, with most of it built from scratch. There will be many explanations and explorations along the way. The series starts off as more of a tutorial to get up and running, with explanations becoming higher level as things progress to keep the pacing up. We eventually transition to live-streaming on Twitch, with most coding being done on stream with some offline work that is less interesting being done offline.
+**IMPORTANT: This engine is not, and will not be for quite a while, production-ready. It is a learning tool and as such is not yet optimized for use in production-quality products. This will eventually change, but for now it is _not_ production-ready.**
+
+The goal here is simple, to provide a resource that I wish I had when learning game development; a complete guide on building a game engine from scratch,
+including not only design decisions, but _why_ those decisions were made. It should also be noted that, while this is _a_ way of building a game engine,
+it is not _the only_ way to build one and sometimes not even the _correct_ way to build one. There is a lot of trial-and-error along the way, complete with
+deep dives. Sometimes we do things the wrong way to illustrate _why_ it's the wrong way before then fixing it. Sometimes things work, sometimes they don't.
+The idea is to try things and explore along the way.
+
+Kohi has been a 3D engine from the start, with most of it built from scratch.
+
+The series starts off as more of a tutorial to get up and running, with explanations becoming higher level as things progress to keep the pacing up. We eventually
+transition to live-streaming (simulcast on Twitch and YouTube), with most coding being done on stream with some offline work that is less interesting being done offline.
+
+Ultimately, there is also the goal of having a game engine capable of making games. Once the project is far enough along, making a game will be done as a
+series on my Twitch/YouTube channels as well.
 
 ## Platform support
 
-Windows, Linux and macOS are all officially supported. Android and iOS runtime support may also be added down the road.
+Windows, Linux and macOS are all officially supported. Other platforms such as Android and iOS runtime support may also be added down the road.
 
 ## Prerequisites
 
@@ -76,7 +90,23 @@ Install these via homebrew (brew) or other package manager:
 - Git: `brew install git`
 - Make: `brew install make`
 
+The Vulkan SDK
+
+- Vulkan SDK: download from https://vulkan.lunarg.com/
+  - NOTE: Ensure the 'global install' option is selected, which places a copy of the files in `/usr/local/lib`.
+
 NOTE: If you want a newer version of clang, you can also do `brew install llvm` and point to it when compiling.
+
+NOTE: On newer macOS environments, `/usr/local/lib` isn't automaticaly searched for when resolving dependencies. A quick fix for now is to symlink any missing libraries in the
+`bin` folder so they resolve. This will be fixed in a future version of the engine. To do this, simply run the following:
+
+For vulkan:
+`ln -s /usr/local/lib/vulkan.1.dylib vulkan.1.dylib`
+
+For shaderc:
+`ln -s /usr/local/lib/libshaderc_shared.1.dylib libshaderc_shared.1.dylib`
+
+**Only do this when and where needed.**
 
 ### Cross-Platform Prerequisites:
 
@@ -122,7 +152,6 @@ This structure breakdown is based on the root folder of the repository. Some fil
 - `kohi.plugin.audio.openal` - Shared library/.dll. Contains the audio plugin which uses OpenAL as the audio backend.
 - `kohi.plugin.renderer.vulkan` - Shared library/.dll. Contains the Vulkan renderer plugin, which serves as the renderer backend to the engine for Vulkan.
 - `kohi.plugin.ui.standard` - Shared library/.dll. Contains the Kohi Standard UI, which contains a general-use collection of controls such as buttons, labels, textboxes, etc. This is a retained-mode UI.
-- `testbed.assets` - Contains all assets to be loaded by the testbed application.
 - `testbed.kapp` - Application/.exe. The consuming application executable, loads up testbed.klib, configures/uses plugins and other Kohi libraries.
 - `testbed.klib` = Shared library/.dll. Contains the application code (or "game code") specific to the application. Hot-reloadable.
 - `kohi.tools.versiongen` - Application/.exe. A small utility which generates a version using passed-in major and minor version numbers, and auto-generated build and revision numbers based on date and time. Used to version builds of Kohi and plugins.
@@ -132,14 +161,6 @@ This structure breakdown is based on the root folder of the repository. Some fil
 ## Roadmap
 
 See [here](TODO.md).
-
-## Goal
-
-The goal here is simple, to provide a resource that I wish I had when learning game development; a complete guide on building a game engine from scratch, including not only design decisions, but _why_ those decisions were made. It should also be noted that, while this is _a_ way of building a game engine, it is not _the only_ way to build one.
-
-Of course, there is also the goal of having a game engine capable of making games. Once the project is far enough along, making a game will be done as a series on my YouTube channel as well.
-
-It is important to note that this engine is not, and will not be for quite a while, production-ready. It is a learning tool and as such is not yet optimized for use in production-quality products. This will eventually change, but for now it is _not_ production-ready.
 
 ## Contributions
 

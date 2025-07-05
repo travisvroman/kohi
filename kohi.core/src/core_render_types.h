@@ -38,6 +38,23 @@ typedef enum primitive_topology_type_bits {
 /** @brief A combination of topology bit flags. */
 typedef u32 primitive_topology_types;
 
+/** @brief Represents the format of image (or texture) pixel data. */
+typedef enum kpixel_format {
+    KPIXEL_FORMAT_UNKNOWN,
+    KPIXEL_FORMAT_RGBA8,
+    KPIXEL_FORMAT_RGB8,
+    KPIXEL_FORMAT_RG8,
+    KPIXEL_FORMAT_R8,
+    KPIXEL_FORMAT_RGBA16,
+    KPIXEL_FORMAT_RGB16,
+    KPIXEL_FORMAT_RG16,
+    KPIXEL_FORMAT_R16,
+    KPIXEL_FORMAT_RGBA32,
+    KPIXEL_FORMAT_RGB32,
+    KPIXEL_FORMAT_RG32,
+    KPIXEL_FORMAT_R32,
+} kpixel_format;
+
 /** @brief Represents supported texture filtering modes. */
 typedef enum texture_filter {
     /** @brief Nearest-neighbor filtering. */
@@ -439,7 +456,7 @@ typedef struct kstatic_mesh_submesh_render_data {
  */
 typedef struct kstatic_mesh_render_data {
     /** The identifier of the mesh instance being rendered. */
-    u64 instance_id;
+    u16 instance_id;
 
     /** @brief The number of submeshes to be rendered. */
     u32 submesh_count;

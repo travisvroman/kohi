@@ -1,5 +1,6 @@
 #include "renderer_frontend.h"
 
+#include "assets/kasset_types.h"
 #include "containers/darray.h"
 #include "containers/freelist.h"
 #include "core/engine.h"
@@ -323,9 +324,30 @@ b8 renderer_on_window_created(struct renderer_system_state* state, struct kwindo
 
     // Request writeable images that are the size of the window. These are used as render targets and
     // are later blitted to swapchain images.
-    // LEFTOFF: These can't be requested until the renderer backend is setup.
-    window->renderer_state->colourbuffer = texture_system_request_writeable(kname_create("__window_colourbuffer_texture__"), window->width, window->height, TEXTURE_FORMAT_RGBA8, false, true);
-    window->renderer_state->depthbuffer = texture_system_request_depth(kname_create("__window_depthbuffer_texture__"), window->width, window->height, true, true);
+    {
+        ktexture_load_options options = {
+            .type = KTEXTURE_TYPE_2D,
+            .is_writeable = true,
+            .format = KPIXEL_FORMAT_RGBA8,
+            .width = window->width,
+            .height = window->height,
+            .multiframe_buffering = true,
+            .name = kname_create("__window_colourbuffer_texture__")};
+        window->renderer_state->colourbuffer = texture_acquire_with_options_sync(options);
+    }
+    {
+        ktexture_load_options options = {
+            .type = KTEXTURE_TYPE_2D,
+            .is_depth = true,
+            .is_stencil = true,
+            .is_writeable = true,
+            .format = KPIXEL_FORMAT_RGBA8,
+            .width = window->width,
+            .height = window->height,
+            .multiframe_buffering = true,
+            .name = kname_create("__window_depthbuffer_texture__")};
+        window->renderer_state->depthbuffer = texture_acquire_with_options_sync(options);
+    }
 
     return true;
 }
@@ -335,6 +357,10 @@ void renderer_on_window_destroyed(struct renderer_system_state* state, struct kw
 
         // Destroy on backend first.
         state->backend->window_destroy(state->backend, window);
+
+        // Release colour/depth buffers.
+        texture_release(window->renderer_state->colourbuffer);
+        texture_release(window->renderer_state->depthbuffer);
     }
 }
 
@@ -345,14 +371,14 @@ void renderer_on_window_resized(struct renderer_system_state* state, const struc
 
     // Also recreate colour/depth buffers.
     if (window->renderer_state->colourbuffer) {
-        if (!texture_system_resize(window->renderer_state->colourbuffer, window->width, window->height, texture_system_initialized)) {
+        if (!texture_resize(window->renderer_state->colourbuffer, window->width, window->height, texture_system_initialized)) {
             KERROR("Failed to resize window colour buffer texture on window resize.");
             return;
         }
     }
 
     if (window->renderer_state->depthbuffer) {
-        if (!texture_system_resize(window->renderer_state->depthbuffer, window->width, window->height, texture_system_initialized)) {
+        if (!texture_resize(window->renderer_state->depthbuffer, window->width, window->height, texture_system_initialized)) {
             KERROR("Failed to resize window depth buffer texture on window resize.");
             return;
         }
@@ -570,13 +596,13 @@ void renderer_set_stencil_write_mask(u32 write_mask) {
     state_ptr->backend->set_stencil_write_mask(state_ptr->backend, write_mask);
 }
 
-b8 renderer_kresource_texture_resources_acquire(struct renderer_system_state* state, kname name, texture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, texture_flag_bits flags, khandle* out_renderer_texture_handle) {
+b8 renderer_texture_resources_acquire(struct renderer_system_state* state, kname name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_renderer_texture_handle) {
     if (!state) {
         return false;
     }
 
     if (!out_renderer_texture_handle) {
-        KERROR("renderer_kresource_texture_resources_acquire requires a valid pointer to a handle.");
+        KERROR("%s - requires a valid pointer to a handle.", __FUNCTION__);
         return false;
     }
 
@@ -810,7 +836,7 @@ void renderer_colour_texture_prepare_for_present(struct renderer_system_state* s
     KERROR("renderer_colour_texture_prepare_for_present requires a valid handle to a texture. Nothing was done.");
 }
 
-void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, khandle texture_handle, texture_flag_bits flags) {
+void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, khandle texture_handle, ktexture_flag_bits flags) {
     if (state && !khandle_is_invalid(texture_handle)) {
         state->backend->texture_prepare_for_sampling(state->backend, texture_handle, flags);
         return;
@@ -819,16 +845,16 @@ void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, 
     KERROR("renderer_texture_prepare_for_sampling requires a valid handle to a texture. Nothing was done.");
 }
 
-b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, const kresource_shader* shader_resource) {
-    return state->backend->shader_create(state->backend, shader, shader_resource);
+b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms) {
+    return state->backend->shader_create(state->backend, shader, name, flags, topology_types, cull_mode, stage_count, stages, stage_names, stage_sources, max_groups, max_draw_ids, attribute_count, attributes, uniform_count, d_uniforms);
 }
 
 void renderer_shader_destroy(struct renderer_system_state* state, khandle shader) {
     state->backend->shader_destroy(state->backend, shader);
 }
 
-b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 shader_stage_count, shader_stage_config* shader_stages) {
-    return state->backend->shader_reload(state->backend, shader, shader_stage_count, shader_stages);
+b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources) {
+    return state->backend->shader_reload(state->backend, shader, stage_count, stages, names, sources);
 }
 
 b8 renderer_shader_use(struct renderer_system_state* state, khandle shader) {
@@ -1016,8 +1042,7 @@ void renderer_renderbuffer_destroy(renderbuffer* buffer) {
         }
 
         if (buffer->name) {
-            u32 length = string_length(buffer->name);
-            kfree(buffer->name, length + 1, MEMORY_TAG_STRING);
+            string_free(buffer->name);
             buffer->name = 0;
         }
 

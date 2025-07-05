@@ -96,7 +96,7 @@ typedef struct kwindow {
 } kwindow;
 
 typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id, void* context);
-typedef void (*platform_filewatcher_file_written_callback)(u32 watcher_id, void* context);
+typedef void (*platform_filewatcher_file_written_callback)(u32 watcher_id, const char* file_path, b8 is_binary, void* context);
 typedef void (*platform_window_closed_callback)(const struct kwindow* window);
 typedef void (*platform_window_resized_callback)(const struct kwindow* window);
 typedef void (*platform_process_key)(keys key, b8 pressed);
@@ -326,24 +326,6 @@ KAPI const char* platform_dynamic_library_prefix(void);
 KAPI platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists);
 
 /**
- * @brief Registers the system-level handler for filewatcher "file deleted" events. This can be hooked
- * up by the engine or application.
- *
- * @param callback A pointer to the handler function.
- * @param context A pointer to any context required along with the callback.
- */
-KAPI void platform_register_watcher_deleted_callback(platform_filewatcher_file_deleted_callback callback, void* context);
-
-/**
- * @brief Registers the system-level handler for filewatcher "file written" events. This can be hooked
- * up by the engine or application.
- *
- * @param callback A pointer to the handler function.
- * @param context A pointer to any context required along with the callback.
- */
-KAPI void platform_register_watcher_written_callback(platform_filewatcher_file_written_callback callback, void* context);
-
-/**
  * @brief Registers the system-level handler for a window being closed.
  *
  * @param callback A pointer to the handler function.
@@ -388,13 +370,24 @@ KAPI void platform_register_process_mouse_wheel_callback(platform_process_mouse_
 
 /**
  * @brief Watch a file at the given path.
- *
+ * 
  * @param file_path The file path. Required.
+ * @param is_binary Indicates if the file being watched is binary (if not, then text).
+ * @param watcher_written_callback Callback to be invoked when the watched file is written to.
+ * @param watcher_written_context Context to be passed along when a file write occurs.
+ * @param watcher_deleted_callback Callback to be invoked when the watched file is deleted from disk.
+ * @param watcher_deleted_context Context to be passed along when a file deletion occurs.
  * @param out_watch_id A pointer to hold the watch identifier.
- * @return True on success; otherwise false.
+ * @return True on success; otherwise false. 
  */
-KAPI b8 platform_watch_file(const char* file_path, u32* out_watch_id);
-
+KAPI b8 platform_watch_file(
+    const char* file_path,
+    b8 is_binary,
+    platform_filewatcher_file_written_callback watcher_written_callback,
+    void* watcher_written_context,
+    platform_filewatcher_file_deleted_callback watcher_deleted_callback,
+    void* watcher_deleted_context,
+    u32* out_watch_id);
 /**
  * @brief Stops watching the file with the given watch identifier.
  *

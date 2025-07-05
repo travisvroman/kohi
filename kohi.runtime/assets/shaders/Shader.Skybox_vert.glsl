@@ -37,7 +37,7 @@ layout(location = 0) out dto {
 } out_dto;
 
 void main() {
-	out_dto.tex_coord = in_position;
+	out_dto.tex_coord = -in_position;
 	const uint view_index = skybox_draw_ubo.options[SKYBOX_OPTION_IDX_VIEW_INDEX];
 	gl_Position = skybox_frame_ubo.projection * skybox_frame_ubo.views[view_index] * vec4(in_position, 1.0);
 } 

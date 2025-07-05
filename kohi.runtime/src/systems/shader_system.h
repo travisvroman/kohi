@@ -13,9 +13,9 @@
 
 #pragma once
 
-#include "core_render_types.h"
-#include "defines.h"
-#include "kresources/kresource_types.h"
+#include <defines.h>
+#include <identifiers/khandle.h>
+#include <kresources/kresource_types.h>
 
 /** @brief Configuration for the shader system. */
 typedef struct shader_system_config {
@@ -127,7 +127,7 @@ KAPI b8 shader_system_uniform_set_arrayed(khandle shader, kname uniform_name, u3
  * @param t A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_texture_set(khandle shader, kname sampler_name, const kresource_texture* t);
+KAPI b8 shader_system_texture_set(khandle shader, kname sampler_name, ktexture t);
 
 /**
  * @brief Sets the arrayed texture uniform with the given name to the supplied texture at the given index.
@@ -138,7 +138,7 @@ KAPI b8 shader_system_texture_set(khandle shader, kname sampler_name, const kres
  * @param t A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_texture_set_arrayed(khandle shader, kname uniform_name, u32 array_index, const kresource_texture* t);
+KAPI b8 shader_system_texture_set_arrayed(khandle shader, kname uniform_name, u32 array_index, ktexture t);
 
 /**
  * @brief Sets a uniform value by location.
@@ -169,7 +169,7 @@ KAPI b8 shader_system_uniform_set_by_location_arrayed(khandle shader, u16 locati
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_texture_set_by_location(khandle shader, u16 location, const struct kresource_texture* t);
+KAPI b8 shader_system_texture_set_by_location(khandle shader, u16 location, ktexture t);
 
 /**
  * @brief Sets a texture value by location.
@@ -180,7 +180,7 @@ KAPI b8 shader_system_texture_set_by_location(khandle shader, u16 location, cons
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_texture_set_by_location_arrayed(khandle shader, u16 location, u32 array_index, const struct kresource_texture* value);
+KAPI b8 shader_system_texture_set_by_location_arrayed(khandle shader, u16 location, u32 array_index, ktexture value);
 
 /**
  * @brief Sets a sampler value by location.
@@ -191,7 +191,7 @@ KAPI b8 shader_system_texture_set_by_location_arrayed(khandle shader, u16 locati
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set_by_location_arrayed(khandle shader, u16 location, u32 array_index, const struct kresource_texture* t);
+KAPI b8 shader_system_sampler_set_by_location_arrayed(khandle shader, u16 location, u32 array_index, ktexture t);
 
 /**
  * @brief Binds the shader at per-frame frequency for use. Must be done before setting
