@@ -38,7 +38,7 @@ typedef struct obj_source_asset {
     const char** material_file_names;
 } obj_source_asset;
 
-KAPI b8 obj_serializer_serialize(const obj_source_asset* out_source_asset, const char** out_file_text);
+b8 obj_serializer_serialize(const obj_source_asset* out_source_asset, const char** out_file_text);
 
 /**
  * Attempts to deserialize the contents of Wavefront OBJ file.
@@ -47,4 +47,4 @@ KAPI b8 obj_serializer_serialize(const obj_source_asset* out_source_asset, const
  * @param out_source_asset A pointer to hold the deserialized obj data. Required.
  * @return True on success; otherwise false.
  */
-KAPI b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_source_asset);
+b8 obj_serializer_deserialize(const char* obj_file_text, obj_source_asset* out_source_asset);

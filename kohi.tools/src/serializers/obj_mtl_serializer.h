@@ -56,7 +56,7 @@ typedef struct obj_mtl_source_asset {
 
 } obj_mtl_source_asset;
 
-KAPI b8 obj_mtl_serializer_serialize(const obj_mtl_source_asset* source_asset, const char** out_file_text);
+b8 obj_mtl_serializer_serialize(const obj_mtl_source_asset* source_asset, const char** out_file_text);
 
 /**
  * Attempts to deserialize the contents of Wavefront MTL file.
@@ -65,4 +65,4 @@ KAPI b8 obj_mtl_serializer_serialize(const obj_mtl_source_asset* source_asset, c
  * @param out_mtl_source_asset A pointer to hold the deserialized material data. Optional unless mtl_file_text is provided, then required.
  * @return True on success; otherwise false.
  */
-KAPI b8 obj_mtl_serializer_deserialize(const char* mtl_file_text, obj_mtl_source_asset* out_mtl_source_asset);
+b8 obj_mtl_serializer_deserialize(const char* mtl_file_text, obj_mtl_source_asset* out_mtl_source_asset);
