@@ -76,7 +76,22 @@ Install these via homebrew (brew) or other package manager:
 - Git: `brew install git`
 - Make: `brew install make`
 
+The Vulkan SDK
+- Vulkan SDK: download from https://vulkan.lunarg.com/
+  - NOTE: Ensure the 'global install' option is selected, which places a copy of the files in `/usr/local/lib`.
+
 NOTE: If you want a newer version of clang, you can also do `brew install llvm` and point to it when compiling.
+
+NOTE: On newer macOS environments, `/usr/local/lib` isn't automaticaly searched for when resolving dependencies. A quick fix for now is to symlink any missing libraries in the 
+`bin` folder so they resolve. This will be fixed in a future version of the engine. To do this, simply run the following:
+
+For vulkan:
+`ln -s /usr/local/lib/vulkan.1.dylib vulkan.1.dylib`
+
+For shaderc:
+`ln -s /usr/local/lib/libshaderc_shared.1.dylib libshaderc_shared.1.dylib`
+
+**Only do this when and where needed.**
 
 ### Cross-Platform Prerequisites:
 
