@@ -229,9 +229,9 @@ typedef struct material_frame_data {
     ktexture shadow_map_texture;
     ktexture irradiance_cubemap_textures[MATERIAL_MAX_SHADOW_CASCADES];
 } material_frame_data;
-b8 material_system_prepare_frame(struct material_system_state* state, material_frame_data mat_frame_data, struct frame_data* p_frame_data);
+KAPI b8 material_system_prepare_frame(struct material_system_state* state, material_frame_data mat_frame_data, struct frame_data* p_frame_data);
 
-b8 material_system_apply(struct material_system_state* state, khandle material, struct frame_data* p_frame_data);
+KAPI b8 material_system_apply(struct material_system_state* state, khandle material, struct frame_data* p_frame_data);
 
 typedef struct material_instance_draw_data {
     mat4 model;
@@ -239,7 +239,7 @@ typedef struct material_instance_draw_data {
     u32 irradiance_cubemap_index;
     u32 view_index;
 } material_instance_draw_data;
-b8 material_system_apply_instance(struct material_system_state* state, const material_instance* instance, struct material_instance_draw_data draw_data, struct frame_data* p_frame_data);
+KAPI b8 material_system_apply_instance(struct material_system_state* state, const material_instance* instance, struct material_instance_draw_data draw_data, struct frame_data* p_frame_data);
 
 /**
  * @brief Sets the given material instance flag's state.
