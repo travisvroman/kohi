@@ -100,6 +100,13 @@ static void frame_allocator_free_all(void) {
     }
 }
 
+static u64 frame_allocator_total_space(void) {
+    return engine_state ? engine_state->frame_allocator.total_size : 0;
+}
+static u64 frame_allocator_allocated(void) {
+    return engine_state ? engine_state->frame_allocator.allocated : 0;
+}
+
 // Event handlers
 static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context);
 static void engine_on_window_closed(const struct kwindow* window);
@@ -577,10 +584,12 @@ b8 engine_create(application* app) {
     }
 
     // Setup the frame allocator.
-    linear_allocator_create(app->app_config.frame_allocator_size, 0, &engine_state->frame_allocator);
+    linear_allocator_create(MEBIBYTES(app->app_config.frame_allocator_size), 0, &engine_state->frame_allocator);
     engine_state->p_frame_data.allocator.allocate = frame_allocator_allocate;
     engine_state->p_frame_data.allocator.free = frame_allocator_free;
     engine_state->p_frame_data.allocator.free_all = frame_allocator_free_all;
+    engine_state->p_frame_data.allocator.total_space = frame_allocator_total_space;
+    engine_state->p_frame_data.allocator.allocated = frame_allocator_allocated;
 
     // Allocate for the application's frame data.
     if (app->app_config.app_frame_data_size > 0) {

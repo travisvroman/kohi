@@ -101,7 +101,7 @@ KAPI void* _darray_duplicate(u64 stride, void* array);
  * @returns A pointer to the array's memory block.
  */
 #define darray_create_with_allocator(type, allocator) \
-    _darray_create(DARRAY_DEFAULT_CAPACITY, sizeof(type), allocator)
+    (type*)_darray_create(DARRAY_DEFAULT_CAPACITY, sizeof(type), allocator)
 
 /**
  * @brief Creates a new darray of the given type with the provided capacity.
@@ -111,7 +111,7 @@ KAPI void* _darray_duplicate(u64 stride, void* array);
  * @returns A pointer to the array's memory block.
  */
 #define darray_reserve(type, capacity) \
-    _darray_create(capacity, sizeof(type), 0)
+    (type*)_darray_create(capacity, sizeof(type), 0)
 
 /**
  * @brief Creates a new darray of the given type with the provided capacity.
@@ -122,7 +122,7 @@ KAPI void* _darray_duplicate(u64 stride, void* array);
  * @returns A pointer to the array's memory block.
  */
 #define darray_reserve_with_allocator(type, capacity, allocator) \
-    _darray_create(capacity, sizeof(type), allocator)
+    (type*)_darray_create(capacity, sizeof(type), allocator)
 
 /**
  * @brief Destroys the provided array, freeing any memory allocated by it.

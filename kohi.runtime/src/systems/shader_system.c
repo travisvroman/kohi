@@ -266,6 +266,7 @@ khandle shader_system_get_from_source(kname name, const char* shader_config_sour
     if (!kasset_shader_deserialize(shader_config_source, temp_asset)) {
         return khandle_invalid();
     }
+    temp_asset->name = name;
 
     // Create the shader.
     khandle shader_handle = shader_create(temp_asset);

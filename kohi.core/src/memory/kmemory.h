@@ -22,6 +22,8 @@ typedef struct frame_allocator_int {
     void* (*allocate)(u64 size);
     void (*free)(void* block, u64 size);
     void (*free_all)(void);
+    u64 (*total_space)(void);
+    u64 (*allocated)(void);
 } frame_allocator_int;
 
 /** @brief Tags to indicate the usage of memory allocations made in this system. */
@@ -279,6 +281,8 @@ KAPI void* kcopy_memory(void* dest, const void* source, u64 size);
  * @returns A pointer to the destination block of memory.
  */
 KAPI void* kset_memory(void* dest, i32 value, u64 size);
+
+KAPI const char* get_unit_for_size(u64 size_bytes, f32* out_amount);
 
 /**
  * @brief Obtains a string containing a "printout" of memory usage, categorized by
