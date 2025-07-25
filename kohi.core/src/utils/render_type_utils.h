@@ -126,3 +126,5 @@ KAPI const char* kmaterial_model_to_string(kmaterial_model model);
 
 /** @brief Converts the given string into a material model. Case-insensitive. */
 KAPI kmaterial_model string_to_kmaterial_model(const char* str);
+
+KAPI mat4 generate_projection_matrix(rect_2di rect, f32 fov, f32 near_clip, f32 far_clip, projection_matrix_type matrix_type);

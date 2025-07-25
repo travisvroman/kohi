@@ -4,6 +4,7 @@
 #include <math/geometry.h>
 #include <math/math_types.h>
 #include <resources/resource_types.h>
+#include <systems/kcamera_system.h>
 
 #include "identifiers/khandle.h"
 
@@ -12,7 +13,6 @@
 #endif
 
 struct ray;
-struct camera;
 struct frame_data;
 
 typedef enum editor_gizmo_mode {
@@ -107,8 +107,8 @@ KAPI void editor_gizmo_render_frame_prepare(editor_gizmo* gizmo, const struct fr
 
 KAPI void editor_gizmo_mode_set(editor_gizmo* gizmo, editor_gizmo_mode mode);
 
-KAPI void editor_gizmo_interaction_begin(editor_gizmo* gizmo, struct camera* c, struct ray* r, editor_gizmo_interaction_type interaction_type);
+KAPI void editor_gizmo_interaction_begin(editor_gizmo* gizmo, kcamera camera, struct ray* r, editor_gizmo_interaction_type interaction_type);
 KAPI void editor_gizmo_interaction_end(editor_gizmo* gizmo);
-KAPI void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, struct ray* r, editor_gizmo_interaction_type interaction_type);
+KAPI void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct ray* r, editor_gizmo_interaction_type interaction_type);
 
 KAPI mat4 editor_gizmo_model_get(editor_gizmo* gizmo);

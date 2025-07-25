@@ -258,21 +258,21 @@ typedef struct plane_3d {
     f32 distance;
 } plane_3d;
 
-#define FRUSTUM_SIDE_COUNT 6
+#define KFRUSTUM_SIDE_COUNT 6
 
-typedef enum frustum_side {
-    FRUSTUM_SIDE_TOP = 0,
-    FRUSTUM_SIDE_BOTTOM = 1,
-    FRUSTUM_SIDE_RIGHT = 2,
-    FRUSTUM_SIDE_LEFT = 3,
-    FRUSTUM_SIDE_FAR = 4,
-    FRUSTUM_SIDE_NEAR = 5,
-} frustum_side;
+typedef enum kfrustum_side {
+    KFRUSTUM_SIDE_TOP = 0,
+    KFRUSTUM_SIDE_BOTTOM = 1,
+    KFRUSTUM_SIDE_RIGHT = 2,
+    KFRUSTUM_SIDE_LEFT = 3,
+    KFRUSTUM_SIDE_FAR = 4,
+    KFRUSTUM_SIDE_NEAR = 5,
+} kfrustum_side;
 
-typedef struct frustum {
+typedef struct kfrustum {
     // Top, bottom, right, left, far, near
-    plane_3d sides[FRUSTUM_SIDE_COUNT];
-} frustum;
+    plane_3d sides[KFRUSTUM_SIDE_COUNT];
+} kfrustum;
 
 /**
  * @brief A 2-element integer-based vector.
@@ -387,6 +387,9 @@ typedef union vec4i_t {
         };
     };
 } vec4i;
+
+// integer-based 2D rectangle.
+typedef vec4i rect_2di;
 
 typedef struct triangle {
     vec3 verts[3];

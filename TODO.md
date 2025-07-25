@@ -4,35 +4,24 @@ The items in this list are not in any particular order. This list will be update
 
 # Future Releases:
 
-## 0.10.0 Release
-
-- [x] Refactor texture system to use ids only, typedefed as a ktexture.
-- [x] Refactor asset system to use direct types, dispense with handlers/import logic from engine
-  - [x] Jobify VFS loading.
-  - [x] Rework import pipeline to exist in kohi.tools instead.
-- [x] Remove resource system, directly use reworked asset system in dedicated systems.
-- [x] Rework hot-reloading. (systems can register for a KASSET_HOT_RELOADED event and handle it thusly)
-  - [x] Separate hot reload request call in VFS. This should return a watch id.
-  - [x] Remove hot reload bool option in VFS request and in vfs_asset_data, as well as the file watch id.
-  - [x] Fire VFS-specific event when a filesystem watch updates.
-  - [x] Intercept above message in asset system, interpret how to handle it.
-  - [x] Fire off asset-system specific hot reload event, accompanied by watch id.
-
 ## 0.11.0 Release
 
-- [ ] Move scene to game code, game-specific. Remove all references to scenes in engine core/runtime.
+- [x] Remove rendergraph - have application drive render process directly.
+- [ ] Rework hierarchy system to use typedefed u16s instead of khandles.
+- [ ] Rework transform system:
+  - [ ] Replace khandle representation with typedefed u16 and go by index.
+- [ ] Move scene to game code, game-specific.
+  - [ ] Change scenes to use single level of 'inheritance', i.e. have a base_entity that has props, then a static_mesh_entity that has `base_entity base` member.
+  - [ ] Replace "node" config with "entity". Remove concept of attachments.
+  - [ ] Remove all references to scenes in engine core/runtime.
+- [ ] Refactor Testbed project for the above changes.
+- [x] Remove viewports, enhance camera system to include this instead.
+- [ ] Remove legacy systems (i.e. lighting, etc.)
+- [ ] Hoist Overdrive project to it's own repo, refactor similar to Testbed.
 
 ## 0.12.0 Release
 
-- [ ] Remove rendergraph - have application drive render process directly.
-
-## 0.13.0 Release
-
-- [ ] Remove legacy systems (i.e. lighting, camera, etc.)
-
-## 0.14.0 Release
-
-- [ ] Animated meshes.
+- [ ] Animation system/animated meshes.
 
 ## Future Releases
 
@@ -51,7 +40,6 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Replace all instances of typical C-style arrays and replace with new typed array from array.h
 - [ ] Refactor handling of texture_map/texture resources in Vulkan renderer.
 - [ ] Asset System
-  - [ ] Jobify VFS asset loading
   - [ ] Asset type reworks:
     - [ ] Folders (Future)
       - [ ] Create/Destroy/Rename, etc., All happens on-disk.
@@ -63,8 +51,6 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Static meshes
       - [ ] OBJ Imports - make material import/generation optional (so we don't overwrite the hand-rolled materials);
       - [ ] Create a "default static mesh" (named "StaticMesh_Default") which is a cube with perhaps a warning material.
-    - [ ] Materials
-      - [ ] Importer from MTL directly (as opposed to with an OBJ file).
     - [ ] Audio
       - [ ] Importers
         - [ ] .wav
@@ -74,17 +60,8 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Create binary blob format (.kpackage file) and read/write.
   - [ ] Point kpackage to .kpackage file for "release" builds.
 - [ ] Resources
-  - [ ] Materials
-    - [ ] Importer from MTL directly (as opposed to with an OBJ file).
   - [ ] Heightmap Terrain (formerly just Terrain)
     - [ ] Refactor to encode a "material index" into an unused int/float within the vertex data, and eliminate the need to have "terrain vertex data" entirely.
-    - [ ] Resource Handler - finish
-- [ ] Handle refactoring
-  - [ ] Create mesh system that uses handles (NOTE: maybe called "static_mesh_system"?)
-  - [ ] Convert texture system to use handles (everything that _isn't_ the renderer should use handles).
-  - [ ] Convert lighting system to use handles.
-  - [ ] Create skybox system that uses handles.
-  - [ ] Create scene system that uses handles.
 - [ ] Audio
   - [ ] Audio velocity
   - [ ] Effects
@@ -103,10 +80,6 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Two-sided support
   - [ ] Additional texture channels:
     - [ ] Specular (scale specularity on non-metallic surfaces (0-1, default 0.5)) (PBR, Phong)
-- [ ] Break out kresource_static_mesh to be a single geometry with a single material.
-  - Import process should ask about combining meshes. If so, all objects in an OBJ/GLTF/etc. would be imported as a
-    single kresource_static_mesh. Materials would be combined into a single layered material. NOTE: This would probably
-    require a limitation somewhere on the number of materials a "imported scene" can have.
 - [ ] Rework hashtable to better handle collisions.
 - [ ] Custom cursor
   - [ ] Hardware cursor (i.e. from the windowing system)
@@ -129,89 +102,6 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Additional texture channels:
     - [ ] Clear coat (PBR)
     - [ ] Clear coat roughness. (PBR)
-- [ ] Resource type reworks
-  - [ ] Scene
-    - [ ] Convert nodes->Actors.
-    - [ ] Convert attachments->ActorComponents.
-  - [ ] Extensibility for user-defined resource types.
-    - [ ] Handler?
-- [ ] Actor-ActorComponent-ActorComponentSystem
-
-  - [ ] Actor: Represents the base of something that can exist or be spawned into the world. It is similar in
-        concept to the current scene "node".
-
-    - Contains properties:
-      - u64 actor_id: A unique generated identifier of an actor upon creation.
-      - kname: The name of the actor.
-      - khandle hierarchy_handle: Holds handle to hierarchy id if used with a hierarchy graph (which scenes do)
-      - khandle xform_handle: NOTE: Not sure if this is really needed since it can be retrieved using the hierarchy_handle,
-        but it might be useful for anyone using actors without hierarchy.
-    - NOTE: For actors _not_ using hierarchy, the hierarchy would need to be managed some other way.
-    - Can have any number of kactor_comps attached to it (see ActorComponent)
-      - Each ActorComponentSystem will be responsible for maintaining this relationship (i.e. the system maintains a
-        list of components to actor_ids). Better for memory, but might make it tricky to obtain a list of all actor types
-        associated with a given actor.
-
-  - [ ] ActorComponent: Used to control an actor (i.e. how it's rendered, moved, etc.). An actor can hold many of these.
-  - [ ] ActorComponentSystem: Used to manage actors of a given type.
-  - [ ] Types:
-    - [ ] kactor_comp_static_mesh
-      - Holds a copy of a static_mesh_instance
-        - Contains a pointer to the backing mesh resource, which has an array of submeshes with geometries.
-        - Contains array of obtained kresource_material_instances (matches resource submesh array, including duplicates for flexibiliy)
-      - system used to generate static_mesh_render_data, which contains:
-        - IBL probe index
-        - mesh count
-        - tint override (applies to all sub-meshes)
-        - An array of static_mesh_submesh_render_data, each including:
-          - vertex and index count
-          - vertex and index buffer offsets
-          - NOTE: size is known based on the type of render data
-          - copy of kresource_material_instance
-          - render data flags (i.e. invert winding for negative-scale meshes)
-          - model matrix (per-sub-mesh for flexibility, in case an imported "scene" i.e. OBJ/GLTF has them)
-    - [ ] kactor_comp_skybox
-    - [ ] kactor_comp_water_plane
-    - [ ] kactor_comp_heightmap_terrain
-      - Holds pointer to kresource_heightmap_terrain
-        - Contains array of geometries (3D_HEIGHTMAP_TERRAIN type, see above).
-      - Holds kresource_material_instance of layered terrain material.
-      - system used to generate kactor_comp_heightmap_terrain_render_data, which contains:
-        - An array of heightmap_terrain_chunk_render_data (per terrain chunk), each containing:
-          - vertex and index count
-          - vertex and index buffer offsets
-          - NOTE: size is known based on the type of render data
-          - NOTE: material info is passed once at the per_group level as a layered material.
-    - [ ] kactor_comp_directional_light
-      - Holds a pointer to generated shadow map layered texture (NOTE: remove this from the forward render node)
-      - Has a xform of its own, with the following caveats:
-        - Scale does nothing.
-        - Position is only used by the editor/debug displays to show a gizmo.
-        - Rotation is used to derive light direction when obtaining render data.
-      - system used to generate kactor_comp_directional_light_render_data, which contains:
-        - vec4 light colour
-        - vec4 light direction (derived from xform)
-        - pointer to shadow map resource
-        - NOTE: For debug views, this can be used to determine the rendering of a "line" or something indicating world direction and colour
-    - [ ] kactor_comp_point_light
-      - Holds a pointer to generated shadow map layered texture (NOTE: Not yet implemented, but this is where it will go)
-      - Has a xform of its own, with the following caveats:
-        - Scale does nothing.
-        - Position is used for render data generation.
-        - Rotation does nothing.
-      - system used to generate kactor_comp_point_light_render_data, which contains:
-        - vec4 light colour
-        - vec3 light position
-        - constant, linear and quadratic (TODO: Can we simplify these properties to be more user-friendly?)
-        - pointer to shadow map resource (NOTE: when implemented)
-        - NOTE: For debug views, this can be used to determine the rendering of a "box" or something indicating world position, size and colour
-    - [ ] kactor_comp_sound_effect
-      - Holds pointer to sound effect resource
-      - Holds position
-    - [ ] kactor_music
-
-- [ ] Blitting -
-  - [ ] Ability to use/not use blitting (i.e. performance reasons on mobile?) - may punt down the road further
 
 ## Engine general:
 
@@ -524,7 +414,6 @@ The items in this list are not in any particular order. This list will be update
 - [x] Virtual file system (VFS)
   - [x] Sits on top of and manages packages, doles out requests to loaded packages, etc.
 - [x] Remove geometry system
-
   - [x] Rename geometry->kgeometry
   - [x] Move creation of geometries to geometry.h/c
   - [x] Add geometry_type:
@@ -537,7 +426,6 @@ The items in this list are not in any particular order. This list will be update
     - [x] CUSTOM - User-defined geometry type. Vertex/index size will only be looked at for this type.
 
 - [x] New Resource System
-
   - [x] Remove old resource system after it is decomissioned.
   - [x] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
         New system will make requests to new Asset System asynchronously, and be responsible for all reference counting and auto-releasing.
@@ -671,5 +559,19 @@ The items in this list are not in any particular order. This list will be update
     - [x] Channel reservation/sound types or "categories"
 - [x] Debug shape
   - [x] debug_sphere3d (similar to the one generated for the editor gizmo)
+
+## 0.10.0 Release
+
+- [x] Refactor texture system to use ids only, typedefed as a ktexture.
+- [x] Refactor asset system to use direct types, dispense with handlers/import logic from engine
+  - [x] Jobify VFS loading.
+  - [x] Rework import pipeline to exist in kohi.tools instead.
+- [x] Remove resource system, directly use reworked asset system in dedicated systems.
+- [x] Rework hot-reloading. (systems can register for a KASSET_HOT_RELOADED event and handle it thusly)
+  - [x] Separate hot reload request call in VFS. This should return a watch id.
+  - [x] Remove hot reload bool option in VFS request and in vfs_asset_data, as well as the file watch id.
+  - [x] Fire VFS-specific event when a filesystem watch updates.
+  - [x] Intercept above message in asset system, interpret how to handle it.
+  - [x] Fire off asset-system specific hot reload event, accompanied by watch id.
 
 Back to [readme](readme.md)

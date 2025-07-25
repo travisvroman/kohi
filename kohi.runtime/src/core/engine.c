@@ -27,13 +27,12 @@
 #include "frame_data.h"
 #include "plugins/plugin_types.h"
 #include "renderer/renderer_frontend.h"
-#include "renderer/rendergraph.h"
 
 // systems
 #include "systems/asset_system.h"
-#include "systems/camera_system.h"
 #include "systems/font_system.h"
 #include "systems/job_system.h"
+#include "systems/kcamera_system.h"
 #include "systems/light_system.h"
 #include "systems/material_system.h"
 #include "systems/plugin_system.h"
@@ -547,22 +546,12 @@ b8 engine_create(application* app) {
 
     // Camera system
     {
-        camera_system_config camera_sys_config = {0};
+        kcamera_system_config camera_sys_config = {0};
         camera_sys_config.max_camera_count = 61;
-        camera_system_initialize(&systems->camera_system_memory_requirement, 0, &camera_sys_config);
+        kcamera_system_initialize(&systems->camera_system_memory_requirement, 0, &camera_sys_config);
         systems->camera_system = kallocate(systems->camera_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!camera_system_initialize(&systems->camera_system_memory_requirement, systems->camera_system, &camera_sys_config)) {
+        if (!kcamera_system_initialize(&systems->camera_system_memory_requirement, systems->camera_system, &camera_sys_config)) {
             KERROR("Failed to initialize camera system.");
-            return false;
-        }
-    }
-
-    // Rendergraph system
-    {
-        rendergraph_system_initialize(&systems->rendergraph_system_memory_requirement, 0);
-        systems->rendergraph_system = kallocate(systems->rendergraph_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!rendergraph_system_initialize(&systems->rendergraph_system_memory_requirement, systems->rendergraph_system)) {
-            KERROR("Failed to initialize rendergraph system.");
             return false;
         }
     }
@@ -814,7 +803,7 @@ b8 engine_run(application* app) {
         // Engine systems
         engine_system_states* systems = &engine_state->systems;
 
-        camera_system_shutdown(systems->camera_system);
+        kcamera_system_shutdown(systems->camera_system);
         light_system_shutdown(systems->light_system);
         static_mesh_system_shutdown(systems->static_mesh_system);
         material_system_shutdown(systems->material_system);

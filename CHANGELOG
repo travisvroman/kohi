@@ -1,4 +1,9 @@
 Changelog
+- 0.11.0
+  - Removed rendergraph. Applications are now expected to roll their own bespoke "application renderer"
+  - Removed viewports as a construct from the engine code.
+  - Revamped camera system -> kcamera_system, which has increased responsibility of items like fov, near/far clip, projection matrix.
+  - Renamed frustum->kfrustum
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

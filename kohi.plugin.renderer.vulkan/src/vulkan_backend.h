@@ -40,9 +40,9 @@ b8 vulkan_renderer_frame_present(renderer_backend_interface* backend, struct kwi
 
 b8 vulkan_renderer_begin(renderer_backend_interface* backend, struct frame_data* p_frame_data);
 b8 vulkan_renderer_end(renderer_backend_interface* backend, struct frame_data* p_frame_data);
-void vulkan_renderer_viewport_set(renderer_backend_interface* backend, vec4 rect);
+void vulkan_renderer_viewport_set(renderer_backend_interface* backend, rect_2di rect);
 void vulkan_renderer_viewport_reset(renderer_backend_interface* backend);
-void vulkan_renderer_scissor_set(renderer_backend_interface* backend, vec4 rect);
+void vulkan_renderer_scissor_set(renderer_backend_interface* backend, rect_2di rect);
 void vulkan_renderer_scissor_reset(renderer_backend_interface* backend);
 
 void vulkan_renderer_winding_set(struct renderer_backend_interface* backend, renderer_winding winding);
@@ -53,7 +53,7 @@ void vulkan_renderer_set_depth_write_enabled(struct renderer_backend_interface* 
 void vulkan_renderer_set_stencil_reference(struct renderer_backend_interface* backend, u32 reference);
 void vulkan_renderer_set_stencil_op(struct renderer_backend_interface* backend, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
 
-void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer);
+void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer);
 void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, struct frame_data* p_frame_data);
 
 void vulkan_renderer_set_stencil_compare_mask(struct renderer_backend_interface* backend, u32 compare_mask);

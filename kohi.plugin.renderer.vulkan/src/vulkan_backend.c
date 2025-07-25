@@ -970,7 +970,7 @@ b8 vulkan_renderer_frame_present(renderer_backend_interface* backend, struct kwi
     return true;
 }
 
-void vulkan_renderer_viewport_set(renderer_backend_interface* backend, vec4 rect) {
+void vulkan_renderer_viewport_set(renderer_backend_interface* backend, rect_2di rect) {
     // Cold-cast the context
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
@@ -978,8 +978,8 @@ void vulkan_renderer_viewport_set(renderer_backend_interface* backend, vec4 rect
     VkViewport viewport;
     viewport.x = rect.x;
     viewport.y = rect.y;
-    viewport.width = rect.z;
-    viewport.height = rect.w;
+    viewport.width = rect.width;
+    viewport.height = rect.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -995,7 +995,9 @@ void vulkan_renderer_viewport_reset(renderer_backend_interface* backend) {
     vulkan_renderer_viewport_set(backend, context->viewport_rect);
 }
 
-void vulkan_renderer_scissor_set(renderer_backend_interface* backend, vec4 rect) {
+void vulkan_renderer_scissor_set(renderer_backend_interface* backend, rect_2di rect) {
+    KASSERT_DEBUG(rect.width && rect.height);
+
     // Cold-cast the context
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
@@ -1011,10 +1013,11 @@ void vulkan_renderer_scissor_set(renderer_backend_interface* backend, vec4 rect)
 }
 
 void vulkan_renderer_scissor_reset(renderer_backend_interface* backend) {
+    KASSERT_MSG(false, "don't do that ya dingus");
     // Cold-cast the context
-    vulkan_context* context = (vulkan_context*)backend->internal_context;
+    /* vulkan_context* context = (vulkan_context*)backend->internal_context;
     // Just set the current scissor rect.
-    vulkan_renderer_scissor_set(backend, context->scissor_rect);
+    vulkan_renderer_scissor_set(backend, context->scissor_rect); */
 }
 
 void vulkan_renderer_winding_set(struct renderer_backend_interface* backend, renderer_winding winding) {
@@ -1186,7 +1189,7 @@ void vulkan_renderer_set_stencil_op(struct renderer_backend_interface* backend, 
     }
 }
 
-void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend, frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer) {
+void vulkan_renderer_begin_rendering(struct renderer_backend_interface* backend, frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
     vulkan_command_buffer* primary = get_current_command_buffer(context);
@@ -3808,12 +3811,10 @@ static u32 get_current_image_count(vulkan_context* context) {
 
 static b8 vulkan_graphics_pipeline_create(vulkan_context* context, const vulkan_pipeline_config* config, vulkan_pipeline* out_pipeline) {
     krhi_vulkan* rhi = &context->rhi;
-    // Viewport state
+    // Viewport state is dynamic, but the count isn't (can use VK_DYNAMIC_STATE_VIEWPORT_WITH_COUNT to have this be dynamic and eliminate this struct).
     VkPipelineViewportStateCreateInfo viewport_state = {VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
     viewport_state.viewportCount = 1;
-    viewport_state.pViewports = &config->viewport;
     viewport_state.scissorCount = 1;
-    viewport_state.pScissors = &config->scissor;
 
     // Rasterizer
     VkPipelineRasterizationStateCreateInfo rasterizer_create_info = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
@@ -4454,24 +4455,6 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
         }
     }
 
-    u32 framebuffer_width = context->current_window->width;
-    u32 framebuffer_height = context->current_window->height;
-
-    // Default viewport/scissor, can be dynamically overidden.
-    VkViewport viewport;
-    viewport.x = 0.0f;
-    viewport.y = (f32)framebuffer_height;
-    viewport.width = (f32)framebuffer_width;
-    viewport.height = -(f32)framebuffer_height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    // Scissor
-    VkRect2D scissor;
-    scissor.offset.x = scissor.offset.y = 0;
-    scissor.extent.width = framebuffer_width;
-    scissor.extent.height = framebuffer_height;
-
     VkPipelineShaderStageCreateInfo stage_create_infos[VULKAN_SHADER_MAX_STAGES];
     kzero_memory(stage_create_infos, sizeof(VkPipelineShaderStageCreateInfo) * VULKAN_SHADER_MAX_STAGES);
     for (u32 i = 0; i < internal_shader->stage_count; ++i) {
@@ -4498,8 +4481,6 @@ static b8 shader_create_modules_and_pipelines(renderer_backend_interface* backen
         pipeline_config.descriptor_set_layouts = internal_shader->descriptor_set_layouts;
         pipeline_config.stage_count = internal_shader->stage_count;
         pipeline_config.stages = stage_create_infos;
-        pipeline_config.viewport = viewport;
-        pipeline_config.scissor = scissor;
         pipeline_config.cull_mode = internal_shader->cull_mode;
 
         // Strip the wireframe flag if it's there.

@@ -19,6 +19,7 @@
 #include "defines.h"
 #include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
+#include "math/math_types.h"
 #include "platform/vulkan_platform.h"
 #include "renderer/renderer_types.h"
 #include "vulkan/vulkan_core.h"
@@ -311,10 +312,6 @@ typedef struct vulkan_pipeline_config {
     u32 stage_count;
     /** @brief An VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BITarray of stages. */
     VkPipelineShaderStageCreateInfo* stages;
-    /** @brief The initial viewport configuration. */
-    VkViewport viewport;
-    /** @brief The initial scissor configuration. */
-    VkRect2D scissor;
     /** @brief The face cull mode. */
     face_cull_mode cull_mode;
     /** @brief The shader flags used for creating the pipeline. */
@@ -696,10 +693,10 @@ typedef struct vulkan_context {
     VkClearDepthStencilValue depth_stencil_clear_value;
 
     /** @brief The viewport rectangle. */
-    vec4 viewport_rect;
+    rect_2di viewport_rect;
 
     /** @brief The scissor rectangle. */
-    vec4 scissor_rect;
+    /* vec4 scissor_rect; */
 
     /** @brief The handle to the internal Vulkan instance. */
     VkInstance instance;

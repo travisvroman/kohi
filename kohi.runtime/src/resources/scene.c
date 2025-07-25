@@ -2091,7 +2091,7 @@ b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction,
     return true;
 }
 
-b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries) {
+b8 scene_mesh_render_data_query(const scene* scene, const kfrustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries) {
     if (!scene) {
         return false;
     }
@@ -2173,7 +2173,7 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
                     kabs(extents_max.z - g_center.z),
                 };
 
-                if (!f || frustum_intersects_aabb(f, &g_center, &half_extents)) {
+                if (!f || kfrustum_intersects_aabb(f, &g_center, &half_extents)) {
                     // Add it to the list to be rendered.
                     geometry_render_data data = {0};
                     data.model = model;
@@ -2224,7 +2224,7 @@ b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 cente
     return true;
 }
 
-b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries) {
+b8 scene_terrain_render_data_query(const scene* scene, const kfrustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries) {
     if (!scene) {
         return false;
     }
@@ -2268,7 +2268,7 @@ b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, vec3 ce
                     };
                 }
 
-                if (!f || frustum_intersects_aabb(f, &g_center, &half_extents)) {
+                if (!f || kfrustum_intersects_aabb(f, &g_center, &half_extents)) {
                     geometry_render_data data = {0};
                     data.model = model;
                     data.material = chunk->material;
@@ -2305,7 +2305,7 @@ b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, vec3 ce
  * @param out_water_planes A pointer to an array of pointers to water planes. Pass 0 if just obtaining the count.
  * @return True on success; otherwise false.
  */
-b8 scene_water_plane_query(const scene* scene, const frustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, water_plane*** out_water_planes) {
+b8 scene_water_plane_query(const scene* scene, const kfrustum* f, vec3 center, frame_data* p_frame_data, u32* out_count, water_plane*** out_water_planes) {
     if (!scene) {
         return false;
     }

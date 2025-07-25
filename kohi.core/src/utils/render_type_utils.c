@@ -5,7 +5,7 @@
 #include "defines.h"
 #include "logger.h"
 #include "math/kmath.h"
-#include "memory/kmemory.h"
+#include "math/math_types.h"
 #include "strings/kstring.h"
 
 b8 uniform_type_is_sampler(shader_uniform_type type) {
@@ -676,5 +676,20 @@ kmaterial_model string_to_kmaterial_model(const char* str) {
     } else {
         KERROR("Unrecognized material model '%s'. Defaulting to KMATERIAL_MODEL_PBR.", str);
         return KMATERIAL_MODEL_PBR;
+    }
+}
+
+mat4 generate_projection_matrix(rect_2di rect, f32 fov, f32 near_clip, f32 far_clip, projection_matrix_type matrix_type) {
+    switch (matrix_type) {
+    default:
+    case PROJECTION_MATRIX_TYPE_PERSPECTIVE:
+        return mat4_perspective(fov, (f32)rect.width / rect.height, near_clip, far_clip);
+    case PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC:
+        // NOTE: may need to reverse y/w
+        return mat4_orthographic(rect.x, rect.width, rect.height, rect.y, near_clip, far_clip);
+    case PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC_CENTERED: {
+        f32 mod = fov;
+        return mat4_orthographic(-rect.width * mod, rect.width * mod, -rect.height * mod, rect.height * mod, near_clip, far_clip);
+    } break;
     }
 }

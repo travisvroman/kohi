@@ -2045,18 +2045,18 @@ KAPI plane_3d plane_3d_create(vec3 p1, vec3 norm);
  * (typically obtained from a camera). This is typically used for frustum
  * culling.
  *
- * @param position A constant pointer to the position to be used.
- * @param target A constant pointer to the target vector to be used.
- * @param up A constant pointer to the up vector to be used.
+ * @param position The position to be used.
+ * @param target The target vector to be used.
+ * @param up The up vector to be used.
  * @param aspect The aspect ratio.
  * @param fov The vertical field of view.
  * @param near The near clipping plane distance.
  * @param far The far clipping plane distance.
  * @return A shiny new frustum.
  */
-KAPI frustum frustum_create(const vec3* position, const vec3* target, const vec3* up, f32 aspect, f32 fov, f32 near, f32 far);
+KAPI kfrustum kfrustum_create(vec3 position, vec3 target, vec3 up, f32 aspect, f32 fov, f32 near, f32 far);
 
-KAPI frustum frustum_from_view_projection(mat4 view_projection);
+KAPI kfrustum kfrustum_from_view_projection(mat4 view_projection);
 
 /**
  * Calculate the corner points of the provided frustum in world space, using
@@ -2065,7 +2065,7 @@ KAPI frustum frustum_from_view_projection(mat4 view_projection);
  * @param projection_view The combined projection/view matrix from the active camera.
  * @param corners An array of 8 vec4s to hold the caluclated points.
  */
-KAPI void frustum_corner_points_world_space(mat4 projection_view, vec4* corners);
+KAPI void kfrustum_corner_points_world_space(mat4 projection_view, vec4* corners);
 
 /**
  * @brief Obtains the signed distance between the plane p and the provided
@@ -2099,7 +2099,7 @@ KAPI b8 plane_intersects_sphere(const plane_3d* p, const vec3* center,
  * @param radius The radius of the sphere.
  * @return True if the sphere is intersected by or contained within the frustum f; otherwise false.
  */
-KAPI b8 frustum_intersects_sphere(const frustum* f, const vec3* center, f32 radius);
+KAPI b8 kfrustum_intersects_sphere(const kfrustum* f, const vec3* center, f32 radius);
 
 /**
  * @brief Indicates if the frustum intersects (or contains) a sphere constructed
@@ -2109,7 +2109,7 @@ KAPI b8 frustum_intersects_sphere(const frustum* f, const vec3* center, f32 radi
  * @param sphere A constant pointer to a sphere.
  * @return True if the sphere is intersected by or contained within the frustum f; otherwise false.
  */
-KAPI b8 frustum_intersects_ksphere(const frustum* f, const ksphere* sphere);
+KAPI b8 kfrustum_intersects_ksphere(const kfrustum* f, const ksphere* sphere);
 
 /**
  * @brief Indicates if plane p intersects an axis-aligned bounding box
@@ -2135,8 +2135,8 @@ KAPI b8 plane_intersects_aabb(const plane_3d* p, const vec3* center, const vec3*
  * @return True if the axis-aligned bounding box is intersected by or contained
  * within the frustum f; otherwise false.
  */
-KAPI b8 frustum_intersects_aabb(const frustum* f, const vec3* center,
-                                const vec3* extents);
+KAPI b8 kfrustum_intersects_aabb(const kfrustum* f, const vec3* center,
+                                 const vec3* extents);
 
 KINLINE b8 rect_2d_contains_point(rect_2d rect, vec2 point) {
     return (point.x >= rect.x && point.x <= rect.x + rect.width) && (point.y >= rect.y && point.y <= rect.y + rect.height);

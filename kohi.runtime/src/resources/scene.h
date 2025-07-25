@@ -6,7 +6,6 @@
 #include "defines.h"
 #include "graphs/hierarchy_graph.h"
 #include "identifiers/khandle.h"
-#include "kresources/kresource_types.h"
 #include "math/math_types.h"
 #include "resources/debug/debug_grid.h"
 #include "systems/static_mesh_system.h"
@@ -250,13 +249,13 @@ KAPI b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* 
 
 KAPI b8 scene_debug_render_data_query(scene* scene, u32* data_count, struct geometry_render_data** debug_geometries);
 
-KAPI b8 scene_mesh_render_data_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
+KAPI b8 scene_mesh_render_data_query(const scene* scene, const kfrustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
 KAPI b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
 
-KAPI b8 scene_terrain_render_data_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries);
+KAPI b8 scene_terrain_render_data_query(const scene* scene, const kfrustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_terrain_geometries);
 KAPI b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction, vec3 center, f32 radius, struct frame_data* p_frame_data, u32* out_count, struct geometry_render_data** out_geometries);
 
-KAPI b8 scene_water_plane_query(const scene* scene, const frustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct water_plane*** out_water_planes);
+KAPI b8 scene_water_plane_query(const scene* scene, const kfrustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct water_plane*** out_water_planes);
 
 KAPI b8 scene_node_xform_get_by_name(const scene* scene, kname name, khandle* out_xform_handle);
 KAPI b8 scene_node_xform_get(const scene* scene, khandle node_handle, khandle* out_xform_handle);

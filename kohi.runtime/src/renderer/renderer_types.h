@@ -1,6 +1,5 @@
 #pragma once
 
-#include "assets/kasset_types.h"
 #include <containers/freelist.h>
 #include <core_render_types.h>
 #include <defines.h>
@@ -68,14 +67,6 @@ typedef enum renderer_debug_view_mode {
     RENDERER_VIEW_MODE_CASCADES = 3,
     RENDERER_VIEW_MODE_WIREFRAME = 4
 } renderer_debug_view_mode;
-
-typedef enum renderer_projection_matrix_type {
-    RENDERER_PROJECTION_MATRIX_TYPE_PERSPECTIVE = 0x0,
-    /** @brief An orthographic matrix that is zero-based on the top left. */
-    RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC = 0x1,
-    /** @brief An orthographic matrix that is centered around width/height instead of zero-based. Uses fov as a "zoom". */
-    RENDERER_PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC_CENTERED = 0x2
-} renderer_projection_matrix_type;
 
 typedef enum renderer_stencil_op {
     /** @brief Keeps the current value. */
@@ -348,7 +339,7 @@ typedef struct renderer_backend_interface {
      * @param backend A pointer to the renderer backend interface.
      * @param rect The viewport rectangle to be set.
      */
-    void (*viewport_set)(struct renderer_backend_interface* backend, vec4 rect);
+    void (*viewport_set)(struct renderer_backend_interface* backend, rect_2di rect);
 
     /**
      * @brief Resets the viewport to the default, which matches the application window.
@@ -363,7 +354,7 @@ typedef struct renderer_backend_interface {
      * @param backend A pointer to the renderer backend interface.
      * @param rect The scissor rectangle to be set.
      */
-    void (*scissor_set)(struct renderer_backend_interface* backend, vec4 rect);
+    void (*scissor_set)(struct renderer_backend_interface* backend, rect_2di rect);
 
     /**
      * @brief Resets the scissor to the default, which matches the application window.
@@ -431,7 +422,7 @@ typedef struct renderer_backend_interface {
      */
     void (*set_stencil_op)(struct renderer_backend_interface* backend, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
 
-    void (*begin_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer);
+    void (*begin_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer);
     void (*end_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data);
 
     /**

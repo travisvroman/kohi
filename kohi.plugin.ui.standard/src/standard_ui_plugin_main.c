@@ -1,13 +1,11 @@
 #include "standard_ui_plugin_main.h"
 
+#include <containers/darray.h>
 #include <core/frame_data.h>
 #include <logger.h>
 #include <memory/kmemory.h>
 #include <plugins/plugin_types.h>
-
-#include "containers/darray.h"
-#include "rendergraph_nodes/ui_rendergraph_node.h"
-#include "standard_ui_system.h"
+#include <standard_ui_system.h>
 
 b8 kplugin_create(struct kruntime_plugin* out_plugin) {
     if (!out_plugin) {
@@ -35,12 +33,6 @@ b8 kplugin_initialize(struct kruntime_plugin* plugin) {
     plugin_state->state = kallocate(plugin_state->sui_state_memory_requirement, MEMORY_TAG_PLUGIN);
     if (!standard_ui_system_initialize(&plugin_state->sui_state_memory_requirement, plugin_state->state, &standard_ui_cfg)) {
         KERROR("Failed to initialize standard ui system.");
-        return false;
-    }
-
-    // Also register the rendergraph node.
-    if (!ui_rendergraph_node_register_factory()) {
-        KERROR("Failed to register standard ui rendergraph node!");
         return false;
     }
 

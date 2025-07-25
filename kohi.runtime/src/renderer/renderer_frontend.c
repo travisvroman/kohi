@@ -1,6 +1,5 @@
 #include "renderer_frontend.h"
 
-#include "assets/kasset_types.h"
 #include "containers/darray.h"
 #include "containers/freelist.h"
 #include "core/engine.h"
@@ -19,15 +18,14 @@
 #include "parsers/kson_parser.h"
 #include "platform/platform.h"
 #include "renderer/renderer_types.h"
-#include "renderer/viewport.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/plugin_system.h"
 #include "systems/texture_system.h"
 
 typedef struct renderer_dynamic_state {
-    vec4 viewport;
-    vec4 scissor;
+    rect_2di viewport;
+    rect_2di scissor;
 
     b8 depth_test_enabled;
     b8 depth_write_enabled;
@@ -241,8 +239,8 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
     }
 
     // Default dynamic state settings.
-    state->dynamic_state.viewport = (vec4){0, 0, 1280, 720};
-    state->dynamic_state.scissor = (vec4){0, 0, 1280, 720};
+    state->dynamic_state.viewport = (rect_2di){0, 0, 1280, 720};
+    state->dynamic_state.scissor = (rect_2di){0, 0, 1280, 720};
     state->dynamic_state.depth_test_enabled = true;
     state->dynamic_state.depth_write_enabled = true;
     state->dynamic_state.stencil_test_enabled = false;
@@ -470,7 +468,7 @@ b8 renderer_frame_command_list_begin(struct renderer_system_state* state, struct
 
     // Reapply frame defaults if successful.
     if (result) {
-        reapply_dynamic_state(state, &state->frame_default_dynamic_state);
+        /* reapply_dynamic_state(state, &state->frame_default_dynamic_state); */
     }
 
     return result;
@@ -490,7 +488,7 @@ b8 renderer_frame_present(struct renderer_system_state* state, struct kwindow* w
     return state->backend->frame_present(state->backend, window, p_frame_data);
 }
 
-void renderer_viewport_set(vec4 rect) {
+void renderer_viewport_set(rect_2di rect) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     state_ptr->dynamic_state.viewport = rect;
     state_ptr->backend->viewport_set(state_ptr->backend, rect);
@@ -501,7 +499,7 @@ void renderer_viewport_reset(void) {
     state_ptr->backend->viewport_reset(state_ptr->backend);
 }
 
-void renderer_scissor_set(vec4 rect) {
+void renderer_scissor_set(rect_2di rect) {
     if (rect.width == 0 || rect.height == 0) {
         KERROR("%s: width/height should not be zero");
     }
@@ -562,7 +560,7 @@ void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_op pa
     state_ptr->backend->set_stencil_op(state_ptr->backend, fail_op, pass_op, depth_fail_op, compare_op);
 }
 
-void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer) {
+void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer) {
     KASSERT_MSG(render_area.width != 0 && render_area.height != 0, "renderer_begin_rendering must have a width and height.");
 
 // Verify handles in debug builds, but not release.
@@ -580,7 +578,8 @@ void renderer_begin_rendering(struct renderer_system_state* state, struct frame_
     state->backend->begin_rendering(state->backend, p_frame_data, render_area, colour_target_count, colour_targets, depth_stencil_target, depth_stencil_layer);
 
     // Dynamic state needs to be reapplied here in case the backend needs it.
-    reapply_dynamic_state(state, &state->dynamic_state);
+    // FIXME: Need to remove this and just call all of this from the game renderer instead.
+    /* reapply_dynamic_state(state, &state->dynamic_state); */
 }
 
 void renderer_end_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data) {
@@ -1229,9 +1228,15 @@ b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_coun
     return state_ptr->backend->renderbuffer_draw(state_ptr->backend, buffer, offset, element_count, bind_only);
 }
 
-void renderer_active_viewport_set(viewport* v) {
+// nocheckin
+//
+/* void renderer_active_viewport_set(viewport* v) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     state_ptr->active_viewport = v;
+
+    if (v->rect.width == 0 || v->rect.height == 0) {
+        KERROR("%s: width/height should not be zero");
+    }
 
     // rect_2d viewport_rect = (vec4){v->rect.x, v->rect.height - v->rect.y, v->rect.width, -v->rect.height};
     rect_2d viewport_rect = (vec4){v->rect.x, v->rect.y + v->rect.height, v->rect.width, -v->rect.height};
@@ -1239,12 +1244,13 @@ void renderer_active_viewport_set(viewport* v) {
 
     rect_2d scissor_rect = (vec4){v->rect.x, v->rect.y, v->rect.width, v->rect.height};
     state_ptr->backend->scissor_set(state_ptr->backend, scissor_rect);
-}
+} */
 
-viewport* renderer_active_viewport_get(void) {
+// nocheckin
+/* viewport* renderer_active_viewport_get(void) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->active_viewport;
-}
+} */
 
 void renderer_wait_for_idle(void) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;

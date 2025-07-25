@@ -4,8 +4,15 @@
 #include "identifiers/khandle.h"
 #include "math/math_types.h"
 #include "strings/kname.h"
-#include "strings/kstring_id.h"
 #include "utils/kcolour.h"
+
+typedef enum projection_matrix_type {
+    PROJECTION_MATRIX_TYPE_PERSPECTIVE = 0x0,
+    /** @brief An orthographic matrix that is zero-based on the top left. */
+    PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC = 0x1,
+    /** @brief An orthographic matrix that is centered around width/height instead of zero-based. Uses fov as a "zoom". */
+    PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC_CENTERED = 0x2
+} projection_matrix_type;
 
 /** @brief Determines face culling mode during rendering. */
 typedef enum face_cull_mode {

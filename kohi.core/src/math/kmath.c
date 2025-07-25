@@ -5,7 +5,6 @@
 
 #include "math/math_types.h"
 #include "math/mtwister.h" // for 64-bit RNG
-#include "platform/platform.h"
 
 static b8 rand_seeded = false;
 static mtrand_state rng_u64 = {0}; // State for unsigned 64-bit RNG
@@ -90,8 +89,8 @@ plane_3d plane_3d_create(vec3 p1, vec3 norm) {
     return p;
 }
 
-frustum frustum_from_view_projection(mat4 view_projection) {
-    frustum f;
+kfrustum kfrustum_from_view_projection(mat4 view_projection) {
+    kfrustum f;
 
     // Get the inverse of the view_projection matrix.
     mat4 inv = mat4_inverse(view_projection);
@@ -105,12 +104,12 @@ frustum frustum_from_view_projection(mat4 view_projection) {
 
     // Calculate the projection planes and normalize them, including distances.
     vec4 sides[6];
-    sides[FRUSTUM_SIDE_LEFT] = vec4_normalized(vec4_add(mat3, mat0));
-    sides[FRUSTUM_SIDE_RIGHT] = vec4_normalized(vec4_sub(mat3, mat0));
-    sides[FRUSTUM_SIDE_TOP] = vec4_normalized(vec4_sub(mat3, mat1));
-    sides[FRUSTUM_SIDE_BOTTOM] = vec4_normalized(vec4_add(mat3, mat1));
-    sides[FRUSTUM_SIDE_NEAR] = vec4_normalized(vec4_add(mat3, mat2));
-    sides[FRUSTUM_SIDE_FAR] = vec4_normalized(vec4_sub(mat3, mat2));
+    sides[KFRUSTUM_SIDE_LEFT] = vec4_normalized(vec4_add(mat3, mat0));
+    sides[KFRUSTUM_SIDE_RIGHT] = vec4_normalized(vec4_sub(mat3, mat0));
+    sides[KFRUSTUM_SIDE_TOP] = vec4_normalized(vec4_sub(mat3, mat1));
+    sides[KFRUSTUM_SIDE_BOTTOM] = vec4_normalized(vec4_add(mat3, mat1));
+    sides[KFRUSTUM_SIDE_NEAR] = vec4_normalized(vec4_add(mat3, mat2));
+    sides[KFRUSTUM_SIDE_FAR] = vec4_normalized(vec4_sub(mat3, mat2));
 
     // Extract normals and distances to planes.
     for (u32 i = 0; i < 6; ++i) {
@@ -121,14 +120,14 @@ frustum frustum_from_view_projection(mat4 view_projection) {
     return f;
 }
 
-frustum frustum_create(const vec3* position, const vec3* target, const vec3* up, f32 aspect, f32 fov, f32 near, f32 far) {
-    frustum f;
+kfrustum kfrustum_create(vec3 position, vec3 target, vec3 up, f32 aspect, f32 fov, f32 near, f32 far) {
+    kfrustum f;
 
     // Calculate the forward vector (negative Z direction for right-handed systems)
-    vec3 forward = vec3_normalized(vec3_sub(*target, *position));
+    vec3 forward = vec3_normalized(vec3_sub(target, position));
 
     // Calculate the right vector (X-axis), ensuring a right-handed system
-    vec3 right = vec3_normalized(vec3_cross(forward, *up));
+    vec3 right = vec3_normalized(vec3_cross(forward, up));
 
     // Recalculate the true up vector (Y-axis) to ensure orthogonality
     vec3 adjusted_up = vec3_cross(right, forward);
@@ -143,34 +142,34 @@ frustum frustum_create(const vec3* position, const vec3* target, const vec3* up,
     vec3 up_half_v = vec3_mul_scalar(adjusted_up, half_v);
 
     // Top plane
-    f.sides[FRUSTUM_SIDE_TOP] = plane_3d_create(
-        vec3_add(*position, forward_far),
+    f.sides[KFRUSTUM_SIDE_TOP] = plane_3d_create(
+        vec3_add(position, forward_far),
         vec3_cross(right, vec3_sub(forward_far, up_half_v)));
 
     // Bottom plane
-    f.sides[FRUSTUM_SIDE_BOTTOM] = plane_3d_create(
-        vec3_add(*position, forward_far),
+    f.sides[KFRUSTUM_SIDE_BOTTOM] = plane_3d_create(
+        vec3_add(position, forward_far),
         vec3_cross(vec3_add(forward_far, up_half_v), right));
 
     // Right plane
-    f.sides[FRUSTUM_SIDE_RIGHT] = plane_3d_create(
-        vec3_add(*position, forward_far),
+    f.sides[KFRUSTUM_SIDE_RIGHT] = plane_3d_create(
+        vec3_add(position, forward_far),
         vec3_cross(adjusted_up, vec3_sub(forward_far, right_half_h)));
 
     // Left plane
-    f.sides[FRUSTUM_SIDE_LEFT] = plane_3d_create(
-        vec3_add(*position, forward_far),
+    f.sides[KFRUSTUM_SIDE_LEFT] = plane_3d_create(
+        vec3_add(position, forward_far),
         vec3_cross(vec3_add(forward_far, right_half_h), adjusted_up));
 
     // Far plane
-    f.sides[FRUSTUM_SIDE_FAR] = plane_3d_create(
-        vec3_add(*position, forward_far),
+    f.sides[KFRUSTUM_SIDE_FAR] = plane_3d_create(
+        vec3_add(position, forward_far),
         vec3_mul_scalar(forward, -1.0f) // Normal points back toward the camera
     );
 
     // Near plane
-    f.sides[FRUSTUM_SIDE_NEAR] = plane_3d_create(
-        vec3_add(*position, forward_near),
+    f.sides[KFRUSTUM_SIDE_NEAR] = plane_3d_create(
+        vec3_add(position, forward_near),
         forward // Normal points away from the camera
     );
 
@@ -185,7 +184,7 @@ b8 plane_intersects_sphere(const plane_3d* p, const vec3* center, f32 radius) {
     return plane_signed_distance(p, center) > -radius;
 }
 
-b8 frustum_intersects_sphere(const frustum* f, const vec3* center, f32 radius) {
+b8 kfrustum_intersects_sphere(const kfrustum* f, const vec3* center, f32 radius) {
     for (u8 i = 0; i < 6; ++i) {
         if (!plane_intersects_sphere(&f->sides[i], center, radius)) {
             return false;
@@ -194,7 +193,7 @@ b8 frustum_intersects_sphere(const frustum* f, const vec3* center, f32 radius) {
     return true;
 }
 
-b8 frustum_intersects_ksphere(const frustum* f, const ksphere* sphere) {
+b8 kfrustum_intersects_ksphere(const kfrustum* f, const ksphere* sphere) {
     for (u8 i = 0; i < 6; ++i) {
         if (!plane_intersects_sphere(&f->sides[i], &sphere->position, sphere->radius)) {
             return false;
@@ -217,7 +216,7 @@ b8 plane_intersects_aabb(const plane_3d* p, const vec3* center, const vec3* exte
     return true;
 }
 
-b8 frustum_intersects_aabb(const frustum* f, const vec3* center, const vec3* extents) {
+b8 kfrustum_intersects_aabb(const kfrustum* f, const vec3* center, const vec3* extents) {
     for (u8 i = 0; i < 6; ++i) {
         if (!plane_intersects_aabb(&f->sides[i], center, extents)) {
             return false;

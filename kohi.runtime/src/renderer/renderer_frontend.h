@@ -34,6 +34,7 @@
 
 #include "core/frame_data.h"
 #include "core_render_types.h"
+#include "math/math_types.h"
 #include "renderer_types.h"
 
 struct shader_uniform;
@@ -153,7 +154,7 @@ KAPI b8 renderer_frame_present(struct renderer_system_state* state, struct kwind
  *
  * @param rect The viewport rectangle to be set.
  */
-KAPI void renderer_viewport_set(vec4 rect);
+KAPI void renderer_viewport_set(rect_2di rect);
 
 /**
  * @brief Resets the viewport to the default, which matches the application window.
@@ -165,7 +166,7 @@ KAPI void renderer_viewport_reset(void);
  *
  * @param rect The scissor rectangle to be set.
  */
-KAPI void renderer_scissor_set(vec4 rect);
+KAPI void renderer_scissor_set(rect_2di rect);
 
 /**
  * @brief Resets the scissor to the default, which matches the application window.
@@ -235,7 +236,7 @@ KAPI void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_
  * @param depth_stencil_target A handle to a depth stencil target to render to.
  * @param depth_stencil_layer For layered depth targets, the layer index to render to. Ignored otherwise.
  */
-KAPI void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2d render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer);
+KAPI void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer);
 
 /**
  *
@@ -856,17 +857,18 @@ KAPI b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset
  */
 KAPI b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
 
+// nocheckin
 /**
  * @brief Returns a pointer to the currently active viewport.
  */
-KAPI struct viewport* renderer_active_viewport_get(void);
+// KAPI struct viewport* renderer_active_viewport_get(void);
 
 /**
  * @brief Sets the currently active viewport.
  *
  * @param viewport A pointer to the viewport to be set.
  */
-KAPI void renderer_active_viewport_set(struct viewport* v);
+// KAPI void renderer_active_viewport_set(struct viewport* v);
 
 /**
  * Waits for the renderer backend to be completely idle of work before returning.

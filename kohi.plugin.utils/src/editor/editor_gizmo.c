@@ -12,7 +12,6 @@
 #include <logger.h>
 #include <math/geometry_3d.h>
 #include <math/kmath.h>
-#include <renderer/camera.h>
 #include <renderer/renderer_frontend.h>
 #include <systems/xform_system.h>
 
@@ -20,7 +19,6 @@
 #include "math/geometry.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
-#include "renderer/camera.h"
 
 static void create_gizmo_mode_none(editor_gizmo* gizmo);
 static void create_gizmo_mode_move(editor_gizmo* gizmo);
@@ -511,7 +509,7 @@ static void create_gizmo_mode_rotate(editor_gizmo* gizmo) {
     // NOTE: Rotation gizmo uses discs, not extents, so this mode doesn't need them.
 }
 
-void editor_gizmo_interaction_begin(editor_gizmo* gizmo, camera* c, struct ray* r, editor_gizmo_interaction_type interaction_type) {
+void editor_gizmo_interaction_begin(editor_gizmo* gizmo, kcamera c, struct ray* r, editor_gizmo_interaction_type interaction_type) {
     if (!gizmo || !r) {
         return;
     }
@@ -534,7 +532,7 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, camera* c, struct ray* 
                     break;
                 case 1: // y axis
                 case 6: // xyz
-                    plane_dir = camera_backward(c);
+                    plane_dir = kcamera_backward(c);
                     break;
                 case 4: // xz axes
                     plane_dir = vec3_transform(vec3_up(), 0.0f, gizmo_world);
@@ -627,7 +625,7 @@ void editor_gizmo_interaction_end(editor_gizmo* gizmo) {
     gizmo->interaction = EDITOR_GIZMO_INTERACTION_TYPE_NONE;
 }
 
-void editor_gizmo_handle_interaction(editor_gizmo* gizmo, struct camera* c, struct ray* r, editor_gizmo_interaction_type interaction_type) {
+void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct ray* r, editor_gizmo_interaction_type interaction_type) {
     if (!gizmo || !r) {
         return;
     }
