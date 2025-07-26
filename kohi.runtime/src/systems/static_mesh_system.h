@@ -4,7 +4,6 @@
 #include "kresources/kresource_types.h"
 #include "math/geometry.h"
 #include "math/math_types.h"
-#include "systems/material_system.h"
 
 /**
  * @brief Represents an instance of a static mesh. This is to be
@@ -38,7 +37,7 @@ KAPI b8 static_mesh_extents_get(struct static_mesh_system_state* state, kstatic_
 
 KAPI b8 static_mesh_submesh_count_get(struct static_mesh_system_state* state, kstatic_mesh m, u16* out_count);
 KAPI const kgeometry* static_mesh_submesh_geometry_get_at(struct static_mesh_system_state* state, kstatic_mesh m, u16 index);
-KAPI const material_instance* static_mesh_submesh_material_instance_get_at(struct static_mesh_system_state* state, kstatic_mesh_instance instance, u16 index);
+KAPI const kmaterial_instance* static_mesh_submesh_material_instance_get_at(struct static_mesh_system_state* state, kstatic_mesh_instance instance, u16 index);
 
 KAPI b8 static_mesh_render_data_generate(struct static_mesh_system_state* state, kstatic_mesh_instance instance, kstatic_mesh_render_data_flag_bits flags, kstatic_mesh_render_data* out_render_data);
 KAPI void static_mesh_render_data_destroy(kstatic_mesh_render_data* render_data);

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "defines.h"
-#include "math/math_types.h"
-#include "systems/material_system.h"
+#include <core_render_types.h>
+#include <defines.h>
+#include <math/math_types.h>
 
 struct texture_map;
 
@@ -18,7 +18,7 @@ typedef struct water_plane {
     u64 vertex_buffer_offset;
 
     // Instance of water material.
-    material_instance material;
+    kmaterial_instance material;
 
 } water_plane;
 

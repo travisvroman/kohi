@@ -17,6 +17,7 @@
 #include <assets/kasset_types.h>
 #include <core_render_types.h>
 
+#include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
 
 struct texture_system_state;

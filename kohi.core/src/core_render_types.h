@@ -1,7 +1,6 @@
 #pragma once
 
 #include "defines.h"
-#include "identifiers/khandle.h"
 #include "math/math_types.h"
 #include "strings/kname.h"
 #include "utils/kcolour.h"
@@ -393,18 +392,22 @@ typedef struct kmaterial_sampler_config {
     texture_repeat repeat_w;
 } kmaterial_sampler_config;
 
+typedef u16 kmaterial;
+#define KMATERIAL_INVALID INVALID_ID_U16
+#define KMATERIAL_INSTANCE_INVALID INVALID_ID_U16
+
 /**
  * @brief A material instance, which contains handles to both
  * the base material as well as the instance itself. Every time
  * an instance is "acquired", one of these is created, and the instance
  * should be referenced using this going from that point.
  */
-typedef struct material_instance {
+typedef struct kmaterial_instance {
     // Handle to the base material.
-    khandle material;
+    kmaterial base_material;
     // Handle to the instance.
-    khandle instance;
-} material_instance;
+    u16 instance_id;
+} kmaterial_instance;
 
 typedef struct krenderbuffer_render_data {
     /** @brief The element count. */
@@ -455,7 +458,7 @@ typedef struct kstatic_mesh_submesh_render_data {
     krenderbuffer_render_data index_data;
 
     /** @brief The instance of the material to use with this static mesh when rendering. */
-    material_instance material;
+    kmaterial_instance material;
 } kstatic_mesh_submesh_render_data;
 
 /**
@@ -516,5 +519,5 @@ typedef struct kwater_plane_render_data {
     krenderbuffer_render_data index_data;
 
     /** @brief The instance of the material to use with this static mesh when rendering. */
-    material_instance material;
+    kmaterial_instance material;
 } kwater_plane_render_data;

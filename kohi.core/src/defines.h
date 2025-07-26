@@ -120,16 +120,6 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 /** @brief False. */
 #define false 0
 
-/**
- * @brief Any id set to this should be considered invalid,
- * and not actually pointing to a real object.
- */
-#define INVALID_ID_U64 18446744073709551615UL
-#define INVALID_ID 4294967295U
-#define INVALID_ID_U32 INVALID_ID
-#define INVALID_ID_U16 65535U
-#define INVALID_ID_U8 255U
-
 #define U64_MAX 18446744073709551615UL
 #define U32_MAX 4294967295U
 #define U16_MAX 65535U
@@ -147,6 +137,16 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define I16_MIN (-I16_MAX - 1)
 #define I32_MIN (-I32_MAX - 1)
 #define I64_MIN (-I64_MAX - 1)
+
+/**
+ * @brief Any id set to this should be considered invalid,
+ * and not actually pointing to a real object.
+ */
+#define INVALID_ID_U64 U64_MAX
+#define INVALID_ID_U32 U32_MAX
+#define INVALID_ID_U16 U16_MAX
+#define INVALID_ID_U8 U8_MAX
+#define INVALID_ID INVALID_ID_U32
 
 // Platform detection
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)

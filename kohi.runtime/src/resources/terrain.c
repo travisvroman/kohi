@@ -10,6 +10,7 @@
 #include <math/kmath.h>
 #include <memory/kmemory.h>
 
+#include "core_render_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "strings/kname.h"
@@ -185,7 +186,7 @@ b8 terrain_chunk_load(terrain* t, terrain_chunk* chunk) {
     // Create a terrain material by copying the properties of these materials to a new terrain material.
     // FIXME: Need layered materials for this. This is just using the default standard material for now if nothing exists.
     material_system_acquire(engine_systems_get()->material_system, t->material_name ? t->material_name : kname_create(MATERIAL_DEFAULT_NAME_STANDARD), &chunk->material);
-    if (khandle_is_invalid(chunk->material.material) || khandle_is_invalid(chunk->material.instance)) {
+    if (chunk->material.base_material == KMATERIAL_INVALID || chunk->material.instance_id == KMATERIAL_INSTANCE_INVALID) {
         KWARN("Failed to acquire terrain material. Using defualt instead.");
         chunk->material = material_system_get_default_blended(engine_systems_get()->material_system);
     }

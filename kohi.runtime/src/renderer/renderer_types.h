@@ -1,5 +1,6 @@
 #pragma once
 
+#include "identifiers/khandle.h"
 #include <containers/freelist.h>
 #include <core_render_types.h>
 #include <defines.h>
@@ -33,7 +34,7 @@ typedef struct renderbuffer_data {
 
 typedef struct geometry_render_data {
     mat4 model;
-    material_instance material;
+    kmaterial_instance material;
 
     // The per-draw id to be used when applying this data. Used for draws that don't use materials.
     u32 draw_id;

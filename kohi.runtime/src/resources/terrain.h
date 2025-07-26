@@ -65,7 +65,7 @@ typedef struct terrain_chunk {
     extents_3d extents;
 
     /** @brief The material instance associated with this geometry. */
-    material_instance material;
+    kmaterial_instance material;
 
     u8 current_lod;
 } terrain_chunk;

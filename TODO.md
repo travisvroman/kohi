@@ -8,6 +8,8 @@ The items in this list are not in any particular order. This list will be update
 
 - [x] Remove rendergraph - have application drive render process directly.
 - [ ] Rework hierarchy system to use typedefed u16s instead of khandles.
+- [x] Rework Material system to replace khandles with typedefed u16s.
+- [ ] Rework Shader system to replace khandles with typedefed u16s.
 - [ ] Rework transform system:
   - [ ] Replace khandle representation with typedefed u16 and go by index.
 - [ ] Move scene to game code, game-specific.

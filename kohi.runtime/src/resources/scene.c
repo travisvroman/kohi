@@ -42,7 +42,7 @@ static void scene_actual_unload(scene* scene);
 static void scene_node_metadata_ensure_allocated(scene* s, u64 handle_index);
 
 static u32 global_scene_id = 0;
-static material_instance default_material;
+static kmaterial_instance default_material;
 
 typedef struct scene_debug_data {
     debug_box3d box;
@@ -105,7 +105,7 @@ typedef struct geometry_distance {
 static i32 geometry_render_data_compare(void* a, void* b) {
     geometry_render_data* a_typed = a;
     geometry_render_data* b_typed = b;
-    return a_typed->material.material.handle_index - b_typed->material.material.handle_index;
+    return a_typed->material.base_material - b_typed->material.base_material;
 }
 
 static i32 geometry_distance_compare(void* a, void* b) {
@@ -126,7 +126,7 @@ b8 scene_create(kasset_scene* config, scene_flags flags, scene* out_scene) {
     }
 
     // NOTE: If not done already, take an instance of the default material.
-    if (!default_material.material.unique_id.uniqueid) {
+    if (!default_material.instance_id) {
         default_material = material_system_get_default_standard(engine_systems_get()->material_system);
     }
 
@@ -1748,8 +1748,8 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
             data.model = mat4_identity();
 
             kgeometry* g = &scene->grid.geometry;
-            data.material.material = khandle_invalid(); // debug geometries don't need a material.
-            data.material.instance = khandle_invalid(); // debug geometries don't need a material.
+            data.material.base_material = KMATERIAL_INVALID;        // debug geometries don't need a material.
+            data.material.instance_id = KMATERIAL_INSTANCE_INVALID; // debug geometries don't need a material.
             data.vertex_count = g->vertex_count;
             data.vertex_buffer_offset = g->vertex_buffer_offset;
             data.index_count = g->index_count;
@@ -1774,8 +1774,8 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
                         geometry_render_data data = {0};
                         data.model = xform_world_get(debug->line.xform);
                         kgeometry* g = &debug->line.geometry;
-                        data.material.material = khandle_invalid(); // debug geometries don't need a material.
-                        data.material.instance = khandle_invalid(); // debug geometries don't need a material.
+                        data.material.base_material = KMATERIAL_INVALID;        // debug geometries don't need a material.
+                        data.material.instance_id = KMATERIAL_INSTANCE_INVALID; // debug geometries don't need a material.
                         data.vertex_count = g->vertex_count;
                         data.vertex_buffer_offset = g->vertex_buffer_offset;
                         data.index_count = g->index_count;
@@ -1803,8 +1803,8 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
                         geometry_render_data data = {0};
                         data.model = xform_world_get(debug->box.xform);
                         kgeometry* g = &debug->box.geometry;
-                        data.material.material = khandle_invalid(); // debug geometries don't need a material.
-                        data.material.instance = khandle_invalid(); // debug geometries don't need a material.
+                        data.material.base_material = KMATERIAL_INVALID;        // debug geometries don't need a material.
+                        data.material.instance_id = KMATERIAL_INSTANCE_INVALID; // debug geometries don't need a material.
                         data.vertex_count = g->vertex_count;
                         data.vertex_buffer_offset = g->vertex_buffer_offset;
                         data.index_count = g->index_count;
@@ -1837,8 +1837,8 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
                         data.model = mat4_translation(world_pos);
 
                         kgeometry* g = &debug->sphere.geometry;
-                        data.material.material = khandle_invalid(); // debug geometries don't need a material.
-                        data.material.instance = khandle_invalid(); // debug geometries don't need a material.
+                        data.material.base_material = KMATERIAL_INVALID;        // debug geometries don't need a material.
+                        data.material.instance_id = KMATERIAL_INSTANCE_INVALID; // debug geometries don't need a material.
                         data.vertex_count = g->vertex_count;
                         data.vertex_buffer_offset = g->vertex_buffer_offset;
                         data.index_count = g->index_count;
@@ -1908,8 +1908,8 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
                             break;
                         }
 
-                        data.material.material = khandle_invalid(); // debug geometries don't need a material.
-                        data.material.instance = khandle_invalid(); // debug geometries don't need a material.
+                        data.material.base_material = KMATERIAL_INVALID;        // debug geometries don't need a material.
+                        data.material.instance_id = KMATERIAL_INSTANCE_INVALID; // debug geometries don't need a material.
                         data.vertex_count = g->vertex_count;
                         data.vertex_buffer_offset = g->vertex_buffer_offset;
                         data.index_count = g->index_count;
@@ -1958,8 +1958,8 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
         static_mesh_submesh_count_get(engine_systems_get()->static_mesh_system, m->mesh, &submesh_count);
         for (u16 j = 0; j < submesh_count; ++j) {
             const kgeometry* g = static_mesh_submesh_geometry_get_at(engine_systems_get()->static_mesh_system, m->mesh, j);
-            const material_instance* m_inst = static_mesh_submesh_material_instance_get_at(engine_systems_get()->static_mesh_system, *m, j);
-            if (!material_is_loaded_get(engine_systems_get()->material_system, m_inst->material)) {
+            const kmaterial_instance* m_inst = static_mesh_submesh_material_instance_get_at(engine_systems_get()->static_mesh_system, *m, j);
+            if (!material_is_loaded_get(engine_systems_get()->material_system, m_inst->base_material)) {
                 m_inst = &default_material;
             }
 
@@ -1991,7 +1991,7 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
                 // Check if transparent. If so, put into a separate, temp array to be
                 // sorted by distance from the camera. Otherwise, put into the
                 // out_geometries array directly.
-                b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst->material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
+                b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst->base_material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
                 if (has_transparency) {
                     // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
                     // Get the center, extract the global position from the model matrix and add it to the center,
@@ -2124,8 +2124,8 @@ b8 scene_mesh_render_data_query(const scene* scene, const kfrustum* f, vec3 cent
         static_mesh_submesh_count_get(engine_systems_get()->static_mesh_system, m->mesh, &submesh_count);
         for (u16 j = 0; j < submesh_count; ++j) {
             const kgeometry* g = static_mesh_submesh_geometry_get_at(engine_systems_get()->static_mesh_system, m->mesh, j);
-            const material_instance* m_inst = static_mesh_submesh_material_instance_get_at(engine_systems_get()->static_mesh_system, *m, j);
-            if (!material_is_loaded_get(engine_systems_get()->material_system, m_inst->material)) {
+            const kmaterial_instance* m_inst = static_mesh_submesh_material_instance_get_at(engine_systems_get()->static_mesh_system, *m, j);
+            if (!material_is_loaded_get(engine_systems_get()->material_system, m_inst->base_material)) {
                 m_inst = &default_material;
             }
 
@@ -2188,7 +2188,7 @@ b8 scene_mesh_render_data_query(const scene* scene, const kfrustum* f, vec3 cent
                     // Check if transparent. If so, put into a separate, temp array to be
                     // sorted by distance from the camera. Otherwise, put into the
                     // out_geometries array directly.
-                    b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst->material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
+                    b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst->base_material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
                     if (has_transparency) {
                         // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
                         // Get the center, extract the global position from the model matrix and add it to the center,

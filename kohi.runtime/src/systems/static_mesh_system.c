@@ -49,7 +49,7 @@ typedef struct instance_data {
      * Elements match up to mesh_resource->submeshes index-wise. Thus the
      * count of this array is the same as mesh_resource->submesh_count.
      */
-    material_instance* material_instances;
+    kmaterial_instance* material_instances;
 
     // Tint used for all submeshes.
     vec4 tint;
@@ -414,7 +414,7 @@ const kgeometry* static_mesh_submesh_geometry_get_at(struct static_mesh_system_s
 
     return &state->submesh_datas[m].submeshes[index].geometry;
 }
-const material_instance* static_mesh_submesh_material_instance_get_at(struct static_mesh_system_state* state, kstatic_mesh_instance instance, u16 index) {
+const kmaterial_instance* static_mesh_submesh_material_instance_get_at(struct static_mesh_system_state* state, kstatic_mesh_instance instance, u16 index) {
     if (!state || instance.mesh == INVALID_KSTATIC_MESH || instance.instance_id == INVALID_ID_U16 || index == INVALID_ID_U16) {
         return 0;
     }
@@ -492,7 +492,7 @@ static void release_instance(static_mesh_system_state* state, kstatic_mesh m, u1
     }
 
     // Cleanup the material instances array.
-    KFREE_TYPE_CARRAY(state->base_instance_datas[m].instances[instance_id].material_instances, material_instance, submesh_count);
+    KFREE_TYPE_CARRAY(state->base_instance_datas[m].instances[instance_id].material_instances, kmaterial_instance, submesh_count);
     state->base_instance_datas[m].instances[instance_id].material_instances = 0;
 
     // Mark the slot as free.
@@ -511,7 +511,7 @@ static void acquire_material_instances(static_mesh_system_state* state, kstatic_
 
     // Only "issued" instances.
     if (base_instance_data->states[instance_id] == KSTATIC_MESH_INSTANCE_STATE_ACQUIRED) {
-        instance->material_instances = KALLOC_TYPE_CARRAY(material_instance, submesh_data->submesh_count);
+        instance->material_instances = KALLOC_TYPE_CARRAY(kmaterial_instance, submesh_data->submesh_count);
         KTRACE("Material instances array created.");
 
         // Process submeshes.
