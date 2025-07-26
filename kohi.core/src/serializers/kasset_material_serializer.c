@@ -33,12 +33,12 @@
 
 #define SAMPLERS "samplers"
 
-static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, texture_channel* out_source_channel, f32* out_value, f32 default_value);
-static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, vec4* out_value, vec4 default_value);
-static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, vec3* out_value, vec3 default_value);
+static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input_config* out_texture, texture_channel* out_source_channel, f32* out_value, f32 default_value);
+static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input_config* out_texture, vec4* out_value, vec4 default_value);
+static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input_config* out_texture, vec3* out_value, vec3 default_value);
 
-static void add_map_obj(kson_object* base_obj, const char* source_channel, kmaterial_texture_input* texture);
-static b8 extract_map(const kson_object* map_obj, kmaterial_texture_input* out_texture, texture_channel* out_source_channel);
+static void add_map_obj(kson_object* base_obj, const char* source_channel, kmaterial_texture_input_config* texture);
+static b8 extract_map(const kson_object* map_obj, kmaterial_texture_input_config* out_texture, texture_channel* out_source_channel);
 
 const char* kasset_material_serialize(const kasset_material* asset) {
     if (!asset) {
@@ -452,7 +452,7 @@ cleanup:
     return success;
 }
 
-static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, texture_channel* out_source_channel, f32* out_value, f32 default_value) {
+static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input_config* out_texture, texture_channel* out_source_channel, f32* out_value, f32 default_value) {
     kson_object input = {0};
     b8 input_found = false;
     if (kson_object_property_value_get_object(inputs_obj, input_name, &input)) {
@@ -496,7 +496,7 @@ static b8 extract_input_map_channel_or_float(const kson_object* inputs_obj, cons
     return input_found;
 }
 
-static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, vec4* out_value, vec4 default_value) {
+static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input_config* out_texture, vec4* out_value, vec4 default_value) {
     kson_object input = {0};
     b8 input_found = false;
     if (kson_object_property_value_get_object(inputs_obj, input_name, &input)) {
@@ -540,7 +540,7 @@ static b8 extract_input_map_channel_or_vec4(const kson_object* inputs_obj, const
     return input_found;
 }
 
-static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input* out_texture, vec3* out_value, vec3 default_value) {
+static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const char* input_name, b8* out_enabled, kmaterial_texture_input_config* out_texture, vec3* out_value, vec3 default_value) {
     kson_object input = {0};
     b8 input_found = false;
     if (kson_object_property_value_get_object(inputs_obj, input_name, &input)) {
@@ -584,7 +584,7 @@ static b8 extract_input_map_channel_or_vec3(const kson_object* inputs_obj, const
     return input_found;
 }
 
-static void add_map_obj(kson_object* base_obj, const char* source_channel, kmaterial_texture_input* texture) {
+static void add_map_obj(kson_object* base_obj, const char* source_channel, kmaterial_texture_input_config* texture) {
 
     // Add map object.
     kson_object map_obj = kson_object_create();
@@ -604,7 +604,7 @@ static void add_map_obj(kson_object* base_obj, const char* source_channel, kmate
     kson_object_value_add_object(base_obj, INPUT_MAP, map_obj);
 }
 
-static b8 extract_map(const kson_object* map_obj, kmaterial_texture_input* out_texture, texture_channel* out_source_channel) {
+static b8 extract_map(const kson_object* map_obj, kmaterial_texture_input_config* out_texture, texture_channel* out_source_channel) {
 
     // Extract the resource_name. Required.
     if (!kson_object_property_value_get_string_as_kname(map_obj, INPUT_MAP_RESOURCE_NAME, &out_texture->resource_name)) {

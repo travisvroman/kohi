@@ -371,7 +371,7 @@ typedef enum kmaterial_flag_bits {
 typedef u32 kmaterial_flags;
 
 // Configuration for a material texture input.
-typedef struct kmaterial_texture_input {
+typedef struct kmaterial_texture_input_config {
     // Name of the resource.
     kname resource_name;
     // Name of the package containing the resource.
@@ -380,7 +380,7 @@ typedef struct kmaterial_texture_input {
     kname sampler_name;
     // The texture channel to sample, if relevant.
     texture_channel channel;
-} kmaterial_texture_input;
+} kmaterial_texture_input_config;
 
 // The configuration for a custom material sampler.
 typedef struct kmaterial_sampler_config {

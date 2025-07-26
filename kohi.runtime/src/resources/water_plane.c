@@ -5,7 +5,7 @@
 #include "math/kmath.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
-#include "systems/material_system.h"
+#include "systems/kmaterial_system.h"
 
 b8 water_plane_create(water_plane* out_plane) {
     if (!out_plane) {
@@ -53,7 +53,7 @@ b8 water_plane_load(water_plane* plane) {
 
         // Get water material.
         // FIXME: Make this configurable.
-        plane->material = material_system_get_default_water(engine_systems_get()->material_system);
+        plane->material = kmaterial_system_get_default_water(engine_systems_get()->material_system);
 
         renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
         renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
@@ -98,7 +98,7 @@ b8 water_plane_unload(water_plane* plane) {
         }
 
         // Release material instance resources for this plane.
-        material_system_release(engine_systems_get()->material_system, &plane->material);
+        kmaterial_system_release(engine_systems_get()->material_system, &plane->material);
         return true;
     }
     return false;

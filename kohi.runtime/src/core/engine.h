@@ -35,7 +35,7 @@ struct kaudio_system_state;
 struct xform_system_state;
 struct texture_system_state;
 struct font_system_state;
-struct material_system_state;
+struct kmaterial_system_state;
 struct static_mesh_system_state;
 struct light_system_state;
 struct camera_system_state;
@@ -86,7 +86,7 @@ typedef struct engine_system_states {
     struct font_system_state* font_system;
 
     u64 material_system_memory_requirement;
-    struct material_system_state* material_system;
+    struct kmaterial_system_state* material_system;
 
     u64 static_mesh_system_memory_requirement;
     struct static_mesh_system_state* static_mesh_system;

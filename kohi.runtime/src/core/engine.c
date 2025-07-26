@@ -33,8 +33,8 @@
 #include "systems/font_system.h"
 #include "systems/job_system.h"
 #include "systems/kcamera_system.h"
+#include "systems/kmaterial_system.h"
 #include "systems/light_system.h"
-#include "systems/material_system.h"
 #include "systems/plugin_system.h"
 #include "systems/shader_system.h"
 #include "systems/static_mesh_system.h"
@@ -486,13 +486,13 @@ b8 engine_create(application* app) {
 
     // Material system
     {
-        material_system_config material_sys_config = {0};
+        kmaterial_system_config material_sys_config = {0};
         // FIXME: Should be configurable.
         material_sys_config.max_material_count = 256;
         material_sys_config.max_instance_count = 1024;
-        material_system_initialize(&systems->material_system_memory_requirement, 0, &material_sys_config);
+        kmaterial_system_initialize(&systems->material_system_memory_requirement, 0, &material_sys_config);
         systems->material_system = kallocate(systems->material_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!material_system_initialize(&systems->material_system_memory_requirement, systems->material_system, &material_sys_config)) {
+        if (!kmaterial_system_initialize(&systems->material_system_memory_requirement, systems->material_system, &material_sys_config)) {
             KERROR("Failed to initialize material system.");
             return false;
         }
@@ -806,7 +806,7 @@ b8 engine_run(application* app) {
         kcamera_system_shutdown(systems->camera_system);
         light_system_shutdown(systems->light_system);
         static_mesh_system_shutdown(systems->static_mesh_system);
-        material_system_shutdown(systems->material_system);
+        kmaterial_system_shutdown(systems->material_system);
         font_system_shutdown(systems->font_system);
         texture_system_shutdown(systems->texture_system);
         timeline_system_shutdown(systems->timeline_system);

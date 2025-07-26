@@ -248,40 +248,40 @@ typedef struct kasset_material {
     kname custom_shader_name;
 
     vec4 base_colour;
-    kmaterial_texture_input base_colour_map;
+    kmaterial_texture_input_config base_colour_map;
 
     vec4 specular_colour;
-    kmaterial_texture_input specular_colour_map;
+    kmaterial_texture_input_config specular_colour_map;
 
     b8 normal_enabled;
     vec3 normal;
-    kmaterial_texture_input normal_map;
+    kmaterial_texture_input_config normal_map;
 
     f32 metallic;
-    kmaterial_texture_input metallic_map;
+    kmaterial_texture_input_config metallic_map;
     texture_channel metallic_map_source_channel;
 
     f32 roughness;
-    kmaterial_texture_input roughness_map;
+    kmaterial_texture_input_config roughness_map;
     texture_channel roughness_map_source_channel;
 
     b8 ambient_occlusion_enabled;
     f32 ambient_occlusion;
-    kmaterial_texture_input ambient_occlusion_map;
+    kmaterial_texture_input_config ambient_occlusion_map;
     texture_channel ambient_occlusion_map_source_channel;
 
     // Combined metallic/roughness/ao value.
     vec3 mra;
-    kmaterial_texture_input mra_map;
+    kmaterial_texture_input_config mra_map;
     // Indicates if the mra combined value/map should be used instead of the separate ones.
     b8 use_mra;
 
     b8 emissive_enabled;
     vec4 emissive;
-    kmaterial_texture_input emissive_map;
+    kmaterial_texture_input_config emissive_map;
 
     // DUDV map - only used for water materials.
-    kmaterial_texture_input dudv_map;
+    kmaterial_texture_input_config dudv_map;
 
     u32 custom_sampler_count;
     kmaterial_sampler_config* custom_samplers;

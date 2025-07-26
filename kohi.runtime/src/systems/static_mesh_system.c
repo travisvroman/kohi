@@ -12,7 +12,7 @@
 #include "renderer/renderer_frontend.h"
 #include "strings/kname.h"
 #include "systems/asset_system.h"
-#include "systems/material_system.h"
+#include "systems/kmaterial_system.h"
 
 typedef enum kstatic_mesh_state {
     KSTATIC_MESH_STATE_UNINITIALIZED,
@@ -482,13 +482,13 @@ static void ensure_instance_arrays_allocated(base_mesh_instance_data* base_insta
 }
 
 static void release_instance(static_mesh_system_state* state, kstatic_mesh m, u16 instance_id) {
-    struct material_system_state* material_system = engine_systems_get()->material_system;
+    struct kmaterial_system_state* material_system = engine_systems_get()->material_system;
 
     u16 submesh_count = state->submesh_datas[m].submesh_count;
 
     // Release material instances.
     for (u16 i = 0; i < submesh_count; ++i) {
-        material_system_release(material_system, &state->base_instance_datas[m].instances[instance_id].material_instances[i]);
+        kmaterial_system_release(material_system, &state->base_instance_datas[m].instances[instance_id].material_instances[i]);
     }
 
     // Cleanup the material instances array.
@@ -506,7 +506,7 @@ static void acquire_material_instances(static_mesh_system_state* state, kstatic_
 
     base_mesh_instance_data* base_instance_data = &state->base_instance_datas[m];
     static_mesh_submesh_data* submesh_data = &state->submesh_datas[m];
-    struct material_system_state* material_system = engine_systems_get()->material_system;
+    struct kmaterial_system_state* material_system = engine_systems_get()->material_system;
     instance_data* instance = &base_instance_data->instances[instance_id];
 
     // Only "issued" instances.
@@ -519,7 +519,7 @@ static void acquire_material_instances(static_mesh_system_state* state, kstatic_
             submesh* s = &submesh_data->submeshes[i];
 
             // Request material instance.
-            b8 acquisition_result = material_system_acquire(material_system, s->material_name, &instance->material_instances[i]);
+            b8 acquisition_result = kmaterial_system_acquire(material_system, s->material_name, &instance->material_instances[i]);
             if (!acquisition_result) {
                 KWARN(
                     "Failed to load material '%s' for static mesh '%s', submesh '%s'.",

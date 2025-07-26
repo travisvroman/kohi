@@ -32,8 +32,8 @@
 #include "strings/kstring.h"
 #include "strings/kstring_id.h"
 #include "systems/asset_system.h"
+#include "systems/kmaterial_system.h"
 #include "systems/light_system.h"
-#include "systems/material_system.h"
 #include "systems/static_mesh_system.h"
 #include "systems/xform_system.h"
 #include "utils/ksort.h"
@@ -127,7 +127,7 @@ b8 scene_create(kasset_scene* config, scene_flags flags, scene* out_scene) {
 
     // NOTE: If not done already, take an instance of the default material.
     if (!default_material.instance_id) {
-        default_material = material_system_get_default_standard(engine_systems_get()->material_system);
+        default_material = kmaterial_system_get_default_standard(engine_systems_get()->material_system);
     }
 
     kzero_memory(out_scene, sizeof(scene));
@@ -1959,7 +1959,7 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
         for (u16 j = 0; j < submesh_count; ++j) {
             const kgeometry* g = static_mesh_submesh_geometry_get_at(engine_systems_get()->static_mesh_system, m->mesh, j);
             const kmaterial_instance* m_inst = static_mesh_submesh_material_instance_get_at(engine_systems_get()->static_mesh_system, *m, j);
-            if (!material_is_loaded_get(engine_systems_get()->material_system, m_inst->base_material)) {
+            if (!kmaterial_is_loaded_get(engine_systems_get()->material_system, m_inst->base_material)) {
                 m_inst = &default_material;
             }
 
@@ -1991,7 +1991,7 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
                 // Check if transparent. If so, put into a separate, temp array to be
                 // sorted by distance from the camera. Otherwise, put into the
                 // out_geometries array directly.
-                b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst->base_material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
+                b8 has_transparency = kmaterial_flag_get(engine_systems_get()->material_system, m_inst->base_material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
                 if (has_transparency) {
                     // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
                     // Get the center, extract the global position from the model matrix and add it to the center,
@@ -2125,7 +2125,7 @@ b8 scene_mesh_render_data_query(const scene* scene, const kfrustum* f, vec3 cent
         for (u16 j = 0; j < submesh_count; ++j) {
             const kgeometry* g = static_mesh_submesh_geometry_get_at(engine_systems_get()->static_mesh_system, m->mesh, j);
             const kmaterial_instance* m_inst = static_mesh_submesh_material_instance_get_at(engine_systems_get()->static_mesh_system, *m, j);
-            if (!material_is_loaded_get(engine_systems_get()->material_system, m_inst->base_material)) {
+            if (!kmaterial_is_loaded_get(engine_systems_get()->material_system, m_inst->base_material)) {
                 m_inst = &default_material;
             }
 
@@ -2188,7 +2188,7 @@ b8 scene_mesh_render_data_query(const scene* scene, const kfrustum* f, vec3 cent
                     // Check if transparent. If so, put into a separate, temp array to be
                     // sorted by distance from the camera. Otherwise, put into the
                     // out_geometries array directly.
-                    b8 has_transparency = material_flag_get(engine_systems_get()->material_system, m_inst->base_material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
+                    b8 has_transparency = kmaterial_flag_get(engine_systems_get()->material_system, m_inst->base_material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
                     if (has_transparency) {
                         // For meshes _with_ transparency, add them to a separate list to be sorted by distance later.
                         // Get the center, extract the global position from the model matrix and add it to the center,

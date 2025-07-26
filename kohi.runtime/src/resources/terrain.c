@@ -15,7 +15,7 @@
 #include "renderer/renderer_types.h"
 #include "strings/kname.h"
 #include "systems/asset_system.h"
-#include "systems/material_system.h"
+#include "systems/kmaterial_system.h"
 
 static void terrain_chunk_destroy(terrain* t, terrain_chunk* chunk);
 static void terrain_chunk_calculate_geometry(terrain* t, terrain_chunk* chunk, u32 chunk_offset_x, u32 chunk_offset_z);
@@ -185,10 +185,10 @@ b8 terrain_chunk_load(terrain* t, terrain_chunk* chunk) {
 
     // Create a terrain material by copying the properties of these materials to a new terrain material.
     // FIXME: Need layered materials for this. This is just using the default standard material for now if nothing exists.
-    material_system_acquire(engine_systems_get()->material_system, t->material_name ? t->material_name : kname_create(MATERIAL_DEFAULT_NAME_STANDARD), &chunk->material);
+    kmaterial_system_acquire(engine_systems_get()->material_system, t->material_name ? t->material_name : kname_create(KMATERIAL_DEFAULT_NAME_STANDARD), &chunk->material);
     if (chunk->material.base_material == KMATERIAL_INVALID || chunk->material.instance_id == KMATERIAL_INSTANCE_INVALID) {
         KWARN("Failed to acquire terrain material. Using defualt instead.");
-        chunk->material = material_system_get_default_blended(engine_systems_get()->material_system);
+        chunk->material = kmaterial_system_get_default_blended(engine_systems_get()->material_system);
     }
 
     // Update the generation, making this valid to render.
@@ -235,7 +235,7 @@ b8 terrain_chunk_unload(terrain* t, terrain_chunk* chunk) {
     // This will allow for chunks to be unloaded/reloaded at will.
 
     // Release the material reference.
-    material_system_release(engine_systems_get()->material_system, &chunk->material);
+    kmaterial_system_release(engine_systems_get()->material_system, &chunk->material);
 
     if (chunk->vertices) {
         // NOTE: since geometry is not used here, need to release vertex and index data manually.
